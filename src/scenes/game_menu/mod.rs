@@ -353,6 +353,7 @@ fn snapshot_hud_options(snapshot: &ApplySnapshot) -> HudOptions {
         show_minimap: snapshot.hud.show_minimap,
         show_action_bars: snapshot.hud.show_action_bars,
         show_nameplates: snapshot.hud.show_nameplates,
+        nameplate_distance: snapshot.hud.nameplate_distance,
         show_health_bars: snapshot.hud.show_health_bars,
         show_target_marker: snapshot.hud.show_target_marker,
         show_fps_overlay: snapshot.hud.show_fps_overlay,

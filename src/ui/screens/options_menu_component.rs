@@ -161,6 +161,7 @@ pub struct HudOptionsView {
     pub show_minimap: bool,
     pub show_action_bars: bool,
     pub show_nameplates: bool,
+    pub nameplate_distance: f32,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,

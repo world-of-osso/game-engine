@@ -145,6 +145,7 @@ pub struct HudOptions {
     pub show_minimap: bool,
     pub show_action_bars: bool,
     pub show_nameplates: bool,
+    pub nameplate_distance: f32,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,
@@ -157,6 +158,7 @@ impl Default for HudOptions {
             show_minimap: true,
             show_action_bars: true,
             show_nameplates: true,
+            nameplate_distance: default_nameplate_distance(),
             show_health_bars: true,
             show_target_marker: true,
             show_fps_overlay: true,
@@ -171,6 +173,9 @@ impl HudOptions {
             show_minimap: file.show_minimap,
             show_action_bars: file.show_action_bars,
             show_nameplates: file.show_nameplates,
+            nameplate_distance: file
+                .nameplate_distance
+                .clamp(MIN_NAMEPLATE_DISTANCE, MAX_NAMEPLATE_DISTANCE),
             show_health_bars: file.show_health_bars,
             show_target_marker: file.show_target_marker,
             show_fps_overlay: file.show_fps_overlay,
@@ -354,6 +359,8 @@ struct HudOptionsFile {
     show_minimap: bool,
     show_action_bars: bool,
     show_nameplates: bool,
+    #[serde(default = "default_nameplate_distance", rename = "nameplateDistance")]
+    nameplate_distance: f32,
     show_health_bars: bool,
     show_target_marker: bool,
     show_fps_overlay: bool,
@@ -368,6 +375,7 @@ impl Default for HudOptionsFile {
             show_minimap: defaults.show_minimap,
             show_action_bars: defaults.show_action_bars,
             show_nameplates: defaults.show_nameplates,
+            nameplate_distance: defaults.nameplate_distance,
             show_health_bars: defaults.show_health_bars,
             show_target_marker: defaults.show_target_marker,
             show_fps_overlay: defaults.show_fps_overlay,
@@ -409,38 +417,57 @@ fn build_options_file(
     modal_offset: [f32; 2],
 ) -> ClientOptionsFile {
     ClientOptionsFile {
-        sound: sound
-            .map(SoundOptionsFile::from_runtime)
-            .unwrap_or_default(),
-        camera: CameraOptionsFile {
-            look_sensitivity: camera.look_sensitivity,
-            invert_y: camera.invert_y,
-            follow_speed: camera.follow_speed,
-            zoom_speed: camera.zoom_speed,
-            min_distance: camera.min_distance,
-            max_distance: camera.max_distance,
-        },
-        graphics: GraphicsOptionsFile {
-            particle_density: graphics.particle_density.clamp(10, 100),
-            render_scale: graphics.render_scale.clamp(0.5, 1.0),
-            ui_scale: graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
-            bloom_enabled: graphics.bloom_enabled,
-            bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
-        },
-        hud: HudOptionsFile {
-            show_minimap: hud.show_minimap,
-            show_action_bars: hud.show_action_bars,
-            show_nameplates: hud.show_nameplates,
-            show_health_bars: hud.show_health_bars,
-            show_target_marker: hud.show_target_marker,
-            show_fps_overlay: hud.show_fps_overlay,
-            chat_font_size: hud
-                .chat_font_size
-                .clamp(MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE),
-        },
+        sound: build_sound_options_file(sound),
+        camera: build_camera_options_file(camera),
+        graphics: build_graphics_options_file(graphics),
+        hud: build_hud_options_file(hud),
         bindings: bindings.clone(),
         modal_offset: Some(modal_offset),
         modal_position: None,
+    }
+}
+
+fn build_sound_options_file(sound: Option<&SoundSettings>) -> SoundOptionsFile {
+    sound
+        .map(SoundOptionsFile::from_runtime)
+        .unwrap_or_default()
+}
+
+fn build_camera_options_file(camera: &CameraOptions) -> CameraOptionsFile {
+    CameraOptionsFile {
+        look_sensitivity: camera.look_sensitivity,
+        invert_y: camera.invert_y,
+        follow_speed: camera.follow_speed,
+        zoom_speed: camera.zoom_speed,
+        min_distance: camera.min_distance,
+        max_distance: camera.max_distance,
+    }
+}
+
+fn build_graphics_options_file(graphics: &GraphicsOptions) -> GraphicsOptionsFile {
+    GraphicsOptionsFile {
+        particle_density: graphics.particle_density.clamp(10, 100),
+        render_scale: graphics.render_scale.clamp(0.5, 1.0),
+        ui_scale: graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
+        bloom_enabled: graphics.bloom_enabled,
+        bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
+    }
+}
+
+fn build_hud_options_file(hud: &HudOptions) -> HudOptionsFile {
+    HudOptionsFile {
+        show_minimap: hud.show_minimap,
+        show_action_bars: hud.show_action_bars,
+        show_nameplates: hud.show_nameplates,
+        nameplate_distance: hud
+            .nameplate_distance
+            .clamp(MIN_NAMEPLATE_DISTANCE, MAX_NAMEPLATE_DISTANCE),
+        show_health_bars: hud.show_health_bars,
+        show_target_marker: hud.show_target_marker,
+        show_fps_overlay: hud.show_fps_overlay,
+        chat_font_size: hud
+            .chat_font_size
+            .clamp(MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE),
     }
 }
 
@@ -479,8 +506,15 @@ const fn default_bloom_intensity() -> f32 {
 
 pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;
+pub const MIN_NAMEPLATE_DISTANCE: f32 = 20.0;
+pub const MAX_NAMEPLATE_DISTANCE: f32 = 80.0;
+pub const DEFAULT_NAMEPLATE_DISTANCE: f32 = 40.0;
 pub const MIN_CHAT_FONT_SIZE: f32 = 8.0;
 pub const MAX_CHAT_FONT_SIZE: f32 = 16.0;
+
+const fn default_nameplate_distance() -> f32 {
+    DEFAULT_NAMEPLATE_DISTANCE
+}
 
 const fn default_chat_font_size() -> f32 {
     10.0
@@ -634,6 +668,7 @@ mod tests {
         assert!(defaults.show_minimap);
         assert!(defaults.show_action_bars);
         assert!(defaults.show_target_marker);
+        assert!((defaults.nameplate_distance - DEFAULT_NAMEPLATE_DISTANCE).abs() < 0.0001);
         assert!((defaults.chat_font_size - 10.0).abs() < 0.0001);
     }
 
@@ -643,6 +678,7 @@ mod tests {
             show_minimap: false,
             show_action_bars: true,
             show_nameplates: false,
+            nameplate_distance: default_nameplate_distance(),
             show_health_bars: false,
             show_target_marker: true,
             show_fps_overlay: false,
@@ -794,6 +830,7 @@ mod tests {
                 show_minimap: false,
                 show_action_bars: true,
                 show_nameplates: false,
+                nameplate_distance: 60.0,
                 show_health_bars: true,
                 show_target_marker: false,
                 show_fps_overlay: false,
@@ -813,6 +850,7 @@ mod tests {
         assert_eq!(loaded.graphics.particle_density, 60);
         assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
         assert!(!loaded.hud.show_minimap);
+        assert!((loaded.hud.nameplate_distance - 60.0).abs() < 0.0001);
         assert!((loaded.hud.chat_font_size - 13.0).abs() < 0.0001);
         assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));
         assert_eq!(
@@ -849,6 +887,27 @@ mod tests {
 
         assert!((HudOptions::from_file(&low).chat_font_size - MIN_CHAT_FONT_SIZE).abs() < 0.0001);
         assert!((HudOptions::from_file(&high).chat_font_size - MAX_CHAT_FONT_SIZE).abs() < 0.0001);
+    }
+
+    #[test]
+    fn hud_options_file_clamps_nameplate_distance_range() {
+        let low = HudOptionsFile {
+            nameplate_distance: 1.0,
+            ..HudOptionsFile::default()
+        };
+        let high = HudOptionsFile {
+            nameplate_distance: 999.0,
+            ..HudOptionsFile::default()
+        };
+
+        assert!(
+            (HudOptions::from_file(&low).nameplate_distance - MIN_NAMEPLATE_DISTANCE).abs()
+                < 0.0001
+        );
+        assert!(
+            (HudOptions::from_file(&high).nameplate_distance - MAX_NAMEPLATE_DISTANCE).abs()
+                < 0.0001
+        );
     }
 
     #[test]

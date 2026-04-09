@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use shared::components::{Npc, Player as NetPlayer};
 
 use crate::asset::asset_cache;
-use crate::client_options::HudVisibilityToggles;
+use crate::client_options::{DEFAULT_NAMEPLATE_DISTANCE, HudOptions, HudVisibilityToggles};
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
@@ -48,11 +48,6 @@ const NPC_FONT_SIZE: f32 = 20.0;
 const NPC_NAME_COLOR: Color = Color::srgb(1.0, 0.82, 0.0);
 /// Text scale to keep world-space text reasonably sized.
 const TEXT_SCALE: f32 = 0.02;
-
-/// Full opacity within this distance (in world units).
-const FADE_NEAR: f32 = 20.0;
-/// Fully transparent beyond this distance.
-const FADE_FAR: f32 = 40.0;
 /// Y offset for quest indicator M2 above the NPC origin.
 const QUEST_INDICATOR_Y: f32 = 3.5;
 
@@ -147,30 +142,41 @@ fn billboard_nameplates(
     }
 }
 
+fn nameplate_fade_near(fade_far: f32) -> f32 {
+    (fade_far * 0.5).max(1.0)
+}
+
 /// Compute nameplate alpha based on distance to camera.
-/// Full opacity within `FADE_NEAR`, linear fade to 0 at `FADE_FAR`.
-pub fn nameplate_alpha(distance: f32) -> f32 {
-    if distance <= FADE_NEAR {
+/// Full opacity within half the configured max distance, linear fade to 0
+/// at the configured max distance.
+pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
+    let fade_far = fade_far.max(1.0);
+    let fade_near = nameplate_fade_near(fade_far);
+    if distance <= fade_near {
         1.0
-    } else if distance >= FADE_FAR {
+    } else if distance >= fade_far {
         0.0
     } else {
-        1.0 - (distance - FADE_NEAR) / (FADE_FAR - FADE_NEAR)
+        1.0 - (distance - fade_near) / (fade_far - fade_near)
     }
 }
 
 /// Fade nameplate alpha based on distance to camera.
 fn fade_nameplates_by_distance(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    hud_options: Option<Res<HudOptions>>,
     mut plate_query: Query<(&GlobalTransform, &mut TextColor), With<Nameplate>>,
 ) {
     let Ok(camera_global) = camera_query.single() else {
         return;
     };
     let camera_pos = camera_global.translation();
+    let fade_far = hud_options
+        .as_deref()
+        .map_or(DEFAULT_NAMEPLATE_DISTANCE, |hud| hud.nameplate_distance);
     for (global_tf, mut text_color) in plate_query.iter_mut() {
         let dist = camera_pos.distance(global_tf.translation());
-        let alpha = nameplate_alpha(dist);
+        let alpha = nameplate_alpha(dist, fade_far);
         text_color.0 = text_color.0.with_alpha(alpha);
     }
 }
@@ -281,13 +287,17 @@ mod tests {
 
     #[test]
     fn test_fade_at_distance() {
-        // Full opacity at 10yd (within FADE_NEAR).
-        assert!((nameplate_alpha(10.0) - 1.0).abs() < 1e-4);
-        // Half opacity at 30yd (midpoint of 20..40 range).
-        assert!((nameplate_alpha(30.0) - 0.5).abs() < 1e-4);
-        // Zero opacity at 40yd and beyond.
-        assert!((nameplate_alpha(40.0)).abs() < 1e-4);
-        assert!((nameplate_alpha(50.0)).abs() < 1e-4);
+        assert!((nameplate_alpha(10.0, DEFAULT_NAMEPLATE_DISTANCE) - 1.0).abs() < 1e-4);
+        assert!((nameplate_alpha(30.0, DEFAULT_NAMEPLATE_DISTANCE) - 0.5).abs() < 1e-4);
+        assert!((nameplate_alpha(40.0, DEFAULT_NAMEPLATE_DISTANCE)).abs() < 1e-4);
+        assert!((nameplate_alpha(50.0, DEFAULT_NAMEPLATE_DISTANCE)).abs() < 1e-4);
+    }
+
+    #[test]
+    fn farther_nameplate_distance_pushes_fade_out() {
+        assert!((nameplate_alpha(30.0, 60.0) - 1.0).abs() < 1e-4);
+        assert!((nameplate_alpha(45.0, 60.0) - 0.5).abs() < 1e-4);
+        assert!((nameplate_alpha(60.0, 60.0)).abs() < 1e-4);
     }
 
     #[test]

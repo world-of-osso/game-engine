@@ -269,6 +269,7 @@ mod tests {
             show_minimap: true,
             show_action_bars: true,
             show_nameplates: true,
+            nameplate_distance: 40.0,
             show_health_bars: true,
             show_target_marker: true,
             show_fps_overlay: true,
@@ -496,6 +497,15 @@ mod tests {
         assert!(reg.get_by_name("SliderRowchat_font_size").is_some());
         assert!(reg.get_by_name("Sliderchat_font_size").is_some());
         assert!(reg.get_by_name("Sliderchat_font_sizeHandle").is_some());
+    }
+
+    #[test]
+    fn hud_screen_includes_nameplate_distance_slider() {
+        let reg = options_registry_for_category(OptionsCategory::Hud);
+
+        assert!(reg.get_by_name("SliderRownameplate_distance").is_some());
+        assert!(reg.get_by_name("Slidernameplate_distance").is_some());
+        assert!(reg.get_by_name("Slidernameplate_distanceHandle").is_some());
     }
 
     #[test]

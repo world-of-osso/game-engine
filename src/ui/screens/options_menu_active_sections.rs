@@ -38,6 +38,8 @@ const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
 const UI_SCALE_MIN: f32 = 0.75;
 const UI_SCALE_MAX: f32 = 1.5;
+const NAMEPLATE_DISTANCE_MIN: f32 = 20.0;
+const NAMEPLATE_DISTANCE_MAX: f32 = 80.0;
 const CHAT_FONT_SIZE_MIN: f32 = 8.0;
 const CHAT_FONT_SIZE_MAX: f32 = 16.0;
 const BINDING_VALUE_W: f32 = 180.0;
@@ -144,6 +146,13 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
             toggle_row("show_minimap", "Show Minimap", hud.show_minimap),
             toggle_row("show_action_bars", "Show Action Bars", hud.show_action_bars),
             toggle_row("show_nameplates", "Show Nameplates", hud.show_nameplates),
+            slider_row(
+                "nameplate_distance",
+                "Nameplate Distance",
+                hud.nameplate_distance,
+                NAMEPLATE_DISTANCE_MIN,
+                NAMEPLATE_DISTANCE_MAX,
+            ),
             toggle_row("show_health_bars", "Show Health Bars", hud.show_health_bars),
             toggle_row(
                 "show_target_marker",

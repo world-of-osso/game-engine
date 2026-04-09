@@ -23,6 +23,7 @@ pub enum SliderField {
     ParticleDensity,
     RenderScale,
     UiScale,
+    NameplateDistance,
     ChatFontSize,
     BloomIntensity,
     MasterVolume,
@@ -95,6 +96,7 @@ pub struct HudDraft {
     pub show_minimap: bool,
     pub show_action_bars: bool,
     pub show_nameplates: bool,
+    pub nameplate_distance: f32,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,
@@ -156,6 +158,7 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
         show_minimap: hud.show_minimap,
         show_action_bars: hud.show_action_bars,
         show_nameplates: hud.show_nameplates,
+        nameplate_distance: hud.nameplate_distance,
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         show_fps_overlay: hud.show_fps_overlay,
@@ -200,6 +203,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_minimap: h.show_minimap,
         show_action_bars: h.show_action_bars,
         show_nameplates: h.show_nameplates,
+        nameplate_distance: h.nameplate_distance,
         show_health_bars: h.show_health_bars,
         show_target_marker: h.show_target_marker,
         show_fps_overlay: h.show_fps_overlay,
@@ -257,6 +261,7 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
         "particle_density" => SliderField::ParticleDensity,
         "render_scale" => SliderField::RenderScale,
         "ui_scale" => SliderField::UiScale,
+        "nameplate_distance" => SliderField::NameplateDistance,
         "chat_font_size" => SliderField::ChatFontSize,
         "bloom_intensity" => SliderField::BloomIntensity,
         "master_volume" => SliderField::MasterVolume,
@@ -280,6 +285,10 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
             crate::client_options::MIN_UI_SCALE,
             crate::client_options::MAX_UI_SCALE,
         ),
+        SliderField::NameplateDistance => (
+            crate::client_options::MIN_NAMEPLATE_DISTANCE,
+            crate::client_options::MAX_NAMEPLATE_DISTANCE,
+        ),
         SliderField::ChatFontSize => (
             crate::client_options::MIN_CHAT_FONT_SIZE,
             crate::client_options::MAX_CHAT_FONT_SIZE,
@@ -301,6 +310,7 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
         SliderField::RenderScale => model.draft_graphics.render_scale = value,
         SliderField::UiScale => model.draft_graphics.ui_scale = value,
+        SliderField::NameplateDistance => model.draft_hud.nameplate_distance = value.round(),
         SliderField::ChatFontSize => model.draft_hud.chat_font_size = value.round(),
         SliderField::BloomIntensity => model.draft_graphics.bloom_intensity = value,
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
@@ -402,6 +412,16 @@ fn apply_sound_step(key: &str, step: f32, sound: &mut SoundDraft) -> bool {
 
 fn apply_hud_step(key: &str, step: f32, hud: &mut HudDraft) -> bool {
     match key {
+        "nameplate_distance" => {
+            hud.nameplate_distance = clamp_step(
+                hud.nameplate_distance,
+                5.0 * step,
+                crate::client_options::MIN_NAMEPLATE_DISTANCE,
+                crate::client_options::MAX_NAMEPLATE_DISTANCE,
+            )
+            .round();
+            true
+        }
         "chat_font_size" => {
             hud.chat_font_size = clamp_step(
                 hud.chat_font_size,
@@ -532,6 +552,13 @@ pub fn apply_hud_snapshot(h: &mut HudOptions, d: &HudDraft) {
     h.show_minimap = d.show_minimap;
     h.show_action_bars = d.show_action_bars;
     h.show_nameplates = d.show_nameplates;
+    h.nameplate_distance = d
+        .nameplate_distance
+        .clamp(
+            crate::client_options::MIN_NAMEPLATE_DISTANCE,
+            crate::client_options::MAX_NAMEPLATE_DISTANCE,
+        )
+        .round();
     h.show_health_bars = d.show_health_bars;
     h.show_target_marker = d.show_target_marker;
     h.show_fps_overlay = d.show_fps_overlay;
@@ -622,6 +649,13 @@ mod tests {
     }
 
     #[test]
+    fn slider_apply_nameplate_distance_updates_hud_draft() {
+        let mut model = default_model();
+        apply_slider_value(SliderField::NameplateDistance, 55.0, &mut model);
+        assert!((model.draft_hud.nameplate_distance - 55.0).abs() < 0.001);
+    }
+
+    #[test]
     fn slider_apply_chat_font_size_updates_hud_draft() {
         let mut model = default_model();
         apply_slider_value(SliderField::ChatFontSize, 14.0, &mut model);
@@ -645,6 +679,7 @@ mod tests {
             SliderField::ParticleDensity,
             SliderField::RenderScale,
             SliderField::UiScale,
+            SliderField::NameplateDistance,
             SliderField::ChatFontSize,
             SliderField::MasterVolume,
             SliderField::LookSensitivity,
@@ -665,6 +700,10 @@ mod tests {
             ("options_slider:master_volume", SliderField::MasterVolume),
             ("options_slider:render_scale", SliderField::RenderScale),
             ("options_slider:ui_scale", SliderField::UiScale),
+            (
+                "options_slider:nameplate_distance",
+                SliderField::NameplateDistance,
+            ),
             ("options_slider:chat_font_size", SliderField::ChatFontSize),
             ("options_slider:min_distance", SliderField::MinDistance),
         ];
