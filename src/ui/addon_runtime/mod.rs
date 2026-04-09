@@ -152,19 +152,14 @@ impl AddonRuntime {
         if !path.exists() {
             return;
         }
-        match path.extension().and_then(|ext| ext.to_str()) {
-            Some("js") => match load_js_addon(&path) {
+        if let Some("js") = path.extension().and_then(|ext| ext.to_str()) {
+            match load_js_addon(&path) {
                 Ok(addon) => {
                     info!("loaded JS addon: {}", addon.name);
                     self.addons.insert(path, addon);
                 }
                 Err(err) => warn!("failed to load addon {}: {err}", path.display()),
-            },
-            Some("wasm") => warn!(
-                "WASM addon {} is discovered but still stubbed; use .js addons for live UI customization",
-                path.display()
-            ),
-            _ => {}
+            }
         }
     }
 

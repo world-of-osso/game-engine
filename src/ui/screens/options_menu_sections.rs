@@ -80,7 +80,7 @@ pub fn social_addons_body() -> Element {
             info_row(
                 "social_compat",
                 "Compatibility",
-                "The legacy `.wasm` host is still stubbed; live UI customization uses QuickJS-backed `.js` addons today",
+                "Live UI customization uses QuickJS-backed `.js` addons today; unsupported addon files are ignored",
             ),
         ]
         .into_iter()

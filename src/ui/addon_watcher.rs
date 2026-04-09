@@ -9,7 +9,7 @@ fn addon_extension(path: &Path) -> Option<&str> {
 }
 
 fn is_supported_addon_path(path: &Path) -> bool {
-    matches!(addon_extension(path), Some("js" | "wasm"))
+    matches!(addon_extension(path), Some("js"))
 }
 
 fn create_watcher(
@@ -152,18 +152,11 @@ mod tests {
     #[test]
     fn scan_finds_supported_addon_files() {
         let dir = test_dir("scan");
-        fs::write(dir.join("addon1.wasm"), [0u8]).unwrap();
         fs::write(dir.join("addon2.js"), b"addon.show('Test');").unwrap();
         fs::write(dir.join("readme.txt"), [0u8]).unwrap();
 
         let files = scan_addon_dir(&dir).unwrap();
-        assert_eq!(files.len(), 2);
-        let mut extensions = files
-            .iter()
-            .map(|f| f.extension().unwrap().to_string_lossy().to_string())
-            .collect::<Vec<_>>();
-        extensions.sort();
-        assert_eq!(extensions, vec!["js".to_string(), "wasm".to_string()]);
+        assert_eq!(files, vec![dir.join("addon2.js")]);
 
         fs::remove_dir_all(&dir).ok();
     }
