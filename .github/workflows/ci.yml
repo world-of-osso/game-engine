@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-clippy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout game-engine
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Checkout shared-protocol
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/shared-protocol
+          path: deps/shared-protocol
+
+      - name: Checkout ui-toolkit
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/ui-toolkit
+          path: deps/ui-toolkit
+
+      - name: Checkout ui-toolkit-macros
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/ui-toolkit-macros
+          path: deps/ui-toolkit-macros
+
+      - name: Checkout asset-resolver
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/asset-resolver
+          path: deps/asset-resolver
+
+      - name: Link sibling path dependencies
+        run: |
+          ln -sfn "$GITHUB_WORKSPACE/deps/shared-protocol" "$GITHUB_WORKSPACE/../shared-protocol"
+          ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit" "$GITHUB_WORKSPACE/../ui-toolkit"
+          ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit-macros" "$GITHUB_WORKSPACE/../ui-toolkit-macros"
+          ln -sfn "$GITHUB_WORKSPACE/deps/asset-resolver" "$GITHUB_WORKSPACE/../asset-resolver"
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libasound2-dev \
+            libfontconfig1-dev \
+            libgl1-mesa-dev \
+            libudev-dev \
+            libwayland-dev \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxkbcommon-dev \
+            libxrandr-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.94.0
+          components: clippy, rustfmt
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked --workspace --all-targets
+
+      - name: Test
+        run: cargo test --locked --workspace --all-targets
+
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets --no-deps
+
+      - name: Rustfmt
+        run: cargo fmt --check
