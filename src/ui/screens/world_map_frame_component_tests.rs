@@ -33,6 +33,7 @@ fn sample_state() -> WorldMapFrameState {
             ov("Goldshire", 0.3, 0.5, 0.2, 0.15),
             ov("Northshire", 0.5, 0.2, 0.15, 0.1),
         ],
+        fog_overlays: Vec::new(),
         pins: vec![
             pin(MapPinType::Quest, "Quest Hub", 0.35, 0.55),
             pin(MapPinType::FlightPath, "Goldshire FP", 0.32, 0.52),
@@ -353,6 +354,19 @@ fn coord_second_zone_overlay() {
     let expected_y = CANVAS_TOP + 0.2 * CANVAS_H;
     assert!((ov_r.x - expected_x).abs() < 1.0);
     assert!((ov_r.y - expected_y).abs() < 1.0);
+}
+
+#[test]
+fn builds_fog_overlay_when_present() {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    let mut state = sample_state();
+    state.fog_overlays = vec![ov("Unexplored: Elwynn Forest", 0.0, 0.0, 1.0, 1.0)];
+    shared.insert(state);
+    Screen::new(world_map_frame_screen).sync(&shared, &mut reg);
+
+    assert!(reg.get_by_name("WorldMapFogOv0").is_some());
+    assert!(reg.get_by_name("WorldMapFogOv0Label").is_some());
 }
 
 #[test]

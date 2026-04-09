@@ -26,3 +26,4 @@ pub mod setup;
 pub mod skybox_debug;
 pub mod talent_frame;
 pub mod teardown;
+pub mod world_map_frame;

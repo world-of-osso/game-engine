@@ -691,6 +691,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::calendar_frame::CalendarFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
         scenes::talent_frame::TalentFramePlugin,
+        scenes::world_map_frame::WorldMapFramePlugin,
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));

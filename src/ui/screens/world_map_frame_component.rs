@@ -60,6 +60,8 @@ const TOOLTIP_W: f32 = 180.0;
 const TOOLTIP_LINE_H: f32 = 16.0;
 const TOOLTIP_INSET: f32 = 6.0;
 
+pub const ACTION_WORLD_MAP_CLOSE: &str = "world_map_close";
+
 // --- Colors ---
 
 const FRAME_BG: &str = "0.04,0.03,0.02,0.95";
@@ -74,6 +76,8 @@ const DROPDOWN_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
 const DROPDOWN_ARROW_COLOR: &str = "0.8,0.8,0.8,1.0";
 const ZONE_OVERLAY_BG: &str = "0.3,0.25,0.1,0.25";
 const ZONE_OVERLAY_TEXT: &str = "1.0,0.82,0.0,0.8";
+const FOG_OVERLAY_BG: &str = "0.0,0.0,0.0,0.72";
+const FOG_OVERLAY_TEXT: &str = "0.85,0.85,0.85,0.92";
 const PIN_QUEST_BG: &str = "1.0,0.82,0.0,0.9";
 const PIN_FP_BG: &str = "0.3,0.8,0.3,0.9";
 const PIN_POI_BG: &str = "0.6,0.6,0.6,0.9";
@@ -150,6 +154,7 @@ pub struct WorldMapFrameState {
     pub player_y: f32,
     pub continent_name: String,
     pub zone_overlays: Vec<ZoneOverlay>,
+    pub fog_overlays: Vec<ZoneOverlay>,
     pub pins: Vec<MapPin>,
     pub flight_paths: Vec<FlightPathSegment>,
     /// Index of hovered pin for tooltip display.
@@ -190,6 +195,7 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
             {flight_path_lines(&state.flight_paths)}
             {zone_overlays(&state.zone_overlays)}
             {map_pins(&state.pins)}
+            {fog_overlays(&state.fog_overlays)}
             {map_legend()}
             {pin_tooltip(&state.pins, state.hovered_pin)}
             {close_button()}
@@ -362,6 +368,48 @@ fn zone_overlays(overlays: &[ZoneOverlay]) -> Element {
         .enumerate()
         .take(ZONE_OVERLAY_MAX)
         .flat_map(|(i, ov)| zone_overlay_frame(i, ov))
+        .collect()
+}
+
+fn fog_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
+    let id = DynName(format!("WorldMapFogOv{i}"));
+    let label_id = DynName(format!("WorldMapFogOv{i}Label"));
+    let x = CANVAS_INSET + ov.x * CANVAS_W;
+    let y = CANVAS_TOP + ov.y * CANVAS_H;
+    let w = ov.w * CANVAS_W;
+    let h = ov.h * CANVAS_H;
+    rsx! {
+        r#frame {
+            name: id,
+            width: {w},
+            height: {h},
+            background_color: FOG_OVERLAY_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-y},
+            }
+            fontstring {
+                name: label_id,
+                width: {w},
+                height: {h},
+                text: {ov.name.as_str()},
+                font_size: 12.0,
+                font_color: FOG_OVERLAY_TEXT,
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
+fn fog_overlays(overlays: &[ZoneOverlay]) -> Element {
+    overlays
+        .iter()
+        .enumerate()
+        .take(ZONE_OVERLAY_MAX)
+        .flat_map(|(i, ov)| fog_overlay_frame(i, ov))
         .collect()
 }
 
@@ -590,6 +638,7 @@ fn close_button() -> Element {
             name: "WorldMapCloseBtn",
             width: {CLOSE_BTN_SIZE},
             height: {CLOSE_BTN_SIZE},
+            onclick: ACTION_WORLD_MAP_CLOSE,
             background_color: CLOSE_BTN_BG,
             anchor {
                 point: AnchorPoint::TopRight,
