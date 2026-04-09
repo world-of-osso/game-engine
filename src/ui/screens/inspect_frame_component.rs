@@ -164,30 +164,7 @@ fn equipment_panel(rows: &[InspectEquipmentRow]) -> Element {
 }
 
 fn talent_panel(rows: &[InspectTalentRow]) -> Element {
-    let content: Element = if rows.is_empty() {
-        rsx! {
-            fontstring {
-                name: "InspectTalentEmpty",
-                width: {PANEL_W - 8.0},
-                height: 14.0,
-                text: "-",
-                font_size: 10.0,
-                font_color: SUBTLE,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: {-(ROW_H + 4.0)},
-                }
-            }
-        }
-    } else {
-        rows.iter()
-            .enumerate()
-            .flat_map(|(index, row)| talent_row(index, row))
-            .collect()
-    };
+    let content = talent_panel_content(rows);
     rsx! {
         r#frame {
             name: "InspectTalentPanel",
@@ -202,6 +179,37 @@ fn talent_panel(rows: &[InspectTalentRow]) -> Element {
             }
             {panel_header("InspectTalentHeader", "Talents")}
             {content}
+        }
+    }
+}
+
+fn talent_panel_content(rows: &[InspectTalentRow]) -> Element {
+    if rows.is_empty() {
+        talent_panel_empty_state()
+    } else {
+        rows.iter()
+            .enumerate()
+            .flat_map(|(index, row)| talent_row(index, row))
+            .collect()
+    }
+}
+
+fn talent_panel_empty_state() -> Element {
+    rsx! {
+        fontstring {
+            name: "InspectTalentEmpty",
+            width: {PANEL_W - 8.0},
+            height: 14.0,
+            text: "-",
+            font_size: 10.0,
+            font_color: SUBTLE,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "4",
+                y: {-(ROW_H + 4.0)},
+            }
         }
     }
 }
