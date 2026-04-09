@@ -32,7 +32,7 @@ mod terrain_objects_wmo_group;
 #[path = "terrain_objects_wmo_surface.rs"]
 mod terrain_objects_wmo_surface;
 #[cfg(test)]
-#[path = "terrain_objects_wmo_tests.rs"]
+#[path = "terrain_objects_wmo_tests/mod.rs"]
 mod tests;
 
 use self::terrain_objects_wmo_group::*;
