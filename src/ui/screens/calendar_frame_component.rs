@@ -232,50 +232,68 @@ fn event_row(index: usize, event: &CalendarEventRow) -> Element {
                 x: "0",
                 y: {y},
             }
-            fontstring {
-                name: {DynName(format!("CalendarEventRow{index}Title"))},
-                width: "200",
-                height: "16",
-                text: {event.title.as_str()},
-                font_size: 12.0,
-                font_color: PRIMARY_TEXT,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "8",
-                    y: "-5",
-                }
+            {event_row_title(index, &event.title)}
+            {event_row_time(index, &event.schedule_text)}
+            {event_row_counts(index, &event.counts_text)}
+        }
+    }
+}
+
+fn event_row_title(index: usize, title: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("CalendarEventRow{index}Title"))},
+            width: "200",
+            height: "16",
+            text: title,
+            font_size: 12.0,
+            font_color: PRIMARY_TEXT,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "8",
+                y: "-5",
             }
-            fontstring {
-                name: {DynName(format!("CalendarEventRow{index}Time"))},
-                width: "120",
-                height: "14",
-                text: {event.schedule_text.as_str()},
-                font_size: 11.0,
-                font_color: SECONDARY_TEXT,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "8",
-                    y: "-20",
-                }
+        }
+    }
+}
+
+fn event_row_time(index: usize, schedule_text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("CalendarEventRow{index}Time"))},
+            width: "120",
+            height: "14",
+            text: schedule_text,
+            font_size: 11.0,
+            font_color: SECONDARY_TEXT,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: "8",
+                y: "-20",
             }
-            fontstring {
-                name: {DynName(format!("CalendarEventRow{index}Counts"))},
-                width: "120",
-                height: "14",
-                text: {event.counts_text.as_str()},
-                font_size: 11.0,
-                font_color: SECONDARY_TEXT,
-                justify_h: "RIGHT",
-                anchor {
-                    point: AnchorPoint::TopRight,
-                    relative_point: AnchorPoint::TopRight,
-                    x: "-8",
-                    y: "-12",
-                }
+        }
+    }
+}
+
+fn event_row_counts(index: usize, counts_text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("CalendarEventRow{index}Counts"))},
+            width: "120",
+            height: "14",
+            text: counts_text,
+            font_size: 11.0,
+            font_color: SECONDARY_TEXT,
+            justify_h: "RIGHT",
+            anchor {
+                point: AnchorPoint::TopRight,
+                relative_point: AnchorPoint::TopRight,
+                x: "-8",
+                y: "-12",
             }
         }
     }
