@@ -255,26 +255,34 @@ fn equipment_row(index: usize, row: &InspectEquipmentRow) -> Element {
                 x: "0",
                 y: {-((index + 1) as f32 * ROW_H)},
             }
-            fontstring {
-                name: DynName(format!("InspectEquipmentRow{index}Slot")),
-                width: {72.0},
-                height: {ROW_H},
-                text: {row.slot_name.as_str()},
-                font_size: 9.0,
-                font_color: HEADER_TEXT,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
-            }
-            fontstring {
-                name: DynName(format!("InspectEquipmentRow{index}Value")),
-                width: {PANEL_W - 80.0},
-                height: {ROW_H},
-                text: {row.value.as_str()},
-                font_size: 9.0,
-                font_color: TEXT,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "76", y: "0" }
-            }
+            {equipment_row_cells(index, row)}
+        }
+    }
+}
+
+fn equipment_row_cells(index: usize, row: &InspectEquipmentRow) -> Element {
+    let slot_name = DynName(format!("InspectEquipmentRow{index}Slot"));
+    let value_name = DynName(format!("InspectEquipmentRow{index}Value"));
+    rsx! {
+        fontstring {
+            name: slot_name,
+            width: 72.0,
+            height: {ROW_H},
+            text: {row.slot_name.as_str()},
+            font_size: 9.0,
+            font_color: HEADER_TEXT,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+        }
+        fontstring {
+            name: value_name,
+            width: {PANEL_W - 80.0},
+            height: {ROW_H},
+            text: {row.value.as_str()},
+            font_size: 9.0,
+            font_color: TEXT,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "76", y: "0" }
         }
     }
 }
