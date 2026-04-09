@@ -212,6 +212,17 @@ impl SpellbookUiRuntime {
         self.handle_pointer_button(registry, false, x, y)
     }
 
+    pub fn spell_for_frame(
+        &self,
+        registry: &FrameRegistry,
+        frame_id: u64,
+    ) -> Option<SpellbookSpell> {
+        match self.target_for_frame(registry, frame_id)? {
+            HitTarget::Spell(spell_id) => find_spell(spell_id).copied(),
+            HitTarget::Tab(_) => None,
+        }
+    }
+
     fn change_tab(&mut self, forward: bool) -> bool {
         if SPELLBOOK_TABS.is_empty() {
             return false;
@@ -254,7 +265,17 @@ impl SpellbookUiRuntime {
 
     fn hit_target_at(&self, registry: &FrameRegistry, x: f32, y: f32) -> Option<HitTarget> {
         let frame_id = find_frame_at(registry, x, y)?;
-        self.click_targets.get(&frame_id).copied()
+        self.target_for_frame(registry, frame_id)
+    }
+
+    fn target_for_frame(&self, registry: &FrameRegistry, mut frame_id: u64) -> Option<HitTarget> {
+        loop {
+            if let Some(target) = self.click_targets.get(&frame_id).copied() {
+                return Some(target);
+            }
+            let frame = registry.get(frame_id)?;
+            frame_id = frame.parent_id?;
+        }
     }
 
     fn activate_target(&mut self, target: Option<HitTarget>) -> Option<SpellbookAction> {
@@ -603,6 +624,21 @@ mod tests {
         let sample_spell =
             get_fontstring_text(&registry, sample_spell_id).expect("spell row is a text label");
         assert_eq!(sample_spell, "Eye of Tyr");
+    }
+
+    #[test]
+    fn spell_for_frame_returns_hovered_spell() {
+        let mut runtime = SpellbookUiRuntime::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        runtime.sync(&mut registry);
+        let frame_id = registry
+            .get_by_name("SpellBookSpellName1")
+            .expect("spell row label exists");
+        let spell = runtime
+            .spell_for_frame(&registry, frame_id)
+            .expect("spell tooltip target");
+        assert_eq!(spell.id, 31935);
+        assert_eq!(spell.name, "Avenger's Shield");
     }
 
     #[test]
