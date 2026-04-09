@@ -17,7 +17,7 @@ use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
 
 #[test]
 fn formats_network_status_snapshot() {
-    let text = format_network_status(
+    let text = super::format_status::format_network_status(
         &NetworkStatusSnapshot {
             server_addr: Some("127.0.0.1:8085".into()),
             game_state: "InWorld".into(),
@@ -72,7 +72,7 @@ fn formats_terrain_status_snapshot() {
 
 #[test]
 fn formats_sound_status_snapshot() {
-    let text = format_sound_status(&SoundStatusSnapshot {
+    let text = super::format_status::format_sound_status(&SoundStatusSnapshot {
         enabled: true,
         muted: false,
         master_volume: 0.8,
@@ -87,7 +87,7 @@ fn formats_sound_status_snapshot() {
 
 #[test]
 fn formats_achievement_status_with_completion_toast() {
-    let text = format_achievement_status(&AchievementsStatusSnapshot {
+    let text = super::format_status::format_achievement_status(&AchievementsStatusSnapshot {
         earned_ids: vec![1],
         progress: vec![AchievementProgressEntry {
             achievement_id: 2,
@@ -145,25 +145,26 @@ fn formats_barber_shop_status_snapshot() {
 
 #[test]
 fn formats_encounter_journal_status_snapshot() {
-    let text = format_encounter_journal_status(&EncounterJournalStatusSnapshot {
-        instances: vec![EncounterJournalInstanceEntry {
-            instance_id: 1,
-            name: "The Deadmines".into(),
-            instance_type: "Dungeon".into(),
-            tier: "Classic".into(),
-            source: "world.db:test".into(),
-            bosses: vec![EncounterJournalBossEntry {
-                entry: 639,
-                name: "Edwin VanCleef".into(),
-                min_level: 20,
-                max_level: 20,
-                rank: 1,
-                ability_count: 2,
-                loot_count: 2,
+    let text =
+        super::format_status::format_encounter_journal_status(&EncounterJournalStatusSnapshot {
+            instances: vec![EncounterJournalInstanceEntry {
+                instance_id: 1,
+                name: "The Deadmines".into(),
+                instance_type: "Dungeon".into(),
+                tier: "Classic".into(),
+                source: "world.db:test".into(),
+                bosses: vec![EncounterJournalBossEntry {
+                    entry: 639,
+                    name: "Edwin VanCleef".into(),
+                    min_level: 20,
+                    max_level: 20,
+                    rank: 1,
+                    ability_count: 2,
+                    loot_count: 2,
+                }],
             }],
-        }],
-        last_error: None,
-    });
+            last_error: None,
+        });
 
     assert!(text.contains("instances: 1"));
     assert!(text.contains("The Deadmines [Dungeon] tier=Classic source=world.db:test bosses=1"));
@@ -198,13 +199,13 @@ fn formats_pvp_status_snapshot() {
 
 #[test]
 fn formats_empty_currencies_status_snapshot() {
-    let text = format_currencies_status(&CurrenciesStatusSnapshot::default());
+    let text = super::format_status::format_currencies_status(&CurrenciesStatusSnapshot::default());
     assert_eq!(text, "currencies: 0\n-");
 }
 
 #[test]
 fn formats_currencies_status_snapshot_with_server_message() {
-    let text = format_currencies_status(&CurrenciesStatusSnapshot {
+    let text = super::format_status::format_currencies_status(&CurrenciesStatusSnapshot {
         entries: vec![crate::status::CurrencyEntry {
             id: 1,
             name: "Honor".into(),
@@ -221,13 +222,14 @@ fn formats_currencies_status_snapshot_with_server_message() {
 
 #[test]
 fn formats_empty_reputations_status_snapshot() {
-    let text = format_reputations_status(&ReputationsStatusSnapshot::default());
+    let text =
+        super::format_status::format_reputations_status(&ReputationsStatusSnapshot::default());
     assert_eq!(text, "reputations: 0\n-");
 }
 
 #[test]
 fn formats_reputations_status_snapshot_with_server_message() {
-    let text = format_reputations_status(&ReputationsStatusSnapshot {
+    let text = super::format_status::format_reputations_status(&ReputationsStatusSnapshot {
         entries: vec![crate::status::ReputationEntry {
             faction_id: 72,
             faction_name: "Stormwind".into(),
@@ -390,32 +392,34 @@ fn formats_lfg_status_snapshot_with_role_check_and_match() {
 
 #[test]
 fn formats_character_stats_status_snapshot() {
-    let text = format_character_stats_status(&crate::status::CharacterStatsSnapshot {
-        character_id: None,
-        name: Some("Thrall".into()),
-        level: Some(12),
-        race: Some(2),
-        class: Some(7),
-        appearance: None,
-        health_current: Some(120.0),
-        health_max: Some(150.0),
-        mana_current: Some(80.0),
-        mana_max: Some(100.0),
-        secondary_resource: Some(crate::status::SecondaryResourceEntry {
-            kind: crate::status::SecondaryResourceKindEntry::HolyPower,
-            current: 3,
-            max: 5,
-        }),
-        movement_speed: Some(7.0),
-        gold: 50_000,
-        presence: Some(crate::status::PresenceStateEntry::Afk),
-        in_combat: true,
-        in_rest_area: true,
-        rest_area_kind: Some(crate::status::RestAreaKindEntry::Inn),
-        rested_xp: 42,
-        rested_xp_max: 400,
-        zone_id: 12,
-    });
+    let text = super::format_status::format_character_stats_status(
+        &crate::status::CharacterStatsSnapshot {
+            character_id: None,
+            name: Some("Thrall".into()),
+            level: Some(12),
+            race: Some(2),
+            class: Some(7),
+            appearance: None,
+            health_current: Some(120.0),
+            health_max: Some(150.0),
+            mana_current: Some(80.0),
+            mana_max: Some(100.0),
+            secondary_resource: Some(crate::status::SecondaryResourceEntry {
+                kind: crate::status::SecondaryResourceKindEntry::HolyPower,
+                current: 3,
+                max: 5,
+            }),
+            movement_speed: Some(7.0),
+            gold: 50_000,
+            presence: Some(crate::status::PresenceStateEntry::Afk),
+            in_combat: true,
+            in_rest_area: true,
+            rest_area_kind: Some(crate::status::RestAreaKindEntry::Inn),
+            rested_xp: 42,
+            rested_xp_max: 400,
+            zone_id: 12,
+        },
+    );
     assert!(text.contains("name: Thrall"));
     assert!(text.contains("health: 120/150"));
     assert!(text.contains("presence: afk"));
