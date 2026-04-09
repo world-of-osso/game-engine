@@ -22,6 +22,7 @@ pub enum DragCapture {
 pub enum SliderField {
     MouseSensitivity,
     ParticleDensity,
+    FrameRateLimit,
     RenderScale,
     UiScale,
     NameplateDistance,
@@ -78,6 +79,9 @@ pub struct GraphicsDraft {
     pub particle_density: f32,
     pub render_scale: f32,
     pub ui_scale: f32,
+    pub vsync_enabled: bool,
+    pub frame_rate_limit_enabled: bool,
+    pub frame_rate_limit: f32,
     pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
@@ -140,6 +144,9 @@ pub fn graphics_draft(graphics: &GraphicsOptions) -> GraphicsDraft {
         particle_density: graphics.particle_density as f32,
         render_scale: graphics.render_scale,
         ui_scale: graphics.ui_scale,
+        vsync_enabled: graphics.vsync_enabled,
+        frame_rate_limit_enabled: graphics.frame_rate_limit_enabled,
+        frame_rate_limit: f32::from(graphics.frame_rate_limit),
         colorblind_mode: graphics.colorblind_mode,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity,
@@ -176,6 +183,9 @@ fn graphics_to_view(g: &GraphicsDraft) -> GraphicsOptionsView {
         particle_density: g.particle_density,
         render_scale: g.render_scale,
         ui_scale: g.ui_scale,
+        vsync_enabled: g.vsync_enabled,
+        frame_rate_limit_enabled: g.frame_rate_limit_enabled,
+        frame_rate_limit: g.frame_rate_limit,
         colorblind_mode: g.colorblind_mode,
         bloom_enabled: g.bloom_enabled,
         bloom_intensity: g.bloom_intensity,
@@ -267,6 +277,7 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
     Some(match action.strip_prefix("options_slider:")? {
         "mouse_sensitivity" => SliderField::MouseSensitivity,
         "particle_density" => SliderField::ParticleDensity,
+        "frame_rate_limit" => SliderField::FrameRateLimit,
         "render_scale" => SliderField::RenderScale,
         "ui_scale" => SliderField::UiScale,
         "nameplate_distance" => SliderField::NameplateDistance,
@@ -292,6 +303,10 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
             crate::client_options::MAX_MOUSE_SENSITIVITY,
         ),
         SliderField::ParticleDensity => (10.0, 100.0),
+        SliderField::FrameRateLimit => (
+            f32::from(crate::client_options::MIN_FRAME_RATE_LIMIT),
+            f32::from(crate::client_options::MAX_FRAME_RATE_LIMIT),
+        ),
         SliderField::RenderScale => (0.5, 1.0),
         SliderField::UiScale => (
             crate::client_options::MIN_UI_SCALE,
@@ -321,6 +336,7 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
     match field {
         SliderField::MouseSensitivity => model.draft_camera.mouse_sensitivity = value,
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
+        SliderField::FrameRateLimit => model.draft_graphics.frame_rate_limit = value.round(),
         SliderField::RenderScale => model.draft_graphics.render_scale = value,
         SliderField::UiScale => model.draft_graphics.ui_scale = value,
         SliderField::NameplateDistance => model.draft_hud.nameplate_distance = value.round(),
@@ -393,6 +409,15 @@ fn apply_graphics_step(key: &str, step: f32, g: &mut GraphicsDraft) -> bool {
     match key {
         "particle_density" => {
             g.particle_density = clamp_step(g.particle_density, 5.0 * step, 10.0, 100.0).round()
+        }
+        "frame_rate_limit" => {
+            g.frame_rate_limit = clamp_step(
+                g.frame_rate_limit,
+                10.0 * step,
+                f32::from(crate::client_options::MIN_FRAME_RATE_LIMIT),
+                f32::from(crate::client_options::MAX_FRAME_RATE_LIMIT),
+            )
+            .round()
         }
         "render_scale" => g.render_scale = clamp_step(g.render_scale, 0.05 * step, 0.5, 1.0),
         "ui_scale" => {
@@ -477,6 +502,15 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
             model.draft_graphics.bloom_enabled = !model.draft_graphics.bloom_enabled;
             true
         }
+        "vsync_enabled" => {
+            model.draft_graphics.vsync_enabled = !model.draft_graphics.vsync_enabled;
+            true
+        }
+        "frame_rate_limit_enabled" => {
+            model.draft_graphics.frame_rate_limit_enabled =
+                !model.draft_graphics.frame_rate_limit_enabled;
+            true
+        }
         "colorblind_mode" => {
             model.draft_graphics.colorblind_mode = !model.draft_graphics.colorblind_mode;
             true
@@ -551,6 +585,12 @@ pub fn apply_graphics_snapshot(graphics: &mut GraphicsOptions, draft: &GraphicsD
         crate::client_options::MIN_UI_SCALE,
         crate::client_options::MAX_UI_SCALE,
     );
+    graphics.vsync_enabled = draft.vsync_enabled;
+    graphics.frame_rate_limit_enabled = draft.frame_rate_limit_enabled;
+    graphics.frame_rate_limit = draft.frame_rate_limit.round().clamp(
+        f32::from(crate::client_options::MIN_FRAME_RATE_LIMIT),
+        f32::from(crate::client_options::MAX_FRAME_RATE_LIMIT),
+    ) as u16;
     graphics.colorblind_mode = draft.colorblind_mode;
     graphics.bloom_enabled = draft.bloom_enabled;
     graphics.bloom_intensity = draft.bloom_intensity.clamp(0.0, 1.0);
@@ -662,6 +702,8 @@ mod tests {
         reset_category_defaults(&mut model);
         assert!(!model.draft_graphics.bloom_enabled);
         assert!((model.draft_graphics.bloom_intensity - 0.08).abs() < 0.0001);
+        assert!(model.draft_graphics.vsync_enabled);
+        assert!(!model.draft_graphics.frame_rate_limit_enabled);
     }
 
     #[test]
@@ -684,6 +726,13 @@ mod tests {
         let mut model = default_model();
         apply_slider_value(SliderField::MouseSensitivity, 0.006, &mut model);
         assert!((model.draft_camera.mouse_sensitivity - 0.006).abs() < 0.001);
+    }
+
+    #[test]
+    fn slider_apply_frame_rate_limit_updates_graphics_draft() {
+        let mut model = default_model();
+        apply_slider_value(SliderField::FrameRateLimit, 165.0, &mut model);
+        assert!((model.draft_graphics.frame_rate_limit - 165.0).abs() < 0.001);
     }
 
     #[test]
@@ -723,6 +772,7 @@ mod tests {
         for field in [
             SliderField::MouseSensitivity,
             SliderField::ParticleDensity,
+            SliderField::FrameRateLimit,
             SliderField::RenderScale,
             SliderField::UiScale,
             SliderField::NameplateDistance,
@@ -748,6 +798,10 @@ mod tests {
                 SliderField::MouseSensitivity,
             ),
             ("options_slider:master_volume", SliderField::MasterVolume),
+            (
+                "options_slider:frame_rate_limit",
+                SliderField::FrameRateLimit,
+            ),
             ("options_slider:render_scale", SliderField::RenderScale),
             ("options_slider:ui_scale", SliderField::UiScale),
             (
@@ -766,6 +820,19 @@ mod tests {
     fn parse_slider_action_rejects_unknown() {
         assert_eq!(parse_slider_action("options_slider:bogus"), None);
         assert_eq!(parse_slider_action("not_a_slider"), None);
+    }
+
+    #[test]
+    fn toggling_frame_pacing_options_updates_graphics_draft() {
+        let mut model = default_model();
+        assert!(model.draft_graphics.vsync_enabled);
+        assert!(!model.draft_graphics.frame_rate_limit_enabled);
+
+        apply_toggle("vsync_enabled", &mut model);
+        apply_toggle("frame_rate_limit_enabled", &mut model);
+
+        assert!(!model.draft_graphics.vsync_enabled);
+        assert!(model.draft_graphics.frame_rate_limit_enabled);
     }
 
     #[test]

@@ -270,6 +270,7 @@ fn slider_widget_name(slider: SliderField) -> &'static str {
     match slider {
         SliderField::MouseSensitivity => "Slidermouse_sensitivity",
         SliderField::ParticleDensity => "Sliderparticle_density",
+        SliderField::FrameRateLimit => "Sliderframe_rate_limit",
         SliderField::RenderScale => "Sliderrender_scale",
         SliderField::UiScale => "Sliderui_scale",
         SliderField::NameplateDistance => "Slidernameplate_distance",
@@ -291,11 +292,12 @@ fn slider_row(slider: SliderField) -> f32 {
     match slider {
         SliderField::MouseSensitivity => 1.0,
         SliderField::ParticleDensity => 3.0,
-        SliderField::RenderScale => 1.0,
+        SliderField::FrameRateLimit => 3.0,
+        SliderField::RenderScale => 5.0,
         SliderField::UiScale => 1.0,
         SliderField::NameplateDistance => 3.0,
         SliderField::ChatFontSize => 1.0,
-        SliderField::BloomIntensity => 2.0,
+        SliderField::BloomIntensity => 6.0,
         SliderField::MasterVolume => 2.0,
         SliderField::MusicVolume => 3.0,
         SliderField::AmbientVolume => 4.0,

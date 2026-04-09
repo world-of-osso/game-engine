@@ -38,6 +38,8 @@ const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
 const UI_SCALE_MIN: f32 = 0.75;
 const UI_SCALE_MAX: f32 = 1.5;
+const FRAME_RATE_LIMIT_MIN: f32 = 30.0;
+const FRAME_RATE_LIMIT_MAX: f32 = 240.0;
 const MOUSE_SENSITIVITY_MIN: f32 = 0.001;
 const MOUSE_SENSITIVITY_MAX: f32 = 0.01;
 const NAMEPLATE_DISTANCE_MIN: f32 = 20.0;
@@ -259,9 +261,36 @@ fn sound_items(sound: &SoundOptionsView) -> Element {
 
 fn graphics_items(graphics: &GraphicsOptionsView) -> Element {
     [
+        frame_pacing_items(graphics),
         render_scale_items(graphics),
         bloom_items(graphics),
         particle_density_item(graphics),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn frame_pacing_items(graphics: &GraphicsOptionsView) -> Element {
+    [
+        toggle_row("vsync_enabled", "Vertical Sync", graphics.vsync_enabled),
+        toggle_row(
+            "frame_rate_limit_enabled",
+            "Limit Frame Rate",
+            graphics.frame_rate_limit_enabled,
+        ),
+        slider_row(
+            "frame_rate_limit",
+            "Frame Rate Cap",
+            graphics.frame_rate_limit,
+            FRAME_RATE_LIMIT_MIN,
+            FRAME_RATE_LIMIT_MAX,
+        ),
+        options_menu_sections::info_row(
+            "frame_pacing_detail",
+            "Presentation",
+            "VSync switches swap pacing; the frame cap adds a CPU-side limit when enabled",
+        ),
     ]
     .into_iter()
     .flatten()

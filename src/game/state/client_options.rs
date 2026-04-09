@@ -1,8 +1,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant};
 
 use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::prelude::*;
+use bevy::window::{PresentMode, PrimaryWindow, Window};
 use directories::ProjectDirs;
 use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
@@ -42,8 +45,10 @@ impl Plugin for ClientOptionsPlugin {
                     apply_loaded_client_options,
                     sync_hud_visibility_toggles,
                     sync_ui_scale,
+                    sync_window_present_mode,
                 ),
-            );
+            )
+            .add_systems(First, limit_frame_rate);
     }
 }
 
@@ -107,6 +112,9 @@ pub struct GraphicsOptions {
     pub particle_density: u8,
     pub render_scale: f32,
     pub ui_scale: f32,
+    pub vsync_enabled: bool,
+    pub frame_rate_limit_enabled: bool,
+    pub frame_rate_limit: u16,
     pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
@@ -120,6 +128,9 @@ impl Default for GraphicsOptions {
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
             ui_scale: default_ui_scale(),
+            vsync_enabled: default_vsync_enabled(),
+            frame_rate_limit_enabled: default_frame_rate_limit_enabled(),
+            frame_rate_limit: default_frame_rate_limit(),
             colorblind_mode: default_colorblind_mode(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
@@ -135,6 +146,11 @@ impl GraphicsOptions {
             particle_density: file.particle_density.clamp(10, 100),
             render_scale: file.render_scale.clamp(0.5, 1.0),
             ui_scale: file.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
+            vsync_enabled: file.vsync_enabled,
+            frame_rate_limit_enabled: file.frame_rate_limit_enabled,
+            frame_rate_limit: file
+                .frame_rate_limit
+                .clamp(MIN_FRAME_RATE_LIMIT, MAX_FRAME_RATE_LIMIT),
             colorblind_mode: file.colorblind_mode,
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
@@ -145,6 +161,14 @@ impl GraphicsOptions {
 
     pub fn particle_density_multiplier(&self) -> f32 {
         self.particle_density.clamp(10, 100) as f32 / 100.0
+    }
+
+    pub fn present_mode(&self) -> PresentMode {
+        if self.vsync_enabled {
+            PresentMode::AutoVsync
+        } else {
+            PresentMode::AutoNoVsync
+        }
     }
 }
 
@@ -332,6 +356,15 @@ struct GraphicsOptionsFile {
     render_scale: f32,
     #[serde(default = "default_ui_scale", rename = "uiScale")]
     ui_scale: f32,
+    #[serde(default = "default_vsync_enabled", rename = "vsyncEnabled")]
+    vsync_enabled: bool,
+    #[serde(
+        default = "default_frame_rate_limit_enabled",
+        rename = "frameRateLimitEnabled"
+    )]
+    frame_rate_limit_enabled: bool,
+    #[serde(default = "default_frame_rate_limit", rename = "frameRateLimit")]
+    frame_rate_limit: u16,
     #[serde(default = "default_colorblind_mode", rename = "colorblindMode")]
     colorblind_mode: bool,
     #[serde(default = "default_bloom_enabled", rename = "bloomEnabled")]
@@ -346,6 +379,9 @@ impl Default for GraphicsOptionsFile {
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
             ui_scale: default_ui_scale(),
+            vsync_enabled: default_vsync_enabled(),
+            frame_rate_limit_enabled: default_frame_rate_limit_enabled(),
+            frame_rate_limit: default_frame_rate_limit(),
             colorblind_mode: default_colorblind_mode(),
             bloom_enabled: default_bloom_enabled(),
             bloom_intensity: default_bloom_intensity(),
@@ -466,6 +502,11 @@ fn build_graphics_options_file(graphics: &GraphicsOptions) -> GraphicsOptionsFil
         particle_density: graphics.particle_density.clamp(10, 100),
         render_scale: graphics.render_scale.clamp(0.5, 1.0),
         ui_scale: graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
+        vsync_enabled: graphics.vsync_enabled,
+        frame_rate_limit_enabled: graphics.frame_rate_limit_enabled,
+        frame_rate_limit: graphics
+            .frame_rate_limit
+            .clamp(MIN_FRAME_RATE_LIMIT, MAX_FRAME_RATE_LIMIT),
         colorblind_mode: graphics.colorblind_mode,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity.clamp(0.0, 1.0),
@@ -514,6 +555,18 @@ const fn default_ui_scale() -> f32 {
     1.0
 }
 
+const fn default_vsync_enabled() -> bool {
+    true
+}
+
+const fn default_frame_rate_limit_enabled() -> bool {
+    false
+}
+
+const fn default_frame_rate_limit() -> u16 {
+    144
+}
+
 const fn default_colorblind_mode() -> bool {
     false
 }
@@ -530,6 +583,8 @@ pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;
 pub const MIN_MOUSE_SENSITIVITY: f32 = 0.001;
 pub const MAX_MOUSE_SENSITIVITY: f32 = 0.01;
+pub const MIN_FRAME_RATE_LIMIT: u16 = 30;
+pub const MAX_FRAME_RATE_LIMIT: u16 = 240;
 pub const MIN_NAMEPLATE_DISTANCE: f32 = 20.0;
 pub const MAX_NAMEPLATE_DISTANCE: f32 = 80.0;
 pub const DEFAULT_NAMEPLATE_DISTANCE: f32 = 40.0;
@@ -661,6 +716,58 @@ fn sync_ui_scale(
     orthographic.scale = 1.0 / graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE);
 }
 
+fn sync_window_present_mode(
+    graphics: Res<GraphicsOptions>,
+    mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
+) {
+    if !graphics.is_changed() {
+        return;
+    }
+    let Ok(mut window) = primary_window.single_mut() else {
+        return;
+    };
+    let present_mode = graphics.present_mode();
+    if window.present_mode != present_mode {
+        window.present_mode = present_mode;
+    }
+}
+
+#[derive(Default)]
+struct FrameLimiterState {
+    last_frame_started: Option<Instant>,
+    last_interval: Option<Duration>,
+}
+
+fn limit_frame_rate(graphics: Res<GraphicsOptions>, mut state: Local<FrameLimiterState>) {
+    let now = Instant::now();
+    let next_interval =
+        frame_limit_interval(graphics.frame_rate_limit_enabled, graphics.frame_rate_limit);
+    if state.last_interval != next_interval {
+        state.last_interval = next_interval;
+        state.last_frame_started = Some(now);
+        return;
+    }
+    let Some(target_interval) = next_interval else {
+        state.last_frame_started = Some(now);
+        return;
+    };
+    if let Some(last_frame_started) = state.last_frame_started {
+        let elapsed = now.saturating_duration_since(last_frame_started);
+        if elapsed < target_interval {
+            thread::sleep(target_interval - elapsed);
+        }
+    }
+    state.last_frame_started = Some(Instant::now());
+}
+
+fn frame_limit_interval(enabled: bool, frame_rate_limit: u16) -> Option<Duration> {
+    if !enabled {
+        return None;
+    }
+    let clamped_limit = frame_rate_limit.clamp(MIN_FRAME_RATE_LIMIT, MAX_FRAME_RATE_LIMIT);
+    Some(Duration::from_secs_f64(1.0 / f64::from(clamped_limit)))
+}
+
 pub fn apply_fps_overlay_visibility(fps: &mut FpsOverlayConfig, visible: bool) {
     fps.enabled = visible;
     fps.frame_time_graph_config.enabled = visible;
@@ -728,6 +835,9 @@ mod tests {
         assert_eq!(defaults.particle_density, 100);
         assert!((defaults.render_scale - 1.0).abs() < 0.0001);
         assert!((defaults.ui_scale - 1.0).abs() < 0.0001);
+        assert!(defaults.vsync_enabled);
+        assert!(!defaults.frame_rate_limit_enabled);
+        assert_eq!(defaults.frame_rate_limit, 144);
         assert!(!defaults.colorblind_mode);
         assert!(!defaults.bloom_enabled);
         assert!((defaults.bloom_intensity - 0.08).abs() < 0.0001);
@@ -741,6 +851,9 @@ mod tests {
                 particle_density: 80,
                 render_scale: 0.67,
                 ui_scale: 1.2,
+                vsync_enabled: false,
+                frame_rate_limit_enabled: true,
+                frame_rate_limit: 120,
                 colorblind_mode: false,
                 bloom_enabled: false,
                 bloom_intensity: 0.12,
@@ -753,6 +866,9 @@ mod tests {
         assert!(serialized.contains("particleDensity:80"));
         assert!(serialized.contains("renderScale:0.67"));
         assert!(serialized.contains("uiScale:1.2"));
+        assert!(serialized.contains("vsyncEnabled:false"));
+        assert!(serialized.contains("frameRateLimitEnabled:true"));
+        assert!(serialized.contains("frameRateLimit:120"));
         assert!(serialized.contains("colorblindMode:false"));
         assert!(serialized.contains("bloomEnabled:false"));
         assert!(serialized.contains("bloomIntensity:0.12"));
@@ -861,6 +977,9 @@ mod tests {
                 particle_density: 60,
                 render_scale: 0.8,
                 ui_scale: 1.3,
+                vsync_enabled: false,
+                frame_rate_limit_enabled: true,
+                frame_rate_limit: 165,
                 colorblind_mode: true,
                 bloom_enabled: true,
                 bloom_intensity: 0.2,
@@ -889,6 +1008,9 @@ mod tests {
         assert!(loaded.camera.invert_y);
         assert_eq!(loaded.graphics.particle_density, 60);
         assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
+        assert!(!loaded.graphics.vsync_enabled);
+        assert!(loaded.graphics.frame_rate_limit_enabled);
+        assert_eq!(loaded.graphics.frame_rate_limit, 165);
         assert!(loaded.graphics.colorblind_mode);
         assert!(!loaded.hud.show_minimap);
         assert!((loaded.hud.nameplate_distance - 60.0).abs() < 0.0001);
@@ -913,6 +1035,27 @@ mod tests {
 
         assert!((GraphicsOptions::from_file(&low).ui_scale - MIN_UI_SCALE).abs() < 0.0001);
         assert!((GraphicsOptions::from_file(&high).ui_scale - MAX_UI_SCALE).abs() < 0.0001);
+    }
+
+    #[test]
+    fn graphics_options_file_clamps_frame_rate_limit_range() {
+        let low = GraphicsOptionsFile {
+            frame_rate_limit: 1,
+            ..GraphicsOptionsFile::default()
+        };
+        let high = GraphicsOptionsFile {
+            frame_rate_limit: 999,
+            ..GraphicsOptionsFile::default()
+        };
+
+        assert_eq!(
+            GraphicsOptions::from_file(&low).frame_rate_limit,
+            MIN_FRAME_RATE_LIMIT
+        );
+        assert_eq!(
+            GraphicsOptions::from_file(&high).frame_rate_limit,
+            MAX_FRAME_RATE_LIMIT
+        );
     }
 
     #[test]
@@ -996,5 +1139,46 @@ mod tests {
             panic!("expected orthographic ui camera");
         };
         assert!((orthographic.scale - 0.8).abs() < 0.0001);
+    }
+
+    #[test]
+    fn sync_window_present_mode_updates_primary_window() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(GraphicsOptions {
+            vsync_enabled: false,
+            ..GraphicsOptions::default()
+        });
+        app.add_systems(Update, sync_window_present_mode);
+        let window_entity = app
+            .world_mut()
+            .spawn((PrimaryWindow, Window::default()))
+            .id();
+
+        app.update();
+
+        let window = app.world().entity(window_entity).get::<Window>().unwrap();
+        assert_eq!(window.present_mode, PresentMode::AutoNoVsync);
+    }
+
+    #[test]
+    fn frame_limit_interval_is_none_when_disabled() {
+        assert_eq!(frame_limit_interval(false, 144), None);
+    }
+
+    #[test]
+    fn frame_limit_interval_uses_clamped_hz_when_enabled() {
+        assert_eq!(
+            frame_limit_interval(true, 1),
+            Some(Duration::from_secs_f64(
+                1.0 / f64::from(MIN_FRAME_RATE_LIMIT)
+            ))
+        );
+        assert_eq!(
+            frame_limit_interval(true, 999),
+            Some(Duration::from_secs_f64(
+                1.0 / f64::from(MAX_FRAME_RATE_LIMIT)
+            ))
+        );
     }
 }

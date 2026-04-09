@@ -248,6 +248,9 @@ mod tests {
             particle_density: 100.0,
             render_scale: 1.0,
             ui_scale: 1.0,
+            vsync_enabled: true,
+            frame_rate_limit_enabled: false,
+            frame_rate_limit: 144.0,
             colorblind_mode: false,
             bloom_enabled: false,
             bloom_intensity: 0.08,
@@ -507,6 +510,24 @@ mod tests {
         assert!(reg.get_by_name("SliderRowmouse_sensitivity").is_some());
         assert!(reg.get_by_name("Slidermouse_sensitivity").is_some());
         assert!(reg.get_by_name("Slidermouse_sensitivityHandle").is_some());
+    }
+
+    #[test]
+    fn graphics_screen_includes_vsync_and_frame_rate_controls() {
+        let reg = options_registry_for_category(OptionsCategory::Graphics);
+
+        assert!(reg.get_by_name("ToggleRowvsync_enabled").is_some());
+        assert!(reg.get_by_name("ToggleSwitchvsync_enabled").is_some());
+        assert!(
+            reg.get_by_name("ToggleRowframe_rate_limit_enabled")
+                .is_some()
+        );
+        assert!(
+            reg.get_by_name("ToggleSwitchframe_rate_limit_enabled")
+                .is_some()
+        );
+        assert!(reg.get_by_name("SliderRowframe_rate_limit").is_some());
+        assert!(reg.get_by_name("Sliderframe_rate_limit").is_some());
     }
 
     #[test]
