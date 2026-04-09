@@ -62,11 +62,7 @@ pub fn inspect_frame_screen(ctx: &SharedContext) -> Element {
         .get::<InspectFrameState>()
         .expect("InspectFrameState must be in SharedContext");
     let hide = !state.visible;
-    let title = if state.target_name.is_empty() {
-        "Inspect".to_string()
-    } else {
-        format!("Inspect - {}", state.target_name)
-    };
+    let title = inspect_frame_title(state);
     rsx! {
         r#frame {
             name: "InspectFrame",
@@ -82,16 +78,28 @@ pub fn inspect_frame_screen(ctx: &SharedContext) -> Element {
                 y: "-80",
             }
             {title_bar(&title)}
-            {summary_line("InspectFrameSpecs", &format!("Specs: {}", state.spec_summary), HEADER_H + 2.0)}
-            {summary_line(
-                "InspectFramePoints",
-                &format!("Points Remaining: {}", state.points_remaining),
-                HEADER_H + 18.0,
-            )}
-            {summary_line("InspectFrameStatus", &state.status_text, HEADER_H + 34.0)}
+            {inspect_frame_summary(state)}
             {equipment_panel(&state.equipment_rows)}
             {talent_panel(&state.talent_rows)}
         }
+    }
+}
+
+fn inspect_frame_title(state: &InspectFrameState) -> String {
+    if state.target_name.is_empty() {
+        "Inspect".to_string()
+    } else {
+        format!("Inspect - {}", state.target_name)
+    }
+}
+
+fn inspect_frame_summary(state: &InspectFrameState) -> Element {
+    let specs_text = format!("Specs: {}", state.spec_summary);
+    let points_text = format!("Points Remaining: {}", state.points_remaining);
+    rsx! {
+        {summary_line("InspectFrameSpecs", &specs_text, HEADER_H + 2.0)}
+        {summary_line("InspectFramePoints", &points_text, HEADER_H + 18.0)}
+        {summary_line("InspectFrameStatus", &state.status_text, HEADER_H + 34.0)}
     }
 }
 
