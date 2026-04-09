@@ -266,6 +266,8 @@ struct LoadedClientOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClientOptionsFile {
+    #[serde(default)]
+    accepted_eula: bool,
     #[serde(default = "default_realm_preset", rename = "preferredRealm")]
     preferred_realm: RealmPreset,
     #[serde(default)]
@@ -288,6 +290,7 @@ struct ClientOptionsFile {
 impl Default for ClientOptionsFile {
     fn default() -> Self {
         Self {
+            accepted_eula: false,
             preferred_realm: default_realm_preset(),
             sound: SoundOptionsFile::default(),
             camera: CameraOptionsFile::default(),
@@ -470,8 +473,30 @@ fn build_options_file(
     bindings: &InputBindings,
     modal_offset: [f32; 2],
 ) -> ClientOptionsFile {
+    let existing = load_options_file();
+    build_options_file_from_existing(
+        &existing,
+        sound,
+        camera,
+        graphics,
+        hud,
+        bindings,
+        modal_offset,
+    )
+}
+
+fn build_options_file_from_existing(
+    existing: &ClientOptionsFile,
+    sound: Option<&SoundSettings>,
+    camera: &CameraOptions,
+    graphics: &GraphicsOptions,
+    hud: &HudOptions,
+    bindings: &InputBindings,
+    modal_offset: [f32; 2],
+) -> ClientOptionsFile {
     ClientOptionsFile {
-        preferred_realm: load_preferred_realm(),
+        accepted_eula: existing.accepted_eula,
+        preferred_realm: existing.preferred_realm,
         sound: build_sound_options_file(sound),
         camera: build_camera_options_file(camera),
         graphics: build_graphics_options_file(graphics),
@@ -645,6 +670,10 @@ pub fn load_preferred_realm() -> RealmPreset {
     load_options_file().preferred_realm
 }
 
+pub fn load_eula_accepted() -> bool {
+    load_options_file().accepted_eula
+}
+
 pub fn save_preferred_realm(realm: RealmPreset) -> Result<(), String> {
     let path = load_options_path();
     let mut file = load_options_file_from_path(&path);
@@ -652,6 +681,16 @@ pub fn save_preferred_realm(realm: RealmPreset) -> Result<(), String> {
         return Ok(());
     }
     file.preferred_realm = realm;
+    save_options_file_to_path(&path, &file)
+}
+
+pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
+    let path = load_options_path();
+    let mut file = load_options_file_from_path(&path);
+    if file.accepted_eula == accepted {
+        return Ok(());
+    }
+    file.accepted_eula = accepted;
     save_options_file_to_path(&path, &file)
 }
 
@@ -811,6 +850,7 @@ mod tests {
     #[test]
     fn default_file_uses_expected_modal_position() {
         let file = ClientOptionsFile::default();
+        assert!(!file.accepted_eula);
         assert_eq!(file.preferred_realm, default_realm_preset());
         assert_eq!(file.modal_offset, None);
         assert_eq!(file.modal_position, None);
@@ -867,6 +907,7 @@ mod tests {
     #[test]
     fn options_file_serializes_particle_density_with_cvar_name() {
         let file = ClientOptionsFile {
+            accepted_eula: true,
             preferred_realm: RealmPreset::Prod,
             graphics: GraphicsOptionsFile {
                 particle_density: 80,
@@ -884,6 +925,7 @@ mod tests {
 
         let serialized = ron::ser::to_string(&file).unwrap();
 
+        assert!(serialized.contains("accepted_eula:true"));
         assert!(serialized.contains("particleDensity:80"));
         assert!(serialized.contains("preferredRealm:Prod"));
         assert!(serialized.contains("renderScale:0.67"));
@@ -978,6 +1020,7 @@ mod tests {
             InputBinding::Keyboard(KeyCode::F3),
         );
         let file = ClientOptionsFile {
+            accepted_eula: true,
             preferred_realm: RealmPreset::Prod,
             sound: SoundOptionsFile {
                 master_volume: 0.25,
@@ -1025,6 +1068,7 @@ mod tests {
         save_options_file_to_path(&path, &file).unwrap();
         let loaded = load_options_file_from_path(&path);
 
+        assert!(loaded.accepted_eula);
         assert_eq!(loaded.sound.master_volume, 0.25);
         assert_eq!(loaded.preferred_realm, RealmPreset::Prod);
         assert!(!loaded.sound.music_enabled);
@@ -1044,6 +1088,28 @@ mod tests {
             loaded.bindings.binding(InputAction::TargetNearest),
             Some(InputBinding::Keyboard(KeyCode::F3))
         );
+    }
+
+    #[test]
+    fn build_options_file_preserves_existing_eula_acceptance() {
+        let existing = ClientOptionsFile {
+            accepted_eula: true,
+            preferred_realm: RealmPreset::Prod,
+            ..ClientOptionsFile::default()
+        };
+
+        let file = build_options_file_from_existing(
+            &existing,
+            Some(&SoundSettings::default()),
+            &CameraOptions::default(),
+            &GraphicsOptions::default(),
+            &HudOptions::default(),
+            &InputBindings::default(),
+            [0.0, 0.0],
+        );
+
+        assert!(file.accepted_eula);
+        assert_eq!(file.preferred_realm, RealmPreset::Prod);
     }
 
     #[test]

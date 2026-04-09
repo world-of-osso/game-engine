@@ -677,6 +677,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     app.add_plugins((
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
+        scenes::eula::EulaScreenPlugin,
         scenes::login::LoginScreenPlugin,
         scenes::loading::LoadingScreenPlugin,
         scenes::char_select::CharSelectPlugin,

@@ -15,6 +15,7 @@ pub mod character_frame_component;
 pub mod communities_frame_component;
 pub mod dress_up_frame_component;
 pub mod encounter_journal_component;
+pub mod eula_component;
 pub mod friends_frame_component;
 pub mod game_menu_component;
 pub mod group_frames_component;

@@ -41,6 +41,11 @@ fn parse_screen_alias_matches_state_parser() {
         .expect("expected login");
     assert_eq!(parsed, game_state::GameState::Login);
 
+    let parsed = parse_state_arg(&args(&["--screen", "eula"]))
+        .expect("expected valid parse")
+        .expect("expected eula");
+    assert_eq!(parsed, game_state::GameState::Eula);
+
     let parsed = parse_state_arg(&args(&["--screen", "charcreate-customize"]))
         .expect("expected valid parse")
         .expect("expected charcreate customize");

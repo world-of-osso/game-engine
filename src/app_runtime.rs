@@ -29,7 +29,9 @@ pub(crate) fn run_headless_ui_dump_app(initial_state: Option<game_state::GameSta
         app.add_plugins(bevy::state::app::StatesPlugin);
         app.insert_resource(game_state::InitialGameState(state));
         app.add_plugins(game_state::GameStatePlugin);
-        if matches!(state, game_state::GameState::Login) {
+        if matches!(state, game_state::GameState::Eula) {
+            app.add_plugins(scenes::eula::EulaScreenPlugin);
+        } else if matches!(state, game_state::GameState::Login) {
             app.init_resource::<networking::AuthUiFeedback>();
             app.add_plugins(scenes::login::LoginScreenPlugin);
         } else if matches!(state, game_state::GameState::SelectionDebug) {

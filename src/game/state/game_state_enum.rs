@@ -6,6 +6,7 @@ use std::str::FromStr;
 pub enum GameState {
     #[default]
     Login,
+    Eula,
     Connecting,
     CharSelect,
     SelectionDebug,
@@ -23,8 +24,9 @@ pub enum GameState {
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 15] = [
+    pub const CLI_VALUES: [&str; 16] = [
         "login",
+        "eula",
         "connecting",
         "charselect",
         "selectiondebug",
@@ -44,13 +46,18 @@ impl GameState {
     pub fn is_logged_in(self) -> bool {
         !matches!(
             self,
-            Self::Login | Self::Connecting | Self::SelectionDebug | Self::InWorldSelectionDebug
+            Self::Login
+                | Self::Eula
+                | Self::Connecting
+                | Self::SelectionDebug
+                | Self::InWorldSelectionDebug
         )
     }
 
     pub fn as_cli_str(self) -> &'static str {
         match self {
             Self::Login => "login",
+            Self::Eula => "eula",
             Self::Connecting => "connecting",
             Self::CharSelect => "charselect",
             Self::SelectionDebug => "selectiondebug",
@@ -74,22 +81,11 @@ impl FromStr for GameState {
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
-            "login" => Ok(Self::Login),
             "connecting" => Ok(Self::Connecting),
-            "charselect" => Ok(Self::CharSelect),
-            "selectiondebug" => Ok(Self::SelectionDebug),
-            "inworldselectiondebug" | "inworld-selectiondebug" => Ok(Self::InWorldSelectionDebug),
-            "debugcharacter" => Ok(Self::DebugCharacter),
-            "skyboxdebug" | "skybox-debug" => Ok(Self::SkyboxDebug),
-            "charcreate" => Ok(Self::CharCreate),
-            "campsitepopup" => Ok(Self::CampsitePopup),
-            "loading" => Ok(Self::Loading),
-            "inworld" => Ok(Self::InWorld),
-            "gamemenu" | "menu" => Ok(Self::GameMenu),
-            "trashbutton" => Ok(Self::TrashButton),
             "reconnecting" => Ok(Self::Reconnecting),
-            "particledebug" => Ok(Self::ParticleDebug),
-            _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
+            _ => ScreenArg::from_str(value)
+                .map(Self::from)
+                .map_err(|_| format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
     }
 }
@@ -97,6 +93,7 @@ impl FromStr for GameState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScreenArg {
     Login,
+    Eula,
     CharSelect,
     SelectionDebug,
     InWorldSelectionDebug,
@@ -114,8 +111,9 @@ pub enum ScreenArg {
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 15] = [
+    pub const CLI_VALUES: [&str; 16] = [
         "login",
+        "eula",
         "charselect",
         "selectiondebug",
         "inworldselectiondebug",
@@ -137,6 +135,7 @@ impl From<ScreenArg> for GameState {
     fn from(value: ScreenArg) -> Self {
         match value {
             ScreenArg::Login => Self::Login,
+            ScreenArg::Eula => Self::Eula,
             ScreenArg::CharSelect => Self::CharSelect,
             ScreenArg::SelectionDebug => Self::SelectionDebug,
             ScreenArg::InWorldSelectionDebug => Self::InWorldSelectionDebug,
@@ -159,6 +158,7 @@ impl FromStr for ScreenArg {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "login" => Ok(Self::Login),
+            "eula" => Ok(Self::Eula),
             "charselect" => Ok(Self::CharSelect),
             "selectiondebug" => Ok(Self::SelectionDebug),
             "inworldselectiondebug" | "inworld-selectiondebug" => Ok(Self::InWorldSelectionDebug),

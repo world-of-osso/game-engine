@@ -19,6 +19,9 @@ pub struct InitialGameState(pub GameState);
 #[derive(Resource, Clone, Copy)]
 pub struct StartupScreenTarget(pub GameState);
 
+#[derive(Resource, Clone, Copy)]
+pub struct PostEulaState(pub GameState);
+
 #[derive(Resource)]
 pub struct StartupPerfTimer(pub Instant);
 
@@ -50,19 +53,47 @@ impl Plugin for GameStatePlugin {
 }
 
 fn init_state(app: &mut App, has_server: bool, initial_state: Option<GameState>) {
-    if let Some(state) = initial_state {
-        app.insert_state(state);
-    } else if has_server {
-        app.init_state::<GameState>();
-    } else if cfg!(debug_assertions) {
-        // Dev standalone mode: skip login, go straight to world
-        app.insert_state(GameState::InWorld);
-    } else {
-        app.init_state::<GameState>();
+    let accepted_eula = crate::client_options::load_eula_accepted();
+    let (state, post_eula) = resolve_startup_state(has_server, initial_state, accepted_eula);
+    app.insert_state(state);
+    if let Some(post_eula) = post_eula {
+        app.insert_resource(PostEulaState(post_eula));
     }
 }
 
+fn resolve_startup_state(
+    has_server: bool,
+    initial_state: Option<GameState>,
+    accepted_eula: bool,
+) -> (GameState, Option<GameState>) {
+    if should_gate_eula(has_server, initial_state, accepted_eula) {
+        return (
+            GameState::Eula,
+            Some(initial_state.unwrap_or(GameState::Login)),
+        );
+    }
+    match initial_state {
+        Some(GameState::Eula) => (GameState::Eula, Some(GameState::Login)),
+        Some(state) => (state, None),
+        None if has_server => (GameState::Login, None),
+        None if cfg!(debug_assertions) => (GameState::InWorld, None),
+        None => (GameState::Login, None),
+    }
+}
+
+fn should_gate_eula(
+    has_server: bool,
+    initial_state: Option<GameState>,
+    accepted_eula: bool,
+) -> bool {
+    has_server
+        && !accepted_eula
+        && initial_state
+            .is_none_or(|state| matches!(state, GameState::Login | GameState::Connecting))
+}
+
 fn register_state_transitions(app: &mut App, has_server: bool) {
+    app.add_systems(OnEnter(GameState::Eula), on_enter_eula);
     app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
     app.add_systems(OnEnter(GameState::CharSelect), on_enter_char_select);
     app.add_systems(OnEnter(GameState::SelectionDebug), on_enter_selection_debug);
@@ -134,6 +165,10 @@ fn on_enter_connecting(
         );
     }
     commands.insert_resource(ConnectingStartTime(time.elapsed_secs_f64()));
+}
+
+fn on_enter_eula() {
+    info!("Entering Eula state");
 }
 
 fn on_enter_char_select(startup: Option<Res<StartupPerfTimer>>) {
@@ -513,5 +548,37 @@ mod tests {
         assert_eq!(tracker.observed_zone_id, 0);
         assert!(!should_enter_loading_for_zone_change(&mut tracker, 1519));
         assert_eq!(tracker.observed_zone_id, 1519);
+    }
+
+    #[test]
+    fn startup_with_server_and_unaccepted_eula_enters_eula_gate() {
+        assert_eq!(
+            resolve_startup_state(true, None, false),
+            (GameState::Eula, Some(GameState::Login))
+        );
+        assert_eq!(
+            resolve_startup_state(true, Some(GameState::Connecting), false),
+            (GameState::Eula, Some(GameState::Connecting))
+        );
+    }
+
+    #[test]
+    fn startup_without_server_or_with_accepted_eula_skips_gate() {
+        assert_eq!(
+            resolve_startup_state(false, None, false),
+            (GameState::InWorld, None)
+        );
+        assert_eq!(
+            resolve_startup_state(true, Some(GameState::Login), true),
+            (GameState::Login, None)
+        );
+    }
+
+    #[test]
+    fn explicit_eula_state_defaults_back_to_login_after_acceptance() {
+        assert_eq!(
+            resolve_startup_state(true, Some(GameState::Eula), true),
+            (GameState::Eula, Some(GameState::Login))
+        );
     }
 }
