@@ -160,6 +160,12 @@ impl Plugin for NetworkPlugin {
 }
 
 fn register_net_resources(app: &mut App) {
+    register_zone_and_chat_resources(app);
+    register_auth_resources(app);
+    register_status_resources(app);
+}
+
+fn register_zone_and_chat_resources(app: &mut App) {
     app.init_resource::<CurrentZone>();
     app.init_resource::<LocalAliveState>();
     app.init_resource::<ChatLog>();
@@ -175,6 +181,9 @@ fn register_net_resources(app: &mut App) {
     });
     app.init_resource::<ReconnectState>();
     app.init_resource::<PendingForcedDisconnect>();
+}
+
+fn register_auth_resources(app: &mut App) {
     let server = app
         .world()
         .get_resource::<ServerHostname>()
@@ -186,6 +195,9 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<LoginUsername>();
     app.init_resource::<LoginPassword>();
     app.init_resource::<LoginMode>();
+}
+
+fn register_status_resources(app: &mut App) {
     app.init_resource::<QuestLogStatusSnapshot>();
     app.init_resource::<GroupStatusSnapshot>();
     app.init_resource::<CombatLogStatusSnapshot>();
