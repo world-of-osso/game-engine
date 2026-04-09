@@ -233,12 +233,16 @@ fn reset_world_tracking_resources(world: &mut World) {
 }
 
 fn reset_status_snapshots(world: &mut World) {
+    reset_character_status_snapshots(world);
+    reset_social_status_snapshots(world);
+    reset_world_status_snapshots(world);
+}
+
+fn reset_character_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::CharacterRosterStatusSnapshot>(world);
     reset_resource::<game_engine::status::CharacterStatsSnapshot>(world);
     reset_resource::<game_engine::status::AchievementsStatusSnapshot>(world);
     reset_resource::<game_engine::status::BarberShopStatusSnapshot>(world);
-    reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
-    reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::CurrenciesStatusSnapshot>(world);
     reset_resource::<game_engine::status::DeathStatusSnapshot>(world);
     reset_resource::<game_engine::status::DuelStatusSnapshot>(world);
@@ -246,16 +250,24 @@ fn reset_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::EquipmentAppearanceStatusSnapshot>(world);
     reset_resource::<game_engine::status::EquippedGearStatusSnapshot>(world);
     reset_resource::<game_engine::status::CalendarStatusSnapshot>(world);
+    reset_resource::<game_engine::status::CollectionStatusSnapshot>(world);
+}
+
+fn reset_social_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::FriendsStatusSnapshot>(world);
     reset_resource::<game_engine::status::GuildStatusSnapshot>(world);
     reset_resource::<game_engine::status::WhoStatusSnapshot>(world);
     reset_resource::<game_engine::status::IgnoreListStatusSnapshot>(world);
     reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
     reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
-    reset_resource::<game_engine::status::InspectStatusSnapshot>(world);
-    reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
     reset_resource::<game_engine::status::LfgStatusSnapshot>(world);
     reset_resource::<game_engine::status::PvpStatusSnapshot>(world);
+}
+
+fn reset_world_status_snapshots(world: &mut World) {
+    reset_resource::<game_engine::status::CombatLogStatusSnapshot>(world);
+    reset_resource::<game_engine::status::InspectStatusSnapshot>(world);
+    reset_resource::<game_engine::status::InventorySearchSnapshot>(world);
     reset_resource::<game_engine::status::MapStatusSnapshot>(world);
     reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
     reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);
