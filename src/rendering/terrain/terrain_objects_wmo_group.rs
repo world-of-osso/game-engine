@@ -461,29 +461,38 @@ pub(super) fn spawn_wmo_group_doodad(
     let entity = commands
         .spawn((Name::new(name), doodad.transform, Visibility::default()))
         .id();
-    if !m2_spawn::spawn_m2_on_entity(
-        commands,
-        &mut m2_spawn::SpawnAssets {
-            meshes: assets.meshes,
-            materials: assets.materials,
-            effect_materials: assets.effect_materials,
-            skybox_materials: None,
-            images: assets.images,
-            inverse_bindposes: assets.inverse_bindposes,
-        },
-        &model_path,
-        entity,
-        &[0, 0, 0],
-    ) {
+    let mut spawn_assets = wmo_group_doodad_spawn_assets(assets);
+    if !m2_spawn::spawn_m2_on_entity(commands, &mut spawn_assets, &model_path, entity, &[0, 0, 0]) {
         commands.entity(entity).despawn();
         return None;
     }
-    if let Some(kind) = crate::target::classify_world_object_model(&model_path.to_string_lossy()) {
-        commands
-            .entity(entity)
-            .insert(crate::target::WorldObjectInteraction { kind });
-    }
+    insert_wmo_group_doodad_interaction(commands, entity, &model_path);
     Some(entity)
+}
+
+fn wmo_group_doodad_spawn_assets<'a>(assets: &'a mut WmoAssets<'_>) -> m2_spawn::SpawnAssets<'a> {
+    m2_spawn::SpawnAssets {
+        meshes: assets.meshes,
+        materials: assets.materials,
+        effect_materials: assets.effect_materials,
+        skybox_materials: None,
+        images: assets.images,
+        inverse_bindposes: assets.inverse_bindposes,
+    }
+}
+
+fn insert_wmo_group_doodad_interaction(
+    commands: &mut Commands,
+    entity: Entity,
+    model_path: &std::path::Path,
+) {
+    let path = model_path.to_string_lossy();
+    let Some(kind) = crate::target::classify_world_object_model(&path) else {
+        return;
+    };
+    commands
+        .entity(entity)
+        .insert(crate::target::WorldObjectInteraction { kind });
 }
 
 pub(super) fn group_bbox(
