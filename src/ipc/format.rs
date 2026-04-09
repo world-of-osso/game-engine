@@ -154,6 +154,12 @@ pub fn format_equipped_gear_status(snapshot: &EquippedGearStatusSnapshot) -> Str
     if snapshot.entries.is_empty() {
         return "equipped_gear: 0\n-".into();
     }
+    let mut lines = equipped_gear_status_header(snapshot);
+    lines.extend(snapshot.entries.iter().map(format_equipped_gear_entry));
+    lines.join("\n")
+}
+
+fn equipped_gear_status_header(snapshot: &EquippedGearStatusSnapshot) -> Vec<String> {
     let mut lines = vec![
         format!("equipped_gear: {}", snapshot.entries.len()),
         format!(
@@ -167,26 +173,34 @@ pub fn format_equipped_gear_status(snapshot: &EquippedGearStatusSnapshot) -> Str
     if let Some(error) = &snapshot.last_error {
         lines.push(format!("error: {error}"));
     }
-    lines.extend(snapshot.entries.iter().map(|entry| {
-        let durability = match (entry.durability_current, entry.durability_max) {
-            (Some(current), Some(max)) => format!(" durability={current}/{max}"),
-            _ => String::new(),
-        };
-        let broken = if entry.broken { " broken=true" } else { "" };
-        let repair_cost = if entry.repair_cost > 0 {
-            format!(
-                " repair={}",
-                crate::auction_house_data::Money(entry.repair_cost as u64).display()
-            )
-        } else {
-            String::new()
-        };
-        format!(
-            "{} {}{}{}{}",
-            entry.slot, entry.path, durability, repair_cost, broken
-        )
-    }));
-    lines.join("\n")
+    lines
+}
+
+fn format_equipped_gear_entry(entry: &crate::status::EquippedGearEntry) -> String {
+    let durability = format_equipped_gear_durability(entry);
+    let repair_cost = format_equipped_gear_repair_cost(entry);
+    let broken = if entry.broken { " broken=true" } else { "" };
+    format!(
+        "{} {}{}{}{}",
+        entry.slot, entry.path, durability, repair_cost, broken
+    )
+}
+
+fn format_equipped_gear_durability(entry: &crate::status::EquippedGearEntry) -> String {
+    match (entry.durability_current, entry.durability_max) {
+        (Some(current), Some(max)) => format!(" durability={current}/{max}"),
+        _ => String::new(),
+    }
+}
+
+fn format_equipped_gear_repair_cost(entry: &crate::status::EquippedGearEntry) -> String {
+    if entry.repair_cost == 0 {
+        return String::new();
+    }
+    format!(
+        " repair={}",
+        crate::auction_house_data::Money(entry.repair_cost as u64).display()
+    )
 }
 
 pub fn format_item_info(item: &crate::item_info::ItemStaticInfo, appearance_known: bool) -> String {
