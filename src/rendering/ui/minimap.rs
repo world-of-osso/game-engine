@@ -636,6 +636,26 @@ fn collect_tracking_points(
     quest_q: &Query<(&GlobalTransform, &QuestTrackedItem, Option<&Visibility>)>,
     quest_log: Option<&QuestLogState>,
 ) -> Vec<TrackingPoint> {
+    limit_tracking_points(gather_tracking_points(
+        tracking_state,
+        world_object_q,
+        herb_q,
+        quest_q,
+        quest_log,
+    ))
+}
+
+fn gather_tracking_points(
+    tracking_state: Option<&MinimapUIState>,
+    world_object_q: &Query<(
+        &GlobalTransform,
+        &WorldObjectInteraction,
+        Option<&Visibility>,
+    )>,
+    herb_q: &Query<(&GlobalTransform, Option<&Visibility>), With<MinimapHerbNode>>,
+    quest_q: &Query<(&GlobalTransform, &QuestTrackedItem, Option<&Visibility>)>,
+    quest_log: Option<&QuestLogState>,
+) -> Vec<TrackingPoint> {
     let mut points = Vec::new();
     let tracking_filter = tracking_filter(tracking_state);
 
@@ -644,7 +664,10 @@ fn collect_tracking_points(
         append_herb_tracking_points(&mut points, herb_q);
     }
     append_quest_tracking_points(&mut points, quest_q, quest_log);
+    points
+}
 
+fn limit_tracking_points(mut points: Vec<TrackingPoint>) -> Vec<TrackingPoint> {
     points.truncate(MAX_TRACKING_ICONS);
     points
 }
