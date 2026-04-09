@@ -38,6 +38,8 @@ const OPTIONS_THUMB_W: f32 = 18.0;
 const OPTIONS_THUMB_H: f32 = 22.0;
 const UI_SCALE_MIN: f32 = 0.75;
 const UI_SCALE_MAX: f32 = 1.5;
+const CHAT_FONT_SIZE_MIN: f32 = 8.0;
+const CHAT_FONT_SIZE_MAX: f32 = 16.0;
 const BINDING_VALUE_W: f32 = 180.0;
 const KEYBINDING_TAB_LEAD_X: f32 = 11.0;
 const KEYBINDING_TAB_H: f32 = 32.0;
@@ -71,13 +73,21 @@ pub fn camera_body(camera: &CameraOptionsView) -> Element {
 }
 
 pub fn interface_body(hud: &HudOptionsView) -> Element {
-    let _ = hud;
     content_stack(
-        [options_menu_sections::info_row(
-            "interface_status",
-            "Interface",
-            "More interface-specific controls can land here",
-        )]
+        [
+            slider_row(
+                "chat_font_size",
+                "Chat Font Size",
+                hud.chat_font_size,
+                CHAT_FONT_SIZE_MIN,
+                CHAT_FONT_SIZE_MAX,
+            ),
+            options_menu_sections::info_row(
+                "interface_status",
+                "Communities Chat",
+                "Applies to the existing communities chat tab without changing world render scale",
+            ),
+        ]
         .into_iter()
         .flatten()
         .collect(),

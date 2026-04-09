@@ -46,6 +46,7 @@ fn charselect_options_do_not_show_inworld_hud_frames() {
         show_health_bars: true,
         show_target_marker: true,
         show_fps_overlay: true,
+        chat_font_size: 10.0,
     };
 
     apply_ui_hud_visibility_for_state(&mut reg, GameState::CharSelect, &hud);
@@ -70,6 +71,7 @@ fn inworld_options_can_show_inworld_hud_frames() {
         show_health_bars: true,
         show_target_marker: true,
         show_fps_overlay: true,
+        chat_font_size: 10.0,
     };
 
     apply_ui_hud_visibility_for_state(&mut reg, GameState::InWorld, &hud);

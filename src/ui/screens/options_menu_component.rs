@@ -164,6 +164,7 @@ pub struct HudOptionsView {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,
+    pub chat_font_size: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]

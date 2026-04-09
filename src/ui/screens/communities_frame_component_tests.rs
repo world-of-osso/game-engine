@@ -1,4 +1,5 @@
 use super::*;
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::layout::{LayoutRect, recompute_layouts};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -178,6 +179,36 @@ fn chat_tab_builds_input_box() {
     let reg = chat_registry();
     assert!(reg.get_by_name("CommunitiesChatInputBox").is_some());
     assert!(reg.get_by_name("CommunitiesChatInputText").is_some());
+}
+
+#[test]
+fn chat_tab_uses_configured_chat_font_size() {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    let mut state = make_chat_state();
+    state.chat_font_size = 14.0;
+    shared.insert(state);
+    Screen::new(communities_frame_screen).sync(&shared, &mut reg);
+
+    let sender = reg
+        .get(
+            reg.get_by_name("CommunitiesChatMsg0Sender")
+                .expect("sender"),
+        )
+        .expect("sender frame");
+    let input = reg
+        .get(reg.get_by_name("CommunitiesChatInputText").expect("input"))
+        .expect("input frame");
+
+    let Some(WidgetData::FontString(sender_text)) = sender.widget_data.as_ref() else {
+        panic!("expected sender font string");
+    };
+    let Some(WidgetData::FontString(input_text)) = input.widget_data.as_ref() else {
+        panic!("expected input font string");
+    };
+
+    assert_eq!(sender_text.font_size, 14.0);
+    assert_eq!(input_text.font_size, 14.0);
 }
 
 // --- Roster tab tests ---

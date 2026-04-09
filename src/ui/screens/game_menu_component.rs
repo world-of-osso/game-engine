@@ -272,6 +272,7 @@ mod tests {
             show_health_bars: true,
             show_target_marker: true,
             show_fps_overlay: true,
+            chat_font_size: 10.0,
         }
     }
 
@@ -486,6 +487,15 @@ mod tests {
         assert!(reg.get_by_name("SliderRowui_scale").is_some());
         assert!(reg.get_by_name("Sliderui_scale").is_some());
         assert!(reg.get_by_name("Sliderui_scaleHandle").is_some());
+    }
+
+    #[test]
+    fn interface_screen_includes_chat_font_size_slider() {
+        let reg = options_registry_for_category(OptionsCategory::Interface);
+
+        assert!(reg.get_by_name("SliderRowchat_font_size").is_some());
+        assert!(reg.get_by_name("Sliderchat_font_size").is_some());
+        assert!(reg.get_by_name("Sliderchat_font_sizeHandle").is_some());
     }
 
     #[test]

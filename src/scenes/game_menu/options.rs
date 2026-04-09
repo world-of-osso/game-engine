@@ -23,6 +23,7 @@ pub enum SliderField {
     ParticleDensity,
     RenderScale,
     UiScale,
+    ChatFontSize,
     BloomIntensity,
     MasterVolume,
     MusicVolume,
@@ -97,6 +98,7 @@ pub struct HudDraft {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,
+    pub chat_font_size: f32,
 }
 
 #[derive(Clone)]
@@ -157,6 +159,7 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         show_fps_overlay: hud.show_fps_overlay,
+        chat_font_size: hud.chat_font_size,
     }
 }
 
@@ -200,6 +203,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_health_bars: h.show_health_bars,
         show_target_marker: h.show_target_marker,
         show_fps_overlay: h.show_fps_overlay,
+        chat_font_size: h.chat_font_size,
     }
 }
 
@@ -253,6 +257,7 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
         "particle_density" => SliderField::ParticleDensity,
         "render_scale" => SliderField::RenderScale,
         "ui_scale" => SliderField::UiScale,
+        "chat_font_size" => SliderField::ChatFontSize,
         "bloom_intensity" => SliderField::BloomIntensity,
         "master_volume" => SliderField::MasterVolume,
         "music_volume" => SliderField::MusicVolume,
@@ -275,6 +280,10 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
             crate::client_options::MIN_UI_SCALE,
             crate::client_options::MAX_UI_SCALE,
         ),
+        SliderField::ChatFontSize => (
+            crate::client_options::MIN_CHAT_FONT_SIZE,
+            crate::client_options::MAX_CHAT_FONT_SIZE,
+        ),
         SliderField::BloomIntensity => (0.0, 1.0),
         SliderField::MasterVolume
         | SliderField::MusicVolume
@@ -292,6 +301,7 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
         SliderField::RenderScale => model.draft_graphics.render_scale = value,
         SliderField::UiScale => model.draft_graphics.ui_scale = value,
+        SliderField::ChatFontSize => model.draft_hud.chat_font_size = value.round(),
         SliderField::BloomIntensity => model.draft_graphics.bloom_intensity = value,
         SliderField::MasterVolume => model.draft_sound.master_volume = value,
         SliderField::MusicVolume => model.draft_sound.music_volume = value,
@@ -347,6 +357,9 @@ pub fn apply_step(key: &str, delta: i32, model: &mut OverlayModel) {
     if apply_graphics_step(key, step, &mut model.draft_graphics) {
         return;
     }
+    if apply_hud_step(key, step, &mut model.draft_hud) {
+        return;
+    }
     if apply_sound_step(key, step, &mut model.draft_sound) {
         return;
     }
@@ -385,6 +398,22 @@ fn apply_sound_step(key: &str, step: f32, sound: &mut SoundDraft) -> bool {
     };
     *field = clamp_step(*field, 0.05 * step, 0.0, 1.0);
     true
+}
+
+fn apply_hud_step(key: &str, step: f32, hud: &mut HudDraft) -> bool {
+    match key {
+        "chat_font_size" => {
+            hud.chat_font_size = clamp_step(
+                hud.chat_font_size,
+                step,
+                crate::client_options::MIN_CHAT_FONT_SIZE,
+                crate::client_options::MAX_CHAT_FONT_SIZE,
+            )
+            .round();
+            true
+        }
+        _ => false,
+    }
 }
 
 fn apply_camera_step(key: &str, step: f32, c: &mut CameraDraft) {
@@ -506,6 +535,13 @@ pub fn apply_hud_snapshot(h: &mut HudOptions, d: &HudDraft) {
     h.show_health_bars = d.show_health_bars;
     h.show_target_marker = d.show_target_marker;
     h.show_fps_overlay = d.show_fps_overlay;
+    h.chat_font_size = d
+        .chat_font_size
+        .clamp(
+            crate::client_options::MIN_CHAT_FONT_SIZE,
+            crate::client_options::MAX_CHAT_FONT_SIZE,
+        )
+        .round();
 }
 
 pub fn current_capture_action(capture: BindingCapture) -> Option<InputAction> {
@@ -586,6 +622,13 @@ mod tests {
     }
 
     #[test]
+    fn slider_apply_chat_font_size_updates_hud_draft() {
+        let mut model = default_model();
+        apply_slider_value(SliderField::ChatFontSize, 14.0, &mut model);
+        assert!((model.draft_hud.chat_font_size - 14.0).abs() < 0.001);
+    }
+
+    #[test]
     fn slider_apply_min_distance_normalizes_camera_limits() {
         let mut model = default_model();
         model.draft_camera.max_distance = 15.0;
@@ -602,6 +645,7 @@ mod tests {
             SliderField::ParticleDensity,
             SliderField::RenderScale,
             SliderField::UiScale,
+            SliderField::ChatFontSize,
             SliderField::MasterVolume,
             SliderField::LookSensitivity,
             SliderField::MinDistance,
@@ -621,6 +665,7 @@ mod tests {
             ("options_slider:master_volume", SliderField::MasterVolume),
             ("options_slider:render_scale", SliderField::RenderScale),
             ("options_slider:ui_scale", SliderField::UiScale),
+            ("options_slider:chat_font_size", SliderField::ChatFontSize),
             ("options_slider:min_distance", SliderField::MinDistance),
         ];
         for (action, expected) in actions {

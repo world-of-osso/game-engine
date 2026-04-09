@@ -75,6 +75,8 @@ const ROSTER_ROLE_COLOR: &str = "0.6,0.8,1.0,1.0";
 pub const MAX_COMMUNITIES: usize = 10;
 pub const MAX_CHAT_MESSAGES: usize = 15;
 pub const MAX_ROSTER_MEMBERS: usize = 15;
+const MIN_CHAT_FONT_SIZE: f32 = 8.0;
+const MAX_CHAT_FONT_SIZE: f32 = 16.0;
 pub const ROSTER_COLUMNS: &[(&str, f32)] = &[
     ("Name", 0.35),
     ("Rank", 0.20),
@@ -122,6 +124,7 @@ pub struct CommunitiesFrameState {
     pub chat_channels: Vec<ChatChannelTab>,
     pub chat_messages: Vec<ChatMessage>,
     pub roster_members: Vec<RosterMember>,
+    pub chat_font_size: f32,
 }
 
 impl Default for CommunitiesFrameState {
@@ -159,6 +162,7 @@ impl Default for CommunitiesFrameState {
             ],
             chat_messages: vec![],
             roster_members: vec![],
+            chat_font_size: 10.0,
         }
     }
 }
@@ -185,7 +189,7 @@ pub fn communities_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {community_sidebar(&state.communities)}
             {tab_row(&state.tabs)}
-            {chat_tab_content(&state.chat_messages, &state.chat_channels)}
+            {chat_tab_content(&state.chat_messages, &state.chat_channels, state.chat_font_size)}
             {roster_tab_content(&state.roster_members)}
         }
     }
@@ -333,11 +337,16 @@ fn communities_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Elemen
     }
 }
 
-fn chat_tab_content(messages: &[ChatMessage], channels: &[ChatChannelTab]) -> Element {
+fn chat_tab_content(
+    messages: &[ChatMessage],
+    channels: &[ChatChannelTab],
+    chat_font_size: f32,
+) -> Element {
     let content_x = SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - content_x - SIDEBAR_INSET;
     let content_h = FRAME_H - CONTENT_TOP - SIDEBAR_INSET;
+    let chat_font_size = chat_font_size.clamp(MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE);
     rsx! {
         r#frame {
             name: "CommunitiesContentArea",
@@ -350,14 +359,14 @@ fn chat_tab_content(messages: &[ChatMessage], channels: &[ChatChannelTab]) -> El
                 x: {content_x},
                 y: {content_y},
             }
-            {chat_channel_tabs(channels, content_w)}
-            {chat_message_list(messages, content_w, content_h)}
-            {chat_input_box(content_w, content_h)}
+            {chat_channel_tabs(channels, content_w, chat_font_size)}
+            {chat_message_list(messages, content_w, content_h, chat_font_size)}
+            {chat_input_box(content_w, content_h, chat_font_size)}
         }
     }
 }
 
-fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32) -> Element {
+fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32, chat_font_size: f32) -> Element {
     let count = channels.len().max(1) as f32;
     let available_w = parent_w - 2.0 * CHAT_CHANNEL_TAB_INSET;
     let tab_w = (available_w - (count - 1.0) * CHAT_CHANNEL_TAB_GAP) / count;
@@ -366,7 +375,7 @@ fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32) -> Element {
         .enumerate()
         .flat_map(|(i, channel)| {
             let x = CHAT_CHANNEL_TAB_INSET + i as f32 * (tab_w + CHAT_CHANNEL_TAB_GAP);
-            chat_channel_tab(i, channel, tab_w, x)
+            chat_channel_tab(i, channel, tab_w, x, chat_font_size)
         })
         .collect();
     rsx! {
@@ -385,7 +394,13 @@ fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32) -> Element {
     }
 }
 
-fn chat_channel_tab(_idx: usize, channel: &ChatChannelTab, tab_w: f32, x: f32) -> Element {
+fn chat_channel_tab(
+    _idx: usize,
+    channel: &ChatChannelTab,
+    tab_w: f32,
+    x: f32,
+    chat_font_size: f32,
+) -> Element {
     let (bg, color) = if channel.active {
         (CHAT_CHANNEL_TAB_BG_ACTIVE, CHAT_CHANNEL_TAB_TEXT_ACTIVE)
     } else {
@@ -402,18 +417,18 @@ fn chat_channel_tab(_idx: usize, channel: &ChatChannelTab, tab_w: f32, x: f32) -
                 x: {x},
                 y: "0",
             }
-            {chat_channel_tab_label(channel.name.as_str(), tab_w, color)}
+            {chat_channel_tab_label(channel.name.as_str(), tab_w, color, chat_font_size)}
         }
     }
 }
 
-fn chat_channel_tab_label(text: &str, tab_w: f32, color: &str) -> Element {
+fn chat_channel_tab_label(text: &str, tab_w: f32, color: &str, chat_font_size: f32) -> Element {
     rsx! {
         fontstring {
             width: {tab_w - 2.0 * CHAT_CHANNEL_TAB_INSET},
             height: {CHAT_CHANNEL_TAB_H},
             text: text,
-            font_size: 10.0,
+            font_size: {chat_font_size},
             font_color: color,
             justify_h: "CENTER",
             anchor {
@@ -426,7 +441,12 @@ fn chat_channel_tab_label(text: &str, tab_w: f32, color: &str) -> Element {
     }
 }
 
-fn chat_message_list(messages: &[ChatMessage], parent_w: f32, parent_h: f32) -> Element {
+fn chat_message_list(
+    messages: &[ChatMessage],
+    parent_w: f32,
+    parent_h: f32,
+    chat_font_size: f32,
+) -> Element {
     let list_y = -(CHAT_CHANNEL_TAB_INSET + CHAT_CHANNEL_TAB_H + CHAT_CHANNEL_TAB_INSET);
     let list_h = parent_h
         - CHAT_CHANNEL_TAB_INSET
@@ -439,7 +459,7 @@ fn chat_message_list(messages: &[ChatMessage], parent_w: f32, parent_h: f32) -> 
         .iter()
         .enumerate()
         .take(MAX_CHAT_MESSAGES)
-        .flat_map(|(i, msg)| chat_message_row(i, msg, list_w))
+        .flat_map(|(i, msg)| chat_message_row(i, msg, list_w, chat_font_size))
         .collect();
     rsx! {
         r#frame {
@@ -457,25 +477,33 @@ fn chat_message_list(messages: &[ChatMessage], parent_w: f32, parent_h: f32) -> 
     }
 }
 
-fn chat_message_row(idx: usize, msg: &ChatMessage, list_w: f32) -> Element {
+fn chat_message_row(idx: usize, msg: &ChatMessage, list_w: f32, chat_font_size: f32) -> Element {
     let sender_id = DynName(format!("CommunitiesChatMsg{idx}Sender"));
     let text_id = DynName(format!("CommunitiesChatMsg{idx}Text"));
     let y = -(idx as f32 * MSG_ROW_H);
     let sender_w = 80.0;
     rsx! {
-        {chat_line(sender_id, &msg.sender, sender_w, MSG_SENDER_COLOR, 0.0, y)}
-        {chat_line(text_id, &msg.text, list_w - sender_w, MSG_COLOR, sender_w, y)}
+        {chat_line(sender_id, &msg.sender, sender_w, MSG_SENDER_COLOR, 0.0, y, chat_font_size)}
+        {chat_line(text_id, &msg.text, list_w - sender_w, MSG_COLOR, sender_w, y, chat_font_size)}
     }
 }
 
-fn chat_line(id: DynName, text: &str, w: f32, color: &str, x: f32, y: f32) -> Element {
+fn chat_line(
+    id: DynName,
+    text: &str,
+    w: f32,
+    color: &str,
+    x: f32,
+    y: f32,
+    chat_font_size: f32,
+) -> Element {
     rsx! {
         fontstring {
             name: id,
             width: {w},
             height: {MSG_ROW_H},
             text: text,
-            font_size: 9.0,
+            font_size: {chat_font_size},
             font_color: color,
             justify_h: "LEFT",
             anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
@@ -483,7 +511,7 @@ fn chat_line(id: DynName, text: &str, w: f32, color: &str, x: f32, y: f32) -> El
     }
 }
 
-fn chat_input_box(parent_w: f32, parent_h: f32) -> Element {
+fn chat_input_box(parent_w: f32, parent_h: f32, chat_font_size: f32) -> Element {
     let input_w = parent_w - 2.0 * INPUT_INSET;
     let input_y = -(parent_h - INPUT_H - INPUT_INSET);
     rsx! {
@@ -503,7 +531,7 @@ fn chat_input_box(parent_w: f32, parent_h: f32) -> Element {
                 width: {input_w - 8.0},
                 height: {INPUT_H},
                 text: "",
-                font_size: 10.0,
+                font_size: {chat_font_size},
                 font_color: INPUT_TEXT_COLOR,
                 justify_h: "LEFT",
                 anchor {

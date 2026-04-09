@@ -148,6 +148,7 @@ pub struct HudOptions {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,
+    pub chat_font_size: f32,
 }
 
 impl Default for HudOptions {
@@ -159,6 +160,7 @@ impl Default for HudOptions {
             show_health_bars: true,
             show_target_marker: true,
             show_fps_overlay: true,
+            chat_font_size: default_chat_font_size(),
         }
     }
 }
@@ -172,6 +174,9 @@ impl HudOptions {
             show_health_bars: file.show_health_bars,
             show_target_marker: file.show_target_marker,
             show_fps_overlay: file.show_fps_overlay,
+            chat_font_size: file
+                .chat_font_size
+                .clamp(MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE),
         }
     }
 }
@@ -352,6 +357,8 @@ struct HudOptionsFile {
     show_health_bars: bool,
     show_target_marker: bool,
     show_fps_overlay: bool,
+    #[serde(default = "default_chat_font_size", rename = "chatFontSize")]
+    chat_font_size: f32,
 }
 
 impl Default for HudOptionsFile {
@@ -364,6 +371,7 @@ impl Default for HudOptionsFile {
             show_health_bars: defaults.show_health_bars,
             show_target_marker: defaults.show_target_marker,
             show_fps_overlay: defaults.show_fps_overlay,
+            chat_font_size: defaults.chat_font_size,
         }
     }
 }
@@ -426,6 +434,9 @@ fn build_options_file(
             show_health_bars: hud.show_health_bars,
             show_target_marker: hud.show_target_marker,
             show_fps_overlay: hud.show_fps_overlay,
+            chat_font_size: hud
+                .chat_font_size
+                .clamp(MIN_CHAT_FONT_SIZE, MAX_CHAT_FONT_SIZE),
         },
         bindings: bindings.clone(),
         modal_offset: Some(modal_offset),
@@ -468,6 +479,12 @@ const fn default_bloom_intensity() -> f32 {
 
 pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;
+pub const MIN_CHAT_FONT_SIZE: f32 = 8.0;
+pub const MAX_CHAT_FONT_SIZE: f32 = 16.0;
+
+const fn default_chat_font_size() -> f32 {
+    10.0
+}
 
 fn load_options_file() -> ClientOptionsFile {
     let path = load_options_path();
@@ -617,6 +634,7 @@ mod tests {
         assert!(defaults.show_minimap);
         assert!(defaults.show_action_bars);
         assert!(defaults.show_target_marker);
+        assert!((defaults.chat_font_size - 10.0).abs() < 0.0001);
     }
 
     #[test]
@@ -628,6 +646,7 @@ mod tests {
             show_health_bars: false,
             show_target_marker: true,
             show_fps_overlay: false,
+            chat_font_size: default_chat_font_size(),
         });
         assert!(!toggles.show_minimap);
         assert!(toggles.show_action_bars);
@@ -778,6 +797,7 @@ mod tests {
                 show_health_bars: true,
                 show_target_marker: false,
                 show_fps_overlay: false,
+                chat_font_size: 13.0,
             },
             bindings: bindings.clone(),
             modal_offset: Some([123.0, -45.0]),
@@ -793,6 +813,7 @@ mod tests {
         assert_eq!(loaded.graphics.particle_density, 60);
         assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
         assert!(!loaded.hud.show_minimap);
+        assert!((loaded.hud.chat_font_size - 13.0).abs() < 0.0001);
         assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));
         assert_eq!(
             loaded.bindings.binding(InputAction::TargetNearest),
@@ -813,6 +834,21 @@ mod tests {
 
         assert!((GraphicsOptions::from_file(&low).ui_scale - MIN_UI_SCALE).abs() < 0.0001);
         assert!((GraphicsOptions::from_file(&high).ui_scale - MAX_UI_SCALE).abs() < 0.0001);
+    }
+
+    #[test]
+    fn hud_options_file_clamps_chat_font_size_range() {
+        let low = HudOptionsFile {
+            chat_font_size: 1.0,
+            ..HudOptionsFile::default()
+        };
+        let high = HudOptionsFile {
+            chat_font_size: 99.0,
+            ..HudOptionsFile::default()
+        };
+
+        assert!((HudOptions::from_file(&low).chat_font_size - MIN_CHAT_FONT_SIZE).abs() < 0.0001);
+        assert!((HudOptions::from_file(&high).chat_font_size - MAX_CHAT_FONT_SIZE).abs() < 0.0001);
     }
 
     #[test]
