@@ -167,49 +167,68 @@ fn apply_talent_state_update(snapshot: &mut TalentStatusSnapshot, update: Talent
 
 fn format_status(snapshot: &TalentStatusSnapshot) -> String {
     let mut lines = Vec::new();
-    let active_tabs = snapshot
-        .spec_tabs
-        .iter()
-        .filter(|tab| tab.active)
-        .map(|tab| tab.name.as_str())
-        .collect::<Vec<_>>();
     lines.push(format!(
         "talents: tabs={} selected={} points_remaining={}",
-        if active_tabs.is_empty() {
-            "none".into()
-        } else {
-            active_tabs.join(",")
-        },
-        snapshot
-            .talents
-            .iter()
-            .filter(|talent| talent.active)
-            .count(),
+        joined_active_names(
+            &snapshot.spec_tabs,
+            |tab| tab.active,
+            |tab| tab.name.as_str(),
+            ","
+        ),
+        active_talent_count(snapshot),
         snapshot.points_remaining
     ));
-    if let Some(message) = &snapshot.last_server_message {
-        lines.push(format!("message: {message}"));
-    }
-    if let Some(error) = &snapshot.last_error {
-        lines.push(format!("error: {error}"));
-    }
+    push_optional_line(
+        &mut lines,
+        "message",
+        snapshot.last_server_message.as_deref(),
+    );
+    push_optional_line(&mut lines, "error", snapshot.last_error.as_deref());
     if !snapshot.talents.is_empty() {
-        let selected = snapshot
-            .talents
-            .iter()
-            .filter(|talent| talent.active)
-            .map(|talent| talent.name.as_str())
-            .collect::<Vec<_>>();
-        lines.push(format!(
-            "selected: {}",
-            if selected.is_empty() {
-                "none".into()
-            } else {
-                selected.join(", ")
-            }
-        ));
+        lines.push(format!("selected: {}", selected_talent_names(snapshot)));
     }
     lines.join("\n")
+}
+
+fn active_talent_count(snapshot: &TalentStatusSnapshot) -> usize {
+    snapshot
+        .talents
+        .iter()
+        .filter(|talent| talent.active)
+        .count()
+}
+
+fn selected_talent_names(snapshot: &TalentStatusSnapshot) -> String {
+    joined_active_names(
+        &snapshot.talents,
+        |talent| talent.active,
+        |talent| talent.name.as_str(),
+        ", ",
+    )
+}
+
+fn joined_active_names<T>(
+    entries: &[T],
+    is_active: impl Fn(&T) -> bool,
+    name: impl Fn(&T) -> &str,
+    separator: &str,
+) -> String {
+    let names = entries
+        .iter()
+        .filter(|entry| is_active(entry))
+        .map(name)
+        .collect::<Vec<_>>();
+    if names.is_empty() {
+        "none".into()
+    } else {
+        names.join(separator)
+    }
+}
+
+fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        lines.push(format!("{label}: {value}"));
+    }
 }
 
 #[cfg(test)]
