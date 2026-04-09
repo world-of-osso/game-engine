@@ -143,52 +143,71 @@ fn build_state(
     open: &GuildFrameOpen,
     selection: &GuildFrameSelection,
 ) -> GuildFrameState {
-    let status_text = snapshot
+    let guild_name = snapshot.map(|s| s.guild_name.clone()).unwrap_or_default();
+    let motd = snapshot.map(|s| s.motd.clone()).unwrap_or_default();
+    let info_text = snapshot.map(|s| s.info_text.clone()).unwrap_or_default();
+    let status_text = guild_status_text(snapshot);
+    let tabs = guild_tabs(selection.0);
+    let members = guild_member_rows(snapshot);
+    GuildFrameState {
+        visible: open.0,
+        guild_name,
+        motd,
+        info_text,
+        status_text,
+        active_tab: selection.0,
+        tabs,
+        members,
+    }
+}
+
+fn guild_status_text(snapshot: Option<&GuildStatusSnapshot>) -> String {
+    snapshot
         .and_then(|snapshot| {
             snapshot
                 .last_error
                 .clone()
                 .or_else(|| snapshot.last_server_message.clone())
         })
-        .unwrap_or_default();
-    GuildFrameState {
-        visible: open.0,
-        guild_name: snapshot.map(|s| s.guild_name.clone()).unwrap_or_default(),
-        motd: snapshot.map(|s| s.motd.clone()).unwrap_or_default(),
-        info_text: snapshot.map(|s| s.info_text.clone()).unwrap_or_default(),
-        status_text,
-        active_tab: selection.0,
-        tabs: [
-            (GuildTabKind::Roster, "Roster"),
-            (GuildTabKind::Info, "Info"),
-        ]
-        .into_iter()
-        .map(|(tab, name)| GuildTab {
-            name: name.into(),
-            active: tab == selection.0,
-            action: tab.action().into(),
-        })
-        .collect(),
-        members: snapshot
-            .map(|snapshot| {
-                snapshot
-                    .entries
-                    .iter()
-                    .map(|entry| GuildMemberRow {
-                        name: entry.character_name.clone(),
-                        level: entry.level,
-                        class_name: entry.class_name.clone(),
-                        rank_name: entry.rank_name.clone(),
-                        status: if entry.online {
-                            "Online".into()
-                        } else {
-                            entry.last_online.clone()
-                        },
-                        officer_note: entry.officer_note.clone(),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default(),
+        .unwrap_or_default()
+}
+
+fn guild_tabs(active_tab: GuildTabKind) -> Vec<GuildTab> {
+    [
+        (GuildTabKind::Roster, "Roster"),
+        (GuildTabKind::Info, "Info"),
+    ]
+    .into_iter()
+    .map(|(tab, name)| GuildTab {
+        name: name.into(),
+        active: tab == active_tab,
+        action: tab.action().into(),
+    })
+    .collect()
+}
+
+fn guild_member_rows(snapshot: Option<&GuildStatusSnapshot>) -> Vec<GuildMemberRow> {
+    snapshot
+        .map(|snapshot| snapshot.entries.iter().map(guild_member_row).collect())
+        .unwrap_or_default()
+}
+
+fn guild_member_row(entry: &game_engine::status::GuildMemberEntry) -> GuildMemberRow {
+    GuildMemberRow {
+        name: entry.character_name.clone(),
+        level: entry.level,
+        class_name: entry.class_name.clone(),
+        rank_name: entry.rank_name.clone(),
+        status: guild_member_status(entry),
+        officer_note: entry.officer_note.clone(),
+    }
+}
+
+fn guild_member_status(entry: &game_engine::status::GuildMemberEntry) -> String {
+    if entry.online {
+        "Online".into()
+    } else {
+        entry.last_online.clone()
     }
 }
 
