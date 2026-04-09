@@ -11,16 +11,31 @@ use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 use crate::client_options::HudVisibilityToggles;
 use crate::game_state::GameState;
 use crate::minimap_render::{
-    blit_image, create_arrow_image, create_blank_image, create_border_image, render_tile_image,
+    TrackingIconKind, blit_image, create_arrow_image, create_blank_image, create_border_image,
+    draw_tracking_icon, render_tile_image,
 };
+use crate::target::{WorldObjectInteraction, WorldObjectInteractionKind};
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::zone_names::zone_id_to_name;
 use game_engine::ui::screens::inworld_hud_component;
+use game_engine::{
+    minimap_data::{MinimapHerbNode, MinimapUIState, TrackingType},
+    quest_data::QuestLogState,
+    quest_tracking::{QuestTrackedItem, should_sparkle},
+};
 
 const MINIMAP_TILE_SIZE: u32 = 256;
 const MINIMAP_DISPLAY_SIZE: u32 = 200;
 const MINIMAP_COMPOSITE_SIZE: u32 = 768; // 3 tiles x 256 pixels
 const MINIMAP_BG_COLOR: [u8; 4] = [20, 20, 20, 255];
+const MAX_TRACKING_ICONS: usize = 64;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct TrackingPoint {
+    kind: TrackingIconKind,
+    bx: f32,
+    bz: f32,
+}
 
 /// Stores generated minimap tile images.
 #[derive(Resource, Default)]
@@ -98,7 +113,8 @@ pub struct MinimapPlugin;
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MinimapState>()
-            .init_resource::<LastMinimapPixel>();
+            .init_resource::<LastMinimapPixel>()
+            .init_resource::<MinimapUIState>();
         register_minimap_systems(app);
     }
 }
@@ -312,10 +328,26 @@ fn update_minimap_composite(
     composite_res: Option<Res<MinimapComposite>>,
     mut images: ResMut<Assets<Image>>,
     mut last: ResMut<LastMinimapPixel>,
+    tracking_state: Option<Res<MinimapUIState>>,
+    world_object_q: Query<(
+        &GlobalTransform,
+        &WorldObjectInteraction,
+        Option<&Visibility>,
+    )>,
+    herb_q: Query<(&GlobalTransform, Option<&Visibility>), With<MinimapHerbNode>>,
+    quest_q: Query<(&GlobalTransform, &QuestTrackedItem, Option<&Visibility>)>,
+    quest_log: Option<Res<QuestLogState>>,
 ) {
     let Some(state) = current_minimap_composite_state(&player_q, composite_res) else {
         return;
     };
+    let tracking_points = collect_tracking_points(
+        tracking_state.as_deref(),
+        &world_object_q,
+        &herb_q,
+        &quest_q,
+        quest_log.as_deref(),
+    );
 
     let tile_gen = minimap.generated.len();
     let grid_changed = tile_grid_changed(&last, state.player_row, state.player_col, tile_gen);
@@ -343,6 +375,9 @@ fn update_minimap_composite(
         state.comp_size,
         state.px_x,
         state.px_y,
+        state.player_row,
+        state.player_col,
+        &tracking_points,
     );
 }
 
@@ -393,6 +428,9 @@ fn apply_circular_crop(
     comp_size: usize,
     px_x: usize,
     px_y: usize,
+    player_row: u32,
+    player_col: u32,
+    tracking_points: &[TrackingPoint],
 ) {
     let ds = MINIMAP_DISPLAY_SIZE as usize;
     ensure_circle_mask(&mut last.circle_mask, ds);
@@ -407,6 +445,16 @@ fn apply_circular_crop(
         ds,
         &last.circle_mask,
         &mut last.crop_buf,
+    );
+    draw_tracking_icons(
+        &mut last.crop_buf,
+        ds,
+        px_x,
+        px_y,
+        player_row,
+        player_col,
+        tracking_points,
+        &last.circle_mask,
     );
 
     if let Some(img) = images.get_mut(&composite_res.handle) {
@@ -555,6 +603,16 @@ fn player_pixel_in_composite(
     col: u32,
     comp_size: usize,
 ) -> (usize, usize) {
+    world_pixel_in_composite(bx, bz, row, col, comp_size)
+}
+
+fn world_pixel_in_composite(
+    bx: f32,
+    bz: f32,
+    row: u32,
+    col: u32,
+    comp_size: usize,
+) -> (usize, usize) {
     let tile_size = crate::asset::adt::CHUNK_SIZE * 16.0;
     let center = 32.0 * tile_size;
     let frow = (center + bz) / tile_size;
@@ -565,6 +623,153 @@ fn player_pixel_in_composite(
     let px_x = (tile_px + frac_x * tile_px) as usize;
     let px_y = (tile_px + frac_y * tile_px) as usize;
     (px_x.min(comp_size - 1), px_y.min(comp_size - 1))
+}
+
+fn collect_tracking_points(
+    tracking_state: Option<&MinimapUIState>,
+    world_object_q: &Query<(
+        &GlobalTransform,
+        &WorldObjectInteraction,
+        Option<&Visibility>,
+    )>,
+    herb_q: &Query<(&GlobalTransform, Option<&Visibility>), With<MinimapHerbNode>>,
+    quest_q: &Query<(&GlobalTransform, &QuestTrackedItem, Option<&Visibility>)>,
+    quest_log: Option<&QuestLogState>,
+) -> Vec<TrackingPoint> {
+    let mut points = Vec::new();
+    let tracking_filter = tracking_filter(tracking_state);
+
+    append_world_object_tracking_points(&mut points, world_object_q, tracking_filter.show_minerals);
+    if tracking_filter.show_herbs {
+        append_herb_tracking_points(&mut points, herb_q);
+    }
+    append_quest_tracking_points(&mut points, quest_q, quest_log);
+
+    points.truncate(MAX_TRACKING_ICONS);
+    points
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct TrackingFilter {
+    show_herbs: bool,
+    show_minerals: bool,
+}
+
+fn tracking_filter(tracking_state: Option<&MinimapUIState>) -> TrackingFilter {
+    TrackingFilter {
+        show_herbs: tracking_state
+            .is_none_or(|state| matches!(state.tracking, TrackingType::None | TrackingType::Herbs)),
+        show_minerals: tracking_state.is_none_or(|state| {
+            matches!(state.tracking, TrackingType::None | TrackingType::Minerals)
+        }),
+    }
+}
+
+fn append_world_object_tracking_points(
+    points: &mut Vec<TrackingPoint>,
+    world_object_q: &Query<(
+        &GlobalTransform,
+        &WorldObjectInteraction,
+        Option<&Visibility>,
+    )>,
+    show_minerals: bool,
+) {
+    for (transform, interaction, visibility) in world_object_q.iter() {
+        if is_hidden(visibility) {
+            continue;
+        }
+        let Some(kind) = tracking_icon_kind(interaction.kind, show_minerals) else {
+            continue;
+        };
+        push_tracking_point(points, transform, kind);
+    }
+}
+
+fn append_herb_tracking_points(
+    points: &mut Vec<TrackingPoint>,
+    herb_q: &Query<(&GlobalTransform, Option<&Visibility>), With<MinimapHerbNode>>,
+) {
+    for (transform, visibility) in herb_q.iter() {
+        if is_hidden(visibility) {
+            continue;
+        }
+        push_tracking_point(points, transform, TrackingIconKind::Herb);
+    }
+}
+
+fn append_quest_tracking_points(
+    points: &mut Vec<TrackingPoint>,
+    quest_q: &Query<(&GlobalTransform, &QuestTrackedItem, Option<&Visibility>)>,
+    quest_log: Option<&QuestLogState>,
+) {
+    let Some(quest_log) = quest_log else { return };
+    for (transform, tracked, visibility) in quest_q.iter() {
+        if is_hidden(visibility) || !should_sparkle(tracked, quest_log) {
+            continue;
+        }
+        push_tracking_point(points, transform, TrackingIconKind::QuestObjective);
+    }
+}
+
+fn push_tracking_point(
+    points: &mut Vec<TrackingPoint>,
+    transform: &GlobalTransform,
+    kind: TrackingIconKind,
+) {
+    let position = GlobalTransform::translation(transform);
+    points.push(TrackingPoint {
+        kind,
+        bx: position.x,
+        bz: position.z,
+    });
+}
+
+fn tracking_icon_kind(
+    interaction: WorldObjectInteractionKind,
+    shows_minerals: bool,
+) -> Option<TrackingIconKind> {
+    match interaction {
+        WorldObjectInteractionKind::Mailbox => Some(TrackingIconKind::Mailbox),
+        WorldObjectInteractionKind::GatherNode(_) if shows_minerals => {
+            Some(TrackingIconKind::Mineral)
+        }
+        _ => None,
+    }
+}
+
+fn is_hidden(visibility: Option<&Visibility>) -> bool {
+    visibility.is_some_and(|value| *value == Visibility::Hidden)
+}
+
+fn draw_tracking_icons(
+    data: &mut [u8],
+    ds: usize,
+    px_x: usize,
+    px_y: usize,
+    player_row: u32,
+    player_col: u32,
+    tracking_points: &[TrackingPoint],
+    mask: &[bool],
+) {
+    let half = ds as i32 / 2;
+    for point in tracking_points {
+        let (icon_px_x, icon_px_y) = world_pixel_in_composite(
+            point.bx,
+            point.bz,
+            player_row,
+            player_col,
+            MINIMAP_COMPOSITE_SIZE as usize,
+        );
+        let crop_x = icon_px_x as i32 - px_x as i32 + half;
+        let crop_y = icon_px_y as i32 - px_y as i32 + half;
+        if crop_x < 0 || crop_y < 0 || crop_x as usize >= ds || crop_y as usize >= ds {
+            continue;
+        }
+        if !mask[crop_y as usize * ds + crop_x as usize] {
+            continue;
+        }
+        draw_tracking_icon(data, ds, crop_x, crop_y, point.kind);
+    }
 }
 
 /// Update zone name text when the current zone changes.

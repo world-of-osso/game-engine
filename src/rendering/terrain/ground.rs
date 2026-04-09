@@ -2,6 +2,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+use game_engine::minimap_data::MinimapHerbNode;
 
 use crate::asset;
 use crate::creature_display;
@@ -182,6 +183,8 @@ fn spawn_herb_clutter(
             },
             creature_display_map,
         };
-        m2_scene::spawn_static_m2(&mut ctx, herb_path, transform);
+        if let Some(root) = m2_scene::spawn_static_m2(&mut ctx, herb_path, transform) {
+            ctx.commands.entity(root).insert(MinimapHerbNode);
+        }
     }
 }

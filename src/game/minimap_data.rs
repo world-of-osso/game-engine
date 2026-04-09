@@ -15,8 +15,12 @@ pub mod textures {
     pub const ARROW_ROTATING: u32 = 136443;
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct MinimapHerbNode;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum TrackingType {
+    #[default]
     None,
     Herbs,
     Minerals,
@@ -37,12 +41,6 @@ impl TrackingType {
             Self::Humanoids => "Track Humanoids",
             Self::Undead => "Track Undead",
         }
-    }
-}
-
-impl Default for TrackingType {
-    fn default() -> Self {
-        Self::None
     }
 }
 

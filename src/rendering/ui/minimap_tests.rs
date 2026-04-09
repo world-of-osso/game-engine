@@ -1,8 +1,8 @@
 use super::*;
 use crate::asset::adt::ChunkHeightGrid;
 use crate::minimap_render::{
-    create_arrow_image, create_border_image, crop_with_circle, draw_dot, find_height_range,
-    height_to_color, point_in_triangle, render_tile_image,
+    TrackingIconKind, create_arrow_image, create_border_image, crop_with_circle, draw_dot,
+    draw_tracking_icon, find_height_range, height_to_color, point_in_triangle, render_tile_image,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -201,6 +201,66 @@ fn player_pixel_for_known_elwynn_position_stays_in_center_tile() {
         (MINIMAP_TILE_SIZE as usize..(MINIMAP_TILE_SIZE * 2) as usize).contains(&px_y),
         "expected y to stay in center tile, got {px_y}"
     );
+}
+
+#[test]
+fn world_pixel_in_composite_matches_player_for_same_position() {
+    let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+    let (row, col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
+    let player_pixel = player_pixel_in_composite(bx, bz, row, col, MINIMAP_COMPOSITE_SIZE as usize);
+    let world_pixel = world_pixel_in_composite(bx, bz, row, col, MINIMAP_COMPOSITE_SIZE as usize);
+
+    assert_eq!(world_pixel, player_pixel);
+}
+
+#[test]
+fn draw_tracking_icon_mailbox_tints_center_blue() {
+    let mut data = vec![0u8; 16 * 16 * 4];
+
+    draw_tracking_icon(&mut data, 16, 8, 8, TrackingIconKind::Mailbox);
+
+    let center = (8 * 16 + 8) * 4;
+    assert_eq!(&data[center..center + 4], &[90, 160, 255, 255]);
+}
+
+#[test]
+fn draw_tracking_icon_quest_marks_center_yellow() {
+    let mut data = vec![0u8; 16 * 16 * 4];
+
+    draw_tracking_icon(&mut data, 16, 8, 8, TrackingIconKind::QuestObjective);
+
+    let center = (8 * 16 + 8) * 4;
+    assert_eq!(&data[center..center + 4], &[255, 220, 40, 255]);
+}
+
+#[test]
+fn draw_tracking_icons_places_mailbox_at_player_center() {
+    let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+    let (row, col) = crate::terrain_tile::bevy_to_tile_coords(bx, bz);
+    let comp_size = MINIMAP_COMPOSITE_SIZE as usize;
+    let ds = MINIMAP_DISPLAY_SIZE as usize;
+    let (px_x, px_y) = player_pixel_in_composite(bx, bz, row, col, comp_size);
+    let mut data = vec![0u8; ds * ds * 4];
+    let mut mask = Vec::new();
+    ensure_circle_mask(&mut mask, ds);
+
+    draw_tracking_icons(
+        &mut data,
+        ds,
+        px_x,
+        px_y,
+        row,
+        col,
+        &[TrackingPoint {
+            kind: TrackingIconKind::Mailbox,
+            bx,
+            bz,
+        }],
+        &mask,
+    );
+
+    let center = (ds / 2 * ds + ds / 2) * 4;
+    assert_eq!(&data[center..center + 4], &[90, 160, 255, 255]);
 }
 
 #[test]

@@ -6,6 +6,14 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use crate::asset::adt::ChunkHeightGrid;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TrackingIconKind {
+    Herb,
+    Mailbox,
+    Mineral,
+    QuestObjective,
+}
+
 /// Create a blank RGBA image of given dimensions.
 pub fn create_blank_image(w: u32, h: u32) -> Image {
     let data = vec![0u8; (w * h * 4) as usize];
@@ -118,6 +126,57 @@ pub fn blit_image(
                 .copy_from_slice(&src[si_start..si_start + row_bytes]);
         }
     }
+}
+
+pub fn draw_tracking_icon(data: &mut [u8], size: usize, cx: i32, cy: i32, kind: TrackingIconKind) {
+    match kind {
+        TrackingIconKind::Herb => draw_herb_icon(data, size, cx, cy),
+        TrackingIconKind::Mailbox => draw_mailbox_icon(data, size, cx, cy),
+        TrackingIconKind::Mineral => draw_mineral_icon(data, size, cx, cy),
+        TrackingIconKind::QuestObjective => draw_quest_icon(data, size, cx, cy),
+    }
+}
+
+fn draw_herb_icon(data: &mut [u8], size: usize, cx: i32, cy: i32) {
+    draw_icon_pixel(data, size, cx, cy, [60, 210, 90, 255]);
+    draw_icon_pixel(data, size, cx - 1, cy, [60, 210, 90, 255]);
+    draw_icon_pixel(data, size, cx + 1, cy, [60, 210, 90, 255]);
+    draw_icon_pixel(data, size, cx, cy - 1, [95, 240, 120, 255]);
+    draw_icon_pixel(data, size, cx, cy + 1, [25, 120, 45, 255]);
+}
+
+fn draw_mailbox_icon(data: &mut [u8], size: usize, cx: i32, cy: i32) {
+    for y in -1..=1 {
+        for x in -1..=1 {
+            draw_icon_pixel(data, size, cx + x, cy + y, [90, 160, 255, 255]);
+        }
+    }
+}
+
+fn draw_mineral_icon(data: &mut [u8], size: usize, cx: i32, cy: i32) {
+    draw_icon_pixel(data, size, cx, cy - 2, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx - 1, cy - 1, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx + 1, cy - 1, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx - 2, cy, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx, cy, [255, 195, 90, 255]);
+    draw_icon_pixel(data, size, cx + 2, cy, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx - 1, cy + 1, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx + 1, cy + 1, [235, 150, 45, 255]);
+    draw_icon_pixel(data, size, cx, cy + 2, [235, 150, 45, 255]);
+}
+
+fn draw_quest_icon(data: &mut [u8], size: usize, cx: i32, cy: i32) {
+    draw_icon_pixel(data, size, cx, cy - 1, [255, 220, 40, 255]);
+    draw_icon_pixel(data, size, cx, cy, [255, 220, 40, 255]);
+    draw_icon_pixel(data, size, cx, cy + 2, [255, 220, 40, 255]);
+}
+
+fn draw_icon_pixel(data: &mut [u8], size: usize, x: i32, y: i32, color: [u8; 4]) {
+    if x < 0 || y < 0 || x as usize >= size || y as usize >= size {
+        return;
+    }
+    let offset = (y as usize * size + x as usize) * 4;
+    data[offset..offset + 4].copy_from_slice(&color);
 }
 
 /// Crop a display_size window centered on (cx, cy) and apply a circular alpha mask.
