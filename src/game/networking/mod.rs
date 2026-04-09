@@ -265,12 +265,18 @@ fn register_gameplay_net_systems(app: &mut App) {
 }
 
 fn register_inworld_sync_systems(app: &mut App) {
-    use crate::game_state::GameState;
-    use crate::networking_messages as msg;
     app.add_systems(
         Update,
-        msg::receive_load_terrain.run_if(should_receive_load_terrain),
+        crate::networking_messages::receive_load_terrain.run_if(should_receive_load_terrain),
     );
+    register_inworld_snapshot_systems(app);
+    register_inworld_replication_systems(app);
+    register_entity_tag_systems(app);
+}
+
+fn register_inworld_snapshot_systems(app: &mut App) {
+    use crate::game_state::GameState;
+    use crate::networking_messages as msg;
     app.add_systems(
         Update,
         (
@@ -288,6 +294,16 @@ fn register_inworld_sync_systems(app: &mut App) {
             msg::receive_guild_vault_snapshot,
             msg::receive_warbank_snapshot,
             msg::receive_inventory_search_snapshot,
+        )
+            .run_if(in_state(GameState::InWorld)),
+    );
+}
+
+fn register_inworld_replication_systems(app: &mut App) {
+    use crate::game_state::GameState;
+    app.add_systems(
+        Update,
+        (
             sync_replicated_transforms,
             crate::networking_player::sync_replicated_player_customization,
             crate::networking_player::sync_local_mount_visual_movement,
@@ -295,7 +311,6 @@ fn register_inworld_sync_systems(app: &mut App) {
         )
             .run_if(in_state(GameState::InWorld)),
     );
-    register_entity_tag_systems(app);
 }
 
 fn register_entity_tag_systems(app: &mut App) {
