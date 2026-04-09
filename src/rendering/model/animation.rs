@@ -568,5 +568,5 @@ impl Plugin for AnimationPlugin {
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/animation_tests.rs"]
+#[path = "../../../tests/unit/animation_tests/mod.rs"]
 mod tests;
