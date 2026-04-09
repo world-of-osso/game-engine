@@ -681,6 +681,8 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         game_engine::lfg::LfgPlugin,
         game_engine::pvp::PvpPlugin,
         game_engine::world_map::WorldMapPlugin,
+    ));
+    app.add_plugins((
         scenes::encounter_journal_frame::EncounterJournalFramePlugin,
         scenes::friends_frame::FriendsFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
@@ -689,6 +691,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));
+    app.add_plugins(game_engine::who::WhoPlugin);
     app.add_plugins(game_engine::reputation::ReputationPlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);
     app.add_plugins(scenes::mail_frame::MailFramePlugin);

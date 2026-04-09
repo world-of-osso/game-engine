@@ -11,6 +11,7 @@ use crate::status::{
     IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot,
     MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
     QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -57,6 +58,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
             format_collection_pets(ctx.collection_status, *missing)
         }
         Request::FriendsStatus => format_friends_status(ctx.friends_status),
+        Request::WhoStatus => format_who_status(ctx.who_status),
         Request::IgnoreStatus => format_ignore_list_status(ctx.ignore_list_status),
         Request::LfgStatus => format_lfg_status(ctx.lfg_status),
         Request::PvpStatus => format_pvp_status(ctx.pvp_status),
@@ -325,6 +327,35 @@ pub fn format_friends_status(snapshot: &FriendsStatusSnapshot) -> String {
             entry.area,
             entry.online,
             format_presence_state(&entry.presence)
+        )
+    }));
+    lines.join("\n")
+}
+
+pub fn format_who_status(snapshot: &WhoStatusSnapshot) -> String {
+    let query = if snapshot.query.is_empty() {
+        "*"
+    } else {
+        snapshot.query.as_str()
+    };
+    let mut lines = vec![
+        format!("who_query: {query}"),
+        format!("who_results: {}", snapshot.entries.len()),
+    ];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.entries.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.entries.iter().map(|entry| {
+        format!(
+            "{} level={} class={} area={}",
+            entry.name, entry.level, entry.class_name, entry.area
         )
     }));
     lines.join("\n")

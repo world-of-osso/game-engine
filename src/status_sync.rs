@@ -15,7 +15,7 @@ use game_engine::status::{
     MapStatusSnapshot, NetworkStatusSnapshot, PresenceStateEntry, ProfessionStatusSnapshot,
     PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SecondaryResourceEntry,
     SecondaryResourceKindEntry, SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot,
-    WarbankStatusSnapshot,
+    WarbankStatusSnapshot, WhoStatusSnapshot,
 };
 use lightyear::prelude::client::Connected;
 use shared::components::{
@@ -365,6 +365,7 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(CharacterStatsSnapshot::default())
         .insert_resource(BarberShopStatusSnapshot::default())
         .insert_resource(FriendsStatusSnapshot::default())
+        .insert_resource(WhoStatusSnapshot::default())
         .insert_resource(IgnoreListStatusSnapshot::default())
         .insert_resource(PvpStatusSnapshot::default())
         .insert_resource(LfgStatusSnapshot::default())

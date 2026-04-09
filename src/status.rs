@@ -254,6 +254,22 @@ pub struct FriendsStatusSnapshot {
     pub last_error: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WhoEntry {
+    pub name: String,
+    pub level: u16,
+    pub class_name: String,
+    pub area: String,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct WhoStatusSnapshot {
+    pub query: String,
+    pub entries: Vec<WhoEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct IgnoreListStatusSnapshot {
     pub names: Vec<String>,
@@ -1016,6 +1032,22 @@ mod tests {
                 note: String::new(),
             }],
             last_server_message: Some("friend added: Alice".into()),
+            last_error: None,
+        };
+        round_trip(&snapshot);
+    }
+
+    #[test]
+    fn who_status_round_trip() {
+        let snapshot = WhoStatusSnapshot {
+            query: "ali".into(),
+            entries: vec![WhoEntry {
+                name: "Alice".into(),
+                level: 42,
+                class_name: "Mage".into(),
+                area: "Zone 12".into(),
+            }],
+            last_server_message: Some("who: 1 result(s)".into()),
             last_error: None,
         };
         round_trip(&snapshot);

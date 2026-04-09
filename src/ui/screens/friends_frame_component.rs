@@ -45,13 +45,16 @@ const FRIEND_STATUS_ONLINE: &str = "0.0,1.0,0.0,1.0";
 const FRIEND_STATUS_OFFLINE: &str = "0.5,0.5,0.5,1.0";
 const ADD_BUTTON_BG: &str = "0.15,0.12,0.05,0.95";
 const ADD_BUTTON_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
+const EMPTY_TEXT_COLOR: &str = "0.75,0.75,0.75,1.0";
 
 pub const MAX_FRIENDS: usize = 15;
+pub const ACTION_FRIENDS_TAB_PREFIX: &str = "friends_tab:";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct FriendsTab {
     pub name: String,
     pub active: bool,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -64,35 +67,84 @@ pub struct FriendEntry {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct WhoEntry {
+    pub name: String,
+    pub details: String,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum FriendsFrameTabKind {
+    #[default]
+    Friends,
+    Who,
+    Raid,
+    QuickJoin,
+}
+
+impl FriendsFrameTabKind {
+    pub fn from_action(action: &str) -> Option<Self> {
+        match action.strip_prefix(ACTION_FRIENDS_TAB_PREFIX)? {
+            "friends" => Some(Self::Friends),
+            "who" => Some(Self::Who),
+            "raid" => Some(Self::Raid),
+            "quickjoin" => Some(Self::QuickJoin),
+            _ => None,
+        }
+    }
+
+    pub fn action(self) -> String {
+        let suffix = match self {
+            Self::Friends => "friends",
+            Self::Who => "who",
+            Self::Raid => "raid",
+            Self::QuickJoin => "quickjoin",
+        };
+        format!("{ACTION_FRIENDS_TAB_PREFIX}{suffix}")
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct FriendsFrameState {
     pub visible: bool,
+    pub active_tab: FriendsFrameTabKind,
     pub tabs: Vec<FriendsTab>,
     pub friends: Vec<FriendEntry>,
+    pub who_query: String,
+    pub who_results: Vec<WhoEntry>,
+    pub status_text: String,
 }
 
 impl Default for FriendsFrameState {
     fn default() -> Self {
         Self {
             visible: false,
+            active_tab: FriendsFrameTabKind::Friends,
             tabs: vec![
                 FriendsTab {
                     name: "Friends".into(),
                     active: true,
+                    action: FriendsFrameTabKind::Friends.action(),
                 },
                 FriendsTab {
                     name: "Who".into(),
                     active: false,
+                    action: FriendsFrameTabKind::Who.action(),
                 },
                 FriendsTab {
                     name: "Raid".into(),
                     active: false,
+                    action: FriendsFrameTabKind::Raid.action(),
                 },
                 FriendsTab {
                     name: "Quick Join".into(),
                     active: false,
+                    action: FriendsFrameTabKind::QuickJoin.action(),
                 },
             ],
             friends: vec![],
+            who_query: String::new(),
+            who_results: vec![],
+            status_text: String::new(),
         }
     }
 }
@@ -118,7 +170,7 @@ pub fn friends_frame_screen(ctx: &SharedContext) -> Element {
             }
             {title_bar()}
             {tab_row(&state.tabs)}
-            {friends_list_content(&state.friends)}
+            {content_area(state)}
         }
     }
 }
@@ -170,6 +222,7 @@ fn tab_button(i: usize, tab: &FriendsTab, tab_w: f32, x: f32, y: f32) -> Element
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
+            onclick: {tab.action.as_str()},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
@@ -196,16 +249,32 @@ fn friends_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
     }
 }
 
-fn friends_list_content(friends: &[FriendEntry]) -> Element {
+fn content_area(state: &FriendsFrameState) -> Element {
     let content_y = -CONTENT_TOP;
     let content_w = FRAME_W - 2.0 * CONTENT_INSET;
     let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
-    let rows: Element = friends
-        .iter()
-        .enumerate()
-        .take(MAX_FRIENDS)
-        .flat_map(|(i, f)| friend_row(i, f, content_w))
-        .collect();
+    let body = match state.active_tab {
+        FriendsFrameTabKind::Friends => friends_content_body(&state.friends, content_w, content_h),
+        FriendsFrameTabKind::Who => who_content_body(
+            &state.who_query,
+            &state.who_results,
+            &state.status_text,
+            content_w,
+            content_h,
+        ),
+        FriendsFrameTabKind::Raid => placeholder_content_body(
+            "Raid",
+            "Raid roster is not implemented yet.",
+            content_w,
+            content_h,
+        ),
+        FriendsFrameTabKind::QuickJoin => placeholder_content_body(
+            "Quick Join",
+            "Quick Join is not implemented yet.",
+            content_w,
+            content_h,
+        ),
+    };
     rsx! {
         r#frame {
             name: "FriendsContentArea",
@@ -218,9 +287,65 @@ fn friends_list_content(friends: &[FriendEntry]) -> Element {
                 x: {CONTENT_INSET},
                 y: {content_y},
             }
-            {rows}
-            {add_friend_button(content_w, content_h)}
+            {body}
         }
+    }
+}
+
+fn friends_content_body(friends: &[FriendEntry], content_w: f32, content_h: f32) -> Element {
+    let rows: Element = friends
+        .iter()
+        .enumerate()
+        .take(MAX_FRIENDS)
+        .flat_map(|(i, f)| friend_row(i, f, content_w))
+        .collect();
+    rsx! {
+        {rows}
+        {add_friend_button(content_w, content_h)}
+    }
+}
+
+fn who_content_body(
+    query: &str,
+    results: &[WhoEntry],
+    status_text: &str,
+    w: f32,
+    h: f32,
+) -> Element {
+    let header = if query.is_empty() {
+        "Query: All Players".to_string()
+    } else {
+        format!("Query: {query}")
+    };
+    let rows: Element = results
+        .iter()
+        .enumerate()
+        .take(MAX_FRIENDS)
+        .flat_map(|(i, entry)| who_row(i, entry, w))
+        .collect();
+    let footer_text = if status_text.is_empty() {
+        format!("Results: {}", results.len())
+    } else {
+        status_text.to_string()
+    };
+    rsx! {
+        {section_header("WhoQueryLabel", &header, w)}
+        {rows}
+        {section_footer("WhoFooterLabel", &footer_text, w, h)}
+        {empty_state(
+            "WhoEmptyState",
+            "No players matched the current query.",
+            w,
+            h,
+            results.is_empty(),
+        )}
+    }
+}
+
+fn placeholder_content_body(title: &str, text: &str, w: f32, h: f32) -> Element {
+    rsx! {
+        {section_header("FriendsPlaceholderTitle", title, w)}
+        {empty_state("FriendsPlaceholderBody", text, w, h, true)}
     }
 }
 
@@ -247,6 +372,93 @@ fn friend_row(idx: usize, friend: &FriendEntry, parent_w: f32) -> Element {
             {friend_name_label(DynName(format!("FriendRow{idx}Name")), &friend.name, row_w)}
             {friend_game_label(DynName(format!("FriendRow{idx}Game")), &friend.game, row_w)}
             {friend_status_icon(DynName(format!("FriendRow{idx}Status")), &friend.status, status_color)}
+        }
+    }
+}
+
+fn who_row(idx: usize, entry: &WhoEntry, parent_w: f32) -> Element {
+    let row_id = DynName(format!("WhoRow{idx}"));
+    let y = -(FRIEND_INSET + 20.0 + idx as f32 * (FRIEND_ROW_H + FRIEND_ROW_GAP));
+    let row_w = parent_w - 2.0 * FRIEND_INSET;
+    rsx! {
+        r#frame {
+            name: row_id,
+            width: {row_w},
+            height: {FRIEND_ROW_H},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {FRIEND_INSET},
+                y: {y},
+            }
+            {friend_name_label(DynName(format!("WhoRow{idx}Name")), &entry.name, row_w)}
+            {friend_game_label(DynName(format!("WhoRow{idx}Details")), &entry.details, row_w)}
+        }
+    }
+}
+
+fn section_header(name: &str, text: &str, width: f32) -> Element {
+    let id = DynName(name.to_string());
+    rsx! {
+        fontstring {
+            name: id,
+            width: {width - 2.0 * FRIEND_INSET},
+            height: 16.0,
+            text: text,
+            font_size: 10.0,
+            font_color: FRIEND_GAME_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {FRIEND_INSET},
+                y: "-2",
+            }
+        }
+    }
+}
+
+fn section_footer(name: &str, text: &str, width: f32, height: f32) -> Element {
+    let id = DynName(name.to_string());
+    let y = -(height - ADD_BUTTON_H - FRIEND_INSET);
+    rsx! {
+        fontstring {
+            name: id,
+            width: {width - 2.0 * FRIEND_INSET},
+            height: {ADD_BUTTON_H},
+            text: text,
+            font_size: 10.0,
+            font_color: ADD_BUTTON_TEXT_COLOR,
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {FRIEND_INSET},
+                y: {y},
+            }
+        }
+    }
+}
+
+fn empty_state(name: &str, text: &str, width: f32, height: f32, visible: bool) -> Element {
+    let id = DynName(name.to_string());
+    let hide = !visible;
+    rsx! {
+        fontstring {
+            name: id,
+            width: {width - 2.0 * FRIEND_INSET},
+            height: 24.0,
+            hidden: hide,
+            text: text,
+            font_size: 10.0,
+            font_color: EMPTY_TEXT_COLOR,
+            justify_h: "CENTER",
+            anchor {
+                point: AnchorPoint::Top,
+                relative_point: AnchorPoint::Top,
+                x: "0",
+                y: {-(height / 2.0)},
+            }
         }
     }
 }
@@ -624,5 +836,43 @@ mod tests {
             reg.get_by_name(&format!("FriendRow{MAX_FRIENDS}"))
                 .is_none()
         );
+    }
+
+    #[test]
+    fn who_tab_renders_query_and_rows() {
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(FriendsFrameState {
+            visible: true,
+            active_tab: FriendsFrameTabKind::Who,
+            tabs: vec![
+                FriendsTab {
+                    name: "Friends".into(),
+                    active: false,
+                    action: FriendsFrameTabKind::Friends.action(),
+                },
+                FriendsTab {
+                    name: "Who".into(),
+                    active: true,
+                    action: FriendsFrameTabKind::Who.action(),
+                },
+            ],
+            who_query: "ali".into(),
+            who_results: vec![WhoEntry {
+                name: "Alice".into(),
+                details: "Lvl 42 Mage Zone 12".into(),
+            }],
+            status_text: "who: 1 result(s)".into(),
+            ..Default::default()
+        });
+        Screen::new(friends_frame_screen).sync(&shared, &mut reg);
+
+        assert_eq!(fontstring_text(&reg, "WhoQueryLabel"), "Query: ali");
+        assert_eq!(fontstring_text(&reg, "WhoRow0Name"), "Alice");
+        assert_eq!(
+            fontstring_text(&reg, "WhoRow0Details"),
+            "Lvl 42 Mage Zone 12"
+        );
+        assert_eq!(fontstring_text(&reg, "WhoFooterLabel"), "who: 1 result(s)");
     }
 }

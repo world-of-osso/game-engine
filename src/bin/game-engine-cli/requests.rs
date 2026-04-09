@@ -10,7 +10,7 @@ use crate::{
     AuctionCmd, BarberCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd, EmoteCmd,
     EquipmentCmd, FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd, LfgCmd,
     MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd,
-    StatusCmd, TalentCmd, TradeCmd, WaypointCmd,
+    StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -119,6 +119,13 @@ pub fn friend_request(command: FriendCmd) -> Result<Request, String> {
         FriendCmd::Status => Request::FriendsStatus,
         FriendCmd::Add { name } => Request::FriendAdd { name },
         FriendCmd::Remove { name } => Request::FriendRemove { name },
+    };
+    Ok(request)
+}
+
+pub fn who_request(command: WhoCmd) -> Result<Request, String> {
+    let request = match command {
+        WhoCmd::Query { text } => Request::WhoQuery { query: text },
     };
     Ok(request)
 }
@@ -357,6 +364,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
         StatusCmd::Death => Request::DeathStatus,
         StatusCmd::EncounterJournal => Request::EncounterJournalStatus,
         StatusCmd::Friends => Request::FriendsStatus,
+        StatusCmd::Who => Request::WhoStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
         StatusCmd::Lfg => Request::LfgStatus,
         StatusCmd::Pvp => Request::PvpStatus,

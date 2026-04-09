@@ -45,11 +45,13 @@ use crate::status::{
     LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
     PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot,
     TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
+    WhoStatusSnapshot,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
 use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_request};
 use crate::ui::plugin::UiState;
+use crate::who::{WhoRuntimeState, queue_ipc_request as queue_who_ipc_request};
 use shared::protocol::{
     ChatChannel, CombatChannel, EmoteIntent, GroupInviteIntent, GroupUninviteIntent,
     SpellCastIntent, StopSpellCast,
@@ -99,6 +101,7 @@ struct StatusSnapshotParams<'w> {
     combat_log: Res<'w, CombatLogStatusSnapshot>,
     collection: Res<'w, CollectionStatusSnapshot>,
     friends: Res<'w, FriendsStatusSnapshot>,
+    who: Res<'w, WhoStatusSnapshot>,
     ignore_list: Res<'w, IgnoreListStatusSnapshot>,
     lfg: Res<'w, LfgStatusSnapshot>,
     pvp: Res<'w, PvpStatusSnapshot>,
@@ -128,6 +131,7 @@ pub(crate) struct DispatchContext<'a> {
     pub combat_log_status: &'a CombatLogStatusSnapshot,
     pub collection_status: &'a CollectionStatusSnapshot,
     pub friends_status: &'a FriendsStatusSnapshot,
+    pub who_status: &'a WhoStatusSnapshot,
     pub ignore_list_status: &'a IgnoreListStatusSnapshot,
     pub lfg_status: &'a LfgStatusSnapshot,
     pub pvp_status: &'a PvpStatusSnapshot,
@@ -162,6 +166,8 @@ struct WorldParams<'w> {
     collection: ResMut<'w, CollectionRuntimeState>,
     friends: ResMut<'w, FriendsRuntimeState>,
     friends_status: Res<'w, FriendsStatusSnapshot>,
+    who: ResMut<'w, WhoRuntimeState>,
+    who_status: Res<'w, WhoStatusSnapshot>,
     ignore_list: ResMut<'w, IgnoreListRuntimeState>,
     ignore_list_status: Res<'w, IgnoreListStatusSnapshot>,
     lfg: ResMut<'w, LfgRuntimeState>,
@@ -250,6 +256,7 @@ fn build_dispatch_context<'a>(
         combat_log_status: &snapshots.combat_log,
         collection_status: &snapshots.collection,
         friends_status: &snapshots.friends,
+        who_status: &snapshots.who,
         ignore_list_status: &snapshots.ignore_list,
         lfg_status: &snapshots.lfg,
         pvp_status: &snapshots.pvp,
@@ -294,6 +301,14 @@ fn dispatch(
         &mut world.friends,
         &world.friends_status,
         ctx.character_stats,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_who_ipc_request(
+        &mut world.who,
+        &world.who_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

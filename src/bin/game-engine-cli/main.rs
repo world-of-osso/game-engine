@@ -14,7 +14,7 @@ use requests::{
     export_scene_request, friend_request, group_request, ignore_request, inspect_request,
     inventory_request, item_request, lfg_request, mail_request, map_request, presence_request,
     profession_request, pvp_request, quest_request, reputation_request, spell_request,
-    status_request, talent_request, trade_request,
+    status_request, talent_request, trade_request, who_request,
 };
 
 #[derive(Parser)]
@@ -131,6 +131,11 @@ enum Cmd {
     Friend {
         #[command(subcommand)]
         command: FriendCmd,
+    },
+    /// Who list query
+    Who {
+        #[command(subcommand)]
+        command: WhoCmd,
     },
     /// Presence status commands
     Presence {
@@ -304,6 +309,7 @@ pub(crate) enum StatusCmd {
     Death,
     EncounterJournal,
     Friends,
+    Who,
     Ignore,
     Lfg,
     Pvp,
@@ -374,6 +380,14 @@ pub(crate) enum FriendCmd {
     Remove {
         #[arg(long)]
         name: String,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum WhoCmd {
+    Query {
+        #[arg(long, default_value = "")]
+        text: String,
     },
 }
 
@@ -679,6 +693,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Quest { command } => handle_quest(socket, command, json),
         Cmd::Group { command } => handle_group(socket, command, json),
         Cmd::Friend { command } => handle_friend(socket, command, json),
+        Cmd::Who { command } => handle_who(socket, command, json),
         Cmd::Presence { command } => handle_presence(socket, command, json),
         Cmd::Ignore { command } => handle_ignore(socket, command, json),
         Cmd::Lfg { command } => handle_lfg(socket, command, json),
@@ -847,6 +862,10 @@ fn handle_group(socket: &PathBuf, command: GroupCmd, json: bool) -> Result<(), S
 
 fn handle_friend(socket: &PathBuf, command: FriendCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, friend_request(command)?, json)
+}
+
+fn handle_who(socket: &PathBuf, command: WhoCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, who_request(command)?, json)
 }
 
 fn handle_presence(socket: &PathBuf, command: PresenceCmd, json: bool) -> Result<(), String> {

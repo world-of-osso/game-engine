@@ -21,6 +21,7 @@ use game_engine::status::{
     GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
     InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot, ProfessionStatusSnapshot,
     PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, WarbankStatusSnapshot,
+    WhoStatusSnapshot,
 };
 
 /// Marker for entities spawned from server replication.
@@ -190,6 +191,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<CollectionStatusSnapshot>();
     app.init_resource::<ProfessionStatusSnapshot>();
     app.init_resource::<FriendsStatusSnapshot>();
+    app.init_resource::<WhoStatusSnapshot>();
     app.init_resource::<IgnoreListStatusSnapshot>();
     app.init_resource::<PvpStatusSnapshot>();
     app.init_resource::<LfgStatusSnapshot>();

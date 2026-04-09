@@ -9,6 +9,7 @@ use crate::status::{
     LfgMatchMemberEntry, LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot,
     ProfessionStatusSnapshot, PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot,
     QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    WhoEntry, WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -260,6 +261,26 @@ fn formats_friends_status_snapshot_with_server_message() {
     assert!(text.contains("friends: 1"));
     assert!(text.contains("message: friend added: Alice"));
     assert!(text.contains("Alice level=42 class=Mage area=Zone 12 online=true presence=online"));
+}
+
+#[test]
+fn formats_who_status_snapshot_with_server_message() {
+    let text = format_who_status(&WhoStatusSnapshot {
+        query: "ali".into(),
+        entries: vec![WhoEntry {
+            name: "Alice".into(),
+            level: 42,
+            class_name: "Mage".into(),
+            area: "Zone 12".into(),
+        }],
+        last_server_message: Some("who: 1 result(s)".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("who_query: ali"));
+    assert!(text.contains("who_results: 1"));
+    assert!(text.contains("message: who: 1 result(s)"));
+    assert!(text.contains("Alice level=42 class=Mage area=Zone 12"));
 }
 
 #[test]

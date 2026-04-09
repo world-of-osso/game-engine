@@ -91,6 +91,10 @@ pub enum Request {
     DuelDecline,
     DuelStatus,
     FriendsStatus,
+    WhoStatus,
+    WhoQuery {
+        query: String,
+    },
     PresenceStatus,
     PresenceAfk,
     PresenceDnd,

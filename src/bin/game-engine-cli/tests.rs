@@ -159,6 +159,11 @@ fn friends_status_command_maps_to_request() {
 }
 
 #[test]
+fn who_status_command_maps_to_request() {
+    assert_eq!(status_request(StatusCmd::Who).unwrap(), Request::WhoStatus);
+}
+
+#[test]
 fn presence_status_command_maps_to_request() {
     assert_eq!(
         presence_request(PresenceCmd::Status).unwrap(),
@@ -544,6 +549,16 @@ fn friend_remove_command_maps_to_request() {
         .unwrap(),
         Request::FriendRemove {
             name: "Alice".into(),
+        }
+    );
+}
+
+#[test]
+fn who_query_command_maps_to_request() {
+    assert_eq!(
+        who_request(WhoCmd::Query { text: "ali".into() }).unwrap(),
+        Request::WhoQuery {
+            query: "ali".into(),
         }
     );
 }

@@ -138,6 +138,7 @@ pub mod trade;
 #[path = "game/trade_data.rs"]
 pub mod trade_data;
 pub mod ui;
+pub mod who;
 #[path = "game/world_db/mod.rs"]
 pub mod world_db;
 pub mod world_map;
