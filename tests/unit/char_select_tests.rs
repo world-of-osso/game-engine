@@ -11,6 +11,7 @@ use game_engine::ui::event::EventBus;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::strata::FrameStrata;
+use game_engine::ui::widgets::button::ButtonState;
 
 fn test_registry() -> FrameRegistry {
     FrameRegistry::new(1920.0, 1080.0)
@@ -20,6 +21,7 @@ fn build_screen(state: CharSelectState) -> FrameRegistry {
     let mut reg = test_registry();
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state);
+    shared.insert(DeleteConfirmUiState::default());
     Screen::new(char_select_screen).sync(&shared, &mut reg);
     reg
 }
@@ -29,6 +31,19 @@ fn build_screen_with_campsites(state: CharSelectState, campsite: CampsiteState) 
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(state);
     shared.insert(campsite);
+    shared.insert(DeleteConfirmUiState::default());
+    Screen::new(char_select_screen).sync(&shared, &mut reg);
+    reg
+}
+
+fn build_screen_with_delete_confirm(
+    state: CharSelectState,
+    delete_confirm: DeleteConfirmUiState,
+) -> FrameRegistry {
+    let mut reg = test_registry();
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(state);
+    shared.insert(delete_confirm);
     Screen::new(char_select_screen).sync(&shared, &mut reg);
     reg
 }
@@ -158,6 +173,97 @@ fn no_selection_hides_delete_button_and_icon() {
     let reg = build_screen(CharSelectState::default());
     assert!(reg.get_by_name("DeleteChar").is_none());
     assert!(reg.get_by_name("DeleteCharIcon").is_none());
+}
+
+#[test]
+fn delete_confirmation_modal_requires_timer_and_phrase() {
+    let reg = build_screen_with_delete_confirm(
+        CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            ..Default::default()
+        },
+        DeleteConfirmUiState {
+            visible: true,
+            character_name: "Elara".to_string(),
+            typed_text: "DEL".to_string(),
+            countdown_text: "Delete unlocks in 2s".to_string(),
+            confirm_enabled: false,
+        },
+    );
+
+    assert!(reg.get_by_name("DeleteCharacterDialog").is_some());
+    assert!(reg.get_by_name("DeleteCharacterConfirmInput").is_some());
+
+    let confirm = reg
+        .get(
+            reg.get_by_name("DeleteCharacterConfirmButton")
+                .expect("confirm button"),
+        )
+        .expect("confirm frame");
+    let Some(WidgetData::Button(button)) = confirm.widget_data.as_ref() else {
+        panic!("DeleteCharacterConfirmButton should be a button");
+    };
+    assert_eq!(button.state, ButtonState::Disabled);
+
+    let countdown = reg
+        .get(
+            reg.get_by_name("DeleteCharacterDialogCountdown")
+                .expect("countdown"),
+        )
+        .expect("countdown frame");
+    let Some(WidgetData::FontString(text)) = countdown.widget_data.as_ref() else {
+        panic!("DeleteCharacterDialogCountdown should be a fontstring");
+    };
+    assert_eq!(text.text, "Delete unlocks in 2s");
+}
+
+#[test]
+fn delete_confirmation_modal_enables_confirm_after_phrase_and_timer() {
+    let reg = build_screen_with_delete_confirm(
+        CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            ..Default::default()
+        },
+        DeleteConfirmUiState {
+            visible: true,
+            character_name: "Elara".to_string(),
+            typed_text: "DELETE".to_string(),
+            countdown_text: "Ready. Press Delete Forever to remove this character.".to_string(),
+            confirm_enabled: true,
+        },
+    );
+
+    let confirm = reg
+        .get(
+            reg.get_by_name("DeleteCharacterConfirmButton")
+                .expect("confirm button"),
+        )
+        .expect("confirm frame");
+    let Some(WidgetData::Button(button)) = confirm.widget_data.as_ref() else {
+        panic!("DeleteCharacterConfirmButton should be a button");
+    };
+    assert!(button.enabled);
+
+    let input = reg
+        .get(
+            reg.get_by_name("DeleteCharacterConfirmInput")
+                .expect("confirm input"),
+        )
+        .expect("input frame");
+    let Some(WidgetData::EditBox(editbox)) = input.widget_data.as_ref() else {
+        panic!("DeleteCharacterConfirmInput should be an editbox");
+    };
+    assert_eq!(editbox.text, "DELETE");
 }
 
 #[test]
@@ -305,4 +411,58 @@ fn automation_click_create_char_transitions_to_char_create() {
         app.world().resource::<UiAutomationQueue>().is_empty(),
         "expected CreateChar click to be consumed by CharSelect automation"
     );
+}
+
+#[test]
+fn automation_click_delete_char_opens_confirmation_dialog() {
+    let mut app = build_test_app();
+    app.insert_resource(UiAutomationQueue(VecDeque::from([
+        UiAutomationAction::ClickFrame("DeleteChar".to_string()),
+    ])));
+
+    app.update();
+    app.update();
+
+    let delete_confirm = app.world().resource::<DeleteCharacterConfirmationState>();
+    let target = delete_confirm
+        .target
+        .as_ref()
+        .expect("delete confirm target");
+    assert_eq!(target.name, "Elara");
+}
+
+#[test]
+fn automation_type_uppercases_delete_confirmation_input() {
+    let mut app = build_test_app();
+    app.update();
+    app.world_mut()
+        .resource_mut::<DeleteCharacterConfirmationState>()
+        .target = Some(DeleteCharacterTarget {
+        character_id: 1,
+        name: "Elara".to_string(),
+    });
+    app.update();
+
+    app.insert_resource(UiAutomationQueue(VecDeque::from([
+        UiAutomationAction::TypeText("delete".to_string()),
+    ])));
+
+    app.update();
+
+    let delete_confirm = app.world().resource::<DeleteCharacterConfirmationState>();
+    assert_eq!(delete_confirm.typed_text, "DELETE");
+
+    let ui = app.world().resource::<UiState>();
+    let input_id = ui
+        .registry
+        .get_by_name("DeleteCharacterConfirmInput")
+        .expect("delete confirmation input");
+    let Some(WidgetData::EditBox(editbox)) = ui
+        .registry
+        .get(input_id)
+        .and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("DeleteCharacterConfirmInput should be an editbox");
+    };
+    assert_eq!(editbox.text, "DELETE");
 }

@@ -4,6 +4,10 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+pub use super::char_select_delete_confirm_component::{
+    DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT,
+    DeleteConfirmUiState, delete_confirmation_modal,
+};
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
@@ -17,6 +21,8 @@ pub enum CharSelectAction {
     EnterWorld,
     CreateToggle,
     DeleteChar,
+    ConfirmDeleteChar,
+    CancelDeleteChar,
     Back,
     Menu,
     CampsiteToggle,
@@ -30,6 +36,8 @@ impl fmt::Display for CharSelectAction {
             Self::EnterWorld => f.write_str("enter_world"),
             Self::CreateToggle => f.write_str("create_toggle"),
             Self::DeleteChar => f.write_str("delete_char"),
+            Self::ConfirmDeleteChar => f.write_str("confirm_delete_char"),
+            Self::CancelDeleteChar => f.write_str("cancel_delete_char"),
             Self::Back => f.write_str("back"),
             Self::Menu => f.write_str("menu"),
             Self::CampsiteToggle => f.write_str("campsite_toggle"),
@@ -50,6 +58,8 @@ impl CharSelectAction {
             "enter_world" => Some(Self::EnterWorld),
             "create_toggle" => Some(Self::CreateToggle),
             "delete_char" => Some(Self::DeleteChar),
+            "confirm_delete_char" => Some(Self::ConfirmDeleteChar),
+            "cancel_delete_char" => Some(Self::CancelDeleteChar),
             "back" => Some(Self::Back),
             "menu" => Some(Self::Menu),
             "campsite_toggle" => Some(Self::CampsiteToggle),
@@ -662,32 +672,43 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
         .get::<CharSelectState>()
         .expect("CharSelectState must be in SharedContext");
     let campsite = ctx.get::<CampsiteState>();
+    let delete_confirm = ctx
+        .get::<DeleteConfirmUiState>()
+        .cloned()
+        .unwrap_or_default();
     let has_selection = state.selected_index.is_some();
-    let top_hud: Element = if campsite.is_some() {
-        Vec::new()
-    } else {
-        cs_top_hud()
-    };
-
-    let campsite_ui: Element = if let Some(cs) = &campsite {
-        [campsite_tab(cs.panel_visible), campsite_panel(cs)]
-            .into_iter()
-            .flatten()
-            .collect()
-    } else {
-        Vec::new()
-    };
 
     rsx! {
         r#frame { name: CHAR_SELECT_ROOT, strata: FrameStrata::Background,
             {cs_background()}
             {cs_logo()}
-            {top_hud}
+            {top_hud(campsite.is_some())}
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
             {cs_action_buttons(has_selection)}
             {cs_status(&state.status_text)}
-            {campsite_ui}
+            {campsite_ui(campsite)}
+            {delete_confirmation_modal(&delete_confirm)}
         }
     }
+}
+
+fn top_hud(campsite_visible: bool) -> Element {
+    if campsite_visible {
+        return Vec::new();
+    }
+    cs_top_hud()
+}
+
+fn campsite_ui(campsite: Option<&CampsiteState>) -> Element {
+    let Some(campsite) = campsite else {
+        return Vec::new();
+    };
+    [
+        campsite_tab(campsite.panel_visible),
+        campsite_panel(campsite),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
