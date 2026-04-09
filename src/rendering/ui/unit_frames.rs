@@ -227,22 +227,13 @@ fn populate_player_resources(
     health: Option<&NetHealth>,
     mana: Option<&NetMana>,
 ) {
-    state.health_text = format_value_text(
-        health.map(|health| health.current),
-        health.map(|health| health.max),
-    );
-    state.mana_text = format_value_text(mana.map(|mana| mana.current), mana.map(|mana| mana.max));
-    state.health_fill_width = fill_width(
+    populate_resource_bars(
+        state,
+        health,
+        mana,
         PLAYER_HEALTH_BAR_W,
-        health.map(|health| health.current),
-        health.map(|health| health.max),
-    );
-    state.mana_fill_width = fill_width(
         PLAYER_HEALTH_BAR_W,
-        mana.map(|mana| mana.current),
-        mana.map(|mana| mana.max),
     );
-    state.has_mana = mana.is_some();
 }
 
 fn build_target_state(
@@ -253,28 +244,8 @@ fn build_target_state(
     colorblind_mode: bool,
 ) -> UnitFrameState {
     let mut state = fallback_target_frame_state();
-    state.portrait_texture_file = portrait_texture_for_target(player);
-    state.name = player
-        .map(|player| player.name.clone())
-        .or_else(|| npc.map(|npc| format!("Creature {}", npc.template_id)))
-        .or_else(|| name.map(|name| name.as_str().to_string()))
-        .unwrap_or_else(|| missing_target_name().to_string());
-    state.health_text = format_value_text(
-        health.map(|health| health.current),
-        health.map(|health| health.max),
-    );
-    state.mana_text = format_value_text(mana.map(|mana| mana.current), mana.map(|mana| mana.max));
-    state.health_fill_width = fill_width(
-        TARGET_HEALTH_BAR_W,
-        health.map(|health| health.current),
-        health.map(|health| health.max),
-    );
-    state.mana_fill_width = fill_width(
-        TARGET_MANA_BAR_W,
-        mana.map(|mana| mana.current),
-        mana.map(|mana| mana.max),
-    );
-    state.has_mana = mana.is_some();
+    populate_target_identity(&mut state, player, npc, name);
+    populate_target_resources(&mut state, health, mana);
     populate_target_auras(
         &mut state,
         target_entity,
@@ -284,6 +255,61 @@ fn build_target_state(
         colorblind_mode,
     );
     state
+}
+
+fn populate_target_identity(
+    state: &mut UnitFrameState,
+    player: Option<&NetPlayer>,
+    npc: Option<&Npc>,
+    name: Option<&Name>,
+) {
+    state.portrait_texture_file = portrait_texture_for_target(player);
+    state.name = resolve_target_name(player, npc, name);
+}
+
+fn resolve_target_name(
+    player: Option<&NetPlayer>,
+    npc: Option<&Npc>,
+    name: Option<&Name>,
+) -> String {
+    player
+        .map(|player| player.name.clone())
+        .or_else(|| npc.map(|npc| format!("Creature {}", npc.template_id)))
+        .or_else(|| name.map(|name| name.as_str().to_string()))
+        .unwrap_or_else(|| missing_target_name().to_string())
+}
+
+fn populate_target_resources(
+    state: &mut UnitFrameState,
+    health: Option<&NetHealth>,
+    mana: Option<&NetMana>,
+) {
+    populate_resource_bars(state, health, mana, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W);
+}
+
+fn populate_resource_bars(
+    state: &mut UnitFrameState,
+    health: Option<&NetHealth>,
+    mana: Option<&NetMana>,
+    health_bar_width: f32,
+    mana_bar_width: f32,
+) {
+    state.health_text = format_value_text(
+        health.map(|health| health.current),
+        health.map(|health| health.max),
+    );
+    state.mana_text = format_value_text(mana.map(|mana| mana.current), mana.map(|mana| mana.max));
+    state.health_fill_width = fill_width(
+        health_bar_width,
+        health.map(|health| health.current),
+        health.map(|health| health.max),
+    );
+    state.mana_fill_width = fill_width(
+        mana_bar_width,
+        mana.map(|mana| mana.current),
+        mana.map(|mana| mana.max),
+    );
+    state.has_mana = mana.is_some();
 }
 
 fn portrait_texture_for_player(
