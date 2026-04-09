@@ -284,130 +284,7 @@ fn dispatch(
     ctx: DispatchContext,
     sender_params: &mut IpcSenderParams,
 ) {
-    if queue_ipc_request(&mut world.auction_house, &cmd.request, cmd.respond.clone()) {
-        return;
-    }
-    if queue_barber_shop_ipc_request(
-        &mut world.barber_shop,
-        &mut world.barber_shop_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_calendar_ipc_request(
-        &mut world.calendar,
-        &world.calendar_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_death_ipc_request(
-        &mut world.death,
-        &world.death_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_collection_ipc_request(&mut world.collection, &cmd.request, cmd.respond.clone()) {
-        return;
-    }
-    if queue_friends_ipc_request(
-        &mut world.friends,
-        &world.friends_status,
-        ctx.character_stats,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_guild_ipc_request(
-        &mut world.guild,
-        &world.guild_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_who_ipc_request(
-        &mut world.who,
-        &world.who_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_ignore_list_ipc_request(
-        &mut world.ignore_list,
-        &world.ignore_list_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_lfg_ipc_request(
-        &mut world.lfg,
-        &world.lfg_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_pvp_ipc_request(
-        &mut world.pvp,
-        &world.pvp_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_profession_ipc_request(
-        &mut world.profession,
-        &world.profession_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_currency_ipc_request(
-        &mut world.currency,
-        &world.currencies_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_duel_ipc_request(
-        &mut world.duel,
-        &world.duel_status,
-        ctx.current_target,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_inspect_ipc_request(
-        &mut world.inspect,
-        &world.inspect_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_trade_ipc_request(&mut world.trade, &cmd.request, cmd.respond.clone()) {
-        return;
-    }
-    if queue_talent_ipc_request(
-        &mut world.talent,
-        &world.talent_status,
-        &cmd.request,
-        cmd.respond.clone(),
-    ) {
-        return;
-    }
-    if queue_mail_ipc_request(world.mail.as_mut(), &cmd.request, cmd.respond.clone()) {
+    if dispatch_runtime_request(&cmd, world, &ctx) {
         return;
     }
     if dispatch_scene_request(&cmd, scene) {
@@ -423,6 +300,104 @@ fn dispatch(
         return;
     }
     dispatch_map_and_equipment_request(cmd, ctx, &scene.tree_query, sender_params);
+}
+
+fn dispatch_runtime_request(cmd: &Command, world: &mut WorldParams, ctx: &DispatchContext) -> bool {
+    dispatch_world_runtime_request(cmd, world)
+        || dispatch_social_runtime_request(cmd, world, ctx)
+        || dispatch_character_runtime_request(cmd, world, ctx)
+}
+
+fn dispatch_world_runtime_request(cmd: &Command, world: &mut WorldParams) -> bool {
+    let request = &cmd.request;
+    let respond = &cmd.respond;
+    queue_ipc_request(&mut world.auction_house, request, respond.clone())
+        || queue_barber_shop_ipc_request(
+            &mut world.barber_shop,
+            &mut world.barber_shop_status,
+            request,
+            respond.clone(),
+        )
+        || queue_calendar_ipc_request(
+            &mut world.calendar,
+            &world.calendar_status,
+            request,
+            respond.clone(),
+        )
+        || queue_death_ipc_request(
+            &mut world.death,
+            &world.death_status,
+            request,
+            respond.clone(),
+        )
+        || queue_collection_ipc_request(&mut world.collection, request, respond.clone())
+}
+
+fn dispatch_social_runtime_request(
+    cmd: &Command,
+    world: &mut WorldParams,
+    ctx: &DispatchContext,
+) -> bool {
+    let request = &cmd.request;
+    let respond = &cmd.respond;
+    queue_friends_ipc_request(
+        &mut world.friends,
+        &world.friends_status,
+        ctx.character_stats,
+        request,
+        respond.clone(),
+    ) || queue_guild_ipc_request(
+        &mut world.guild,
+        &world.guild_status,
+        request,
+        respond.clone(),
+    ) || queue_who_ipc_request(&mut world.who, &world.who_status, request, respond.clone())
+        || queue_ignore_list_ipc_request(
+            &mut world.ignore_list,
+            &world.ignore_list_status,
+            request,
+            respond.clone(),
+        )
+        || queue_lfg_ipc_request(&mut world.lfg, &world.lfg_status, request, respond.clone())
+        || queue_pvp_ipc_request(&mut world.pvp, &world.pvp_status, request, respond.clone())
+}
+
+fn dispatch_character_runtime_request(
+    cmd: &Command,
+    world: &mut WorldParams,
+    ctx: &DispatchContext,
+) -> bool {
+    let request = &cmd.request;
+    let respond = &cmd.respond;
+    queue_profession_ipc_request(
+        &mut world.profession,
+        &world.profession_status,
+        request,
+        respond.clone(),
+    ) || queue_currency_ipc_request(
+        &mut world.currency,
+        &world.currencies_status,
+        request,
+        respond.clone(),
+    ) || queue_duel_ipc_request(
+        &mut world.duel,
+        &world.duel_status,
+        ctx.current_target,
+        request,
+        respond.clone(),
+    ) || queue_inspect_ipc_request(
+        &mut world.inspect,
+        &world.inspect_status,
+        request,
+        respond.clone(),
+    ) || queue_trade_ipc_request(&mut world.trade, request, respond.clone())
+        || queue_talent_ipc_request(
+            &mut world.talent,
+            &world.talent_status,
+            request,
+            respond.clone(),
+        )
+        || queue_mail_ipc_request(world.mail.as_mut(), request, respond.clone())
 }
 
 /// Returns true if the request was handled.
