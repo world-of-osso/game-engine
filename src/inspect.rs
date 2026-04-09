@@ -182,44 +182,59 @@ fn format_status(snapshot: &InspectStatusSnapshot) -> String {
     let mut lines = vec![format!(
         "inspect: {target_name}\nequipment={} talents={} points_remaining={}",
         snapshot.equipment_appearance.entries.len(),
-        snapshot
-            .talents
-            .iter()
-            .filter(|talent| talent.active)
-            .count(),
+        active_talent_count(snapshot),
         snapshot.points_remaining
     )];
-    if let Some(message) = &snapshot.last_server_message {
-        lines.push(format!("message: {message}"));
-    }
-    if let Some(error) = &snapshot.last_error {
-        lines.push(format!("error: {error}"));
-    }
+    push_optional_line(
+        &mut lines,
+        "message",
+        snapshot.last_server_message.as_deref(),
+    );
+    push_optional_line(&mut lines, "error", snapshot.last_error.as_deref());
     if !snapshot.equipment_appearance.entries.is_empty() {
-        let entries = snapshot
-            .equipment_appearance
-            .entries
-            .iter()
-            .map(|entry| {
-                format!(
-                    "{:?} item={} display={} hidden={}",
-                    entry.slot,
-                    entry
-                        .item_id
-                        .map(|value| value.to_string())
-                        .unwrap_or_else(|| "-".into()),
-                    entry
-                        .display_info_id
-                        .map(|value| value.to_string())
-                        .unwrap_or_else(|| "-".into()),
-                    entry.hidden
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        lines.push(entries);
+        lines.push(format_equipment_entries(snapshot));
     }
     lines.join("\n")
+}
+
+fn active_talent_count(snapshot: &InspectStatusSnapshot) -> usize {
+    snapshot
+        .talents
+        .iter()
+        .filter(|talent| talent.active)
+        .count()
+}
+
+fn format_equipment_entries(snapshot: &InspectStatusSnapshot) -> String {
+    snapshot
+        .equipment_appearance
+        .entries
+        .iter()
+        .map(format_equipment_entry)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_equipment_entry(entry: &shared::components::EquippedAppearanceEntry) -> String {
+    format!(
+        "{:?} item={} display={} hidden={}",
+        entry.slot,
+        format_optional_id(entry.item_id),
+        format_optional_id(entry.display_info_id),
+        entry.hidden
+    )
+}
+
+fn format_optional_id(value: Option<u32>) -> String {
+    value
+        .map(|value| value.to_string())
+        .unwrap_or_else(|| "-".into())
+}
+
+fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        lines.push(format!("{label}: {value}"));
+    }
 }
 
 #[cfg(test)]
