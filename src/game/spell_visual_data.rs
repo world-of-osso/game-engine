@@ -93,53 +93,26 @@ pub struct SpellVisualKitEntry {
 impl SpellVisualKitEntry {
     /// Convert this DB2 entry into a `SpellVisualKit` with resolved effects.
     pub fn to_visual_kit(&self) -> SpellVisualKit {
-        let mut effects = Vec::new();
-        if self.start_anim_fdid != 0 {
-            effects.push(VisualEffect {
-                phase: VisualPhase::Cast,
-                model_fdid: self.start_anim_fdid,
-                ..Default::default()
-            });
-        }
-        if self.cast_effect_fdid != 0 {
-            effects.push(VisualEffect {
-                phase: VisualPhase::Cast,
-                model_fdid: self.cast_effect_fdid,
-                ..Default::default()
-            });
-        }
-        if self.impact_effect_fdid != 0 {
-            effects.push(VisualEffect {
-                phase: VisualPhase::Impact,
-                model_fdid: self.impact_effect_fdid,
-                ..Default::default()
-            });
-        }
-        if self.state_effect_fdid != 0 {
-            effects.push(VisualEffect {
-                phase: VisualPhase::State,
-                model_fdid: self.state_effect_fdid,
-                ..Default::default()
-            });
-        }
-        if self.channel_effect_fdid != 0 {
-            effects.push(VisualEffect {
-                phase: VisualPhase::Channel,
-                model_fdid: self.channel_effect_fdid,
-                ..Default::default()
-            });
-        }
-        if self.missile_fdid != 0 {
-            effects.push(VisualEffect {
-                phase: VisualPhase::Missile,
-                model_fdid: self.missile_fdid,
-                ..Default::default()
-            });
-        }
+        let effects = self
+            .effect_specs()
+            .into_iter()
+            .filter_map(|(phase, model_fdid)| visual_effect_for_model(phase, model_fdid))
+            .collect();
         SpellVisualKit {
             kit_id: self.kit_id,
             effects,
         }
+    }
+
+    fn effect_specs(&self) -> [(VisualPhase, u32); 6] {
+        [
+            (VisualPhase::Cast, self.start_anim_fdid),
+            (VisualPhase::Cast, self.cast_effect_fdid),
+            (VisualPhase::Impact, self.impact_effect_fdid),
+            (VisualPhase::State, self.state_effect_fdid),
+            (VisualPhase::Channel, self.channel_effect_fdid),
+            (VisualPhase::Missile, self.missile_fdid),
+        ]
     }
 
     /// Whether this entry has a custom animation (non-zero anim_id).
@@ -161,6 +134,14 @@ impl SpellVisualKitEntry {
         .filter(|&&fdid| fdid != 0)
         .count()
     }
+}
+
+fn visual_effect_for_model(phase: VisualPhase, model_fdid: u32) -> Option<VisualEffect> {
+    (model_fdid != 0).then_some(VisualEffect {
+        phase,
+        model_fdid,
+        ..Default::default()
+    })
 }
 
 /// Maps spell IDs to visual kits.
