@@ -165,6 +165,11 @@ fn reset_world_resources(world: &mut World) {
     if let Some(mut pvp_state) = world.get_resource_mut::<game_engine::pvp::PvpRuntimeState>() {
         game_engine::pvp::reset_runtime(&mut pvp_state);
     }
+    if let Some(mut reputation_toast) =
+        world.get_resource_mut::<game_engine::reputation::ReputationToastState>()
+    {
+        game_engine::reputation::reset_runtime(&mut reputation_toast);
+    }
     if let Some(mut barber_state) =
         world.get_resource_mut::<game_engine::barber_shop::BarberShopRuntimeState>()
     {

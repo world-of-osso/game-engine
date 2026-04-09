@@ -117,6 +117,7 @@ pub mod quest_data;
 pub mod quest_tracking;
 #[path = "game/raid_party_data.rs"]
 pub mod raid_party_data;
+pub mod reputation;
 #[path = "game/reputation_data.rs"]
 pub mod reputation_data;
 pub mod scene_graph_utils;

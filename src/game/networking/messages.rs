@@ -35,6 +35,7 @@ use game_engine::floating_combat_text::{
 };
 use game_engine::ignore_list::is_ignored as is_ignored_sender;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
+use game_engine::reputation::{ReputationToastState, map_reputation_state_update};
 use game_engine::status::{
     AchievementsStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot,
@@ -728,10 +729,11 @@ fn map_profession_recipe(
 pub(crate) fn receive_reputation_snapshot(
     mut receivers: Query<&mut MessageReceiver<ReputationStateUpdate>>,
     mut snapshot: ResMut<ReputationsStatusSnapshot>,
+    mut toast: ResMut<ReputationToastState>,
 ) {
     for mut receiver in receivers.iter_mut() {
         for update in receiver.receive() {
-            apply_reputation_state_update(&mut snapshot, update);
+            map_reputation_state_update(&mut snapshot, &mut toast, update);
         }
     }
 }
