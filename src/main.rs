@@ -749,6 +749,14 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
 }
 
 fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState>) {
+    add_core_screen_plugins(app);
+    add_game_runtime_plugins(app);
+    add_frame_plugins(app);
+    add_misc_runtime_plugins(app);
+    add_debug_scene_plugin(app, initial_state);
+}
+
+fn add_core_screen_plugins(app: &mut App) {
     app.add_plugins((
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
@@ -764,6 +772,9 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         scenes::char_select::campsite::CampsitePopupScreenPlugin,
         scenes::game_menu::GameMenuScreenPlugin,
     ));
+}
+
+fn add_game_runtime_plugins(app: &mut App) {
     app.add_plugins((
         game_engine::achievement::AchievementPlugin,
         game_engine::barber_shop::BarberShopPlugin,
@@ -774,6 +785,9 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         game_engine::pvp::PvpPlugin,
         game_engine::world_map::WorldMapPlugin,
     ));
+}
+
+fn add_frame_plugins(app: &mut App) {
     app.add_plugins((
         scenes::encounter_journal_frame::EncounterJournalFramePlugin,
         scenes::friends_frame::FriendsFramePlugin,
@@ -789,6 +803,9 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         trash_button_screen::TrashButtonScreenPlugin,
         orbit_camera::OrbitCameraPlugin,
     ));
+}
+
+fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(game_engine::calendar::CalendarPlugin);
     app.add_plugins(game_engine::guild::GuildPlugin);
     app.add_plugins(game_engine::who::WhoPlugin);
@@ -800,6 +817,9 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
     app.add_plugins(scenes::group_frames::GroupFramesPlugin);
     app.add_plugins(scenes::loot_rules_frame::LootRulesFramePlugin);
+}
+
+fn add_debug_scene_plugin(app: &mut App, initial_state: Option<game_state::GameState>) {
     match initial_state {
         Some(game_state::GameState::DebugCharacter) => {
             app.add_plugins(scenes::geoset_debug::DebugCharacterScenePlugin);
