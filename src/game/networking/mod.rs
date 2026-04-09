@@ -18,10 +18,10 @@ use crate::camera::{CharacterFacing, MovementState};
 use game_engine::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CalendarStatusSnapshot,
     CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    DeathStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot,
-    IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
-    ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
-    WarbankStatusSnapshot, WhoStatusSnapshot,
+    DeathStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot, GuildStatusSnapshot,
+    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot,
+    MapStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
+    ReputationsStatusSnapshot, WarbankStatusSnapshot, WhoStatusSnapshot,
 };
 
 /// Marker for entities spawned from server replication.
@@ -192,6 +192,7 @@ fn register_net_resources(app: &mut App) {
     app.init_resource::<ProfessionStatusSnapshot>();
     app.init_resource::<CalendarStatusSnapshot>();
     app.init_resource::<FriendsStatusSnapshot>();
+    app.init_resource::<GuildStatusSnapshot>();
     app.init_resource::<WhoStatusSnapshot>();
     app.init_resource::<IgnoreListStatusSnapshot>();
     app.init_resource::<PvpStatusSnapshot>();

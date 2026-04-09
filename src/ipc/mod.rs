@@ -102,6 +102,18 @@ pub enum Request {
         event_id: u64,
         status: CalendarSignupStatusSnapshot,
     },
+    GuildStatus,
+    GuildQuery,
+    GuildSetMotd {
+        text: String,
+    },
+    GuildSetInfo {
+        text: String,
+    },
+    GuildSetOfficerNote {
+        name: String,
+        note: String,
+    },
     FriendsStatus,
     WhoStatus,
     WhoQuery {

@@ -26,6 +26,7 @@ use crate::currency::{CurrencyRuntimeState, queue_ipc_request as queue_currency_
 use crate::death::{DeathRuntimeState, queue_ipc_request as queue_death_ipc_request};
 use crate::duel::{DuelClientState, queue_ipc_request_with_snapshot as queue_duel_ipc_request};
 use crate::friends::{FriendsRuntimeState, queue_ipc_request as queue_friends_ipc_request};
+use crate::guild::{GuildRuntimeState, queue_ipc_request as queue_guild_ipc_request};
 use crate::ignore_list::{
     IgnoreListRuntimeState, queue_ipc_request as queue_ignore_list_ipc_request,
 };
@@ -42,11 +43,11 @@ use crate::status::{
     CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
     EncounterJournalStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendsStatusSnapshot, GroupStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
-    LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
-    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint,
-    WhoStatusSnapshot,
+    FriendsStatusSnapshot, GroupStatusSnapshot, GuildStatusSnapshot, GuildVaultStatusSnapshot,
+    IgnoreListStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
+    ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
+    Waypoint, WhoStatusSnapshot,
 };
 use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
@@ -103,6 +104,7 @@ struct StatusSnapshotParams<'w> {
     combat_log: Res<'w, CombatLogStatusSnapshot>,
     collection: Res<'w, CollectionStatusSnapshot>,
     friends: Res<'w, FriendsStatusSnapshot>,
+    guild: Res<'w, GuildStatusSnapshot>,
     who: Res<'w, WhoStatusSnapshot>,
     ignore_list: Res<'w, IgnoreListStatusSnapshot>,
     lfg: Res<'w, LfgStatusSnapshot>,
@@ -134,6 +136,7 @@ pub(crate) struct DispatchContext<'a> {
     pub combat_log_status: &'a CombatLogStatusSnapshot,
     pub collection_status: &'a CollectionStatusSnapshot,
     pub friends_status: &'a FriendsStatusSnapshot,
+    pub guild_status: &'a GuildStatusSnapshot,
     pub who_status: &'a WhoStatusSnapshot,
     pub ignore_list_status: &'a IgnoreListStatusSnapshot,
     pub lfg_status: &'a LfgStatusSnapshot,
@@ -171,6 +174,8 @@ struct WorldParams<'w> {
     collection: ResMut<'w, CollectionRuntimeState>,
     friends: ResMut<'w, FriendsRuntimeState>,
     friends_status: Res<'w, FriendsStatusSnapshot>,
+    guild: ResMut<'w, GuildRuntimeState>,
+    guild_status: Res<'w, GuildStatusSnapshot>,
     who: ResMut<'w, WhoRuntimeState>,
     who_status: Res<'w, WhoStatusSnapshot>,
     ignore_list: ResMut<'w, IgnoreListRuntimeState>,
@@ -262,6 +267,7 @@ fn build_dispatch_context<'a>(
         combat_log_status: &snapshots.combat_log,
         collection_status: &snapshots.collection,
         friends_status: &snapshots.friends,
+        guild_status: &snapshots.guild,
         who_status: &snapshots.who,
         ignore_list_status: &snapshots.ignore_list,
         lfg_status: &snapshots.lfg,
@@ -315,6 +321,14 @@ fn dispatch(
         &mut world.friends,
         &world.friends_status,
         ctx.character_stats,
+        &cmd.request,
+        cmd.respond.clone(),
+    ) {
+        return;
+    }
+    if queue_guild_ipc_request(
+        &mut world.guild,
+        &world.guild_status,
         &cmd.request,
         cmd.respond.clone(),
     ) {

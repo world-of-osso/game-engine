@@ -4,6 +4,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
+use crate::ui::screens::guild_frame_component::ACTION_GUILD_TOGGLE;
 use crate::ui::strata::FrameStrata;
 
 const SLOT_COUNT: usize = 12;
@@ -30,7 +31,6 @@ const MICRO_BTN_W: f32 = 28.0;
 const MICRO_BTN_H: f32 = 36.0;
 const MICRO_BTN_GAP: f32 = 2.0;
 const MICRO_BTN_BG: &str = "0.08,0.07,0.06,0.88";
-const MICRO_BTN_LABEL: &str = "0.7,0.7,0.7,1.0";
 const BAG_SLOT_SIZE: f32 = 30.0;
 const BAG_SLOT_GAP: f32 = 4.0;
 const BAG_SLOT_BG: &str = "0.06,0.05,0.04,0.82";
@@ -431,19 +431,39 @@ fn micro_menu_bar() -> Element {
 fn micro_button(index: usize, name: &str) -> Element {
     let btn_name = DynName(name.to_string());
     let x = index as f32 * (MICRO_BTN_W + MICRO_BTN_GAP);
-    rsx! {
-        button {
-            name: btn_name,
-            width: {MICRO_BTN_W},
-            height: {MICRO_BTN_H},
-            text: "",
-            font_size: 8.0,
-            background_color: MICRO_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
+    if name == "GuildMicroButton" {
+        rsx! {
+            button {
+                name: btn_name,
+                width: {MICRO_BTN_W},
+                height: {MICRO_BTN_H},
+                text: "",
+                font_size: 8.0,
+                background_color: MICRO_BTN_BG,
+                onclick: ACTION_GUILD_TOGGLE,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {x},
+                    y: "0",
+                }
+            }
+        }
+    } else {
+        rsx! {
+            button {
+                name: btn_name,
+                width: {MICRO_BTN_W},
+                height: {MICRO_BTN_H},
+                text: "",
+                font_size: 8.0,
+                background_color: MICRO_BTN_BG,
+                anchor {
+                    point: AnchorPoint::TopLeft,
+                    relative_point: AnchorPoint::TopLeft,
+                    x: {x},
+                    y: "0",
+                }
             }
         }
     }

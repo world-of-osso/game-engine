@@ -255,6 +255,28 @@ pub struct FriendsStatusSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GuildMemberEntry {
+    pub character_name: String,
+    pub level: u16,
+    pub class_name: String,
+    pub rank_name: String,
+    pub online: bool,
+    pub officer_note: String,
+    pub last_online: String,
+}
+
+#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct GuildStatusSnapshot {
+    pub guild_id: Option<u32>,
+    pub guild_name: String,
+    pub motd: String,
+    pub info_text: String,
+    pub entries: Vec<GuildMemberEntry>,
+    pub last_server_message: Option<String>,
+    pub last_error: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WhoEntry {
     pub name: String,
     pub level: u16,
@@ -1235,6 +1257,7 @@ mod tests {
         round_trip(&QuestLogStatusSnapshot::default());
         round_trip(&GroupStatusSnapshot::default());
         round_trip(&FriendsStatusSnapshot::default());
+        round_trip(&GuildStatusSnapshot::default());
         round_trip(&IgnoreListStatusSnapshot::default());
         round_trip(&PvpStatusSnapshot::default());
         round_trip(&EncounterJournalStatusSnapshot::default());

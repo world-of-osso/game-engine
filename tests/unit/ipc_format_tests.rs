@@ -6,11 +6,11 @@ use crate::status::{
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EncounterJournalBossEntry,
     EncounterJournalInstanceEntry, EncounterJournalStatusSnapshot, EquippedGearEntry,
     EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgMatchFoundEntry,
-    LfgMatchMemberEntry, LfgRoleCheckEntry, LfgStatusSnapshot, NetworkStatusSnapshot,
-    ProfessionStatusSnapshot, PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot,
-    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
-    WhoEntry, WhoStatusSnapshot,
+    GuildMemberEntry, GuildStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry,
+    InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry,
+    LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpBracketEntry,
+    PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot,
+    SoundStatusSnapshot, TerrainStatusSnapshot, WhoEntry, WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -262,6 +262,33 @@ fn formats_friends_status_snapshot_with_server_message() {
     assert!(text.contains("friends: 1"));
     assert!(text.contains("message: friend added: Alice"));
     assert!(text.contains("Alice level=42 class=Mage area=Zone 12 online=true presence=online"));
+}
+
+#[test]
+fn formats_guild_status_snapshot_with_server_message() {
+    let text = format_guild_status(&GuildStatusSnapshot {
+        guild_id: Some(7),
+        guild_name: "Raid Team".into(),
+        motd: "Bring flasks".into(),
+        info_text: "Wed/Sun raids".into(),
+        entries: vec![GuildMemberEntry {
+            character_name: "Alice".into(),
+            level: 60,
+            class_name: "Priest".into(),
+            rank_name: "Member".into(),
+            online: true,
+            officer_note: "Reliable healer".into(),
+            last_online: "Online".into(),
+        }],
+        last_server_message: Some("guild loaded".into()),
+        last_error: None,
+    });
+
+    assert!(text.contains("guild_name: Raid Team"));
+    assert!(text.contains("message: guild loaded"));
+    assert!(text.contains(
+        "Alice level=60 class=Priest rank=Member online=true officer_note=Reliable healer last_online=Online"
+    ));
 }
 
 #[test]

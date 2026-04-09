@@ -685,6 +685,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     app.add_plugins((
         scenes::encounter_journal_frame::EncounterJournalFramePlugin,
         scenes::friends_frame::FriendsFramePlugin,
+        scenes::guild_frame::GuildFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
         scenes::calendar_frame::CalendarFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
@@ -693,6 +694,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
         orbit_camera::OrbitCameraPlugin,
     ));
     app.add_plugins(game_engine::calendar::CalendarPlugin);
+    app.add_plugins(game_engine::guild::GuildPlugin);
     app.add_plugins(game_engine::who::WhoPlugin);
     app.add_plugins(game_engine::reputation::ReputationPlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);

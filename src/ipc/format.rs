@@ -8,10 +8,11 @@ use crate::status::{
     CalendarStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogEntry,
     CombatLogEventKind, CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DeathStateEntry,
     DeathStatusSnapshot, EncounterJournalStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot,
-    InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
-    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, WhoStatusSnapshot,
+    FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot, GuildStatusSnapshot,
+    IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, LfgStatusSnapshot,
+    MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -58,6 +59,7 @@ pub fn dispatch_status_request(cmd: &Command, ctx: &DispatchContext) -> bool {
         Request::CollectionPets { missing } => {
             format_collection_pets(ctx.collection_status, *missing)
         }
+        Request::GuildStatus => format_guild_status(ctx.guild_status),
         Request::FriendsStatus => format_friends_status(ctx.friends_status),
         Request::WhoStatus => format_who_status(ctx.who_status),
         Request::IgnoreStatus => format_ignore_list_status(ctx.ignore_list_status),
@@ -328,6 +330,39 @@ pub fn format_friends_status(snapshot: &FriendsStatusSnapshot) -> String {
             entry.area,
             entry.online,
             format_presence_state(&entry.presence)
+        )
+    }));
+    lines.join("\n")
+}
+
+pub fn format_guild_status(snapshot: &GuildStatusSnapshot) -> String {
+    let mut lines = vec![
+        format!("guild_id: {}", snapshot.guild_id.unwrap_or_default()),
+        format!("guild_name: {}", snapshot.guild_name),
+        format!("guild_members: {}", snapshot.entries.len()),
+        format!("guild_motd: {}", snapshot.motd),
+        format!("guild_info: {}", snapshot.info_text),
+    ];
+    if let Some(message) = &snapshot.last_server_message {
+        lines.push(format!("message: {message}"));
+    }
+    if let Some(error) = &snapshot.last_error {
+        lines.push(format!("error: {error}"));
+    }
+    if snapshot.entries.is_empty() {
+        lines.push("-".into());
+        return lines.join("\n");
+    }
+    lines.extend(snapshot.entries.iter().map(|entry| {
+        format!(
+            "{} level={} class={} rank={} online={} officer_note={} last_online={}",
+            entry.character_name,
+            entry.level,
+            entry.class_name,
+            entry.rank_name,
+            entry.online,
+            entry.officer_note,
+            entry.last_online
         )
     }));
     lines.join("\n")

@@ -19,6 +19,7 @@ pub mod game_menu_component;
 pub mod group_frames_component;
 pub mod guild_bank_frame_component;
 pub mod guild_control_component;
+pub mod guild_frame_component;
 pub mod help_frame_component;
 pub mod inworld_hud_component;
 pub mod inworld_selection_debug_component;

@@ -60,6 +60,7 @@ pub mod friends_data;
 pub mod game_state_enum;
 #[path = "game/gossip_data.rs"]
 pub mod gossip_data;
+pub mod guild;
 #[path = "game/guild_bank_data.rs"]
 pub mod guild_bank_data;
 #[path = "game/guild_control_data.rs"]

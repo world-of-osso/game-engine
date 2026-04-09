@@ -270,4 +270,12 @@ fn minimap_builds_buttons_ring() {
         )
         .expect("calendar frame");
     assert_eq!(frame.onclick.as_deref(), Some("calendar_toggle"));
+
+    let guild = reg
+        .get(
+            reg.get_by_name("GuildMicroButton")
+                .expect("GuildMicroButton"),
+        )
+        .expect("guild button");
+    assert_eq!(guild.onclick.as_deref(), Some("guild_toggle"));
 }

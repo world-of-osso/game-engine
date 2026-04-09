@@ -11,10 +11,10 @@ use peercred_ipc::Client;
 use requests::{
     auction_request, barber_request, calendar_request, collection_request, combat_request,
     currency_request, death_request, duel_request, emote_request, equipment_request,
-    export_character_request, export_scene_request, friend_request, group_request, ignore_request,
-    inspect_request, inventory_request, item_request, lfg_request, mail_request, map_request,
-    presence_request, profession_request, pvp_request, quest_request, reputation_request,
-    spell_request, status_request, talent_request, trade_request, who_request,
+    export_character_request, export_scene_request, friend_request, group_request, guild_request,
+    ignore_request, inspect_request, inventory_request, item_request, lfg_request, mail_request,
+    map_request, presence_request, profession_request, pvp_request, quest_request,
+    reputation_request, spell_request, status_request, talent_request, trade_request, who_request,
 };
 
 #[derive(Parser)]
@@ -131,6 +131,11 @@ enum Cmd {
     Friend {
         #[command(subcommand)]
         command: FriendCmd,
+    },
+    /// Guild roster and info commands
+    Guild {
+        #[command(subcommand)]
+        command: GuildCmd,
     },
     /// Calendar commands
     Calendar {
@@ -315,6 +320,7 @@ pub(crate) enum StatusCmd {
     Death,
     EncounterJournal,
     Friends,
+    Guild,
     Who,
     Ignore,
     Lfg,
@@ -413,6 +419,26 @@ pub(crate) enum CalendarCmd {
     Decline {
         #[arg(long)]
         event_id: u64,
+    },
+}
+
+#[derive(Subcommand)]
+pub(crate) enum GuildCmd {
+    Query,
+    Status,
+    Motd {
+        #[arg(long)]
+        text: String,
+    },
+    Info {
+        #[arg(long)]
+        text: String,
+    },
+    OfficerNote {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        note: String,
     },
 }
 
@@ -726,6 +752,7 @@ fn dispatch_command(socket: &PathBuf, command: Cmd, json: bool) -> Result<(), St
         Cmd::Quest { command } => handle_quest(socket, command, json),
         Cmd::Group { command } => handle_group(socket, command, json),
         Cmd::Friend { command } => handle_friend(socket, command, json),
+        Cmd::Guild { command } => handle_guild(socket, command, json),
         Cmd::Calendar { command } => handle_calendar(socket, command, json),
         Cmd::Who { command } => handle_who(socket, command, json),
         Cmd::Presence { command } => handle_presence(socket, command, json),
@@ -896,6 +923,10 @@ fn handle_group(socket: &PathBuf, command: GroupCmd, json: bool) -> Result<(), S
 
 fn handle_friend(socket: &PathBuf, command: FriendCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, friend_request(command)?, json)
+}
+
+fn handle_guild(socket: &PathBuf, command: GuildCmd, json: bool) -> Result<(), String> {
+    handle_text_response(socket, guild_request(command)?, json)
 }
 
 fn handle_calendar(socket: &PathBuf, command: CalendarCmd, json: bool) -> Result<(), String> {

@@ -9,9 +9,9 @@ use shared::protocol::{
 
 use crate::{
     AuctionCmd, BarberCmd, CalendarCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd,
-    EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, IgnoreCmd, InspectCmd, InventoryCmd, ItemCmd,
-    LfgCmd, MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd, SpellCmd,
-    StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
+    EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, GuildCmd, IgnoreCmd, InspectCmd, InventoryCmd,
+    ItemCmd, LfgCmd, MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd,
+    SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -120,6 +120,17 @@ pub fn friend_request(command: FriendCmd) -> Result<Request, String> {
         FriendCmd::Status => Request::FriendsStatus,
         FriendCmd::Add { name } => Request::FriendAdd { name },
         FriendCmd::Remove { name } => Request::FriendRemove { name },
+    };
+    Ok(request)
+}
+
+pub fn guild_request(command: GuildCmd) -> Result<Request, String> {
+    let request = match command {
+        GuildCmd::Query => Request::GuildQuery,
+        GuildCmd::Status => Request::GuildStatus,
+        GuildCmd::Motd { text } => Request::GuildSetMotd { text },
+        GuildCmd::Info { text } => Request::GuildSetInfo { text },
+        GuildCmd::OfficerNote { name, note } => Request::GuildSetOfficerNote { name, note },
     };
     Ok(request)
 }
@@ -396,6 +407,7 @@ pub fn status_request(command: StatusCmd) -> Result<Request, String> {
         StatusCmd::Death => Request::DeathStatus,
         StatusCmd::EncounterJournal => Request::EncounterJournalStatus,
         StatusCmd::Friends => Request::FriendsStatus,
+        StatusCmd::Guild => Request::GuildStatus,
         StatusCmd::Who => Request::WhoStatus,
         StatusCmd::Ignore => Request::IgnoreStatus,
         StatusCmd::Lfg => Request::LfgStatus,

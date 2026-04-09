@@ -10,6 +10,7 @@ pub mod friends_frame;
 pub mod game_menu;
 pub mod geoset_debug;
 pub mod group_frames;
+pub mod guild_frame;
 pub mod inworld_tree;
 pub mod loading;
 pub mod login;

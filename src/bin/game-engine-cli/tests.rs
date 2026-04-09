@@ -159,6 +159,14 @@ fn friends_status_command_maps_to_request() {
 }
 
 #[test]
+fn guild_status_command_maps_to_request() {
+    assert_eq!(
+        status_request(StatusCmd::Guild).unwrap(),
+        Request::GuildStatus
+    );
+}
+
+#[test]
 fn who_status_command_maps_to_request() {
     assert_eq!(status_request(StatusCmd::Who).unwrap(), Request::WhoStatus);
 }
@@ -597,6 +605,34 @@ fn calendar_confirm_command_maps_to_request() {
         Request::CalendarSignup {
             event_id: 7,
             status: shared::protocol::CalendarSignupStatusSnapshot::Confirmed,
+        }
+    );
+}
+
+#[test]
+fn guild_motd_command_maps_to_request() {
+    assert_eq!(
+        guild_request(GuildCmd::Motd {
+            text: "Bring flasks".into(),
+        })
+        .unwrap(),
+        Request::GuildSetMotd {
+            text: "Bring flasks".into(),
+        }
+    );
+}
+
+#[test]
+fn guild_officer_note_command_maps_to_request() {
+    assert_eq!(
+        guild_request(GuildCmd::OfficerNote {
+            name: "Alice".into(),
+            note: "Reliable healer".into(),
+        })
+        .unwrap(),
+        Request::GuildSetOfficerNote {
+            name: "Alice".into(),
+            note: "Reliable healer".into(),
         }
     );
 }
