@@ -42,6 +42,7 @@ mod little_endian;
 mod logout;
 mod mesh_asset_stats;
 mod model_path_resolver;
+mod pathing;
 mod process_limits;
 mod process_memory_status;
 mod rendering;

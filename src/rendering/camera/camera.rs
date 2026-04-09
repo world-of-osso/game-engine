@@ -10,6 +10,7 @@ use std::collections::HashSet;
 
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
+use crate::pathing::PathingState;
 use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::input_bindings::{InputAction, InputBindings};
 
@@ -27,6 +28,7 @@ pub struct WowCameraPlugin;
 impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<crate::client_options::CameraOptions>();
+        app.init_resource::<PathingState>();
         app.add_systems(Update, sync_camera_graphics_post_process);
         app.add_systems(
             Update,
@@ -342,13 +344,17 @@ fn compute_movement_input(
     mouse_buttons: &ButtonInput<MouseButton>,
     bindings: &InputBindings,
     autorun: bool,
+    scripted_forward: bool,
     facing: &CharacterFacing,
 ) -> (Vec3, MoveDirection) {
     let forward = Vec3::new(facing.yaw.sin(), 0.0, facing.yaw.cos());
     let right = Vec3::new(-forward.z, 0.0, forward.x);
 
     let mut direction = Vec3::ZERO;
-    if bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons) || autorun {
+    if bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
+        || autorun
+        || scripted_forward
+    {
         direction += forward;
     }
     if bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons) {
@@ -366,6 +372,7 @@ fn compute_movement_input(
 
     let fwd = bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
         || autorun
+        || scripted_forward
         || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right));
     let anim_dir = if fwd {
         MoveDirection::Forward
@@ -389,7 +396,9 @@ fn player_movement(
     terrain: Option<Res<TerrainHeightmap>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
     bindings: Res<InputBindings>,
+    mut pathing: ResMut<PathingState>,
     mut ray_cast: MeshRayCast,
     wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
     doodad_collider_q: Query<&game_engine::culling::DoodadCollider>,
@@ -397,7 +406,7 @@ fn player_movement(
         (
             &mut Transform,
             &mut MovementState,
-            &CharacterFacing,
+            &mut CharacterFacing,
             &mut CharacterPhysics,
         ),
         With<Player>,
@@ -406,7 +415,7 @@ fn player_movement(
     if !crate::networking::gameplay_input_allowed(reconnect) {
         return;
     }
-    let Ok((mut transform, mut movement, facing, mut physics)) = player_q.single_mut() else {
+    let Ok((mut transform, mut movement, mut facing, mut physics)) = player_q.single_mut() else {
         return;
     };
 
@@ -417,13 +426,36 @@ fn player_movement(
     sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
 
     sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
-    let (direction, speed) =
-        resolve_player_movement_state(&keys, &mouse_buttons, &bindings, &mut movement, facing);
+    let manual_override =
+        has_manual_movement_override(&keys, &mouse_buttons, &bindings, modal_open.as_deref());
     let current_position = transform.translation;
-    let proposed =
-        build_proposed_ground_movement(current_position, direction, speed, time.delta_secs());
     let collision_meshes = collect_collision_meshes(&wmo_collision_meshes_q);
     let doodad_colliders = collect_doodad_colliders(&doodad_collider_q);
+    let scripted_forward = crate::pathing::update_waypoint_pathing(
+        &mut pathing,
+        &mut map_status,
+        current_position,
+        terrain.as_deref(),
+        &mut ray_cast,
+        &collision_meshes,
+        &doodad_colliders,
+        manual_override,
+    )
+    .map(|directive| {
+        facing.yaw = directive.facing_yaw;
+        true
+    })
+    .unwrap_or(false);
+    let (direction, speed) = resolve_player_movement_state(
+        &keys,
+        &mouse_buttons,
+        &bindings,
+        &mut movement,
+        scripted_forward,
+        &facing,
+    );
+    let proposed =
+        build_proposed_ground_movement(current_position, direction, speed, time.delta_secs());
     apply_horizontal_movement(HorizontalMovementContext {
         transform: &mut transform,
         movement: &mut movement,
@@ -513,10 +545,17 @@ fn resolve_player_movement_state(
     mouse_buttons: &ButtonInput<MouseButton>,
     bindings: &InputBindings,
     movement: &mut MovementState,
+    scripted_forward: bool,
     facing: &CharacterFacing,
 ) -> (Vec3, f32) {
-    let (direction, anim_dir) =
-        compute_movement_input(keys, mouse_buttons, bindings, movement.autorun, facing);
+    let (direction, anim_dir) = compute_movement_input(
+        keys,
+        mouse_buttons,
+        bindings,
+        movement.autorun,
+        scripted_forward,
+        facing,
+    );
     movement.direction = anim_dir;
     let base_speed = if movement.running {
         RUN_SPEED
@@ -525,6 +564,22 @@ fn resolve_player_movement_state(
     };
     let speed = base_speed * movement_speed_multiplier(anim_dir);
     (direction, speed)
+}
+
+fn has_manual_movement_override(
+    keys: &ButtonInput<KeyCode>,
+    mouse_buttons: &ButtonInput<MouseButton>,
+    bindings: &InputBindings,
+    modal_open: Option<&crate::scenes::game_menu::UiModalOpen>,
+) -> bool {
+    modal_open.is_some()
+        || bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
+        || bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons)
+        || bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons)
+        || bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons)
+        || bindings.is_just_pressed(InputAction::Jump, keys, mouse_buttons)
+        || bindings.is_just_pressed(InputAction::AutoRun, keys, mouse_buttons)
+        || (mouse_buttons.pressed(MouseButton::Left) && mouse_buttons.pressed(MouseButton::Right))
 }
 
 fn movement_speed_multiplier(direction: MoveDirection) -> f32 {
@@ -881,6 +936,26 @@ mod tests {
             &mouse_buttons,
             &bindings,
             true,
+            false,
+            &CharacterFacing { yaw: 0.0 },
+        );
+
+        assert_eq!(anim_dir, MoveDirection::Forward);
+        assert_eq!(direction, Vec3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn waypoint_pathing_sets_forward_animation_without_forward_key() {
+        let keys = ButtonInput::<KeyCode>::default();
+        let mouse_buttons = ButtonInput::<MouseButton>::default();
+        let bindings = InputBindings::default();
+
+        let (direction, anim_dir) = compute_movement_input(
+            &keys,
+            &mouse_buttons,
+            &bindings,
+            false,
+            true,
             &CharacterFacing { yaw: 0.0 },
         );
 
@@ -902,6 +977,22 @@ mod tests {
         sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
 
         assert!(!movement.autorun);
+    }
+
+    #[test]
+    fn forward_input_counts_as_manual_override_for_pathing() {
+        let mut keys = ButtonInput::<KeyCode>::default();
+        let mouse_buttons = ButtonInput::<MouseButton>::default();
+        let bindings = InputBindings::default();
+
+        keys.press(KeyCode::KeyW);
+
+        assert!(has_manual_movement_override(
+            &keys,
+            &mouse_buttons,
+            &bindings,
+            None,
+        ));
     }
 
     #[test]
