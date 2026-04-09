@@ -303,6 +303,52 @@ mod tests {
     }
 
     #[test]
+    fn loading_bar_fill_width_scales_with_progress_percent() {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(sample_loading_state(50));
+        let layout = LoadingScreenLayout::default();
+        shared.insert(layout.clone());
+
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(loading_screen);
+        screen.sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+
+        let fill = reg
+            .get_by_name("LoadingBarFill")
+            .and_then(|id| reg.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .expect("LoadingBarFill rect");
+
+        assert_eq!(fill.width, layout.bar_fill_max_width * 0.5);
+        assert_eq!(fill.height, layout.bar_fill_height);
+    }
+
+    #[test]
+    fn loading_progress_text_shows_current_percent() {
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(sample_loading_state(86));
+        shared.insert(LoadingScreenLayout::default());
+
+        let mut reg = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(loading_screen);
+        screen.sync(&shared, &mut reg);
+
+        let progress = reg
+            .get_by_name("LoadingProgressText")
+            .and_then(|id| reg.get(id))
+            .expect("LoadingProgressText frame");
+
+        let Some(game_engine::ui::frame::WidgetData::FontString(text)) =
+            progress.widget_data.as_ref()
+        else {
+            panic!("LoadingProgressText should be a FontString");
+        };
+
+        assert_eq!(text.text, "86%");
+    }
+
+    #[test]
     fn preview_mode_progress_fills_slowly_over_time() {
         assert_eq!(preview_target_progress(0.0), 0.0);
         assert_eq!(preview_target_progress(2.0), 12.0);
