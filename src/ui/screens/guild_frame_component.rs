@@ -402,16 +402,8 @@ fn info_panel(state: &GuildFrameState) -> Element {
     let panel_y = -(HEADER_H + TAB_GAP + TAB_H + 24.0);
     let panel_h = FRAME_H - HEADER_H - TAB_H - 36.0;
     let panel_w = FRAME_W - INSET * 2.0;
-    let info_text = if state.info_text.is_empty() {
-        "No guild info set.".to_string()
-    } else {
-        state.info_text.clone()
-    };
-    let motd = if state.motd.is_empty() {
-        "No guild message of the day.".to_string()
-    } else {
-        state.motd.clone()
-    };
+    let info_text = guild_info_text(state);
+    let motd = guild_motd_text(state);
     rsx! {
         r#frame {
             name: "GuildInfoPanel",
@@ -425,46 +417,83 @@ fn info_panel(state: &GuildFrameState) -> Element {
                 x: {INSET},
                 y: {panel_y},
             }
-            fontstring {
-                name: "GuildInfoMotdLabel",
-                width: {panel_w - 8.0},
-                height: 18.0,
-                text: "Message of the Day",
-                font_size: 11.0,
-                font_color: TITLE_COLOR,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "-6" }
-            }
-            fontstring {
-                name: "GuildInfoMotdText",
-                width: {panel_w - 8.0},
-                height: 36.0,
-                text: {motd.as_str()},
-                font_size: 10.0,
-                font_color: TEXT,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "-26" }
-            }
-            fontstring {
-                name: "GuildInfoInfoLabel",
-                width: {panel_w - 8.0},
-                height: 18.0,
-                text: "Guild Info",
-                font_size: 11.0,
-                font_color: TITLE_COLOR,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "-78" }
-            }
-            fontstring {
-                name: "GuildInfoText",
-                width: {panel_w - 8.0},
-                height: {panel_h - 96.0},
-                text: {info_text.as_str()},
-                font_size: 10.0,
-                font_color: TEXT,
-                justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "-98" }
-            }
+            {info_panel_sections(panel_w, panel_h, motd, info_text)}
+        }
+    }
+}
+
+fn guild_info_text(state: &GuildFrameState) -> &str {
+    if state.info_text.is_empty() {
+        "No guild info set."
+    } else {
+        state.info_text.as_str()
+    }
+}
+
+fn guild_motd_text(state: &GuildFrameState) -> &str {
+    if state.motd.is_empty() {
+        "No guild message of the day."
+    } else {
+        state.motd.as_str()
+    }
+}
+
+fn info_panel_sections(panel_w: f32, panel_h: f32, motd: &str, info_text: &str) -> Element {
+    rsx! {
+        {info_panel_section(
+            "GuildInfoMotdLabel",
+            "GuildInfoMotdText",
+            "Message of the Day",
+            motd,
+            -6.0,
+            36.0,
+            panel_w,
+        )}
+        {info_panel_section(
+            "GuildInfoInfoLabel",
+            "GuildInfoText",
+            "Guild Info",
+            info_text,
+            -78.0,
+            panel_h - 96.0,
+            panel_w,
+        )}
+    }
+}
+
+fn info_panel_section(
+    label_name: &'static str,
+    text_name: &'static str,
+    title: &'static str,
+    body: &str,
+    label_y: f32,
+    text_height: f32,
+    panel_w: f32,
+) -> Element {
+    let body_y = label_y - 20.0;
+    let body_w = panel_w - 8.0;
+    let label_name = DynName(label_name.to_string());
+    let text_name = DynName(text_name.to_string());
+    rsx! {
+        fontstring {
+            name: label_name,
+            width: {body_w},
+            height: 18.0,
+            text: {title},
+            font_size: 11.0,
+            font_color: TITLE_COLOR,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {label_y} }
+        }
+        fontstring {
+            name: text_name,
+            width: {body_w},
+            height: {text_height},
+            text: {body},
+            font_size: 10.0,
+            font_color: TEXT,
+            justify_h: "LEFT",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {body_y} }
         }
     }
 }
