@@ -16,8 +16,10 @@ use std::net::ToSocketAddrs;
 
 use super::helpers::{get_editbox_text, insert_char_into_editbox, set_editbox_text};
 use super::{
-    DEFAULT_SERVER_ADDR, LoginFocus, LoginKeyParams, LoginStatus, LoginUi, STATUS_CONNECTING,
-    STATUS_FILL_FIELDS, STATUS_RECONNECT_UNAVAILABLE, handle_login_key,
+    DEFAULT_SERVER_ADDR, LoginFocus, LoginKeyParams, LoginRealmSelection, LoginStatus, LoginUi,
+    STATUS_CONNECTING, STATUS_FILL_FIELDS, STATUS_RECONNECT_UNAVAILABLE,
+    apply_login_realm_resources, handle_login_key, persist_login_realm_selection,
+    selected_login_server,
 };
 
 pub(crate) fn resolve_default_server() -> std::net::SocketAddr {
@@ -134,6 +136,7 @@ pub(crate) struct LoginAutomationContext<'a, 'w, 's> {
     pub(crate) status: &'a mut LoginStatus,
     pub(crate) login_mode: &'a mut networking::LoginMode,
     pub(crate) auth_token: &'a networking::AuthToken,
+    pub(crate) realm_selection: Option<&'a mut LoginRealmSelection>,
     pub(crate) server_addr: Option<std::net::SocketAddr>,
     pub(crate) server_hostname: Option<&'a str>,
     pub(crate) commands: &'a mut Commands<'w, 's>,
@@ -176,6 +179,7 @@ fn press_login_automation_key(
         next_state,
         status,
         login_mode,
+        realm_selection,
         server_addr,
         server_hostname,
         commands,
@@ -189,6 +193,7 @@ fn press_login_automation_key(
         status,
         next_state,
         mode: login_mode,
+        realm_selection: realm_selection.as_deref(),
         server_addr,
         server_hostname,
     };
@@ -208,6 +213,7 @@ fn click_login_frame(
         status,
         login_mode,
         auth_token,
+        realm_selection,
         server_addr,
         server_hostname,
         commands,
@@ -222,6 +228,7 @@ fn click_login_frame(
             status,
             login_mode,
             auth_token,
+            realm_selection,
             server_addr,
             server_hostname,
             commands,
@@ -271,6 +278,7 @@ fn dispatch_resolved_click(
         status,
         login_mode,
         auth_token,
+        mut realm_selection,
         server_addr,
         server_hostname,
         commands,
@@ -283,13 +291,22 @@ fn dispatch_resolved_click(
         next_state,
         login_mode,
         auth_token,
+        realm_selection.as_deref_mut(),
         server_addr,
         server_hostname,
         commands,
     ) {
         return Ok(());
     }
-    if dispatch_optional_ui_click(parsed, ui, login, status, login_mode, commands) {
+    if dispatch_optional_ui_click(
+        parsed,
+        ui,
+        login,
+        status,
+        login_mode,
+        realm_selection,
+        commands,
+    ) {
         return Ok(());
     }
     finish_unhandled_click(&ui.registry, frame_name, frame_id)
@@ -314,6 +331,7 @@ fn dispatch_optional_connect_click(
     next_state: &mut NextState<GameState>,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    realm_selection: Option<&mut LoginRealmSelection>,
     server_addr: Option<std::net::SocketAddr>,
     server_hostname: Option<&str>,
     commands: &mut Commands,
@@ -327,6 +345,7 @@ fn dispatch_optional_connect_click(
             next_state,
             login_mode,
             auth_token,
+            realm_selection,
             server_addr,
             server_hostname,
             commands,
@@ -342,13 +361,23 @@ fn dispatch_optional_ui_click(
     login: &LoginUi,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
+    realm_selection: Option<&mut LoginRealmSelection>,
     commands: &mut Commands,
 ) -> bool {
     if let Some(action @ LoginAction::CreateAccount)
+    | Some(action @ LoginAction::CycleRealm)
     | Some(action @ LoginAction::Menu)
     | Some(action @ LoginAction::Exit) = parsed
     {
-        dispatch_click_ui_action(action, ui, login, status, login_mode, commands);
+        dispatch_click_ui_action(
+            action,
+            ui,
+            login,
+            status,
+            login_mode,
+            realm_selection,
+            commands,
+        );
         return true;
     }
     false
@@ -362,6 +391,7 @@ fn dispatch_click_connect_action(
     next_state: &mut NextState<GameState>,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    realm_selection: Option<&mut LoginRealmSelection>,
     server_addr: Option<std::net::SocketAddr>,
     server_hostname: Option<&str>,
     commands: &mut Commands,
@@ -374,6 +404,7 @@ fn dispatch_click_connect_action(
         next_state,
         login_mode,
         auth_token,
+        realm_selection,
         server_addr,
         server_hostname,
         commands,
@@ -386,9 +417,18 @@ fn dispatch_click_ui_action(
     login: &LoginUi,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
+    realm_selection: Option<&mut LoginRealmSelection>,
     commands: &mut Commands,
 ) {
-    dispatch_login_ui_action(action, ui, login, status, login_mode, commands);
+    dispatch_login_ui_action(
+        action,
+        ui,
+        login,
+        status,
+        login_mode,
+        realm_selection,
+        commands,
+    );
 }
 
 fn dispatch_login_connect_action(
@@ -399,31 +439,45 @@ fn dispatch_login_connect_action(
     next_state: &mut NextState<GameState>,
     login_mode: &mut networking::LoginMode,
     auth_token: &networking::AuthToken,
+    realm_selection: Option<&mut LoginRealmSelection>,
     server_addr: Option<std::net::SocketAddr>,
     server_hostname: Option<&str>,
     commands: &mut Commands,
 ) {
     match action {
-        LoginAction::Connect => try_connect(
-            registry,
-            login,
-            status,
-            next_state,
-            login_mode,
-            server_addr,
-            server_hostname,
-            commands,
-        ),
-        LoginAction::Reconnect => try_reconnect(
-            auth_token,
-            status,
-            next_state,
-            login_mode,
-            server_addr,
-            server_hostname,
-            commands,
-        ),
-        LoginAction::CreateAccount | LoginAction::Menu | LoginAction::Exit => {}
+        LoginAction::Connect => {
+            match selected_login_server(realm_selection.as_deref(), server_addr, server_hostname) {
+                Ok((server_addr, server_hostname)) => try_connect(
+                    registry,
+                    login,
+                    status,
+                    next_state,
+                    login_mode,
+                    Some(server_addr),
+                    Some(server_hostname.as_str()),
+                    commands,
+                ),
+                Err(err) => status.0 = err,
+            }
+        }
+        LoginAction::Reconnect => {
+            match selected_login_server(realm_selection.as_deref(), server_addr, server_hostname) {
+                Ok((server_addr, server_hostname)) => try_reconnect(
+                    auth_token,
+                    status,
+                    next_state,
+                    login_mode,
+                    Some(server_addr),
+                    Some(server_hostname.as_str()),
+                    commands,
+                ),
+                Err(err) => status.0 = err,
+            }
+        }
+        LoginAction::CreateAccount
+        | LoginAction::CycleRealm
+        | LoginAction::Menu
+        | LoginAction::Exit => {}
     }
 }
 
@@ -433,11 +487,25 @@ fn dispatch_login_ui_action(
     login: &LoginUi,
     status: &mut LoginStatus,
     login_mode: &mut networking::LoginMode,
+    realm_selection: Option<&mut LoginRealmSelection>,
     commands: &mut Commands,
 ) {
     match action {
         LoginAction::CreateAccount => {
             toggle_login_mode(login_mode, &mut ui.registry, login);
+            status.0.clear();
+        }
+        LoginAction::CycleRealm => {
+            let Some(realm_selection) = realm_selection else {
+                status.0 = "Realm selection is unavailable".to_string();
+                return;
+            };
+            realm_selection.cycle();
+            if let Err(err) = apply_login_realm_resources(commands, realm_selection) {
+                status.0 = err;
+                return;
+            }
+            persist_login_realm_selection(realm_selection);
             status.0.clear();
         }
         LoginAction::Menu => {

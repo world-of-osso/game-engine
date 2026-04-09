@@ -31,6 +31,7 @@ fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
     let password_input = reg.get_by_name("PasswordInput").expect("PasswordInput");
+    let realm_button = reg.get_by_name("RealmButton").expect("RealmButton");
     let connect_button = reg.get_by_name("ConnectButton").expect("ConnectButton");
     let reconnect_button = reg.get_by_name("ReconnectButton");
     let create_account_button = reg
@@ -43,6 +44,7 @@ fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
         root,
         username_input,
         password_input,
+        realm_button,
         connect_button,
         reconnect_button,
         create_account_button,
@@ -65,6 +67,7 @@ fn login_fixture() -> (FrameRegistry, LoginUi) {
             root: login.root,
             username_input: login.username_input,
             password_input: login.password_input,
+            realm_button: login.realm_button,
             connect_button: login.connect_button,
             reconnect_button: login.reconnect_button,
             create_account_button: login.create_account_button,
@@ -81,6 +84,7 @@ struct LoginLayoutIds {
     root: u64,
     username_input: u64,
     password_input: u64,
+    realm_button: u64,
     connect_button: u64,
     reconnect_button: Option<u64>,
     create_account_button: u64,
@@ -106,9 +110,10 @@ fn inject_layout_rects(reg: &mut FrameRegistry, ids: LoginLayoutIds) {
     set_rect(reg, ids.root, 0.0, 0.0, 1920.0, 1080.0);
     set_rect(reg, ids.username_input, 800.0, 400.0, 320.0, 42.0);
     set_rect(reg, ids.password_input, 800.0, 460.0, 320.0, 42.0);
-    set_rect(reg, ids.connect_button, 800.0, 522.0, 250.0, 66.0);
+    set_rect(reg, ids.realm_button, 800.0, 532.0, 320.0, 42.0);
+    set_rect(reg, ids.connect_button, 800.0, 596.0, 250.0, 66.0);
     if let Some(reconnect_button) = ids.reconnect_button {
-        set_rect(reg, reconnect_button, 800.0, 522.0, 250.0, 66.0);
+        set_rect(reg, reconnect_button, 800.0, 596.0, 250.0, 66.0);
     }
     set_rect(reg, ids.create_account_button, 860.0, 630.0, 200.0, 32.0);
     set_rect(reg, ids.menu_button, 860.0, 672.0, 200.0, 32.0);
@@ -160,6 +165,7 @@ fn automation_click_focuses_username_editbox() {
                 status: &mut status,
                 login_mode: &mut login_mode,
                 auth_token: &auth_token,
+                realm_selection: None,
                 server_addr: None,
                 server_hostname: None,
                 commands: &mut commands,
@@ -216,6 +222,7 @@ fn automation_type_uses_login_editbox_code_path() {
                 status: &mut status,
                 login_mode: &mut login_mode,
                 auth_token: &auth_token,
+                realm_selection: None,
                 server_addr: None,
                 server_hostname: None,
                 commands: &mut commands,
@@ -336,6 +343,7 @@ fn run_login_actions(
                 status,
                 login_mode,
                 auth_token,
+                realm_selection: None,
                 server_addr: None,
                 server_hostname: None,
                 commands,
@@ -354,6 +362,55 @@ fn login_submit_actions() -> [UiAutomationAction; 5] {
         UiAutomationAction::TypeText("secret".to_string()),
         UiAutomationAction::ClickFrame("ConnectButton".to_string()),
     ]
+}
+
+#[test]
+fn automation_click_realm_button_cycles_selection_and_updates_server_resources() {
+    let (reg, login) = login_fixture();
+    let mut ui = make_ui_state(reg);
+    let mut focus = LoginFocus::default();
+    let mut next_state = NextState::<GameState>::default();
+    let mut status = LoginStatus::default();
+    let mut login_mode = networking::LoginMode::Login;
+    let auth_token = networking::AuthToken(None);
+    let mut realm_selection = super::LoginRealmSelection::from_server(
+        Some("127.0.0.1:5000".parse().unwrap()),
+        Some("game.worldofosso.com:5000"),
+        false,
+    );
+    let (mut world, mut system_state) = make_world_with_commands();
+
+    {
+        let mut commands = system_state.get_mut(&mut world);
+        run_login_automation_action(
+            crate::scenes::login::connect::LoginAutomationContext {
+                ui: &mut ui,
+                login: &login,
+                focus: &mut focus,
+                next_state: &mut next_state,
+                status: &mut status,
+                login_mode: &mut login_mode,
+                auth_token: &auth_token,
+                realm_selection: Some(&mut realm_selection),
+                server_addr: None,
+                server_hostname: None,
+                commands: &mut commands,
+            },
+            &UiAutomationAction::ClickFrame("RealmButton".to_string()),
+        )
+        .expect("automation click should cycle realm");
+    }
+    system_state.apply(&mut world);
+
+    assert_eq!(realm_selection.button_text(), "Development");
+    assert_eq!(
+        world.resource::<networking::ServerHostname>().0,
+        "127.0.0.1:5000"
+    );
+    assert_eq!(
+        world.resource::<networking::ServerAddr>().0,
+        "127.0.0.1:5000".parse().unwrap()
+    );
 }
 
 #[test]

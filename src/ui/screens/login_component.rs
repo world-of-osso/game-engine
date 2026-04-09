@@ -12,6 +12,7 @@ use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 pub enum LoginAction {
     Connect,
     Reconnect,
+    CycleRealm,
     CreateAccount,
     Menu,
     Exit,
@@ -22,6 +23,7 @@ impl fmt::Display for LoginAction {
         match self {
             Self::Connect => f.write_str("connect"),
             Self::Reconnect => f.write_str("reconnect"),
+            Self::CycleRealm => f.write_str("cycle_realm"),
             Self::CreateAccount => f.write_str("create_account"),
             Self::Menu => f.write_str("menu"),
             Self::Exit => f.write_str("exit"),
@@ -34,6 +36,7 @@ impl LoginAction {
         match s {
             "connect" => Some(Self::Connect),
             "reconnect" => Some(Self::Reconnect),
+            "cycle_realm" => Some(Self::CycleRealm),
             "create_account" => Some(Self::CreateAccount),
             "menu" => Some(Self::Menu),
             "exit" => Some(Self::Exit),
@@ -47,6 +50,8 @@ pub type SharedStatusText = String;
 
 /// Whether a login request is in flight. Disables the connect button.
 pub type SharedConnecting = bool;
+pub type SharedRealmText = String;
+pub type SharedRealmSelectable = bool;
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
@@ -61,6 +66,7 @@ pub const USERNAME_INPUT: FrameName = FrameName("UsernameInput");
 pub const PASSWORD_INPUT: FrameName = FrameName("PasswordInput");
 pub const CONNECT_BUTTON: FrameName = FrameName("ConnectButton");
 pub const RECONNECT_BUTTON: FrameName = FrameName("ReconnectButton");
+pub const REALM_BUTTON: FrameName = FrameName("RealmButton");
 pub const EXIT_BUTTON: FrameName = FrameName("ExitButton");
 pub const CREATE_ACCOUNT_BUTTON: FrameName = FrameName("CreateAccountButton");
 pub const MENU_BUTTON: FrameName = FrameName("MenuButton");
@@ -114,6 +120,7 @@ fn login_input_labels() -> Element {
     [
         input_label(FrameName("UsernameInputLabel"), "Username", USERNAME_INPUT),
         input_label(FrameName("PasswordInputLabel"), "Password", PASSWORD_INPUT),
+        input_label(FrameName("RealmButtonLabel"), "Realm", REALM_BUTTON),
     ]
     .into_iter()
     .flatten()
@@ -153,6 +160,28 @@ fn login_inputs() -> Element {
     }
 }
 
+fn login_realm_button(realm_text: &str, realm_selectable: bool, connecting: bool) -> Element {
+    let realm_disabled = connecting || !realm_selectable;
+    let realm_text = realm_text.to_string();
+    rsx! {
+        button {
+            name: REALM_BUTTON,
+            width: "fill",
+            height: 42.0,
+            onclick: LoginAction::CycleRealm,
+            text: realm_text,
+            font_size: 14.0,
+            disabled: realm_disabled,
+            anchor {
+                point: AnchorPoint::Top,
+                relative_to: PASSWORD_INPUT,
+                relative_point: AnchorPoint::Bottom,
+                y: "-30",
+            }
+        }
+    }
+}
+
 fn login_reconnect_button() -> Element {
     rsx! {
         button {
@@ -164,9 +193,9 @@ fn login_reconnect_button() -> Element {
             font_size: 16.0,
             anchor {
                 point: AnchorPoint::Top,
-                relative_to: PASSWORD_INPUT,
+                relative_to: REALM_BUTTON,
                 relative_point: AnchorPoint::Bottom,
-                y: "-50",
+                y: "-20",
             }
         }
     }
@@ -184,9 +213,9 @@ fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Eleme
             disabled: connecting,
             anchor {
                 point: AnchorPoint::Top,
-                relative_to: PASSWORD_INPUT,
+                relative_to: REALM_BUTTON,
                 relative_point: AnchorPoint::Bottom,
-                y: "-50",
+                y: "-20",
             }
         }
     };
@@ -209,12 +238,24 @@ fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Eleme
     [connect, status].into_iter().flatten().collect()
 }
 
-fn login_main_buttons(show_reconnect: bool, status_text: &str, connecting: bool) -> Element {
-    if show_reconnect {
-        login_reconnect_button()
-    } else {
-        login_connect_button_and_status(status_text, connecting)
-    }
+fn login_main_buttons(
+    show_reconnect: bool,
+    realm_text: &str,
+    realm_selectable: bool,
+    status_text: &str,
+    connecting: bool,
+) -> Element {
+    [
+        login_realm_button(realm_text, realm_selectable, connecting),
+        if show_reconnect {
+            login_reconnect_button()
+        } else {
+            login_connect_button_and_status(status_text, connecting)
+        },
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 fn action_button_items() -> Element {
@@ -357,7 +398,7 @@ fn login_game_logo() -> Element {
     }
 }
 
-fn login_ui(status: &str, connecting: bool) -> Element {
+fn login_ui(status: &str, connecting: bool, realm_text: &str, realm_selectable: bool) -> Element {
     rsx! {
         r#frame { name: "LoginUI",
             anchor {
@@ -374,7 +415,7 @@ fn login_ui(status: &str, connecting: bool) -> Element {
             }
             {login_game_logo()}
             {login_inputs()}
-            {login_main_buttons(false, status, connecting)}
+            {login_main_buttons(false, realm_text, realm_selectable, status, connecting)}
             {login_action_buttons()}
             {login_footer()}
         }
@@ -387,10 +428,15 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
         .map(|s| s.as_str())
         .unwrap_or("");
     let connecting = ctx.get::<SharedConnecting>().copied().unwrap_or(false);
+    let realm_text = ctx
+        .get::<SharedRealmText>()
+        .map(|s| s.as_str())
+        .unwrap_or("Development");
+    let realm_selectable = ctx.get::<SharedRealmSelectable>().copied().unwrap_or(true);
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
-            {login_ui(status, connecting)}
+            {login_ui(status, connecting, realm_text, realm_selectable)}
         }
     }
 }

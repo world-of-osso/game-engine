@@ -10,6 +10,7 @@ use directories::ProjectDirs;
 use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
 
+use crate::cli_args::{RealmPreset, default_realm_preset};
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::InputBindings;
 
@@ -265,6 +266,8 @@ struct LoadedClientOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ClientOptionsFile {
+    #[serde(default = "default_realm_preset", rename = "preferredRealm")]
+    preferred_realm: RealmPreset,
     #[serde(default)]
     sound: SoundOptionsFile,
     #[serde(default)]
@@ -285,6 +288,7 @@ struct ClientOptionsFile {
 impl Default for ClientOptionsFile {
     fn default() -> Self {
         Self {
+            preferred_realm: default_realm_preset(),
             sound: SoundOptionsFile::default(),
             camera: CameraOptionsFile::default(),
             graphics: GraphicsOptionsFile::default(),
@@ -467,6 +471,7 @@ fn build_options_file(
     modal_offset: [f32; 2],
 ) -> ClientOptionsFile {
     ClientOptionsFile {
+        preferred_realm: load_preferred_realm(),
         sound: build_sound_options_file(sound),
         camera: build_camera_options_file(camera),
         graphics: build_graphics_options_file(graphics),
@@ -636,6 +641,20 @@ pub fn load_login_credentials() -> Option<LoginCredentials> {
     Some(creds)
 }
 
+pub fn load_preferred_realm() -> RealmPreset {
+    load_options_file().preferred_realm
+}
+
+pub fn save_preferred_realm(realm: RealmPreset) -> Result<(), String> {
+    let path = load_options_path();
+    let mut file = load_options_file_from_path(&path);
+    if file.preferred_realm == realm {
+        return Ok(());
+    }
+    file.preferred_realm = realm;
+    save_options_file_to_path(&path, &file)
+}
+
 pub fn login_credentials_path() -> PathBuf {
     if let Some(proj_dirs) = ProjectDirs::from("org", "WorldOfOsso", "game-engine") {
         return proj_dirs.config_dir().join(CREDENTIALS_FILE_NAME);
@@ -792,6 +811,7 @@ mod tests {
     #[test]
     fn default_file_uses_expected_modal_position() {
         let file = ClientOptionsFile::default();
+        assert_eq!(file.preferred_realm, default_realm_preset());
         assert_eq!(file.modal_offset, None);
         assert_eq!(file.modal_position, None);
         assert_eq!(file.bindings, InputBindings::default());
@@ -847,6 +867,7 @@ mod tests {
     #[test]
     fn options_file_serializes_particle_density_with_cvar_name() {
         let file = ClientOptionsFile {
+            preferred_realm: RealmPreset::Prod,
             graphics: GraphicsOptionsFile {
                 particle_density: 80,
                 render_scale: 0.67,
@@ -864,6 +885,7 @@ mod tests {
         let serialized = ron::ser::to_string(&file).unwrap();
 
         assert!(serialized.contains("particleDensity:80"));
+        assert!(serialized.contains("preferredRealm:Prod"));
         assert!(serialized.contains("renderScale:0.67"));
         assert!(serialized.contains("uiScale:1.2"));
         assert!(serialized.contains("vsyncEnabled:false"));
@@ -956,6 +978,7 @@ mod tests {
             InputBinding::Keyboard(KeyCode::F3),
         );
         let file = ClientOptionsFile {
+            preferred_realm: RealmPreset::Prod,
             sound: SoundOptionsFile {
                 master_volume: 0.25,
                 ambient_volume: 0.5,
@@ -1003,6 +1026,7 @@ mod tests {
         let loaded = load_options_file_from_path(&path);
 
         assert_eq!(loaded.sound.master_volume, 0.25);
+        assert_eq!(loaded.preferred_realm, RealmPreset::Prod);
         assert!(!loaded.sound.music_enabled);
         assert!((loaded.camera.mouse_sensitivity - 0.006).abs() < 0.0001);
         assert!(loaded.camera.invert_y);

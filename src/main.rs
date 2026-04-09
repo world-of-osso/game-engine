@@ -201,6 +201,7 @@ fn ensure_asset_root() {
 struct ParsedArgs {
     startup_actions: Vec<game_engine::ui::automation::UiAutomationAction>,
     server_addr: Option<cli_args::ServerArg>,
+    server_override: bool,
     initial_state: Option<game_state::GameState>,
     auto_enter_world: bool,
     startup_login: Option<(String, String)>,
@@ -228,6 +229,7 @@ fn parse_skybox_debug_override(
 
 fn parse_run_args(args: &[String]) -> ParsedArgs {
     let mut parsed = parse_run_args_base(args);
+    let preferred_realm = client_options::load_preferred_realm();
     let startup_credentials =
         client_options::load_login_credentials().map(|creds| (creds.username, creds.password));
     let startup_credentials_path = client_options::login_credentials_path();
@@ -235,7 +237,7 @@ fn parse_run_args(args: &[String]) -> ParsedArgs {
         .server_addr
         .as_ref()
         .map(|server| server.hostname.as_str())
-        .unwrap_or(cli_args::DEFAULT_SERVER_ADDR);
+        .unwrap_or(preferred_realm.hostname());
     let has_saved_auth_token = networking::load_auth_token(Some(auth_server)).is_some();
     if startup_credentials.is_some() && !has_saved_auth_token {
         info!(
@@ -299,9 +301,11 @@ fn parse_run_args_base(args: &[String]) -> ParsedArgs {
             std::process::exit(1);
         }
     };
+    let server_addr = parse_server_arg(args);
     ParsedArgs {
         startup_actions,
-        server_addr: parse_server_arg(args),
+        server_addr: server_addr.clone(),
+        server_override: server_addr.is_some(),
         initial_state,
         auto_enter_world: false,
         startup_login: None,
@@ -571,12 +575,18 @@ fn configure_server_resources(
     app: &mut App,
     enable_sound: bool,
     server_arg: Option<cli_args::ServerArg>,
+    server_override: bool,
     initial_state: Option<game_state::GameState>,
     startup_login: Option<(String, String)>,
 ) {
     add_optional_sound_plugin(app, enable_sound);
-    let server_arg = resolve_server_arg(server_arg, initial_state);
+    let server_arg = resolve_server_arg(
+        server_arg,
+        initial_state,
+        client_options::load_preferred_realm(),
+    );
     insert_server_resources(app, server_arg);
+    app.insert_resource(scenes::login::LoginRealmSelectionLock(server_override));
     insert_initial_state_resource(app, initial_state);
     insert_startup_login_resources(app, startup_login);
 }
@@ -590,22 +600,24 @@ fn add_optional_sound_plugin(app: &mut App, enable_sound: bool) {
 fn resolve_server_arg(
     server_arg: Option<cli_args::ServerArg>,
     initial_state: Option<game_state::GameState>,
+    preferred_realm: cli_args::RealmPreset,
 ) -> Option<cli_args::ServerArg> {
-    server_arg.or_else(|| default_connecting_server_arg(initial_state))
+    server_arg.or_else(|| default_connecting_server_arg(initial_state, preferred_realm))
 }
 
 fn default_connecting_server_arg(
     initial_state: Option<game_state::GameState>,
+    preferred_realm: cli_args::RealmPreset,
 ) -> Option<cli_args::ServerArg> {
     if initial_state == Some(game_state::GameState::Connecting) {
-        Some(default_server_arg_or_exit())
+        Some(default_server_arg_or_exit(preferred_realm))
     } else {
         None
     }
 }
 
-fn default_server_arg_or_exit() -> cli_args::ServerArg {
-    match cli_args::default_server_arg() {
+fn default_server_arg_or_exit(preferred_realm: cli_args::RealmPreset) -> cli_args::ServerArg {
+    match preferred_realm.to_server_arg() {
         Ok(server) => server,
         Err(err) => {
             eprintln!("{err}");
@@ -649,6 +661,7 @@ fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs
         app,
         args.iter().any(|a| a == "--sound"),
         parsed.server_addr.take(),
+        parsed.server_override,
         parsed.initial_state,
         parsed.startup_login.clone(),
     );

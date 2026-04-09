@@ -11,8 +11,8 @@ use ui_toolkit::screen::Screen;
 
 use game_engine::ui::screens::login_component::{
     CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, LoginAction,
-    MENU_BUTTON, PASSWORD_INPUT, RECONNECT_BUTTON, SharedConnecting, SharedStatusText,
-    USERNAME_INPUT, login_screen,
+    MENU_BUTTON, PASSWORD_INPUT, REALM_BUTTON, RECONNECT_BUTTON, SharedConnecting,
+    SharedRealmSelectable, SharedRealmText, SharedStatusText, USERNAME_INPUT, login_screen,
 };
 use game_engine::ui::widgets::button::ButtonState as BtnState;
 use game_engine::ui::widgets::font_string::GameFont;
@@ -47,6 +47,130 @@ pub(crate) const STATUS_CONNECTING: &str = "Connecting...";
 pub(crate) const STATUS_FILL_FIELDS: &str = "Please fill in all fields";
 pub(crate) const STATUS_RECONNECT_UNAVAILABLE: &str = "No saved session to reconnect";
 
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub(crate) struct LoginRealmSelectionLock(pub bool);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum LoginRealmChoice {
+    Preset(crate::cli_args::RealmPreset),
+    Custom {
+        addr: std::net::SocketAddr,
+        hostname: String,
+    },
+}
+
+#[derive(Resource, Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LoginRealmSelection {
+    choice: LoginRealmChoice,
+    locked: bool,
+}
+
+impl LoginRealmSelection {
+    fn from_server(
+        server_addr: Option<std::net::SocketAddr>,
+        server_hostname: Option<&str>,
+        locked: bool,
+    ) -> Self {
+        let choice = match (server_addr, server_hostname) {
+            (_, Some(hostname)) => crate::cli_args::realm_preset_for_hostname(hostname)
+                .map(LoginRealmChoice::Preset)
+                .unwrap_or_else(|| {
+                    let addr = server_addr.unwrap_or_else(connect::resolve_default_server);
+                    LoginRealmChoice::Custom {
+                        addr,
+                        hostname: hostname.to_string(),
+                    }
+                }),
+            (Some(addr), None) => LoginRealmChoice::Custom {
+                addr,
+                hostname: addr.to_string(),
+            },
+            (None, None) => LoginRealmChoice::Preset(crate::client_options::load_preferred_realm()),
+        };
+        Self { choice, locked }
+    }
+
+    fn button_text(&self) -> String {
+        match &self.choice {
+            LoginRealmChoice::Preset(preset) => preset.label().to_string(),
+            LoginRealmChoice::Custom { hostname, .. } => hostname.clone(),
+        }
+    }
+
+    fn is_selectable(&self) -> bool {
+        !self.locked
+    }
+
+    fn server_addr(&self) -> Result<std::net::SocketAddr, String> {
+        match &self.choice {
+            LoginRealmChoice::Preset(preset) => preset.to_server_arg().map(|server| server.addr),
+            LoginRealmChoice::Custom { addr, .. } => Ok(*addr),
+        }
+    }
+
+    fn server_hostname(&self) -> String {
+        match &self.choice {
+            LoginRealmChoice::Preset(preset) => preset.hostname().to_string(),
+            LoginRealmChoice::Custom { hostname, .. } => hostname.clone(),
+        }
+    }
+
+    fn is_dev(&self) -> bool {
+        matches!(
+            self.choice,
+            LoginRealmChoice::Preset(crate::cli_args::RealmPreset::Dev)
+        )
+    }
+
+    fn cycle(&mut self) {
+        if self.locked {
+            return;
+        }
+        self.choice = match self.choice {
+            LoginRealmChoice::Preset(crate::cli_args::RealmPreset::Dev) => {
+                LoginRealmChoice::Preset(crate::cli_args::RealmPreset::Prod)
+            }
+            LoginRealmChoice::Preset(crate::cli_args::RealmPreset::Prod)
+            | LoginRealmChoice::Custom { .. } => {
+                LoginRealmChoice::Preset(crate::cli_args::RealmPreset::Dev)
+            }
+        };
+    }
+
+    fn selected_preset(&self) -> Option<crate::cli_args::RealmPreset> {
+        match self.choice {
+            LoginRealmChoice::Preset(preset) => Some(preset),
+            LoginRealmChoice::Custom { .. } => None,
+        }
+    }
+}
+
+fn apply_login_realm_resources(
+    commands: &mut Commands,
+    selection: &LoginRealmSelection,
+) -> Result<(), String> {
+    let addr = selection.server_addr()?;
+    let hostname = selection.server_hostname();
+    commands.insert_resource(networking::ServerAddr(addr));
+    commands.insert_resource(networking::ServerHostname(hostname.clone()));
+    commands.insert_resource(networking::AuthToken(networking::load_auth_token(Some(
+        hostname.as_str(),
+    ))));
+    Ok(())
+}
+
+#[cfg(not(test))]
+fn persist_login_realm_selection(selection: &LoginRealmSelection) {
+    if let Some(preset) = selection.selected_preset()
+        && let Err(err) = crate::client_options::save_preferred_realm(preset)
+    {
+        warn!("Failed to save preferred realm '{}': {err}", preset.alias());
+    }
+}
+
+#[cfg(test)]
+fn persist_login_realm_selection(_selection: &LoginRealmSelection) {}
+
 /// Grouped UI state params used by mouse/keyboard input systems.
 #[derive(bevy::ecs::system::SystemParam)]
 struct LoginUiParams<'w> {
@@ -63,6 +187,7 @@ struct LoginConnectParams<'w, 's> {
     status: ResMut<'w, LoginStatus>,
     login_mode: ResMut<'w, networking::LoginMode>,
     auth_token: Res<'w, networking::AuthToken>,
+    realm_selection: Option<ResMut<'w, LoginRealmSelection>>,
     server_addr: Option<Res<'w, networking::ServerAddr>>,
     server_hostname: Option<Res<'w, networking::ServerHostname>>,
     commands: Commands<'w, 's>,
@@ -73,6 +198,7 @@ ui_resource! {
         root: LOGIN_ROOT,
         username_input: USERNAME_INPUT,
         password_input: PASSWORD_INPUT,
+        realm_button: REALM_BUTTON,
         connect_button: CONNECT_BUTTON,
         create_account_button: CREATE_ACCOUNT_BUTTON,
         menu_button: MENU_BUTTON,
@@ -169,19 +295,36 @@ pub(crate) fn build_login_ui(
     mut commands: Commands,
     mut status: ResMut<LoginStatus>,
     mut auth_feedback: ResMut<networking::AuthUiFeedback>,
+    realm_selection: Option<Res<LoginRealmSelection>>,
+    realm_lock: Option<Res<LoginRealmSelectionLock>>,
+    server_addr: Option<Res<networking::ServerAddr>>,
+    server_hostname: Option<Res<networking::ServerHostname>>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     dev_server: Option<Res<DevServer>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     status.0 = auth_feedback.0.take().unwrap_or_default();
 
-    let mut res = view::build_login_screen(&status);
+    let selection = realm_selection.as_deref().cloned().unwrap_or_else(|| {
+        LoginRealmSelection::from_server(
+            server_addr.as_ref().map(|addr| addr.0),
+            server_hostname.as_ref().map(|hostname| hostname.0.as_str()),
+            realm_lock.as_deref().is_some_and(|lock| lock.0),
+        )
+    });
+    if let Err(err) = apply_login_realm_resources(&mut commands, &selection) {
+        status.0 = err;
+    }
+    commands.insert_resource(selection.clone());
+
+    let mut res =
+        view::build_login_screen(&status, selection.button_text(), selection.is_selectable());
     res.screen.sync(&res.shared, &mut ui.registry);
 
     let login = LoginUi::resolve(&ui.registry);
     view::apply_post_setup(&mut ui.registry, &login);
 
-    if dev_server.is_some() {
+    if dev_server.is_some() || selection.is_dev() {
         prefill_offline_credentials(&mut ui.registry, &login);
     }
 
@@ -241,8 +384,22 @@ struct ConnectParams<'a> {
     status: &'a mut LoginStatus,
     login_mode: &'a mut networking::LoginMode,
     auth_token: &'a networking::AuthToken,
+    realm_selection: Option<&'a mut LoginRealmSelection>,
     server_addr: Option<std::net::SocketAddr>,
     server_hostname: Option<&'a str>,
+}
+
+fn selected_login_server(
+    realm_selection: Option<&LoginRealmSelection>,
+    server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
+) -> Result<(std::net::SocketAddr, String), String> {
+    if let Some(selection) = realm_selection {
+        return Ok((selection.server_addr()?, selection.server_hostname()));
+    }
+    let addr = server_addr.unwrap_or_else(connect::resolve_default_server);
+    let hostname = server_hostname.unwrap_or(DEFAULT_SERVER_ADDR).to_string();
+    Ok((addr, hostname))
 }
 
 fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
@@ -315,6 +472,7 @@ fn handle_mouse_release(
             status: &mut cp.status,
             login_mode: &mut cp.login_mode,
             auth_token: &cp.auth_token,
+            realm_selection: cp.realm_selection.as_deref_mut(),
             server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
             server_hostname: cp
                 .server_hostname
@@ -361,6 +519,7 @@ fn handle_mouse_press(
 
 fn button_ids(login: &LoginUi) -> Vec<u64> {
     let mut ids = vec![
+        login.realm_button,
         login.connect_button,
         login.create_account_button,
         login.menu_button,
@@ -406,25 +565,39 @@ fn dispatch_login_action(
     action: Option<&str>,
 ) {
     match action.and_then(LoginAction::parse) {
-        Some(LoginAction::Connect) => try_connect(
-            &mut ui.registry,
-            login,
-            params.status,
-            params.next_state,
-            params.login_mode,
+        Some(LoginAction::Connect) => match selected_login_server(
+            params.realm_selection.as_deref(),
             params.server_addr,
             params.server_hostname,
-            commands,
-        ),
-        Some(LoginAction::Reconnect) => try_reconnect(
-            params.auth_token,
-            params.status,
-            params.next_state,
-            params.login_mode,
+        ) {
+            Ok((server_addr, server_hostname)) => try_connect(
+                &mut ui.registry,
+                login,
+                params.status,
+                params.next_state,
+                params.login_mode,
+                Some(server_addr),
+                Some(server_hostname.as_str()),
+                commands,
+            ),
+            Err(err) => params.status.0 = err,
+        },
+        Some(LoginAction::Reconnect) => match selected_login_server(
+            params.realm_selection.as_deref(),
             params.server_addr,
             params.server_hostname,
-            commands,
-        ),
+        ) {
+            Ok((server_addr, server_hostname)) => try_reconnect(
+                params.auth_token,
+                params.status,
+                params.next_state,
+                params.login_mode,
+                Some(server_addr),
+                Some(server_hostname.as_str()),
+                commands,
+            ),
+            Err(err) => params.status.0 = err,
+        },
         other => handle_local_login_action(ui, login, focus, params, commands, exit, other),
     }
 }
@@ -439,6 +612,19 @@ fn handle_local_login_action(
     action: Option<LoginAction>,
 ) {
     match action {
+        Some(LoginAction::CycleRealm) => {
+            let Some(realm_selection) = params.realm_selection.as_deref_mut() else {
+                params.status.0 = "Realm selection is unavailable".to_string();
+                return;
+            };
+            realm_selection.cycle();
+            if let Err(err) = apply_login_realm_resources(commands, realm_selection) {
+                params.status.0 = err;
+                return;
+            }
+            persist_login_realm_selection(realm_selection);
+            params.status.0.clear();
+        }
         Some(LoginAction::CreateAccount) => {
             toggle_login_mode(params.login_mode, &mut ui.registry, login);
             params.status.0.clear();
@@ -536,6 +722,7 @@ fn dispatch_login_key_event(
         status: &mut cp.status,
         next_state: &mut cp.next_state,
         mode: &cp.login_mode,
+        realm_selection: cp.realm_selection.as_deref(),
         server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
         server_hostname: cp
             .server_hostname
@@ -603,6 +790,7 @@ fn login_run_automation(
             status: &mut cp.status,
             login_mode: &mut cp.login_mode,
             auth_token: &cp.auth_token,
+            realm_selection: cp.realm_selection.as_deref_mut(),
             server_addr: cp.server_addr.as_ref().map(|addr| addr.0),
             server_hostname: cp
                 .server_hostname
@@ -636,7 +824,11 @@ fn handle_nav_key(key: KeyCode, focus: &mut LoginFocus, login: &LoginUi) -> bool
 }
 
 fn cycle_focus(current: Option<u64>, login: &LoginUi) -> u64 {
-    let fields = [login.username_input, login.password_input];
+    let fields = [
+        login.username_input,
+        login.password_input,
+        login.realm_button,
+    ];
     let idx = current
         .and_then(|id| fields.iter().position(|&f| f == id))
         .map(|i| (i + 1) % fields.len())
@@ -649,6 +841,7 @@ pub(crate) struct LoginKeyParams<'a> {
     pub(crate) status: &'a mut LoginStatus,
     pub(crate) next_state: &'a mut NextState<GameState>,
     pub(crate) mode: &'a networking::LoginMode,
+    pub(crate) realm_selection: Option<&'a LoginRealmSelection>,
     pub(crate) server_addr: Option<std::net::SocketAddr>,
     pub(crate) server_hostname: Option<&'a str>,
 }
@@ -665,6 +858,7 @@ pub(crate) fn handle_login_key(
         status,
         next_state,
         mode,
+        realm_selection,
         server_addr,
         server_hostname,
     } = p;
@@ -675,16 +869,21 @@ pub(crate) fn handle_login_key(
         KeyCode::ArrowRight => editbox_move_cursor(&mut ui.registry, focused_id, 1_i32),
         KeyCode::Home => editbox_cursor_home(&mut ui.registry, focused_id),
         KeyCode::End => editbox_cursor_end(&mut ui.registry, focused_id),
-        KeyCode::Enter => try_connect(
-            &mut ui.registry,
-            login,
-            status,
-            next_state,
-            mode,
-            server_addr,
-            server_hostname,
-            commands,
-        ),
+        KeyCode::Enter => {
+            match selected_login_server(realm_selection, server_addr, server_hostname) {
+                Ok((server_addr, server_hostname)) => try_connect(
+                    &mut ui.registry,
+                    login,
+                    status,
+                    next_state,
+                    mode,
+                    Some(server_addr),
+                    Some(server_hostname.as_str()),
+                    commands,
+                ),
+                Err(err) => *status = LoginStatus(err),
+            }
+        }
         _ => {}
     }
 }
@@ -694,14 +893,32 @@ fn login_update_visuals(
     login_ui: Option<Res<LoginUi>>,
     mut screen_res: Option<ResMut<LoginScreenResWrap>>,
     status: Res<LoginStatus>,
+    realm_selection: Option<Res<LoginRealmSelection>>,
     focus: Res<LoginFocus>,
 ) {
     let Some(login) = login_ui.as_ref() else {
         return;
     };
+    let realm_text = realm_selection
+        .as_deref()
+        .map(LoginRealmSelection::button_text)
+        .unwrap_or_else(|| {
+            crate::client_options::load_preferred_realm()
+                .label()
+                .to_string()
+        });
+    let realm_selectable = realm_selection
+        .as_deref()
+        .is_none_or(LoginRealmSelection::is_selectable);
     ui.focused_frame = focus.0;
     sync_button_visibility(&mut ui.registry, login);
-    view::sync_login_status(&mut ui.registry, screen_res.as_mut(), &status);
+    view::sync_login_status(
+        &mut ui.registry,
+        screen_res.as_mut(),
+        &status,
+        realm_text,
+        realm_selectable,
+    );
     sync_editbox_focus_visual(
         &mut ui.registry,
         login.username_input,

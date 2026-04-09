@@ -251,6 +251,17 @@ fn parse_server_arg_supports_prod_alias() {
 }
 
 #[test]
+fn default_connecting_server_arg_uses_preferred_realm() {
+    let parsed = super::default_connecting_server_arg(
+        Some(game_state::GameState::Connecting),
+        crate::cli_args::RealmPreset::Dev,
+    )
+    .expect("expected connecting server");
+    assert_eq!(parsed.hostname, "127.0.0.1:5000");
+    assert!(parsed.dev);
+}
+
+#[test]
 fn parse_run_args_starts_connecting_when_saved_token_exists() {
     let parsed =
         parse_run_args_with_saved_token(&args(&["--server", "127.0.0.1:25565"]), true, None);

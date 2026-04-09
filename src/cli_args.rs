@@ -6,11 +6,81 @@ use std::str::FromStr;
 use crate::ScreenshotRequest;
 use crate::game_state;
 use game_engine::game_state_enum::ScreenArg;
+use serde::{Deserialize, Serialize};
 
 #[cfg(debug_assertions)]
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:5000";
 #[cfg(not(debug_assertions))]
 pub const DEFAULT_SERVER_ADDR: &str = "game.worldofosso.com:5000";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum RealmPreset {
+    #[default]
+    Dev,
+    Prod,
+}
+
+impl RealmPreset {
+    pub const ALL: [Self; 2] = [Self::Dev, Self::Prod];
+
+    pub fn from_alias(alias: &str) -> Option<Self> {
+        match alias {
+            "dev" => Some(Self::Dev),
+            "prod" => Some(Self::Prod),
+            _ => None,
+        }
+    }
+
+    pub fn alias(self) -> &'static str {
+        match self {
+            Self::Dev => "dev",
+            Self::Prod => "prod",
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Dev => "Development",
+            Self::Prod => "Live",
+        }
+    }
+
+    pub fn hostname(self) -> &'static str {
+        match self {
+            Self::Dev => "127.0.0.1:5000",
+            Self::Prod => "game.worldofosso.com:5000",
+        }
+    }
+
+    pub fn is_dev(self) -> bool {
+        matches!(self, Self::Dev)
+    }
+
+    pub fn to_server_arg(self) -> Result<ServerArg, String> {
+        default_server_arg_for(self.hostname(), self.is_dev())
+    }
+
+    pub fn matches_hostname(self, hostname: &str) -> bool {
+        hostname.eq_ignore_ascii_case(self.hostname())
+    }
+}
+
+pub const fn default_realm_preset() -> RealmPreset {
+    #[cfg(debug_assertions)]
+    {
+        RealmPreset::Dev
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        RealmPreset::Prod
+    }
+}
+
+pub fn realm_preset_for_hostname(hostname: &str) -> Option<RealmPreset> {
+    RealmPreset::ALL
+        .into_iter()
+        .find(|preset| preset.matches_hostname(hostname))
+}
 
 pub fn screenshot_arg_index(args: &[String]) -> Option<usize> {
     args.iter().position(|arg| arg == "screenshot")
@@ -43,7 +113,7 @@ pub fn parse_screenshot_args(args: &[String]) -> Option<ScreenshotRequest> {
     })
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ServerArg {
     pub addr: std::net::SocketAddr,
     pub hostname: String,
@@ -52,21 +122,20 @@ pub struct ServerArg {
 
 impl ServerArg {
     pub fn dev() -> Self {
-        Self {
-            addr: "127.0.0.1:5000".parse().unwrap(),
-            hostname: "127.0.0.1:5000".to_string(),
-            dev: true,
-        }
+        RealmPreset::Dev
+            .to_server_arg()
+            .expect("dev server alias should resolve")
     }
 
     pub fn prod() -> Self {
-        default_server_arg_for("game.worldofosso.com:5000", false)
+        RealmPreset::Prod
+            .to_server_arg()
             .expect("prod server alias should resolve")
     }
 }
 
 pub fn default_server_arg() -> Result<ServerArg, String> {
-    default_server_arg_for(DEFAULT_SERVER_ADDR, cfg!(debug_assertions))
+    default_realm_preset().to_server_arg()
 }
 
 fn default_server_arg_for(hostname: &str, dev: bool) -> Result<ServerArg, String> {
@@ -87,11 +156,8 @@ fn default_server_arg_for(hostname: &str, dev: bool) -> Result<ServerArg, String
 pub fn parse_server_arg(args: &[String]) -> Option<ServerArg> {
     use std::net::ToSocketAddrs;
     let w = args.windows(2).find(|w| w[0] == "--server")?;
-    if w[1] == "dev" {
-        return Some(ServerArg::dev());
-    }
-    if w[1] == "prod" {
-        return Some(ServerArg::prod());
+    if let Some(preset) = RealmPreset::from_alias(&w[1]) {
+        return preset.to_server_arg().ok();
     }
     let hostname = w[1].clone();
     let addr = w[1]
