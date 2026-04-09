@@ -1,4 +1,5 @@
 use super::*;
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::layout::{LayoutRect, recompute_layouts};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -29,6 +30,7 @@ fn sample_state() -> WorldMapFrameState {
         player_x: 0.425,
         player_y: 0.637,
         continent_name: "Eastern Kingdoms".into(),
+        map_texture_fdid: 123456,
         zone_overlays: vec![
             ov("Goldshire", 0.3, 0.5, 0.2, 0.15),
             ov("Northshire", 0.5, 0.2, 0.15, 0.1),
@@ -147,6 +149,35 @@ fn coord_canvas_below_header() {
     assert!((r.y - CANVAS_TOP).abs() < 1.0);
     assert!((r.width - CANVAS_W).abs() < 1.0);
     assert!((r.height - CANVAS_H).abs() < 1.0);
+}
+
+#[test]
+fn builds_map_canvas_texture_when_fdid_present() {
+    let reg = build_registry();
+    let texture_id = reg
+        .get_by_name("WorldMapCanvasTexture")
+        .expect("canvas texture frame");
+    let frame = reg.get(texture_id).expect("canvas texture data");
+    let widget = frame.widget_data.as_ref().expect("texture widget");
+    let WidgetData::Texture(texture) = widget else {
+        panic!("expected texture widget");
+    };
+    assert!(matches!(
+        texture.source,
+        crate::ui::widgets::texture::TextureSource::FileDataId(123456)
+    ));
+}
+
+#[test]
+fn hides_map_canvas_texture_when_fdid_is_zero() {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    let mut state = sample_state();
+    state.map_texture_fdid = 0;
+    shared.insert(state);
+    Screen::new(world_map_frame_screen).sync(&shared, &mut reg);
+
+    assert!(reg.get_by_name("WorldMapCanvasTexture").is_none());
 }
 
 #[test]

@@ -165,6 +165,7 @@ fn build_state(
         player_x: world_map.player.x,
         player_y: world_map.player.y,
         continent_name: resolve_continent_name(world_map),
+        map_texture_fdid: current_zone_texture_fdid(world_map),
         zone_overlays: build_zone_overlays(&zone_name, explored),
         fog_overlays: build_fog_overlays(&zone_name, zone_id, explored),
         pins: build_pins(world_map),
@@ -206,6 +207,14 @@ fn resolve_continent_name(world_map: &WorldMapState) -> String {
     } else {
         world_map.player.continent_name.clone()
     }
+}
+
+fn current_zone_texture_fdid(world_map: &WorldMapState) -> u32 {
+    world_map
+        .current_zone
+        .as_ref()
+        .map(|zone| zone.texture_fdid)
+        .unwrap_or(0)
 }
 
 fn build_zone_overlays(zone_name: &str, explored: bool) -> Vec<ZoneOverlay> {
@@ -282,41 +291,53 @@ mod tests {
         FlightConnection, FogOfWar, MapPlayerPosition, WorldMapPin, ZoneMapData,
     };
 
+    fn sample_zone_map() -> ZoneMapData {
+        ZoneMapData {
+            zone_id: 12,
+            name: "Elwynn Forest".into(),
+            texture_fdid: 654321,
+            pins: vec![WorldMapPin {
+                pin_type: PinType::FlightPath,
+                label: "Goldshire".into(),
+                x: 0.2,
+                y: 0.3,
+                icon_fdid: 0,
+            }],
+            flight_connections: vec![FlightConnection {
+                from_name: "Goldshire".into(),
+                to_name: "Stormwind".into(),
+                from_x: 0.2,
+                from_y: 0.3,
+                to_x: 0.8,
+                to_y: 0.4,
+                discovered: true,
+            }],
+        }
+    }
+
+    fn sample_player_position() -> MapPlayerPosition {
+        MapPlayerPosition {
+            zone_id: 12,
+            continent_name: "Eastern Kingdoms".into(),
+            zone_name: "Elwynn Forest".into(),
+            x: 0.42,
+            y: 0.63,
+            facing: 0.0,
+        }
+    }
+
+    fn sample_fog(explored: bool) -> FogOfWar {
+        FogOfWar {
+            explored_zones: if explored { vec![12] } else { Vec::new() },
+        }
+    }
+
     fn sample_world_map(explored: bool) -> WorldMapState {
         WorldMapState {
-            player: MapPlayerPosition {
-                zone_id: 12,
-                continent_name: "Eastern Kingdoms".into(),
-                zone_name: "Elwynn Forest".into(),
-                x: 0.42,
-                y: 0.63,
-                facing: 0.0,
-            },
-            fog: FogOfWar {
-                explored_zones: if explored { vec![12] } else { Vec::new() },
-            },
+            player: sample_player_position(),
+            fog: sample_fog(explored),
             continents: Vec::new(),
-            current_zone: Some(ZoneMapData {
-                zone_id: 12,
-                name: "Elwynn Forest".into(),
-                texture_fdid: 0,
-                pins: vec![WorldMapPin {
-                    pin_type: PinType::FlightPath,
-                    label: "Goldshire".into(),
-                    x: 0.2,
-                    y: 0.3,
-                    icon_fdid: 0,
-                }],
-                flight_connections: vec![FlightConnection {
-                    from_name: "Goldshire".into(),
-                    to_name: "Stormwind".into(),
-                    from_x: 0.2,
-                    from_y: 0.3,
-                    to_x: 0.8,
-                    to_y: 0.4,
-                    discovered: true,
-                }],
-            }),
+            current_zone: Some(sample_zone_map()),
             selected_continent_idx: 0,
         }
     }
@@ -350,5 +371,16 @@ mod tests {
         assert_eq!(state.pins.len(), 1);
         assert_eq!(state.pins[0].pin_type, MapPinType::FlightPath);
         assert_eq!(state.flight_paths.len(), 1);
+    }
+
+    #[test]
+    fn build_state_uses_current_zone_texture_for_map_canvas() {
+        let state = build_state(
+            &sample_world_map(true),
+            &CurrentZone { zone_id: 12 },
+            &WorldMapFrameOpen(true),
+        );
+
+        assert_eq!(state.map_texture_fdid, 654321);
     }
 }

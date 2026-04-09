@@ -153,6 +153,7 @@ pub struct WorldMapFrameState {
     pub player_x: f32,
     pub player_y: f32,
     pub continent_name: String,
+    pub map_texture_fdid: u32,
     pub zone_overlays: Vec<ZoneOverlay>,
     pub fog_overlays: Vec<ZoneOverlay>,
     pub pins: Vec<MapPin>,
@@ -191,7 +192,7 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
             }
             {header_bar(&state.zone_name, &coords)}
             {dropdown_nav(&state.continent_name, &state.zone_name)}
-            {map_canvas()}
+            {map_canvas(state.map_texture_fdid)}
             {flight_path_lines(&state.flight_paths)}
             {zone_overlays(&state.zone_overlays)}
             {map_pins(&state.pins)}
@@ -256,7 +257,25 @@ fn header_bar(zone_name: &str, coord_text: &str) -> Element {
 
 // --- Map canvas ---
 
-fn map_canvas() -> Element {
+fn map_canvas_texture(texture_fdid: u32) -> Element {
+    if texture_fdid == 0 {
+        return Vec::new();
+    }
+    rsx! {
+        texture {
+            name: "WorldMapCanvasTexture",
+            width: {CANVAS_W},
+            height: {CANVAS_H},
+            texture_fdid: {texture_fdid},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+        }
+    }
+}
+
+fn map_canvas(texture_fdid: u32) -> Element {
     rsx! {
         r#frame {
             name: "WorldMapCanvas",
@@ -269,6 +288,7 @@ fn map_canvas() -> Element {
                 x: {CANVAS_INSET},
                 y: {-CANVAS_TOP},
             }
+            {map_canvas_texture(texture_fdid)}
         }
     }
 }
@@ -415,40 +435,42 @@ fn fog_overlays(overlays: &[ZoneOverlay]) -> Element {
 
 // --- Map pins ---
 
+fn map_pin_frame(i: usize, pin: &MapPin) -> Element {
+    let id = DynName(format!("WorldMapPin{i}"));
+    let label_id = DynName(format!("WorldMapPin{i}Symbol"));
+    let x = CANVAS_INSET + pin.x * CANVAS_W - PIN_SIZE / 2.0;
+    let y = CANVAS_TOP + pin.y * CANVAS_H - PIN_SIZE / 2.0;
+    rsx! {
+        r#frame {
+            name: id,
+            width: {PIN_SIZE},
+            height: {PIN_SIZE},
+            background_color: {pin.pin_type.color()},
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-y},
+            }
+            fontstring {
+                name: label_id,
+                width: {PIN_SIZE},
+                height: {PIN_SIZE},
+                text: {pin.pin_type.symbol()},
+                font_size: 10.0,
+                font_color: "1.0,1.0,1.0,1.0",
+                justify_h: "CENTER",
+                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            }
+        }
+    }
+}
+
 fn map_pins(pins: &[MapPin]) -> Element {
     pins.iter()
         .enumerate()
         .take(MAX_PINS)
-        .flat_map(|(i, pin)| {
-            let id = DynName(format!("WorldMapPin{i}"));
-            let label_id = DynName(format!("WorldMapPin{i}Symbol"));
-            let x = CANVAS_INSET + pin.x * CANVAS_W - PIN_SIZE / 2.0;
-            let y = CANVAS_TOP + pin.y * CANVAS_H - PIN_SIZE / 2.0;
-            rsx! {
-                r#frame {
-                    name: id,
-                    width: {PIN_SIZE},
-                    height: {PIN_SIZE},
-                    background_color: {pin.pin_type.color()},
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {-y},
-                    }
-                    fontstring {
-                        name: label_id,
-                        width: {PIN_SIZE},
-                        height: {PIN_SIZE},
-                        text: {pin.pin_type.symbol()},
-                        font_size: 10.0,
-                        font_color: "1.0,1.0,1.0,1.0",
-                        justify_h: "CENTER",
-                        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                    }
-                }
-            }
-        })
+        .flat_map(|(i, pin)| map_pin_frame(i, pin))
         .collect()
 }
 
