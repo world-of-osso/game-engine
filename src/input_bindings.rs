@@ -60,6 +60,29 @@ const FUNCTION_KEYS: [(&str, KeyCode); 12] = [
     ("F12", KeyCode::F12),
 ];
 
+const NAMED_KEYS: [(&str, KeyCode); 20] = [
+    ("Space", KeyCode::Space),
+    ("Tab", KeyCode::Tab),
+    ("Escape", KeyCode::Escape),
+    ("Minus", KeyCode::Minus),
+    ("Equal", KeyCode::Equal),
+    ("BracketLeft", KeyCode::BracketLeft),
+    ("BracketRight", KeyCode::BracketRight),
+    ("ArrowLeft", KeyCode::ArrowLeft),
+    ("ArrowRight", KeyCode::ArrowRight),
+    ("ArrowUp", KeyCode::ArrowUp),
+    ("ArrowDown", KeyCode::ArrowDown),
+    ("PageUp", KeyCode::PageUp),
+    ("PageDown", KeyCode::PageDown),
+    ("NumLock", KeyCode::NumLock),
+    ("Home", KeyCode::Home),
+    ("End", KeyCode::End),
+    ("Insert", KeyCode::Insert),
+    ("Delete", KeyCode::Delete),
+    ("Backspace", KeyCode::Backspace),
+    ("Enter", KeyCode::Enter),
+];
+
 struct InputActionMeta {
     key: &'static str,
     label: &'static str,
@@ -158,6 +181,13 @@ impl InputAction {
     }
 
     fn meta(self) -> InputActionMeta {
+        if let Some(meta) = self.action_slot_meta() {
+            return meta;
+        }
+        self.non_action_slot_meta()
+    }
+
+    fn non_action_slot_meta(self) -> InputActionMeta {
         match self {
             Self::MoveForward => movement_meta("move_forward", "Move Forward", KeyCode::KeyW),
             Self::MoveBackward => movement_meta("move_backward", "Move Backward", KeyCode::KeyS),
@@ -174,20 +204,39 @@ impl InputAction {
             Self::ZoomOut => camera_meta("zoom_out", "Zoom Out", KeyCode::PageDown),
             Self::TargetNearest => targeting_meta("target_nearest", "Target Nearest", KeyCode::Tab),
             Self::TargetSelf => targeting_meta("target_self", "Target Self", KeyCode::F1),
-            Self::ActionSlot1 => action_slot_meta(1, Self::ActionSlot1, KeyCode::Digit1),
-            Self::ActionSlot2 => action_slot_meta(2, Self::ActionSlot2, KeyCode::Digit2),
-            Self::ActionSlot3 => action_slot_meta(3, Self::ActionSlot3, KeyCode::Digit3),
-            Self::ActionSlot4 => action_slot_meta(4, Self::ActionSlot4, KeyCode::Digit4),
-            Self::ActionSlot5 => action_slot_meta(5, Self::ActionSlot5, KeyCode::Digit5),
-            Self::ActionSlot6 => action_slot_meta(6, Self::ActionSlot6, KeyCode::Digit6),
-            Self::ActionSlot7 => action_slot_meta(7, Self::ActionSlot7, KeyCode::Digit7),
-            Self::ActionSlot8 => action_slot_meta(8, Self::ActionSlot8, KeyCode::Digit8),
-            Self::ActionSlot9 => action_slot_meta(9, Self::ActionSlot9, KeyCode::Digit9),
-            Self::ActionSlot10 => action_slot_meta(10, Self::ActionSlot10, KeyCode::Digit0),
-            Self::ActionSlot11 => action_slot_meta(11, Self::ActionSlot11, KeyCode::Minus),
-            Self::ActionSlot12 => action_slot_meta(12, Self::ActionSlot12, KeyCode::Equal),
             Self::ToggleMute => audio_meta("toggle_mute", "Toggle Mute", KeyCode::KeyM),
+            Self::ActionSlot1
+            | Self::ActionSlot2
+            | Self::ActionSlot3
+            | Self::ActionSlot4
+            | Self::ActionSlot5
+            | Self::ActionSlot6
+            | Self::ActionSlot7
+            | Self::ActionSlot8
+            | Self::ActionSlot9
+            | Self::ActionSlot10
+            | Self::ActionSlot11
+            | Self::ActionSlot12 => unreachable!("action slots handled by action_slot_meta"),
         }
+    }
+
+    fn action_slot_meta(self) -> Option<InputActionMeta> {
+        let (slot, key) = match self {
+            Self::ActionSlot1 => (1, KeyCode::Digit1),
+            Self::ActionSlot2 => (2, KeyCode::Digit2),
+            Self::ActionSlot3 => (3, KeyCode::Digit3),
+            Self::ActionSlot4 => (4, KeyCode::Digit4),
+            Self::ActionSlot5 => (5, KeyCode::Digit5),
+            Self::ActionSlot6 => (6, KeyCode::Digit6),
+            Self::ActionSlot7 => (7, KeyCode::Digit7),
+            Self::ActionSlot8 => (8, KeyCode::Digit8),
+            Self::ActionSlot9 => (9, KeyCode::Digit9),
+            Self::ActionSlot10 => (10, KeyCode::Digit0),
+            Self::ActionSlot11 => (11, KeyCode::Minus),
+            Self::ActionSlot12 => (12, KeyCode::Equal),
+            _ => return None,
+        };
+        Some(action_slot_meta(slot, self, key))
     }
 }
 
@@ -640,29 +689,7 @@ fn lookup_named_key(token: &str, entries: &[(&str, KeyCode)]) -> Option<KeyCode>
 }
 
 fn parse_named_key(token: &str) -> Option<KeyCode> {
-    match token {
-        "Space" => Some(KeyCode::Space),
-        "Tab" => Some(KeyCode::Tab),
-        "Escape" => Some(KeyCode::Escape),
-        "Minus" => Some(KeyCode::Minus),
-        "Equal" => Some(KeyCode::Equal),
-        "BracketLeft" => Some(KeyCode::BracketLeft),
-        "BracketRight" => Some(KeyCode::BracketRight),
-        "ArrowLeft" => Some(KeyCode::ArrowLeft),
-        "ArrowRight" => Some(KeyCode::ArrowRight),
-        "ArrowUp" => Some(KeyCode::ArrowUp),
-        "ArrowDown" => Some(KeyCode::ArrowDown),
-        "PageUp" => Some(KeyCode::PageUp),
-        "PageDown" => Some(KeyCode::PageDown),
-        "NumLock" => Some(KeyCode::NumLock),
-        "Home" => Some(KeyCode::Home),
-        "End" => Some(KeyCode::End),
-        "Insert" => Some(KeyCode::Insert),
-        "Delete" => Some(KeyCode::Delete),
-        "Backspace" => Some(KeyCode::Backspace),
-        "Enter" => Some(KeyCode::Enter),
-        _ => None,
-    }
+    lookup_named_key(token, &NAMED_KEYS)
 }
 
 fn parse_mouse_button(token: &str) -> Option<MouseButton> {
@@ -682,77 +709,5 @@ fn parse_mouse_button(token: &str) -> Option<MouseButton> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn assign_swaps_existing_owner() {
-        let mut bindings = InputBindings::default();
-        bindings.assign(InputAction::Jump, InputBinding::Keyboard(KeyCode::KeyW));
-
-        assert_eq!(
-            bindings.binding(InputAction::Jump),
-            Some(InputBinding::Keyboard(KeyCode::KeyW))
-        );
-        assert_eq!(bindings.binding(InputAction::MoveForward), None);
-    }
-
-    #[test]
-    fn reset_section_only_resets_selected_section() {
-        let mut bindings = InputBindings::default();
-        bindings.clear(InputAction::MoveForward);
-        bindings.clear(InputAction::ToggleMute);
-
-        bindings.reset_section(BindingSection::Movement);
-
-        assert_eq!(
-            bindings.binding(InputAction::MoveForward),
-            Some(InputBinding::Keyboard(KeyCode::KeyW))
-        );
-        assert_eq!(bindings.binding(InputAction::ToggleMute), None);
-    }
-
-    #[test]
-    fn autorun_has_default_num_lock_binding() {
-        assert_eq!(
-            InputAction::AutoRun.default_binding(),
-            Some(InputBinding::Keyboard(KeyCode::NumLock))
-        );
-        assert_eq!(
-            InputBindings::default().binding(InputAction::AutoRun),
-            Some(InputBinding::Keyboard(KeyCode::NumLock))
-        );
-    }
-
-    #[test]
-    fn target_nearest_has_default_tab_binding() {
-        assert_eq!(
-            InputAction::TargetNearest.default_binding(),
-            Some(InputBinding::Keyboard(KeyCode::Tab))
-        );
-        assert_eq!(
-            InputBindings::default().binding(InputAction::TargetNearest),
-            Some(InputBinding::Keyboard(KeyCode::Tab))
-        );
-        assert_eq!(
-            InputAction::TargetNearest.section(),
-            BindingSection::Targeting
-        );
-    }
-
-    #[test]
-    fn target_nearest_tab_binding_token_round_trips() {
-        let token = binding_token(InputBinding::Keyboard(KeyCode::Tab));
-        let parsed = parse_binding_token(&token).expect("tab token should parse");
-        assert_eq!(parsed, InputBinding::Keyboard(KeyCode::Tab));
-        assert_eq!(key_display(KeyCode::Tab), "Tab");
-    }
-
-    #[test]
-    fn num_lock_binding_token_round_trips() {
-        let token = binding_token(InputBinding::Keyboard(KeyCode::NumLock));
-        let parsed = parse_binding_token(&token).expect("num lock token should parse");
-        assert_eq!(parsed, InputBinding::Keyboard(KeyCode::NumLock));
-        assert_eq!(key_display(KeyCode::NumLock), "Num Lock");
-    }
-}
+#[path = "../tests/unit/input_bindings_tests.rs"]
+mod tests;
