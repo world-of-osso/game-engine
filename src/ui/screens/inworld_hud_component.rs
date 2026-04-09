@@ -683,6 +683,50 @@ fn minimap_cluster() -> Element {
 
 const MINIMAP_BTN_SIZE: f32 = 24.0;
 
+macro_rules! minimap_btn_frame {
+    ($name:expr, $txt_name:expr, $text:expr, $x_off:expr, $y_off:expr) => {
+        rsx! {
+            r#frame {
+                name: $name,
+                width: {MINIMAP_BTN_SIZE},
+                height: {MINIMAP_BTN_SIZE},
+                background_color: MINIMAP_HEADER_BG,
+                strata: FrameStrata::High,
+                frame_level: 12.0,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_to: MINIMAP_DISPLAY,
+                    relative_point: AnchorPoint::Center,
+                    x: {$x_off},
+                    y: {$y_off},
+                }
+                {minimap_btn_label($txt_name, $text)}
+            }
+        }
+    };
+    ($name:expr, $txt_name:expr, $text:expr, $x_off:expr, $y_off:expr, $action:expr) => {
+        rsx! {
+            r#frame {
+                name: $name,
+                width: {MINIMAP_BTN_SIZE},
+                height: {MINIMAP_BTN_SIZE},
+                background_color: MINIMAP_HEADER_BG,
+                strata: FrameStrata::High,
+                frame_level: 12.0,
+                onclick: $action,
+                anchor {
+                    point: AnchorPoint::Center,
+                    relative_to: MINIMAP_DISPLAY,
+                    relative_point: AnchorPoint::Center,
+                    x: {$x_off},
+                    y: {$y_off},
+                }
+                {minimap_btn_label($txt_name, $text)}
+            }
+        }
+    };
+}
+
 fn minimap_buttons() -> Element {
     let btns = [
         ("MinimapZoomIn", "+", 90.0, -10.0),
@@ -699,62 +743,31 @@ fn minimap_buttons() -> Element {
 fn minimap_btn(name: &str, text: &str, x_off: f32, y_off: f32) -> Element {
     let btn_name = DynName(name.to_string());
     let txt_name = DynName(format!("{name}Text"));
-    if name == "MinimapCalendarButton" {
-        rsx! {
-            r#frame {
-                name: btn_name,
-                width: {MINIMAP_BTN_SIZE},
-                height: {MINIMAP_BTN_SIZE},
-                background_color: MINIMAP_HEADER_BG,
-                strata: FrameStrata::High,
-                frame_level: 12.0,
-                onclick: ACTION_CALENDAR_TOGGLE,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::Center,
-                    x: {x_off},
-                    y: {y_off},
-                }
-                fontstring {
-                    name: txt_name,
-                    width: {MINIMAP_BTN_SIZE},
-                    height: {MINIMAP_BTN_SIZE},
-                    text,
-                    font_size: 8.0,
-                    font_color: MINIMAP_ZONE_COLOR,
-                    justify_h: "CENTER",
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                }
-            }
-        }
+    if let Some(action) = minimap_btn_action(name) {
+        minimap_btn_frame!(btn_name, txt_name, text, x_off, y_off, action)
     } else {
-        rsx! {
-            r#frame {
-                name: btn_name,
-                width: {MINIMAP_BTN_SIZE},
-                height: {MINIMAP_BTN_SIZE},
-                background_color: MINIMAP_HEADER_BG,
-                strata: FrameStrata::High,
-                frame_level: 12.0,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::Center,
-                    x: {x_off},
-                    y: {y_off},
-                }
-                fontstring {
-                    name: txt_name,
-                    width: {MINIMAP_BTN_SIZE},
-                    height: {MINIMAP_BTN_SIZE},
-                    text,
-                    font_size: 8.0,
-                    font_color: MINIMAP_ZONE_COLOR,
-                    justify_h: "CENTER",
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                }
-            }
+        minimap_btn_frame!(btn_name, txt_name, text, x_off, y_off)
+    }
+}
+
+fn minimap_btn_action(name: &str) -> Option<&'static str> {
+    match name {
+        "MinimapCalendarButton" => Some(ACTION_CALENDAR_TOGGLE),
+        _ => None,
+    }
+}
+
+fn minimap_btn_label(name: DynName, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name,
+            width: {MINIMAP_BTN_SIZE},
+            height: {MINIMAP_BTN_SIZE},
+            text,
+            font_size: 8.0,
+            font_color: MINIMAP_ZONE_COLOR,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
         }
     }
 }

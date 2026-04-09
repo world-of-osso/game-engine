@@ -287,7 +287,11 @@ fn minimap_builds_buttons_ring() {
         )
         .expect("calendar frame");
     assert_eq!(frame.onclick.as_deref(), Some("calendar_toggle"));
+}
 
+#[test]
+fn guild_micro_button_keeps_toggle_action() {
+    let reg = action_bar_registry();
     let guild = reg
         .get(
             reg.get_by_name("GuildMicroButton")
