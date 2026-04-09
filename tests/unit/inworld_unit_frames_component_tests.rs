@@ -428,6 +428,12 @@ fn sample_target_frame_state() -> UnitFrameState {
 
 fn unit_frames_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let shared = sample_unit_frames_context();
+    sync_unit_frames_registry(&shared, &mut reg);
+    reg
+}
+
+fn sample_unit_frames_context() -> SharedContext {
     let mut shared = SharedContext::new();
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
@@ -435,9 +441,12 @@ fn unit_frames_registry() -> FrameRegistry {
         player: sample_player_frame_state(),
         target: Some(sample_target_frame_state()),
     });
-    Screen::new(inworld_unit_frames_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
-    reg
+    shared
+}
+
+fn sync_unit_frames_registry(shared: &SharedContext, reg: &mut FrameRegistry) {
+    Screen::new(inworld_unit_frames_screen).sync(shared, reg);
+    recompute_layouts(reg);
 }
 
 fn rect_by_name(reg: &FrameRegistry, name: &str) -> LayoutRect {
