@@ -5,8 +5,11 @@ use ui_toolkit::widget_def::Element;
 use crate::ui::anchor::{AnchorPoint, FrameName};
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
-use crate::ui::screens::guild_frame_component::ACTION_GUILD_TOGGLE;
 use crate::ui::strata::FrameStrata;
+use inworld_hud_micro::micro_menu_bar;
+
+#[path = "inworld_hud_micro.rs"]
+mod inworld_hud_micro;
 
 const SLOT_COUNT: usize = 12;
 const SLOT_W: f32 = 45.0;
@@ -43,6 +46,19 @@ const MINIMAP_ZONE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const MINIMAP_COORDS_COLOR: &str = "1.0,1.0,1.0,1.0";
 const MINIMAP_HEADER_BG: &str = "0.06,0.05,0.04,0.92";
 const MINIMAP_CLUSTER_SHADE: &str = "0.0,0.0,0.0,0.2";
+pub(super) const MICRO_BUTTONS: &[&str] = &[
+    "CharacterMicroButton",
+    "SpellbookMicroButton",
+    "TalentMicroButton",
+    "AchievementMicroButton",
+    "QuestLogMicroButton",
+    "GuildMicroButton",
+    "LFDMicroButton",
+    "CollectionsMicroButton",
+    "EJMicroButton",
+    "StoreMicroButton",
+    "MainMenuMicroButton",
+];
 
 pub const MINIMAP_DISPLAY: FrameName = FrameName("MinimapDisplay");
 pub const MINIMAP_BORDER: FrameName = FrameName("MinimapBorder");
@@ -391,85 +407,6 @@ pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
     .collect()
 }
 
-const MICRO_BUTTONS: &[&str] = &[
-    "CharacterMicroButton",
-    "SpellbookMicroButton",
-    "TalentMicroButton",
-    "AchievementMicroButton",
-    "QuestLogMicroButton",
-    "GuildMicroButton",
-    "LFDMicroButton",
-    "CollectionsMicroButton",
-    "EJMicroButton",
-    "StoreMicroButton",
-    "MainMenuMicroButton",
-];
-
-fn micro_menu_bar() -> Element {
-    let total_w =
-        MICRO_BUTTONS.len() as f32 * MICRO_BTN_W + (MICRO_BUTTONS.len() - 1) as f32 * MICRO_BTN_GAP;
-    let buttons: Element = MICRO_BUTTONS
-        .iter()
-        .enumerate()
-        .flat_map(|(i, name)| micro_button(i, name))
-        .collect();
-    rsx! {
-        r#frame {
-            name: "MicroMenuContainer",
-            width: {total_w},
-            height: {MICRO_BTN_H},
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-230",
-                y: "55",
-            }
-            {buttons}
-        }
-    }
-}
-
-fn micro_button(index: usize, name: &str) -> Element {
-    let btn_name = DynName(name.to_string());
-    let x = index as f32 * (MICRO_BTN_W + MICRO_BTN_GAP);
-    if name == "GuildMicroButton" {
-        rsx! {
-            button {
-                name: btn_name,
-                width: {MICRO_BTN_W},
-                height: {MICRO_BTN_H},
-                text: "",
-                font_size: 8.0,
-                background_color: MICRO_BTN_BG,
-                onclick: ACTION_GUILD_TOGGLE,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {x},
-                    y: "0",
-                }
-            }
-        }
-    } else {
-        rsx! {
-            button {
-                name: btn_name,
-                width: {MICRO_BTN_W},
-                height: {MICRO_BTN_H},
-                text: "",
-                font_size: 8.0,
-                background_color: MICRO_BTN_BG,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {x},
-                    y: "0",
-                }
-            }
-        }
-    }
-}
-
 fn bag_bar() -> Element {
     let backpack = bag_slot("MainMenuBarBackpackButton", 0);
     let bags: Element = (0..BAG_COUNT)
@@ -776,7 +713,6 @@ pub fn minimap_screen(_ctx: &SharedContext) -> Element {
     minimap_cluster()
 }
 
-#[cfg(test)]
 #[cfg(test)]
 #[path = "inworld_hud_component_tests.rs"]
 mod tests;
