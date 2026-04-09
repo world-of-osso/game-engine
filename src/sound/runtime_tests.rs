@@ -1,3 +1,7 @@
+use super::runtime_assets::{
+    generate_ambient_samples, generate_footstep_samples, generate_music_samples,
+    strip_ambient_tracks_from_music_catalog,
+};
 use super::*;
 
 #[test]
