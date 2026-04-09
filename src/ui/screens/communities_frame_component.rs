@@ -375,7 +375,7 @@ fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32, chat_font_size:
         .enumerate()
         .flat_map(|(i, channel)| {
             let x = CHAT_CHANNEL_TAB_INSET + i as f32 * (tab_w + CHAT_CHANNEL_TAB_GAP);
-            chat_channel_tab(i, channel, tab_w, x, chat_font_size)
+            chat_channel_tab(channel, tab_w, x, chat_font_size)
         })
         .collect();
     rsx! {
@@ -394,18 +394,8 @@ fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32, chat_font_size:
     }
 }
 
-fn chat_channel_tab(
-    _idx: usize,
-    channel: &ChatChannelTab,
-    tab_w: f32,
-    x: f32,
-    chat_font_size: f32,
-) -> Element {
-    let (bg, color) = if channel.active {
-        (CHAT_CHANNEL_TAB_BG_ACTIVE, CHAT_CHANNEL_TAB_TEXT_ACTIVE)
-    } else {
-        (CHAT_CHANNEL_TAB_BG_INACTIVE, CHAT_CHANNEL_TAB_TEXT_INACTIVE)
-    };
+fn chat_channel_tab(channel: &ChatChannelTab, tab_w: f32, x: f32, chat_font_size: f32) -> Element {
+    let (bg, color) = chat_channel_tab_style(channel.active);
     rsx! {
         r#frame {
             width: {tab_w},
@@ -419,6 +409,14 @@ fn chat_channel_tab(
             }
             {chat_channel_tab_label(channel.name.as_str(), tab_w, color, chat_font_size)}
         }
+    }
+}
+
+fn chat_channel_tab_style(active: bool) -> (&'static str, &'static str) {
+    if active {
+        (CHAT_CHANNEL_TAB_BG_ACTIVE, CHAT_CHANNEL_TAB_TEXT_ACTIVE)
+    } else {
+        (CHAT_CHANNEL_TAB_BG_INACTIVE, CHAT_CHANNEL_TAB_TEXT_INACTIVE)
     }
 }
 
