@@ -4,8 +4,12 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::thread;
 
-fn is_wasm_path(path: &Path) -> bool {
-    path.extension().and_then(|e| e.to_str()) == Some("wasm")
+fn addon_extension(path: &Path) -> Option<&str> {
+    path.extension().and_then(|ext| ext.to_str())
+}
+
+fn is_supported_addon_path(path: &Path) -> bool {
+    matches!(addon_extension(path), Some("js" | "wasm"))
 }
 
 fn create_watcher(
@@ -16,7 +20,7 @@ fn create_watcher(
         notify::recommended_watcher(move |event: Result<notify::Event, notify::Error>| {
             let Ok(event) = event else { return };
             for changed_path in event.paths {
-                if is_wasm_path(&changed_path) {
+                if is_supported_addon_path(&changed_path) {
                     info!("addon changed: {}", changed_path.display());
                     let _ = tx.send(changed_path);
                 }
@@ -48,7 +52,7 @@ fn run_watcher_thread(
     }
 }
 
-/// Watch a directory for .wasm file changes.
+/// Watch a directory for supported addon file changes.
 /// Returns a receiver that gets notified of changed file paths.
 pub fn start_addon_watcher(path: &Path) -> Result<Receiver<PathBuf>, String> {
     if !path.is_dir() {
@@ -74,22 +78,22 @@ pub fn start_addon_watcher(path: &Path) -> Result<Receiver<PathBuf>, String> {
     Ok(rx)
 }
 
-/// Scan a directory for .wasm files (non-recursive).
+/// Scan a directory for supported addon files (non-recursive).
 pub fn scan_addon_dir(path: &Path) -> Result<Vec<PathBuf>, String> {
     if !path.is_dir() {
         return Err(format!("not a directory: {}", path.display()));
     }
-    let mut wasm_files = Vec::new();
+    let mut addon_files = Vec::new();
     let entries = std::fs::read_dir(path).map_err(|e| format!("failed to read dir: {e}"))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("dir entry error: {e}"))?;
         let p = entry.path();
-        if is_wasm_path(&p) {
-            wasm_files.push(p);
+        if is_supported_addon_path(&p) {
+            addon_files.push(p);
         }
     }
-    wasm_files.sort();
-    Ok(wasm_files)
+    addon_files.sort();
+    Ok(addon_files)
 }
 
 #[cfg(test)]
@@ -118,23 +122,23 @@ mod tests {
     }
 
     #[test]
-    fn watcher_emits_changed_wasm_paths() {
+    fn watcher_emits_changed_js_paths() {
         let dir = test_dir("watcher");
         let rx = start_addon_watcher(&dir).unwrap();
-        let addon = dir.join("test-addon.wasm");
+        let addon = dir.join("test-addon.js");
 
-        fs::write(&addon, [0u8]).unwrap();
+        fs::write(&addon, b"addon.createFrame('Test');").unwrap();
 
         let changed = rx
             .recv_timeout(Duration::from_secs(5))
-            .expect("watcher should emit .wasm changes");
+            .expect("watcher should emit .js changes");
         assert_eq!(changed, addon);
 
         fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn watcher_ignores_non_wasm_changes() {
+    fn watcher_ignores_non_addon_changes() {
         let dir = test_dir("watcher_ignore");
         let rx = start_addon_watcher(&dir).unwrap();
 
@@ -146,15 +150,20 @@ mod tests {
     }
 
     #[test]
-    fn scan_finds_wasm_files() {
+    fn scan_finds_supported_addon_files() {
         let dir = test_dir("scan");
         fs::write(dir.join("addon1.wasm"), [0u8]).unwrap();
-        fs::write(dir.join("addon2.wasm"), [0u8]).unwrap();
+        fs::write(dir.join("addon2.js"), b"addon.show('Test');").unwrap();
         fs::write(dir.join("readme.txt"), [0u8]).unwrap();
 
         let files = scan_addon_dir(&dir).unwrap();
         assert_eq!(files.len(), 2);
-        assert!(files.iter().all(|f| f.extension().unwrap() == "wasm"));
+        let mut extensions = files
+            .iter()
+            .map(|f| f.extension().unwrap().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        extensions.sort();
+        assert_eq!(extensions, vec!["js".to_string(), "wasm".to_string()]);
 
         fs::remove_dir_all(&dir).ok();
     }

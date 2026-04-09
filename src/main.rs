@@ -718,6 +718,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
     app.add_plugins(game_engine::guild::GuildPlugin);
     app.add_plugins(game_engine::who::WhoPlugin);
     app.add_plugins(game_engine::reputation::ReputationPlugin);
+    app.add_plugins(game_engine::ui::addon_runtime::AddonRuntimePlugin);
     app.add_plugins(taxi::TaxiPlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);
     app.add_plugins(scenes::mail_frame::MailFramePlugin);

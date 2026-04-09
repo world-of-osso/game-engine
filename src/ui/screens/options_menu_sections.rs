@@ -67,20 +67,20 @@ pub fn macros_body() -> Element {
 pub fn social_addons_body() -> Element {
     section_stack(
         [
-            ghost_button_row(
+            info_row(
                 "social_addons",
-                "AddOn List",
-                "Addon loading is not enabled yet",
+                "Addon Directory",
+                "Load `.js` addons from `addons/` and hot-reload on save",
             ),
             info_row(
-                "social_friends",
-                "Social Panels",
-                "Friends, guild, and chat settings are reserved",
+                "social_api",
+                "Addon API",
+                "`addon.createFrame`, `createFontString`, `setPoint`, `setSize`, `setText`, `show`, `hide`, and color helpers are live",
             ),
             info_row(
                 "social_compat",
                 "Compatibility",
-                "Panel exists now so the shell matches Blizzard breadth",
+                "The legacy `.wasm` host is still stubbed; live UI customization uses QuickJS-backed `.js` addons today",
             ),
         ]
         .into_iter()

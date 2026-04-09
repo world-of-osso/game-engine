@@ -124,6 +124,7 @@ pub use ui_toolkit::text_measure;
 pub use ui_toolkit::widgets;
 
 // Game-specific modules (stay in game-engine)
+pub mod addon_runtime;
 pub mod addon_watcher;
 pub mod automation;
 pub mod automation_script;

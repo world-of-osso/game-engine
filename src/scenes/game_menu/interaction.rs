@@ -11,7 +11,7 @@ use game_engine::ui::screens::game_menu_component::{
     GameMenuView,
 };
 use game_engine::ui::screens::options_menu_component::{
-    ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE,
+    ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE, OptionsCategory,
 };
 
 use super::options::{
@@ -443,7 +443,11 @@ fn handle_overlay_command_action(
         ACTION_LOGOUT => queue_logout(commands),
         ACTION_RESUME => close_game_menu(commands),
         ACTION_OPTIONS => overlay.model.view = GameMenuView::Options,
-        ACTION_SUPPORT | ACTION_ADDONS => info!("{action}: placeholder"),
+        ACTION_ADDONS => {
+            overlay.model.view = GameMenuView::Options;
+            overlay.model.category = OptionsCategory::SocialAddons;
+        }
+        ACTION_SUPPORT => info!("{action}: placeholder"),
         ACTION_OPTIONS_DEFAULTS => {
             reset_category_defaults(&mut overlay.model);
             queue_apply_current_options(overlay, commands);
