@@ -194,34 +194,49 @@ pub fn reset_runtime(runtime: &mut ProfessionRuntimeState) {
 
 fn format_status(snapshot: &ProfessionStatusSnapshot) -> String {
     let mut lines = Vec::new();
+    lines.push(format!("professions: {}", format_skill_list(snapshot)));
+    lines.push(format!("recipes: {}", snapshot.recipes.len()));
+    lines.push(format!("gather_nodes: {}", format_known_gather_nodes()));
+    push_optional_line(
+        &mut lines,
+        "message",
+        snapshot.last_server_message.as_deref(),
+    );
+    push_optional_skill_up_line(&mut lines, snapshot.last_skill_up.as_ref());
+    push_optional_line(&mut lines, "error", snapshot.last_error.as_deref());
+    lines.join("\n")
+}
+
+fn format_skill_list(snapshot: &ProfessionStatusSnapshot) -> String {
     let skills = snapshot
         .skills
         .iter()
-        .map(|skill| format!("{} {}/{}", skill.profession, skill.current, skill.max))
+        .map(format_skill_entry)
         .collect::<Vec<_>>();
-    lines.push(format!(
-        "professions: {}",
-        if skills.is_empty() {
-            "none".into()
-        } else {
-            skills.join(", ")
-        }
-    ));
-    lines.push(format!("recipes: {}", snapshot.recipes.len()));
-    lines.push(format!("gather_nodes: {}", format_known_gather_nodes()));
-    if let Some(message) = &snapshot.last_server_message {
-        lines.push(format!("message: {message}"));
+    if skills.is_empty() {
+        "none".into()
+    } else {
+        skills.join(", ")
     }
-    if let Some(skill_up) = &snapshot.last_skill_up {
+}
+
+fn format_skill_entry(skill: &ProfessionSkillEntry) -> String {
+    format!("{} {}/{}", skill.profession, skill.current, skill.max)
+}
+
+fn push_optional_skill_up_line(lines: &mut Vec<String>, skill_up: Option<&ProfessionSkillUpEntry>) {
+    if let Some(skill_up) = skill_up {
         lines.push(format!(
             "skill_up: {} {}/{}",
             skill_up.profession, skill_up.current, skill_up.max
         ));
     }
-    if let Some(error) = &snapshot.last_error {
-        lines.push(format!("error: {error}"));
+}
+
+fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
+    if let Some(value) = value {
+        lines.push(format!("{label}: {value}"));
     }
-    lines.join("\n")
 }
 
 fn format_known_gather_nodes() -> String {
