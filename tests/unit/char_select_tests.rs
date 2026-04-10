@@ -10,6 +10,7 @@ use game_engine::ui::automation::{UiAutomationAction, UiAutomationPlugin, UiAuto
 use game_engine::ui::event::EventBus;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::char_select_component::CharSelectAction;
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonState;
 
@@ -429,6 +430,24 @@ fn automation_click_delete_char_opens_confirmation_dialog() {
         .as_ref()
         .expect("delete confirm target");
     assert_eq!(target.name, "Elara");
+}
+
+#[test]
+fn parse_click_action_event_logs_known_select_action() {
+    let (parsed_action, parsed_action_label) =
+        crate::scenes::char_select::input::parse_click_action_event("select_char:1");
+
+    assert_eq!(parsed_action, Some(CharSelectAction::SelectChar(1)));
+    assert_eq!(parsed_action_label, "select_char:1");
+}
+
+#[test]
+fn parse_click_action_event_marks_unknown_action_unparsed() {
+    let (parsed_action, parsed_action_label) =
+        crate::scenes::char_select::input::parse_click_action_event("not_an_action");
+
+    assert_eq!(parsed_action, None);
+    assert_eq!(parsed_action_label, "unparsed");
 }
 
 #[test]

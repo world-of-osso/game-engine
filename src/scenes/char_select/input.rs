@@ -301,6 +301,15 @@ fn type_delete_confirm_text(
     Ok(())
 }
 
+pub(crate) fn parse_click_action_event(raw_action: &str) -> (Option<CharSelectAction>, String) {
+    let parsed_action = CharSelectAction::parse(raw_action);
+    let parsed_action_label = parsed_action
+        .as_ref()
+        .map(ToString::to_string)
+        .unwrap_or_else(|| "unparsed".to_string());
+    (parsed_action, parsed_action_label)
+}
+
 pub(crate) fn dispatch_char_select_action(
     mut events: MessageReader<CharSelectClickEvent>,
     mut selected: ResMut<SelectedCharIndex>,
@@ -316,7 +325,13 @@ pub(crate) fn dispatch_char_select_action(
     mut _commands: Commands,
 ) {
     for event in events.read() {
-        match CharSelectAction::parse(&event.0) {
+        let (parsed_action, parsed_action_label) = parse_click_action_event(&event.0);
+        info!(
+            raw_action = %event.0,
+            parsed_action = %parsed_action_label,
+            "char-select click action received"
+        );
+        match parsed_action {
             Some(CharSelectAction::SelectChar(idx)) => {
                 selected.0 = Some(idx);
                 focus.0 = None;
