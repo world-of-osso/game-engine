@@ -423,6 +423,48 @@ fn orbit_from_eye_focus_preserves_initial_yaw() {
 }
 
 #[test]
+fn char_select_orbit_camera_moves_transform_and_clamps_drag_limits() {
+    let mut app = App::new();
+    app.insert_resource(crate::client_options::CameraOptions::default());
+    app.insert_resource(AccumulatedMouseMotion {
+        delta: Vec2::new(500.0, 500.0),
+    });
+    let mut mouse_buttons = ButtonInput::<MouseButton>::default();
+    mouse_buttons.press(MouseButton::Left);
+    app.insert_resource(mouse_buttons);
+
+    let orbit = orbit_from_eye_focus(Vec3::new(0.0, 2.0, 6.0), Vec3::new(0.0, 1.0, 0.0));
+    let before = Transform::from_translation(orbit_eye(&orbit)).looking_at(orbit.focus, Vec3::Y);
+    let entity = app.world_mut().spawn((orbit, before)).id();
+
+    app.world_mut()
+        .run_system_once(char_select_orbit_camera)
+        .expect("char-select orbit camera should run");
+
+    let orbit = app
+        .world()
+        .get::<camera::CharSelectOrbit>(entity)
+        .expect("char-select orbit");
+    let after = app
+        .world()
+        .get::<Transform>(entity)
+        .expect("char-select transform");
+
+    assert!(
+        after.translation.distance(before.translation) > 0.1,
+        "dragging should move the live camera transform"
+    );
+    assert!(
+        (orbit.yaw + std::f32::consts::FRAC_PI_8).abs() < 0.0001,
+        "yaw should clamp at the authored drag limit"
+    );
+    assert!(
+        (orbit.pitch - 0.15).abs() < 0.0001,
+        "pitch should clamp at the authored drag limit"
+    );
+}
+
+#[test]
 fn orbit_input_debug_state_reports_live_inputs_and_target_count() {
     let debug = orbit_input_debug_state(true, Vec2::new(12.0, -3.0), 2);
 
@@ -635,6 +677,85 @@ fn char_select_ui_click_handling_does_not_block_orbit_camera() {
     assert_ne!(
         orbit.yaw, 0.0,
         "orbit camera should still receive the same frame's mouse motion"
+    );
+}
+
+#[test]
+fn sync_char_select_model_leaves_camera_unchanged_when_character_is_already_displayed() {
+    let mut app = App::new();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
+    app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
+    app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
+    app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
+    app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
+    app.insert_resource(crate::creature_display::CreatureDisplayMap);
+    app.insert_resource(game_engine::customization_data::CustomizationDb::load(
+        std::path::Path::new("data"),
+    ));
+    app.insert_resource(crate::terrain_heightmap::TerrainHeightmap::default());
+
+    let character_id = 42;
+    app.insert_resource(CharacterList(vec![character(character_id, 1, 0, "Elara")]));
+    app.insert_resource(crate::scenes::char_select::SelectedCharIndex(Some(0)));
+    app.insert_resource(scene_types::DisplayedCharacterId(Some(character_id)));
+
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
+    let scene = warband
+        .scenes
+        .iter()
+        .find(|scene| scene.id == 1)
+        .expect("Adventurer's Rest")
+        .clone();
+    app.insert_resource(warband);
+    app.insert_resource(crate::scenes::char_select::warband::SelectedWarbandScene {
+        scene_id: scene.id,
+    });
+
+    let camera_entity = app
+        .world_mut()
+        .spawn((
+            CharSelectScene,
+            camera::orbit_from_eye_focus(Vec3::new(8.0, 5.0, 3.0), Vec3::new(1.0, 2.0, 0.0)),
+            Transform::from_xyz(8.0, 5.0, 3.0).looking_at(Vec3::new(1.0, 2.0, 0.0), Vec3::Y),
+            Projection::Perspective(PerspectiveProjection::default()),
+        ))
+        .id();
+    let before_orbit = app
+        .world()
+        .get::<camera::CharSelectOrbit>(camera_entity)
+        .expect("camera orbit")
+        .clone();
+    let before_transform = *app
+        .world()
+        .get::<Transform>(camera_entity)
+        .expect("camera transform");
+
+    app.world_mut()
+        .run_system_once(sync_char_select_model)
+        .expect("model sync should run");
+
+    let after_orbit = app
+        .world()
+        .get::<camera::CharSelectOrbit>(camera_entity)
+        .expect("camera orbit after sync");
+    let after_transform = app
+        .world()
+        .get::<Transform>(camera_entity)
+        .expect("camera transform after sync");
+
+    assert_eq!(after_orbit.yaw, before_orbit.yaw);
+    assert_eq!(after_orbit.base_yaw, before_orbit.base_yaw);
+    assert_eq!(after_orbit.pitch, before_orbit.pitch);
+    assert_eq!(after_orbit.focus, before_orbit.focus);
+    assert_eq!(after_orbit.distance, before_orbit.distance);
+    assert_eq!(after_orbit.base_pitch, before_orbit.base_pitch);
+    assert_eq!(
+        *after_transform, before_transform,
+        "steady-state model sync should not rewrite the camera transform"
     );
 }
 
