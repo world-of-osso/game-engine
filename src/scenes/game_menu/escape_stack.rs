@@ -107,43 +107,99 @@ pub(super) fn sync_inworld_escape_stack(
     mut escape_stack: ResMut<InWorldEscapeStack>,
     panels: InWorldEscapePanelState,
 ) {
+    sync_flag_panels(&mut escape_stack, &panels);
+    sync_bag_panel(&mut escape_stack, &panels);
+    sync_inspect_panel(&mut escape_stack, &panels);
+    sync_merchant_panel(&mut escape_stack, &panels);
+}
+
+fn sync_open_flag(escape_stack: &mut InWorldEscapeStack, panel: InWorldEscapePanel, is_open: bool) {
+    escape_stack.sync(panel, is_open);
+}
+
+fn sync_flag_panels(escape_stack: &mut InWorldEscapeStack, panels: &InWorldEscapePanelState) {
+    sync_primary_flag_panels(escape_stack, panels);
+    sync_secondary_flag_panels(escape_stack, panels);
+}
+
+fn sync_primary_flag_panels(
+    escape_stack: &mut InWorldEscapeStack,
+    panels: &InWorldEscapePanelState,
+) {
     sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::Achievement,
         panels.achievement.as_ref().is_some_and(|open| open.0),
     );
     sync_open_flag(
-        &mut escape_stack,
-        InWorldEscapePanel::Bag,
-        panels.bag.as_ref().is_some_and(|open| open.any_open()),
-    );
-    sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::Calendar,
         panels.calendar.as_ref().is_some_and(|open| open.0),
     );
     sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::Character,
         panels.character.as_ref().is_some_and(|open| open.0),
     );
     sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::EncounterJournal,
         panels.encounter_journal.as_ref().is_some_and(|open| open.0),
     );
     sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::Friends,
         panels.friends.as_ref().is_some_and(|open| open.0),
     );
     sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::Guild,
         panels.guild.as_ref().is_some_and(|open| open.0),
     );
+}
+
+fn sync_secondary_flag_panels(
+    escape_stack: &mut InWorldEscapeStack,
+    panels: &InWorldEscapePanelState,
+) {
     sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
+        InWorldEscapePanel::LootRules,
+        panels.loot_rules.as_ref().is_some_and(|open| open.0),
+    );
+    sync_open_flag(
+        escape_stack,
+        InWorldEscapePanel::Mail,
+        panels.mail.as_ref().is_some_and(|open| open.0),
+    );
+    sync_open_flag(
+        escape_stack,
+        InWorldEscapePanel::Professions,
+        panels.professions.as_ref().is_some_and(|open| open.0),
+    );
+    sync_open_flag(
+        escape_stack,
+        InWorldEscapePanel::Talent,
+        panels.talent.as_ref().is_some_and(|open| open.0),
+    );
+    sync_open_flag(
+        escape_stack,
+        InWorldEscapePanel::WorldMap,
+        panels.world_map.as_ref().is_some_and(|open| open.0),
+    );
+}
+
+fn sync_bag_panel(escape_stack: &mut InWorldEscapeStack, panels: &InWorldEscapePanelState) {
+    sync_open_flag(
+        escape_stack,
+        InWorldEscapePanel::Bag,
+        panels.bag.as_ref().is_some_and(|open| open.any_open()),
+    );
+}
+
+fn sync_inspect_panel(escape_stack: &mut InWorldEscapeStack, panels: &InWorldEscapePanelState) {
+    sync_open_flag(
+        escape_stack,
         InWorldEscapePanel::Inspect,
         panels
             .inspect
@@ -151,43 +207,17 @@ pub(super) fn sync_inworld_escape_stack(
             .and_then(|snapshot| snapshot.target_name.as_ref())
             .is_some(),
     );
+}
+
+fn sync_merchant_panel(escape_stack: &mut InWorldEscapeStack, panels: &InWorldEscapePanelState) {
     sync_open_flag(
-        &mut escape_stack,
-        InWorldEscapePanel::LootRules,
-        panels.loot_rules.as_ref().is_some_and(|open| open.0),
-    );
-    sync_open_flag(
-        &mut escape_stack,
-        InWorldEscapePanel::Mail,
-        panels.mail.as_ref().is_some_and(|open| open.0),
-    );
-    sync_open_flag(
-        &mut escape_stack,
+        escape_stack,
         InWorldEscapePanel::Merchant,
         panels
             .merchant
             .as_ref()
             .is_some_and(|merchant| merchant.is_open()),
     );
-    sync_open_flag(
-        &mut escape_stack,
-        InWorldEscapePanel::Professions,
-        panels.professions.as_ref().is_some_and(|open| open.0),
-    );
-    sync_open_flag(
-        &mut escape_stack,
-        InWorldEscapePanel::Talent,
-        panels.talent.as_ref().is_some_and(|open| open.0),
-    );
-    sync_open_flag(
-        &mut escape_stack,
-        InWorldEscapePanel::WorldMap,
-        panels.world_map.as_ref().is_some_and(|open| open.0),
-    );
-}
-
-fn sync_open_flag(escape_stack: &mut InWorldEscapeStack, panel: InWorldEscapePanel, is_open: bool) {
-    escape_stack.sync(panel, is_open);
 }
 
 pub(super) fn close_topmost_tracked_panel(
