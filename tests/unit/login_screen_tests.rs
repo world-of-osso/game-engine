@@ -87,6 +87,24 @@ fn login_form_is_vertically_centered_with_connect_button_near_screen_midpoint() 
     );
 }
 
+#[test]
+fn login_form_is_horizontally_centered_with_inputs_near_screen_midpoint() {
+    let (reg, login) = build_login_registry_with_real_layout();
+
+    for (label, input_id) in [
+        ("UsernameInput", login.username_input),
+        ("PasswordInput", login.password_input),
+    ] {
+        let rect = layout_rect(&reg, input_id);
+        let center_x = rect.x + rect.width * 0.5;
+
+        assert!(
+            (center_x - 960.0).abs() <= 10.0,
+            "expected {label} center X near 960, got {center_x}"
+        );
+    }
+}
+
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
