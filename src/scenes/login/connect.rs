@@ -185,6 +185,9 @@ fn press_login_automation_key(
         commands,
         ..
     } = ctx;
+    if super::handle_nav_key(key, focus, login) {
+        return Ok(());
+    }
     let fid = focus
         .0
         .ok_or("automation key press requires a focused frame")?;

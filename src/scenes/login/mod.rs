@@ -456,7 +456,6 @@ fn cycle_focus(current: Option<u64>, login: &LoginUi) -> u64 {
     let fields = [
         login.username_input,
         login.password_input,
-        login.realm_button,
     ];
     let idx = current
         .and_then(|id| fields.iter().position(|&f| f == id))

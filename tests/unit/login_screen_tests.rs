@@ -841,3 +841,140 @@ fn rendered_login_status_text_replaces_previous_text() {
         rendered[0]
     );
 }
+
+// --- Login workflow integration tests ---
+
+fn run_automation_action(
+    ui: &mut UiState,
+    login: &LoginUi,
+    focus: &mut LoginFocus,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    action: &UiAutomationAction,
+) {
+    let mut login_mode = networking::LoginMode::Login;
+    let auth_token = networking::AuthToken(None);
+    let (mut world, mut system_state) = make_world_with_commands();
+    {
+        let mut commands = system_state.get_mut(&mut world);
+        run_login_automation_action(
+            crate::scenes::login::connect::LoginAutomationContext {
+                ui,
+                login,
+                focus,
+                next_state,
+                status,
+                login_mode: &mut login_mode,
+                auth_token: &auth_token,
+                realm_selection: None,
+                server_addr: None,
+                server_hostname: None,
+                commands: &mut commands,
+            },
+            action,
+        )
+        .expect("automation action should succeed");
+    }
+    system_state.apply(&mut world);
+}
+
+#[test]
+fn login_workflow_type_credentials_and_connect() {
+    let (reg, login) = login_fixture();
+    let mut ui = make_ui_state(reg);
+    let mut focus = LoginFocus::default();
+    let mut status = LoginStatus::default();
+    let mut next_state = NextState::<GameState>::default();
+
+    // 1. Click username field to focus it
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+    );
+    assert_eq!(focus.0, Some(login.username_input));
+
+    // 2. Type username
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::TypeText("testuser".to_string()),
+    );
+    assert_eq!(get_editbox_text(&ui.registry, login.username_input), "testuser");
+
+    // 3. Tab to password field
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::PressKey(KeyCode::Tab),
+    );
+    assert_eq!(focus.0, Some(login.password_input));
+
+    // 4. Type password
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::TypeText("secret123".to_string()),
+    );
+    assert_eq!(get_editbox_text(&ui.registry, login.password_input), "secret123");
+
+    // 5. Press Enter to connect (should fail with no server, but transitions state)
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::PressKey(KeyCode::Enter),
+    );
+
+    // Without a server address, connect should show error or transition
+    assert!(
+        !status.0.is_empty(),
+        "status should have feedback after pressing Enter with credentials",
+    );
+}
+
+#[test]
+fn login_workflow_empty_fields_shows_error() {
+    let (reg, login) = login_fixture();
+    let mut ui = make_ui_state(reg);
+    let mut focus = LoginFocus::default();
+    let mut status = LoginStatus::default();
+    let mut next_state = NextState::<GameState>::default();
+
+    // Click connect without entering credentials
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::ClickFrame("ConnectButton".to_string()),
+    );
+
+    assert_eq!(status.0, "Please fill in all fields");
+    assert!(matches!(next_state, NextState::Unchanged));
+}
+
+#[test]
+fn login_workflow_tab_cycles_through_fields() {
+    let (reg, login) = login_fixture();
+    let mut ui = make_ui_state(reg);
+    let mut focus = LoginFocus::default();
+    let mut status = LoginStatus::default();
+    let mut next_state = NextState::<GameState>::default();
+
+    // Click username
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::ClickFrame("UsernameInput".to_string()),
+    );
+    assert_eq!(focus.0, Some(login.username_input),
+        "focus should be on username (id={})", login.username_input);
+
+    // Tab → password
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::PressKey(KeyCode::Tab),
+    );
+    assert_eq!(focus.0, Some(login.password_input),
+        "Tab should move focus to password (id={}), got {:?}. username_id={}",
+        login.password_input, focus.0, login.username_input);
+
+    // Tab → back to username
+    run_automation_action(
+        &mut ui, &login, &mut focus, &mut status, &mut next_state,
+        &UiAutomationAction::PressKey(KeyCode::Tab),
+    );
+    assert_eq!(focus.0, Some(login.username_input),
+        "Tab again should cycle back to username");
+}
