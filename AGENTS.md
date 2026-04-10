@@ -119,6 +119,10 @@ src/
 - When re-transitioning mid-blend (e.g. quick direction changes), preserve blend progress so the outgoing pose weight is continuous. Resetting to 0 causes visible pops.
 - WoW animation IDs: see `ANIM_*` constants in `src/rendering/model/animation.rs`
 
+## Wiki
+
+LLM-maintained knowledge base at `docs/wiki/`. See `docs/wiki/SCHEMA.md` for conventions and workflows. Read `docs/wiki/index.md` first when answering questions about the project. When working on a feature or investigating a bug, check the wiki for existing knowledge before starting from scratch.
+
 ## Related
 
 - asset_resolver: `src/asset/asset_resolver.rs` — AssetResolver trait for CASC extraction via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
