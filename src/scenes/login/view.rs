@@ -6,10 +6,10 @@ pub(super) fn build_login_screen(
     realm_selectable: bool,
 ) -> LoginScreenRes {
     let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert::<SharedStatusText>(status.0.clone());
-    shared.insert::<SharedConnecting>(false);
-    shared.insert::<SharedRealmText>(realm_text);
-    shared.insert::<SharedRealmSelectable>(realm_selectable);
+    shared.insert::<SharedStatusText>(SharedStatusText(status.0.clone()));
+    shared.insert::<SharedConnecting>(SharedConnecting(false));
+    shared.insert::<SharedRealmText>(SharedRealmText(realm_text));
+    shared.insert::<SharedRealmSelectable>(SharedRealmSelectable(realm_selectable));
     let screen = Screen::new(login_screen);
 
     LoginScreenRes { screen, shared }
@@ -23,7 +23,6 @@ pub(crate) fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
     }
     set_editbox_backdrop(reg, login.username_input);
     set_editbox_backdrop(reg, login.password_input);
-    set_login_primary_button_textures(reg, login.realm_button);
     set_login_primary_button_textures(reg, login.connect_button);
     if let Some(reconnect_button) = login.reconnect_button {
         set_login_primary_button_textures(reg, reconnect_button);
@@ -72,11 +71,15 @@ pub(super) fn sync_login_status(
     let Some(res) = screen_res else { return };
     let inner = &mut res.0;
     let connecting = status.0 == STATUS_CONNECTING;
-    inner.shared.insert::<SharedStatusText>(status.0.clone());
-    inner.shared.insert::<SharedConnecting>(connecting);
-    inner.shared.insert::<SharedRealmText>(realm_text);
     inner
         .shared
-        .insert::<SharedRealmSelectable>(realm_selectable);
+        .insert::<SharedStatusText>(SharedStatusText(status.0.clone()));
+    inner
+        .shared
+        .insert::<SharedConnecting>(SharedConnecting(connecting));
+    inner.shared.insert::<SharedRealmText>(SharedRealmText(realm_text));
+    inner
+        .shared
+        .insert::<SharedRealmSelectable>(SharedRealmSelectable(realm_selectable));
     inner.screen.sync(&inner.shared, reg);
 }

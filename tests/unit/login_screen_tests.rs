@@ -7,7 +7,9 @@ use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
-use game_engine::ui::screens::login_component::{SharedStatusText, login_screen};
+use game_engine::ui::screens::login_component::{
+    SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText, login_screen,
+};
 
 use crate::game_state::GameState;
 use crate::networking;
@@ -22,7 +24,7 @@ use game_engine::ui::automation::UiAutomationAction;
 
 fn build_login_screen_for_test() -> (Screen, ui_toolkit::screen::SharedContext) {
     let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert::<SharedStatusText>(Default::default());
+    shared.insert::<SharedStatusText>(SharedStatusText::default());
     let screen = Screen::new(login_screen);
     (screen, shared)
 }
@@ -674,6 +676,101 @@ fn login_update_visuals_does_not_duplicate_login_status_frames() {
         count, 1,
         "expected exactly one LoginStatus frame, found {count}"
     );
+}
+
+#[test]
+fn login_button_is_visible_and_enabled() {
+    let (reg, login) = login_fixture();
+    let frame = reg.get(login.connect_button).expect("connect button");
+    assert!(frame.visible, "Login button should be visible");
+    assert!(!frame.hidden, "Login button should not be hidden");
+    let Some(WidgetData::Button(bd)) = &frame.widget_data else {
+        panic!("expected button widget data");
+    };
+    assert_eq!(
+        bd.state,
+        game_engine::ui::widgets::button::ButtonState::Normal,
+        "Login button should be enabled (Normal state), not {:?}",
+        bd.state,
+    );
+}
+
+#[test]
+fn login_button_stays_enabled_after_screen_sync() {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert::<SharedStatusText>(SharedStatusText(String::new()));
+    shared.insert::<SharedConnecting>(SharedConnecting(false));
+    shared.insert::<SharedRealmText>(SharedRealmText("Development".to_string()));
+    shared.insert::<SharedRealmSelectable>(SharedRealmSelectable(true));
+    let mut screen = Screen::new(login_screen);
+    screen.sync(&shared, &mut reg);
+
+    let connect_id = reg.get_by_name("ConnectButton").expect("ConnectButton");
+    let frame = reg.get(connect_id).expect("connect button frame");
+
+    let Some(WidgetData::Button(bd)) = &frame.widget_data else {
+        panic!("expected button widget data");
+    };
+    assert_eq!(
+        bd.state,
+        game_engine::ui::widgets::button::ButtonState::Normal,
+        "Login button should be Normal after initial sync, got {:?}",
+        bd.state,
+    );
+
+    // Second sync should also keep it Normal
+    screen.sync(&shared, &mut reg);
+    let frame = reg.get(connect_id).expect("connect button frame");
+    let Some(WidgetData::Button(bd)) = &frame.widget_data else {
+        panic!("expected button widget data");
+    };
+    assert_eq!(
+        bd.state,
+        game_engine::ui::widgets::button::ButtonState::Normal,
+        "Login button should remain Normal after re-sync",
+    );
+}
+
+#[test]
+fn try_connect_disables_button_while_connecting() {
+    let (mut reg, login) = login_fixture();
+    set_editbox_text_for_test(&mut reg, login.username_input, "testuser");
+    set_editbox_text_for_test(&mut reg, login.password_input, "testpass");
+    let mut status = LoginStatus::default();
+    let mut next_state = NextState::<GameState>::default();
+
+    let world = run_try_connect_with_credentials(
+        &mut reg,
+        &login,
+        &mut status,
+        &mut next_state,
+        Some("127.0.0.1:5000".parse().unwrap()),
+        Some("127.0.0.1:5000"),
+    );
+
+    // Status should show connecting
+    assert_eq!(status.0, "Connecting...");
+
+    // Button should be disabled after connect
+    let Some(WidgetData::Button(bd)) = reg
+        .get(login.connect_button)
+        .and_then(|f| f.widget_data.as_ref())
+    else {
+        panic!("expected button widget data");
+    };
+    assert_eq!(
+        bd.state,
+        game_engine::ui::widgets::button::ButtonState::Disabled,
+        "Login button should be disabled while connecting",
+    );
+
+    // Game state should transition
+    assert!(matches!(next_state, NextState::Pending(GameState::Connecting)));
+
+    // Credentials should be stored
+    assert_eq!(world.resource::<networking::LoginUsername>().0, "testuser");
+    assert_eq!(world.resource::<networking::LoginPassword>().0, "testpass");
 }
 
 fn make_login_app_with_plugins() -> App {

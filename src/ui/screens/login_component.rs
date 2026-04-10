@@ -46,12 +46,18 @@ impl LoginAction {
 }
 
 /// Shared status text stored in SharedContext. ECS writes, component reads.
-pub type SharedStatusText = String;
+#[derive(Clone, Default)]
+pub struct SharedStatusText(pub String);
 
 /// Whether a login request is in flight. Disables the connect button.
-pub type SharedConnecting = bool;
-pub type SharedRealmText = String;
-pub type SharedRealmSelectable = bool;
+#[derive(Clone, Default)]
+pub struct SharedConnecting(pub bool);
+
+#[derive(Clone, Default)]
+pub struct SharedRealmText(pub String);
+
+#[derive(Clone, Default)]
+pub struct SharedRealmSelectable(pub bool);
 
 const TEX_LOGIN_BACKGROUND: &str = "data/glues/common/world-of-osso-background.ktx2";
 const TEX_GAME_LOGO: &str = "data/glues/common/world-of-osso-logo.ktx2";
@@ -120,7 +126,6 @@ fn login_input_labels() -> Element {
     [
         input_label(FrameName("UsernameInputLabel"), "Username", USERNAME_INPUT),
         input_label(FrameName("PasswordInputLabel"), "Password", PASSWORD_INPUT),
-        input_label(FrameName("RealmButtonLabel"), "Realm", REALM_BUTTON),
     ]
     .into_iter()
     .flatten()
@@ -160,23 +165,17 @@ fn login_inputs() -> Element {
     }
 }
 
-fn login_realm_button(realm_text: &str, realm_selectable: bool, connecting: bool) -> Element {
-    let realm_disabled = connecting || !realm_selectable;
-    let realm_text = realm_text.to_string();
+fn login_realm_button(_realm_text: &str, _realm_selectable: bool, _connecting: bool) -> Element {
     rsx! {
         button {
             name: REALM_BUTTON,
-            width: 320.0,
-            height: 42.0,
-            onclick: LoginAction::CycleRealm,
-            text: realm_text,
-            font_size: 14.0,
-            disabled: realm_disabled,
+            width: 0.0,
+            height: 0.0,
+            hidden: true,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: PASSWORD_INPUT,
                 relative_point: AnchorPoint::Bottom,
-                y: "-30",
             }
         }
     }
@@ -425,14 +424,20 @@ fn login_ui(status: &str, connecting: bool, realm_text: &str, realm_selectable: 
 pub fn login_screen(ctx: &SharedContext) -> Element {
     let status = ctx
         .get::<SharedStatusText>()
-        .map(|s| s.as_str())
+        .map(|s| s.0.as_str())
         .unwrap_or("");
-    let connecting = ctx.get::<SharedConnecting>().copied().unwrap_or(false);
+    let connecting = ctx
+        .get::<SharedConnecting>()
+        .map(|s| s.0)
+        .unwrap_or(false);
     let realm_text = ctx
         .get::<SharedRealmText>()
-        .map(|s| s.as_str())
+        .map(|s| s.0.as_str())
         .unwrap_or("Development");
-    let realm_selectable = ctx.get::<SharedRealmSelectable>().copied().unwrap_or(true);
+    let realm_selectable = ctx
+        .get::<SharedRealmSelectable>()
+        .map(|s| s.0)
+        .unwrap_or(true);
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             {login_background()}
