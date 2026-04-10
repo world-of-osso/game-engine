@@ -16,6 +16,10 @@ use crate::water_material::WaterMaterial;
 
 use super::{CharSelectScene, CharSelectSkybox};
 
+const CAMPSITE_GROUND_PATCH_SIZE: f32 = 42.0;
+const CAMPSITE_GROUND_PATCH_UV_SCALE: f32 = 9.0;
+const CAMPSITE_GROUND_PATCH_Y_OFFSET: f32 = 0.03;
+
 pub(super) struct WarbandBackgroundSpawnContext<'a, 'w, 's> {
     pub(super) commands: &'a mut Commands<'w, 's>,
     pub(super) meshes: &'a mut Assets<Mesh>,
@@ -74,6 +78,54 @@ fn spawn_tagged_ground(
         .id()
 }
 
+fn spawn_campsite_ground_patch(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+    heightmap: &TerrainHeightmap,
+    focus: Vec3,
+) -> Option<Entity> {
+    let terrain_y = heightmap.height_at(focus.x, focus.z)?;
+    let grass_path = asset::asset_cache::texture(187126)
+        .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
+    let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
+        eprintln!("{e}");
+        ground::generate_grass_texture()
+    });
+    grass_image.sampler =
+        bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+            address_mode_u: bevy::image::ImageAddressMode::Repeat,
+            address_mode_v: bevy::image::ImageAddressMode::Repeat,
+            ..bevy::image::ImageSamplerDescriptor::linear()
+        });
+    let material = materials.add(StandardMaterial {
+        base_color_texture: Some(images.add(grass_image)),
+        perceptual_roughness: 0.9,
+        ..default()
+    });
+    let mut mesh = Plane3d::default()
+        .mesh()
+        .size(CAMPSITE_GROUND_PATCH_SIZE, CAMPSITE_GROUND_PATCH_SIZE)
+        .build();
+    ground::scale_mesh_uvs(&mut mesh, CAMPSITE_GROUND_PATCH_UV_SCALE);
+    Some(
+        commands
+            .spawn((
+                Name::new("CampsiteGroundPatch"),
+                CharSelectScene,
+                Mesh3d(meshes.add(mesh)),
+                MeshMaterial3d(material),
+                Transform::from_translation(Vec3::new(
+                    focus.x,
+                    terrain_y + CAMPSITE_GROUND_PATCH_Y_OFFSET,
+                    focus.z,
+                )),
+            ))
+            .id(),
+    )
+}
+
 pub fn find_scene_entry<'a>(
     warband: &'a Option<Res<WarbandScenes>>,
     selected: &Option<Res<SelectedWarbandScene>>,
@@ -111,6 +163,16 @@ pub fn spawn(
             focus.unwrap_or_else(|| s.bevy_look_at()),
         )
     {
+        if let Some(focus) = focus {
+            let _ = spawn_campsite_ground_patch(
+                ctx.commands,
+                ctx.meshes,
+                ctx.materials,
+                ctx.images,
+                ctx.heightmap,
+                focus,
+            );
+        }
         let (ty, tx) = s.tile_coords();
         let wmos = result
             .wmo_entities
@@ -239,5 +301,89 @@ mod tests {
             NodeProps::Background { model, .. } => assert_eq!(model, "ground"),
             props => panic!("expected fallback background node, got {props:?}"),
         }
+    }
+
+    #[test]
+    fn terrain_background_spawns_campsite_ground_patch_at_focus() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<TerrainMaterial>>();
+        app.init_resource::<Assets<WaterMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.init_resource::<TerrainHeightmap>();
+
+        let warband = crate::scenes::char_select::warband::WarbandScenes::load();
+        let scene = warband
+            .scenes
+            .iter()
+            .find(|scene| scene.id == 1)
+            .cloned()
+            .expect("expected warband scene 1");
+        let focus = warband
+            .solo_character_placement(&scene)
+            .expect("expected solo placement")
+            .bevy_position();
+
+        let node = app
+            .world_mut()
+            .run_system_once(
+                move |mut commands: Commands,
+                      mut meshes: ResMut<Assets<Mesh>>,
+                      mut materials: ResMut<Assets<StandardMaterial>>,
+                      mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+                      mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
+                      mut water_materials: ResMut<Assets<WaterMaterial>>,
+                      mut images: ResMut<Assets<Image>>,
+                      mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+                      mut heightmap: ResMut<TerrainHeightmap>| {
+                    let mut active = ActiveWarbandSceneId::default();
+                    spawn(
+                        &mut WarbandBackgroundSpawnContext {
+                            commands: &mut commands,
+                            meshes: &mut meshes,
+                            materials: &mut materials,
+                            effect_materials: &mut effect_materials,
+                            terrain_materials: &mut terrain_materials,
+                            water_materials: &mut water_materials,
+                            images: &mut images,
+                            inv_bp: &mut inv_bp,
+                            heightmap: &mut heightmap,
+                        },
+                        Some(&scene),
+                        Some(focus),
+                        &mut active,
+                    )
+                },
+            )
+            .expect("background spawn should run");
+        app.update();
+
+        match node.props {
+            NodeProps::Background { model, .. } => {
+                assert!(
+                    model.starts_with("terrain:"),
+                    "expected terrain-backed background, got {model}"
+                );
+            }
+            props => panic!("expected terrain background node, got {props:?}"),
+        }
+
+        let mut query = app
+            .world_mut()
+            .query::<(&Name, &Transform, &CharSelectScene)>();
+        let Some((_, transform, _)) = query
+            .iter(app.world())
+            .find(|(name, _, _)| name.as_str() == "CampsiteGroundPatch")
+        else {
+            panic!("expected campsite ground patch to be spawned");
+        };
+        assert!(
+            (transform.translation.x - focus.x).abs() < 0.01
+                && (transform.translation.z - focus.z).abs() < 0.01,
+            "ground patch should be centered on the selected character focus"
+        );
     }
 }

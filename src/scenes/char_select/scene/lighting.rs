@@ -6,6 +6,9 @@ use super::camera::camera_params;
 
 pub(crate) const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 150.0;
 const CHAR_SELECT_AMBIENT_COLOR: Color = Color::srgb(0.92, 0.80, 0.60);
+pub(crate) const CHAR_SELECT_FILL_LIGHT_ILLUMINANCE: f32 = 7_500.0;
+const CHAR_SELECT_FILL_LIGHT_COLOR: Color = Color::srgb(0.82, 0.84, 0.92);
+const CHAR_SELECT_FILL_LIGHT_EULER: Vec3 = Vec3::new(-0.95, 0.72, 0.0);
 const CAMPFIRE_LIGHT_OFFSET: Vec3 = Vec3::new(-2.8, 0.9, -3.1);
 const CAMPFIRE_LIGHT_COLOR: Color = Color::srgb(1.0, 0.58, 0.28);
 const CAMPFIRE_LIGHT_INTENSITY: f32 = 220_000.0;
@@ -14,22 +17,45 @@ const CAMPFIRE_LIGHT_RADIUS: f32 = 0.55;
 const CAMPFIRE_LIGHT_INNER_ANGLE: f32 = std::f32::consts::FRAC_PI_6;
 const CAMPFIRE_LIGHT_OUTER_ANGLE: f32 = std::f32::consts::FRAC_PI_3;
 
-pub fn spawn(
+pub(super) struct CharSelectLightingEntities {
+    pub(super) primary_light: Entity,
+    pub(super) fill_light: Entity,
+}
+
+pub(super) fn spawn(
     commands: &mut Commands,
     scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
     placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
     presentation: ModelPresentation,
-) -> Entity {
+) -> CharSelectLightingEntities {
     commands.insert_resource(GlobalAmbientLight {
         color: CHAR_SELECT_AMBIENT_COLOR,
         brightness: CHAR_SELECT_AMBIENT_BRIGHTNESS,
         ..default()
     });
+    let fill_light = commands
+        .spawn((
+            Name::new("TerrainFillLight"),
+            CharSelectScene,
+            DirectionalLight {
+                color: CHAR_SELECT_FILL_LIGHT_COLOR,
+                illuminance: CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
+                shadows_enabled: false,
+                ..default()
+            },
+            Transform::from_rotation(Quat::from_euler(
+                EulerRot::XYZ,
+                CHAR_SELECT_FILL_LIGHT_EULER.x,
+                CHAR_SELECT_FILL_LIGHT_EULER.y,
+                CHAR_SELECT_FILL_LIGHT_EULER.z,
+            )),
+        ))
+        .id();
     let (_, focus, _) = camera_params(scene, placement, presentation);
     let fire_pos = placement
         .map(|placement| placement.bevy_position() + CAMPFIRE_LIGHT_OFFSET)
         .unwrap_or(focus + CAMPFIRE_LIGHT_OFFSET);
-    commands
+    let primary_light = commands
         .spawn((
             Name::new("CampfireLight"),
             CharSelectScene,
@@ -45,7 +71,11 @@ pub fn spawn(
             },
             Transform::from_translation(fire_pos).looking_at(focus, Vec3::Y),
         ))
-        .id()
+        .id();
+    CharSelectLightingEntities {
+        primary_light,
+        fill_light,
+    }
 }
 
 #[cfg(test)]
@@ -56,7 +86,7 @@ mod tests {
     #[test]
     fn spawn_uses_spot_light_for_char_select_primary_light() {
         let mut app = App::new();
-        let entity = spawn(
+        let lights = spawn(
             &mut app.world_mut().commands(),
             None,
             None,
@@ -65,10 +95,41 @@ mod tests {
         app.update();
 
         assert!(
-            app.world().get::<SpotLight>(entity).is_some(),
+            app.world().get::<SpotLight>(lights.primary_light).is_some(),
             "char-select should avoid point lights because Bevy 0.18 blacks out 3D when PointLight + SkinnedMesh + Text are present"
         );
-        assert!(app.world().get::<PointLight>(entity).is_none());
-        assert!(app.world().get::<CharSelectScene>(entity).is_some());
+        assert!(
+            app.world()
+                .get::<PointLight>(lights.primary_light)
+                .is_none()
+        );
+        assert!(
+            app.world()
+                .get::<CharSelectScene>(lights.primary_light)
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn spawn_adds_directional_fill_light_for_terrain_visibility() {
+        let mut app = App::new();
+        let lights = spawn(
+            &mut app.world_mut().commands(),
+            None,
+            None,
+            ModelPresentation::default(),
+        );
+        app.update();
+
+        let Some(light) = app.world().get::<DirectionalLight>(lights.fill_light) else {
+            panic!("char-select should include a broad directional fill light");
+        };
+        assert!(
+            app.world()
+                .get::<CharSelectScene>(lights.fill_light)
+                .is_some(),
+            "fill light should tear down with the char-select scene"
+        );
+        assert_eq!(light.illuminance, CHAR_SELECT_FILL_LIGHT_ILLUMINANCE);
     }
 }

@@ -4,6 +4,7 @@ use std::sync::{Mutex, mpsc};
 
 use bevy::ecs::system::SystemParam;
 use bevy::image::Image;
+use bevy::mesh::VertexAttributeValues;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
@@ -245,6 +246,8 @@ pub struct TerrainOnlySpawnAssets<'a, 'w, 's> {
     pub images: &'a mut Assets<Image>,
 }
 
+const TERRAIN_ONLY_VERTEX_COLOR_FLOOR: f32 = 0.75;
+
 #[derive(SystemParam)]
 struct LoadedTileSpawnParams<'w, 's> {
     commands: Commands<'w, 's>,
@@ -448,7 +451,8 @@ pub fn spawn_adt_terrain_only(
 
 fn load_terrain_only_spawn_inputs(adt_path: &Path) -> Result<TerrainOnlySpawnInputs, String> {
     let (map_name, tile_y, tile_x) = parse_tile_coords_from_path(adt_path)?;
-    let adt_data = load_and_parse_adt(adt_path)?;
+    let mut adt_data = load_and_parse_adt(adt_path)?;
+    lift_terrain_only_vertex_color_floor(&mut adt_data);
     let tex_data = load_tex0(adt_path, Some(&adt_data));
     Ok(TerrainOnlySpawnInputs {
         map_name,
@@ -461,6 +465,21 @@ fn load_terrain_only_spawn_inputs(adt_path: &Path) -> Result<TerrainOnlySpawnInp
         adt_data,
         tex_data,
     })
+}
+
+fn lift_terrain_only_vertex_color_floor(adt_data: &mut adt::AdtData) {
+    for chunk in &mut adt_data.chunks {
+        let Some(VertexAttributeValues::Float32x4(colors)) =
+            chunk.mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR)
+        else {
+            continue;
+        };
+        for color in colors.iter_mut() {
+            color[0] = color[0].max(TERRAIN_ONLY_VERTEX_COLOR_FLOOR);
+            color[1] = color[1].max(TERRAIN_ONLY_VERTEX_COLOR_FLOOR);
+            color[2] = color[2].max(TERRAIN_ONLY_VERTEX_COLOR_FLOOR);
+        }
+    }
 }
 
 fn spawn_terrain_only_content(

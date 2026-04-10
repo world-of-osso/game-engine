@@ -3,6 +3,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use bevy::ecs::system::SystemState;
+use bevy::mesh::VertexAttributeValues;
 
 fn flat_grid(
     index_x: u32,
@@ -354,6 +355,36 @@ fn spawned_entity_count(world: &World, root: Entity) -> usize {
     count
 }
 
+fn min_spawned_terrain_vertex_rgb(world: &World, root: Entity) -> Option<f32> {
+    let meshes = world.resource::<Assets<Mesh>>();
+    let mut min_rgb = None::<f32>;
+    let mut stack = vec![root];
+    while let Some(entity) = stack.pop() {
+        if let Some(children) = world.get::<Children>(entity) {
+            stack.extend(children.iter());
+        }
+        let Some(mesh_handle) = world.get::<Mesh3d>(entity) else {
+            continue;
+        };
+        let Some(mesh) = meshes.get(&mesh_handle.0) else {
+            continue;
+        };
+        let Some(VertexAttributeValues::Float32x4(colors)) = mesh.attribute(Mesh::ATTRIBUTE_COLOR)
+        else {
+            continue;
+        };
+        for color in colors {
+            for channel in color.iter().take(3) {
+                min_rgb = Some(match min_rgb {
+                    Some(current) => current.min(*channel),
+                    None => *channel,
+                });
+            }
+        }
+    }
+    min_rgb
+}
+
 #[test]
 fn terrain_shader_uses_wow_mccv_diffuse_scaling() {
     let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
@@ -362,6 +393,28 @@ fn terrain_shader_uses_wow_mccv_diffuse_scaling() {
     assert!(
         shader.contains("let vertex_color = in.color.rgb * 2.0;"),
         "expected terrain shader to apply WoW MCCV diffuse scaling"
+    );
+}
+
+#[test]
+fn terrain_only_spawn_lifts_dark_vertex_colors_for_char_select_background() {
+    let adt_path = Path::new("data/terrain/2703_31_37.adt");
+    if !adt_path.exists() {
+        println!(
+            "Skipping terrain vertex-color regression: missing {}",
+            adt_path.display()
+        );
+        return;
+    }
+
+    let mut app = game_engine::test_harness::headless_app_with(configure_terrain_benchmark_app);
+    let root = spawn_headless_terrain_tile(&mut app, adt_path);
+    let min_rgb = min_spawned_terrain_vertex_rgb(app.world(), root)
+        .expect("expected spawned terrain mesh vertex colors");
+
+    assert!(
+        min_rgb >= 0.75,
+        "expected terrain-only spawn to clamp crushed vertex lighting for char-select readability, got min_rgb={min_rgb}"
     );
 }
 

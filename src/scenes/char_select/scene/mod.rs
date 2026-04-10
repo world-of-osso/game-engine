@@ -86,7 +86,7 @@ impl Plugin for CharSelectScenePlugin {
 
 mod background;
 mod camera;
-mod lighting;
+pub(crate) mod lighting;
 mod scene_systems;
 mod skybox;
 
@@ -317,7 +317,8 @@ fn spawn_scene_camera_and_lighting(
         SceneSetupLighting {
             camera_entity,
             fov: camera_params.2,
-            dir: sky_light_elapsed.0,
+            primary_light: sky_light_elapsed.0.primary_light,
+            fill_light: sky_light_elapsed.0.fill_light,
         },
         camera_elapsed,
         sky_light_elapsed.1,
@@ -350,7 +351,7 @@ fn attach_scene_skybox_and_spawn_lighting(
     selection: &SceneSetupSelection,
     bg_node: &mut SceneNode,
     camera_translation: Vec3,
-) -> (Entity, std::time::Duration) {
+) -> (lighting::CharSelectLightingEntities, std::time::Duration) {
     let sky_light_start = Instant::now();
     attach_scene_skybox(
         params,
@@ -464,7 +465,8 @@ fn build_scene_setup_children(
         lighting.fov,
         None,
         lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS,
-        lighting.dir,
+        lighting.primary_light,
+        Some(lighting.fill_light),
     ));
     children
 }

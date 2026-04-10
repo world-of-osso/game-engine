@@ -350,8 +350,9 @@ pub fn light_scene_nodes(
     ambient: Option<Entity>,
     ambient_intensity: f32,
     primary_light: Entity,
+    fill_light: Option<Entity>,
 ) -> Vec<SceneNode> {
-    vec![
+    let mut nodes = vec![
         SceneNode {
             label: "Camera".into(),
             entity: Some(camera),
@@ -376,7 +377,20 @@ pub fn light_scene_nodes(
             },
             children: vec![],
         },
-    ]
+    ];
+    if let Some(fill_light) = fill_light {
+        nodes.push(SceneNode {
+            label: "FillLight".into(),
+            entity: Some(fill_light),
+            props: NodeProps::Light {
+                kind: "directional".into(),
+                intensity:
+                    crate::scenes::char_select::scene::lighting::CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
+            },
+            children: vec![],
+        });
+    }
+    nodes
 }
 
 pub fn build_scene_tree(children: Vec<SceneNode>) -> SceneTree {
@@ -415,7 +429,8 @@ mod tests {
     fn light_scene_nodes_report_spot_primary_light() {
         let camera = Entity::from_raw_u32(1).expect("valid entity id");
         let light = Entity::from_raw_u32(2).expect("valid entity id");
-        let nodes = light_scene_nodes(camera, 45.0, None, 150.0, light);
+        let fill = Entity::from_raw_u32(3).expect("valid entity id");
+        let nodes = light_scene_nodes(camera, 45.0, None, 150.0, light, Some(fill));
 
         assert_eq!(nodes[2].label, "PrimaryLight");
         assert_eq!(
@@ -423,6 +438,15 @@ mod tests {
             NodeProps::Light {
                 kind: "spot".into(),
                 intensity: 220000.0,
+            }
+        );
+        assert_eq!(nodes[3].label, "FillLight");
+        assert_eq!(
+            nodes[3].props,
+            NodeProps::Light {
+                kind: "directional".into(),
+                intensity:
+                    crate::scenes::char_select::scene::lighting::CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
             }
         );
     }
