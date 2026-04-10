@@ -166,7 +166,7 @@ fn login_realm_button(realm_text: &str, realm_selectable: bool, connecting: bool
     rsx! {
         button {
             name: REALM_BUTTON,
-            width: "fill",
+            width: 320.0,
             height: 42.0,
             onclick: LoginAction::CycleRealm,
             text: realm_text,
