@@ -94,7 +94,18 @@ fn format_node_with_position(
             model,
             race,
             gender,
-        } => format_character_label(label, model, race, gender, pos, &displayed),
+            name,
+            character_id,
+        } => format_character_label(
+            label,
+            model,
+            race,
+            gender,
+            name,
+            *character_id,
+            pos,
+            &displayed,
+        ),
         NodeProps::Background {
             model,
             doodad_count,
@@ -185,10 +196,19 @@ fn format_character_label(
     model: &str,
     race: &str,
     gender: &str,
+    name: &Option<String>,
+    character_id: Option<u64>,
     pos: &str,
     displayed: &str,
 ) -> String {
-    format!("{label} \"{model}\" race={race} gender={gender}{pos}{displayed}")
+    let name = name
+        .as_ref()
+        .map(|name| format!(" name={name}"))
+        .unwrap_or_default();
+    let character_id = character_id
+        .map(|character_id| format!(" id={character_id}"))
+        .unwrap_or_default();
+    format!("{label} \"{model}\"{name}{character_id} race={race} gender={gender}{pos}{displayed}")
 }
 
 fn format_background_label(
@@ -615,6 +635,42 @@ mod tests {
                 "Skybox Skybox \"data/models/skyboxes/costalislandskybox.m2\" @ (0.0, 2.1, 7.4)"
             ),
             "formatted snapshot missing skybox line: {formatted}"
+        );
+    }
+
+    #[test]
+    fn build_scene_snapshot_formats_character_identity() {
+        let snapshot = SceneSnapshot {
+            root: SceneSnapshotNode {
+                label: "CharSelectScene".into(),
+                transform: None,
+                props: NodeProps::Scene,
+                children: vec![SceneSnapshotNode {
+                    label: "Character".into(),
+                    transform: Some(SceneNodeTransform {
+                        translation: [1.0, 2.0, 3.0],
+                        rotation: [0.0, 0.0, 0.0, 1.0],
+                        scale: [1.0, 1.0, 1.0],
+                    }),
+                    props: NodeProps::Character {
+                        model: "humanfemale_hd".into(),
+                        race: "Human".into(),
+                        gender: "Female".into(),
+                        name: Some("Elara".into()),
+                        character_id: Some(7),
+                    },
+                    children: vec![],
+                }],
+            },
+        };
+
+        let formatted = build_scene_snapshot(&snapshot);
+
+        assert!(
+            formatted.contains(
+                "Character \"humanfemale_hd\" name=Elara id=7 race=Human gender=Female @ (1.0, 2.0, 3.0)"
+            ),
+            "formatted snapshot missing character identity: {formatted}"
         );
     }
 }

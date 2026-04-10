@@ -24,6 +24,8 @@ pub enum NodeProps {
         model: String,
         race: String,
         gender: String,
+        name: Option<String>,
+        character_id: Option<u64>,
     },
     Background {
         model: String,

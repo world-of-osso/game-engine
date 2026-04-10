@@ -22,6 +22,7 @@ use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
 use crate::water_material::WaterMaterial;
+use game_engine::scene_tree::SceneTree;
 
 use super::{
     CharSelectModelCharacter, CharSelectModelRoot, CharSelectModelWrapper, CharSelectScene,
@@ -123,6 +124,7 @@ pub(super) struct CharSelectModelSyncParams<'w, 's> {
     pub(super) selected: Res<'w, SelectedCharIndex>,
     pub(super) current_model: Query<'w, 's, Entity, With<CharSelectModelWrapper>>,
     pub(super) displayed: ResMut<'w, DisplayedCharacterId>,
+    pub(super) scene_tree: Option<ResMut<'w, SceneTree>>,
     pub(super) warband: Option<Res<'w, WarbandScenes>>,
     pub(super) selected_scene: Option<Res<'w, SelectedWarbandScene>>,
     pub(super) camera_query: Query<

@@ -565,6 +565,8 @@ fn debug_character_scene_node(
             model: "humanmale_hd".into(),
             race: "Human".into(),
             gender: "Male".into(),
+            name: None,
+            character_id: None,
         },
         children,
     }

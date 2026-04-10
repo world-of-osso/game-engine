@@ -306,6 +306,8 @@ pub fn character_scene_node(
     model: String,
     race: String,
     gender: String,
+    name: Option<String>,
+    character_id: Option<u64>,
 ) -> SceneNode {
     SceneNode {
         label: "Character".into(),
@@ -314,6 +316,8 @@ pub fn character_scene_node(
             model,
             race,
             gender,
+            name,
+            character_id,
         },
         children: vec![
             SceneNode {

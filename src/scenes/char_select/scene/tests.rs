@@ -56,6 +56,89 @@ fn selected_scene_character_id_falls_back_to_first_character() {
 }
 
 #[test]
+fn selected_scene_character_identity_uses_selected_character_name_and_id() {
+    let char_list = CharacterList(vec![
+        character(10, 1, 0, "Theron"),
+        character(20, 2, 1, "Elara"),
+    ]);
+
+    assert_eq!(
+        selected_scene_character_identity(&char_list, Some(1)),
+        (Some("Elara".to_string()), Some(20))
+    );
+}
+
+#[test]
+fn selected_scene_character_identity_falls_back_to_first_character() {
+    let char_list = CharacterList(vec![
+        character(10, 1, 0, "Theron"),
+        character(20, 2, 1, "Elara"),
+    ]);
+
+    assert_eq!(
+        selected_scene_character_identity(&char_list, Some(99)),
+        (Some("Theron".to_string()), Some(10))
+    );
+}
+
+#[test]
+fn replace_scene_tree_character_node_updates_selected_character_identity() {
+    let old_entity = Entity::from_bits(10);
+    let new_entity = Entity::from_bits(20);
+    let mut scene_tree = scene_tree::build_scene_tree(vec![
+        scene_tree::background_scene_node(old_entity, "ground", 0, vec![]),
+        scene_tree::character_scene_node(
+            old_entity,
+            "humanmale_hd.m2".to_string(),
+            "Human".to_string(),
+            "Male".to_string(),
+            Some("Theron".to_string()),
+            Some(6),
+        ),
+    ]);
+
+    replace_scene_tree_character_node(
+        &mut scene_tree,
+        scene_tree::character_scene_node(
+            new_entity,
+            "humanfemale_hd.m2".to_string(),
+            "Human".to_string(),
+            "Female".to_string(),
+            Some("Elara".to_string()),
+            Some(7),
+        ),
+    );
+
+    let character_node = scene_tree
+        .root
+        .children
+        .iter()
+        .find(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Character { .. }
+            )
+        })
+        .expect("character node should exist");
+    let game_engine::scene_tree::NodeProps::Character {
+        model,
+        gender,
+        name,
+        character_id,
+        ..
+    } = &character_node.props
+    else {
+        panic!("expected character node");
+    };
+
+    assert_eq!(character_node.entity, Some(new_entity));
+    assert_eq!(model, "humanfemale_hd.m2");
+    assert_eq!(gender, "Female");
+    assert_eq!(name.as_deref(), Some("Elara"));
+    assert_eq!(*character_id, Some(7));
+}
+
+#[test]
 fn authored_char_select_skybox_path_stays_disabled_until_proven() {
     assert!(!should_spawn_authored_char_select_skybox());
 }

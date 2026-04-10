@@ -223,6 +223,15 @@ fn selected_scene_character_id(char_list: &CharacterList, selected: Option<usize
     selected_scene_character(char_list, selected).map(|character| character.character_id)
 }
 
+fn selected_scene_character_identity(
+    char_list: &CharacterList,
+    selected: Option<usize>,
+) -> (Option<String>, Option<u64>) {
+    selected_scene_character(char_list, selected)
+        .map(|character| (Some(character.name.clone()), Some(character.character_id)))
+        .unwrap_or((None, None))
+}
+
 pub(super) fn resolve_char_select_model_path(
     char_list: &CharacterList,
     selected: Option<usize>,
@@ -506,8 +515,15 @@ fn build_scene_setup_children(
     if let Some(entity) = model_entity {
         let (race, gender, model) =
             scene_systems::char_info_strings(&params.char_list, params.selected.0);
+        let (name, character_id) =
+            selected_scene_character_identity(&params.char_list, params.selected.0);
         children.push(scene_tree::character_scene_node(
-            entity, model, race, gender,
+            entity,
+            model,
+            race,
+            gender,
+            name,
+            character_id,
         ));
     }
     children.extend(scene_tree::light_scene_nodes(
@@ -545,8 +561,12 @@ fn sync_char_select_model(mut params: CharSelectModelSyncParams) {
         return;
     }
     despawn_current_char_select_model(&mut params);
-    params.displayed.0 = spawn_synced_char_select_model(&mut params, &selection);
+    let spawned_model = spawn_synced_char_select_model(&mut params, &selection);
+    params.displayed.0 = spawned_model
+        .as_ref()
+        .map(|(character_id, _)| *character_id);
     sync_char_select_camera_after_model(&mut params, &selection);
+    sync_scene_tree_character_identity(&mut params, spawned_model);
 }
 
 fn model_sync_debug_state(
@@ -603,7 +623,7 @@ fn despawn_current_char_select_model(params: &mut CharSelectModelSyncParams<'_, 
 fn spawn_synced_char_select_model(
     params: &mut CharSelectModelSyncParams<'_, '_>,
     selection: &ModelSyncSelection,
-) -> Option<u64> {
+) -> Option<(u64, Entity)> {
     let mut spawn_ctx = CharSelectModelSpawnContext {
         commands: &mut params.commands,
         assets: &mut params.assets,
@@ -615,7 +635,58 @@ fn spawn_synced_char_select_model(
         params.selected.0,
         selection.char_tf,
     )
-    .map(|(id, _)| id)
+}
+
+fn sync_scene_tree_character_identity(
+    params: &mut CharSelectModelSyncParams<'_, '_>,
+    spawned_model: Option<(u64, Entity)>,
+) {
+    let Some(scene_tree) = params.scene_tree.as_deref_mut() else {
+        return;
+    };
+    let Some((character_id, model_entity)) = spawned_model else {
+        return;
+    };
+    let (race, gender, model) =
+        scene_systems::char_info_strings(&params.char_list, params.selected.0);
+    let (name, _) = selected_scene_character_identity(&params.char_list, params.selected.0);
+    let character_node = scene_tree::character_scene_node(
+        model_entity,
+        model,
+        race,
+        gender,
+        name,
+        Some(character_id),
+    );
+    replace_scene_tree_character_node(scene_tree, character_node);
+}
+
+fn replace_scene_tree_character_node(
+    scene_tree: &mut game_engine::scene_tree::SceneTree,
+    node: SceneNode,
+) {
+    if let Some(existing) = scene_tree.root.children.iter_mut().find(|child| {
+        matches!(
+            child.props,
+            game_engine::scene_tree::NodeProps::Character { .. }
+        )
+    }) {
+        *existing = node;
+        return;
+    }
+    let insert_at = scene_tree
+        .root
+        .children
+        .iter()
+        .position(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Background { .. }
+            )
+        })
+        .map(|index| index + 1)
+        .unwrap_or(0);
+    scene_tree.root.children.insert(insert_at, node);
 }
 
 fn sync_char_select_camera_after_model(
