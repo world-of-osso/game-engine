@@ -139,13 +139,12 @@ fn handle_loot_rules_input(
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
-    open: Res<LootRulesFrameOpen>,
     ui: Res<UiState>,
     mut open_state: ResMut<LootRulesFrameOpen>,
     mut party: ResMut<PartyState>,
     mut queue: ResMut<GroupIntentQueue>,
 ) {
-    if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !open_state.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
     }
     let Some(mouse) = mouse else { return };
