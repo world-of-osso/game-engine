@@ -114,6 +114,15 @@ mod tests {
     }
 
     #[test]
+    fn skybox_material_ignores_batch_transparency_and_stays_opaque() {
+        let mut batch = test_batch();
+        batch.transparency = 0.0;
+        let material = skybox_m2_material(None, None, &batch);
+
+        assert_eq!(material.settings.color.w, 1.0);
+    }
+
+    #[test]
     fn configure_skybox_pipeline_disables_culling_and_preserves_depth_compare() {
         let mut descriptor = bevy::render::render_resource::RenderPipelineDescriptor {
             vertex: VertexState::default(),

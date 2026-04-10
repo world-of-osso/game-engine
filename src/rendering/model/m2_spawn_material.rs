@@ -189,7 +189,7 @@ pub(crate) fn skybox_m2_material(
     SkyboxM2Material {
         settings: SkyboxM2Settings {
             color: color
-                .unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency))
+                .unwrap_or(Color::WHITE)
                 .to_linear()
                 .to_f32_array()
                 .into(),
@@ -288,5 +288,24 @@ mod tests {
         );
 
         assert!(matches!(material, BatchMaterial::Skybox(_)));
+    }
+
+    #[test]
+    fn deathskybox_batches_use_features_beyond_base_texture_sampling() {
+        let path = std::path::Path::new("data/models/skyboxes/deathskybox.m2");
+        let model =
+            crate::asset::m2::load_m2_uncached(path, &[0, 0, 0]).expect("load deathskybox model");
+
+        assert!(
+            model.batches.iter().any(|batch| {
+                batch.texture_count > 1
+                    || batch.texture_anim.is_some()
+                    || batch.texture_anim_2.is_some()
+                    || batch.use_uv_2_1
+                    || batch.use_uv_2_2
+                    || batch.use_env_map_2
+            }),
+            "deathskybox batches unexpectedly only use static base-texture sampling"
+        );
     }
 }
