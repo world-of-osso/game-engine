@@ -90,6 +90,10 @@ pub fn spawn(
     focus: Option<Vec3>,
     active: &mut ActiveWarbandSceneId,
 ) -> game_engine::scene_tree::SceneNode {
+    // Keep the selected warband scene marked active even when terrain falls back
+    // to the placeholder ground. Otherwise the scene-switch system retries every
+    // frame and stomps orbit camera drag back to the authored view.
+    active.0 = scene.map(|scene| scene.id);
     if let Some(s) = scene
         && let Some(result) = scene_tree::spawn_warband_terrain(
             &mut scene_tree::WarbandTerrainSpawnContext {
@@ -107,7 +111,6 @@ pub fn spawn(
             focus.unwrap_or_else(|| s.bevy_look_at()),
         )
     {
-        active.0 = Some(s.id);
         let (ty, tx) = s.tile_coords();
         let wmos = result
             .wmo_entities
@@ -161,4 +164,80 @@ pub fn spawn_skybox(
         .entity(spawned.model_root)
         .insert(CharSelectScene);
     Some(spawned.root)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::app::App;
+    use bevy::ecs::system::RunSystemOnce;
+    use game_engine::scene_tree::NodeProps;
+
+    fn missing_scene() -> crate::scenes::char_select::warband::WarbandSceneEntry {
+        crate::scenes::char_select::warband::WarbandSceneEntry {
+            id: 77,
+            name: "Missing".to_string(),
+            description: "missing terrain fixture".to_string(),
+            position: [0.0, 0.0, 0.0],
+            look_at: [0.0, 1.0, 0.0],
+            map_id: 999_999,
+            fov: 45.0,
+            texture_kit: 0,
+        }
+    }
+
+    #[test]
+    fn fallback_ground_marks_selected_scene_active() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<TerrainMaterial>>();
+        app.init_resource::<Assets<WaterMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.init_resource::<TerrainHeightmap>();
+
+        let scene = missing_scene();
+        let expected_scene_id = scene.id;
+        let (node, active) = app
+            .world_mut()
+            .run_system_once(
+                move |mut commands: Commands,
+                      mut meshes: ResMut<Assets<Mesh>>,
+                      mut materials: ResMut<Assets<StandardMaterial>>,
+                      mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+                      mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
+                      mut water_materials: ResMut<Assets<WaterMaterial>>,
+                      mut images: ResMut<Assets<Image>>,
+                      mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+                      mut heightmap: ResMut<TerrainHeightmap>| {
+                    let mut active = ActiveWarbandSceneId::default();
+                    let node = spawn(
+                        &mut WarbandBackgroundSpawnContext {
+                            commands: &mut commands,
+                            meshes: &mut meshes,
+                            materials: &mut materials,
+                            effect_materials: &mut effect_materials,
+                            terrain_materials: &mut terrain_materials,
+                            water_materials: &mut water_materials,
+                            images: &mut images,
+                            inv_bp: &mut inv_bp,
+                            heightmap: &mut heightmap,
+                        },
+                        Some(&scene),
+                        None,
+                        &mut active,
+                    );
+                    (node, active)
+                },
+            )
+            .expect("background spawn should run");
+
+        assert_eq!(active.0, Some(expected_scene_id));
+        match node.props {
+            NodeProps::Background { model, .. } => assert_eq!(model, "ground"),
+            props => panic!("expected fallback background node, got {props:?}"),
+        }
+    }
 }

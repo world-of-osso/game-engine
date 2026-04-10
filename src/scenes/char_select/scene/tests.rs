@@ -4,6 +4,8 @@ use super::camera::{
 };
 use super::*;
 use crate::networking_auth::CharacterList;
+use bevy::app::App;
+use bevy::ecs::system::RunSystemOnce;
 use shared::components::{CharacterAppearance, EquipmentAppearance};
 use shared::protocol::CharacterListEntry;
 
@@ -41,6 +43,96 @@ fn selected_scene_character_id_falls_back_to_first_character() {
 
     assert_eq!(selected_scene_character_id(&char_list, None), Some(10));
     assert_eq!(selected_scene_character_id(&char_list, Some(99)), Some(10));
+}
+
+#[test]
+fn despawning_model_wrapper_removes_model_root_child() {
+    let mut app = App::new();
+    let wrapper = app
+        .world_mut()
+        .spawn((CharSelectModelWrapper, CharSelectScene))
+        .id();
+    let root = app
+        .world_mut()
+        .spawn((CharSelectModelRoot, CharSelectModelCharacter(10)))
+        .id();
+    app.world_mut().entity_mut(wrapper).add_child(root);
+
+    app.world_mut().commands().entity(wrapper).despawn();
+    app.update();
+
+    assert!(app.world().get_entity(wrapper).is_err());
+    assert!(app.world().get_entity(root).is_err());
+}
+
+#[test]
+fn appearance_sync_waits_until_model_has_geosets_and_materials() {
+    let mut app = App::new();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    let root = app.world_mut().spawn_empty().id();
+    let child = app.world_mut().spawn_empty().id();
+    app.world_mut().entity_mut(root).add_child(child);
+
+    let ready_without_render_targets = app
+        .world_mut()
+        .run_system_once(
+            move |parent_query: Query<&ChildOf>,
+                  geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
+                  material_query: Query<(
+                Entity,
+                &MeshMaterial3d<StandardMaterial>,
+                Option<&crate::m2_spawn::GeosetMesh>,
+                Option<&crate::m2_spawn::BatchTextureType>,
+                &ChildOf,
+            )>| {
+                character_root_ready_for_appearance_sync(
+                    root,
+                    &parent_query,
+                    &geoset_query,
+                    &material_query,
+                )
+            },
+        )
+        .expect("readiness query should run");
+    assert!(!ready_without_render_targets);
+
+    let mesh = app
+        .world_mut()
+        .resource_mut::<Assets<Mesh>>()
+        .add(Sphere::new(1.0));
+    let material = app
+        .world_mut()
+        .resource_mut::<Assets<StandardMaterial>>()
+        .add(StandardMaterial::default());
+    app.world_mut().entity_mut(child).insert((
+        crate::m2_spawn::GeosetMesh(101),
+        Mesh3d(mesh),
+        MeshMaterial3d(material),
+    ));
+
+    let ready_with_render_targets = app
+        .world_mut()
+        .run_system_once(
+            move |parent_query: Query<&ChildOf>,
+                  geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
+                  material_query: Query<(
+                Entity,
+                &MeshMaterial3d<StandardMaterial>,
+                Option<&crate::m2_spawn::GeosetMesh>,
+                Option<&crate::m2_spawn::BatchTextureType>,
+                &ChildOf,
+            )>| {
+                character_root_ready_for_appearance_sync(
+                    root,
+                    &parent_query,
+                    &geoset_query,
+                    &material_query,
+                )
+            },
+        )
+        .expect("readiness query should run");
+    assert!(ready_with_render_targets);
 }
 
 #[test]

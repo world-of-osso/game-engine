@@ -578,11 +578,54 @@ fn resolve_appearance_sync_selection(
     if root_character.0 != character.character_id {
         return None;
     }
+    if !character_root_ready_for_appearance_sync(
+        root,
+        &params.parent_query,
+        &params.geoset_query,
+        &params.material_query,
+    ) {
+        return None;
+    }
     Some(AppearanceSyncSelection {
         root,
         desired: desired_character_appearance(&character),
         character,
     })
+}
+
+fn character_root_ready_for_appearance_sync(
+    root: Entity,
+    parent_query: &Query<&ChildOf>,
+    geoset_query: &Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
+    material_query: &Query<(
+        Entity,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&crate::m2_spawn::GeosetMesh>,
+        Option<&crate::m2_spawn::BatchTextureType>,
+        &ChildOf,
+    )>,
+) -> bool {
+    let has_geosets = geoset_query
+        .iter()
+        .any(|(entity, _, _)| is_descendant_of(entity, root, parent_query));
+    let has_materials = material_query
+        .iter()
+        .any(|(entity, _, _, _, _)| is_descendant_of(entity, root, parent_query));
+    has_geosets && has_materials
+}
+
+fn is_descendant_of(entity: Entity, root: Entity, parent_query: &Query<&ChildOf>) -> bool {
+    let mut current = entity;
+    loop {
+        let Ok(parent) = parent_query.get(current) else {
+            return false;
+        };
+        let parent = parent.parent();
+        if parent == root {
+            return true;
+        }
+        current = parent;
+    }
 }
 
 fn desired_character_appearance(character: &CharacterListEntry) -> AppliedCharacterAppearance {
