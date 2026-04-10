@@ -123,6 +123,17 @@ src/
 
 LLM-maintained knowledge base at `docs/wiki/`. See `docs/wiki/SCHEMA.md` for conventions and workflows. Read `docs/wiki/index.md` first when answering questions about the project. When working on a feature or investigating a bug, check the wiki for existing knowledge before starting from scratch.
 
+### Wiki Maintenance
+
+After completing work that produces knowledge worth preserving, update the wiki:
+
+- **Investigations/debugging**: Create or update a page in `investigations/` with root cause, symptoms, and fix.
+- **New systems or major changes**: Create or update a page in `systems/` describing how the system works.
+- **Format discoveries**: Update the relevant page in `formats/` with new fields, quirks, or gotchas.
+- **Architecture decisions**: Record rationale in `design/`.
+
+Follow the workflow in `SCHEMA.md`: check existing pages first (update > create), maintain cross-references, update `index.md` and `log.md`. Skip wiki updates for routine bug fixes, config tweaks, and cosmetic changes.
+
 ## Related
 
 - asset_resolver: `src/asset/asset_resolver.rs` — AssetResolver trait for CASC extraction via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
