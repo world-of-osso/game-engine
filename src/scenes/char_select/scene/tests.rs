@@ -760,6 +760,30 @@ fn sync_char_select_model_leaves_camera_unchanged_when_character_is_already_disp
 }
 
 #[test]
+fn model_sync_debug_state_skips_respawn_when_displayed_matches_selected_character() {
+    let debug_state = model_sync_debug_state(Some(42), Some(42));
+
+    assert_eq!(debug_state.displayed_id, Some(42));
+    assert_eq!(debug_state.desired_id, Some(42));
+    assert!(
+        !debug_state.should_respawn(),
+        "matching displayed and desired ids should not respawn the char-select model"
+    );
+}
+
+#[test]
+fn model_sync_debug_state_requests_respawn_when_selected_character_changes() {
+    let debug_state = model_sync_debug_state(Some(42), Some(77));
+
+    assert_eq!(debug_state.displayed_id, Some(42));
+    assert_eq!(debug_state.desired_id, Some(77));
+    assert!(
+        debug_state.should_respawn(),
+        "different displayed and desired ids should respawn the char-select model"
+    );
+}
+
+#[test]
 fn focused_placement_rotation_faces_camera_tightly() {
     let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband

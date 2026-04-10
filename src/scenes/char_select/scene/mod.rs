@@ -50,6 +50,12 @@ pub(super) struct CharSelectSkybox {
     pub(super) path: PathBuf,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ModelSyncDebugState {
+    displayed_id: Option<u64>,
+    desired_id: Option<u64>,
+}
+
 struct CharSelectModelSpawnContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     assets: &'a mut CharSelectRenderAssets<'w>,
@@ -528,12 +534,35 @@ fn log_scene_setup_timings(total_start: Instant, timings: SceneSetupTimings) {
 
 fn sync_char_select_model(mut params: CharSelectModelSyncParams) {
     let selection = resolve_model_sync_selection(&params);
-    if params.displayed.0 == selection.desired_id {
+    let debug_state = model_sync_debug_state(params.displayed.0, selection.desired_id);
+    info!(
+        displayed_id = ?debug_state.displayed_id,
+        desired_id = ?debug_state.desired_id,
+        should_respawn = debug_state.should_respawn(),
+        "char-select model sync comparison"
+    );
+    if !debug_state.should_respawn() {
         return;
     }
     despawn_current_char_select_model(&mut params);
     params.displayed.0 = spawn_synced_char_select_model(&mut params, &selection);
     sync_char_select_camera_after_model(&mut params, &selection);
+}
+
+fn model_sync_debug_state(
+    displayed_id: Option<u64>,
+    desired_id: Option<u64>,
+) -> ModelSyncDebugState {
+    ModelSyncDebugState {
+        displayed_id,
+        desired_id,
+    }
+}
+
+impl ModelSyncDebugState {
+    fn should_respawn(self) -> bool {
+        self.displayed_id != self.desired_id
+    }
 }
 
 fn resolve_model_sync_selection(params: &CharSelectModelSyncParams<'_, '_>) -> ModelSyncSelection {
