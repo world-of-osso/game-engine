@@ -496,12 +496,8 @@ fn tooltip_frame_screen(ctx: &SharedContext) -> Element {
         .get::<TooltipFrameState>()
         .expect("TooltipFrameState must be in SharedContext");
     let height = state.height();
-    let lines: Element = state
-        .lines
-        .iter()
-        .enumerate()
-        .flat_map(|(index, line)| tooltip_line(index, line))
-        .collect();
+    let title = tooltip_title(state);
+    let lines = tooltip_lines(&state.lines);
     rsx! {
         r#frame {
             name: "TooltipFrame",
@@ -517,25 +513,39 @@ fn tooltip_frame_screen(ctx: &SharedContext) -> Element {
                 x: {state.x},
                 y: {-state.y},
             }
-            fontstring {
-                name: "TooltipTitle",
-                width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
-                height: {TOOLTIP_TITLE_H},
-                text: {state.title.as_str()},
-                font: "FrizQuadrata",
-                font_size: 12.0,
-                font_color: {rgba_string(state.title_color)},
-                justify_h: "LEFT",
-                anchor {
-                    point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                    relative_point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                    x: {TOOLTIP_INSET},
-                    y: {-TOOLTIP_INSET},
-                }
-            }
+            {title}
             {lines}
         }
     }
+}
+
+fn tooltip_title(state: &TooltipFrameState) -> Element {
+    rsx! {
+        fontstring {
+            name: "TooltipTitle",
+            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            height: {TOOLTIP_TITLE_H},
+            text: {state.title.as_str()},
+            font: "FrizQuadrata",
+            font_size: 12.0,
+            font_color: {rgba_string(state.title_color)},
+            justify_h: "LEFT",
+            anchor {
+                point: game_engine::ui::anchor::AnchorPoint::TopLeft,
+                relative_point: game_engine::ui::anchor::AnchorPoint::TopLeft,
+                x: {TOOLTIP_INSET},
+                y: {-TOOLTIP_INSET},
+            }
+        }
+    }
+}
+
+fn tooltip_lines(lines: &[TooltipLineState]) -> Element {
+    lines
+        .iter()
+        .enumerate()
+        .flat_map(|(index, line)| tooltip_line(index, line))
+        .collect()
 }
 
 fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
