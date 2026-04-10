@@ -1,11 +1,13 @@
 use super::camera::{
-    CHAR_SELECT_CAMERA_GROUND_CLEARANCE, camera_params, clamp_char_select_eye, orbit_eye,
-    orbit_from_eye_focus, orbit_input_debug_state, should_log_orbit_input,
+    CHAR_SELECT_CAMERA_GROUND_CLEARANCE, camera_params, char_select_orbit_camera,
+    clamp_char_select_eye, orbit_eye, orbit_from_eye_focus, orbit_input_debug_state,
+    should_log_orbit_input,
 };
 use super::*;
 use crate::networking_auth::CharacterList;
 use bevy::app::App;
 use bevy::ecs::system::RunSystemOnce;
+use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
 use shared::components::{CharacterAppearance, EquipmentAppearance};
 use shared::protocol::CharacterListEntry;
 
@@ -446,6 +448,89 @@ fn should_log_orbit_input_always_logs_live_motion() {
     let dragging = orbit_input_debug_state(true, Vec2::new(8.0, 0.0), 1);
 
     assert!(should_log_orbit_input(Some(dragging), dragging));
+}
+
+#[test]
+fn debug_orbit_camera_system_ignores_char_select_orbit_entities() {
+    let mut app = App::new();
+    app.insert_resource(crate::client_options::CameraOptions::default());
+    app.insert_resource(AccumulatedMouseMotion {
+        delta: Vec2::new(24.0, -6.0),
+    });
+    app.insert_resource(AccumulatedMouseScroll::default());
+    let mut mouse_buttons = ButtonInput::<MouseButton>::default();
+    mouse_buttons.press(MouseButton::Left);
+    app.insert_resource(mouse_buttons);
+    app.add_systems(Update, crate::orbit_camera::orbit_camera_system);
+
+    let orbit = orbit_from_eye_focus(Vec3::new(0.0, 2.0, 6.0), Vec3::new(0.0, 1.0, 0.0));
+    let before = Transform::from_translation(orbit_eye(&orbit)).looking_at(orbit.focus, Vec3::Y);
+    let entity = app.world_mut().spawn((orbit, before)).id();
+
+    app.update();
+
+    let after = app
+        .world()
+        .get::<Transform>(entity)
+        .expect("char-select transform");
+    assert_eq!(
+        *after, before,
+        "debug orbit camera system should ignore CharSelectOrbit-only entities"
+    );
+}
+
+#[test]
+fn debug_and_char_select_orbit_systems_share_mouse_motion_without_consuming_it() {
+    let mut app = App::new();
+    app.insert_resource(crate::client_options::CameraOptions::default());
+    app.insert_resource(AccumulatedMouseMotion {
+        delta: Vec2::new(18.0, -5.0),
+    });
+    app.insert_resource(AccumulatedMouseScroll::default());
+    let mut mouse_buttons = ButtonInput::<MouseButton>::default();
+    mouse_buttons.press(MouseButton::Left);
+    app.insert_resource(mouse_buttons);
+    app.add_systems(
+        Update,
+        (
+            crate::orbit_camera::orbit_camera_system,
+            char_select_orbit_camera,
+        ),
+    );
+
+    let char_select_orbit =
+        orbit_from_eye_focus(Vec3::new(0.0, 2.0, 6.0), Vec3::new(0.0, 1.0, 0.0));
+    let char_select_transform = Transform::from_translation(orbit_eye(&char_select_orbit))
+        .looking_at(char_select_orbit.focus, Vec3::Y);
+    let char_select_entity = app
+        .world_mut()
+        .spawn((char_select_orbit.clone(), char_select_transform))
+        .id();
+
+    let debug_orbit = crate::orbit_camera::OrbitCamera::new(Vec3::ZERO, 6.0);
+    let debug_transform =
+        Transform::from_translation(debug_orbit.eye_position()).looking_at(Vec3::ZERO, Vec3::Y);
+    let debug_entity = app.world_mut().spawn((debug_orbit, debug_transform)).id();
+
+    app.update();
+
+    let char_select_orbit = app
+        .world()
+        .get::<camera::CharSelectOrbit>(char_select_entity)
+        .expect("char-select orbit");
+    let debug_orbit = app
+        .world()
+        .get::<crate::orbit_camera::OrbitCamera>(debug_entity)
+        .expect("debug orbit");
+
+    assert_ne!(
+        char_select_orbit.yaw, 0.0,
+        "char-select orbit should still receive the frame's mouse motion"
+    );
+    assert_ne!(
+        debug_orbit.yaw, 0.0,
+        "debug orbit camera should also receive the same frame's mouse motion"
+    );
 }
 
 #[test]
