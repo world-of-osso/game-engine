@@ -66,6 +66,7 @@ const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 const COLOR_ERROR: FontColor = FontColor::new(0.9, 0.5, 0.5, 1.0);
 const COLOR_SUBTLE: FontColor = FontColor::new(0.65, 0.65, 0.7, 1.0);
 const COLOR_VERSION: FontColor = FontColor::new(0.7, 0.7, 0.75, 1.0);
+const LOGIN_FORM_CENTER_OFFSET_Y: f32 = 67.0;
 
 pub const LOGIN_ROOT: FrameName = FrameName("LoginRoot");
 pub const USERNAME_INPUT: FrameName = FrameName("UsernameInput");
@@ -138,7 +139,7 @@ fn login_inputs() -> Element {
             anchor {
                 point: AnchorPoint::Center,
                 relative_point: AnchorPoint::Center,
-                y: "50",
+                y: {LOGIN_FORM_CENTER_OFFSET_Y},
             }
             editbox {
                 name: USERNAME_INPUT,

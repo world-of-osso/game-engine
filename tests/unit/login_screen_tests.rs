@@ -23,12 +23,30 @@ use super::{
 };
 
 use game_engine::ui::automation::UiAutomationAction;
+use ui_toolkit::layout::{LayoutRect, recompute_layouts};
 
 fn build_login_screen_for_test() -> (Screen, ui_toolkit::screen::SharedContext) {
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert::<SharedStatusText>(SharedStatusText::default());
     let screen = Screen::new(login_screen);
     (screen, shared)
+}
+
+fn build_login_registry_with_real_layout() -> (FrameRegistry, LoginUi) {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen_res =
+        super::view::build_login_screen(&LoginStatus::default(), "Development".to_string(), true);
+    screen_res.screen.sync(&screen_res.shared, &mut reg);
+    let login = resolve_login_ui(&reg);
+    super::apply_post_setup(&mut reg, &login);
+    recompute_layouts(&mut reg);
+    (reg, login)
+}
+
+fn layout_rect(reg: &FrameRegistry, id: u64) -> LayoutRect {
+    reg.get(id)
+        .and_then(|frame| frame.layout_rect.clone())
+        .expect("layout_rect")
 }
 
 #[test]
@@ -55,6 +73,18 @@ fn build_login_screen_creates_all_critical_login_frames() {
             frame_name.0
         );
     }
+}
+
+#[test]
+fn login_form_is_vertically_centered_with_connect_button_near_screen_midpoint() {
+    let (reg, login) = build_login_registry_with_real_layout();
+    let rect = layout_rect(&reg, login.connect_button);
+    let center_y = rect.y + rect.height * 0.5;
+
+    assert!(
+        (center_y - 540.0).abs() <= 10.0,
+        "expected ConnectButton center Y near 540, got {center_y}"
+    );
 }
 
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
