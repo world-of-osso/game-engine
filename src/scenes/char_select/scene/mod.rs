@@ -311,6 +311,7 @@ fn spawn_scene_camera_and_lighting(
     bg_node: &mut SceneNode,
 ) -> (SceneSetupLighting, std::time::Duration, std::time::Duration) {
     let (camera_entity, camera_params, camera_elapsed) = spawn_scene_camera(params, selection);
+    attach_char_select_sky_dome(params, camera_entity);
     let sky_light_elapsed =
         attach_scene_skybox_and_spawn_lighting(params, selection, bg_node, camera_params.0);
     (
@@ -346,6 +347,39 @@ fn spawn_scene_camera(
     (camera_entity, camera_params, camera_elapsed)
 }
 
+fn attach_char_select_sky_dome(
+    params: &mut CharSelectSceneSetupParams<'_, '_>,
+    camera_entity: Entity,
+) {
+    let dome = spawn_char_select_sky_dome(
+        &mut params.commands,
+        &mut params.assets.meshes,
+        &mut params.assets.sky_materials,
+        &mut params.assets.images,
+        params.cloud_maps.active_handle(),
+        camera_entity,
+    );
+    params.commands.entity(dome).insert(CharSelectScene);
+}
+
+fn spawn_char_select_sky_dome(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    sky_materials: &mut Assets<crate::sky_material::SkyMaterial>,
+    images: &mut Assets<Image>,
+    cloud_texture: Handle<Image>,
+    camera_entity: Entity,
+) -> Entity {
+    crate::sky::spawn_sky_dome(
+        commands,
+        meshes,
+        sky_materials,
+        images,
+        camera_entity,
+        cloud_texture,
+    )
+}
+
 fn attach_scene_skybox_and_spawn_lighting(
     params: &mut CharSelectSceneSetupParams<'_, '_>,
     selection: &SceneSetupSelection,
@@ -374,6 +408,9 @@ fn attach_scene_skybox(
     camera_translation: Vec3,
     bg_node: &mut SceneNode,
 ) {
+    if !should_spawn_authored_char_select_skybox() {
+        return;
+    }
     let skybox_entity = {
         let mut skybox_ctx = background::WarbandSkyboxSpawnContext {
             commands: &mut params.commands,
@@ -395,6 +432,13 @@ fn attach_scene_skybox(
             path.display().to_string(),
         ));
     }
+}
+
+fn should_spawn_authored_char_select_skybox() -> bool {
+    // The procedural sky dome is stable in CharSelect. The authored M2 skybox path is still
+    // unproven and currently regresses the scene, so keep it disabled until the dedicated
+    // render-path proof task lands.
+    false
 }
 
 fn spawn_scene_model(

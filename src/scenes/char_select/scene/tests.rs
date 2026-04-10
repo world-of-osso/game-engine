@@ -46,6 +46,51 @@ fn selected_scene_character_id_falls_back_to_first_character() {
 }
 
 #[test]
+fn authored_char_select_skybox_path_stays_disabled_until_proven() {
+    assert!(!should_spawn_authored_char_select_skybox());
+}
+
+#[test]
+fn char_select_camera_gets_a_sky_dome_child() {
+    let mut app = App::new();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
+    app.init_resource::<Assets<Image>>();
+
+    let cloud_maps = {
+        let mut images = app.world_mut().resource_mut::<Assets<Image>>();
+        crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images)
+    };
+    app.insert_resource(cloud_maps);
+
+    let camera = app.world_mut().spawn_empty().id();
+    let dome = app
+        .world_mut()
+        .run_system_once(
+            move |mut commands: Commands,
+                  mut meshes: ResMut<Assets<Mesh>>,
+                  mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
+                  mut images: ResMut<Assets<Image>>,
+                  cloud_maps: Res<crate::sky::cloud_texture::ProceduralCloudMaps>| {
+                spawn_char_select_sky_dome(
+                    &mut commands,
+                    &mut meshes,
+                    &mut sky_materials,
+                    &mut images,
+                    cloud_maps.active_handle(),
+                    camera,
+                )
+            },
+        )
+        .expect("spawn sky dome");
+    app.update();
+
+    let child_of = app.world().get::<ChildOf>(dome).expect("sky dome parent");
+    assert_eq!(child_of.parent(), camera);
+    assert!(app.world().get::<crate::sky::SkyDome>(dome).is_some());
+}
+
+#[test]
 fn despawning_model_wrapper_removes_model_root_child() {
     let mut app = App::new();
     let wrapper = app

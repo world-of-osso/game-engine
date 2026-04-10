@@ -16,6 +16,8 @@ use crate::scenes::char_select::scene_tree::ActiveWarbandSceneId;
 use crate::scenes::char_select::warband::{
     SelectedWarbandScene, WarbandSceneEntry, WarbandScenePlacement, WarbandScenes,
 };
+use crate::sky::cloud_texture::ProceduralCloudMaps;
+use crate::sky_material::SkyMaterial;
 use crate::skybox_m2_material::SkyboxM2Material;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_material::TerrainMaterial;
@@ -50,6 +52,7 @@ pub(super) struct AppliedCharacterAppearance {
 pub(super) struct CharSelectRenderAssets<'w> {
     pub(super) meshes: ResMut<'w, Assets<Mesh>>,
     pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
+    pub(super) sky_materials: ResMut<'w, Assets<SkyMaterial>>,
     pub(super) effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     pub(super) skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
     pub(super) terrain_materials: ResMut<'w, Assets<TerrainMaterial>>,
@@ -104,6 +107,7 @@ pub(super) struct CharSelectSceneSetupParams<'w, 's> {
     pub(super) displayed: ResMut<'w, DisplayedCharacterId>,
     pub(super) active_scene: ResMut<'w, ActiveWarbandSceneId>,
     pub(super) pending_supplemental: ResMut<'w, PendingSupplementalWarbandScene>,
+    pub(super) cloud_maps: Res<'w, ProceduralCloudMaps>,
     pub(super) warband: Option<Res<'w, WarbandScenes>>,
     pub(super) selected_scene: Option<Res<'w, SelectedWarbandScene>>,
 }
