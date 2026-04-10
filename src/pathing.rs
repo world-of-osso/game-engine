@@ -50,6 +50,15 @@ struct SearchBounds {
     max_y: i32,
 }
 
+struct GridSearchState {
+    goal_cell: IVec2,
+    bounds: SearchBounds,
+    open: BinaryHeap<OpenCell>,
+    came_from: HashMap<IVec2, IVec2>,
+    cost_so_far: HashMap<IVec2, f32>,
+    expansions: usize,
+}
+
 impl Eq for OpenCell {}
 
 impl Ord for OpenCell {
@@ -312,48 +321,74 @@ where
         return Some(vec![goal]);
     }
 
-    let goal_cell = goal_cell(start, goal, step);
-    let bounds = search_bounds(goal_cell);
-    let start_cell = IVec2::ZERO;
+    let mut search = start_grid_search(start, goal, step);
+    while let Some(OpenCell { cell, .. }) = search.open.pop() {
+        if search_exhausted(&mut search.expansions) {
+            return None;
+        }
 
+        if let Some(path) =
+            expand_search_cell(&mut search, cell, start, goal, step, &mut edge_is_walkable)
+        {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
+fn expand_search_cell<F>(
+    search: &mut GridSearchState,
+    cell: IVec2,
+    start: Vec2,
+    goal: Vec2,
+    step: f32,
+    edge_is_walkable: &mut F,
+) -> Option<Vec<Vec2>>
+where
+    F: FnMut(Vec2, Vec2) -> bool,
+{
+    let cell_world = cell_to_world(start, step, cell);
+    if can_reach_goal(cell, search.goal_cell, cell_world, goal, edge_is_walkable) {
+        return reconstruct_path(start, goal, step, cell, &search.came_from, edge_is_walkable);
+    }
+
+    for neighbor in neighbors(cell) {
+        update_neighbor(
+            neighbor,
+            cell,
+            cell_world,
+            goal,
+            start,
+            step,
+            search.bounds,
+            &mut search.cost_so_far,
+            &mut search.came_from,
+            &mut search.open,
+            edge_is_walkable,
+        );
+    }
+    None
+}
+
+fn start_grid_search(start: Vec2, goal: Vec2, step: f32) -> GridSearchState {
+    let start_cell = IVec2::ZERO;
+    let goal_cell = goal_cell(start, goal, step);
     let mut open = BinaryHeap::new();
-    let mut came_from = HashMap::new();
     let mut cost_so_far = HashMap::new();
     cost_so_far.insert(start_cell, 0.0);
     open.push(OpenCell {
         cell: start_cell,
         estimated_total_cost: start.distance(goal),
     });
-
-    let mut expansions = 0usize;
-    while let Some(OpenCell { cell, .. }) = open.pop() {
-        if search_exhausted(&mut expansions) {
-            return None;
-        }
-
-        let cell_world = cell_to_world(start, step, cell);
-        if can_reach_goal(cell, goal_cell, cell_world, goal, &mut edge_is_walkable) {
-            return reconstruct_path(start, goal, step, cell, &came_from, &mut edge_is_walkable);
-        }
-
-        for neighbor in neighbors(cell) {
-            update_neighbor(
-                neighbor,
-                cell,
-                cell_world,
-                goal,
-                start,
-                step,
-                bounds,
-                &mut cost_so_far,
-                &mut came_from,
-                &mut open,
-                &mut edge_is_walkable,
-            );
-        }
+    GridSearchState {
+        goal_cell,
+        bounds: search_bounds(goal_cell),
+        open,
+        came_from: HashMap::new(),
+        cost_so_far,
+        expansions: 0,
     }
-
-    None
 }
 
 fn goal_cell(start: Vec2, goal: Vec2, step: f32) -> IVec2 {
