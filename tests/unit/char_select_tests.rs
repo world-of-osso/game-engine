@@ -13,6 +13,7 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::CharSelectAction;
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonState;
+use ui_toolkit::layout::recompute_layouts;
 
 fn test_registry() -> FrameRegistry {
     FrameRegistry::new(1920.0, 1080.0)
@@ -24,6 +25,7 @@ fn build_screen(state: CharSelectState) -> FrameRegistry {
     shared.insert(state);
     shared.insert(DeleteConfirmUiState::default());
     Screen::new(char_select_screen).sync(&shared, &mut reg);
+    recompute_layouts(&mut reg);
     reg
 }
 
@@ -34,6 +36,7 @@ fn build_screen_with_campsites(state: CharSelectState, campsite: CampsiteState) 
     shared.insert(campsite);
     shared.insert(DeleteConfirmUiState::default());
     Screen::new(char_select_screen).sync(&shared, &mut reg);
+    recompute_layouts(&mut reg);
     reg
 }
 
@@ -46,7 +49,17 @@ fn build_screen_with_delete_confirm(
     shared.insert(state);
     shared.insert(delete_confirm);
     Screen::new(char_select_screen).sync(&shared, &mut reg);
+    recompute_layouts(&mut reg);
     reg
+}
+
+fn frame_center(reg: &FrameRegistry, name: &str) -> Vec2 {
+    let rect = reg
+        .get_by_name(name)
+        .and_then(|id| reg.get(id))
+        .and_then(|frame| frame.layout_rect.clone())
+        .unwrap_or_else(|| panic!("{name} has no layout_rect"));
+    Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5)
 }
 
 fn one_scene_campsite_state() -> CampsiteState {
@@ -303,6 +316,103 @@ fn character_cards_use_tinted_atlas_textures_without_css_border() {
         panic!("selected highlight should be a texture");
     };
     assert_eq!(selected_tex.vertex_color, [0.82, 0.74, 0.46, 0.9]);
+}
+
+#[test]
+fn character_card_frames_set_expected_onclick_actions() {
+    let reg = build_screen(CharSelectState {
+        characters: vec![
+            CharDisplayEntry {
+                name: "Theron".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
+            CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
+        ],
+        selected_index: Some(0),
+        selected_name: "Theron".to_string(),
+        ..Default::default()
+    });
+
+    let card0 = reg
+        .get(reg.get_by_name("CharCard_0").expect("CharCard_0"))
+        .expect("CharCard_0 frame");
+    let card1 = reg
+        .get(reg.get_by_name("CharCard_1").expect("CharCard_1"))
+        .expect("CharCard_1 frame");
+
+    assert_eq!(card0.onclick.as_deref(), Some("select_char:0"));
+    assert_eq!(card1.onclick.as_deref(), Some("select_char:1"));
+}
+
+#[test]
+fn find_clicked_action_returns_character_card_action_from_card_center() {
+    let reg = build_screen(CharSelectState {
+        characters: vec![
+            CharDisplayEntry {
+                name: "Theron".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
+            CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
+        ],
+        selected_index: Some(0),
+        selected_name: "Theron".to_string(),
+        ..Default::default()
+    });
+
+    let card0_center = frame_center(&reg, "CharCard_0");
+    let card1_center = frame_center(&reg, "CharCard_1");
+    let ui = UiState {
+        registry: reg,
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    };
+
+    assert_eq!(
+        crate::scenes::char_select::input::find_clicked_action(&ui, card0_center.x, card0_center.y)
+            .as_deref(),
+        Some("select_char:0")
+    );
+    assert_eq!(
+        crate::scenes::char_select::input::find_clicked_action(&ui, card1_center.x, card1_center.y)
+            .as_deref(),
+        Some("select_char:1")
+    );
+}
+
+#[test]
+fn find_clicked_action_walks_up_from_character_card_text_to_parent_onclick() {
+    let reg = build_screen(CharSelectState {
+        characters: vec![CharDisplayEntry {
+            name: "Elara".to_string(),
+            info: "Level 1   Race 1   Class 1".to_string(),
+            status: "Ready".to_string(),
+        }],
+        selected_index: Some(0),
+        selected_name: "Elara".to_string(),
+        ..Default::default()
+    });
+    let label_center = frame_center(&reg, "CharCard_0Name");
+    let ui = UiState {
+        registry: reg,
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    };
+
+    assert_eq!(
+        crate::scenes::char_select::input::find_clicked_action(&ui, label_center.x, label_center.y)
+            .as_deref(),
+        Some("select_char:0")
+    );
 }
 
 #[test]
