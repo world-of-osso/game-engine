@@ -371,7 +371,7 @@ pub fn light_scene_nodes(
             label: "PrimaryLight".into(),
             entity: Some(primary_light),
             props: NodeProps::Light {
-                kind: "point".into(),
+                kind: "spot".into(),
                 intensity: 220000.0,
             },
             children: vec![],
@@ -409,5 +409,21 @@ mod tests {
             }
         );
         assert!(node.children.is_empty());
+    }
+
+    #[test]
+    fn light_scene_nodes_report_spot_primary_light() {
+        let camera = Entity::from_raw_u32(1).expect("valid entity id");
+        let light = Entity::from_raw_u32(2).expect("valid entity id");
+        let nodes = light_scene_nodes(camera, 45.0, None, 150.0, light);
+
+        assert_eq!(nodes[2].label, "PrimaryLight");
+        assert_eq!(
+            nodes[2].props,
+            NodeProps::Light {
+                kind: "spot".into(),
+                intensity: 220000.0,
+            }
+        );
     }
 }

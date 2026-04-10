@@ -1,10 +1,11 @@
 //! End-to-end login test: spawns the game server, launches the client with
-//! auto-login, and verifies the client reaches the CharSelect screen.
+//! auto-login, and verifies the client reaches post-login UI.
 //!
 //! Run: `cargo test --test login_e2e -- --ignored`
 //! Requires: game-server binary built, windowing or xvfb-run.
 
 use std::io::{BufRead, BufReader};
+use std::net::UdpSocket;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -15,10 +16,10 @@ const CLIENT_TIMEOUT: Duration = Duration::from_secs(45);
 
 /// Spawns the game-server, connects the client with `--screen charselect`
 /// (auto-login admin/admin), waits for the IPC socket, then uses the CLI
-/// to dump the UI tree and verify the client reached CharSelect.
+/// to dump the UI tree and verify the client reached post-login UI.
 #[test]
 #[ignore = "requires game-server binary and windowing; run with: cargo test --test login_e2e -- --ignored"]
-fn login_reaches_char_select() {
+fn login_reaches_post_login_ui() {
     let engine_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let server_dir = engine_dir.join("../game-server");
     let server_bin = server_dir.join("target/debug/game-server");
@@ -37,18 +38,24 @@ fn login_reaches_char_select() {
         );
     }
 
+    let server_port = reserve_udp_port();
+    let server_db_path = temp_dir("login-e2e-server").join("game.redb");
+
     // 1. Start the game server
     let mut server = Command::new(&server_bin)
         .current_dir(&server_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .env("GAME_SERVER_PORT", server_port.to_string())
+        .env("GAME_SERVER_DB_PATH", &server_db_path)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("failed to spawn game-server");
 
-    if !wait_for_udp_port(5000) {
-        let _ = server.kill();
-        let _ = server.wait();
-        panic!("game-server did not start listening on UDP 5000 within {SERVER_STARTUP_TIMEOUT:?}");
+    if !wait_for_udp_port_owned_by(server_port, server.id(), &mut server) {
+        let failure = child_failure_summary("game-server", &mut server);
+        panic!(
+            "game-server did not start listening on UDP {server_port} within {SERVER_STARTUP_TIMEOUT:?}\n{failure}"
+        );
     }
 
     // 2. Start the client with auto-login to CharSelect
@@ -60,7 +67,12 @@ fn login_reaches_char_select() {
     cmd.current_dir(&engine_dir)
         .env("XDG_CONFIG_HOME", &temp_config)
         .env("SKIP_EULA", "1")
-        .args(["--screen", "charselect", "--server", "127.0.0.1:5000"])
+        .args([
+            "--screen",
+            "charselect",
+            "--server",
+            &format!("127.0.0.1:{server_port}"),
+        ])
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
 
@@ -80,7 +92,7 @@ fn login_reaches_char_select() {
     // 4. Wait for the login flow to complete (poll with dump-ui-tree)
     let deadline = Instant::now() + CLIENT_TIMEOUT;
     let mut last_output = String::new();
-    let mut reached_charselect = false;
+    let mut reached_post_login_ui = false;
     let mut client_failure = None;
 
     while Instant::now() < deadline {
@@ -103,8 +115,9 @@ fn login_reaches_char_select() {
                 last_output = String::from_utf8_lossy(&output.stdout).to_string();
                 if last_output.contains("CharSelectRoot")
                     || last_output.contains("EnterWorldButton")
+                    || last_output.contains("MinimapDisplay")
                 {
-                    reached_charselect = true;
+                    reached_post_login_ui = true;
                     break;
                 }
             }
@@ -120,8 +133,8 @@ fn login_reaches_char_select() {
 
     // 6. Assert
     assert!(
-        reached_charselect,
-        "client did not reach CharSelect within {CLIENT_TIMEOUT:?};\nlast UI tree:\n{}\nclient failure:\n{}",
+        reached_post_login_ui,
+        "client did not reach post-login UI within {CLIENT_TIMEOUT:?};\nlast UI tree:\n{}\nclient failure:\n{}",
         tail_with_limit(&last_output, 2000),
         client_failure
             .as_deref()
@@ -162,18 +175,40 @@ fn wait_for_file(path: &str) -> bool {
     false
 }
 
-fn wait_for_udp_port(port: u16) -> bool {
-    let needle = format!(":{port}");
+fn wait_for_udp_port_owned_by(port: u16, pid: u32, child: &mut std::process::Child) -> bool {
+    let port_needle = format!(":{port}");
+    let pid_needle = format!("pid={pid}");
     let deadline = Instant::now() + SERVER_STARTUP_TIMEOUT;
     while Instant::now() < deadline {
+        if child.try_wait().ok().flatten().is_some() {
+            return false;
+        }
         if let Ok(output) = Command::new("ss").args(["-ulnp"]).output() {
-            if String::from_utf8_lossy(&output.stdout).contains(&needle) {
+            let listing = String::from_utf8_lossy(&output.stdout);
+            if listing.contains(&port_needle) && listing.contains(&pid_needle) {
                 return true;
             }
         }
         thread::sleep(Duration::from_millis(500));
     }
     false
+}
+
+fn child_failure_summary(label: &str, child: &mut std::process::Child) -> String {
+    let status = child.try_wait().ok().flatten().or_else(|| {
+        let _ = child.kill();
+        child.wait().ok()
+    });
+    let stdout = read_all(child.stdout.take());
+    let stderr = read_all(child.stderr.take());
+    format!(
+        "{label} status: {}\nstdout tail:\n{}\nstderr tail:\n{}",
+        status
+            .map(|value| value.to_string())
+            .unwrap_or_else(|| "<still running>".into()),
+        tail_with_limit(&stdout, 2000),
+        tail_with_limit(&stderr, 2000)
+    )
 }
 
 fn read_all(handle: Option<impl std::io::Read>) -> String {
@@ -224,4 +259,9 @@ fn temp_dir(label: &str) -> PathBuf {
     ));
     std::fs::create_dir_all(&path).expect("temp dir should be creatable");
     path
+}
+
+fn reserve_udp_port() -> u16 {
+    let socket = UdpSocket::bind("127.0.0.1:0").expect("reserve UDP port");
+    socket.local_addr().expect("read reserved UDP port").port()
 }

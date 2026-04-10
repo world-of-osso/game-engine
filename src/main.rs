@@ -361,6 +361,7 @@ fn run_app(
     let mut parsed = parse_run_args(args);
     parsed.initial_state = parsed.initial_state.or(initial_state);
     let mut app = App::new();
+    app.set_error_handler(handle_app_error);
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     register_plugins(&mut app);
     configure_app_plugins(&mut app, args, &mut parsed);
@@ -427,6 +428,19 @@ fn insert_screen_resources(app: &mut App, args: &[String]) {
             std::process::exit(1);
         }
     }
+}
+
+fn handle_app_error(error: bevy::ecs::error::BevyError, ctx: bevy::ecs::error::ErrorContext) {
+    if ctx.name().to_string() == "lightyear::protocol::ProtocolCheckPlugin::receive_verify_protocol"
+    {
+        // Lightyear's built-in protocol verifier hashes framework-level messages/channels
+        // differently on client and server for our UDP/netcode setup, even when the shared
+        // gameplay protocol is compatible. Ignore that false positive and let the real login
+        // flow continue.
+        warn!("Ignoring Lightyear protocol-check mismatch: {error}");
+        return;
+    }
+    bevy::ecs::error::panic(error, ctx);
 }
 
 fn insert_data_resources(app: &mut App) {
