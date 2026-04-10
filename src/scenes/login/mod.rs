@@ -453,10 +453,7 @@ fn handle_nav_key(key: KeyCode, focus: &mut LoginFocus, login: &LoginUi) -> bool
 }
 
 fn cycle_focus(current: Option<u64>, login: &LoginUi) -> u64 {
-    let fields = [
-        login.username_input,
-        login.password_input,
-    ];
+    let fields = [login.username_input, login.password_input];
     let idx = current
         .and_then(|id| fields.iter().position(|&f| f == id))
         .map(|i| (i + 1) % fields.len())

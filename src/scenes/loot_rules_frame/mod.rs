@@ -144,7 +144,10 @@ fn handle_loot_rules_input(
     mut party: ResMut<PartyState>,
     mut queue: ResMut<GroupIntentQueue>,
 ) {
-    if !open_state.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !open_state.0
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
         return;
     }
     let Some(mouse) = mouse else { return };

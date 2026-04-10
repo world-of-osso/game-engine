@@ -426,10 +426,7 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
         .get::<SharedStatusText>()
         .map(|s| s.0.as_str())
         .unwrap_or("");
-    let connecting = ctx
-        .get::<SharedConnecting>()
-        .map(|s| s.0)
-        .unwrap_or(false);
+    let connecting = ctx.get::<SharedConnecting>().map(|s| s.0).unwrap_or(false);
     let realm_text = ctx
         .get::<SharedRealmText>()
         .map(|s| s.0.as_str())

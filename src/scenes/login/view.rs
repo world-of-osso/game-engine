@@ -77,7 +77,9 @@ pub(super) fn sync_login_status(
     inner
         .shared
         .insert::<SharedConnecting>(SharedConnecting(connecting));
-    inner.shared.insert::<SharedRealmText>(SharedRealmText(realm_text));
+    inner
+        .shared
+        .insert::<SharedRealmText>(SharedRealmText(realm_text));
     inner
         .shared
         .insert::<SharedRealmSelectable>(SharedRealmSelectable(realm_selectable));
