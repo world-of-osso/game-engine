@@ -6,8 +6,16 @@ use super::camera::{
 use super::*;
 use crate::networking_auth::CharacterList;
 use bevy::app::App;
+use bevy::ecs::message::Messages;
 use bevy::ecs::system::RunSystemOnce;
+use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::state::app::StatesPlugin;
+use bevy::window::PrimaryWindow;
+use game_engine::ui::automation::UiAutomationPlugin;
+use game_engine::ui::event::EventBus;
+use game_engine::ui::plugin::UiState;
+use game_engine::ui::registry::FrameRegistry;
 use shared::components::{CharacterAppearance, EquipmentAppearance};
 use shared::protocol::CharacterListEntry;
 
@@ -530,6 +538,103 @@ fn debug_and_char_select_orbit_systems_share_mouse_motion_without_consuming_it()
     assert_ne!(
         debug_orbit.yaw, 0.0,
         "debug orbit camera should also receive the same frame's mouse motion"
+    );
+}
+
+#[test]
+fn char_select_ui_click_handling_does_not_block_orbit_camera() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(StatesPlugin);
+    app.add_plugins(UiAutomationPlugin);
+    app.add_plugins(crate::scenes::char_select::CharSelectPlugin);
+    app.add_message::<KeyboardInput>();
+    app.insert_resource(UiState {
+        registry: FrameRegistry::new(0.0, 0.0),
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.insert_resource(CharacterList(vec![character(1, 1, 0, "Elara")]));
+    app.insert_resource(crate::client_options::CameraOptions::default());
+    app.insert_resource(AccumulatedMouseMotion {
+        delta: Vec2::new(18.0, -5.0),
+    });
+    app.insert_state(crate::game_state::GameState::CharSelect);
+
+    let window_entity = app
+        .world_mut()
+        .spawn((Window::default(), PrimaryWindow))
+        .id();
+    app.update();
+    app.world_mut()
+        .run_system_once(
+            |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
+                ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
+                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+            },
+        )
+        .expect("char-select UI layout should resolve");
+
+    let create_button_center = {
+        let ui = app.world().resource::<UiState>();
+        let create_id = ui
+            .registry
+            .get_by_name("CreateChar")
+            .expect("CreateChar frame should exist");
+        let layout = ui
+            .registry
+            .get(create_id)
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .expect("CreateChar should have resolved layout");
+        Vec2::new(
+            layout.x + layout.width * 0.5,
+            layout.y + layout.height * 0.5,
+        )
+    };
+    app.world_mut()
+        .entity_mut(window_entity)
+        .get_mut::<Window>()
+        .expect("primary window")
+        .set_cursor_position(Some(create_button_center));
+
+    let mut click_cursor = app
+        .world()
+        .resource::<Messages<crate::scenes::char_select::input::CharSelectClickEvent>>()
+        .get_cursor_current();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+
+    let orbit = orbit_from_eye_focus(Vec3::new(0.0, 2.0, 6.0), Vec3::new(0.0, 1.0, 0.0));
+    let before = Transform::from_translation(orbit_eye(&orbit)).looking_at(orbit.focus, Vec3::Y);
+    let entity = app.world_mut().spawn((orbit, before)).id();
+
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::input::char_select_mouse_input)
+        .expect("char-select mouse input should run");
+    let click_count = {
+        let messages = app
+            .world()
+            .resource::<Messages<crate::scenes::char_select::input::CharSelectClickEvent>>();
+        click_cursor.read(messages).count()
+    };
+    assert_eq!(
+        click_count, 1,
+        "char-select mouse input should still register the UI click"
+    );
+
+    app.world_mut()
+        .run_system_once(char_select_orbit_camera)
+        .expect("char-select orbit camera should run");
+
+    let orbit = app
+        .world()
+        .get::<camera::CharSelectOrbit>(entity)
+        .expect("char-select orbit");
+    assert_ne!(
+        orbit.yaw, 0.0,
+        "orbit camera should still receive the same frame's mouse motion"
     );
 }
 
