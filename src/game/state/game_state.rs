@@ -86,6 +86,9 @@ fn should_gate_eula(
     initial_state: Option<GameState>,
     accepted_eula: bool,
 ) -> bool {
+    if std::env::var_os("SKIP_EULA").is_some() {
+        return false;
+    }
     has_server
         && !accepted_eula
         && initial_state
