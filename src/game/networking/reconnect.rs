@@ -125,6 +125,13 @@ fn reset_chat_resources(world: &mut World) {
 }
 
 fn reset_runtime_states(world: &mut World) {
+    reset_combat_runtime_states(world);
+    reset_progression_runtime_states(world);
+    reset_social_runtime_states(world);
+    reset_world_feature_runtime_states(world);
+}
+
+fn reset_combat_runtime_states(world: &mut World) {
     if let Some(mut trade_state) = world.get_resource_mut::<game_engine::trade::TradeClientState>()
     {
         *trade_state = game_engine::trade::TradeClientState::default();
@@ -132,6 +139,14 @@ fn reset_runtime_states(world: &mut World) {
     if let Some(mut duel_state) = world.get_resource_mut::<game_engine::duel::DuelClientState>() {
         game_engine::duel::reset_runtime(&mut duel_state);
     }
+    if let Some(mut casting_state) =
+        world.get_resource_mut::<game_engine::casting_data::CastingState>()
+    {
+        *casting_state = game_engine::casting_data::CastingState::default();
+    }
+}
+
+fn reset_progression_runtime_states(world: &mut World) {
     if let Some(mut currency_state) =
         world.get_resource_mut::<game_engine::currency::CurrencyRuntimeState>()
     {
@@ -152,21 +167,14 @@ fn reset_runtime_states(world: &mut World) {
     {
         *toast = game_engine::achievement::AchievementToastState::default();
     }
-    if let Some(mut profession_state) =
-        world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
+    if let Some(mut reputation_toast) =
+        world.get_resource_mut::<game_engine::reputation::ReputationToastState>()
     {
-        game_engine::profession::reset_runtime(&mut profession_state);
+        game_engine::reputation::reset_runtime(&mut reputation_toast);
     }
-    if let Some(mut calendar_state) =
-        world.get_resource_mut::<game_engine::calendar::CalendarRuntimeState>()
-    {
-        game_engine::calendar::reset_runtime(&mut calendar_state);
-    }
-    if let Some(mut casting_state) =
-        world.get_resource_mut::<game_engine::casting_data::CastingState>()
-    {
-        *casting_state = game_engine::casting_data::CastingState::default();
-    }
+}
+
+fn reset_social_runtime_states(world: &mut World) {
     if let Some(mut friends_state) =
         world.get_resource_mut::<game_engine::friends::FriendsRuntimeState>()
     {
@@ -190,10 +198,18 @@ fn reset_runtime_states(world: &mut World) {
     if let Some(mut pvp_state) = world.get_resource_mut::<game_engine::pvp::PvpRuntimeState>() {
         game_engine::pvp::reset_runtime(&mut pvp_state);
     }
-    if let Some(mut reputation_toast) =
-        world.get_resource_mut::<game_engine::reputation::ReputationToastState>()
+}
+
+fn reset_world_feature_runtime_states(world: &mut World) {
+    if let Some(mut profession_state) =
+        world.get_resource_mut::<game_engine::profession::ProfessionRuntimeState>()
     {
-        game_engine::reputation::reset_runtime(&mut reputation_toast);
+        game_engine::profession::reset_runtime(&mut profession_state);
+    }
+    if let Some(mut calendar_state) =
+        world.get_resource_mut::<game_engine::calendar::CalendarRuntimeState>()
+    {
+        game_engine::calendar::reset_runtime(&mut calendar_state);
     }
     if let Some(mut barber_state) =
         world.get_resource_mut::<game_engine::barber_shop::BarberShopRuntimeState>()
