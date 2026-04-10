@@ -416,6 +416,28 @@ fn find_clicked_action_walks_up_from_character_card_text_to_parent_onclick() {
 }
 
 #[test]
+fn walk_up_for_onclick_reaches_character_card_action_from_texture_child() {
+    let reg = build_screen(CharSelectState {
+        characters: vec![CharDisplayEntry {
+            name: "Elara".to_string(),
+            info: "Level 1   Race 1   Class 1".to_string(),
+            status: "Ready".to_string(),
+        }],
+        selected_index: Some(0),
+        selected_name: "Elara".to_string(),
+        ..Default::default()
+    });
+    let backdrop_id = reg
+        .get_by_name("CharCard_0Backdrop")
+        .expect("CharCard_0Backdrop");
+
+    assert_eq!(
+        crate::ui_input::walk_up_for_onclick(&reg, backdrop_id).as_deref(),
+        Some("select_char:0")
+    );
+}
+
+#[test]
 fn screen_does_not_include_inline_create_panel() {
     let reg = build_screen(CharSelectState::default());
     assert!(reg.get_by_name("CreatePanel").is_none());
