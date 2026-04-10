@@ -8,7 +8,9 @@ use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::login_component::{
-    SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText, login_screen,
+    CONNECT_BUTTON, CREATE_ACCOUNT_BUTTON, EXIT_BUTTON, LOGIN_ROOT, LOGIN_STATUS, MENU_BUTTON,
+    PASSWORD_INPUT, REALM_BUTTON, SharedConnecting, SharedRealmSelectable, SharedRealmText,
+    SharedStatusText, USERNAME_INPUT, login_screen,
 };
 
 use crate::game_state::GameState;
@@ -27,6 +29,32 @@ fn build_login_screen_for_test() -> (Screen, ui_toolkit::screen::SharedContext) 
     shared.insert::<SharedStatusText>(SharedStatusText::default());
     let screen = Screen::new(login_screen);
     (screen, shared)
+}
+
+#[test]
+fn build_login_screen_creates_all_critical_login_frames() {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen_res =
+        super::view::build_login_screen(&LoginStatus::default(), "Development".to_string(), true);
+    screen_res.screen.sync(&screen_res.shared, &mut reg);
+
+    for frame_name in [
+        LOGIN_ROOT,
+        USERNAME_INPUT,
+        PASSWORD_INPUT,
+        REALM_BUTTON,
+        CONNECT_BUTTON,
+        CREATE_ACCOUNT_BUTTON,
+        MENU_BUTTON,
+        EXIT_BUTTON,
+        LOGIN_STATUS,
+    ] {
+        assert!(
+            reg.get_by_name(frame_name.0).is_some(),
+            "expected {} to exist after build_login_screen",
+            frame_name.0
+        );
+    }
 }
 
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
