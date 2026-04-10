@@ -6,7 +6,7 @@
 
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -81,16 +81,18 @@ fn login_reaches_char_select() {
     let deadline = Instant::now() + CLIENT_TIMEOUT;
     let mut last_output = String::new();
     let mut reached_charselect = false;
+    let mut client_failure = None;
 
     while Instant::now() < deadline {
         thread::sleep(Duration::from_secs(2));
         // Check if client is still alive
         if let Some(status) = client.try_wait().ok().flatten() {
-            let stderr = client.stderr.take().map(|h| {
-                BufReader::new(h).lines().filter_map(|l| l.ok()).collect::<Vec<_>>().join("\n")
-            }).unwrap_or_default();
-            let tail_start = stderr.len().saturating_sub(1000);
-            eprintln!("e2e: client exited with {status}\nstderr tail:\n{}", &stderr[tail_start..]);
+            let stderr = read_all(client.stderr.take());
+            client_failure = Some(format!(
+                "client exited with {status}\nstderr tail:\n{}",
+                tail_with_limit(&stderr, 2000)
+            ));
+            eprintln!("e2e: {}", client_failure.as_deref().unwrap_or_default());
             break;
         }
         match Command::new(&cli_bin)
@@ -99,12 +101,14 @@ fn login_reaches_char_select() {
         {
             Ok(output) => {
                 last_output = String::from_utf8_lossy(&output.stdout).to_string();
-                if last_output.contains("CharSelectRoot") || last_output.contains("EnterWorldButton") {
+                if last_output.contains("CharSelectRoot")
+                    || last_output.contains("EnterWorldButton")
+                {
                     reached_charselect = true;
                     break;
                 }
             }
-            Err(_) => {},
+            Err(_) => {}
         }
     }
 
@@ -117,8 +121,11 @@ fn login_reaches_char_select() {
     // 6. Assert
     assert!(
         reached_charselect,
-        "client did not reach CharSelect within {CLIENT_TIMEOUT:?};\nlast UI tree:\n{}",
-        &last_output[..last_output.len().min(2000)]
+        "client did not reach CharSelect within {CLIENT_TIMEOUT:?};\nlast UI tree:\n{}\nclient failure:\n{}",
+        tail_with_limit(&last_output, 2000),
+        client_failure
+            .as_deref()
+            .unwrap_or("<client still running when timeout elapsed>")
     );
 }
 
@@ -169,34 +176,6 @@ fn wait_for_udp_port(port: u16) -> bool {
     false
 }
 
-fn wait_for_child_output(
-    mut child: Child,
-) -> Result<(String, String, std::process::ExitStatus), String> {
-    let stdout_handle = child.stdout.take();
-    let stderr_handle = child.stderr.take();
-
-    let stdout_thread = thread::spawn(move || read_all(stdout_handle));
-    let stderr_thread = thread::spawn(move || read_all(stderr_handle));
-
-    let deadline = Instant::now() + CLIENT_TIMEOUT;
-    loop {
-        if let Some(status) = child
-            .try_wait()
-            .map_err(|e| format!("wait failed: {e}"))?
-        {
-            let stdout = stdout_thread.join().unwrap_or_default();
-            let stderr = stderr_thread.join().unwrap_or_default();
-            return Ok((stdout, stderr, status));
-        }
-        if Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(format!("client timed out after {CLIENT_TIMEOUT:?}"));
-        }
-        thread::sleep(Duration::from_millis(250));
-    }
-}
-
 fn read_all(handle: Option<impl std::io::Read>) -> String {
     handle
         .map(|h| {
@@ -207,6 +186,20 @@ fn read_all(handle: Option<impl std::io::Read>) -> String {
                 .join("\n")
         })
         .unwrap_or_default()
+}
+
+fn tail_with_limit(text: &str, max_chars: usize) -> &str {
+    let total_chars = text.chars().count();
+    if total_chars <= max_chars {
+        return text;
+    }
+    let skip = total_chars - max_chars;
+    let start = text
+        .char_indices()
+        .nth(skip)
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+    &text[start..]
 }
 
 fn should_wrap_in_xvfb() -> bool {
