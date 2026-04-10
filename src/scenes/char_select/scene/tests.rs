@@ -1,6 +1,6 @@
 use super::camera::{
     CHAR_SELECT_CAMERA_GROUND_CLEARANCE, camera_params, clamp_char_select_eye, orbit_eye,
-    orbit_from_eye_focus,
+    orbit_from_eye_focus, orbit_input_debug_state, should_log_orbit_input,
 };
 use super::*;
 use crate::networking_auth::CharacterList;
@@ -410,6 +410,42 @@ fn orbit_from_eye_focus_preserves_initial_yaw() {
         orbit_eye(&orbit).distance(eye) < 1e-5,
         "reconstructed orbit eye should match the authored eye position"
     );
+}
+
+#[test]
+fn orbit_input_debug_state_reports_live_inputs_and_target_count() {
+    let debug = orbit_input_debug_state(true, Vec2::new(12.0, -3.0), 2);
+
+    assert!(debug.left_mouse_pressed);
+    assert!(debug.has_mouse_motion);
+    assert_eq!(debug.orbit_entity_count, 2);
+}
+
+#[test]
+fn orbit_input_debug_state_marks_zero_motion_and_missing_targets() {
+    let debug = orbit_input_debug_state(false, Vec2::ZERO, 0);
+
+    assert!(!debug.left_mouse_pressed);
+    assert!(!debug.has_mouse_motion);
+    assert_eq!(debug.orbit_entity_count, 0);
+}
+
+#[test]
+fn should_log_orbit_input_logs_state_transitions_once() {
+    let missing_camera = orbit_input_debug_state(false, Vec2::ZERO, 0);
+
+    assert!(should_log_orbit_input(None, missing_camera));
+    assert!(!should_log_orbit_input(
+        Some(missing_camera),
+        missing_camera
+    ));
+}
+
+#[test]
+fn should_log_orbit_input_always_logs_live_motion() {
+    let dragging = orbit_input_debug_state(true, Vec2::new(8.0, 0.0), 1);
+
+    assert!(should_log_orbit_input(Some(dragging), dragging));
 }
 
 #[test]

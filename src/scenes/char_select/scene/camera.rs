@@ -25,6 +25,13 @@ pub(super) struct CharSelectOrbit {
     pub(super) base_pitch: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct OrbitInputDebugState {
+    pub(super) left_mouse_pressed: bool,
+    pub(super) has_mouse_motion: bool,
+    pub(super) orbit_entity_count: usize,
+}
+
 const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
@@ -190,13 +197,29 @@ pub(super) fn char_select_orbit_camera(
     motion: Res<AccumulatedMouseMotion>,
     options: Res<crate::client_options::CameraOptions>,
     heightmap: Option<Res<TerrainHeightmap>>,
+    mut last_debug_state: Local<Option<OrbitInputDebugState>>,
     mut query: Query<(&mut CharSelectOrbit, &mut Transform)>,
 ) {
-    if !mouse_buttons.pressed(MouseButton::Left) {
+    let delta = motion.delta;
+    let debug_state = orbit_input_debug_state(
+        mouse_buttons.pressed(MouseButton::Left),
+        delta,
+        query.iter_mut().count(),
+    );
+    if should_log_orbit_input(*last_debug_state, debug_state) {
+        info!(
+            left_mouse_pressed = debug_state.left_mouse_pressed,
+            has_mouse_motion = debug_state.has_mouse_motion,
+            orbit_entity_count = debug_state.orbit_entity_count,
+            motion_delta = ?delta,
+            "char-select orbit input"
+        );
+    }
+    *last_debug_state = Some(debug_state);
+    if !debug_state.left_mouse_pressed {
         return;
     }
-    let delta = motion.delta;
-    if delta == Vec2::ZERO {
+    if !debug_state.has_mouse_motion {
         return;
     }
     let orbit_delta = scaled_orbit_delta(delta, options.mouse_sensitivity);
@@ -228,4 +251,23 @@ pub(super) fn update_camera_for_scene(
             p.fov = fov.to_radians();
         }
     }
+}
+
+pub(super) fn orbit_input_debug_state(
+    left_mouse_pressed: bool,
+    delta: Vec2,
+    orbit_entity_count: usize,
+) -> OrbitInputDebugState {
+    OrbitInputDebugState {
+        left_mouse_pressed,
+        has_mouse_motion: delta != Vec2::ZERO,
+        orbit_entity_count,
+    }
+}
+
+pub(super) fn should_log_orbit_input(
+    previous: Option<OrbitInputDebugState>,
+    current: OrbitInputDebugState,
+) -> bool {
+    current.has_mouse_motion || previous != Some(current)
 }
