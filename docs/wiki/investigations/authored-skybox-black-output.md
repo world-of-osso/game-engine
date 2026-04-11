@@ -27,19 +27,28 @@ Measured image output:
 - The black output is not just a bad default skybox choice, because the forced known-good override fails the same way.
 - The failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`.
 
-## Current Suspect
+## Fixed
 
-The strongest current suspect is the `SkyboxM2Material` path.
+The single-texture authored skybox bug is fixed.
+
+Specifically:
+
+- `deathskybox.m2` has single-texture skybox batches with `shader_id=0x0010`
+- the engine now explicitly marks whether a skybox batch actually has a second texture bound
+- the WGSL path now skips `second_texture` sampling and combine logic when that second texture is missing
+
+The current regression tests cover both the CPU material contract and the authored `deathskybox.m2` asset path, so this specific bug should not regress silently.
+
+## Remaining Problem
+
+The remaining black-output bug is not the single-texture case anymore.
 
 Traced batch inputs on 2026-04-11:
 
-- `deathskybox.m2` has single-texture skybox batches with `shader_id=0x0010`
 - `11xp_cloudsky01.m2` is not single-texture at all: it loads 54 batches, all with a real `texture_2_fdid`
 - the `11xp_cloudsky01.m2` batch shader id set is `{0x4014, 0x8012, 0x8016}`
 
-The engine now explicitly marks when a skybox batch does not have a second texture bound, so single-texture `0x0010` batches no longer have to sample an unbound texture.
-
-That did **not** fix `11xp_cloudsky01.m2`, which means the remaining black-output bug is downstream of that single-texture case. The current gap is that the engine still treats the raw M2 `shader_id` as a direct shader opcode. The local reference client resolves some modern M2 shader ids through texture-combiner combo tables instead.
+`11xp_cloudsky01.m2` still renders black, which means the remaining bug is downstream of the single-texture fix. The current gap is that the engine still treats the raw M2 `shader_id` as a direct shader opcode. The local reference client resolves some modern M2 shader ids through texture-combiner combo tables instead.
 
 ## Sources
 
