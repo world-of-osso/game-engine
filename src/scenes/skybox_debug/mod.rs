@@ -24,6 +24,30 @@ pub enum SkyboxDebugOverride {
     SkyboxFileDataId(u32),
 }
 
+#[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SkyboxDebugViewMode {
+    #[default]
+    Default,
+    AuthoredOnlyVerification,
+}
+
+impl SkyboxDebugViewMode {
+    fn clear_color(self) -> Color {
+        match self {
+            Self::Default => SKYBOX_DEBUG_CLEAR_COLOR,
+            Self::AuthoredOnlyVerification => Color::BLACK,
+        }
+    }
+
+    fn shows_procedural_visible_baseline(self) -> bool {
+        matches!(self, Self::Default)
+    }
+
+    fn shows_reference_objects(self) -> bool {
+        matches!(self, Self::Default)
+    }
+}
+
 #[derive(Component)]
 struct SkyboxDebugScene;
 
@@ -80,16 +104,19 @@ struct SkyboxDebugSceneParams<'w, 's> {
     warband: Res<'w, WarbandScenes>,
     selected_scene: Option<Res<'w, SelectedWarbandScene>>,
     override_spec: Option<Res<'w, SkyboxDebugOverride>>,
+    view_mode: Option<Res<'w, SkyboxDebugViewMode>>,
     marker: PhantomData<&'s ()>,
 }
 
 fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
+    let view_mode = skybox_debug_view_mode(&params);
     let setup = build_skybox_debug_setup(&params);
-    initialize_skybox_debug_scene(&mut commands, &mut params, &setup);
+    initialize_skybox_debug_scene(&mut commands, &mut params, &setup, view_mode);
     let depth_probe = spawn_skybox_debug_reference_objects(
         &mut commands,
         &mut params.meshes,
         &mut params.materials,
+        view_mode,
     );
     let Some(spawned) = spawn_debug_skybox(&mut commands, &mut params, &setup) else {
         return;
@@ -104,6 +131,10 @@ fn no_debug_scene_root(query: Query<Entity, With<SkyboxDebugScene>>) -> bool {
 
 fn setup_scene_once(commands: Commands, params: SkyboxDebugSceneParams) {
     setup_scene(commands, params);
+}
+
+fn skybox_debug_view_mode(params: &SkyboxDebugSceneParams<'_, '_>) -> SkyboxDebugViewMode {
+    params.view_mode.as_deref().copied().unwrap_or_default()
 }
 
 fn build_skybox_debug_setup(params: &SkyboxDebugSceneParams<'_, '_>) -> SkyboxDebugSetup {
@@ -132,6 +163,7 @@ fn initialize_skybox_debug_scene(
     commands: &mut Commands,
     params: &mut SkyboxDebugSceneParams<'_, '_>,
     setup: &SkyboxDebugSetup,
+    view_mode: SkyboxDebugViewMode,
 ) {
     let cloud_texture =
         ensure_debug_cloud_texture(commands, &mut params.images, params.cloud_maps.as_deref());
@@ -142,6 +174,7 @@ fn initialize_skybox_debug_scene(
         &mut params.images,
         cloud_texture,
         setup,
+        view_mode,
     );
     spawn_skybox_debug_light(commands);
 }
@@ -180,18 +213,29 @@ fn spawn_debug_scene_environment(
     images: &mut Assets<Image>,
     cloud_texture: Handle<Image>,
     setup: &SkyboxDebugSetup,
+    view_mode: SkyboxDebugViewMode,
 ) -> Entity {
-    insert_debug_scene_environment_resources(commands);
-    let camera = spawn_debug_scene_camera(commands, setup);
-    let dome =
-        crate::sky::spawn_sky_dome_entity(commands, meshes, sky_materials, camera, cloud_texture);
-    commands.entity(dome).insert(SkyboxDebugScene);
+    insert_debug_scene_environment_resources(commands, view_mode);
+    let camera = spawn_debug_scene_camera(commands, setup, view_mode);
+    if view_mode.shows_procedural_visible_baseline() {
+        let dome = crate::sky::spawn_sky_dome_entity(
+            commands,
+            meshes,
+            sky_materials,
+            camera,
+            cloud_texture,
+        );
+        commands.entity(dome).insert(SkyboxDebugScene);
+    }
     insert_debug_scene_env_map(commands, images);
     camera
 }
 
-fn insert_debug_scene_environment_resources(commands: &mut Commands) {
-    commands.insert_resource(ClearColor(SKYBOX_DEBUG_CLEAR_COLOR));
+fn insert_debug_scene_environment_resources(
+    commands: &mut Commands,
+    view_mode: SkyboxDebugViewMode,
+) {
+    commands.insert_resource(ClearColor(view_mode.clear_color()));
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 60.0,
@@ -199,34 +243,50 @@ fn insert_debug_scene_environment_resources(commands: &mut Commands) {
     });
 }
 
-fn spawn_debug_scene_camera(commands: &mut Commands, setup: &SkyboxDebugSetup) -> Entity {
+fn spawn_debug_scene_camera(
+    commands: &mut Commands,
+    setup: &SkyboxDebugSetup,
+    view_mode: SkyboxDebugViewMode,
+) -> Entity {
+    let mut entity = commands.spawn(debug_scene_camera_bundle(setup, view_mode));
+    if view_mode.shows_procedural_visible_baseline() {
+        entity.insert(debug_scene_fog());
+    }
+    entity.id()
+}
+
+fn debug_scene_camera_bundle(
+    setup: &SkyboxDebugSetup,
+    view_mode: SkyboxDebugViewMode,
+) -> impl Bundle {
     let orbit = OrbitCamera::new(setup.focus, 7.5);
-    commands
-        .spawn((
-            Name::new("SkyboxDebugCamera"),
-            SkyboxDebugScene,
-            Camera3d::default(),
-            Camera {
-                clear_color: ClearColorConfig::Custom(SKYBOX_DEBUG_CLEAR_COLOR),
-                ..default()
-            },
-            additive_particle_glow_tonemapping(),
-            Projection::Perspective(PerspectiveProjection {
-                fov: 60.0_f32.to_radians(),
-                ..default()
-            }),
-            DistanceFog {
-                color: SKYBOX_DEBUG_FOG_COLOR,
-                falloff: FogFalloff::Linear {
-                    start: 15.0,
-                    end: 45.0,
-                },
-                ..default()
-            },
-            Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
-            orbit,
-        ))
-        .id()
+    (
+        Name::new("SkyboxDebugCamera"),
+        SkyboxDebugScene,
+        Camera3d::default(),
+        Camera {
+            clear_color: ClearColorConfig::Custom(view_mode.clear_color()),
+            ..default()
+        },
+        additive_particle_glow_tonemapping(),
+        Projection::Perspective(PerspectiveProjection {
+            fov: 60.0_f32.to_radians(),
+            ..default()
+        }),
+        Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
+        orbit,
+    )
+}
+
+fn debug_scene_fog() -> DistanceFog {
+    DistanceFog {
+        color: SKYBOX_DEBUG_FOG_COLOR,
+        falloff: FogFalloff::Linear {
+            start: 15.0,
+            end: 45.0,
+        },
+        ..default()
+    }
 }
 
 fn insert_debug_scene_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
@@ -239,7 +299,20 @@ fn spawn_skybox_debug_reference_objects(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-) -> Entity {
+    view_mode: SkyboxDebugViewMode,
+) -> Option<Entity> {
+    if !view_mode.shows_reference_objects() {
+        return None;
+    }
+    spawn_debug_reference_plane(commands, meshes, materials);
+    Some(spawn_debug_depth_probe(commands, meshes, materials))
+}
+
+fn spawn_debug_reference_plane(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
     commands.spawn((
         Name::new("SkyboxDebugReferencePlane"),
         SkyboxDebugScene,
@@ -252,7 +325,13 @@ fn spawn_skybox_debug_reference_objects(
         })),
         Transform::from_xyz(0.0, 0.05, 0.0),
     ));
+}
 
+fn spawn_debug_depth_probe(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) -> Entity {
     commands
         .spawn((
             Name::new("SkyboxDebugDepthProbe"),
@@ -383,7 +462,7 @@ fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug
 fn insert_skybox_debug_scene_tree(
     commands: &mut Commands,
     spawned: SpawnedSkyboxDebug,
-    depth_probe: Entity,
+    depth_probe: Option<Entity>,
 ) {
     commands.insert_resource(SceneTree {
         root: build_skybox_debug_scene_root(&spawned, depth_probe),
@@ -407,16 +486,19 @@ fn depth_probe_scene_node(entity: Entity) -> SceneNode {
     }
 }
 
-fn build_skybox_debug_scene_root(spawned: &SpawnedSkyboxDebug, depth_probe: Entity) -> SceneNode {
+fn build_skybox_debug_scene_root(
+    spawned: &SpawnedSkyboxDebug,
+    depth_probe: Option<Entity>,
+) -> SceneNode {
+    let mut children = vec![camera_scene_node(), skybox_scene_node(spawned)];
+    if let Some(depth_probe) = depth_probe {
+        children.push(depth_probe_scene_node(depth_probe));
+    }
     SceneNode {
         label: "SkyboxDebugScene".into(),
         entity: None,
         props: NodeProps::Scene,
-        children: vec![
-            camera_scene_node(),
-            skybox_scene_node(spawned),
-            depth_probe_scene_node(depth_probe),
-        ],
+        children,
     }
 }
 
@@ -502,8 +584,8 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 mod tests {
     use super::{
         SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup, SkyboxDebugSkybox,
-        depth_probe_scene_node, resolve_debug_skybox, spawn_debug_scene_environment,
-        sync_skybox_to_camera,
+        SkyboxDebugViewMode, depth_probe_scene_node, resolve_debug_skybox,
+        spawn_debug_scene_environment, spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
     };
     use crate::orbit_camera::OrbitCamera;
     use bevy::ecs::system::RunSystemOnce;
@@ -611,6 +693,7 @@ mod tests {
                     &mut images,
                     cloud_maps.active_handle(),
                     &setup,
+                    SkyboxDebugViewMode::Default,
                 );
             },
         );
@@ -630,5 +713,95 @@ mod tests {
 
         assert_eq!(dome_count, 1);
         assert_eq!(fog_count, 1);
+    }
+
+    #[test]
+    fn verification_mode_skips_debug_reference_objects() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+
+        let probe = app.world_mut().run_system_once(
+            |mut commands: Commands,
+             mut meshes: ResMut<Assets<Mesh>>,
+             mut materials: ResMut<Assets<StandardMaterial>>| {
+                spawn_skybox_debug_reference_objects(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    SkyboxDebugViewMode::AuthoredOnlyVerification,
+                )
+            },
+        );
+
+        assert_eq!(probe.expect("reference object system runs"), None);
+
+        let probe_count = {
+            let world = app.world_mut();
+            let mut query = world.query_filtered::<Entity, With<super::SkyboxDebugDepthProbe>>();
+            query.iter(world).count()
+        };
+        let reference_plane_count = {
+            let world = app.world_mut();
+            let mut query = world.query::<&Name>();
+            query
+                .iter(world)
+                .filter(|name| name.as_str() == "SkyboxDebugReferencePlane")
+                .count()
+        };
+
+        assert_eq!(probe_count, 0);
+        assert_eq!(reference_plane_count, 0);
+    }
+
+    #[test]
+    fn verification_mode_skips_procedural_visible_baseline() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
+        app.init_resource::<Assets<Image>>();
+
+        let _ = app.world_mut().run_system_once(
+            |mut commands: Commands,
+             mut meshes: ResMut<Assets<Mesh>>,
+             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
+             mut images: ResMut<Assets<Image>>| {
+                let cloud_maps =
+                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
+                let setup = SkyboxDebugSetup {
+                    scene: None,
+                    focus: Vec3::new(0.0, 1.0, 0.0),
+                    eye: Vec3::new(0.0, 1.0, 7.5),
+                };
+                spawn_debug_scene_environment(
+                    &mut commands,
+                    &mut meshes,
+                    &mut sky_materials,
+                    &mut images,
+                    cloud_maps.active_handle(),
+                    &setup,
+                    SkyboxDebugViewMode::AuthoredOnlyVerification,
+                );
+            },
+        );
+
+        let dome_count = {
+            let world = app.world_mut();
+            let mut query = world
+                .query_filtered::<Entity, (With<crate::sky::SkyDome>, With<SkyboxDebugScene>)>();
+            query.iter(world).count()
+        };
+        let fog_count = {
+            let world = app.world_mut();
+            let mut query =
+                world.query_filtered::<Entity, (With<Camera3d>, With<DistanceFog>, With<SkyboxDebugScene>)>();
+            query.iter(world).count()
+        };
+        let clear_color = app.world().resource::<ClearColor>().0;
+
+        assert_eq!(dome_count, 0);
+        assert_eq!(fog_count, 0);
+        assert_eq!(clear_color, Color::BLACK);
     }
 }

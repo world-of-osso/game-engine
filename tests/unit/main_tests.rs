@@ -158,6 +158,15 @@ fn parse_skybox_debug_override_rejects_conflicting_flags() {
 }
 
 #[test]
+fn parse_skybox_debug_view_mode_accepts_verification_flag() {
+    let parsed = parse_skybox_debug_view_mode(&args(&["--skybox-verify"]));
+    assert_eq!(
+        parsed,
+        crate::scenes::skybox_debug::SkyboxDebugViewMode::AuthoredOnlyVerification
+    );
+}
+
+#[test]
 fn parse_screen_requires_value() {
     let err =
         parse_state_arg(&args(&["--screen"])).expect_err("missing --screen value should fail");

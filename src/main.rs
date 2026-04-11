@@ -242,6 +242,14 @@ fn parse_skybox_debug_override(
     }
 }
 
+fn parse_skybox_debug_view_mode(args: &[String]) -> scenes::skybox_debug::SkyboxDebugViewMode {
+    if args.iter().any(|arg| arg == "--skybox-verify") {
+        scenes::skybox_debug::SkyboxDebugViewMode::AuthoredOnlyVerification
+    } else {
+        scenes::skybox_debug::SkyboxDebugViewMode::Default
+    }
+}
+
 fn parse_run_args(args: &[String]) -> ParsedArgs {
     let mut parsed = parse_run_args_base(args);
     let preferred_realm = client_options::load_preferred_realm();
@@ -391,43 +399,58 @@ fn insert_startup_resources(
 }
 
 fn insert_screen_resources(app: &mut App, args: &[String]) {
+    insert_skybox_debug_resources(app, args);
+    insert_startup_screen_resources(app, args);
+}
+
+fn insert_skybox_debug_resources(app: &mut App, args: &[String]) {
     match parse_skybox_debug_override(args) {
         Ok(Some(override_spec)) => {
             app.insert_resource(override_spec);
         }
         Ok(None) => {}
-        Err(err) => {
-            eprintln!("{err}");
-            std::process::exit(1);
-        }
+        Err(err) => exit_with_arg_parse_error(&err),
+    };
+    let skybox_view_mode = parse_skybox_debug_view_mode(args);
+    if skybox_view_mode != scenes::skybox_debug::SkyboxDebugViewMode::Default {
+        app.insert_resource(skybox_view_mode);
     }
+}
 
+fn insert_startup_screen_resources(app: &mut App, args: &[String]) {
     match parse_screen_arg(args) {
         Ok(Some(
             screen @ (game_engine::game_state_enum::ScreenArg::CharCreate
             | game_engine::game_state_enum::ScreenArg::CharCreateCustomize),
-        )) => {
-            app.insert_resource(game_state::StartupScreenTarget(screen.into()));
-            if matches!(
-                screen,
-                game_engine::game_state_enum::ScreenArg::CharCreateCustomize
-            ) {
-                app.insert_resource(scenes::char_create::StartupCharCreateMode(
-                    game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
-                ));
-            }
-        }
+        )) => insert_startup_char_create_resources(app, screen),
         Ok(Some(game_engine::game_state_enum::ScreenArg::OptionsMenu)) => {
             app.insert_resource(scenes::game_menu::StartupGameMenuView(
                 game_engine::ui::screens::game_menu_component::GameMenuView::Options,
             ));
         }
         Ok(_) => {}
-        Err(err) => {
-            eprintln!("{err}");
-            std::process::exit(1);
-        }
+        Err(err) => exit_with_arg_parse_error(&err),
     }
+}
+
+fn insert_startup_char_create_resources(
+    app: &mut App,
+    screen: game_engine::game_state_enum::ScreenArg,
+) {
+    app.insert_resource(game_state::StartupScreenTarget(screen.into()));
+    if matches!(
+        screen,
+        game_engine::game_state_enum::ScreenArg::CharCreateCustomize
+    ) {
+        app.insert_resource(scenes::char_create::StartupCharCreateMode(
+            game_engine::ui::screens::char_create_component::CharCreateMode::Customize,
+        ));
+    }
+}
+
+fn exit_with_arg_parse_error(err: &str) -> ! {
+    eprintln!("{err}");
+    std::process::exit(1);
 }
 
 fn handle_app_error(error: bevy::ecs::error::BevyError, ctx: bevy::ecs::error::ErrorContext) {
