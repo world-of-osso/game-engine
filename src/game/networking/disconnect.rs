@@ -77,17 +77,39 @@ fn handle_disconnect_by_state(
         selected_name,
     } = inputs;
     if let Some(notice) = forced_notice {
-        handle_forced_disconnect(
-            state.get(),
-            reconnect,
-            notice,
-            auth_feedback,
-            next_state,
-            commands,
-        );
+        handle_forced_disconnect(state.get(), reconnect, notice, auth_feedback, next_state, commands);
         return;
     }
-    match *state.get() {
+    handle_state_disconnect(
+        state.get(),
+        DisconnectInputs {
+            auth_token,
+            selected,
+            reconnect,
+            selected_name,
+        },
+        auth_feedback,
+        next_state,
+        entity,
+        commands,
+    );
+}
+
+fn handle_state_disconnect(
+    state: &crate::game_state::GameState,
+    inputs: DisconnectInputs<'_, '_, '_, '_>,
+    auth_feedback: &mut ResMut<AuthUiFeedback>,
+    next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
+    entity: Entity,
+    commands: &mut Commands,
+) {
+    let DisconnectInputs {
+        auth_token,
+        selected,
+        reconnect,
+        selected_name,
+    } = inputs;
+    match *state {
         crate::game_state::GameState::CharSelect => {
             handle_charselect_disconnect(auth_token, reconnect, auth_feedback, commands);
         }
@@ -102,7 +124,7 @@ fn handle_disconnect_by_state(
             commands,
         ),
         crate::game_state::GameState::Connecting => handle_disconnect_while_connecting(entity),
-        _ => handle_disconnect_to_login_fallback(state.get(), entity, auth_feedback, next_state),
+        _ => handle_disconnect_to_login_fallback(state, entity, auth_feedback, next_state),
     }
 }
 
