@@ -402,10 +402,15 @@ fn attach_scene_skybox_and_spawn_lighting(
     camera_translation: Vec3,
 ) -> (lighting::CharSelectLightingEntities, std::time::Duration) {
     let sky_light_start = Instant::now();
+    let skybox_translation = selection
+        .placement
+        .as_ref()
+        .map(|placement| placement.bevy_position())
+        .unwrap_or(camera_translation);
     attach_scene_skybox(
         params,
         selection.scene_entry.as_ref(),
-        camera_translation,
+        skybox_translation,
         bg_node,
     );
     let dir = lighting::spawn(
@@ -420,7 +425,7 @@ fn attach_scene_skybox_and_spawn_lighting(
 fn attach_scene_skybox(
     params: &mut CharSelectSceneSetupParams<'_, '_>,
     scene_entry: Option<&WarbandSceneEntry>,
-    camera_translation: Vec3,
+    skybox_translation: Vec3,
     bg_node: &mut SceneNode,
 ) {
     if !should_spawn_authored_char_select_skybox() {
@@ -437,7 +442,7 @@ fn attach_scene_skybox(
             inv_bp: &mut params.assets.inv_bp,
             creature_display_map: &params.creature_display_map,
         };
-        background::spawn_skybox(&mut skybox_ctx, scene_entry, camera_translation)
+        background::spawn_skybox(&mut skybox_ctx, scene_entry, skybox_translation)
     };
     if let Some((entity, path)) = skybox_entity
         .zip(scene_entry.and_then(crate::scenes::char_select::warband::ensure_warband_skybox))
@@ -450,10 +455,7 @@ fn attach_scene_skybox(
 }
 
 fn should_spawn_authored_char_select_skybox() -> bool {
-    // The procedural sky dome is stable in CharSelect. The authored M2 skybox path is still
-    // unproven and currently regresses the scene, so keep it disabled until the dedicated
-    // render-path proof task lands.
-    false
+    true
 }
 
 fn spawn_scene_model(

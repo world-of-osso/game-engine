@@ -210,7 +210,7 @@ fn spawn_resolved_debug_skybox(
     let spawned = m2_scene::spawn_animated_static_skybox_m2_parts(
         &mut ctx,
         &resolved.path,
-        Transform::from_translation(setup.eye),
+        Transform::from_translation(setup.focus),
         None,
     );
     let Some(spawned) = spawned else {
@@ -372,14 +372,14 @@ fn ensure_skybox_fdid(fdid: u32) -> Option<std::path::PathBuf> {
 }
 
 fn sync_skybox_to_camera(
-    camera_query: Query<&Transform, (With<OrbitCamera>, With<SkyboxDebugScene>)>,
+    camera_query: Query<&OrbitCamera, With<SkyboxDebugScene>>,
     mut skybox_query: Query<&mut Transform, (With<SkyboxDebugSkybox>, Without<OrbitCamera>)>,
 ) {
-    let Ok(camera_transform) = camera_query.single() else {
+    let Ok(orbit) = camera_query.single() else {
         return;
     };
     for mut transform in &mut skybox_query {
-        transform.translation = camera_transform.translation;
+        transform.translation = orbit.focus;
     }
 }
 
@@ -389,8 +389,12 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 
 #[cfg(test)]
 mod tests {
-    use super::{SkyboxDebugOverride, depth_probe_scene_node, resolve_debug_skybox};
-    use bevy::prelude::Entity;
+    use super::{
+        SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSkybox, depth_probe_scene_node,
+        resolve_debug_skybox, sync_skybox_to_camera,
+    };
+    use crate::orbit_camera::OrbitCamera;
+    use bevy::prelude::*;
     use game_engine::scene_tree::NodeProps;
 
     #[test]
@@ -436,5 +440,33 @@ mod tests {
             }
             other => panic!("expected object props, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn debug_skybox_sync_uses_orbit_focus_not_camera_translation() {
+        let mut app = App::new();
+        app.add_systems(Update, sync_skybox_to_camera);
+
+        app.world_mut().spawn((
+            SkyboxDebugScene,
+            OrbitCamera::new(Vec3::new(3.0, 4.0, 5.0), 7.5),
+            Transform::from_translation(Vec3::new(30.0, 40.0, 50.0)),
+        ));
+        let skybox = app
+            .world_mut()
+            .spawn((
+                SkyboxDebugScene,
+                SkyboxDebugSkybox,
+                Transform::from_translation(Vec3::ZERO),
+            ))
+            .id();
+
+        app.update();
+
+        let transform = app
+            .world()
+            .get::<Transform>(skybox)
+            .expect("skybox transform");
+        assert_eq!(transform.translation, Vec3::new(3.0, 4.0, 5.0));
     }
 }

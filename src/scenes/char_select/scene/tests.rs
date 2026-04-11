@@ -139,8 +139,8 @@ fn replace_scene_tree_character_node_updates_selected_character_identity() {
 }
 
 #[test]
-fn authored_char_select_skybox_path_stays_disabled_until_proven() {
-    assert!(!should_spawn_authored_char_select_skybox());
+fn authored_char_select_skybox_path_is_enabled() {
+    assert!(should_spawn_authored_char_select_skybox());
 }
 
 #[test]

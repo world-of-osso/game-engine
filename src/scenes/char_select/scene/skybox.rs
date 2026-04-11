@@ -16,16 +16,12 @@ pub(super) struct CharSelectSkyboxSyncParams<'w, 's> {
     creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
     warband: Option<Res<'w, WarbandScenes>>,
     selected_scene: Option<Res<'w, SelectedWarbandScene>>,
-    camera_query: Query<'w, 's, &'static Transform, With<CharSelectOrbit>>,
+    camera_query: Query<'w, 's, &'static CharSelectOrbit>,
     skybox_query: Query<'w, 's, (Entity, &'static CharSelectSkybox, &'static Transform)>,
 }
 
 pub(super) fn sync_char_select_skybox(mut params: CharSelectSkyboxSyncParams) {
-    let Ok(camera_translation) = params
-        .camera_query
-        .single()
-        .map(|transform| transform.translation)
-    else {
+    let Ok(skybox_translation) = params.camera_query.single().map(|orbit| orbit.focus) else {
         return;
     };
     let desired_path = background::find_scene_entry(&params.warband, &params.selected_scene)
@@ -46,11 +42,11 @@ pub(super) fn sync_char_select_skybox(mut params: CharSelectSkyboxSyncParams) {
             inv_bp: &mut params.assets.inv_bp,
             creature_display_map: &params.creature_display_map,
         };
-        background::spawn_skybox(&mut spawn_ctx, scene, camera_translation);
+        background::spawn_skybox(&mut spawn_ctx, scene, skybox_translation);
         return;
     }
 
-    sync_existing_skybox_translation(&mut params, camera_translation);
+    sync_existing_skybox_translation(&mut params, skybox_translation);
 }
 
 fn current_skybox_state(
@@ -84,14 +80,14 @@ fn should_spawn_skybox(
 
 fn sync_existing_skybox_translation(
     params: &mut CharSelectSkyboxSyncParams<'_, '_>,
-    camera_translation: Vec3,
+    skybox_translation: Vec3,
 ) {
     for (entity, _, transform) in params.skybox_query.iter() {
-        if transform.translation != camera_translation {
+        if transform.translation != skybox_translation {
             params
                 .commands
                 .entity(entity)
-                .insert(Transform::from_translation(camera_translation));
+                .insert(Transform::from_translation(skybox_translation));
         }
     }
 }

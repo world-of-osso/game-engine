@@ -193,7 +193,7 @@ pub fn spawn(
 pub fn spawn_skybox(
     ctx: &mut WarbandSkyboxSpawnContext<'_, '_, '_>,
     scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
-    camera_translation: Vec3,
+    skybox_translation: Vec3,
 ) -> Option<Entity> {
     let m2_path = crate::scenes::char_select::warband::ensure_warband_skybox(scene?)?;
     let spawned = {
@@ -212,7 +212,7 @@ pub fn spawn_skybox(
         m2_scene::spawn_animated_static_skybox_m2_parts(
             &mut spawn_ctx,
             &m2_path,
-            Transform::from_translation(camera_translation),
+            Transform::from_translation(skybox_translation),
             None,
         )?
     };
