@@ -265,7 +265,7 @@ fn clicking_race_button_changes_selected_race() {
         .resource_mut::<ButtonInput<MouseButton>>()
         .press(MouseButton::Left);
 
-    // Run the input system
+    // Run the input system directly (bypasses scheduler)
     app.world_mut()
         .run_system_once(input::char_create_mouse_input)
         .expect("char_create_mouse_input should run");
@@ -274,5 +274,77 @@ fn clicking_race_button_changes_selected_race() {
     assert_eq!(
         new_race, 2,
         "clicking Race_2 should change selected_race from 1 to 2, got {new_race}"
+    );
+}
+
+#[test]
+fn clicking_race_button_changes_race_through_full_app_update() {
+    use bevy::app::App;
+    use bevy::input::ButtonInput;
+    use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+    use bevy::window::PrimaryWindow;
+    use game_engine::customization_data::CustomizationDb;
+    use game_engine::ui::automation::UiAutomationPlugin;
+    use game_engine::ui::event::EventBus;
+    use game_engine::ui::plugin::UiState;
+    use game_engine::ui::registry::FrameRegistry;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(StatesPlugin);
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::text::TextPlugin::default());
+    app.add_plugins(UiAutomationPlugin);
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.add_plugins(ui_toolkit::plugin::UiPlugin);
+    app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
+    app.add_message::<bevy::input::keyboard::KeyboardInput>();
+    app.insert_resource(CustomizationDb::load(std::path::Path::new("data")));
+    app.insert_state(crate::game_state::GameState::CharCreate);
+
+    let window_entity = app
+        .world_mut()
+        .spawn((Window::default(), PrimaryWindow))
+        .id();
+    app.update();
+    app.update();
+
+    let initial_race = app.world().resource::<CharCreateState>().selected_race;
+    assert_eq!(initial_race, 1);
+
+    let race_2_center = {
+        let ui = app.world().resource::<UiState>();
+        let race_2_id = ui
+            .registry
+            .get_by_name("Race_2")
+            .expect("Race_2 frame should exist");
+        let layout = ui
+            .registry
+            .get(race_2_id)
+            .and_then(|f| f.layout_rect.as_ref())
+            .expect("Race_2 should have layout");
+        Vec2::new(
+            layout.x + layout.width / 2.0,
+            layout.y + layout.height / 2.0,
+        )
+    };
+
+    app.world_mut()
+        .entity_mut(window_entity)
+        .get_mut::<Window>()
+        .unwrap()
+        .set_cursor_position(Some(race_2_center));
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+
+    // Run through the full scheduler (all systems including UiPlugin)
+    app.update();
+
+    let new_race = app.world().resource::<CharCreateState>().selected_race;
+    assert_eq!(
+        new_race, 2,
+        "clicking Race_2 through full app.update() should change selected_race, got {new_race}"
     );
 }
