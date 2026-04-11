@@ -468,6 +468,88 @@ fn delete_confirmation_modal_enables_confirm_after_phrase_and_timer() {
 }
 
 #[test]
+fn delete_confirmation_modal_keeps_confirm_disabled_until_timer_and_phrase_are_both_satisfied() {
+    let delete_target = Some(DeleteCharacterTarget {
+        character_id: 1,
+        name: "Elara".to_string(),
+    });
+
+    let timer_locked = super::build_delete_confirm_ui_state(
+        &DeleteCharacterConfirmationState {
+            target: delete_target.clone(),
+            typed_text: "DELETE".to_string(),
+            elapsed_secs: super::DELETE_CONFIRM_DELAY_SECS - 0.1,
+        },
+        &CharSelectFocus(None),
+    );
+    assert!(
+        !timer_locked.confirm_enabled,
+        "matching the phrase alone must not enable delete before the timer elapses"
+    );
+    let timer_locked_reg = build_screen_with_delete_confirm(
+        CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            ..Default::default()
+        },
+        timer_locked,
+    );
+    let timer_locked_confirm = timer_locked_reg
+        .get(
+            timer_locked_reg
+                .get_by_name("DeleteCharacterConfirmButton")
+                .expect("confirm button"),
+        )
+        .expect("confirm frame");
+    let Some(WidgetData::Button(timer_locked_button)) = timer_locked_confirm.widget_data.as_ref()
+    else {
+        panic!("DeleteCharacterConfirmButton should be a button");
+    };
+    assert_eq!(timer_locked_button.state, ButtonState::Disabled);
+
+    let phrase_locked = super::build_delete_confirm_ui_state(
+        &DeleteCharacterConfirmationState {
+            target: delete_target,
+            typed_text: "DEL".to_string(),
+            elapsed_secs: super::DELETE_CONFIRM_DELAY_SECS,
+        },
+        &CharSelectFocus(None),
+    );
+    assert!(
+        !phrase_locked.confirm_enabled,
+        "elapsed timer alone must not enable delete without the full phrase"
+    );
+    let phrase_locked_reg = build_screen_with_delete_confirm(
+        CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            ..Default::default()
+        },
+        phrase_locked,
+    );
+    let phrase_locked_confirm = phrase_locked_reg
+        .get(
+            phrase_locked_reg
+                .get_by_name("DeleteCharacterConfirmButton")
+                .expect("confirm button"),
+        )
+        .expect("confirm frame");
+    let Some(WidgetData::Button(phrase_locked_button)) = phrase_locked_confirm.widget_data.as_ref()
+    else {
+        panic!("DeleteCharacterConfirmButton should be a button");
+    };
+    assert_eq!(phrase_locked_button.state, ButtonState::Disabled);
+}
+
+#[test]
 fn character_cards_use_tinted_atlas_textures_without_css_border() {
     let reg = build_screen(CharSelectState {
         characters: vec![CharDisplayEntry {
