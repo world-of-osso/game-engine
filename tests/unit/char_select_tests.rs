@@ -604,6 +604,31 @@ fn find_clicked_action_returns_enter_world_from_button_center() {
 }
 
 #[test]
+fn find_clicked_action_returns_back_from_button_center() {
+    let reg = build_screen_with_real_layout(CharSelectState {
+        characters: vec![CharDisplayEntry {
+            name: "Theron".to_string(),
+            info: "Level 1   Race 1   Class 1".to_string(),
+            status: "Ready".to_string(),
+        }],
+        selected_index: Some(0),
+        selected_name: "Theron".to_string(),
+        ..Default::default()
+    });
+    let center = frame_center(&reg, BACK_BUTTON.0);
+    let ui = UiState {
+        registry: reg,
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    };
+
+    assert_eq!(
+        crate::scenes::char_select::input::find_clicked_action(&ui, center.x, center.y).as_deref(),
+        Some("back")
+    );
+}
+
+#[test]
 fn find_clicked_action_walks_up_from_character_card_text_to_parent_onclick() {
     let reg = build_screen(CharSelectState {
         characters: vec![CharDisplayEntry {
