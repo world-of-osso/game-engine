@@ -31,6 +31,18 @@ fn build_screen(state: CharSelectState) -> FrameRegistry {
     reg
 }
 
+fn build_screen_with_real_layout(state: CharSelectState) -> FrameRegistry {
+    let mut reg = test_registry();
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(state);
+    shared.insert(DeleteConfirmUiState::default());
+    Screen::new(char_select_screen).sync(&shared, &mut reg);
+    let cs = CharSelectUi::resolve(&reg);
+    super::apply_post_setup(&mut reg, &cs);
+    recompute_layouts(&mut reg);
+    reg
+}
+
 fn build_screen_with_campsites(state: CharSelectState, campsite: CampsiteState) -> FrameRegistry {
     let mut reg = test_registry();
     let mut shared = ui_toolkit::screen::SharedContext::new();
@@ -246,6 +258,46 @@ fn character_cards_are_vertically_stacked_with_consistent_gap() {
         card1.y - card0.y,
         card0.height + 10.0,
         "expected char card vertical spacing to match card height plus 10px gap"
+    );
+}
+
+#[test]
+fn char_select_action_buttons_occupy_expected_screen_regions() {
+    let reg = build_screen_with_real_layout(CharSelectState {
+        characters: vec![CharDisplayEntry {
+            name: "Theron".to_string(),
+            info: "Level 60   Race 1   Class 1".to_string(),
+            status: "Ready".to_string(),
+        }],
+        selected_index: Some(0),
+        ..Default::default()
+    });
+
+    let enter_world = frame_center(&reg, ENTER_WORLD_BUTTON.0);
+    let delete_char = frame_center(&reg, DELETE_CHAR_BUTTON.0);
+    let back = frame_center(&reg, BACK_BUTTON.0);
+
+    assert!(
+        (enter_world.x - 960.0).abs() <= 20.0,
+        "expected EnterWorld centered near screen midpoint, got x={}",
+        enter_world.x
+    );
+    assert!(
+        enter_world.y > 540.0,
+        "expected EnterWorld in lower half, got y={}",
+        enter_world.y
+    );
+    assert!(
+        delete_char.x > 960.0 && delete_char.y > 540.0,
+        "expected DeleteChar in lower-right region, got ({}, {})",
+        delete_char.x,
+        delete_char.y
+    );
+    assert!(
+        back.x < 960.0 && back.y > 540.0,
+        "expected BackToLogin in lower-left region, got ({}, {})",
+        back.x,
+        back.y
     );
 }
 
