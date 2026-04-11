@@ -181,14 +181,27 @@ fn spawn_debug_scene_environment(
     cloud_texture: Handle<Image>,
     setup: &SkyboxDebugSetup,
 ) -> Entity {
-    let orbit = OrbitCamera::new(setup.focus, 7.5);
+    insert_debug_scene_environment_resources(commands);
+    let camera = spawn_debug_scene_camera(commands, setup);
+    let dome =
+        crate::sky::spawn_sky_dome_entity(commands, meshes, sky_materials, camera, cloud_texture);
+    commands.entity(dome).insert(SkyboxDebugScene);
+    insert_debug_scene_env_map(commands, images);
+    camera
+}
+
+fn insert_debug_scene_environment_resources(commands: &mut Commands) {
     commands.insert_resource(ClearColor(SKYBOX_DEBUG_CLEAR_COLOR));
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 60.0,
         ..default()
     });
-    let camera = commands
+}
+
+fn spawn_debug_scene_camera(commands: &mut Commands, setup: &SkyboxDebugSetup) -> Entity {
+    let orbit = OrbitCamera::new(setup.focus, 7.5);
+    commands
         .spawn((
             Name::new("SkyboxDebugCamera"),
             SkyboxDebugScene,
@@ -213,15 +226,13 @@ fn spawn_debug_scene_environment(
             Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
             orbit,
         ))
-        .id();
-    let dome =
-        crate::sky::spawn_sky_dome_entity(commands, meshes, sky_materials, camera, cloud_texture);
-    commands.entity(dome).insert(SkyboxDebugScene);
+        .id()
+}
+
+fn insert_debug_scene_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
     let colors = crate::sky_lightdata::default_sky_colors();
-    let cubemap = crate::sky::build_sky_cubemap(&colors);
-    let cubemap_handle = images.add(cubemap);
+    let cubemap_handle = images.add(crate::sky::build_sky_cubemap(&colors));
     commands.insert_resource(crate::sky::SkyEnvMapHandle(cubemap_handle));
-    camera
 }
 
 fn spawn_skybox_debug_reference_objects(
