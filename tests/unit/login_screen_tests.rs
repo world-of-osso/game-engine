@@ -157,6 +157,27 @@ fn exit_button_is_anchored_in_the_bottom_right_quadrant() {
     );
 }
 
+#[test]
+fn realm_selector_is_positioned_between_password_and_connect_button() {
+    let (reg, login) = build_login_registry_with_real_layout();
+    let password = layout_rect(&reg, login.password_input);
+    let realm = layout_rect(&reg, login.realm_button);
+    let connect = layout_rect(&reg, login.connect_button);
+
+    assert!(
+        password.y < realm.y,
+        "expected RealmButton below PasswordInput, got {} <= {}",
+        realm.y,
+        password.y
+    );
+    assert!(
+        realm.y < connect.y,
+        "expected RealmButton above ConnectButton, got {} >= {}",
+        realm.y,
+        connect.y
+    );
+}
+
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
