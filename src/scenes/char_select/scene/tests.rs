@@ -667,6 +667,226 @@ fn debug_and_char_select_orbit_systems_share_mouse_motion_without_consuming_it()
 }
 
 #[test]
+fn clicking_non_selected_character_switches_model_and_highlights_card() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(StatesPlugin);
+    app.add_plugins(UiAutomationPlugin);
+    app.add_plugins(crate::scenes::char_select::CharSelectPlugin);
+    app.add_message::<KeyboardInput>();
+    app.insert_resource(UiState {
+        registry: FrameRegistry::new(0.0, 0.0),
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.init_resource::<scene_types::DisplayedCharacterId>();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
+    app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
+    app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
+    app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
+    app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
+    app.insert_resource(crate::creature_display::CreatureDisplayMap);
+    app.insert_resource(game_engine::customization_data::CustomizationDb::load(
+        std::path::Path::new("data"),
+    ));
+    app.insert_resource(crate::terrain_heightmap::TerrainHeightmap::default());
+
+    let first_id = 6;
+    let second_id = 7;
+    app.insert_resource(CharacterList(vec![
+        character(first_id, 1, 0, "Theron"),
+        character(second_id, 1, 1, "Elara"),
+    ]));
+    app.insert_state(crate::game_state::GameState::CharSelect);
+
+    let mut window = Window::default();
+    window.resolution.set(1280.0, 720.0);
+    let window_entity = app.world_mut().spawn((window, PrimaryWindow)).id();
+
+    app.update();
+    app.world_mut()
+        .run_system_once(
+            |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
+                ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
+                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+            },
+        )
+        .expect("char-select UI layout should resolve");
+
+    app.world_mut()
+        .run_system_once(sync_char_select_model)
+        .expect("initial model sync should run");
+
+    let initial_root = {
+        let world = app.world_mut();
+        let mut root_query = world
+            .query_filtered::<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>();
+        let roots: Vec<_> = root_query
+            .iter(world)
+            .map(|(entity, character)| (entity, character.0))
+            .collect();
+        assert_eq!(roots.len(), 1, "expected one initial model root");
+        assert_eq!(
+            roots[0].1, first_id,
+            "initial model sync should spawn the first selected character"
+        );
+        roots[0].0
+    };
+    let background_entity = app.world_mut().spawn_empty().id();
+    let (initial_race, initial_gender, initial_model) =
+        scene_systems::char_info_strings(&app.world().resource::<CharacterList>(), Some(0));
+    app.insert_resource(scene_tree::build_scene_tree(vec![
+        scene_tree::background_scene_node(background_entity, "ground", 0, vec![]),
+        scene_tree::character_scene_node(
+            initial_root,
+            initial_model,
+            initial_race,
+            initial_gender,
+            Some("Theron".to_string()),
+            Some(first_id),
+        ),
+    ]));
+
+    let second_card_center = {
+        let ui = app.world().resource::<UiState>();
+        let card = ui
+            .registry
+            .get_by_name("CharCard_1")
+            .expect("CharCard_1 frame should exist");
+        let layout = ui
+            .registry
+            .get(card)
+            .and_then(|frame| frame.layout_rect.as_ref())
+            .expect("CharCard_1 should have resolved layout");
+        Vec2::new(
+            layout.x + layout.width * 0.5,
+            layout.y + layout.height * 0.5,
+        )
+    };
+    app.world_mut()
+        .entity_mut(window_entity)
+        .get_mut::<Window>()
+        .expect("primary window")
+        .set_cursor_position(Some(second_card_center));
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::input::char_select_mouse_input)
+        .expect("mouse click dispatch should run");
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::input::dispatch_char_select_action)
+        .expect("char-select action dispatch should run");
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::char_select_update_visuals)
+        .expect("visual sync should run");
+    app.world_mut()
+        .run_system_once(sync_char_select_model)
+        .expect("model sync after click should run");
+
+    assert_eq!(
+        app.world()
+            .resource::<crate::scenes::char_select::SelectedCharIndex>()
+            .0,
+        Some(1),
+        "clicking the second character card should switch SelectedCharIndex"
+    );
+    assert_eq!(
+        app.world()
+            .resource::<scene_types::DisplayedCharacterId>()
+            .0,
+        Some(second_id),
+        "model sync should switch the displayed character id after the click"
+    );
+
+    let displayed_roots = {
+        let world = app.world_mut();
+        let mut root_query = world
+            .query_filtered::<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>();
+        root_query
+            .iter(world)
+            .map(|(entity, character)| (entity, character.0))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        displayed_roots.len(),
+        1,
+        "expected one displayed model root"
+    );
+    assert_eq!(
+        displayed_roots[0].1, second_id,
+        "clicking a different card should respawn the displayed model for that character"
+    );
+
+    let ui = app.world().resource::<UiState>();
+    let selected_name_id = ui
+        .registry
+        .get_by_name("CharSelectCharacterName")
+        .expect("CharSelectCharacterName");
+    let Some(game_engine::ui::frame::WidgetData::FontString(selected_name)) = ui
+        .registry
+        .get(selected_name_id)
+        .and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("CharSelectCharacterName should be a fontstring");
+    };
+    assert_eq!(selected_name.text, "Elara");
+
+    let card0_selected = ui
+        .registry
+        .get(
+            ui.registry
+                .get_by_name("CharCard_0Selected")
+                .expect("CharCard_0Selected"),
+        )
+        .expect("CharCard_0Selected frame");
+    let card1_selected = ui
+        .registry
+        .get(
+            ui.registry
+                .get_by_name("CharCard_1Selected")
+                .expect("CharCard_1Selected"),
+        )
+        .expect("CharCard_1Selected frame");
+    assert!(
+        card0_selected.hidden,
+        "first card highlight should hide after clicking the second card"
+    );
+    assert!(
+        !card1_selected.hidden,
+        "second card highlight should show after clicking the second card"
+    );
+
+    let scene_tree = app.world().resource::<game_engine::scene_tree::SceneTree>();
+    let character_node = scene_tree
+        .root
+        .children
+        .iter()
+        .find(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Character { .. }
+            )
+        })
+        .expect("scene tree should contain a character node");
+    let game_engine::scene_tree::NodeProps::Character {
+        name, character_id, ..
+    } = &character_node.props
+    else {
+        panic!("expected character node");
+    };
+    assert_eq!(character_node.entity, Some(displayed_roots[0].0));
+    assert_eq!(name.as_deref(), Some("Elara"));
+    assert_eq!(*character_id, Some(second_id));
+}
+
+#[test]
 fn char_select_ui_click_handling_does_not_block_orbit_camera() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
