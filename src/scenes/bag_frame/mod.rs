@@ -127,7 +127,7 @@ fn toggle_bag_frame(
     ui: Res<UiState>,
     inventory: Res<InventoryState>,
     mut open: ResMut<BagFrameOpenState>,
-    mut sounds: ResMut<UiSoundQueue>,
+    mut sounds: Option<ResMut<UiSoundQueue>>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
@@ -146,7 +146,7 @@ fn toggle_bag_frame(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    let _ = apply_bag_toggle_action(&action, &inventory, &mut open, &mut sounds);
+    let _ = apply_bag_toggle_action(&action, &inventory, &mut open, sounds.as_deref_mut());
 }
 
 fn build_state(inventory: &InventoryState, open: &BagFrameOpenState) -> BagFrameState {
@@ -178,7 +178,7 @@ fn apply_bag_toggle_action(
     action: &str,
     inventory: &InventoryState,
     open: &mut BagFrameOpenState,
-    sounds: &mut UiSoundQueue,
+    sounds: Option<&mut UiSoundQueue>,
 ) -> bool {
     let Some(bag_index) = parse_bag_toggle_action(action) else {
         return false;
@@ -188,12 +188,14 @@ fn apply_bag_toggle_action(
     }
 
     let opened = open.toggle(bag_index);
-    let sound = if opened {
-        UiSoundKind::BagOpen
-    } else {
-        UiSoundKind::BagClose
-    };
-    queue_ui_sound(sounds, sound);
+    if let Some(sounds) = sounds {
+        let sound = if opened {
+            UiSoundKind::BagOpen
+        } else {
+            UiSoundKind::BagClose
+        };
+        queue_ui_sound(sounds, sound);
+    }
     true
 }
 
@@ -224,14 +226,14 @@ mod tests {
             "bag_toggle:0",
             &inventory,
             &mut open,
-            &mut sounds
+            Some(&mut sounds)
         ));
         assert!(open.is_open(0));
         assert!(apply_bag_toggle_action(
             "bag_toggle:0",
             &inventory,
             &mut open,
-            &mut sounds
+            Some(&mut sounds)
         ));
         assert!(!open.is_open(0));
         assert_eq!(
