@@ -15,6 +15,7 @@ pub struct SkyboxM2Settings {
     pub uv_mode_1: u32,
     pub uv_mode_2: u32,
     pub render_flags: u32,
+    pub has_second_texture: u32,
     pub uv_offset_1: Vec2,
     pub uv_offset_2: Vec2,
 }
@@ -206,6 +207,19 @@ mod tests {
         assert_eq!(material.settings.uv_mode_1, 1);
         assert_eq!(material.settings.uv_mode_2, 1);
         assert_eq!(material.settings.render_flags, 0x01);
+        assert_eq!(material.settings.has_second_texture, 1);
+    }
+
+    #[test]
+    fn skybox_material_marks_missing_second_texture_for_single_texture_batches() {
+        let mut batch = test_batch();
+        batch.shader_id = 0x0010;
+        batch.texture_count = 1;
+
+        let material = skybox_m2_material(None, None, Some(Color::WHITE), &batch);
+
+        assert_eq!(material.settings.shader_id, 0x0010);
+        assert_eq!(material.settings.has_second_texture, 0);
     }
 
     #[test]

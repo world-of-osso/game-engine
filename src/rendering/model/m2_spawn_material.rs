@@ -212,6 +212,7 @@ pub(crate) fn skybox_m2_material(
     color: Option<Color>,
     batch: &asset::m2::M2RenderBatch,
 ) -> SkyboxM2Material {
+    let has_second_texture = second_texture.is_some();
     SkyboxM2Material {
         settings: SkyboxM2Settings {
             color: color
@@ -228,6 +229,7 @@ pub(crate) fn skybox_m2_material(
             uv_mode_1: u32::from(batch.use_uv_2_1),
             uv_mode_2: u32::from(batch.use_uv_2_2),
             render_flags: batch.render_flags as u32,
+            has_second_texture: u32::from(has_second_texture),
             uv_offset_1: Vec2::ZERO,
             uv_offset_2: Vec2::ZERO,
         },
@@ -367,6 +369,69 @@ mod tests {
         assert!(
             !skybox_batch_needs_effect_combine(batch),
             "single-texture skybox shader batch should stay on the base-texture path"
+        );
+    }
+
+    #[test]
+    fn deathskybox_single_texture_shader_batch_keeps_second_texture_disabled() {
+        let path = std::path::Path::new("data/models/skyboxes/deathskybox.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load deathskybox model");
+        let batch = model
+            .batches
+            .iter()
+            .find(|batch| {
+                batch.texture_count == 1
+                    && batch.texture_2_fdid.is_none()
+                    && batch.shader_id == 0x0010
+            })
+            .expect("deathskybox single-texture batch");
+
+        let mut images = Assets::<Image>::default();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
+        let mut skybox_materials = Assets::<SkyboxM2Material>::default();
+
+        let material = load_batch_material(
+            batch,
+            0,
+            &mut images,
+            &mut materials,
+            &mut effect_materials,
+            Some(&mut skybox_materials),
+            true,
+            None,
+        );
+
+        let BatchMaterial::Skybox(handle) = material else {
+            panic!("expected skybox material for deathskybox single-texture batch");
+        };
+        let material = skybox_materials
+            .get(&handle)
+            .expect("skybox material asset");
+        assert_eq!(material.settings.shader_id, 0x0010);
+        assert_eq!(material.settings.has_second_texture, 0);
+    }
+
+    #[test]
+    fn cloudsky_batches_are_two_texture_and_use_unhandled_shader_ids() {
+        let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load 11xp cloud skybox model");
+
+        let shader_ids: std::collections::BTreeSet<_> =
+            model.batches.iter().map(|batch| batch.shader_id).collect();
+        let two_texture_batches = model
+            .batches
+            .iter()
+            .filter(|batch| batch.texture_2_fdid.is_some())
+            .count();
+
+        assert_eq!(model.batches.len(), 54);
+        assert_eq!(two_texture_batches, 54);
+        assert_eq!(
+            shader_ids,
+            std::collections::BTreeSet::from([0x4014, 0x8012, 0x8016])
         );
     }
 

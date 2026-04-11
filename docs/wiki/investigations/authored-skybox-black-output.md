@@ -29,9 +29,17 @@ Measured image output:
 
 ## Current Suspect
 
-The strongest current suspect is the `SkyboxM2Material` path. The shader always samples `second_texture` and applies combine behavior for shader ids like `0x0010` and `0x0011`, while the CPU-side skybox material classification still allows single-texture batches with those shader ids to stay on the base-texture path.
+The strongest current suspect is the `SkyboxM2Material` path.
 
-That mismatch would explain why different authored skyboxes can both resolve correctly and still render to black.
+Traced batch inputs on 2026-04-11:
+
+- `deathskybox.m2` has single-texture skybox batches with `shader_id=0x0010`
+- `11xp_cloudsky01.m2` is not single-texture at all: it loads 54 batches, all with a real `texture_2_fdid`
+- the `11xp_cloudsky01.m2` batch shader id set is `{0x4014, 0x8012, 0x8016}`
+
+The engine now explicitly marks when a skybox batch does not have a second texture bound, so single-texture `0x0010` batches no longer have to sample an unbound texture.
+
+That did **not** fix `11xp_cloudsky01.m2`, which means the remaining black-output bug is downstream of that single-texture case. The current gap is that the engine still treats the raw M2 `shader_id` as a direct shader opcode. The local reference client resolves some modern M2 shader ids through texture-combiner combo tables instead.
 
 ## Sources
 
@@ -40,6 +48,7 @@ That mismatch would explain why different authored skyboxes can both resolve cor
 - [m2_spawn_material.rs](../../../src/rendering/model/m2_spawn_material.rs) — `skybox_batch_needs_effect_combine()` classification
 - [skybox_m2_material.rs](../../../src/rendering/skybox/skybox_m2_material.rs) — authored skybox material path
 - [m2_skybox.wgsl](../../../assets/shaders/m2_skybox.wgsl) — skybox shader combine behavior
+- [wow_client/src/gx/m2.c](/home/osso/Repos/wow_client/src/gx/m2.c) — local reference client showing texture-combiner combo table resolution
 
 ## See Also
 

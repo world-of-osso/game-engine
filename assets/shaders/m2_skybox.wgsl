@@ -9,6 +9,7 @@ struct SkyboxM2Settings {
     uv_mode_1: u32,
     uv_mode_2: u32,
     render_flags: u32,
+    has_second_texture: u32,
     uv_offset_1: vec2<f32>,
     uv_offset_2: vec2<f32>,
 }
@@ -62,8 +63,12 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let uv1 = select(in.uv, in.uv_b, material.uv_mode_1 == 1u) + material.uv_offset_1;
     let uv2 = select(in.uv, in.uv_b, material.uv_mode_2 == 1u) + material.uv_offset_2;
     let texture1 = textureSample(base_texture, base_sampler, uv1);
-    let texture2 = textureSample(second_texture, second_sampler, uv2);
-    var color = combine_textures(texture1, texture2, material.shader_id) * material.color;
+    var color = texture1;
+    if material.has_second_texture != 0u {
+        let texture2 = textureSample(second_texture, second_sampler, uv2);
+        color = combine_textures(texture1, texture2, material.shader_id);
+    }
+    color = color * material.color;
     color.a = clamp(color.a * material.transparency, 0.0, 1.0);
     if color.a < material.alpha_test {
         discard;
