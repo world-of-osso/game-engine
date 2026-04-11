@@ -140,6 +140,23 @@ fn login_form_preserves_expected_vertical_ordering() {
     );
 }
 
+#[test]
+fn exit_button_is_anchored_in_the_bottom_right_quadrant() {
+    let (reg, login) = build_login_registry_with_real_layout();
+    let rect = layout_rect(&reg, login.exit_button);
+    let center_x = rect.x + rect.width * 0.5;
+    let center_y = rect.y + rect.height * 0.5;
+
+    assert!(
+        center_x > 960.0,
+        "expected ExitButton center X in right half, got {center_x}"
+    );
+    assert!(
+        center_y > 540.0,
+        "expected ExitButton center Y in bottom half, got {center_y}"
+    );
+}
+
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
