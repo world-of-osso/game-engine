@@ -319,32 +319,29 @@ pub fn character_scene_node(
             name,
             character_id,
         },
-        children: vec![
-            SceneNode {
-                label: "Slot:Head".into(),
-                entity: None,
-                props: NodeProps::EquipmentSlot {
-                    slot: "Head".into(),
-                    model: None,
-                    anchor: None,
-                    attachment: None,
-                    attachment_anchor: None,
-                },
-                children: vec![],
-            },
-            SceneNode {
-                label: "Slot:MainHand".into(),
-                entity: None,
-                props: NodeProps::EquipmentSlot {
-                    slot: "MainHand".into(),
-                    model: None,
-                    anchor: None,
-                    attachment: None,
-                    attachment_anchor: None,
-                },
-                children: vec![],
-            },
-        ],
+        children: default_character_equipment_slots(),
+    }
+}
+
+fn default_character_equipment_slots() -> Vec<SceneNode> {
+    vec![
+        empty_equipment_slot_node("Head"),
+        empty_equipment_slot_node("MainHand"),
+    ]
+}
+
+fn empty_equipment_slot_node(slot: &str) -> SceneNode {
+    SceneNode {
+        label: format!("Slot:{slot}"),
+        entity: None,
+        props: NodeProps::EquipmentSlot {
+            slot: slot.into(),
+            model: None,
+            anchor: None,
+            attachment: None,
+            attachment_anchor: None,
+        },
+        children: vec![],
     }
 }
 
