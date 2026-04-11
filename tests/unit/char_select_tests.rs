@@ -10,7 +10,10 @@ use game_engine::ui::automation::{UiAutomationAction, UiAutomationPlugin, UiAuto
 use game_engine::ui::event::EventBus;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::registry::FrameRegistry;
-use game_engine::ui::screens::char_select_component::CharSelectAction;
+use game_engine::ui::screens::char_select_component::{
+    BACK_BUTTON, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
+    MENU_BUTTON,
+};
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonState;
 use ui_toolkit::layout::recompute_layouts;
@@ -144,6 +147,33 @@ fn screen_builds_with_characters() {
     });
     assert!(reg.get_by_name("CharCard_0").is_some());
     assert!(reg.get_by_name("CharCard_0Name").is_some());
+}
+
+#[test]
+fn char_select_screen_builds_all_critical_frames() {
+    let reg = build_screen(CharSelectState {
+        characters: vec![CharDisplayEntry {
+            name: "TestChar".to_string(),
+            info: "Level 60   Race 1   Class 1".to_string(),
+            status: "Ready".to_string(),
+        }],
+        selected_index: Some(0),
+        ..Default::default()
+    });
+
+    for frame_name in [
+        "CharacterListCards",
+        "CharCard_0",
+        ENTER_WORLD_BUTTON.0,
+        DELETE_CHAR_BUTTON.0,
+        BACK_BUTTON.0,
+        MENU_BUTTON.0,
+    ] {
+        assert!(
+            reg.get_by_name(frame_name).is_some(),
+            "expected {frame_name} to exist in char select screen"
+        );
+    }
 }
 
 #[test]
