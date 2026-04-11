@@ -94,7 +94,7 @@ pub fn resolve_batch_fdid_and_overlays(
     unit: &M2TextureUnit,
     tex: &TextureTables<'_>,
     is_hd: bool,
-) -> (Option<u32>, Option<u32>, Vec<TextureOverlay>) {
+) -> (Option<u32>, Option<u32>, Vec<u32>, Vec<TextureOverlay>) {
     let fdid = resolve_batch_texture(
         unit,
         tex.tex_lookup,
@@ -116,5 +116,18 @@ pub fn resolve_batch_fdid_and_overlays(
     } else {
         None
     };
-    (fdid, texture_2_fdid, Vec::new())
+    let extra_texture_fdids = (2..unit.texture_count)
+        .filter_map(|offset| {
+            resolve_batch_texture_at_offset(
+                unit,
+                tex.tex_lookup,
+                tex.tex_types,
+                tex.txid,
+                is_hd,
+                tex.skin_fdids,
+                offset,
+            )
+        })
+        .collect();
+    (fdid, texture_2_fdid, extra_texture_fdids, Vec::new())
 }

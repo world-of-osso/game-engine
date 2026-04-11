@@ -34,6 +34,8 @@ pub(super) fn load_batch_material(
             return BatchMaterial::Skybox(materials.add(skybox_m2_material(
                 None,
                 None,
+                None,
+                None,
                 Some(PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()]),
                 batch,
             )));
@@ -135,18 +137,96 @@ fn try_load_skybox_material(
             .map_err(|e| eprintln!("{e}"))
             .ok()?
     };
-    let second_texture = batch
-        .texture_2_fdid
-        .and_then(|second_fdid| load_repeat_texture(second_fdid, texture_dir, images));
+    let second_texture = if advanced_batch {
+        batch
+            .texture_2_fdid
+            .and_then(|second_fdid| load_repeat_texture(second_fdid, texture_dir, images))
+    } else {
+        None
+    };
+    let third_texture = if advanced_batch {
+        batch
+            .extra_texture_fdids
+            .first()
+            .and_then(|fdid| load_repeat_texture(*fdid, texture_dir, images))
+    } else {
+        None
+    };
+    let fourth_texture = if advanced_batch {
+        batch
+            .extra_texture_fdids
+            .get(1)
+            .and_then(|fdid| load_repeat_texture(*fdid, texture_dir, images))
+    } else {
+        None
+    };
     Some(materials.add(skybox_m2_material(
         Some(base_texture),
         second_texture,
+        third_texture,
+        fourth_texture,
         color,
         batch,
     )))
 }
 
+fn skybox_shader_supports_runtime_combine(shader_id: u16) -> bool {
+    matches!(
+        shader_id,
+        0x0010 | 0x0011 | 0x4014 | 0x4016 | 0x8001 | 0x8002 | 0x8003 | 0x8012 | 0x8015 | 0x8016
+    )
+}
+
+const SKYBOX_SINGLE_TEXTURE_FRAGMENT_MODES: [u16; 6] = [0x1, 0x2, 0x3, 0x4, 0x5, 0x6];
+const SKYBOX_TWO_TEXTURE_FRAGMENT_MODES: [[u16; 6]; 6] = [
+    [0x7, 0x8, 0x9, 0xA, 0xB, 0xC],
+    [0xD, 0xE, 0xF, 0x10, 0x11, 0x12],
+    [0x13, 0x14, 0x15, 0x16, 0x17, 0x18],
+    [0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E],
+    [0x1F, 0x20, 0x21, 0x22, 0x23, 0x24],
+    [0x1F, 0x20, 0x21, 0x22, 0x23, 0x24],
+];
+const SKYBOX_STATIC_FRAGMENT_MODES: [usize; 7] = [0, 1, 1, 1, 1, 5, 5];
+
+fn static_fragment_mode_for_blend(blend_mode: u16) -> usize {
+    SKYBOX_STATIC_FRAGMENT_MODES
+        .get(blend_mode as usize)
+        .copied()
+        .unwrap_or(1)
+}
+
+fn resolve_skybox_combine_mode(batch: &asset::m2::M2RenderBatch) -> u32 {
+    if batch.uses_texture_combiner_combos || (batch.shader_id & 0x8000) != 0 {
+        return batch.shader_id as u32;
+    }
+    let static_mode = static_fragment_mode_for_blend(batch.blend_mode);
+    if batch.texture_count > 1 {
+        SKYBOX_TWO_TEXTURE_FRAGMENT_MODES[static_mode][static_mode] as u32
+    } else {
+        SKYBOX_SINGLE_TEXTURE_FRAGMENT_MODES[static_mode] as u32
+    }
+}
+
+fn resolve_skybox_uv_modes(batch: &asset::m2::M2RenderBatch) -> [u32; 4] {
+    match batch.shader_id {
+        0x8012 => [0, 0, 0, 0],
+        0x8016 => [0, 0, 0, 1],
+        _ => [
+            u32::from(batch.use_uv_2_1),
+            u32::from(batch.use_uv_2_2),
+            0,
+            0,
+        ],
+    }
+}
+
 fn skybox_batch_needs_effect_combine(batch: &asset::m2::M2RenderBatch) -> bool {
+    if batch.texture_count > 1 {
+        return true;
+    }
+    if !skybox_shader_supports_runtime_combine(batch.shader_id) {
+        return false;
+    }
     let uses_multitexture_shader = batch.texture_count > 1 && batch.shader_id != 0;
     batch.texture_2_fdid.is_some()
         || batch.texture_count > 1
@@ -209,10 +289,19 @@ pub(super) fn m2_material(
 pub(crate) fn skybox_m2_material(
     texture: Option<Handle<Image>>,
     second_texture: Option<Handle<Image>>,
+    third_texture: Option<Handle<Image>>,
+    fourth_texture: Option<Handle<Image>>,
     color: Option<Color>,
     batch: &asset::m2::M2RenderBatch,
 ) -> SkyboxM2Material {
     let has_second_texture = second_texture.is_some();
+    let has_third_texture = third_texture.is_some();
+    let has_fourth_texture = fourth_texture.is_some();
+    let uv_modes = resolve_skybox_uv_modes(batch);
+    let base_texture = texture.unwrap_or_default();
+    let second_texture = second_texture.unwrap_or_else(|| base_texture.clone());
+    let third_texture = third_texture.unwrap_or_else(|| base_texture.clone());
+    let fourth_texture = fourth_texture.unwrap_or_else(|| base_texture.clone());
     SkyboxM2Material {
         settings: SkyboxM2Settings {
             color: color
@@ -224,17 +313,23 @@ pub(crate) fn skybox_m2_material(
             // Authored skybox textures use low alpha values for soft cloud edges.
             // Applying the normal M2 alpha-test thresholds discards the entire dome.
             alpha_test: 0.0,
-            shader_id: batch.shader_id as u32,
+            combine_mode: resolve_skybox_combine_mode(batch),
             blend_mode: batch.blend_mode as u32,
-            uv_mode_1: u32::from(batch.use_uv_2_1),
-            uv_mode_2: u32::from(batch.use_uv_2_2),
+            uv_mode_1: uv_modes[0],
+            uv_mode_2: uv_modes[1],
+            uv_mode_3: uv_modes[2],
+            uv_mode_4: uv_modes[3],
             render_flags: batch.render_flags as u32,
             has_second_texture: u32::from(has_second_texture),
+            has_third_texture: u32::from(has_third_texture),
+            has_fourth_texture: u32::from(has_fourth_texture),
             uv_offset_1: Vec2::ZERO,
             uv_offset_2: Vec2::ZERO,
         },
-        base_texture: texture.unwrap_or_default(),
-        second_texture: second_texture.unwrap_or_default(),
+        base_texture,
+        second_texture,
+        third_texture,
+        fourth_texture,
         blend_mode: batch.blend_mode,
         texture_anim_1: batch.texture_anim.clone(),
         texture_anim_2: batch.texture_anim_2.clone(),
@@ -265,6 +360,7 @@ mod tests {
             mesh,
             texture_fdid: None,
             texture_2_fdid: None,
+            extra_texture_fdids: Vec::new(),
             texture_type: None,
             overlays: Vec::new(),
             render_flags: 0,
@@ -277,6 +373,7 @@ mod tests {
             use_env_map_2: false,
             shader_id: 0,
             texture_count: 0,
+            uses_texture_combiner_combos: false,
             mesh_part_id: 0,
         };
         assert!((ground_offset_y(&[batch]) - 0.35).abs() < 0.001);
@@ -303,6 +400,7 @@ mod tests {
             ),
             texture_fdid: None,
             texture_2_fdid: None,
+            extra_texture_fdids: Vec::new(),
             texture_type: None,
             overlays: Vec::new(),
             render_flags: 0,
@@ -315,6 +413,7 @@ mod tests {
             use_env_map_2: false,
             shader_id: 0,
             texture_count: 0,
+            uses_texture_combiner_combos: false,
             mesh_part_id: 0,
         };
 
@@ -409,7 +508,7 @@ mod tests {
         let material = skybox_materials
             .get(&handle)
             .expect("skybox material asset");
-        assert_eq!(material.settings.shader_id, 0x0010);
+        assert_eq!(material.settings.combine_mode, 0x2);
         assert_eq!(material.settings.has_second_texture, 0);
     }
 
@@ -490,6 +589,83 @@ mod tests {
     }
 
     #[test]
+    fn cloudsky_modern_shader_batches_keep_runtime_second_texture_sampling() {
+        let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load 11xp cloud skybox model");
+        let batch = model
+            .batches
+            .iter()
+            .find(|batch| {
+                batch.texture_2_fdid.is_some() && matches!(batch.shader_id, 0x8012 | 0x8016)
+            })
+            .expect("cloud skybox batch with supported modern shader id");
+
+        let mut images = Assets::<Image>::default();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
+        let mut skybox_materials = Assets::<SkyboxM2Material>::default();
+
+        let material = load_batch_material(
+            batch,
+            0,
+            &mut images,
+            &mut materials,
+            &mut effect_materials,
+            Some(&mut skybox_materials),
+            true,
+            None,
+        );
+
+        let BatchMaterial::Skybox(handle) = material else {
+            panic!("expected skybox material for cloud skybox batch");
+        };
+        let material = skybox_materials
+            .get(&handle)
+            .expect("skybox material asset");
+        assert_eq!(
+            material.settings.has_second_texture, 1,
+            "cloud skybox batch with supported modern shader id should keep second-texture sampling enabled"
+        );
+    }
+
+    #[test]
+    fn cloudsky_advanced_effect_batches_require_more_than_two_texture_stages() {
+        let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load 11xp cloud skybox model");
+        let advanced_batch = model
+            .batches
+            .iter()
+            .find(|batch| batch.shader_id == 0x8012)
+            .expect("cloud skybox advanced-effect batch");
+
+        assert!(
+            !advanced_batch.uses_texture_combiner_combos,
+            "0x8012 cloud skybox batches are direct shader effects, not combiner-table batches"
+        );
+        assert!(
+            advanced_batch.texture_count >= 3,
+            "0x8012 cloud skybox batches need at least three texture stages"
+        );
+    }
+
+    #[test]
+    fn cloudsky_masked_crossfade_batches_preserve_fourth_stage_texture() {
+        let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load 11xp cloud skybox model");
+        let masked_batch = model
+            .batches
+            .iter()
+            .find(|batch| batch.shader_id == 0x8016)
+            .expect("cloud skybox masked crossfade batch");
+
+        assert_eq!(masked_batch.texture_count, 4);
+        assert_eq!(masked_batch.extra_texture_fdids.len(), 2);
+    }
+
+    #[test]
     fn authored_skybox_models_reference_locally_available_textures() {
         for skybox_path in [
             std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2"),
@@ -544,8 +720,13 @@ mod tests {
             );
             for (index, batch) in model.batches.iter().take(5).enumerate() {
                 eprintln!(
-                    "  batch[{index}] tex1={:?} tex2={:?} shader_id=0x{:04x} blend_mode={}",
-                    batch.texture_fdid, batch.texture_2_fdid, batch.shader_id, batch.blend_mode
+                    "  batch[{index}] tex1={:?} tex2={:?} extras={:?} texture_count={} shader_id=0x{:04x} blend_mode={}",
+                    batch.texture_fdid,
+                    batch.texture_2_fdid,
+                    batch.extra_texture_fdids,
+                    batch.texture_count,
+                    batch.shader_id,
+                    batch.blend_mode
                 );
             }
 

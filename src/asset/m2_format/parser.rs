@@ -336,6 +336,10 @@ pub(crate) fn parse_texture_lookup(md20: &[u8]) -> Result<Vec<u16>, String> {
     )
 }
 
+pub(crate) fn parse_model_flags(md20: &[u8]) -> Result<u32, String> {
+    read_u32(md20, super::MD20_FLAGS_OFFSET)
+}
+
 pub(crate) fn parse_texture_unit_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
     read_m2_array(
         md20,

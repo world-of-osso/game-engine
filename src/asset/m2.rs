@@ -16,9 +16,10 @@ pub use super::m2_format::ensure_primary_skin_path;
 pub(crate) use super::m2_format::parse_skin_full;
 pub(crate) use super::m2_format::{
     M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
-    load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_texture_lookup,
-    parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
-    parse_uv_animation_lookup, parse_vertices, read_u32, resolve_indices,
+    load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_model_flags,
+    parse_texture_lookup, parse_texture_types, parse_texture_unit_lookup,
+    parse_transparency_lookup, parse_txid, parse_uv_animation_lookup, parse_vertices, read_u32,
+    resolve_indices,
 };
 pub use m2_loader::{load_m2, load_m2_uncached, load_skybox_m2, load_skybox_m2_uncached};
 
@@ -48,6 +49,7 @@ pub struct M2RenderBatch {
     pub mesh: Mesh,
     pub texture_fdid: Option<u32>,
     pub texture_2_fdid: Option<u32>,
+    pub extra_texture_fdids: Vec<u32>,
     pub texture_type: Option<u32>,
     pub overlays: Vec<TextureOverlay>,
     pub render_flags: u16,
@@ -60,6 +62,7 @@ pub struct M2RenderBatch {
     pub use_env_map_2: bool,
     pub shader_id: u16,
     pub texture_count: u16,
+    pub uses_texture_combiner_combos: bool,
     /// M2 submesh mesh_part_id (geoset group*100 + variant). Used for geoset visibility.
     pub mesh_part_id: u16,
 }
@@ -212,6 +215,7 @@ pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn mesh_has_meaningful_uv1(mesh: &Mesh) -> bool {
     let Some(VertexAttributeValues::Float32x2(uv0)) = mesh.attribute(Mesh::ATTRIBUTE_UV_0) else {
         return false;
@@ -267,6 +271,7 @@ pub(crate) fn build_render_batches(
             texture_animations: &parsed.texture_animations,
             uv_animation_lookup: &parsed.uv_animation_lookup,
             texture_unit_lookup: &parsed.texture_unit_lookup,
+            uses_texture_combiner_combos: parsed.uses_texture_combiner_combos,
             has_bones,
             is_hd: chunks.skid.is_some(),
             keep_zero_opacity_batches,
@@ -294,6 +299,7 @@ struct ParsedBatchInputs {
     tex_lookup: Vec<u16>,
     texture_unit_lookup: Vec<i16>,
     materials: Vec<M2Material>,
+    uses_texture_combiner_combos: bool,
     color_tracks: Vec<super::m2_anim::ColorAnimTracks>,
     transparencies: Vec<super::m2_anim::AnimTrack<i16>>,
     transparency_lookup: Vec<i16>,
@@ -308,6 +314,7 @@ fn parse_batch_inputs(md20: &[u8]) -> Result<ParsedBatchInputs, String> {
         tex_lookup: parse_texture_lookup(md20)?,
         texture_unit_lookup: parse_texture_unit_lookup(md20)?,
         materials: parse_materials(md20)?,
+        uses_texture_combiner_combos: parse_model_flags(md20)? & 0x8 != 0,
         color_tracks: super::m2_anim::parse_color_tracks(md20)?,
         transparencies: super::m2_anim::parse_transparency_tracks(md20)?,
         transparency_lookup: parse_transparency_lookup(md20)?,

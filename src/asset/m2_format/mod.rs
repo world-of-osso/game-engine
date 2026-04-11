@@ -19,12 +19,14 @@ pub use parser::ensure_primary_skin_path;
 pub(crate) use parser::parse_skin_full;
 pub(crate) use parser::{
     M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
-    load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_texture_lookup,
-    parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
-    parse_uv_animation_lookup, parse_vertices, resolve_indices,
+    load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_model_flags,
+    parse_texture_lookup, parse_texture_types, parse_texture_unit_lookup,
+    parse_transparency_lookup, parse_txid, parse_uv_animation_lookup, parse_vertices,
+    resolve_indices,
 };
 
 pub(crate) const MD20_VERSION_OFFSET: usize = 0x04;
+pub(crate) const MD20_FLAGS_OFFSET: usize = 0x10;
 pub(crate) const MD20_GLOBAL_SEQUENCES_COUNT_OFFSET: usize = 0x14;
 pub(crate) const MD20_SEQUENCES_COUNT_OFFSET: usize = 0x1C;
 pub(crate) const MD20_BONES_COUNT_OFFSET: usize = 0x2C;
