@@ -843,6 +843,114 @@ fn sync_char_select_model_leaves_camera_unchanged_when_character_is_already_disp
 }
 
 #[test]
+fn sync_char_select_model_respawns_when_selected_character_changes() {
+    let mut app = App::new();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
+    app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
+    app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
+    app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
+    app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
+    app.insert_resource(crate::creature_display::CreatureDisplayMap);
+    app.insert_resource(game_engine::customization_data::CustomizationDb::load(
+        std::path::Path::new("data"),
+    ));
+    app.insert_resource(crate::terrain_heightmap::TerrainHeightmap::default());
+
+    let first_id = 42;
+    let second_id = 77;
+    app.insert_resource(CharacterList(vec![
+        character(first_id, 1, 0, "Elara"),
+        character(second_id, 1, 1, "Theron"),
+    ]));
+    app.insert_resource(crate::scenes::char_select::SelectedCharIndex(Some(0)));
+    app.insert_resource(scene_types::DisplayedCharacterId(None));
+
+    app.world_mut()
+        .run_system_once(sync_char_select_model)
+        .expect("initial model sync should run");
+
+    let (first_wrapper, first_root) = {
+        let world = app.world_mut();
+        let mut wrapper_query = world.query_filtered::<Entity, With<CharSelectModelWrapper>>();
+        let wrappers: Vec<_> = wrapper_query.iter(world).collect();
+        assert_eq!(wrappers.len(), 1, "expected one char-select model wrapper");
+
+        let mut root_query = world
+            .query_filtered::<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>();
+        let roots: Vec<_> = root_query
+            .iter(world)
+            .map(|(entity, character)| (entity, character.0))
+            .collect();
+        assert_eq!(roots.len(), 1, "expected one char-select model root");
+        assert_eq!(
+            roots[0].1, first_id,
+            "initial sync should spawn the first character"
+        );
+
+        (wrappers[0], roots[0].0)
+    };
+
+    app.world_mut()
+        .resource_mut::<crate::scenes::char_select::SelectedCharIndex>()
+        .0 = Some(1);
+    app.world_mut()
+        .run_system_once(sync_char_select_model)
+        .expect("respawn model sync should run");
+
+    assert!(
+        app.world().get_entity(first_wrapper).is_err(),
+        "changing selection should despawn the old model wrapper"
+    );
+    assert!(
+        app.world().get_entity(first_root).is_err(),
+        "changing selection should despawn the old model root"
+    );
+
+    let new_root = {
+        let world = app.world_mut();
+        let mut wrapper_query = world.query_filtered::<Entity, With<CharSelectModelWrapper>>();
+        let wrappers: Vec<_> = wrapper_query.iter(world).collect();
+        assert_eq!(
+            wrappers.len(),
+            1,
+            "respawn should leave exactly one char-select model wrapper"
+        );
+
+        let mut root_query = world
+            .query_filtered::<(Entity, &CharSelectModelCharacter), With<CharSelectModelRoot>>();
+        let roots: Vec<_> = root_query
+            .iter(world)
+            .map(|(entity, character)| (entity, character.0))
+            .collect();
+        assert_eq!(
+            roots.len(),
+            1,
+            "respawn should leave exactly one model root"
+        );
+        assert_eq!(
+            roots[0].1, second_id,
+            "respawned model root should belong to the newly selected character"
+        );
+        roots[0].0
+    };
+
+    let displayed = app.world().resource::<scene_types::DisplayedCharacterId>();
+    assert_eq!(
+        displayed.0,
+        Some(second_id),
+        "displayed character id should update to the newly selected character"
+    );
+    assert_ne!(
+        new_root, first_root,
+        "changing selection should spawn a new model root entity"
+    );
+}
+
+#[test]
 fn model_sync_debug_state_skips_respawn_when_displayed_matches_selected_character() {
     let debug_state = model_sync_debug_state(Some(42), Some(42));
 
