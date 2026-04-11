@@ -70,25 +70,45 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(state);
+    init_disconnect_test_resources(&mut app);
+    insert_disconnect_test_session_state(&mut app);
+    insert_disconnect_test_ui_state(&mut app);
+    app.add_systems(Update, flush_pending_network_world_reset);
+    app.add_systems(Last, advance_network_update_frame);
+    app.add_observer(handle_client_disconnected);
+    app
+}
+
+fn init_disconnect_test_resources(app: &mut App) {
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
     app.init_resource::<PendingForcedDisconnect>();
     app.init_resource::<PendingNetworkWorldReset>();
     app.init_resource::<NetworkUpdateFrame>();
+    app.init_resource::<CurrentZone>();
+    app.init_resource::<LocalAliveState>();
+    app.init_resource::<ChatLog>();
+    app.init_resource::<ChatInput>();
+}
+
+fn insert_disconnect_test_session_state(app: &mut App) {
     app.insert_resource(AuthToken(Some("saved-token".to_string())));
     app.insert_resource(selected_with_name("Theron"));
     app.insert_resource(game_engine::targeting::CurrentTarget(Some(
         Entity::from_bits(77),
     )));
-    app.init_resource::<CurrentZone>();
-    app.init_resource::<LocalAliveState>();
-    app.init_resource::<ChatLog>();
-    app.init_resource::<ChatInput>();
+}
+
+fn insert_disconnect_test_ui_state(app: &mut App) {
     app.insert_resource(WhisperState {
         reply_target: Some("StaleWhisper".into()),
         recent_targets: vec!["StaleWhisper".into()],
         max_recent: 10,
     });
+    app.insert_resource(stale_trade_client_state());
+}
+
+fn stale_trade_client_state() -> game_engine::trade::TradeClientState {
     let mut trade_state = game_engine::trade::TradeClientState::default();
     trade_state.phase = Some(shared::protocol::TradePhase::Open);
     trade_state.trade = game_engine::trade_data::TradeState {
@@ -96,11 +116,7 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
         ..Default::default()
     };
     trade_state.last_message = Some("stale trade".into());
-    app.insert_resource(trade_state);
-    app.add_systems(Update, flush_pending_network_world_reset);
-    app.add_systems(Last, advance_network_update_frame);
-    app.add_observer(handle_client_disconnected);
-    app
+    trade_state
 }
 
 fn inworld_disconnect_base_app() -> App {
