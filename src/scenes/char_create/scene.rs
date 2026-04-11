@@ -872,6 +872,55 @@ mod tests {
     }
 
     #[test]
+    fn geosets_visible_after_two_updates_with_full_plugin() {
+        use game_engine::asset::char_texture::CharTextureData;
+
+        let mut app = App::new();
+        app.add_plugins(bevy::MinimalPlugins);
+        app.add_plugins(bevy::transform::TransformPlugin);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+        app.insert_resource(CustomizationDb::load(Path::new("data")));
+        app.insert_resource(CharTextureData::load(Path::new("data")));
+        app.insert_resource(bevy::input::ButtonInput::<bevy::prelude::MouseButton>::default());
+        app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
+        app.insert_resource(crate::client_options::CameraOptions::default());
+        app.add_plugins(CharCreateScenePlugin);
+        app.insert_state(crate::game_state::GameState::CharCreate);
+
+        // Frame 1: OnEnter fires setup_scene, commands queued
+        app.update();
+        // Insert CharCreateState (normally from CharCreatePlugin's OnEnter)
+        app.insert_resource(CharCreateState::default());
+        // Frame 2: commands applied, sync_appearance runs
+        app.update();
+        // Frame 3: any deferred work
+        app.update();
+
+        let visible_geosets = app
+            .world_mut()
+            .query::<(&crate::m2_spawn::GeosetMesh, &Visibility)>()
+            .iter(app.world())
+            .filter(|(_, vis)| **vis == Visibility::Inherited)
+            .count();
+        let total_geosets = app
+            .world_mut()
+            .query::<&crate::m2_spawn::GeosetMesh>()
+            .iter(app.world())
+            .count();
+
+        assert!(
+            visible_geosets > 0,
+            "after setup + 3 updates, geosets should be visible, got 0/{total_geosets}"
+        );
+    }
+
+    #[test]
     fn sync_appearance_unhides_geoset_meshes() {
         use game_engine::asset::char_texture::CharTextureData;
 
