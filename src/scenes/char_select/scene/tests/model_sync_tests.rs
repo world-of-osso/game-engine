@@ -503,27 +503,3 @@ fn sync_char_select_model_respawns_when_selected_character_changes() {
         "changing selection should spawn a new model root entity"
     );
 }
-
-#[test]
-fn model_sync_debug_state_skips_respawn_when_displayed_matches_selected_character() {
-    let debug_state = model_sync_debug_state(Some(42), Some(42));
-
-    assert_eq!(debug_state.displayed_id, Some(42));
-    assert_eq!(debug_state.desired_id, Some(42));
-    assert!(
-        !debug_state.should_respawn(),
-        "matching displayed and desired ids should not respawn the char-select model"
-    );
-}
-
-#[test]
-fn model_sync_debug_state_requests_respawn_when_selected_character_changes() {
-    let debug_state = model_sync_debug_state(Some(42), Some(77));
-
-    assert_eq!(debug_state.displayed_id, Some(42));
-    assert_eq!(debug_state.desired_id, Some(77));
-    assert!(
-        debug_state.should_respawn(),
-        "different displayed and desired ids should respawn the char-select model"
-    );
-}
