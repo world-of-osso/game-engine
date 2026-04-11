@@ -75,7 +75,10 @@ pub(crate) fn take_screenshot(
 }
 
 fn save_screenshot(img: &bevy::image::Image, output: &PathBuf) {
-    let webp_data = match game_engine::screenshot::encode_webp(img, 15.0) {
+    let webp_data = match game_engine::screenshot::encode_webp(
+        img,
+        game_engine::screenshot::DEFAULT_WEBP_QUALITY,
+    ) {
         Ok(data) => data,
         Err(err) => {
             eprintln!("{err}");

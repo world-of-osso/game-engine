@@ -3,6 +3,8 @@ use std::borrow::Cow;
 use bevy::image::Image;
 use bevy::render::render_resource::TextureFormat;
 
+pub const DEFAULT_WEBP_QUALITY: f32 = 65.0;
+
 pub fn encode_webp(img: &Image, quality: f32) -> Result<Vec<u8>, String> {
     let rgba = rgba_bytes(img)?;
     let size = img.size();

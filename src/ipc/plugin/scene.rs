@@ -93,7 +93,7 @@ fn on_screenshot_captured(
 }
 
 fn encode_screenshot(img: &bevy::image::Image) -> Response {
-    match crate::screenshot::encode_webp(img, 15.0) {
+    match crate::screenshot::encode_webp(img, crate::screenshot::DEFAULT_WEBP_QUALITY) {
         Ok(webp_data) => Response::Screenshot(webp_data),
         Err(err) => Response::Error(err),
     }
