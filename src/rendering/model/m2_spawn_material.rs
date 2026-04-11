@@ -310,45 +310,82 @@ pub(crate) fn skybox_m2_material(
     color: Option<Color>,
     batch: &asset::m2::M2RenderBatch,
 ) -> SkyboxM2Material {
+    let stage_textures =
+        resolve_skybox_stage_textures(texture, second_texture, third_texture, fourth_texture);
+    SkyboxM2Material {
+        settings: build_skybox_material_settings(color, batch, &stage_textures),
+        base_texture: stage_textures.base_texture,
+        second_texture: stage_textures.second_texture,
+        third_texture: stage_textures.third_texture,
+        fourth_texture: stage_textures.fourth_texture,
+        blend_mode: batch.blend_mode,
+        texture_anim_1: batch.texture_anim.clone(),
+        texture_anim_2: batch.texture_anim_2.clone(),
+    }
+}
+
+struct ResolvedSkyboxStageTextures {
+    base_texture: Handle<Image>,
+    second_texture: Handle<Image>,
+    third_texture: Handle<Image>,
+    fourth_texture: Handle<Image>,
+    has_second_texture: bool,
+    has_third_texture: bool,
+    has_fourth_texture: bool,
+}
+
+fn resolve_skybox_stage_textures(
+    texture: Option<Handle<Image>>,
+    second_texture: Option<Handle<Image>>,
+    third_texture: Option<Handle<Image>>,
+    fourth_texture: Option<Handle<Image>>,
+) -> ResolvedSkyboxStageTextures {
     let has_second_texture = second_texture.is_some();
     let has_third_texture = third_texture.is_some();
     let has_fourth_texture = fourth_texture.is_some();
-    let uv_modes = resolve_skybox_uv_modes(batch);
     let base_texture = texture.unwrap_or_default();
     let second_texture = second_texture.unwrap_or_else(|| base_texture.clone());
     let third_texture = third_texture.unwrap_or_else(|| base_texture.clone());
     let fourth_texture = fourth_texture.unwrap_or_else(|| base_texture.clone());
-    SkyboxM2Material {
-        settings: SkyboxM2Settings {
-            color: color
-                .unwrap_or(Color::WHITE)
-                .to_linear()
-                .to_f32_array()
-                .into(),
-            transparency: 1.0,
-            // Authored skybox textures use low alpha values for soft cloud edges.
-            // Applying the normal M2 alpha-test thresholds discards the entire dome.
-            alpha_test: 0.0,
-            combine_mode: resolve_skybox_combine_mode(batch),
-            blend_mode: batch.blend_mode as u32,
-            uv_mode_1: uv_modes[0],
-            uv_mode_2: uv_modes[1],
-            uv_mode_3: uv_modes[2],
-            uv_mode_4: uv_modes[3],
-            render_flags: batch.render_flags as u32,
-            has_second_texture: u32::from(has_second_texture),
-            has_third_texture: u32::from(has_third_texture),
-            has_fourth_texture: u32::from(has_fourth_texture),
-            uv_offset_1: Vec2::ZERO,
-            uv_offset_2: Vec2::ZERO,
-        },
+    ResolvedSkyboxStageTextures {
         base_texture,
         second_texture,
         third_texture,
         fourth_texture,
-        blend_mode: batch.blend_mode,
-        texture_anim_1: batch.texture_anim.clone(),
-        texture_anim_2: batch.texture_anim_2.clone(),
+        has_second_texture,
+        has_third_texture,
+        has_fourth_texture,
+    }
+}
+
+fn build_skybox_material_settings(
+    color: Option<Color>,
+    batch: &asset::m2::M2RenderBatch,
+    stage_textures: &ResolvedSkyboxStageTextures,
+) -> SkyboxM2Settings {
+    let uv_modes = resolve_skybox_uv_modes(batch);
+    SkyboxM2Settings {
+        color: color
+            .unwrap_or(Color::WHITE)
+            .to_linear()
+            .to_f32_array()
+            .into(),
+        transparency: 1.0,
+        // Authored skybox textures use low alpha values for soft cloud edges.
+        // Applying the normal M2 alpha-test thresholds discards the entire dome.
+        alpha_test: 0.0,
+        combine_mode: resolve_skybox_combine_mode(batch),
+        blend_mode: batch.blend_mode as u32,
+        uv_mode_1: uv_modes[0],
+        uv_mode_2: uv_modes[1],
+        uv_mode_3: uv_modes[2],
+        uv_mode_4: uv_modes[3],
+        render_flags: batch.render_flags as u32,
+        has_second_texture: u32::from(stage_textures.has_second_texture),
+        has_third_texture: u32::from(stage_textures.has_third_texture),
+        has_fourth_texture: u32::from(stage_textures.has_fourth_texture),
+        uv_offset_1: Vec2::ZERO,
+        uv_offset_2: Vec2::ZERO,
     }
 }
 
