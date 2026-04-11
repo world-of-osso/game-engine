@@ -11,8 +11,7 @@ use game_engine::ui::event::EventBus;
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
-    BACK_BUTTON, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
-    MENU_BUTTON,
+    BACK_BUTTON, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON, MENU_BUTTON,
 };
 use game_engine::ui::strata::FrameStrata;
 use game_engine::ui::widgets::button::ButtonState;
@@ -204,6 +203,49 @@ fn character_card_list_is_anchored_to_top_left() {
         Some(list_panel_id),
         19.0,
         -94.0,
+    );
+}
+
+#[test]
+fn character_cards_are_vertically_stacked_with_consistent_gap() {
+    let reg = build_screen(CharSelectState {
+        characters: vec![
+            CharDisplayEntry {
+                name: "Theron".to_string(),
+                info: "Level 60   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
+            CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 60   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
+        ],
+        selected_index: Some(0),
+        ..Default::default()
+    });
+
+    let card0 = reg
+        .get_by_name("CharCard_0")
+        .and_then(|id| reg.get(id))
+        .and_then(|frame| frame.layout_rect.clone())
+        .expect("CharCard_0 layout_rect");
+    let card1 = reg
+        .get_by_name("CharCard_1")
+        .and_then(|id| reg.get(id))
+        .and_then(|frame| frame.layout_rect.clone())
+        .expect("CharCard_1 layout_rect");
+
+    assert!(
+        card0.y < card1.y,
+        "expected CharCard_1 below CharCard_0, got {} <= {}",
+        card1.y,
+        card0.y
+    );
+    assert_eq!(
+        card1.y - card0.y,
+        card0.height + 10.0,
+        "expected char card vertical spacing to match card height plus 10px gap"
     );
 }
 
