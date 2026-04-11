@@ -275,6 +275,32 @@ fn login_success_can_route_directly_to_charcreate() {
 }
 
 #[test]
+fn enter_world_success_sets_selected_character_and_goes_to_loading() {
+    let mut selected = SelectedCharacterId::default();
+    let char_list = CharacterList(vec![make_test_char(7, "Elara")]);
+    let char_idx = crate::scenes::char_select::SelectedCharIndex(Some(0));
+    let mut next_state = NextState::<GameState>::default();
+
+    handle_enter_world_response(
+        EnterWorldResponse {
+            success: true,
+            player_entity: Some(42),
+            error: None,
+        },
+        &mut selected,
+        &char_list,
+        &char_idx,
+        &GameState::CharSelect,
+        None,
+        &mut next_state,
+    );
+
+    assert_eq!(selected.character_id, Some(7));
+    assert_eq!(selected.character_name.as_deref(), Some("Elara"));
+    assert!(matches!(next_state, NextState::Pending(GameState::Loading)));
+}
+
+#[test]
 fn login_failure_despawns_live_client() {
     let mut app = build_login_test_app(Vec::new(), Default::default(), false);
     app.add_plugins(bevy::state::app::StatesPlugin);

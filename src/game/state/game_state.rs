@@ -524,6 +524,38 @@ mod tests {
     }
 
     #[test]
+    fn loading_state_transitions_into_inworld_when_world_is_ready() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.insert_state(GameState::Loading);
+        app.insert_resource(AdtManager::default());
+        app.add_systems(
+            Update,
+            check_loading_complete.run_if(in_state(GameState::Loading)),
+        );
+
+        let terrain_root = app.world_mut().spawn_empty().id();
+        {
+            let mut adt_manager = app.world_mut().resource_mut::<AdtManager>();
+            adt_manager.map_name = "azeroth".into();
+            adt_manager.initial_tile = (32, 48);
+            adt_manager.loaded.insert((32, 48), terrain_root);
+        }
+        app.world_mut().spawn(LocalPlayer);
+
+        app.update();
+        app.update();
+
+        let state = app.world().resource::<State<GameState>>();
+        assert_eq!(
+            *state.get(),
+            GameState::InWorld,
+            "world-ready loading should enter InWorld"
+        );
+    }
+
+    #[test]
     fn first_observed_zone_does_not_trigger_loading() {
         let mut tracker = ZoneTransitionTracker::default();
 
