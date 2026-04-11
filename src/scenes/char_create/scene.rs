@@ -872,6 +872,130 @@ mod tests {
     }
 
     #[test]
+    fn camera_ray_hits_character_model() {
+        use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
+
+        let mut app = App::new();
+        app.add_plugins(bevy::MinimalPlugins);
+        app.add_plugins(bevy::transform::TransformPlugin);
+        app.add_plugins(bevy::camera::visibility::VisibilityPlugin);
+        app.add_plugins(bevy::picking::PickingPlugin);
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+        app.init_resource::<DisplayedModels>();
+
+        app.world_mut()
+            .run_system_once(setup_scene)
+            .expect("setup_scene should run");
+        // Multiple updates to propagate transforms
+        app.update();
+        app.update();
+        app.update();
+
+        let displayed = app.world().resource::<DisplayedModels>();
+        let active_entity = displayed
+            .models
+            .iter()
+            .find(|(sex, _)| *sex == 0)
+            .map(|(_, e)| *e)
+            .expect("male model should exist");
+
+        // Verify model has a valid world-space transform
+        let model_global = app
+            .world()
+            .get::<GlobalTransform>(active_entity)
+            .expect("model should have GlobalTransform");
+        let model_pos = model_global.translation();
+
+        // Model should be near the origin (where setup_scene places it)
+        assert!(
+            model_pos.length() < 5.0,
+            "model should be near origin, got {model_pos:?}"
+        );
+
+        // Check mesh children have GlobalTransform
+        let mesh_with_gt = app
+            .world_mut()
+            .query::<(&Mesh3d, &GlobalTransform)>()
+            .iter(app.world())
+            .count();
+        let total_meshes = app
+            .world_mut()
+            .query::<&Mesh3d>()
+            .iter(app.world())
+            .count();
+        assert!(
+            total_meshes > 0,
+            "should have meshes"
+        );
+        assert_eq!(
+            mesh_with_gt, total_meshes,
+            "all {total_meshes} meshes should have GlobalTransform, only {mesh_with_gt} do"
+        );
+
+        let aabb_count = app
+            .world_mut()
+            .query::<(&Mesh3d, &bevy::camera::primitives::Aabb)>()
+            .iter(app.world())
+            .count();
+        let visible_meshes = app
+            .world_mut()
+            .query::<(&Mesh3d, &InheritedVisibility)>()
+            .iter(app.world())
+            .filter(|(_, iv)| iv.get())
+            .count();
+        assert!(
+            visible_meshes > 0,
+            "at least some meshes should be visible, got 0/{total_meshes}"
+        );
+
+        // Cast a ray from camera eye toward model position
+        let ray_target = model_pos + Vec3::Y * 1.0;
+        let ray_dir = (ray_target - DEFAULT_EYE).normalize();
+        let ray = Ray3d::new(
+            DEFAULT_EYE,
+            Dir3::new(ray_dir).expect("valid direction"),
+        );
+
+        // Check if any visible mesh's world-space Aabb intersects the camera-to-model ray
+        let ray_origin = DEFAULT_EYE;
+        let has_mesh_on_ray = app
+            .world_mut()
+            .query::<(
+                &Mesh3d,
+                &GlobalTransform,
+                &bevy::camera::primitives::Aabb,
+                &InheritedVisibility,
+            )>()
+            .iter(app.world())
+            .filter(|(_, _, _, iv)| iv.get())
+            .any(|(_, gt, aabb, _)| {
+                let world_center = gt.transform_point(aabb.center.into());
+                let half = aabb.half_extents;
+                let world_half = gt.affine().matrix3.abs() * half;
+                let to_center = world_center - ray_origin;
+                let along_ray = to_center.dot(ray_dir);
+                if along_ray < 0.0 {
+                    return false;
+                }
+                let closest = ray_origin + ray_dir * along_ray;
+                let diff = (world_center - closest).abs();
+                diff.x <= world_half.x + 0.5
+                    && diff.y <= world_half.y + 0.5
+                    && diff.z <= world_half.z + 0.5
+            });
+
+        assert!(
+            has_mesh_on_ray,
+            "camera ray should intersect at least one visible mesh's bounding box"
+        );
+    }
+
+    #[test]
     fn apply_orbit_produces_valid_transform() {
         let orbit = CharCreateOrbit {
             yaw: 0.0,
