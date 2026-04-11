@@ -2,9 +2,11 @@
 
 ## Findings
 
-- `skyboxdebug` is no longer black for either authored test target.
-  - Forced `--light-skybox-id 653` (`11xp_cloudsky01.m2`) now produces a non-black screenshot.
-  - Default lookup (`deathskybox.m2`) now also produces a non-black screenshot.
+- `skyboxdebug` is no longer a totally black viewport.
+- That is not proof the authored skybox works.
+  - The debug scene still spawns a magenta `SkyboxDebugDepthProbe`.
+  - A purple or merely non-black screenshot can be explained by that probe and the procedural baseline, not by a correctly rendered authored skybox.
+- The earlier "non-black screenshot" proof standard was wrong.
 - One real root cause was shader registration, not authored skybox content.
   - `SkyboxM2Material::fragment_shader()` used a path-loaded shader ref.
   - That could hit `PipelineCacheError::ShaderNotLoaded` for `shaders/m2_skybox.wgsl` during live startup.
@@ -23,8 +25,9 @@
 
 ## Assumptions
 
-- The current non-black screenshots are enough to close the specific `PLAN.md` verification item.
-- The authored skyboxes are now rendering through a stable enough path for investigation, even if some modern M2 effect semantics may still be incomplete.
+- The startup-path fixes above are real even if authored skybox rendering is still broken.
+- The authored skyboxes are still not proven to render correctly.
+  - That needs a control without the magenta probe and without treating "non-black" as success.
 - Keeping the procedural sky/fog bootstrap in `skyboxdebug` is acceptable because this screen is a debug harness, not a shipping gameplay scene.
 
 ## What This Rules Out
@@ -34,20 +37,23 @@
 - Not a “black source texture” problem.
 - Not just the earlier single-texture combine bug.
 - Not just an “IPC screenshot taken too early” problem.
+- Not the claim that authored skybox rendering is already proven.
 
 ## Theories
 
+- The current purple output may mainly be the debug probe, with the authored skybox still failing behind it.
 - `11xp_cloudsky01.m2` still uses more modern effect ids (`0x8012`, `0x8016`) than the older legacy combiner path.
 - That means there may still be a separate fidelity problem after this fix set:
-  - the scene is no longer black
+  - the debug harness is no longer fully black
   - but modern multi-stage authored skybox effect behavior may still need a more complete `M2Effect` implementation later
 
 ## Current Best Read
 
-- The black-screen blocker is fixed for `skyboxdebug`.
+- The pure black-screen startup failure in the `skyboxdebug` harness is fixed.
 - The decisive fixes were:
   - internal shader handle registration for `SkyboxM2Material`
   - delayed direct-entry scene setup
   - skybox-following-camera translation instead of orbit focus
   - guarded `uv_b` access in the WGSL path
-- Any remaining work is about authored skybox correctness or fidelity, not total black output.
+- Authored skybox correctness is still unproven.
+- The current purple-cube result is not valid proof that the authored skybox works.
