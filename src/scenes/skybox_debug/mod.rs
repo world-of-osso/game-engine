@@ -143,6 +143,10 @@ fn initialize_skybox_debug_scene(
         cloud_texture,
         setup,
     );
+    spawn_skybox_debug_light(commands);
+}
+
+fn spawn_skybox_debug_light(commands: &mut Commands) {
     commands.spawn((
         Name::new("SkyboxDebugLight"),
         SkyboxDebugScene,
