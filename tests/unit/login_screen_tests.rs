@@ -178,6 +178,20 @@ fn realm_selector_is_positioned_between_password_and_connect_button() {
     );
 }
 
+#[test]
+fn status_text_is_positioned_below_connect_button() {
+    let (reg, login) = build_login_registry_with_real_layout();
+    let connect = layout_rect(&reg, login.connect_button);
+    let status = layout_rect(&reg, login.status_text);
+
+    assert!(
+        connect.y < status.y,
+        "expected LoginStatus below ConnectButton, got {} >= {}",
+        connect.y,
+        status.y
+    );
+}
+
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
