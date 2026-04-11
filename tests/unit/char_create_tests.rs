@@ -201,9 +201,9 @@ fn clicking_race_button_changes_selected_race() {
     use bevy::window::PrimaryWindow;
     use game_engine::customization_data::CustomizationDb;
     use game_engine::ui::automation::UiAutomationPlugin;
+    use game_engine::ui::event::EventBus;
     use game_engine::ui::plugin::UiState;
     use game_engine::ui::registry::FrameRegistry;
-    use game_engine::ui::event::EventBus;
 
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
@@ -252,7 +252,10 @@ fn clicking_race_button_changes_selected_race() {
             .get(race_2_id)
             .and_then(|f| f.layout_rect.as_ref())
             .expect("Race_2 should have layout rect");
-        Vec2::new(layout.x + layout.width / 2.0, layout.y + layout.height / 2.0)
+        Vec2::new(
+            layout.x + layout.width / 2.0,
+            layout.y + layout.height / 2.0,
+        )
     };
 
     // Inject click at Race_2 center
@@ -310,11 +313,7 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
     app.update();
 
     // Verify renderable meshes spawned (ground + model batches)
-    let mesh_count = app
-        .world_mut()
-        .query::<&Mesh3d>()
-        .iter(app.world())
-        .count();
+    let mesh_count = app.world_mut().query::<&Mesh3d>().iter(app.world()).count();
     assert!(
         mesh_count >= 3,
         "entering CharCreate should spawn ground + character model meshes, got {mesh_count}"
@@ -346,11 +345,7 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
     // Run update — sync_model should detect the race change and respawn
     app.update();
 
-    let new_mesh_count = app
-        .world_mut()
-        .query::<&Mesh3d>()
-        .iter(app.world())
-        .count();
+    let new_mesh_count = app.world_mut().query::<&Mesh3d>().iter(app.world()).count();
     assert!(
         new_mesh_count >= 3,
         "after race change, scene should still have renderable meshes, got {new_mesh_count}"

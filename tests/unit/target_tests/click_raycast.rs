@@ -222,5 +222,8 @@ fn raycast_hit_on_hidden_npc_produces_no_target() {
     app.update();
 
     let result = app.world().resource::<RaycastHitResult>();
-    assert_eq!(result.0, None, "hidden NPC should not be selected via raycast");
+    assert_eq!(
+        result.0, None,
+        "hidden NPC should not be selected via raycast"
+    );
 }
