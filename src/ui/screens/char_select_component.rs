@@ -115,7 +115,6 @@ pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");
 pub const DELETE_CHAR_BUTTON: FrameName = FrameName("DeleteChar");
 pub const BACK_BUTTON: FrameName = FrameName("BackToLogin");
-pub const MENU_BUTTON: FrameName = FrameName("MenuButton");
 pub const STATUS_TEXT: FrameName = FrameName("CSStatus");
 pub const SELECTED_NAME_TEXT: FrameName = FrameName("CharSelectCharacterName");
 
@@ -627,29 +626,6 @@ fn back_button() -> Element {
     }
 }
 
-fn menu_button() -> Element {
-    rsx! {
-        button {
-            name: MENU_BUTTON,
-            width: 188.0,
-            height: 42.0,
-            text: "Menu",
-            font_size: 14.0,
-            onclick: CharSelectAction::Menu,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_to: BACK_BUTTON,
-                relative_point: AnchorPoint::TopLeft,
-                y: "12",
-            }
-        }
-    }
-}
-
 fn cs_action_buttons(has_selection: bool) -> Element {
     let delete_button: Element = if has_selection {
         delete_char_button()
@@ -661,7 +637,6 @@ fn cs_action_buttons(has_selection: bool) -> Element {
         enter_world_button(),
         create_char_button(),
         delete_button,
-        menu_button(),
         back_button(),
     ]
     .into_iter()
