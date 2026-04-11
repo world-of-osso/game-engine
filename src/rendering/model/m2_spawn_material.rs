@@ -123,43 +123,10 @@ fn try_load_skybox_material(
     materials: &mut Assets<SkyboxM2Material>,
     color: Option<Color>,
 ) -> Option<Handle<SkyboxM2Material>> {
-    let fdid = batch.texture_fdid?;
     let advanced_batch = skybox_batch_needs_effect_combine(batch);
-    let base_texture = if advanced_batch {
-        load_repeat_texture(fdid, texture_dir, images)?
-    } else {
-        let blp_path = asset::asset_cache::texture(fdid)
-            .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
-        if !blp_path.exists() {
-            return None;
-        }
-        crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
-            .map_err(|e| eprintln!("{e}"))
-            .ok()?
-    };
-    let second_texture = if advanced_batch {
-        batch
-            .texture_2_fdid
-            .and_then(|second_fdid| load_repeat_texture(second_fdid, texture_dir, images))
-    } else {
-        None
-    };
-    let third_texture = if advanced_batch {
-        batch
-            .extra_texture_fdids
-            .first()
-            .and_then(|fdid| load_repeat_texture(*fdid, texture_dir, images))
-    } else {
-        None
-    };
-    let fourth_texture = if advanced_batch {
-        batch
-            .extra_texture_fdids
-            .get(1)
-            .and_then(|fdid| load_repeat_texture(*fdid, texture_dir, images))
-    } else {
-        None
-    };
+    let base_texture = load_skybox_base_texture(batch, texture_dir, images, advanced_batch)?;
+    let [second_texture, third_texture, fourth_texture] =
+        load_advanced_skybox_stage_textures(batch, texture_dir, images, advanced_batch);
     Some(materials.add(skybox_m2_material(
         Some(base_texture),
         second_texture,
@@ -168,6 +135,55 @@ fn try_load_skybox_material(
         color,
         batch,
     )))
+}
+
+fn load_skybox_base_texture(
+    batch: &asset::m2::M2RenderBatch,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+    advanced_batch: bool,
+) -> Option<Handle<Image>> {
+    let fdid = batch.texture_fdid?;
+    if advanced_batch {
+        return load_repeat_texture(fdid, texture_dir, images);
+    }
+    let blp_path = asset::asset_cache::texture(fdid)
+        .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
+    if !blp_path.exists() {
+        return None;
+    }
+    crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
+        .map_err(|e| eprintln!("{e}"))
+        .ok()
+}
+
+fn load_advanced_skybox_stage_textures(
+    batch: &asset::m2::M2RenderBatch,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+    advanced_batch: bool,
+) -> [Option<Handle<Image>>; 3] {
+    if !advanced_batch {
+        return [None, None, None];
+    }
+    let second_texture = batch
+        .texture_2_fdid
+        .and_then(|fdid| load_repeat_texture(fdid, texture_dir, images));
+    let third_texture = load_extra_skybox_stage_texture(batch, 0, texture_dir, images);
+    let fourth_texture = load_extra_skybox_stage_texture(batch, 1, texture_dir, images);
+    [second_texture, third_texture, fourth_texture]
+}
+
+fn load_extra_skybox_stage_texture(
+    batch: &asset::m2::M2RenderBatch,
+    index: usize,
+    texture_dir: &Path,
+    images: &mut Assets<Image>,
+) -> Option<Handle<Image>> {
+    batch
+        .extra_texture_fdids
+        .get(index)
+        .and_then(|fdid| load_repeat_texture(*fdid, texture_dir, images))
 }
 
 fn skybox_shader_supports_runtime_combine(shader_id: u16) -> bool {
