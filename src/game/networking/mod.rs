@@ -137,7 +137,10 @@ impl ReconnectState {
 pub struct PendingForcedDisconnect(pub Option<ForcedDisconnect>);
 
 #[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct PendingNetworkWorldReset(pub bool);
+pub struct PendingNetworkWorldReset(pub Option<u64>);
+
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct NetworkUpdateFrame(pub u64);
 
 #[derive(Component)]
 struct ReconnectOverlayRoot;
@@ -189,6 +192,7 @@ fn register_zone_and_chat_resources(app: &mut App) {
     app.init_resource::<ReconnectState>();
     app.init_resource::<PendingForcedDisconnect>();
     app.init_resource::<PendingNetworkWorldReset>();
+    app.init_resource::<NetworkUpdateFrame>();
 }
 
 fn register_auth_resources(app: &mut App) {
@@ -247,6 +251,7 @@ fn register_net_systems(app: &mut App) {
         )
             .chain(),
     );
+    app.add_systems(Last, crate::networking_reconnect::advance_network_update_frame);
 }
 
 fn register_gameplay_net_systems(app: &mut App) {

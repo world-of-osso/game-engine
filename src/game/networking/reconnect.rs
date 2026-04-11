@@ -24,20 +24,47 @@ pub(crate) fn drive_inworld_reconnect(
 }
 
 pub(crate) fn request_network_world_reset(commands: &mut Commands) {
-    commands.insert_resource(crate::networking::PendingNetworkWorldReset(true));
+    commands.queue(|world: &mut World| {
+        let target_frame = world
+            .get_resource::<crate::networking::NetworkUpdateFrame>()
+            .map_or(1, |frame| frame.0.saturating_add(1));
+        if let Some(mut pending_reset) =
+            world.get_resource_mut::<crate::networking::PendingNetworkWorldReset>()
+        {
+            pending_reset.0 = Some(
+                pending_reset
+                    .0
+                    .map_or(target_frame, |existing| existing.min(target_frame)),
+            );
+        } else {
+            world.insert_resource(crate::networking::PendingNetworkWorldReset(Some(
+                target_frame,
+            )));
+        }
+    });
+}
+
+pub(crate) fn advance_network_update_frame(mut frame: ResMut<crate::networking::NetworkUpdateFrame>) {
+    frame.0 = frame.0.saturating_add(1);
 }
 
 pub(crate) fn flush_pending_network_world_reset(world: &mut World) {
-    let should_reset = world
+    let current_frame = world
+        .get_resource::<crate::networking::NetworkUpdateFrame>()
+        .map_or(0, |frame| frame.0);
+    let Some(target_frame) = world
         .get_resource::<crate::networking::PendingNetworkWorldReset>()
-        .is_some_and(|pending| pending.0);
-    if !should_reset {
+        .and_then(|pending| pending.0)
+    else {
+        return;
+    };
+    if current_frame < target_frame {
         return;
     }
     if let Some(mut pending_reset) =
         world.get_resource_mut::<crate::networking::PendingNetworkWorldReset>()
     {
-        pending_reset.0 = false;
+        pending_reset.0 = None;
     }
     reset_network_world(world);
 }
@@ -406,17 +433,28 @@ mod tests {
     fn flush_pending_network_world_reset_runs_once_and_clears_flag() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(crate::networking::PendingNetworkWorldReset(true));
+        app.insert_resource(crate::networking::PendingNetworkWorldReset(Some(1)));
+        app.insert_resource(crate::networking::NetworkUpdateFrame(0));
         let client = app.world_mut().spawn(Client::default()).id();
         app.add_systems(Update, flush_pending_network_world_reset);
+        app.add_systems(Last, advance_network_update_frame);
+
+        app.update();
+
+        assert!(app.world().get_entity(client).is_ok());
+        assert_eq!(
+            app.world().resource::<crate::networking::PendingNetworkWorldReset>().0,
+            Some(1)
+        );
 
         app.update();
 
         assert!(app.world().get_entity(client).is_err());
         assert!(
-            !app.world()
+            app.world()
                 .resource::<crate::networking::PendingNetworkWorldReset>()
                 .0
+                .is_none()
         );
     }
 
