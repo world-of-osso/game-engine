@@ -105,6 +105,41 @@ fn login_form_is_horizontally_centered_with_inputs_near_screen_midpoint() {
     }
 }
 
+#[test]
+fn login_form_preserves_expected_vertical_ordering() {
+    let (reg, login) = build_login_registry_with_real_layout();
+    let username = layout_rect(&reg, login.username_input);
+    let password = layout_rect(&reg, login.password_input);
+    let realm = layout_rect(&reg, login.realm_button);
+    let connect = layout_rect(&reg, login.connect_button);
+    let create_account = layout_rect(&reg, login.create_account_button);
+
+    assert!(
+        username.y < password.y,
+        "expected UsernameInput above PasswordInput, got {} >= {}",
+        username.y,
+        password.y
+    );
+    assert!(
+        password.y < realm.y,
+        "expected PasswordInput above RealmButton, got {} >= {}",
+        password.y,
+        realm.y
+    );
+    assert!(
+        realm.y < connect.y,
+        "expected RealmButton above ConnectButton, got {} >= {}",
+        realm.y,
+        connect.y
+    );
+    assert!(
+        connect.y < create_account.y,
+        "expected ConnectButton above CreateAccountButton, got {} >= {}",
+        connect.y,
+        create_account.y
+    );
+}
+
 fn resolve_login_ui(reg: &FrameRegistry) -> LoginUi {
     let root = reg.get_by_name("LoginRoot").expect("LoginRoot");
     let username_input = reg.get_by_name("UsernameInput").expect("UsernameInput");
