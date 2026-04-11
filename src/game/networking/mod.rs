@@ -251,7 +251,10 @@ fn register_net_systems(app: &mut App) {
         )
             .chain(),
     );
-    app.add_systems(Last, crate::networking_reconnect::advance_network_update_frame);
+    app.add_systems(
+        Last,
+        crate::networking_reconnect::advance_network_update_frame,
+    );
 }
 
 fn register_gameplay_net_systems(app: &mut App) {

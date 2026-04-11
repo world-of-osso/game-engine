@@ -89,13 +89,15 @@ fn disconnect_during_charselect_without_token_stays_offline() {
 #[test]
 fn forced_disconnect_during_charselect_with_token_returns_to_login() {
     let mut app = charselect_disconnect_app(Some("saved-token"));
-    let client = trigger_disconnect(&mut app);
+    let client = app.world_mut().spawn(Client::default()).id();
     app.world_mut().resource_mut::<PendingForcedDisconnect>().0 = Some(ForcedDisconnect {
         message: "Account banned: cheating".to_string(),
         reconnect_allowed: false,
     });
-    app.update();
-    app.update();
+    trigger_disconnect_entity(&mut app, client);
+    for _ in 0..5 {
+        app.update();
+    }
 
     let state = app
         .world()

@@ -44,7 +44,9 @@ pub(crate) fn request_network_world_reset(commands: &mut Commands) {
     });
 }
 
-pub(crate) fn advance_network_update_frame(mut frame: ResMut<crate::networking::NetworkUpdateFrame>) {
+pub(crate) fn advance_network_update_frame(
+    mut frame: ResMut<crate::networking::NetworkUpdateFrame>,
+) {
     frame.0 = frame.0.saturating_add(1);
 }
 
@@ -443,7 +445,9 @@ mod tests {
 
         assert!(app.world().get_entity(client).is_ok());
         assert_eq!(
-            app.world().resource::<crate::networking::PendingNetworkWorldReset>().0,
+            app.world()
+                .resource::<crate::networking::PendingNetworkWorldReset>()
+                .0,
             Some(1)
         );
 
