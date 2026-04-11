@@ -958,6 +958,79 @@ fn dispatch_char_select_action_select_event_updates_selected_index() {
 }
 
 #[test]
+fn char_select_update_visuals_rebuilds_ui_state_after_selection_change() {
+    let mut app = build_test_app();
+    app.insert_resource(CharacterList(vec![
+        CharacterListEntry {
+            character_id: 1,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+        CharacterListEntry {
+            character_id: 2,
+            name: "Theron".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+    ]));
+    app.update();
+
+    app.world_mut().resource_mut::<SelectedCharIndex>().0 = Some(1);
+    app.world_mut()
+        .run_system_once(super::char_select_update_visuals)
+        .expect("char_select_update_visuals should run");
+
+    let ui = app.world().resource::<UiState>();
+    let selected_name_id = ui
+        .registry
+        .get_by_name("CharSelectCharacterName")
+        .expect("CharSelectCharacterName");
+    let Some(WidgetData::FontString(selected_name)) = ui
+        .registry
+        .get(selected_name_id)
+        .and_then(|frame| frame.widget_data.as_ref())
+    else {
+        panic!("CharSelectCharacterName should be a fontstring");
+    };
+    assert_eq!(
+        selected_name.text, "Theron",
+        "visual update should rebuild selected name text from the new SelectedCharIndex"
+    );
+
+    let card0_selected = ui
+        .registry
+        .get(
+            ui.registry
+                .get_by_name("CharCard_0Selected")
+                .expect("CharCard_0Selected"),
+        )
+        .expect("CharCard_0Selected frame");
+    let card1_selected = ui
+        .registry
+        .get(
+            ui.registry
+                .get_by_name("CharCard_1Selected")
+                .expect("CharCard_1Selected"),
+        )
+        .expect("CharCard_1Selected frame");
+    assert!(
+        card0_selected.hidden,
+        "first card highlight should hide after selecting the second character"
+    );
+    assert!(
+        !card1_selected.hidden,
+        "second card highlight should show after selecting the second character"
+    );
+}
+
+#[test]
 fn parse_click_action_event_marks_unknown_action_unparsed() {
     let (parsed_action, parsed_action_label) =
         crate::scenes::char_select::input::parse_click_action_event("not_an_action");
