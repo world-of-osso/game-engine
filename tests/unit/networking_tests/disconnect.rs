@@ -1,9 +1,52 @@
 use super::*;
+use std::panic::{AssertUnwindSafe, catch_unwind};
+
+#[derive(Component)]
+struct LateReceiveMarker;
+
+#[derive(Resource)]
+struct LateNetworkCommands {
+    client: Entity,
+    replicated: Entity,
+    armed: bool,
+}
+
+#[derive(Resource)]
+struct PendingDisconnectInsert {
+    client: Entity,
+    armed: bool,
+}
+
+fn queue_disconnect_during_update(
+    mut pending: ResMut<PendingDisconnectInsert>,
+    mut commands: Commands,
+) {
+    if !pending.armed {
+        return;
+    }
+    pending.armed = false;
+    commands.entity(pending.client).insert(Disconnected {
+        reason: Some("Link failed: test".to_string()),
+    });
+}
+
+fn queue_late_network_entity_commands(
+    mut late: ResMut<LateNetworkCommands>,
+    mut commands: Commands,
+) {
+    if !late.armed {
+        return;
+    }
+    late.armed = false;
+    commands.entity(late.client).insert(LateReceiveMarker);
+    commands.entity(late.replicated).insert(LateReceiveMarker);
+}
 
 #[test]
 fn disconnect_during_charselect_arms_reconnect_when_token_exists() {
     let mut app = charselect_disconnect_app(Some("saved-token"));
     let client = trigger_disconnect(&mut app);
+    app.update();
     app.update();
 
     let state = app
@@ -46,11 +89,11 @@ fn disconnect_during_charselect_without_token_stays_offline() {
 #[test]
 fn forced_disconnect_during_charselect_with_token_returns_to_login() {
     let mut app = charselect_disconnect_app(Some("saved-token"));
+    let client = trigger_disconnect(&mut app);
     app.world_mut().resource_mut::<PendingForcedDisconnect>().0 = Some(ForcedDisconnect {
         message: "Account banned: cheating".to_string(),
         reconnect_allowed: false,
     });
-    trigger_disconnect(&mut app);
     app.update();
     app.update();
 
@@ -66,6 +109,7 @@ fn forced_disconnect_during_charselect_with_token_returns_to_login() {
         app.world().resource::<ReconnectState>().phase,
         ReconnectPhase::Inactive
     );
+    assert!(app.world().get_entity(client).is_err());
 }
 
 #[test]
@@ -99,6 +143,39 @@ fn disconnect_during_inworld_arms_reconnect_and_preserves_scene_state() {
     app.update();
 
     assert_inworld_reconnect_state(&app, client, replicated);
+}
+
+#[test]
+fn disconnect_defers_world_reset_until_after_late_network_commands() {
+    let mut app = inworld_disconnect_base_app();
+    let (client, replicated) = populate_inworld_disconnect_entities(&mut app);
+    app.insert_resource(LateNetworkCommands {
+        client,
+        replicated,
+        armed: true,
+    });
+    app.insert_resource(PendingDisconnectInsert { client, armed: true });
+    app.add_systems(Update, queue_disconnect_during_update);
+    app.add_systems(Last, queue_late_network_entity_commands);
+
+    let first_update = catch_unwind(AssertUnwindSafe(|| {
+        app.update();
+    }));
+    assert!(first_update.is_ok(), "disconnect frame should not panic");
+    assert!(app.world().get_entity(client).is_ok());
+    assert!(app.world().get_entity(replicated).is_ok());
+    assert!(app.world().entity(client).contains::<LateReceiveMarker>());
+    assert!(
+        app.world()
+            .entity(replicated)
+            .contains::<LateReceiveMarker>()
+    );
+    assert!(app.world().resource::<PendingNetworkWorldReset>().0);
+
+    app.update();
+
+    assert_inworld_reconnect_state(&app, client, replicated);
+    assert!(!app.world().resource::<PendingNetworkWorldReset>().0);
 }
 
 #[test]

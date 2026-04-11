@@ -8,7 +8,9 @@ use crate::networking_player::{
     choose_local_player_entity, is_local_player_entity, net_player_customization_selection,
     resolve_player_model_path, sync_local_alive_state,
 };
-use crate::networking_reconnect::{finish_reconnect_when_world_ready, reset_network_world};
+use crate::networking_reconnect::{
+    finish_reconnect_when_world_ready, flush_pending_network_world_reset, reset_network_world,
+};
 use game_engine::chat_data::WhisperState;
 use shared::components::{CharacterAppearance, Health as NetHealth, Player as NetPlayer};
 use shared::protocol::ForcedDisconnect;
@@ -38,10 +40,12 @@ fn charselect_disconnect_app(token: Option<&str>) -> App {
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
     app.init_resource::<PendingForcedDisconnect>();
+    app.init_resource::<PendingNetworkWorldReset>();
     app.insert_resource(AuthToken(token.map(|t| t.to_string())));
     app.insert_resource(LoginMode::Login);
     app.insert_resource(LoginUsername("stale-user".to_string()));
     app.insert_resource(LoginPassword("stale-pass".to_string()));
+    app.add_systems(Update, flush_pending_network_world_reset);
     app.add_observer(handle_client_disconnected);
     app
 }
@@ -66,6 +70,7 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
     app.init_resource::<AuthUiFeedback>();
     app.init_resource::<ReconnectState>();
     app.init_resource::<PendingForcedDisconnect>();
+    app.init_resource::<PendingNetworkWorldReset>();
     app.insert_resource(AuthToken(Some("saved-token".to_string())));
     app.insert_resource(selected_with_name("Theron"));
     app.insert_resource(game_engine::targeting::CurrentTarget(Some(
@@ -88,6 +93,7 @@ fn disconnect_app_with_state(state: crate::game_state::GameState) -> App {
     };
     trade_state.last_message = Some("stale trade".into());
     app.insert_resource(trade_state);
+    app.add_systems(Update, flush_pending_network_world_reset);
     app.add_observer(handle_client_disconnected);
     app
 }
