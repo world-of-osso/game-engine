@@ -136,7 +136,7 @@ mod tests {
     use bevy::color::ColorToComponents;
     use bevy::mesh::Mesh;
     use bevy::mesh::PrimitiveTopology;
-    use bevy::prelude::{AlphaMode, Assets, Color, Image, Material};
+    use bevy::prelude::{AlphaMode, Assets, Color, Handle, Image, Material};
     use bevy::render::render_resource::{
         ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, Face,
         FragmentState, MultisampleState, PrimitiveState, TextureFormat, VertexState,
@@ -167,6 +167,53 @@ mod tests {
             uses_texture_combiner_combos: false,
             mesh_part_id: 0,
         }
+    }
+
+    fn single_pixel_srgb_image(images: &mut Assets<Image>) -> Handle<Image> {
+        images.add(Image::new_fill(
+            bevy::render::render_resource::Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            bevy::render::render_resource::TextureDimension::D2,
+            &[255, 255, 255, 255],
+            TextureFormat::Rgba8UnormSrgb,
+            RenderAssetUsages::default(),
+        ))
+    }
+
+    fn advanced_skybox_batch() -> asset::m2::M2RenderBatch {
+        let mut batch = test_batch();
+        batch.texture_2_fdid = Some(2);
+        batch.use_uv_2_1 = true;
+        batch.use_uv_2_2 = true;
+        batch.uses_texture_combiner_combos = true;
+        batch.shader_id = 0x4014;
+        batch.texture_count = 2;
+        batch.render_flags = 0x01;
+        batch
+    }
+
+    fn assert_advanced_skybox_material(
+        material: &SkyboxM2Material,
+        base: &Handle<Image>,
+        second: &Handle<Image>,
+    ) {
+        assert_eq!(material.base_texture, *base);
+        assert_eq!(material.second_texture, *second);
+        assert_eq!(material.third_texture, *base);
+        assert_eq!(material.fourth_texture, *base);
+        assert_eq!(material.settings.combine_mode, 0x4014);
+        assert_eq!(material.settings.blend_mode, 1);
+        assert_eq!(material.settings.uv_mode_1, 1);
+        assert_eq!(material.settings.uv_mode_2, 1);
+        assert_eq!(material.settings.uv_mode_3, 0);
+        assert_eq!(material.settings.uv_mode_4, 0);
+        assert_eq!(material.settings.render_flags, 0x01);
+        assert_eq!(material.settings.has_second_texture, 1);
+        assert_eq!(material.settings.has_third_texture, 0);
+        assert_eq!(material.settings.has_fourth_texture, 0);
     }
 
     #[test]
@@ -205,36 +252,9 @@ mod tests {
     #[test]
     fn skybox_material_preserves_effect_combine_state_for_advanced_batches() {
         let mut images = Assets::<Image>::default();
-        let base = images.add(Image::new_fill(
-            bevy::render::render_resource::Extent3d {
-                width: 1,
-                height: 1,
-                depth_or_array_layers: 1,
-            },
-            bevy::render::render_resource::TextureDimension::D2,
-            &[255, 255, 255, 255],
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::default(),
-        ));
-        let second = images.add(Image::new_fill(
-            bevy::render::render_resource::Extent3d {
-                width: 1,
-                height: 1,
-                depth_or_array_layers: 1,
-            },
-            bevy::render::render_resource::TextureDimension::D2,
-            &[255, 255, 255, 255],
-            TextureFormat::Rgba8UnormSrgb,
-            RenderAssetUsages::default(),
-        ));
-        let mut batch = test_batch();
-        batch.texture_2_fdid = Some(2);
-        batch.use_uv_2_1 = true;
-        batch.use_uv_2_2 = true;
-        batch.uses_texture_combiner_combos = true;
-        batch.shader_id = 0x4014;
-        batch.texture_count = 2;
-        batch.render_flags = 0x01;
+        let base = single_pixel_srgb_image(&mut images);
+        let second = single_pixel_srgb_image(&mut images);
+        let batch = advanced_skybox_batch();
 
         let material = skybox_m2_material(
             Some(base.clone()),
@@ -245,20 +265,7 @@ mod tests {
             &batch,
         );
 
-        assert_eq!(material.base_texture, base);
-        assert_eq!(material.second_texture, second);
-        assert_eq!(material.third_texture, base);
-        assert_eq!(material.fourth_texture, base);
-        assert_eq!(material.settings.combine_mode, 0x4014);
-        assert_eq!(material.settings.blend_mode, 1);
-        assert_eq!(material.settings.uv_mode_1, 1);
-        assert_eq!(material.settings.uv_mode_2, 1);
-        assert_eq!(material.settings.uv_mode_3, 0);
-        assert_eq!(material.settings.uv_mode_4, 0);
-        assert_eq!(material.settings.render_flags, 0x01);
-        assert_eq!(material.settings.has_second_texture, 1);
-        assert_eq!(material.settings.has_third_texture, 0);
-        assert_eq!(material.settings.has_fourth_texture, 0);
+        assert_advanced_skybox_material(&material, &base, &second);
     }
 
     #[test]
