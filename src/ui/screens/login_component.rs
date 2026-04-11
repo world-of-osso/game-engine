@@ -173,6 +173,7 @@ fn login_realm_button(_realm_text: &str, _realm_selectable: bool, _connecting: b
             width: 0.0,
             height: 0.0,
             hidden: true,
+            onclick: LoginAction::CycleRealm,
             anchor {
                 point: AnchorPoint::Top,
                 relative_to: PASSWORD_INPUT,

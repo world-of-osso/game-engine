@@ -16,11 +16,12 @@ use game_engine::ui::screens::login_component::{
 use crate::game_state::GameState;
 use crate::networking;
 
-use super::helpers::get_editbox_text;
+use super::helpers::{get_editbox_text, topmost_frame_at};
 use super::{
     LoginFocus, LoginStatus, LoginUi, run_login_automation_action, sync_button_visibility,
     try_connect,
 };
+use crate::ui_input::walk_up_for_onclick;
 
 use game_engine::ui::automation::UiAutomationAction;
 use ui_toolkit::layout::{LayoutRect, recompute_layouts};
@@ -302,10 +303,29 @@ fn make_ui_state(reg: FrameRegistry) -> UiState {
     }
 }
 
+fn find_clicked_action(ui: &UiState, mx: f32, my: f32) -> Option<String> {
+    let hit_id = topmost_frame_at(ui, mx, my)?;
+    walk_up_for_onclick(&ui.registry, hit_id)
+}
+
 fn make_world_with_commands() -> (World, SystemState<Commands<'static, 'static>>) {
     let mut world = World::new();
     let system_state = SystemState::new(&mut world);
     (world, system_state)
+}
+
+#[test]
+fn find_clicked_action_returns_connect_from_connect_button_center() {
+    let (reg, login) = build_login_registry_with_real_layout();
+    let rect = layout_rect(&reg, login.connect_button);
+    let center_x = rect.x + rect.width * 0.5;
+    let center_y = rect.y + rect.height * 0.5;
+    let ui = make_ui_state(reg);
+
+    assert_eq!(
+        find_clicked_action(&ui, center_x, center_y).as_deref(),
+        Some("connect")
+    );
 }
 
 #[test]
