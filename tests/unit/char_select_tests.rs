@@ -958,6 +958,71 @@ fn dispatch_char_select_action_select_event_updates_selected_index() {
 }
 
 #[test]
+fn dispatch_char_select_action_delete_event_opens_confirmation_for_selected_character() {
+    let mut app = build_test_app();
+    app.insert_resource(CharacterList(vec![
+        CharacterListEntry {
+            character_id: 1,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+        CharacterListEntry {
+            character_id: 2,
+            name: "Theron".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+    ]));
+    app.update();
+    app.world_mut().resource_mut::<SelectedCharIndex>().0 = Some(1);
+    app.world_mut()
+        .resource_mut::<Messages<crate::scenes::char_select::input::CharSelectClickEvent>>()
+        .write(crate::scenes::char_select::input::CharSelectClickEvent(
+            "delete_char".to_string(),
+        ));
+
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::input::dispatch_char_select_action)
+        .expect("dispatch_char_select_action should run");
+
+    let delete_confirm = app.world().resource::<DeleteCharacterConfirmationState>();
+    let target = delete_confirm
+        .target
+        .as_ref()
+        .expect("delete confirm target");
+    assert_eq!(target.character_id, 2);
+    assert_eq!(target.name, "Theron");
+    assert_eq!(
+        delete_confirm.typed_text, "",
+        "delete confirmation should start with an empty typed phrase"
+    );
+    assert_eq!(
+        delete_confirm.elapsed_secs, 0.0,
+        "delete confirmation countdown should reset when opened"
+    );
+
+    app.update();
+
+    let ui = app.world().resource::<UiState>();
+    let delete_confirm_input = ui
+        .registry
+        .get_by_name("DeleteCharacterConfirmInput")
+        .expect("DeleteCharacterConfirmInput");
+    assert_eq!(
+        app.world().resource::<CharSelectFocus>().0,
+        Some(delete_confirm_input),
+        "delete confirmation should focus the confirmation input when opened"
+    );
+}
+
+#[test]
 fn char_select_update_visuals_rebuilds_ui_state_after_selection_change() {
     let mut app = build_test_app();
     app.insert_resource(CharacterList(vec![
