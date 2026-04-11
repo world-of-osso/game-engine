@@ -147,6 +147,7 @@ fn try_load_skybox_material(
 }
 
 fn skybox_batch_needs_effect_combine(batch: &asset::m2::M2RenderBatch) -> bool {
+    let uses_multitexture_shader = batch.texture_count > 1 && batch.shader_id != 0;
     batch.texture_2_fdid.is_some()
         || batch.texture_count > 1
         || batch.texture_anim.is_some()
@@ -154,7 +155,7 @@ fn skybox_batch_needs_effect_combine(batch: &asset::m2::M2RenderBatch) -> bool {
         || batch.use_uv_2_1
         || batch.use_uv_2_2
         || batch.use_env_map_2
-        || batch.shader_id != 0
+        || uses_multitexture_shader
 }
 
 fn load_repeat_texture(
@@ -240,7 +241,7 @@ pub(crate) fn skybox_m2_material(
 
 #[cfg(test)]
 mod tests {
-    use super::load_batch_material;
+    use super::{load_batch_material, skybox_batch_needs_effect_combine};
     use crate::asset;
     use crate::m2_effect_material;
     use crate::m2_spawn::{BatchMaterial, ground_offset_y};
@@ -345,6 +346,27 @@ mod tests {
                     || batch.use_env_map_2
             }),
             "deathskybox batches unexpectedly only use static base-texture sampling"
+        );
+    }
+
+    #[test]
+    fn deathskybox_single_texture_shader_batches_do_not_force_effect_combine() {
+        let path = std::path::Path::new("data/models/skyboxes/deathskybox.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load deathskybox model");
+        let batch = model
+            .batches
+            .iter()
+            .find(|batch| {
+                batch.texture_count == 1
+                    && batch.texture_2_fdid.is_none()
+                    && batch.shader_id == 0x0010
+            })
+            .expect("deathskybox single-texture batch");
+
+        assert!(
+            !skybox_batch_needs_effect_combine(batch),
+            "single-texture skybox shader batch should stay on the base-texture path"
         );
     }
 
