@@ -414,6 +414,60 @@ mod tests {
     }
 
     #[test]
+    fn deathskybox_single_texture_batches_never_bind_second_texture_state() {
+        let path = std::path::Path::new("data/models/skyboxes/deathskybox.m2");
+        let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+            .expect("load deathskybox model");
+
+        let single_texture_batches: Vec<_> = model
+            .batches
+            .iter()
+            .enumerate()
+            .filter(|(_, batch)| batch.texture_count == 1 && batch.texture_2_fdid.is_none())
+            .collect();
+
+        assert!(
+            !single_texture_batches.is_empty(),
+            "deathskybox must keep at least one authored single-texture batch"
+        );
+
+        for (batch_index, batch) in single_texture_batches {
+            assert!(
+                !skybox_batch_needs_effect_combine(batch),
+                "single-texture deathskybox batch {batch_index} should not switch to effect combine"
+            );
+
+            let mut images = Assets::<Image>::default();
+            let mut materials = Assets::<StandardMaterial>::default();
+            let mut effect_materials =
+                Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
+            let mut skybox_materials = Assets::<SkyboxM2Material>::default();
+
+            let material = load_batch_material(
+                batch,
+                batch_index,
+                &mut images,
+                &mut materials,
+                &mut effect_materials,
+                Some(&mut skybox_materials),
+                true,
+                None,
+            );
+
+            let BatchMaterial::Skybox(handle) = material else {
+                panic!("expected skybox material for single-texture deathskybox batch");
+            };
+            let material = skybox_materials
+                .get(&handle)
+                .expect("skybox material asset");
+            assert_eq!(
+                material.settings.has_second_texture, 0,
+                "single-texture deathskybox batch {batch_index} should not advertise a second texture"
+            );
+        }
+    }
+
+    #[test]
     fn cloudsky_batches_are_two_texture_and_use_unhandled_shader_ids() {
         let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
         let model = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
