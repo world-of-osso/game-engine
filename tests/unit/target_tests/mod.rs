@@ -9,6 +9,7 @@ struct TargetResolutionResult(Option<Entity>);
 struct TargetCircleSizeResult(f32);
 
 mod ancestor_resolution;
+mod click_raycast;
 mod interactions;
 mod selection;
 mod visuals;
