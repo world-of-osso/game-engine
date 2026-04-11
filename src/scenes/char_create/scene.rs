@@ -924,6 +924,69 @@ mod tests {
     }
 
     #[test]
+    fn direct_entry_has_initial_appearance_by_end_of_first_update() {
+        use bevy::state::app::StatesPlugin;
+        use bevy::window::PrimaryWindow;
+        use game_engine::asset::char_texture::CharTextureData;
+        use game_engine::ui::automation::UiAutomationPlugin;
+
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::transform::TransformPlugin);
+        app.add_plugins(StatesPlugin);
+        app.add_plugins(bevy::asset::AssetPlugin::default());
+        app.add_plugins(bevy::text::TextPlugin::default());
+        app.add_plugins(UiAutomationPlugin);
+        app.add_plugins(ui_toolkit::plugin::UiPlugin);
+        app.insert_resource(ButtonInput::<MouseButton>::default());
+        app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
+        app.insert_resource(crate::client_options::CameraOptions::default());
+        app.insert_resource(CustomizationDb::load(Path::new("data")));
+        app.insert_resource(CharTextureData::load(Path::new("data")));
+        app.insert_resource(crate::creature_display::CreatureDisplayMap);
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
+        app.add_plugins(CharCreateScenePlugin);
+        app.add_message::<bevy::input::keyboard::KeyboardInput>();
+        app.insert_state(crate::game_state::GameState::CharCreate);
+        app.world_mut().spawn((Window::default(), PrimaryWindow));
+
+        app.update();
+
+        let displayed = app.world().resource::<DisplayedModels>();
+        assert!(
+            displayed.last_appearance.is_some(),
+            "direct charcreate entry should have applied an initial appearance by the end of the first update"
+        );
+        assert_eq!(
+            displayed.last_class,
+            Some(1),
+            "direct charcreate entry should track the initial class after the first update"
+        );
+
+        let visible_geosets = app
+            .world_mut()
+            .query::<(&crate::m2_spawn::GeosetMesh, &Visibility)>()
+            .iter(app.world())
+            .filter(|(_, vis)| **vis == Visibility::Inherited)
+            .count();
+        let total_geosets = app
+            .world_mut()
+            .query::<&crate::m2_spawn::GeosetMesh>()
+            .iter(app.world())
+            .count();
+
+        assert!(
+            visible_geosets > 0,
+            "direct charcreate entry should apply initial appearance on the first update, got 0/{total_geosets} visible geosets"
+        );
+    }
+
+    #[test]
     fn sync_appearance_unhides_geoset_meshes() {
         use game_engine::asset::char_texture::CharTextureData;
 
