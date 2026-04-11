@@ -354,44 +354,48 @@ pub fn light_scene_nodes(
     fill_light: Option<Entity>,
 ) -> Vec<SceneNode> {
     let mut nodes = vec![
-        SceneNode {
-            label: "Camera".into(),
-            entity: Some(camera),
-            props: NodeProps::Camera { fov },
-            children: vec![],
-        },
-        SceneNode {
-            label: "AmbientLight".into(),
-            entity: ambient,
-            props: NodeProps::Light {
-                kind: "ambient".into(),
-                intensity: ambient_intensity,
-            },
-            children: vec![],
-        },
-        SceneNode {
-            label: "PrimaryLight".into(),
-            entity: Some(primary_light),
-            props: NodeProps::Light {
-                kind: "spot".into(),
-                intensity: 220000.0,
-            },
-            children: vec![],
-        },
+        camera_scene_node(camera, fov),
+        light_scene_node("AmbientLight", ambient, "ambient", ambient_intensity),
+        primary_light_scene_node(primary_light),
     ];
     if let Some(fill_light) = fill_light {
-        nodes.push(SceneNode {
-            label: "FillLight".into(),
-            entity: Some(fill_light),
-            props: NodeProps::Light {
-                kind: "directional".into(),
-                intensity:
-                    crate::scenes::char_select::scene::lighting::CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
-            },
-            children: vec![],
-        });
+        nodes.push(fill_light_scene_node(fill_light));
     }
     nodes
+}
+
+fn camera_scene_node(entity: Entity, fov: f32) -> SceneNode {
+    SceneNode {
+        label: "Camera".into(),
+        entity: Some(entity),
+        props: NodeProps::Camera { fov },
+        children: vec![],
+    }
+}
+
+fn light_scene_node(label: &str, entity: Option<Entity>, kind: &str, intensity: f32) -> SceneNode {
+    SceneNode {
+        label: label.into(),
+        entity,
+        props: NodeProps::Light {
+            kind: kind.into(),
+            intensity,
+        },
+        children: vec![],
+    }
+}
+
+fn primary_light_scene_node(entity: Entity) -> SceneNode {
+    light_scene_node("PrimaryLight", Some(entity), "spot", 220000.0)
+}
+
+fn fill_light_scene_node(entity: Entity) -> SceneNode {
+    light_scene_node(
+        "FillLight",
+        Some(entity),
+        "directional",
+        crate::scenes::char_select::scene::lighting::CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
+    )
 }
 
 pub fn build_scene_tree(children: Vec<SceneNode>) -> SceneTree {
