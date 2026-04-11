@@ -386,29 +386,7 @@ fn insert_skybox_debug_scene_tree(
     depth_probe: Entity,
 ) {
     commands.insert_resource(SceneTree {
-        root: SceneNode {
-            label: "SkyboxDebugScene".into(),
-            entity: None,
-            props: NodeProps::Scene,
-            children: vec![
-                SceneNode {
-                    label: "Camera".into(),
-                    entity: None,
-                    props: NodeProps::Camera { fov: 60.0 },
-                    children: vec![],
-                },
-                SceneNode {
-                    label: "Skybox".into(),
-                    entity: Some(spawned.root),
-                    props: NodeProps::Object {
-                        kind: "Skybox".into(),
-                        model: spawned.path.display().to_string(),
-                    },
-                    children: vec![],
-                },
-                depth_probe_scene_node(depth_probe),
-            ],
-        },
+        root: build_skybox_debug_scene_root(&spawned, depth_probe),
     });
 }
 
@@ -424,6 +402,40 @@ fn depth_probe_scene_node(entity: Entity) -> SceneNode {
         props: NodeProps::Object {
             kind: "DepthProbe".into(),
             model: "cuboid".into(),
+        },
+        children: vec![],
+    }
+}
+
+fn build_skybox_debug_scene_root(spawned: &SpawnedSkyboxDebug, depth_probe: Entity) -> SceneNode {
+    SceneNode {
+        label: "SkyboxDebugScene".into(),
+        entity: None,
+        props: NodeProps::Scene,
+        children: vec![
+            camera_scene_node(),
+            skybox_scene_node(spawned),
+            depth_probe_scene_node(depth_probe),
+        ],
+    }
+}
+
+fn camera_scene_node() -> SceneNode {
+    SceneNode {
+        label: "Camera".into(),
+        entity: None,
+        props: NodeProps::Camera { fov: 60.0 },
+        children: vec![],
+    }
+}
+
+fn skybox_scene_node(spawned: &SpawnedSkyboxDebug) -> SceneNode {
+    SceneNode {
+        label: "Skybox".into(),
+        entity: Some(spawned.root),
+        props: NodeProps::Object {
+            kind: "Skybox".into(),
+            model: spawned.path.display().to_string(),
         },
         children: vec![],
     }
