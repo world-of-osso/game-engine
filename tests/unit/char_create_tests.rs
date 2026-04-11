@@ -190,3 +190,89 @@ fn explicit_randomize_re_rolls_appearance_without_changing_selection() {
     assert_eq!(state.appearance.sex, 1);
     assert_ne!(state.appearance, original);
 }
+
+#[test]
+fn clicking_race_button_changes_selected_race() {
+    use bevy::app::App;
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::input::ButtonInput;
+    use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+    use bevy::window::PrimaryWindow;
+    use game_engine::customization_data::CustomizationDb;
+    use game_engine::ui::automation::UiAutomationPlugin;
+    use game_engine::ui::plugin::UiState;
+    use game_engine::ui::registry::FrameRegistry;
+    use game_engine::ui::event::EventBus;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(StatesPlugin);
+    app.add_plugins(UiAutomationPlugin);
+    app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
+    app.add_message::<bevy::input::keyboard::KeyboardInput>();
+    app.insert_resource(UiState {
+        registry: FrameRegistry::new(1920.0, 1080.0),
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.insert_resource(CustomizationDb::load(std::path::Path::new("data")));
+    app.insert_state(crate::game_state::GameState::CharCreate);
+
+    let window_entity = app
+        .world_mut()
+        .spawn((Window::default(), PrimaryWindow))
+        .id();
+    // Run OnEnter to build the UI
+    app.update();
+    // Recompute layouts so hit testing works
+    app.world_mut()
+        .run_system_once(
+            |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
+                ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
+                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+            },
+        )
+        .expect("layout recompute should run");
+
+    // Verify initial state is race 1
+    let initial_race = app.world().resource::<CharCreateState>().selected_race;
+    assert_eq!(initial_race, 1, "initial race should be human (1)");
+
+    // Find Race_2 button center
+    let race_2_center = {
+        let ui = app.world().resource::<UiState>();
+        let race_2_id = ui
+            .registry
+            .get_by_name("Race_2")
+            .expect("Race_2 frame should exist");
+        let layout = ui
+            .registry
+            .get(race_2_id)
+            .and_then(|f| f.layout_rect.as_ref())
+            .expect("Race_2 should have layout rect");
+        Vec2::new(layout.x + layout.width / 2.0, layout.y + layout.height / 2.0)
+    };
+
+    // Inject click at Race_2 center
+    app.world_mut()
+        .entity_mut(window_entity)
+        .get_mut::<Window>()
+        .unwrap()
+        .set_cursor_position(Some(race_2_center));
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+
+    // Run the input system
+    app.world_mut()
+        .run_system_once(input::char_create_mouse_input)
+        .expect("char_create_mouse_input should run");
+
+    let new_race = app.world().resource::<CharCreateState>().selected_race;
+    assert_eq!(
+        new_race, 2,
+        "clicking Race_2 should change selected_race from 1 to 2, got {new_race}"
+    );
+}

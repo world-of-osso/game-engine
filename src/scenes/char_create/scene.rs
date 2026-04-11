@@ -370,6 +370,7 @@ fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
 fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<DisplayedModels>) {
     spawn_camera(&mut spawn.commands);
     spawn_lighting(&mut spawn.commands);
+    ensure_sky_env_map(&mut spawn.commands, &mut spawn.images);
     spawn_ground(
         &mut spawn.commands,
         &mut spawn.meshes,
@@ -380,6 +381,13 @@ fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<Displayed
     displayed.race = Some(1);
     displayed.active_sex = 0;
     displayed.models = models;
+}
+
+fn ensure_sky_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
+    let colors = crate::sky_lightdata::default_sky_colors();
+    let cubemap = crate::sky::build_sky_cubemap(&colors);
+    let handle = images.add(cubemap);
+    commands.insert_resource(crate::sky::SkyEnvMapHandle(handle));
 }
 
 fn sync_model(
@@ -663,6 +671,116 @@ mod tests {
         assert!(
             race_changed,
             "sync_model should detect race change from 1 to 2"
+        );
+    }
+
+    #[test]
+    fn setup_scene_provides_sky_env_map_for_pbr_lighting() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+        app.init_resource::<DisplayedModels>();
+
+        app.world_mut()
+            .run_system_once(setup_scene)
+            .expect("setup_scene should run");
+        app.update();
+
+        let has_env_map = app
+            .world()
+            .get_resource::<crate::sky::SkyEnvMapHandle>()
+            .is_some();
+        assert!(
+            has_env_map,
+            "char create scene must provide SkyEnvMapHandle for PBR materials to render correctly standalone"
+        );
+    }
+
+    #[test]
+    fn setup_scene_creates_camera_and_lighting_standalone() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+        app.init_resource::<DisplayedModels>();
+
+        app.world_mut()
+            .run_system_once(setup_scene)
+            .expect("setup_scene should run");
+        app.update();
+
+        let has_camera = app
+            .world_mut()
+            .query::<(&Camera3d, &CharCreateScene)>()
+            .iter(app.world())
+            .count()
+            > 0;
+        assert!(has_camera, "char create scene should spawn a camera");
+
+        let ambient = app.world().resource::<GlobalAmbientLight>();
+        assert!(
+            ambient.brightness > 0.0,
+            "ambient light should have positive brightness"
+        );
+
+        let has_directional = app
+            .world_mut()
+            .query::<(&DirectionalLight, &CharCreateScene)>()
+            .iter(app.world())
+            .count()
+            > 0;
+        assert!(
+            has_directional,
+            "char create scene should spawn a directional light"
+        );
+
+        let displayed = app.world().resource::<DisplayedModels>();
+        assert_eq!(
+            displayed.race,
+            Some(1),
+            "setup_scene should spawn initial human models"
+        );
+        assert!(
+            displayed.models.len() >= 2,
+            "setup_scene should spawn both male and female models, got {}",
+            displayed.models.len()
+        );
+
+        // Verify the model entities exist and have renderable children (meshes + materials)
+        for &(sex, entity) in &displayed.models {
+            assert!(
+                app.world().get_entity(entity).is_ok(),
+                "model entity for sex={sex} should exist"
+            );
+            assert!(
+                app.world().get::<CharCreateModelRoot>(entity).is_some(),
+                "model entity for sex={sex} should have CharCreateModelRoot"
+            );
+        }
+        let mesh_count = app
+            .world_mut()
+            .query::<&Mesh3d>()
+            .iter(app.world())
+            .count();
+        assert!(
+            mesh_count >= 2,
+            "scene should contain renderable meshes (ground + model), got {mesh_count}"
+        );
+        let material_count = app
+            .world_mut()
+            .query::<&MeshMaterial3d<StandardMaterial>>()
+            .iter(app.world())
+            .count();
+        assert!(
+            material_count >= 2,
+            "scene should contain materials for rendering, got {material_count}"
         );
     }
 
