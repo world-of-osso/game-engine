@@ -83,6 +83,21 @@ fn build_screen_with_delete_confirm(
     reg
 }
 
+fn build_screen_with_delete_confirm_real_layout(
+    state: CharSelectState,
+    delete_confirm: DeleteConfirmUiState,
+) -> FrameRegistry {
+    let mut reg = test_registry();
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(state);
+    shared.insert(delete_confirm);
+    Screen::new(char_select_screen).sync(&shared, &mut reg);
+    let cs = CharSelectUi::resolve(&reg);
+    super::apply_post_setup(&mut reg, &cs);
+    recompute_layouts(&mut reg);
+    reg
+}
+
 fn frame_center(reg: &FrameRegistry, name: &str) -> Vec2 {
     let rect = reg
         .get_by_name(name)
@@ -728,6 +743,46 @@ fn campsite_panel_does_not_overlap_character_cards() {
         "expected CampsitePanel to stay left of CharCard_0, got panel_right={} card_left={}",
         panel_right,
         card_left
+    );
+}
+
+#[test]
+fn delete_confirmation_modal_is_centered_on_screen_when_visible() {
+    let reg = build_screen_with_delete_confirm_real_layout(
+        CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            selected_name: "Elara".to_string(),
+            ..Default::default()
+        },
+        DeleteConfirmUiState {
+            visible: true,
+            character_name: "Elara".to_string(),
+            typed_text: "DEL".to_string(),
+            countdown_text: "Delete unlocks in 2s".to_string(),
+            confirm_enabled: false,
+        },
+    );
+
+    let dialog = reg
+        .get_by_name("DeleteCharacterDialog")
+        .and_then(|id| reg.get(id))
+        .and_then(|frame| frame.layout_rect.clone())
+        .expect("DeleteCharacterDialog layout_rect");
+    let center_x = dialog.x + dialog.width * 0.5;
+    let center_y = dialog.y + dialog.height * 0.5;
+
+    assert!(
+        (center_x - 960.0).abs() <= 10.0,
+        "expected delete dialog centered near x=960, got {center_x}"
+    );
+    assert!(
+        (center_y - 540.0).abs() <= 20.0,
+        "expected delete dialog centered near y=540, got {center_y}"
     );
 }
 
