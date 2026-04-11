@@ -154,7 +154,10 @@ fn disconnect_defers_world_reset_until_after_late_network_commands() {
         replicated,
         armed: true,
     });
-    app.insert_resource(PendingDisconnectInsert { client, armed: true });
+    app.insert_resource(PendingDisconnectInsert {
+        client,
+        armed: true,
+    });
     app.add_systems(Update, queue_disconnect_during_update);
     app.add_systems(Last, queue_late_network_entity_commands);
 
@@ -170,12 +173,20 @@ fn disconnect_defers_world_reset_until_after_late_network_commands() {
             .entity(replicated)
             .contains::<LateReceiveMarker>()
     );
-    assert!(app.world().resource::<PendingNetworkWorldReset>().0);
+    assert_eq!(
+        app.world().resource::<PendingNetworkWorldReset>().0,
+        Some(1)
+    );
 
     app.update();
 
     assert_inworld_reconnect_state(&app, client, replicated);
-    assert!(!app.world().resource::<PendingNetworkWorldReset>().0);
+    assert!(
+        app.world()
+            .resource::<PendingNetworkWorldReset>()
+            .0
+            .is_none()
+    );
 }
 
 #[test]
