@@ -250,6 +250,20 @@ fn load_m2_model_with_skin_fdids(
         .ok()
 }
 
+fn load_skybox_m2_model(
+    m2_path: &Path,
+    creature_display_map: &creature_display::CreatureDisplayMap,
+) -> Option<asset::m2::M2Model> {
+    let skin_fdids = creature_display_map
+        .resolve_skin_fdids_for_model_path(m2_path)
+        .unwrap_or([0, 0, 0]);
+    asset::m2::load_skybox_m2(m2_path, &skin_fdids)
+        .map_err(|e| {
+            eprintln!("Failed to load skybox M2 {}: {e}", m2_path.display());
+        })
+        .ok()
+}
+
 pub fn spawn_m2_model(ctx: &mut M2SceneSpawnContext<'_, '_, '_>, m2_path: &Path) {
     let Some(model) = load_m2_model(m2_path, ctx.creature_display_map) else {
         return;

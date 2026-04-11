@@ -33,6 +33,7 @@ pub(super) fn load_batch_material(
             }
             return BatchMaterial::Skybox(materials.add(skybox_m2_material(
                 None,
+                None,
                 Some(PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()]),
                 batch,
             )));
@@ -121,16 +122,39 @@ fn try_load_skybox_material(
     color: Option<Color>,
 ) -> Option<Handle<SkyboxM2Material>> {
     let fdid = batch.texture_fdid?;
-    let blp_path = asset::asset_cache::texture(fdid)
-        .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
-    if !blp_path.exists() {
-        return None;
-    }
-    let image =
+    let advanced_batch = skybox_batch_needs_effect_combine(batch);
+    let base_texture = if advanced_batch {
+        load_repeat_texture(fdid, texture_dir, images)?
+    } else {
+        let blp_path = asset::asset_cache::texture(fdid)
+            .unwrap_or_else(|| texture_dir.join(format!("{fdid}.blp")));
+        if !blp_path.exists() {
+            return None;
+        }
         crate::m2_texture_composite::load_composited_texture(&blp_path, batch, texture_dir, images)
             .map_err(|e| eprintln!("{e}"))
-            .ok()?;
-    Some(materials.add(skybox_m2_material(Some(image), color, batch)))
+            .ok()?
+    };
+    let second_texture = batch
+        .texture_2_fdid
+        .and_then(|second_fdid| load_repeat_texture(second_fdid, texture_dir, images));
+    Some(materials.add(skybox_m2_material(
+        Some(base_texture),
+        second_texture,
+        color,
+        batch,
+    )))
+}
+
+fn skybox_batch_needs_effect_combine(batch: &asset::m2::M2RenderBatch) -> bool {
+    batch.texture_2_fdid.is_some()
+        || batch.texture_count > 1
+        || batch.texture_anim.is_some()
+        || batch.texture_anim_2.is_some()
+        || batch.use_uv_2_1
+        || batch.use_uv_2_2
+        || batch.use_env_map_2
+        || batch.shader_id != 0
 }
 
 fn load_repeat_texture(
@@ -183,6 +207,7 @@ pub(super) fn m2_material(
 
 pub(crate) fn skybox_m2_material(
     texture: Option<Handle<Image>>,
+    second_texture: Option<Handle<Image>>,
     color: Option<Color>,
     batch: &asset::m2::M2RenderBatch,
 ) -> SkyboxM2Material {
@@ -193,9 +218,23 @@ pub(crate) fn skybox_m2_material(
                 .to_linear()
                 .to_f32_array()
                 .into(),
+            transparency: 1.0,
+            // Authored skybox textures use low alpha values for soft cloud edges.
+            // Applying the normal M2 alpha-test thresholds discards the entire dome.
+            alpha_test: 0.0,
+            shader_id: batch.shader_id as u32,
+            blend_mode: batch.blend_mode as u32,
+            uv_mode_1: u32::from(batch.use_uv_2_1),
+            uv_mode_2: u32::from(batch.use_uv_2_2),
+            render_flags: batch.render_flags as u32,
+            uv_offset_1: Vec2::ZERO,
+            uv_offset_2: Vec2::ZERO,
         },
         base_texture: texture.unwrap_or_default(),
+        second_texture: second_texture.unwrap_or_default(),
         blend_mode: batch.blend_mode,
+        texture_anim_1: batch.texture_anim.clone(),
+        texture_anim_2: batch.texture_anim_2.clone(),
     }
 }
 
@@ -307,5 +346,73 @@ mod tests {
             }),
             "deathskybox batches unexpectedly only use static base-texture sampling"
         );
+    }
+
+    #[test]
+    fn authored_skybox_models_reference_locally_available_textures() {
+        for skybox_path in [
+            std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2"),
+            std::path::Path::new("data/models/skyboxes/deathskybox.m2"),
+        ] {
+            let model = crate::asset::m2::load_m2_uncached(skybox_path, &[0, 0, 0])
+                .unwrap_or_else(|err| panic!("load skybox {}: {err}", skybox_path.display()));
+            let mut missing = std::collections::BTreeSet::new();
+            for fdid in model
+                .batches
+                .iter()
+                .flat_map(|batch| [batch.texture_fdid, batch.texture_2_fdid])
+                .flatten()
+            {
+                let local = crate::asset::asset_cache::texture(fdid).unwrap_or_else(|| {
+                    std::path::PathBuf::from(format!("data/textures/{fdid}.blp"))
+                });
+                if !local.exists() {
+                    missing.insert(fdid);
+                }
+            }
+            assert!(
+                missing.is_empty(),
+                "skybox {} is missing extracted textures for FDIDs: {:?}",
+                skybox_path.display(),
+                missing
+            );
+        }
+    }
+
+    #[test]
+    fn dedicated_skybox_loader_keeps_authored_skybox_render_batches() {
+        for skybox_path in [
+            std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2"),
+            std::path::Path::new("data/models/skyboxes/deathskybox.m2"),
+        ] {
+            let model = crate::asset::m2::load_skybox_m2_uncached(skybox_path, &[0, 0, 0])
+                .unwrap_or_else(|err| panic!("load skybox {}: {err}", skybox_path.display()));
+            let shader_ids: std::collections::BTreeSet<_> =
+                model.batches.iter().map(|batch| batch.shader_id).collect();
+            let blend_modes: std::collections::BTreeSet<_> =
+                model.batches.iter().map(|batch| batch.blend_mode).collect();
+            let two_texture_batches = model
+                .batches
+                .iter()
+                .filter(|batch| batch.texture_2_fdid.is_some())
+                .count();
+            eprintln!(
+                "{} batches={} shader_ids={shader_ids:?} blend_modes={blend_modes:?} two_texture_batches={two_texture_batches}",
+                skybox_path.display(),
+                model.batches.len()
+            );
+            for (index, batch) in model.batches.iter().take(5).enumerate() {
+                eprintln!(
+                    "  batch[{index}] tex1={:?} tex2={:?} shader_id=0x{:04x} blend_mode={}",
+                    batch.texture_fdid, batch.texture_2_fdid, batch.shader_id, batch.blend_mode
+                );
+            }
+
+            assert!(
+                !model.batches.is_empty(),
+                "skybox {} unexpectedly built no render batches in dedicated skybox mode",
+                skybox_path.display()
+            );
+        }
     }
 }

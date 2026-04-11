@@ -77,7 +77,11 @@ fn load_model_attachment_data(
     load_attachment_data(chunks)
 }
 
-pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+fn load_m2_uncached_impl(
+    path: &Path,
+    skin_fdids: &[u32; 3],
+    keep_zero_opacity_batches: bool,
+) -> Result<M2Model, String> {
     let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
     let chunks = parse_chunks(&data)?;
     let txid = chunks.txid.map(parse_txid).unwrap_or_default();
@@ -89,6 +93,7 @@ pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, S
         &txid,
         !anim.bones.is_empty(),
         skin_fdids,
+        keep_zero_opacity_batches,
     )?;
     let mut particles = m2_particle::parse_particle_emitters(chunks.md20);
     m2_particle::resolve_texture_fdids(&mut particles, &txid);
@@ -111,20 +116,41 @@ pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, S
     })
 }
 
+pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+    load_m2_uncached_impl(path, skin_fdids, false)
+}
+
+pub fn load_skybox_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+    load_m2_uncached_impl(path, skin_fdids, true)
+}
+
 pub(super) static M2_MODEL_CACHE: OnceLock<Mutex<HashMap<ModelCacheKey, Result<M2Model, String>>>> =
     OnceLock::new();
 
 /// Load an M2 model file (chunked MD21 format) and return per-batch meshes + textures.
 pub fn load_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+    load_m2_cached(path, skin_fdids, false)
+}
+
+pub fn load_skybox_m2(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
+    load_m2_cached(path, skin_fdids, true)
+}
+
+fn load_m2_cached(
+    path: &Path,
+    skin_fdids: &[u32; 3],
+    keep_zero_opacity_batches: bool,
+) -> Result<M2Model, String> {
     let key = ModelCacheKey {
         path: path.to_path_buf(),
         skin_fdids: *skin_fdids,
+        keep_zero_opacity_batches,
     };
     let cache = M2_MODEL_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     if let Some(cached) = cache.lock().unwrap().get(&key).cloned() {
         return cached;
     }
-    let loaded = load_m2_uncached(path, skin_fdids);
+    let loaded = load_m2_uncached_impl(path, skin_fdids, keep_zero_opacity_batches);
     cache.lock().unwrap().insert(key, loaded.clone());
     loaded
 }

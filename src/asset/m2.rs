@@ -20,7 +20,7 @@ pub(crate) use super::m2_format::{
     parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
     parse_uv_animation_lookup, parse_vertices, read_u32, resolve_indices,
 };
-pub use m2_loader::{load_m2, load_m2_uncached};
+pub use m2_loader::{load_m2, load_m2_uncached, load_skybox_m2, load_skybox_m2_uncached};
 
 /// Convert WoW coordinate (X-right, Y-forward, Z-up) to Bevy (X-right, Y-up, Z-back).
 pub fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
@@ -85,6 +85,7 @@ pub struct M2Model {
 pub(crate) struct ModelCacheKey {
     pub path: PathBuf,
     pub skin_fdids: [u32; 3],
+    pub keep_zero_opacity_batches: bool,
 }
 
 #[path = "m2_cache_stats.rs"]
@@ -241,6 +242,7 @@ pub(crate) fn build_render_batches(
     txid: &[u32],
     has_bones: bool,
     skin_fdids: &[u32; 3],
+    keep_zero_opacity_batches: bool,
 ) -> Result<Vec<M2RenderBatch>, String> {
     let parsed = parse_batch_inputs(md20)?;
     let skin = load_skin_data_checked(path, &chunks.sfid)?;
@@ -267,6 +269,7 @@ pub(crate) fn build_render_batches(
             texture_unit_lookup: &parsed.texture_unit_lookup,
             has_bones,
             is_hd: chunks.skid.is_some(),
+            keep_zero_opacity_batches,
         })
     } else {
         m2_batch::build_fallback_batch(&parsed.vertices, skin, &parsed.tex_types, txid)

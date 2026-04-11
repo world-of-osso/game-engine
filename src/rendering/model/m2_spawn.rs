@@ -359,7 +359,7 @@ fn spawn_batch_mesh(
     force_skybox_material: bool,
     skybox_color: Option<Color>,
 ) {
-    let visible = asset::m2::default_geoset_visible(batch.mesh_part_id);
+    let visible = initial_batch_visibility(batch.mesh_part_id, force_skybox_material);
     let mat = load_batch_material(
         &batch,
         batch_index,
@@ -377,6 +377,10 @@ fn spawn_batch_mesh(
         visible,
     };
     spawn_mesh_with_material(commands, assets.meshes, &mut context, mat, batch);
+}
+
+fn initial_batch_visibility(mesh_part_id: u16, force_skybox_material: bool) -> bool {
+    force_skybox_material || asset::m2::default_geoset_visible(mesh_part_id)
 }
 
 struct MeshSpawnContext<'a> {
@@ -615,3 +619,14 @@ const PLACEHOLDER_COLORS: &[Color] = &[
     Color::srgb(0.7, 0.7, 0.3),
     Color::srgb(0.6, 0.3, 0.7),
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::initial_batch_visibility;
+
+    #[test]
+    fn forced_skybox_batches_ignore_character_geoset_visibility_rules() {
+        assert!(!initial_batch_visibility(401, false));
+        assert!(initial_batch_visibility(401, true));
+    }
+}

@@ -30,7 +30,7 @@ pub fn spawn_animated_static_skybox_m2_parts(
     transform: Transform,
     skybox_color: Option<Color>,
 ) -> Option<SpawnedAnimatedStaticM2> {
-    let Some(model) = load_m2_model(m2_path, ctx.creature_display_map) else {
+    let Some(model) = super::load_skybox_m2_model(m2_path, ctx.creature_display_map) else {
         return None;
     };
     spawn_animated_static_m2_parts_from_model(ctx, m2_path, transform, model, true, skybox_color)

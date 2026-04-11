@@ -124,6 +124,7 @@ pub(super) struct BatchBuildContext<'a> {
     pub(super) texture_unit_lookup: &'a [i16],
     pub(super) has_bones: bool,
     pub(super) is_hd: bool,
+    pub(super) keep_zero_opacity_batches: bool,
 }
 
 pub(super) fn build_one_batch(
@@ -134,7 +135,7 @@ pub(super) fn build_one_batch(
     let texture = resolve_batch_texture(unit, ctx);
     let opacity = build_batch_opacity(ctx);
     let transparency = opacity.evaluate(unit);
-    if transparency <= 0.0 {
+    if transparency <= 0.0 && !ctx.keep_zero_opacity_batches {
         return Ok(None);
     }
     let texture_anims = resolve_batch_texture_anims(ctx, unit);
