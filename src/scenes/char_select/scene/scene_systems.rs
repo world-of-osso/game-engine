@@ -99,21 +99,7 @@ pub(super) fn sync_warband_scene_switch(mut params: CharSelectSceneSwitchParams)
     let Some(scene_switch) = resolve_scene_switch(&params) else {
         return;
     };
-    for entity in params.terrain_query.iter() {
-        params.commands.entity(entity).despawn();
-    }
-    let focus_pos = scene_switch
-        .placement
-        .as_ref()
-        .map(|p| p.bevy_position())
-        .unwrap_or_else(|| scene_switch.scene.bevy_look_at());
-    spawn_scene_warband_terrain(
-        &mut params.commands,
-        &mut params.assets,
-        &mut params.heightmap,
-        &scene_switch.scene,
-        focus_pos,
-    );
+    refresh_scene_terrain(&mut params, &scene_switch);
     update_camera_for_scene(
         &scene_switch.scene,
         scene_switch.placement.as_ref(),
@@ -121,15 +107,7 @@ pub(super) fn sync_warband_scene_switch(mut params: CharSelectSceneSwitchParams)
         scene_switch.presentation,
         &mut params.camera_query,
     );
-    params.active_scene.0 = Some(scene_switch.scene_id);
-    let has_supplemental =
-        !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(&scene_switch.scene)
-            .is_empty();
-    update_pending_scene(
-        &mut params.pending_supplemental,
-        scene_switch.scene_id,
-        has_supplemental,
-    );
+    finalize_scene_switch(&mut params, &scene_switch);
 }
 
 struct SceneSwitchData {
@@ -161,6 +139,48 @@ fn resolve_scene_switch(params: &CharSelectSceneSwitchParams<'_, '_>) -> Option<
         placement,
         presentation,
     })
+}
+
+fn refresh_scene_terrain(params: &mut CharSelectSceneSwitchParams, scene_switch: &SceneSwitchData) {
+    despawn_existing_scene_terrain(&mut params.commands, &params.terrain_query);
+    let focus_pos = scene_focus_position(scene_switch);
+    spawn_scene_warband_terrain(
+        &mut params.commands,
+        &mut params.assets,
+        &mut params.heightmap,
+        &scene_switch.scene,
+        focus_pos,
+    );
+}
+
+fn despawn_existing_scene_terrain(
+    commands: &mut Commands,
+    terrain_query: &Query<Entity, With<CharSelectTerrain>>,
+) {
+    for entity in terrain_query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn scene_focus_position(scene_switch: &SceneSwitchData) -> Vec3 {
+    scene_switch
+        .placement
+        .as_ref()
+        .map(|placement| placement.bevy_position())
+        .unwrap_or_else(|| scene_switch.scene.bevy_look_at())
+}
+
+fn finalize_scene_switch(params: &mut CharSelectSceneSwitchParams, scene_switch: &SceneSwitchData) {
+    params.active_scene.0 = Some(scene_switch.scene_id);
+    update_pending_scene(
+        &mut params.pending_supplemental,
+        scene_switch.scene_id,
+        scene_has_supplemental_terrain(&scene_switch.scene),
+    );
+}
+
+fn scene_has_supplemental_terrain(scene: &WarbandSceneEntry) -> bool {
+    !crate::scenes::char_select::warband::supplemental_terrain_tile_coords(scene).is_empty()
 }
 
 fn is_pending_scene_valid(
