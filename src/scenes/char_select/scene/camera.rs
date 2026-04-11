@@ -37,8 +37,8 @@ const ORBIT_PITCH_LIMIT: f32 = 0.15;
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
 const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 pub(super) const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
-const CHAR_SELECT_FOG_START: f32 = 140.0;
-const CHAR_SELECT_FOG_END: f32 = 220.0;
+const CHAR_SELECT_FOG_START_DISTANCE_MULTIPLIER: f32 = 2.0;
+const CHAR_SELECT_FOG_END_DISTANCE_MULTIPLIER: f32 = 5.0;
 const CHAR_SELECT_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
 const CHAR_SELECT_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
 const CHAR_SELECT_FOG_LIGHT_COLOR: Color = Color::srgb(0.35, 0.38, 0.42);
@@ -65,15 +65,14 @@ impl<'a> CameraTarget<'a> {
     }
 }
 
-pub(super) fn char_select_fog() -> DistanceFog {
+pub(super) fn char_select_fog(camera_distance: f32) -> DistanceFog {
+    let start = camera_distance * CHAR_SELECT_FOG_START_DISTANCE_MULTIPLIER;
+    let end = camera_distance * CHAR_SELECT_FOG_END_DISTANCE_MULTIPLIER;
     DistanceFog {
         color: CHAR_SELECT_FOG_COLOR,
         directional_light_color: CHAR_SELECT_FOG_LIGHT_COLOR,
         directional_light_exponent: 8.0,
-        falloff: FogFalloff::Linear {
-            start: CHAR_SELECT_FOG_START,
-            end: CHAR_SELECT_FOG_END,
-        },
+        falloff: FogFalloff::Linear { start, end },
     }
 }
 
@@ -171,6 +170,7 @@ pub(super) fn spawn_char_select_camera(
 ) -> Entity {
     let (eye, focus, fov) = camera_params(scene, placement, presentation);
     let eye = clamp_char_select_eye(eye, heightmap);
+    let fog = char_select_fog(eye.distance(focus));
     commands
         .spawn((
             Name::new("CharSelectCamera"),
@@ -187,7 +187,7 @@ pub(super) fn spawn_char_select_camera(
             }),
             Transform::from_translation(eye).looking_at(focus, Vec3::Y),
             orbit_from_eye_focus(eye, focus),
-            char_select_fog(),
+            fog,
         ))
         .id()
 }

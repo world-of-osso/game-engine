@@ -1,5 +1,5 @@
 use super::camera::{
-    CHAR_SELECT_CAMERA_GROUND_CLEARANCE, camera_params, char_select_orbit_camera,
+    CHAR_SELECT_CAMERA_GROUND_CLEARANCE, camera_params, char_select_fog, char_select_orbit_camera,
     clamp_char_select_eye, orbit_eye, orbit_from_eye_focus, orbit_input_debug_state,
     should_log_orbit_input,
 };
@@ -10,6 +10,7 @@ use bevy::ecs::message::Messages;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::pbr::FogFalloff;
 use bevy::state::app::StatesPlugin;
 use bevy::window::PrimaryWindow;
 use game_engine::ui::automation::UiAutomationPlugin;
@@ -342,6 +343,34 @@ fn camera_params_use_tighter_single_character_framing() {
     assert!(
         fov < scene_fov,
         "single-character framing should narrow the FOV from the warband overview"
+    );
+}
+
+#[test]
+fn char_select_fog_uses_scene_relative_falloff_for_single_character_view() {
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
+    let scene = warband
+        .scenes
+        .iter()
+        .find(|scene| scene.id == 1)
+        .expect("Adventurer's Rest");
+    let placement = selected_scene_placement(&warband, scene).expect("expected placement");
+    let (eye, focus, _) =
+        camera_params(Some(scene), Some(&placement), ModelPresentation::default());
+    let camera_distance = eye.distance(focus);
+    let fog = char_select_fog(camera_distance);
+
+    let FogFalloff::Linear { start, end } = fog.falloff else {
+        panic!("char-select should use linear fog falloff");
+    };
+
+    assert!(
+        (start - camera_distance * 2.0).abs() < 0.01,
+        "fog start should scale from camera distance, got start={start:.2} camera_distance={camera_distance:.2}"
+    );
+    assert!(
+        (end - camera_distance * 5.0).abs() < 0.01,
+        "fog end should scale from camera distance, got end={end:.2} camera_distance={camera_distance:.2}"
     );
 }
 
