@@ -785,6 +785,93 @@ mod tests {
     }
 
     #[test]
+    fn changing_race_replaces_model_entities_in_bevy_tree() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+        app.init_resource::<DisplayedModels>();
+
+        // Set up initial scene with race 1 (human)
+        app.world_mut()
+            .run_system_once(setup_scene)
+            .expect("setup_scene should run");
+        app.update();
+
+        let initial_models: Vec<(u8, Entity)> =
+            app.world().resource::<DisplayedModels>().models.clone();
+        assert!(
+            initial_models.len() >= 2,
+            "should have male+female human models"
+        );
+        let initial_mesh_count = app
+            .world_mut()
+            .query::<(&Mesh3d, &ChildOf)>()
+            .iter(app.world())
+            .count();
+
+        // Change state to race 2 (orc)
+        app.insert_resource(CharCreateState {
+            selected_race: 2,
+            selected_class: 1,
+            selected_sex: 0,
+            ..Default::default()
+        });
+
+        // Run sync_model to detect and apply the race change
+        app.world_mut()
+            .run_system_once(sync_model)
+            .expect("sync_model should run");
+        app.update();
+
+        let new_displayed = app.world().resource::<DisplayedModels>();
+        assert_eq!(
+            new_displayed.race,
+            Some(2),
+            "displayed race should update to orc (2)"
+        );
+        assert!(
+            new_displayed.models.len() >= 2,
+            "should have male+female orc models, got {}",
+            new_displayed.models.len()
+        );
+
+        // Old entities should be despawned
+        for &(sex, entity) in &initial_models {
+            assert!(
+                app.world().get_entity(entity).is_err(),
+                "old model entity for sex={sex} should be despawned after race change"
+            );
+        }
+
+        // New entities should exist with model root
+        for &(sex, entity) in &new_displayed.models {
+            assert!(
+                app.world().get_entity(entity).is_ok(),
+                "new model entity for sex={sex} should exist"
+            );
+            assert!(
+                app.world().get::<CharCreateModelRoot>(entity).is_some(),
+                "new model entity for sex={sex} should have CharCreateModelRoot"
+            );
+        }
+
+        // New model should have renderable meshes
+        let new_mesh_count = app
+            .world_mut()
+            .query::<(&Mesh3d, &ChildOf)>()
+            .iter(app.world())
+            .count();
+        assert!(
+            new_mesh_count >= 2,
+            "new model should have renderable child meshes, got {new_mesh_count}"
+        );
+    }
+
+    #[test]
     fn apply_orbit_produces_valid_transform() {
         let orbit = CharCreateOrbit {
             yaw: 0.0,
