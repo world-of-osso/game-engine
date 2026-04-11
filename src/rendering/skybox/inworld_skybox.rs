@@ -235,31 +235,12 @@ pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
         &params.skybox_q,
         desired_path.as_deref(),
     );
-
-    let Some(path) = desired_path else {
-        return;
-    };
-    let (phase, initial_alpha) = inworld_skybox_spawn_state(has_existing_skybox);
-    let Some(spawned_root) = spawn_inworld_skybox(
-        &mut params.commands,
-        &mut params.meshes,
-        &mut params.materials,
-        &mut params.effect_materials,
-        &mut params.skybox_materials,
-        &mut params.images,
-        &mut params.inverse_bp,
-        &params.creature_display_map,
-        &path,
+    spawn_desired_inworld_skybox(
+        &mut params,
+        desired_path,
+        has_existing_skybox,
         camera_translation,
-        initial_alpha,
-    ) else {
-        return;
-    };
-    params.commands.entity(spawned_root).insert(InWorldSkybox {
-        path,
-        phase,
-        elapsed: 0.0,
-    });
+    );
 }
 
 fn resolve_desired_inworld_skybox_path(
@@ -293,6 +274,38 @@ fn inworld_skybox_spawn_state(has_existing_skybox: bool) -> (InWorldSkyboxPhase,
     } else {
         (InWorldSkyboxPhase::Steady, 1.0)
     }
+}
+
+fn spawn_desired_inworld_skybox(
+    params: &mut InWorldSkyboxParams,
+    desired_path: Option<PathBuf>,
+    has_existing_skybox: bool,
+    camera_translation: Vec3,
+) {
+    let Some(path) = desired_path else {
+        return;
+    };
+    let (phase, initial_alpha) = inworld_skybox_spawn_state(has_existing_skybox);
+    let Some(spawned_root) = spawn_inworld_skybox(
+        &mut params.commands,
+        &mut params.meshes,
+        &mut params.materials,
+        &mut params.effect_materials,
+        &mut params.skybox_materials,
+        &mut params.images,
+        &mut params.inverse_bp,
+        &params.creature_display_map,
+        &path,
+        camera_translation,
+        initial_alpha,
+    ) else {
+        return;
+    };
+    params.commands.entity(spawned_root).insert(InWorldSkybox {
+        path,
+        phase,
+        elapsed: 0.0,
+    });
 }
 
 pub(super) fn sync_inworld_skybox_to_camera(
