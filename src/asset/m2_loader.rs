@@ -77,27 +77,26 @@ fn load_model_attachment_data(
     load_attachment_data(chunks)
 }
 
-fn load_m2_uncached_impl(
+fn build_m2_model(
     path: &Path,
+    chunks: &M2Chunks<'_>,
+    txid: &[u32],
     skin_fdids: &[u32; 3],
     keep_zero_opacity_batches: bool,
 ) -> Result<M2Model, String> {
-    let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
-    let chunks = parse_chunks(&data)?;
-    let txid = chunks.txid.map(parse_txid).unwrap_or_default();
-    let anim = super::load_anim_data(path, &chunks);
+    let anim = super::load_anim_data(path, chunks);
     let batches = build_render_batches(
         chunks.md20,
         path,
-        &chunks,
-        &txid,
+        chunks,
+        txid,
         !anim.bones.is_empty(),
         skin_fdids,
         keep_zero_opacity_batches,
     )?;
     let mut particles = m2_particle::parse_particle_emitters(chunks.md20);
-    m2_particle::resolve_texture_fdids(&mut particles, &txid);
-    let (attachments, attachment_lookup) = load_model_attachment_data(path, &chunks);
+    m2_particle::resolve_texture_fdids(&mut particles, txid);
+    let (attachments, attachment_lookup) = load_model_attachment_data(path, chunks);
     let lights = m2_light::parse_lights(chunks.md20);
     let (bounding_box_min, bounding_box_max) =
         crate::asset::m2_format::parse_bounding_box(chunks.md20);
@@ -114,6 +113,17 @@ fn load_m2_uncached_impl(
         bounding_box_min,
         bounding_box_max,
     })
+}
+
+fn load_m2_uncached_impl(
+    path: &Path,
+    skin_fdids: &[u32; 3],
+    keep_zero_opacity_batches: bool,
+) -> Result<M2Model, String> {
+    let data = std::fs::read(path).map_err(|e| format!("Failed to read M2 file: {e}"))?;
+    let chunks = parse_chunks(&data)?;
+    let txid = chunks.txid.map(parse_txid).unwrap_or_default();
+    build_m2_model(path, &chunks, &txid, skin_fdids, keep_zero_opacity_batches)
 }
 
 pub fn load_m2_uncached(path: &Path, skin_fdids: &[u32; 3]) -> Result<M2Model, String> {
