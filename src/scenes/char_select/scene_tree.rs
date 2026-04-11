@@ -386,7 +386,7 @@ fn light_scene_node(label: &str, entity: Option<Entity>, kind: &str, intensity: 
 }
 
 fn primary_light_scene_node(entity: Entity) -> SceneNode {
-    light_scene_node("PrimaryLight", Some(entity), "spot", 220000.0)
+    light_scene_node("PrimaryLight", Some(entity), "directional", 12000.0)
 }
 
 fn fill_light_scene_node(entity: Entity) -> SceneNode {
@@ -441,8 +441,8 @@ mod tests {
         assert_eq!(
             nodes[2].props,
             NodeProps::Light {
-                kind: "spot".into(),
-                intensity: 220000.0,
+                kind: "directional".into(),
+                intensity: 12000.0,
             }
         );
         assert_eq!(nodes[3].label, "FillLight");

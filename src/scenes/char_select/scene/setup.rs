@@ -6,9 +6,9 @@ pub(super) fn setup_char_select_scene(mut params: CharSelectSceneSetupParams) {
     let (mut bg_node, background_elapsed) = spawn_scene_background(&mut params, &selection);
     let (lighting, camera_elapsed, sky_light_elapsed) =
         spawn_scene_camera_and_lighting(&mut params, &selection, &mut bg_node);
-    let char_tf = resolve_char_transform(
-        &params.warband,
-        &params.selected_scene,
+    let char_tf = character_transform(
+        selection.scene_entry.as_ref(),
+        selection.placement.as_ref(),
         Some(&params.heightmap),
         selection.presentation,
     );

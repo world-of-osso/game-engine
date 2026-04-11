@@ -164,16 +164,6 @@ pub fn spawn(
             focus.unwrap_or_else(|| s.bevy_look_at()),
         )
     {
-        if let Some(focus) = focus {
-            let _ = spawn_campsite_ground_patch(
-                ctx.commands,
-                ctx.meshes,
-                ctx.materials,
-                ctx.images,
-                ctx.heightmap,
-                focus,
-            );
-        }
         let (ty, tx) = s.tile_coords();
         let wmos = result
             .wmo_entities

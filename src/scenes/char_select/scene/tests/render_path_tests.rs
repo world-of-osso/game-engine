@@ -268,10 +268,10 @@ fn setup_char_select_scene_proves_render_path_via_runtime_scene_snapshot() {
         snapshot.root.children.iter().any(|child| {
             matches!(
                 child.props,
-                game_engine::scene_tree::NodeProps::Light { ref kind, .. } if kind == "spot"
+                game_engine::scene_tree::NodeProps::Light { ref kind, .. } if kind == "directional"
             )
         }),
-        "scene snapshot should contain the primary spot light"
+        "scene snapshot should contain the primary directional light"
     );
     assert!(
         snapshot.root.children.iter().any(|child| {
