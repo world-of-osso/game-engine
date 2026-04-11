@@ -1031,6 +1031,53 @@ fn char_select_update_visuals_rebuilds_ui_state_after_selection_change() {
 }
 
 #[test]
+fn char_select_keyboard_arrow_down_advances_selected_index() {
+    let mut app = build_test_app();
+    app.insert_resource(CharacterList(vec![
+        CharacterListEntry {
+            character_id: 1,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+        CharacterListEntry {
+            character_id: 2,
+            name: "Theron".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+    ]));
+    app.update();
+    app.world_mut().resource_mut::<SelectedCharIndex>().0 = Some(0);
+    app.world_mut()
+        .resource_mut::<Messages<KeyboardInput>>()
+        .write(KeyboardInput {
+            key_code: KeyCode::ArrowDown,
+            logical_key: bevy::input::keyboard::Key::ArrowDown,
+            state: bevy::input::ButtonState::Pressed,
+            text: None,
+            repeat: false,
+            window: Entity::PLACEHOLDER,
+        });
+
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::input::char_select_keyboard_input)
+        .expect("char_select_keyboard_input should run");
+
+    assert_eq!(
+        app.world().resource::<SelectedCharIndex>().0,
+        Some(1),
+        "ArrowDown should move char-select selection from index 0 to index 1"
+    );
+}
+
+#[test]
 fn parse_click_action_event_marks_unknown_action_unparsed() {
     let (parsed_action, parsed_action_label) =
         crate::scenes::char_select::input::parse_click_action_event("not_an_action");
