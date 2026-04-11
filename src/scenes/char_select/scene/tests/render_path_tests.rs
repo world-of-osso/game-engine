@@ -420,3 +420,73 @@ fn race_model_wow_path_covers_known_playable_races_and_sex() {
     );
     assert_eq!(race_model_wow_path(99, 0), None);
 }
+
+#[test]
+fn char_select_camera_retains_scene_fog_after_sky_dome_attachment() {
+    let mut app = render_path_test_app();
+
+    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
+    let scene = warband
+        .scenes
+        .iter()
+        .find(|s| s.id == 1)
+        .cloned()
+        .expect("Adventurer's Rest");
+    let placement = selected_scene_placement(&warband, &scene).expect("placement");
+    let (eye, focus, _) =
+        camera_params(Some(&scene), Some(&placement), ModelPresentation::default());
+    let camera_distance = eye.distance(focus);
+    let expected_fog = char_select_fog(camera_distance);
+
+    let camera_entity = app
+        .world_mut()
+        .run_system_once(
+            move |mut commands: Commands,
+                  mut meshes: ResMut<Assets<Mesh>>,
+                  mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
+                  mut images: ResMut<Assets<Image>>,
+                  cloud_maps: Res<crate::sky::cloud_texture::ProceduralCloudMaps>| {
+                let camera = camera::spawn_char_select_camera(
+                    &mut commands,
+                    Some(&scene),
+                    Some(&placement),
+                    None,
+                    ModelPresentation::default(),
+                );
+                setup::spawn_char_select_sky_dome(
+                    &mut commands,
+                    &mut meshes,
+                    &mut sky_materials,
+                    &mut images,
+                    cloud_maps.active_handle(),
+                    camera,
+                );
+                camera
+            },
+        )
+        .expect("system should run");
+    app.update();
+
+    let fog = app
+        .world()
+        .get::<DistanceFog>(camera_entity)
+        .expect("camera should have fog");
+    let FogFalloff::Linear { start, end } = fog.falloff else {
+        panic!("expected linear fog");
+    };
+    let FogFalloff::Linear {
+        start: expected_start,
+        end: expected_end,
+    } = expected_fog.falloff
+    else {
+        unreachable!();
+    };
+    assert!(
+        (start - expected_start).abs() < 0.01,
+        "sky dome overwrote char-select fog start: got {start:.1}, expected {expected_start:.1}"
+    );
+    assert!(
+        (end - expected_end).abs() < 0.01,
+        "sky dome overwrote char-select fog end: got {end:.1}, expected {expected_end:.1}"
+    );
+}

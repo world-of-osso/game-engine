@@ -176,7 +176,7 @@ pub fn spawn_sky_dome(
     dome
 }
 
-fn spawn_sky_dome_entity(
+pub(crate) fn spawn_sky_dome_entity(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     sky_materials: &mut Assets<SkyMaterial>,

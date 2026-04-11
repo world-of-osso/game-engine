@@ -136,15 +136,14 @@ pub(super) fn spawn_char_select_sky_dome(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     sky_materials: &mut Assets<crate::sky_material::SkyMaterial>,
-    images: &mut Assets<Image>,
+    _images: &mut Assets<Image>,
     cloud_texture: Handle<Image>,
     camera_entity: Entity,
 ) -> Entity {
-    crate::sky::spawn_sky_dome(
+    crate::sky::spawn_sky_dome_entity(
         commands,
         meshes,
         sky_materials,
-        images,
         camera_entity,
         cloud_texture,
     )

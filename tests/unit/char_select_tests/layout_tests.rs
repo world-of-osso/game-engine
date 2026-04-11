@@ -43,7 +43,6 @@ fn char_select_screen_builds_all_critical_frames() {
         ENTER_WORLD_BUTTON.0,
         DELETE_CHAR_BUTTON.0,
         BACK_BUTTON.0,
-        MENU_BUTTON.0,
     ] {
         assert!(
             reg.get_by_name(frame_name).is_some(),

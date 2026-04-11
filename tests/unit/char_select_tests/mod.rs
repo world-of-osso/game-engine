@@ -12,7 +12,7 @@ pub(super) use game_engine::ui::event::EventBus;
 pub(super) use game_engine::ui::frame::WidgetData;
 pub(super) use game_engine::ui::registry::FrameRegistry;
 pub(super) use game_engine::ui::screens::char_select_component::{
-    BACK_BUTTON, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON, MENU_BUTTON,
+    BACK_BUTTON, CharSelectAction, DELETE_CHAR_BUTTON, ENTER_WORLD_BUTTON,
 };
 pub(super) use game_engine::ui::strata::FrameStrata;
 pub(super) use game_engine::ui::widgets::button::ButtonState;
