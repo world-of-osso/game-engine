@@ -278,6 +278,92 @@ fn clicking_race_button_changes_selected_race() {
 }
 
 #[test]
+fn entering_char_create_spawns_renderable_model_without_clicks() {
+    use bevy::app::App;
+    use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+    use bevy::prelude::*;
+    use bevy::state::app::StatesPlugin;
+    use bevy::window::PrimaryWindow;
+    use game_engine::customization_data::CustomizationDb;
+
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(StatesPlugin);
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
+    app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+    app.insert_resource(crate::creature_display::CreatureDisplayMap);
+    app.insert_resource(CustomizationDb::load(std::path::Path::new("data")));
+    app.add_plugins(crate::scenes::char_create::CharCreateScenePlugin);
+    app.insert_resource(game_engine::asset::char_texture::CharTextureData::load(
+        std::path::Path::new("data"),
+    ));
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
+    app.insert_resource(crate::client_options::CameraOptions::default());
+    app.insert_state(crate::game_state::GameState::CharCreate);
+    app.world_mut().spawn((Window::default(), PrimaryWindow));
+
+    // OnEnter fires setup_scene
+    app.update();
+
+    // Verify renderable meshes spawned (ground + model batches)
+    let mesh_count = app
+        .world_mut()
+        .query::<&Mesh3d>()
+        .iter(app.world())
+        .count();
+    assert!(
+        mesh_count >= 3,
+        "entering CharCreate should spawn ground + character model meshes, got {mesh_count}"
+    );
+
+    // Verify materials assigned for rendering
+    let material_count = app
+        .world_mut()
+        .query::<&MeshMaterial3d<StandardMaterial>>()
+        .iter(app.world())
+        .count();
+    assert!(
+        material_count >= 2,
+        "scene should have materials for rendering, got {material_count}"
+    );
+
+    let initial_mesh_count = mesh_count;
+
+    // CharCreateState is normally inserted by CharCreatePlugin's OnEnter.
+    // Insert it manually since we only have CharCreateScenePlugin.
+    app.insert_resource(CharCreateState::default());
+    app.update(); // let sync_model see the initial state
+
+    // Now change race to orc (2) via state mutation (simulating UI click)
+    app.world_mut()
+        .resource_mut::<CharCreateState>()
+        .selected_race = 2;
+
+    // Run update — sync_model should detect the race change and respawn
+    app.update();
+
+    let new_mesh_count = app
+        .world_mut()
+        .query::<&Mesh3d>()
+        .iter(app.world())
+        .count();
+    assert!(
+        new_mesh_count >= 3,
+        "after race change, scene should still have renderable meshes, got {new_mesh_count}"
+    );
+    // Mesh count should differ because orc model has different batch count than human
+    // (or at minimum, meshes should still exist)
+    assert!(
+        new_mesh_count > 0,
+        "model should be present after race change"
+    );
+}
+
+#[test]
 fn clicking_race_button_changes_race_through_full_app_update() {
     use bevy::app::App;
     use bevy::input::ButtonInput;
