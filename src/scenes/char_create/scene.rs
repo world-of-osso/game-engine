@@ -872,6 +872,59 @@ mod tests {
     }
 
     #[test]
+    fn sync_appearance_unhides_geoset_meshes() {
+        use game_engine::asset::char_texture::CharTextureData;
+
+        let mut app = App::new();
+        app.add_plugins(bevy::MinimalPlugins);
+        app.add_plugins(bevy::transform::TransformPlugin);
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+        app.insert_resource(CustomizationDb::load(Path::new("data")));
+        app.insert_resource(CharTextureData::load(Path::new("data")));
+        app.init_resource::<DisplayedModels>();
+
+        // Spawn the scene
+        app.world_mut()
+            .run_system_once(setup_scene)
+            .expect("setup_scene should run");
+        app.update();
+
+        // Insert CharCreateState (normally done by CharCreatePlugin)
+        app.insert_resource(CharCreateState::default());
+        app.update();
+
+        // Run sync_appearance
+        app.world_mut()
+            .run_system_once(sync_appearance)
+            .expect("sync_appearance should run");
+        app.update();
+
+        // Count visible geoset meshes
+        let visible_geosets = app
+            .world_mut()
+            .query::<(&crate::m2_spawn::GeosetMesh, &Visibility)>()
+            .iter(app.world())
+            .filter(|(_, vis)| **vis == Visibility::Inherited)
+            .count();
+
+        let total_geosets = app
+            .world_mut()
+            .query::<&crate::m2_spawn::GeosetMesh>()
+            .iter(app.world())
+            .count();
+
+        assert!(
+            visible_geosets > 0,
+            "sync_appearance should un-hide at least some geoset meshes, got 0/{total_geosets} visible"
+        );
+    }
+
+    #[test]
     fn camera_ray_hits_character_model() {
         use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 
