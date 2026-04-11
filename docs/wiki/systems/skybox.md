@@ -38,12 +38,12 @@ cargo run --bin game-engine -- --screen skyboxdebug --skybox-fdid 5412968
 
 ## Fallback Behavior
 
-When `Light.csv → LightParams.db2` mapping fails (some warband scene LightParamsIDs have no matching row in the local modern DB2), the scene falls back to:
+When a warband scene has no local scene-specific skybox row with a resolvable `LightSkyboxID`, it falls back to:
 ```
 environments/stars/costalislandskybox.m2
 ```
 
-Known example: scene 4 uses LightParamsID 6577, which has no matching local LightParams.db2 row.
+Known example: scene 1 should now use this fallback instead of treating the global `Light.csv` row that led to `deathskybox.m2` as authored campsite data.
 
 ## TACT Key Requirement
 

@@ -622,6 +622,26 @@ mod tests {
     }
 
     #[test]
+    fn default_debug_scene_uses_shared_campsite_fallback_when_first_scene_has_no_local_authored_skybox()
+     {
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
+            .scenes
+            .into_iter()
+            .find(|scene| scene.id == 1)
+            .expect("known scene");
+        let resolved = resolve_debug_skybox(Some(&scene), None).expect("resolved default skybox");
+
+        assert!(
+            resolved
+                .path
+                .ends_with("data/models/skyboxes/costalislandskybox.m2"),
+            "unexpected resolved path: {}",
+            resolved.path.display()
+        );
+        assert_eq!(resolved.source, "warband scene 1 (Adventurer's Rest)");
+    }
+
+    #[test]
     fn depth_probe_scene_node_uses_depth_probe_object_kind() {
         let entity = Entity::PLACEHOLDER;
         let node = depth_probe_scene_node(entity);

@@ -53,7 +53,8 @@ The lookup is verified, but the current renderer still outputs an effectively bl
 
 ## Current Rendering Failure
 
-As of 2026-04-11, `skyboxdebug` reproduces the same black-output failure through both authored entry paths:
+As of 2026-04-11, the black authored-skybox failure is still reproducible, but the default
+warband debug path should no longer be treated as an authored control:
 
 ```bash
 cargo run --bin game-engine -- --screen skyboxdebug screenshot data/skyboxdebug-default-2026-04-11.webp
@@ -62,12 +63,15 @@ cargo run --bin game-engine -- --screen skyboxdebug --light-skybox-id 653 screen
 
 Observed results:
 
-- default scene lookup resolves `data/models/skyboxes/deathskybox.m2`
+- default scene 1 lookup now resolves `data/models/skyboxes/costalislandskybox.m2`
 - forced `--light-skybox-id 653` resolves `data/models/skyboxes/11xp_cloudsky01.m2`
-- both screenshots have a black center pixel: `srgba(0,0,0,0)`
-- both screenshots have near-zero mean brightness (`0.00612541` and `0.0059299`)
+- the forced authored path still rendered with a black center pixel: `srgba(0,0,0,0)`
+- the earlier default `deathskybox.m2` path came from a global `Light.csv` fallback row and is no longer used for warband scene 1
 
-That means the lookup chain is not the failing part here. Different authored skybox models reach the same black output once they hit the current `SkyboxM2Material` render path.
+That means two separate things:
+
+- the lookup chain can still reach a known-authored skybox through `LightSkyboxID 653`
+- warband scene 1 was never a trustworthy authored default; it now falls back to the shared campsite skybox instead of a bogus global `deathskybox` result
 
 ## Why Some Scenes Still Fall Back
 
@@ -75,8 +79,8 @@ The remaining fallback is no longer a TACT key problem.
 
 Current limitation:
 
-- some `Light.csv` / `LightParamsID` values used by warband scenes do not appear directly in the local modern `LightParams.db2`
-- when that happens, authored lookup stops before `LightSkyboxID` resolution
+- some warband scenes do not have a local scene-specific `Light.csv` skybox row with a resolvable `LightSkyboxID`
+- when that happens, the warband skybox path should stop before treating a global row as authored
 - those scenes currently fall back to:
 
 ```text
@@ -86,9 +90,10 @@ environments/stars/costalislandskybox.m2
 One current known example:
 
 ```text
-scene 4
-  -> LightParamsID 6577 from Light.csv
-  -> no matching current local LightParams.db2 row
+scene 1
+  -> no local scene-specific skybox Light.csv row with a resolvable LightSkyboxID
+  -> global Light.csv row exposed LightParamsID 3
+  -> that mapped to deathskybox.m2, but was not actually campsite-authored
   -> fallback skybox
 ```
 

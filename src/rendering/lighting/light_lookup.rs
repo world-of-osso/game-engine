@@ -74,9 +74,12 @@ pub fn resolve_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u3
 }
 
 pub fn resolve_skybox_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u32> {
-    resolve_light_params_ids(map_id, wow_position)?
-        .into_iter()
-        .find(|id| *id != 0 && resolve_light_skybox_id(*id).is_some())
+    resolve_light_params_ids(map_id, wow_position).and_then(first_resolvable_skybox_light_params_id)
+}
+
+pub fn resolve_local_skybox_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u32> {
+    select_light_row(map_id, wow_position)
+        .and_then(|row| first_resolvable_skybox_light_params_id(row.light_params_ids))
 }
 
 pub fn resolve_light_skybox_id(light_params_id: u32) -> Option<u32> {
@@ -189,6 +192,12 @@ fn ensure_db2_path(fdid: u32, path: &Path) -> Option<std::path::PathBuf> {
         return Some(path.to_path_buf());
     }
     crate::asset::asset_cache::file_at_path(fdid, path)
+}
+
+fn first_resolvable_skybox_light_params_id(light_params_ids: [u32; 8]) -> Option<u32> {
+    light_params_ids
+        .into_iter()
+        .find(|id| *id != 0 && resolve_light_skybox_id(*id).is_some())
 }
 
 fn score_light_row(row: &LightEntry, wow_position: [f32; 3]) -> Option<f32> {
@@ -453,7 +462,8 @@ fn parse_wdc5_field_storage(
 mod tests {
     use super::{
         map_name_to_id, resolve_light_params_id, resolve_light_skybox_fdid,
-        resolve_light_skybox_id, resolve_light_skybox_wow_path, resolve_skybox_light_params_id,
+        resolve_light_skybox_id, resolve_light_skybox_wow_path,
+        resolve_local_skybox_light_params_id, resolve_skybox_light_params_id,
     };
 
     #[test]
@@ -506,6 +516,32 @@ mod tests {
         let params = resolve_skybox_light_params_id(scene.map_id, scene.position);
 
         assert_eq!(params, Some(3));
+    }
+
+    #[test]
+    fn local_authored_skybox_params_do_not_use_global_light_rows() {
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
+            .scenes
+            .into_iter()
+            .find(|scene| scene.id == 1)
+            .expect("known scene");
+
+        let params = resolve_local_skybox_light_params_id(scene.map_id, scene.position);
+
+        assert_eq!(params, None);
+    }
+
+    #[test]
+    fn local_authored_skybox_params_still_resolve_scene_specific_rows() {
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
+            .scenes
+            .into_iter()
+            .find(|scene| scene.id == 4)
+            .expect("known scene");
+
+        let params = resolve_local_skybox_light_params_id(scene.map_id, scene.position);
+
+        assert_eq!(params, Some(5119));
     }
 
     #[test]

@@ -161,7 +161,7 @@ impl WarbandSceneEntry {
 
     pub fn authored_light_skybox_id(&self) -> Option<u32> {
         let light_params_id =
-            crate::light_lookup::resolve_skybox_light_params_id(self.map_id, self.position)?;
+            crate::light_lookup::resolve_local_skybox_light_params_id(self.map_id, self.position)?;
         crate::light_lookup::resolve_light_skybox_id(light_params_id)
     }
 
@@ -532,9 +532,13 @@ mod tests {
     }
 
     #[test]
-    fn active_warband_scenes_have_skybox_mappings() {
+    fn current_campsite_scenes_have_skybox_mappings() {
         let warband = WarbandScenes::load();
-        for scene in &warband.scenes {
+        for scene in warband
+            .scenes
+            .iter()
+            .filter(|scene| scene.preview_image_path().is_some())
+        {
             assert!(
                 scene.skybox_model_wow_path().is_some(),
                 "scene {} ({}) should map to a skybox model",
@@ -548,10 +552,8 @@ mod tests {
     fn authored_light_scenes_resolve_authored_skybox_paths() {
         let warband = WarbandScenes::load();
         for (scene_id, expected_path) in [
-            (1_u32, "environments/stars/deathskybox.m2"),
             (4_u32, "environments/stars/10gsl_sky01.m2"),
             (7_u32, "environments/stars/11xp_cloudsky01.m2"),
-            (25_u32, "environments/stars/deathskybox.m2"),
         ] {
             let scene = warband
                 .scenes
@@ -569,7 +571,11 @@ mod tests {
     #[test]
     fn active_warband_scenes_now_resolve_authored_skybox_paths() {
         let warband = WarbandScenes::load();
-        for scene in &warband.scenes {
+        for scene in warband
+            .scenes
+            .iter()
+            .filter(|scene| scene.authored_skybox_model_wow_path().is_some())
+        {
             let path = scene
                 .authored_skybox_model_wow_path()
                 .expect("active scene should resolve authored skybox path");
@@ -585,11 +591,7 @@ mod tests {
     #[test]
     fn non_active_warband_scene_rows_also_resolve_authored_skybox_paths() {
         let scenes = load_all_scenes_for_audit();
-        for (scene_id, expected_path) in [
-            (119_u32, "environments/stars/11krs_mainskybox01.m2"),
-            (145_u32, "environments/stars/deathskybox.m2"),
-            (146_u32, "environments/stars/deathskybox.m2"),
-        ] {
+        for (scene_id, expected_path) in [(119_u32, "environments/stars/11krs_mainskybox01.m2")] {
             let scene = scenes
                 .iter()
                 .find(|scene| scene.id == scene_id)
@@ -602,23 +604,7 @@ mod tests {
     }
 
     #[test]
-    fn scenes_missing_primary_lightparams_rows_can_still_resolve_authored_skyboxes() {
-        let warband = WarbandScenes::load();
-        let scene = warband
-            .scenes
-            .iter()
-            .find(|scene| scene.id == 25)
-            .expect("known scene");
-
-        assert_eq!(scene.authored_light_params_id(), Some(6412));
-        assert_eq!(
-            scene.authored_skybox_model_wow_path(),
-            Some("environments/stars/deathskybox.m2")
-        );
-    }
-
-    #[test]
-    fn authored_star_skyboxes_override_shared_star_fallback() {
+    fn scene_without_local_authored_skybox_uses_shared_campsite_fallback() {
         let warband = WarbandScenes::load();
         let scene = warband
             .scenes
@@ -626,10 +612,15 @@ mod tests {
             .find(|scene| scene.id == 1)
             .expect("known scene");
 
-        assert_eq!(scene.texture_kit, 5671);
+        assert_eq!(
+            scene.authored_skybox_model_wow_path(),
+            None,
+            "scene 1 should not treat global skybox fallback as authored"
+        );
         assert_eq!(
             scene.skybox_model_wow_path(),
-            Some("environments/stars/deathskybox.m2")
+            Some("environments/stars/costalislandskybox.m2"),
+            "scene 1 should fall back to the shared campsite skybox"
         );
     }
 

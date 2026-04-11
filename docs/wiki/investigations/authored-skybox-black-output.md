@@ -1,6 +1,6 @@
 # Authored Skybox Black Output
 
-`skyboxdebug` resolves authored WoW skyboxes correctly, but the rendered result is still effectively black. The failure reproduces through both the default warband-scene lookup and a forced known-good authored override, which rules out lookup failure as the primary issue.
+Forced authored WoW skyboxes still render effectively black in `skyboxdebug`. The older default warband-scene repro was misleading: scene 1 was reaching `deathskybox.m2` through a global `Light.csv` fallback row, not a local campsite-authored skybox choice.
 
 ## Reproduction
 
@@ -13,19 +13,18 @@ cargo run --bin game-engine -- --screen skyboxdebug --light-skybox-id 653 screen
 
 Observed runtime logs:
 
-- default `skyboxdebug` resolves `data/models/skyboxes/deathskybox.m2`
+- current default scene 1 path now falls back to `data/models/skyboxes/costalislandskybox.m2`
 - forced `--light-skybox-id 653` resolves `data/models/skyboxes/11xp_cloudsky01.m2`
 
 Measured image output:
 
-- default screenshot center pixel: `srgba(0,0,0,0)`, mean brightness: `0.00612541`
 - forced `653` screenshot center pixel: `srgba(0,0,0,0)`, mean brightness: `0.0059299`
 
 ## What This Proves
 
-- The authored lookup chain works well enough to reach two different skybox M2 files.
-- The black output is not just a bad default skybox choice, because the forced known-good override fails the same way.
-- The failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`.
+- The authored lookup chain works well enough to reach the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` path.
+- The old default `deathskybox.m2` control was not trustworthy for warband scene 1 and should not be used as proof of authored correctness.
+- The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`.
 
 ## Fixed
 
