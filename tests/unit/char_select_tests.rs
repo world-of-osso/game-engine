@@ -177,6 +177,37 @@ fn char_select_screen_builds_all_critical_frames() {
 }
 
 #[test]
+fn character_card_list_is_anchored_to_top_left() {
+    use game_engine::ui::anchor::AnchorPoint;
+
+    let reg = build_screen(CharSelectState {
+        characters: vec![CharDisplayEntry {
+            name: "TestChar".to_string(),
+            info: "Level 60   Race 1   Class 1".to_string(),
+            status: "Ready".to_string(),
+        }],
+        selected_index: Some(0),
+        ..Default::default()
+    });
+
+    let cards_id = reg
+        .get_by_name("CharacterListCards")
+        .expect("CharacterListCards");
+    let list_panel_id = reg
+        .get_by_name("CharacterListPanel")
+        .expect("CharacterListPanel");
+    assert_single_anchor(
+        &reg,
+        cards_id,
+        AnchorPoint::TopLeft,
+        AnchorPoint::TopLeft,
+        Some(list_panel_id),
+        19.0,
+        -94.0,
+    );
+}
+
+#[test]
 fn selected_character_shows_delete_button_with_empty_text_and_icon_child() {
     let reg = build_screen(CharSelectState {
         characters: vec![CharDisplayEntry {
