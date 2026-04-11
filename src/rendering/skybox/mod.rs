@@ -211,7 +211,7 @@ fn insert_default_sky_fog(commands: &mut Commands, camera_entity: Entity, colors
     });
 }
 
-fn insert_default_sky_env_map(
+pub(crate) fn insert_default_sky_env_map(
     commands: &mut Commands,
     images: &mut Assets<Image>,
     camera_entity: Entity,
@@ -428,7 +428,7 @@ const ENV_MAP_SIZE: u32 = 32;
 #[derive(Resource, Clone)]
 pub(crate) struct SkyEnvMapHandle(pub Handle<Image>);
 
-fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
+pub(crate) fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
     let face_pixels = (ENV_MAP_SIZE * ENV_MAP_SIZE) as usize;
     let total_bytes = face_pixels * 6 * 8;
     let mut data = vec![0u8; total_bytes];

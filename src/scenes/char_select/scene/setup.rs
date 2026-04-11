@@ -136,17 +136,22 @@ pub(super) fn spawn_char_select_sky_dome(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     sky_materials: &mut Assets<crate::sky_material::SkyMaterial>,
-    _images: &mut Assets<Image>,
+    images: &mut Assets<Image>,
     cloud_texture: Handle<Image>,
     camera_entity: Entity,
 ) -> Entity {
-    crate::sky::spawn_sky_dome_entity(
+    let dome = crate::sky::spawn_sky_dome_entity(
         commands,
         meshes,
         sky_materials,
         camera_entity,
         cloud_texture,
-    )
+    );
+    let colors = crate::sky_lightdata::default_sky_colors();
+    let cubemap = crate::sky::build_sky_cubemap(&colors);
+    let cubemap_handle = images.add(cubemap);
+    commands.insert_resource(crate::sky::SkyEnvMapHandle(cubemap_handle));
+    dome
 }
 
 fn attach_scene_skybox_and_spawn_lighting(
