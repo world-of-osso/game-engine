@@ -49,6 +49,22 @@ fn spawn_tagged_ground(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
 ) -> Entity {
+    let material = load_grass_ground_material(materials, images);
+    let mesh = build_ground_plane(meshes, 30.0, 6.0);
+    commands
+        .spawn((
+            Name::new("Ground"),
+            CharSelectScene,
+            Mesh3d(mesh),
+            MeshMaterial3d(material),
+        ))
+        .id()
+}
+
+fn load_grass_ground_material(
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+) -> Handle<StandardMaterial> {
     let grass_path = asset::asset_cache::texture(187126)
         .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
     let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
@@ -61,21 +77,26 @@ fn spawn_tagged_ground(
             address_mode_v: bevy::image::ImageAddressMode::Repeat,
             ..bevy::image::ImageSamplerDescriptor::linear()
         });
-    let material = materials.add(StandardMaterial {
+    materials.add(StandardMaterial {
         base_color_texture: Some(images.add(grass_image)),
         perceptual_roughness: 0.9,
         ..default()
-    });
-    let mut mesh = Plane3d::default().mesh().size(30.0, 30.0).build();
-    ground::scale_mesh_uvs(&mut mesh, 6.0);
-    commands
-        .spawn((
-            Name::new("Ground"),
-            CharSelectScene,
-            Mesh3d(meshes.add(mesh)),
-            MeshMaterial3d(material),
-        ))
-        .id()
+    })
+}
+
+fn build_ground_plane(meshes: &mut Assets<Mesh>, size: f32, uv_scale: f32) -> Handle<Mesh> {
+    let mut mesh = Plane3d::default().mesh().size(size, size).build();
+    ground::scale_mesh_uvs(&mut mesh, uv_scale);
+    meshes.add(mesh)
+}
+
+fn resolve_campsite_ground_translation(heightmap: &TerrainHeightmap, focus: Vec3) -> Option<Vec3> {
+    let terrain_y = heightmap.height_at(focus.x, focus.z)?;
+    Some(Vec3::new(
+        focus.x,
+        terrain_y + CAMPSITE_GROUND_PATCH_Y_OFFSET,
+        focus.z,
+    ))
 }
 
 fn spawn_campsite_ground_patch(
@@ -86,41 +107,21 @@ fn spawn_campsite_ground_patch(
     heightmap: &TerrainHeightmap,
     focus: Vec3,
 ) -> Option<Entity> {
-    let terrain_y = heightmap.height_at(focus.x, focus.z)?;
-    let grass_path = asset::asset_cache::texture(187126)
-        .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
-    let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
-        eprintln!("{e}");
-        ground::generate_grass_texture()
-    });
-    grass_image.sampler =
-        bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
-            address_mode_u: bevy::image::ImageAddressMode::Repeat,
-            address_mode_v: bevy::image::ImageAddressMode::Repeat,
-            ..bevy::image::ImageSamplerDescriptor::linear()
-        });
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(grass_image)),
-        perceptual_roughness: 0.9,
-        ..default()
-    });
-    let mut mesh = Plane3d::default()
-        .mesh()
-        .size(CAMPSITE_GROUND_PATCH_SIZE, CAMPSITE_GROUND_PATCH_SIZE)
-        .build();
-    ground::scale_mesh_uvs(&mut mesh, CAMPSITE_GROUND_PATCH_UV_SCALE);
+    let translation = resolve_campsite_ground_translation(heightmap, focus)?;
+    let material = load_grass_ground_material(materials, images);
+    let mesh = build_ground_plane(
+        meshes,
+        CAMPSITE_GROUND_PATCH_SIZE,
+        CAMPSITE_GROUND_PATCH_UV_SCALE,
+    );
     Some(
         commands
             .spawn((
                 Name::new("CampsiteGroundPatch"),
                 CharSelectScene,
-                Mesh3d(meshes.add(mesh)),
+                Mesh3d(mesh),
                 MeshMaterial3d(material),
-                Transform::from_translation(Vec3::new(
-                    focus.x,
-                    terrain_y + CAMPSITE_GROUND_PATCH_Y_OFFSET,
-                    focus.z,
-                )),
+                Transform::from_translation(translation),
             ))
             .id(),
     )
