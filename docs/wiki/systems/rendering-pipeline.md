@@ -45,7 +45,7 @@ The complete WMVx blend mode reference:
 
 ## Known Bugs
 
-- **PointLight + SkinnedMesh + Text = black screen** (Bevy 0.18): spawning a `Text` entity in a scene with both a `PointLight` and a `SkinnedMesh` blacks out the 3D framebuffer. Workaround: use `info!()` logging instead of Text overlays. `FpsOverlayPlugin` text does not trigger this. See [pointlight-skinned-mesh-bug-2026-04-04](../pointlight-skinned-mesh-bug-2026-04-04.md).
+- **Bloom + PointLight = black screen** (Bevy 0.18): the real trigger is enabling bloom in a scene that also contains a `PointLight`. The older text/skinned-mesh explanation was a false correlation from the original reproduction. See [pointlight-skinned-mesh-bug-2026-04-04](../pointlight-skinned-mesh-bug-2026-04-04.md).
 - **Torch halo**: `blend_mode > 7` values previously fell back to Opaque (wrong); now fall back to Additive. See [torch-halo-investigation-2026-03-30](../torch-halo-investigation-2026-03-30.md).
 - **Particle bone staleness**: particle emitters don't follow fast-moving animated bones well.
 
@@ -53,7 +53,7 @@ The complete WMVx blend mode reference:
 
 - [particle-system.md](../particle-system.md) — emitter architecture, known limitations
 - [torch-halo-investigation-2026-03-30.md](../torch-halo-investigation-2026-03-30.md) — blend mode fallback fix, WMVx reference
-- [pointlight-skinned-mesh-bug-2026-04-04.md](../pointlight-skinned-mesh-bug-2026-04-04.md) — three-way Bevy rendering bug
+- [pointlight-skinned-mesh-bug-2026-04-04.md](../pointlight-skinned-mesh-bug-2026-04-04.md) — bloom/point-light Bevy rendering bug
 - AGENTS.md — `src/rendering/` structure
 
 ## See Also

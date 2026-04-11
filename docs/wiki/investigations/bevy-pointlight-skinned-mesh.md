@@ -1,36 +1,33 @@
-# Bevy PointLight + SkinnedMesh Black Screen Bug
+# Bevy Bloom + PointLight Black Screen Bug
 
-In Bevy 0.18, spawning a `Text` UI entity in a scene that also contains both a `PointLight` and a `SkinnedMesh` causes the entire 3D framebuffer to go black. Any two of the three components work; all three together trigger the bug.
+In Bevy 0.18, the black-screen issue is caused by combining bloom with a `PointLight`. The older `Text + PointLight + SkinnedMesh` explanation was a false lead from the original reproduction scene.
 
 ## Finding
 
-Interaction matrix:
+The breaking combination is:
 
-| SkinnedMesh | PointLight | Text | Result |
-|-------------|------------|------|--------|
-| yes | yes | no | Renders |
-| yes | no | yes | Renders |
-| no | yes | yes | Renders |
-| yes | yes | yes | Black screen |
-
-The `FpsOverlayPlugin` text entity does **not** trigger the bug, suggesting it goes through a different text rendering pipeline than manually spawned `Text` entities.
+| Bloom | PointLight | Result |
+|-------|------------|--------|
+| no | yes | Renders |
+| yes | no | Renders |
+| yes | yes | Black screen |
 
 ## Root Cause
 
-Bevy 0.18 internal bug — exact interaction between the shadow/lighting pass for `PointLight`, the skinning compute pass for `SkinnedMesh`, and the UI text render graph node. Not yet diagnosed at the Bevy level.
+Bevy 0.18 internal bug in the interaction between the bloom post-process path and point-light rendering. Text and skinned meshes are not part of the actual trigger.
 
 ## Resolution / Workaround
 
-In the particle debug scene, emitter info is logged to console via `info!()` instead of spawning a `Text` overlay entity. M2 point lights remain functional.
+Disable bloom in scenes that need point lights, or avoid point lights in bloom-enabled scenes, until the Bevy-side bug is fixed.
 
 **TODO:**
 - Report upstream to Bevy.
-- Investigate why `FpsOverlayPlugin` text avoids the bug.
-- Re-enable `Text` overlay after a Bevy fix.
+- Identify the exact bloom/point-light failure path in Bevy's render graph.
+- Re-enable the intended bloom + point-light setup after a Bevy fix.
 
 ## Sources
 
-- [pointlight-skinned-mesh-bug-2026-04-04.md](../../pointlight-skinned-mesh-bug-2026-04-04.md) — reproduction matrix and workaround
+- [pointlight-skinned-mesh-bug-2026-04-04.md](../../pointlight-skinned-mesh-bug-2026-04-04.md) — updated root cause and workaround
 
 ## See Also
 

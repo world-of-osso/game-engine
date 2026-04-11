@@ -1,5 +1,14 @@
 # Char Create 3D Investigation — 2026-04-11
 
+## Brief
+
+- `--screen charcreate` still shows UI but no visible 3D scene in this environment.
+- This is **not** explained by the bloom + point-light bug: local `bloomEnabled` is `false`.
+- This is **not** just a char-create bug: `--screen debugcharacter` also renders black while model/geoset setup logs look correct.
+- This is **not** a screenshot timing issue: a later IPC screenshot from a running char-create instance is still black.
+- Going through `--screen charselect` and then entering char create makes the 3D model render, which rules out a renderer/GPU compatibility problem.
+- Current best read: this is a direct-entry scene wiring / initialization-order bug. Some prerequisite established on the `CharSelect -> CharCreate` path is missing when starting directly in `CharCreate` or other direct-entry 3D debug screens.
+
 ## Issues
 
 1. **Char select black screen** — FIXED
@@ -43,6 +52,18 @@
 **What doesn't work**: The 3D content doesn't render in the full production app despite entities being correctly set up. The IPC `dump-tree` confirms visible meshes exist. The ground plane (`StandardMaterial`) also doesn't render.
 
 **Likely area**: Missing rendering prerequisite in standalone mode. Char select → char create works because char select's sky dome setup leaves behind `GeneratedEnvironmentMapLight` or other PBR state. Adding `GeneratedEnvironmentMapLight` to the char create camera didn't fix it (tested). The `SkyEnvMapHandle` resource is inserted. Something else from the full rendering pipeline is needed that only gets initialized when passing through another state first.
+
+## Takeover Notes — 2026-04-11
+
+Additional evidence gathered after the original write-up:
+
+- **Bloom is not the cause for this repro**: local `/home/osso/.config/game-engine/options_settings.ron` has `bloomEnabled: false`, so the standalone `--screen charcreate` black 3D output persists with bloom disabled.
+- **Not a screenshot timing issue**: launching `--screen charcreate`, waiting for CASC extraction to finish, then taking a later IPC screenshot still produces the same black 3D output.
+- **Broader than char create**: `--screen debugcharacter` also renders black in the same environment while its setup logs and customization logs show the model and visible geosets are present.
+- **UI is not covering the model**: `CharCreateBackground` is transparent, and the same black result appears in `debugcharacter`, which does not use the char-create UI.
+- **Full sky bootstrap was tested and did not change the result**: wiring char create to use `spawn_sky_dome` exposed that `ProceduralCloudMaps` is missing on direct initial-screen entry; adding a fallback to create those maps allowed the sky bootstrap to run, but the 3D screenshot remained black.
+
+**Updated conclusion**: the renderer is not the problem. Going through `CharSelect -> CharCreate` works, which proves the direct-entry path is missing setup that the char-select path establishes first. Treat this as a direct-entry wiring / initialization-order bug until proven otherwise.
 
 ## Files Changed
 

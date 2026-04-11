@@ -1,27 +1,22 @@
-# Bevy 0.18: Text + PointLight + SkinnedMesh Black Screen Bug
+# Bevy 0.18: Bloom + PointLight Black Screen Bug
 
 **Date**: 2026-04-04
-**Status**: Workaround applied (Text overlay replaced with console logging)
+**Status**: Root cause identified
 
 ## Summary
 
-Spawning a Bevy `Text` UI entity in a scene that also contains both a `PointLight` and a `SkinnedMesh` causes the entire 3D framebuffer to go black in Bevy 0.18. Any two of the three work; all three together break. The FPS overlay (from `FpsOverlayPlugin`) does NOT trigger the bug — only manually spawned `Text` entities do.
+The black-screen bug was misattributed earlier. The actual trigger is enabling Bevy bloom in a scene that also contains a `PointLight`. Text and skinned meshes were correlated with the original reproduction, but they are not required for the failure.
 
-## Three-Way Interaction
+## Root Cause
 
-| SkinnedMesh | PointLight | Text | Result |
-|-------------|------------|------|--------|
-| yes | yes | no | **Renders** |
-| yes | no | yes | **Renders** |
-| no | yes | yes | **Renders** |
-| yes | yes | yes | **Black screen** |
+`Bloom` + `PointLight` is the breaking combination. Once bloom is active, adding a point light can black out the 3D framebuffer. The earlier `Text + PointLight + SkinnedMesh` matrix described a misleading reproduction path rather than the real dependency.
 
 ## Workaround
 
-In the particle debug scene, emitter info is logged to console (`info!()`) instead of spawned as a `Text` overlay entity. This avoids the three-way interaction while keeping M2 point lights functional.
+Avoid using bloom in scenes that rely on point lights until the Bevy-side issue is understood or fixed.
 
 ## TODO
 
 - Report upstream to Bevy
-- Investigate why `FpsOverlayPlugin` text doesn't trigger the bug (different text pipeline?)
-- Re-enable Text overlay once fixed
+- Identify the exact render-graph or post-process interaction between bloom and point lights
+- Re-enable the desired bloom/point-light combination once Bevy has a fix
