@@ -106,7 +106,7 @@ fn replace_scene_tree_character_node_updates_selected_character_identity() {
 
 #[test]
 fn authored_char_select_skybox_path_is_enabled() {
-    assert!(should_spawn_authored_char_select_skybox());
+    assert!(setup::should_spawn_authored_char_select_skybox());
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn char_select_camera_gets_a_sky_dome_child() {
                   mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
                   mut images: ResMut<Assets<Image>>,
                   cloud_maps: Res<crate::sky::cloud_texture::ProceduralCloudMaps>| {
-                spawn_char_select_sky_dome(
+                setup::spawn_char_select_sky_dome(
                     &mut commands,
                     &mut meshes,
                     &mut sky_materials,
@@ -154,7 +154,7 @@ fn setup_char_select_scene_proves_render_path_via_runtime_scene_snapshot() {
     let mut app = render_path_test_app();
 
     app.world_mut()
-        .run_system_once(setup_char_select_scene)
+        .run_system_once(setup::setup_char_select_scene)
         .expect("char-select scene setup should run");
     app.update();
 
