@@ -281,12 +281,43 @@ fn dispatch_resolved_click(
         status,
         login_mode,
         auth_token,
-        mut realm_selection,
+        realm_selection,
         server_addr,
         server_hostname,
         commands,
     } = ctx;
-    if dispatch_optional_connect_click(
+    if dispatch_known_click(
+        parsed,
+        ui,
+        login,
+        status,
+        next_state,
+        login_mode,
+        auth_token,
+        realm_selection,
+        server_addr,
+        server_hostname,
+        commands,
+    ) {
+        return Ok(());
+    }
+    finish_unhandled_or_focus_click(&ui.registry, frame_name, frame_id)
+}
+
+fn dispatch_known_click(
+    parsed: Option<LoginAction>,
+    ui: &mut UiState,
+    login: &LoginUi,
+    status: &mut LoginStatus,
+    next_state: &mut NextState<GameState>,
+    login_mode: &mut networking::LoginMode,
+    auth_token: &networking::AuthToken,
+    mut realm_selection: Option<&mut LoginRealmSelection>,
+    server_addr: Option<std::net::SocketAddr>,
+    server_hostname: Option<&str>,
+    commands: &mut Commands,
+) -> bool {
+    dispatch_optional_connect_click(
         parsed,
         &mut ui.registry,
         login,
@@ -298,10 +329,7 @@ fn dispatch_resolved_click(
         server_addr,
         server_hostname,
         commands,
-    ) {
-        return Ok(());
-    }
-    if dispatch_optional_ui_click(
+    ) || dispatch_optional_ui_click(
         parsed,
         ui,
         login,
@@ -309,13 +337,10 @@ fn dispatch_resolved_click(
         login_mode,
         realm_selection,
         commands,
-    ) {
-        return Ok(());
-    }
-    finish_unhandled_click(&ui.registry, frame_name, frame_id)
+    )
 }
 
-fn finish_unhandled_click(
+fn finish_unhandled_or_focus_click(
     registry: &FrameRegistry,
     frame_name: &str,
     frame_id: u64,
