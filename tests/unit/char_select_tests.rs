@@ -536,7 +536,7 @@ fn character_card_frames_set_expected_onclick_actions() {
 }
 
 #[test]
-fn find_clicked_action_returns_character_card_action_from_card_center() {
+fn find_clicked_action_returns_character_card_action_from_each_card_center() {
     let reg = build_screen(CharSelectState {
         characters: vec![
             CharDisplayEntry {
@@ -549,30 +549,33 @@ fn find_clicked_action_returns_character_card_action_from_card_center() {
                 info: "Level 1   Race 1   Class 1".to_string(),
                 status: "Ready".to_string(),
             },
+            CharDisplayEntry {
+                name: "Brom".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            },
         ],
         selected_index: Some(0),
         selected_name: "Theron".to_string(),
         ..Default::default()
     });
 
-    let card0_center = frame_center(&reg, "CharCard_0");
-    let card1_center = frame_center(&reg, "CharCard_1");
     let ui = UiState {
         registry: reg,
         event_bus: EventBus::new(),
         focused_frame: None,
     };
 
-    assert_eq!(
-        crate::scenes::char_select::input::find_clicked_action(&ui, card0_center.x, card0_center.y)
-            .as_deref(),
-        Some("select_char:0")
-    );
-    assert_eq!(
-        crate::scenes::char_select::input::find_clicked_action(&ui, card1_center.x, card1_center.y)
-            .as_deref(),
-        Some("select_char:1")
-    );
+    for index in 0..3 {
+        let center = frame_center(&ui.registry, &format!("CharCard_{index}"));
+        let expected = format!("select_char:{index}");
+
+        assert_eq!(
+            crate::scenes::char_select::input::find_clicked_action(&ui, center.x, center.y)
+                .as_deref(),
+            Some(expected.as_str())
+        );
+    }
 }
 
 #[test]
