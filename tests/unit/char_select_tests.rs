@@ -54,6 +54,22 @@ fn build_screen_with_campsites(state: CharSelectState, campsite: CampsiteState) 
     reg
 }
 
+fn build_screen_with_campsites_real_layout(
+    state: CharSelectState,
+    campsite: CampsiteState,
+) -> FrameRegistry {
+    let mut reg = test_registry();
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(state);
+    shared.insert(campsite);
+    shared.insert(DeleteConfirmUiState::default());
+    Screen::new(char_select_screen).sync(&shared, &mut reg);
+    let cs = CharSelectUi::resolve(&reg);
+    super::apply_post_setup(&mut reg, &cs);
+    recompute_layouts(&mut reg);
+    reg
+}
+
 fn build_screen_with_delete_confirm(
     state: CharSelectState,
     delete_confirm: DeleteConfirmUiState,
@@ -675,6 +691,44 @@ fn campsite_overlay_renders_in_dialog_strata() {
     assert_eq!(menu_bar.strata, FrameStrata::Dialog);
     assert_eq!(panel.strata, FrameStrata::Dialog);
     assert_eq!(card.strata, FrameStrata::Dialog);
+}
+
+#[test]
+fn campsite_panel_does_not_overlap_character_cards() {
+    let reg = build_screen_with_campsites_real_layout(
+        CharSelectState {
+            characters: vec![CharDisplayEntry {
+                name: "Elara".to_string(),
+                info: "Level 1   Race 1   Class 1".to_string(),
+                status: "Ready".to_string(),
+            }],
+            selected_index: Some(0),
+            selected_name: "Elara".to_string(),
+            ..Default::default()
+        },
+        one_scene_campsite_state(),
+    );
+
+    let panel = reg
+        .get_by_name("CampsitePanel")
+        .and_then(|id| reg.get(id))
+        .and_then(|frame| frame.layout_rect.clone())
+        .expect("CampsitePanel layout_rect");
+    let character_card = reg
+        .get_by_name("CharCard_0")
+        .and_then(|id| reg.get(id))
+        .and_then(|frame| frame.layout_rect.clone())
+        .expect("CharCard_0 layout_rect");
+
+    let panel_right = panel.x + panel.width;
+    let card_left = character_card.x;
+
+    assert!(
+        panel_right <= card_left,
+        "expected CampsitePanel to stay left of CharCard_0, got panel_right={} card_left={}",
+        panel_right,
+        card_left
+    );
 }
 
 #[test]
