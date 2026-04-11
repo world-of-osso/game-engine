@@ -10,6 +10,7 @@ use bevy::ecs::message::Messages;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::input::mouse::{AccumulatedMouseMotion, AccumulatedMouseScroll};
+use bevy::pbr::DistanceFog;
 use bevy::pbr::FogFalloff;
 use bevy::state::app::StatesPlugin;
 use bevy::window::PrimaryWindow;
@@ -33,6 +34,37 @@ fn character(character_id: u64, race: u8, sex: u8, name: &str) -> CharacterListE
         },
         equipment_appearance: EquipmentAppearance::default(),
     }
+}
+
+fn render_path_test_app() -> App {
+    let mut app = App::new();
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
+    app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
+    app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
+    app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
+    app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
+    app.init_resource::<crate::terrain_heightmap::TerrainHeightmap>();
+    app.init_resource::<scene_types::DisplayedCharacterId>();
+    app.init_resource::<scene_types::PendingSupplementalWarbandScene>();
+    app.init_resource::<scene_tree::ActiveWarbandSceneId>();
+    app.insert_resource(crate::creature_display::CreatureDisplayMap);
+    app.insert_resource(game_engine::customization_data::CustomizationDb::load(
+        std::path::Path::new("data"),
+    ));
+    app.insert_resource(CharacterList(vec![character(6, 1, 0, "Theron")]));
+    app.insert_resource(crate::scenes::char_select::SelectedCharIndex(Some(0)));
+    app.insert_resource(crate::scenes::char_select::warband::WarbandScenes::load());
+    app.insert_resource(crate::scenes::char_select::warband::SelectedWarbandScene { scene_id: 1 });
+    let cloud_maps = {
+        let mut images = app.world_mut().resource_mut::<Assets<Image>>();
+        crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images)
+    };
+    app.insert_resource(cloud_maps);
+    app
 }
 
 #[test]
@@ -182,6 +214,160 @@ fn char_select_camera_gets_a_sky_dome_child() {
     let child_of = app.world().get::<ChildOf>(dome).expect("sky dome parent");
     assert_eq!(child_of.parent(), camera);
     assert!(app.world().get::<crate::sky::SkyDome>(dome).is_some());
+}
+
+#[test]
+fn setup_char_select_scene_proves_render_path_via_runtime_scene_snapshot() {
+    let mut app = render_path_test_app();
+
+    app.world_mut()
+        .run_system_once(setup_char_select_scene)
+        .expect("char-select scene setup should run");
+    app.update();
+
+    let (snapshot, formatted, has_camera_fog) = app
+        .world_mut()
+        .run_system_once(
+            |scene_tree: Res<game_engine::scene_tree::SceneTree>,
+             transforms: Query<&Transform>,
+             fog_query: Query<&DistanceFog, With<Camera3d>>| {
+                let snapshot =
+                    game_engine::scene_tree::snapshot_scene_tree(&scene_tree, &transforms);
+                let formatted = crate::scenes::dump_tree::build_scene_snapshot(&snapshot);
+                let camera_entity = scene_tree
+                    .root
+                    .children
+                    .iter()
+                    .find(|child| {
+                        matches!(
+                            child.props,
+                            game_engine::scene_tree::NodeProps::Camera { .. }
+                        )
+                    })
+                    .and_then(|child| child.entity)
+                    .expect("scene tree should contain a camera entity");
+                (snapshot, formatted, fog_query.get(camera_entity).is_ok())
+            },
+        )
+        .expect("scene snapshot should build");
+
+    assert_eq!(snapshot.root.label, "CharSelectScene");
+
+    let background_node = snapshot
+        .root
+        .children
+        .iter()
+        .find(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Background { .. }
+            )
+        })
+        .expect("scene snapshot should contain a background node");
+    let game_engine::scene_tree::NodeProps::Background {
+        model,
+        doodad_count,
+    } = &background_node.props
+    else {
+        panic!("expected background node");
+    };
+    assert!(
+        model.starts_with("terrain:"),
+        "render path proof should use the terrain-backed warband scene, got {model}"
+    );
+    assert!(
+        *doodad_count > 0,
+        "render path proof should include nearby campsite doodads"
+    );
+    assert!(
+        background_node.children.iter().any(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Object { ref kind, .. } if kind == "WMO"
+            )
+        }),
+        "terrain-backed background should include at least one WMO child"
+    );
+    assert!(
+        background_node.children.iter().any(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Object { ref kind, .. } if kind == "Skybox"
+            )
+        }),
+        "terrain-backed background should include the authored skybox child"
+    );
+
+    let character_node = snapshot
+        .root
+        .children
+        .iter()
+        .find(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Character { .. }
+            )
+        })
+        .expect("scene snapshot should contain a character node");
+    let game_engine::scene_tree::NodeProps::Character {
+        name, character_id, ..
+    } = &character_node.props
+    else {
+        panic!("expected character node");
+    };
+    assert_eq!(name.as_deref(), Some("Theron"));
+    assert_eq!(*character_id, Some(6));
+
+    assert!(
+        snapshot.root.children.iter().any(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Camera { .. }
+            )
+        }),
+        "scene snapshot should contain a camera node"
+    );
+    assert!(
+        has_camera_fog,
+        "char-select camera should carry distance fog"
+    );
+    assert!(
+        snapshot.root.children.iter().any(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Light { ref kind, .. } if kind == "spot"
+            )
+        }),
+        "scene snapshot should contain the primary spot light"
+    );
+    assert!(
+        snapshot.root.children.iter().any(|child| {
+            matches!(
+                child.props,
+                game_engine::scene_tree::NodeProps::Light { ref kind, .. } if kind == "directional"
+            )
+        }),
+        "scene snapshot should contain the fill directional light"
+    );
+
+    assert!(
+        formatted.contains("Background \"terrain:"),
+        "formatted scene dump should expose the terrain-backed background: {formatted}"
+    );
+    assert!(
+        formatted.contains("Skybox Skybox"),
+        "formatted scene dump should expose the authored skybox object: {formatted}"
+    );
+    assert!(
+        formatted.contains("Character")
+            && formatted.contains("name=Theron")
+            && formatted.contains("id=6"),
+        "formatted scene dump should expose the selected character identity: {formatted}"
+    );
+    assert!(
+        formatted.contains("Camera fov="),
+        "formatted scene dump should expose the camera node: {formatted}"
+    );
 }
 
 #[test]
