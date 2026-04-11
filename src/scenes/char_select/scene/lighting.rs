@@ -28,12 +28,26 @@ pub(super) fn spawn(
     placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
     presentation: ModelPresentation,
 ) -> CharSelectLightingEntities {
+    insert_char_select_ambient_light(commands);
+    let fill_light = spawn_fill_light(commands);
+    let focus = resolve_light_focus(scene, placement, presentation);
+    let primary_light = spawn_primary_light(commands, placement, focus);
+    CharSelectLightingEntities {
+        primary_light,
+        fill_light,
+    }
+}
+
+fn insert_char_select_ambient_light(commands: &mut Commands) {
     commands.insert_resource(GlobalAmbientLight {
         color: CHAR_SELECT_AMBIENT_COLOR,
         brightness: CHAR_SELECT_AMBIENT_BRIGHTNESS,
         ..default()
     });
-    let fill_light = commands
+}
+
+fn spawn_fill_light(commands: &mut Commands) -> Entity {
+    commands
         .spawn((
             Name::new("TerrainFillLight"),
             CharSelectScene,
@@ -50,12 +64,27 @@ pub(super) fn spawn(
                 CHAR_SELECT_FILL_LIGHT_EULER.z,
             )),
         ))
-        .id();
+        .id()
+}
+
+fn resolve_light_focus(
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
+    placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
+    presentation: ModelPresentation,
+) -> Vec3 {
     let (_, focus, _) = camera_params(scene, placement, presentation);
+    focus
+}
+
+fn spawn_primary_light(
+    commands: &mut Commands,
+    placement: Option<&crate::scenes::char_select::warband::WarbandScenePlacement>,
+    focus: Vec3,
+) -> Entity {
     let fire_pos = placement
         .map(|placement| placement.bevy_position() + CAMPFIRE_LIGHT_OFFSET)
         .unwrap_or(focus + CAMPFIRE_LIGHT_OFFSET);
-    let primary_light = commands
+    commands
         .spawn((
             Name::new("CampfireLight"),
             CharSelectScene,
@@ -71,11 +100,7 @@ pub(super) fn spawn(
             },
             Transform::from_translation(fire_pos).looking_at(focus, Vec3::Y),
         ))
-        .id();
-    CharSelectLightingEntities {
-        primary_light,
-        fill_light,
-    }
+        .id()
 }
 
 #[cfg(test)]
