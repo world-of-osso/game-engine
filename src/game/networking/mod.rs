@@ -1,4 +1,5 @@
 mod disconnect;
+mod reconnect;
 
 use std::time::Duration;
 
@@ -135,6 +136,9 @@ impl ReconnectState {
 #[derive(Resource, Default, Clone)]
 pub struct PendingForcedDisconnect(pub Option<ForcedDisconnect>);
 
+#[derive(Resource, Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PendingNetworkWorldReset(pub bool);
+
 #[derive(Component)]
 struct ReconnectOverlayRoot;
 
@@ -184,6 +188,7 @@ fn register_zone_and_chat_resources(app: &mut App) {
     });
     app.init_resource::<ReconnectState>();
     app.init_resource::<PendingForcedDisconnect>();
+    app.init_resource::<PendingNetworkWorldReset>();
 }
 
 fn register_auth_resources(app: &mut App) {
@@ -235,10 +240,12 @@ fn register_net_systems(app: &mut App) {
     app.add_systems(
         Update,
         (
+            crate::networking_reconnect::flush_pending_network_world_reset,
             crate::networking_reconnect::drive_inworld_reconnect,
             update_reconnect_overlay,
             crate::networking_reconnect::finish_reconnect_when_world_ready,
-        ),
+        )
+            .chain(),
     );
 }
 

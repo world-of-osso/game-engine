@@ -23,6 +23,25 @@ pub(crate) fn drive_inworld_reconnect(
     crate::networking::connect_to_server_inner(&mut commands, server_addr.0);
 }
 
+pub(crate) fn request_network_world_reset(commands: &mut Commands) {
+    commands.insert_resource(crate::networking::PendingNetworkWorldReset(true));
+}
+
+pub(crate) fn flush_pending_network_world_reset(world: &mut World) {
+    let should_reset = world
+        .get_resource::<crate::networking::PendingNetworkWorldReset>()
+        .is_some_and(|pending| pending.0);
+    if !should_reset {
+        return;
+    }
+    if let Some(mut pending_reset) =
+        world.get_resource_mut::<crate::networking::PendingNetworkWorldReset>()
+    {
+        pending_reset.0 = false;
+    }
+    reset_network_world(world);
+}
+
 pub(crate) fn finish_reconnect_when_world_ready(
     mut reconnect: ResMut<ReconnectState>,
     local_player_q: Query<(), With<LocalPlayer>>,
@@ -381,6 +400,24 @@ mod tests {
             .get_resource::<game_engine::status::TerrainStatusSnapshot>()
             .unwrap();
         assert_eq!(terrain.loaded_tiles, 0);
+    }
+
+    #[test]
+    fn flush_pending_network_world_reset_runs_once_and_clears_flag() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.insert_resource(crate::networking::PendingNetworkWorldReset(true));
+        let client = app.world_mut().spawn(Client::default()).id();
+        app.add_systems(Update, flush_pending_network_world_reset);
+
+        app.update();
+
+        assert!(app.world().get_entity(client).is_err());
+        assert!(
+            !app.world()
+                .resource::<crate::networking::PendingNetworkWorldReset>()
+                .0
+        );
     }
 
     #[test]

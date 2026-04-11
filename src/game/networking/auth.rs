@@ -356,7 +356,7 @@ fn handle_login_failure(
         preselected.map(|name| name.0.as_str()),
         auto_enter_world.is_some(),
     );
-    commands.queue(crate::networking_reconnect::reset_network_world);
+    crate::networking_reconnect::request_network_world_reset(commands);
     auth_feedback.0 = Some(user_facing_login_error(&err).to_string());
     clear_reconnect_if_not_entering_world(reconnect, false);
     next_state.set(GameState::Login);

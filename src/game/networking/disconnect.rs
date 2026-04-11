@@ -49,8 +49,8 @@ pub(crate) fn handle_client_disconnected(
         forced_notice,
         &mut auth_feedback,
         &mut next_state,
-        &mut commands,
         trigger.entity,
+        &mut commands,
     );
 }
 
@@ -67,8 +67,8 @@ fn handle_disconnect_by_state(
     forced_notice: Option<ForcedDisconnect>,
     auth_feedback: &mut ResMut<AuthUiFeedback>,
     next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
-    commands: &mut Commands,
     entity: Entity,
+    commands: &mut Commands,
 ) {
     let DisconnectInputs {
         auth_token,
@@ -98,8 +98,8 @@ fn handle_disconnect_by_state(
             reconnect,
             auth_feedback,
             next_state,
-            commands,
             selected_name,
+            commands,
         ),
         crate::game_state::GameState::Connecting => handle_disconnect_while_connecting(entity),
         _ => handle_disconnect_to_login_fallback(state.get(), entity, auth_feedback, next_state),
@@ -130,7 +130,7 @@ fn handle_forced_disconnect(
         reconnect.phase = ReconnectPhase::Inactive;
         reconnect.terrain_refresh_seen = false;
     }
-    commands.queue(crate::networking_reconnect::reset_network_world);
+    crate::networking_reconnect::request_network_world_reset(commands);
     auth_feedback.0 = Some(notice.message);
     if *state != crate::game_state::GameState::Login {
         next_state.set(crate::game_state::GameState::Login);
@@ -186,7 +186,7 @@ fn handle_charselect_disconnect(
     commands.insert_resource(LoginMode::Login);
     commands.insert_resource(LoginUsername(String::new()));
     commands.insert_resource(LoginPassword(String::new()));
-    commands.queue(crate::networking_reconnect::reset_network_world);
+    crate::networking_reconnect::request_network_world_reset(commands);
     reconnect.phase = ReconnectPhase::PendingConnect;
     reconnect.terrain_refresh_seen = false;
     auth_feedback.0 = None;
@@ -202,8 +202,8 @@ fn handle_inworld_disconnect(
     reconnect: Option<ResMut<ReconnectState>>,
     auth_feedback: &mut ResMut<AuthUiFeedback>,
     next_state: &mut ResMut<NextState<crate::game_state::GameState>>,
-    commands: &mut Commands,
     selected_name: Option<&str>,
+    commands: &mut Commands,
 ) {
     if auth_token
         .as_deref()
@@ -229,7 +229,7 @@ fn handle_inworld_disconnect(
     commands.insert_resource(LoginMode::Login);
     commands.insert_resource(LoginUsername(String::new()));
     commands.insert_resource(LoginPassword(String::new()));
-    commands.queue(crate::networking_reconnect::reset_network_world);
+    crate::networking_reconnect::request_network_world_reset(commands);
     reconnect.phase = ReconnectPhase::PendingConnect;
     reconnect.terrain_refresh_seen = false;
     auth_feedback.0 = None;
