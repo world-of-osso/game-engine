@@ -530,3 +530,115 @@ fn editbox_background_color_changes_on_focus() {
         "focused state should differ from the unfocused original center texture"
     );
 }
+
+#[test]
+fn race_buttons_have_onclick_action() {
+    let reg = build_screen(CharCreateUiState::default());
+    let race_2_id = reg
+        .get_by_name("Race_2")
+        .expect("Race_2 frame should exist in RaceClass mode");
+    let frame = reg.get(race_2_id).expect("Race_2 frame data");
+    // Walk up from Race_2 to find onclick
+    let mut id = race_2_id;
+    let mut onclick = None;
+    loop {
+        if let Some(f) = reg.get(id) {
+            if f.onclick.is_some() {
+                onclick = f.onclick.clone();
+                break;
+            }
+            if let Some(parent) = f.parent_id {
+                id = parent;
+                continue;
+            }
+        }
+        break;
+    }
+    assert_eq!(
+        onclick.as_deref(),
+        Some("select_race:2"),
+        "Race_2 button should have onclick 'select_race:2', got {onclick:?}"
+    );
+}
+
+#[test]
+fn race_button_onclick_survives_race_change_sync() {
+    let mut harness = ScreenHarness::new(CharCreateUiState::default());
+
+    // Change selected race to orc
+    let mut new_state = CharCreateUiState::default();
+    new_state.selected_race = 2;
+    harness.sync(new_state);
+
+    // Race_2 button should still have its onclick after the sync that changed selected race
+    let race_2_id = harness
+        .reg
+        .get_by_name("Race_2")
+        .expect("Race_2 should exist after sync");
+    let onclick = harness.reg.get(race_2_id).unwrap().onclick.clone();
+    assert_eq!(
+        onclick.as_deref(),
+        Some("select_race:2"),
+        "Race_2 onclick should survive a sync that changes selected_race, got {onclick:?}"
+    );
+}
+
+#[test]
+fn race_button_onclick_survives_screen_sync() {
+    let mut harness = ScreenHarness::new(CharCreateUiState::default());
+
+    // Verify onclick exists before sync
+    let race_2_id = harness
+        .reg
+        .get_by_name("Race_2")
+        .expect("Race_2 should exist");
+    let before = harness.reg.get(race_2_id).unwrap().onclick.clone();
+
+    // Sync with same state (simulates update loop)
+    harness.sync(CharCreateUiState::default());
+
+    let after = harness.reg.get(race_2_id).unwrap().onclick.clone();
+    assert_eq!(
+        before, after,
+        "screen.sync should preserve onclick on Race_2"
+    );
+    assert!(
+        after.is_some(),
+        "Race_2 onclick should not be None after sync"
+    );
+}
+
+#[test]
+fn race_button_is_hittable_at_its_center() {
+    let reg = build_screen(CharCreateUiState::default());
+    let race_2_id = reg
+        .get_by_name("Race_2")
+        .expect("Race_2 frame should exist");
+    let rect = rect_for_name(&reg, "Race_2");
+    let cx = rect.x + rect.width / 2.0;
+    let cy = rect.y + rect.height / 2.0;
+    let hit = ui_toolkit::input::find_frame_at(&reg, cx, cy);
+    // The hit should be Race_2 or a descendant of Race_2
+    let hit_id = hit.expect("click at Race_2 center should hit a frame");
+    let mut id = hit_id;
+    let mut found_race_2 = id == race_2_id;
+    while !found_race_2 {
+        if let Some(f) = reg.get(id) {
+            if let Some(parent) = f.parent_id {
+                if parent == race_2_id {
+                    found_race_2 = true;
+                } else {
+                    id = parent;
+                }
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    assert!(
+        found_race_2,
+        "clicking at Race_2 center ({cx:.0}, {cy:.0}) should hit Race_2 or a descendant, got frame id {hit_id}"
+    );
+}

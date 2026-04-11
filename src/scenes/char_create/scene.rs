@@ -486,6 +486,7 @@ mod tests {
     use super::*;
     use std::path::Path;
 
+    use bevy::ecs::system::RunSystemOnce;
     use crate::character_customization::{
         CharacterCustomizationSelection, collect_appearance_materials,
     };
@@ -596,6 +597,73 @@ mod tests {
     fn face_distance_is_closer_than_default() {
         let (_, default_dist) = zoom_target_for_dropdown(None);
         assert!(FACE_DISTANCE < default_dist);
+    }
+
+    #[test]
+    fn select_race_action_updates_char_create_state() {
+        let db = CustomizationDb::load(Path::new("data"));
+        let mut state = CharCreateState::default();
+        assert_eq!(state.selected_race, 1, "default race should be human");
+
+        super::super::input::apply_race_change_with_seed(&mut state, 2, &db, 42);
+        assert_eq!(
+            state.selected_race, 2,
+            "apply_race_change should update selected_race"
+        );
+    }
+
+    #[test]
+    fn char_create_action_parse_recognizes_select_race() {
+        use game_engine::ui::screens::char_create_component::CharCreateAction;
+        let action = CharCreateAction::parse("select_race:2");
+        assert!(
+            matches!(action, Some(CharCreateAction::SelectRace(2))),
+            "should parse 'select_race:2' into SelectRace(2), got {action:?}"
+        );
+    }
+
+    #[test]
+    fn sync_model_detects_race_change_and_respawns() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_resource::<Assets<Image>>();
+        app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+        app.insert_resource(creature_display::CreatureDisplayMap);
+
+        // Start with race 1 (human) displayed
+        app.insert_resource(DisplayedModels {
+            race: Some(1),
+            active_sex: 0,
+            models: vec![],
+            last_appearance: None,
+            last_class: None,
+        });
+
+        // Change state to race 2 (orc)
+        app.insert_resource(CharCreateState {
+            selected_race: 2,
+            selected_class: 1,
+            selected_sex: 0,
+            ..Default::default()
+        });
+
+        let race_changed = app
+            .world_mut()
+            .run_system_once(
+                |state: Option<Res<CharCreateState>>,
+                 displayed: Res<DisplayedModels>| -> bool {
+                    let state = state.unwrap();
+                    displayed.race != Some(state.selected_race)
+                },
+            )
+            .expect("system should run");
+
+        assert!(
+            race_changed,
+            "sync_model should detect race change from 1 to 2"
+        );
     }
 
     #[test]
