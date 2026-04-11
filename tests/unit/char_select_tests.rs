@@ -1,6 +1,7 @@
 use super::*;
 use std::collections::VecDeque;
 
+use bevy::ecs::system::RunSystemOnce;
 use bevy::input::ButtonInput;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::window::PrimaryWindow;
@@ -912,6 +913,48 @@ fn parse_click_action_event_logs_known_select_action() {
 
     assert_eq!(parsed_action, Some(CharSelectAction::SelectChar(1)));
     assert_eq!(parsed_action_label, "select_char:1");
+}
+
+#[test]
+fn dispatch_char_select_action_select_event_updates_selected_index() {
+    let mut app = build_test_app();
+    app.insert_resource(CharacterList(vec![
+        CharacterListEntry {
+            character_id: 1,
+            name: "Elara".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+        CharacterListEntry {
+            character_id: 2,
+            name: "Theron".to_string(),
+            level: 1,
+            race: 1,
+            class: 1,
+            appearance: shared::components::CharacterAppearance::default(),
+            equipment_appearance: shared::components::EquipmentAppearance::default(),
+        },
+    ]));
+    app.update();
+    app.world_mut().resource_mut::<SelectedCharIndex>().0 = Some(0);
+    app.world_mut()
+        .resource_mut::<Messages<crate::scenes::char_select::input::CharSelectClickEvent>>()
+        .write(crate::scenes::char_select::input::CharSelectClickEvent(
+            "select_char:1".to_string(),
+        ));
+
+    app.world_mut()
+        .run_system_once(crate::scenes::char_select::input::dispatch_char_select_action)
+        .expect("dispatch_char_select_action should run");
+
+    assert_eq!(
+        app.world().resource::<SelectedCharIndex>().0,
+        Some(1),
+        "select_char:1 event should update SelectedCharIndex"
+    );
 }
 
 #[test]
