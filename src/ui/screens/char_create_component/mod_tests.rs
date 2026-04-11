@@ -609,6 +609,33 @@ fn race_button_onclick_survives_screen_sync() {
 }
 
 #[test]
+fn name_input_not_visible_in_race_class_mode() {
+    let reg = build_screen(CharCreateUiState::default());
+    let name_input = reg.get_by_name(CREATE_NAME_INPUT.0);
+    if let Some(id) = name_input {
+        let frame = reg.get(id).unwrap();
+        assert!(
+            !frame.visible || frame.hidden,
+            "name input should not be visible/active in RaceClass mode"
+        );
+    }
+    // If name_input is None, that's also fine — it doesn't exist in this mode
+}
+
+#[test]
+fn race_button_is_mouse_enabled() {
+    let reg = build_screen(CharCreateUiState::default());
+    let race_2_id = reg
+        .get_by_name("Race_2")
+        .expect("Race_2 frame should exist");
+    let frame = reg.get(race_2_id).unwrap();
+    assert!(
+        frame.mouse_enabled,
+        "Race_2 must be mouse_enabled for hit testing"
+    );
+}
+
+#[test]
 fn race_button_is_hittable_at_its_center() {
     let reg = build_screen(CharCreateUiState::default());
     let race_2_id = reg
