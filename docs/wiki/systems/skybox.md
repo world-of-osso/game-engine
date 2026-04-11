@@ -32,6 +32,10 @@ cargo run --bin game-engine -- --screen skyboxdebug --light-skybox-id 653
 cargo run --bin game-engine -- --screen skyboxdebug --skybox-fdid 5412968
 ```
 
+## Known Issue
+
+`skyboxdebug` currently resolves authored skyboxes correctly but still renders an effectively black frame, including the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` override. See [[authored-skybox-black-output]].
+
 ## Fallback Behavior
 
 When `Light.csv → LightParams.db2` mapping fails (some warband scene LightParamsIDs have no matching row in the local modern DB2), the scene falls back to:
@@ -60,3 +64,4 @@ Known example: scene 4 uses LightParamsID 6577, which has no matching local Ligh
 
 - [[rendering-pipeline]] — SkyboxM2Material render flags
 - [[asset-pipeline]] — CASC extraction, DB2 decryption
+- [[authored-skybox-black-output]] — current authored skybox render failure
