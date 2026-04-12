@@ -342,17 +342,19 @@ fn cloudsky_masked_crossfade_batches_preserve_fourth_stage_texture() {
 fn authored_skybox_models_reference_locally_available_textures() {
     for skybox_path in [
         std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2"),
+        std::path::Path::new("data/models/skyboxes/costalislandskybox.m2"),
         std::path::Path::new("data/models/skyboxes/deathskybox.m2"),
     ] {
         let model = crate::asset::m2::load_m2_uncached(skybox_path, &[0, 0, 0])
             .unwrap_or_else(|err| panic!("load skybox {}: {err}", skybox_path.display()));
         let mut missing = std::collections::BTreeSet::new();
-        for fdid in model
-            .batches
-            .iter()
-            .flat_map(|batch| [batch.texture_fdid, batch.texture_2_fdid])
-            .flatten()
-        {
+        for fdid in model.batches.iter().flat_map(|batch| {
+            batch
+                .texture_fdid
+                .into_iter()
+                .chain(batch.texture_2_fdid)
+                .chain(batch.extra_texture_fdids.iter().copied())
+        }) {
             let local = crate::asset::asset_cache::texture(fdid)
                 .unwrap_or_else(|| std::path::PathBuf::from(format!("data/textures/{fdid}.blp")));
             if !local.exists() {
