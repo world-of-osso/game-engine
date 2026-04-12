@@ -54,9 +54,6 @@ struct SkyboxDebugScene;
 #[derive(Component)]
 struct SkyboxDebugSkybox;
 
-#[derive(Component)]
-struct SkyboxDebugDepthProbe;
-
 struct SkyboxDebugSetup {
     scene: Option<crate::scenes::char_select::warband::WarbandSceneEntry>,
     focus: Vec3,
@@ -112,17 +109,18 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
     let view_mode = skybox_debug_view_mode(&params);
     let setup = build_skybox_debug_setup(&params);
     initialize_skybox_debug_scene(&mut commands, &mut params, &setup, view_mode);
-    let depth_probe = spawn_skybox_debug_reference_objects(
+    spawn_skybox_debug_reference_objects(
         &mut commands,
         &mut params.meshes,
         &mut params.materials,
+        &mut params.images,
         view_mode,
     );
     let Some(spawned) = spawn_debug_skybox(&mut commands, &mut params, &setup) else {
         return;
     };
     log_debug_skybox_spawn(&setup, &spawned);
-    insert_skybox_debug_scene_tree(&mut commands, spawned, depth_probe);
+    insert_skybox_debug_scene_tree(&mut commands, spawned);
 }
 
 fn no_debug_scene_root(query: Query<Entity, With<SkyboxDebugScene>>) -> bool {
@@ -299,54 +297,27 @@ fn spawn_skybox_debug_reference_objects(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
     view_mode: SkyboxDebugViewMode,
-) -> Option<Entity> {
+) {
     if !view_mode.shows_reference_objects() {
-        return None;
+        return;
     }
-    spawn_debug_reference_plane(commands, meshes, materials);
-    Some(spawn_debug_depth_probe(commands, meshes, materials))
+    spawn_debug_reference_plane(commands, meshes, materials, images);
 }
 
 fn spawn_debug_reference_plane(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
 ) {
-    commands.spawn((
-        Name::new("SkyboxDebugReferencePlane"),
+    let ground = crate::ground::spawn_ground_plane_entity(commands, meshes, materials, images);
+    commands.entity(ground).insert((
+        Name::new("SkyboxDebugGroundPlane"),
         SkyboxDebugScene,
-        Mesh3d(meshes.add(Plane3d::default().mesh().size(1.8, 1.8).build())),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgba(0.85, 0.72, 0.42, 0.18),
-            unlit: true,
-            alpha_mode: AlphaMode::Blend,
-            ..default()
-        })),
-        Transform::from_xyz(0.0, 0.05, 0.0),
+        Transform::from_xyz(0.0, 0.0, 0.0),
     ));
-}
-
-fn spawn_debug_depth_probe(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-) -> Entity {
-    commands
-        .spawn((
-            Name::new("SkyboxDebugDepthProbe"),
-            SkyboxDebugScene,
-            SkyboxDebugDepthProbe,
-            Mesh3d(meshes.add(Cuboid::new(0.7, 1.5, 0.7))),
-            MeshMaterial3d(materials.add(StandardMaterial {
-                base_color: Color::srgb(1.0, 0.0, 1.0),
-                emissive: Color::srgb(1.0, 0.0, 1.0).into(),
-                unlit: true,
-                ..default()
-            })),
-            Transform::from_xyz(0.0, 0.85, 2.2),
-        ))
-        .id()
 }
 
 fn spawn_debug_skybox(
@@ -459,13 +430,9 @@ fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug
     );
 }
 
-fn insert_skybox_debug_scene_tree(
-    commands: &mut Commands,
-    spawned: SpawnedSkyboxDebug,
-    depth_probe: Option<Entity>,
-) {
+fn insert_skybox_debug_scene_tree(commands: &mut Commands, spawned: SpawnedSkyboxDebug) {
     commands.insert_resource(SceneTree {
-        root: build_skybox_debug_scene_root(&spawned, depth_probe),
+        root: build_skybox_debug_scene_root(&spawned),
     });
 }
 
@@ -474,31 +441,12 @@ struct ResolvedDebugSkybox {
     source: String,
 }
 
-fn depth_probe_scene_node(entity: Entity) -> SceneNode {
-    SceneNode {
-        label: "DepthProbe".into(),
-        entity: Some(entity),
-        props: NodeProps::Object {
-            kind: "DepthProbe".into(),
-            model: "cuboid".into(),
-        },
-        children: vec![],
-    }
-}
-
-fn build_skybox_debug_scene_root(
-    spawned: &SpawnedSkyboxDebug,
-    depth_probe: Option<Entity>,
-) -> SceneNode {
-    let mut children = vec![camera_scene_node(), skybox_scene_node(spawned)];
-    if let Some(depth_probe) = depth_probe {
-        children.push(depth_probe_scene_node(depth_probe));
-    }
+fn build_skybox_debug_scene_root(spawned: &SpawnedSkyboxDebug) -> SceneNode {
     SceneNode {
         label: "SkyboxDebugScene".into(),
         entity: None,
         props: NodeProps::Scene,
-        children,
+        children: vec![camera_scene_node(), skybox_scene_node(spawned)],
     }
 }
 
@@ -584,13 +532,12 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 mod tests {
     use super::{
         SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup, SkyboxDebugSkybox,
-        SkyboxDebugViewMode, depth_probe_scene_node, resolve_debug_skybox,
-        spawn_debug_scene_environment, spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
+        SkyboxDebugViewMode, resolve_debug_skybox, spawn_debug_scene_environment,
+        spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
     };
     use crate::orbit_camera::OrbitCamera;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
-    use game_engine::scene_tree::NodeProps;
 
     #[test]
     fn debug_override_resolves_light_skybox_id() {
@@ -639,22 +586,6 @@ mod tests {
             resolved.path.display()
         );
         assert_eq!(resolved.source, "warband scene 1 (Adventurer's Rest)");
-    }
-
-    #[test]
-    fn depth_probe_scene_node_uses_depth_probe_object_kind() {
-        let entity = Entity::PLACEHOLDER;
-        let node = depth_probe_scene_node(entity);
-
-        assert_eq!(node.label, "DepthProbe");
-        assert_eq!(node.entity, Some(entity));
-        match node.props {
-            NodeProps::Object { kind, model } => {
-                assert_eq!(kind, "DepthProbe");
-                assert_eq!(model, "cuboid");
-            }
-            other => panic!("expected object props, got {other:?}"),
-        }
     }
 
     #[test]
@@ -740,38 +671,65 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
         app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<Image>>();
 
-        let probe = app.world_mut().run_system_once(
+        let _ = app.world_mut().run_system_once(
             |mut commands: Commands,
              mut meshes: ResMut<Assets<Mesh>>,
-             mut materials: ResMut<Assets<StandardMaterial>>| {
+             mut materials: ResMut<Assets<StandardMaterial>>,
+             mut images: ResMut<Assets<Image>>| {
                 spawn_skybox_debug_reference_objects(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
+                    &mut images,
                     SkyboxDebugViewMode::AuthoredOnlyVerification,
-                )
+                );
             },
         );
-
-        assert_eq!(probe.expect("reference object system runs"), None);
-
-        let probe_count = {
-            let world = app.world_mut();
-            let mut query = world.query_filtered::<Entity, With<super::SkyboxDebugDepthProbe>>();
-            query.iter(world).count()
-        };
-        let reference_plane_count = {
+        let ground_plane_count = {
             let world = app.world_mut();
             let mut query = world.query::<&Name>();
             query
                 .iter(world)
-                .filter(|name| name.as_str() == "SkyboxDebugReferencePlane")
+                .filter(|name| name.as_str() == "SkyboxDebugGroundPlane")
                 .count()
         };
 
-        assert_eq!(probe_count, 0);
-        assert_eq!(reference_plane_count, 0);
+        assert_eq!(ground_plane_count, 0);
+    }
+
+    #[test]
+    fn default_mode_spawns_grass_ground_plane() {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<Image>>();
+
+        let _ = app.world_mut().run_system_once(
+            |mut commands: Commands,
+             mut meshes: ResMut<Assets<Mesh>>,
+             mut materials: ResMut<Assets<StandardMaterial>>,
+             mut images: ResMut<Assets<Image>>| {
+                spawn_skybox_debug_reference_objects(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    &mut images,
+                    SkyboxDebugViewMode::Default,
+                );
+            },
+        );
+        let ground_plane_count = {
+            let world = app.world_mut();
+            let mut query = world.query::<(&Name, Entity)>();
+            query
+                .iter(world)
+                .filter(|(name, _)| name.as_str() == "SkyboxDebugGroundPlane")
+                .count()
+        };
+
+        assert_eq!(ground_plane_count, 1);
     }
 
     #[test]
