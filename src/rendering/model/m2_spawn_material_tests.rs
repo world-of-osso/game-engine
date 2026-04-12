@@ -34,6 +34,8 @@ fn ground_offset_uses_lowest_vertex_y() {
         shader_id: 0,
         texture_count: 0,
         uses_texture_combiner_combos: false,
+        priority_plane: 0,
+        material_layer: 0,
         mesh_part_id: 0,
     };
     assert!((ground_offset_y(&[batch]) - 0.35).abs() < 0.001);
@@ -74,6 +76,8 @@ fn forced_skybox_batches_keep_dedicated_material_without_texture() {
         shader_id: 0,
         texture_count: 0,
         uses_texture_combiner_combos: false,
+        priority_plane: 0,
+        material_layer: 0,
         mesh_part_id: 0,
     };
 
@@ -85,6 +89,8 @@ fn forced_skybox_batches_keep_dedicated_material_without_texture() {
         &mut effect_materials,
         Some(&mut skybox_materials),
         true,
+        None,
+        None,
         None,
     );
 
@@ -156,6 +162,8 @@ fn deathskybox_single_texture_shader_batch_keeps_second_texture_disabled() {
         Some(&mut skybox_materials),
         true,
         None,
+        None,
+        None,
     );
 
     let BatchMaterial::Skybox(handle) = material else {
@@ -205,6 +213,8 @@ fn deathskybox_single_texture_batches_never_bind_second_texture_state() {
             &mut effect_materials,
             Some(&mut skybox_materials),
             true,
+            None,
+            None,
             None,
         );
 
@@ -267,6 +277,8 @@ fn cloudsky_modern_shader_batches_keep_runtime_second_texture_sampling() {
         &mut effect_materials,
         Some(&mut skybox_materials),
         true,
+        None,
+        None,
         None,
     );
 

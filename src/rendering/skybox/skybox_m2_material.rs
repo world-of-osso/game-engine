@@ -163,36 +163,43 @@ fn skybox_track_time_ms(
     looped_track_time_ms(track, seq_idx, elapsed_ms)
 }
 
+fn evaluate_skybox_uv_offsets(material: &SkyboxM2Material, time_ms: u32) -> (Vec2, Vec2) {
+    let preferred_seq_idx = material.default_sequence_index as usize;
+    let uv_offset_1 = material
+        .texture_anim_1
+        .as_ref()
+        .and_then(|track| {
+            let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
+            evaluate_vec3_track(
+                track,
+                seq_idx,
+                skybox_track_time_ms(track, seq_idx, time_ms, &material.global_sequences),
+            )
+        })
+        .map(|offset| Vec2::new(offset[0], offset[1]))
+        .unwrap_or(Vec2::ZERO);
+    let uv_offset_2 = material
+        .texture_anim_2
+        .as_ref()
+        .and_then(|track| {
+            let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
+            evaluate_vec3_track(
+                track,
+                seq_idx,
+                skybox_track_time_ms(track, seq_idx, time_ms, &material.global_sequences),
+            )
+        })
+        .map(|offset| Vec2::new(offset[0], offset[1]))
+        .unwrap_or(Vec2::ZERO);
+    (uv_offset_1, uv_offset_2)
+}
+
 fn update_skybox_uvs(time: Res<Time>, mut materials: ResMut<Assets<SkyboxM2Material>>) {
     let time_ms = (time.elapsed_secs_f64() * 1000.0) as u32;
     for (_id, material) in materials.iter_mut() {
-        let preferred_seq_idx = material.default_sequence_index as usize;
-        material.settings.uv_offset_1 = material
-            .texture_anim_1
-            .as_ref()
-            .and_then(|track| {
-                let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
-                evaluate_vec3_track(
-                    track,
-                    seq_idx,
-                    skybox_track_time_ms(track, seq_idx, time_ms, &material.global_sequences),
-                )
-            })
-            .map(|offset| Vec2::new(offset[0], offset[1]))
-            .unwrap_or(Vec2::ZERO);
-        material.settings.uv_offset_2 = material
-            .texture_anim_2
-            .as_ref()
-            .and_then(|track| {
-                let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
-                evaluate_vec3_track(
-                    track,
-                    seq_idx,
-                    skybox_track_time_ms(track, seq_idx, time_ms, &material.global_sequences),
-                )
-            })
-            .map(|offset| Vec2::new(offset[0], offset[1]))
-            .unwrap_or(Vec2::ZERO);
+        let (uv_offset_1, uv_offset_2) = evaluate_skybox_uv_offsets(material, time_ms);
+        material.settings.uv_offset_1 = uv_offset_1;
+        material.settings.uv_offset_2 = uv_offset_2;
     }
 }
 

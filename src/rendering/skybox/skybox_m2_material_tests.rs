@@ -1,14 +1,15 @@
 use super::{
-    SKYBOX_M2_SHADER_HANDLE, SkyboxM2Material, configure_skybox_pipeline,
-    skybox_alpha_mode_for_blend,
+    SKYBOX_M2_SHADER_HANDLE, SkyboxM2Material, SkyboxM2Settings, configure_skybox_pipeline,
+    evaluate_skybox_uv_offsets, skybox_alpha_mode_for_blend,
 };
 use crate::asset;
+use crate::asset::m2_anim::AnimTrack;
 use crate::m2_spawn::skybox_m2_material;
 use bevy::asset::RenderAssetUsages;
 use bevy::color::ColorToComponents;
 use bevy::mesh::Mesh;
 use bevy::mesh::PrimitiveTopology;
-use bevy::prelude::{AlphaMode, Assets, Color, Handle, Image, Material};
+use bevy::prelude::{AlphaMode, Assets, Color, Handle, Image, Material, Vec2, Vec4};
 use bevy::render::render_resource::{
     ColorTargetState, ColorWrites, CompareFunction, DepthBiasState, DepthStencilState, Face,
     FragmentState, MultisampleState, PrimitiveState, TextureFormat, VertexState,
@@ -37,6 +38,8 @@ fn test_batch() -> asset::m2::M2RenderBatch {
         shader_id: 0,
         texture_count: 0,
         uses_texture_combiner_combos: false,
+        priority_plane: 0,
+        material_layer: 0,
         mesh_part_id: 0,
     }
 }
@@ -98,6 +101,8 @@ fn skybox_material_uses_linearized_color_and_blend_mode() {
         None,
         Some(Color::srgba(0.2, 0.4, 0.6, 0.5)),
         &batch,
+        0,
+        &[],
     );
     let expected = Color::srgba(0.2, 0.4, 0.6, 0.5).to_linear().to_f32_array();
 
@@ -110,7 +115,7 @@ fn skybox_material_ignores_batch_transparency_cutout_but_keeps_blend_mode() {
     let mut batch = test_batch();
     batch.blend_mode = 2;
     batch.transparency = 0.0;
-    let material = skybox_m2_material(None, None, None, None, None, &batch);
+    let material = skybox_m2_material(None, None, None, None, None, &batch, 0, &[]);
 
     assert_eq!(material.settings.color.w, 1.0);
     assert_eq!(material.settings.transparency, 1.0);
@@ -135,6 +140,8 @@ fn skybox_material_preserves_effect_combine_state_for_advanced_batches() {
         None,
         Some(Color::WHITE),
         &batch,
+        0,
+        &[],
     );
 
     assert_advanced_skybox_material(&material, &base, &second);
@@ -146,7 +153,7 @@ fn skybox_material_marks_missing_second_texture_for_single_texture_batches() {
     batch.shader_id = 0x0010;
     batch.texture_count = 1;
 
-    let material = skybox_m2_material(None, None, None, None, Some(Color::WHITE), &batch);
+    let material = skybox_m2_material(None, None, None, None, Some(Color::WHITE), &batch, 0, &[]);
 
     assert_eq!(material.settings.combine_mode, 0x2);
     assert_eq!(material.settings.has_second_texture, 0);
@@ -170,7 +177,7 @@ fn skybox_material_reuses_primary_texture_for_missing_optional_stages() {
     batch.shader_id = 0x8012;
     batch.texture_count = 3;
 
-    let material = skybox_m2_material(Some(base.clone()), None, None, None, None, &batch);
+    let material = skybox_m2_material(Some(base.clone()), None, None, None, None, &batch, 0, &[]);
 
     assert_eq!(material.base_texture, base);
     assert_eq!(material.second_texture, material.base_texture);
@@ -275,7 +282,7 @@ fn configure_skybox_pipeline_preserves_two_sided_batches() {
 fn skybox_material_disables_prepass_for_authored_blend_modes() {
     let mut batch = test_batch();
     batch.blend_mode = 2;
-    let material = skybox_m2_material(None, None, None, None, None, &batch);
+    let material = skybox_m2_material(None, None, None, None, None, &batch, 0, &[]);
 
     assert!(!<SkyboxM2Material as Material>::enable_prepass());
     assert!(!<SkyboxM2Material as Material>::enable_shadows());
@@ -299,4 +306,148 @@ fn skybox_alpha_mode_mapping_matches_authored_skybox_batches() {
         skybox_alpha_mode_for_blend(u16::MAX),
         AlphaMode::Add
     ));
+}
+
+fn vec2_close(left: Vec2, right: Vec2) -> bool {
+    (left - right).length() <= 0.0001
+}
+
+fn test_anim_track(
+    global_sequence: i16,
+    sequences: Vec<(Vec<u32>, Vec<[f32; 3]>)>,
+) -> AnimTrack<[f32; 3]> {
+    AnimTrack {
+        interpolation_type: 0,
+        global_sequence,
+        sequences,
+    }
+}
+
+#[test]
+fn evaluate_skybox_uv_offsets_prefers_material_default_sequence_index() {
+    let material = SkyboxM2Material {
+        settings: SkyboxM2Settings {
+            color: Vec4::ONE,
+            transparency: 1.0,
+            alpha_test: 0.0,
+            combine_mode: 0,
+            blend_mode: 0,
+            uv_mode_1: 0,
+            uv_mode_2: 0,
+            uv_mode_3: 0,
+            uv_mode_4: 0,
+            render_flags: 0,
+            has_second_texture: 0,
+            has_third_texture: 0,
+            has_fourth_texture: 0,
+            uv_offset_1: Vec2::ZERO,
+            uv_offset_2: Vec2::ZERO,
+        },
+        base_texture: Handle::default(),
+        second_texture: Handle::default(),
+        third_texture: Handle::default(),
+        fourth_texture: Handle::default(),
+        blend_mode: 0,
+        two_sided: false,
+        default_sequence_index: 1,
+        global_sequences: Vec::new(),
+        texture_anim_1: Some(test_anim_track(
+            -1,
+            vec![
+                (vec![0], vec![[0.0, 0.0, 0.0]]),
+                (vec![0], vec![[0.5, 0.25, 0.0]]),
+            ],
+        )),
+        texture_anim_2: None,
+    };
+
+    let (uv_offset_1, uv_offset_2) = evaluate_skybox_uv_offsets(&material, 0);
+
+    assert!(vec2_close(uv_offset_1, Vec2::new(0.5, 0.25)));
+    assert_eq!(uv_offset_2, Vec2::ZERO);
+}
+
+#[test]
+fn evaluate_skybox_uv_offsets_loops_on_global_sequence_duration() {
+    let material = SkyboxM2Material {
+        settings: SkyboxM2Settings {
+            color: Vec4::ONE,
+            transparency: 1.0,
+            alpha_test: 0.0,
+            combine_mode: 0,
+            blend_mode: 0,
+            uv_mode_1: 0,
+            uv_mode_2: 0,
+            uv_mode_3: 0,
+            uv_mode_4: 0,
+            render_flags: 0,
+            has_second_texture: 0,
+            has_third_texture: 0,
+            has_fourth_texture: 0,
+            uv_offset_1: Vec2::ZERO,
+            uv_offset_2: Vec2::ZERO,
+        },
+        base_texture: Handle::default(),
+        second_texture: Handle::default(),
+        third_texture: Handle::default(),
+        fourth_texture: Handle::default(),
+        blend_mode: 0,
+        two_sided: false,
+        default_sequence_index: 0,
+        global_sequences: vec![51],
+        texture_anim_1: Some(test_anim_track(
+            0,
+            vec![(vec![0, 50], vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])],
+        )),
+        texture_anim_2: None,
+    };
+
+    let (start_uv, _) = evaluate_skybox_uv_offsets(&material, 0);
+    let (changed_uv, _) = evaluate_skybox_uv_offsets(&material, 50);
+    let (wrapped_uv, _) = evaluate_skybox_uv_offsets(&material, 101);
+
+    assert!(!vec2_close(start_uv, changed_uv));
+    assert!(vec2_close(changed_uv, wrapped_uv));
+}
+
+#[test]
+fn known_animated_cloudsky_material_preserves_animation_metadata() {
+    let model = crate::asset::m2::load_skybox_m2_uncached(
+        std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2"),
+        &[0, 0, 0],
+    )
+    .expect("load animated cloud skybox");
+    let default_sequence_index = model
+        .sequences
+        .iter()
+        .position(|sequence| sequence.id == 0)
+        .unwrap_or(0);
+    let material = model
+        .batches
+        .iter()
+        .filter(|batch| batch.texture_anim.is_some() || batch.texture_anim_2.is_some())
+        .map(|batch| {
+            skybox_m2_material(
+                None,
+                None,
+                None,
+                None,
+                None,
+                batch,
+                default_sequence_index,
+                &model.global_sequences,
+            )
+        })
+        .next()
+        .expect("animated cloud skybox material");
+
+    assert_eq!(
+        material.default_sequence_index as usize,
+        default_sequence_index
+    );
+    assert_eq!(material.global_sequences, model.global_sequences);
+    assert!(
+        material.texture_anim_1.is_some() || material.texture_anim_2.is_some(),
+        "known animated cloud skybox should preserve authored texture animation metadata"
+    );
 }
