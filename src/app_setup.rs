@@ -399,6 +399,9 @@ fn add_debug_scene_plugin(app: &mut App, initial_state: Option<game_state::GameS
         Some(game_state::GameState::DebugCharacter) => {
             app.add_plugins(scenes::geoset_debug::DebugCharacterScenePlugin);
         }
+        Some(game_state::GameState::M2Debug) => {
+            app.add_plugins(scenes::m2_debug::M2DebugScenePlugin);
+        }
         Some(game_state::GameState::SkyboxDebug) => {
             app.add_plugins(scenes::skybox_debug::SkyboxDebugScenePlugin);
         }

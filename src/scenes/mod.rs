@@ -18,6 +18,7 @@ pub mod inworld_tree;
 pub mod loading;
 pub mod login;
 pub mod loot_rules_frame;
+pub mod m2_debug;
 pub mod mail_frame;
 pub mod merchant_frame;
 pub mod particle_debug;

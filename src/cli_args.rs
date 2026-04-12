@@ -229,7 +229,7 @@ pub fn print_help() {
     println!();
     println!("OPTIONS:");
     println!(
-        "  --screen <SCREEN>   Start at screen: login, charselect, selectiondebug, inworldselectiondebug, debugcharacter, skyboxdebug, charcreate, charcreate-customize, campsitepopup, inworld, gamemenu, optionsmenu, trashbutton"
+        "  --screen <SCREEN>   Start at screen: login, charselect, selectiondebug, inworldselectiondebug, debugcharacter, m2debug, skyboxdebug, charcreate, charcreate-customize, campsitepopup, inworld, gamemenu, optionsmenu, trashbutton"
     );
     println!(
         "  --server <ADDR>     Game server address or alias (`dev`, `prod`); default: {DEFAULT_SERVER_ADDR}"

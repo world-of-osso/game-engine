@@ -543,6 +543,7 @@ fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
                 | GameState::CharSelect
                 | GameState::CharCreate
                 | GameState::DebugCharacter
+                | GameState::M2Debug
                 | GameState::SkyboxDebug
         )
     )

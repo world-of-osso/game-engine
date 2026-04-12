@@ -12,6 +12,7 @@ pub enum GameState {
     SelectionDebug,
     InWorldSelectionDebug,
     DebugCharacter,
+    M2Debug,
     SkyboxDebug,
     CharCreate,
     CampsitePopup,
@@ -24,7 +25,7 @@ pub enum GameState {
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 16] = [
+    pub const CLI_VALUES: [&str; 17] = [
         "login",
         "eula",
         "connecting",
@@ -32,6 +33,7 @@ impl GameState {
         "selectiondebug",
         "inworldselectiondebug",
         "debugcharacter",
+        "m2debug",
         "skyboxdebug",
         "charcreate",
         "campsitepopup",
@@ -63,6 +65,7 @@ impl GameState {
             Self::SelectionDebug => "selectiondebug",
             Self::InWorldSelectionDebug => "inworldselectiondebug",
             Self::DebugCharacter => "debugcharacter",
+            Self::M2Debug => "m2debug",
             Self::SkyboxDebug => "skyboxdebug",
             Self::CharCreate => "charcreate",
             Self::CampsitePopup => "campsitepopup",
@@ -98,6 +101,7 @@ pub enum ScreenArg {
     SelectionDebug,
     InWorldSelectionDebug,
     DebugCharacter,
+    M2Debug,
     SkyboxDebug,
     CharCreate,
     CharCreateCustomize,
@@ -111,13 +115,14 @@ pub enum ScreenArg {
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 16] = [
+    pub const CLI_VALUES: [&str; 17] = [
         "login",
         "eula",
         "charselect",
         "selectiondebug",
         "inworldselectiondebug",
         "debugcharacter",
+        "m2debug",
         "skyboxdebug",
         "charcreate",
         "charcreate-customize",
@@ -140,6 +145,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::SelectionDebug => Self::SelectionDebug,
             ScreenArg::InWorldSelectionDebug => Self::InWorldSelectionDebug,
             ScreenArg::DebugCharacter => Self::DebugCharacter,
+            ScreenArg::M2Debug => Self::M2Debug,
             ScreenArg::SkyboxDebug => Self::SkyboxDebug,
             ScreenArg::CharCreate | ScreenArg::CharCreateCustomize => Self::CharCreate,
             ScreenArg::CampsitePopup => Self::CampsitePopup,
@@ -163,6 +169,7 @@ impl FromStr for ScreenArg {
             "selectiondebug" => Ok(Self::SelectionDebug),
             "inworldselectiondebug" | "inworld-selectiondebug" => Ok(Self::InWorldSelectionDebug),
             "debugcharacter" => Ok(Self::DebugCharacter),
+            "m2debug" | "m2-debug" => Ok(Self::M2Debug),
             "skyboxdebug" | "skybox-debug" => Ok(Self::SkyboxDebug),
             "charcreate" => Ok(Self::CharCreate),
             "charcreate-customize" => Ok(Self::CharCreateCustomize),

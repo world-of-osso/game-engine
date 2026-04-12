@@ -21,6 +21,16 @@ pub fn spawn_ground_plane(
     materials: &mut Assets<StandardMaterial>,
     images: &mut Assets<Image>,
 ) {
+    let _ = spawn_ground_plane_entity(commands, meshes, materials, images);
+}
+
+/// Spawn the textured grass ground plane and return its entity id.
+pub fn spawn_ground_plane_entity(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+) -> Entity {
     use std::path::PathBuf;
     let grass_path = asset::asset_cache::texture(187126)
         .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
@@ -41,7 +51,9 @@ pub fn spawn_ground_plane(
     });
     let mut mesh = Plane3d::default().mesh().size(100.0, 100.0).build();
     scale_mesh_uvs(&mut mesh, 20.0);
-    commands.spawn((Mesh3d(meshes.add(mesh)), MeshMaterial3d(material)));
+    commands
+        .spawn((Mesh3d(meshes.add(mesh)), MeshMaterial3d(material)))
+        .id()
 }
 
 /// Multiply all UV coordinates in a mesh by the given factor for texture tiling.
