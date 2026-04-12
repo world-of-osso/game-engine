@@ -5,6 +5,7 @@ use bevy::render::render_resource::{AsBindGroup, Face, RenderPipelineDescriptor,
 use bevy::shader::{Shader, ShaderRef};
 
 use crate::asset::m2_anim::{AnimTrack, evaluate_vec3_track};
+use crate::m2_effect_material;
 
 const SKYBOX_M2_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("c47ea355-9536-4557-8f9c-65ddd5d2047b");
@@ -52,6 +53,8 @@ pub struct SkyboxM2Material {
     pub fourth_texture: Handle<Image>,
     pub blend_mode: u16,
     pub two_sided: bool,
+    pub default_sequence_index: u32,
+    pub global_sequences: Vec<u32>,
     pub texture_anim_1: Option<AnimTrack<[f32; 3]>>,
     pub texture_anim_2: Option<AnimTrack<[f32; 3]>>,
 }
@@ -95,24 +98,14 @@ impl Material for SkyboxM2Material {
 fn configure_skybox_pipeline(descriptor: &mut RenderPipelineDescriptor, two_sided: bool) {
     // Match normal M2 semantics: authored two-sided batches disable culling, while
     // single-sided batches keep default backface culling like reference clients.
-    descriptor.primitive.cull_mode = if two_sided {
-        None
-    } else {
-        Some(Face::Back)
-    };
+    descriptor.primitive.cull_mode = if two_sided { None } else { Some(Face::Back) };
     if let Some(ds) = descriptor.depth_stencil.as_mut() {
         ds.depth_write_enabled = false;
     }
 }
 
 fn skybox_alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
-    match blend_mode {
-        0 => AlphaMode::Opaque,
-        1 => AlphaMode::AlphaToCoverage,
-        2 | 3 => AlphaMode::Blend,
-        4..=6 => AlphaMode::Add,
-        _ => AlphaMode::Add,
-    }
+    m2_effect_material::alpha_mode_for_blend(blend_mode)
 }
 
 pub struct SkyboxM2MaterialPlugin;
@@ -131,19 +124,73 @@ impl Plugin for SkyboxM2MaterialPlugin {
     }
 }
 
+fn looped_track_time_ms(track: &AnimTrack<[f32; 3]>, seq_idx: usize, elapsed_ms: u32) -> u32 {
+    let Some((timestamps, _)) = track.sequences.get(seq_idx) else {
+        return elapsed_ms;
+    };
+    let Some(last_timestamp) = timestamps.last().copied() else {
+        return elapsed_ms;
+    };
+    if last_timestamp == 0 {
+        0
+    } else {
+        elapsed_ms % (last_timestamp + 1)
+    }
+}
+
+fn skybox_track_seq_idx(track: &AnimTrack<[f32; 3]>, preferred_seq_idx: usize) -> usize {
+    if track.sequences.is_empty() {
+        0
+    } else {
+        preferred_seq_idx.min(track.sequences.len() - 1)
+    }
+}
+
+fn skybox_track_time_ms(
+    track: &AnimTrack<[f32; 3]>,
+    seq_idx: usize,
+    elapsed_ms: u32,
+    global_sequences: &[u32],
+) -> u32 {
+    if track.global_sequence >= 0
+        && let Some(duration) = global_sequences
+            .get(track.global_sequence as usize)
+            .copied()
+        && duration > 0
+    {
+        return elapsed_ms % duration;
+    }
+    looped_track_time_ms(track, seq_idx, elapsed_ms)
+}
+
 fn update_skybox_uvs(time: Res<Time>, mut materials: ResMut<Assets<SkyboxM2Material>>) {
     let time_ms = (time.elapsed_secs_f64() * 1000.0) as u32;
     for (_id, material) in materials.iter_mut() {
+        let preferred_seq_idx = material.default_sequence_index as usize;
         material.settings.uv_offset_1 = material
             .texture_anim_1
             .as_ref()
-            .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
+            .and_then(|track| {
+                let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
+                evaluate_vec3_track(
+                    track,
+                    seq_idx,
+                    skybox_track_time_ms(track, seq_idx, time_ms, &material.global_sequences),
+                )
+            })
             .map(|offset| Vec2::new(offset[0], offset[1]))
             .unwrap_or(Vec2::ZERO);
         material.settings.uv_offset_2 = material
             .texture_anim_2
             .as_ref()
-            .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
+            .and_then(|track| {
+                let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
+                evaluate_vec3_track(
+                    track,
+                    seq_idx,
+                    skybox_track_time_ms(track, seq_idx, time_ms, &material.global_sequences),
+                )
+            })
             .map(|offset| Vec2::new(offset[0], offset[1]))
             .unwrap_or(Vec2::ZERO);
     }

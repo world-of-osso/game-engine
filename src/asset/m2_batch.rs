@@ -256,8 +256,14 @@ fn build_render_batch(ctx: &BatchBuildContext<'_>, inputs: BatchRenderInputs<'_>
         shader_id: inputs.unit.shader_id,
         texture_count: inputs.unit.texture_count,
         uses_texture_combiner_combos: ctx.uses_texture_combiner_combos,
+        priority_plane: inputs.unit.priority_plane,
+        material_layer: inputs.unit.material_layer,
         mesh_part_id: inputs.sub.mesh_part_id,
     }
+}
+
+fn sort_batches_by_authored_draw_order(batches: &mut [M2RenderBatch]) {
+    batches.sort_by_key(|batch| (batch.priority_plane, batch.material_layer));
 }
 
 pub(super) fn build_batched_model(
@@ -270,6 +276,7 @@ pub(super) fn build_batched_model(
             batches.push(batch);
         }
     }
+    sort_batches_by_authored_draw_order(&mut batches);
     Ok(batches)
 }
 
@@ -302,6 +309,8 @@ pub(super) fn build_fallback_batch(
         shader_id: 0,
         texture_count: 1,
         uses_texture_combiner_combos: false,
+        priority_plane: 0,
+        material_layer: 0,
         mesh_part_id: 0,
     }])
 }

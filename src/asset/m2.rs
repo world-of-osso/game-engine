@@ -63,6 +63,8 @@ pub struct M2RenderBatch {
     pub shader_id: u16,
     pub texture_count: u16,
     pub uses_texture_combiner_combos: bool,
+    pub priority_plane: i8,
+    pub material_layer: u16,
     /// M2 submesh mesh_part_id (geoset group*100 + variant). Used for geoset visibility.
     pub mesh_part_id: u16,
 }

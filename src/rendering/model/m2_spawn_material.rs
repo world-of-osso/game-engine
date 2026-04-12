@@ -22,13 +22,21 @@ pub(super) fn load_batch_material(
     skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
     force_skybox_material: bool,
     skybox_color: Option<Color>,
+    skybox_default_sequence_index: Option<usize>,
+    skybox_global_sequences: Option<&[u32]>,
 ) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
     if force_skybox_material {
         if let Some(materials) = skybox_materials {
-            if let Some(mat) =
-                try_load_skybox_material(batch, &texture_dir, images, materials, skybox_color)
-            {
+            if let Some(mat) = try_load_skybox_material(
+                batch,
+                &texture_dir,
+                images,
+                materials,
+                skybox_color,
+                skybox_default_sequence_index.unwrap_or(0),
+                skybox_global_sequences.unwrap_or(&[]),
+            ) {
                 return BatchMaterial::Skybox(mat);
             }
             return BatchMaterial::Skybox(materials.add(skybox_m2_material(
@@ -38,6 +46,8 @@ pub(super) fn load_batch_material(
                 None,
                 Some(PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()]),
                 batch,
+                skybox_default_sequence_index.unwrap_or(0),
+                skybox_global_sequences.unwrap_or(&[]),
             )));
         }
     }
@@ -90,11 +100,8 @@ fn try_load_effect_material(
     let second_fdid = batch.texture_2_fdid?;
     let base_texture = load_repeat_texture(base_fdid, texture_dir, images)?;
     let second_texture = load_repeat_texture(second_fdid, texture_dir, images)?;
-    let alpha_test = match batch.blend_mode {
-        1 => 224.0 / 255.0 * batch.transparency,
-        2..=7 => (1.0 / 255.0) * batch.transparency,
-        _ => 0.0,
-    };
+    let alpha_test =
+        m2_effect_material::alpha_test_threshold_for_blend(batch.blend_mode, batch.transparency);
     Some(materials.add(M2EffectMaterial {
         settings: M2EffectSettings {
             transparency: batch.transparency,
@@ -122,6 +129,8 @@ fn try_load_skybox_material(
     images: &mut Assets<Image>,
     materials: &mut Assets<SkyboxM2Material>,
     color: Option<Color>,
+    default_sequence_index: usize,
+    global_sequences: &[u32],
 ) -> Option<Handle<SkyboxM2Material>> {
     let advanced_batch = skybox_batch_needs_effect_combine(batch);
     let base_texture = load_skybox_base_texture(batch, texture_dir, images, advanced_batch)?;
@@ -134,6 +143,8 @@ fn try_load_skybox_material(
         fourth_texture,
         color,
         batch,
+        default_sequence_index,
+        global_sequences,
     )))
 }
 
@@ -309,6 +320,8 @@ pub(crate) fn skybox_m2_material(
     fourth_texture: Option<Handle<Image>>,
     color: Option<Color>,
     batch: &asset::m2::M2RenderBatch,
+    default_sequence_index: usize,
+    global_sequences: &[u32],
 ) -> SkyboxM2Material {
     let stage_textures =
         resolve_skybox_stage_textures(texture, second_texture, third_texture, fourth_texture);
@@ -320,6 +333,8 @@ pub(crate) fn skybox_m2_material(
         fourth_texture: stage_textures.fourth_texture,
         blend_mode: batch.blend_mode,
         two_sided: batch.render_flags & 0x04 != 0,
+        default_sequence_index: default_sequence_index as u32,
+        global_sequences: global_sequences.to_vec(),
         texture_anim_1: batch.texture_anim.clone(),
         texture_anim_2: batch.texture_anim_2.clone(),
     }

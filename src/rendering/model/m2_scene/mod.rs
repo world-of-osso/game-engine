@@ -44,6 +44,8 @@ struct M2SceneAnimPayload {
 struct M2SceneVisuals {
     batches: Vec<asset::m2::M2RenderBatch>,
     lights: Vec<M2Light>,
+    default_sequence_index: usize,
+    global_sequences: Vec<u32>,
 }
 
 struct M2SceneAttachedVisuals {
@@ -309,8 +311,15 @@ fn attach_m2_model_parts(
     options: M2SceneAttachOptions,
 ) {
     let (visuals, payload) = split_m2_scene_model(model);
-    let attached =
-        attach_m2_scene_visuals(ctx, model_entity, visuals.batches, &payload.bones, &options);
+    let attached = attach_m2_scene_visuals(
+        ctx,
+        model_entity,
+        visuals.batches,
+        visuals.default_sequence_index,
+        &visuals.global_sequences,
+        &payload.bones,
+        &options,
+    );
     spawn_m2_scene_runtime(
         ctx,
         payload,
@@ -331,10 +340,17 @@ fn split_m2_scene_model(model: asset::m2::M2Model) -> (M2SceneVisuals, M2SceneAn
         attachments,
         attachment_lookup,
         lights,
+        global_sequences,
         ..
     } = model;
+    let default_sequence_index = default_sequence_index(&sequences);
     (
-        M2SceneVisuals { batches, lights },
+        M2SceneVisuals {
+            batches,
+            lights,
+            default_sequence_index,
+            global_sequences,
+        },
         M2SceneAnimPayload {
             bones,
             sequences,
@@ -350,6 +366,8 @@ fn attach_m2_scene_visuals(
     ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
     model_entity: Entity,
     batches: Vec<asset::m2::M2RenderBatch>,
+    default_sequence_index: usize,
+    global_sequences: &[u32],
     bones: &[M2Bone],
     options: &M2SceneAttachOptions,
 ) -> M2SceneAttachedVisuals {
@@ -367,6 +385,10 @@ fn attach_m2_scene_visuals(
         visual_root,
         options.force_skybox_material,
         options.skybox_color,
+        options
+            .force_skybox_material
+            .then_some(default_sequence_index),
+        options.force_skybox_material.then_some(global_sequences),
     );
     M2SceneAttachedVisuals {
         visual_root,
@@ -512,7 +534,7 @@ pub fn attach_bone_pivots_and_player(
     if sequences.is_empty() {
         return None;
     }
-    let stand_idx = sequences.iter().position(|s| s.id == 0).unwrap_or(0);
+    let stand_idx = default_sequence_index(sequences);
     commands.entity(model_entity).insert(M2AnimPlayer {
         current_seq_idx: stand_idx,
         time_ms: 0.0,
@@ -520,6 +542,10 @@ pub fn attach_bone_pivots_and_player(
         transition: None,
     });
     Some(joints.clone())
+}
+
+fn default_sequence_index(sequences: &[M2AnimSequence]) -> usize {
+    sequences.iter().position(|s| s.id == 0).unwrap_or(0)
 }
 
 #[cfg(test)]

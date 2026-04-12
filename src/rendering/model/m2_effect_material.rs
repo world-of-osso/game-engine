@@ -97,20 +97,41 @@ pub(crate) fn alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
     match blend_mode {
         0 => AlphaMode::Opaque,
         1 => AlphaMode::AlphaToCoverage,
-        2 | 3 => AlphaMode::Blend,
+        2 | 3 | 7 => AlphaMode::Blend,
         4..=6 => AlphaMode::Add,
         _ => AlphaMode::Add,
     }
 }
 
+pub(crate) fn alpha_test_threshold_for_blend(blend_mode: u16, transparency: f32) -> f32 {
+    match blend_mode {
+        1 => 224.0 / 255.0 * transparency,
+        2..=7 => 1.0 / 255.0 * transparency,
+        _ => 0.0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::alpha_mode_for_blend;
+    use super::{alpha_mode_for_blend, alpha_test_threshold_for_blend};
     use bevy::prelude::AlphaMode;
 
     #[test]
     fn invalid_blend_modes_fallback_to_additive() {
         assert!(matches!(alpha_mode_for_blend(u16::MAX), AlphaMode::Add));
         assert!(matches!(alpha_mode_for_blend(8), AlphaMode::Add));
+    }
+
+    #[test]
+    fn blend_mode_seven_uses_alpha_blend() {
+        assert!(matches!(alpha_mode_for_blend(7), AlphaMode::Blend));
+    }
+
+    #[test]
+    fn alpha_test_thresholds_match_authored_m2_contract() {
+        assert_eq!(alpha_test_threshold_for_blend(0, 0.5), 0.0);
+        assert_eq!(alpha_test_threshold_for_blend(1, 0.5), 224.0 / 255.0 * 0.5);
+        assert_eq!(alpha_test_threshold_for_blend(2, 0.25), 1.0 / 255.0 * 0.25);
+        assert_eq!(alpha_test_threshold_for_blend(7, 0.75), 1.0 / 255.0 * 0.75);
     }
 }

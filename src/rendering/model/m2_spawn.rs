@@ -80,6 +80,8 @@ pub fn spawn_m2_on_entity_filtered(
         grounded_root,
         false,
         None,
+        None,
+        None,
     );
     true
 }
@@ -101,6 +103,8 @@ pub fn spawn_m2_model_on_entity(
         &model.bones,
         grounded_root,
         false,
+        None,
+        None,
         None,
     );
     true
@@ -137,7 +141,9 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
         names,
     );
     for (i, batch) in batches.into_iter().enumerate() {
-        spawn_batch_mesh(commands, assets, batch, entity, &skinning, i, false, None);
+        spawn_batch_mesh(
+            commands, assets, batch, entity, &skinning, i, false, None, None, None,
+        );
     }
     true
 }
@@ -266,6 +272,8 @@ pub fn attach_m2_batches(
     root: Entity,
     force_skybox_material: bool,
     skybox_color: Option<Color>,
+    skybox_default_sequence_index: Option<usize>,
+    skybox_global_sequences: Option<&[u32]>,
 ) -> SkinningResult {
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
@@ -278,6 +286,8 @@ pub fn attach_m2_batches(
             i,
             force_skybox_material,
             skybox_color,
+            skybox_default_sequence_index,
+            skybox_global_sequences,
         );
     }
     skinning
@@ -358,6 +368,8 @@ fn spawn_batch_mesh(
     batch_index: usize,
     force_skybox_material: bool,
     skybox_color: Option<Color>,
+    skybox_default_sequence_index: Option<usize>,
+    skybox_global_sequences: Option<&[u32]>,
 ) {
     let visible = initial_batch_visibility(batch.mesh_part_id, force_skybox_material);
     let mat = load_batch_material(
@@ -369,6 +381,8 @@ fn spawn_batch_mesh(
         assets.skybox_materials.as_deref_mut(),
         force_skybox_material,
         skybox_color,
+        skybox_default_sequence_index,
+        skybox_global_sequences,
     );
     let mut context = MeshSpawnContext {
         parent: root,
