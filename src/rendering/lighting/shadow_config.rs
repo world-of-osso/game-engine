@@ -90,14 +90,17 @@ mod tests {
     }
 
     #[test]
-    fn anti_alias_default_is_taa() {
+    fn anti_alias_default_is_msaa4x() {
         use crate::client_options::AntiAliasMode;
-        assert_eq!(AntiAliasMode::default(), AntiAliasMode::Taa);
+        assert_eq!(AntiAliasMode::default(), AntiAliasMode::Msaa4x);
     }
 
     #[test]
-    fn graphics_options_aa_defaults_to_taa() {
+    fn graphics_options_aa_defaults_to_msaa4x() {
         let opts = crate::client_options::GraphicsOptions::default();
-        assert_eq!(opts.anti_alias, crate::client_options::AntiAliasMode::Taa);
+        assert_eq!(
+            opts.anti_alias,
+            crate::client_options::AntiAliasMode::Msaa4x
+        );
     }
 }

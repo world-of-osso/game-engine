@@ -110,8 +110,8 @@ impl CameraOptions {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AntiAliasMode {
     None,
-    Msaa4x,
     #[default]
+    Msaa4x,
     Taa,
 }
 
