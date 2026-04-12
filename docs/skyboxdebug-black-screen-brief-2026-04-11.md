@@ -4,8 +4,8 @@
 
 - `skyboxdebug` is no longer a totally black viewport.
 - That is not proof the authored skybox works.
-  - The debug scene still spawns a magenta `SkyboxDebugDepthProbe`.
-  - A purple or merely non-black screenshot can be explained by that probe and the procedural baseline, not by a correctly rendered authored skybox.
+  - Earlier purple screenshots could be explained by the removed magenta `SkyboxDebugDepthProbe` plus the procedural baseline.
+  - After removing that probe, any remaining non-black result has to come from the sky itself, the reference plane, or other surviving scene content.
 - The earlier "non-black screenshot" proof standard was wrong.
 - One real root cause was shader registration, not authored skybox content.
   - `SkyboxM2Material::fragment_shader()` used a path-loaded shader ref.
@@ -27,7 +27,7 @@
 
 - The startup-path fixes above are real even if authored skybox rendering is still broken.
 - The authored skyboxes are still not proven to render correctly.
-  - That needs a control without the magenta probe and without treating "non-black" as success.
+  - That still needs a control without helper visuals and without treating "non-black" as success.
 - Keeping the procedural sky/fog bootstrap in `skyboxdebug` is acceptable because this screen is a debug harness, not a shipping gameplay scene.
 
 ## What This Rules Out
@@ -41,7 +41,6 @@
 
 ## Theories
 
-- The current purple output may mainly be the debug probe, with the authored skybox still failing behind it.
 - `11xp_cloudsky01.m2` still uses more modern effect ids (`0x8012`, `0x8016`) than the older legacy combiner path.
 - That means there may still be a separate fidelity problem after this fix set:
   - the debug harness is no longer fully black
@@ -56,4 +55,4 @@
   - skybox-following-camera translation instead of orbit focus
   - guarded `uv_b` access in the WGSL path
 - Authored skybox correctness is still unproven.
-- The current purple-cube result is not valid proof that the authored skybox works.
+- Earlier purple-cube output was not valid proof that the authored skybox worked.

@@ -139,4 +139,4 @@ Follow the workflow in `SCHEMA.md`: check existing pages first (update > create)
 - asset_resolver: `src/asset/asset_resolver.rs` — AssetResolver trait for CASC extraction via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
-- Open source WoW clients, renderers, and format libraries: `docs/open-source-wow-clients.md`
+- When comparing behavior against other WoW clients, renderers, or format libraries, reference `/home/osso/Projects/world-of-osso/game-engine/docs/open-source-wow-clients.md`
