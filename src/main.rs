@@ -250,6 +250,10 @@ fn parse_skybox_debug_view_mode(args: &[String]) -> scenes::skybox_debug::Skybox
     }
 }
 
+fn parse_skybox_time_override_ms(args: &[String]) -> Result<Option<u32>, String> {
+    parse_u32_flag(args, "--skybox-time-ms")
+}
+
 fn parse_run_args(args: &[String]) -> ParsedArgs {
     let mut parsed = parse_run_args_base(args);
     let preferred_realm = client_options::load_preferred_realm();
@@ -414,6 +418,13 @@ fn insert_skybox_debug_resources(app: &mut App, args: &[String]) {
     let skybox_view_mode = parse_skybox_debug_view_mode(args);
     if skybox_view_mode != scenes::skybox_debug::SkyboxDebugViewMode::Default {
         app.insert_resource(skybox_view_mode);
+    }
+    match parse_skybox_time_override_ms(args) {
+        Ok(Some(time_ms)) => {
+            app.insert_resource(skybox_m2_material::SkyboxTimeOverrideMs(time_ms));
+        }
+        Ok(None) => {}
+        Err(err) => exit_with_arg_parse_error(&err),
     }
 }
 

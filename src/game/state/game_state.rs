@@ -8,7 +8,6 @@ use lightyear::prelude::client::Connected;
 use crate::camera::{self, WowCamera};
 use crate::networking::{CurrentZone, LocalPlayer, ServerAddr};
 use crate::shadow_config::default_cascade_shadow_config;
-use crate::sky;
 use crate::terrain::AdtManager;
 
 pub use game_engine::game_state_enum::GameState;
@@ -238,18 +237,10 @@ fn reset_zone_transition_tracker(mut tracker: ResMut<ZoneTransitionTracker>) {
 
 /// Spawn world environment (lights, sky dome) when entering InWorld in server mode.
 /// Only registered when ServerAddr is present — skipped in standalone mode.
-fn spawn_world_environment(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut sky_materials: ResMut<Assets<sky::SkyMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    cloud_maps: Res<sky::cloud_texture::ProceduralCloudMaps>,
-    camera_q: Query<Entity, With<WowCamera>>,
-) {
-    let camera = camera_q
-        .single()
-        .ok()
-        .unwrap_or_else(|| camera::spawn_wow_camera(&mut commands));
+fn spawn_world_environment(mut commands: Commands, camera_q: Query<Entity, With<WowCamera>>) {
+    if camera_q.single().ok().is_none() {
+        camera::spawn_wow_camera(&mut commands);
+    }
     commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
@@ -268,14 +259,6 @@ fn spawn_world_environment(
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
         default_cascade_shadow_config(),
     ));
-    sky::spawn_sky_dome(
-        &mut commands,
-        &mut meshes,
-        &mut sky_materials,
-        &mut images,
-        camera,
-        cloud_maps.active_handle(),
-    );
 }
 
 fn on_exit_in_world() {

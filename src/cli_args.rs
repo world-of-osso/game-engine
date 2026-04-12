@@ -238,6 +238,9 @@ pub fn print_help() {
     println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
     println!("  --skybox-fdid <ID>  Force skyboxdebug to load a specific skybox FileDataID");
     println!("  --light-skybox-id <ID>  Force skyboxdebug to resolve a specific LightSkyboxID");
+    println!(
+        "  --skybox-time-ms <MS>  Force skyboxdebug/authored skybox animation time in milliseconds"
+    );
     println!("  --skybox-verify     Strip skyboxdebug helper visuals and procedural fallback");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
@@ -296,7 +299,7 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
         }
         match args[i].as_str() {
             "--server" | "--state" | "--screen" | "--char" | "--load-scene" | "--skybox-fdid"
-            | "--light-skybox-id" => {
+            | "--light-skybox-id" | "--skybox-time-ms" => {
                 i += 2;
             }
             "--login-dev-admin" => {

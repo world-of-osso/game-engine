@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
-use crate::asset::{m2_attach, m2_light, m2_particle};
+use crate::asset::{m2_anim, m2_attach, m2_light, m2_particle};
 
 use super::{M2Chunks, M2Model, ModelCacheKey, build_render_batches, parse_chunks, parse_txid};
 
@@ -106,6 +106,8 @@ fn build_m2_model(
         sequences: anim.sequences,
         bone_tracks: anim.bone_tracks,
         global_sequences: anim.global_sequences,
+        transparency_tracks: m2_anim::parse_transparency_tracks(chunks.md20)?,
+        color_tracks: m2_anim::parse_color_tracks(chunks.md20)?,
         particle_emitters: particles,
         attachments,
         attachment_lookup,

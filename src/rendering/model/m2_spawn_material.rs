@@ -333,8 +333,12 @@ pub(crate) fn skybox_m2_material(
         fourth_texture: stage_textures.fourth_texture,
         blend_mode: batch.blend_mode,
         two_sided: batch.render_flags & 0x04 != 0,
+        priority_plane: batch.priority_plane,
+        material_layer: batch.material_layer,
         default_sequence_index: default_sequence_index as u32,
         global_sequences: global_sequences.to_vec(),
+        transparency_anim: batch.transparency_anim.clone(),
+        color_opacity_anim: batch.color_opacity_anim.clone(),
         texture_anim_1: batch.texture_anim.clone(),
         texture_anim_2: batch.texture_anim_2.clone(),
     }

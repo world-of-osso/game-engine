@@ -1,4 +1,5 @@
 use super::*;
+use crate::skybox_m2_material::SkyboxTimeOverrideMs;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 
@@ -410,8 +411,27 @@ pub(crate) fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, 
 
 pub(crate) fn tick_animation(
     time: Res<Time>,
+    time_override: Option<Res<SkyboxTimeOverrideMs>>,
     mut players: Query<(&mut M2AnimPlayer, &M2AnimData)>,
 ) {
+    if let Some(time_override) = time_override.as_deref() {
+        for (mut player, data) in &mut players {
+            let forced_time_ms = data
+                .sequences
+                .get(player.current_seq_idx)
+                .map(|seq| {
+                    if seq.duration > 0 {
+                        (time_override.0 as f32) % seq.duration as f32
+                    } else {
+                        time_override.0 as f32
+                    }
+                })
+                .unwrap_or(time_override.0 as f32);
+            player.time_ms = forced_time_ms;
+            player.transition = None;
+        }
+        return;
+    }
     let delta_ms = time.delta_secs() * 1000.0;
     for (mut player, data) in &mut players {
         advance_player_time(&mut player, data, delta_ms);

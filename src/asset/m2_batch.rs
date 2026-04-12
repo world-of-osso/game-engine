@@ -26,22 +26,42 @@ struct BatchOpacity<'a> {
 }
 
 impl BatchOpacity<'_> {
-    fn evaluate(&self, unit: &M2TextureUnit) -> f32 {
+    fn resolve_transparency_track_index(&self, unit: &M2TextureUnit) -> Option<usize> {
         let track_idx = self
             .transparency_lookup
             .get(unit.transparency_index as usize)
             .copied()
             .unwrap_or(unit.transparency_index as i16);
+        usize::try_from(track_idx.max(0)).ok()
+    }
+
+    fn resolve_color_opacity_track_index(&self, unit: &M2TextureUnit) -> Option<usize> {
+        usize::try_from(unit.color_index).ok()
+    }
+
+    fn resolve_transparency_track(&self, unit: &M2TextureUnit) -> Option<m2_anim::AnimTrack<i16>> {
+        self.resolve_transparency_track_index(unit)
+            .and_then(|track_idx| self.transparencies.get(track_idx))
+            .cloned()
+    }
+
+    fn resolve_color_opacity_track(&self, unit: &M2TextureUnit) -> Option<m2_anim::AnimTrack<i16>> {
+        self.resolve_color_opacity_track_index(unit)
+            .and_then(|idx| self.color_tracks.get(idx))
+            .map(|tracks| tracks.opacity.clone())
+    }
+
+    fn evaluate(&self, unit: &M2TextureUnit) -> f32 {
         let transparency = self
-            .transparencies
-            .get(track_idx.max(0) as usize)
+            .resolve_transparency_track(unit)
+            .as_ref()
             .and_then(|t| m2_anim::evaluate_i16_track(t, 0, 0))
             .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
             .unwrap_or(1.0);
-        let color_opacity = usize::try_from(unit.color_index)
-            .ok()
-            .and_then(|idx| self.color_tracks.get(idx))
-            .and_then(|tracks| m2_anim::evaluate_i16_track(&tracks.opacity, 0, 0))
+        let color_opacity = self
+            .resolve_color_opacity_track(unit)
+            .as_ref()
+            .and_then(|track| m2_anim::evaluate_i16_track(track, 0, 0))
             .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
             .unwrap_or(1.0);
         transparency * color_opacity
@@ -139,6 +159,10 @@ pub(super) fn build_one_batch(
     if transparency <= 0.0 && !ctx.keep_zero_opacity_batches {
         return Ok(None);
     }
+    let transparency_track_index = opacity.resolve_transparency_track_index(unit);
+    let color_opacity_track_index = opacity.resolve_color_opacity_track_index(unit);
+    let transparency_anim = opacity.resolve_transparency_track(unit);
+    let color_opacity_anim = opacity.resolve_color_opacity_track(unit);
     let texture_anims = resolve_batch_texture_anims(ctx, unit);
     let uv_flags = resolve_batch_uv_flags(ctx, unit, texture.texture_2_fdid);
     Ok(Some(build_render_batch(
@@ -149,6 +173,10 @@ pub(super) fn build_one_batch(
             mesh,
             texture,
             transparency,
+            transparency_track_index,
+            color_opacity_track_index,
+            transparency_anim,
+            color_opacity_anim,
             texture_anims,
             uv_flags,
         },
@@ -230,6 +258,10 @@ struct BatchRenderInputs<'a> {
     mesh: Mesh,
     texture: BatchTexture,
     transparency: f32,
+    transparency_track_index: Option<usize>,
+    color_opacity_track_index: Option<usize>,
+    transparency_anim: Option<m2_anim::AnimTrack<i16>>,
+    color_opacity_anim: Option<m2_anim::AnimTrack<i16>>,
     texture_anims: TextureAnimPair,
     uv_flags: (bool, bool, bool),
 }
@@ -248,6 +280,10 @@ fn build_render_batch(ctx: &BatchBuildContext<'_>, inputs: BatchRenderInputs<'_>
         render_flags: mat.map(|m| m.flags).unwrap_or(0),
         blend_mode: mat.map(|m| m.blend_mode).unwrap_or(0),
         transparency: inputs.transparency,
+        transparency_track_index: inputs.transparency_track_index,
+        color_opacity_track_index: inputs.color_opacity_track_index,
+        transparency_anim: inputs.transparency_anim,
+        color_opacity_anim: inputs.color_opacity_anim,
         texture_anim,
         texture_anim_2,
         use_uv_2_1,
@@ -301,6 +337,10 @@ pub(super) fn build_fallback_batch(
         render_flags: 0,
         blend_mode: 0,
         transparency: 1.0,
+        transparency_track_index: None,
+        color_opacity_track_index: None,
+        transparency_anim: None,
+        color_opacity_anim: None,
         texture_anim: None,
         texture_anim_2: None,
         use_uv_2_1: false,

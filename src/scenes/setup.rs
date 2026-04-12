@@ -94,9 +94,7 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
             self.commands,
             self.meshes,
             self.materials,
-            self.sky_mats,
             self.images,
-            self.cloud_maps.active_handle(),
             is_terrain,
         );
         match asset_path {
@@ -252,9 +250,7 @@ pub fn spawn_scene_environment(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
-    sky_materials: &mut Assets<sky::SkyMaterial>,
     images: &mut Assets<Image>,
-    cloud_texture: Handle<Image>,
     is_terrain: bool,
 ) -> Entity {
     let camera = crate::camera::spawn_wow_camera(commands);
@@ -275,14 +271,6 @@ pub fn spawn_scene_environment(
         Transform::from_rotation(Quat::from_rotation_x(-PI / 4.0)),
         default_cascade_shadow_config(),
     ));
-    sky::spawn_sky_dome(
-        commands,
-        meshes,
-        sky_materials,
-        images,
-        camera,
-        cloud_texture,
-    );
     if !is_terrain {
         ground::spawn_ground_plane(commands, meshes, materials, images);
     }

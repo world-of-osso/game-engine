@@ -1,6 +1,7 @@
 use super::{
     SKYBOX_M2_SHADER_HANDLE, SkyboxM2Material, SkyboxM2Settings, configure_skybox_pipeline,
-    evaluate_skybox_uv_offsets, skybox_alpha_mode_for_blend,
+    evaluate_skybox_transparency, evaluate_skybox_uv_offsets, skybox_alpha_mode_for_blend,
+    skybox_sort_bias,
 };
 use crate::asset;
 use crate::asset::m2_anim::AnimTrack;
@@ -30,6 +31,10 @@ fn test_batch() -> asset::m2::M2RenderBatch {
         render_flags: 0,
         blend_mode: 1,
         transparency: 0.5,
+        transparency_track_index: None,
+        color_opacity_track_index: None,
+        transparency_anim: None,
+        color_opacity_anim: None,
         texture_anim: None,
         texture_anim_2: None,
         use_uv_2_1: false,
@@ -89,6 +94,8 @@ fn assert_advanced_skybox_material(
     assert_eq!(material.settings.has_second_texture, 1);
     assert_eq!(material.settings.has_third_texture, 0);
     assert_eq!(material.settings.has_fourth_texture, 0);
+    assert_eq!(material.priority_plane, 0);
+    assert_eq!(material.material_layer, 0);
 }
 
 #[test]
@@ -196,6 +203,32 @@ fn skybox_material_uses_internal_shader_handle() {
         shader,
         bevy::shader::ShaderRef::Handle(handle) if handle == SKYBOX_M2_SHADER_HANDLE
     ));
+}
+
+#[test]
+fn skybox_material_depth_bias_respects_authored_priority_plane_then_material_layer() {
+    let mut earlier_batch = test_batch();
+    earlier_batch.priority_plane = -10;
+    earlier_batch.material_layer = 0;
+    let mut later_batch = test_batch();
+    later_batch.priority_plane = -7;
+    later_batch.material_layer = 3;
+
+    let earlier = skybox_m2_material(None, None, None, None, None, &earlier_batch, 0, &[]);
+    let later = skybox_m2_material(None, None, None, None, None, &later_batch, 0, &[]);
+
+    assert!(
+        <SkyboxM2Material as Material>::depth_bias(&earlier)
+            < <SkyboxM2Material as Material>::depth_bias(&later)
+    );
+}
+
+#[test]
+fn skybox_sort_bias_uses_material_layer_as_tie_breaker() {
+    let lower_layer = skybox_sort_bias(4, 1);
+    let higher_layer = skybox_sort_bias(4, 2);
+
+    assert!(lower_layer < higher_layer);
 }
 
 #[test]
@@ -323,6 +356,17 @@ fn test_anim_track(
     }
 }
 
+fn test_i16_anim_track(
+    global_sequence: i16,
+    sequences: Vec<(Vec<u32>, Vec<i16>)>,
+) -> AnimTrack<i16> {
+    AnimTrack {
+        interpolation_type: 0,
+        global_sequence,
+        sequences,
+    }
+}
+
 #[test]
 fn evaluate_skybox_uv_offsets_prefers_material_default_sequence_index() {
     let material = SkyboxM2Material {
@@ -349,8 +393,12 @@ fn evaluate_skybox_uv_offsets_prefers_material_default_sequence_index() {
         fourth_texture: Handle::default(),
         blend_mode: 0,
         two_sided: false,
+        priority_plane: 0,
+        material_layer: 0,
         default_sequence_index: 1,
         global_sequences: Vec::new(),
+        transparency_anim: None,
+        color_opacity_anim: None,
         texture_anim_1: Some(test_anim_track(
             -1,
             vec![
@@ -393,8 +441,12 @@ fn evaluate_skybox_uv_offsets_loops_on_global_sequence_duration() {
         fourth_texture: Handle::default(),
         blend_mode: 0,
         two_sided: false,
+        priority_plane: 0,
+        material_layer: 0,
         default_sequence_index: 0,
         global_sequences: vec![51],
+        transparency_anim: None,
+        color_opacity_anim: None,
         texture_anim_1: Some(test_anim_track(
             0,
             vec![(vec![0, 50], vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]])],
@@ -408,6 +460,100 @@ fn evaluate_skybox_uv_offsets_loops_on_global_sequence_duration() {
 
     assert!(!vec2_close(start_uv, changed_uv));
     assert!(vec2_close(changed_uv, wrapped_uv));
+}
+
+#[test]
+fn evaluate_skybox_transparency_prefers_material_default_sequence_index() {
+    let material = SkyboxM2Material {
+        settings: SkyboxM2Settings {
+            color: Vec4::ONE,
+            transparency: 1.0,
+            alpha_test: 0.0,
+            combine_mode: 0,
+            blend_mode: 0,
+            uv_mode_1: 0,
+            uv_mode_2: 0,
+            uv_mode_3: 0,
+            uv_mode_4: 0,
+            render_flags: 0,
+            has_second_texture: 0,
+            has_third_texture: 0,
+            has_fourth_texture: 0,
+            uv_offset_1: Vec2::ZERO,
+            uv_offset_2: Vec2::ZERO,
+        },
+        base_texture: Handle::default(),
+        second_texture: Handle::default(),
+        third_texture: Handle::default(),
+        fourth_texture: Handle::default(),
+        blend_mode: 0,
+        two_sided: false,
+        priority_plane: 0,
+        material_layer: 0,
+        default_sequence_index: 1,
+        global_sequences: Vec::new(),
+        transparency_anim: Some(test_i16_anim_track(
+            -1,
+            vec![(vec![0], vec![0]), (vec![0], vec![32767])],
+        )),
+        color_opacity_anim: Some(test_i16_anim_track(
+            -1,
+            vec![(vec![0], vec![32767]), (vec![0], vec![32767])],
+        )),
+        texture_anim_1: None,
+        texture_anim_2: None,
+    };
+
+    let transparency = evaluate_skybox_transparency(&material, 0);
+
+    assert!((transparency - 1.0).abs() < 0.0001);
+}
+
+#[test]
+fn evaluate_skybox_transparency_loops_on_global_sequence_duration() {
+    let material = SkyboxM2Material {
+        settings: SkyboxM2Settings {
+            color: Vec4::ONE,
+            transparency: 1.0,
+            alpha_test: 0.0,
+            combine_mode: 0,
+            blend_mode: 0,
+            uv_mode_1: 0,
+            uv_mode_2: 0,
+            uv_mode_3: 0,
+            uv_mode_4: 0,
+            render_flags: 0,
+            has_second_texture: 0,
+            has_third_texture: 0,
+            has_fourth_texture: 0,
+            uv_offset_1: Vec2::ZERO,
+            uv_offset_2: Vec2::ZERO,
+        },
+        base_texture: Handle::default(),
+        second_texture: Handle::default(),
+        third_texture: Handle::default(),
+        fourth_texture: Handle::default(),
+        blend_mode: 0,
+        two_sided: false,
+        priority_plane: 0,
+        material_layer: 0,
+        default_sequence_index: 0,
+        global_sequences: vec![51],
+        transparency_anim: Some(test_i16_anim_track(0, vec![(vec![0, 50], vec![0, 32767])])),
+        color_opacity_anim: Some(test_i16_anim_track(
+            0,
+            vec![(vec![0, 50], vec![32767, 32767])],
+        )),
+        texture_anim_1: None,
+        texture_anim_2: None,
+    };
+
+    let start = evaluate_skybox_transparency(&material, 0);
+    let changed = evaluate_skybox_transparency(&material, 50);
+    let wrapped = evaluate_skybox_transparency(&material, 101);
+
+    assert!(changed > start);
+    assert!((wrapped - changed).abs() < 0.0001);
 }
 
 #[test]

@@ -110,43 +110,21 @@ fn authored_char_select_skybox_path_is_enabled() {
 }
 
 #[test]
-fn char_select_camera_gets_a_sky_dome_child() {
-    let mut app = App::new();
-    app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
-    app.init_resource::<Assets<Image>>();
+fn char_select_scene_no_longer_spawns_custom_sky_dome() {
+    let mut app = render_path_test_app();
 
-    let cloud_maps = {
-        let mut images = app.world_mut().resource_mut::<Assets<Image>>();
-        crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images)
-    };
-    app.insert_resource(cloud_maps);
-
-    let camera = app.world_mut().spawn_empty().id();
-    let dome = app
-        .world_mut()
-        .run_system_once(
-            move |mut commands: Commands,
-                  mut meshes: ResMut<Assets<Mesh>>,
-                  mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
-                  mut images: ResMut<Assets<Image>>,
-                  cloud_maps: Res<crate::sky::cloud_texture::ProceduralCloudMaps>| {
-                setup::spawn_char_select_sky_dome(
-                    &mut commands,
-                    &mut meshes,
-                    &mut sky_materials,
-                    &mut images,
-                    cloud_maps.active_handle(),
-                    camera,
-                )
-            },
-        )
-        .expect("spawn sky dome");
+    app.world_mut()
+        .run_system_once(setup::setup_char_select_scene)
+        .expect("char-select scene setup should run");
     app.update();
 
-    let child_of = app.world().get::<ChildOf>(dome).expect("sky dome parent");
-    assert_eq!(child_of.parent(), camera);
-    assert!(app.world().get::<crate::sky::SkyDome>(dome).is_some());
+    let sky_dome_count = app
+        .world_mut()
+        .query_filtered::<Entity, With<crate::sky::SkyDome>>()
+        .iter(app.world())
+        .count();
+
+    assert_eq!(sky_dome_count, 0);
 }
 
 #[test]
@@ -422,7 +400,7 @@ fn race_model_wow_path_covers_known_playable_races_and_sex() {
 }
 
 #[test]
-fn char_select_camera_retains_scene_fog_after_sky_dome_attachment() {
+fn char_select_camera_retains_scene_fog_without_custom_sky_dome() {
     let mut app = render_path_test_app();
 
     let warband = crate::scenes::char_select::warband::WarbandScenes::load();
@@ -440,30 +418,15 @@ fn char_select_camera_retains_scene_fog_after_sky_dome_attachment() {
 
     let camera_entity = app
         .world_mut()
-        .run_system_once(
-            move |mut commands: Commands,
-                  mut meshes: ResMut<Assets<Mesh>>,
-                  mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
-                  mut images: ResMut<Assets<Image>>,
-                  cloud_maps: Res<crate::sky::cloud_texture::ProceduralCloudMaps>| {
-                let camera = camera::spawn_char_select_camera(
-                    &mut commands,
-                    Some(&scene),
-                    Some(&placement),
-                    None,
-                    ModelPresentation::default(),
-                );
-                setup::spawn_char_select_sky_dome(
-                    &mut commands,
-                    &mut meshes,
-                    &mut sky_materials,
-                    &mut images,
-                    cloud_maps.active_handle(),
-                    camera,
-                );
-                camera
-            },
-        )
+        .run_system_once(move |mut commands: Commands| {
+            camera::spawn_char_select_camera(
+                &mut commands,
+                Some(&scene),
+                Some(&placement),
+                None,
+                ModelPresentation::default(),
+            )
+        })
         .expect("system should run");
     app.update();
 

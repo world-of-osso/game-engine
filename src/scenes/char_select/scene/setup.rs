@@ -81,7 +81,6 @@ fn spawn_scene_camera_and_lighting(
     bg_node: &mut SceneNode,
 ) -> (SceneSetupLighting, std::time::Duration, std::time::Duration) {
     let (camera_entity, camera_params, camera_elapsed) = spawn_scene_camera(params, selection);
-    attach_char_select_sky_dome(params, camera_entity);
     let sky_light_elapsed =
         attach_scene_skybox_and_spawn_lighting(params, selection, bg_node, camera_params.0);
     (
@@ -115,43 +114,6 @@ fn spawn_scene_camera(
         selection.presentation,
     );
     (camera_entity, camera_params, camera_elapsed)
-}
-
-fn attach_char_select_sky_dome(
-    params: &mut CharSelectSceneSetupParams<'_, '_>,
-    camera_entity: Entity,
-) {
-    let dome = spawn_char_select_sky_dome(
-        &mut params.commands,
-        &mut params.assets.meshes,
-        &mut params.assets.sky_materials,
-        &mut params.assets.images,
-        params.cloud_maps.active_handle(),
-        camera_entity,
-    );
-    params.commands.entity(dome).insert(CharSelectScene);
-}
-
-pub(super) fn spawn_char_select_sky_dome(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    sky_materials: &mut Assets<crate::sky_material::SkyMaterial>,
-    images: &mut Assets<Image>,
-    cloud_texture: Handle<Image>,
-    camera_entity: Entity,
-) -> Entity {
-    let dome = crate::sky::spawn_sky_dome_entity(
-        commands,
-        meshes,
-        sky_materials,
-        camera_entity,
-        cloud_texture,
-    );
-    let colors = crate::sky_lightdata::default_sky_colors();
-    let cubemap = crate::sky::build_sky_cubemap(&colors);
-    let cubemap_handle = images.add(cubemap);
-    commands.insert_resource(crate::sky::SkyEnvMapHandle(cubemap_handle));
-    dome
 }
 
 fn attach_scene_skybox_and_spawn_lighting(

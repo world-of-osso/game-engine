@@ -4,11 +4,13 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, Face, RenderPipelineDescriptor, ShaderType};
 use bevy::shader::{Shader, ShaderRef};
 
-use crate::asset::m2_anim::{AnimTrack, evaluate_vec3_track};
+use crate::asset::m2_anim::{AnimTrack, evaluate_i16_track, evaluate_vec3_track};
+use crate::asset::read_bytes::fixed16_to_f32;
 use crate::m2_effect_material;
 
 const SKYBOX_M2_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("c47ea355-9536-4557-8f9c-65ddd5d2047b");
+const SKYBOX_PRIORITY_PLANE_BIAS_SCALE: f32 = 10_000.0;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SkyboxM2MaterialKey {
@@ -53,8 +55,12 @@ pub struct SkyboxM2Material {
     pub fourth_texture: Handle<Image>,
     pub blend_mode: u16,
     pub two_sided: bool,
+    pub priority_plane: i8,
+    pub material_layer: u16,
     pub default_sequence_index: u32,
     pub global_sequences: Vec<u32>,
+    pub transparency_anim: Option<AnimTrack<i16>>,
+    pub color_opacity_anim: Option<AnimTrack<i16>>,
     pub texture_anim_1: Option<AnimTrack<[f32; 3]>>,
     pub texture_anim_2: Option<AnimTrack<[f32; 3]>>,
 }
@@ -74,6 +80,10 @@ impl Material for SkyboxM2Material {
 
     fn alpha_mode(&self) -> AlphaMode {
         skybox_alpha_mode_for_blend(self.blend_mode)
+    }
+
+    fn depth_bias(&self) -> f32 {
+        skybox_sort_bias(self.priority_plane, self.material_layer)
     }
 
     fn enable_prepass() -> bool {
@@ -108,7 +118,14 @@ fn skybox_alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
     m2_effect_material::alpha_mode_for_blend(blend_mode)
 }
 
+fn skybox_sort_bias(priority_plane: i8, material_layer: u16) -> f32 {
+    priority_plane as f32 * SKYBOX_PRIORITY_PLANE_BIAS_SCALE + material_layer as f32
+}
+
 pub struct SkyboxM2MaterialPlugin;
+
+#[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SkyboxTimeOverrideMs(pub u32);
 
 impl Plugin for SkyboxM2MaterialPlugin {
     fn build(&self, app: &mut App) {
@@ -124,7 +141,7 @@ impl Plugin for SkyboxM2MaterialPlugin {
     }
 }
 
-fn looped_track_time_ms(track: &AnimTrack<[f32; 3]>, seq_idx: usize, elapsed_ms: u32) -> u32 {
+fn looped_track_time_ms<T>(track: &AnimTrack<T>, seq_idx: usize, elapsed_ms: u32) -> u32 {
     let Some((timestamps, _)) = track.sequences.get(seq_idx) else {
         return elapsed_ms;
     };
@@ -138,7 +155,7 @@ fn looped_track_time_ms(track: &AnimTrack<[f32; 3]>, seq_idx: usize, elapsed_ms:
     }
 }
 
-fn skybox_track_seq_idx(track: &AnimTrack<[f32; 3]>, preferred_seq_idx: usize) -> usize {
+fn skybox_track_seq_idx<T>(track: &AnimTrack<T>, preferred_seq_idx: usize) -> usize {
     if track.sequences.is_empty() {
         0
     } else {
@@ -146,8 +163,8 @@ fn skybox_track_seq_idx(track: &AnimTrack<[f32; 3]>, preferred_seq_idx: usize) -
     }
 }
 
-fn skybox_track_time_ms(
-    track: &AnimTrack<[f32; 3]>,
+fn skybox_track_time_ms<T>(
+    track: &AnimTrack<T>,
     seq_idx: usize,
     elapsed_ms: u32,
     global_sequences: &[u32],
@@ -161,6 +178,51 @@ fn skybox_track_time_ms(
         return elapsed_ms % duration;
     }
     looped_track_time_ms(track, seq_idx, elapsed_ms)
+}
+
+fn evaluate_skybox_opacity_track(
+    track: &AnimTrack<i16>,
+    preferred_seq_idx: usize,
+    global_sequences: &[u32],
+    time_ms: u32,
+) -> f32 {
+    let seq_idx = skybox_track_seq_idx(track, preferred_seq_idx);
+    evaluate_i16_track(
+        track,
+        seq_idx,
+        skybox_track_time_ms(track, seq_idx, time_ms, global_sequences),
+    )
+    .map(|value| fixed16_to_f32(value).clamp(0.0, 1.0))
+    .unwrap_or(1.0)
+}
+
+fn evaluate_skybox_transparency(material: &SkyboxM2Material, time_ms: u32) -> f32 {
+    let preferred_seq_idx = material.default_sequence_index as usize;
+    let texture_weight = material
+        .transparency_anim
+        .as_ref()
+        .map(|track| {
+            evaluate_skybox_opacity_track(
+                track,
+                preferred_seq_idx,
+                &material.global_sequences,
+                time_ms,
+            )
+        })
+        .unwrap_or(1.0);
+    let color_opacity = material
+        .color_opacity_anim
+        .as_ref()
+        .map(|track| {
+            evaluate_skybox_opacity_track(
+                track,
+                preferred_seq_idx,
+                &material.global_sequences,
+                time_ms,
+            )
+        })
+        .unwrap_or(1.0);
+    (texture_weight * color_opacity).clamp(0.0, 1.0)
 }
 
 fn evaluate_skybox_uv_offsets(material: &SkyboxM2Material, time_ms: u32) -> (Vec2, Vec2) {
@@ -194,10 +256,18 @@ fn evaluate_skybox_uv_offsets(material: &SkyboxM2Material, time_ms: u32) -> (Vec
     (uv_offset_1, uv_offset_2)
 }
 
-fn update_skybox_uvs(time: Res<Time>, mut materials: ResMut<Assets<SkyboxM2Material>>) {
-    let time_ms = (time.elapsed_secs_f64() * 1000.0) as u32;
+fn update_skybox_uvs(
+    time: Res<Time>,
+    time_override: Option<Res<SkyboxTimeOverrideMs>>,
+    mut materials: ResMut<Assets<SkyboxM2Material>>,
+) {
+    let time_ms = time_override
+        .as_deref()
+        .map(|override_ms| override_ms.0)
+        .unwrap_or_else(|| (time.elapsed_secs_f64() * 1000.0) as u32);
     for (_id, material) in materials.iter_mut() {
         let (uv_offset_1, uv_offset_2) = evaluate_skybox_uv_offsets(material, time_ms);
+        material.settings.transparency = evaluate_skybox_transparency(material, time_ms);
         material.settings.uv_offset_1 = uv_offset_1;
         material.settings.uv_offset_2 = uv_offset_2;
     }

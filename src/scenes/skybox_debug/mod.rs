@@ -4,10 +4,10 @@ use std::marker::PhantomData;
 use bevy::camera::ClearColorConfig;
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
-use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
+use crate::asset::m2_anim::{AnimTrack, evaluate_i16_track};
 use crate::camera::additive_particle_glow_tonemapping;
 use crate::creature_display;
 use crate::game_state::GameState;
@@ -17,6 +17,7 @@ use crate::orbit_camera::OrbitCamera;
 use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
 use crate::scenes::teardown::teardown_tagged_scene;
 use crate::skybox_m2_material::SkyboxM2Material;
+use game_engine::asset::read_bytes::fixed16_to_f32;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SkyboxDebugOverride {
@@ -55,15 +56,7 @@ struct SpawnedSkyboxDebug {
     source: String,
 }
 
-const SKYBOX_DEBUG_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
-const SKYBOX_DEBUG_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct SkyboxDebugComposition {
-    clear_color: Color,
-    shows_procedural_visible_baseline: bool,
-    shows_procedural_fog: bool,
-}
+const SKYBOX_DEBUG_CLEAR_COLOR: Color = Color::BLACK;
 
 pub struct SkyboxDebugScenePlugin;
 
@@ -108,8 +101,7 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
         setup.scene.as_ref(),
         params.override_spec.as_deref().copied(),
     );
-    let composition = skybox_debug_composition(view_mode, resolved.as_ref());
-    initialize_skybox_debug_scene(&mut commands, &mut params, &setup, composition);
+    initialize_skybox_debug_scene(&mut commands, &mut params, &setup);
     spawn_skybox_debug_reference_objects(
         &mut commands,
         &mut params.meshes,
@@ -169,58 +161,10 @@ fn initialize_skybox_debug_scene(
     commands: &mut Commands,
     params: &mut SkyboxDebugSceneParams<'_, '_>,
     setup: &SkyboxDebugSetup,
-    composition: SkyboxDebugComposition,
 ) {
-    let cloud_texture =
-        ensure_debug_cloud_texture(commands, &mut params.images, params.cloud_maps.as_deref());
-    spawn_debug_scene_environment(
-        commands,
-        &mut params.meshes,
-        &mut params.sky_materials,
-        &mut params.images,
-        cloud_texture,
-        setup,
-        composition,
-    );
+    let _ = ensure_debug_cloud_texture(commands, &mut params.images, params.cloud_maps.as_deref());
+    spawn_debug_scene_environment(commands, &mut params.images, setup);
     spawn_skybox_debug_light(commands);
-}
-
-fn skybox_debug_composition(
-    view_mode: SkyboxDebugViewMode,
-    resolved: Option<&ResolvedDebugSkybox>,
-) -> SkyboxDebugComposition {
-    match view_mode {
-        SkyboxDebugViewMode::AuthoredOnlyVerification => SkyboxDebugComposition {
-            clear_color: Color::BLACK,
-            shows_procedural_visible_baseline: false,
-            shows_procedural_fog: false,
-        },
-        SkyboxDebugViewMode::Default => {
-            let flags = resolved.and_then(|resolved| resolved.light_skybox_flags);
-            let shows_procedural_visible_baseline = flags
-                .map(|flags| {
-                    flags.contains(
-                        crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX,
-                    )
-                })
-                .unwrap_or(true);
-            let shows_procedural_fog = flags
-                .map(|flags| {
-                    flags
-                        .contains(crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND)
-                })
-                .unwrap_or(true);
-            SkyboxDebugComposition {
-                clear_color: if shows_procedural_visible_baseline {
-                    SKYBOX_DEBUG_CLEAR_COLOR
-                } else {
-                    Color::BLACK
-                },
-                shows_procedural_visible_baseline,
-                shows_procedural_fog,
-            }
-        }
-    }
 }
 
 fn spawn_skybox_debug_light(commands: &mut Commands) {
@@ -252,34 +196,17 @@ fn ensure_debug_cloud_texture(
 
 fn spawn_debug_scene_environment(
     commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    sky_materials: &mut Assets<crate::sky_material::SkyMaterial>,
     images: &mut Assets<Image>,
-    cloud_texture: Handle<Image>,
     setup: &SkyboxDebugSetup,
-    composition: SkyboxDebugComposition,
 ) -> Entity {
-    insert_debug_scene_environment_resources(commands, composition);
-    let camera = spawn_debug_scene_camera(commands, setup, composition);
-    if composition.shows_procedural_visible_baseline {
-        let dome = crate::sky::spawn_sky_dome_entity(
-            commands,
-            meshes,
-            sky_materials,
-            camera,
-            cloud_texture,
-        );
-        commands.entity(dome).insert(SkyboxDebugScene);
-    }
+    insert_debug_scene_environment_resources(commands);
+    let camera = spawn_debug_scene_camera(commands, setup);
     insert_debug_scene_env_map(commands, images);
     camera
 }
 
-fn insert_debug_scene_environment_resources(
-    commands: &mut Commands,
-    composition: SkyboxDebugComposition,
-) {
-    commands.insert_resource(ClearColor(composition.clear_color));
+fn insert_debug_scene_environment_resources(commands: &mut Commands) {
+    commands.insert_resource(ClearColor(SKYBOX_DEBUG_CLEAR_COLOR));
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 60.0,
@@ -287,50 +214,29 @@ fn insert_debug_scene_environment_resources(
     });
 }
 
-fn spawn_debug_scene_camera(
-    commands: &mut Commands,
-    setup: &SkyboxDebugSetup,
-    composition: SkyboxDebugComposition,
-) -> Entity {
-    let mut entity = commands.spawn(debug_scene_camera_bundle(setup, composition));
-    if composition.shows_procedural_fog {
-        entity.insert(debug_scene_fog());
-    }
-    entity.id()
+fn spawn_debug_scene_camera(commands: &mut Commands, setup: &SkyboxDebugSetup) -> Entity {
+    commands.spawn(debug_scene_camera_bundle(setup)).id()
 }
 
-fn debug_scene_camera_bundle(
-    setup: &SkyboxDebugSetup,
-    composition: SkyboxDebugComposition,
-) -> impl Bundle {
+fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup) -> impl Bundle {
     let orbit = OrbitCamera::new(setup.focus, 7.5);
     (
         Name::new("SkyboxDebugCamera"),
         SkyboxDebugScene,
         Camera3d::default(),
         Camera {
-            clear_color: ClearColorConfig::Custom(composition.clear_color),
+            clear_color: ClearColorConfig::Custom(SKYBOX_DEBUG_CLEAR_COLOR),
             ..default()
         },
         additive_particle_glow_tonemapping(),
         Projection::Perspective(PerspectiveProjection {
             fov: 60.0_f32.to_radians(),
+            far: 100_000.0,
             ..default()
         }),
         Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
         orbit,
     )
-}
-
-fn debug_scene_fog() -> DistanceFog {
-    DistanceFog {
-        color: SKYBOX_DEBUG_FOG_COLOR,
-        falloff: FogFalloff::Linear {
-            start: 15.0,
-            end: 45.0,
-        },
-        ..default()
-    }
 }
 
 fn insert_debug_scene_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
@@ -406,11 +312,14 @@ fn tag_debug_skybox_scene_entities(
     spawned: &m2_scene::SpawnedAnimatedStaticM2,
 ) {
     commands.entity(spawned.root).insert((
+        bevy::camera::visibility::NoFrustumCulling,
         SkyboxDebugScene,
         SkyboxDebugSkybox,
         Name::new(format!("SkyboxDebug:{}", resolved.path.display())),
     ));
-    commands.entity(spawned.model_root).insert(SkyboxDebugScene);
+    commands
+        .entity(spawned.model_root)
+        .insert((bevy::camera::visibility::NoFrustumCulling, SkyboxDebugScene));
 }
 
 fn build_spawned_debug_skybox(
@@ -456,6 +365,199 @@ fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug
         authored_light_params,
         authored_light_skybox
     );
+    log_debug_skybox_alpha_tracks(&spawned.path);
+}
+
+fn log_debug_skybox_alpha_tracks(path: &std::path::Path) {
+    let Ok(model) = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0]) else {
+        warn!(
+            "skybox_debug_scene: failed to load {} for alpha-track dump",
+            path.display()
+        );
+        return;
+    };
+    let default_sequence_index = model
+        .sequences
+        .iter()
+        .position(|sequence| sequence.id == 0)
+        .unwrap_or(0);
+    info!(
+        "skybox_debug_scene: alpha dump {} transparency_tracks={} color_tracks={} batches={}",
+        path.display(),
+        model.transparency_tracks.len(),
+        model.color_tracks.len(),
+        model.batches.len()
+    );
+    for (track_index, track) in model.transparency_tracks.iter().enumerate() {
+        info!(
+            "skybox_debug_scene: transparency_track[{track_index}] {}",
+            format_opacity_track_samples(track, default_sequence_index, &model.global_sequences)
+        );
+    }
+    log_debug_skybox_additive_batches(&model);
+    for (batch_index, batch) in model.batches.iter().enumerate() {
+        let transparency_track = batch
+            .transparency_track_index
+            .map_or_else(|| "-".into(), |idx| idx.to_string());
+        let color_track = batch
+            .color_opacity_track_index
+            .map_or_else(|| "-".into(), |idx| idx.to_string());
+        let transparency_samples = batch.transparency_anim.as_ref().map_or_else(
+            || "none".into(),
+            |track| {
+                format_opacity_track_samples(track, default_sequence_index, &model.global_sequences)
+            },
+        );
+        let color_samples = batch.color_opacity_anim.as_ref().map_or_else(
+            || "none".into(),
+            |track| {
+                format_opacity_track_samples(track, default_sequence_index, &model.global_sequences)
+            },
+        );
+        info!(
+            "skybox_debug_scene: batch[{batch_index}] mesh_part_id={} blend={} flags=0x{:x} priority_plane={} layer={} transparency_track={} color_opacity_track={} transparency_samples={} color_samples={}",
+            batch.mesh_part_id,
+            batch.blend_mode,
+            batch.render_flags,
+            batch.priority_plane,
+            batch.material_layer,
+            transparency_track,
+            color_track,
+            transparency_samples,
+            color_samples
+        );
+    }
+}
+
+fn log_debug_skybox_additive_batches(model: &crate::asset::m2::M2Model) {
+    let additive_batches: Vec<_> = model
+        .batches
+        .iter()
+        .enumerate()
+        .filter(|(_, batch)| batch.blend_mode == 4)
+        .collect();
+    info!(
+        "skybox_debug_scene: additive_batches={}",
+        additive_batches.len()
+    );
+    for (batch_index, batch) in additive_batches {
+        let duplicate_count = model
+            .batches
+            .iter()
+            .filter(|other| {
+                other.blend_mode == batch.blend_mode
+                    && other.priority_plane == batch.priority_plane
+                    && other.material_layer == batch.material_layer
+            })
+            .count();
+        info!(
+            "skybox_debug_scene: additive_batch[{batch_index}] mesh_part_id={} flags=0x{:x} priority_plane={} layer={} shader_id=0x{:x} texture_count={} use_uv_2_1={} use_uv_2_2={} use_env_map_2={} texture_anim={} texture_anim_2={} texture_fdid={:?} texture_2_fdid={:?} extra_textures={:?} duplicates_same_priority_layer={duplicate_count}",
+            batch.mesh_part_id,
+            batch.render_flags,
+            batch.priority_plane,
+            batch.material_layer,
+            batch.shader_id,
+            batch.texture_count,
+            batch.use_uv_2_1,
+            batch.use_uv_2_2,
+            batch.use_env_map_2,
+            batch.texture_anim.is_some(),
+            batch.texture_anim_2.is_some(),
+            batch.texture_fdid,
+            batch.texture_2_fdid,
+            batch.extra_texture_fdids
+        );
+        log_additive_batch_geometry(model, batch_index, batch);
+    }
+}
+
+fn log_additive_batch_geometry(
+    model: &crate::asset::m2::M2Model,
+    batch_index: usize,
+    batch: &crate::asset::m2::M2RenderBatch,
+) {
+    let triangle_count = match batch.mesh.indices() {
+        Some(bevy::mesh::Indices::U16(indices)) => indices.len() / 3,
+        Some(bevy::mesh::Indices::U32(indices)) => indices.len() / 3,
+        None => 0,
+    };
+    let vertex_count = batch.mesh.count_vertices();
+    let mut joint_indices = std::collections::BTreeSet::new();
+    if let Some(bevy::mesh::VertexAttributeValues::Uint16x4(joints)) =
+        batch.mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX)
+    {
+        for joint_set in joints {
+            for joint in joint_set {
+                joint_indices.insert(*joint as usize);
+            }
+        }
+    }
+    let joint_summary = if joint_indices.is_empty() {
+        "none".to_string()
+    } else {
+        joint_indices
+            .iter()
+            .map(|joint_index| {
+                let billboard = model
+                    .bones
+                    .get(*joint_index)
+                    .map(|bone| bone.flags & crate::animation::M2_BONE_SPHERICAL_BILLBOARD != 0)
+                    .unwrap_or(false);
+                format!("{joint_index}:billboard={billboard}")
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    info!(
+        "skybox_debug_scene: additive_batch[{batch_index}] geometry verts={} tris={} joints=[{}]",
+        vertex_count, triangle_count, joint_summary
+    );
+}
+
+fn format_opacity_track_samples(
+    track: &AnimTrack<i16>,
+    default_sequence_index: usize,
+    global_sequences: &[u32],
+) -> String {
+    let seq_idx = if track.sequences.is_empty() {
+        0
+    } else {
+        default_sequence_index.min(track.sequences.len() - 1)
+    };
+    let Some((timestamps, _)) = track.sequences.get(seq_idx) else {
+        return format!("global_seq={} seq={} empty", track.global_sequence, seq_idx);
+    };
+    let duration = if track.global_sequence >= 0 {
+        global_sequences
+            .get(track.global_sequence as usize)
+            .copied()
+            .unwrap_or_else(|| timestamps.last().copied().unwrap_or(0).saturating_add(1))
+    } else {
+        timestamps.last().copied().unwrap_or(0).saturating_add(1)
+    };
+    let samples = [
+        0_u32,
+        duration / 4,
+        duration / 2,
+        duration.saturating_sub(1),
+    ]
+    .into_iter()
+    .map(|time_ms| {
+        let value = evaluate_i16_track(track, seq_idx, time_ms)
+            .map(|raw| format!("{:.3}", fixed16_to_f32(raw).clamp(0.0, 1.0)))
+            .unwrap_or_else(|| "none".into());
+        format!("{time_ms}ms={value}")
+    })
+    .collect::<Vec<_>>()
+    .join(",");
+    format!(
+        "global_seq={} seq={} keyframes={} duration={} [{}]",
+        track.global_sequence,
+        seq_idx,
+        timestamps.len(),
+        duration,
+        samples
+    )
 }
 
 fn insert_skybox_debug_scene_tree(commands: &mut Commands, spawned: SpawnedSkyboxDebug) {
@@ -571,9 +673,8 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 #[cfg(test)]
 mod tests {
     use super::{
-        ResolvedDebugSkybox, SKYBOX_DEBUG_CLEAR_COLOR, SkyboxDebugOverride, SkyboxDebugScene,
-        SkyboxDebugSetup, SkyboxDebugSkybox, SkyboxDebugViewMode, resolve_debug_skybox,
-        skybox_debug_composition, spawn_debug_scene_environment,
+        SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup, SkyboxDebugSkybox,
+        SkyboxDebugViewMode, resolve_debug_skybox, spawn_debug_scene_environment,
         spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
     };
     use crate::orbit_camera::OrbitCamera;
@@ -668,7 +769,7 @@ mod tests {
     }
 
     #[test]
-    fn debug_scene_initialization_spawns_procedural_sky_dome() {
+    fn debug_scene_initialization_uses_black_background_without_procedural_sky() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
         app.init_resource::<Assets<StandardMaterial>>();
@@ -676,26 +777,13 @@ mod tests {
         app.init_resource::<Assets<Image>>();
 
         let _ = app.world_mut().run_system_once(
-            |mut commands: Commands,
-             mut meshes: ResMut<Assets<Mesh>>,
-             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
-             mut images: ResMut<Assets<Image>>| {
-                let cloud_maps =
-                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
+            |mut commands: Commands, mut images: ResMut<Assets<Image>>| {
                 let setup = SkyboxDebugSetup {
                     scene: None,
                     focus: Vec3::new(0.0, 1.0, 0.0),
                     eye: Vec3::new(0.0, 1.0, 7.5),
                 };
-                spawn_debug_scene_environment(
-                    &mut commands,
-                    &mut meshes,
-                    &mut sky_materials,
-                    &mut images,
-                    cloud_maps.active_handle(),
-                    &setup,
-                    skybox_debug_composition(SkyboxDebugViewMode::Default, None),
-                );
+                spawn_debug_scene_environment(&mut commands, &mut images, &setup);
             },
         );
 
@@ -712,8 +800,8 @@ mod tests {
             query.iter(world).count()
         };
 
-        assert_eq!(dome_count, 1);
-        assert_eq!(fog_count, 1);
+        assert_eq!(dome_count, 0);
+        assert_eq!(fog_count, 0);
     }
 
     #[test]
@@ -783,7 +871,7 @@ mod tests {
     }
 
     #[test]
-    fn verification_mode_skips_procedural_visible_baseline() {
+    fn verification_mode_spawns_black_background_without_procedural_sky() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
         app.init_resource::<Assets<StandardMaterial>>();
@@ -791,26 +879,13 @@ mod tests {
         app.init_resource::<Assets<Image>>();
 
         let _ = app.world_mut().run_system_once(
-            |mut commands: Commands,
-             mut meshes: ResMut<Assets<Mesh>>,
-             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
-             mut images: ResMut<Assets<Image>>| {
-                let cloud_maps =
-                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
+            |mut commands: Commands, mut images: ResMut<Assets<Image>>| {
                 let setup = SkyboxDebugSetup {
                     scene: None,
                     focus: Vec3::new(0.0, 1.0, 0.0),
                     eye: Vec3::new(0.0, 1.0, 7.5),
                 };
-                spawn_debug_scene_environment(
-                    &mut commands,
-                    &mut meshes,
-                    &mut sky_materials,
-                    &mut images,
-                    cloud_maps.active_handle(),
-                    &setup,
-                    skybox_debug_composition(SkyboxDebugViewMode::AuthoredOnlyVerification, None),
-                );
+                spawn_debug_scene_environment(&mut commands, &mut images, &setup);
             },
         );
 
@@ -831,33 +906,5 @@ mod tests {
         assert_eq!(dome_count, 0);
         assert_eq!(fog_count, 0);
         assert_eq!(clear_color, Color::BLACK);
-    }
-
-    #[test]
-    fn default_mode_keeps_procedural_helpers_when_light_skybox_requests_blending() {
-        let resolved = resolve_debug_skybox(None, Some(SkyboxDebugOverride::LightSkyboxId(653)))
-            .expect("resolved light skybox override");
-
-        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
-
-        assert!(composition.shows_procedural_visible_baseline);
-        assert!(composition.shows_procedural_fog);
-        assert_eq!(composition.clear_color, SKYBOX_DEBUG_CLEAR_COLOR);
-    }
-
-    #[test]
-    fn default_mode_skips_procedural_helpers_when_light_skybox_has_no_blend_bits() {
-        let resolved = ResolvedDebugSkybox {
-            path: "data/models/skyboxes/11xp_cloudsky01.m2".into(),
-            source: "test flags=0".into(),
-            light_skybox_id: Some(653),
-            light_skybox_flags: Some(crate::light_lookup::LightSkyboxFlags::empty()),
-        };
-
-        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
-
-        assert!(!composition.shows_procedural_visible_baseline);
-        assert!(!composition.shows_procedural_fog);
-        assert_eq!(composition.clear_color, Color::BLACK);
     }
 }
