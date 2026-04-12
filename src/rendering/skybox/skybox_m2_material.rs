@@ -1,7 +1,7 @@
 use bevy::asset::{load_internal_asset, uuid_handle};
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
-use bevy::render::render_resource::{AsBindGroup, RenderPipelineDescriptor, ShaderType};
+use bevy::render::render_resource::{AsBindGroup, Face, RenderPipelineDescriptor, ShaderType};
 use bevy::shader::{Shader, ShaderRef};
 
 use crate::asset::m2_anim::{AnimTrack, evaluate_vec3_track};
@@ -59,7 +59,7 @@ impl Material for SkyboxM2Material {
     }
 
     fn enable_prepass() -> bool {
-        true
+        false
     }
 
     fn enable_shadows() -> bool {
@@ -78,16 +78,21 @@ impl Material for SkyboxM2Material {
 }
 
 fn configure_skybox_pipeline(descriptor: &mut RenderPipelineDescriptor) {
-    // Skyboxes render from inside the dome and should never punch holes into later draws.
-    descriptor.primitive.cull_mode = None;
+    // Skyboxes are rendered from inside, so keep the interior shell by culling front faces.
+    descriptor.primitive.cull_mode = Some(Face::Front);
     if let Some(ds) = descriptor.depth_stencil.as_mut() {
-        ds.depth_write_enabled = true;
+        ds.depth_write_enabled = false;
     }
 }
 
 fn skybox_alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
-    let _ = blend_mode;
-    AlphaMode::Opaque
+    match blend_mode {
+        0 => AlphaMode::Opaque,
+        1 => AlphaMode::AlphaToCoverage,
+        2 | 3 => AlphaMode::Blend,
+        4..=6 => AlphaMode::Add,
+        _ => AlphaMode::Add,
+    }
 }
 
 pub struct SkyboxM2MaterialPlugin;

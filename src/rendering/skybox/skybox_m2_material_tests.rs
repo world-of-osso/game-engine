@@ -117,7 +117,7 @@ fn skybox_material_ignores_batch_transparency_cutout_but_keeps_blend_mode() {
     assert_eq!(material.settings.alpha_test, 0.0);
     assert!(matches!(
         <SkyboxM2Material as Material>::alpha_mode(&material),
-        AlphaMode::Opaque
+        AlphaMode::Blend
     ));
 }
 
@@ -192,7 +192,7 @@ fn skybox_material_uses_internal_shader_handle() {
 }
 
 #[test]
-fn configure_skybox_pipeline_disables_culling_and_enables_depth_writes() {
+fn configure_skybox_pipeline_keeps_inner_shell_visible_without_writing_depth() {
     let mut descriptor = bevy::render::render_resource::RenderPipelineDescriptor {
         vertex: VertexState::default(),
         primitive: PrimitiveState {
@@ -225,33 +225,38 @@ fn configure_skybox_pipeline_disables_culling_and_enables_depth_writes() {
 
     configure_skybox_pipeline(&mut descriptor);
 
-    assert_eq!(descriptor.primitive.cull_mode, None);
+    assert_eq!(descriptor.primitive.cull_mode, Some(Face::Front));
     let depth = descriptor.depth_stencil.unwrap();
-    assert!(depth.depth_write_enabled);
+    assert!(!depth.depth_write_enabled);
     assert_eq!(depth.depth_compare, CompareFunction::LessEqual);
 }
 
 #[test]
-fn skybox_material_keeps_prepass_enabled_for_authored_blend_modes() {
+fn skybox_material_disables_prepass_for_authored_blend_modes() {
     let mut batch = test_batch();
     batch.blend_mode = 2;
     let material = skybox_m2_material(None, None, None, None, None, &batch);
 
-    assert!(<SkyboxM2Material as Material>::enable_prepass());
+    assert!(!<SkyboxM2Material as Material>::enable_prepass());
     assert!(!<SkyboxM2Material as Material>::enable_shadows());
     assert!(matches!(
         <SkyboxM2Material as Material>::alpha_mode(&material),
-        AlphaMode::Opaque
+        AlphaMode::Blend
     ));
 }
 
 #[test]
 fn skybox_alpha_mode_mapping_matches_authored_skybox_batches() {
     assert!(matches!(skybox_alpha_mode_for_blend(0), AlphaMode::Opaque));
-    assert!(matches!(skybox_alpha_mode_for_blend(2), AlphaMode::Opaque));
-    assert!(matches!(skybox_alpha_mode_for_blend(4), AlphaMode::Opaque));
+    assert!(matches!(
+        skybox_alpha_mode_for_blend(1),
+        AlphaMode::AlphaToCoverage
+    ));
+    assert!(matches!(skybox_alpha_mode_for_blend(2), AlphaMode::Blend));
+    assert!(matches!(skybox_alpha_mode_for_blend(3), AlphaMode::Blend));
+    assert!(matches!(skybox_alpha_mode_for_blend(4), AlphaMode::Add));
     assert!(matches!(
         skybox_alpha_mode_for_blend(u16::MAX),
-        AlphaMode::Opaque
+        AlphaMode::Add
     ));
 }
