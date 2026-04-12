@@ -319,6 +319,7 @@ pub(crate) fn skybox_m2_material(
         third_texture: stage_textures.third_texture,
         fourth_texture: stage_textures.fourth_texture,
         blend_mode: batch.blend_mode,
+        two_sided: batch.render_flags & 0x04 != 0,
         texture_anim_1: batch.texture_anim.clone(),
         texture_anim_2: batch.texture_anim_2.clone(),
     }

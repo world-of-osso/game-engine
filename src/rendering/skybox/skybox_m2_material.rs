@@ -9,6 +9,11 @@ use crate::asset::m2_anim::{AnimTrack, evaluate_vec3_track};
 const SKYBOX_M2_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("c47ea355-9536-4557-8f9c-65ddd5d2047b");
 
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct SkyboxM2MaterialKey {
+    two_sided: bool,
+}
+
 #[derive(ShaderType, Clone)]
 pub struct SkyboxM2Settings {
     pub color: Vec4,
@@ -29,6 +34,7 @@ pub struct SkyboxM2Settings {
 }
 
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
+#[bind_group_data(SkyboxM2MaterialKey)]
 pub struct SkyboxM2Material {
     #[uniform(0)]
     pub settings: SkyboxM2Settings,
@@ -45,8 +51,17 @@ pub struct SkyboxM2Material {
     #[sampler(8)]
     pub fourth_texture: Handle<Image>,
     pub blend_mode: u16,
+    pub two_sided: bool,
     pub texture_anim_1: Option<AnimTrack<[f32; 3]>>,
     pub texture_anim_2: Option<AnimTrack<[f32; 3]>>,
+}
+
+impl From<&SkyboxM2Material> for SkyboxM2MaterialKey {
+    fn from(material: &SkyboxM2Material) -> Self {
+        Self {
+            two_sided: material.two_sided,
+        }
+    }
 }
 
 impl Material for SkyboxM2Material {
@@ -70,16 +85,21 @@ impl Material for SkyboxM2Material {
         _pipeline: &bevy::pbr::MaterialPipeline,
         descriptor: &mut RenderPipelineDescriptor,
         _layout: &MeshVertexBufferLayoutRef,
-        _key: bevy::pbr::MaterialPipelineKey<Self>,
+        key: bevy::pbr::MaterialPipelineKey<Self>,
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
-        configure_skybox_pipeline(descriptor);
+        configure_skybox_pipeline(descriptor, key.bind_group_data.two_sided);
         Ok(())
     }
 }
 
-fn configure_skybox_pipeline(descriptor: &mut RenderPipelineDescriptor) {
-    // Skyboxes are rendered from inside, so keep the interior shell by culling front faces.
-    descriptor.primitive.cull_mode = Some(Face::Front);
+fn configure_skybox_pipeline(descriptor: &mut RenderPipelineDescriptor, two_sided: bool) {
+    // Match normal M2 semantics: authored two-sided batches disable culling, while
+    // single-sided batches keep default backface culling like reference clients.
+    descriptor.primitive.cull_mode = if two_sided {
+        None
+    } else {
+        Some(Face::Back)
+    };
     if let Some(ds) = descriptor.depth_stencil.as_mut() {
         ds.depth_write_enabled = false;
     }

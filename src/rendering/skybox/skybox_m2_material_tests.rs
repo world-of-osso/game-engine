@@ -192,7 +192,7 @@ fn skybox_material_uses_internal_shader_handle() {
 }
 
 #[test]
-fn configure_skybox_pipeline_keeps_inner_shell_visible_without_writing_depth() {
+fn configure_skybox_pipeline_uses_default_backface_culling_for_single_sided_batches() {
     let mut descriptor = bevy::render::render_resource::RenderPipelineDescriptor {
         vertex: VertexState::default(),
         primitive: PrimitiveState {
@@ -223,9 +223,49 @@ fn configure_skybox_pipeline_keeps_inner_shell_visible_without_writing_depth() {
         zero_initialize_workgroup_memory: false,
     };
 
-    configure_skybox_pipeline(&mut descriptor);
+    configure_skybox_pipeline(&mut descriptor, false);
 
-    assert_eq!(descriptor.primitive.cull_mode, Some(Face::Front));
+    assert_eq!(descriptor.primitive.cull_mode, Some(Face::Back));
+    let depth = descriptor.depth_stencil.unwrap();
+    assert!(!depth.depth_write_enabled);
+    assert_eq!(depth.depth_compare, CompareFunction::LessEqual);
+}
+
+#[test]
+fn configure_skybox_pipeline_preserves_two_sided_batches() {
+    let mut descriptor = bevy::render::render_resource::RenderPipelineDescriptor {
+        vertex: VertexState::default(),
+        primitive: PrimitiveState {
+            cull_mode: Some(Face::Back),
+            ..Default::default()
+        },
+        depth_stencil: Some(DepthStencilState {
+            format: TextureFormat::Depth32Float,
+            depth_write_enabled: true,
+            depth_compare: CompareFunction::LessEqual,
+            stencil: Default::default(),
+            bias: DepthBiasState::default(),
+        }),
+        multisample: MultisampleState::default(),
+        fragment: Some(FragmentState {
+            shader: Default::default(),
+            shader_defs: Vec::new(),
+            entry_point: Some("fragment".into()),
+            targets: vec![Some(ColorTargetState {
+                format: TextureFormat::Rgba8UnormSrgb,
+                blend: None,
+                write_mask: ColorWrites::ALL,
+            })],
+        }),
+        layout: Vec::new(),
+        push_constant_ranges: Vec::new(),
+        label: None,
+        zero_initialize_workgroup_memory: false,
+    };
+
+    configure_skybox_pipeline(&mut descriptor, true);
+
+    assert_eq!(descriptor.primitive.cull_mode, None);
     let depth = descriptor.depth_stencil.unwrap();
     assert!(!depth.depth_write_enabled);
     assert_eq!(depth.depth_compare, CompareFunction::LessEqual);
