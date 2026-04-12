@@ -231,7 +231,6 @@ fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup) -> impl Bundle {
         additive_particle_glow_tonemapping(),
         Projection::Perspective(PerspectiveProjection {
             fov: 60.0_f32.to_radians(),
-            far: 100_000.0,
             ..default()
         }),
         Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
