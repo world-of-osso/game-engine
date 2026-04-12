@@ -12,6 +12,7 @@ const LIGHT_PARAMS_LAYOUT_HASH: u32 = 0xCAE3_94E7;
 const LIGHT_SKYBOX_LAYOUT_HASHES: &[u32] = &[0x9D49_56FF, 0x407F_EBCF, 0xD466_A5C2];
 const LIGHT_PARAMS_SKYBOX_FIELD_INDEX: usize = 3;
 const LIGHT_SKYBOX_FDID_FIELD_INDEX: usize = 2;
+const OUTDOOR_SKYBOX_LIGHT_PARAM_SLOTS: std::ops::Range<usize> = 0..4;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LightEntry {
@@ -195,8 +196,8 @@ fn ensure_db2_path(fdid: u32, path: &Path) -> Option<std::path::PathBuf> {
 }
 
 fn first_resolvable_skybox_light_params_id(light_params_ids: [u32; 8]) -> Option<u32> {
-    light_params_ids
-        .into_iter()
+    OUTDOOR_SKYBOX_LIGHT_PARAM_SLOTS
+        .map(|slot| light_params_ids[slot])
         .find(|id| *id != 0 && resolve_light_skybox_id(*id).is_some())
 }
 
@@ -506,7 +507,7 @@ mod tests {
     }
 
     #[test]
-    fn authored_skybox_params_lookup_can_fall_back_to_global_light_rows() {
+    fn authored_skybox_params_lookup_does_not_scavenge_global_death_slots() {
         let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
@@ -515,7 +516,7 @@ mod tests {
 
         let params = resolve_skybox_light_params_id(scene.map_id, scene.position);
 
-        assert_eq!(params, Some(3));
+        assert_eq!(params, None);
     }
 
     #[test]
@@ -564,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn primary_light_params_id_can_exist_but_later_slot_supplies_the_skybox() {
+    fn primary_light_params_id_does_not_fall_through_to_death_skybox_slots() {
         let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
@@ -578,7 +579,7 @@ mod tests {
         assert_eq!(resolve_light_skybox_id(6412), None);
         assert_eq!(
             resolve_skybox_light_params_id(scene.map_id, scene.position),
-            Some(3)
+            None
         );
     }
 

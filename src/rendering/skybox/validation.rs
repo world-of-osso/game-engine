@@ -13,10 +13,10 @@ const CASES: &[SkyboxValidationCase] = &[
         output_filename: "skyboxdebug-ohnahran-628.webp",
     },
     SkyboxValidationCase {
-        slug: "global-default-authored",
-        light_skybox_id: 81,
-        description: "Global/default authored skybox reached through the ContinentID=0 fallback row",
-        output_filename: "skyboxdebug-global-81.webp",
+        slug: "freywold-modern-authored",
+        light_skybox_id: 653,
+        description: "Modern authored cloud skybox used by Freywold Spring",
+        output_filename: "skyboxdebug-freywold-653.webp",
     },
 ];
 
@@ -53,6 +53,6 @@ mod tests {
     #[test]
     fn skybox_validation_cases_match_known_light_skybox_ids() {
         let ids: Vec<_> = cases().iter().map(|case| case.light_skybox_id).collect();
-        assert_eq!(ids, vec![628, 81]);
+        assert_eq!(ids, vec![628, 653]);
     }
 }
