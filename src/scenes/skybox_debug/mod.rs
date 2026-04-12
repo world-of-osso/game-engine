@@ -72,6 +72,10 @@ impl Plugin for SkyboxDebugScenePlugin {
             Update,
             sync_skybox_to_camera.run_if(in_state(GameState::SkyboxDebug)),
         );
+        app.add_systems(
+            Update,
+            sync_skyboxdebug_camera_fov.run_if(in_state(GameState::SkyboxDebug)),
+        );
         app.add_systems(OnExit(GameState::SkyboxDebug), teardown_scene);
     }
 }
@@ -87,6 +91,7 @@ struct SkyboxDebugSceneParams<'w, 's> {
     cloud_maps: Option<Res<'w, crate::sky::cloud_texture::ProceduralCloudMaps>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    camera_options: Res<'w, crate::client_options::CameraOptions>,
     warband: Res<'w, WarbandScenes>,
     selected_scene: Option<Res<'w, SelectedWarbandScene>>,
     override_spec: Option<Res<'w, SkyboxDebugOverride>>,
@@ -120,7 +125,7 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
     tag_debug_skybox_scene_entities(&mut commands, &resolved, &spawned);
     let spawned = build_spawned_debug_skybox(resolved, spawned);
     log_debug_skybox_spawn(&setup, &spawned);
-    insert_skybox_debug_scene_tree(&mut commands, spawned);
+    insert_skybox_debug_scene_tree(&mut commands, spawned, params.camera_options.fov_degrees);
 }
 
 fn no_debug_scene_root(query: Query<Entity, With<SkyboxDebugScene>>) -> bool {
@@ -163,7 +168,12 @@ fn initialize_skybox_debug_scene(
     setup: &SkyboxDebugSetup,
 ) {
     let _ = ensure_debug_cloud_texture(commands, &mut params.images, params.cloud_maps.as_deref());
-    spawn_debug_scene_environment(commands, &mut params.images, setup);
+    spawn_debug_scene_environment(
+        commands,
+        &mut params.images,
+        setup,
+        params.camera_options.fov_degrees,
+    );
     spawn_skybox_debug_light(commands);
 }
 
@@ -198,9 +208,10 @@ fn spawn_debug_scene_environment(
     commands: &mut Commands,
     images: &mut Assets<Image>,
     setup: &SkyboxDebugSetup,
+    fov_degrees: f32,
 ) -> Entity {
     insert_debug_scene_environment_resources(commands);
-    let camera = spawn_debug_scene_camera(commands, setup);
+    let camera = spawn_debug_scene_camera(commands, setup, fov_degrees);
     insert_debug_scene_env_map(commands, images);
     camera
 }
@@ -214,11 +225,17 @@ fn insert_debug_scene_environment_resources(commands: &mut Commands) {
     });
 }
 
-fn spawn_debug_scene_camera(commands: &mut Commands, setup: &SkyboxDebugSetup) -> Entity {
-    commands.spawn(debug_scene_camera_bundle(setup)).id()
+fn spawn_debug_scene_camera(
+    commands: &mut Commands,
+    setup: &SkyboxDebugSetup,
+    fov_degrees: f32,
+) -> Entity {
+    commands
+        .spawn(debug_scene_camera_bundle(setup, fov_degrees))
+        .id()
 }
 
-fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup) -> impl Bundle {
+fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup, fov_degrees: f32) -> impl Bundle {
     let orbit = OrbitCamera::new(setup.focus, 7.5);
     (
         Name::new("SkyboxDebugCamera"),
@@ -230,7 +247,7 @@ fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup) -> impl Bundle {
         },
         additive_particle_glow_tonemapping(),
         Projection::Perspective(PerspectiveProjection {
-            fov: 60.0_f32.to_radians(),
+            fov: fov_degrees.to_radians(),
             ..default()
         }),
         Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
@@ -559,9 +576,13 @@ fn format_opacity_track_samples(
     )
 }
 
-fn insert_skybox_debug_scene_tree(commands: &mut Commands, spawned: SpawnedSkyboxDebug) {
+fn insert_skybox_debug_scene_tree(
+    commands: &mut Commands,
+    spawned: SpawnedSkyboxDebug,
+    fov_degrees: f32,
+) {
     commands.insert_resource(SceneTree {
-        root: build_skybox_debug_scene_root(&spawned),
+        root: build_skybox_debug_scene_root(&spawned, fov_degrees),
     });
 }
 
@@ -572,20 +593,20 @@ struct ResolvedDebugSkybox {
     light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
 }
 
-fn build_skybox_debug_scene_root(spawned: &SpawnedSkyboxDebug) -> SceneNode {
+fn build_skybox_debug_scene_root(spawned: &SpawnedSkyboxDebug, fov_degrees: f32) -> SceneNode {
     SceneNode {
         label: "SkyboxDebugScene".into(),
         entity: None,
         props: NodeProps::Scene,
-        children: vec![camera_scene_node(), skybox_scene_node(spawned)],
+        children: vec![camera_scene_node(fov_degrees), skybox_scene_node(spawned)],
     }
 }
 
-fn camera_scene_node() -> SceneNode {
+fn camera_scene_node(fov_degrees: f32) -> SceneNode {
     SceneNode {
         label: "Camera".into(),
         entity: None,
-        props: NodeProps::Camera { fov: 60.0 },
+        props: NodeProps::Camera { fov: fov_degrees },
         children: vec![],
     }
 }
@@ -653,6 +674,23 @@ fn sync_skybox_to_camera(
     }
 }
 
+fn sync_skyboxdebug_camera_fov(
+    options: Res<crate::client_options::CameraOptions>,
+    mut camera_query: Query<
+        &mut Projection,
+        (With<Camera3d>, With<OrbitCamera>, With<SkyboxDebugScene>),
+    >,
+) {
+    if !options.is_changed() {
+        return;
+    }
+    for mut projection in &mut camera_query {
+        if let Projection::Perspective(ref mut perspective) = *projection {
+            perspective.fov = options.fov_degrees.to_radians();
+        }
+    }
+}
+
 fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene>>) {
     teardown_tagged_scene::<SkyboxDebugScene>(commands, query);
 }
@@ -661,12 +699,15 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 mod tests {
     use super::{
         SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup, SkyboxDebugSkybox,
-        SkyboxDebugViewMode, resolve_debug_skybox, spawn_debug_scene_environment,
-        spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
+        SkyboxDebugViewMode, camera_scene_node, debug_scene_camera_bundle, resolve_debug_skybox,
+        spawn_debug_scene_environment, spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
+        sync_skyboxdebug_camera_fov,
     };
+    use crate::client_options::CameraOptions;
     use crate::orbit_camera::OrbitCamera;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
+    use game_engine::scene_tree::NodeProps;
 
     #[test]
     fn debug_override_resolves_light_skybox_id() {
@@ -770,7 +811,12 @@ mod tests {
                     focus: Vec3::new(0.0, 1.0, 0.0),
                     eye: Vec3::new(0.0, 1.0, 7.5),
                 };
-                spawn_debug_scene_environment(&mut commands, &mut images, &setup);
+                spawn_debug_scene_environment(
+                    &mut commands,
+                    &mut images,
+                    &setup,
+                    CameraOptions::default().fov_degrees,
+                );
             },
         );
 
@@ -858,6 +904,64 @@ mod tests {
     }
 
     #[test]
+    fn skyboxdebug_camera_uses_requested_fov_in_projection_and_scene_tree() {
+        let setup = SkyboxDebugSetup {
+            scene: None,
+            focus: Vec3::new(0.0, 1.0, 0.0),
+            eye: Vec3::new(0.0, 1.0, 7.5),
+        };
+        let fov_degrees = 117.0;
+        let mut app = App::new();
+        app.world_mut()
+            .spawn(debug_scene_camera_bundle(&setup, fov_degrees));
+
+        let world = app.world_mut();
+        let mut camera_query = world.query::<&Projection>();
+        let projection = camera_query.single(world).expect("camera projection");
+        let Projection::Perspective(perspective) = projection else {
+            panic!("expected perspective projection");
+        };
+        assert!((perspective.fov.to_degrees() - fov_degrees).abs() < 0.001);
+
+        let node = camera_scene_node(fov_degrees);
+        match node.props {
+            NodeProps::Camera { fov } => {
+                assert!((fov - fov_degrees).abs() < 0.001);
+            }
+            props => panic!("expected camera node props, got {props:?}"),
+        }
+    }
+
+    #[test]
+    fn skyboxdebug_camera_sync_updates_projection_from_camera_options() {
+        let mut app = App::new();
+        app.insert_resource(CameraOptions {
+            fov_degrees: 103.0,
+            ..default()
+        });
+        app.add_systems(Update, sync_skyboxdebug_camera_fov);
+        app.world_mut().spawn((
+            SkyboxDebugScene,
+            Camera3d::default(),
+            OrbitCamera::new(Vec3::ZERO, 7.5),
+            Projection::Perspective(PerspectiveProjection {
+                fov: 90.0_f32.to_radians(),
+                ..default()
+            }),
+        ));
+
+        app.update();
+
+        let world = app.world_mut();
+        let mut camera_query = world.query::<&Projection>();
+        let projection = camera_query.single(world).expect("camera projection");
+        let Projection::Perspective(perspective) = projection else {
+            panic!("expected perspective projection");
+        };
+        assert!((perspective.fov.to_degrees() - 103.0).abs() < 0.001);
+    }
+
+    #[test]
     fn verification_mode_spawns_black_background_without_procedural_sky() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
@@ -872,7 +976,12 @@ mod tests {
                     focus: Vec3::new(0.0, 1.0, 0.0),
                     eye: Vec3::new(0.0, 1.0, 7.5),
                 };
-                spawn_debug_scene_environment(&mut commands, &mut images, &setup);
+                spawn_debug_scene_environment(
+                    &mut commands,
+                    &mut images,
+                    &setup,
+                    CameraOptions::default().fov_degrees,
+                );
             },
         );
 

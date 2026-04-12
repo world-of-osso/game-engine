@@ -21,6 +21,7 @@ pub enum DragCapture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
     MouseSensitivity,
+    FovDegrees,
     ParticleDensity,
     FrameRateLimit,
     RenderScale,
@@ -92,6 +93,7 @@ pub struct CameraDraft {
     pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
     pub invert_y: bool,
+    pub fov_degrees: f32,
     pub zoom_speed: f32,
     pub follow_speed: f32,
     pub min_distance: f32,
@@ -158,6 +160,7 @@ pub fn camera_draft(camera: &CameraOptions) -> CameraDraft {
         mouse_sensitivity: camera.mouse_sensitivity,
         look_sensitivity: camera.look_sensitivity,
         invert_y: camera.invert_y,
+        fov_degrees: camera.fov_degrees,
         zoom_speed: camera.zoom_speed,
         follow_speed: camera.follow_speed,
         min_distance: camera.min_distance,
@@ -208,6 +211,7 @@ fn camera_to_view(c: &CameraDraft) -> CameraOptionsView {
         mouse_sensitivity: c.mouse_sensitivity,
         look_sensitivity: c.look_sensitivity,
         invert_y: c.invert_y,
+        fov_degrees: c.fov_degrees,
         zoom_speed: c.zoom_speed,
         follow_speed: c.follow_speed,
         min_distance: c.min_distance,
@@ -276,6 +280,7 @@ fn bindings_view(
 pub fn parse_slider_action(action: &str) -> Option<SliderField> {
     Some(match action.strip_prefix("options_slider:")? {
         "mouse_sensitivity" => SliderField::MouseSensitivity,
+        "fov_degrees" => SliderField::FovDegrees,
         "particle_density" => SliderField::ParticleDensity,
         "frame_rate_limit" => SliderField::FrameRateLimit,
         "render_scale" => SliderField::RenderScale,
@@ -299,6 +304,10 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
     match field {
         SliderField::MouseSensitivity => mouse_sensitivity_range(),
+        SliderField::FovDegrees => (
+            crate::client_options::MIN_CAMERA_FOV_DEGREES,
+            crate::client_options::MAX_CAMERA_FOV_DEGREES,
+        ),
         SliderField::ParticleDensity => (10.0, 100.0),
         SliderField::FrameRateLimit => frame_rate_limit_range(),
         SliderField::RenderScale => (0.5, 1.0),
@@ -355,6 +364,7 @@ fn chat_font_size_range() -> (f32, f32) {
 pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayModel) {
     match field {
         SliderField::MouseSensitivity => model.draft_camera.mouse_sensitivity = value,
+        SliderField::FovDegrees => model.draft_camera.fov_degrees = value,
         SliderField::ParticleDensity => model.draft_graphics.particle_density = value.round(),
         SliderField::FrameRateLimit => model.draft_graphics.frame_rate_limit = value.round(),
         SliderField::RenderScale => model.draft_graphics.render_scale = value,
@@ -504,6 +514,14 @@ fn apply_camera_step(key: &str, step: f32, c: &mut CameraDraft) {
                 crate::client_options::MAX_MOUSE_SENSITIVITY,
             )
         }
+        "fov_degrees" => {
+            c.fov_degrees = clamp_step(
+                c.fov_degrees,
+                step,
+                crate::client_options::MIN_CAMERA_FOV_DEGREES,
+                crate::client_options::MAX_CAMERA_FOV_DEGREES,
+            )
+        }
         "look_sensitivity" => {
             c.look_sensitivity = clamp_step(c.look_sensitivity, 0.001 * step, 0.002, 0.03)
         }
@@ -632,6 +650,10 @@ pub fn apply_camera_snapshot(c: &mut CameraOptions, d: &CameraDraft) {
     );
     c.look_sensitivity = d.look_sensitivity;
     c.invert_y = d.invert_y;
+    c.fov_degrees = d.fov_degrees.clamp(
+        crate::client_options::MIN_CAMERA_FOV_DEGREES,
+        crate::client_options::MAX_CAMERA_FOV_DEGREES,
+    );
     c.zoom_speed = d.zoom_speed;
     c.follow_speed = d.follow_speed;
     c.min_distance = d.min_distance;

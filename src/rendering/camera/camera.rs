@@ -230,12 +230,12 @@ fn camera_input(
 
 fn sync_camera_options(
     options: Res<crate::client_options::CameraOptions>,
-    mut camera_q: Query<&mut WowCamera>,
+    mut camera_q: Query<(&mut WowCamera, Option<&mut Projection>)>,
 ) {
     if !options.is_changed() {
         return;
     }
-    for mut camera in &mut camera_q {
+    for (mut camera, projection) in &mut camera_q {
         camera.follow_speed = options.follow_speed;
         camera.zoom_speed = options.zoom_speed;
         camera.min_distance = options.min_distance;
@@ -246,6 +246,11 @@ fn sync_camera_options(
         camera.distance = camera
             .distance
             .clamp(camera.min_distance, camera.max_distance);
+        if let Some(mut projection) = projection
+            && let Projection::Perspective(ref mut perspective) = *projection
+        {
+            perspective.fov = options.fov_degrees.to_radians();
+        }
     }
 }
 

@@ -107,6 +107,7 @@ fn options_file_serializes_particle_density_with_cvar_name() {
 fn camera_defaults_include_mouse_sensitivity() {
     let defaults = CameraOptions::default();
     assert!((defaults.mouse_sensitivity - default_mouse_sensitivity()).abs() < 0.0001);
+    assert!((defaults.fov_degrees - DEFAULT_CAMERA_FOV_DEGREES).abs() < 0.0001);
 }
 
 #[test]
@@ -199,6 +200,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
             mouse_sensitivity: 0.006,
             look_sensitivity: 0.02,
             invert_y: true,
+            fov_degrees: 110.0,
             follow_speed: 6.0,
             zoom_speed: 3.0,
             min_distance: 4.0,
@@ -239,6 +241,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
     assert!(!loaded.sound.music_enabled);
     assert!((loaded.camera.mouse_sensitivity - 0.006).abs() < 0.0001);
     assert!(loaded.camera.invert_y);
+    assert!((loaded.camera.fov_degrees - 110.0).abs() < 0.0001);
     assert_eq!(loaded.graphics.particle_density, 60);
     assert!((loaded.graphics.ui_scale - 1.3).abs() < 0.0001);
     assert!(!loaded.graphics.vsync_enabled);
@@ -330,6 +333,21 @@ fn camera_options_file_clamps_mouse_sensitivity_range() {
     assert!(
         (CameraOptions::from_file(&high).mouse_sensitivity - MAX_MOUSE_SENSITIVITY).abs() < 0.0001
     );
+}
+
+#[test]
+fn camera_options_file_clamps_fov_range() {
+    let low = CameraOptionsFile {
+        fov_degrees: 10.0,
+        ..CameraOptionsFile::default()
+    };
+    let high = CameraOptionsFile {
+        fov_degrees: 200.0,
+        ..CameraOptionsFile::default()
+    };
+
+    assert!((CameraOptions::from_file(&low).fov_degrees - MIN_CAMERA_FOV_DEGREES).abs() < 0.0001);
+    assert!((CameraOptions::from_file(&high).fov_degrees - MAX_CAMERA_FOV_DEGREES).abs() < 0.0001);
 }
 
 #[test]

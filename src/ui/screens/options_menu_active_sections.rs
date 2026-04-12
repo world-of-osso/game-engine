@@ -361,6 +361,13 @@ fn camera_sensitivity_sliders(camera: &CameraOptionsView) -> Element {
             MOUSE_SENSITIVITY_MAX,
         ),
         slider_row(
+            "fov_degrees",
+            "Field of View",
+            camera.fov_degrees,
+            90.0,
+            120.0,
+        ),
+        slider_row(
             "look_sensitivity",
             "Look Sensitivity",
             camera.look_sensitivity,

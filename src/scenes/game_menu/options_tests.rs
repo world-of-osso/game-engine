@@ -69,6 +69,13 @@ fn slider_apply_mouse_sensitivity_updates_camera_draft() {
 }
 
 #[test]
+fn slider_apply_fov_updates_camera_draft() {
+    let mut model = default_model();
+    apply_slider_value(SliderField::FovDegrees, 112.0, &mut model);
+    assert!((model.draft_camera.fov_degrees - 112.0).abs() < 0.001);
+}
+
+#[test]
 fn slider_apply_frame_rate_limit_updates_graphics_draft() {
     let mut model = default_model();
     apply_slider_value(SliderField::FrameRateLimit, 165.0, &mut model);
@@ -111,6 +118,7 @@ fn slider_apply_min_distance_normalizes_camera_limits() {
 fn slider_bounds_are_valid_ranges() {
     for field in [
         SliderField::MouseSensitivity,
+        SliderField::FovDegrees,
         SliderField::ParticleDensity,
         SliderField::FrameRateLimit,
         SliderField::RenderScale,
@@ -137,6 +145,7 @@ fn parse_slider_action_round_trips_all_fields() {
             "options_slider:mouse_sensitivity",
             SliderField::MouseSensitivity,
         ),
+        ("options_slider:fov_degrees", SliderField::FovDegrees),
         ("options_slider:master_volume", SliderField::MasterVolume),
         (
             "options_slider:frame_rate_limit",

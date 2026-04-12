@@ -62,6 +62,7 @@ fn camera_view() -> CameraOptionsView {
         mouse_sensitivity: 0.003,
         look_sensitivity: 0.01,
         invert_y: false,
+        fov_degrees: 105.0,
         zoom_speed: 8.0,
         follow_speed: 10.0,
         min_distance: 2.0,
@@ -310,6 +311,9 @@ fn camera_screen_includes_mouse_sensitivity_slider() {
     assert!(reg.get_by_name("SliderRowmouse_sensitivity").is_some());
     assert!(reg.get_by_name("Slidermouse_sensitivity").is_some());
     assert!(reg.get_by_name("Slidermouse_sensitivityHandle").is_some());
+    assert!(reg.get_by_name("SliderRowfov_degrees").is_some());
+    assert!(reg.get_by_name("Sliderfov_degrees").is_some());
+    assert!(reg.get_by_name("Sliderfov_degreesHandle").is_some());
 }
 
 #[test]

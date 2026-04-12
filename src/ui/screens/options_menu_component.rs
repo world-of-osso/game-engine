@@ -155,6 +155,7 @@ pub struct CameraOptionsView {
     pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
     pub invert_y: bool,
+    pub fov_degrees: f32,
     pub zoom_speed: f32,
     pub follow_speed: f32,
     pub min_distance: f32,

@@ -85,6 +85,8 @@ pub(super) struct CameraOptionsFile {
     pub(super) mouse_sensitivity: f32,
     pub(super) look_sensitivity: f32,
     pub(super) invert_y: bool,
+    #[serde(default = "default_camera_fov_degrees", rename = "fovDegrees")]
+    pub(super) fov_degrees: f32,
     pub(super) follow_speed: f32,
     pub(super) zoom_speed: f32,
     pub(super) min_distance: f32,
@@ -139,6 +141,7 @@ impl Default for CameraOptionsFile {
             mouse_sensitivity: defaults.mouse_sensitivity,
             look_sensitivity: defaults.look_sensitivity,
             invert_y: defaults.invert_y,
+            fov_degrees: defaults.fov_degrees,
             follow_speed: defaults.follow_speed,
             zoom_speed: defaults.zoom_speed,
             min_distance: defaults.min_distance,
@@ -256,6 +259,9 @@ fn build_camera_options_file(camera: &CameraOptions) -> CameraOptionsFile {
             .clamp(MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY),
         look_sensitivity: camera.look_sensitivity,
         invert_y: camera.invert_y,
+        fov_degrees: camera
+            .fov_degrees
+            .clamp(MIN_CAMERA_FOV_DEGREES, MAX_CAMERA_FOV_DEGREES),
         follow_speed: camera.follow_speed,
         zoom_speed: camera.zoom_speed,
         min_distance: camera.min_distance,

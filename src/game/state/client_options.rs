@@ -71,6 +71,7 @@ pub struct CameraOptions {
     pub mouse_sensitivity: f32,
     pub look_sensitivity: f32,
     pub invert_y: bool,
+    pub fov_degrees: f32,
     pub follow_speed: f32,
     pub zoom_speed: f32,
     pub min_distance: f32,
@@ -83,6 +84,7 @@ impl Default for CameraOptions {
             mouse_sensitivity: default_mouse_sensitivity(),
             look_sensitivity: 0.01,
             invert_y: false,
+            fov_degrees: DEFAULT_CAMERA_FOV_DEGREES,
             follow_speed: 10.0,
             zoom_speed: 8.0,
             min_distance: 2.0,
@@ -99,6 +101,9 @@ impl CameraOptions {
                 .clamp(MIN_MOUSE_SENSITIVITY, MAX_MOUSE_SENSITIVITY),
             look_sensitivity: file.look_sensitivity,
             invert_y: file.invert_y,
+            fov_degrees: file
+                .fov_degrees
+                .clamp(MIN_CAMERA_FOV_DEGREES, MAX_CAMERA_FOV_DEGREES),
             follow_speed: file.follow_speed,
             zoom_speed: file.zoom_speed,
             min_distance: file.min_distance,
@@ -311,6 +316,9 @@ pub const MIN_UI_SCALE: f32 = 0.75;
 pub const MAX_UI_SCALE: f32 = 1.5;
 pub const MIN_MOUSE_SENSITIVITY: f32 = 0.001;
 pub const MAX_MOUSE_SENSITIVITY: f32 = 0.01;
+pub const MIN_CAMERA_FOV_DEGREES: f32 = 90.0;
+pub const MAX_CAMERA_FOV_DEGREES: f32 = 120.0;
+pub const DEFAULT_CAMERA_FOV_DEGREES: f32 = MIN_CAMERA_FOV_DEGREES;
 pub const MIN_FRAME_RATE_LIMIT: u16 = 30;
 pub const MAX_FRAME_RATE_LIMIT: u16 = 240;
 pub const MIN_NAMEPLATE_DISTANCE: f32 = 20.0;
@@ -329,6 +337,10 @@ const fn default_chat_font_size() -> f32 {
 
 const fn default_mouse_sensitivity() -> f32 {
     0.003
+}
+
+const fn default_camera_fov_degrees() -> f32 {
+    DEFAULT_CAMERA_FOV_DEGREES
 }
 
 pub fn save_client_options(

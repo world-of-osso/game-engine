@@ -342,6 +342,7 @@ fn snapshot_camera_options(snapshot: &ApplySnapshot) -> CameraOptions {
         mouse_sensitivity: snapshot.camera.mouse_sensitivity,
         look_sensitivity: snapshot.camera.look_sensitivity,
         invert_y: snapshot.camera.invert_y,
+        fov_degrees: snapshot.camera.fov_degrees,
         follow_speed: snapshot.camera.follow_speed,
         zoom_speed: snapshot.camera.zoom_speed,
         min_distance: snapshot.camera.min_distance,

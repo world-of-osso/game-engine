@@ -1,5 +1,6 @@
 use super::*;
 use crate::asset::adt;
+use crate::client_options::CameraOptions;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::terrain_tile::bevy_to_tile_coords;
 
@@ -114,6 +115,39 @@ fn spawn_wow_camera_adds_spatial_listener() {
         .get::<SpatialListener>(entity)
         .expect("camera should have spatial listener");
     assert!(listener.right_ear_offset.x > listener.left_ear_offset.x);
+}
+
+#[test]
+fn sync_camera_options_updates_perspective_fov() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(CameraOptions {
+        fov_degrees: 114.0,
+        ..default()
+    });
+    app.add_systems(Update, sync_camera_options);
+    let entity = app
+        .world_mut()
+        .spawn((
+            WowCamera::default(),
+            Projection::Perspective(PerspectiveProjection {
+                fov: 90.0_f32.to_radians(),
+                ..default()
+            }),
+        ))
+        .id();
+
+    app.update();
+
+    let projection = app
+        .world()
+        .entity(entity)
+        .get::<Projection>()
+        .expect("camera projection");
+    let Projection::Perspective(perspective) = projection else {
+        panic!("expected perspective projection");
+    };
+    assert!((perspective.fov.to_degrees() - 114.0).abs() < 0.001);
 }
 
 #[test]
