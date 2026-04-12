@@ -29,8 +29,21 @@
   - Preserving authored skybox `batch.transparency` does break the working baseline.
     - With that change applied, the skybox becomes broken again.
     - Reverting just that change restores the working state.
+- `LightSkybox.db2` flag decoding is now traced well enough to drive `skyboxdebug` composition.
+  - The likely flags field is `field[1]`, not the FDID field.
+  - `LightSkyboxID 653` resolves flag bits `0b01111`, which matches the current wowdev reading of:
+    - full-day skybox
+    - combine procedural and authored sky
+    - procedural fog-color blending
+    - force sunshafts
+  - `skyboxdebug` now uses those flags to decide whether default mode keeps the procedural sky dome and distance fog visible.
+- Screenshot coverage for the flag path should stay on alive-scene authored skyboxes.
+  - Using `deathskybox.m2` as a generic "flags = 0" control was a bad fixture.
+  - The current screenshot regression uses only `LightSkyboxID 653`.
+  - The no-blend path is covered by unit tests with a synthetic zero-flags fixture instead of rendering a death-state skybox.
 - The debug scene keeps a procedural sky/fog environment now.
-  - That gives `skyboxdebug` a reliable non-black baseline even while authored skyboxes are being iterated.
+  - That is no longer unconditional.
+  - In default mode, it now depends on authored `LightSkybox::Flags`.
 
 ## Assumptions
 
@@ -38,6 +51,9 @@
 - `de4de85` should be treated as the stable comparison point for incremental skybox work.
 - The authored skyboxes are still not proven to render correctly.
   - That still needs a control without helper visuals and without treating "non-black" as success.
+- The current `LightSkybox::Flags` behavior is only partially implemented.
+  - `CombineProceduralAndSkybox` and `ProceduralFogColorBlend` now affect `skyboxdebug`.
+  - The other documented sky-affecting flags still need follow-up work.
 - Keeping the procedural sky/fog bootstrap in `skyboxdebug` is acceptable because this screen is a debug harness, not a shipping gameplay scene.
 
 ## What This Rules Out
@@ -73,6 +89,8 @@
 - The currently safe forward changes are:
   - preserving authored batch order (`priority_plane`, `material_layer`)
   - treating blend mode `7` as blended instead of additive
+  - looping/authored skybox UV animation fixes
+  - `LightSkybox::Flags`-driven procedural sky/fog composition in `skyboxdebug`
 - The currently unsafe forward change is:
   - preserving authored skybox `batch.transparency`
 - Authored skybox correctness is still unproven.

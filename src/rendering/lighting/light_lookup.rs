@@ -11,6 +11,7 @@ const LIGHT_SKYBOX_DB2_FDID: u32 = 1_308_501;
 const LIGHT_PARAMS_LAYOUT_HASH: u32 = 0xCAE3_94E7;
 const LIGHT_SKYBOX_LAYOUT_HASHES: &[u32] = &[0x9D49_56FF, 0x407F_EBCF, 0xD466_A5C2];
 const LIGHT_PARAMS_SKYBOX_FIELD_INDEX: usize = 3;
+const LIGHT_SKYBOX_FLAGS_FIELD_INDEX: usize = 1;
 const LIGHT_SKYBOX_FDID_FIELD_INDEX: usize = 2;
 const OUTDOOR_SKYBOX_LIGHT_PARAM_SLOTS: std::ops::Range<usize> = 0..4;
 
@@ -25,7 +26,54 @@ pub struct LightEntry {
 
 static LIGHTS: OnceLock<Vec<LightEntry>> = OnceLock::new();
 static LIGHT_PARAMS_SKYBOX_IDS: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
-static LIGHT_SKYBOX_FDIDS: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
+static LIGHT_SKYBOX_METADATA: OnceLock<Vec<(u32, LightSkyboxMetadata)>> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LightSkyboxFlags(u32);
+
+impl LightSkyboxFlags {
+    pub const FULL_DAY_SKYBOX: Self = Self(1 << 0);
+    pub const COMBINE_PROCEDURAL_AND_SKYBOX: Self = Self(1 << 1);
+    pub const PROCEDURAL_FOG_COLOR_BLEND: Self = Self(1 << 2);
+    pub const FORCE_SUNSHAFTS: Self = Self(1 << 3);
+    pub const DISABLE_USE_SUN_FOG_COLOR: Self = Self(1 << 4);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+}
+
+impl std::ops::BitOr for LightSkyboxFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for LightSkyboxFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct LightSkyboxMetadata {
+    fdid: u32,
+    flags: LightSkyboxFlags,
+}
 
 pub fn map_name_to_id(map_name: &str) -> Option<u32> {
     let normalized = normalize_map_name(map_name);
@@ -92,11 +140,18 @@ pub fn resolve_light_skybox_id(light_params_id: u32) -> Option<u32> {
 }
 
 pub fn resolve_light_skybox_fdid(light_skybox_id: u32) -> Option<u32> {
-    cached_light_skybox_fdids()
+    cached_light_skybox_metadata()
         .iter()
         .find(|(id, _)| *id == light_skybox_id)
-        .map(|(_, fdid)| *fdid)
+        .map(|(_, metadata)| metadata.fdid)
         .filter(|fdid| *fdid != 0)
+}
+
+pub fn resolve_light_skybox_flags(light_skybox_id: u32) -> Option<LightSkyboxFlags> {
+    cached_light_skybox_metadata()
+        .iter()
+        .find(|(id, _)| *id == light_skybox_id)
+        .map(|(_, metadata)| metadata.flags)
 }
 
 pub fn resolve_light_skybox_wow_path(light_skybox_id: u32) -> Option<&'static str> {
@@ -109,8 +164,8 @@ fn cached_light_params_skybox_ids() -> &'static [(u32, u32)] {
     LIGHT_PARAMS_SKYBOX_IDS.get_or_init(load_light_params_skybox_ids)
 }
 
-fn cached_light_skybox_fdids() -> &'static [(u32, u32)] {
-    LIGHT_SKYBOX_FDIDS.get_or_init(load_light_skybox_fdids)
+fn cached_light_skybox_metadata() -> &'static [(u32, LightSkyboxMetadata)] {
+    LIGHT_SKYBOX_METADATA.get_or_init(load_light_skybox_metadata)
 }
 
 fn cached_lights() -> &'static [LightEntry] {
@@ -164,7 +219,7 @@ fn load_light_params_skybox_ids() -> Vec<(u32, u32)> {
         .collect()
 }
 
-fn load_light_skybox_fdids() -> Vec<(u32, u32)> {
+fn load_light_skybox_metadata() -> Vec<(u32, LightSkyboxMetadata)> {
     let Some(path) = ensure_db2_path(
         LIGHT_SKYBOX_DB2_FDID,
         Path::new("data/dbfilesclient/1308501.db2"),
@@ -182,7 +237,12 @@ fn load_light_skybox_fdids() -> Vec<(u32, u32)> {
         .map(|row_index| {
             (
                 db2.row_id(row_index),
-                db2.decode_field(row_index, LIGHT_SKYBOX_FDID_FIELD_INDEX),
+                LightSkyboxMetadata {
+                    fdid: db2.decode_field(row_index, LIGHT_SKYBOX_FDID_FIELD_INDEX),
+                    flags: LightSkyboxFlags::from_bits(
+                        db2.decode_field(row_index, LIGHT_SKYBOX_FLAGS_FIELD_INDEX),
+                    ),
+                },
             )
         })
         .collect()
@@ -462,8 +522,8 @@ fn parse_wdc5_field_storage(
 #[cfg(test)]
 mod tests {
     use super::{
-        map_name_to_id, resolve_light_params_id, resolve_light_skybox_fdid,
-        resolve_light_skybox_id, resolve_light_skybox_wow_path,
+        LightSkyboxFlags, map_name_to_id, resolve_light_params_id, resolve_light_skybox_fdid,
+        resolve_light_skybox_flags, resolve_light_skybox_id, resolve_light_skybox_wow_path,
         resolve_local_skybox_light_params_id, resolve_skybox_light_params_id,
     };
 
@@ -592,6 +652,23 @@ mod tests {
     #[test]
     fn authored_light_skybox_rows_resolve_expected_fdids() {
         assert_eq!(resolve_light_skybox_fdid(653), Some(5_412_968));
+    }
+
+    #[test]
+    fn authored_light_skybox_rows_resolve_expected_flags() {
+        assert_eq!(
+            resolve_light_skybox_flags(653),
+            Some(
+                LightSkyboxFlags::FULL_DAY_SKYBOX
+                    | LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX
+                    | LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND
+                    | LightSkyboxFlags::FORCE_SUNSHAFTS
+            )
+        );
+        assert_eq!(
+            resolve_light_skybox_flags(81),
+            Some(LightSkyboxFlags::empty())
+        );
     }
 
     #[test]

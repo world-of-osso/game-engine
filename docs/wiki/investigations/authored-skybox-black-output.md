@@ -24,6 +24,10 @@ Measured image output:
 
 - The authored lookup chain works well enough to reach the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` path.
 - The old default `deathskybox.m2` control was not trustworthy for warband scene 1 and should not be used as proof of authored correctness.
+- `LightSkybox.db2` has enough decoded flag data to drive `skyboxdebug` composition now.
+  - `field[1]` decodes as flags.
+  - `field[2]` decodes as the authored skybox FDID.
+  - `LightSkyboxID 653` carries the blend bits that keep procedural sky and fog visible in default debug mode.
 - The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`.
 
 ## Fixed

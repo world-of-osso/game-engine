@@ -16,6 +16,29 @@ WarbandScene position
 
 Relevant code: `src/warband_scene.rs`, `src/light_lookup.rs`, `src/asset/casc_resolver.rs`.
 
+## LightSkybox Flags
+
+`LightSkybox.db2` carries more than just the skybox FDID. The current debug-path reading is:
+
+- `field[1]` = `LightSkybox::Flags`
+- `field[2]` = `SkyboxFileDataID`
+
+The engine now decodes these flags in `light_lookup.rs` and uses them in `skyboxdebug` default mode:
+
+- `CombineProceduralAndSkybox` keeps the procedural sky dome visible alongside the authored skybox
+- `ProceduralFogColorBlend` keeps distance fog visible in the debug scene
+
+Verified fixture:
+
+```
+LightSkyboxID 653
+  → flags 0b01111
+  → SkyboxFileDataID 5412968
+  → environments/stars/11xp_cloudsky01.m2
+```
+
+The debug screenshot regression for this path should use alive-scene skyboxes only. `deathskybox.m2` is not a valid control for normal alive-scene sky validation.
+
 ## Verified Path
 
 ```
