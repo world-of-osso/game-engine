@@ -160,16 +160,13 @@ impl WarbandSceneEntry {
     }
 
     pub fn authored_light_skybox_id(&self) -> Option<u32> {
-        let light_params_id =
-            crate::light_lookup::resolve_local_skybox_light_params_id(self.map_id, self.position)?;
-        crate::light_lookup::resolve_light_skybox_id(light_params_id)
+        crate::light_lookup::resolve_local_skybox_model_for_zone(self.map_id, self.position)
+            .map(|model| model.light_skybox_id)
     }
 
     pub fn authored_skybox_model_wow_path(&self) -> Option<&'static str> {
-        let light_skybox_id = self.authored_light_skybox_id()?;
-        let fdid = crate::light_lookup::resolve_light_skybox_fdid(light_skybox_id)?;
-        let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
-        wow_path.ends_with(".m2").then_some(wow_path)
+        crate::light_lookup::resolve_local_skybox_model_for_zone(self.map_id, self.position)
+            .map(|model| model.wow_path)
     }
 
     pub fn skybox_model_wow_path(&self) -> Option<&'static str> {
@@ -211,10 +208,7 @@ pub fn ensure_warband_terrain(scene: &WarbandSceneEntry) -> Option<PathBuf> {
 
 pub fn ensure_warband_skybox(scene: &WarbandSceneEntry) -> Option<PathBuf> {
     let wow_path = scene.skybox_model_wow_path()?;
-    let filename = Path::new(wow_path).file_name()?;
-    let local = PathBuf::from("data/models/skyboxes").join(filename);
-    let fdid = game_engine::listfile::lookup_path(wow_path)?;
-    asset_cache::file_at_path(fdid, &local)
+    crate::light_lookup::ensure_skybox_model_wow_path(wow_path)
 }
 
 /// Return the local root ADT path for a warband scene if it is already cached on disk.

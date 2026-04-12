@@ -34,13 +34,7 @@ pub(super) fn bevy_to_wow_position(pos: Vec3) -> [f32; 3] {
 }
 
 fn ensure_skybox_wow_path(wow_path: &str) -> Option<PathBuf> {
-    if !wow_path.ends_with(".m2") {
-        return None;
-    }
-    let filename = Path::new(wow_path).file_name()?;
-    let local = PathBuf::from("data/models/skyboxes").join(filename);
-    let fdid = game_engine::listfile::lookup_path(wow_path)?;
-    crate::asset::asset_cache::file_at_path(fdid, &local)
+    crate::light_lookup::ensure_skybox_model_wow_path(wow_path)
 }
 
 fn point_inside_wmo_group(local_point: Vec3, group: &WmoGroup) -> bool {
@@ -92,11 +86,8 @@ pub(super) fn active_wmo_local_skybox_wow_path(
 
 fn resolve_inworld_skybox_path(map_id: u32, bevy_position: Vec3) -> Option<PathBuf> {
     let wow_position = bevy_to_wow_position(bevy_position);
-    let light_params_id =
-        crate::light_lookup::resolve_skybox_light_params_id(map_id, wow_position)?;
-    let light_skybox_id = crate::light_lookup::resolve_light_skybox_id(light_params_id)?;
-    let wow_path = crate::light_lookup::resolve_light_skybox_wow_path(light_skybox_id)?;
-    ensure_skybox_wow_path(wow_path)
+    crate::light_lookup::resolve_skybox_model_for_zone(map_id, wow_position)
+        .map(|model| model.local_path)
 }
 
 pub(super) fn resolve_inworld_map_id(adt_manager: &AdtManager, current_zone: &CurrentZone) -> u32 {

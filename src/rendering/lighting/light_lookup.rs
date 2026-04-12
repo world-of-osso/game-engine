@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::little_endian::{read_le, read_le_u16, read_le_u32};
@@ -73,6 +73,15 @@ impl std::ops::BitOrAssign for LightSkyboxFlags {
 struct LightSkyboxMetadata {
     fdid: u32,
     flags: LightSkyboxFlags,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResolvedLightSkyboxModel {
+    pub light_skybox_id: u32,
+    pub fdid: u32,
+    pub wow_path: &'static str,
+    pub local_path: PathBuf,
+    pub flags: LightSkyboxFlags,
 }
 
 pub fn map_name_to_id(map_name: &str) -> Option<u32> {
@@ -154,10 +163,66 @@ pub fn resolve_light_skybox_flags(light_skybox_id: u32) -> Option<LightSkyboxFla
         .map(|(_, metadata)| metadata.flags)
 }
 
+pub fn ensure_skybox_model_fdid(fdid: u32) -> Option<PathBuf> {
+    let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
+    ensure_skybox_model_wow_path(wow_path)
+}
+
+pub fn ensure_skybox_model_wow_path(wow_path: &str) -> Option<PathBuf> {
+    if !wow_path.ends_with(".m2") {
+        return None;
+    }
+    let filename = Path::new(wow_path).file_name()?;
+    let local = PathBuf::from("data/models/skyboxes").join(filename);
+    let fdid = game_engine::listfile::lookup_path(wow_path)?;
+    crate::asset::asset_cache::file_at_path(fdid, &local)
+}
+
 pub fn resolve_light_skybox_wow_path(light_skybox_id: u32) -> Option<&'static str> {
     let fdid = resolve_light_skybox_fdid(light_skybox_id)?;
     let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
     wow_path.ends_with(".m2").then_some(wow_path)
+}
+
+pub fn resolve_light_skybox_model(light_skybox_id: u32) -> Option<ResolvedLightSkyboxModel> {
+    let fdid = resolve_light_skybox_fdid(light_skybox_id)?;
+    let wow_path = resolve_light_skybox_wow_path(light_skybox_id)?;
+    let local_path = ensure_skybox_model_fdid(fdid)?;
+    Some(ResolvedLightSkyboxModel {
+        light_skybox_id,
+        fdid,
+        wow_path,
+        local_path,
+        flags: resolve_light_skybox_flags(light_skybox_id)?,
+    })
+}
+
+pub fn resolve_light_params_skybox_model(light_params_id: u32) -> Option<ResolvedLightSkyboxModel> {
+    let light_skybox_id = resolve_light_skybox_id(light_params_id)?;
+    resolve_light_skybox_model(light_skybox_id)
+}
+
+fn resolve_zone_skybox_model_with(
+    map_id: u32,
+    wow_position: [f32; 3],
+    resolve_light_params_id: fn(u32, [f32; 3]) -> Option<u32>,
+) -> Option<ResolvedLightSkyboxModel> {
+    let light_params_id = resolve_light_params_id(map_id, wow_position)?;
+    resolve_light_params_skybox_model(light_params_id)
+}
+
+pub fn resolve_skybox_model_for_zone(
+    map_id: u32,
+    wow_position: [f32; 3],
+) -> Option<ResolvedLightSkyboxModel> {
+    resolve_zone_skybox_model_with(map_id, wow_position, resolve_skybox_light_params_id)
+}
+
+pub fn resolve_local_skybox_model_for_zone(
+    map_id: u32,
+    wow_position: [f32; 3],
+) -> Option<ResolvedLightSkyboxModel> {
+    resolve_zone_skybox_model_with(map_id, wow_position, resolve_local_skybox_light_params_id)
 }
 
 fn cached_light_params_skybox_ids() -> &'static [(u32, u32)] {
@@ -522,9 +587,12 @@ fn parse_wdc5_field_storage(
 #[cfg(test)]
 mod tests {
     use super::{
-        LightSkyboxFlags, map_name_to_id, resolve_light_params_id, resolve_light_skybox_fdid,
-        resolve_light_skybox_flags, resolve_light_skybox_id, resolve_light_skybox_wow_path,
-        resolve_local_skybox_light_params_id, resolve_skybox_light_params_id,
+        LightSkyboxFlags, ensure_skybox_model_fdid, ensure_skybox_model_wow_path, map_name_to_id,
+        resolve_light_params_id, resolve_light_params_skybox_model, resolve_light_skybox_fdid,
+        resolve_light_skybox_flags, resolve_light_skybox_id, resolve_light_skybox_model,
+        resolve_light_skybox_wow_path, resolve_local_skybox_light_params_id,
+        resolve_local_skybox_model_for_zone, resolve_skybox_light_params_id,
+        resolve_skybox_model_for_zone,
     };
 
     #[test]
@@ -676,6 +744,86 @@ mod tests {
         assert_eq!(
             resolve_light_skybox_wow_path(653),
             Some("environments/stars/11xp_cloudsky01.m2")
+        );
+    }
+
+    #[test]
+    fn authored_light_skybox_rows_resolve_shared_model_metadata() {
+        let resolved = resolve_light_skybox_model(653).expect("resolved skybox model");
+
+        assert_eq!(resolved.light_skybox_id, 653);
+        assert_eq!(resolved.fdid, 5_412_968);
+        assert_eq!(resolved.wow_path, "environments/stars/11xp_cloudsky01.m2");
+        assert!(
+            resolved
+                .local_path
+                .ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
+            "unexpected local path: {}",
+            resolved.local_path.display()
+        );
+        assert_eq!(
+            resolved.flags,
+            LightSkyboxFlags::FULL_DAY_SKYBOX
+                | LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX
+                | LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND
+                | LightSkyboxFlags::FORCE_SUNSHAFTS
+        );
+    }
+
+    #[test]
+    fn authored_light_params_rows_resolve_shared_skybox_model() {
+        let resolved = resolve_light_params_skybox_model(5615).expect("resolved skybox model");
+
+        assert_eq!(resolved.light_skybox_id, 653);
+        assert!(
+            resolved
+                .local_path
+                .ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
+            "unexpected local path: {}",
+            resolved.local_path.display()
+        );
+    }
+
+    #[test]
+    fn zone_skybox_model_resolution_matches_known_freywold_scene() {
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
+            .scenes
+            .into_iter()
+            .find(|scene| scene.id == 7)
+            .expect("known scene");
+
+        let resolved =
+            resolve_skybox_model_for_zone(scene.map_id, scene.position).expect("resolved model");
+
+        assert_eq!(resolved.light_skybox_id, 653);
+        assert_eq!(resolved.wow_path, "environments/stars/11xp_cloudsky01.m2");
+    }
+
+    #[test]
+    fn local_zone_skybox_model_resolution_respects_local_only_rules() {
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
+            .scenes
+            .into_iter()
+            .find(|scene| scene.id == 1)
+            .expect("known scene");
+
+        assert_eq!(
+            resolve_local_skybox_model_for_zone(scene.map_id, scene.position),
+            None
+        );
+    }
+
+    #[test]
+    fn shared_skybox_model_path_helpers_resolve_expected_local_asset_paths() {
+        let from_fdid = ensure_skybox_model_fdid(5_412_968).expect("fdid local path");
+        let from_path = ensure_skybox_model_wow_path("environments/stars/11xp_cloudsky01.m2")
+            .expect("wow path local path");
+
+        assert_eq!(from_fdid, from_path);
+        assert!(
+            from_path.ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
+            "unexpected local path: {}",
+            from_path.display()
         );
     }
 

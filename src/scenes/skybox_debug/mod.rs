@@ -608,20 +608,16 @@ fn resolve_debug_skybox(
 ) -> Option<ResolvedDebugSkybox> {
     match override_spec {
         Some(SkyboxDebugOverride::LightSkyboxId(light_skybox_id)) => {
-            let path = ensure_skybox_fdid(crate::light_lookup::resolve_light_skybox_fdid(
-                light_skybox_id,
-            )?)?;
+            let resolved = crate::light_lookup::resolve_light_skybox_model(light_skybox_id)?;
             Some(ResolvedDebugSkybox {
-                path,
+                path: resolved.local_path,
                 source: format!("forced LightSkyboxID={light_skybox_id}"),
                 light_skybox_id: Some(light_skybox_id),
-                light_skybox_flags: crate::light_lookup::resolve_light_skybox_flags(
-                    light_skybox_id,
-                ),
+                light_skybox_flags: Some(resolved.flags),
             })
         }
         Some(SkyboxDebugOverride::SkyboxFileDataId(fdid)) => {
-            let path = ensure_skybox_fdid(fdid)?;
+            let path = crate::light_lookup::ensure_skybox_model_fdid(fdid)?;
             Some(ResolvedDebugSkybox {
                 path,
                 source: format!("forced SkyboxFileDataID={fdid}"),
@@ -631,26 +627,18 @@ fn resolve_debug_skybox(
         }
         None => {
             let scene = scene?;
-            let light_skybox_id = scene.authored_light_skybox_id();
+            let light_skybox = crate::light_lookup::resolve_local_skybox_model_for_zone(
+                scene.map_id,
+                scene.position,
+            );
             Some(ResolvedDebugSkybox {
                 path: crate::scenes::char_select::warband::ensure_warband_skybox(scene)?,
                 source: format!("warband scene {} ({})", scene.id, scene.name),
-                light_skybox_id,
-                light_skybox_flags: light_skybox_id
-                    .and_then(crate::light_lookup::resolve_light_skybox_flags),
+                light_skybox_id: light_skybox.as_ref().map(|model| model.light_skybox_id),
+                light_skybox_flags: light_skybox.map(|model| model.flags),
             })
         }
     }
-}
-
-fn ensure_skybox_fdid(fdid: u32) -> Option<std::path::PathBuf> {
-    let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
-    if !wow_path.ends_with(".m2") {
-        return None;
-    }
-    let filename = std::path::Path::new(wow_path).file_name()?;
-    let local = std::path::PathBuf::from("data/models/skyboxes").join(filename);
-    crate::asset::asset_cache::file_at_path(fdid, &local)
 }
 
 fn sync_skybox_to_camera(

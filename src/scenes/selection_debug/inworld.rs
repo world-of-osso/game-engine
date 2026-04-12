@@ -269,25 +269,12 @@ fn ensure_inworld_selection_debug_skybox(
     bevy_position: Vec3,
 ) -> Option<std::path::PathBuf> {
     let wow_position = bevy_to_wow_position(bevy_position);
-    let light_params_id =
-        crate::light_lookup::resolve_skybox_light_params_id(map_id, wow_position)?;
-    let light_skybox_id = crate::light_lookup::resolve_light_skybox_id(light_params_id)?;
-    let wow_path = crate::light_lookup::resolve_light_skybox_wow_path(light_skybox_id)?;
-    ensure_skybox_model_path(wow_path)
+    crate::light_lookup::resolve_skybox_model_for_zone(map_id, wow_position)
+        .map(|model| model.local_path)
 }
 
 fn bevy_to_wow_position(pos: Vec3) -> [f32; 3] {
     [pos.x, -pos.z, pos.y]
-}
-
-fn ensure_skybox_model_path(wow_path: &'static str) -> Option<std::path::PathBuf> {
-    if !wow_path.ends_with(".m2") {
-        return None;
-    }
-    let filename = std::path::Path::new(wow_path).file_name()?;
-    let local = std::path::PathBuf::from("data/models/skyboxes").join(filename);
-    let fdid = game_engine::listfile::lookup_path(wow_path)?;
-    crate::asset::asset_cache::file_at_path(fdid, &local)
 }
 
 fn spawn_debug_wolf(
