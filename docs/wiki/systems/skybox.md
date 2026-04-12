@@ -16,6 +16,11 @@ WarbandScene position
 
 Relevant code: `src/warband_scene.rs`, `src/light_lookup.rs`, `src/asset/casc_resolver.rs`.
 
+`Light.csv` does not provide a bag of interchangeable skybox candidates. The
+resolver now treats the `LightParamsID_*` columns as authored circumstances and
+uses `LightParamsID_0` (clear, above-water) by default instead of scanning for
+the first slot that happens to resolve a `LightSkyboxID`.
+
 ## LightSkybox Flags
 
 `LightSkybox.db2` carries more than just the skybox FDID. The current debug-path reading is:

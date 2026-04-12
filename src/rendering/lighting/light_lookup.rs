@@ -13,7 +13,30 @@ const LIGHT_SKYBOX_LAYOUT_HASHES: &[u32] = &[0x9D49_56FF, 0x407F_EBCF, 0xD466_A5
 const LIGHT_PARAMS_SKYBOX_FIELD_INDEX: usize = 3;
 const LIGHT_SKYBOX_FLAGS_FIELD_INDEX: usize = 1;
 const LIGHT_SKYBOX_FDID_FIELD_INDEX: usize = 2;
-const OUTDOOR_SKYBOX_LIGHT_PARAM_SLOTS: std::ops::Range<usize> = 0..4;
+
+// Light.csv stores multiple LightParams circumstances, not a list of fallback
+// skybox candidates. The authored skybox resolver should pick an explicit slot,
+// not scavenge whichever row happens to resolve through LightSkybox.db2.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum LightParamsSlot {
+    Clear,
+    ClearUnderwater,
+    Storm,
+    StormUnderwater,
+    Death,
+}
+
+impl LightParamsSlot {
+    const fn index(self) -> usize {
+        match self {
+            Self::Clear => 0,
+            Self::ClearUnderwater => 1,
+            Self::Storm => 2,
+            Self::StormUnderwater => 3,
+            Self::Death => 4,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LightEntry {
@@ -132,12 +155,14 @@ pub fn resolve_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u3
 }
 
 pub fn resolve_skybox_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u32> {
-    resolve_light_params_ids(map_id, wow_position).and_then(first_resolvable_skybox_light_params_id)
+    resolve_light_params_ids(map_id, wow_position)
+        .and_then(|ids| resolve_skybox_light_params_id_for_slot(ids, LightParamsSlot::Clear))
 }
 
 pub fn resolve_local_skybox_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u32> {
-    select_light_row(map_id, wow_position)
-        .and_then(|row| first_resolvable_skybox_light_params_id(row.light_params_ids))
+    select_light_row(map_id, wow_position).and_then(|row| {
+        resolve_skybox_light_params_id_for_slot(row.light_params_ids, LightParamsSlot::Clear)
+    })
 }
 
 pub fn resolve_light_skybox_id(light_params_id: u32) -> Option<u32> {
@@ -320,10 +345,12 @@ fn ensure_db2_path(fdid: u32, path: &Path) -> Option<std::path::PathBuf> {
     crate::asset::asset_cache::file_at_path(fdid, path)
 }
 
-fn first_resolvable_skybox_light_params_id(light_params_ids: [u32; 8]) -> Option<u32> {
-    OUTDOOR_SKYBOX_LIGHT_PARAM_SLOTS
-        .map(|slot| light_params_ids[slot])
-        .find(|id| *id != 0 && resolve_light_skybox_id(*id).is_some())
+fn resolve_skybox_light_params_id_for_slot(
+    light_params_ids: [u32; 8],
+    slot: LightParamsSlot,
+) -> Option<u32> {
+    let id = light_params_ids[slot.index()];
+    (id != 0 && resolve_light_skybox_id(id).is_some()).then_some(id)
 }
 
 fn score_light_row(row: &LightEntry, wow_position: [f32; 3]) -> Option<f32> {
@@ -587,11 +614,12 @@ fn parse_wdc5_field_storage(
 #[cfg(test)]
 mod tests {
     use super::{
-        LightSkyboxFlags, ensure_skybox_model_fdid, ensure_skybox_model_wow_path, map_name_to_id,
-        resolve_light_params_id, resolve_light_params_skybox_model, resolve_light_skybox_fdid,
-        resolve_light_skybox_flags, resolve_light_skybox_id, resolve_light_skybox_model,
-        resolve_light_skybox_wow_path, resolve_local_skybox_light_params_id,
-        resolve_local_skybox_model_for_zone, resolve_skybox_light_params_id,
+        LightParamsSlot, LightSkyboxFlags, ensure_skybox_model_fdid, ensure_skybox_model_wow_path,
+        map_name_to_id, resolve_light_params_id, resolve_light_params_ids,
+        resolve_light_params_skybox_model, resolve_light_skybox_fdid, resolve_light_skybox_flags,
+        resolve_light_skybox_id, resolve_light_skybox_model, resolve_light_skybox_wow_path,
+        resolve_local_skybox_light_params_id, resolve_local_skybox_model_for_zone,
+        resolve_skybox_light_params_id, resolve_skybox_light_params_id_for_slot,
         resolve_skybox_model_for_zone,
     };
 
@@ -622,7 +650,7 @@ mod tests {
     }
 
     #[test]
-    fn authored_skybox_params_lookup_uses_alternate_param_slots() {
+    fn authored_skybox_params_lookup_uses_clear_weather_slot_only() {
         let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
@@ -631,7 +659,7 @@ mod tests {
 
         let params = resolve_skybox_light_params_id(scene.map_id, scene.position);
 
-        assert_eq!(params, Some(5119));
+        assert_eq!(params, None);
     }
 
     #[test]
@@ -661,7 +689,7 @@ mod tests {
     }
 
     #[test]
-    fn local_authored_skybox_params_still_resolve_scene_specific_rows() {
+    fn local_authored_skybox_params_use_clear_weather_slot_only() {
         let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
@@ -670,16 +698,19 @@ mod tests {
 
         let params = resolve_local_skybox_light_params_id(scene.map_id, scene.position);
 
-        assert_eq!(params, Some(5119));
+        assert_eq!(params, None);
     }
 
     #[test]
-    fn primary_light_params_id_can_be_missing_while_alternate_slot_resolves_skybox() {
+    fn alternate_underwater_slot_requires_explicit_slot_selection() {
         let scene = crate::scenes::char_select::warband::WarbandScenes::load()
             .scenes
             .into_iter()
             .find(|scene| scene.id == 4)
             .expect("known scene");
+
+        let light_params_ids =
+            resolve_light_params_ids(scene.map_id, scene.position).expect("resolved light row");
 
         assert_eq!(
             resolve_light_params_id(scene.map_id, scene.position),
@@ -687,7 +718,14 @@ mod tests {
         );
         assert_eq!(resolve_light_skybox_id(6577), None);
         assert_eq!(
-            resolve_skybox_light_params_id(scene.map_id, scene.position),
+            resolve_skybox_light_params_id_for_slot(light_params_ids, LightParamsSlot::Clear),
+            None
+        );
+        assert_eq!(
+            resolve_skybox_light_params_id_for_slot(
+                light_params_ids,
+                LightParamsSlot::ClearUnderwater
+            ),
             Some(5119)
         );
     }
