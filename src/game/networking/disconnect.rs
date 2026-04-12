@@ -77,7 +77,14 @@ fn handle_disconnect_by_state(
         selected_name,
     } = inputs;
     if let Some(notice) = forced_notice {
-        handle_forced_disconnect(state.get(), reconnect, notice, auth_feedback, next_state, commands);
+        handle_forced_disconnect(
+            state.get(),
+            reconnect,
+            notice,
+            auth_feedback,
+            next_state,
+            commands,
+        );
         return;
     }
     handle_state_disconnect(
