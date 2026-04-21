@@ -131,19 +131,34 @@ fn spawn_m2_debug_reference_model(
     params: &mut M2DebugSceneParams<'_, '_>,
 ) -> Option<m2_scene::SpawnedAnimatedStaticM2> {
     let path = m2_debug_reference_model_path();
-    if !path.exists() {
-        warn!("m2debug: missing reference model {}", path.display());
-        return None;
-    }
-    let Some(spawned) = spawn_m2_debug_reference_model_parts(commands, params, path) else {
+    let spawned = spawn_m2_debug_reference_model_checked(commands, params, path)?;
+    tag_m2_debug_reference_model_entities(commands, &spawned);
+    Some(spawned)
+}
+
+fn spawn_m2_debug_reference_model_checked(
+    commands: &mut Commands,
+    params: &mut M2DebugSceneParams<'_, '_>,
+    path: &Path,
+) -> Option<m2_scene::SpawnedAnimatedStaticM2> {
+    ensure_m2_debug_reference_model_exists(path)?;
+    let spawned = spawn_m2_debug_reference_model_parts(commands, params, path);
+    if spawned.is_none() {
         warn!(
             "m2debug: failed to spawn reference model {}",
             path.display()
         );
-        return None;
-    };
-    tag_m2_debug_reference_model_entities(commands, &spawned);
-    Some(spawned)
+    }
+    spawned
+}
+
+fn ensure_m2_debug_reference_model_exists(path: &Path) -> Option<()> {
+    if path.exists() {
+        Some(())
+    } else {
+        warn!("m2debug: missing reference model {}", path.display());
+        None
+    }
 }
 
 fn spawn_m2_debug_reference_model_parts(
