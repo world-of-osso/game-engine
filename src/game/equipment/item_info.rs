@@ -46,12 +46,16 @@ fn lookup_item_info_in_reader<R: BufRead>(
 
 fn parse_item_line(line: &str) -> Option<ItemStaticInfo> {
     let trimmed = line.trim();
-    if !trimmed.starts_with('(') || !trimmed.contains("ItemInfo {") {
+    if !is_item_info_tuple_line(trimmed) {
         return None;
     }
 
     let fields = parse_item_fields(trimmed)?;
     Some(build_item_info(fields))
+}
+
+fn is_item_info_tuple_line(trimmed: &str) -> bool {
+    trimmed.starts_with('(') && trimmed.contains("ItemInfo")
 }
 
 struct ParsedItemFields {
@@ -154,5 +158,11 @@ mod tests {
 
         assert_eq!(item.name, "Peacebloom");
         assert_eq!(item.sell_price, 10);
+    }
+
+    #[test]
+    fn parse_item_line_ignores_non_iteminfo_lines() {
+        let line = r#"(2589, SpellInfo { name: "Not an item" }),"#;
+        assert!(parse_item_line(line).is_none());
     }
 }
