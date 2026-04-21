@@ -11,6 +11,28 @@ const TIMEOUT: Duration = Duration::from_secs(120);
 const SKYBOX_TIME_MS: &str = "0";
 const EDGE_LUMA_THRESHOLD: f64 = 8.0;
 const HIGHLIGHT_LUMA_THRESHOLD: f64 = 96.0;
+const COSTAL_ISLAND_SKYBOX_FDID: u32 = 525_142;
+
+#[derive(Clone, Copy)]
+enum SkyboxCaptureMode {
+    DefaultLookup,
+    LightSkyboxId(u32),
+    SkyboxFdid(u32),
+}
+
+impl SkyboxCaptureMode {
+    fn append_args(self, command: &mut Command) {
+        match self {
+            Self::DefaultLookup => {}
+            Self::LightSkyboxId(id) => {
+                command.arg("--light-skybox-id").arg(id.to_string());
+            }
+            Self::SkyboxFdid(fdid) => {
+                command.arg("--skybox-fdid").arg(fdid.to_string());
+            }
+        }
+    }
+}
 
 struct SkyboxScreenshotCase {
     slug: &'static str,
@@ -43,6 +65,50 @@ const CASES: &[SkyboxScreenshotCase] = &[
     },
 ];
 
+struct SkyboxLookupCase {
+    slug: &'static str,
+    description: &'static str,
+    lookup_mode: SkyboxCaptureMode,
+    expected_fdid: u32,
+    min_highlight_ratio: f64,
+    min_edge_ratio: f64,
+    min_quantized_color_buckets: usize,
+    min_luma_stddev: f64,
+    max_mean_abs_rgb_diff: f64,
+}
+
+struct LookupMetricContext<'a> {
+    case: &'a SkyboxLookupCase,
+    output_path: &'a Path,
+    metrics: &'a ImageMetrics,
+    sample_label: &'a str,
+}
+
+const LOOKUP_CASES: &[SkyboxLookupCase] = &[
+    SkyboxLookupCase {
+        slug: "default-lookup",
+        description: "default skyboxdebug lookup should render costalislandskybox.m2",
+        lookup_mode: SkyboxCaptureMode::DefaultLookup,
+        expected_fdid: COSTAL_ISLAND_SKYBOX_FDID,
+        min_highlight_ratio: 0.00005,
+        min_edge_ratio: 0.0002,
+        min_quantized_color_buckets: 12,
+        min_luma_stddev: 1.0,
+        max_mean_abs_rgb_diff: 1.5,
+    },
+    SkyboxLookupCase {
+        slug: "light-skybox-id-653",
+        description: "forced LightSkyboxID=653 should render 11xp_cloudsky01.m2",
+        lookup_mode: SkyboxCaptureMode::LightSkyboxId(653),
+        expected_fdid: 5_412_968,
+        min_highlight_ratio: 0.0002,
+        min_edge_ratio: 0.00035,
+        min_quantized_color_buckets: 20,
+        min_luma_stddev: 4.0,
+        max_mean_abs_rgb_diff: 1.5,
+    },
+];
+
 #[test]
 #[ignore = "requires windowing/GPU access and is run via scripts/run_skybox_screenshot_regression.sh"]
 fn authored_skybox_models_show_structured_pixels_in_verify_mode() {
@@ -51,6 +117,17 @@ fn authored_skybox_models_show_structured_pixels_in_verify_mode() {
 
     for case in CASES {
         assert_skybox_case_has_authored_pixels(case, &workdir, &temp_root);
+    }
+}
+
+#[test]
+#[ignore = "requires windowing/GPU access and is run via scripts/run_skybox_screenshot_regression.sh"]
+fn skyboxdebug_lookup_modes_match_expected_authored_skybox_render_in_verify_mode() {
+    let workdir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let temp_root = temp_dir("skybox-lookup-regression");
+
+    for case in LOOKUP_CASES {
+        assert_lookup_mode_matches_expected_skybox(case, &workdir, &temp_root);
     }
 }
 
@@ -71,8 +148,13 @@ fn capture_skybox_case_output(
 ) -> PathBuf {
     let output_path = temp_root.join(format!("{}.webp", case.slug));
     let status = wait_for_child(
-        spawn_capture_command(case, workdir, temp_root, &output_path)
-            .expect("failed to spawn skybox screenshot regression command"),
+        spawn_capture_command(
+            SkyboxCaptureMode::SkyboxFdid(case.skybox_fdid),
+            workdir,
+            temp_root,
+            &output_path,
+        )
+        .expect("failed to spawn skybox screenshot regression command"),
     )
     .expect("skybox screenshot regression command should finish successfully");
     assert!(
@@ -80,6 +162,66 @@ fn capture_skybox_case_output(
         "skybox screenshot capture failed for {} (fdid={}): {status}",
         case.slug,
         case.skybox_fdid
+    );
+    output_path
+}
+
+fn assert_lookup_mode_matches_expected_skybox(
+    case: &SkyboxLookupCase,
+    workdir: &Path,
+    temp_root: &Path,
+) {
+    let actual_output =
+        capture_lookup_mode_output(case, "lookup", case.lookup_mode, workdir, temp_root);
+    let expected_output = capture_lookup_mode_output(
+        case,
+        "fdid",
+        SkyboxCaptureMode::SkyboxFdid(case.expected_fdid),
+        workdir,
+        temp_root,
+    );
+    let actual = decode_webp(&actual_output);
+    let expected = decode_webp(&expected_output);
+    let actual_metrics = compute_image_metrics(&actual);
+    let expected_metrics = compute_image_metrics(&expected);
+
+    assert_lookup_metrics(case, &actual_output, &actual_metrics, "lookup-mode output");
+    assert_lookup_metrics(
+        case,
+        &expected_output,
+        &expected_metrics,
+        "explicit-fdid baseline",
+    );
+
+    let mean_diff = mean_abs_rgb_diff(&actual, &expected);
+    assert!(
+        mean_diff <= case.max_mean_abs_rgb_diff,
+        "{} did not match explicit-fdid baseline render: mean_abs_rgb_diff={:.4} > {:.4}; lookup_output={}; baseline_output={}",
+        case.description,
+        mean_diff,
+        case.max_mean_abs_rgb_diff,
+        actual_output.display(),
+        expected_output.display()
+    );
+}
+
+fn capture_lookup_mode_output(
+    case: &SkyboxLookupCase,
+    suffix: &str,
+    mode: SkyboxCaptureMode,
+    workdir: &Path,
+    temp_root: &Path,
+) -> PathBuf {
+    let output_path = temp_root.join(format!("{}-{suffix}.webp", case.slug));
+    let status = wait_for_child(
+        spawn_capture_command(mode, workdir, temp_root, &output_path)
+            .expect("failed to spawn skybox lookup screenshot regression command"),
+    )
+    .expect("skybox lookup screenshot regression command should finish successfully");
+    assert!(
+        status.success(),
+        "skybox lookup screenshot capture failed for {} ({suffix}): {status}",
+        case.slug
     );
     output_path
 }
@@ -120,6 +262,63 @@ fn assert_case_metrics(case: &SkyboxScreenshotCase, output_path: &Path, metrics:
     );
 }
 
+fn assert_lookup_metrics(
+    case: &SkyboxLookupCase,
+    output_path: &Path,
+    metrics: &ImageMetrics,
+    sample_label: &str,
+) {
+    let context = LookupMetricContext {
+        case,
+        output_path,
+        metrics,
+        sample_label,
+    };
+    for (name, actual, minimum) in [
+        (
+            "highlight ratio",
+            metrics.highlight_ratio,
+            case.min_highlight_ratio,
+        ),
+        ("edge/detail ratio", metrics.edge_ratio, case.min_edge_ratio),
+        ("luma variation", metrics.luma_stddev, case.min_luma_stddev),
+    ] {
+        assert_lookup_metric_floor(
+            &context,
+            name,
+            actual >= minimum,
+            format!("{actual:.6}"),
+            format!("{minimum:.6}"),
+        );
+    }
+    assert_lookup_metric_floor(
+        &context,
+        "color diversity",
+        metrics.quantized_color_buckets >= case.min_quantized_color_buckets,
+        metrics.quantized_color_buckets.to_string(),
+        case.min_quantized_color_buckets.to_string(),
+    );
+}
+
+fn assert_lookup_metric_floor(
+    context: &LookupMetricContext<'_>,
+    metric_name: &str,
+    passes: bool,
+    actual: String,
+    minimum: String,
+) {
+    assert!(
+        passes,
+        "{} {} did not meet authored-skybox {metric_name} floor: {} < {}; output={}; metrics={metrics:?}",
+        context.case.description,
+        context.sample_label,
+        actual,
+        minimum,
+        context.output_path.display(),
+        metrics = context.metrics
+    );
+}
+
 fn case_failure_context(
     case: &SkyboxScreenshotCase,
     output_path: &Path,
@@ -133,7 +332,7 @@ fn case_failure_context(
 }
 
 fn spawn_capture_command(
-    case: &SkyboxScreenshotCase,
+    mode: SkyboxCaptureMode,
     workdir: &Path,
     temp_root: &Path,
     output_path: &Path,
@@ -153,11 +352,9 @@ fn spawn_capture_command(
         .arg("skyboxdebug")
         .arg("--skybox-verify")
         .arg("--skybox-time-ms")
-        .arg(SKYBOX_TIME_MS)
-        .arg("--skybox-fdid")
-        .arg(case.skybox_fdid.to_string())
-        .arg("screenshot")
-        .arg(output_path);
+        .arg(SKYBOX_TIME_MS);
+    mode.append_args(&mut command);
+    command.arg("screenshot").arg(output_path);
     command
         .spawn()
         .map_err(|err| format!("failed to spawn skybox screenshot regression binary: {err}"))
@@ -348,4 +545,28 @@ fn quantized_color_key(r: u8, g: u8, b: u8) -> u16 {
     let gq = (g >> 4) as u16;
     let bq = (b >> 4) as u16;
     (rq << 8) | (gq << 4) | bq
+}
+
+fn mean_abs_rgb_diff(left: &DecodedImage, right: &DecodedImage) -> f64 {
+    assert_eq!(
+        (left.width, left.height),
+        (right.width, right.height),
+        "image dimensions should match for comparison"
+    );
+    assert!(
+        left.channels >= 3 && right.channels >= 3,
+        "expected RGB or RGBA screenshots for comparison"
+    );
+    let mut total_diff = 0.0;
+    let pixel_count = (left.width as usize) * (left.height as usize);
+    for pixel_index in 0..pixel_count {
+        let left_idx = pixel_index * left.channels;
+        let right_idx = pixel_index * right.channels;
+        for channel in 0..3 {
+            total_diff += (left.pixels[left_idx + channel] as f64
+                - right.pixels[right_idx + channel] as f64)
+                .abs();
+        }
+    }
+    total_diff / ((pixel_count * 3).max(1) as f64)
 }
