@@ -97,27 +97,81 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
     Ok(values)
 }
 
+const COLOR_COLUMN_INDICES: [usize; 18] = [
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+];
+const DIRECT_COLOR_SLOT: usize = 0;
+const AMBIENT_COLOR_SLOT: usize = 1;
+const SKY_TOP_SLOT: usize = 2;
+const SKY_MIDDLE_SLOT: usize = 3;
+const SKY_BAND1_SLOT: usize = 4;
+const SKY_BAND2_SLOT: usize = 5;
+const SKY_SMOG_SLOT: usize = 6;
+const FOG_COLOR_SLOT: usize = 7;
+const SUN_COLOR_SLOT: usize = 8;
+const SUN_HALO_COLOR_SLOT: usize = 9;
+const CLOUD_EMISSIVE_COLOR_SLOT: usize = 10;
+const CLOUD_LAYER1_AMBIENT_COLOR_SLOT: usize = 11;
+const CLOUD_LAYER2_AMBIENT_COLOR_SLOT: usize = 12;
+const OCEAN_CLOSE_COLOR_SLOT: usize = 13;
+const OCEAN_FAR_COLOR_SLOT: usize = 14;
+const RIVER_CLOSE_COLOR_SLOT: usize = 15;
+const RIVER_FAR_COLOR_SLOT: usize = 16;
+const HORIZON_AMBIENT_COLOR_SLOT: usize = 17;
+
+struct DecodedScalarColumns {
+    time: f32,
+    fog_end: f32,
+    fog_start: f32,
+    glow: f32,
+    cloud_density: f32,
+    unk1: f32,
+    unk2: f32,
+}
+
 fn decode_light_data_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightDataRow> {
+    let colors = decode_color_columns(row)?;
+    let scalars = decode_scalar_columns(row)?;
     Ok(LightDataRow {
+        time: scalars.time,
+        direct_color: decode_bgr32(colors[DIRECT_COLOR_SLOT]),
+        ambient_color: decode_bgr32(colors[AMBIENT_COLOR_SLOT]),
+        sky_top: decode_bgr32(colors[SKY_TOP_SLOT]),
+        sky_middle: decode_bgr32(colors[SKY_MIDDLE_SLOT]),
+        sky_band1: decode_bgr32(colors[SKY_BAND1_SLOT]),
+        sky_band2: decode_bgr32(colors[SKY_BAND2_SLOT]),
+        sky_smog: decode_bgr32(colors[SKY_SMOG_SLOT]),
+        fog_color: decode_bgr32(colors[FOG_COLOR_SLOT]),
+        sun_color: decode_bgr32(colors[SUN_COLOR_SLOT]),
+        sun_halo_color: decode_bgr32(colors[SUN_HALO_COLOR_SLOT]),
+        cloud_emissive_color: decode_bgr32(colors[CLOUD_EMISSIVE_COLOR_SLOT]),
+        cloud_layer1_ambient_color: decode_bgr32(colors[CLOUD_LAYER1_AMBIENT_COLOR_SLOT]),
+        cloud_layer2_ambient_color: decode_bgr32(colors[CLOUD_LAYER2_AMBIENT_COLOR_SLOT]),
+        ocean_close_color: decode_bgr32(colors[OCEAN_CLOSE_COLOR_SLOT]),
+        ocean_far_color: decode_bgr32(colors[OCEAN_FAR_COLOR_SLOT]),
+        river_close_color: decode_bgr32(colors[RIVER_CLOSE_COLOR_SLOT]),
+        river_far_color: decode_bgr32(colors[RIVER_FAR_COLOR_SLOT]),
+        horizon_ambient_color: decode_bgr32(colors[HORIZON_AMBIENT_COLOR_SLOT]),
+        fog_end: scalars.fog_end,
+        fog_start: scalars.fog_start,
+        glow: scalars.glow,
+        cloud_density: scalars.cloud_density,
+        unk1: scalars.unk1,
+        unk2: scalars.unk2,
+    })
+}
+
+fn decode_color_columns(row: &rusqlite::Row<'_>) -> rusqlite::Result<[u32; 18]> {
+    let mut colors = [0_u32; 18];
+    for (slot, column) in colors.iter_mut().zip(COLOR_COLUMN_INDICES) {
+        *slot = row.get(column)?;
+    }
+    Ok(colors)
+}
+
+fn decode_scalar_columns(row: &rusqlite::Row<'_>) -> rusqlite::Result<DecodedScalarColumns> {
+    Ok(DecodedScalarColumns {
         time: row.get(0)?,
-        direct_color: decode_bgr32(row.get(1)?),
-        ambient_color: decode_bgr32(row.get(2)?),
-        sky_top: decode_bgr32(row.get(3)?),
-        sky_middle: decode_bgr32(row.get(4)?),
-        sky_band1: decode_bgr32(row.get(5)?),
-        sky_band2: decode_bgr32(row.get(6)?),
-        sky_smog: decode_bgr32(row.get(7)?),
-        fog_color: decode_bgr32(row.get(8)?),
-        sun_color: decode_bgr32(row.get(9)?),
-        sun_halo_color: decode_bgr32(row.get(10)?),
-        cloud_emissive_color: decode_bgr32(row.get(11)?),
-        cloud_layer1_ambient_color: decode_bgr32(row.get(12)?),
-        cloud_layer2_ambient_color: decode_bgr32(row.get(13)?),
-        ocean_close_color: decode_bgr32(row.get(14)?),
-        ocean_far_color: decode_bgr32(row.get(15)?),
-        river_close_color: decode_bgr32(row.get(16)?),
-        river_far_color: decode_bgr32(row.get(17)?),
-        horizon_ambient_color: decode_bgr32(row.get(18)?),
         fog_end: row.get(19)?,
         fog_start: row.get(20)?,
         glow: row.get(21)?,
@@ -389,6 +443,11 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::Connection;
+
+    const BGR32_RED: u32 = 0x000000FF;
+    const BGR32_GREEN: u32 = 0x0000FF00;
+    const BGR32_BLUE: u32 = 0x00FF0000;
 
     #[test]
     fn load_light_data_csv_fallback_round_trips_cache() {
@@ -414,5 +473,44 @@ mod tests {
         assert_eq!(rows[0].glow, 1.5);
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn decode_light_data_row_decodes_color_slots_and_scalars() {
+        let conn = Connection::open_in_memory().unwrap();
+        let mut stmt = conn
+            .prepare(
+                "SELECT
+                    321.0, ?1, ?2, ?3, 4, 5, 6, 7, 8,
+                    9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+                    900.0, 450.0, 1.5, 0.25, 2.0, 3.0",
+            )
+            .unwrap();
+        let decoded = stmt
+            .query_row((BGR32_RED, BGR32_GREEN, BGR32_BLUE), decode_light_data_row)
+            .unwrap();
+
+        assert_eq!(decoded.time, 321.0);
+        assert_eq!(decoded.fog_end, 900.0);
+        assert_eq!(decoded.fog_start, 450.0);
+        assert_eq!(decoded.glow, 1.5);
+        assert_eq!(decoded.cloud_density, 0.25);
+        assert_eq!(decoded.unk1, 2.0);
+        assert_eq!(decoded.unk2, 3.0);
+
+        let direct = decoded.direct_color.to_linear();
+        assert!((direct.red - 1.0).abs() < 0.01);
+        assert!(direct.green < 0.01);
+        assert!(direct.blue < 0.01);
+
+        let ambient = decoded.ambient_color.to_linear();
+        assert!(ambient.red < 0.01);
+        assert!((ambient.green - 1.0).abs() < 0.01);
+        assert!(ambient.blue < 0.01);
+
+        let sky_top = decoded.sky_top.to_linear();
+        assert!(sky_top.red < 0.01);
+        assert!(sky_top.green < 0.01);
+        assert!((sky_top.blue - 1.0).abs() < 0.01);
     }
 }
