@@ -707,22 +707,58 @@ fn parse_wdc5_sections(
 ) -> Result<Vec<Wdc5Section>, String> {
     let mut sections = Vec::with_capacity(section_count);
     for index in 0..section_count {
-        let base = offset + index * 40;
-        if bytes.len() < base + 40 {
-            return Err("truncated WDC5 section header".to_string());
-        }
-        let file_offset = read_le_u32(bytes, base + 8) as usize;
-        let record_count = read_le_u32(bytes, base + 12) as usize;
-        let string_table_size = read_le_u32(bytes, base + 16) as usize;
-        let _id_list_size = read_le_u32(bytes, base + 24) as usize;
-        sections.push(Wdc5Section {
-            file_offset,
-            record_count,
-            string_table_size,
-            id_list_offset: file_offset + record_count * record_size + string_table_size,
-        });
+        let section = parse_wdc5_section(bytes, offset, index, record_size)?;
+        sections.push(section);
     }
     Ok(sections)
+}
+
+fn parse_wdc5_section(
+    bytes: &[u8],
+    section_offset: usize,
+    section_index: usize,
+    record_size: usize,
+) -> Result<Wdc5Section, String> {
+    let base = wdc5_section_base_offset(section_offset, section_index);
+    ensure_wdc5_section_header(bytes, base)?;
+
+    let file_offset = read_le_u32(bytes, base + 8) as usize;
+    let record_count = read_le_u32(bytes, base + 12) as usize;
+    let string_table_size = read_le_u32(bytes, base + 16) as usize;
+    let _id_list_size = read_le_u32(bytes, base + 24) as usize;
+
+    Ok(Wdc5Section {
+        file_offset,
+        record_count,
+        string_table_size,
+        id_list_offset: wdc5_id_list_offset(
+            file_offset,
+            record_count,
+            record_size,
+            string_table_size,
+        ),
+    })
+}
+
+fn wdc5_section_base_offset(section_offset: usize, section_index: usize) -> usize {
+    section_offset + section_index * 40
+}
+
+fn ensure_wdc5_section_header(bytes: &[u8], base: usize) -> Result<(), String> {
+    if bytes.len() < base + 40 {
+        return Err("truncated WDC5 section header".to_string());
+    }
+
+    Ok(())
+}
+
+fn wdc5_id_list_offset(
+    file_offset: usize,
+    record_count: usize,
+    record_size: usize,
+    string_table_size: usize,
+) -> usize {
+    file_offset + record_count * record_size + string_table_size
 }
 
 fn parse_wdc5_field_storage(
