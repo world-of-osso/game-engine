@@ -345,3 +345,27 @@ fn parse_group_subchunks_preserves_second_mocv_alpha_values() {
         vec![64.0 / 255.0, 192.0 / 255.0]
     );
 }
+
+#[test]
+fn parse_group_subchunks_ignores_unknown_chunks() {
+    let mut data = Vec::new();
+    append_chunk(&mut data, b"ZZZZ", &[1_u8, 2, 3, 4]);
+
+    let mut movt = Vec::new();
+    for value in [1.0_f32, 2.0, 3.0] {
+        movt.extend_from_slice(&value.to_le_bytes());
+    }
+    append_chunk(&mut data, b"TVOM", &movt);
+
+    let mut movi = Vec::new();
+    for value in [0_u16, 1, 2] {
+        movi.extend_from_slice(&value.to_le_bytes());
+    }
+    append_chunk(&mut data, b"IVOM", &movi);
+
+    let group = parse_group_subchunks(&data).expect("parse group subchunks");
+
+    assert_eq!(group.vertices, vec![[1.0, 2.0, 3.0]]);
+    assert_eq!(group.indices, vec![0, 1, 2]);
+    assert!(group.liquid.is_none());
+}

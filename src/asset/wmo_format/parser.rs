@@ -14,6 +14,7 @@ pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
 
 type PortalsAndRanges = (Vec<WmoPortal>, Vec<(u16, u16)>);
 type RootChunkHandler = fn(&[u8], &mut WmoRootAccum) -> Result<(), String>;
+type GroupChunkHandler = fn(&[u8], &mut RawGroupData) -> Result<(), String>;
 
 const ROOT_CHUNK_HANDLERS: &[(&[u8; 4], RootChunkHandler)] = &[
     (b"DHOM", apply_mohd_chunk),
@@ -41,6 +42,21 @@ const ROOT_CHUNK_HANDLERS: &[(&[u8; 4], RootChunkHandler)] = &[
     (b"RPOM", apply_mopr_chunk),
     (b"IGOM", apply_mogi_chunk),
     (b"BSOM", apply_mobs_chunk),
+];
+
+const GROUP_CHUNK_HANDLERS: &[(&[u8; 4], GroupChunkHandler)] = &[
+    (b"YPOM", apply_group_mopy_chunk),
+    (b"RDOM", apply_group_modr_chunk),
+    (b"RLOM", apply_group_molr_chunk),
+    (b"NBOM", apply_group_mobn_chunk),
+    (b"RBOM", apply_group_mobr_chunk),
+    (b"QILM", apply_group_mliq_chunk),
+    (b"TVOM", apply_group_movt_chunk),
+    (b"RNOM", apply_group_monr_chunk),
+    (b"VTOM", apply_group_motv_chunk),
+    (b"VCOM", apply_group_mocv_chunk),
+    (b"IVOM", apply_group_movi_chunk),
+    (b"ABOM", apply_group_moba_chunk),
 ];
 
 fn parse_binrw_entries<T>(data: &[u8], entry_size: usize, label: &str) -> Result<Vec<T>, String>
@@ -670,21 +686,76 @@ fn empty_group_data() -> RawGroupData {
 }
 
 fn apply_group_chunk(tag: &[u8], payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
-    match tag {
-        b"YPOM" => group.triangle_materials = parse_mopy(payload)?,
-        b"RDOM" => group.doodad_refs = parse_u16_array(payload),
-        b"RLOM" => group.light_refs = parse_u16_array(payload),
-        b"NBOM" => group.bsp_nodes = parse_mobn(payload)?,
-        b"RBOM" => group.bsp_face_refs = parse_mobr(payload)?,
-        b"QILM" => group.liquid = Some(parse_mliq(payload)?),
-        b"TVOM" => group.vertices = parse_vec3_array(payload)?,
-        b"RNOM" => group.normals = parse_vec3_array(payload)?,
-        b"VTOM" => apply_group_uv_chunk(payload, group)?,
-        b"VCOM" => apply_group_color_chunk(payload, group),
-        b"IVOM" => group.indices = parse_u16_array(payload),
-        b"ABOM" => group.batches = parse_moba(payload)?,
-        _ => {}
+    if let Some(handler) = group_chunk_handler(tag) {
+        handler(payload, group)?;
     }
+    Ok(())
+}
+
+fn group_chunk_handler(tag: &[u8]) -> Option<GroupChunkHandler> {
+    let tag: &[u8; 4] = tag.try_into().ok()?;
+    GROUP_CHUNK_HANDLERS
+        .iter()
+        .find(|(chunk_tag, _)| *chunk_tag == tag)
+        .map(|(_, handler)| *handler)
+}
+
+fn apply_group_mopy_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.triangle_materials = parse_mopy(payload)?;
+    Ok(())
+}
+
+fn apply_group_modr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.doodad_refs = parse_u16_array(payload);
+    Ok(())
+}
+
+fn apply_group_molr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.light_refs = parse_u16_array(payload);
+    Ok(())
+}
+
+fn apply_group_mobn_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.bsp_nodes = parse_mobn(payload)?;
+    Ok(())
+}
+
+fn apply_group_mobr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.bsp_face_refs = parse_mobr(payload)?;
+    Ok(())
+}
+
+fn apply_group_mliq_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.liquid = Some(parse_mliq(payload)?);
+    Ok(())
+}
+
+fn apply_group_movt_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.vertices = parse_vec3_array(payload)?;
+    Ok(())
+}
+
+fn apply_group_monr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.normals = parse_vec3_array(payload)?;
+    Ok(())
+}
+
+fn apply_group_motv_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    apply_group_uv_chunk(payload, group)
+}
+
+fn apply_group_mocv_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    apply_group_color_chunk(payload, group);
+    Ok(())
+}
+
+fn apply_group_movi_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.indices = parse_u16_array(payload);
+    Ok(())
+}
+
+fn apply_group_moba_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    group.batches = parse_moba(payload)?;
     Ok(())
 }
 
