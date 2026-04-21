@@ -8,6 +8,11 @@ struct SexedModelPath {
     female: &'static str,
 }
 
+struct RaceNameEntry {
+    race: u8,
+    name: &'static str,
+}
+
 const BASE_RACE_MODEL_PATHS: &[SexedModelPath] = &[
     SexedModelPath {
         race: 1,
@@ -124,6 +129,97 @@ const ALLIED_RACE_MODEL_PATHS: &[SexedModelPath] = &[
     },
 ];
 
+const RACE_NAMES: &[RaceNameEntry] = &[
+    RaceNameEntry {
+        race: 1,
+        name: "Human",
+    },
+    RaceNameEntry {
+        race: 2,
+        name: "Orc",
+    },
+    RaceNameEntry {
+        race: 3,
+        name: "Dwarf",
+    },
+    RaceNameEntry {
+        race: 4,
+        name: "NightElf",
+    },
+    RaceNameEntry {
+        race: 5,
+        name: "Undead",
+    },
+    RaceNameEntry {
+        race: 6,
+        name: "Tauren",
+    },
+    RaceNameEntry {
+        race: 7,
+        name: "Gnome",
+    },
+    RaceNameEntry {
+        race: 8,
+        name: "Troll",
+    },
+    RaceNameEntry {
+        race: 9,
+        name: "Goblin",
+    },
+    RaceNameEntry {
+        race: 10,
+        name: "BloodElf",
+    },
+    RaceNameEntry {
+        race: 11,
+        name: "Draenei",
+    },
+    RaceNameEntry {
+        race: 22,
+        name: "Worgen",
+    },
+    RaceNameEntry {
+        race: 25,
+        name: "Pandaren",
+    },
+    RaceNameEntry {
+        race: 27,
+        name: "Nightborne",
+    },
+    RaceNameEntry {
+        race: 28,
+        name: "HighmountainTauren",
+    },
+    RaceNameEntry {
+        race: 29,
+        name: "VoidElf",
+    },
+    RaceNameEntry {
+        race: 30,
+        name: "LightforgedDraenei",
+    },
+    RaceNameEntry {
+        race: 31,
+        name: "ZandalariTroll",
+    },
+    RaceNameEntry {
+        race: 34,
+        name: "DarkIronDwarf",
+    },
+    RaceNameEntry {
+        race: 35,
+        name: "Vulpera",
+    },
+    RaceNameEntry {
+        race: 36,
+        name: "MagharOrc",
+    },
+    RaceNameEntry {
+        race: 37,
+        name: "Mechagnome",
+    },
+];
+
 fn base_race_model_wow_path(race: u8, sex: u8) -> Option<&'static str> {
     race_model_path_for_sex(BASE_RACE_MODEL_PATHS, race, sex)
 }
@@ -204,31 +300,14 @@ fn ensure_named_model_asset(wow_path: &str) -> Option<PathBuf> {
 }
 
 pub fn race_name(race: u8) -> &'static str {
-    match race {
-        1 => "Human",
-        2 => "Orc",
-        3 => "Dwarf",
-        4 => "NightElf",
-        5 => "Undead",
-        6 => "Tauren",
-        7 => "Gnome",
-        8 => "Troll",
-        10 => "BloodElf",
-        11 => "Draenei",
-        9 => "Goblin",
-        22 => "Worgen",
-        25 => "Pandaren",
-        27 => "Nightborne",
-        28 => "HighmountainTauren",
-        29 => "VoidElf",
-        30 => "LightforgedDraenei",
-        31 => "ZandalariTroll",
-        34 => "DarkIronDwarf",
-        35 => "Vulpera",
-        36 => "MagharOrc",
-        37 => "Mechagnome",
-        _ => "Unknown",
-    }
+    race_name_entry(race).unwrap_or("Unknown")
+}
+
+fn race_name_entry(race: u8) -> Option<&'static str> {
+    RACE_NAMES
+        .iter()
+        .find(|entry| entry.race == race)
+        .map(|entry| entry.name)
 }
 
 #[cfg(test)]
@@ -251,5 +330,16 @@ mod tests {
     fn race_model_lookup_rejects_invalid_sex() {
         assert_eq!(base_race_model_wow_path(1, 2), None);
         assert_eq!(race_model_wow_path(27, 3), None);
+    }
+
+    #[test]
+    fn race_name_lookup_resolves_known_entries() {
+        assert_eq!(race_name(1), "Human");
+        assert_eq!(race_name(36), "MagharOrc");
+    }
+
+    #[test]
+    fn race_name_lookup_uses_unknown_fallback() {
+        assert_eq!(race_name(99), "Unknown");
     }
 }
