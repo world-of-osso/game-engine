@@ -11,7 +11,9 @@ use std::f32::consts::FRAC_PI_4;
 
 use crate::asset::adt;
 use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sampler};
-use crate::sky::SkyEnvMapHandle;
+use terrain_material_systems::{sync_terrain_environment_map, update_terrain_animation_time};
+
+mod terrain_material_systems;
 
 /// Custom terrain material: ground texture layers + alpha blending + hex tiling.
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
@@ -116,47 +118,21 @@ impl Plugin for TerrainMaterialPlugin {
     }
 }
 
-fn update_terrain_animation_time(
-    time: Res<Time>,
-    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
-) {
-    let animation_time = time.elapsed_secs();
-    for (_id, material) in terrain_materials.iter_mut() {
-        material.settings.config.w = animation_time;
-    }
-}
-
-fn sync_terrain_environment_map(
-    env_handle: Option<Res<SkyEnvMapHandle>>,
-    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
-) {
-    let Some(env_handle) = env_handle else { return };
-    for (_id, material) in terrain_materials.iter_mut() {
-        if material.environment_map != env_handle.0 {
-            material.environment_map = env_handle.0.clone();
-        }
-    }
-}
-
 /// 1x1 placeholder for unused texture slots.
 pub fn placeholder_image(images: &mut Assets<Image>) -> Handle<Image> {
-    let mut img = Image::new(
-        Extent3d {
-            width: 1,
-            height: 1,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        vec![128, 128, 128, 255],
-        TextureFormat::Rgba8UnormSrgb,
-        RenderAssetUsages::default(),
-    );
-    img.sampler = repeat_linear_sampler();
-    images.add(img)
+    add_single_pixel_placeholder(images, [128, 128, 128, 255], true)
 }
 
 /// 1x1 black alpha texture (all layers transparent).
 pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
+    add_single_pixel_placeholder(images, [0, 0, 0, 255], false)
+}
+
+fn add_single_pixel_placeholder(
+    images: &mut Assets<Image>,
+    rgba: [u8; 4],
+    use_repeat_sampler: bool,
+) -> Handle<Image> {
     let mut img = Image::new(
         Extent3d {
             width: 1,
@@ -164,11 +140,15 @@ pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        vec![0, 0, 0, 255],
+        rgba.to_vec(),
         TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     );
-    img.sampler = clamp_linear_sampler();
+    img.sampler = if use_repeat_sampler {
+        repeat_linear_sampler()
+    } else {
+        clamp_linear_sampler()
+    };
     images.add(img)
 }
 

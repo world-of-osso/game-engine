@@ -1,6 +1,7 @@
 use super::{
-    Placeholders, TerrainMaterial, build_chunk_material, pack_shadow_map, shadow_bit_is_set,
-    terrain_layer_animation_params, terrain_texture_repeat, texture_layer_params,
+    Placeholders, TerrainMaterial, build_chunk_material, pack_shadow_map, placeholder_alpha,
+    placeholder_image, shadow_bit_is_set, terrain_layer_animation_params, terrain_texture_repeat,
+    texture_layer_params,
 };
 use crate::asset::adt;
 use bevy::asset::Assets;
@@ -32,6 +33,29 @@ fn pack_shadow_map_expands_mcsh_bits_to_64x64_pixels() {
     assert_eq!(&data[0..4], &[0, 0, 0, 255]);
     assert_eq!(&data[4..8], &[255, 255, 255, 255]);
     assert_eq!(&data[32..36], &[0, 0, 0, 255]);
+}
+
+#[test]
+fn placeholder_images_use_expected_rgba_values() {
+    let mut images = Assets::<Image>::default();
+
+    let color_handle = placeholder_image(&mut images);
+    let alpha_handle = placeholder_alpha(&mut images);
+    let color_image = images
+        .get(&color_handle)
+        .expect("expected color placeholder image");
+    let alpha_image = images
+        .get(&alpha_handle)
+        .expect("expected alpha placeholder image");
+
+    assert_eq!(
+        color_image.data.as_ref().expect("color pixels"),
+        &[128, 128, 128, 255]
+    );
+    assert_eq!(
+        alpha_image.data.as_ref().expect("alpha pixels"),
+        &[0, 0, 0, 255]
+    );
 }
 
 #[test]
