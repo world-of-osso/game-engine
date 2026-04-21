@@ -135,7 +135,22 @@ fn spawn_m2_debug_reference_model(
         warn!("m2debug: missing reference model {}", path.display());
         return None;
     }
+    let Some(spawned) = spawn_m2_debug_reference_model_parts(commands, params, path) else {
+        warn!(
+            "m2debug: failed to spawn reference model {}",
+            path.display()
+        );
+        return None;
+    };
+    tag_m2_debug_reference_model_entities(commands, &spawned);
+    Some(spawned)
+}
 
+fn spawn_m2_debug_reference_model_parts(
+    commands: &mut Commands,
+    params: &mut M2DebugSceneParams<'_, '_>,
+    path: &Path,
+) -> Option<m2_scene::SpawnedAnimatedStaticM2> {
     let mut spawn_ctx = m2_scene::M2SceneSpawnContext {
         commands,
         assets: crate::m2_spawn::SpawnAssets {
@@ -148,27 +163,28 @@ fn spawn_m2_debug_reference_model(
         },
         creature_display_map: &params.creature_display_map,
     };
-    let transform = Transform::from_xyz(0.0, 0.0, 0.0)
-        .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2));
-    let Some(spawned) = m2_scene::spawn_animated_static_m2_parts(&mut spawn_ctx, path, transform)
-    else {
-        warn!(
-            "m2debug: failed to spawn reference model {}",
-            path.display()
-        );
-        return None;
-    };
+    m2_scene::spawn_animated_static_m2_parts(
+        &mut spawn_ctx,
+        path,
+        m2_debug_reference_model_transform(),
+    )
+}
 
-    spawn_ctx.commands.entity(spawned.root).insert((
+fn m2_debug_reference_model_transform() -> Transform {
+    Transform::from_xyz(0.0, 0.0, 0.0)
+        .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
+}
+
+fn tag_m2_debug_reference_model_entities(
+    commands: &mut Commands,
+    spawned: &m2_scene::SpawnedAnimatedStaticM2,
+) {
+    commands.entity(spawned.root).insert((
         Name::new("M2DebugReferenceModel"),
         M2DebugScene,
         M2DebugReferenceModel,
     ));
-    spawn_ctx
-        .commands
-        .entity(spawned.model_root)
-        .insert(M2DebugScene);
-    Some(spawned)
+    commands.entity(spawned.model_root).insert(M2DebugScene);
 }
 
 fn m2_debug_reference_model_path() -> &'static Path {
