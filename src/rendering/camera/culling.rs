@@ -393,38 +393,55 @@ fn wmo_portal_cull_system(
     let cam_pos = cam_gtf.translation();
 
     for (wmo_entity, wmo_gtf, graph) in &wmo_q {
-        let local_cam = wmo_gtf.affine().inverse().transform_point3(cam_pos);
+        cull_wmo_portal_visibility(wmo_entity, wmo_gtf, graph, frustum, cam_pos, &mut group_q);
+    }
+}
 
-        // Collect group info for camera detection (immutable pass)
-        let camera_group = find_camera_group_from_query(local_cam, wmo_entity, &group_q);
-        let antiportal_groups = antiportal_groups_from_query(wmo_entity, &group_q);
+fn cull_wmo_portal_visibility(
+    wmo_entity: Entity,
+    wmo_gtf: &GlobalTransform,
+    graph: &WmoPortalGraph,
+    frustum: &Frustum,
+    cam_pos: Vec3,
+    group_q: &mut Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+) {
+    let local_cam = wmo_gtf.affine().inverse().transform_point3(cam_pos);
 
-        // Not inside any group = outside the WMO, skip portal culling
-        let Some(cam_group) = camera_group else {
+    // Collect group info for camera detection (immutable pass)
+    let camera_group = find_camera_group_from_query(local_cam, wmo_entity, group_q);
+    let antiportal_groups = antiportal_groups_from_query(wmo_entity, group_q);
+
+    // Not inside any group = outside the WMO, skip portal culling
+    let Some(cam_group) = camera_group else {
+        return;
+    };
+
+    let visible_set = bfs_visible_groups(cam_group, graph, frustum, wmo_gtf);
+    apply_portal_group_visibility(
+        wmo_entity,
+        local_cam,
+        &visible_set,
+        &antiportal_groups,
+        group_q,
+    );
+}
+
+fn apply_portal_group_visibility(
+    wmo_entity: Entity,
+    local_cam: Vec3,
+    visible_set: &HashSet<u16>,
+    antiportal_groups: &[WmoGroup],
+    group_q: &mut Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+) {
+    for (group, mut vis, child_of) in group_q {
+        if child_of.parent() != wmo_entity {
             continue;
-        };
-
-        let visible_set = bfs_visible_groups(cam_group, graph, frustum, wmo_gtf);
-
-        // Apply visibility (mutable pass)
-        for (group, mut vis, child_of) in &mut group_q {
-            if child_of.parent() != wmo_entity {
-                continue;
-            }
-            let visible_through_portals = visible_set.contains(&group.group_index);
-            let hidden_by_antiportal =
-                antiportal_occludes_group(local_cam, group, &antiportal_groups);
-            let should_show_group =
-                !group.is_antiportal && visible_through_portals && !hidden_by_antiportal;
-            let desired = if should_show_group {
-                Visibility::Visible
-            } else {
-                Visibility::Hidden
-            };
-            if *vis != desired {
-                *vis = desired;
-            }
         }
+        let visible_through_portals = visible_set.contains(&group.group_index);
+        let hidden_by_antiportal = antiportal_occludes_group(local_cam, group, antiportal_groups);
+        let should_show_group =
+            !group.is_antiportal && visible_through_portals && !hidden_by_antiportal;
+        apply_visibility(should_show_group, &mut vis);
     }
 }
 
