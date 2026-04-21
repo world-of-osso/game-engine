@@ -212,9 +212,8 @@ fn build_scene_tree(
     ground: Entity,
     model: Option<&m2_scene::SpawnedAnimatedStaticM2>,
 ) -> SceneTree {
-    let children = m2_debug_scene_children(camera, light, ground, model);
     SceneTree {
-        root: m2_debug_scene_root(children),
+        root: m2_debug_scene_root(m2_debug_scene_children(camera, light, ground, model)),
     }
 }
 
