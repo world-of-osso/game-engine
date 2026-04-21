@@ -6,6 +6,12 @@ use crate::skybox_m2_material::SkyboxM2Material;
 use bevy::mesh::{Mesh, PrimitiveTopology};
 use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial};
 
+const SHADER_SINGLE_TEXTURE: u16 = 0x0010;
+const SHADER_MOD2X: u16 = 0x4014;
+const SHADER_THREE_STAGE: u16 = 0x8012;
+const SHADER_FOUR_STAGE: u16 = 0x8016;
+const COMBINE_STATIC_MOD2X: u32 = 0x000E;
+
 #[test]
 fn ground_offset_uses_lowest_vertex_y() {
     let mut mesh = Mesh::new(
@@ -133,7 +139,9 @@ fn deathskybox_single_texture_shader_batches_do_not_force_effect_combine() {
         .batches
         .iter()
         .find(|batch| {
-            batch.texture_count == 1 && batch.texture_2_fdid.is_none() && batch.shader_id == 0x0010
+            batch.texture_count == 1
+                && batch.texture_2_fdid.is_none()
+                && batch.shader_id == SHADER_SINGLE_TEXTURE
         })
         .expect("deathskybox single-texture batch");
 
@@ -152,7 +160,9 @@ fn deathskybox_single_texture_shader_batch_keeps_second_texture_disabled() {
         .batches
         .iter()
         .find(|batch| {
-            batch.texture_count == 1 && batch.texture_2_fdid.is_none() && batch.shader_id == 0x0010
+            batch.texture_count == 1
+                && batch.texture_2_fdid.is_none()
+                && batch.shader_id == SHADER_SINGLE_TEXTURE
         })
         .expect("deathskybox single-texture batch");
 
@@ -257,7 +267,7 @@ fn cloudsky_batches_are_two_texture_and_use_unhandled_shader_ids() {
     assert_eq!(two_texture_batches, 54);
     assert_eq!(
         shader_ids,
-        std::collections::BTreeSet::from([0x4014, 0x8012, 0x8016])
+        std::collections::BTreeSet::from([SHADER_MOD2X, SHADER_THREE_STAGE, SHADER_FOUR_STAGE])
     );
 }
 
@@ -269,7 +279,10 @@ fn cloudsky_modern_shader_batches_keep_runtime_second_texture_sampling() {
     let batch = model
         .batches
         .iter()
-        .find(|batch| batch.texture_2_fdid.is_some() && matches!(batch.shader_id, 0x8012 | 0x8016))
+        .find(|batch| {
+            batch.texture_2_fdid.is_some()
+                && matches!(batch.shader_id, SHADER_THREE_STAGE | SHADER_FOUR_STAGE)
+        })
         .expect("cloud skybox batch with supported modern shader id");
 
     let mut images = Assets::<Image>::default();
@@ -302,6 +315,115 @@ fn cloudsky_modern_shader_batches_keep_runtime_second_texture_sampling() {
     );
 }
 
+fn load_cloudsky_model() -> crate::asset::m2::M2Model {
+    let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
+    crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0])
+        .expect("load 11xp cloud skybox model")
+}
+
+fn cloudsky_batch_by_shader_id(
+    model: &crate::asset::m2::M2Model,
+    shader_id: u16,
+) -> (usize, &crate::asset::m2::M2RenderBatch) {
+    model
+        .batches
+        .iter()
+        .enumerate()
+        .find(|(_, batch)| batch.shader_id == shader_id)
+        .unwrap_or_else(|| panic!("cloud skybox missing shader id 0x{shader_id:04x}"))
+}
+
+fn traced_cloudsky_material(
+    batch: &crate::asset::m2::M2RenderBatch,
+    batch_index: usize,
+) -> SkyboxM2Material {
+    let mut images = Assets::<Image>::default();
+    let mut materials = Assets::<StandardMaterial>::default();
+    let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
+    let mut skybox_materials = Assets::<SkyboxM2Material>::default();
+
+    let material = load_batch_material(
+        batch,
+        batch_index,
+        &mut images,
+        &mut materials,
+        &mut effect_materials,
+        Some(&mut skybox_materials),
+        true,
+        None,
+        None,
+        None,
+    );
+    let BatchMaterial::Skybox(handle) = material else {
+        panic!("expected cloud skybox batch to route through SkyboxM2Material");
+    };
+    skybox_materials
+        .get(&handle)
+        .cloned()
+        .expect("cloud skybox material asset")
+}
+
+#[test]
+fn cloudsky_shader_4014_trace_captures_two_stage_mod2x_path() {
+    let model = load_cloudsky_model();
+    let (batch_index, batch) = cloudsky_batch_by_shader_id(&model, SHADER_MOD2X);
+    let material = traced_cloudsky_material(batch, batch_index);
+
+    assert_eq!(batch.texture_count, 2);
+    assert!(!batch.uses_texture_combiner_combos);
+    assert_eq!(batch.extra_texture_fdids.len(), 0);
+    assert_eq!(
+        material.settings.combine_mode, COMBINE_STATIC_MOD2X,
+        "SHADER_MOD2X cloudsky batches currently route through static fragment-mode combine mapping"
+    );
+    assert_eq!(material.settings.has_second_texture, 1);
+    assert_eq!(material.settings.has_third_texture, 0);
+    assert_eq!(material.settings.has_fourth_texture, 0);
+    assert_eq!(material.settings.uv_mode_1, u32::from(batch.use_uv_2_1));
+    assert_eq!(material.settings.uv_mode_2, u32::from(batch.use_uv_2_2));
+    assert_eq!(material.settings.uv_mode_3, 0);
+    assert_eq!(material.settings.uv_mode_4, 0);
+}
+
+#[test]
+fn cloudsky_shader_8012_trace_captures_three_stage_primary_uv_path() {
+    let model = load_cloudsky_model();
+    let (batch_index, batch) = cloudsky_batch_by_shader_id(&model, SHADER_THREE_STAGE);
+    let material = traced_cloudsky_material(batch, batch_index);
+
+    assert_eq!(batch.texture_count, 3);
+    assert_eq!(batch.extra_texture_fdids.len(), 1);
+    assert_eq!(
+        material.settings.combine_mode,
+        u32::from(SHADER_THREE_STAGE)
+    );
+    assert_eq!(material.settings.has_second_texture, 1);
+    assert_eq!(material.settings.has_third_texture, 1);
+    assert_eq!(material.settings.has_fourth_texture, 0);
+    assert_eq!(material.settings.uv_mode_1, 0);
+    assert_eq!(material.settings.uv_mode_2, 0);
+    assert_eq!(material.settings.uv_mode_3, 0);
+    assert_eq!(material.settings.uv_mode_4, 0);
+}
+
+#[test]
+fn cloudsky_shader_8016_trace_captures_four_stage_masked_uv4_path() {
+    let model = load_cloudsky_model();
+    let (batch_index, batch) = cloudsky_batch_by_shader_id(&model, SHADER_FOUR_STAGE);
+    let material = traced_cloudsky_material(batch, batch_index);
+
+    assert_eq!(batch.texture_count, 4);
+    assert_eq!(batch.extra_texture_fdids.len(), 2);
+    assert_eq!(material.settings.combine_mode, u32::from(SHADER_FOUR_STAGE));
+    assert_eq!(material.settings.has_second_texture, 1);
+    assert_eq!(material.settings.has_third_texture, 1);
+    assert_eq!(material.settings.has_fourth_texture, 1);
+    assert_eq!(material.settings.uv_mode_1, 0);
+    assert_eq!(material.settings.uv_mode_2, 0);
+    assert_eq!(material.settings.uv_mode_3, 0);
+    assert_eq!(material.settings.uv_mode_4, 1);
+}
+
 #[test]
 fn cloudsky_advanced_effect_batches_require_more_than_two_texture_stages() {
     let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
@@ -310,16 +432,16 @@ fn cloudsky_advanced_effect_batches_require_more_than_two_texture_stages() {
     let advanced_batch = model
         .batches
         .iter()
-        .find(|batch| batch.shader_id == 0x8012)
+        .find(|batch| batch.shader_id == SHADER_THREE_STAGE)
         .expect("cloud skybox advanced-effect batch");
 
     assert!(
         !advanced_batch.uses_texture_combiner_combos,
-        "0x8012 cloud skybox batches are direct shader effects, not combiner-table batches"
+        "SHADER_THREE_STAGE cloud skybox batches are direct shader effects, not combiner-table batches"
     );
     assert!(
         advanced_batch.texture_count >= 3,
-        "0x8012 cloud skybox batches need at least three texture stages"
+        "SHADER_THREE_STAGE cloud skybox batches need at least three texture stages"
     );
 }
 
@@ -331,7 +453,7 @@ fn cloudsky_masked_crossfade_batches_preserve_fourth_stage_texture() {
     let masked_batch = model
         .batches
         .iter()
-        .find(|batch| batch.shader_id == 0x8016)
+        .find(|batch| batch.shader_id == SHADER_FOUR_STAGE)
         .expect("cloud skybox masked crossfade batch");
 
     assert_eq!(masked_batch.texture_count, 4);

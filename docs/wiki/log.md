@@ -13,3 +13,7 @@ Added `investigations/authored-skybox-black-output.md`, updated `systems/skybox.
 ## [2026-04-21] update | Document LightParams sky-affecting flag composition
 
 Updated `systems/skybox.md` with the implemented `LightParams::Flags` contract (`DontInheritSkybox`, `HideSun`, `HideMoon`, `HideStars`, `HideCelestialObject`, `OverrideCelestialSphere`, `HeightFogAbovePlane`) and how those flags now alter `skyboxdebug` procedural baseline/fog composition.
+
+## [2026-04-21] update | Trace modern authored skybox shader/effect path
+
+Updated `investigations/authored-skybox-black-output.md` with a detailed trace for `11xp_cloudsky01.m2` modern shader batches (`0x4014`, `0x8012`, `0x8016`), including stage binding, combine-mode routing, UV mode mapping, and the current WGSL combine-coverage gap for `0x8012`/`0x8016`.

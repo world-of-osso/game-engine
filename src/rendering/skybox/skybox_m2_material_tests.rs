@@ -16,6 +16,12 @@ use bevy::render::render_resource::{
     FragmentState, MultisampleState, PrimitiveState, TextureFormat, VertexState,
 };
 
+const SKYBOX_SHADER_SOURCE: &str = include_str!("../../../assets/shaders/m2_skybox.wgsl");
+const SHADER_SINGLE_TEXTURE: u16 = 0x0010;
+const SHADER_MOD2X: u16 = 0x4014;
+const SHADER_THREE_STAGE: u16 = 0x8012;
+const SHADER_FOUR_STAGE: u16 = 0x8016;
+
 fn test_batch() -> asset::m2::M2RenderBatch {
     let mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -69,7 +75,7 @@ fn advanced_skybox_batch() -> asset::m2::M2RenderBatch {
     batch.use_uv_2_1 = true;
     batch.use_uv_2_2 = true;
     batch.uses_texture_combiner_combos = true;
-    batch.shader_id = 0x4014;
+    batch.shader_id = SHADER_MOD2X;
     batch.texture_count = 2;
     batch.render_flags = 0x01;
     batch
@@ -84,7 +90,7 @@ fn assert_advanced_skybox_material(
     assert_eq!(material.second_texture, *second);
     assert_eq!(material.third_texture, *base);
     assert_eq!(material.fourth_texture, *base);
-    assert_eq!(material.settings.combine_mode, 0x4014);
+    assert_eq!(material.settings.combine_mode, u32::from(SHADER_MOD2X));
     assert_eq!(material.settings.blend_mode, 1);
     assert_eq!(material.settings.uv_mode_1, 1);
     assert_eq!(material.settings.uv_mode_2, 1);
@@ -157,7 +163,7 @@ fn skybox_material_preserves_effect_combine_state_for_advanced_batches() {
 #[test]
 fn skybox_material_marks_missing_second_texture_for_single_texture_batches() {
     let mut batch = test_batch();
-    batch.shader_id = 0x0010;
+    batch.shader_id = SHADER_SINGLE_TEXTURE;
     batch.texture_count = 1;
 
     let material = skybox_m2_material(None, None, None, None, Some(Color::WHITE), &batch, 0, &[]);
@@ -181,7 +187,7 @@ fn skybox_material_reuses_primary_texture_for_missing_optional_stages() {
         RenderAssetUsages::default(),
     ));
     let mut batch = test_batch();
-    batch.shader_id = 0x8012;
+    batch.shader_id = SHADER_THREE_STAGE;
     batch.texture_count = 3;
 
     let material = skybox_m2_material(Some(base.clone()), None, None, None, None, &batch, 0, &[]);
@@ -339,6 +345,32 @@ fn skybox_alpha_mode_mapping_matches_authored_skybox_batches() {
         skybox_alpha_mode_for_blend(u16::MAX),
         AlphaMode::Add
     ));
+}
+
+#[test]
+fn skybox_shader_trace_shows_modern_combine_coverage_gap() {
+    assert!(SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_MOD2X)));
+    assert!(
+        !SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_THREE_STAGE)),
+        "modern 0x{:04x} combine semantics are still unresolved in WGSL combine_textures()",
+        SHADER_THREE_STAGE
+    );
+    assert!(
+        !SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_FOUR_STAGE)),
+        "modern 0x{:04x} combine semantics are still unresolved in WGSL combine_textures()",
+        SHADER_FOUR_STAGE
+    );
+}
+
+fn shader_case_snippet(shader_id: u16) -> String {
+    format!("case 0x{shader_id:04x}u")
+}
+
+#[test]
+fn skybox_shader_trace_shows_only_first_two_texture_stages_are_combined() {
+    assert!(SKYBOX_SHADER_SOURCE.contains("combine_textures(texture1, texture2"));
+    assert!(SKYBOX_SHADER_SOURCE.contains("_ = third_texture;"));
+    assert!(SKYBOX_SHADER_SOURCE.contains("_ = fourth_texture;"));
 }
 
 fn vec2_close(left: Vec2, right: Vec2) -> bool {
