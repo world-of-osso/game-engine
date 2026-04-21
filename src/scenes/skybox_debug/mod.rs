@@ -403,9 +403,22 @@ fn spawn_skybox_debug_reference_objects(
     images: &mut Assets<Image>,
     view_mode: SkyboxDebugViewMode,
 ) {
-    if !view_mode.shows_reference_objects() {
+    if !should_spawn_skybox_debug_reference_objects(view_mode) {
         return;
     }
+    spawn_default_skybox_debug_reference_objects(commands, meshes, materials, images);
+}
+
+fn should_spawn_skybox_debug_reference_objects(view_mode: SkyboxDebugViewMode) -> bool {
+    view_mode.shows_reference_objects()
+}
+
+fn spawn_default_skybox_debug_reference_objects(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    images: &mut Assets<Image>,
+) {
     spawn_debug_reference_plane(commands, meshes, materials, images);
 }
 
