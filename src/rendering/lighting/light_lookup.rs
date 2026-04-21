@@ -560,21 +560,48 @@ impl<'a> ParsedWdc5Db2<'a> {
 
     fn decode_field(&self, row: Wdc5RowRef, field_index: usize) -> u32 {
         let field = self.fields[field_index];
+        let value_index = self.decode_field_value_index(row, field);
+        decode_wdc5_storage_value(self, field_index, row, value_index)
+    }
+
+    fn decode_field_value_index(&self, row: Wdc5RowRef, field: Wdc5FieldStorage) -> usize {
         if field.size_bits == 0 {
-            return decode_wdc5_storage_value(self, field_index, row, 0);
+            return 0;
         }
+
+        let record_offset = self.row_record_offset(row);
+        let raw = self.read_field_raw(record_offset, field);
+        let shifted = raw >> Self::field_bit_shift(field);
+        let value = shifted & Self::field_value_mask(field.size_bits);
+        value as usize
+    }
+
+    fn row_record_offset(&self, row: Wdc5RowRef) -> usize {
         let section = &self.sections[row.section_index];
-        let record_offset = section.file_offset + row.row_index * self.record_size;
+        section.file_offset + row.row_index * self.record_size
+    }
+
+    fn read_field_raw(&self, record_offset: usize, field: Wdc5FieldStorage) -> u64 {
+        let (lo, len) = Self::field_byte_range(field);
+        read_le(self.bytes, record_offset + lo, len)
+    }
+
+    fn field_byte_range(field: Wdc5FieldStorage) -> (usize, usize) {
         let lo = field.offset_bits as usize / 8;
         let hi = (field.offset_bits as usize + field.size_bits as usize - 1) / 8;
-        let raw = read_le(self.bytes, record_offset + lo, hi - lo + 1);
-        let mask = if field.size_bits == 32 {
-            u64::MAX
-        } else {
-            (1u64 << field.size_bits as usize) - 1
-        };
-        let value = (raw >> (field.offset_bits as usize % 8)) & mask;
-        decode_wdc5_storage_value(self, field_index, row, value as usize)
+        (lo, hi - lo + 1)
+    }
+
+    fn field_bit_shift(field: Wdc5FieldStorage) -> usize {
+        field.offset_bits as usize % 8
+    }
+
+    fn field_value_mask(size_bits: u16) -> u64 {
+        if size_bits == 32 {
+            return u64::MAX;
+        }
+
+        (1u64 << size_bits as usize) - 1
     }
 }
 
