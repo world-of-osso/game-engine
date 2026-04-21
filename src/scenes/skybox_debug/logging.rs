@@ -137,10 +137,18 @@ fn format_optional_opacity_samples(
 
 fn log_debug_skybox_additive_batches(model: &crate::asset::m2::M2Model) {
     let additive_batches = additive_batches(model);
-    info!(
-        "skybox_debug_scene: additive_batches={}",
-        additive_batches.len()
-    );
+    log_additive_batch_count(additive_batches.len());
+    log_each_additive_batch(model, additive_batches);
+}
+
+fn log_additive_batch_count(additive_batch_count: usize) {
+    info!("skybox_debug_scene: additive_batches={additive_batch_count}");
+}
+
+fn log_each_additive_batch(
+    model: &crate::asset::m2::M2Model,
+    additive_batches: Vec<(usize, &crate::asset::m2::M2RenderBatch)>,
+) {
     for (batch_index, batch) in additive_batches {
         log_additive_batch_summary(model, batch_index, batch);
         log_additive_batch_geometry(model, batch_index, batch);
