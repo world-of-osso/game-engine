@@ -10,6 +10,9 @@ pub const CLOUD_TEXTURE_HEIGHT: u32 = 1024;
 pub const CLOUD_REGEN_SECONDS: f32 = 5.0;
 const CLOUD_OCTAVES: usize = 6;
 const CLOUD_RIDGE_SEED_MIX: u32 = 0x9E37_79B9;
+const HASH_X_MIX: u32 = 0x8DA6_B343;
+const HASH_Y_MIX: u32 = 0xD816_3841;
+const HASH_FINAL_MIX: u32 = 0x85EB_CA6B;
 
 #[derive(Resource)]
 pub struct ProceduralCloudMaps {
@@ -46,28 +49,7 @@ pub fn next_cloud_buffer_index(current: usize) -> usize {
 pub fn generate_procedural_cloud_image(seed: u32) -> Image {
     let width = CLOUD_TEXTURE_WIDTH;
     let height = CLOUD_TEXTURE_HEIGHT;
-    let mut data = vec![0u8; (width * height * 4) as usize];
-    for y in 0..height {
-        for x in 0..width {
-            let u = x as f32 / width as f32;
-            let v = y as f32 / height as f32;
-            let noise = fbm_simplex(u * 7.0, v * 9.0, seed);
-            let ridges = fbm_simplex(
-                u * 15.0 + 17.3,
-                v * 13.0 - 11.1,
-                seed ^ CLOUD_RIDGE_SEED_MIX,
-            );
-            let combined =
-                (noise * 0.72 + (1.0 - (ridges * 2.0 - 1.0).abs()) * 0.28).clamp(0.0, 1.0);
-            let softened = combined.powf(1.35);
-            let value = (softened * 255.0).round() as u8;
-            let idx = ((y * width + x) * 4) as usize;
-            data[idx] = value;
-            data[idx + 1] = value;
-            data[idx + 2] = value;
-            data[idx + 3] = 255;
-        }
-    }
+    let data = generate_cloud_pixels(width, height, seed);
 
     let mut image = Image::new(
         Extent3d {
@@ -82,6 +64,35 @@ pub fn generate_procedural_cloud_image(seed: u32) -> Image {
     );
     image.sampler = repeat_linear_sampler();
     image
+}
+
+fn generate_cloud_pixels(width: u32, height: u32, seed: u32) -> Vec<u8> {
+    let mut data = vec![0u8; (width * height * 4) as usize];
+    for y in 0..height {
+        for x in 0..width {
+            let value = cloud_density_byte(x, y, width, height, seed);
+            let idx = ((y * width + x) * 4) as usize;
+            data[idx] = value;
+            data[idx + 1] = value;
+            data[idx + 2] = value;
+            data[idx + 3] = 255;
+        }
+    }
+    data
+}
+
+fn cloud_density_byte(x: u32, y: u32, width: u32, height: u32, seed: u32) -> u8 {
+    let u = x as f32 / width as f32;
+    let v = y as f32 / height as f32;
+    let noise = fbm_simplex(u * 7.0, v * 9.0, seed);
+    let ridges = fbm_simplex(
+        u * 15.0 + 17.3,
+        v * 13.0 - 11.1,
+        seed ^ CLOUD_RIDGE_SEED_MIX,
+    );
+    let combined = (noise * 0.72 + (1.0 - (ridges * 2.0 - 1.0).abs()) * 0.28).clamp(0.0, 1.0);
+    let softened = combined.powf(1.35);
+    (softened * 255.0).round() as u8
 }
 
 fn fbm_simplex(x: f32, y: f32, seed: u32) -> f32 {
@@ -140,10 +151,10 @@ fn simplex_corner(i: i32, j: i32, x: f32, y: f32, seed: u32) -> f32 {
 
 fn hash2(i: i32, j: i32, seed: u32) -> u32 {
     let mut h = seed
-        .wrapping_add((i as u32).wrapping_mul(0x8DA6_B343))
-        .wrapping_add((j as u32).wrapping_mul(0xD816_3841));
+        .wrapping_add((i as u32).wrapping_mul(HASH_X_MIX))
+        .wrapping_add((j as u32).wrapping_mul(HASH_Y_MIX));
     h ^= h >> 13;
-    h = h.wrapping_mul(0x85EB_CA6B);
+    h = h.wrapping_mul(HASH_FINAL_MIX);
     h ^ (h >> 16)
 }
 
