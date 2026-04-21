@@ -197,47 +197,77 @@ fn build_scene_tree(
     ground: Entity,
     model: Option<&m2_scene::SpawnedAnimatedStaticM2>,
 ) -> SceneTree {
+    let children = m2_debug_scene_children(camera, light, ground, model);
+    SceneTree {
+        root: m2_debug_scene_root(children),
+    }
+}
+
+fn m2_debug_scene_children(
+    camera: Entity,
+    light: Entity,
+    ground: Entity,
+    model: Option<&m2_scene::SpawnedAnimatedStaticM2>,
+) -> Vec<SceneNode> {
     let mut children = vec![
-        SceneNode {
-            label: "Camera".into(),
-            entity: Some(camera),
-            props: NodeProps::Camera { fov: 60.0 },
-            children: vec![],
-        },
-        SceneNode {
-            label: "Light".into(),
-            entity: Some(light),
-            props: NodeProps::Light {
-                kind: "directional".into(),
-                intensity: 12_000.0,
-            },
-            children: vec![],
-        },
-        SceneNode {
-            label: "Ground".into(),
-            entity: Some(ground),
-            props: NodeProps::Ground,
-            children: vec![],
-        },
+        m2_debug_camera_node(camera),
+        m2_debug_light_node(light),
+        m2_debug_ground_node(ground),
     ];
     if let Some(model) = model {
-        children.push(SceneNode {
-            label: "ReferenceModel".into(),
-            entity: Some(model.root),
-            props: NodeProps::Object {
-                kind: "reference-model".into(),
-                model: M2_DEBUG_REFERENCE_MODEL_PATH.into(),
-            },
-            children: vec![],
-        });
+        children.push(m2_debug_reference_model_node(model.root));
     }
-    SceneTree {
-        root: SceneNode {
-            label: "M2DebugScene".into(),
-            entity: None,
-            props: NodeProps::Scene,
-            children,
+    children
+}
+
+fn m2_debug_camera_node(camera: Entity) -> SceneNode {
+    SceneNode {
+        label: "Camera".into(),
+        entity: Some(camera),
+        props: NodeProps::Camera { fov: 60.0 },
+        children: vec![],
+    }
+}
+
+fn m2_debug_light_node(light: Entity) -> SceneNode {
+    SceneNode {
+        label: "Light".into(),
+        entity: Some(light),
+        props: NodeProps::Light {
+            kind: "directional".into(),
+            intensity: 12_000.0,
         },
+        children: vec![],
+    }
+}
+
+fn m2_debug_ground_node(ground: Entity) -> SceneNode {
+    SceneNode {
+        label: "Ground".into(),
+        entity: Some(ground),
+        props: NodeProps::Ground,
+        children: vec![],
+    }
+}
+
+fn m2_debug_reference_model_node(model_root: Entity) -> SceneNode {
+    SceneNode {
+        label: "ReferenceModel".into(),
+        entity: Some(model_root),
+        props: NodeProps::Object {
+            kind: "reference-model".into(),
+            model: M2_DEBUG_REFERENCE_MODEL_PATH.into(),
+        },
+        children: vec![],
+    }
+}
+
+fn m2_debug_scene_root(children: Vec<SceneNode>) -> SceneNode {
+    SceneNode {
+        label: "M2DebugScene".into(),
+        entity: None,
+        props: NodeProps::Scene,
+        children,
     }
 }
 
