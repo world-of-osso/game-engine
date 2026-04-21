@@ -13,6 +13,35 @@ pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
 }
 
 type PortalsAndRanges = (Vec<WmoPortal>, Vec<(u16, u16)>);
+type RootChunkHandler = fn(&[u8], &mut WmoRootAccum) -> Result<(), String>;
+
+const ROOT_CHUNK_HANDLERS: &[(&[u8; 4], RootChunkHandler)] = &[
+    (b"DHOM", apply_mohd_chunk),
+    (b"TMOM", apply_momt_chunk),
+    (b"VUOM", apply_mouv_chunk),
+    (b"TLOM", apply_molt_chunk),
+    (b"SDOM", apply_mods_chunk),
+    (b"NGOM", apply_mogn_chunk),
+    (b"NDOM", apply_modn_chunk),
+    (b"IDOM", apply_modi_chunk),
+    (b"DDOM", apply_modd_chunk),
+    (b"GFOM", apply_mfog_chunk),
+    (b"GOFM", apply_mfog_chunk),
+    (b"DIFG", apply_gfid_chunk),
+    (b"GVAM", apply_global_mavd_chunk),
+    (b"DVAM", apply_mavd_chunk),
+    (b"DVBM", apply_mbvd_chunk),
+    (b"DNLM", apply_mnld_chunk),
+    (b"VVOM", apply_movv_chunk),
+    (b"VBOM", apply_movb_chunk),
+    (b"BVOM", apply_movb_chunk),
+    (b"PVCM", apply_mcvp_chunk),
+    (b"VPOM", apply_mopv_chunk),
+    (b"TPOM", apply_mopt_chunk),
+    (b"RPOM", apply_mopr_chunk),
+    (b"IGOM", apply_mogi_chunk),
+    (b"BSOM", apply_mobs_chunk),
+];
 
 fn parse_binrw_entries<T>(data: &[u8], entry_size: usize, label: &str) -> Result<Vec<T>, String>
 where
@@ -126,33 +155,18 @@ struct WmoRootAccum {
 }
 
 fn apply_root_chunk(tag: &[u8], payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
-    match tag {
-        b"DHOM" => apply_mohd_chunk(payload, accum)?,
-        b"TMOM" => accum.materials = parse_momt(payload)?,
-        b"VUOM" => accum.material_uv_transforms = parse_mouv(payload)?,
-        b"TLOM" => accum.lights = parse_molt(payload)?,
-        b"SDOM" => accum.doodad_sets = parse_mods(payload)?,
-        b"NGOM" => accum.group_names = parse_mogn(payload)?,
-        b"NDOM" => accum.doodad_names = parse_modn(payload)?,
-        b"IDOM" => accum.doodad_file_ids = parse_modi(payload)?,
-        b"DDOM" => accum.doodad_defs = parse_modd(payload)?,
-        b"GFOM" | b"GOFM" => accum.fogs = parse_mfog(payload)?,
-        b"DIFG" => accum.group_file_data_ids = parse_gfid(payload)?,
-        b"GVAM" => accum.global_ambient_volumes = parse_mavd(payload)?,
-        b"DVAM" => accum.ambient_volumes = parse_mavd(payload)?,
-        b"DVBM" => accum.baked_ambient_box_volumes = parse_mbvd(payload)?,
-        b"DNLM" => accum.dynamic_lights = parse_mnld(payload)?,
-        b"VVOM" => accum.visible_block_vertices = parse_vec3_array(payload)?,
-        b"VBOM" | b"BVOM" => accum.visible_blocks = parse_movb(payload)?,
-        b"PVCM" => accum.convex_volume_planes = parse_mcvp(payload)?,
-        b"VPOM" => accum.portal_vertices = parse_vec3_array(payload)?,
-        b"TPOM" => apply_mopt_chunk(payload, accum)?,
-        b"RPOM" => accum.portal_refs = parse_mopr(payload)?,
-        b"IGOM" => accum.group_infos = parse_mogi(payload)?,
-        b"BSOM" => accum.skybox_wow_path = parse_c_string(payload),
-        _ => {}
+    if let Some(handler) = root_chunk_handler(tag) {
+        handler(payload, accum)?;
     }
     Ok(())
+}
+
+fn root_chunk_handler(tag: &[u8]) -> Option<RootChunkHandler> {
+    let tag: &[u8; 4] = tag.try_into().ok()?;
+    ROOT_CHUNK_HANDLERS
+        .iter()
+        .find(|(chunk_tag, _)| *chunk_tag == tag)
+        .map(|(_, handler)| *handler)
 }
 
 fn apply_mohd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
@@ -165,10 +179,115 @@ fn apply_mohd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), Stri
     Ok(())
 }
 
+fn apply_momt_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.materials = parse_momt(payload)?;
+    Ok(())
+}
+
+fn apply_mouv_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.material_uv_transforms = parse_mouv(payload)?;
+    Ok(())
+}
+
+fn apply_molt_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.lights = parse_molt(payload)?;
+    Ok(())
+}
+
+fn apply_mods_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.doodad_sets = parse_mods(payload)?;
+    Ok(())
+}
+
+fn apply_mogn_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.group_names = parse_mogn(payload)?;
+    Ok(())
+}
+
+fn apply_modn_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.doodad_names = parse_modn(payload)?;
+    Ok(())
+}
+
+fn apply_modi_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.doodad_file_ids = parse_modi(payload)?;
+    Ok(())
+}
+
+fn apply_modd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.doodad_defs = parse_modd(payload)?;
+    Ok(())
+}
+
+fn apply_mfog_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.fogs = parse_mfog(payload)?;
+    Ok(())
+}
+
+fn apply_gfid_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.group_file_data_ids = parse_gfid(payload)?;
+    Ok(())
+}
+
+fn apply_global_mavd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.global_ambient_volumes = parse_mavd(payload)?;
+    Ok(())
+}
+
+fn apply_mavd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.ambient_volumes = parse_mavd(payload)?;
+    Ok(())
+}
+
+fn apply_mbvd_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.baked_ambient_box_volumes = parse_mbvd(payload)?;
+    Ok(())
+}
+
+fn apply_mnld_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.dynamic_lights = parse_mnld(payload)?;
+    Ok(())
+}
+
+fn apply_movv_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.visible_block_vertices = parse_vec3_array(payload)?;
+    Ok(())
+}
+
+fn apply_movb_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.visible_blocks = parse_movb(payload)?;
+    Ok(())
+}
+
+fn apply_mcvp_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.convex_volume_planes = parse_mcvp(payload)?;
+    Ok(())
+}
+
+fn apply_mopv_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.portal_vertices = parse_vec3_array(payload)?;
+    Ok(())
+}
+
 fn apply_mopt_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
     let (portals, raw_ranges) = parse_mopt(payload)?;
     accum.portals = portals;
     accum.mopt_raw = raw_ranges;
+    Ok(())
+}
+
+fn apply_mopr_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.portal_refs = parse_mopr(payload)?;
+    Ok(())
+}
+
+fn apply_mogi_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.group_infos = parse_mogi(payload)?;
+    Ok(())
+}
+
+fn apply_mobs_chunk(payload: &[u8], accum: &mut WmoRootAccum) -> Result<(), String> {
+    accum.skybox_wow_path = parse_c_string(payload);
     Ok(())
 }
 
