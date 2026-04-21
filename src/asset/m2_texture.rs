@@ -70,6 +70,45 @@ fn resolve_batch_texture_at_offset(
     resolve_batch_texture(&shifted, tex_lookup, tex_types, txid, is_hd, skin_fdids)
 }
 
+fn resolve_second_batch_texture(
+    unit: &M2TextureUnit,
+    tex: &TextureTables<'_>,
+    is_hd: bool,
+) -> Option<u32> {
+    if unit.texture_count <= 1 {
+        return None;
+    }
+    resolve_batch_texture_at_offset(
+        unit,
+        tex.tex_lookup,
+        tex.tex_types,
+        tex.txid,
+        is_hd,
+        tex.skin_fdids,
+        1,
+    )
+}
+
+fn resolve_extra_batch_textures(
+    unit: &M2TextureUnit,
+    tex: &TextureTables<'_>,
+    is_hd: bool,
+) -> Vec<u32> {
+    (2..unit.texture_count)
+        .filter_map(|offset| {
+            resolve_batch_texture_at_offset(
+                unit,
+                tex.tex_lookup,
+                tex.tex_types,
+                tex.txid,
+                is_hd,
+                tex.skin_fdids,
+                offset,
+            )
+        })
+        .collect()
+}
+
 /// Get the texture type for a batch (through the lookup chain).
 pub fn batch_texture_type(
     unit: &M2TextureUnit,
@@ -103,31 +142,73 @@ pub fn resolve_batch_fdid_and_overlays(
         is_hd,
         tex.skin_fdids,
     );
-    let texture_2_fdid = if unit.texture_count > 1 {
-        resolve_batch_texture_at_offset(
-            unit,
-            tex.tex_lookup,
-            tex.tex_types,
-            tex.txid,
-            is_hd,
-            tex.skin_fdids,
-            1,
-        )
-    } else {
-        None
-    };
-    let extra_texture_fdids = (2..unit.texture_count)
-        .filter_map(|offset| {
-            resolve_batch_texture_at_offset(
-                unit,
-                tex.tex_lookup,
-                tex.tex_types,
-                tex.txid,
-                is_hd,
-                tex.skin_fdids,
-                offset,
-            )
-        })
-        .collect();
+    let texture_2_fdid = resolve_second_batch_texture(unit, tex, is_hd);
+    let extra_texture_fdids = resolve_extra_batch_textures(unit, tex, is_hd);
     (fdid, texture_2_fdid, extra_texture_fdids, Vec::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_unit(texture_count: u16) -> M2TextureUnit {
+        M2TextureUnit {
+            flags: 0,
+            priority_plane: 0,
+            shader_id: 0,
+            submesh_index: 0,
+            color_index: -1,
+            render_flags_index: 0,
+            material_layer: 0,
+            texture_count,
+            texture_id: 0,
+            texture_coord_index: 0,
+            transparency_index: 0,
+            texture_animation_id: 0,
+        }
+    }
+
+    #[test]
+    fn resolve_batch_fdid_and_overlays_omits_secondary_when_single_texture() {
+        let tex_lookup = [0u16, 1, 2, 3];
+        let tex_types = [0u32, 0, 0, 0];
+        let txid = [100u32, 200, 0, 400];
+        let skin_fdids = [0u32, 0, 0];
+        let tex = TextureTables {
+            tex_lookup: &tex_lookup,
+            tex_types: &tex_types,
+            txid: &txid,
+            skin_fdids: &skin_fdids,
+        };
+
+        let (fdid, texture_2_fdid, extra_texture_fdids, overlays) =
+            resolve_batch_fdid_and_overlays(&test_unit(1), &tex, false);
+
+        assert_eq!(fdid, Some(100));
+        assert_eq!(texture_2_fdid, None);
+        assert!(extra_texture_fdids.is_empty());
+        assert!(overlays.is_empty());
+    }
+
+    #[test]
+    fn resolve_batch_fdid_and_overlays_collects_secondary_and_extra_textures() {
+        let tex_lookup = [0u16, 1, 2, 3];
+        let tex_types = [0u32, 0, 0, 0];
+        let txid = [100u32, 200, 0, 400];
+        let skin_fdids = [0u32, 0, 0];
+        let tex = TextureTables {
+            tex_lookup: &tex_lookup,
+            tex_types: &tex_types,
+            txid: &txid,
+            skin_fdids: &skin_fdids,
+        };
+
+        let (fdid, texture_2_fdid, extra_texture_fdids, overlays) =
+            resolve_batch_fdid_and_overlays(&test_unit(4), &tex, false);
+
+        assert_eq!(fdid, Some(100));
+        assert_eq!(texture_2_fdid, Some(200));
+        assert_eq!(extra_texture_fdids, vec![400]);
+        assert!(overlays.is_empty());
+    }
 }
