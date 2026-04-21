@@ -1,22 +1,29 @@
 use super::*;
 
+struct PendingLodLiquidGroup<'a> {
+    header: Option<&'a [u8]>,
+    indices: Option<&'a [u8]>,
+}
+
+impl<'a> PendingLodLiquidGroup<'a> {
+    fn empty() -> Self {
+        Self {
+            header: None,
+            indices: None,
+        }
+    }
+}
+
 pub(super) fn collect_lod_chunks(data: &[u8]) -> Result<LodRootChunks<'_>, String> {
     let mut root_chunks = empty_lod_root_chunks();
-    let mut pending_liquid_header = None;
-    let mut pending_liquid_indices = None;
+    let mut pending_liquid = PendingLodLiquidGroup::empty();
 
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
-        route_lod_chunk(
-            &mut root_chunks,
-            tag,
-            payload,
-            &mut pending_liquid_header,
-            &mut pending_liquid_indices,
-        )?;
+        route_lod_chunk(&mut root_chunks, tag, payload, &mut pending_liquid)?;
     }
 
-    ensure_complete_lod_liquid_group(pending_liquid_header, pending_liquid_indices)?;
+    ensure_complete_lod_liquid_group(&pending_liquid)?;
     ensure_required_lod_chunks_present(&root_chunks)?;
 
     Ok(root_chunks)
@@ -44,8 +51,7 @@ fn route_lod_chunk<'a>(
     root_chunks: &mut LodRootChunks<'a>,
     tag: &[u8; 4],
     payload: &'a [u8],
-    pending_liquid_header: &mut Option<&'a [u8]>,
-    pending_liquid_indices: &mut Option<&'a [u8]>,
+    pending_liquid: &mut PendingLodLiquidGroup<'a>,
 ) -> Result<(), String> {
     match tag {
         b"REVM" => root_chunks.mver = Some(payload),
@@ -61,21 +67,16 @@ fn route_lod_chunk<'a>(
         b"DMLM" => root_chunks.mlmd = Some(payload),
         b"XMLM" => root_chunks.mlmx = Some(payload),
         b"NLLM" => {
-            *pending_liquid_header = Some(payload);
-            *pending_liquid_indices = None;
+            pending_liquid.header = Some(payload);
+            pending_liquid.indices = None;
         }
         b"ILLM" => {
-            if pending_liquid_header.is_some() {
-                *pending_liquid_indices = Some(payload);
+            if pending_liquid.header.is_some() {
+                pending_liquid.indices = Some(payload);
             }
         }
         b"VLLM" => {
-            push_lod_liquid_group(
-                root_chunks,
-                payload,
-                pending_liquid_header,
-                pending_liquid_indices,
-            )?;
+            push_lod_liquid_group(root_chunks, payload, pending_liquid)?;
         }
         _ => {}
     }
@@ -86,13 +87,12 @@ fn route_lod_chunk<'a>(
 fn push_lod_liquid_group<'a>(
     root_chunks: &mut LodRootChunks<'a>,
     vertices: &'a [u8],
-    pending_liquid_header: &mut Option<&'a [u8]>,
-    pending_liquid_indices: &mut Option<&'a [u8]>,
+    pending_liquid: &mut PendingLodLiquidGroup<'a>,
 ) -> Result<(), String> {
-    let Some(header) = pending_liquid_header.take() else {
+    let Some(header) = pending_liquid.header.take() else {
         return Err("VLLM encountered before NLLM in _lod.adt file".to_string());
     };
-    let Some(indices) = pending_liquid_indices.take() else {
+    let Some(indices) = pending_liquid.indices.take() else {
         return Err("VLLM encountered before ILLM in _lod.adt file".to_string());
     };
     root_chunks.liquid_groups.push(LodLiquidChunkGroup {
@@ -105,10 +105,9 @@ fn push_lod_liquid_group<'a>(
 }
 
 fn ensure_complete_lod_liquid_group(
-    pending_liquid_header: Option<&[u8]>,
-    pending_liquid_indices: Option<&[u8]>,
+    pending_liquid: &PendingLodLiquidGroup<'_>,
 ) -> Result<(), String> {
-    if pending_liquid_header.is_some() || pending_liquid_indices.is_some() {
+    if pending_liquid.header.is_some() || pending_liquid.indices.is_some() {
         return Err("Incomplete MLLN/MLLI/MLLV liquid group in _lod.adt file".to_string());
     }
 
