@@ -146,7 +146,10 @@ fn parse_slider_action_round_trips_all_fields() {
             SliderField::MouseSensitivity,
         ),
         ("options_slider:fov_degrees", SliderField::FovDegrees),
-        ("options_slider:master_volume", SliderField::MasterVolume),
+        (
+            "options_slider:particle_density",
+            SliderField::ParticleDensity,
+        ),
         (
             "options_slider:frame_rate_limit",
             SliderField::FrameRateLimit,
@@ -158,7 +161,22 @@ fn parse_slider_action_round_trips_all_fields() {
             SliderField::NameplateDistance,
         ),
         ("options_slider:chat_font_size", SliderField::ChatFontSize),
+        (
+            "options_slider:bloom_intensity",
+            SliderField::BloomIntensity,
+        ),
+        ("options_slider:master_volume", SliderField::MasterVolume),
+        ("options_slider:music_volume", SliderField::MusicVolume),
+        ("options_slider:ambient_volume", SliderField::AmbientVolume),
+        ("options_slider:effects_volume", SliderField::EffectsVolume),
+        (
+            "options_slider:look_sensitivity",
+            SliderField::LookSensitivity,
+        ),
+        ("options_slider:zoom_speed", SliderField::ZoomSpeed),
+        ("options_slider:follow_speed", SliderField::FollowSpeed),
         ("options_slider:min_distance", SliderField::MinDistance),
+        ("options_slider:max_distance", SliderField::MaxDistance),
     ];
     for (action, expected) in actions {
         assert_eq!(parse_slider_action(action), Some(expected));

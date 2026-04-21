@@ -278,27 +278,36 @@ fn bindings_view(
 }
 
 pub fn parse_slider_action(action: &str) -> Option<SliderField> {
-    Some(match action.strip_prefix("options_slider:")? {
-        "mouse_sensitivity" => SliderField::MouseSensitivity,
-        "fov_degrees" => SliderField::FovDegrees,
-        "particle_density" => SliderField::ParticleDensity,
-        "frame_rate_limit" => SliderField::FrameRateLimit,
-        "render_scale" => SliderField::RenderScale,
-        "ui_scale" => SliderField::UiScale,
-        "nameplate_distance" => SliderField::NameplateDistance,
-        "chat_font_size" => SliderField::ChatFontSize,
-        "bloom_intensity" => SliderField::BloomIntensity,
-        "master_volume" => SliderField::MasterVolume,
-        "music_volume" => SliderField::MusicVolume,
-        "ambient_volume" => SliderField::AmbientVolume,
-        "effects_volume" => SliderField::EffectsVolume,
-        "look_sensitivity" => SliderField::LookSensitivity,
-        "zoom_speed" => SliderField::ZoomSpeed,
-        "follow_speed" => SliderField::FollowSpeed,
-        "min_distance" => SliderField::MinDistance,
-        "max_distance" => SliderField::MaxDistance,
-        _ => return None,
-    })
+    let key = action.strip_prefix(SLIDER_ACTION_PREFIX)?;
+    slider_field_from_key(key)
+}
+
+const SLIDER_ACTION_PREFIX: &str = "options_slider:";
+const SLIDER_ACTION_FIELDS: &[(&str, SliderField)] = &[
+    ("mouse_sensitivity", SliderField::MouseSensitivity),
+    ("fov_degrees", SliderField::FovDegrees),
+    ("particle_density", SliderField::ParticleDensity),
+    ("frame_rate_limit", SliderField::FrameRateLimit),
+    ("render_scale", SliderField::RenderScale),
+    ("ui_scale", SliderField::UiScale),
+    ("nameplate_distance", SliderField::NameplateDistance),
+    ("chat_font_size", SliderField::ChatFontSize),
+    ("bloom_intensity", SliderField::BloomIntensity),
+    ("master_volume", SliderField::MasterVolume),
+    ("music_volume", SliderField::MusicVolume),
+    ("ambient_volume", SliderField::AmbientVolume),
+    ("effects_volume", SliderField::EffectsVolume),
+    ("look_sensitivity", SliderField::LookSensitivity),
+    ("zoom_speed", SliderField::ZoomSpeed),
+    ("follow_speed", SliderField::FollowSpeed),
+    ("min_distance", SliderField::MinDistance),
+    ("max_distance", SliderField::MaxDistance),
+];
+
+fn slider_field_from_key(key: &str) -> Option<SliderField> {
+    SLIDER_ACTION_FIELDS
+        .iter()
+        .find_map(|(candidate, field)| (*candidate == key).then_some(*field))
 }
 
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
