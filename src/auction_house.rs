@@ -208,24 +208,32 @@ fn receive_opened(
 ) {
     for mut receiver in &mut receivers {
         for response in receiver.receive() {
-            state.is_open = response.success;
-            state.last_error = response.error.clone();
-            if let Some(reply) = pop_reply(&mut state, ReplyKind::Open) {
-                let message = if response.success {
-                    "auction house opened".to_string()
-                } else {
-                    response
-                        .error
-                        .unwrap_or_else(|| "failed to open auction house".into())
-                };
-                let out = if state.is_open {
-                    Response::Text(message)
-                } else {
-                    Response::Error(message)
-                };
-                let _ = reply.respond.send(out);
-            }
+            apply_opened_response(&mut state, response);
         }
+    }
+}
+
+fn apply_opened_response(state: &mut AuctionHouseState, response: AuctionHouseOpened) {
+    state.is_open = response.success;
+    state.last_error = response.error.clone();
+    let Some(reply) = pop_reply(state, ReplyKind::Open) else {
+        return;
+    };
+    let _ = reply
+        .respond
+        .send(opened_response_to_ipc(response.success, response.error));
+}
+
+fn opened_response_to_ipc(success: bool, error: Option<String>) -> Response {
+    let message = if success {
+        "auction house opened".to_string()
+    } else {
+        error.unwrap_or_else(|| "failed to open auction house".into())
+    };
+    if success {
+        Response::Text(message)
+    } else {
+        Response::Error(message)
     }
 }
 
@@ -545,5 +553,35 @@ mod tests {
 
         assert!(text.contains("search page=0 size=10 total=1 text=linen"));
         assert!(text.contains("#42 Linen Cloth x5 owner=Seller bid=110 next=115 buyout=150"));
+    }
+
+    #[test]
+    fn opened_response_success_returns_text() {
+        let response = opened_response_to_ipc(true, None);
+
+        match response {
+            Response::Text(message) => assert_eq!(message, "auction house opened"),
+            _ => panic!("expected text response"),
+        }
+    }
+
+    #[test]
+    fn opened_response_failure_prefers_error_message() {
+        let response = opened_response_to_ipc(false, Some("no auctioneer".into()));
+
+        match response {
+            Response::Error(message) => assert_eq!(message, "no auctioneer"),
+            _ => panic!("expected error response"),
+        }
+    }
+
+    #[test]
+    fn opened_response_failure_uses_fallback_message() {
+        let response = opened_response_to_ipc(false, None);
+
+        match response {
+            Response::Error(message) => assert_eq!(message, "failed to open auction house"),
+            _ => panic!("expected error response"),
+        }
     }
 }
