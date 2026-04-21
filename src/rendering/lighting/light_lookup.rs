@@ -11,6 +11,7 @@ const LIGHT_SKYBOX_DB2_FDID: u32 = 1_308_501;
 const LIGHT_PARAMS_LAYOUT_HASH: u32 = 0xCAE3_94E7;
 const LIGHT_SKYBOX_LAYOUT_HASHES: &[u32] = &[0x9D49_56FF, 0x407F_EBCF, 0xD466_A5C2];
 const LIGHT_PARAMS_SKYBOX_FIELD_INDEX: usize = 3;
+const LIGHT_PARAMS_FLAGS_FIELD_INDEX: usize = 10;
 const LIGHT_SKYBOX_FLAGS_FIELD_INDEX: usize = 1;
 const LIGHT_SKYBOX_FDID_FIELD_INDEX: usize = 2;
 
@@ -49,7 +50,52 @@ pub struct LightEntry {
 
 static LIGHTS: OnceLock<Vec<LightEntry>> = OnceLock::new();
 static LIGHT_PARAMS_SKYBOX_IDS: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
+static LIGHT_PARAMS_FLAGS: OnceLock<Vec<(u32, LightParamsFlags)>> = OnceLock::new();
 static LIGHT_SKYBOX_METADATA: OnceLock<Vec<(u32, LightSkyboxMetadata)>> = OnceLock::new();
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LightParamsFlags(u32);
+
+impl LightParamsFlags {
+    pub const NO_DARKEN_DEPTH: Self = Self(1 << 0);
+    pub const DONT_INHERIT_SKYBOX: Self = Self(1 << 1);
+    pub const HIDE_SUN: Self = Self(1 << 2);
+    pub const HIDE_MOON: Self = Self(1 << 3);
+    pub const HIDE_STARS: Self = Self(1 << 4);
+    pub const OVERRIDE_CELESTIAL_SPHERE: Self = Self(1 << 5);
+    pub const HEIGHT_FOG_ABOVE_PLANE: Self = Self(1 << 6);
+    pub const HIDE_CELESTIAL_OBJECT: Self = Self(1 << 7);
+
+    pub const fn empty() -> Self {
+        Self(0)
+    }
+
+    pub const fn from_bits(bits: u32) -> Self {
+        Self(bits)
+    }
+
+    pub const fn bits(self) -> u32 {
+        self.0
+    }
+
+    pub const fn contains(self, other: Self) -> bool {
+        (self.0 & other.0) == other.0
+    }
+}
+
+impl std::ops::BitOr for LightParamsFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitOrAssign for LightParamsFlags {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LightSkyboxFlags(u32);
@@ -100,6 +146,8 @@ struct LightSkyboxMetadata {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedLightSkyboxModel {
+    pub light_params_id: Option<u32>,
+    pub light_params_flags: Option<LightParamsFlags>,
     pub light_skybox_id: u32,
     pub fdid: u32,
     pub wow_path: &'static str,
@@ -188,6 +236,13 @@ pub fn resolve_light_skybox_flags(light_skybox_id: u32) -> Option<LightSkyboxFla
         .map(|(_, metadata)| metadata.flags)
 }
 
+pub fn resolve_light_params_flags(light_params_id: u32) -> Option<LightParamsFlags> {
+    cached_light_params_flags()
+        .iter()
+        .find(|(id, _)| *id == light_params_id)
+        .map(|(_, flags)| *flags)
+}
+
 pub fn ensure_skybox_model_fdid(fdid: u32) -> Option<PathBuf> {
     let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
     ensure_skybox_model_wow_path(wow_path)
@@ -214,6 +269,8 @@ pub fn resolve_light_skybox_model(light_skybox_id: u32) -> Option<ResolvedLightS
     let wow_path = resolve_light_skybox_wow_path(light_skybox_id)?;
     let local_path = ensure_skybox_model_fdid(fdid)?;
     Some(ResolvedLightSkyboxModel {
+        light_params_id: None,
+        light_params_flags: None,
         light_skybox_id,
         fdid,
         wow_path,
@@ -224,7 +281,23 @@ pub fn resolve_light_skybox_model(light_skybox_id: u32) -> Option<ResolvedLightS
 
 pub fn resolve_light_params_skybox_model(light_params_id: u32) -> Option<ResolvedLightSkyboxModel> {
     let light_skybox_id = resolve_light_skybox_id(light_params_id)?;
-    resolve_light_skybox_model(light_skybox_id)
+    let mut resolved = resolve_light_skybox_model(light_skybox_id)?;
+    resolved.light_params_id = Some(light_params_id);
+    resolved.light_params_flags = resolve_light_params_flags(light_params_id);
+    Some(resolved)
+}
+
+pub fn resolve_local_clear_light_params_id(map_id: u32, wow_position: [f32; 3]) -> Option<u32> {
+    select_light_row(map_id, wow_position)
+        .and_then(|row| resolve_clear_light_params_id_for_slot(row.light_params_ids))
+}
+
+pub fn resolve_local_clear_light_params_flags(
+    map_id: u32,
+    wow_position: [f32; 3],
+) -> Option<LightParamsFlags> {
+    let light_params_id = resolve_local_clear_light_params_id(map_id, wow_position)?;
+    resolve_light_params_flags(light_params_id)
 }
 
 fn resolve_zone_skybox_model_with(
@@ -252,6 +325,10 @@ pub fn resolve_local_skybox_model_for_zone(
 
 fn cached_light_params_skybox_ids() -> &'static [(u32, u32)] {
     LIGHT_PARAMS_SKYBOX_IDS.get_or_init(load_light_params_skybox_ids)
+}
+
+fn cached_light_params_flags() -> &'static [(u32, LightParamsFlags)] {
+    LIGHT_PARAMS_FLAGS.get_or_init(load_light_params_flags)
 }
 
 fn cached_light_skybox_metadata() -> &'static [(u32, LightSkyboxMetadata)] {
@@ -309,6 +386,32 @@ fn load_light_params_skybox_ids() -> Vec<(u32, u32)> {
         .collect()
 }
 
+fn load_light_params_flags() -> Vec<(u32, LightParamsFlags)> {
+    let Some(path) = ensure_db2_path(
+        LIGHT_PARAMS_DB2_FDID,
+        Path::new("data/dbfilesclient/1334669.db2"),
+    ) else {
+        return Vec::new();
+    };
+    let Ok(bytes) = std::fs::read(&path) else {
+        return Vec::new();
+    };
+    let Ok(db2) = ParsedWdc5Db2::parse(&bytes, LIGHT_PARAMS_LAYOUT_HASH) else {
+        return Vec::new();
+    };
+    db2.rows()
+        .into_iter()
+        .map(|row_index| {
+            (
+                db2.row_id(row_index),
+                LightParamsFlags::from_bits(
+                    db2.decode_field(row_index, LIGHT_PARAMS_FLAGS_FIELD_INDEX),
+                ),
+            )
+        })
+        .collect()
+}
+
 fn load_light_skybox_metadata() -> Vec<(u32, LightSkyboxMetadata)> {
     let Some(path) = ensure_db2_path(
         LIGHT_SKYBOX_DB2_FDID,
@@ -350,7 +453,12 @@ fn resolve_skybox_light_params_id_for_slot(
     slot: LightParamsSlot,
 ) -> Option<u32> {
     let id = light_params_ids[slot.index()];
-    (id != 0 && resolve_light_skybox_id(id).is_some()).then_some(id)
+    (resolve_light_skybox_id(id).is_some()).then_some(id)
+}
+
+fn resolve_clear_light_params_id_for_slot(light_params_ids: [u32; 8]) -> Option<u32> {
+    let id = light_params_ids[LightParamsSlot::Clear.index()];
+    (id != 0).then_some(id)
 }
 
 fn score_light_row(row: &LightEntry, wow_position: [f32; 3]) -> Option<f32> {
@@ -614,10 +722,12 @@ fn parse_wdc5_field_storage(
 #[cfg(test)]
 mod tests {
     use super::{
-        LightParamsSlot, LightSkyboxFlags, ensure_skybox_model_fdid, ensure_skybox_model_wow_path,
-        map_name_to_id, resolve_light_params_id, resolve_light_params_ids,
-        resolve_light_params_skybox_model, resolve_light_skybox_fdid, resolve_light_skybox_flags,
-        resolve_light_skybox_id, resolve_light_skybox_model, resolve_light_skybox_wow_path,
+        LightParamsFlags, LightParamsSlot, LightSkyboxFlags, ensure_skybox_model_fdid,
+        ensure_skybox_model_wow_path, map_name_to_id, resolve_light_params_flags,
+        resolve_light_params_id, resolve_light_params_ids, resolve_light_params_skybox_model,
+        resolve_light_skybox_fdid, resolve_light_skybox_flags, resolve_light_skybox_id,
+        resolve_light_skybox_model, resolve_light_skybox_wow_path,
+        resolve_local_clear_light_params_flags, resolve_local_clear_light_params_id,
         resolve_local_skybox_light_params_id, resolve_local_skybox_model_for_zone,
         resolve_skybox_light_params_id, resolve_skybox_light_params_id_for_slot,
         resolve_skybox_model_for_zone,
@@ -756,6 +866,22 @@ mod tests {
     }
 
     #[test]
+    fn authored_light_params_rows_resolve_expected_flags() {
+        assert_eq!(
+            resolve_light_params_flags(5615),
+            Some(LightParamsFlags::empty())
+        );
+        assert_eq!(
+            resolve_light_params_flags(5119),
+            Some(LightParamsFlags::DONT_INHERIT_SKYBOX)
+        );
+        assert_eq!(
+            resolve_light_params_flags(6412),
+            Some(LightParamsFlags::from_bits(0x100))
+        );
+    }
+
+    #[test]
     fn authored_light_skybox_rows_resolve_expected_fdids() {
         assert_eq!(resolve_light_skybox_fdid(653), Some(5_412_968));
     }
@@ -789,6 +915,8 @@ mod tests {
     fn authored_light_skybox_rows_resolve_shared_model_metadata() {
         let resolved = resolve_light_skybox_model(653).expect("resolved skybox model");
 
+        assert_eq!(resolved.light_params_id, None);
+        assert_eq!(resolved.light_params_flags, None);
         assert_eq!(resolved.light_skybox_id, 653);
         assert_eq!(resolved.fdid, 5_412_968);
         assert_eq!(resolved.wow_path, "environments/stars/11xp_cloudsky01.m2");
@@ -812,6 +940,8 @@ mod tests {
     fn authored_light_params_rows_resolve_shared_skybox_model() {
         let resolved = resolve_light_params_skybox_model(5615).expect("resolved skybox model");
 
+        assert_eq!(resolved.light_params_id, Some(5615));
+        assert_eq!(resolved.light_params_flags, Some(LightParamsFlags::empty()));
         assert_eq!(resolved.light_skybox_id, 653);
         assert!(
             resolved
@@ -848,6 +978,24 @@ mod tests {
         assert_eq!(
             resolve_local_skybox_model_for_zone(scene.map_id, scene.position),
             None
+        );
+    }
+
+    #[test]
+    fn local_clear_light_params_helpers_resolve_expected_values() {
+        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
+            .scenes
+            .into_iter()
+            .find(|scene| scene.id == 7)
+            .expect("known scene");
+
+        assert_eq!(
+            resolve_local_clear_light_params_id(scene.map_id, scene.position),
+            Some(5615)
+        );
+        assert_eq!(
+            resolve_local_clear_light_params_flags(scene.map_id, scene.position),
+            Some(LightParamsFlags::empty())
         );
     }
 

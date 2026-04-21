@@ -9,3 +9,7 @@ Ingested all existing documentation from `docs/` into the wiki structure. Create
 ## [2026-04-11] update | Document authored skybox black-output repro
 
 Added `investigations/authored-skybox-black-output.md`, updated `systems/skybox.md`, and recorded the current `skyboxdebug` repro showing effectively black output for both default authored lookup and forced `LightSkyboxID 653`.
+
+## [2026-04-21] update | Document LightParams sky-affecting flag composition
+
+Updated `systems/skybox.md` with the implemented `LightParams::Flags` contract (`DontInheritSkybox`, `HideSun`, `HideMoon`, `HideStars`, `HideCelestialObject`, `OverrideCelestialSphere`, `HeightFogAbovePlane`) and how those flags now alter `skyboxdebug` procedural baseline/fog composition.

@@ -33,6 +33,18 @@ The engine now decodes these flags in `light_lookup.rs` and uses them in `skybox
 - `CombineProceduralAndSkybox` keeps the procedural sky dome visible alongside the authored skybox
 - `ProceduralFogColorBlend` keeps distance fog visible in the debug scene
 
+## LightParams Flags
+
+`LightParams.db2` also carries sky-affecting flags that alter how authored skybox + procedural baseline compose.
+
+The engine now decodes `LightParams::Flags` from the same layout hash used for local data (`0xCAE394E7`) and applies the following in `skyboxdebug` default mode:
+
+- `DontInheritSkybox` suppresses procedural celestial baseline for authored composition, and blocks fallback skybox display when the local clear-slot params explicitly request no inherited skybox.
+- `HideSun`, `HideMoon`, `HideStars`, `HideCelestialObject`, `OverrideCelestialSphere` suppress procedural celestial baseline so authored skybox output is not mixed with hidden procedural celestial visuals.
+- `HeightFogAbovePlane` can force procedural fog visibility even when `LightSkybox::ProceduralFogColorBlend` is unset.
+
+Implemented bit names follow wowdev `DB/LightParams` + `EnumeratedString` enum `Unknown_385`.
+
 Verified fixture:
 
 ```
@@ -87,6 +99,8 @@ Known example: scene 1 should now use this fallback instead of treating the glob
 
 - [skybox-authored-lookup.md](../skybox-authored-lookup.md) — lookup chain, verified path, fallback behavior
 - [casc-db2-keys.md](../casc-db2-keys.md) — TACT key for LightSkybox.db2
+- [DB/LightParams (wowdev)](https://wowdev.wiki/DB/LightParams) — LightParams flags notes and bit semantics
+- [EnumeratedString (wowdev)](https://wowdev.wiki/EnumeratedString) — enum names for `Unknown_385` (`NoDarkenDepth`, `DontInheritSkybox`, `HideSun`, `HideMoon`, `HideStars`, `OverrideCelestialSphere`, `HeightFogAbovePlane`)
 
 ## See Also
 

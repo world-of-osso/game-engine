@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use bevy::camera::ClearColorConfig;
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
@@ -54,9 +55,22 @@ struct SpawnedSkyboxDebug {
     root: Entity,
     path: std::path::PathBuf,
     source: String,
+    light_params_id: Option<u32>,
+    light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
+    light_skybox_id: Option<u32>,
+    light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
 }
 
 const SKYBOX_DEBUG_CLEAR_COLOR: Color = Color::BLACK;
+const SKYBOX_DEBUG_BASELINE_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
+const SKYBOX_DEBUG_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct SkyboxDebugComposition {
+    clear_color: Color,
+    shows_procedural_visible_baseline: bool,
+    shows_procedural_fog: bool,
+}
 
 pub struct SkyboxDebugScenePlugin;
 
@@ -106,7 +120,8 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
         setup.scene.as_ref(),
         params.override_spec.as_deref().copied(),
     );
-    initialize_skybox_debug_scene(&mut commands, &mut params, &setup);
+    let composition = skybox_debug_composition(view_mode, resolved.as_ref());
+    initialize_skybox_debug_scene(&mut commands, &mut params, &setup, composition);
     spawn_skybox_debug_reference_objects(
         &mut commands,
         &mut params.meshes,
@@ -166,15 +181,83 @@ fn initialize_skybox_debug_scene(
     commands: &mut Commands,
     params: &mut SkyboxDebugSceneParams<'_, '_>,
     setup: &SkyboxDebugSetup,
+    composition: SkyboxDebugComposition,
 ) {
-    let _ = ensure_debug_cloud_texture(commands, &mut params.images, params.cloud_maps.as_deref());
+    let cloud_texture =
+        ensure_debug_cloud_texture(commands, &mut params.images, params.cloud_maps.as_deref());
     spawn_debug_scene_environment(
         commands,
+        &mut params.meshes,
+        &mut params.sky_materials,
         &mut params.images,
+        cloud_texture,
         setup,
         params.camera_options.fov_degrees,
+        composition,
     );
     spawn_skybox_debug_light(commands);
+}
+
+fn skybox_debug_composition(
+    view_mode: SkyboxDebugViewMode,
+    resolved: Option<&ResolvedDebugSkybox>,
+) -> SkyboxDebugComposition {
+    match view_mode {
+        SkyboxDebugViewMode::AuthoredOnlyVerification => SkyboxDebugComposition {
+            clear_color: SKYBOX_DEBUG_CLEAR_COLOR,
+            shows_procedural_visible_baseline: false,
+            shows_procedural_fog: false,
+        },
+        SkyboxDebugViewMode::Default => {
+            let light_skybox_flags = resolved.and_then(|resolved| resolved.light_skybox_flags);
+            let light_params_flags = resolved.and_then(|resolved| resolved.light_params_flags);
+            let procedural_baseline = light_skybox_flags
+                .map(|flags| {
+                    flags.contains(
+                        crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX,
+                    )
+                })
+                .unwrap_or(true);
+            let procedural_fog = light_skybox_flags
+                .map(|flags| {
+                    flags
+                        .contains(crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND)
+                })
+                .unwrap_or(true);
+            let suppresses_celestial_baseline = light_params_flags
+                .map(light_params_suppresses_celestial_visibility)
+                .unwrap_or(false);
+            let shows_procedural_visible_baseline =
+                procedural_baseline && !suppresses_celestial_baseline;
+            let shows_procedural_fog = procedural_fog
+                || light_params_flags
+                    .map(|flags| {
+                        flags
+                            .contains(crate::light_lookup::LightParamsFlags::HEIGHT_FOG_ABOVE_PLANE)
+                    })
+                    .unwrap_or(false);
+            SkyboxDebugComposition {
+                clear_color: if shows_procedural_visible_baseline {
+                    SKYBOX_DEBUG_BASELINE_CLEAR_COLOR
+                } else {
+                    SKYBOX_DEBUG_CLEAR_COLOR
+                },
+                shows_procedural_visible_baseline,
+                shows_procedural_fog,
+            }
+        }
+    }
+}
+
+fn light_params_suppresses_celestial_visibility(
+    flags: crate::light_lookup::LightParamsFlags,
+) -> bool {
+    flags.contains(crate::light_lookup::LightParamsFlags::DONT_INHERIT_SKYBOX)
+        || flags.contains(crate::light_lookup::LightParamsFlags::HIDE_SUN)
+        || flags.contains(crate::light_lookup::LightParamsFlags::HIDE_MOON)
+        || flags.contains(crate::light_lookup::LightParamsFlags::HIDE_STARS)
+        || flags.contains(crate::light_lookup::LightParamsFlags::OVERRIDE_CELESTIAL_SPHERE)
+        || flags.contains(crate::light_lookup::LightParamsFlags::HIDE_CELESTIAL_OBJECT)
 }
 
 fn spawn_skybox_debug_light(commands: &mut Commands) {
@@ -206,18 +289,35 @@ fn ensure_debug_cloud_texture(
 
 fn spawn_debug_scene_environment(
     commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    sky_materials: &mut Assets<crate::sky_material::SkyMaterial>,
     images: &mut Assets<Image>,
+    cloud_texture: Handle<Image>,
     setup: &SkyboxDebugSetup,
     fov_degrees: f32,
+    composition: SkyboxDebugComposition,
 ) -> Entity {
-    insert_debug_scene_environment_resources(commands);
-    let camera = spawn_debug_scene_camera(commands, setup, fov_degrees);
+    insert_debug_scene_environment_resources(commands, composition);
+    let camera = spawn_debug_scene_camera(commands, setup, fov_degrees, composition);
+    if composition.shows_procedural_visible_baseline {
+        let dome = crate::sky::spawn_sky_dome_entity(
+            commands,
+            meshes,
+            sky_materials,
+            camera,
+            cloud_texture,
+        );
+        commands.entity(dome).insert(SkyboxDebugScene);
+    }
     insert_debug_scene_env_map(commands, images);
     camera
 }
 
-fn insert_debug_scene_environment_resources(commands: &mut Commands) {
-    commands.insert_resource(ClearColor(SKYBOX_DEBUG_CLEAR_COLOR));
+fn insert_debug_scene_environment_resources(
+    commands: &mut Commands,
+    composition: SkyboxDebugComposition,
+) {
+    commands.insert_resource(ClearColor(composition.clear_color));
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
         brightness: 60.0,
@@ -229,20 +329,27 @@ fn spawn_debug_scene_camera(
     commands: &mut Commands,
     setup: &SkyboxDebugSetup,
     fov_degrees: f32,
+    composition: SkyboxDebugComposition,
 ) -> Entity {
-    commands
-        .spawn(debug_scene_camera_bundle(setup, fov_degrees))
-        .id()
+    let mut camera = commands.spawn(debug_scene_camera_bundle(setup, fov_degrees, composition));
+    if composition.shows_procedural_fog {
+        camera.insert(debug_scene_fog());
+    }
+    camera.id()
 }
 
-fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup, fov_degrees: f32) -> impl Bundle {
+fn debug_scene_camera_bundle(
+    setup: &SkyboxDebugSetup,
+    fov_degrees: f32,
+    composition: SkyboxDebugComposition,
+) -> impl Bundle {
     let orbit = OrbitCamera::new(setup.focus, 7.5);
     (
         Name::new("SkyboxDebugCamera"),
         SkyboxDebugScene,
         Camera3d::default(),
         Camera {
-            clear_color: ClearColorConfig::Custom(SKYBOX_DEBUG_CLEAR_COLOR),
+            clear_color: ClearColorConfig::Custom(composition.clear_color),
             ..default()
         },
         additive_particle_glow_tonemapping(),
@@ -253,6 +360,17 @@ fn debug_scene_camera_bundle(setup: &SkyboxDebugSetup, fov_degrees: f32) -> impl
         Transform::from_translation(setup.eye).looking_at(setup.focus, Vec3::Y),
         orbit,
     )
+}
+
+fn debug_scene_fog() -> DistanceFog {
+    DistanceFog {
+        color: SKYBOX_DEBUG_FOG_COLOR,
+        falloff: FogFalloff::Linear {
+            start: 15.0,
+            end: 45.0,
+        },
+        ..default()
+    }
 }
 
 fn insert_debug_scene_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
@@ -346,6 +464,10 @@ fn build_spawned_debug_skybox(
         root: spawned.root,
         path: resolved.path,
         source: resolved.source,
+        light_params_id: resolved.light_params_id,
+        light_params_flags: resolved.light_params_flags,
+        light_skybox_id: resolved.light_skybox_id,
+        light_skybox_flags: resolved.light_skybox_flags,
     }
 }
 
@@ -371,7 +493,7 @@ fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug
         .as_ref()
         .and_then(|scene| scene.authored_light_skybox_id());
     info!(
-        "skybox_debug_scene: resolved skybox {} via {} (scene={:?}, LightParamsID={:?}, LightSkyboxID={:?})",
+        "skybox_debug_scene: resolved skybox {} via {} (scene={:?}, authored_light_params={:?}, authored_light_skybox={:?}, resolved_light_params={:?}, resolved_light_params_flags=0x{:X}, resolved_light_skybox={:?}, resolved_light_skybox_flags=0x{:X})",
         spawned.path.display(),
         spawned.source,
         setup
@@ -379,7 +501,17 @@ fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug
             .as_ref()
             .map(|scene| (scene.id, scene.name.as_str())),
         authored_light_params,
-        authored_light_skybox
+        authored_light_skybox,
+        spawned.light_params_id,
+        spawned
+            .light_params_flags
+            .map(|flags| flags.bits())
+            .unwrap_or(0),
+        spawned.light_skybox_id,
+        spawned
+            .light_skybox_flags
+            .map(|flags| flags.bits())
+            .unwrap_or(0)
     );
     log_debug_skybox_alpha_tracks(&spawned.path);
 }
@@ -589,6 +721,8 @@ fn insert_skybox_debug_scene_tree(
 struct ResolvedDebugSkybox {
     path: std::path::PathBuf,
     source: String,
+    light_params_id: Option<u32>,
+    light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
     light_skybox_id: Option<u32>,
     light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
 }
@@ -633,6 +767,8 @@ fn resolve_debug_skybox(
             Some(ResolvedDebugSkybox {
                 path: resolved.local_path,
                 source: format!("forced LightSkyboxID={light_skybox_id}"),
+                light_params_id: None,
+                light_params_flags: None,
                 light_skybox_id: Some(light_skybox_id),
                 light_skybox_flags: Some(resolved.flags),
             })
@@ -642,6 +778,8 @@ fn resolve_debug_skybox(
             Some(ResolvedDebugSkybox {
                 path,
                 source: format!("forced SkyboxFileDataID={fdid}"),
+                light_params_id: None,
+                light_params_flags: None,
                 light_skybox_id: None,
                 light_skybox_flags: None,
             })
@@ -652,9 +790,33 @@ fn resolve_debug_skybox(
                 scene.map_id,
                 scene.position,
             );
+            let local_light_params_id = crate::light_lookup::resolve_local_clear_light_params_id(
+                scene.map_id,
+                scene.position,
+            );
+            let local_light_params_flags =
+                crate::light_lookup::resolve_local_clear_light_params_flags(
+                    scene.map_id,
+                    scene.position,
+                );
+            if light_skybox.is_none()
+                && local_light_params_flags.is_some_and(|flags| {
+                    flags.contains(crate::light_lookup::LightParamsFlags::DONT_INHERIT_SKYBOX)
+                })
+            {
+                return None;
+            }
             Some(ResolvedDebugSkybox {
                 path: crate::scenes::char_select::warband::ensure_warband_skybox(scene)?,
                 source: format!("warband scene {} ({})", scene.id, scene.name),
+                light_params_id: light_skybox
+                    .as_ref()
+                    .and_then(|model| model.light_params_id)
+                    .or(local_light_params_id),
+                light_params_flags: light_skybox
+                    .as_ref()
+                    .and_then(|model| model.light_params_flags)
+                    .or(local_light_params_flags),
                 light_skybox_id: light_skybox.as_ref().map(|model| model.light_skybox_id),
                 light_skybox_flags: light_skybox.map(|model| model.flags),
             })
@@ -698,16 +860,17 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 #[cfg(test)]
 mod tests {
     use super::{
-        SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup, SkyboxDebugSkybox,
-        SkyboxDebugViewMode, camera_scene_node, debug_scene_camera_bundle, resolve_debug_skybox,
-        spawn_debug_scene_environment, spawn_skybox_debug_reference_objects, sync_skybox_to_camera,
-        sync_skyboxdebug_camera_fov,
+        ResolvedDebugSkybox, SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup,
+        SkyboxDebugSkybox, SkyboxDebugViewMode, camera_scene_node, debug_scene_camera_bundle,
+        resolve_debug_skybox, skybox_debug_composition, spawn_debug_scene_environment,
+        spawn_skybox_debug_reference_objects, sync_skybox_to_camera, sync_skyboxdebug_camera_fov,
     };
     use crate::client_options::CameraOptions;
     use crate::orbit_camera::OrbitCamera;
     use bevy::ecs::system::RunSystemOnce;
     use bevy::prelude::*;
     use game_engine::scene_tree::NodeProps;
+    use std::path::PathBuf;
 
     #[test]
     fn debug_override_resolves_light_skybox_id() {
@@ -797,7 +960,7 @@ mod tests {
     }
 
     #[test]
-    fn debug_scene_initialization_uses_black_background_without_procedural_sky() {
+    fn default_mode_spawns_procedural_baseline_sky_and_fog() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
         app.init_resource::<Assets<StandardMaterial>>();
@@ -805,7 +968,12 @@ mod tests {
         app.init_resource::<Assets<Image>>();
 
         let _ = app.world_mut().run_system_once(
-            |mut commands: Commands, mut images: ResMut<Assets<Image>>| {
+            |mut commands: Commands,
+             mut meshes: ResMut<Assets<Mesh>>,
+             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
+             mut images: ResMut<Assets<Image>>| {
+                let cloud_maps =
+                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
                 let setup = SkyboxDebugSetup {
                     scene: None,
                     focus: Vec3::new(0.0, 1.0, 0.0),
@@ -813,9 +981,13 @@ mod tests {
                 };
                 spawn_debug_scene_environment(
                     &mut commands,
+                    &mut meshes,
+                    &mut sky_materials,
                     &mut images,
+                    cloud_maps.active_handle(),
                     &setup,
                     CameraOptions::default().fov_degrees,
+                    skybox_debug_composition(SkyboxDebugViewMode::Default, None),
                 );
             },
         );
@@ -833,8 +1005,8 @@ mod tests {
             query.iter(world).count()
         };
 
-        assert_eq!(dome_count, 0);
-        assert_eq!(fog_count, 0);
+        assert_eq!(dome_count, 1);
+        assert_eq!(fog_count, 1);
     }
 
     #[test]
@@ -912,8 +1084,11 @@ mod tests {
         };
         let fov_degrees = 117.0;
         let mut app = App::new();
-        app.world_mut()
-            .spawn(debug_scene_camera_bundle(&setup, fov_degrees));
+        app.world_mut().spawn(debug_scene_camera_bundle(
+            &setup,
+            fov_degrees,
+            skybox_debug_composition(SkyboxDebugViewMode::Default, None),
+        ));
 
         let world = app.world_mut();
         let mut camera_query = world.query::<&Projection>();
@@ -970,7 +1145,12 @@ mod tests {
         app.init_resource::<Assets<Image>>();
 
         let _ = app.world_mut().run_system_once(
-            |mut commands: Commands, mut images: ResMut<Assets<Image>>| {
+            |mut commands: Commands,
+             mut meshes: ResMut<Assets<Mesh>>,
+             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
+             mut images: ResMut<Assets<Image>>| {
+                let cloud_maps =
+                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
                 let setup = SkyboxDebugSetup {
                     scene: None,
                     focus: Vec3::new(0.0, 1.0, 0.0),
@@ -978,9 +1158,13 @@ mod tests {
                 };
                 spawn_debug_scene_environment(
                     &mut commands,
+                    &mut meshes,
+                    &mut sky_materials,
                     &mut images,
+                    cloud_maps.active_handle(),
                     &setup,
                     CameraOptions::default().fov_degrees,
+                    skybox_debug_composition(SkyboxDebugViewMode::AuthoredOnlyVerification, None),
                 );
             },
         );
@@ -1002,5 +1186,63 @@ mod tests {
         assert_eq!(dome_count, 0);
         assert_eq!(fog_count, 0);
         assert_eq!(clear_color, Color::BLACK);
+    }
+
+    #[test]
+    fn light_params_hide_flags_suppress_procedural_celestial_baseline() {
+        let resolved = ResolvedDebugSkybox {
+            path: PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"),
+            source: "test".into(),
+            light_params_id: Some(42),
+            light_params_flags: Some(
+                crate::light_lookup::LightParamsFlags::HIDE_SUN
+                    | crate::light_lookup::LightParamsFlags::HIDE_MOON
+                    | crate::light_lookup::LightParamsFlags::HIDE_STARS,
+            ),
+            light_skybox_id: Some(653),
+            light_skybox_flags: Some(
+                crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX
+                    | crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND,
+            ),
+        };
+
+        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
+
+        assert!(!composition.shows_procedural_visible_baseline);
+        assert!(composition.shows_procedural_fog);
+    }
+
+    #[test]
+    fn light_params_dont_inherit_skybox_suppresses_procedural_baseline() {
+        let resolved = ResolvedDebugSkybox {
+            path: PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"),
+            source: "test".into(),
+            light_params_id: Some(42),
+            light_params_flags: Some(crate::light_lookup::LightParamsFlags::DONT_INHERIT_SKYBOX),
+            light_skybox_id: Some(653),
+            light_skybox_flags: Some(
+                crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX,
+            ),
+        };
+
+        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
+
+        assert!(!composition.shows_procedural_visible_baseline);
+    }
+
+    #[test]
+    fn light_params_height_fog_above_plane_enables_fog_without_skybox_blend() {
+        let resolved = ResolvedDebugSkybox {
+            path: PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"),
+            source: "test".into(),
+            light_params_id: Some(42),
+            light_params_flags: Some(crate::light_lookup::LightParamsFlags::HEIGHT_FOG_ABOVE_PLANE),
+            light_skybox_id: Some(653),
+            light_skybox_flags: Some(crate::light_lookup::LightSkyboxFlags::empty()),
+        };
+
+        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
+
+        assert!(composition.shows_procedural_fog);
     }
 }
