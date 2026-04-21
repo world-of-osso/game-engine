@@ -371,38 +371,237 @@ pub fn debug_loading_layout_from_source() -> LoadingScreenLayout {
 
 #[cfg(debug_assertions)]
 fn apply_debug_const_override(line: &str, layout: &mut LoadingScreenLayout) {
-    let Some(line) = line.trim().strip_prefix("const ") else {
+    let Some((name, value)) = parse_layout_const_override(line) else {
         return;
     };
-    let Some((name, value)) = line.split_once(": f32 = ") else {
+    apply_named_layout_override(name, value, layout);
+}
+
+#[cfg(debug_assertions)]
+fn parse_layout_const_override(line: &str) -> Option<(&str, f32)> {
+    let line = line.trim().strip_prefix("const ")?;
+    let (name, value) = line.split_once(": f32 = ")?;
+    let value = value.strip_suffix(';')?;
+    let value = value.parse::<f32>().ok()?;
+    Some((name, value))
+}
+
+#[cfg(debug_assertions)]
+struct LayoutConstOverride {
+    name: &'static str,
+    setter: fn(&mut LoadingScreenLayout, f32),
+}
+
+#[cfg(debug_assertions)]
+const LAYOUT_CONST_OVERRIDES: &[LayoutConstOverride] = &[
+    LayoutConstOverride {
+        name: "ART_WIDTH",
+        setter: set_art_width,
+    },
+    LayoutConstOverride {
+        name: "ART_HEIGHT",
+        setter: set_art_height,
+    },
+    LayoutConstOverride {
+        name: "FILLER_WIDTH",
+        setter: set_filler_width,
+    },
+    LayoutConstOverride {
+        name: "FILLER_HEIGHT",
+        setter: set_filler_height,
+    },
+    LayoutConstOverride {
+        name: "FILLER_TOP_Y",
+        setter: set_filler_top_y,
+    },
+    LayoutConstOverride {
+        name: "FILLER_BOTTOM_Y",
+        setter: set_filler_bottom_y,
+    },
+    LayoutConstOverride {
+        name: "BAR_CAP_WIDTH",
+        setter: set_bar_cap_width,
+    },
+    LayoutConstOverride {
+        name: "BAR_FILL_START_X",
+        setter: set_bar_fill_start_x,
+    },
+    LayoutConstOverride {
+        name: "BAR_WIDTH",
+        setter: set_bar_width,
+    },
+    LayoutConstOverride {
+        name: "BAR_HEIGHT",
+        setter: set_bar_height,
+    },
+    LayoutConstOverride {
+        name: "BAR_FILL_MAX_WIDTH",
+        setter: set_bar_fill_max_width,
+    },
+    LayoutConstOverride {
+        name: "BAR_FILL_HEIGHT",
+        setter: set_bar_fill_height,
+    },
+    LayoutConstOverride {
+        name: "PROGRESS_TEXT_X",
+        setter: set_progress_text_x,
+    },
+    LayoutConstOverride {
+        name: "PROGRESS_TEXT_Y",
+        setter: set_progress_text_y,
+    },
+    LayoutConstOverride {
+        name: "STATUS_TEXT_Y",
+        setter: set_status_text_y,
+    },
+    LayoutConstOverride {
+        name: "BAR_Y",
+        setter: set_bar_y,
+    },
+    LayoutConstOverride {
+        name: "LOGO_Y",
+        setter: set_logo_y,
+    },
+    LayoutConstOverride {
+        name: "ZONE_TEXT_Y",
+        setter: set_zone_text_y,
+    },
+    LayoutConstOverride {
+        name: "TIP_TEXT_Y",
+        setter: set_tip_text_y,
+    },
+];
+
+#[cfg(debug_assertions)]
+fn apply_named_layout_override(name: &str, value: f32, layout: &mut LoadingScreenLayout) {
+    let Some(override_entry) = LAYOUT_CONST_OVERRIDES
+        .iter()
+        .find(|entry| entry.name == name)
+    else {
         return;
     };
-    let Some(value) = value.strip_suffix(';') else {
-        return;
-    };
-    let Ok(value) = value.parse::<f32>() else {
-        return;
-    };
-    match name {
-        "ART_WIDTH" => layout.art_width = value,
-        "ART_HEIGHT" => layout.art_height = value,
-        "FILLER_WIDTH" => layout.filler_width = value,
-        "FILLER_HEIGHT" => layout.filler_height = value,
-        "FILLER_TOP_Y" => layout.filler_top_y = value,
-        "FILLER_BOTTOM_Y" => layout.filler_bottom_y = value,
-        "BAR_CAP_WIDTH" => layout.bar_cap_width = value,
-        "BAR_FILL_START_X" => layout.bar_fill_start_x = value,
-        "BAR_WIDTH" => layout.bar_width = value,
-        "BAR_HEIGHT" => layout.bar_height = value,
-        "BAR_FILL_MAX_WIDTH" => layout.bar_fill_max_width = value,
-        "BAR_FILL_HEIGHT" => layout.bar_fill_height = value,
-        "PROGRESS_TEXT_X" => layout.progress_text_x = value,
-        "PROGRESS_TEXT_Y" => layout.progress_text_y = value,
-        "STATUS_TEXT_Y" => layout.status_text_y = value,
-        "BAR_Y" => layout.bar_y = value,
-        "LOGO_Y" => layout.logo_y = value,
-        "ZONE_TEXT_Y" => layout.zone_text_y = value,
-        "TIP_TEXT_Y" => layout.tip_text_y = value,
-        _ => {}
+    (override_entry.setter)(layout, value);
+}
+
+#[cfg(debug_assertions)]
+fn set_art_width(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.art_width = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_art_height(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.art_height = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_filler_width(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.filler_width = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_filler_height(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.filler_height = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_filler_top_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.filler_top_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_filler_bottom_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.filler_bottom_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_cap_width(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_cap_width = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_fill_start_x(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_fill_start_x = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_width(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_width = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_height(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_height = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_fill_max_width(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_fill_max_width = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_fill_height(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_fill_height = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_progress_text_x(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.progress_text_x = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_progress_text_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.progress_text_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_status_text_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.status_text_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_bar_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.bar_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_logo_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.logo_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_zone_text_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.zone_text_y = value;
+}
+
+#[cfg(debug_assertions)]
+fn set_tip_text_y(layout: &mut LoadingScreenLayout, value: f32) {
+    layout.tip_text_y = value;
+}
+
+#[cfg(all(test, debug_assertions))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_debug_const_override_updates_known_layout_const() {
+        let mut layout = LoadingScreenLayout::default();
+        apply_debug_const_override("const BAR_Y: f32 = -24.5;", &mut layout);
+        assert_eq!(layout.bar_y, -24.5);
+    }
+
+    #[test]
+    fn apply_debug_const_override_ignores_unknown_layout_const() {
+        let mut layout = LoadingScreenLayout::default();
+        let before = layout.clone();
+        apply_debug_const_override("const DOES_NOT_EXIST: f32 = 12.0;", &mut layout);
+        assert_eq!(layout, before);
+    }
+
+    #[test]
+    fn apply_debug_const_override_ignores_non_const_lines() {
+        let mut layout = LoadingScreenLayout::default();
+        let before = layout.clone();
+        apply_debug_const_override("fn bar_y() -> f32 { -10.0 }", &mut layout);
+        assert_eq!(layout, before);
     }
 }
