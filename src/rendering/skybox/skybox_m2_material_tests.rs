@@ -21,6 +21,7 @@ const SHADER_SINGLE_TEXTURE: u16 = 0x0010;
 const SHADER_MOD2X: u16 = 0x4014;
 const SHADER_THREE_STAGE: u16 = 0x8012;
 const SHADER_FOUR_STAGE: u16 = 0x8016;
+const COMBINE_DIFFUSE_2TEX: u16 = 0x000E;
 
 fn test_batch() -> asset::m2::M2RenderBatch {
     let mesh = Mesh::new(
@@ -348,16 +349,21 @@ fn skybox_alpha_mode_mapping_matches_authored_skybox_batches() {
 }
 
 #[test]
-fn skybox_shader_trace_shows_modern_combine_coverage_gap() {
+fn skybox_shader_trace_includes_modern_combine_cases() {
+    assert!(
+        SKYBOX_SHADER_SOURCE.contains(&format!("case 0x{COMBINE_DIFFUSE_2TEX:04X}u")),
+        "cloudsky SHADER_MOD2X batches resolve through static combine mode 0x{:04x}",
+        COMBINE_DIFFUSE_2TEX
+    );
     assert!(SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_MOD2X)));
     assert!(
-        !SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_THREE_STAGE)),
-        "modern 0x{:04x} combine semantics are still unresolved in WGSL combine_textures()",
+        SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_THREE_STAGE)),
+        "modern 0x{:04x} combine semantics must be implemented in WGSL combine_textures()",
         SHADER_THREE_STAGE
     );
     assert!(
-        !SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_FOUR_STAGE)),
-        "modern 0x{:04x} combine semantics are still unresolved in WGSL combine_textures()",
+        SKYBOX_SHADER_SOURCE.contains(&shader_case_snippet(SHADER_FOUR_STAGE)),
+        "modern 0x{:04x} combine semantics must be implemented in WGSL combine_textures()",
         SHADER_FOUR_STAGE
     );
 }
@@ -367,10 +373,12 @@ fn shader_case_snippet(shader_id: u16) -> String {
 }
 
 #[test]
-fn skybox_shader_trace_shows_only_first_two_texture_stages_are_combined() {
-    assert!(SKYBOX_SHADER_SOURCE.contains("combine_textures(texture1, texture2"));
-    assert!(SKYBOX_SHADER_SOURCE.contains("_ = third_texture;"));
-    assert!(SKYBOX_SHADER_SOURCE.contains("_ = fourth_texture;"));
+fn skybox_shader_trace_samples_optional_third_and_fourth_stages() {
+    assert!(SKYBOX_SHADER_SOURCE.contains("sample_optional_stage("));
+    assert!(SKYBOX_SHADER_SOURCE.contains("material.uv_mode_3"));
+    assert!(SKYBOX_SHADER_SOURCE.contains("material.uv_mode_4"));
+    assert!(!SKYBOX_SHADER_SOURCE.contains("_ = third_texture;"));
+    assert!(!SKYBOX_SHADER_SOURCE.contains("_ = fourth_texture;"));
 }
 
 fn vec2_close(left: Vec2, right: Vec2) -> bool {
