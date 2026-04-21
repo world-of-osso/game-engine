@@ -171,6 +171,25 @@ fn assert_lookup_mode_matches_expected_skybox(
     workdir: &Path,
     temp_root: &Path,
 ) {
+    let comparison = capture_lookup_mode_comparison(case, workdir, temp_root);
+    assert_lookup_outputs_have_authored_pixels(case, &comparison);
+    assert_lookup_output_matches_expected_baseline(case, &comparison);
+}
+
+struct LookupModeComparison {
+    actual_output: PathBuf,
+    expected_output: PathBuf,
+    actual: DecodedImage,
+    expected: DecodedImage,
+    actual_metrics: ImageMetrics,
+    expected_metrics: ImageMetrics,
+}
+
+fn capture_lookup_mode_comparison(
+    case: &SkyboxLookupCase,
+    workdir: &Path,
+    temp_root: &Path,
+) -> LookupModeComparison {
     let actual_output =
         capture_lookup_mode_output(case, "lookup", case.lookup_mode, workdir, temp_root);
     let expected_output = capture_lookup_mode_output(
@@ -184,24 +203,47 @@ fn assert_lookup_mode_matches_expected_skybox(
     let expected = decode_webp(&expected_output);
     let actual_metrics = compute_image_metrics(&actual);
     let expected_metrics = compute_image_metrics(&expected);
+    LookupModeComparison {
+        actual_output,
+        expected_output,
+        actual,
+        expected,
+        actual_metrics,
+        expected_metrics,
+    }
+}
 
-    assert_lookup_metrics(case, &actual_output, &actual_metrics, "lookup-mode output");
+fn assert_lookup_outputs_have_authored_pixels(
+    case: &SkyboxLookupCase,
+    comparison: &LookupModeComparison,
+) {
     assert_lookup_metrics(
         case,
-        &expected_output,
-        &expected_metrics,
+        &comparison.actual_output,
+        &comparison.actual_metrics,
+        "lookup-mode output",
+    );
+    assert_lookup_metrics(
+        case,
+        &comparison.expected_output,
+        &comparison.expected_metrics,
         "explicit-fdid baseline",
     );
+}
 
-    let mean_diff = mean_abs_rgb_diff(&actual, &expected);
+fn assert_lookup_output_matches_expected_baseline(
+    case: &SkyboxLookupCase,
+    comparison: &LookupModeComparison,
+) {
+    let mean_diff = mean_abs_rgb_diff(&comparison.actual, &comparison.expected);
     assert!(
         mean_diff <= case.max_mean_abs_rgb_diff,
         "{} did not match explicit-fdid baseline render: mean_abs_rgb_diff={:.4} > {:.4}; lookup_output={}; baseline_output={}",
         case.description,
         mean_diff,
         case.max_mean_abs_rgb_diff,
-        actual_output.display(),
-        expected_output.display()
+        comparison.actual_output.display(),
+        comparison.expected_output.display()
     );
 }
 
