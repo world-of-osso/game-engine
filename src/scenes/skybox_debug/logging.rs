@@ -262,17 +262,27 @@ fn format_opacity_track_samples(
 ) -> String {
     let seq_idx = track_sequence_index(track, default_sequence_index);
     let Some((timestamps, _)) = track.sequences.get(seq_idx) else {
-        return format!("global_seq={} seq={} empty", track.global_sequence, seq_idx);
+        return empty_opacity_track_summary(track, seq_idx);
     };
     let duration = track_duration(track, timestamps, global_sequences);
     let samples = format_opacity_samples(track, seq_idx, duration);
+    opacity_track_summary(track, seq_idx, timestamps.len(), duration, &samples)
+}
+
+fn empty_opacity_track_summary(track: &AnimTrack<i16>, seq_idx: usize) -> String {
+    format!("global_seq={} seq={} empty", track.global_sequence, seq_idx)
+}
+
+fn opacity_track_summary(
+    track: &AnimTrack<i16>,
+    seq_idx: usize,
+    keyframe_count: usize,
+    duration: u32,
+    samples: &str,
+) -> String {
     format!(
         "global_seq={} seq={} keyframes={} duration={} [{}]",
-        track.global_sequence,
-        seq_idx,
-        timestamps.len(),
-        duration,
-        samples
+        track.global_sequence, seq_idx, keyframe_count, duration, samples
     )
 }
 
