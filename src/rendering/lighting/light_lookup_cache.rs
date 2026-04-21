@@ -73,25 +73,33 @@ fn prepare_light_query(conn: &Connection) -> Result<rusqlite::Statement<'_>, Str
 
 fn collect_light_rows(stmt: &mut rusqlite::Statement<'_>) -> Result<Vec<LightEntry>, String> {
     let rows = stmt
-        .query_map([], |row| {
-            Ok(LightEntry {
-                id: row.get(0)?,
-                map_id: row.get(1)?,
-                position: [row.get(2)?, row.get(3)?, row.get(4)?],
-                falloff_end: row.get(5)?,
-                light_params_ids: [
-                    row.get(6)?,
-                    row.get(7)?,
-                    row.get(8)?,
-                    row.get(9)?,
-                    row.get(10)?,
-                    row.get(11)?,
-                    row.get(12)?,
-                    row.get(13)?,
-                ],
-            })
-        })
+        .query_map([], decode_light_row)
         .map_err(|err| format!("query lights: {err}"))?;
+    collect_decoded_light_rows(rows)
+}
+
+fn decode_light_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightEntry> {
+    Ok(LightEntry {
+        id: row.get(0)?,
+        map_id: row.get(1)?,
+        position: [row.get(2)?, row.get(3)?, row.get(4)?],
+        falloff_end: row.get(5)?,
+        light_params_ids: [
+            row.get(6)?,
+            row.get(7)?,
+            row.get(8)?,
+            row.get(9)?,
+            row.get(10)?,
+            row.get(11)?,
+            row.get(12)?,
+            row.get(13)?,
+        ],
+    })
+}
+
+fn collect_decoded_light_rows(
+    rows: impl Iterator<Item = rusqlite::Result<LightEntry>>,
+) -> Result<Vec<LightEntry>, String> {
     let mut entries = Vec::new();
     for row in rows {
         entries.push(row.map_err(|err| format!("read lights row: {err}"))?);
