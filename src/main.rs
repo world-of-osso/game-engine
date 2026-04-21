@@ -408,6 +408,12 @@ fn insert_screen_resources(app: &mut App, args: &[String]) {
 }
 
 fn insert_skybox_debug_resources(app: &mut App, args: &[String]) {
+    insert_skybox_debug_override_resource(app, args);
+    insert_skybox_debug_view_mode_resource(app, args);
+    insert_skybox_time_override_resource(app, args);
+}
+
+fn insert_skybox_debug_override_resource(app: &mut App, args: &[String]) {
     match parse_skybox_debug_override(args) {
         Ok(Some(override_spec)) => {
             app.insert_resource(override_spec);
@@ -415,10 +421,16 @@ fn insert_skybox_debug_resources(app: &mut App, args: &[String]) {
         Ok(None) => {}
         Err(err) => exit_with_arg_parse_error(&err),
     };
+}
+
+fn insert_skybox_debug_view_mode_resource(app: &mut App, args: &[String]) {
     let skybox_view_mode = parse_skybox_debug_view_mode(args);
     if skybox_view_mode != scenes::skybox_debug::SkyboxDebugViewMode::Default {
         app.insert_resource(skybox_view_mode);
     }
+}
+
+fn insert_skybox_time_override_resource(app: &mut App, args: &[String]) {
     match parse_skybox_time_override_ms(args) {
         Ok(Some(time_ms)) => {
             app.insert_resource(skybox_m2_material::SkyboxTimeOverrideMs(time_ms));
