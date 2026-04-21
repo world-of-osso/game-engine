@@ -352,40 +352,71 @@ fn camera_items(camera: &CameraOptionsView) -> Element {
 }
 
 fn camera_sensitivity_sliders(camera: &CameraOptionsView) -> Element {
+    camera_sensitivity_slider_specs(camera)
+        .into_iter()
+        .flat_map(camera_sensitivity_slider_row)
+        .collect()
+}
+
+type CameraSensitivitySliderSpec = (&'static str, &'static str, f32, f32, f32);
+
+fn camera_sensitivity_slider_specs(camera: &CameraOptionsView) -> [CameraSensitivitySliderSpec; 5] {
     [
-        slider_row(
-            "mouse_sensitivity",
-            "Mouse Sensitivity",
-            camera.mouse_sensitivity,
-            MOUSE_SENSITIVITY_MIN,
-            MOUSE_SENSITIVITY_MAX,
-        ),
-        slider_row(
-            "fov_degrees",
-            "Field of View",
-            camera.fov_degrees,
-            90.0,
-            120.0,
-        ),
-        slider_row(
-            "look_sensitivity",
-            "Look Sensitivity",
-            camera.look_sensitivity,
-            0.002,
-            0.03,
-        ),
-        slider_row("zoom_speed", "Zoom Speed", camera.zoom_speed, 2.0, 20.0),
-        slider_row(
-            "follow_speed",
-            "Follow Speed",
-            camera.follow_speed,
-            2.0,
-            20.0,
-        ),
+        mouse_sensitivity_slider_spec(camera),
+        fov_degrees_slider_spec(camera),
+        look_sensitivity_slider_spec(camera),
+        zoom_speed_slider_spec(camera),
+        follow_speed_slider_spec(camera),
     ]
-    .into_iter()
-    .flatten()
-    .collect()
+}
+
+fn camera_sensitivity_slider_row(spec: CameraSensitivitySliderSpec) -> Element {
+    let (key, label, value, min, max) = spec;
+    slider_row(key, label, value, min, max)
+}
+
+fn mouse_sensitivity_slider_spec(camera: &CameraOptionsView) -> CameraSensitivitySliderSpec {
+    (
+        "mouse_sensitivity",
+        "Mouse Sensitivity",
+        camera.mouse_sensitivity,
+        MOUSE_SENSITIVITY_MIN,
+        MOUSE_SENSITIVITY_MAX,
+    )
+}
+
+fn fov_degrees_slider_spec(camera: &CameraOptionsView) -> CameraSensitivitySliderSpec {
+    (
+        "fov_degrees",
+        "Field of View",
+        camera.fov_degrees,
+        90.0,
+        120.0,
+    )
+}
+
+fn look_sensitivity_slider_spec(camera: &CameraOptionsView) -> CameraSensitivitySliderSpec {
+    (
+        "look_sensitivity",
+        "Look Sensitivity",
+        camera.look_sensitivity,
+        0.002,
+        0.03,
+    )
+}
+
+fn zoom_speed_slider_spec(camera: &CameraOptionsView) -> CameraSensitivitySliderSpec {
+    ("zoom_speed", "Zoom Speed", camera.zoom_speed, 2.0, 20.0)
+}
+
+fn follow_speed_slider_spec(camera: &CameraOptionsView) -> CameraSensitivitySliderSpec {
+    (
+        "follow_speed",
+        "Follow Speed",
+        camera.follow_speed,
+        2.0,
+        20.0,
+    )
 }
 
 fn camera_distance_sliders(camera: &CameraOptionsView) -> Element {
