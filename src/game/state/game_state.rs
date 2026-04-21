@@ -98,6 +98,12 @@ fn should_gate_eula(
 }
 
 fn register_state_transitions(app: &mut App, has_server: bool) {
+    register_on_enter_transitions(app);
+    register_in_world_transitions(app, has_server);
+    register_state_update_transitions(app);
+}
+
+fn register_on_enter_transitions(app: &mut App) {
     app.add_systems(OnEnter(GameState::Eula), on_enter_eula);
     app.add_systems(OnEnter(GameState::Connecting), on_enter_connecting);
     app.add_systems(OnEnter(GameState::CharSelect), on_enter_char_select);
@@ -112,12 +118,18 @@ fn register_state_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::CampsitePopup), on_enter_campsite_popup);
     app.add_systems(OnEnter(GameState::Loading), on_enter_loading);
     app.add_systems(OnEnter(GameState::TrashButton), on_enter_trash_button);
+}
+
+fn register_in_world_transitions(app: &mut App, has_server: bool) {
     app.add_systems(OnEnter(GameState::InWorld), on_enter_in_world);
     app.add_systems(OnEnter(GameState::InWorld), reset_zone_transition_tracker);
     if has_server {
         app.add_systems(OnEnter(GameState::InWorld), spawn_world_environment);
     }
     app.add_systems(OnExit(GameState::InWorld), on_exit_in_world);
+}
+
+fn register_state_update_transitions(app: &mut App) {
     app.add_systems(
         Update,
         check_connection_status.run_if(in_state(GameState::Connecting)),
