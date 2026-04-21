@@ -455,30 +455,39 @@ fn lerp_scalar(a: f32, b: f32, t: f32) -> f32 {
 }
 
 fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow, f32) {
-    for i in 0..rows.len() {
-        let next = (i + 1) % rows.len();
-        let t0 = rows[i].time;
-        let t1 = if next == 0 {
-            rows[next].time + 2880.0
-        } else {
-            rows[next].time
-        };
-        let m_adj = if next == 0 && m < t0 { m + 2880.0 } else { m };
-        if m_adj >= t0 && m_adj <= t1 {
-            let span = t1 - t0;
-            let t = if span > 0.0 { (m_adj - t0) / span } else { 0.0 };
-            return (&rows[i], &rows[next], t);
-        }
+    if let Some((a, b)) = find_non_wrapping_bracket(rows, m) {
+        return (a, b, interpolation_factor(a.time, b.time, m));
     }
+    find_wraparound_bracket(rows, m)
+}
+
+fn find_non_wrapping_bracket(
+    rows: &[LightDataRow],
+    m: f32,
+) -> Option<(&LightDataRow, &LightDataRow)> {
+    rows.windows(2).find_map(|window| {
+        let a = &window[0];
+        let b = &window[1];
+        (m >= a.time && m <= b.time).then_some((a, b))
+    })
+}
+
+fn find_wraparound_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow, f32) {
     let last = &rows[rows.len() - 1];
     let first = &rows[0];
-    let span = (first.time + 2880.0) - last.time;
-    let t = if span > 0.0 {
-        (m + 2880.0 - last.time) / span
+    let wrap_end_time = first.time + 2880.0;
+    let adjusted_m = if m < last.time { m + 2880.0 } else { m };
+    let t = interpolation_factor(last.time, wrap_end_time, adjusted_m);
+    (last, first, t)
+}
+
+fn interpolation_factor(start: f32, end: f32, value: f32) -> f32 {
+    let span = end - start;
+    if span > 0.0 {
+        (value - start) / span
     } else {
         0.0
-    };
-    (last, first, t)
+    }
 }
 
 /// Interpolate between LightData keyframes at the given time (0–2880).
@@ -499,6 +508,8 @@ mod tests {
     use super::*;
 
     const BGR32_RED: u32 = 0x000000FF;
+    const BGR32_BLUE: u32 = 0x00FF0000;
+    const BGR32_WHITE: u32 = 0x00FFFFFF;
 
     #[test]
     fn decode_bgr32_red() {
@@ -511,7 +522,7 @@ mod tests {
 
     #[test]
     fn decode_bgr32_blue() {
-        let c = decode_bgr32(0x00FF0000);
+        let c = decode_bgr32(BGR32_BLUE);
         let lin = c.to_linear();
         assert!(lin.red < 0.01);
         assert!(lin.green < 0.01);
@@ -520,7 +531,7 @@ mod tests {
 
     #[test]
     fn decode_bgr32_white() {
-        let c = decode_bgr32(0x00FFFFFF);
+        let c = decode_bgr32(BGR32_WHITE);
         let lin = c.to_linear();
         assert!((lin.red - 1.0).abs() < 0.01);
         assert!((lin.green - 1.0).abs() < 0.01);
@@ -594,6 +605,71 @@ mod tests {
         );
         assert!((result.fog_end - 1500.0).abs() < 0.01);
         assert!((result.fog_start - 150.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn interpolation_wraparound_uses_last_to_first_segment() {
+        let rows = vec![
+            LightDataRow {
+                time: 0.0,
+                direct_color: Color::BLACK,
+                ambient_color: Color::BLACK,
+                sky_top: Color::linear_rgb(0.0, 0.0, 0.0),
+                sky_middle: Color::BLACK,
+                sky_band1: Color::BLACK,
+                sky_band2: Color::BLACK,
+                sky_smog: Color::BLACK,
+                fog_color: Color::BLACK,
+                sun_color: Color::BLACK,
+                sun_halo_color: Color::BLACK,
+                cloud_emissive_color: Color::BLACK,
+                cloud_layer1_ambient_color: Color::BLACK,
+                cloud_layer2_ambient_color: Color::BLACK,
+                ocean_close_color: Color::BLACK,
+                ocean_far_color: Color::BLACK,
+                river_close_color: Color::BLACK,
+                river_far_color: Color::BLACK,
+                horizon_ambient_color: Color::BLACK,
+                fog_end: 0.0,
+                fog_start: 0.0,
+                glow: 0.0,
+                cloud_density: 0.0,
+                unk1: 0.0,
+                unk2: 0.0,
+            },
+            LightDataRow {
+                time: 1440.0,
+                direct_color: Color::WHITE,
+                ambient_color: Color::WHITE,
+                sky_top: Color::linear_rgb(1.0, 1.0, 1.0),
+                sky_middle: Color::WHITE,
+                sky_band1: Color::WHITE,
+                sky_band2: Color::WHITE,
+                sky_smog: Color::WHITE,
+                fog_color: Color::WHITE,
+                sun_color: Color::WHITE,
+                sun_halo_color: Color::WHITE,
+                cloud_emissive_color: Color::WHITE,
+                cloud_layer1_ambient_color: Color::WHITE,
+                cloud_layer2_ambient_color: Color::WHITE,
+                ocean_close_color: Color::WHITE,
+                ocean_far_color: Color::WHITE,
+                river_close_color: Color::WHITE,
+                river_far_color: Color::WHITE,
+                horizon_ambient_color: Color::WHITE,
+                fog_end: 0.0,
+                fog_start: 0.0,
+                glow: 0.0,
+                cloud_density: 0.0,
+                unk1: 0.0,
+                unk2: 0.0,
+            },
+        ];
+        let result = interpolate_colors(&rows, 2160.0);
+        let top = result.sky_top.to_linear();
+        assert!((top.red - 0.5).abs() < 0.05);
+        assert!((top.green - 0.5).abs() < 0.05);
+        assert!((top.blue - 0.5).abs() < 0.05);
     }
 
     #[test]
