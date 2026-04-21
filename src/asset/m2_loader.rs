@@ -77,6 +77,12 @@ fn load_model_attachment_data(
     load_attachment_data(chunks)
 }
 
+fn load_model_particles(md20: &[u8], txid: &[u32]) -> Vec<m2_particle::M2ParticleEmitter> {
+    let mut particles = m2_particle::parse_particle_emitters(md20);
+    m2_particle::resolve_texture_fdids(&mut particles, txid);
+    particles
+}
+
 fn build_m2_model(
     path: &Path,
     chunks: &M2Chunks<'_>,
@@ -94,8 +100,7 @@ fn build_m2_model(
         skin_fdids,
         keep_zero_opacity_batches,
     )?;
-    let mut particles = m2_particle::parse_particle_emitters(chunks.md20);
-    m2_particle::resolve_texture_fdids(&mut particles, txid);
+    let particles = load_model_particles(chunks.md20, txid);
     let (attachments, attachment_lookup) = load_model_attachment_data(path, chunks);
     let lights = m2_light::parse_lights(chunks.md20);
     let (bounding_box_min, bounding_box_max) =
