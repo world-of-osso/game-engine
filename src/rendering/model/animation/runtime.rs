@@ -415,42 +415,121 @@ pub(crate) fn tick_animation(
     mut players: Query<(&mut M2AnimPlayer, &M2AnimData)>,
 ) {
     if let Some(time_override) = time_override.as_deref() {
-        for (mut player, data) in &mut players {
-            let forced_time_ms = data
-                .sequences
-                .get(player.current_seq_idx)
-                .map(|seq| {
-                    if seq.duration > 0 {
-                        (time_override.0 as f32) % seq.duration as f32
-                    } else {
-                        time_override.0 as f32
-                    }
-                })
-                .unwrap_or(time_override.0 as f32);
-            player.time_ms = forced_time_ms;
-            player.transition = None;
-        }
+        apply_time_override_to_players(&mut players, time_override.0);
         return;
     }
+
     let delta_ms = time.delta_secs() * 1000.0;
     for (mut player, data) in &mut players {
         advance_player_time(&mut player, data, delta_ms);
+        update_player_transition(&mut player, data, delta_ms);
+    }
+}
 
-        let mut clear_transition = false;
-        if let Some(ref mut tr) = player.transition {
-            tr.blend_elapsed_ms += delta_ms;
-            if let Some(from_seq) = data.sequences.get(tr.from_seq_idx) {
-                tr.from_time_ms += delta_ms;
-                if from_seq.duration > 0 {
-                    tr.from_time_ms = tr.from_time_ms.min(from_seq.duration as f32);
-                }
-            }
-            if tr.blend_elapsed_ms >= tr.blend_duration_ms {
-                clear_transition = true;
-            }
+fn apply_time_override_to_players(
+    players: &mut Query<(&mut M2AnimPlayer, &M2AnimData)>,
+    override_time_ms: u32,
+) {
+    for (mut player, data) in players {
+        apply_player_time_override(&mut player, data, override_time_ms);
+    }
+}
+
+fn apply_player_time_override(player: &mut M2AnimPlayer, data: &M2AnimData, override_time_ms: u32) {
+    let override_time_ms = override_time_ms as f32;
+    player.time_ms =
+        forced_sequence_time(data.sequences.get(player.current_seq_idx), override_time_ms);
+    player.transition = None;
+}
+
+fn forced_sequence_time(sequence: Option<&M2AnimSequence>, override_time_ms: f32) -> f32 {
+    match sequence {
+        Some(sequence) if sequence.duration > 0 => override_time_ms % sequence.duration as f32,
+        _ => override_time_ms,
+    }
+}
+
+fn update_player_transition(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) {
+    let clear_transition = tick_transition(player, data, delta_ms);
+    if clear_transition {
+        player.transition = None;
+    }
+}
+
+fn tick_transition(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) -> bool {
+    let Some(transition) = player.transition.as_mut() else {
+        return false;
+    };
+    transition.blend_elapsed_ms += delta_ms;
+    tick_transition_source_time(transition, data, delta_ms);
+    transition.blend_elapsed_ms >= transition.blend_duration_ms
+}
+
+fn tick_transition_source_time(transition: &mut AnimTransition, data: &M2AnimData, delta_ms: f32) {
+    let Some(from_seq) = data.sequences.get(transition.from_seq_idx) else {
+        return;
+    };
+    transition.from_time_ms += delta_ms;
+    if from_seq.duration > 0 {
+        transition.from_time_ms = transition.from_time_ms.min(from_seq.duration as f32);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_sequence(id: u16, duration: u32) -> M2AnimSequence {
+        M2AnimSequence {
+            id,
+            variation_id: 0,
+            duration,
+            movespeed: 0.0,
+            flags: 0,
+            blend_time: 0,
+            next_animation: -1,
         }
-        if clear_transition {
-            player.transition = None;
-        }
+    }
+
+    #[test]
+    fn forced_sequence_time_wraps_by_duration() {
+        let seq = test_sequence(0, 1000);
+        assert_eq!(forced_sequence_time(Some(&seq), 2500.0), 500.0);
+    }
+
+    #[test]
+    fn forced_sequence_time_returns_override_when_missing_or_zero_duration() {
+        let zero_duration = test_sequence(0, 0);
+        assert_eq!(forced_sequence_time(None, 1234.0), 1234.0);
+        assert_eq!(forced_sequence_time(Some(&zero_duration), 1234.0), 1234.0);
+    }
+
+    #[test]
+    fn update_player_transition_clears_finished_transition() {
+        let mut player = M2AnimPlayer {
+            current_seq_idx: 1,
+            time_ms: 0.0,
+            looping: true,
+            transition: Some(AnimTransition {
+                from_seq_idx: 0,
+                from_time_ms: 100.0,
+                blend_duration_ms: 150.0,
+                blend_elapsed_ms: 140.0,
+            }),
+        };
+        let data = M2AnimData {
+            bones: vec![],
+            spherical_billboards: vec![],
+            sequences: vec![test_sequence(0, 200), test_sequence(1, 200)],
+            bone_tracks: vec![],
+            joint_entities: vec![],
+        };
+
+        update_player_transition(&mut player, &data, 20.0);
+
+        assert!(
+            player.transition.is_none(),
+            "transition should clear once blend is complete"
+        );
     }
 }
