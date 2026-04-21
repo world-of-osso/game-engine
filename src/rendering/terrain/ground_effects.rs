@@ -9,6 +9,8 @@ const GROUND_EFFECT_TEXTURE_DB2_FDID: u32 = 1_308_499;
 const TERRAIN_TYPE_SOUNDS_DB2_FDID: u32 = 1_284_822;
 const GROUND_EFFECT_LAYOUT_HASHES: &[u32] = &[0xD93D_5678, 0x3DEC_72D8];
 const TERRAIN_TYPE_SOUNDS_LAYOUT_HASHES: &[u32] = &[0xB99F_5777, 0x5462_668A, 0x3AF6_B1EA];
+const DETERMINISTIC_SEED_MIX_CONSTANT: u32 = 0x045D_9F3B;
+const RANDOM_FRACTION_MASK: u32 = 0xFFFF;
 
 static GROUND_EFFECTS: OnceLock<HashMap<u32, GroundEffectEntry>> = OnceLock::new();
 static TERRAIN_SOUND_SURFACES: OnceLock<HashMap<u8, FootstepSurface>> = OnceLock::new();
@@ -74,7 +76,7 @@ fn deterministic_seed(chunk_x: u32, chunk_y: u32, index: u32) -> u32 {
         ^ chunk_y.wrapping_mul(19349663)
         ^ index.wrapping_mul(83492791);
     h ^= h >> 16;
-    h = h.wrapping_mul(0x45d9f3b);
+    h = h.wrapping_mul(DETERMINISTIC_SEED_MIX_CONSTANT);
     h ^= h >> 16;
     h
 }
@@ -82,7 +84,7 @@ fn deterministic_seed(chunk_x: u32, chunk_y: u32, index: u32) -> u32 {
 fn pseudo_random_f32(seed: u32, channel: u32) -> f32 {
     let mixed = seed.wrapping_add(channel.wrapping_mul(2654435761));
     let mixed = mixed ^ (mixed >> 13);
-    (mixed & 0xFFFF) as f32 / 65535.0
+    (mixed & RANDOM_FRACTION_MASK) as f32 / 65535.0
 }
 
 pub fn resolve_ground_effect(effect_id: u32) -> Option<GroundEffectEntry> {
@@ -228,41 +230,65 @@ fn read_c_string_block(
 
 fn classify_surface_from_terrain_sound_name(name: &str) -> Option<FootstepSurface> {
     let lower = name.to_ascii_lowercase();
-    if lower.contains("metal") || lower.contains("coin") {
-        return Some(FootstepSurface::Metal);
-    }
-    if lower.contains("snow") {
-        return Some(FootstepSurface::Snow);
-    }
-    if lower.contains("wood") {
-        return Some(FootstepSurface::Wood);
-    }
-    if lower.contains("grass") || lower.contains("leaf") || lower.contains("twig") {
-        return Some(FootstepSurface::Grass);
-    }
-    if lower.contains("water") {
-        return Some(FootstepSurface::Water);
-    }
-    if lower.contains("swamp")
-        || lower.contains("soggy")
-        || lower.contains("mud")
-        || lower.contains("lava")
-    {
-        return Some(FootstepSurface::Mud);
-    }
-    if lower.contains("carpet") {
-        return Some(FootstepSurface::Carpet);
-    }
-    if lower.contains("ice") || lower.contains("glass") {
-        return Some(FootstepSurface::Ice);
-    }
-    if lower.contains("stone") || lower.contains("gravel") || lower.contains("crystalline") {
-        return Some(FootstepSurface::Stone);
-    }
-    if lower.contains("dirt") || lower.contains("sand") {
-        return Some(FootstepSurface::Dirt);
-    }
-    None
+    SURFACE_KEYWORD_RULES
+        .iter()
+        .find_map(|rule| matches_surface_rule(&lower, rule))
+}
+
+struct SurfaceKeywordRule {
+    surface: FootstepSurface,
+    keywords: &'static [&'static str],
+}
+
+const SURFACE_KEYWORD_RULES: &[SurfaceKeywordRule] = &[
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Metal,
+        keywords: &["metal", "coin"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Snow,
+        keywords: &["snow"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Wood,
+        keywords: &["wood"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Grass,
+        keywords: &["grass", "leaf", "twig"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Water,
+        keywords: &["water"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Mud,
+        keywords: &["swamp", "soggy", "mud", "lava"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Carpet,
+        keywords: &["carpet"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Ice,
+        keywords: &["ice", "glass"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Stone,
+        keywords: &["stone", "gravel", "crystalline"],
+    },
+    SurfaceKeywordRule {
+        surface: FootstepSurface::Dirt,
+        keywords: &["dirt", "sand"],
+    },
+];
+
+fn matches_surface_rule(lower_name: &str, rule: &SurfaceKeywordRule) -> Option<FootstepSurface> {
+    contains_any_keyword(lower_name, rule.keywords).then_some(rule.surface)
+}
+
+fn contains_any_keyword(lower_name: &str, keywords: &[&str]) -> bool {
+    keywords.iter().any(|keyword| lower_name.contains(keyword))
 }
 
 struct ParsedFixedLayoutDb2 {
@@ -399,6 +425,18 @@ mod tests {
         assert_eq!(
             classify_surface_from_terrain_sound_name("Twiggy"),
             Some(FootstepSurface::Grass)
+        );
+    }
+
+    #[test]
+    fn terrain_sound_name_uses_first_matching_surface_rule() {
+        assert_eq!(
+            classify_surface_from_terrain_sound_name("Metal wood"),
+            Some(FootstepSurface::Metal)
+        );
+        assert_eq!(
+            classify_surface_from_terrain_sound_name("Stone sand"),
+            Some(FootstepSurface::Stone)
         );
     }
 
