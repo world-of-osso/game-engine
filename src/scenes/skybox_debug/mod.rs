@@ -8,7 +8,6 @@ use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
-use crate::asset::m2_anim::{AnimTrack, evaluate_i16_track};
 use crate::camera::additive_particle_glow_tonemapping;
 use crate::creature_display;
 use crate::game_state::GameState;
@@ -18,7 +17,7 @@ use crate::orbit_camera::OrbitCamera;
 use crate::scenes::char_select::warband::{SelectedWarbandScene, WarbandScenes};
 use crate::scenes::teardown::teardown_tagged_scene;
 use crate::skybox_m2_material::SkyboxM2Material;
-use game_engine::asset::read_bytes::fixed16_to_f32;
+mod logging;
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SkyboxDebugOverride {
@@ -139,7 +138,7 @@ fn setup_scene(mut commands: Commands, mut params: SkyboxDebugSceneParams) {
     };
     tag_debug_skybox_scene_entities(&mut commands, &resolved, &spawned);
     let spawned = build_spawned_debug_skybox(resolved, spawned);
-    log_debug_skybox_spawn(&setup, &spawned);
+    logging::log_debug_skybox_spawn(&setup, &spawned);
     insert_skybox_debug_scene_tree(&mut commands, spawned, params.camera_options.fov_degrees);
 }
 
@@ -203,49 +202,67 @@ fn skybox_debug_composition(
     resolved: Option<&ResolvedDebugSkybox>,
 ) -> SkyboxDebugComposition {
     match view_mode {
-        SkyboxDebugViewMode::AuthoredOnlyVerification => SkyboxDebugComposition {
-            clear_color: SKYBOX_DEBUG_CLEAR_COLOR,
-            shows_procedural_visible_baseline: false,
-            shows_procedural_fog: false,
-        },
-        SkyboxDebugViewMode::Default => {
-            let light_skybox_flags = resolved.and_then(|resolved| resolved.light_skybox_flags);
-            let light_params_flags = resolved.and_then(|resolved| resolved.light_params_flags);
-            let procedural_baseline = light_skybox_flags
-                .map(|flags| {
-                    flags.contains(
-                        crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX,
-                    )
-                })
-                .unwrap_or(true);
-            let procedural_fog = light_skybox_flags
-                .map(|flags| {
-                    flags
-                        .contains(crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND)
-                })
-                .unwrap_or(true);
-            let suppresses_celestial_baseline = light_params_flags
-                .map(light_params_suppresses_celestial_visibility)
-                .unwrap_or(false);
-            let shows_procedural_visible_baseline =
-                procedural_baseline && !suppresses_celestial_baseline;
-            let shows_procedural_fog = procedural_fog
-                || light_params_flags
-                    .map(|flags| {
-                        flags
-                            .contains(crate::light_lookup::LightParamsFlags::HEIGHT_FOG_ABOVE_PLANE)
-                    })
-                    .unwrap_or(false);
-            SkyboxDebugComposition {
-                clear_color: if shows_procedural_visible_baseline {
-                    SKYBOX_DEBUG_BASELINE_CLEAR_COLOR
-                } else {
-                    SKYBOX_DEBUG_CLEAR_COLOR
-                },
-                shows_procedural_visible_baseline,
-                shows_procedural_fog,
-            }
-        }
+        SkyboxDebugViewMode::AuthoredOnlyVerification => authored_only_debug_composition(),
+        SkyboxDebugViewMode::Default => default_debug_composition(resolved),
+    }
+}
+
+fn authored_only_debug_composition() -> SkyboxDebugComposition {
+    SkyboxDebugComposition {
+        clear_color: SKYBOX_DEBUG_CLEAR_COLOR,
+        shows_procedural_visible_baseline: false,
+        shows_procedural_fog: false,
+    }
+}
+
+fn default_debug_composition(resolved: Option<&ResolvedDebugSkybox>) -> SkyboxDebugComposition {
+    let light_skybox_flags = resolved.and_then(|resolved| resolved.light_skybox_flags);
+    let light_params_flags = resolved.and_then(|resolved| resolved.light_params_flags);
+    let shows_procedural_visible_baseline =
+        procedural_baseline_enabled(light_skybox_flags, light_params_flags);
+    let shows_procedural_fog = procedural_fog_enabled(light_skybox_flags, light_params_flags);
+    SkyboxDebugComposition {
+        clear_color: baseline_clear_color(shows_procedural_visible_baseline),
+        shows_procedural_visible_baseline,
+        shows_procedural_fog,
+    }
+}
+
+fn procedural_baseline_enabled(
+    light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
+    light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
+) -> bool {
+    let skybox_blend_enabled = light_skybox_flags
+        .map(|flags| {
+            flags.contains(crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX)
+        })
+        .unwrap_or(true);
+    let hides_celestial_baseline = light_params_flags
+        .map(light_params_suppresses_celestial_visibility)
+        .unwrap_or(false);
+    skybox_blend_enabled && !hides_celestial_baseline
+}
+
+fn procedural_fog_enabled(
+    light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
+    light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
+) -> bool {
+    let skybox_fog_blend_enabled = light_skybox_flags
+        .map(|flags| {
+            flags.contains(crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND)
+        })
+        .unwrap_or(true);
+    let height_fog_enabled = light_params_flags
+        .map(|flags| flags.contains(crate::light_lookup::LightParamsFlags::HEIGHT_FOG_ABOVE_PLANE))
+        .unwrap_or(false);
+    skybox_fog_blend_enabled || height_fog_enabled
+}
+
+fn baseline_clear_color(shows_procedural_visible_baseline: bool) -> Color {
+    if shows_procedural_visible_baseline {
+        SKYBOX_DEBUG_BASELINE_CLEAR_COLOR
+    } else {
+        SKYBOX_DEBUG_CLEAR_COLOR
     }
 }
 
@@ -483,231 +500,6 @@ fn warn_missing_debug_skybox(
     }
 }
 
-fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug) {
-    let authored_light_params = setup
-        .scene
-        .as_ref()
-        .and_then(|scene| scene.authored_light_params_id());
-    let authored_light_skybox = setup
-        .scene
-        .as_ref()
-        .and_then(|scene| scene.authored_light_skybox_id());
-    info!(
-        "skybox_debug_scene: resolved skybox {} via {} (scene={:?}, authored_light_params={:?}, authored_light_skybox={:?}, resolved_light_params={:?}, resolved_light_params_flags=0x{:X}, resolved_light_skybox={:?}, resolved_light_skybox_flags=0x{:X})",
-        spawned.path.display(),
-        spawned.source,
-        setup
-            .scene
-            .as_ref()
-            .map(|scene| (scene.id, scene.name.as_str())),
-        authored_light_params,
-        authored_light_skybox,
-        spawned.light_params_id,
-        spawned
-            .light_params_flags
-            .map(|flags| flags.bits())
-            .unwrap_or(0),
-        spawned.light_skybox_id,
-        spawned
-            .light_skybox_flags
-            .map(|flags| flags.bits())
-            .unwrap_or(0)
-    );
-    log_debug_skybox_alpha_tracks(&spawned.path);
-}
-
-fn log_debug_skybox_alpha_tracks(path: &std::path::Path) {
-    let Ok(model) = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0]) else {
-        warn!(
-            "skybox_debug_scene: failed to load {} for alpha-track dump",
-            path.display()
-        );
-        return;
-    };
-    let default_sequence_index = model
-        .sequences
-        .iter()
-        .position(|sequence| sequence.id == 0)
-        .unwrap_or(0);
-    info!(
-        "skybox_debug_scene: alpha dump {} transparency_tracks={} color_tracks={} batches={}",
-        path.display(),
-        model.transparency_tracks.len(),
-        model.color_tracks.len(),
-        model.batches.len()
-    );
-    for (track_index, track) in model.transparency_tracks.iter().enumerate() {
-        info!(
-            "skybox_debug_scene: transparency_track[{track_index}] {}",
-            format_opacity_track_samples(track, default_sequence_index, &model.global_sequences)
-        );
-    }
-    log_debug_skybox_additive_batches(&model);
-    for (batch_index, batch) in model.batches.iter().enumerate() {
-        let transparency_track = batch
-            .transparency_track_index
-            .map_or_else(|| "-".into(), |idx| idx.to_string());
-        let color_track = batch
-            .color_opacity_track_index
-            .map_or_else(|| "-".into(), |idx| idx.to_string());
-        let transparency_samples = batch.transparency_anim.as_ref().map_or_else(
-            || "none".into(),
-            |track| {
-                format_opacity_track_samples(track, default_sequence_index, &model.global_sequences)
-            },
-        );
-        let color_samples = batch.color_opacity_anim.as_ref().map_or_else(
-            || "none".into(),
-            |track| {
-                format_opacity_track_samples(track, default_sequence_index, &model.global_sequences)
-            },
-        );
-        info!(
-            "skybox_debug_scene: batch[{batch_index}] mesh_part_id={} blend={} flags=0x{:x} priority_plane={} layer={} transparency_track={} color_opacity_track={} transparency_samples={} color_samples={}",
-            batch.mesh_part_id,
-            batch.blend_mode,
-            batch.render_flags,
-            batch.priority_plane,
-            batch.material_layer,
-            transparency_track,
-            color_track,
-            transparency_samples,
-            color_samples
-        );
-    }
-}
-
-fn log_debug_skybox_additive_batches(model: &crate::asset::m2::M2Model) {
-    let additive_batches: Vec<_> = model
-        .batches
-        .iter()
-        .enumerate()
-        .filter(|(_, batch)| batch.blend_mode == 4)
-        .collect();
-    info!(
-        "skybox_debug_scene: additive_batches={}",
-        additive_batches.len()
-    );
-    for (batch_index, batch) in additive_batches {
-        let duplicate_count = model
-            .batches
-            .iter()
-            .filter(|other| {
-                other.blend_mode == batch.blend_mode
-                    && other.priority_plane == batch.priority_plane
-                    && other.material_layer == batch.material_layer
-            })
-            .count();
-        info!(
-            "skybox_debug_scene: additive_batch[{batch_index}] mesh_part_id={} flags=0x{:x} priority_plane={} layer={} shader_id=0x{:x} texture_count={} use_uv_2_1={} use_uv_2_2={} use_env_map_2={} texture_anim={} texture_anim_2={} texture_fdid={:?} texture_2_fdid={:?} extra_textures={:?} duplicates_same_priority_layer={duplicate_count}",
-            batch.mesh_part_id,
-            batch.render_flags,
-            batch.priority_plane,
-            batch.material_layer,
-            batch.shader_id,
-            batch.texture_count,
-            batch.use_uv_2_1,
-            batch.use_uv_2_2,
-            batch.use_env_map_2,
-            batch.texture_anim.is_some(),
-            batch.texture_anim_2.is_some(),
-            batch.texture_fdid,
-            batch.texture_2_fdid,
-            batch.extra_texture_fdids
-        );
-        log_additive_batch_geometry(model, batch_index, batch);
-    }
-}
-
-fn log_additive_batch_geometry(
-    model: &crate::asset::m2::M2Model,
-    batch_index: usize,
-    batch: &crate::asset::m2::M2RenderBatch,
-) {
-    let triangle_count = match batch.mesh.indices() {
-        Some(bevy::mesh::Indices::U16(indices)) => indices.len() / 3,
-        Some(bevy::mesh::Indices::U32(indices)) => indices.len() / 3,
-        None => 0,
-    };
-    let vertex_count = batch.mesh.count_vertices();
-    let mut joint_indices = std::collections::BTreeSet::new();
-    if let Some(bevy::mesh::VertexAttributeValues::Uint16x4(joints)) =
-        batch.mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX)
-    {
-        for joint_set in joints {
-            for joint in joint_set {
-                joint_indices.insert(*joint as usize);
-            }
-        }
-    }
-    let joint_summary = if joint_indices.is_empty() {
-        "none".to_string()
-    } else {
-        joint_indices
-            .iter()
-            .map(|joint_index| {
-                let billboard = model
-                    .bones
-                    .get(*joint_index)
-                    .map(|bone| bone.flags & crate::animation::M2_BONE_SPHERICAL_BILLBOARD != 0)
-                    .unwrap_or(false);
-                format!("{joint_index}:billboard={billboard}")
-            })
-            .collect::<Vec<_>>()
-            .join(",")
-    };
-    info!(
-        "skybox_debug_scene: additive_batch[{batch_index}] geometry verts={} tris={} joints=[{}]",
-        vertex_count, triangle_count, joint_summary
-    );
-}
-
-fn format_opacity_track_samples(
-    track: &AnimTrack<i16>,
-    default_sequence_index: usize,
-    global_sequences: &[u32],
-) -> String {
-    let seq_idx = if track.sequences.is_empty() {
-        0
-    } else {
-        default_sequence_index.min(track.sequences.len() - 1)
-    };
-    let Some((timestamps, _)) = track.sequences.get(seq_idx) else {
-        return format!("global_seq={} seq={} empty", track.global_sequence, seq_idx);
-    };
-    let duration = if track.global_sequence >= 0 {
-        global_sequences
-            .get(track.global_sequence as usize)
-            .copied()
-            .unwrap_or_else(|| timestamps.last().copied().unwrap_or(0).saturating_add(1))
-    } else {
-        timestamps.last().copied().unwrap_or(0).saturating_add(1)
-    };
-    let samples = [
-        0_u32,
-        duration / 4,
-        duration / 2,
-        duration.saturating_sub(1),
-    ]
-    .into_iter()
-    .map(|time_ms| {
-        let value = evaluate_i16_track(track, seq_idx, time_ms)
-            .map(|raw| format!("{:.3}", fixed16_to_f32(raw).clamp(0.0, 1.0)))
-            .unwrap_or_else(|| "none".into());
-        format!("{time_ms}ms={value}")
-    })
-    .collect::<Vec<_>>()
-    .join(",");
-    format!(
-        "global_seq={} seq={} keyframes={} duration={} [{}]",
-        track.global_sequence,
-        seq_idx,
-        timestamps.len(),
-        duration,
-        samples
-    )
-}
-
 fn insert_skybox_debug_scene_tree(
     commands: &mut Commands,
     spawned: SpawnedSkyboxDebug,
@@ -725,6 +517,14 @@ struct ResolvedDebugSkybox {
     light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
     light_skybox_id: Option<u32>,
     light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
+}
+
+struct ResolvedSceneLightMetadata {
+    light_params_id: Option<u32>,
+    light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
+    light_skybox_id: Option<u32>,
+    light_skybox_flags: Option<crate::light_lookup::LightSkyboxFlags>,
+    suppresses_inherited_skybox: bool,
 }
 
 fn build_skybox_debug_scene_root(spawned: &SpawnedSkyboxDebug, fov_degrees: f32) -> SceneNode {
@@ -763,65 +563,87 @@ fn resolve_debug_skybox(
 ) -> Option<ResolvedDebugSkybox> {
     match override_spec {
         Some(SkyboxDebugOverride::LightSkyboxId(light_skybox_id)) => {
-            let resolved = crate::light_lookup::resolve_light_skybox_model(light_skybox_id)?;
-            Some(ResolvedDebugSkybox {
-                path: resolved.local_path,
-                source: format!("forced LightSkyboxID={light_skybox_id}"),
-                light_params_id: None,
-                light_params_flags: None,
-                light_skybox_id: Some(light_skybox_id),
-                light_skybox_flags: Some(resolved.flags),
-            })
+            resolve_debug_skybox_for_light_skybox_id(light_skybox_id)
         }
-        Some(SkyboxDebugOverride::SkyboxFileDataId(fdid)) => {
-            let path = crate::light_lookup::ensure_skybox_model_fdid(fdid)?;
-            Some(ResolvedDebugSkybox {
-                path,
-                source: format!("forced SkyboxFileDataID={fdid}"),
-                light_params_id: None,
-                light_params_flags: None,
-                light_skybox_id: None,
-                light_skybox_flags: None,
-            })
-        }
-        None => {
-            let scene = scene?;
-            let light_skybox = crate::light_lookup::resolve_local_skybox_model_for_zone(
-                scene.map_id,
-                scene.position,
-            );
-            let local_light_params_id = crate::light_lookup::resolve_local_clear_light_params_id(
-                scene.map_id,
-                scene.position,
-            );
-            let local_light_params_flags =
-                crate::light_lookup::resolve_local_clear_light_params_flags(
-                    scene.map_id,
-                    scene.position,
-                );
-            if light_skybox.is_none()
-                && local_light_params_flags.is_some_and(|flags| {
-                    flags.contains(crate::light_lookup::LightParamsFlags::DONT_INHERIT_SKYBOX)
-                })
-            {
-                return None;
-            }
-            Some(ResolvedDebugSkybox {
-                path: crate::scenes::char_select::warband::ensure_warband_skybox(scene)?,
-                source: format!("warband scene {} ({})", scene.id, scene.name),
-                light_params_id: light_skybox
-                    .as_ref()
-                    .and_then(|model| model.light_params_id)
-                    .or(local_light_params_id),
-                light_params_flags: light_skybox
-                    .as_ref()
-                    .and_then(|model| model.light_params_flags)
-                    .or(local_light_params_flags),
-                light_skybox_id: light_skybox.as_ref().map(|model| model.light_skybox_id),
-                light_skybox_flags: light_skybox.map(|model| model.flags),
-            })
-        }
+        Some(SkyboxDebugOverride::SkyboxFileDataId(fdid)) => resolve_debug_skybox_for_fdid(fdid),
+        None => resolve_debug_skybox_for_scene(scene),
     }
+}
+
+fn resolve_debug_skybox_for_light_skybox_id(light_skybox_id: u32) -> Option<ResolvedDebugSkybox> {
+    let resolved = crate::light_lookup::resolve_light_skybox_model(light_skybox_id)?;
+    Some(ResolvedDebugSkybox {
+        path: resolved.local_path,
+        source: format!("forced LightSkyboxID={light_skybox_id}"),
+        light_params_id: None,
+        light_params_flags: None,
+        light_skybox_id: Some(light_skybox_id),
+        light_skybox_flags: Some(resolved.flags),
+    })
+}
+
+fn resolve_debug_skybox_for_fdid(fdid: u32) -> Option<ResolvedDebugSkybox> {
+    let path = crate::light_lookup::ensure_skybox_model_fdid(fdid)?;
+    Some(ResolvedDebugSkybox {
+        path,
+        source: format!("forced SkyboxFileDataID={fdid}"),
+        light_params_id: None,
+        light_params_flags: None,
+        light_skybox_id: None,
+        light_skybox_flags: None,
+    })
+}
+
+fn resolve_debug_skybox_for_scene(
+    scene: Option<&crate::scenes::char_select::warband::WarbandSceneEntry>,
+) -> Option<ResolvedDebugSkybox> {
+    let scene = scene?;
+    let metadata = resolve_scene_light_metadata(scene);
+    if metadata.suppresses_inherited_skybox {
+        return None;
+    }
+    Some(ResolvedDebugSkybox {
+        path: crate::scenes::char_select::warband::ensure_warband_skybox(scene)?,
+        source: format!("warband scene {} ({})", scene.id, scene.name),
+        light_params_id: metadata.light_params_id,
+        light_params_flags: metadata.light_params_flags,
+        light_skybox_id: metadata.light_skybox_id,
+        light_skybox_flags: metadata.light_skybox_flags,
+    })
+}
+
+fn resolve_scene_light_metadata(
+    scene: &crate::scenes::char_select::warband::WarbandSceneEntry,
+) -> ResolvedSceneLightMetadata {
+    let light_skybox =
+        crate::light_lookup::resolve_local_skybox_model_for_zone(scene.map_id, scene.position);
+    let local_light_params_id =
+        crate::light_lookup::resolve_local_clear_light_params_id(scene.map_id, scene.position);
+    let local_light_params_flags =
+        crate::light_lookup::resolve_local_clear_light_params_flags(scene.map_id, scene.position);
+    let suppresses_inherited_skybox =
+        light_skybox.is_none() && local_flags_disallow_inherited_skybox(local_light_params_flags);
+    ResolvedSceneLightMetadata {
+        light_params_id: light_skybox
+            .as_ref()
+            .and_then(|model| model.light_params_id)
+            .or(local_light_params_id),
+        light_params_flags: light_skybox
+            .as_ref()
+            .and_then(|model| model.light_params_flags)
+            .or(local_light_params_flags),
+        light_skybox_id: light_skybox.as_ref().map(|model| model.light_skybox_id),
+        light_skybox_flags: light_skybox.map(|model| model.flags),
+        suppresses_inherited_skybox,
+    }
+}
+
+fn local_flags_disallow_inherited_skybox(
+    local_light_params_flags: Option<crate::light_lookup::LightParamsFlags>,
+) -> bool {
+    local_light_params_flags.is_some_and(|flags| {
+        flags.contains(crate::light_lookup::LightParamsFlags::DONT_INHERIT_SKYBOX)
+    })
 }
 
 fn sync_skybox_to_camera(
@@ -858,391 +680,4 @@ fn teardown_scene(commands: Commands, query: Query<Entity, With<SkyboxDebugScene
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{
-        ResolvedDebugSkybox, SkyboxDebugOverride, SkyboxDebugScene, SkyboxDebugSetup,
-        SkyboxDebugSkybox, SkyboxDebugViewMode, camera_scene_node, debug_scene_camera_bundle,
-        resolve_debug_skybox, skybox_debug_composition, spawn_debug_scene_environment,
-        spawn_skybox_debug_reference_objects, sync_skybox_to_camera, sync_skyboxdebug_camera_fov,
-    };
-    use crate::client_options::CameraOptions;
-    use crate::orbit_camera::OrbitCamera;
-    use bevy::ecs::system::RunSystemOnce;
-    use bevy::prelude::*;
-    use game_engine::scene_tree::NodeProps;
-    use std::path::PathBuf;
-
-    #[test]
-    fn debug_override_resolves_light_skybox_id() {
-        let resolved = resolve_debug_skybox(None, Some(SkyboxDebugOverride::LightSkyboxId(653)))
-            .expect("resolved light skybox override");
-        assert!(
-            resolved
-                .path
-                .ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
-            "unexpected resolved path: {}",
-            resolved.path.display()
-        );
-        assert_eq!(resolved.source, "forced LightSkyboxID=653");
-        assert_eq!(
-            resolved.light_skybox_flags,
-            Some(
-                crate::light_lookup::LightSkyboxFlags::FULL_DAY_SKYBOX
-                    | crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX
-                    | crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND
-                    | crate::light_lookup::LightSkyboxFlags::FORCE_SUNSHAFTS
-            )
-        );
-    }
-
-    #[test]
-    fn debug_override_resolves_skybox_fdid() {
-        let resolved =
-            resolve_debug_skybox(None, Some(SkyboxDebugOverride::SkyboxFileDataId(5_412_968)))
-                .expect("resolved skybox fdid override");
-        assert!(
-            resolved
-                .path
-                .ends_with("data/models/skyboxes/11xp_cloudsky01.m2"),
-            "unexpected resolved path: {}",
-            resolved.path.display()
-        );
-        assert_eq!(resolved.source, "forced SkyboxFileDataID=5412968");
-    }
-
-    #[test]
-    fn default_debug_scene_uses_shared_campsite_fallback_when_first_scene_has_no_local_authored_skybox()
-     {
-        let scene = crate::scenes::char_select::warband::WarbandScenes::load()
-            .scenes
-            .into_iter()
-            .find(|scene| scene.id == 1)
-            .expect("known scene");
-        let resolved = resolve_debug_skybox(Some(&scene), None).expect("resolved default skybox");
-
-        assert!(
-            resolved
-                .path
-                .ends_with("data/models/skyboxes/costalislandskybox.m2"),
-            "unexpected resolved path: {}",
-            resolved.path.display()
-        );
-        assert_eq!(resolved.source, "warband scene 1 (Adventurer's Rest)");
-    }
-
-    #[test]
-    fn debug_skybox_sync_uses_orbit_focus() {
-        let mut app = App::new();
-        app.add_systems(Update, sync_skybox_to_camera);
-
-        app.world_mut().spawn((
-            SkyboxDebugScene,
-            Camera3d::default(),
-            OrbitCamera::new(Vec3::new(3.0, 4.0, 5.0), 7.5),
-            Transform::from_translation(Vec3::new(30.0, 40.0, 50.0)),
-        ));
-        let skybox = app
-            .world_mut()
-            .spawn((
-                SkyboxDebugScene,
-                SkyboxDebugSkybox,
-                Transform::from_translation(Vec3::ZERO),
-            ))
-            .id();
-
-        app.update();
-
-        let transform = app
-            .world()
-            .get::<Transform>(skybox)
-            .expect("skybox transform");
-        assert_eq!(transform.translation, Vec3::new(3.0, 4.0, 5.0));
-    }
-
-    #[test]
-    fn default_mode_spawns_procedural_baseline_sky_and_fog() {
-        let mut app = App::new();
-        app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
-        app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
-        app.init_resource::<Assets<Image>>();
-
-        let _ = app.world_mut().run_system_once(
-            |mut commands: Commands,
-             mut meshes: ResMut<Assets<Mesh>>,
-             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
-             mut images: ResMut<Assets<Image>>| {
-                let cloud_maps =
-                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
-                let setup = SkyboxDebugSetup {
-                    scene: None,
-                    focus: Vec3::new(0.0, 1.0, 0.0),
-                    eye: Vec3::new(0.0, 1.0, 7.5),
-                };
-                spawn_debug_scene_environment(
-                    &mut commands,
-                    &mut meshes,
-                    &mut sky_materials,
-                    &mut images,
-                    cloud_maps.active_handle(),
-                    &setup,
-                    CameraOptions::default().fov_degrees,
-                    skybox_debug_composition(SkyboxDebugViewMode::Default, None),
-                );
-            },
-        );
-
-        let dome_count = {
-            let world = app.world_mut();
-            let mut query = world
-                .query_filtered::<Entity, (With<crate::sky::SkyDome>, With<SkyboxDebugScene>)>();
-            query.iter(world).count()
-        };
-        let fog_count = {
-            let world = app.world_mut();
-            let mut query =
-                world.query_filtered::<Entity, (With<Camera3d>, With<DistanceFog>, With<SkyboxDebugScene>)>();
-            query.iter(world).count()
-        };
-
-        assert_eq!(dome_count, 1);
-        assert_eq!(fog_count, 1);
-    }
-
-    #[test]
-    fn verification_mode_skips_debug_reference_objects() {
-        let mut app = App::new();
-        app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
-        app.init_resource::<Assets<Image>>();
-
-        let _ = app.world_mut().run_system_once(
-            |mut commands: Commands,
-             mut meshes: ResMut<Assets<Mesh>>,
-             mut materials: ResMut<Assets<StandardMaterial>>,
-             mut images: ResMut<Assets<Image>>| {
-                spawn_skybox_debug_reference_objects(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    &mut images,
-                    SkyboxDebugViewMode::AuthoredOnlyVerification,
-                );
-            },
-        );
-        let ground_plane_count = {
-            let world = app.world_mut();
-            let mut query = world.query::<&Name>();
-            query
-                .iter(world)
-                .filter(|name| name.as_str() == "SkyboxDebugGroundPlane")
-                .count()
-        };
-
-        assert_eq!(ground_plane_count, 0);
-    }
-
-    #[test]
-    fn default_mode_spawns_grass_ground_plane() {
-        let mut app = App::new();
-        app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
-        app.init_resource::<Assets<Image>>();
-
-        let _ = app.world_mut().run_system_once(
-            |mut commands: Commands,
-             mut meshes: ResMut<Assets<Mesh>>,
-             mut materials: ResMut<Assets<StandardMaterial>>,
-             mut images: ResMut<Assets<Image>>| {
-                spawn_skybox_debug_reference_objects(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    &mut images,
-                    SkyboxDebugViewMode::Default,
-                );
-            },
-        );
-        let ground_plane_count = {
-            let world = app.world_mut();
-            let mut query = world.query::<(&Name, Entity)>();
-            query
-                .iter(world)
-                .filter(|(name, _)| name.as_str() == "SkyboxDebugGroundPlane")
-                .count()
-        };
-
-        assert_eq!(ground_plane_count, 1);
-    }
-
-    #[test]
-    fn skyboxdebug_camera_uses_requested_fov_in_projection_and_scene_tree() {
-        let setup = SkyboxDebugSetup {
-            scene: None,
-            focus: Vec3::new(0.0, 1.0, 0.0),
-            eye: Vec3::new(0.0, 1.0, 7.5),
-        };
-        let fov_degrees = 117.0;
-        let mut app = App::new();
-        app.world_mut().spawn(debug_scene_camera_bundle(
-            &setup,
-            fov_degrees,
-            skybox_debug_composition(SkyboxDebugViewMode::Default, None),
-        ));
-
-        let world = app.world_mut();
-        let mut camera_query = world.query::<&Projection>();
-        let projection = camera_query.single(world).expect("camera projection");
-        let Projection::Perspective(perspective) = projection else {
-            panic!("expected perspective projection");
-        };
-        assert!((perspective.fov.to_degrees() - fov_degrees).abs() < 0.001);
-
-        let node = camera_scene_node(fov_degrees);
-        match node.props {
-            NodeProps::Camera { fov } => {
-                assert!((fov - fov_degrees).abs() < 0.001);
-            }
-            props => panic!("expected camera node props, got {props:?}"),
-        }
-    }
-
-    #[test]
-    fn skyboxdebug_camera_sync_updates_projection_from_camera_options() {
-        let mut app = App::new();
-        app.insert_resource(CameraOptions {
-            fov_degrees: 103.0,
-            ..default()
-        });
-        app.add_systems(Update, sync_skyboxdebug_camera_fov);
-        app.world_mut().spawn((
-            SkyboxDebugScene,
-            Camera3d::default(),
-            OrbitCamera::new(Vec3::ZERO, 7.5),
-            Projection::Perspective(PerspectiveProjection {
-                fov: 90.0_f32.to_radians(),
-                ..default()
-            }),
-        ));
-
-        app.update();
-
-        let world = app.world_mut();
-        let mut camera_query = world.query::<&Projection>();
-        let projection = camera_query.single(world).expect("camera projection");
-        let Projection::Perspective(perspective) = projection else {
-            panic!("expected perspective projection");
-        };
-        assert!((perspective.fov.to_degrees() - 103.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn verification_mode_spawns_black_background_without_procedural_sky() {
-        let mut app = App::new();
-        app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
-        app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
-        app.init_resource::<Assets<Image>>();
-
-        let _ = app.world_mut().run_system_once(
-            |mut commands: Commands,
-             mut meshes: ResMut<Assets<Mesh>>,
-             mut sky_materials: ResMut<Assets<crate::sky_material::SkyMaterial>>,
-             mut images: ResMut<Assets<Image>>| {
-                let cloud_maps =
-                    crate::sky::cloud_texture::create_procedural_cloud_maps(&mut images);
-                let setup = SkyboxDebugSetup {
-                    scene: None,
-                    focus: Vec3::new(0.0, 1.0, 0.0),
-                    eye: Vec3::new(0.0, 1.0, 7.5),
-                };
-                spawn_debug_scene_environment(
-                    &mut commands,
-                    &mut meshes,
-                    &mut sky_materials,
-                    &mut images,
-                    cloud_maps.active_handle(),
-                    &setup,
-                    CameraOptions::default().fov_degrees,
-                    skybox_debug_composition(SkyboxDebugViewMode::AuthoredOnlyVerification, None),
-                );
-            },
-        );
-
-        let dome_count = {
-            let world = app.world_mut();
-            let mut query = world
-                .query_filtered::<Entity, (With<crate::sky::SkyDome>, With<SkyboxDebugScene>)>();
-            query.iter(world).count()
-        };
-        let fog_count = {
-            let world = app.world_mut();
-            let mut query =
-                world.query_filtered::<Entity, (With<Camera3d>, With<DistanceFog>, With<SkyboxDebugScene>)>();
-            query.iter(world).count()
-        };
-        let clear_color = app.world().resource::<ClearColor>().0;
-
-        assert_eq!(dome_count, 0);
-        assert_eq!(fog_count, 0);
-        assert_eq!(clear_color, Color::BLACK);
-    }
-
-    #[test]
-    fn light_params_hide_flags_suppress_procedural_celestial_baseline() {
-        let resolved = ResolvedDebugSkybox {
-            path: PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"),
-            source: "test".into(),
-            light_params_id: Some(42),
-            light_params_flags: Some(
-                crate::light_lookup::LightParamsFlags::HIDE_SUN
-                    | crate::light_lookup::LightParamsFlags::HIDE_MOON
-                    | crate::light_lookup::LightParamsFlags::HIDE_STARS,
-            ),
-            light_skybox_id: Some(653),
-            light_skybox_flags: Some(
-                crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX
-                    | crate::light_lookup::LightSkyboxFlags::PROCEDURAL_FOG_COLOR_BLEND,
-            ),
-        };
-
-        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
-
-        assert!(!composition.shows_procedural_visible_baseline);
-        assert!(composition.shows_procedural_fog);
-    }
-
-    #[test]
-    fn light_params_dont_inherit_skybox_suppresses_procedural_baseline() {
-        let resolved = ResolvedDebugSkybox {
-            path: PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"),
-            source: "test".into(),
-            light_params_id: Some(42),
-            light_params_flags: Some(crate::light_lookup::LightParamsFlags::DONT_INHERIT_SKYBOX),
-            light_skybox_id: Some(653),
-            light_skybox_flags: Some(
-                crate::light_lookup::LightSkyboxFlags::COMBINE_PROCEDURAL_AND_SKYBOX,
-            ),
-        };
-
-        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
-
-        assert!(!composition.shows_procedural_visible_baseline);
-    }
-
-    #[test]
-    fn light_params_height_fog_above_plane_enables_fog_without_skybox_blend() {
-        let resolved = ResolvedDebugSkybox {
-            path: PathBuf::from("data/models/skyboxes/11xp_cloudsky01.m2"),
-            source: "test".into(),
-            light_params_id: Some(42),
-            light_params_flags: Some(crate::light_lookup::LightParamsFlags::HEIGHT_FOG_ABOVE_PLANE),
-            light_skybox_id: Some(653),
-            light_skybox_flags: Some(crate::light_lookup::LightSkyboxFlags::empty()),
-        };
-
-        let composition = skybox_debug_composition(SkyboxDebugViewMode::Default, Some(&resolved));
-
-        assert!(composition.shows_procedural_fog);
-    }
-}
+mod tests;
