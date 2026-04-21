@@ -42,11 +42,15 @@ fn log_debug_skybox_alpha_tracks(path: &std::path::Path) {
     let Some(model) = load_model_for_alpha_dump(path) else {
         return;
     };
-    let default_sequence_index = default_sequence_index(&model);
-    log_alpha_dump_header(path, &model);
-    log_transparency_tracks(&model, default_sequence_index);
-    log_debug_skybox_additive_batches(&model);
-    log_batch_opacity_tracks(&model, default_sequence_index);
+    log_loaded_model_alpha_tracks(path, &model);
+}
+
+fn log_loaded_model_alpha_tracks(path: &std::path::Path, model: &crate::asset::m2::M2Model) {
+    let default_sequence_index = default_sequence_index(model);
+    log_alpha_dump_header(path, model);
+    log_transparency_tracks(model, default_sequence_index);
+    log_debug_skybox_additive_batches(model);
+    log_batch_opacity_tracks(model, default_sequence_index);
 }
 
 fn load_model_for_alpha_dump(path: &std::path::Path) -> Option<crate::asset::m2::M2Model> {
