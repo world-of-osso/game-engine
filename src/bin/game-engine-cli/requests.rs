@@ -400,30 +400,55 @@ pub fn parse_equipment_slot(value: &str) -> Result<&'static str, String> {
 }
 
 pub fn status_request(command: StatusCmd) -> Result<Request, String> {
-    let request = match command {
-        StatusCmd::Achievements => Request::AchievementsStatus,
-        StatusCmd::Barber => Request::BarberStatus,
-        StatusCmd::Calendar => Request::CalendarStatus,
-        StatusCmd::Death => Request::DeathStatus,
-        StatusCmd::EncounterJournal => Request::EncounterJournalStatus,
-        StatusCmd::Friends => Request::FriendsStatus,
-        StatusCmd::Guild => Request::GuildStatus,
-        StatusCmd::Who => Request::WhoStatus,
-        StatusCmd::Ignore => Request::IgnoreStatus,
-        StatusCmd::Lfg => Request::LfgStatus,
-        StatusCmd::Pvp => Request::PvpStatus,
-        StatusCmd::Network => Request::NetworkStatus,
-        StatusCmd::Terrain => Request::TerrainStatus,
-        StatusCmd::Sound => Request::SoundStatus,
-        StatusCmd::Currencies => Request::CurrenciesStatus,
-        StatusCmd::Reputations => Request::ReputationsStatus,
-        StatusCmd::CharacterStats => Request::CharacterStatsStatus,
-        StatusCmd::Bags => Request::BagsStatus,
-        StatusCmd::GuildVault => Request::GuildVaultStatus,
-        StatusCmd::Warbank => Request::WarbankStatus,
-        StatusCmd::EquippedGear => Request::EquippedGearStatus,
-    };
-    Ok(request)
+    for mapper in [
+        map_status_social as fn(&StatusCmd) -> Option<Request>,
+        map_status_world,
+        map_status_character,
+    ] {
+        if let Some(request) = mapper(&command) {
+            return Ok(request);
+        }
+    }
+    Err("unsupported status command".into())
+}
+
+fn map_status_social(command: &StatusCmd) -> Option<Request> {
+    match command {
+        StatusCmd::Friends => Some(Request::FriendsStatus),
+        StatusCmd::Guild => Some(Request::GuildStatus),
+        StatusCmd::Who => Some(Request::WhoStatus),
+        StatusCmd::Ignore => Some(Request::IgnoreStatus),
+        StatusCmd::Lfg => Some(Request::LfgStatus),
+        StatusCmd::Pvp => Some(Request::PvpStatus),
+        StatusCmd::Calendar => Some(Request::CalendarStatus),
+        _ => None,
+    }
+}
+
+fn map_status_world(command: &StatusCmd) -> Option<Request> {
+    match command {
+        StatusCmd::Network => Some(Request::NetworkStatus),
+        StatusCmd::Terrain => Some(Request::TerrainStatus),
+        StatusCmd::Sound => Some(Request::SoundStatus),
+        StatusCmd::EncounterJournal => Some(Request::EncounterJournalStatus),
+        StatusCmd::Achievements => Some(Request::AchievementsStatus),
+        StatusCmd::Reputations => Some(Request::ReputationsStatus),
+        _ => None,
+    }
+}
+
+fn map_status_character(command: &StatusCmd) -> Option<Request> {
+    match command {
+        StatusCmd::Barber => Some(Request::BarberStatus),
+        StatusCmd::Death => Some(Request::DeathStatus),
+        StatusCmd::Currencies => Some(Request::CurrenciesStatus),
+        StatusCmd::CharacterStats => Some(Request::CharacterStatsStatus),
+        StatusCmd::Bags => Some(Request::BagsStatus),
+        StatusCmd::GuildVault => Some(Request::GuildVaultStatus),
+        StatusCmd::Warbank => Some(Request::WarbankStatus),
+        StatusCmd::EquippedGear => Some(Request::EquippedGearStatus),
+        _ => None,
+    }
 }
 
 fn parse_pvp_bracket(value: &str) -> Result<PvpBracketSnapshot, String> {
