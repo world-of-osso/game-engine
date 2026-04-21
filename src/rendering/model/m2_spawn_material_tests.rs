@@ -424,6 +424,104 @@ fn cloudsky_shader_8016_trace_captures_four_stage_masked_uv4_path() {
     assert_eq!(material.settings.uv_mode_4, 1);
 }
 
+fn synthetic_missing_texture_fdid() -> u32 {
+    for candidate in [u32::MAX, u32::MAX - 1, 4_000_000_000, 3_500_000_000] {
+        let path = crate::asset::asset_cache::texture(candidate)
+            .unwrap_or_else(|| std::path::PathBuf::from(format!("data/textures/{candidate}.blp")));
+        if !path.exists() {
+            return candidate;
+        }
+    }
+    panic!("expected at least one high synthetic FDID to be absent from local texture cache");
+}
+
+#[test]
+fn cloudsky_shader_8012_stage_binding_disables_missing_optional_third_stage() {
+    let model = load_cloudsky_model();
+    let (batch_index, batch) = cloudsky_batch_by_shader_id(&model, SHADER_THREE_STAGE);
+    let mut batch = batch.clone();
+    batch.extra_texture_fdids = vec![synthetic_missing_texture_fdid()];
+    let material = traced_cloudsky_material(&batch, batch_index);
+
+    assert_eq!(material.settings.has_second_texture, 1);
+    assert_eq!(material.settings.has_third_texture, 0);
+    assert_eq!(material.settings.has_fourth_texture, 0);
+    assert_eq!(
+        material.third_texture, material.base_texture,
+        "missing optional stage should fall back to base binding"
+    );
+    assert_eq!(
+        material.fourth_texture, material.base_texture,
+        "missing optional stage should keep fourth-stage binding on base texture"
+    );
+}
+
+#[test]
+fn cloudsky_shader_8016_stage_binding_keeps_third_stage_but_disables_missing_mask_stage() {
+    let model = load_cloudsky_model();
+    let (batch_index, batch) = cloudsky_batch_by_shader_id(&model, SHADER_FOUR_STAGE);
+    let mut batch = batch.clone();
+    let third_fdid = *batch
+        .extra_texture_fdids
+        .first()
+        .expect("cloudsky SHADER_FOUR_STAGE must keep third-stage fdid");
+    batch.extra_texture_fdids = vec![third_fdid, synthetic_missing_texture_fdid()];
+    let material = traced_cloudsky_material(&batch, batch_index);
+
+    assert_eq!(material.settings.has_second_texture, 1);
+    assert_eq!(material.settings.has_third_texture, 1);
+    assert_eq!(material.settings.has_fourth_texture, 0);
+    assert_ne!(
+        material.third_texture, material.base_texture,
+        "present optional third stage should not collapse to base binding"
+    );
+    assert_eq!(
+        material.fourth_texture, material.base_texture,
+        "missing optional fourth stage should fall back to base binding"
+    );
+    assert_eq!(
+        material.settings.uv_mode_4, 1,
+        "SHADER_FOUR_STAGE should keep masked UV4 routing even if mask stage is absent"
+    );
+}
+
+#[test]
+fn cloudsky_modern_shader_uv_selection_is_stable_against_authored_uv_flags() {
+    let model = load_cloudsky_model();
+
+    let (mod2x_index, mod2x_batch) = cloudsky_batch_by_shader_id(&model, SHADER_MOD2X);
+    let mut mod2x_batch = mod2x_batch.clone();
+    mod2x_batch.use_uv_2_1 = true;
+    mod2x_batch.use_uv_2_2 = false;
+    let mod2x_material = traced_cloudsky_material(&mod2x_batch, mod2x_index);
+    assert_eq!(mod2x_material.settings.uv_mode_1, 1);
+    assert_eq!(mod2x_material.settings.uv_mode_2, 0);
+    assert_eq!(mod2x_material.settings.uv_mode_3, 0);
+    assert_eq!(mod2x_material.settings.uv_mode_4, 0);
+
+    let (three_stage_index, three_stage_batch) =
+        cloudsky_batch_by_shader_id(&model, SHADER_THREE_STAGE);
+    let mut three_stage_batch = three_stage_batch.clone();
+    three_stage_batch.use_uv_2_1 = true;
+    three_stage_batch.use_uv_2_2 = true;
+    let three_stage_material = traced_cloudsky_material(&three_stage_batch, three_stage_index);
+    assert_eq!(three_stage_material.settings.uv_mode_1, 0);
+    assert_eq!(three_stage_material.settings.uv_mode_2, 0);
+    assert_eq!(three_stage_material.settings.uv_mode_3, 0);
+    assert_eq!(three_stage_material.settings.uv_mode_4, 0);
+
+    let (four_stage_index, four_stage_batch) =
+        cloudsky_batch_by_shader_id(&model, SHADER_FOUR_STAGE);
+    let mut four_stage_batch = four_stage_batch.clone();
+    four_stage_batch.use_uv_2_1 = false;
+    four_stage_batch.use_uv_2_2 = false;
+    let four_stage_material = traced_cloudsky_material(&four_stage_batch, four_stage_index);
+    assert_eq!(four_stage_material.settings.uv_mode_1, 0);
+    assert_eq!(four_stage_material.settings.uv_mode_2, 0);
+    assert_eq!(four_stage_material.settings.uv_mode_3, 0);
+    assert_eq!(four_stage_material.settings.uv_mode_4, 1);
+}
+
 #[test]
 fn cloudsky_advanced_effect_batches_require_more_than_two_texture_stages() {
     let path = std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2");
