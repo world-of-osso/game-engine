@@ -1,4 +1,3 @@
-
 use super::{
     LightParamsFlags, LightParamsSlot, LightSkyboxFlags, ensure_skybox_model_fdid,
     ensure_skybox_model_wow_path, map_name_to_id, resolve_light_params_flags,
