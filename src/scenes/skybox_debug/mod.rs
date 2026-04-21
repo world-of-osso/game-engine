@@ -663,14 +663,14 @@ fn resolve_debug_skybox(
 }
 
 fn sync_skybox_to_camera(
-    camera_query: Query<&Transform, (With<Camera3d>, With<OrbitCamera>, With<SkyboxDebugScene>)>,
+    camera_query: Query<&OrbitCamera, (With<Camera3d>, With<SkyboxDebugScene>)>,
     mut skybox_query: Query<&mut Transform, (With<SkyboxDebugSkybox>, Without<OrbitCamera>)>,
 ) {
-    let Ok(camera_transform) = camera_query.single() else {
+    let Ok(orbit) = camera_query.single() else {
         return;
     };
     for mut transform in &mut skybox_query {
-        transform.translation = camera_transform.translation;
+        transform.translation = orbit.focus;
     }
 }
 
@@ -768,7 +768,7 @@ mod tests {
     }
 
     #[test]
-    fn debug_skybox_sync_uses_camera_translation() {
+    fn debug_skybox_sync_uses_orbit_focus() {
         let mut app = App::new();
         app.add_systems(Update, sync_skybox_to_camera);
 
@@ -793,7 +793,7 @@ mod tests {
             .world()
             .get::<Transform>(skybox)
             .expect("skybox transform");
-        assert_eq!(transform.translation, Vec3::new(30.0, 40.0, 50.0));
+        assert_eq!(transform.translation, Vec3::new(3.0, 4.0, 5.0));
     }
 
     #[test]

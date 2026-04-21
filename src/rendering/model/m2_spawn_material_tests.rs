@@ -374,6 +374,7 @@ fn authored_skybox_models_reference_locally_available_textures() {
 fn dedicated_skybox_loader_keeps_authored_skybox_render_batches() {
     for skybox_path in [
         std::path::Path::new("data/models/skyboxes/11xp_cloudsky01.m2"),
+        std::path::Path::new("data/models/skyboxes/costalislandskybox.m2"),
         std::path::Path::new("data/models/skyboxes/deathskybox.m2"),
     ] {
         let model = crate::asset::m2::load_skybox_m2_uncached(skybox_path, &[0, 0, 0])
@@ -393,8 +394,14 @@ fn dedicated_skybox_loader_keeps_authored_skybox_render_batches() {
             model.batches.len()
         );
         for (index, batch) in model.batches.iter().take(5).enumerate() {
+            let vertex_count = batch.mesh.count_vertices();
+            let triangle_count = match batch.mesh.indices() {
+                Some(bevy::mesh::Indices::U16(indices)) => indices.len() / 3,
+                Some(bevy::mesh::Indices::U32(indices)) => indices.len() / 3,
+                None => 0,
+            };
             eprintln!(
-                "  batch[{index}] tex1={:?} tex2={:?} extras={:?} texture_count={} shader_id=0x{:04x} blend_mode={}",
+                "  batch[{index}] verts={vertex_count} tris={triangle_count} tex1={:?} tex2={:?} extras={:?} texture_count={} shader_id=0x{:04x} blend_mode={}",
                 batch.texture_fdid,
                 batch.texture_2_fdid,
                 batch.extra_texture_fdids,
