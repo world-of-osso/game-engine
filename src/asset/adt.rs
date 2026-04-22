@@ -601,12 +601,17 @@ mod tests {
     }
 
     // --- Low-res hole bitmask (4×4 grid, 16 bits) ---
+    const LOW_RES_HOLES_NONE: u16 = 0;
+    const LOW_RES_HOLES_ALL: u16 = u16::MAX;
+    const LOW_RES_HOLE_BIT0: u16 = 1;
+    const LOW_RES_HOLE_BIT5: u16 = 1 << 5;
+    const LOW_RES_HOLE_LAST_BIT: u16 = 1 << 15;
 
     #[test]
     fn low_res_no_holes() {
         for r in 0..4 {
             for c in 0..4 {
-                assert!(!super::low_res_hole_at(0x0000, c, r));
+                assert!(!super::low_res_hole_at(LOW_RES_HOLES_NONE, c, r));
             }
         }
     }
@@ -615,7 +620,7 @@ mod tests {
     fn low_res_all_holes() {
         for r in 0..4 {
             for c in 0..4 {
-                assert!(super::low_res_hole_at(0xFFFF, c, r));
+                assert!(super::low_res_hole_at(LOW_RES_HOLES_ALL, c, r));
             }
         }
     }
@@ -623,29 +628,29 @@ mod tests {
     #[test]
     fn low_res_single_hole_bit0() {
         // Bit 0 = row 0, col 0
-        assert!(super::low_res_hole_at(0x0001, 0, 0));
-        assert!(!super::low_res_hole_at(0x0001, 1, 0));
-        assert!(!super::low_res_hole_at(0x0001, 0, 1));
+        assert!(super::low_res_hole_at(LOW_RES_HOLE_BIT0, 0, 0));
+        assert!(!super::low_res_hole_at(LOW_RES_HOLE_BIT0, 1, 0));
+        assert!(!super::low_res_hole_at(LOW_RES_HOLE_BIT0, 0, 1));
     }
 
     #[test]
     fn low_res_single_hole_bit5() {
         // Bit 5 = row 1, col 1 (row*4 + col)
-        assert!(super::low_res_hole_at(0x0020, 1, 1));
-        assert!(!super::low_res_hole_at(0x0020, 0, 0));
+        assert!(super::low_res_hole_at(LOW_RES_HOLE_BIT5, 1, 1));
+        assert!(!super::low_res_hole_at(LOW_RES_HOLE_BIT5, 0, 0));
     }
 
     #[test]
     fn low_res_last_bit() {
         // Bit 15 = row 3, col 3
-        assert!(super::low_res_hole_at(0x8000, 3, 3));
-        assert!(!super::low_res_hole_at(0x8000, 0, 0));
+        assert!(super::low_res_hole_at(LOW_RES_HOLE_LAST_BIT, 3, 3));
+        assert!(!super::low_res_hole_at(LOW_RES_HOLE_LAST_BIT, 0, 0));
     }
 
     #[test]
     fn low_res_out_of_bounds() {
-        assert!(!super::low_res_hole_at(0xFFFF, 4, 0));
-        assert!(!super::low_res_hole_at(0xFFFF, 0, 4));
+        assert!(!super::low_res_hole_at(LOW_RES_HOLES_ALL, 4, 0));
+        assert!(!super::low_res_hole_at(LOW_RES_HOLES_ALL, 0, 4));
     }
 
     // --- High-res hole bitmask (8×8 grid, 64 bits) ---
@@ -699,15 +704,15 @@ mod tests {
     #[test]
     fn terrain_hole_prefers_high_res() {
         // High-res has hole at (0,0), low-res does not
-        assert!(super::terrain_hole_at(0x0000, Some(1), 0, 0));
+        assert!(super::terrain_hole_at(LOW_RES_HOLES_NONE, Some(1), 0, 0));
     }
 
     #[test]
     fn terrain_hole_falls_back_to_low_res() {
         // No high-res → uses low-res. Col 0, row 0 in 8×8 maps to col/2=0, row/2=0 in 4×4
-        assert!(super::terrain_hole_at(0x0001, None, 0, 0));
-        assert!(super::terrain_hole_at(0x0001, None, 1, 0)); // col 1 → col/2 = 0
-        assert!(!super::terrain_hole_at(0x0001, None, 2, 0)); // col 2 → col/2 = 1
+        assert!(super::terrain_hole_at(LOW_RES_HOLE_BIT0, None, 0, 0));
+        assert!(super::terrain_hole_at(LOW_RES_HOLE_BIT0, None, 1, 0)); // col 1 → col/2 = 0
+        assert!(!super::terrain_hole_at(LOW_RES_HOLE_BIT0, None, 2, 0)); // col 2 → col/2 = 1
     }
 
     // --- build_mcnk_indices with holes ---
@@ -721,7 +726,7 @@ mod tests {
 
     #[test]
     fn indices_all_holes_empty() {
-        let indices = super::build_mcnk_indices(0xFFFF, None);
+        let indices = super::build_mcnk_indices(LOW_RES_HOLES_ALL, None);
         assert!(indices.is_empty());
     }
 
@@ -729,7 +734,7 @@ mod tests {
     fn indices_one_low_res_hole_removes_quads() {
         // Bit 0 = low-res hole at (col 0, row 0) → covers 8×8 quads (0,0) and (1,0) and (0,1) and (1,1)
         let full = super::build_mcnk_indices(0, None);
-        let with_hole = super::build_mcnk_indices(0x0001, None);
+        let with_hole = super::build_mcnk_indices(LOW_RES_HOLE_BIT0, None);
         // 4 quads removed (2×2 in the 8×8 grid), each had 4 tris × 3 = 12 indices
         assert_eq!(full.len() - with_hole.len(), 4 * 12);
     }
