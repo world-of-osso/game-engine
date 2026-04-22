@@ -381,36 +381,31 @@ fn update_money_display(reg: &mut FrameRegistry, bars: &ActionBarsUi, gold: u32)
 }
 
 fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.widget_data = Some(WidgetData::FontString(FontStringData {
-            text: text.to_string(),
-            font_size: size,
-            color,
-            justify_h: JustifyH::Center,
-            ..Default::default()
-        }));
-    }
+    set_font_string_with_justify(reg, id, text, size, color, JustifyH::Center);
 }
 
 fn set_font_string_left(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.widget_data = Some(WidgetData::FontString(FontStringData {
-            text: text.to_string(),
-            font_size: size,
-            color,
-            justify_h: JustifyH::Left,
-            ..Default::default()
-        }));
-    }
+    set_font_string_with_justify(reg, id, text, size, color, JustifyH::Left);
 }
 
 fn set_font_string_right(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
+    set_font_string_with_justify(reg, id, text, size, color, JustifyH::Right);
+}
+
+fn set_font_string_with_justify(
+    reg: &mut FrameRegistry,
+    id: u64,
+    text: &str,
+    size: f32,
+    color: [f32; 4],
+    justify_h: JustifyH,
+) {
     if let Some(frame) = reg.get_mut(id) {
         frame.widget_data = Some(WidgetData::FontString(FontStringData {
             text: text.to_string(),
             font_size: size,
             color,
-            justify_h: JustifyH::Right,
+            justify_h,
             ..Default::default()
         }));
     }
@@ -477,6 +472,15 @@ mod tests {
         data.text.clone()
     }
 
+    fn fontstring_justify(reg: &FrameRegistry, name: &str) -> JustifyH {
+        let id = reg.get_by_name(name).expect(name);
+        let frame = reg.get(id).expect("frame");
+        let Some(WidgetData::FontString(data)) = &frame.widget_data else {
+            panic!("{name} is not a font string");
+        };
+        data.justify_h
+    }
+
     #[test]
     fn action_bar_screen_builds_wow_style_bar_tree() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -520,6 +524,27 @@ mod tests {
         assert_eq!(
             fontstring_text(&registry, "BagsBarMoneyDisplay"),
             "12g 34s 56c"
+        );
+    }
+
+    #[test]
+    fn action_bar_font_helpers_set_expected_alignment() {
+        let mut registry = FrameRegistry::new(1600.0, 1200.0);
+        let bars = create_action_bars(&mut registry);
+
+        update_money_display(&mut registry, &bars, 123_456);
+
+        assert_eq!(
+            fontstring_justify(&registry, "MainActionBarMoverLabel"),
+            JustifyH::Left
+        );
+        assert_eq!(
+            fontstring_justify(&registry, "ActionBarEditBannerText"),
+            JustifyH::Center
+        );
+        assert_eq!(
+            fontstring_justify(&registry, "BagsBarMoneyDisplay"),
+            JustifyH::Right
         );
     }
 }
