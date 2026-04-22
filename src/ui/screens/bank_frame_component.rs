@@ -367,6 +367,7 @@ fn purchase_slot_button(slots_unlocked: usize) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::layout::{LayoutRect, recompute_layouts};
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
@@ -571,16 +572,6 @@ mod tests {
     }
 
     // --- Text content tests ---
-
-    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
-        use ui_toolkit::frame::WidgetData;
-        let id = reg.get_by_name(name).expect(name);
-        let frame = reg.get(id).expect("frame data");
-        match frame.widget_data.as_ref() {
-            Some(WidgetData::FontString(fs)) => fs.text.clone(),
-            _ => panic!("{name} is not a FontString"),
-        }
-    }
 
     fn build_with_state(state: BankFrameState) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);

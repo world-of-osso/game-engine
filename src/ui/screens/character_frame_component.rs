@@ -364,6 +364,7 @@ fn stat_label(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -446,16 +447,6 @@ mod tests {
             .expect("CharacterFrame");
         let frame = registry.get(frame_id).expect("frame data");
         assert!(frame.hidden, "frame should be hidden when visible=false");
-    }
-
-    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
-        use ui_toolkit::frame::WidgetData;
-        let id = reg.get_by_name(name).expect(name);
-        let frame = reg.get(id).expect("frame data");
-        match frame.widget_data.as_ref() {
-            Some(WidgetData::FontString(fs)) => fs.text.clone(),
-            _ => panic!("{name} is not a FontString"),
-        }
     }
 
     #[test]

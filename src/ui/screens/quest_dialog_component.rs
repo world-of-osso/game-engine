@@ -407,7 +407,7 @@ fn dialog_buttons(mode: &QuestDialogMode) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ui_toolkit::frame::WidgetData;
+    use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::layout::{LayoutRect, recompute_layouts};
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
@@ -473,15 +473,6 @@ mod tests {
         reg.get(reg.get_by_name(name).expect(name))
             .and_then(|f| f.layout_rect.clone())
             .unwrap_or_else(|| panic!("{name} has no layout_rect"))
-    }
-
-    fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
-        let id = reg.get_by_name(name).expect(name);
-        let frame = reg.get(id).expect("frame data");
-        match frame.widget_data.as_ref() {
-            Some(WidgetData::FontString(fs)) => fs.text.clone(),
-            _ => panic!("{name} is not a FontString"),
-        }
     }
 
     // --- Structure tests ---
