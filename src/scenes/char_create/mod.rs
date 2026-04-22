@@ -166,6 +166,7 @@ fn initial_char_create_state(
 }
 
 const CHAR_CREATE_RANDOM_SEED_MIX: u64 = 0x9e37_79b9_7f4a_7c15;
+const CHAR_CREATE_RANDOM_SEED_MUL_1: u64 = 0xbf58_476d_1ce4_e5b9;
 
 fn fresh_random_seed() -> u64 {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -176,7 +177,7 @@ fn fresh_random_seed() -> u64 {
 
 fn mix_seed(seed: u64) -> u64 {
     let mut z = seed.wrapping_add(CHAR_CREATE_RANDOM_SEED_MIX);
-    z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+    z = (z ^ (z >> 30)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_1);
     z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
     z ^ (z >> 31)
 }
