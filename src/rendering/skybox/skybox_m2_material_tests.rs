@@ -18,7 +18,9 @@ use bevy::render::render_resource::{
 
 const SKYBOX_SHADER_SOURCE: &str = include_str!("../../../assets/shaders/m2_skybox.wgsl");
 const SHADER_SINGLE_TEXTURE: u16 = 0x0010;
-const SHADER_MOD2X: u16 = 0x4014;
+const SHADER_RUNTIME_COMBINE_FLAG: u16 = 1 << 14;
+const SHADER_MOD2X_FRAGMENT_STAGE: u16 = SHADER_SINGLE_TEXTURE + 4;
+const SHADER_MOD2X: u16 = SHADER_RUNTIME_COMBINE_FLAG | SHADER_MOD2X_FRAGMENT_STAGE;
 const SHADER_THREE_STAGE: u16 = 0x8012;
 const SHADER_FOUR_STAGE: u16 = 0x8016;
 const COMBINE_DIFFUSE_2TEX: u16 = 0x000E;
