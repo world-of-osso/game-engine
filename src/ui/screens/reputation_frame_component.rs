@@ -336,7 +336,6 @@ fn cat_header_label(id: DynName, text: &str) -> Element {
 
 fn faction_row(cat_idx: usize, fac_idx: usize, faction: &FactionEntry, y: f32) -> Element {
     let row_id = DynName(format!("RepFaction{cat_idx}_{fac_idx}"));
-    let name_id = DynName(format!("RepFaction{cat_idx}_{fac_idx}Name"));
     rsx! {
         r#frame {
             name: row_id,
@@ -348,23 +347,30 @@ fn faction_row(cat_idx: usize, fac_idx: usize, faction: &FactionEntry, y: f32) -
                 x: "2",
                 y: {-y},
             }
-            fontstring {
-                name: name_id,
-                width: {BAR_X - FACTION_INDENT - 4.0},
-                height: {FACTION_ROW_H},
-                text: {faction.name.as_str()},
-                font_size: 10.0,
-                font_color: FACTION_NAME_COLOR,
-                justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {FACTION_INDENT},
-                    y: "0",
-                }
-            }
+            {faction_name_label(cat_idx, fac_idx, faction.name.as_str())}
             {reputation_bar(cat_idx, fac_idx, faction)}
             {paragon_indicator(cat_idx, fac_idx, faction.paragon.as_ref())}
+        }
+    }
+}
+
+fn faction_name_label(cat_idx: usize, fac_idx: usize, name: &str) -> Element {
+    let name_id = DynName(format!("RepFaction{cat_idx}_{fac_idx}Name"));
+    rsx! {
+        fontstring {
+            name: name_id,
+            width: {BAR_X - FACTION_INDENT - 4.0},
+            height: {FACTION_ROW_H},
+            text: name,
+            font_size: 10.0,
+            font_color: FACTION_NAME_COLOR,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {FACTION_INDENT},
+                y: "0",
+            }
         }
     }
 }
