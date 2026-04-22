@@ -483,29 +483,7 @@ fn spawn_skinned_mesh_standard(
     batch: asset::m2::M2RenderBatch,
     spawn: &MeshSpawnContext<'_>,
 ) {
-    let asset::m2::M2RenderBatch {
-        mesh,
-        texture_type,
-        mesh_part_id,
-        ..
-    } = batch;
-    let vis = if spawn.visible {
-        Visibility::Inherited
-    } else {
-        Visibility::Hidden
-    };
-    let mut cmd = commands.spawn((
-        Mesh3d(meshes.add(mesh)),
-        MeshMaterial3d(material),
-        Name::new(format!("Mesh[{}]", spawn.batch_index)),
-        vis,
-    ));
-    let component_context = MeshComponentContext {
-        texture_type,
-        mesh_part_id,
-        spawn,
-    };
-    spawn_common_mesh_components(&mut cmd, &component_context);
+    spawn_skinned_mesh_base(commands, meshes, material, batch, spawn);
 }
 
 fn spawn_skinned_mesh_effect(
@@ -515,17 +493,23 @@ fn spawn_skinned_mesh_effect(
     batch: asset::m2::M2RenderBatch,
     spawn: &MeshSpawnContext<'_>,
 ) {
+    spawn_skinned_mesh_base(commands, meshes, material, batch, spawn);
+}
+
+fn spawn_skinned_mesh_base<M: Material>(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    material: Handle<M>,
+    batch: asset::m2::M2RenderBatch,
+    spawn: &MeshSpawnContext<'_>,
+) {
     let asset::m2::M2RenderBatch {
         mesh,
         texture_type,
         mesh_part_id,
         ..
     } = batch;
-    let vis = if spawn.visible {
-        Visibility::Inherited
-    } else {
-        Visibility::Hidden
-    };
+    let vis = skinned_mesh_visibility(spawn.visible);
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
@@ -553,11 +537,7 @@ fn spawn_skinned_mesh_skybox(
         mesh_part_id,
         ..
     } = batch;
-    let vis = if spawn.visible {
-        Visibility::Inherited
-    } else {
-        Visibility::Hidden
-    };
+    let vis = skinned_mesh_visibility(spawn.visible);
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
         MeshMaterial3d(material),
@@ -572,6 +552,14 @@ fn spawn_skinned_mesh_skybox(
         spawn,
     };
     spawn_common_mesh_components(&mut cmd, &component_context);
+}
+
+fn skinned_mesh_visibility(visible: bool) -> Visibility {
+    if visible {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    }
 }
 
 /// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
@@ -636,11 +624,22 @@ const PLACEHOLDER_COLORS: &[Color] = &[
 
 #[cfg(test)]
 mod tests {
-    use super::initial_batch_visibility;
+    use super::{initial_batch_visibility, skinned_mesh_visibility};
+    use bevy::prelude::Visibility;
 
     #[test]
     fn forced_skybox_batches_ignore_character_geoset_visibility_rules() {
         assert!(!initial_batch_visibility(401, false));
         assert!(initial_batch_visibility(401, true));
+    }
+
+    #[test]
+    fn skinned_mesh_visibility_visible_is_inherited() {
+        assert_eq!(skinned_mesh_visibility(true), Visibility::Inherited);
+    }
+
+    #[test]
+    fn skinned_mesh_visibility_hidden_is_hidden() {
+        assert_eq!(skinned_mesh_visibility(false), Visibility::Hidden);
     }
 }
