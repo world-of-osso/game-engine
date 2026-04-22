@@ -3,26 +3,34 @@ use ui_toolkit::layout::{LayoutRect, recompute_layouts};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+struct MemberVitals {
+    health_current: u32,
+    health_max: u32,
+    incoming_heals: f32,
+}
+
+struct MemberStatus {
+    in_range: bool,
+    ready_check: ReadyCheckState,
+}
+
 fn member(
     name: &str,
-    hp: u32,
-    max: u32,
     role: PartyRole,
     debuffs: Vec<PartyDebuff>,
-    in_range: bool,
-    rc: ReadyCheckState,
-    heals: f32,
+    vitals: MemberVitals,
+    status: MemberStatus,
 ) -> PartyMemberState {
     PartyMemberState {
         name: name.into(),
-        health_current: hp,
-        health_max: max,
+        health_current: vitals.health_current,
+        health_max: vitals.health_max,
         role,
         debuffs,
         online: true,
-        in_range,
-        ready_check: rc,
-        incoming_heals: heals,
+        in_range: status.in_range,
+        ready_check: status.ready_check,
+        incoming_heals: vitals.incoming_heals,
     }
 }
 
@@ -35,47 +43,79 @@ fn debuff(name: &str, fdid: u32) -> PartyDebuff {
 
 fn sample_members() -> Vec<PartyMemberState> {
     vec![
-        member(
-            "Tankadin",
-            45000,
-            50000,
-            PartyRole::Tank,
-            vec![debuff("Bleed", 1)],
-            true,
-            ReadyCheckState::Accepted,
-            0.1,
-        ),
-        member(
-            "Healbot",
-            30000,
-            35000,
-            PartyRole::Healer,
-            vec![],
-            true,
-            ReadyCheckState::None,
-            0.0,
-        ),
-        member(
-            "Stabsworth",
-            28000,
-            32000,
-            PartyRole::Dps,
-            vec![debuff("Poison", 2), debuff("Curse", 3)],
-            false,
-            ReadyCheckState::Pending,
-            0.0,
-        ),
-        member(
-            "Pewpew",
-            0,
-            30000,
-            PartyRole::Dps,
-            vec![],
-            true,
-            ReadyCheckState::Declined,
-            0.0,
-        ),
+        tank_member(),
+        healer_member(),
+        rogue_member(),
+        dead_member(),
     ]
+}
+
+fn tank_member() -> PartyMemberState {
+    member(
+        "Tankadin",
+        PartyRole::Tank,
+        vec![debuff("Bleed", 1)],
+        MemberVitals {
+            health_current: 45000,
+            health_max: 50000,
+            incoming_heals: 0.1,
+        },
+        MemberStatus {
+            in_range: true,
+            ready_check: ReadyCheckState::Accepted,
+        },
+    )
+}
+
+fn healer_member() -> PartyMemberState {
+    member(
+        "Healbot",
+        PartyRole::Healer,
+        vec![],
+        MemberVitals {
+            health_current: 30000,
+            health_max: 35000,
+            incoming_heals: 0.0,
+        },
+        MemberStatus {
+            in_range: true,
+            ready_check: ReadyCheckState::None,
+        },
+    )
+}
+
+fn rogue_member() -> PartyMemberState {
+    member(
+        "Stabsworth",
+        PartyRole::Dps,
+        vec![debuff("Poison", 2), debuff("Curse", 3)],
+        MemberVitals {
+            health_current: 28000,
+            health_max: 32000,
+            incoming_heals: 0.0,
+        },
+        MemberStatus {
+            in_range: false,
+            ready_check: ReadyCheckState::Pending,
+        },
+    )
+}
+
+fn dead_member() -> PartyMemberState {
+    member(
+        "Pewpew",
+        PartyRole::Dps,
+        vec![],
+        MemberVitals {
+            health_current: 0,
+            health_max: 30000,
+            incoming_heals: 0.0,
+        },
+        MemberStatus {
+            in_range: true,
+            ready_check: ReadyCheckState::Declined,
+        },
+    )
 }
 
 fn build_registry() -> FrameRegistry {
