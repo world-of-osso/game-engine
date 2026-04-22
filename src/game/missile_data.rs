@@ -117,26 +117,23 @@ impl MissileSpawnQueue {
 mod tests {
     use super::*;
 
-    fn straight_missile(origin: Vec3, target: Vec3) -> ActiveMissile {
+    fn test_missile(origin: Vec3, target: Vec3, arc_height: f32) -> ActiveMissile {
         ActiveMissile {
             origin,
             target,
             speed: 10.0,
-            arc_height: 0.0,
+            arc_height,
             elapsed: 0.0,
             face_direction: true,
         }
     }
 
+    fn straight_missile(origin: Vec3, target: Vec3) -> ActiveMissile {
+        test_missile(origin, target, 0.0)
+    }
+
     fn arced_missile(origin: Vec3, target: Vec3) -> ActiveMissile {
-        ActiveMissile {
-            origin,
-            target,
-            speed: 10.0,
-            arc_height: 0.3,
-            elapsed: 0.0,
-            face_direction: true,
-        }
+        test_missile(origin, target, 0.3)
     }
 
     // --- Trajectory ---
