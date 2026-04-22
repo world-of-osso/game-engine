@@ -142,7 +142,11 @@ impl FogOfWar {
     }
 
     pub fn explore(&mut self, zone_id: u32) {
-        if !self.explored_zones.contains(&zone_id) {
+        if self
+            .explored_zones
+            .iter()
+            .all(|&existing| existing != zone_id)
+        {
             self.explored_zones.push(zone_id);
         }
     }
