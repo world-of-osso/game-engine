@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use bevy::prelude::*;
 
 use crate::asset::m2_anim::{AnimTrack, evaluate_i16_track};
@@ -38,14 +40,14 @@ pub(super) fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &Spawned
     log_debug_skybox_alpha_tracks(&spawned.path);
 }
 
-fn log_debug_skybox_alpha_tracks(path: &std::path::Path) {
-    let Some(model) = load_model_for_alpha_dump(path) else {
+fn log_debug_skybox_alpha_tracks(path: &Path) {
+    let Some(model) = load_model_for_alpha_dump_or_warn(path) else {
         return;
     };
-    log_loaded_model_alpha_tracks(path, &model);
+    log_alpha_tracks_for_model(path, &model);
 }
 
-fn log_loaded_model_alpha_tracks(path: &std::path::Path, model: &crate::asset::m2::M2Model) {
+fn log_alpha_tracks_for_model(path: &Path, model: &crate::asset::m2::M2Model) {
     let default_sequence_index = default_sequence_index(model);
     log_alpha_dump_header(path, model);
     log_transparency_tracks(model, default_sequence_index);
@@ -53,7 +55,7 @@ fn log_loaded_model_alpha_tracks(path: &std::path::Path, model: &crate::asset::m
     log_batch_opacity_tracks(model, default_sequence_index);
 }
 
-fn load_model_for_alpha_dump(path: &std::path::Path) -> Option<crate::asset::m2::M2Model> {
+fn load_model_for_alpha_dump_or_warn(path: &Path) -> Option<crate::asset::m2::M2Model> {
     let Ok(model) = crate::asset::m2::load_skybox_m2_uncached(path, &[0, 0, 0]) else {
         warn!(
             "skybox_debug_scene: failed to load {} for alpha-track dump",
@@ -72,7 +74,7 @@ fn default_sequence_index(model: &crate::asset::m2::M2Model) -> usize {
         .unwrap_or(0)
 }
 
-fn log_alpha_dump_header(path: &std::path::Path, model: &crate::asset::m2::M2Model) {
+fn log_alpha_dump_header(path: &Path, model: &crate::asset::m2::M2Model) {
     info!(
         "skybox_debug_scene: alpha dump {} transparency_tracks={} color_tracks={} batches={}",
         path.display(),
