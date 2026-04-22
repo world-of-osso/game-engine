@@ -21,6 +21,8 @@ const HEADER_H: f32 = 28.0;
 const INSET: f32 = 8.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_GAP: f32 = 6.0;
+const TOP_BUTTON_ROW_Y: f32 = -(HEADER_H + INSET);
+const DETAIL_SIGNUP_BUTTON_ROW_Y: f32 = -112.0;
 const EVENT_LIST_H: f32 = 180.0;
 const EVENT_ROW_H: f32 = 36.0;
 const EVENT_ROW_GAP: f32 = 2.0;
@@ -150,12 +152,12 @@ fn button_row() -> Element {
     ];
     buttons
         .into_iter()
-        .flat_map(|(name, text, action, x)| calendar_button(name, text, action, x))
+        .flat_map(|(name, text, action, x)| action_button(name, text, action, x, TOP_BUTTON_ROW_Y))
         .collect()
 }
 
-fn calendar_button(name: &str, text: &str, action: &str, x: f32) -> Element {
-    named_button(name, text, action, x, -(HEADER_H + INSET))
+fn action_button(name: &str, text: &str, action: &str, x: f32, y: f32) -> Element {
+    named_button(name, text, action, x, y)
 }
 
 fn named_button(name: &str, text: &str, action: &str, x: f32, y: f32) -> Element {
@@ -374,11 +376,12 @@ fn detail_signup_controls(detail: &CalendarDetailState) -> Element {
     let buttons: Element = signup_buttons
         .into_iter()
         .flat_map(|(name, label, token, x)| {
-            detail_signup_button(
+            action_button(
                 name,
                 label,
                 &format!("{ACTION_CALENDAR_SIGNUP_PREFIX}{token}"),
                 x,
+                DETAIL_SIGNUP_BUTTON_ROW_Y,
             )
         })
         .collect();
@@ -433,10 +436,6 @@ fn detail_meta_line(name: &str, text: &str, y: f32) -> Element {
             }
         }
     }
-}
-
-fn detail_signup_button(name: &str, text: &str, action: &str, x: f32) -> Element {
-    named_button(name, text, action, x, -112.0)
 }
 
 fn signup_row(index: usize, signup: &CalendarSignupRow) -> Element {

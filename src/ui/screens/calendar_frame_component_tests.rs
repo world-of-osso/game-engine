@@ -29,12 +29,17 @@ fn make_state() -> CalendarFrameState {
     }
 }
 
-#[test]
-fn calendar_frame_builds_core_frames() {
+fn build_registry() -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     shared.insert(make_state());
     Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
+    registry
+}
+
+#[test]
+fn calendar_frame_builds_core_frames() {
+    let registry = build_registry();
 
     assert!(registry.get_by_name("CalendarFrame").is_some());
     assert!(registry.get_by_name("CalendarEventList").is_some());
@@ -43,10 +48,7 @@ fn calendar_frame_builds_core_frames() {
 
 #[test]
 fn calendar_frame_renders_event_rows_and_signup_buttons() {
-    let mut registry = FrameRegistry::new(1920.0, 1080.0);
-    let mut shared = SharedContext::new();
-    shared.insert(make_state());
-    Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
+    let registry = build_registry();
 
     assert!(registry.get_by_name("CalendarEventRow0").is_some());
     assert!(registry.get_by_name("CalendarConfirmButton").is_some());
@@ -60,4 +62,41 @@ fn calendar_frame_renders_event_rows_and_signup_buttons() {
         )
         .expect("row");
     assert_eq!(row.onclick.as_deref(), Some("calendar_select:7"));
+}
+
+#[test]
+fn calendar_buttons_keep_expected_actions_and_vertical_rows() {
+    let registry = build_registry();
+
+    let refresh = registry
+        .get(
+            registry
+                .get_by_name("CalendarRefreshButton")
+                .expect("CalendarRefreshButton"),
+        )
+        .expect("refresh button");
+    let confirm = registry
+        .get(
+            registry
+                .get_by_name("CalendarConfirmButton")
+                .expect("CalendarConfirmButton"),
+        )
+        .expect("confirm button");
+
+    assert_eq!(refresh.onclick.as_deref(), Some(ACTION_CALENDAR_REFRESH));
+    assert_eq!(
+        confirm.onclick.as_deref(),
+        Some("calendar_signup:confirmed")
+    );
+
+    let refresh_anchor = refresh
+        .anchors
+        .first()
+        .expect("CalendarRefreshButton anchor");
+    let confirm_anchor = confirm
+        .anchors
+        .first()
+        .expect("CalendarConfirmButton anchor");
+    assert!((refresh_anchor.y_offset - TOP_BUTTON_ROW_Y).abs() < f32::EPSILON);
+    assert!((confirm_anchor.y_offset - DETAIL_SIGNUP_BUTTON_ROW_Y).abs() < f32::EPSILON);
 }
