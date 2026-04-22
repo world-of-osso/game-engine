@@ -96,6 +96,7 @@ fn parse_single_ribbon(md20: &[u8], base: usize) -> Option<M2RibbonEmitter> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    const TEST_RIBBON_DATA_OFFSET: usize = 0x130;
 
     fn write_u32(buf: &mut [u8], offset: usize, val: u32) {
         buf[offset..offset + 4].copy_from_slice(&val.to_le_bytes());
@@ -110,8 +111,8 @@ mod tests {
     }
 
     fn make_md20_with_ribbons(ribbon_count: u32) -> Vec<u8> {
-        // MD20 header needs at least 0x130 bytes + ribbon data
-        let ribbon_data_offset = 0x130u32;
+        // MD20 header needs at least TEST_RIBBON_DATA_OFFSET bytes + ribbon data
+        let ribbon_data_offset = TEST_RIBBON_DATA_OFFSET as u32;
         let ribbon_data_size = ribbon_count as usize * RIBBON_ENTRY_STRIDE;
         let total = ribbon_data_offset as usize + ribbon_data_size;
         let mut buf = vec![0u8; total];
@@ -150,7 +151,7 @@ mod tests {
     #[test]
     fn parse_one_ribbon() {
         let mut md20 = make_md20_with_ribbons(1);
-        fill_ribbon(&mut md20, 0x130);
+        fill_ribbon(&mut md20, TEST_RIBBON_DATA_OFFSET);
         let ribbons = parse_ribbon_emitters(&md20);
         assert_eq!(ribbons.len(), 1);
         let r = &ribbons[0];
@@ -169,21 +170,21 @@ mod tests {
     #[test]
     fn parse_multiple_ribbons() {
         let mut md20 = make_md20_with_ribbons(2);
-        fill_ribbon(&mut md20, 0x130);
+        fill_ribbon(&mut md20, TEST_RIBBON_DATA_OFFSET);
         // Second ribbon at stride offset
         write_u32(
             &mut md20,
-            0x130 + RIBBON_ENTRY_STRIDE + RIBBON_ID_OFFSET,
+            TEST_RIBBON_DATA_OFFSET + RIBBON_ENTRY_STRIDE + RIBBON_ID_OFFSET,
             99,
         );
         write_u16(
             &mut md20,
-            0x130 + RIBBON_ENTRY_STRIDE + RIBBON_BONE_INDEX_OFFSET,
+            TEST_RIBBON_DATA_OFFSET + RIBBON_ENTRY_STRIDE + RIBBON_BONE_INDEX_OFFSET,
             10,
         );
         write_f32(
             &mut md20,
-            0x130 + RIBBON_ENTRY_STRIDE + RIBBON_EDGES_PER_SEC_OFFSET,
+            TEST_RIBBON_DATA_OFFSET + RIBBON_ENTRY_STRIDE + RIBBON_EDGES_PER_SEC_OFFSET,
             30.0,
         );
         let ribbons = parse_ribbon_emitters(&md20);
@@ -196,9 +197,13 @@ mod tests {
     #[test]
     fn parse_truncated_data_skips() {
         // MD20 header says 1 ribbon but data is too short
-        let mut md20 = vec![0u8; 0x130 + 10]; // only 10 bytes of ribbon data
+        let mut md20 = vec![0u8; TEST_RIBBON_DATA_OFFSET + 10]; // only 10 bytes of ribbon data
         write_u32(&mut md20, MD20_RIBBON_EMITTERS_COUNT_OFFSET, 1);
-        write_u32(&mut md20, MD20_RIBBON_EMITTERS_COUNT_OFFSET + 4, 0x130);
+        write_u32(
+            &mut md20,
+            MD20_RIBBON_EMITTERS_COUNT_OFFSET + 4,
+            TEST_RIBBON_DATA_OFFSET as u32,
+        );
         let ribbons = parse_ribbon_emitters(&md20);
         assert!(ribbons.is_empty());
     }
