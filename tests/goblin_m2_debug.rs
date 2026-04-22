@@ -2,6 +2,8 @@ use std::path::Path;
 
 use game_engine::asset::m2::load_m2;
 
+const MD20_PARTICLE_COUNT_OFFSET: usize = 0x128;
+
 fn read_u32(data: &[u8], off: usize) -> u32 {
     u32::from_le_bytes(data[off..off + 4].try_into().unwrap())
 }
@@ -98,7 +100,10 @@ fn print_md20_counts(md20: &[u8], sfid: &[u32]) {
         "goblinmale attachment_lookup_count={}",
         read_u32(md20, 0xE0)
     );
-    println!("goblinmale particle_count={}", read_u32(md20, 0x128));
+    println!(
+        "goblinmale particle_count={}",
+        read_u32(md20, MD20_PARTICLE_COUNT_OFFSET)
+    );
 }
 
 fn print_skin_counts(vertex_count: usize, skin: &[u8]) {
