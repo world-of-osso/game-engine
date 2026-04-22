@@ -9,14 +9,20 @@ pub use super::wmo_format::parser::{
     find_mogp, load_wmo_root, parse_group_subchunks, parse_mogp_header, wmo_local_to_bevy,
 };
 
+const WMO_BLEND_ALPHA_ATTRIBUTE_ID: u64 = 7865676600002740225;
+const WMO_THIRD_UV_ATTRIBUTE_ID: u64 = 7865676600002740226;
+
 pub const WMO_BLEND_ALPHA_ATTRIBUTE: MeshVertexAttribute = MeshVertexAttribute::new(
     "WmoBlendAlpha",
-    0x6d28_7f31_8d44_0001,
+    WMO_BLEND_ALPHA_ATTRIBUTE_ID,
     VertexFormat::Float32,
 );
 
-pub const WMO_THIRD_UV_ATTRIBUTE: MeshVertexAttribute =
-    MeshVertexAttribute::new("WmoThirdUv", 0x6d28_7f31_8d44_0002, VertexFormat::Float32x2);
+pub const WMO_THIRD_UV_ATTRIBUTE: MeshVertexAttribute = MeshVertexAttribute::new(
+    "WmoThirdUv",
+    WMO_THIRD_UV_ATTRIBUTE_ID,
+    VertexFormat::Float32x2,
+);
 
 pub struct WmoGroupData {
     pub header: WmoGroupHeader,
