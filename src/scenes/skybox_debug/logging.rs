@@ -272,6 +272,15 @@ fn format_opacity_track_samples(
     let Some((timestamps, _)) = track.sequences.get(seq_idx) else {
         return empty_opacity_track_summary(track, seq_idx);
     };
+    summarize_opacity_track_samples(track, seq_idx, timestamps, global_sequences)
+}
+
+fn summarize_opacity_track_samples(
+    track: &AnimTrack<i16>,
+    seq_idx: usize,
+    timestamps: &[u32],
+    global_sequences: &[u32],
+) -> String {
     let duration = track_duration(track, timestamps, global_sequences);
     let samples = format_opacity_samples(track, seq_idx, duration);
     opacity_track_summary(track, seq_idx, timestamps.len(), duration, &samples)
