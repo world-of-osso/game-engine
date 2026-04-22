@@ -26,8 +26,8 @@ pub(crate) struct WmoSurfaceParams {
 pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
     match shader {
         2 => base_shader_descriptor(true),
-        3 | 10 | 14 => reflective_shader_descriptor(),
-        5 => reflective_metal_shader_descriptor(),
+        3 | 10 | 14 => static_layer_shader_descriptor(true, false),
+        5 => static_layer_shader_descriptor(true, true),
         6 | 8 | 13 | 20 => alpha_blend_shader_descriptor(),
         7 => env_add_shader_descriptor(),
         9 | 15 => emissive_add_shader_descriptor(),
@@ -67,14 +67,6 @@ fn static_layer_shader_descriptor(env_reflection: bool, metallic: bool) -> WmoSh
         WmoLayerCombine::None,
         WmoLayerCombine::None,
     )
-}
-
-fn reflective_shader_descriptor() -> WmoShaderDescriptor {
-    static_layer_shader_descriptor(true, false)
-}
-
-fn reflective_metal_shader_descriptor() -> WmoShaderDescriptor {
-    static_layer_shader_descriptor(true, true)
 }
 
 fn alpha_blend_shader_descriptor() -> WmoShaderDescriptor {
