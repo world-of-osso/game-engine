@@ -143,6 +143,41 @@ fn standing_labels() {
 }
 
 #[test]
+fn standing_labels_match_game_reputation_data() {
+    use crate::reputation_data::Standing as ReputationStanding;
+
+    assert_eq!(Standing::Hated.label(), ReputationStanding::Hated.label());
+    assert_eq!(
+        Standing::Hostile.label(),
+        ReputationStanding::Hostile.label()
+    );
+    assert_eq!(
+        Standing::Unfriendly.label(),
+        ReputationStanding::Unfriendly.label()
+    );
+    assert_eq!(
+        Standing::Neutral.label(),
+        ReputationStanding::Neutral.label()
+    );
+    assert_eq!(
+        Standing::Friendly.label(),
+        ReputationStanding::Friendly.label()
+    );
+    assert_eq!(
+        Standing::Honored.label(),
+        ReputationStanding::Honored.label()
+    );
+    assert_eq!(
+        Standing::Revered.label(),
+        ReputationStanding::Revered.label()
+    );
+    assert_eq!(
+        Standing::Exalted.label(),
+        ReputationStanding::Exalted.label()
+    );
+}
+
+#[test]
 fn standing_bar_colors_non_empty() {
     for standing in [
         Standing::Hated,

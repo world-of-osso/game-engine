@@ -4,6 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::reputation_data::Standing as ReputationStanding;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
@@ -86,17 +87,21 @@ pub enum Standing {
 }
 
 impl Standing {
-    pub fn label(self) -> &'static str {
+    fn as_reputation_standing(self) -> ReputationStanding {
         match self {
-            Self::Hated => "Hated",
-            Self::Hostile => "Hostile",
-            Self::Unfriendly => "Unfriendly",
-            Self::Neutral => "Neutral",
-            Self::Friendly => "Friendly",
-            Self::Honored => "Honored",
-            Self::Revered => "Revered",
-            Self::Exalted => "Exalted",
+            Self::Hated => ReputationStanding::Hated,
+            Self::Hostile => ReputationStanding::Hostile,
+            Self::Unfriendly => ReputationStanding::Unfriendly,
+            Self::Neutral => ReputationStanding::Neutral,
+            Self::Friendly => ReputationStanding::Friendly,
+            Self::Honored => ReputationStanding::Honored,
+            Self::Revered => ReputationStanding::Revered,
+            Self::Exalted => ReputationStanding::Exalted,
         }
+    }
+
+    pub fn label(self) -> &'static str {
+        self.as_reputation_standing().label()
     }
 
     pub fn bar_color(self) -> &'static str {
