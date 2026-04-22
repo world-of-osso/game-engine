@@ -30,11 +30,11 @@ pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
         5 => static_layer_shader_descriptor(true, true),
         6 | 8 | 13 | 20 => alpha_blend_shader_descriptor(),
         7 => env_add_shader_descriptor(),
-        9 | 15 => emissive_add_shader_descriptor(),
+        9 | 15 => single_overlay_shader_descriptor(false, false, true, WmoLayerCombine::Add),
         11 => layered_env_shader_descriptor(),
         12 | 17 => emissive_env_add_shader_descriptor(),
         18 | 19 => mod2x_shader_descriptor(),
-        22 => multiply_reflection_shader_descriptor(),
+        22 => single_overlay_shader_descriptor(true, true, false, WmoLayerCombine::Multiply),
         _ => base_shader_descriptor(false),
     }
 }
@@ -86,10 +86,6 @@ fn env_add_shader_descriptor() -> WmoShaderDescriptor {
     layered_env_shader_with_third(WmoLayerCombine::Add)
 }
 
-fn emissive_add_shader_descriptor() -> WmoShaderDescriptor {
-    single_overlay_shader_descriptor(false, false, true, WmoLayerCombine::Add)
-}
-
 fn layered_env_shader_descriptor() -> WmoShaderDescriptor {
     layered_env_shader_with_third(WmoLayerCombine::AlphaBlend)
 }
@@ -104,10 +100,6 @@ fn emissive_env_add_shader_descriptor() -> WmoShaderDescriptor {
 
 fn mod2x_shader_descriptor() -> WmoShaderDescriptor {
     single_overlay_shader_descriptor(false, false, false, WmoLayerCombine::Mod2x)
-}
-
-fn multiply_reflection_shader_descriptor() -> WmoShaderDescriptor {
-    single_overlay_shader_descriptor(true, true, false, WmoLayerCombine::Multiply)
 }
 
 const DEFAULT_ROUGHNESS: f32 = 0.88;
