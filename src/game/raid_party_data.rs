@@ -57,6 +57,14 @@ impl GroupRole {
     }
 }
 
+/// Shared clamped health fraction for party/raid unit-like state.
+pub fn health_fraction(current: u32, max: u32) -> f32 {
+    if max == 0 {
+        return 0.0;
+    }
+    (current as f32 / max as f32).min(1.0)
+}
+
 // --- Ready check ---
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -154,10 +162,7 @@ pub struct GroupUnitState {
 
 impl GroupUnitState {
     pub fn health_fraction(&self) -> f32 {
-        if self.health_max == 0 {
-            return 0.0;
-        }
-        (self.health_current as f32 / self.health_max as f32).min(1.0)
+        health_fraction(self.health_current, self.health_max)
     }
 
     pub fn power_fraction(&self) -> f32 {

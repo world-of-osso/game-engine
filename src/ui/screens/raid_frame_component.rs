@@ -4,6 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::raid_party_data::health_fraction as unit_health_fraction;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
@@ -104,10 +105,7 @@ pub struct RaidMember {
 
 impl RaidMember {
     pub fn health_fraction(&self) -> f32 {
-        if self.health_max == 0 {
-            return 0.0;
-        }
-        (self.health_current as f32 / self.health_max as f32).min(1.0)
+        unit_health_fraction(self.health_current, self.health_max)
     }
 }
 

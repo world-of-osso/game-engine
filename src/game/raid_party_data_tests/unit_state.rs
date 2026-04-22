@@ -5,6 +5,8 @@ fn health_fraction() {
     assert!((unit(90, 100).health_fraction() - 0.9).abs() < 0.01);
     assert_eq!(unit(0, 0).health_fraction(), 0.0);
     assert!((unit(100, 100).health_fraction() - 1.0).abs() < 0.01);
+    assert_eq!(super::health_fraction(150, 100), 1.0);
+    assert_eq!(super::health_fraction(42, 0), 0.0);
 }
 
 #[test]
