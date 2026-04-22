@@ -448,24 +448,24 @@ fn crafting_detail_panel(detail: &CraftingDetail) -> Element {
 
 fn crafting_reagent_grid(count: usize) -> Element {
     let slots = count.min(MAX_REAGENT_SLOTS);
-    (0..slots)
-        .flat_map(|i| {
-            let col = i % REAGENT_COLS;
-            let row = i / REAGENT_COLS;
-            let x = col as f32 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP);
-            let y = -(22.0 + row as f32 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP));
-            let name = DynName(format!("CraftingReagent{i}"));
-            rsx! {
-                r#frame {
-                    name,
-                    width: {REAGENT_SLOT_SIZE},
-                    height: {REAGENT_SLOT_SIZE},
-                    background_color: REAGENT_BG,
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
-                }
-            }
-        })
-        .collect()
+    (0..slots).flat_map(crafting_reagent_slot).collect()
+}
+
+fn crafting_reagent_slot(i: usize) -> Element {
+    let col = i % REAGENT_COLS;
+    let row = i / REAGENT_COLS;
+    let x = col as f32 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP);
+    let y = -(22.0 + row as f32 * (REAGENT_SLOT_SIZE + REAGENT_SLOT_GAP));
+    let name = DynName(format!("CraftingReagent{i}"));
+    rsx! {
+        r#frame {
+            name,
+            width: {REAGENT_SLOT_SIZE},
+            height: {REAGENT_SLOT_SIZE},
+            background_color: REAGENT_BG,
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+        }
+    }
 }
 
 fn crafting_quality_bar(fill_w: f32, text: &str) -> Element {
