@@ -271,7 +271,14 @@ fn layout_main_bar(reg: &mut FrameRegistry, root: u64, label: u64, slots: &[u64;
     set_rect(reg, root, x, y, MAIN_W, MAIN_H);
     layout_row(reg, slots, MAIN_SLOT_Y);
     set_rect(reg, label, 8.0, 4.0, MAIN_W - 16.0, 16.0);
-    set_font_string_left(reg, label, "Main Action Bar", 13.0, MOVER_LABEL_TEXT);
+    set_font_string_with_justify(
+        reg,
+        label,
+        "Main Action Bar",
+        13.0,
+        MOVER_LABEL_TEXT,
+        JustifyH::Left,
+    );
 }
 
 fn layout_flat_bar(reg: &mut FrameRegistry, root: u64, label: u64, slots: &[u64; SLOT_COUNT]) {
@@ -371,25 +378,18 @@ fn update_root_backgrounds(reg: &mut FrameRegistry, bars: &ActionBarsUi, enabled
 }
 
 fn update_money_display(reg: &mut FrameRegistry, bars: &ActionBarsUi, gold: u32) {
-    set_font_string_right(
+    set_font_string_with_justify(
         reg,
         bars.money_display,
         &Money(gold as u64).display(),
         11.0,
         [1.0, 0.82, 0.0, 1.0],
+        JustifyH::Right,
     );
 }
 
 fn set_font_string(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
     set_font_string_with_justify(reg, id, text, size, color, JustifyH::Center);
-}
-
-fn set_font_string_left(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
-    set_font_string_with_justify(reg, id, text, size, color, JustifyH::Left);
-}
-
-fn set_font_string_right(reg: &mut FrameRegistry, id: u64, text: &str, size: f32, color: [f32; 4]) {
-    set_font_string_with_justify(reg, id, text, size, color, JustifyH::Right);
 }
 
 fn set_font_string_with_justify(
