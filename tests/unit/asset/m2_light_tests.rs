@@ -1,11 +1,12 @@
 use super::*;
 
 const SINGLE_LIGHT_FIXTURE_SIZE: usize = 0x53C;
+const SINGLE_LIGHT_BASE_OFFSET: usize = 384;
 
 #[test]
 fn parse_lights_reads_single_point_light() {
     let mut md20 = vec![0u8; SINGLE_LIGHT_FIXTURE_SIZE];
-    let light_base = 0x180usize;
+    let light_base = SINGLE_LIGHT_BASE_OFFSET;
     md20[MD20_LIGHTS_OFFSET..MD20_LIGHTS_OFFSET + 4].copy_from_slice(&(1u32).to_le_bytes());
     md20[MD20_LIGHTS_OFFSET + 4..MD20_LIGHTS_OFFSET + 8]
         .copy_from_slice(&(light_base as u32).to_le_bytes());
