@@ -4,6 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::raid_party_data::GroupRole;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
@@ -70,12 +71,16 @@ pub enum PartyRole {
 }
 
 impl PartyRole {
-    pub fn label(self) -> &'static str {
+    fn as_group_role(self) -> GroupRole {
         match self {
-            Self::Dps => "D",
-            Self::Tank => "T",
-            Self::Healer => "H",
+            Self::Dps => GroupRole::Dps,
+            Self::Tank => GroupRole::Tank,
+            Self::Healer => GroupRole::Healer,
         }
+    }
+
+    pub fn label(self) -> &'static str {
+        self.as_group_role().label()
     }
 
     pub fn color(self) -> &'static str {

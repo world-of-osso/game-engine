@@ -244,6 +244,15 @@ fn role_labels_and_colors() {
     assert!(!PartyRole::Dps.color().is_empty());
 }
 
+#[test]
+fn role_labels_match_group_role_labels() {
+    use crate::raid_party_data::GroupRole;
+
+    assert_eq!(PartyRole::Tank.label(), GroupRole::Tank.label());
+    assert_eq!(PartyRole::Healer.label(), GroupRole::Healer.label());
+    assert_eq!(PartyRole::Dps.label(), GroupRole::Dps.label());
+}
+
 // --- Coord validation ---
 
 #[test]
