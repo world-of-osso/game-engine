@@ -3,6 +3,12 @@ use game_engine::asset::m2;
 use game_engine::asset::m2_format::m2_light::evaluate_light;
 use std::path::Path;
 
+fn is_campfire_like_model(model_name: &str) -> bool {
+    model_name.find("campfire").is_some()
+        || model_name.find("10ct_centaur").is_some()
+        || model_name.find("centaur").is_some()
+}
+
 #[test]
 fn find_warband_campfire_model() {
     let adt_path = Path::new("data/terrain/2703_31_37_obj0.adt");
@@ -28,10 +34,7 @@ fn find_warband_campfire_model() {
             })
             .unwrap_or("<unknown>");
 
-        if model_name.contains("campfire")
-            || model_name.contains("10ct_centaur")
-            || model_name.contains("centaur")
-        {
+        if is_campfire_like_model(model_name) {
             campfires.push((
                 idx,
                 model_name.to_string(),
@@ -59,6 +62,15 @@ fn find_warband_campfire_model() {
     }
 
     assert!(!campfires.is_empty(), "Should find at least one campfire");
+}
+
+#[test]
+fn campfire_like_model_matcher() {
+    assert!(is_campfire_like_model(
+        "world/expansion09/doodads/centaur/10ct_centaur_campfire01.m2"
+    ));
+    assert!(is_campfire_like_model("world/doodads/centaur/torch.m2"));
+    assert!(!is_campfire_like_model("world/doodads/human/crate.m2"));
 }
 
 #[test]
