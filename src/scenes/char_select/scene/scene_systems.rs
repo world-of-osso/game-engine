@@ -29,21 +29,9 @@ fn spawn_scene_warband_terrain(
     scene: &WarbandSceneEntry,
     focus_pos: Vec3,
 ) {
-    let _ = scene_tree::spawn_warband_terrain(
-        &mut scene_tree::WarbandTerrainSpawnContext {
-            commands,
-            meshes: &mut assets.meshes,
-            materials: &mut assets.materials,
-            effect_materials: &mut assets.effect_materials,
-            terrain_materials: &mut assets.terrain_materials,
-            water_materials: &mut assets.water_materials,
-            images: &mut assets.images,
-            inv_bp: &mut assets.inv_bp,
-            heightmap,
-        },
-        scene,
-        focus_pos,
-    );
+    let _ = with_warband_terrain_spawn_context(commands, assets, heightmap, |ctx| {
+        scene_tree::spawn_warband_terrain(ctx, scene, focus_pos)
+    });
 }
 
 fn update_pending_scene(
@@ -201,21 +189,29 @@ fn do_spawn_supplemental(
     scene: &WarbandSceneEntry,
     root_entity: Entity,
 ) {
-    scene_tree::spawn_warband_supplemental_terrain(
-        &mut scene_tree::WarbandTerrainSpawnContext {
-            commands,
-            meshes: &mut assets.meshes,
-            materials: &mut assets.materials,
-            effect_materials: &mut assets.effect_materials,
-            terrain_materials: &mut assets.terrain_materials,
-            water_materials: &mut assets.water_materials,
-            images: &mut assets.images,
-            inv_bp: &mut assets.inv_bp,
-            heightmap,
-        },
-        scene,
-        root_entity,
-    );
+    with_warband_terrain_spawn_context(commands, assets, heightmap, |ctx| {
+        scene_tree::spawn_warband_supplemental_terrain(ctx, scene, root_entity)
+    });
+}
+
+fn with_warband_terrain_spawn_context<T>(
+    commands: &mut Commands,
+    assets: &mut CharSelectRenderAssets,
+    heightmap: &mut TerrainHeightmap,
+    spawn: impl FnOnce(&mut scene_tree::WarbandTerrainSpawnContext<'_, '_, '_>) -> T,
+) -> T {
+    let mut context = scene_tree::WarbandTerrainSpawnContext {
+        commands,
+        meshes: &mut assets.meshes,
+        materials: &mut assets.materials,
+        effect_materials: &mut assets.effect_materials,
+        terrain_materials: &mut assets.terrain_materials,
+        water_materials: &mut assets.water_materials,
+        images: &mut assets.images,
+        inv_bp: &mut assets.inv_bp,
+        heightmap,
+    };
+    spawn(&mut context)
 }
 
 pub(super) fn spawn_pending_warband_supplemental_terrain(
@@ -297,4 +293,43 @@ pub(super) fn char_info_strings(
         .and_then(|p| p.file_name().map(|f| f.to_string_lossy().to_string()))
         .unwrap_or_else(|| "unknown".into());
     (race, gender, model)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn update_pending_scene_only_waits_when_supplemental_exists() {
+        let mut pending = PendingSupplementalWarbandScene::default();
+
+        update_pending_scene(&mut pending, 42, true);
+        assert_eq!(pending.scene_id, Some(42));
+        assert!(pending.wait_for_next_frame);
+
+        update_pending_scene(&mut pending, 42, false);
+        assert_eq!(pending.scene_id, None);
+        assert!(!pending.wait_for_next_frame);
+    }
+
+    #[test]
+    fn pending_scene_validation_requires_active_scene_match() {
+        let pending = PendingSupplementalWarbandScene {
+            scene_id: Some(10),
+            wait_for_next_frame: false,
+        };
+
+        assert_eq!(
+            is_pending_scene_valid(&pending, &ActiveWarbandSceneId(Some(10))),
+            Some(10)
+        );
+        assert_eq!(
+            is_pending_scene_valid(&pending, &ActiveWarbandSceneId(Some(11))),
+            None
+        );
+        assert_eq!(
+            is_pending_scene_valid(&pending, &ActiveWarbandSceneId(None)),
+            None
+        );
+    }
 }
