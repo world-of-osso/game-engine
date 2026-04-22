@@ -6,6 +6,7 @@ use crate::asset::m2_anim::{AnimTrack, evaluate_i16_track};
 use game_engine::asset::read_bytes::fixed16_to_f32;
 
 use super::{SkyboxDebugSetup, SpawnedSkyboxDebug};
+type AdditiveBatchRef<'a> = (usize, &'a crate::asset::m2::M2RenderBatch);
 
 pub(super) fn log_debug_skybox_spawn(setup: &SkyboxDebugSetup, spawned: &SpawnedSkyboxDebug) {
     let authored_light_params = setup
@@ -138,28 +139,33 @@ fn format_optional_opacity_samples(
 }
 
 fn log_debug_skybox_additive_batches(model: &crate::asset::m2::M2Model) {
-    let additive_batches = additive_batches(model);
+    let additive_batches = collect_additive_batches(model);
+    log_additive_batch_overview(model, &additive_batches);
+}
+
+fn log_additive_batch_overview(
+    model: &crate::asset::m2::M2Model,
+    additive_batches: &[AdditiveBatchRef<'_>],
+) {
     log_additive_batch_count(additive_batches.len());
-    log_each_additive_batch(model, additive_batches);
+    log_additive_batch_details(model, additive_batches);
 }
 
 fn log_additive_batch_count(additive_batch_count: usize) {
     info!("skybox_debug_scene: additive_batches={additive_batch_count}");
 }
 
-fn log_each_additive_batch(
+fn log_additive_batch_details(
     model: &crate::asset::m2::M2Model,
-    additive_batches: Vec<(usize, &crate::asset::m2::M2RenderBatch)>,
+    additive_batches: &[AdditiveBatchRef<'_>],
 ) {
-    for (batch_index, batch) in additive_batches {
+    for (batch_index, batch) in additive_batches.iter().copied() {
         log_additive_batch_summary(model, batch_index, batch);
         log_additive_batch_geometry(model, batch_index, batch);
     }
 }
 
-fn additive_batches(
-    model: &crate::asset::m2::M2Model,
-) -> Vec<(usize, &crate::asset::m2::M2RenderBatch)> {
+fn collect_additive_batches(model: &crate::asset::m2::M2Model) -> Vec<AdditiveBatchRef<'_>> {
     model
         .batches
         .iter()
