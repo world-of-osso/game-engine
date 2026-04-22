@@ -206,6 +206,35 @@ fn faction_progress_fraction() {
 }
 
 #[test]
+fn faction_progress_fraction_matches_game_reputation_data() {
+    use crate::reputation_data::Standing as ReputationStanding;
+    use crate::reputation_data::standing_progress_fraction;
+
+    assert_eq!(
+        FactionEntry {
+            name: "Friendly".into(),
+            standing: Standing::Friendly,
+            current: 3000,
+            max: 6000,
+            paragon: None,
+        }
+        .progress_fraction(),
+        standing_progress_fraction(ReputationStanding::Friendly, 3000, 6000)
+    );
+    assert_eq!(
+        FactionEntry {
+            name: "Exalted".into(),
+            standing: Standing::Exalted,
+            current: 0,
+            max: 0,
+            paragon: None,
+        }
+        .progress_fraction(),
+        standing_progress_fraction(ReputationStanding::Exalted, 0, 0)
+    );
+}
+
+#[test]
 fn exalted_progress_is_full() {
     let f = FactionEntry {
         name: "X".into(),

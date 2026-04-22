@@ -5,6 +5,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::reputation_data::Standing as ReputationStanding;
+use crate::reputation_data::standing_progress_fraction;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
@@ -149,14 +150,11 @@ pub struct FactionEntry {
 
 impl FactionEntry {
     pub fn progress_fraction(&self) -> f32 {
-        if self.max == 0 {
-            return if self.standing == Standing::Exalted {
-                1.0
-            } else {
-                0.0
-            };
-        }
-        (self.current as f32 / self.max as f32).min(1.0)
+        standing_progress_fraction(
+            self.standing.as_reputation_standing(),
+            self.current,
+            self.max,
+        )
     }
 
     pub fn progress_text(&self) -> String {

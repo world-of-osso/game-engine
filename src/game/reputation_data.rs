@@ -115,6 +115,18 @@ impl Standing {
     }
 }
 
+/// Shared standing progress fraction for reputation bracket bars.
+pub fn standing_progress_fraction(standing: Standing, current: u32, max: u32) -> f32 {
+    if max == 0 {
+        return if standing == Standing::Exalted {
+            1.0
+        } else {
+            0.0
+        };
+    }
+    (current as f32 / max as f32).min(1.0)
+}
+
 // --- Paragon ---
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -155,14 +167,7 @@ pub struct Faction {
 
 impl Faction {
     pub fn progress_fraction(&self) -> f32 {
-        if self.max == 0 {
-            return if self.standing == Standing::Exalted {
-                1.0
-            } else {
-                0.0
-            };
-        }
-        (self.current as f32 / self.max as f32).min(1.0)
+        standing_progress_fraction(self.standing, self.current, self.max)
     }
 
     pub fn progress_text(&self) -> String {
@@ -246,6 +251,20 @@ mod tests {
         assert_eq!(Standing::Hated.label(), "Hated");
         assert_eq!(Standing::Exalted.label(), "Exalted");
         assert_eq!(Standing::Neutral.label(), "Neutral");
+    }
+
+    #[test]
+    fn standing_progress_fraction_edges() {
+        assert_eq!(standing_progress_fraction(Standing::Exalted, 0, 0), 1.0);
+        assert_eq!(standing_progress_fraction(Standing::Friendly, 0, 0), 0.0);
+        assert_eq!(
+            standing_progress_fraction(Standing::Friendly, 3000, 6000),
+            0.5
+        );
+        assert_eq!(
+            standing_progress_fraction(Standing::Friendly, 9000, 6000),
+            1.0
+        );
     }
 
     #[test]
