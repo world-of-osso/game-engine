@@ -1,5 +1,7 @@
 use super::*;
 
+const THIRD_UV_FLAG: u32 = 0x4000_0000;
+
 #[test]
 fn load_wmo_group_with_root_skips_third_uv_attribute_for_non_shader_18_materials() {
     let mut data = Vec::new();
@@ -69,7 +71,7 @@ fn load_wmo_group_with_root_skips_third_uv_attribute_for_non_shader_18_materials
             texture_fdid: 0,
             texture_2_fdid: 0,
             texture_3_fdid: 0,
-            flags: 0x4000_0000,
+            flags: THIRD_UV_FLAG,
             material_flags: WmoMaterialFlags::default(),
             sidn_color: [0.0; 4],
             diff_color: [0.0; 4],
