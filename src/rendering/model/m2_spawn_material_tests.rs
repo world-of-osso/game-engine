@@ -1,4 +1,4 @@
-use super::{load_batch_material, skybox_batch_needs_effect_combine};
+use super::{M2_SHADER_MODULATE, load_batch_material, skybox_batch_needs_effect_combine};
 use crate::asset;
 use crate::m2_effect_material;
 use crate::m2_spawn::{BatchMaterial, ground_offset_y};
@@ -6,7 +6,7 @@ use crate::skybox_m2_material::SkyboxM2Material;
 use bevy::mesh::{Mesh, PrimitiveTopology};
 use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial};
 
-const SHADER_SINGLE_TEXTURE: u16 = 0x0010;
+const SHADER_SINGLE_TEXTURE: u16 = M2_SHADER_MODULATE;
 const SHADER_MOD2X: u16 = 0x4014;
 const SHADER_THREE_STAGE: u16 = 0x8012;
 const SHADER_FOUR_STAGE: u16 = 0x8016;

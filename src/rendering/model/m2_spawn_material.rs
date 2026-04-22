@@ -12,7 +12,7 @@ use super::{BatchMaterial, PLACEHOLDER_COLORS};
 
 static REPEAT_TEXTURE_CACHE: OnceLock<Mutex<std::collections::HashMap<u32, AssetId<Image>>>> =
     OnceLock::new();
-const M2_SHADER_MODULATE: u16 = 0x0010;
+pub(super) const M2_SHADER_MODULATE: u16 = 0x0010;
 
 pub(super) fn load_batch_material(
     batch: &asset::m2::M2RenderBatch,
