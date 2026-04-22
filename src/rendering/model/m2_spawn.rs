@@ -503,6 +503,17 @@ fn spawn_skinned_mesh_base<M: Material>(
     batch: asset::m2::M2RenderBatch,
     spawn: &MeshSpawnContext<'_>,
 ) {
+    spawn_skinned_mesh_with_markers(commands, meshes, material, batch, spawn, insert_no_markers);
+}
+
+fn spawn_skinned_mesh_with_markers<M: Material>(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    material: Handle<M>,
+    batch: asset::m2::M2RenderBatch,
+    spawn: &MeshSpawnContext<'_>,
+    insert_markers: fn(&mut EntityCommands),
+) {
     let asset::m2::M2RenderBatch {
         mesh,
         texture_type,
@@ -516,6 +527,7 @@ fn spawn_skinned_mesh_base<M: Material>(
         Name::new(format!("Mesh[{}]", spawn.batch_index)),
         vis,
     ));
+    insert_markers(&mut cmd);
     let component_context = MeshComponentContext {
         texture_type,
         mesh_part_id,
@@ -531,27 +543,14 @@ fn spawn_skinned_mesh_skybox(
     batch: asset::m2::M2RenderBatch,
     spawn: &MeshSpawnContext<'_>,
 ) {
-    let asset::m2::M2RenderBatch {
-        mesh,
-        texture_type,
-        mesh_part_id,
-        ..
-    } = batch;
-    let vis = skinned_mesh_visibility(spawn.visible);
-    let mut cmd = commands.spawn((
-        Mesh3d(meshes.add(mesh)),
-        MeshMaterial3d(material),
-        Name::new(format!("Mesh[{}]", spawn.batch_index)),
-        NoFrustumCulling,
-        NotShadowCaster,
-        vis,
-    ));
-    let component_context = MeshComponentContext {
-        texture_type,
-        mesh_part_id,
+    spawn_skinned_mesh_with_markers(
+        commands,
+        meshes,
+        material,
+        batch,
         spawn,
-    };
-    spawn_common_mesh_components(&mut cmd, &component_context);
+        insert_skybox_mesh_markers,
+    );
 }
 
 fn skinned_mesh_visibility(visible: bool) -> Visibility {
@@ -560,6 +559,12 @@ fn skinned_mesh_visibility(visible: bool) -> Visibility {
     } else {
         Visibility::Hidden
     }
+}
+
+fn insert_no_markers(_: &mut EntityCommands) {}
+
+fn insert_skybox_mesh_markers(cmd: &mut EntityCommands) {
+    cmd.insert((NoFrustumCulling, NotShadowCaster));
 }
 
 /// Spawn bone entities in parent-child hierarchy and create inverse bind poses.
