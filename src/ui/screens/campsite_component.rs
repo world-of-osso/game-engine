@@ -148,7 +148,13 @@ fn menu_tab_item() -> Element {
     }
 }
 
-fn campsite_menu_item_selected() -> Element {
+fn campsite_menu_item(selected: bool) -> Element {
+    let label_color = if selected { COLOR_GOLD } else { COLOR_SUBTITLE };
+    let underline: Element = if selected {
+        menu_item_underline("CampsiteTab", MENU_CAMPSITES_WIDTH)
+    } else {
+        Vec::new()
+    };
     rsx! {
         r#frame {
             name: "CampsiteTab",
@@ -161,28 +167,8 @@ fn campsite_menu_item_selected() -> Element {
                 x: MENU_CAMPSITES_X,
                 y: MENU_ITEM_Y,
             }
-            {menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, COLOR_GOLD)}
-            {menu_item_underline("CampsiteTab", MENU_CAMPSITES_WIDTH)}
-        }
-    }
-}
-
-fn campsite_menu_item_unselected() -> Element {
-    rsx! {
-        r#frame {
-            name: "CampsiteTab",
-            width: MENU_CAMPSITES_WIDTH,
-            height: MENU_ITEM_HEIGHT,
-            onclick: CharSelectAction::CampsiteToggle,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: MENU_CAMPSITES_X,
-                y: MENU_ITEM_Y,
-            }
-            {
-                menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, COLOR_SUBTITLE)
-            }
+            {menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, label_color)}
+            {underline}
         }
     }
 }
@@ -222,11 +208,7 @@ fn disabled_items_and_dividers() -> Element {
 }
 
 pub fn campsite_tab(selected: bool) -> Element {
-    let campsites = if selected {
-        campsite_menu_item_selected()
-    } else {
-        campsite_menu_item_unselected()
-    };
+    let campsites = campsite_menu_item(selected);
     let menu = menu_tab_item();
     rsx! {
         r#frame {

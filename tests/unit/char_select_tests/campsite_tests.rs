@@ -107,3 +107,39 @@ fn campsite_panel_does_not_overlap_character_cards() {
         card_left
     );
 }
+
+#[test]
+fn campsite_tab_selected_uses_gold_label_and_underline() {
+    let reg = build_screen_with_campsites(CharSelectState::default(), one_scene_campsite_state());
+
+    assert!(reg.get_by_name("CampsiteTabUnderline").is_some());
+    let label = reg
+        .get(
+            reg.get_by_name("CampsiteTabLabel")
+                .expect("CampsiteTabLabel"),
+        )
+        .expect("CampsiteTabLabel frame");
+    let Some(WidgetData::FontString(font)) = label.widget_data.as_ref() else {
+        panic!("CampsiteTabLabel should be a fontstring");
+    };
+    assert_eq!(font.color, [1.0, 0.82, 0.0, 1.0]);
+}
+
+#[test]
+fn campsite_tab_unselected_uses_subtitle_label_and_hides_underline() {
+    let mut campsite = one_scene_campsite_state();
+    campsite.panel_visible = false;
+    let reg = build_screen_with_campsites(CharSelectState::default(), campsite);
+
+    assert!(reg.get_by_name("CampsiteTabUnderline").is_none());
+    let label = reg
+        .get(
+            reg.get_by_name("CampsiteTabLabel")
+                .expect("CampsiteTabLabel"),
+        )
+        .expect("CampsiteTabLabel frame");
+    let Some(WidgetData::FontString(font)) = label.widget_data.as_ref() else {
+        panic!("CampsiteTabLabel should be a fontstring");
+    };
+    assert_eq!(font.color, [0.92, 0.88, 0.74, 1.0]);
+}
