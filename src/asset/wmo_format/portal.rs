@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use super::parser::{WmoPortal, WmoPortalRef};
 
 /// Determine which side of a portal the camera is on.
@@ -37,7 +39,7 @@ pub fn propagate_visibility(
     camera_pos: [f32; 3],
 ) -> Vec<u16> {
     let mut visible = Vec::new();
-    let mut visited = Vec::new();
+    let mut visited = HashSet::new();
     visit_group(
         start_group,
         portals,
@@ -57,12 +59,11 @@ fn visit_group(
     group_portal_ranges: &[(u16, u16)],
     camera_pos: [f32; 3],
     visible: &mut Vec<u16>,
-    visited: &mut Vec<u16>,
+    visited: &mut HashSet<u16>,
 ) {
-    if visited.contains(&group) {
+    if !visited.insert(group) {
         return;
     }
-    visited.push(group);
     visible.push(group);
 
     let Some(&(start, count)) = group_portal_ranges.get(group as usize) else {
