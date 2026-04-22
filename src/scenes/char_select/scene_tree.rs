@@ -199,7 +199,7 @@ pub fn spawn_warband_supplemental_terrain(
     let mut doodad_count = 0;
     for (tile_y, tile_x) in warband::supplemental_terrain_tile_coords(scene) {
         let adt_path = supplemental_terrain_path(scene, tile_y, tile_x);
-        let Some(result) = spawn_warband_supplemental_tile(ctx, &adt_path) else {
+        let Some(result) = spawn_warband_terrain_tile(ctx, &adt_path) else {
             continue;
         };
         attach_warband_terrain_root(ctx.commands, root_entity, result.root_entity);
@@ -219,20 +219,6 @@ fn supplemental_terrain_path(
         tile_y,
         tile_x
     ))
-}
-
-fn spawn_warband_supplemental_tile(
-    ctx: &mut WarbandTerrainSpawnContext<'_, '_, '_>,
-    adt_path: &std::path::Path,
-) -> Option<terrain::AdtSpawnResult> {
-    let mut terrain_assets = terrain::TerrainOnlySpawnAssets {
-        commands: ctx.commands,
-        meshes: ctx.meshes,
-        terrain_materials: ctx.terrain_materials,
-        water_materials: ctx.water_materials,
-        images: ctx.images,
-    };
-    terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, adt_path).ok()
 }
 
 fn spawn_warband_supplemental_doodads(
