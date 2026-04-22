@@ -694,34 +694,40 @@ fn roster_row_cells(idx: usize, member: &RosterMember, row_w: f32) -> Element {
     values
         .iter()
         .enumerate()
-        .flat_map(|(col, text)| {
-            let cell_id = DynName(format!("CommunitiesRosterRow{idx}Col{col}"));
-            let x = roster_col_x(row_w, col);
-            let w = roster_col_w(row_w, col);
-            let color = if col == 2 {
-                ROSTER_ROLE_COLOR
-            } else {
-                ROSTER_TEXT_COLOR
-            };
-            rsx! {
-                fontstring {
-                    name: cell_id,
-                    width: {w},
-                    height: {ROSTER_ROW_H},
-                    text: {text.as_str()},
-                    font_size: 9.0,
-                    font_color: color,
-                    justify_h: "LEFT",
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: "0",
-                    }
-                }
-            }
-        })
+        .flat_map(|(col, text)| roster_row_cell(idx, col, text, row_w))
         .collect()
+}
+
+fn roster_row_cell(idx: usize, col: usize, text: &str, row_w: f32) -> Element {
+    let cell_id = DynName(format!("CommunitiesRosterRow{idx}Col{col}"));
+    let x = roster_col_x(row_w, col);
+    let w = roster_col_w(row_w, col);
+    let color = roster_row_cell_color(col);
+    rsx! {
+        fontstring {
+            name: cell_id,
+            width: {w},
+            height: {ROSTER_ROW_H},
+            text,
+            font_size: 9.0,
+            font_color: color,
+            justify_h: "LEFT",
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: "0",
+            }
+        }
+    }
+}
+
+fn roster_row_cell_color(col: usize) -> &'static str {
+    if col == 2 {
+        ROSTER_ROLE_COLOR
+    } else {
+        ROSTER_TEXT_COLOR
+    }
 }
 
 fn roster_col_x(row_w: f32, col: usize) -> f32 {
