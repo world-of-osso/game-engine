@@ -133,21 +133,20 @@ pub fn parse_mods(data: &[u8]) -> Result<Vec<WmoDoodadSet>, String> {
 }
 
 pub fn parse_modn(data: &[u8]) -> Result<Vec<WmoDoodadName>, String> {
-    Ok(parse_named_entries(data)
-        .into_iter()
-        .map(|(offset, name)| WmoDoodadName { offset, name })
-        .collect())
+    Ok(parse_named_entries_as(data, |(offset, name)| {
+        WmoDoodadName { offset, name }
+    }))
 }
 
 pub fn parse_mogn(data: &[u8]) -> Result<Vec<WmoGroupName>, String> {
-    Ok(parse_named_entries(data)
-        .into_iter()
-        .map(|(offset, name)| WmoGroupName {
-            is_antiportal: contains_ascii_case_insensitive(&name, "antiportal"),
+    Ok(parse_named_entries_as(data, |(offset, name)| {
+        let is_antiportal = contains_ascii_case_insensitive(&name, "antiportal");
+        WmoGroupName {
+            is_antiportal,
             offset,
             name,
-        })
-        .collect())
+        }
+    }))
 }
 
 pub fn parse_modi(data: &[u8]) -> Result<Vec<u32>, String> {
@@ -249,6 +248,13 @@ fn parse_named_entries(data: &[u8]) -> Vec<(u32, String)> {
         offset += byte_len;
     }
     names
+}
+
+fn parse_named_entries_as<T>(data: &[u8], map_entry: impl FnMut((u32, String)) -> T) -> Vec<T> {
+    parse_named_entries(data)
+        .into_iter()
+        .map(map_entry)
+        .collect()
 }
 
 fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
