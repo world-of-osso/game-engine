@@ -67,7 +67,7 @@ fn parse_fixed_c_string(bytes: &[u8]) -> String {
     parse_c_string(bytes).unwrap_or_default()
 }
 
-const DOODAD_NAME_OFFSET_MASK: u32 = 0x00FF_FFFF;
+const DOODAD_NAME_OFFSET_MASK: u32 = (1u32 << 24) - 1;
 
 pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
     Ok(
