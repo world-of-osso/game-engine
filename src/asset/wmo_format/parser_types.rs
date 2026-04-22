@@ -120,6 +120,7 @@ impl WmoMaterialDef {
     const CLAMP_T_FLAG: u32 = 0x40;
     const SECOND_COLOR_FLAG: u32 = 0x0100_0000;
     const SECOND_UV_FLAG: u32 = 0x0200_0000;
+    const THIRD_UV_FLAG: u32 = 0x4000_0000;
 
     pub fn uses_second_color_blend_alpha(&self) -> bool {
         self.flags & Self::SECOND_COLOR_FLAG != 0
@@ -134,7 +135,7 @@ impl WmoMaterialDef {
     }
 
     pub fn uses_third_uv_set(&self) -> bool {
-        self.flags & 0x4000_0000 != 0 && self.shader == 18
+        self.flags & Self::THIRD_UV_FLAG != 0 && self.shader == 18
     }
 }
 
