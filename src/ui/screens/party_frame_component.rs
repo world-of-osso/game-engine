@@ -323,25 +323,27 @@ fn debuff_row(idx: usize, debuffs: &[PartyDebuff]) -> Element {
         .iter()
         .enumerate()
         .take(MAX_DEBUFFS)
-        .flat_map(|(di, _debuff)| {
-            let debuff_id = DynName(format!("PartyMember{idx}Debuff{di}"));
-            let x = BAR_INSET + di as f32 * (DEBUFF_ICON_SIZE + DEBUFF_GAP);
-            rsx! {
-                r#frame {
-                    name: debuff_id,
-                    width: {DEBUFF_ICON_SIZE},
-                    height: {DEBUFF_ICON_SIZE},
-                    background_color: DEBUFF_BG,
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {-DEBUFF_Y},
-                    }
-                }
-            }
-        })
+        .flat_map(|(di, _debuff)| debuff_icon(idx, di))
         .collect()
+}
+
+fn debuff_icon(idx: usize, debuff_idx: usize) -> Element {
+    let debuff_id = DynName(format!("PartyMember{idx}Debuff{debuff_idx}"));
+    let x = BAR_INSET + debuff_idx as f32 * (DEBUFF_ICON_SIZE + DEBUFF_GAP);
+    rsx! {
+        r#frame {
+            name: debuff_id,
+            width: {DEBUFF_ICON_SIZE},
+            height: {DEBUFF_ICON_SIZE},
+            background_color: DEBUFF_BG,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+                x: {x},
+                y: {-DEBUFF_Y},
+            }
+        }
+    }
 }
 
 // --- Incoming heals overlay (bar segment after health fill) ---
