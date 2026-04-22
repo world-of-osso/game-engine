@@ -277,7 +277,7 @@ fn sync_equipment_entries<'w, 's>(
     warned: &mut Local<'s, HashSet<String>>,
 ) {
     for (owner, equipment, attach_points, anim_data, mut rendered) in query {
-        sync_equipment_owner_entry(
+        sync_rendered_equipment_owner(
             commands,
             meshes,
             materials,
@@ -296,44 +296,6 @@ fn sync_equipment_entries<'w, 's>(
             &mut rendered,
         );
     }
-}
-
-fn sync_equipment_owner_entry<'w, 's>(
-    commands: &mut Commands<'w, 's>,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    transforms: &EquipmentTransforms,
-    parents: &Query<'w, 's, &'static ChildOf>,
-    names: &Query<'w, 's, &'static Name>,
-    existing_items: &Query<'w, 's, (), With<EquipmentItem>>,
-    warned: &mut Local<'s, HashSet<String>>,
-    owner: Entity,
-    equipment: &Equipment,
-    attach_points: &AttachmentPoints,
-    anim_data: &M2AnimData,
-    rendered: &mut RenderedEquipment,
-) {
-    sync_rendered_equipment_owner(
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        transforms,
-        parents,
-        names,
-        existing_items,
-        warned,
-        owner,
-        equipment,
-        attach_points,
-        anim_data,
-        rendered,
-    );
 }
 
 fn sync_rendered_equipment_owner<'w, 's>(
