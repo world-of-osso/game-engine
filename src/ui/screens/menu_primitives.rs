@@ -83,7 +83,17 @@ fn dropdown_button_frame(
     props: DropdownButton<'_>,
     content: Element,
 ) -> Element {
-    match props.onclick {
+    dropdown_button_frame_with_optional_onclick(frame_name, props, content, props.onclick)
+}
+
+fn dropdown_button_frame_with_optional_onclick(
+    frame_name: DynName,
+    props: DropdownButton<'_>,
+    content: Element,
+    onclick: Option<&str>,
+) -> Element {
+    let anchor = dropdown_button_anchor(props);
+    match onclick {
         Some(onclick) => rsx! {
             r#frame {
                 name: frame_name,
@@ -91,12 +101,7 @@ fn dropdown_button_frame(
                 height: {props.height},
                 background_color: props.background_color,
                 onclick,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {props.x},
-                    y: {props.y},
-                }
+                {anchor}
                 {content}
             }
         },
@@ -106,15 +111,21 @@ fn dropdown_button_frame(
                 width: {props.width},
                 height: {props.height},
                 background_color: props.background_color,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {props.x},
-                    y: {props.y},
-                }
+                {anchor}
                 {content}
             }
         },
+    }
+}
+
+fn dropdown_button_anchor(props: DropdownButton<'_>) -> Element {
+    rsx! {
+        anchor {
+            point: AnchorPoint::TopLeft,
+            relative_point: AnchorPoint::TopLeft,
+            x: {props.x},
+            y: {props.y},
+        }
     }
 }
 
