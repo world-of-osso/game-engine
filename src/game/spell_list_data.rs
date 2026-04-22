@@ -4,6 +4,8 @@
 //! resource. Spells are grouped by tab (General, class, spec) and can be
 //! updated as the player learns new abilities or changes spec.
 
+use std::collections::HashSet;
+
 use bevy::prelude::*;
 
 /// WoW spell school, determines damage type color and tooltip text.
@@ -92,9 +94,11 @@ impl SpellList {
     /// Get all unique tab names in display order (insertion order).
     pub fn tabs(&self) -> Vec<&str> {
         let mut tabs: Vec<&str> = Vec::new();
+        let mut seen = HashSet::new();
         for spell in &self.spells {
-            if !tabs.contains(&spell.tab.as_str()) {
-                tabs.push(&spell.tab);
+            let tab = spell.tab.as_str();
+            if seen.insert(tab) {
+                tabs.push(tab);
             }
         }
         tabs
