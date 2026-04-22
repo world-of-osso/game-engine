@@ -453,39 +453,40 @@ fn map_pin_backdrop(
     onclick: Option<&str>,
     content: Element,
 ) -> Element {
-    match onclick {
-        Some(onclick) => rsx! {
-            r#frame {
-                name: id,
-                width: {PIN_SIZE},
-                height: {PIN_SIZE},
-                background_color: {pin.pin_type.color()},
-                onclick: {onclick},
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {x},
-                    y: {-y},
-                }
-                {content}
-            }
-        },
-        None => rsx! {
-            r#frame {
-                name: id,
-                width: {PIN_SIZE},
-                height: {PIN_SIZE},
-                background_color: {pin.pin_type.color()},
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: {x},
-                    y: {-y},
-                }
-                {content}
-            }
-        },
+    let background_color = pin.pin_type.color();
+    if let Some(onclick) = onclick {
+        return map_pin_backdrop_clickable(id, x, y, background_color, onclick, content);
     }
+    map_pin_backdrop_plain(id, x, y, background_color, content)
+}
+
+fn map_pin_backdrop_clickable(
+    id: DynName,
+    x: f32,
+    y: f32,
+    background_color: &str,
+    onclick: &str,
+    content: Element,
+) -> Element {
+    rsx! { r#frame {
+        name: id, width: {PIN_SIZE}, height: {PIN_SIZE}, background_color, onclick: {onclick},
+        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-y} }
+        {content}
+    } }
+}
+
+fn map_pin_backdrop_plain(
+    id: DynName,
+    x: f32,
+    y: f32,
+    background_color: &str,
+    content: Element,
+) -> Element {
+    rsx! { r#frame {
+        name: id, width: {PIN_SIZE}, height: {PIN_SIZE}, background_color,
+        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-y} }
+        {content}
+    } }
 }
 
 fn map_pin_symbol(label_id: DynName, pin: &MapPin) -> Element {

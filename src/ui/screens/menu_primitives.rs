@@ -83,50 +83,35 @@ fn dropdown_button_frame(
     props: DropdownButton<'_>,
     content: Element,
 ) -> Element {
-    dropdown_button_frame_with_optional_onclick(frame_name, props, content, props.onclick)
+    if let Some(onclick) = props.onclick {
+        return dropdown_button_frame_clickable(frame_name, props, content, onclick);
+    }
+    dropdown_button_frame_plain(frame_name, props, content)
 }
 
-fn dropdown_button_frame_with_optional_onclick(
+fn dropdown_button_frame_clickable(
     frame_name: DynName,
     props: DropdownButton<'_>,
     content: Element,
-    onclick: Option<&str>,
+    onclick: &str,
 ) -> Element {
-    let anchor = dropdown_button_anchor(props);
-    match onclick {
-        Some(onclick) => rsx! {
-            r#frame {
-                name: frame_name,
-                width: {props.width},
-                height: {props.height},
-                background_color: props.background_color,
-                onclick,
-                {anchor}
-                {content}
-            }
-        },
-        None => rsx! {
-            r#frame {
-                name: frame_name,
-                width: {props.width},
-                height: {props.height},
-                background_color: props.background_color,
-                {anchor}
-                {content}
-            }
-        },
-    }
+    rsx! { r#frame {
+        name: frame_name, width: {props.width}, height: {props.height}, background_color: props.background_color, onclick,
+        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {props.x}, y: {props.y} }
+        {content}
+    } }
 }
 
-fn dropdown_button_anchor(props: DropdownButton<'_>) -> Element {
-    rsx! {
-        anchor {
-            point: AnchorPoint::TopLeft,
-            relative_point: AnchorPoint::TopLeft,
-            x: {props.x},
-            y: {props.y},
-        }
-    }
+fn dropdown_button_frame_plain(
+    frame_name: DynName,
+    props: DropdownButton<'_>,
+    content: Element,
+) -> Element {
+    rsx! { r#frame {
+        name: frame_name, width: {props.width}, height: {props.height}, background_color: props.background_color,
+        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {props.x}, y: {props.y} }
+        {content}
+    } }
 }
 
 fn dropdown_button_content(props: DropdownButton<'_>) -> Element {
