@@ -167,27 +167,34 @@ fn parsed_common_value(parsed: &ParsedWdc5Db2<'_>, field_index: usize, row: Wdc5
 }
 
 fn wdc5_pallet_offsets(fields: &[Wdc5FieldStorage]) -> Vec<usize> {
+    wdc5_offsets_with(fields, is_pallet_storage_type)
+}
+
+fn wdc5_common_offsets(fields: &[Wdc5FieldStorage]) -> Vec<usize> {
+    wdc5_offsets_with(fields, is_common_storage_type)
+}
+
+fn wdc5_offsets_with(
+    fields: &[Wdc5FieldStorage],
+    should_accumulate: fn(u32) -> bool,
+) -> Vec<usize> {
     let mut offsets = Vec::with_capacity(fields.len());
     let mut next = 0usize;
     for field in fields {
         offsets.push(next);
-        if matches!(field.storage_type, 3 | 4) {
+        if should_accumulate(field.storage_type) {
             next += field.additional_data_size as usize;
         }
     }
     offsets
 }
 
-fn wdc5_common_offsets(fields: &[Wdc5FieldStorage]) -> Vec<usize> {
-    let mut offsets = Vec::with_capacity(fields.len());
-    let mut next = 0usize;
-    for field in fields {
-        offsets.push(next);
-        if field.storage_type == 2 {
-            next += field.additional_data_size as usize;
-        }
-    }
-    offsets
+fn is_pallet_storage_type(storage_type: u32) -> bool {
+    matches!(storage_type, 3 | 4)
+}
+
+fn is_common_storage_type(storage_type: u32) -> bool {
+    storage_type == 2
 }
 
 struct Wdc5Header {
@@ -308,4 +315,29 @@ fn parse_wdc5_field_storage(
         });
     }
     Ok(fields)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn field(storage_type: u32, additional_data_size: u32) -> Wdc5FieldStorage {
+        Wdc5FieldStorage {
+            storage_type,
+            additional_data_size,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn pallet_offsets_accumulate_types_three_and_four() {
+        let fields = vec![field(0, 7), field(3, 8), field(4, 4), field(2, 10)];
+        assert_eq!(wdc5_pallet_offsets(&fields), vec![0, 0, 8, 12]);
+    }
+
+    #[test]
+    fn common_offsets_accumulate_only_type_two() {
+        let fields = vec![field(0, 7), field(2, 8), field(3, 4), field(2, 10)];
+        assert_eq!(wdc5_common_offsets(&fields), vec![0, 0, 8, 8]);
+    }
 }
