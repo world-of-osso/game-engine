@@ -60,23 +60,26 @@ fn base_shader_descriptor(metallic: bool) -> WmoShaderDescriptor {
 }
 
 fn static_layer_shader_descriptor(env_reflection: bool, metallic: bool) -> WmoShaderDescriptor {
+    single_overlay_shader_descriptor(env_reflection, metallic, false, WmoLayerCombine::None)
+}
+
+fn single_overlay_shader_descriptor(
+    env_reflection: bool,
+    metallic: bool,
+    emissive: bool,
+    second_layer: WmoLayerCombine,
+) -> WmoShaderDescriptor {
     shader_descriptor(
         env_reflection,
         metallic,
-        false,
-        WmoLayerCombine::None,
+        emissive,
+        second_layer,
         WmoLayerCombine::None,
     )
 }
 
 fn alpha_blend_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        false,
-        false,
-        false,
-        WmoLayerCombine::AlphaBlend,
-        WmoLayerCombine::None,
-    )
+    single_overlay_shader_descriptor(false, false, false, WmoLayerCombine::AlphaBlend)
 }
 
 fn env_add_shader_descriptor() -> WmoShaderDescriptor {
@@ -90,13 +93,7 @@ fn env_add_shader_descriptor() -> WmoShaderDescriptor {
 }
 
 fn emissive_add_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        false,
-        false,
-        true,
-        WmoLayerCombine::Add,
-        WmoLayerCombine::None,
-    )
+    single_overlay_shader_descriptor(false, false, true, WmoLayerCombine::Add)
 }
 
 fn layered_env_shader_descriptor() -> WmoShaderDescriptor {
@@ -114,23 +111,11 @@ fn emissive_env_add_shader_descriptor() -> WmoShaderDescriptor {
 }
 
 fn mod2x_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        false,
-        false,
-        false,
-        WmoLayerCombine::Mod2x,
-        WmoLayerCombine::None,
-    )
+    single_overlay_shader_descriptor(false, false, false, WmoLayerCombine::Mod2x)
 }
 
 fn multiply_reflection_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        true,
-        true,
-        false,
-        WmoLayerCombine::Multiply,
-        WmoLayerCombine::None,
-    )
+    single_overlay_shader_descriptor(true, true, false, WmoLayerCombine::Multiply)
 }
 
 const DEFAULT_ROUGHNESS: f32 = 0.88;
@@ -311,6 +296,26 @@ mod tests {
                 metallic: true,
                 emissive: false,
                 second_layer: WmoLayerCombine::None,
+                third_layer: WmoLayerCombine::None,
+            }
+        );
+        assert_eq!(
+            describe_wmo_shader(9),
+            WmoShaderDescriptor {
+                env_reflection: false,
+                metallic: false,
+                emissive: true,
+                second_layer: WmoLayerCombine::Add,
+                third_layer: WmoLayerCombine::None,
+            }
+        );
+        assert_eq!(
+            describe_wmo_shader(22),
+            WmoShaderDescriptor {
+                env_reflection: true,
+                metallic: true,
+                emissive: false,
+                second_layer: WmoLayerCombine::Multiply,
                 third_layer: WmoLayerCombine::None,
             }
         );
