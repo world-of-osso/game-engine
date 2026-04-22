@@ -10,9 +10,9 @@ pub const CLOUD_TEXTURE_HEIGHT: u32 = 1024;
 pub const CLOUD_REGEN_SECONDS: f32 = 5.0;
 const CLOUD_OCTAVES: usize = 6;
 const CLOUD_RIDGE_SEED_MIX: u32 = 0x9E37_79B9;
-const HASH_X_MIX: u32 = 0x8DA6_B343;
-const HASH_Y_MIX: u32 = 0xD816_3841;
-const HASH_FINAL_MIX: u32 = 0x85EB_CA6B;
+const SIMPLEX_HASH_X_MIX: u32 = 0x8DA6_B343;
+const SIMPLEX_HASH_Y_MIX: u32 = 0xD816_3841;
+const SIMPLEX_HASH_FINAL_MIX: u32 = 0x85EB_CA6B;
 
 #[derive(Resource)]
 pub struct ProceduralCloudMaps {
@@ -151,10 +151,10 @@ fn simplex_corner(i: i32, j: i32, x: f32, y: f32, seed: u32) -> f32 {
 
 fn hash2(i: i32, j: i32, seed: u32) -> u32 {
     let mut h = seed
-        .wrapping_add((i as u32).wrapping_mul(HASH_X_MIX))
-        .wrapping_add((j as u32).wrapping_mul(HASH_Y_MIX));
+        .wrapping_add((i as u32).wrapping_mul(SIMPLEX_HASH_X_MIX))
+        .wrapping_add((j as u32).wrapping_mul(SIMPLEX_HASH_Y_MIX));
     h ^= h >> 13;
-    h = h.wrapping_mul(HASH_FINAL_MIX);
+    h = h.wrapping_mul(SIMPLEX_HASH_FINAL_MIX);
     h ^ (h >> 16)
 }
 
