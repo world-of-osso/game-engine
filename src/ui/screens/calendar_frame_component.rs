@@ -169,16 +169,22 @@ fn calendar_button(name: &str, text: &str, action: &str, x: f32) -> Element {
                 x: {x},
                 y: {-(HEADER_H + INSET)},
             }
-            fontstring {
-                name: {DynName(format!("{name}Text"))},
-                width: "88.0",
-                height: {BUTTON_H},
-                text,
-                font_size: 11.0,
-                font_color: BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
+            {calendar_button_label(name, text)}
+        }
+    }
+}
+
+fn calendar_button_label(name: &str, text: &str) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(format!("{name}Text"))},
+            width: "88.0",
+            height: {BUTTON_H},
+            text,
+            font_size: 11.0,
+            font_color: BTN_TEXT,
+            justify_h: "CENTER",
+            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
         }
     }
 }
