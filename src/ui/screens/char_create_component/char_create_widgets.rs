@@ -79,24 +79,34 @@ fn wrap_tile_label(name: &str) -> String {
     }
 }
 
-fn race_name_label(race_id: u8, name: &str, color: FontColor) -> Element {
+const TILE_LABEL_WIDTH: f32 = 72.0;
+const TILE_LABEL_HEIGHT: f32 = 24.0;
+const TILE_LABEL_FONT_SIZE: f32 = 8.0;
+const RACE_LABEL_Y: f32 = 4.0;
+const CLASS_LABEL_Y: f32 = 2.0;
+
+fn tile_name_label(name_id: String, name: &str, color: FontColor, y: f32) -> Element {
     let text = wrap_tile_label(name);
     rsx! {
         fontstring {
-            name: dyn_name(format!("Race_{race_id}_Label")),
-            width: 72.0,
-            height: 24.0,
+            name: dyn_name(name_id),
+            width: TILE_LABEL_WIDTH,
+            height: TILE_LABEL_HEIGHT,
             text,
             font: GameFont::FrizQuadrata,
-            font_size: 8.0,
+            font_size: TILE_LABEL_FONT_SIZE,
             font_color: color,
             anchor {
                 point: AnchorPoint::Bottom,
                 relative_point: AnchorPoint::Bottom,
-                y: "4",
+                y: {y},
             }
         }
     }
+}
+
+fn race_name_label(race_id: u8, name: &str, color: FontColor) -> Element {
+    tile_name_label(format!("Race_{race_id}_Label"), name, color, RACE_LABEL_Y)
 }
 
 pub(super) fn race_buttons_for_faction(
@@ -231,23 +241,12 @@ fn class_icon_widget(class_id: u8, icon: &str, alpha: &str) -> Element {
 }
 
 fn class_name_label(class_id: u8, name: &str, color: FontColor) -> Element {
-    let text = wrap_tile_label(name);
-    rsx! {
-        fontstring {
-            name: dyn_name(format!("Class_{class_id}_Label")),
-            width: 72.0,
-            height: 24.0,
-            text,
-            font: GameFont::FrizQuadrata,
-            font_size: 8.0,
-            font_color: color,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "2",
-            }
-        }
-    }
+    tile_name_label(
+        format!("Class_{class_id}_Label"),
+        name,
+        color,
+        CLASS_LABEL_Y,
+    )
 }
 
 pub(super) fn class_button(

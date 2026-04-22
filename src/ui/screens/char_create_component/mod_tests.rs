@@ -562,6 +562,49 @@ fn race_buttons_have_onclick_action() {
 }
 
 #[test]
+fn race_and_class_labels_keep_shared_tile_style_with_expected_offsets() {
+    let reg = build_screen(CharCreateUiState::default());
+
+    let race_label = reg
+        .frames_iter()
+        .find(|frame| {
+            frame
+                .name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("Race_") && name.ends_with("_Label"))
+        })
+        .expect("at least one race label frame");
+    let class_label = reg
+        .frames_iter()
+        .find(|frame| {
+            frame
+                .name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("Class_") && name.ends_with("_Label"))
+        })
+        .expect("at least one class label frame");
+
+    assert_eq!(race_label.resolved_width(), 72.0);
+    assert_eq!(race_label.resolved_height(), 24.0);
+    assert_eq!(class_label.resolved_width(), 72.0);
+    assert_eq!(class_label.resolved_height(), 24.0);
+
+    let Some(WidgetData::FontString(race_font)) = race_label.widget_data.as_ref() else {
+        panic!("race label should be a fontstring");
+    };
+    let Some(WidgetData::FontString(class_font)) = class_label.widget_data.as_ref() else {
+        panic!("class label should be a fontstring");
+    };
+    assert_eq!(race_font.font_size, 8.0);
+    assert_eq!(class_font.font_size, 8.0);
+
+    assert_eq!(race_label.anchors.len(), 1);
+    assert_eq!(class_label.anchors.len(), 1);
+    assert_eq!(race_label.anchors[0].y_offset, 4.0);
+    assert_eq!(class_label.anchors[0].y_offset, 2.0);
+}
+
+#[test]
 fn race_button_onclick_survives_race_change_sync() {
     let mut harness = ScreenHarness::new(CharCreateUiState::default());
 
