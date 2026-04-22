@@ -56,8 +56,12 @@ fn shader_descriptor(
 }
 
 fn base_shader_descriptor(metallic: bool) -> WmoShaderDescriptor {
+    static_layer_shader_descriptor(false, metallic)
+}
+
+fn static_layer_shader_descriptor(env_reflection: bool, metallic: bool) -> WmoShaderDescriptor {
     shader_descriptor(
-        false,
+        env_reflection,
         metallic,
         false,
         WmoLayerCombine::None,
@@ -66,23 +70,11 @@ fn base_shader_descriptor(metallic: bool) -> WmoShaderDescriptor {
 }
 
 fn reflective_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        true,
-        false,
-        false,
-        WmoLayerCombine::None,
-        WmoLayerCombine::None,
-    )
+    static_layer_shader_descriptor(true, false)
 }
 
 fn reflective_metal_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        true,
-        true,
-        false,
-        WmoLayerCombine::None,
-        WmoLayerCombine::None,
-    )
+    static_layer_shader_descriptor(true, true)
 }
 
 fn alpha_blend_shader_descriptor() -> WmoShaderDescriptor {
@@ -315,6 +307,16 @@ mod tests {
             WmoShaderDescriptor {
                 env_reflection: true,
                 metallic: false,
+                emissive: false,
+                second_layer: WmoLayerCombine::None,
+                third_layer: WmoLayerCombine::None,
+            }
+        );
+        assert_eq!(
+            describe_wmo_shader(5),
+            WmoShaderDescriptor {
+                env_reflection: true,
+                metallic: true,
                 emissive: false,
                 second_layer: WmoLayerCombine::None,
                 third_layer: WmoLayerCombine::None,
