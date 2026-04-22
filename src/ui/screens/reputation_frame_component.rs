@@ -5,6 +5,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::reputation_data::Standing as ReputationStanding;
+use crate::reputation_data::clamped_progress_fraction;
 use crate::reputation_data::standing_progress_fraction;
 use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
@@ -128,10 +129,7 @@ pub struct ParagonProgress {
 
 impl ParagonProgress {
     pub fn fraction(&self) -> f32 {
-        if self.max == 0 {
-            return 0.0;
-        }
-        (self.current as f32 / self.max as f32).min(1.0)
+        clamped_progress_fraction(self.current, self.max)
     }
 
     pub fn progress_text(&self) -> String {

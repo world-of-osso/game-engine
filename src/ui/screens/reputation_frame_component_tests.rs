@@ -359,6 +359,30 @@ fn paragon_progress_fraction() {
 }
 
 #[test]
+fn paragon_progress_fraction_matches_game_reputation_data() {
+    use crate::reputation_data::clamped_progress_fraction;
+
+    assert_eq!(
+        ParagonProgress {
+            current: 5000,
+            max: 10000,
+            reward_pending: false,
+        }
+        .fraction(),
+        clamped_progress_fraction(5000, 10000)
+    );
+    assert_eq!(
+        ParagonProgress {
+            current: 0,
+            max: 0,
+            reward_pending: false,
+        }
+        .fraction(),
+        clamped_progress_fraction(0, 0)
+    );
+}
+
+#[test]
 fn paragon_progress_text() {
     let p = ParagonProgress {
         current: 5000,

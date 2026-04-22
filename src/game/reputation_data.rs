@@ -127,6 +127,14 @@ pub fn standing_progress_fraction(standing: Standing, current: u32, max: u32) ->
     (current as f32 / max as f32).min(1.0)
 }
 
+/// Shared clamped fraction for reputation progress-style values.
+pub fn clamped_progress_fraction(current: u32, max: u32) -> f32 {
+    if max == 0 {
+        return 0.0;
+    }
+    (current as f32 / max as f32).min(1.0)
+}
+
 // --- Paragon ---
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -139,10 +147,7 @@ pub struct ParagonProgress {
 
 impl ParagonProgress {
     pub fn fraction(&self) -> f32 {
-        if self.max == 0 {
-            return 0.0;
-        }
-        (self.current as f32 / self.max as f32).min(1.0)
+        clamped_progress_fraction(self.current, self.max)
     }
 
     pub fn progress_text(&self) -> String {
@@ -265,6 +270,13 @@ mod tests {
             standing_progress_fraction(Standing::Friendly, 9000, 6000),
             1.0
         );
+    }
+
+    #[test]
+    fn clamped_progress_fraction_edges() {
+        assert_eq!(clamped_progress_fraction(0, 0), 0.0);
+        assert_eq!(clamped_progress_fraction(5000, 10000), 0.5);
+        assert_eq!(clamped_progress_fraction(15000, 10000), 1.0);
     }
 
     #[test]
