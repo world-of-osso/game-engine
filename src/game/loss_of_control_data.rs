@@ -40,26 +40,17 @@ impl CCType {
     }
 
     pub fn prevents_movement(self) -> bool {
-        matches!(
-            self,
-            Self::Stun
-                | Self::Fear
-                | Self::Incapacitate
-                | Self::Disorient
-                | Self::Root
-                | Self::Polymorph
-        )
+        self.prevents_both_movement_and_casting() || self == Self::Root
     }
 
     pub fn prevents_casting(self) -> bool {
+        self.prevents_both_movement_and_casting() || self == Self::Silence
+    }
+
+    fn prevents_both_movement_and_casting(self) -> bool {
         matches!(
             self,
-            Self::Stun
-                | Self::Fear
-                | Self::Incapacitate
-                | Self::Disorient
-                | Self::Silence
-                | Self::Polymorph
+            Self::Stun | Self::Fear | Self::Incapacitate | Self::Disorient | Self::Polymorph
         )
     }
 }
