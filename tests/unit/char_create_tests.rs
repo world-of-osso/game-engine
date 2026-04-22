@@ -1,6 +1,8 @@
 use super::*;
 use std::path::Path;
 
+const RANDOMIZED_APPEARANCE_TEST_SEED: u64 = 0x1234_5678_9abc_def0;
+
 #[test]
 fn startup_mode_can_open_customize_directly() {
     let db = CustomizationDb::load(Path::new("data"));
@@ -26,7 +28,7 @@ fn randomized_appearance_stays_within_valid_choice_ranges() {
         ..Default::default()
     };
 
-    randomize_appearance_with_seed(&mut state, &db, 0x1234_5678_9abc_def0);
+    randomize_appearance_with_seed(&mut state, &db, RANDOMIZED_APPEARANCE_TEST_SEED);
 
     assert_eq!(state.appearance.sex, 0);
     assert!(
