@@ -268,26 +268,25 @@ pub fn spawn_emitters(
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
-    for em in emitters {
-        spawn_single_emitter(
-            commands,
-            images,
-            em,
-            bones,
-            bone_entities,
-            parent,
-            ParticleSpawnMode::Continuous,
-        );
-    }
+    spawn_emitters_with_mode(
+        commands,
+        images,
+        emitters,
+        bones,
+        bone_entities,
+        parent,
+        ParticleSpawnMode::Continuous,
+    );
 }
 
-pub fn spawn_burst_emitters(
+pub(crate) fn spawn_emitters_with_mode(
     commands: &mut Commands,
     images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
     bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
+    spawn_mode: ParticleSpawnMode,
 ) {
     for em in emitters {
         spawn_single_emitter(
@@ -297,7 +296,7 @@ pub fn spawn_burst_emitters(
             bones,
             bone_entities,
             parent,
-            ParticleSpawnMode::BurstOnce,
+            spawn_mode,
         );
     }
 }

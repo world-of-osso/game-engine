@@ -24,7 +24,7 @@ use super::emitters::{
     emitter_uses_model_particles, emitter_uses_project_particle,
     emitter_uses_sphere_invert_velocity, inherit_position_back_delta_local,
     model_particle_spawn_count, projected_particle_spawn_y, spawn_emitters,
-    spawn_loaded_child_emitters, sync_dynamic_wind_properties,
+    spawn_emitters_with_mode, spawn_loaded_child_emitters, sync_dynamic_wind_properties,
 };
 use super::visuals::{
     build_color_gradient, build_offset_by_spin_modifier, build_size_gradient,

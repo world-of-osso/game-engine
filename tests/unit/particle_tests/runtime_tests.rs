@@ -188,6 +188,46 @@ fn model_particle_emitters_skip_hanabi_quad_spawn_path() {
 }
 
 #[test]
+fn burst_emitters_spawn_with_burst_once_mode() {
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<Image>>();
+    let parent = app.world_mut().spawn_empty().id();
+    let emitters = vec![sample_emitter(), sample_emitter()];
+    let expected_count = emitters.len();
+
+    app.world_mut()
+        .run_system_once(
+            move |mut commands: bevy::prelude::Commands,
+                  mut images: bevy::prelude::ResMut<Assets<Image>>| {
+                spawn_emitters_with_mode(
+                    &mut commands,
+                    &mut images,
+                    &emitters,
+                    &[],
+                    None,
+                    parent,
+                    ParticleSpawnMode::BurstOnce,
+                );
+            },
+        )
+        .expect("burst emitter spawn system should run");
+    app.world_mut().flush();
+
+    let spawn_modes: Vec<ParticleSpawnMode> = app
+        .world_mut()
+        .query::<&ParticleEmitterComp>()
+        .iter(app.world())
+        .map(|comp| comp.spawn_mode)
+        .collect();
+    assert_eq!(spawn_modes.len(), expected_count);
+    assert!(
+        spawn_modes
+            .iter()
+            .all(|mode| *mode == ParticleSpawnMode::BurstOnce)
+    );
+}
+
+#[test]
 fn child_model_particle_emitters_use_child_spawn_source() {
     let mut app = App::new();
     app.world_mut().init_resource::<Assets<Image>>();
