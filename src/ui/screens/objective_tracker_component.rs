@@ -303,32 +303,62 @@ fn timer_section(timers: &[TimerBlock], y: &mut f32) -> Element {
         .flat_map(|(i, timer)| {
             let ty = -*y;
             *y += TIMER_H + OBJECTIVE_GAP;
-            let label_id = DynName(format!("Timer{i}Label"));
-            let time_id = DynName(format!("Timer{i}Time"));
-            rsx! {
-                fontstring {
-                    name: label_id,
-                    width: {TRACKER_W * 0.6},
-                    height: {TIMER_H},
-                    text: {timer.label.as_str()},
-                    font_size: 10.0,
-                    font_color: TIMER_COLOR,
-                    justify_h: "LEFT",
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {ty} }
-                }
-                fontstring {
-                    name: time_id,
-                    width: {TRACKER_W * 0.35},
-                    height: {TIMER_H},
-                    text: {timer.time_text.as_str()},
-                    font_size: 10.0,
-                    font_color: TIMER_COLOR,
-                    justify_h: "RIGHT",
-                    anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: {-INSET}, y: {ty} }
-                }
-            }
+            timer_row(i, timer, ty)
         })
         .collect()
+}
+
+#[derive(Clone, Copy)]
+enum TimerTextKind {
+    Label,
+    Time,
+}
+
+fn timer_row(i: usize, timer: &TimerBlock, y: f32) -> Element {
+    let label = timer_text(
+        DynName(format!("Timer{i}Label")),
+        timer.label.as_str(),
+        y,
+        TimerTextKind::Label,
+    );
+    let time = timer_text(
+        DynName(format!("Timer{i}Time")),
+        timer.time_text.as_str(),
+        y,
+        TimerTextKind::Time,
+    );
+    [label, time].into_iter().flatten().collect()
+}
+
+fn timer_text(id: DynName, text: &str, y: f32, kind: TimerTextKind) -> Element {
+    let (width, justify_h, point, relative_point, x) = match kind {
+        TimerTextKind::Label => (
+            TRACKER_W * 0.6,
+            "LEFT",
+            AnchorPoint::TopLeft,
+            AnchorPoint::TopLeft,
+            INSET,
+        ),
+        TimerTextKind::Time => (
+            TRACKER_W * 0.35,
+            "RIGHT",
+            AnchorPoint::TopRight,
+            AnchorPoint::TopRight,
+            -INSET,
+        ),
+    };
+    rsx! {
+        fontstring {
+            name: id,
+            width: {width},
+            height: {TIMER_H},
+            text,
+            font_size: 10.0,
+            font_color: TIMER_COLOR,
+            justify_h,
+            anchor { point, relative_point, x: {x}, y: {y} }
+        }
+    }
 }
 
 fn scenario_step_label(i: usize, step: &ScenarioStep, y: f32) -> Element {
