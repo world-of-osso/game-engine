@@ -60,6 +60,8 @@ fn bsp_traverse(
 mod tests {
     use super::*;
 
+    const BSP_AXIS_X: u16 = 0x01;
+
     fn leaf(face_start: u32, face_count: u16) -> WmoBspNode {
         WmoBspNode {
             flags: BSP_LEAF,
@@ -71,9 +73,9 @@ mod tests {
         }
     }
 
-    fn split_x(dist: f32, neg: i16, pos: i16) -> WmoBspNode {
+    fn split(axis_flags: u16, dist: f32, neg: i16, pos: i16) -> WmoBspNode {
         WmoBspNode {
-            flags: 0x01, // X-axis split
+            flags: axis_flags,
             neg_child: neg,
             pos_child: pos,
             face_count: 0,
@@ -82,15 +84,12 @@ mod tests {
         }
     }
 
+    fn split_x(dist: f32, neg: i16, pos: i16) -> WmoBspNode {
+        split(BSP_AXIS_X, dist, neg, pos)
+    }
+
     fn split_y(dist: f32, neg: i16, pos: i16) -> WmoBspNode {
-        WmoBspNode {
-            flags: BSP_AXIS_Y,
-            neg_child: neg,
-            pos_child: pos,
-            face_count: 0,
-            face_start: 0,
-            plane_dist: dist,
-        }
+        split(BSP_AXIS_Y, dist, neg, pos)
     }
 
     // --- Node properties ---
