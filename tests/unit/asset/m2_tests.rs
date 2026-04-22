@@ -4,6 +4,8 @@ use bevy::mesh::Mesh;
 use std::fs;
 use std::path::Path;
 
+const TEST_SHADER_ID_ENV_COMBINE: u16 = 0x8002;
+
 /// Build a minimal MD21 chunked file with the given MD20 blob.
 fn wrap_md21(md20: &[u8]) -> Vec<u8> {
     let mut data = Vec::new();
@@ -244,7 +246,7 @@ fn parse_skin_full_with_submeshes_and_batches() {
         &[0, 1, 2, 3],
         &[0, 1, 2, 2, 3, 0],
         &[(0, 4, 0, 6)],
-        &[(0, 0, 0x8002, 2)],
+        &[(0, 0, TEST_SHADER_ID_ENV_COMBINE, 2)],
     );
     let data = parse_skin_full(&skin).unwrap();
     assert_eq!(data.submeshes.len(), 1);
@@ -255,7 +257,7 @@ fn parse_skin_full_with_submeshes_and_batches() {
     assert_eq!(data.batches.len(), 1);
     assert_eq!(data.batches[0].submesh_index, 0);
     assert_eq!(data.batches[0].texture_id, 0);
-    assert_eq!(data.batches[0].shader_id, 0x8002);
+    assert_eq!(data.batches[0].shader_id, TEST_SHADER_ID_ENV_COMBINE);
     assert_eq!(data.batches[0].texture_count, 2);
 }
 
