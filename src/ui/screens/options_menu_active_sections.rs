@@ -352,13 +352,17 @@ fn camera_items(camera: &CameraOptionsView) -> Element {
 }
 
 fn camera_sensitivity_sliders(camera: &CameraOptionsView) -> Element {
-    camera_sensitivity_slider_specs(camera)
+    camera_sensitivity_slider_elements(camera)
         .into_iter()
-        .flat_map(camera_sensitivity_slider_row)
+        .flatten()
         .collect()
 }
 
 type CameraSensitivitySliderSpec = (&'static str, &'static str, f32, f32, f32);
+
+fn camera_sensitivity_slider_elements(camera: &CameraOptionsView) -> [Element; 5] {
+    camera_sensitivity_slider_specs(camera).map(camera_sensitivity_slider_row)
+}
 
 fn camera_sensitivity_slider_specs(camera: &CameraOptionsView) -> [CameraSensitivitySliderSpec; 5] {
     [
