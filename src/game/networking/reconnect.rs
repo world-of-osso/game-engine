@@ -94,20 +94,16 @@ pub(crate) fn reset_network_world(world: &mut World) {
 }
 
 fn despawn_client_entities(world: &mut World) {
-    let entities: Vec<_> = world
-        .query_filtered::<Entity, With<Client>>()
-        .iter(world)
-        .collect();
-    for entity in entities {
-        if let Ok(entity_mut) = world.get_entity_mut(entity) {
-            entity_mut.despawn();
-        }
-    }
+    despawn_entities_with::<Client>(world);
 }
 
 fn despawn_replicated_entities(world: &mut World) {
+    despawn_entities_with::<Replicated>(world);
+}
+
+fn despawn_entities_with<C: Component>(world: &mut World) {
     let entities: Vec<_> = world
-        .query_filtered::<Entity, With<Replicated>>()
+        .query_filtered::<Entity, With<C>>()
         .iter(world)
         .collect();
     for entity in entities {
@@ -460,6 +456,20 @@ mod tests {
                 .0
                 .is_none()
         );
+    }
+
+    #[test]
+    fn reset_network_world_despawns_client_and_replicated_entities() {
+        let mut world = World::default();
+        let client = world.spawn(Client::default()).id();
+        let receiver = world.spawn_empty().id();
+        let replicated = world.spawn(Replicated { receiver }).id();
+
+        reset_network_world(&mut world);
+
+        assert!(world.get_entity(client).is_err());
+        assert!(world.get_entity(replicated).is_err());
+        assert!(world.get_entity(receiver).is_ok());
     }
 
     #[test]
