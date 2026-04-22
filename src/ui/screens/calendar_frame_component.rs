@@ -155,6 +155,10 @@ fn button_row() -> Element {
 }
 
 fn calendar_button(name: &str, text: &str, action: &str, x: f32) -> Element {
+    named_button(name, text, action, x, -(HEADER_H + INSET))
+}
+
+fn named_button(name: &str, text: &str, action: &str, x: f32, y: f32) -> Element {
     let frame_name = DynName(name.to_string());
     rsx! {
         r#frame {
@@ -167,14 +171,14 @@ fn calendar_button(name: &str, text: &str, action: &str, x: f32) -> Element {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: {x},
-                y: {-(HEADER_H + INSET)},
+                y: {y},
             }
-            {calendar_button_label(name, text)}
+            {named_button_label(name, text)}
         }
     }
 }
 
-fn calendar_button_label(name: &str, text: &str) -> Element {
+fn named_button_label(name: &str, text: &str) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{name}Text"))},
@@ -432,32 +436,7 @@ fn detail_meta_line(name: &str, text: &str, y: f32) -> Element {
 }
 
 fn detail_signup_button(name: &str, text: &str, action: &str, x: f32) -> Element {
-    let frame_name = DynName(name.to_string());
-    rsx! {
-        r#frame {
-            name: frame_name,
-            width: "88.0",
-            height: {BUTTON_H},
-            background_color: BTN_BG,
-            onclick: action,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "-112",
-            }
-            fontstring {
-                name: {DynName(format!("{name}Text"))},
-                width: "88.0",
-                height: {BUTTON_H},
-                text,
-                font_size: 11.0,
-                font_color: BTN_TEXT,
-                justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-            }
-        }
-    }
+    named_button(name, text, action, x, -112.0)
 }
 
 fn signup_row(index: usize, signup: &CalendarSignupRow) -> Element {
