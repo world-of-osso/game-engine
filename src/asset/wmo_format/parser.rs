@@ -67,6 +67,8 @@ fn parse_fixed_c_string(bytes: &[u8]) -> String {
     parse_c_string(bytes).unwrap_or_default()
 }
 
+const DOODAD_NAME_OFFSET_MASK: u32 = 0x00FF_FFFF;
+
 pub fn parse_momt(data: &[u8]) -> Result<Vec<WmoMaterialDef>, String> {
     Ok(
         parse_binrw_entries::<RawWmoMaterialDef>(data, MOMT_ENTRY_SIZE, "MOMT")?
@@ -131,45 +133,21 @@ pub fn parse_mods(data: &[u8]) -> Result<Vec<WmoDoodadSet>, String> {
 }
 
 pub fn parse_modn(data: &[u8]) -> Result<Vec<WmoDoodadName>, String> {
-    let mut names = Vec::new();
-    let mut offset = 0usize;
-
-    while offset < data.len() {
-        let remaining = &data[offset..];
-        let Some(name) = parse_c_string(remaining) else {
-            break;
-        };
-        let byte_len = name.len() + 1;
-        names.push(WmoDoodadName {
-            offset: offset as u32,
-            name,
-        });
-        offset += byte_len;
-    }
-
-    Ok(names)
+    Ok(parse_named_entries(data)
+        .into_iter()
+        .map(|(offset, name)| WmoDoodadName { offset, name })
+        .collect())
 }
 
 pub fn parse_mogn(data: &[u8]) -> Result<Vec<WmoGroupName>, String> {
-    let mut names = Vec::new();
-    let mut offset = 0usize;
-
-    while offset < data.len() {
-        let remaining = &data[offset..];
-        let Some(name) = parse_c_string(remaining) else {
-            break;
-        };
-        let byte_len = name.len() + 1;
-        let is_antiportal = name.to_ascii_lowercase().contains("antiportal");
-        names.push(WmoGroupName {
-            offset: offset as u32,
+    Ok(parse_named_entries(data)
+        .into_iter()
+        .map(|(offset, name)| WmoGroupName {
+            is_antiportal: contains_ascii_case_insensitive(&name, "antiportal"),
+            offset,
             name,
-            is_antiportal,
-        });
-        offset += byte_len;
-    }
-
-    Ok(names)
+        })
+        .collect())
 }
 
 pub fn parse_modi(data: &[u8]) -> Result<Vec<u32>, String> {
@@ -247,7 +225,7 @@ pub fn parse_modd(data: &[u8]) -> Result<Vec<WmoDoodadDef>, String> {
         parse_binrw_entries::<RawWmoDoodadDef>(data, MODD_ENTRY_SIZE, "MODD")?
             .into_iter()
             .map(|doodad| WmoDoodadDef {
-                name_offset: doodad.name_index_and_flags & 0x00FF_FFFF,
+                name_offset: doodad.name_index_and_flags & DOODAD_NAME_OFFSET_MASK,
                 flags: (doodad.name_index_and_flags >> 24) as u8,
                 position: doodad.position,
                 rotation: doodad.rotation,
@@ -256,6 +234,32 @@ pub fn parse_modd(data: &[u8]) -> Result<Vec<WmoDoodadDef>, String> {
             })
             .collect(),
     )
+}
+
+fn parse_named_entries(data: &[u8]) -> Vec<(u32, String)> {
+    let mut names = Vec::new();
+    let mut offset = 0usize;
+    while offset < data.len() {
+        let remaining = &data[offset..];
+        let Some(name) = parse_c_string(remaining) else {
+            break;
+        };
+        let byte_len = name.len() + 1;
+        names.push((offset as u32, name));
+        offset += byte_len;
+    }
+    names
+}
+
+fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    let needle_bytes = needle.as_bytes();
+    haystack
+        .as_bytes()
+        .windows(needle_bytes.len())
+        .any(|window| window.eq_ignore_ascii_case(needle_bytes))
 }
 
 pub fn parse_mfog(data: &[u8]) -> Result<Vec<WmoFog>, String> {
