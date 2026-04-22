@@ -508,7 +508,7 @@ mod tests {
     use super::*;
 
     const BGR32_RED: u32 = 0x000000FF;
-    const BGR32_BLUE: u32 = 0x00FF0000;
+    const BGR32_BLUE: u32 = BGR32_RED << 16;
     const BGR32_WHITE: u32 = 0x00FFFFFF;
 
     #[test]
