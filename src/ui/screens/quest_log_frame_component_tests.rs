@@ -19,67 +19,96 @@ fn reward(name: &str, fdid: u32, qty: u32) -> QuestRewardItem {
     }
 }
 
-fn quest(
+struct QuestMeta<'a> {
     id: u32,
-    title: &str,
+    title: &'a str,
     level: u32,
-    zone: &str,
-    desc: &str,
+    zone: &'a str,
+    description: &'a str,
+}
+
+struct QuestState {
     objectives: Vec<QuestLogObjective>,
     rewards: Vec<QuestRewardItem>,
     selected: bool,
-) -> QuestLogEntry {
+}
+
+fn quest(meta: QuestMeta<'_>, state: QuestState) -> QuestLogEntry {
     QuestLogEntry {
-        quest_id: id,
-        title: title.into(),
-        level,
-        zone: zone.into(),
-        description: desc.into(),
-        objectives,
-        rewards,
-        selected,
+        quest_id: meta.id,
+        title: meta.title.into(),
+        level: meta.level,
+        zone: meta.zone.into(),
+        description: meta.description.into(),
+        objectives: state.objectives,
+        rewards: state.rewards,
+        selected: state.selected,
     }
 }
 
 fn sample_quests() -> Vec<QuestLogEntry> {
     vec![
-        quest(
-            101,
-            "The Fallen Outpost",
-            25,
-            "Stonetalon Mountains",
-            "Investigate the ruins of the fallen outpost.",
-            vec![
+        fallen_outpost_quest(),
+        supplies_for_front_quest(),
+        ancient_spirits_quest(),
+    ]
+}
+
+fn fallen_outpost_quest() -> QuestLogEntry {
+    quest(
+        QuestMeta {
+            id: 101,
+            title: "The Fallen Outpost",
+            level: 25,
+            zone: "Stonetalon Mountains",
+            description: "Investigate the ruins of the fallen outpost.",
+        },
+        QuestState {
+            objectives: vec![
                 obj("Investigate ruins", 0, 1),
                 obj("Defeat guardians", 2, 5),
             ],
-            vec![
+            rewards: vec![
                 reward("Outpost Blade", 100001, 1),
                 reward("Gold Dust", 100002, 5),
             ],
-            true,
-        ),
-        quest(
-            102,
-            "Supplies for the Front",
-            26,
-            "Stonetalon Mountains",
-            "Gather supplies from the nearby camps.",
-            vec![obj("Gather supplies", 8, 8)],
-            vec![],
-            false,
-        ),
-        quest(
-            201,
-            "Ancient Spirits",
-            30,
-            "Desolace",
-            "Commune with the ancient spirits of Desolace.",
-            vec![obj("Commune with spirits", 1, 3)],
-            vec![reward("Spirit Totem", 200001, 1)],
-            false,
-        ),
-    ]
+            selected: true,
+        },
+    )
+}
+
+fn supplies_for_front_quest() -> QuestLogEntry {
+    quest(
+        QuestMeta {
+            id: 102,
+            title: "Supplies for the Front",
+            level: 26,
+            zone: "Stonetalon Mountains",
+            description: "Gather supplies from the nearby camps.",
+        },
+        QuestState {
+            objectives: vec![obj("Gather supplies", 8, 8)],
+            rewards: vec![],
+            selected: false,
+        },
+    )
+}
+
+fn ancient_spirits_quest() -> QuestLogEntry {
+    quest(
+        QuestMeta {
+            id: 201,
+            title: "Ancient Spirits",
+            level: 30,
+            zone: "Desolace",
+            description: "Commune with the ancient spirits of Desolace.",
+        },
+        QuestState {
+            objectives: vec![obj("Commune with spirits", 1, 3)],
+            rewards: vec![reward("Spirit Totem", 200001, 1)],
+            selected: false,
+        },
+    )
 }
 
 fn build_registry() -> FrameRegistry {
