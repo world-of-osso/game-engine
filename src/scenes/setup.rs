@@ -111,31 +111,10 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
     }
 
     fn spawn_terrain(&mut self, camera: Entity, adt_path: &Path) -> Option<Vec3> {
-        let mut assets = terrain::AdtSpawnAssets {
-            commands: self.commands,
-            meshes: self.meshes,
-            materials: self.materials,
-            effect_materials: self.effect_materials,
-            terrain_materials: self.terrain_mats,
-            water_materials: self.water_mats,
-            images: self.images,
-            inverse_bp: self.inverse_bp,
-        };
-        match terrain::spawn_adt(&mut assets, self.heightmap, adt_path) {
-            Ok(result) => {
-                self.commands.entity(camera).insert(result.camera);
-                self.adt_manager.map_name = result.map_name;
-                self.adt_manager.initial_tile = (result.tile_y, result.tile_x);
-                self.adt_manager
-                    .loaded
-                    .insert((result.tile_y, result.tile_x), result.root_entity);
-                Some(result.center)
-            }
-            Err(e) => {
-                eprintln!("ADT load error: {e}");
-                None
-            }
-        }
+        let result = self.load_adt_result(adt_path)?;
+        self.commands.entity(camera).insert(result.camera);
+        self.record_loaded_adt_tile(&result);
+        Some(result.center)
     }
 
     fn spawn_default_scene(&mut self) {
@@ -151,6 +130,12 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
         if !adt_path.exists() {
             return None;
         }
+        let result = self.load_adt_result(&adt_path)?;
+        self.record_loaded_adt_tile(&result);
+        Some(result.center)
+    }
+
+    fn load_adt_result(&mut self, adt_path: &Path) -> Option<terrain::AdtSpawnResult> {
         let mut assets = terrain::AdtSpawnAssets {
             commands: self.commands,
             meshes: self.meshes,
@@ -161,20 +146,21 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
             images: self.images,
             inverse_bp: self.inverse_bp,
         };
-        match terrain::spawn_adt(&mut assets, self.heightmap, &adt_path) {
-            Ok(result) => {
-                self.adt_manager.map_name = result.map_name;
-                self.adt_manager.initial_tile = (result.tile_y, result.tile_x);
-                self.adt_manager
-                    .loaded
-                    .insert((result.tile_y, result.tile_x), result.root_entity);
-                Some(result.center)
-            }
+        match terrain::spawn_adt(&mut assets, self.heightmap, adt_path) {
+            Ok(result) => Some(result),
             Err(e) => {
                 eprintln!("ADT load error: {e}");
                 None
             }
         }
+    }
+
+    fn record_loaded_adt_tile(&mut self, result: &terrain::AdtSpawnResult) {
+        self.adt_manager.map_name = result.map_name.clone();
+        self.adt_manager.initial_tile = (result.tile_y, result.tile_x);
+        self.adt_manager
+            .loaded
+            .insert((result.tile_y, result.tile_x), result.root_entity);
     }
 
     fn spawn_default_character_if_present(&mut self) {
@@ -275,4 +261,30 @@ pub fn spawn_scene_environment(
         ground::spawn_ground_plane(commands, meshes, materials, images);
     }
     camera
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn explicit_scene_starts_when_not_server_and_asset_is_present() {
+        assert!(should_load_explicit_scene_at_startup(
+            false,
+            Some(Path::new("data/models/example.m2"))
+        ));
+    }
+
+    #[test]
+    fn explicit_scene_does_not_start_without_asset_path() {
+        assert!(!should_load_explicit_scene_at_startup(false, None));
+    }
+
+    #[test]
+    fn explicit_scene_does_not_start_in_server_mode() {
+        assert!(!should_load_explicit_scene_at_startup(
+            true,
+            Some(Path::new("data/terrain/example.adt"))
+        ));
+    }
 }
