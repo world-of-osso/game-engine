@@ -197,13 +197,14 @@ where
 
 const MDDF_FLAG_FILEDATAID: u16 = 0x40;
 
-fn resolve_doodad(
+fn resolve_name_id(
     name_id: u32,
     flags: u16,
+    filedataid_flag: u16,
     string_table: &[u8],
     offset_table: &[u32],
 ) -> (Option<u32>, Option<String>) {
-    if (flags & MDDF_FLAG_FILEDATAID) != 0 {
+    if (flags & filedataid_flag) != 0 {
         return (Some(name_id), None);
     }
     let offset = offset_table.get(name_id as usize).copied();
@@ -218,7 +219,13 @@ fn parse_mddf_entry(
     offset_table: &[u32],
 ) -> Result<DoodadPlacement, String> {
     let entry: MddfEntry = parse_binrw_value(data, base, "MDDF entry")?;
-    let (fdid, path) = resolve_doodad(entry.name_id, entry.flags, string_table, offset_table);
+    let (fdid, path) = resolve_name_id(
+        entry.name_id,
+        entry.flags,
+        MDDF_FLAG_FILEDATAID,
+        string_table,
+        offset_table,
+    );
 
     Ok(DoodadPlacement {
         name_id: entry.name_id,
@@ -246,20 +253,6 @@ fn parse_mddf(
 const MODF_FLAG_HAS_SCALE: u16 = 0x4;
 const MODF_FLAG_FILEDATAID: u16 = 0x8;
 
-fn resolve_wmo(
-    name_id: u32,
-    flags: u16,
-    string_table: &[u8],
-    offset_table: &[u32],
-) -> (Option<u32>, Option<String>) {
-    if (flags & MODF_FLAG_FILEDATAID) != 0 {
-        return (Some(name_id), None);
-    }
-    let offset = offset_table.get(name_id as usize).copied();
-    let path = offset.and_then(|o| string_at_offset(string_table, o));
-    (None, path)
-}
-
 fn parse_modf_entry(
     data: &[u8],
     base: usize,
@@ -267,7 +260,13 @@ fn parse_modf_entry(
     offset_table: &[u32],
 ) -> Result<WmoPlacement, String> {
     let entry: ModfEntry = parse_binrw_value(data, base, "MODF entry")?;
-    let (fdid, path) = resolve_wmo(entry.name_id, entry.flags, string_table, offset_table);
+    let (fdid, path) = resolve_name_id(
+        entry.name_id,
+        entry.flags,
+        MODF_FLAG_FILEDATAID,
+        string_table,
+        offset_table,
+    );
     let scale = if (entry.flags & MODF_FLAG_HAS_SCALE) != 0 {
         entry.scale_raw as f32 / 1024.0
     } else {
@@ -375,6 +374,28 @@ mod tests {
     }
 
     #[test]
+    fn parse_mddf_entry_uses_fdid_flag_resolution() {
+        let entry = mddf_entry_payload(77, MDDF_FLAG_FILEDATAID);
+
+        let parsed = parse_mddf_entry(&entry, 0, b"ignored.m2\0", &[0])
+            .expect("mddf entry should parse with filedataid flag");
+
+        assert_eq!(parsed.fdid, Some(77));
+        assert_eq!(parsed.path, None);
+    }
+
+    #[test]
+    fn parse_modf_entry_resolves_string_path_without_fdid_flag() {
+        let entry = modf_entry_payload(0, 0);
+
+        let parsed = parse_modf_entry(&entry, 0, b"world/test.wmo\0", &[0])
+            .expect("modf entry should parse from string table path");
+
+        assert_eq!(parsed.fdid, None);
+        assert_eq!(parsed.path.as_deref(), Some("world/test.wmo"));
+    }
+
+    #[test]
     fn load_adt_obj0_reads_per_chunk_object_refs() {
         let mut payload = Vec::new();
         append_subchunk(&mut payload, b"XDMM", b"foo.m2\0".to_vec());
@@ -444,5 +465,27 @@ mod tests {
         payload.extend_from_slice(tag);
         payload.extend_from_slice(&(chunk_payload.len() as u32).to_le_bytes());
         payload.extend_from_slice(&chunk_payload);
+    }
+
+    fn mddf_entry_payload(name_id: u32, flags: u16) -> Vec<u8> {
+        let mut entry = Vec::new();
+        entry.extend_from_slice(&name_id.to_le_bytes());
+        entry.extend_from_slice(&42u32.to_le_bytes());
+        entry.extend_from_slice(&[0u8; 24]);
+        entry.extend_from_slice(&1024u16.to_le_bytes());
+        entry.extend_from_slice(&flags.to_le_bytes());
+        entry
+    }
+
+    fn modf_entry_payload(name_id: u32, flags: u16) -> Vec<u8> {
+        let mut entry = Vec::new();
+        entry.extend_from_slice(&name_id.to_le_bytes());
+        entry.extend_from_slice(&42u32.to_le_bytes());
+        entry.extend_from_slice(&[0u8; 48]);
+        entry.extend_from_slice(&flags.to_le_bytes());
+        entry.extend_from_slice(&0u16.to_le_bytes());
+        entry.extend_from_slice(&0u16.to_le_bytes());
+        entry.extend_from_slice(&1024u16.to_le_bytes());
+        entry
     }
 }
