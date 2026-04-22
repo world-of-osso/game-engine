@@ -1,5 +1,7 @@
 use super::*;
 
+const RANDOM_TEXTURE_FLAG: u32 = 0x0010_0000;
+
 #[test]
 fn parse_torch_particle_emitter() {
     let path = std::path::Path::new("data/models/club_1h_torch_a_01.m2");
@@ -33,7 +35,7 @@ fn parse_torch_particle_emitter() {
         "torch has no authored tail cell track"
     );
     assert_eq!(
-        em.flags & 0x0010_0000,
+        em.flags & RANDOM_TEXTURE_FLAG,
         0,
         "torch does not use RANDOM_TEXTURE, so sprite selection comes from the authored head track"
     );
