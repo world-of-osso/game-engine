@@ -12,6 +12,7 @@ use super::{BatchMaterial, PLACEHOLDER_COLORS};
 
 static REPEAT_TEXTURE_CACHE: OnceLock<Mutex<std::collections::HashMap<u32, AssetId<Image>>>> =
     OnceLock::new();
+const M2_SHADER_MODULATE: u16 = 0x0010;
 
 pub(super) fn load_batch_material(
     batch: &asset::m2::M2RenderBatch,
@@ -200,7 +201,16 @@ fn load_extra_skybox_stage_texture(
 fn skybox_shader_supports_runtime_combine(shader_id: u16) -> bool {
     matches!(
         shader_id,
-        0x0010 | 0x0011 | 0x4014 | 0x4016 | 0x8001 | 0x8002 | 0x8003 | 0x8012 | 0x8015 | 0x8016
+        M2_SHADER_MODULATE
+            | 0x0011
+            | 0x4014
+            | 0x4016
+            | 0x8001
+            | 0x8002
+            | 0x8003
+            | 0x8012
+            | 0x8015
+            | 0x8016
     )
 }
 
