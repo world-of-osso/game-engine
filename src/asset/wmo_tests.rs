@@ -1,5 +1,7 @@
 use super::*;
 
+const SAMPLE_GROUP_FLAGS: u32 = 0x0102_0304;
+
 fn empty_root(flags: WmoRootFlags) -> WmoRootData {
     WmoRootData {
         n_groups: 0,
@@ -44,7 +46,7 @@ fn load_wmo_group_reads_mogp_header_fields() {
     data.extend_from_slice(&mogp_size.to_le_bytes());
     data.extend_from_slice(&12_u32.to_le_bytes());
     data.extend_from_slice(&34_u32.to_le_bytes());
-    data.extend_from_slice(&0x0102_0304_u32.to_le_bytes());
+    data.extend_from_slice(&SAMPLE_GROUP_FLAGS.to_le_bytes());
     for value in [-1.0_f32, -2.0, -3.0, 4.0, 5.0, 6.0] {
         data.extend_from_slice(&value.to_le_bytes());
     }
@@ -77,7 +79,7 @@ fn load_wmo_group_reads_mogp_header_fields() {
 
     assert_eq!(group.header.group_name_offset, 12);
     assert_eq!(group.header.descriptive_group_name_offset, 34);
-    assert_eq!(group.header.flags, 0x0102_0304);
+    assert_eq!(group.header.flags, SAMPLE_GROUP_FLAGS);
     assert!(!group.header.group_flags.exterior);
     assert!(!group.header.group_flags.interior);
     assert_eq!(group.header.portal_start, 7);
