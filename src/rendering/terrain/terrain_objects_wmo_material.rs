@@ -83,13 +83,7 @@ fn alpha_blend_shader_descriptor() -> WmoShaderDescriptor {
 }
 
 fn env_add_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        true,
-        true,
-        false,
-        WmoLayerCombine::AlphaBlend,
-        WmoLayerCombine::Add,
-    )
+    layered_env_shader_with_third(WmoLayerCombine::Add)
 }
 
 fn emissive_add_shader_descriptor() -> WmoShaderDescriptor {
@@ -97,13 +91,11 @@ fn emissive_add_shader_descriptor() -> WmoShaderDescriptor {
 }
 
 fn layered_env_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        true,
-        true,
-        false,
-        WmoLayerCombine::AlphaBlend,
-        WmoLayerCombine::AlphaBlend,
-    )
+    layered_env_shader_with_third(WmoLayerCombine::AlphaBlend)
+}
+
+fn layered_env_shader_with_third(third_layer: WmoLayerCombine) -> WmoShaderDescriptor {
+    shader_descriptor(true, true, false, WmoLayerCombine::AlphaBlend, third_layer)
 }
 
 fn emissive_env_add_shader_descriptor() -> WmoShaderDescriptor {
@@ -307,6 +299,16 @@ mod tests {
                 emissive: true,
                 second_layer: WmoLayerCombine::Add,
                 third_layer: WmoLayerCombine::None,
+            }
+        );
+        assert_eq!(
+            describe_wmo_shader(7),
+            WmoShaderDescriptor {
+                env_reflection: true,
+                metallic: true,
+                emissive: false,
+                second_layer: WmoLayerCombine::AlphaBlend,
+                third_layer: WmoLayerCombine::Add,
             }
         );
         assert_eq!(
