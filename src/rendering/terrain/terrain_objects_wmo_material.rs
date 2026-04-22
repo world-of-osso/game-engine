@@ -25,7 +25,7 @@ pub(crate) struct WmoSurfaceParams {
 
 pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
     match shader {
-        2 => metallic_shader_descriptor(),
+        2 => base_shader_descriptor(true),
         3 | 10 | 14 => reflective_shader_descriptor(),
         5 => reflective_metal_shader_descriptor(),
         6 | 8 | 13 | 20 => alpha_blend_shader_descriptor(),
@@ -35,7 +35,7 @@ pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
         12 | 17 => emissive_env_add_shader_descriptor(),
         18 | 19 => mod2x_shader_descriptor(),
         22 => multiply_reflection_shader_descriptor(),
-        _ => default_shader_descriptor(),
+        _ => base_shader_descriptor(false),
     }
 }
 
@@ -55,20 +55,10 @@ fn shader_descriptor(
     }
 }
 
-fn default_shader_descriptor() -> WmoShaderDescriptor {
+fn base_shader_descriptor(metallic: bool) -> WmoShaderDescriptor {
     shader_descriptor(
         false,
-        false,
-        false,
-        WmoLayerCombine::None,
-        WmoLayerCombine::None,
-    )
-}
-
-fn metallic_shader_descriptor() -> WmoShaderDescriptor {
-    shader_descriptor(
-        false,
-        true,
+        metallic,
         false,
         WmoLayerCombine::None,
         WmoLayerCombine::None,
@@ -291,6 +281,16 @@ mod tests {
     #[test]
     fn shader_descriptor_marks_env_metal_and_emissive_families() {
         assert_eq!(
+            describe_wmo_shader(2),
+            WmoShaderDescriptor {
+                env_reflection: false,
+                metallic: true,
+                emissive: false,
+                second_layer: WmoLayerCombine::None,
+                third_layer: WmoLayerCombine::None,
+            }
+        );
+        assert_eq!(
             describe_wmo_shader(12),
             WmoShaderDescriptor {
                 env_reflection: true,
@@ -314,6 +314,16 @@ mod tests {
             describe_wmo_shader(3),
             WmoShaderDescriptor {
                 env_reflection: true,
+                metallic: false,
+                emissive: false,
+                second_layer: WmoLayerCombine::None,
+                third_layer: WmoLayerCombine::None,
+            }
+        );
+        assert_eq!(
+            describe_wmo_shader(99),
+            WmoShaderDescriptor {
+                env_reflection: false,
                 metallic: false,
                 emissive: false,
                 second_layer: WmoLayerCombine::None,
