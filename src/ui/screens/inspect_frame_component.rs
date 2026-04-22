@@ -237,27 +237,39 @@ fn panel_header(name: &str, text: &str) -> Element {
     }
 }
 
-fn equipment_row(index: usize, row: &InspectEquipmentRow) -> Element {
-    let bg = if index.is_multiple_of(2) {
+fn row_background(index: usize) -> &'static str {
+    if index.is_multiple_of(2) {
         ROW_EVEN
     } else {
         ROW_ODD
-    };
+    }
+}
+
+fn panel_row(index: usize, row_name: String, cells: Element) -> Element {
+    let y = -((index + 1) as f32 * ROW_H);
     rsx! {
         r#frame {
-            name: DynName(format!("InspectEquipmentRow{index}")),
+            name: DynName(row_name),
             width: {PANEL_W},
             height: {ROW_H},
-            background_color: bg,
+            background_color: {row_background(index)},
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
                 x: "0",
-                y: {-((index + 1) as f32 * ROW_H)},
+                y: {y},
             }
-            {equipment_row_cells(index, row)}
+            {cells}
         }
     }
+}
+
+fn equipment_row(index: usize, row: &InspectEquipmentRow) -> Element {
+    panel_row(
+        index,
+        format!("InspectEquipmentRow{index}"),
+        equipment_row_cells(index, row),
+    )
 }
 
 fn equipment_row_cells(index: usize, row: &InspectEquipmentRow) -> Element {
@@ -288,26 +300,11 @@ fn equipment_row_cells(index: usize, row: &InspectEquipmentRow) -> Element {
 }
 
 fn talent_row(index: usize, row: &InspectTalentRow) -> Element {
-    let bg = if index.is_multiple_of(2) {
-        ROW_EVEN
-    } else {
-        ROW_ODD
-    };
-    rsx! {
-        r#frame {
-            name: DynName(format!("InspectTalentRow{index}")),
-            width: {PANEL_W},
-            height: {ROW_H},
-            background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {-((index + 1) as f32 * ROW_H)},
-            }
-            {talent_row_cells(index, row)}
-        }
-    }
+    panel_row(
+        index,
+        format!("InspectTalentRow{index}"),
+        talent_row_cells(index, row),
+    )
 }
 
 fn talent_row_cells(index: usize, row: &InspectTalentRow) -> Element {
@@ -404,5 +401,79 @@ mod tests {
             panic!("expected fontstring");
         };
         assert_eq!(text.text, "1/1");
+    }
+
+    #[test]
+    fn inspect_frame_rows_preserve_striping_and_vertical_offsets() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(InspectFrameState {
+            visible: true,
+            target_name: "Alice".into(),
+            status_text: String::new(),
+            spec_summary: "Protection".into(),
+            points_remaining: 50,
+            equipment_rows: vec![
+                InspectEquipmentRow {
+                    slot_name: "Head".into(),
+                    value: "item 100 / display 200".into(),
+                },
+                InspectEquipmentRow {
+                    slot_name: "Neck".into(),
+                    value: "item 101 / display 201".into(),
+                },
+            ],
+            talent_rows: vec![
+                InspectTalentRow {
+                    name: "Divine Strength".into(),
+                    points_text: "1/1".into(),
+                },
+                InspectTalentRow {
+                    name: "Precision".into(),
+                    points_text: "2/2".into(),
+                },
+            ],
+        });
+        Screen::new(inspect_frame_screen).sync(&shared, &mut registry);
+
+        let equipment_row0 = registry
+            .get(
+                registry
+                    .get_by_name("InspectEquipmentRow0")
+                    .expect("equipment row0 frame"),
+            )
+            .expect("equipment row0");
+        let equipment_row1 = registry
+            .get(
+                registry
+                    .get_by_name("InspectEquipmentRow1")
+                    .expect("equipment row1 frame"),
+            )
+            .expect("equipment row1");
+        let talent_row0 = registry
+            .get(
+                registry
+                    .get_by_name("InspectTalentRow0")
+                    .expect("talent row0 frame"),
+            )
+            .expect("talent row0");
+        let talent_row1 = registry
+            .get(
+                registry
+                    .get_by_name("InspectTalentRow1")
+                    .expect("talent row1 frame"),
+            )
+            .expect("talent row1");
+
+        assert_ne!(
+            equipment_row0.background_color,
+            equipment_row1.background_color
+        );
+        assert_ne!(talent_row0.background_color, talent_row1.background_color);
+
+        assert_eq!(equipment_row0.anchors[0].y_offset, -ROW_H);
+        assert_eq!(equipment_row1.anchors[0].y_offset, -(ROW_H * 2.0));
+        assert_eq!(talent_row0.anchors[0].y_offset, -ROW_H);
+        assert_eq!(talent_row1.anchors[0].y_offset, -(ROW_H * 2.0));
     }
 }
