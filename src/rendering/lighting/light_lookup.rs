@@ -12,6 +12,8 @@ pub use types::{LightParamsFlags, LightSkyboxFlags, ResolvedLightSkyboxModel};
 use types::{LightParamsSlot, LightSkyboxMetadata};
 use wdc5::ParsedWdc5Db2;
 
+use crate::rendering::db2_path::ensure_db2_path;
+
 const LIGHT_PARAMS_DB2_FDID: u32 = 1_334_669;
 const LIGHT_SKYBOX_DB2_FDID: u32 = 1_308_501;
 const LIGHT_PARAMS_LAYOUT_HASH: u32 = 0xCAE3_94E7;
@@ -319,13 +321,6 @@ fn load_light_skybox_metadata() -> Vec<(u32, LightSkyboxMetadata)> {
             )
         })
         .collect()
-}
-
-fn ensure_db2_path(fdid: u32, path: &Path) -> Option<std::path::PathBuf> {
-    if path.exists() {
-        return Some(path.to_path_buf());
-    }
-    crate::asset::asset_cache::file_at_path(fdid, path)
 }
 
 fn resolve_skybox_light_params_id_for_slot(

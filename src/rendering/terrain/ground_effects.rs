@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use crate::little_endian::read_le_u32;
+use crate::rendering::db2_path::ensure_db2_path;
 use crate::sound_footsteps::FootstepSurface;
 
 const GROUND_EFFECT_TEXTURE_DB2_FDID: u32 = 1_308_499;
@@ -140,13 +141,6 @@ fn load_terrain_sound_surfaces() -> HashMap<u8, FootstepSurface> {
                 .map(|surface| (terrain_sound_id, surface))
         })
         .collect()
-}
-
-fn ensure_db2_path(fdid: u32, path: &Path) -> Option<std::path::PathBuf> {
-    if path.exists() {
-        return Some(path.to_path_buf());
-    }
-    crate::asset::asset_cache::file_at_path(fdid, path)
 }
 
 fn parse_ground_effect_entries(bytes: &[u8]) -> Result<HashMap<u32, GroundEffectEntry>, String> {
