@@ -119,13 +119,18 @@ impl Plugin for TerrainMaterialPlugin {
 }
 
 /// 1x1 placeholder for unused texture slots.
-pub fn placeholder_image(images: &mut Assets<Image>) -> Handle<Image> {
-    add_single_pixel_placeholder(images, [128, 128, 128, 255], true)
+pub enum PlaceholderImageKind {
+    Color,
+    Alpha,
 }
 
-/// 1x1 black alpha texture (all layers transparent).
-pub fn placeholder_alpha(images: &mut Assets<Image>) -> Handle<Image> {
-    add_single_pixel_placeholder(images, [0, 0, 0, 255], false)
+pub fn placeholder_image(images: &mut Assets<Image>, kind: PlaceholderImageKind) -> Handle<Image> {
+    match kind {
+        PlaceholderImageKind::Color => {
+            add_single_pixel_placeholder(images, [128, 128, 128, 255], true)
+        }
+        PlaceholderImageKind::Alpha => add_single_pixel_placeholder(images, [0, 0, 0, 255], false),
+    }
 }
 
 fn add_single_pixel_placeholder(
@@ -454,8 +459,8 @@ pub fn build_terrain_materials(
     pre_shadow: Option<&[Handle<Image>]>,
 ) -> Vec<Handle<TerrainMaterial>> {
     let ph = Placeholders {
-        image: placeholder_image(images),
-        alpha: placeholder_alpha(images),
+        image: placeholder_image(images, PlaceholderImageKind::Color),
+        alpha: placeholder_image(images, PlaceholderImageKind::Alpha),
         cubemap: placeholder_cubemap(images),
     };
 

@@ -1,5 +1,5 @@
 use super::{
-    Placeholders, TerrainMaterial, build_chunk_material, pack_shadow_map, placeholder_alpha,
+    PlaceholderImageKind, Placeholders, TerrainMaterial, build_chunk_material, pack_shadow_map,
     placeholder_image, shadow_bit_is_set, terrain_layer_animation_params, terrain_texture_repeat,
     texture_layer_params,
 };
@@ -39,8 +39,8 @@ fn pack_shadow_map_expands_mcsh_bits_to_64x64_pixels() {
 fn placeholder_images_use_expected_rgba_values() {
     let mut images = Assets::<Image>::default();
 
-    let color_handle = placeholder_image(&mut images);
-    let alpha_handle = placeholder_alpha(&mut images);
+    let color_handle = placeholder_image(&mut images, PlaceholderImageKind::Color);
+    let alpha_handle = placeholder_image(&mut images, PlaceholderImageKind::Alpha);
     let color_image = images
         .get(&color_handle)
         .expect("expected color placeholder image");
