@@ -537,7 +537,6 @@ fn race_buttons_have_onclick_action() {
     let race_2_id = reg
         .get_by_name("Race_2")
         .expect("Race_2 frame should exist in RaceClass mode");
-    let frame = reg.get(race_2_id).expect("Race_2 frame data");
     // Walk up from Race_2 to find onclick
     let mut id = race_2_id;
     let mut onclick = None;

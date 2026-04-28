@@ -4,7 +4,7 @@ use game_engine::customization_data::ModelPresentation;
 use super::CharSelectScene;
 use super::camera::camera_params;
 
-pub(crate) const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 450.0;
+pub(crate) const CHAR_SELECT_AMBIENT_BRIGHTNESS: f32 = 150.0;
 const CHAR_SELECT_AMBIENT_COLOR: Color = Color::srgb(0.92, 0.80, 0.60);
 pub(crate) const CHAR_SELECT_FILL_LIGHT_ILLUMINANCE: f32 = 35_000.0;
 const CHAR_SELECT_FILL_LIGHT_COLOR: Color = Color::srgb(0.82, 0.84, 0.92);

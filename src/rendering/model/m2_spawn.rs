@@ -634,8 +634,8 @@ mod tests {
 
     #[test]
     fn forced_skybox_batches_ignore_character_geoset_visibility_rules() {
-        assert!(!initial_batch_visibility(401, false));
-        assert!(initial_batch_visibility(401, true));
+        assert!(!initial_batch_visibility(402, false));
+        assert!(initial_batch_visibility(402, true));
     }
 
     #[test]

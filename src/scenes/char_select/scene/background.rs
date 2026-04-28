@@ -170,6 +170,7 @@ pub fn spawn(
             .into_iter()
             .map(|(entity, model)| scene_tree::wmo_scene_node(entity, model))
             .collect();
+        spawn_focused_ground_patch(ctx, focus);
         return scene_tree::background_scene_node(
             result.root_entity,
             &format!("terrain:{}_{ty}_{tx}", s.map_name()),
@@ -179,6 +180,21 @@ pub fn spawn(
     }
     let ground = spawn_tagged_ground(ctx.commands, ctx.meshes, ctx.materials, ctx.images);
     scene_tree::background_scene_node(ground, "ground", 0, vec![])
+}
+
+fn spawn_focused_ground_patch(
+    ctx: &mut WarbandBackgroundSpawnContext<'_, '_, '_>,
+    focus: Option<Vec3>,
+) {
+    let Some(focus) = focus else { return };
+    spawn_campsite_ground_patch(
+        ctx.commands,
+        ctx.meshes,
+        ctx.materials,
+        ctx.images,
+        ctx.heightmap,
+        focus,
+    );
 }
 
 pub fn spawn_skybox(

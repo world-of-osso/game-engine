@@ -3,14 +3,14 @@ use bevy::ecs::system::RunSystemOnce;
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use crate::camera::MoveDirection;
+use crate::networking::{
+    advance_network_update_frame, finish_reconnect_when_world_ready,
+    flush_pending_network_world_reset, reset_network_world,
+};
 use crate::networking_npc::{NpcVisibilityPolicy, npc_visibility_policy};
 use crate::networking_player::{
     choose_local_player_entity, is_local_player_entity, net_player_customization_selection,
     resolve_player_model_path, sync_local_alive_state,
-};
-use crate::networking_reconnect::{
-    advance_network_update_frame, finish_reconnect_when_world_ready,
-    flush_pending_network_world_reset, reset_network_world,
 };
 use game_engine::chat_data::WhisperState;
 use shared::components::{CharacterAppearance, Health as NetHealth, Player as NetPlayer};

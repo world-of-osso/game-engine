@@ -70,10 +70,8 @@ fn route_lod_chunk<'a>(
             pending_liquid.header = Some(payload);
             pending_liquid.indices = None;
         }
-        b"ILLM" => {
-            if pending_liquid.header.is_some() {
-                pending_liquid.indices = Some(payload);
-            }
+        b"ILLM" if pending_liquid.header.is_some() => {
+            pending_liquid.indices = Some(payload);
         }
         b"VLLM" => {
             push_lod_liquid_group(root_chunks, payload, pending_liquid)?;

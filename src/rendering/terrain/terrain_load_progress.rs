@@ -23,7 +23,7 @@ pub fn initial_desired_tiles(adt_manager: &AdtManager) -> Vec<(u32, u32)> {
 }
 
 fn tile_coordinate_in_bounds(coord: i32) -> bool {
-    coord >= 0 && coord < MAP_TILE_BOUNDS
+    (0..MAP_TILE_BOUNDS).contains(&coord)
 }
 
 pub fn count_initial_tile_progress(

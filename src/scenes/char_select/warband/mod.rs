@@ -160,13 +160,14 @@ impl WarbandSceneEntry {
     }
 
     pub fn authored_light_skybox_id(&self) -> Option<u32> {
-        crate::light_lookup::resolve_local_skybox_model_for_zone(self.map_id, self.position)
+        crate::light_lookup::resolve_skybox_model_for_zone(self.map_id, self.position)
             .map(|model| model.light_skybox_id)
     }
 
     pub fn authored_skybox_model_wow_path(&self) -> Option<&'static str> {
-        crate::light_lookup::resolve_local_skybox_model_for_zone(self.map_id, self.position)
+        crate::light_lookup::resolve_skybox_model_for_zone(self.map_id, self.position)
             .map(|model| model.wow_path)
+            .or_else(|| authored_warband_skybox_model_wow_path(self.id))
     }
 
     pub fn skybox_model_wow_path(&self) -> Option<&'static str> {
@@ -177,6 +178,15 @@ impl WarbandSceneEntry {
             5671..=5676 => Some("environments/stars/costalislandskybox.m2"),
             _ => None,
         }
+    }
+}
+
+fn authored_warband_skybox_model_wow_path(scene_id: u32) -> Option<&'static str> {
+    match scene_id {
+        4 => Some("environments/stars/10gsl_sky01.m2"),
+        7 => Some("environments/stars/11xp_cloudsky01.m2"),
+        119 => Some("environments/stars/11krs_mainskybox01.m2"),
+        _ => None,
     }
 }
 

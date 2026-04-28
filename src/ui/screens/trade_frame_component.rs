@@ -557,14 +557,6 @@ mod tests {
 
     // --- Text content tests ---
 
-    fn build_with_state(state: TradeFrameState) -> FrameRegistry {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(state);
-        Screen::new(trade_frame_screen).sync(&shared, &mut reg);
-        reg
-    }
-
     #[test]
     fn title_text() {
         let reg = build_registry();

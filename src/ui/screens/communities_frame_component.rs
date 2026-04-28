@@ -666,7 +666,7 @@ fn roster_rows(members: &[RosterMember], parent_w: f32) -> Element {
 fn roster_row(idx: usize, member: &RosterMember, row_w: f32, top: f32) -> Element {
     let row_id = DynName(format!("CommunitiesRosterRow{idx}"));
     let y = -(top + idx as f32 * (ROSTER_ROW_H + ROSTER_ROW_GAP));
-    let bg = if idx % 2 == 0 {
+    let bg = if idx.is_multiple_of(2) {
         ROSTER_ROW_EVEN
     } else {
         ROSTER_ROW_ODD
@@ -731,11 +731,11 @@ fn roster_row_cell_color(col: usize) -> &'static str {
 }
 
 fn roster_col_x(row_w: f32, col: usize) -> f32 {
-    let mut x = 4.0;
-    for i in 0..col {
-        x += ROSTER_COLUMNS[i].1 * row_w;
-    }
-    x
+    4.0 + ROSTER_COLUMNS
+        .iter()
+        .take(col)
+        .map(|(_, width)| *width * row_w)
+        .sum::<f32>()
 }
 
 fn roster_col_w(row_w: f32, col: usize) -> f32 {

@@ -377,10 +377,13 @@ fn check_loading_complete(
 }
 
 fn handle_zone_transition(
-    current_zone: Res<CurrentZone>,
+    current_zone: Option<Res<CurrentZone>>,
     mut tracker: ResMut<ZoneTransitionTracker>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    let Some(current_zone) = current_zone else {
+        return;
+    };
     if !current_zone.is_changed() {
         return;
     }

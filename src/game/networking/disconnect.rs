@@ -159,7 +159,7 @@ fn handle_forced_disconnect(
         reconnect.phase = ReconnectPhase::Inactive;
         reconnect.terrain_refresh_seen = false;
     }
-    crate::networking_reconnect::request_network_world_reset(commands);
+    crate::networking::request_network_world_reset(commands);
     auth_feedback.0 = Some(notice.message);
     if *state != crate::game_state::GameState::Login {
         next_state.set(crate::game_state::GameState::Login);
@@ -215,7 +215,7 @@ fn handle_charselect_disconnect(
     commands.insert_resource(LoginMode::Login);
     commands.insert_resource(LoginUsername(String::new()));
     commands.insert_resource(LoginPassword(String::new()));
-    crate::networking_reconnect::request_network_world_reset(commands);
+    crate::networking::request_network_world_reset(commands);
     reconnect.phase = ReconnectPhase::PendingConnect;
     reconnect.terrain_refresh_seen = false;
     auth_feedback.0 = None;
@@ -258,7 +258,7 @@ fn handle_inworld_disconnect(
     commands.insert_resource(LoginMode::Login);
     commands.insert_resource(LoginUsername(String::new()));
     commands.insert_resource(LoginPassword(String::new()));
-    crate::networking_reconnect::request_network_world_reset(commands);
+    crate::networking::request_network_world_reset(commands);
     reconnect.phase = ReconnectPhase::PendingConnect;
     reconnect.terrain_refresh_seen = false;
     auth_feedback.0 = None;

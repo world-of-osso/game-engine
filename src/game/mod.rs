@@ -23,8 +23,6 @@ pub(crate) mod networking_messages;
 pub(crate) mod networking_npc;
 #[path = "networking/player.rs"]
 pub(crate) mod networking_player;
-#[path = "networking/reconnect.rs"]
-pub(crate) mod networking_reconnect;
 
 #[path = "world_db/zone_names.rs"]
 pub(crate) mod zone_names;

@@ -9,7 +9,7 @@ const CHECKER_TILE: u32 = 4;
 fn fill_checkerboard(img: &mut image::RgbaImage) {
     for y in 0..img.height() {
         for x in 0..img.width() {
-            let checker = if ((x / CHECKER_TILE) + (y / CHECKER_TILE)) % 2 == 0 {
+            let checker = if ((x / CHECKER_TILE) + (y / CHECKER_TILE)).is_multiple_of(2) {
                 80
             } else {
                 60

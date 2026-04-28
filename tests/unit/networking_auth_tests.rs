@@ -315,6 +315,9 @@ fn login_failure_despawns_live_client() {
     };
     run_handle_login_response(&mut app, resp);
     app.update();
+    app.world_mut()
+        .insert_resource(crate::networking::NetworkUpdateFrame(1));
+    crate::networking::flush_pending_network_world_reset(app.world_mut());
     app.update();
 
     assert!(app.world().get_entity(client).is_err());

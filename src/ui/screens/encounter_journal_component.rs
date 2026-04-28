@@ -650,7 +650,7 @@ fn loot_rows(items: &[LootItem], parent_w: f32) -> Element {
 fn loot_row(idx: usize, item: &LootItem, row_w: f32, top: f32) -> Element {
     let row_id = DynName(format!("EJLoot{idx}"));
     let y = -(top + idx as f32 * (LOOT_ROW_H + LOOT_ROW_GAP));
-    let bg = if idx % 2 == 0 {
+    let bg = if idx.is_multiple_of(2) {
         LOOT_ROW_EVEN
     } else {
         LOOT_ROW_ODD
@@ -703,11 +703,11 @@ fn loot_cell(id: DynName, text: &str, w: f32, x: f32, font_size: f32, color: &st
 }
 
 fn loot_col_x(row_w: f32, col: usize) -> f32 {
-    let mut x = 0.0;
-    for i in 0..col {
-        x += LOOT_COLUMNS[i].1 * row_w;
-    }
-    x
+    LOOT_COLUMNS
+        .iter()
+        .take(col)
+        .map(|(_, width)| *width * row_w)
+        .sum()
 }
 
 fn loot_col_w(row_w: f32, col: usize) -> f32 {

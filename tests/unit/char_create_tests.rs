@@ -332,8 +332,6 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
         "scene should have materials for rendering, got {material_count}"
     );
 
-    let initial_mesh_count = mesh_count;
-
     // CharCreateState is normally inserted by CharCreatePlugin's OnEnter.
     // Insert it manually since we only have CharCreateScenePlugin.
     app.insert_resource(CharCreateState::default());
@@ -369,9 +367,7 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     use bevy::window::PrimaryWindow;
     use game_engine::customization_data::CustomizationDb;
     use game_engine::ui::automation::UiAutomationPlugin;
-    use game_engine::ui::event::EventBus;
     use game_engine::ui::plugin::UiState;
-    use game_engine::ui::registry::FrameRegistry;
 
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);

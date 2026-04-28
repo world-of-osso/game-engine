@@ -96,16 +96,16 @@ fn format_node_with_position(
             gender,
             name,
             character_id,
-        } => format_character_label(
+        } => format_character_label(CharacterLabelParts {
             label,
             model,
             race,
             gender,
             name,
-            *character_id,
+            character_id: *character_id,
             pos,
-            &displayed,
-        ),
+            displayed: &displayed,
+        }),
         NodeProps::Background {
             model,
             doodad_count,
@@ -191,24 +191,38 @@ fn format_scene_label(label: &str) -> String {
     label.to_string()
 }
 
-fn format_character_label(
-    label: &str,
-    model: &str,
-    race: &str,
-    gender: &str,
-    name: &Option<String>,
+struct CharacterLabelParts<'a> {
+    label: &'a str,
+    model: &'a str,
+    race: &'a str,
+    gender: &'a str,
+    name: &'a Option<String>,
     character_id: Option<u64>,
-    pos: &str,
-    displayed: &str,
-) -> String {
-    let name = name
+    pos: &'a str,
+    displayed: &'a str,
+}
+
+fn format_character_label(parts: CharacterLabelParts<'_>) -> String {
+    let name = parts
+        .name
         .as_ref()
         .map(|name| format!(" name={name}"))
         .unwrap_or_default();
-    let character_id = character_id
+    let character_id = parts
+        .character_id
         .map(|character_id| format!(" id={character_id}"))
         .unwrap_or_default();
-    format!("{label} \"{model}\"{name}{character_id} race={race} gender={gender}{pos}{displayed}")
+    format!(
+        "{} \"{}\"{}{} race={} gender={}{}{}",
+        parts.label,
+        parts.model,
+        name,
+        character_id,
+        parts.race,
+        parts.gender,
+        parts.pos,
+        parts.displayed
+    )
 }
 
 fn format_background_label(

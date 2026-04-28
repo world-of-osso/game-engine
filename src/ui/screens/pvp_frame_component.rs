@@ -336,18 +336,23 @@ fn bracket_stats(id: DynName, text: &str, row_w: f32) -> Element {
     }
 }
 
+struct PvpActionButtonLayout {
+    w: f32,
+    h: f32,
+    x: f32,
+    y: f32,
+}
+
 fn pvp_action_button(
     name: &str,
     label: &str,
-    w: f32,
-    h: f32,
+    layout: PvpActionButtonLayout,
     bg: &str,
     color: &str,
-    x: f32,
-    y: f32,
 ) -> Element {
     let btn_id = DynName(name.into());
     let text_id = DynName(format!("{name}Text"));
+    let PvpActionButtonLayout { w, h, x, y } = layout;
     rsx! {
         r#frame {
             name: btn_id,
@@ -377,9 +382,21 @@ fn pvp_action_button(
 fn queue_and_wargame_buttons() -> Element {
     let y = -(FRAME_H - QUEUE_BTN_H - 8.0);
     let center = FRAME_W / 2.0;
+    let queue_layout = PvpActionButtonLayout {
+        w: QUEUE_BTN_W,
+        h: QUEUE_BTN_H,
+        x: center - QUEUE_BTN_W - BTN_GAP / 2.0,
+        y,
+    };
+    let war_games_layout = PvpActionButtonLayout {
+        w: WARGAME_BTN_W,
+        h: WARGAME_BTN_H,
+        x: center + BTN_GAP / 2.0,
+        y,
+    };
     rsx! {
-        {pvp_action_button("PVPQueueButton", "Join Queue", QUEUE_BTN_W, QUEUE_BTN_H, QUEUE_BTN_BG, QUEUE_BTN_TEXT, center - QUEUE_BTN_W - BTN_GAP / 2.0, y)}
-        {pvp_action_button("PVPWarGamesButton", "War Games", WARGAME_BTN_W, WARGAME_BTN_H, WARGAME_BTN_BG, WARGAME_BTN_TEXT, center + BTN_GAP / 2.0, y)}
+        {pvp_action_button("PVPQueueButton", "Join Queue", queue_layout, QUEUE_BTN_BG, QUEUE_BTN_TEXT)}
+        {pvp_action_button("PVPWarGamesButton", "War Games", war_games_layout, WARGAME_BTN_BG, WARGAME_BTN_TEXT)}
     }
 }
 

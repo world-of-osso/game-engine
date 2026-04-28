@@ -364,7 +364,7 @@ fn group_row_cell(row: usize, col: usize, text: &str, list_w: f32) -> Element {
 fn group_row(idx: usize, group: &GroupListEntry, list_w: f32) -> Element {
     let row_id = DynName(format!("LFGGroup{idx}"));
     let y = -(GROUP_INSET + GROUP_HEADER_H + idx as f32 * (GROUP_ROW_H + GROUP_ROW_GAP));
-    let bg = if idx % 2 == 0 {
+    let bg = if idx.is_multiple_of(2) {
         GROUP_ROW_EVEN
     } else {
         GROUP_ROW_ODD
@@ -393,11 +393,11 @@ fn group_row(idx: usize, group: &GroupListEntry, list_w: f32) -> Element {
 }
 
 fn group_col_x(list_w: f32, col: usize) -> f32 {
-    let mut x = 4.0;
-    for i in 0..col {
-        x += GROUP_COLUMNS[i].1 * list_w;
-    }
-    x
+    4.0 + GROUP_COLUMNS
+        .iter()
+        .take(col)
+        .map(|(_, width)| *width * list_w)
+        .sum::<f32>()
 }
 
 fn group_col_w(list_w: f32, col: usize) -> f32 {

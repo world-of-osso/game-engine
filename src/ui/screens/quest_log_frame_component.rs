@@ -122,19 +122,12 @@ impl QuestLogEntry {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+type QuestRowPositions = Vec<(usize, f32, Vec<(usize, f32)>)>;
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct QuestLogFrameState {
     pub visible: bool,
     pub quests: Vec<QuestLogEntry>,
-}
-
-impl Default for QuestLogFrameState {
-    fn default() -> Self {
-        Self {
-            visible: false,
-            quests: vec![],
-        }
-    }
 }
 
 // --- Screen entry ---
@@ -192,9 +185,7 @@ fn title_bar() -> Element {
 
 /// Compute the y-offset for each row in the zone-grouped quest list.
 /// Returns (group_idx, zone_name, quests_with_indices, zone_header_y) tuples.
-fn zone_row_positions(
-    groups: &[(String, Vec<&QuestLogEntry>)],
-) -> Vec<(usize, f32, Vec<(usize, f32)>)> {
+fn zone_row_positions(groups: &[(String, Vec<&QuestLogEntry>)]) -> QuestRowPositions {
     let mut y: f32 = 0.0;
     groups
         .iter()

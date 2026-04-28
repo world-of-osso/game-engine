@@ -80,10 +80,8 @@ fn send_pending_actions(mut state: ResMut<DuelClientState>, mut senders: DuelSen
             Action::Accept => send_all(&mut senders.accept, AcceptDuel),
             Action::Decline => send_all(&mut senders.decline, DeclineDuel),
         };
-        if !sent {
-            if let Some(reply) = state.pending_replies.pop_front() {
-                let _ = reply.send(Response::Error("duel is unavailable: not connected".into()));
-            }
+        if !sent && let Some(reply) = state.pending_replies.pop_front() {
+            let _ = reply.send(Response::Error("duel is unavailable: not connected".into()));
         }
     }
 }

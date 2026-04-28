@@ -4,6 +4,12 @@ mod reconnect;
 use std::time::Duration;
 
 pub(crate) use self::disconnect::handle_client_disconnected;
+#[cfg(test)]
+pub(crate) use self::reconnect::reset_network_world;
+pub(crate) use self::reconnect::{
+    advance_network_update_frame, drive_inworld_reconnect, finish_reconnect_when_world_ready,
+    flush_pending_network_world_reset, rand_client_id, request_network_world_reset,
+};
 use bevy::prelude::*;
 use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -244,17 +250,14 @@ fn register_net_systems(app: &mut App) {
     app.add_systems(
         Update,
         (
-            crate::networking_reconnect::flush_pending_network_world_reset,
-            crate::networking_reconnect::drive_inworld_reconnect,
+            flush_pending_network_world_reset,
+            drive_inworld_reconnect,
             update_reconnect_overlay,
-            crate::networking_reconnect::finish_reconnect_when_world_ready,
+            finish_reconnect_when_world_ready,
         )
             .chain(),
     );
-    app.add_systems(
-        Last,
-        crate::networking_reconnect::advance_network_update_frame,
-    );
+    app.add_systems(Last, advance_network_update_frame);
 }
 
 fn register_gameplay_net_systems(app: &mut App) {
@@ -384,7 +387,7 @@ fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
 
 pub(crate) fn connect_to_server_inner(commands: &mut Commands, server_addr: SocketAddr) {
     let bind_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), CLIENT_PORT);
-    let client_id = crate::networking_reconnect::rand_client_id();
+    let client_id = rand_client_id();
     commands.insert_resource(LocalClientId(client_id));
     let auth = Authentication::Manual {
         server_addr,

@@ -259,7 +259,9 @@ fn faction_list(categories: &[FactionCategory]) -> Element {
     }
 }
 
-fn category_positions(cats: &[FactionCategory]) -> Vec<(usize, f32, Vec<(usize, f32)>)> {
+type CategoryPositions = Vec<(usize, f32, Vec<(usize, f32)>)>;
+
+fn category_positions(cats: &[FactionCategory]) -> CategoryPositions {
     let mut y: f32 = 0.0;
     cats.iter()
         .enumerate()

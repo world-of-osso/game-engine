@@ -136,7 +136,7 @@ fn build_state(
 
 fn extract_identity(stats: Option<&CharacterStatsSnapshot>) -> (String, u16, String) {
     let name = stats.and_then(|s| s.name.clone()).unwrap_or_default();
-    let level = stats.and_then(|s| s.level).unwrap_or(0) as u16;
+    let level = stats.and_then(|s| s.level).unwrap_or(0);
     let class = stats
         .and_then(|s| s.class)
         .map(class_name_from_id)

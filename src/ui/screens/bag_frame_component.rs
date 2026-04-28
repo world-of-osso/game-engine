@@ -55,7 +55,7 @@ pub struct BagFrameState {
 impl BagFrameState {
     /// Compute frame dimensions for a bag based on slot count.
     pub fn bag_dimensions(slot_count: usize) -> (f32, f32) {
-        let rows = (slot_count + GRID_COLS - 1) / GRID_COLS;
+        let rows = slot_count.div_ceil(GRID_COLS);
         let w = 2.0 * INSET + GRID_COLS as f32 * SLOT_SIZE + (GRID_COLS - 1) as f32 * SLOT_GAP;
         let h = TITLE_H
             + INSET
