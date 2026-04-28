@@ -167,6 +167,7 @@ fn initial_char_create_state(
 
 const CHAR_CREATE_RANDOM_SEED_MIX: u64 = 0x9e37_79b9_7f4a_7c15;
 const CHAR_CREATE_RANDOM_SEED_MUL_1: u64 = 0xbf58_476d_1ce4_e5b9;
+const CHAR_CREATE_RANDOM_SEED_MUL_2: u64 = 0x94d0_49bb_1331_11eb;
 
 fn fresh_random_seed() -> u64 {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -178,7 +179,7 @@ fn fresh_random_seed() -> u64 {
 fn mix_seed(seed: u64) -> u64 {
     let mut z = seed.wrapping_add(CHAR_CREATE_RANDOM_SEED_MIX);
     z = (z ^ (z >> 30)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_1);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+    z = (z ^ (z >> 27)).wrapping_mul(CHAR_CREATE_RANDOM_SEED_MUL_2);
     z ^ (z >> 31)
 }
 
@@ -277,7 +278,7 @@ fn char_create_update_visuals(
     mut screen_res: Option<ResMut<CharCreateScreenWrap>>,
     cust_db: Res<CustomizationDb>,
 ) {
-    let Some(cc) = cc_ui.as_ref() else { return };
+    let Some(_cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_ref() else { return };
     // Look up by name each frame — the editbox only exists in Customize mode
     // so the ID resolved at startup may be None/stale.
