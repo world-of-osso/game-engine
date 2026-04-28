@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Button Imagegen"
+  short_description: "Generate login-screen button art variants."
+  default_prompt: "Generate or iterate standalone fantasy MMO login button assets for this repo using the bundled imagegen workflow, then compare them against the real login screen."
