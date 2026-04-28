@@ -493,6 +493,7 @@ mod tests {
             usable_only: false,
             sort_field: AuctionSortField::Name,
             sort_dir: AuctionSortDir::Asc,
+            faction: 0,
         };
 
         let handled = queue_ipc_request(
@@ -525,6 +526,7 @@ mod tests {
                 usable_only: false,
                 sort_field: AuctionSortField::Name,
                 sort_dir: AuctionSortDir::Asc,
+                faction: 0,
             }),
             search_total: 1,
             search_results: vec![AuctionListingSummary {

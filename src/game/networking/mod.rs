@@ -306,9 +306,6 @@ fn register_inworld_snapshot_systems(app: &mut App) {
             msg::receive_collection_state_update,
             msg::receive_profession_snapshot,
             msg::receive_reputation_snapshot,
-            msg::receive_guild_vault_snapshot,
-            msg::receive_warbank_snapshot,
-            msg::receive_inventory_search_snapshot,
         )
             .run_if(in_state(GameState::InWorld)),
     );

@@ -4,12 +4,10 @@ use shared::components::Zone;
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel,
     DeathStateUpdate, DuelStateUpdate, DurabilityStateUpdate, EmoteEvent, EmoteIntent,
-    GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, GuildVaultSnapshot, InputChannel,
-    InspectStateUpdate, InventorySearchResultSnapshot, LoadTerrain, PlayerInput,
-    ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
+    GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, InputChannel, InspectStateUpdate,
+    LoadTerrain, PlayerInput, ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
     QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, RestAreaKindSnapshot,
-    RestStateUpdate, SetTarget, StorageItemSnapshot, TalentStateUpdate, WarbankSnapshot,
-    WorldMapStateUpdate,
+    RestStateUpdate, SetTarget, TalentStateUpdate, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -34,12 +32,10 @@ use game_engine::reputation::{ReputationToastState, map_reputation_state_update}
 use game_engine::status::{
     AchievementsStatusSnapshot, CollectionStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
     DurabilityStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot,
-    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry,
-    ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry,
-    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, RestAreaKindEntry,
-    StorageItemEntry, TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot,
-    WarbankStatusSnapshot,
+    IgnoreListStatusSnapshot, InspectStatusSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry,
+    ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot,
+    QuestObjectiveEntry, QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot,
+    RestAreaKindEntry, TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -216,6 +212,9 @@ fn map_runtime_chat_channel(
         shared::protocol::ChatType::Party => (ChatChannelType::Party, String::new()),
         shared::protocol::ChatType::Guild => (ChatChannelType::Guild, String::new()),
         shared::protocol::ChatType::Emote => (ChatChannelType::Emote, String::new()),
+        shared::protocol::ChatType::System | shared::protocol::ChatType::ServerBroadcast => {
+            (ChatChannelType::System, String::new())
+        }
         shared::protocol::ChatType::Whisper(target) => {
             let is_outgoing = local_name.is_some_and(|name| sender.eq_ignore_ascii_case(name));
             let channel_name = if is_outgoing {
@@ -584,28 +583,6 @@ pub(crate) fn apply_reputation_state_update(
     snapshot.last_error = update.error;
 }
 
-pub(crate) fn receive_guild_vault_snapshot(
-    mut receivers: Query<&mut MessageReceiver<GuildVaultSnapshot>>,
-    mut snapshot: ResMut<GuildVaultStatusSnapshot>,
-) {
-    for mut receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.entries = msg.entries.into_iter().map(map_storage_item).collect();
-        }
-    }
-}
-
-pub(crate) fn receive_warbank_snapshot(
-    mut receivers: Query<&mut MessageReceiver<WarbankSnapshot>>,
-    mut snapshot: ResMut<WarbankStatusSnapshot>,
-) {
-    for mut receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.entries = msg.entries.into_iter().map(map_storage_item).collect();
-        }
-    }
-}
-
 pub(crate) fn apply_talent_state_update(
     snapshot: &mut TalentStatusSnapshot,
     update: TalentStateUpdate,
@@ -645,38 +622,6 @@ pub(crate) fn apply_inspect_state_update(
 
 pub(crate) fn apply_duel_state_update(snapshot: &mut DuelStatusSnapshot, update: DuelStateUpdate) {
     map_duel_state_update(snapshot, update);
-}
-
-fn map_storage_item(e: StorageItemSnapshot) -> StorageItemEntry {
-    StorageItemEntry {
-        slot: e.slot,
-        item_guid: e.item_guid,
-        item_id: e.item_id,
-        name: e.name,
-        stack_count: e.stack_count,
-    }
-}
-
-pub(crate) fn receive_inventory_search_snapshot(
-    mut receivers: Query<&mut MessageReceiver<InventorySearchResultSnapshot>>,
-    mut snapshot: ResMut<InventorySearchSnapshot>,
-) {
-    for mut receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.entries = msg
-                .entries
-                .into_iter()
-                .map(|e| InventoryItemEntry {
-                    storage: e.storage,
-                    slot: e.slot,
-                    item_guid: e.item_guid,
-                    item_id: e.item_id,
-                    name: e.name,
-                    stack_count: e.stack_count,
-                })
-                .collect();
-        }
-    }
 }
 
 /// When CurrentTarget changes, send a SetTarget message to the server.
@@ -734,6 +679,7 @@ pub(crate) fn send_player_input(
         facing_yaw: facing.yaw,
         jumping: movement.jumping,
         running: movement.running,
+        swimming: movement.swimming,
     };
     for mut sender in senders.iter_mut() {
         sender.send::<InputChannel>(input.clone());

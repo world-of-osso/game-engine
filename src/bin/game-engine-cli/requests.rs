@@ -537,6 +537,7 @@ pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request,
             usable_only: false,
             sort_field: parse_sort_field(&args.sort)?,
             sort_dir: parse_sort_dir(&args.dir)?,
+            faction: 0,
         },
     })
 }
