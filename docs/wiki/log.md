@@ -21,3 +21,6 @@ Updated `systems/skybox.md` with the implemented `LightParams::Flags` contract (
 ## [2026-04-21] update | Trace modern authored skybox shader/effect path
 
 Updated `investigations/authored-skybox-black-output.md` with a detailed trace for `11xp_cloudsky01.m2` modern shader batches (`0x4014`, `0x8012`, `0x8016`), including stage binding, combine-mode routing, UV mode mapping, and the current WGSL combine-coverage gap for `0x8012`/`0x8016`.
+## [2026-05-01] update | Document direct DB2 CASC access
+
+Updated [[db2-format]] and [[asset-pipeline]] to record that DB2 bytes can be read directly from CASC via `AssetResolver::resolve_bytes`, with `ensure_db2_path` as a cache/debug path. Added `Frostshake/WDBx` as external verifier/export tooling rather than a runtime dependency.

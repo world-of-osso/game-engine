@@ -1,6 +1,18 @@
 # DB2 Format
 
-DB2 (and its predecessor DBC) is Blizzard's binary table format for game data — item stats, character customization options, light parameters, display info, and more. DB2 files are extracted from CASC by FDID and parsed using schemas from `wowdev/WoWDBDefs`. Some DB2 files are BLTE-encrypted and require TACT keys separate from WoWDBDefs.
+DB2 (and its predecessor DBC) is Blizzard's binary table format for game data — item stats, character customization options, light parameters, display info, and more. DB2 files can be read directly from CASC by FDID through the project `AssetResolver`, or extracted to `data/dbfilesclient/` as a local cache/debug artifact. Schemas come from `wowdev/WoWDBDefs`; some DB2 files are BLTE-encrypted and require TACT keys separate from WoWDBDefs.
+
+## CASC Access Model
+
+The engine does not need WDBx to get DB2 bytes out of CASC. The existing asset resolver exposes `resolve_bytes(fdid)`, and the DB2 parsers already operate on `&[u8]`. Current runtime loaders often use `ensure_db2_path(fdid, path)`, which extracts/caches the DB2 to disk and then reads it back; that is a convenience path, not a hard requirement of the format parser.
+
+Preferred implementation direction:
+
+- Use direct CASC bytes for runtime DB2 loading when a table is identified by FDID.
+- Keep `ensure_db2_path` for debug visibility, reproducible cache files, and tooling that wants paths.
+- Use `casc-local` for manual extraction when inspecting a table or sharing a fixture.
+
+`Frostshake/WDBx` is useful as external reference/tooling. It opens DBC/DB2 from CASC, MPQ, or native files; exports CSV/JSON/SQL; and is powered by WDBReader plus WoWDBDefs. It is a C++/Qt/vcpkg desktop tool, so it is better treated as a verifier/exporter than as a runtime dependency for this Rust engine.
 
 ## Schema Source vs. Decryption Source
 
@@ -60,9 +72,11 @@ Item-driven textures (worn equipment) come from `ItemDisplayInfo.ModelMaterialRe
 ## Sources
 
 - [docs/casc-db2-keys.md](../casc-db2-keys.md) — WoWDBDefs vs TACTKeys distinction, practical extraction model
+- [docs/wiki/systems/asset-pipeline.md](../systems/asset-pipeline.md) — CASC resolver/cache model and direct byte access
 - [docs/skybox-authored-lookup.md](../skybox-authored-lookup.md) — Light→LightParams→LightSkybox lookup chain, fallback behavior
 - [docs/helmet-geoset-extra-field-investigation-2026-03-28.md](../helmet-geoset-extra-field-investigation-2026-03-28.md) — HelmetGeosetData extra field observation
 - [docs/hd-skeleton-status.md](../hd-skeleton-status.md) — ChrCustomization chain traced for Human Male HD, CharComponentTextureSections layout
+- [Frostshake/WDBx](https://github.com/Frostshake/WDBx) — external DB2 viewer/exporter using WDBReader and WoWDBDefs
 
 ## See Also
 

@@ -24,6 +24,8 @@ cargo run --bin casc-local -- <fdid> -o data/models/
 
 Files are named `{fdid}.{ext}` (extension derived from the community listfile). Always extract from local CASC; never use Blizzard CDN.
 
+Extraction to disk is not the only access path. The project `AssetResolver` also exposes `resolve_bytes(fdid)`, which can read file contents directly from local CASC. Runtime DB2 loading can use direct bytes because the DB2 parsers accept `&[u8]`; path-based helpers such as `ensure_db2_path` are mainly useful for debug artifacts, cache inspection, and tools that require filesystem paths.
+
 ## Asset Naming
 
 - `data/textures/{fdid}.blp` — BLP textures
@@ -57,6 +59,8 @@ Some BLTE chunks are encrypted. Keys come from `wowdev/TACTKeys` (not from WoWDB
 | TACTKeys / `data/tactkeys/WoW.txt` | BLTE chunk decryption keys |
 
 Both are needed for encrypted DB2 tables, but they solve different problems.
+
+External tools such as `Frostshake/WDBx` can open DBC/DB2 from CASC and export CSV/JSON/SQL using WDBReader and WoWDBDefs. Use them to inspect or verify schema behavior, not as a required runtime dependency.
 
 ## Untextured Item Gotcha
 
