@@ -28,6 +28,7 @@ Reference list of open source projects that reimplement or render WoW client dat
 |---|---|---|---|
 | [WMVx](https://github.com/) (~/Repos/WMVx) | C++ | Active | WoW Model Viewer X — M2/BLP reference |
 | [wowmodelviewer](https://github.com/wowmodelviewer/wowmodelviewer) | C++ | Active (2023) | Long-standing desktop model/character viewer, 2,000+ commits |
+| [Scenemachine](https://github.com/CucFlavius/scenemachine) | C# | Active | Reference for loading M2 scene/model data |
 | [Everlook](https://github.com/WowDevTools/Everlook) | C# | Stalled (2022) | Cross-platform viewer built on libwarcraft |
 
 ## Map Editors

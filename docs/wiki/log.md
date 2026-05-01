@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-04-30] update | Add Scenemachine M2 loading reference
+
+Updated `reference/open-source-wow-clients.md` with Scenemachine as a C# reference for loading M2 scene/model data.
+
 ## [2026-04-09] ingest | Initial bulk ingest of 32 existing docs
 
 Ingested all existing documentation from `docs/` into the wiki structure. Created pages across systems/, formats/, investigations/, design/, and reference/ categories.

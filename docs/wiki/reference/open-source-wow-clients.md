@@ -29,6 +29,7 @@ Local: `~/Repos/wow_client` (C++ reference)
 |---------|------|--------|-------|
 | [WMVx](https://github.com/) | C++ | Active | WoW Model Viewer X — M2/BLP reference (`~/Repos/WMVx`) |
 | [wowmodelviewer](https://github.com/wowmodelviewer/wowmodelviewer) | C++ | Active (2023) | 2,000+ commits, desktop character viewer |
+| [Scenemachine](https://github.com/CucFlavius/scenemachine) | C# | Active | Reference for loading M2 scene/model data |
 | [Everlook](https://github.com/WowDevTools/Everlook) | C# | Stalled (2022) | Built on libwarcraft |
 
 ## Map Editors
