@@ -1,7 +1,6 @@
 use cascette_client_storage::Installation;
 use cascette_client_storage::resolver::ContentResolver;
 use cascette_crypto::{ContentKey, EncodingKey};
-use game_engine::paths;
 use osso_asset_resolver::casc_cache;
 use std::path::{Path, PathBuf};
 
@@ -44,7 +43,8 @@ fn casc_data_root() -> PathBuf {
 }
 
 fn casc_output_dir() -> PathBuf {
-    paths::shared_data_path("casc")
+    osso_asset_resolver::casc_resolver::casc_cache_dir_for_install(&PathBuf::from(WOW_PATH))
+        .expect("failed to resolve CASC cache directory")
 }
 
 fn resolve_refresh_targets(data_root: &Path) -> Result<CascRefreshTargets, String> {
@@ -189,26 +189,4 @@ fn config_line_value<'a>(config: &'a str, field: &str) -> Result<&'a str, String
         .lines()
         .find_map(|line| line.strip_prefix(&prefix))
         .ok_or_else(|| format!("missing `{field}` in build config"))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::casc_output_dir;
-
-    #[test]
-    fn casc_output_dir_uses_shared_data_root() {
-        unsafe {
-            std::env::set_var(
-                "GAME_ENGINE_SHARED_DATA_DIR",
-                "/tmp/game-engine-shared-data",
-            );
-        }
-        assert_eq!(
-            casc_output_dir(),
-            std::path::PathBuf::from("/tmp/game-engine-shared-data/casc")
-        );
-        unsafe {
-            std::env::remove_var("GAME_ENGINE_SHARED_DATA_DIR");
-        }
-    }
 }

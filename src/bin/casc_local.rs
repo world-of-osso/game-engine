@@ -27,11 +27,12 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let data_root = PathBuf::from(WOW_PATH).join("Data");
+    let install_root = PathBuf::from(WOW_PATH);
+    let data_root = install_root.join("Data");
     let install = open_and_initialize(&data_root).await;
-    let cache_dir = paths::shared_data_path("casc");
     let cache =
-        CascResolutionCache::open(&cache_dir).expect("failed to open CASC resolution cache");
+        osso_asset_resolver::casc_resolver::open_resolution_cache_for_install(&install_root)
+            .expect("failed to open CASC resolution cache");
 
     let (mut ok, mut fail) = (0u32, 0u32);
     for fdid in &fdids {
