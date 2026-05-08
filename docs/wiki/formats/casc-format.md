@@ -25,7 +25,7 @@ Each layer is opaque to the others: root knows only FDIDs, encoding knows only c
 3. `encoding.bin` looked up directly in `.idx` files by its content key
 4. `root.bin` resolved through the now-loaded `encoding.bin`
 
-Cached locally at `data/casc/root.bin` and `data/casc/encoding.bin`. Refresh with `cargo run --bin casc_refresh` when the local WoW install updates.
+Cached locally under `~/.cache/asset-resolver/casc/<product>/<build-key>/`. Refresh with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when the local WoW install updates.
 
 ## BLTE Encryption (TACT Keys)
 
@@ -62,7 +62,7 @@ Only ~7.8% of root.bin records have Jenkins96 name hashes; path-based lookup rel
 ## Local Extraction Tool
 
 ```bash
-cargo run --bin casc-local -- <fdid> [fdid2 ...] -o data/models/
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> [fdid2 ...] -o data/models/
 ```
 
 Reads directly from `/syncthing/World of Warcraft/Data`. Never uses CDN.

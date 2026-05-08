@@ -24,7 +24,7 @@ Relevant code:
 - [warband_scene.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/warband_scene.rs)
 - [light_lookup.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/light_lookup.rs)
 - [casc_resolver.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/asset/casc_resolver.rs)
-- [casc_local.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/bin/casc_local.rs)
+- [casc_local.rs](/syncthing/Sync/Projects/world-of-osso/asset-resolver/src/bin/casc_local.rs)
 
 ## What Works Today
 

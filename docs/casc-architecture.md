@@ -32,7 +32,7 @@ Each layer only knows about its own mapping:
 3. **encoding.bin** — special case: its content key can be looked up directly in `.idx` files
 4. **root.bin** — resolved normally: content key → encoding key (via the now-available encoding.bin) → `.idx` lookup
 
-Once both files are cached locally (`data/casc/root.bin`, `data/casc/encoding.bin`), the full chain works. `cargo run --bin casc_refresh` repeats this bootstrap from the local WoW install when the cache drifts out of sync.
+Once both files are cached locally (`~/.cache/asset-resolver/casc/<product>/<build-key>/root.bin` + `encoding.bin`), the full chain works. `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` repeats this bootstrap from the local WoW install when the cache drifts out of sync.
 
 ## Archive Layout
 

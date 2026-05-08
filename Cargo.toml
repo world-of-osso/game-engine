@@ -20,9 +20,6 @@ half = "2"
 glob = { version = "0.3", optional = true }
 libc = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"] }
-cascette-client-storage = { git = "https://github.com/Osso/cascette-rs", rev = "5c5a5e3", features = ["local-install"], optional = true }
-cascette-crypto = { git = "https://github.com/Osso/cascette-rs", rev = "5c5a5e3", optional = true }
-cascette-formats = { git = "https://github.com/Osso/cascette-rs", rev = "5c5a5e3", optional = true }
 lightyear = { version = "0.26", features = ["client", "netcode", "replication", "udp"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
@@ -44,27 +41,11 @@ name = "game-engine-cli"
 path = "src/bin/game-engine-cli/main.rs"
 required-features = ["ipc"]
 
-[[bin]]
-name = "casc-local"
-path = "src/bin/casc_local.rs"
-required-features = ["casc-tools"]
-
-[[bin]]
-name = "casc_refresh"
-path = "src/bin/casc_refresh.rs"
-required-features = ["casc-tools"]
-
 [features]
 default = ["ipc", "casc"]
 dev = ["bevy_dylib"]
 ipc = ["peercred-ipc", "libc", "glob"]
 casc = ["dep:osso_asset_resolver", "osso_asset_resolver/casc"]
-casc-tools = [
-  "casc",
-  "dep:cascette-client-storage",
-  "dep:cascette-crypto",
-  "dep:cascette-formats",
-]
 
 [dev-dependencies]
 criterion = "0.5"

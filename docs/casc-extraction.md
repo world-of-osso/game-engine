@@ -23,7 +23,8 @@ Full WoW installation synced from Windows via Syncthing:
 
 ## Local Refresh
 
-When `data/casc/root.bin` and `data/casc/encoding.bin` drift out of sync with the
+When the cached `root.bin` and `encoding.bin` under
+`~/.cache/asset-resolver/casc/<product>/<build-key>/` drift out of sync with the
 synced WoW install, local extraction starts failing with errors like:
 
 ```text
@@ -32,19 +33,10 @@ Content key not found in local indices
 
 Refresh the cache from the local WoW archives, not CDN.
 
-### Backup First
-
-```bash
-ts=$(date +%Y%m%d-%H%M%S)
-mkdir -p data/casc/backups/$ts
-cp data/casc/root.bin data/casc/backups/$ts/root.bin
-cp data/casc/encoding.bin data/casc/backups/$ts/encoding.bin
-```
-
 ### Refresh From Local CASC
 
 ```bash
-cargo run --bin casc_refresh
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh
 ```
 
 This binary:
@@ -54,13 +46,13 @@ This binary:
 3. Reads `encoding.bin` from local CASC archives by the build config's encoding key
 4. Resolves the build config's root content key through that fresh encoding file
 5. Reads `root.bin` from local CASC archives by the resolved encoding key
-6. Writes both files back to `data/casc/`
+6. Writes both files back to `~/.cache/asset-resolver/casc/<product>/<build-key>/`
 
 ### Verify
 
 ```bash
 # Known-good spot check
-cargo run --bin casc-local -- 145513 4219004 4239595 4226685 -o data/textures
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- 145513 4219004 4239595 4226685 -o data/textures
 
 # Optional: verify runtime extraction path too
 cargo run --bin game-engine -- screenshot data/charselect-check.webp --screen charselect
@@ -71,28 +63,28 @@ content-key lookup errors.
 
 ## casc-local (Primary Tool)
 
-Binary in game-engine that reads directly from local CASC archives.
+Binary in asset-resolver that reads directly from local CASC archives.
 
 ```bash
 # Extract by FileDataID (saves as {fdid}.{ext} based on listfile)
-cargo run --bin casc-local -- <fdid> [fdid2 ...] -o data/models/
-cargo run --bin casc-local -- <fdid> -o data/terrain/
-cargo run --bin casc-local -- <fdid> -o data/textures/
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> [fdid2 ...] -o data/models/
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> -o data/terrain/
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> -o data/textures/
 ```
 
 ### How It Works
 
 1. Opens local CASC at `/syncthing/World of Warcraft/Data`
 2. Loads `.idx` index files (2.1M entries across 197 archives)
-3. Loads cached `data/casc/root.bin` + `data/casc/encoding.bin`
+3. Loads cached `~/.cache/asset-resolver/casc/<product>/<build-key>/root.bin` + `encoding.bin`
 4. Resolution chain: FDID → ContentKey (root) → EncodingKey (encoding) → archive location (.idx)
 5. Reads + BLTE-decompresses from local `.data` archives
 6. Files named by FDID: `{fdid}.m2`, `{fdid}.blp`, etc.
 
 ### Prerequisites
 
-`data/casc/root.bin` and `data/casc/encoding.bin` must match the local WoW
-build. If they do not, run `cargo run --bin casc_refresh`.
+Cached `root.bin` and `encoding.bin` must match the local WoW
+build. If they do not, run `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh`.
 
 ## CASC Lookup Chain
 

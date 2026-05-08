@@ -479,9 +479,9 @@ name = "asset-resolver"
 version = "0.1.0"
 dependencies = [
  "binrw",
- "cascette-client-storage 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=2fe7118)",
- "cascette-crypto 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=2fe7118)",
- "cascette-formats 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=2fe7118)",
+ "cascette-client-storage",
+ "cascette-crypto",
+ "cascette-formats",
  "rusqlite",
  "tokio",
 ]
@@ -2350,32 +2350,8 @@ version = "0.2.0"
 source = "git+https://github.com/Osso/cascette-rs?rev=2fe7118#2fe711811b1648a9f04792b835de744fb93f46d1"
 dependencies = [
  "binrw",
- "cascette-crypto 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=2fe7118)",
- "cascette-formats 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=2fe7118)",
- "dashmap",
- "flate2",
- "futures",
- "hex",
- "libc",
- "md5",
- "memmap2",
- "parking_lot",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "winapi",
-]
-
-[[package]]
-name = "cascette-client-storage"
-version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=5c5a5e3#5c5a5e39dfce18d4a599e5170d624157b8d2e3ac"
-dependencies = [
- "binrw",
- "cascette-crypto 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=5c5a5e3)",
- "cascette-formats 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=5c5a5e3)",
+ "cascette-crypto",
+ "cascette-formats",
  "dashmap",
  "flate2",
  "futures",
@@ -2406,41 +2382,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "cascette-crypto"
-version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=5c5a5e3#5c5a5e39dfce18d4a599e5170d624157b8d2e3ac"
-dependencies = [
- "binrw",
- "cipher",
- "hex",
- "md-5",
- "salsa20",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "cascette-formats"
 version = "0.2.0"
 source = "git+https://github.com/Osso/cascette-rs?rev=2fe7118#2fe711811b1648a9f04792b835de744fb93f46d1"
 dependencies = [
  "binrw",
- "cascette-crypto 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=2fe7118)",
- "flate2",
- "hex",
- "lz4_flex",
- "md5",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "cascette-formats"
-version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=5c5a5e3#5c5a5e39dfce18d4a599e5170d624157b8d2e3ac"
-dependencies = [
- "binrw",
- "cascette-crypto 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=5c5a5e3)",
+ "cascette-crypto",
  "flate2",
  "hex",
  "lz4_flex",
@@ -3797,9 +3744,6 @@ dependencies = [
  "bevy_dylib",
  "bevy_hanabi",
  "binrw",
- "cascette-client-storage 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=5c5a5e3)",
- "cascette-crypto 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=5c5a5e3)",
- "cascette-formats 0.2.0 (git+https://github.com/Osso/cascette-rs?rev=5c5a5e3)",
  "clap",
  "criterion",
  "directories",

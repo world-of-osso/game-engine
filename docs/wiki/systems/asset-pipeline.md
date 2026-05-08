@@ -12,14 +12,14 @@ FDID (integer)
   → .data.XXX:    seek, read BLTE blob, decompress
 ```
 
-Cached tables: `data/casc/root.bin` + `data/casc/encoding.bin` (~250MB total). **Never delete** — expensive to regenerate. Refresh with `cargo run --bin casc_refresh` when they drift from the local WoW install.
+Cached tables live under `~/.cache/asset-resolver/casc/<product>/<build-key>/` (~250MB total). They are generated cache data and can be rebuilt with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh` when they drift from the local WoW install.
 
 ## Local Extraction
 
 ```bash
 # Extract by FDID to data/ subdirectory
-cargo run --bin casc-local -- <fdid> [fdid2 ...] -o data/textures/
-cargo run --bin casc-local -- <fdid> -o data/models/
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> [fdid2 ...] -o data/textures/
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> -o data/models/
 ```
 
 Files are named `{fdid}.{ext}` (extension derived from the community listfile). Always extract from local CASC; never use Blizzard CDN.

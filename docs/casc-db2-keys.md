@@ -52,7 +52,7 @@ That key exists in `TACTKeys`, not in `WoWDBDefs`.
 
 For encrypted DB2 files, the working model is:
 
-1. Use local CASC metadata (`data/casc/root.bin`, `data/casc/encoding.bin`) to resolve the file.
+1. Use local CASC metadata (`~/.cache/asset-resolver/casc/<product>/<build-key>/root.bin` + `encoding.bin`) to resolve the file.
 2. Use TACT keys to decrypt encrypted BLTE payloads when needed.
 3. Use WoWDBDefs to interpret the DB2 structure correctly.
 
@@ -78,7 +78,7 @@ data/tactkeys/WoW.txt
 Relevant code:
 
 - [casc_resolver.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/asset/casc_resolver.rs)
-- [casc_local.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/bin/casc_local.rs)
+- [casc_local.rs](/syncthing/Sync/Projects/world-of-osso/asset-resolver/src/bin/casc_local.rs)
 
 That removes the decryption blocker for `LightSkybox.db2` when the key file is present.
 
