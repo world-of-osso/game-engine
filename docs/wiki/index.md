@@ -1,7 +1,7 @@
 # Wiki Index
 
-Knowledge base for the game-engine project. 33 pages across 4 categories.
-Last updated: 2026-04-09.
+Knowledge base for the game-engine project. 34 pages across 4 categories.
+Last updated: 2026-05-12.
 
 ## Systems
 
@@ -61,3 +61,4 @@ External resources and asset lists.
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries
 - [test-assets](reference/test-assets.md) — Available local test files with paths and use cases
 - [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
+- [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
