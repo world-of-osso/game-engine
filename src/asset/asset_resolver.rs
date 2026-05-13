@@ -1,6 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CascResolverPaths {
+    data_root: PathBuf,
+    shared_data_root: PathBuf,
+    cache_root: PathBuf,
+}
+
 pub trait AssetResolver: Send + Sync {
     fn resolve_bytes(&self, fdid: u32) -> Option<Vec<u8>>;
     fn ensure_cached(&self, fdid: u32, out_path: &Path) -> Option<PathBuf>;
@@ -55,12 +62,33 @@ impl AssetResolver for NullAssetResolver {
 fn default_resolver() -> Box<dyn AssetResolver> {
     #[cfg(feature = "casc")]
     {
-        Box::new(osso_asset_resolver::CascListfileResolver)
+        Box::new(configured_casc_resolver())
     }
     #[cfg(not(feature = "casc"))]
     {
         Box::new(NullAssetResolver)
     }
+}
+
+#[cfg(feature = "casc")]
+fn default_casc_resolver_paths() -> CascResolverPaths {
+    let shared_data_root = crate::paths::shared_data_root();
+    CascResolverPaths {
+        data_root: crate::paths::worktree_data_root(),
+        shared_data_root: shared_data_root.clone(),
+        cache_root: shared_data_root,
+    }
+}
+
+#[cfg(feature = "casc")]
+fn configured_casc_resolver() -> osso_asset_resolver::CascListfileResolver {
+    let paths = default_casc_resolver_paths();
+    let config = osso_asset_resolver::AssetResolverConfig::new()
+        .with_data_root(paths.data_root)
+        .with_shared_data_root(paths.shared_data_root)
+        .with_cache_root(paths.cache_root);
+
+    osso_asset_resolver::CascListfileResolver::new(config)
 }
 
 pub fn set_resolver(resolver: Box<dyn AssetResolver>) -> Result<(), Box<dyn AssetResolver>> {
@@ -102,6 +130,15 @@ mod tests {
             resolver.resolve_path(7).unwrap(),
             resolver.lookup_path("dummy/7").unwrap(),
         )
+    }
+
+    #[test]
+    fn default_casc_resolver_paths_use_game_engine_data_roots() {
+        let paths = default_casc_resolver_paths();
+
+        assert_eq!(paths.data_root, crate::paths::worktree_data_root());
+        assert_eq!(paths.shared_data_root, crate::paths::shared_data_root());
+        assert_eq!(paths.cache_root, crate::paths::shared_data_root());
     }
 
     #[test]
