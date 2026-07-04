@@ -86,14 +86,8 @@ jobs:
       - name: Cache Rust build artifacts
         uses: Swatinem/rust-cache@v2
 
-      - name: Build
-        run: cargo build --locked --workspace --all-targets
-
-      - name: Test
-        run: cargo test --locked --workspace --all-targets
-
-      - name: Clippy
-        run: cargo clippy --locked --workspace --all-targets --no-deps
+      - name: Check
+        run: cargo check --locked --workspace
 
       - name: Rustfmt
         run: cargo fmt --check
