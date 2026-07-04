@@ -51,10 +51,15 @@ jobs:
           ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit-macros" "$GITHUB_WORKSPACE/../ui-toolkit-macros"
           ln -sfn "$GITHUB_WORKSPACE/deps/asset-resolver" "$GITHUB_WORKSPACE/../asset-resolver"
 
+      - name: Create configured target directory
+        run: sudo mkdir -p /syncthing/Sync/Projects/world-of-osso/game-engine && sudo chown -R $USER:$USER /syncthing
+
       - name: Install Linux build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            clang \
+            mold \
             pkg-config \
             libasound2-dev \
             libfontconfig1-dev \
