@@ -6,7 +6,6 @@ use std::time::{Duration, Instant};
 use bevy::dev_tools::fps_overlay::FpsOverlayConfig;
 use bevy::prelude::*;
 use bevy::window::{PresentMode, PrimaryWindow, Window};
-use directories::ProjectDirs;
 use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
 
