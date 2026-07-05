@@ -22,12 +22,18 @@ RE_GE_RECT = re.compile(r"x=(-?\d+)\s+y=(-?\d+)\s+w=(-?\d+)\s+h=(-?\d+)")
 # wow-ui-sim: (200x30) and position from rect info
 RE_SIZE = re.compile(r"\((\d+)x(\d+)\)")
 RE_TYPE = re.compile(r"\[(\w+)\]")
-RE_WOW_RECT = re.compile(r"rect=\((-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\)")
+RE_WOW_RECT = re.compile(
+    r"rect=\((-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+),\s*(-?[\d.]+)\)"
+)
 
 
 def parse_line(line: str) -> dict | None:
     stripped = line.rstrip()
-    if not stripped or stripped.startswith("[anchor]") or stripped.startswith("[texture]"):
+    if (
+        not stripped
+        or stripped.startswith("[anchor]")
+        or stripped.startswith("[texture]")
+    ):
         return None
     # skip continuation lines (anchors, textures)
     content = stripped.lstrip()
@@ -56,20 +62,57 @@ def parse_line(line: str) -> dict | None:
     # Extract rect — game-engine format
     m_ge = RE_GE_RECT.search(content)
     if m_ge:
-        x, y, w, h = float(m_ge.group(1)), float(m_ge.group(2)), float(m_ge.group(3)), float(m_ge.group(4))
-        return {"name": name, "type": frame_type, "x": x, "y": y, "w": w, "h": h, "visible": is_visible, "depth": depth}
+        x, y, w, h = (
+            float(m_ge.group(1)),
+            float(m_ge.group(2)),
+            float(m_ge.group(3)),
+            float(m_ge.group(4)),
+        )
+        return {
+            "name": name,
+            "type": frame_type,
+            "x": x,
+            "y": y,
+            "w": w,
+            "h": h,
+            "visible": is_visible,
+            "depth": depth,
+        }
 
     # Extract rect — wow-ui-sim format with rect=()
     m_wow = RE_WOW_RECT.search(content)
     if m_wow:
-        x, y, w, h = float(m_wow.group(1)), float(m_wow.group(2)), float(m_wow.group(3)), float(m_wow.group(4))
-        return {"name": name, "type": frame_type, "x": x, "y": y, "w": w, "h": h, "visible": is_visible, "depth": depth}
+        x, y, w, h = (
+            float(m_wow.group(1)),
+            float(m_wow.group(2)),
+            float(m_wow.group(3)),
+            float(m_wow.group(4)),
+        )
+        return {
+            "name": name,
+            "type": frame_type,
+            "x": x,
+            "y": y,
+            "w": w,
+            "h": h,
+            "visible": is_visible,
+            "depth": depth,
+        }
 
     # Fallback: extract size from (WxH)
     m_size = RE_SIZE.search(content)
     if m_size:
         w, h = float(m_size.group(1)), float(m_size.group(2))
-        return {"name": name, "type": frame_type, "x": 0, "y": 0, "w": w, "h": h, "visible": is_visible, "depth": depth}
+        return {
+            "name": name,
+            "type": frame_type,
+            "x": 0,
+            "y": 0,
+            "w": w,
+            "h": h,
+            "visible": is_visible,
+            "depth": depth,
+        }
 
     return None
 

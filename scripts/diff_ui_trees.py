@@ -42,14 +42,18 @@ def diff_trees(expected: dict, actual: dict, threshold: float) -> list[str]:
         a = actual[name]
 
         if e.get("visible") != a.get("visible"):
-            issues.append(f"VIS      {name}: expected={e['visible']} actual={a['visible']}")
+            issues.append(
+                f"VIS      {name}: expected={e['visible']} actual={a['visible']}"
+            )
 
         for key in ("x", "y", "w", "h"):
             ev = e.get(key, 0)
             av = a.get(key, 0)
             delta = abs(ev - av)
             if delta > threshold:
-                issues.append(f"RECT     {name}.{key}: expected={ev:.0f} actual={av:.0f} delta={delta:.0f}")
+                issues.append(
+                    f"RECT     {name}.{key}: expected={ev:.0f} actual={av:.0f} delta={delta:.0f}"
+                )
 
     return issues
 
@@ -61,7 +65,7 @@ def main():
     if "--threshold" in args:
         idx = args.index("--threshold")
         threshold = float(args[idx + 1])
-        args = args[:idx] + args[idx + 2:]
+        args = args[:idx] + args[idx + 2 :]
 
     if len(args) != 2:
         print(__doc__, file=sys.stderr)
@@ -83,7 +87,9 @@ def main():
     summary_extra = sum(1 for i in issues if i.startswith("EXTRA"))
     summary_rect = sum(1 for i in issues if i.startswith("RECT"))
     summary_vis = sum(1 for i in issues if i.startswith("VIS"))
-    print(f"\n{len(issues)} issues: {summary_missing} missing, {summary_extra} extra, {summary_rect} rect, {summary_vis} visibility")
+    print(
+        f"\n{len(issues)} issues: {summary_missing} missing, {summary_extra} extra, {summary_rect} rect, {summary_vis} visibility"
+    )
     sys.exit(1)
 
 

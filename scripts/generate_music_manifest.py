@@ -151,7 +151,9 @@ def build_manifest():
                     }
                 )
 
-        association_method = "exact_zone_music" if zone_music_ids and area_ids else "path_only"
+        association_method = (
+            "exact_zone_music" if zone_music_ids and area_ids else "path_only"
+        )
 
         manifest_rows.append(
             {
@@ -183,7 +185,9 @@ def build_manifest():
                     "zone_internal_names": unique_sorted(zone_internal_names),
                 }
                 for zone_music_id in zone_music_ids:
-                    zone_music_name = zone_music_rows.get(zone_music_id, {}).get("SetName", "")
+                    zone_music_name = zone_music_rows.get(zone_music_id, {}).get(
+                        "SetName", ""
+                    )
                     if zone_music_name:
                         entry["zone_music_sets"][zone_music_id] = zone_music_name
 
@@ -240,20 +244,32 @@ def build_manifest():
 
     summary = {
         "expected_audio_entries": len(manifest_rows),
-        "extracted_audio_entries": sum(1 for row in manifest_rows if row["extracted"] == "1"),
+        "extracted_audio_entries": sum(
+            1 for row in manifest_rows if row["extracted"] == "1"
+        ),
         "exact_zone_music_matches": sum(
             1
             for row in manifest_rows
-            if row["extracted"] == "1" and row["association_method"] == "exact_zone_music"
+            if row["extracted"] == "1"
+            and row["association_method"] == "exact_zone_music"
         ),
         "path_only_matches": sum(
-            1 for row in manifest_rows if row["extracted"] == "1" and row["association_method"] == "path_only"
+            1
+            for row in manifest_rows
+            if row["extracted"] == "1" and row["association_method"] == "path_only"
         ),
         "zones_with_exact_matches": len(zone_index),
         "zones": {
             zone_name: {
-                "zone_music_sets": dict(sorted(payload["zone_music_sets"].items(), key=lambda item: int(item[0]))),
-                "tracks": dict(sorted(payload["tracks"].items(), key=lambda item: int(item[0]))),
+                "zone_music_sets": dict(
+                    sorted(
+                        payload["zone_music_sets"].items(),
+                        key=lambda item: int(item[0]),
+                    )
+                ),
+                "tracks": dict(
+                    sorted(payload["tracks"].items(), key=lambda item: int(item[0]))
+                ),
             }
             for zone_name, payload in sorted(zone_index.items())
         },
