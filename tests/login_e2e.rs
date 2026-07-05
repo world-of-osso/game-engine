@@ -155,7 +155,7 @@ fn build_client_command(client_bin: &PathBuf) -> Command {
 }
 
 fn pre_accept_eula(xdg_config: &std::path::Path) {
-    let config_dir = xdg_config.join("game-engine");
+    let config_dir = xdg_config.join("world-of-osso");
     std::fs::create_dir_all(&config_dir).expect("create config dir");
     std::fs::write(
         config_dir.join("options_settings.ron"),

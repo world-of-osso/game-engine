@@ -330,11 +330,7 @@ fn load_options_path() -> PathBuf {
 }
 
 fn options_path() -> PathBuf {
-    if let Some(proj_dirs) = ProjectDirs::from("org", "WorldOfOsso", "game-engine") {
-        return proj_dirs.config_dir().join(OPTIONS_FILE_NAME);
-    }
-
-    Path::new(LEGACY_OPTIONS_PATH).to_path_buf()
+    world_of_osso_config_dir().join(OPTIONS_FILE_NAME)
 }
 
 pub fn load_login_credentials() -> Option<LoginCredentials> {
@@ -380,11 +376,13 @@ pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
 }
 
 pub fn login_credentials_path() -> PathBuf {
-    if let Some(proj_dirs) = ProjectDirs::from("org", "WorldOfOsso", "game-engine") {
-        return proj_dirs.config_dir().join(CREDENTIALS_FILE_NAME);
-    }
+    world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
+}
 
-    Path::new(LEGACY_CREDENTIALS_PATH).to_path_buf()
+fn world_of_osso_config_dir() -> PathBuf {
+    dirs::config_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("world-of-osso")
 }
 
 pub(super) fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {
