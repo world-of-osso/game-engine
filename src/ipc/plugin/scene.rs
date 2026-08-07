@@ -4,11 +4,13 @@ use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 
 use super::{Command, Request, Response, SceneParams, ScreenshotReply};
+use crate::ipc::build_performance_snapshot;
 
 pub(super) fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> bool {
     match &cmd.request {
         Request::Ping => reply_scene_ping(cmd),
         Request::Screenshot => queue_scene_screenshot(cmd, scene),
+        Request::Performance => reply_scene_performance(cmd, scene),
         Request::DumpTree { filter } => reply_scene_tree_dump(cmd, scene, filter.as_deref()),
         Request::DumpUiTree { filter } => reply_scene_ui_tree_dump(cmd, scene, filter.as_deref()),
         Request::DumpScene { filter: _ } => reply_scene_dump(cmd, scene),
@@ -20,6 +22,15 @@ pub(super) fn dispatch_scene_request(cmd: &Command, scene: &mut SceneParams) -> 
 
 fn reply_scene_ping(cmd: &Command) {
     let _ = cmd.respond.send(Response::Pong);
+}
+
+fn reply_scene_performance(cmd: &Command, scene: &SceneParams) {
+    let focused = scene
+        .primary_window
+        .single()
+        .is_ok_and(|window| window.focused);
+    let snapshot = build_performance_snapshot(&scene.diagnostics, focused);
+    let _ = cmd.respond.send(Response::Performance(snapshot));
 }
 
 fn queue_scene_screenshot(cmd: &Command, scene: &mut SceneParams) {

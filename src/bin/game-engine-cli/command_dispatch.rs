@@ -28,6 +28,7 @@ fn is_scene_export_command(command: &Cmd) -> bool {
         command,
         Cmd::Ping
             | Cmd::Screenshot { .. }
+            | Cmd::Performance
             | Cmd::DumpTree { .. }
             | Cmd::DumpUiTree { .. }
             | Cmd::DumpScene { .. }
@@ -66,6 +67,7 @@ fn dispatch_scene_export_command(socket: &PathBuf, command: Cmd, json: bool) -> 
     match command {
         Cmd::Ping => handle_ping(socket, json),
         Cmd::Screenshot { output } => handle_screenshot(socket, &output, json),
+        Cmd::Performance => handle_performance(socket, json),
         Cmd::DumpTree { filter } => handle_dump_tree(socket, filter, json),
         Cmd::DumpUiTree { filter } => handle_dump_ui_tree(socket, filter, json),
         Cmd::DumpScene { filter } => handle_dump_scene(socket, filter, json),
@@ -173,6 +175,12 @@ fn handle_ping(socket: &PathBuf, json: bool) -> Result<(), String> {
         }
         other => Err(format!("unexpected response: {other:?}")),
     }
+}
+
+fn handle_performance(socket: &PathBuf, json: bool) -> Result<(), String> {
+    let output = execute_performance_request_output(socket, Request::Performance, json)?;
+    println!("{output}");
+    Ok(())
 }
 
 fn handle_dump_tree(socket: &PathBuf, filter: Option<String>, json: bool) -> Result<(), String> {
@@ -367,6 +375,15 @@ fn handle_text_response(socket: &PathBuf, request: Request, json: bool) -> Resul
     Ok(())
 }
 
+pub(crate) fn execute_performance_request_output(
+    socket: &PathBuf,
+    request: Request,
+    json: bool,
+) -> Result<String, String> {
+    let resp: Response = Client::call(socket, &request).map_err(|e| format!("{e}"))?;
+    format_performance_response_output(resp, json)
+}
+
 pub(crate) fn execute_text_request_output(
     socket: &PathBuf,
     request: Request,
@@ -380,6 +397,37 @@ pub(crate) fn print_json<T: serde::Serialize>(value: &T) -> Result<(), String> {
     let serialized = serialize_json(value)?;
     println!("{serialized}");
     Ok(())
+}
+
+pub(crate) fn format_performance_response_output(
+    resp: Response,
+    json: bool,
+) -> Result<String, String> {
+    if json {
+        return match resp {
+            Response::Error(msg) => Err(msg),
+            other => serialize_json(&other),
+        };
+    }
+    match resp {
+        Response::Performance(snapshot) => Ok(format!(
+            "fps={} frame_time_ms={} focused={}",
+            format_optional_metric(snapshot.fps),
+            format_optional_metric(snapshot.frame_time_ms),
+            snapshot.focused
+        )),
+        Response::Error(msg) => Err(msg),
+        other => Err(format!("unexpected response: {other:?}")),
+    }
+}
+
+fn format_optional_metric(value: Option<f64>) -> String {
+    value
+        .map(|metric| {
+            let rounded = (metric * 100.0).round() / 100.0;
+            format!("{rounded:.2}")
+        })
+        .unwrap_or_else(|| "unavailable".to_string())
 }
 
 pub(crate) fn format_text_response_output(resp: Response, json: bool) -> Result<String, String> {

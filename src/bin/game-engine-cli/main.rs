@@ -33,6 +33,8 @@ enum Cmd {
         #[arg(default_value = "screenshot.webp")]
         output: PathBuf,
     },
+    /// Report FPS, frame time, and primary-window focus state
+    Performance,
     /// Dump the entity hierarchy
     DumpTree {
         #[arg(short, long)]
