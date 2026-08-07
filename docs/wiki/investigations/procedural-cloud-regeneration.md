@@ -21,7 +21,7 @@ Clean user-provided in-world baselines:
 
 These are pre/post-comparison baselines only. No post-fix FPS improvement is claimed yet.
 
-IPC screenshots are visual captures, not frame-timing measurements. They can display a transient `FPS: 1.00` overlay even though a separate unfocused capture remains at 27.89 FPS, so the `1.00` value is a capture-frame artifact rather than normal unfocused behavior. The exact diagnostics-sampling cause is not yet isolated; code and scene inspection show no Winit-setting change or persistent screenshot entity. `game-engine-cli screenshot` writes the captured frame as WebP.
+Use `cargo run --bin game-engine-cli -- performance` for valid runtime diagnostics. Its text output contains exactly `fps`, `frame_time_ms`, and `focused`; these values come from Bevy's smoothed frame diagnostics and primary-window focus state. IPC screenshots are visual captures, not frame-timing measurements. Their overlay can display a transient `FPS: 1.00` even when `performance` reports normal timing, so that value is a capture-frame artifact rather than normal unfocused behavior. `game-engine-cli screenshot` writes the captured frame as WebP.
 
 ## Sources
 

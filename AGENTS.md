@@ -70,6 +70,8 @@ src/
   - `dump-scene` — Dump semantic scene tree (high-level: character, background, camera, lights)
   - `dump-ui-tree` — Dump UI frame registry (names, anchors, positions, widget data)
   - `dump-tree` — Dump Bevy entity hierarchy
+  - `screenshot [OUTPUT]` — Capture current frame as WebP (defaults to `screenshot.webp`)
+  - `performance` — Report `fps`, `frame_time_ms`, and `focused`
   - `ping` — Check if instance is alive
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
 - `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
