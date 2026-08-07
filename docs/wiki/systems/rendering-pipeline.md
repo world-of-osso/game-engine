@@ -25,6 +25,8 @@ GPU particles run via `bevy_hanabi`. Each live particle is a separate Bevy entit
 
 Skybox models are rendered via the `SkyboxM2Material` path (depth writes and shadow/prepass disabled). Scene selection drives a `Light.csv → LightParams → LightSkybox → SkyboxFileDataID` lookup chain. See [[skybox]] for details.
 
+Procedural clouds use three startup-generated 512×1024 RGBA textures with six-octave simplex noise. Commit `b2b07e5b` removed the synchronous five-second runtime regeneration path: the textures remain fixed after startup while `assets/shaders/sky.wgsl` animates their UVs from time/cloud parameters. This preserves cloud settings and removes the measured simplex CPU hotspot; see [[procedural-cloud-regeneration]].
+
 ## Character Rendering
 
 Character models live in `src/rendering/character/`. Geoset visibility is driven by character customization choices and equipment. Texture compositing happens in `src/asset/char_texture.rs`. See [[character-rendering]].
@@ -48,12 +50,14 @@ The complete WMVx blend mode reference:
 - **Bloom + PointLight = black screen** (Bevy 0.18): the real trigger is enabling bloom in a scene that also contains a `PointLight`. The older text/skinned-mesh explanation was a false correlation from the original reproduction. See [pointlight-skinned-mesh-bug-2026-04-04](../pointlight-skinned-mesh-bug-2026-04-04.md).
 - **Torch halo**: `blend_mode > 7` values previously fell back to Opaque (wrong); now fall back to Additive. See [torch-halo-investigation-2026-03-30](../torch-halo-investigation-2026-03-30.md).
 - **Particle bone staleness**: particle emitters don't follow fast-moving animated bones well.
+- **Procedural cloud regeneration (fixed)**: before `b2b07e5b`, one 512×1024 six-octave cloud texture regenerated synchronously every five seconds, consuming about 60% of sampled CPU in simplex functions. Runtime regeneration is now removed; no post-fix FPS improvement is claimed yet.
 
 ## Sources
 
 - [particle-system.md](../particle-system.md) — emitter architecture, known limitations
 - [torch-halo-investigation-2026-03-30.md](../torch-halo-investigation-2026-03-30.md) — blend mode fallback fix, WMVx reference
 - [pointlight-skinned-mesh-bug-2026-04-04.md](../pointlight-skinned-mesh-bug-2026-04-04.md) — bloom/point-light Bevy rendering bug
+- [procedural-cloud-regeneration](../investigations/procedural-cloud-regeneration.md) — synchronous cloud regeneration investigation and runtime-removal evidence
 - AGENTS.md — `src/rendering/` structure
 
 ## See Also
@@ -61,4 +65,5 @@ The complete WMVx blend mode reference:
 - [[character-rendering]] — character-specific pipeline, geosets, texture compositing
 - [[terrain]] — ADT terrain rendering, split files, doodad placement
 - [[skybox]] — skybox M2 model rendering, light lookup chain
+- [[procedural-cloud-regeneration]] — cloud texture generation and performance evidence
 - [[animation]] — M2 bone animation, crossfade system
