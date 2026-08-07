@@ -24,7 +24,7 @@ use self::inworld_skybox::{
     sync_inworld_authored_skybox, sync_inworld_skybox_to_camera, teardown_inworld_skybox,
     update_inworld_skybox_transition,
 };
-use cloud_texture::{ProceduralCloudMaps, create_procedural_cloud_maps};
+use cloud_texture::create_procedural_cloud_maps;
 
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 

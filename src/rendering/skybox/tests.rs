@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use bevy::ecs::system::SystemState;
 
-use super::cloud_texture::CLOUD_REGEN_SECONDS;
+use super::cloud_texture::{CLOUD_REGEN_SECONDS, ProceduralCloudMaps};
 use super::inworld_skybox::{
     InWorldSkybox, InWorldSkyboxPhase, active_wmo_local_skybox_wow_path, bevy_to_wow_position,
     resolve_inworld_map_id, should_replace_skybox, sync_inworld_skybox_to_camera,
