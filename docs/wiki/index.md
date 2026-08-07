@@ -53,6 +53,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Synchronous procedural cloud regeneration hotspot and runtime-removal evidence
 
 ## Reference
 
