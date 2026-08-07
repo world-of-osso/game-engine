@@ -24,10 +24,7 @@ use self::inworld_skybox::{
     sync_inworld_authored_skybox, sync_inworld_skybox_to_camera, teardown_inworld_skybox,
     update_inworld_skybox_transition,
 };
-use cloud_texture::{
-    ProceduralCloudMaps, create_procedural_cloud_maps, generate_procedural_cloud_image,
-    next_cloud_buffer_index,
-};
+use cloud_texture::{ProceduralCloudMaps, create_procedural_cloud_maps};
 
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 
@@ -331,32 +328,6 @@ fn sync_water_sky_color(
 
 fn init_procedural_cloud_maps(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.insert_resource(create_procedural_cloud_maps(&mut images));
-}
-
-fn update_procedural_cloud_maps(
-    time: Res<Time>,
-    mut cloud_maps: ResMut<ProceduralCloudMaps>,
-    mut images: ResMut<Assets<Image>>,
-    sky_dome_q: Query<&MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
-    mut sky_materials: ResMut<Assets<SkyMaterial>>,
-) {
-    if !cloud_maps.regen_timer.tick(time.delta()).just_finished() {
-        return;
-    }
-
-    let next_index = next_cloud_buffer_index(cloud_maps.active_index);
-    let next_handle = cloud_maps.handles[next_index].clone();
-    if let Some(image) = images.get_mut(&next_handle) {
-        *image = generate_procedural_cloud_image(cloud_maps.next_seed);
-    }
-    cloud_maps.next_seed = cloud_maps.next_seed.wrapping_add(1);
-    cloud_maps.active_index = next_index;
-
-    for mat_handle in sky_dome_q.iter() {
-        if let Some(mat) = sky_materials.get_mut(mat_handle) {
-            mat.cloud_texture = next_handle.clone();
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -668,10 +639,6 @@ fn register_shared_sky_visual_systems(app: &mut App) {
         update_sky_env_map
             .after(advance_game_time)
             .run_if(sky_scene_active),
-    )
-    .add_systems(
-        Update,
-        update_procedural_cloud_maps.run_if(sky_scene_active),
     );
 }
 

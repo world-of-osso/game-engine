@@ -1,7 +1,9 @@
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 use bevy::ecs::system::SystemState;
 
+use super::cloud_texture::CLOUD_REGEN_SECONDS;
 use super::inworld_skybox::{
     InWorldSkybox, InWorldSkyboxPhase, active_wmo_local_skybox_wow_path, bevy_to_wow_position,
     resolve_inworld_map_id, should_replace_skybox, sync_inworld_skybox_to_camera,
@@ -28,6 +30,128 @@ fn bevy_position_maps_back_to_wow_axes() {
         bevy_to_wow_position(Vec3::new(1.0, 2.0, 3.0)),
         [1.0, -3.0, 2.0]
     );
+}
+
+#[test]
+fn elapsed_cloud_regeneration_preserves_active_texture_while_scroll_advances() {
+    let mut app = App::new();
+    app.insert_resource(State::new(GameState::InWorld));
+    app.insert_resource(Time::<()>::default());
+    app.insert_resource(GameTime {
+        minutes: 100.0,
+        speed: 0.0,
+    });
+    app.insert_resource(LightKeyframes(vec![LightDataRow {
+        time: 0.0,
+        direct_color: Color::WHITE,
+        ambient_color: Color::WHITE,
+        sky_top: Color::WHITE,
+        sky_middle: Color::WHITE,
+        sky_band1: Color::WHITE,
+        sky_band2: Color::WHITE,
+        sky_smog: Color::WHITE,
+        fog_color: Color::WHITE,
+        sun_color: Color::WHITE,
+        sun_halo_color: Color::WHITE,
+        cloud_emissive_color: Color::WHITE,
+        cloud_layer1_ambient_color: Color::WHITE,
+        cloud_layer2_ambient_color: Color::WHITE,
+        ocean_close_color: Color::WHITE,
+        ocean_far_color: Color::WHITE,
+        river_close_color: Color::WHITE,
+        river_far_color: Color::WHITE,
+        horizon_ambient_color: Color::WHITE,
+        fog_end: 1200.0,
+        fog_start: 300.0,
+        glow: 1.0,
+        cloud_density: 0.0,
+        unk1: 0.0,
+        unk2: 0.0,
+    }]));
+    app.insert_resource(Assets::<Image>::default());
+    app.insert_resource(Assets::<SkyMaterial>::default());
+    app.insert_resource(Assets::<crate::water_material::WaterMaterial>::default());
+
+    let image = || {
+        Image::new_fill(
+            Extent3d {
+                width: 1,
+                height: 1,
+                depth_or_array_layers: 1,
+            },
+            TextureDimension::D2,
+            &[17, 34, 51, 255],
+            TextureFormat::Rgba8Unorm,
+            RenderAssetUsages::default(),
+        )
+    };
+    let cloud_handles = [
+        app.world_mut().resource_mut::<Assets<Image>>().add(image()),
+        app.world_mut().resource_mut::<Assets<Image>>().add(image()),
+        app.world_mut().resource_mut::<Assets<Image>>().add(image()),
+    ];
+    let material_handle = app
+        .world_mut()
+        .resource_mut::<Assets<SkyMaterial>>()
+        .add(SkyMaterial {
+            uniforms: SkyUniforms::default(),
+            cloud_texture: cloud_handles[0].clone(),
+        });
+    app.world_mut()
+        .spawn((SkyDome, MeshMaterial3d(material_handle.clone())));
+    app.insert_resource(ProceduralCloudMaps {
+        handles: cloud_handles,
+        active_index: 0,
+        next_seed: 3,
+        regen_timer: Timer::from_seconds(CLOUD_REGEN_SECONDS, TimerMode::Repeating),
+    });
+    register_shared_sky_visual_systems(&mut app);
+
+    app.update();
+
+    let (active_handle_before, image_bytes_before, scroll_before) = {
+        let world = app.world();
+        let cloud_maps = world.resource::<ProceduralCloudMaps>();
+        let images = world.resource::<Assets<Image>>();
+        let materials = world.resource::<Assets<SkyMaterial>>();
+        let active_handle = cloud_maps.active_handle();
+        let image_bytes = images
+            .get(&active_handle)
+            .and_then(|image| image.data.as_ref())
+            .expect("active cloud image bytes")
+            .clone();
+        let scroll = materials
+            .get(&material_handle)
+            .expect("sky material")
+            .uniforms
+            .cloud_params;
+        (active_handle, image_bytes, scroll)
+    };
+
+    app.world_mut().resource_mut::<GameTime>().minutes = 200.0;
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_secs_f32(CLOUD_REGEN_SECONDS));
+    app.update();
+
+    let world = app.world();
+    let cloud_maps = world.resource::<ProceduralCloudMaps>();
+    let images = world.resource::<Assets<Image>>();
+    let materials = world.resource::<Assets<SkyMaterial>>();
+    let active_handle_after = cloud_maps.active_handle();
+    let image_bytes_after = images
+        .get(&active_handle_after)
+        .and_then(|image| image.data.as_ref())
+        .expect("active cloud image bytes after update");
+    let scroll_after = materials
+        .get(&material_handle)
+        .expect("sky material after update")
+        .uniforms
+        .cloud_params;
+
+    assert_ne!(scroll_after, scroll_before);
+    assert_eq!(active_handle_after, active_handle_before);
+    assert_eq!(image_bytes_after, &image_bytes_before);
 }
 
 #[test]
