@@ -9,8 +9,10 @@ use std::path::Path;
 use std::sync::mpsc;
 
 use bevy::camera::primitives::Aabb;
+use bevy::diagnostic::DiagnosticsStore;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
+use bevy::window::PrimaryWindow;
 use lightyear::prelude::MessageSender;
 use lightyear::prelude::client::Connected;
 
@@ -163,6 +165,8 @@ struct SceneParams<'w, 's> {
     ui_state: Res<'w, UiState>,
     scene_tree: Option<Res<'w, crate::scene_tree::SceneTree>>,
     transform_query: Query<'w, 's, &'static Transform>,
+    diagnostics: Res<'w, DiagnosticsStore>,
+    primary_window: Query<'w, 's, &'static Window, With<PrimaryWindow>>,
 }
 
 #[derive(bevy::ecs::system::SystemParam)]

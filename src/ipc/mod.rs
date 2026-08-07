@@ -6,6 +6,7 @@ pub use plugin::IpcPlugin;
 use std::path::PathBuf;
 use std::sync::mpsc;
 
+use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use serde::{Deserialize, Serialize};
 use shared::protocol::{
     AuctionSearchQuery, BuyoutAuction, CalendarSignupStatusSnapshot, CancelAuction,
@@ -30,6 +31,7 @@ pub enum BarberOption {
 pub enum Request {
     Ping,
     Screenshot,
+    Performance,
     DumpTree {
         filter: Option<String>,
     },
@@ -289,11 +291,36 @@ pub enum Request {
     },
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct PerformanceSnapshot {
+    pub fps: Option<f64>,
+    pub frame_time_ms: Option<f64>,
+    pub focused: bool,
+}
+
+pub fn build_performance_snapshot(
+    diagnostics: &DiagnosticsStore,
+    focused: bool,
+) -> PerformanceSnapshot {
+    let fps = diagnostics
+        .get(&FrameTimeDiagnosticsPlugin::FPS)
+        .and_then(|diagnostic| diagnostic.smoothed());
+    let frame_time_ms = diagnostics
+        .get(&FrameTimeDiagnosticsPlugin::FRAME_TIME)
+        .and_then(|diagnostic| diagnostic.smoothed());
+    PerformanceSnapshot {
+        fps,
+        frame_time_ms,
+        focused,
+    }
+}
+
 /// IPC response from engine to CLI.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Response {
     Pong,
     Screenshot(Vec<u8>), // WebP bytes
+    Performance(PerformanceSnapshot),
     Tree(String),
     Text(String),
     Error(String),
