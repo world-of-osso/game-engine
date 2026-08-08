@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-08] fix | Record pre-UI game/UI-toolkit scheduling boundary
+
+Updated [[ui-system]], [[procedural-cloud-regeneration]], [[replicated-unit-noops]], and `index.md` for `game-engine` `508891a6` and `ui-toolkit` `50e4a17`. Recorded the empty-stage `UIActionBar.BLP` flood (**853,196 lines**, **75.9 MB**) and root cause: `UiRenderEnabled(false)` gated only the inner renderer while game-UI builders, sync/input work, texture-related frame processing, and observers continued. Recorded `UiProcessingEnabled` around the complete toolkit UI update chain, cumulative pre-`Ui` game-UI gates, independent FPS overlay tests, and pending corrected empty-stage runtime relaunch proof. Preserved existing M2 and replicated-unit NOOP facts.
+
 ## [2026-08-08] investigation/fix | Record empty-stage replicated-unit NOOPs and committed suppression
 
 Added `investigations/replicated-unit-noops.md`; updated `systems/networking.md`, `investigations/procedural-cloud-regeneration.md`, and `index.md`. Recorded the preserved empty-stage boundary: `remote_entities=133` includes one local player (132 NPCs plus one local player), client per-frame unchanged `Transform`/`Visibility` writes, Lightyear receiver equality suppression versus server-side same-value movement/gravity serialization, real wander movement, and nearby movement-type-2 NPCs without waypoint rows. Recorded tests and fixes from `3c77d346`, `2927382`, and `ae81c65`. No runtime FPS improvement is claimed before corrected-binary relaunch.

@@ -47,6 +47,14 @@ Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForSta
 
 Configurable bindings cover in-world gameplay: movement (forward/backward/strafe/jump/run/autorun), camera (turn/pitch/zoom), targeting, action bar slots 1–12, audio mute. Fixed (non-bindable) inputs: LMB+RMB chord, login/charselect/menu screen keys, debug controls. See [keybindings-scope.md](../keybindings-scope.md).
 
+## In-World Diagnostic Stage Boundary
+
+Pre-`Ui` cumulative stages must not build or synchronize game UI. The empty-stage client produced **853,196** repeated `UIActionBar.BLP` blacklist lines (**75.9 MB**) because `UiRenderEnabled(false)` originally gated only the inner render systems; frame builders, registry/layout work, texture-related frame processing, button input, and game-UI observers still ran.
+
+`game-engine` commit `508891a6` gates in-world UI builders and sync systems with `inworld_scene_stage_allows_ui`, including minimap, action bars, unit frames, frame plugins, group frames, game-menu in-world paths, quest sparkles, and nameplate/health-bar observers. Cursor and addon/panel-style processing are also stopped before the `Ui` stage. `OnExit(InWorld)` teardown remains unconditional.
+
+`ui-toolkit` commit `50e4a17` adds default-enabled `UiProcessingEnabled` around the complete chained `Update` UI schedule: screen-size synchronization, layout, button nine-slice conversion, render systems, and button input. `UiRenderEnabled` remains the inner render-only gate; the standalone Bevy FPS overlay is separate and remains active. Tests cover every pre-`Ui` stage, `Ui`/unconfigured defaults, the toolkit pause/re-enable boundary, and FPS-overlay survival. Runtime empty-stage relaunch proof remains pending.
+
 ## Known Issues
 
 **Hotreload frame stability**: on Dioxus hotreload, changed static attrs become dynamic, producing a new `Template` that doesn't match the old one. `diff_node` tears down and rebuilds the entire frame tree, making cached frame IDs stale. Fix: replace `templates: Vec<Template>` with `HashMap<TemplateGlobalKey, Template>` in `GameUiRenderer`. See [hotreload-frame-stability.md](../hotreload-frame-stability.md).
@@ -64,8 +72,13 @@ Configurable bindings cover in-world gameplay: movement (forward/backward/strafe
 - [wow-ui-sim-layout-spec-2026-03-31.md](../wow-ui-sim-layout-spec-2026-03-31.md) — exact pixel geometry for frames and tabs
 - [nameplate-research-2026-03-27.md](../nameplate-research-2026-03-27.md) — nameplate design research
 - [keybindings-scope.md](../keybindings-scope.md) — bindable vs fixed inputs
+- [in-world stage gating](../../../src/game/state/inworld_scene_stage.rs) — cumulative stage predicates
+- [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
+- [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
+- [ui-toolkit processing gate](../../../../ui-toolkit/src/plugin.rs) — registry/layout/input/render schedule boundary
 
 ## See Also
 
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene
+- [[procedural-cloud-regeneration]] — empty-stage performance investigation and pending relaunch proof

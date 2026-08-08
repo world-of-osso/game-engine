@@ -35,7 +35,7 @@ These changes preserve actual movement, interpolation, policy transitions, jumpi
 
 ## Runtime status
 
-The fixes are source- and test-backed. The corrected server binary is running, while a clean corrected-client relaunch remains pending before comparing runtime FPS or frame time. No performance improvement is established by this investigation alone.
+The fixes are source- and test-backed. The corrected server binary is running, while a clean corrected-client empty-stage relaunch remains pending after the separate game-UI/toolkit gates (`game-engine` `508891a6`, `ui-toolkit` `50e4a17`). Runtime FPS or frame-time improvement is unmeasured; no performance improvement is established by this investigation alone.
 
 ## Sources
 
@@ -53,3 +53,4 @@ The fixes are source- and test-backed. The corrected server binary is running, w
 
 - [[networking]] — replication architecture and server/client boundaries
 - [[procedural-cloud-regeneration]] — broader in-world performance investigation; this NOOP finding is a separate workload cause and has no FPS claim yet
+- [[ui-system]] — pre-`Ui` game-UI and toolkit scheduling boundary

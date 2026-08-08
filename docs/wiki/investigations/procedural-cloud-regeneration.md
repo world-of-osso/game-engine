@@ -38,6 +38,14 @@ With Mailbox, fully visible and unfocused in-world evidence was:
 
 The cloud fix is confirmed to remove the procedural simplex hotspot: later profiler evidence contained no `simplex`, `fbm`, `cloud_density`, or `generate_cloud` rows. The earlier FPS comparison depended on invalid screenshot/CLI-stall evidence, so no FPS effect is attributed to the cloud fix.
 
+## Empty-Stage UI Processing Boundary
+
+The preserved empty-stage run emitted **853,196** repeated `UIActionBar.BLP` blacklist lines, totaling **75.9 MB**, and starved IPC. The root cause was upstream scheduling: `UiRenderEnabled(false)` disabled only the ui-toolkit render subchain, while game-UI builders, registry/layout processing, button input, texture-related frame work, and game-UI observers continued to run.
+
+`game-engine` commit `508891a6` gates in-world UI builders and sync systems before the cumulative `Ui` stage, including minimap, action bars, unit frames, all registered in-world frame plugins, group frames, in-world game-menu paths, quest sparkles, and nameplate/health-bar observers. Teardown remains unconditional. `ui-toolkit` commit `50e4a17` adds default-enabled `UiProcessingEnabled` around the entire chained UI `Update` schedule while preserving the inner `UiRenderEnabled` and text gates.
+
+The Bevy performance panel is independent of this boundary: its startup, diagnostics, and overlay text systems are registered by `FpsOverlayPlugin` separately from ui-toolkit processing. Added tests cover each pre-`Ui` stage, enabled defaults, processing pause/re-enable behavior, and overlay survival. A corrected empty-stage runtime relaunch with networking, IPC, camera, window, and the performance panel still remains pending; no post-fix FPS or frame-time claim is made.
+
 ## Current In-World Performance Investigation
 
 A separate empty-stage investigation found replicated-unit semantic NOOPs before any visual-stage conclusion: the preserved client kept 133 `RemoteEntity` entries (132 NPCs plus one local player), rewrote stable `Transform`/`Visibility` state every frame, and received server payloads caused by equal movement/gravity writes. Fixes are committed in `game-engine` `3c77d346` and `game-server` `2927382`/`ae81c65`; no runtime FPS improvement is claimed until relaunch. See [[replicated-unit-noops]].
@@ -60,7 +68,11 @@ IPC screenshots are visual captures, not frame-timing measurements. The screensh
 - [game-engine app setup](../../src/app_setup.rs) — UI plugin registration and diagnostic override cleanup
 - [game-engine networking](../../src/game/networking/mod.rs) — connection and transport lifecycle evidence
 - [game-engine disconnect handling](../../src/game/networking/disconnect.rs) — reconnect/reset behavior
-- `ui-toolkit/src/plugin.rs` — text/UI render diagnostic resources and current shadow-only GREEN test
+- `ui-toolkit/src/plugin.rs` — `UiProcessingEnabled` full-schedule gate, inner render/text gates, and pause/re-enable test
+- [game-engine UI stage gates](../../../src/app_setup.rs) — pre-`Ui` plugin registration boundary
+- [in-world stage predicates](../../../src/game/state/inworld_scene_stage.rs) — cumulative stage ordering
+- `game-engine` commit `508891a6` — stop game-UI work before the `Ui` stage
+- `ui-toolkit` commit `50e4a17` — gate the complete toolkit UI update chain
 - `/tmp/claude/game-engine-perf/ui-enabled-systemd-control-stable.json` — enabled unprofiled control
 - `/tmp/claude/game-engine-perf/ui-text-disabled-unprofiled.json` — all-text-disabled unprofiled diagnostic
 - `/tmp/claude/game-engine-perf/ui-text-fix-logged-observation.json` — rejected equality-guard measurement and logged reconnect observation
@@ -79,3 +91,4 @@ IPC screenshots are visual captures, not frame-timing measurements. The screensh
 - [[rendering-pipeline]] — skybox and known rendering bottlenecks
 - [[skybox]] — authored and procedural sky composition
 - [[replicated-unit-noops]] — separate empty-stage networking/ECS no-op workload
+- [[ui-system]] — game-UI stage gates and toolkit processing boundary

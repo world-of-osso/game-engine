@@ -10,7 +10,7 @@ Engine subsystems and how they work.
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; initial M2 UV comparison inconclusive pending clean repeat
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, empty-stage NOOP boundaries, planned streaming
-- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, nameplates, unit frames, JS automation, keybindings
+- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, nameplates, unit frames, JS automation, keybindings
 - [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, collision reference
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, geosets, texture compositing, helmet hiding, target circles
@@ -53,7 +53,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, presentation/SSAO fixes, and current UI/render-resource investigation
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, presentation/SSAO fixes, empty-stage UI flood root cause, and pending relaunch proof
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, fixes, tests, and pending relaunch measurement
 
 ## Reference
