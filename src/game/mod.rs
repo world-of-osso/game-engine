@@ -12,6 +12,8 @@ pub(crate) mod equipment_appearance;
 
 #[path = "state/game_state.rs"]
 pub(crate) mod game_state;
+#[path = "state/inworld_scene_stage.rs"]
+pub(crate) mod inworld_scene_stage;
 
 #[path = "networking/mod.rs"]
 pub(crate) mod networking;

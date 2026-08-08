@@ -64,8 +64,9 @@ mod ui_input;
 pub use app_runtime::rgba_image;
 pub(crate) use app_runtime::{ScreenshotRequest, run_headless_ui_dump_app, take_screenshot};
 pub(crate) use game::{
-    client_options, creature_display, equipment, equipment_appearance, game_state, networking,
-    networking_auth, networking_messages, networking_npc, networking_player, zone_names,
+    client_options, creature_display, equipment, equipment_appearance, game_state,
+    inworld_scene_stage::InWorldSceneStage, networking, networking_auth, networking_messages,
+    networking_npc, networking_player, zone_names,
 };
 pub use rendering::{
     action_bar, animation, camera, character_customization, character_models, ground, health_bar,
@@ -374,6 +375,7 @@ fn run_app(
     let mut app = App::new();
     app.set_error_handler(handle_app_error);
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
+    insert_inworld_scene_stage_resource(&mut app, args);
     register_plugins(&mut app);
     configure_app_plugins(&mut app, args, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
@@ -382,6 +384,16 @@ fn run_app(
         app.insert_resource(scenes::char_select::AutoEnterWorld);
     }
     app.run();
+}
+
+fn insert_inworld_scene_stage_resource(app: &mut App, args: &[String]) {
+    match parse_inworld_scene_stage_arg(args) {
+        Ok(Some(stage)) => {
+            app.insert_resource(stage);
+        }
+        Ok(None) => {}
+        Err(err) => exit_with_arg_parse_error(&err),
+    }
 }
 
 fn insert_startup_resources(

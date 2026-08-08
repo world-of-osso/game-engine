@@ -20,6 +20,38 @@ fn screenshot_args_allow_flags_before_command() {
 }
 
 #[test]
+fn parse_inworld_scene_stage_supports_cumulative_stages() {
+    let cases = [
+        ("empty", InWorldSceneStage::Empty),
+        ("character", InWorldSceneStage::Character),
+        ("skybox", InWorldSceneStage::Skybox),
+        ("terrain", InWorldSceneStage::Terrain),
+        ("npcs", InWorldSceneStage::Npcs),
+        ("lighting", InWorldSceneStage::Lighting),
+        ("particles", InWorldSceneStage::Particles),
+        ("ui", InWorldSceneStage::Ui),
+    ];
+
+    for (value, expected) in cases {
+        let parsed = parse_inworld_scene_stage_arg(&args(&["--inworld-stage", value]))
+            .expect("expected valid stage")
+            .expect("expected configured stage");
+        assert_eq!(parsed, expected);
+    }
+
+    assert!(InWorldSceneStage::Ui.includes(InWorldSceneStage::Character));
+    assert!(InWorldSceneStage::Terrain.includes(InWorldSceneStage::Skybox));
+    assert!(!InWorldSceneStage::Character.includes(InWorldSceneStage::Skybox));
+}
+
+#[test]
+fn parse_inworld_scene_stage_rejects_unknown_values() {
+    let error = parse_inworld_scene_stage_arg(&args(&["--inworld-stage", "everything"]))
+        .expect_err("unknown stage must fail");
+    assert!(error.contains("everything"));
+}
+
+#[test]
 fn parse_screen_alias_matches_state_parser() {
     let parsed = parse_state_arg(&args(&["--screen", "charselect"]))
         .expect("expected valid parse")

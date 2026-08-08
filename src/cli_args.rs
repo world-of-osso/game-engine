@@ -3,6 +3,7 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use crate::InWorldSceneStage;
 use crate::ScreenshotRequest;
 use crate::game_state;
 use game_engine::game_state_enum::ScreenArg;
@@ -208,6 +209,13 @@ pub fn parse_char_arg(args: &[String]) -> Option<String> {
         .map(|w| w[1].clone())
 }
 
+pub fn parse_inworld_scene_stage_arg(args: &[String]) -> Result<Option<InWorldSceneStage>, String> {
+    let Some((_, value)) = find_flag_value(args, &["--inworld-stage"])? else {
+        return Ok(None);
+    };
+    InWorldSceneStage::parse(value).map(Some)
+}
+
 pub fn parse_load_scene_arg(args: &[String]) -> Result<Option<PathBuf>, String> {
     Ok(find_flag_value(args, &["--load-scene"])?.map(|(_, value)| PathBuf::from(value)))
 }
@@ -235,6 +243,9 @@ pub fn print_help() {
         "  --server <ADDR>     Game server address or alias (`dev`, `prod`); default: {DEFAULT_SERVER_ADDR}"
     );
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
+    println!(
+        "  --inworld-stage <STAGE>  Cumulative scene isolation: empty, character, skybox, terrain, npcs, lighting, particles, ui"
+    );
     println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
     println!("  --skybox-fdid <ID>  Force skyboxdebug to load a specific skybox FileDataID");
     println!("  --light-skybox-id <ID>  Force skyboxdebug to resolve a specific LightSkyboxID");
