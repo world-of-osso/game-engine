@@ -140,3 +140,48 @@ fn interpolation_skips_local_player_even_with_remote_marker() {
     let pos = app.world().get::<Transform>(entity).unwrap().translation;
     assert_eq!(pos, start);
 }
+
+#[derive(Resource, Default)]
+struct TransformChangeCount(usize);
+
+fn count_transform_changes(
+    changed: Query<(), Changed<Transform>>,
+    mut count: ResMut<TransformChangeCount>,
+) {
+    count.0 += changed.iter().count();
+}
+
+fn interpolation_change_test_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<TransformChangeCount>();
+    app.add_systems(
+        Update,
+        (interpolate_remote_entities, count_transform_changes).chain(),
+    );
+    app
+}
+
+#[test]
+fn interpolation_does_not_dirty_transform_at_target() {
+    let mut app = interpolation_change_test_app();
+    let entity = app
+        .world_mut()
+        .spawn((
+            InterpolationTarget { target: Vec3::ZERO },
+            RotationTarget { yaw: 0.0 },
+            Transform::IDENTITY,
+            RemoteEntity,
+        ))
+        .id();
+
+    app.update();
+    app.world_mut().resource_mut::<TransformChangeCount>().0 = 0;
+    app.update();
+
+    assert_eq!(app.world().resource::<TransformChangeCount>().0, 0);
+    assert_eq!(
+        *app.world().get::<Transform>(entity).unwrap(),
+        Transform::IDENTITY
+    );
+}

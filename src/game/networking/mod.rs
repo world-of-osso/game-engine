@@ -525,9 +525,16 @@ fn interpolate_remote_entities(
 ) {
     let t = (INTERPOLATION_SPEED * time.delta_secs()).min(1.0);
     for (interp, rot_target, mut transform) in query.iter_mut() {
-        transform.translation = transform.translation.lerp(interp.target, t);
+        let next_translation = transform.translation.lerp(interp.target, t);
+        if next_translation != transform.translation {
+            transform.translation = next_translation;
+        }
         if let Some(rot) = rot_target {
-            transform.rotation = transform.rotation.slerp(Quat::from_rotation_y(rot.yaw), t);
+            let target_rotation = Quat::from_rotation_y(rot.yaw);
+            let next_rotation = transform.rotation.slerp(target_rotation, t);
+            if next_rotation != transform.rotation {
+                transform.rotation = next_rotation;
+            }
         }
     }
 }

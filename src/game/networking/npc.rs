@@ -72,20 +72,101 @@ pub(crate) fn apply_npc_visibility_policy(
             local_alive.0,
             game_time.minutes,
         );
-        *visibility = if should_show {
+        let desired = if should_show {
             Visibility::Visible
         } else {
             Visibility::Hidden
         };
+        if *visibility != desired {
+            *visibility = desired;
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use bevy::prelude::*;
+    use lightyear::prelude::Replicated;
+    use shared::components::Npc;
+
+    use crate::networking::LocalAliveState;
+    use crate::rendering::sky::GameTime;
+
     use super::{
-        DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, NpcVisibilityPolicy, npc_should_be_visible,
-        npc_visibility_policy, schedule_is_active,
+        DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, NpcVisibilityPolicy, apply_npc_visibility_policy,
+        npc_should_be_visible, npc_visibility_policy, schedule_is_active,
     };
+
+    #[derive(Resource, Default)]
+    struct VisibilityChangeCount(usize);
+
+    fn count_visibility_changes(
+        changed: Query<(), Changed<Visibility>>,
+        mut count: ResMut<VisibilityChangeCount>,
+    ) {
+        count.0 += changed.iter().count();
+    }
+
+    fn visibility_policy_test_app() -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<LocalAliveState>();
+        app.init_resource::<GameTime>();
+        app.init_resource::<VisibilityChangeCount>();
+        app.add_systems(
+            Update,
+            (apply_npc_visibility_policy, count_visibility_changes).chain(),
+        );
+        app
+    }
+
+    fn spawn_visibility_test_npc(
+        app: &mut App,
+        template_id: u32,
+        visibility: Visibility,
+    ) -> Entity {
+        let receiver = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .spawn((Npc { template_id }, Replicated { receiver }, visibility))
+            .id()
+    }
+
+    #[test]
+    fn stable_npc_visibility_policy_does_not_mark_visibility_changed() {
+        let mut app = visibility_policy_test_app();
+        let npc = spawn_visibility_test_npc(&mut app, 32820, Visibility::Hidden);
+
+        app.update();
+        app.world_mut().resource_mut::<VisibilityChangeCount>().0 = 0;
+        app.update();
+
+        assert_eq!(app.world().resource::<VisibilityChangeCount>().0, 0);
+        assert_eq!(
+            *app.world().get::<Visibility>(npc).unwrap(),
+            Visibility::Hidden
+        );
+    }
+
+    #[test]
+    fn npc_visibility_policy_applies_real_state_change_once() {
+        let mut app = visibility_policy_test_app();
+        let npc = spawn_visibility_test_npc(&mut app, 6491, Visibility::Hidden);
+
+        app.update();
+        app.world_mut().resource_mut::<VisibilityChangeCount>().0 = 0;
+        app.world_mut().resource_mut::<LocalAliveState>().0 = false;
+        app.update();
+
+        assert_eq!(app.world().resource::<VisibilityChangeCount>().0, 1);
+        assert_eq!(
+            *app.world().get::<Visibility>(npc).unwrap(),
+            Visibility::Visible
+        );
+
+        app.world_mut().resource_mut::<VisibilityChangeCount>().0 = 0;
+        app.update();
+        assert_eq!(app.world().resource::<VisibilityChangeCount>().0, 0);
+    }
 
     #[test]
     fn day_schedule_is_active_between_dawn_and_dusk() {
