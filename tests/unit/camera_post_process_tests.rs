@@ -1,6 +1,8 @@
 use super::*;
 use crate::client_options::{AntiAliasMode, GraphicsOptions};
+use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::post_process::bloom::BloomCompositeMode;
 
 #[test]
@@ -78,4 +80,30 @@ fn reduced_render_scale_produces_smaller_main_pass_resolution() {
         camera_post_process::scaled_main_pass_resolution(UVec2::new(1920, 1080), 0.67),
         Some(UVec2::new(1286, 723))
     );
+}
+
+#[test]
+fn sync_camera_graphics_post_process_keeps_ssao_compatible_with_anti_aliasing() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(GraphicsOptions::default());
+    app.add_systems(
+        Update,
+        camera_post_process::sync_camera_graphics_post_process,
+    );
+
+    let camera_entity = spawn_wow_camera(&mut app.world_mut().commands());
+    app.update();
+
+    let camera = app.world().entity(camera_entity);
+    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Sample4));
+    assert!(camera.get::<ScreenSpaceAmbientOcclusion>().is_none());
+
+    app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Taa;
+    app.update();
+
+    let camera = app.world().entity(camera_entity);
+    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
+    assert!(camera.get::<TemporalAntiAliasing>().is_some());
+    assert!(camera.get::<ScreenSpaceAmbientOcclusion>().is_some());
 }
