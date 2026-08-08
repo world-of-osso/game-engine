@@ -2,9 +2,25 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-08] investigation | Reject unconditional M2 UV mutation
+
+Updated `investigations/procedural-cloud-regeneration.md`, `systems/rendering-pipeline.md`, and `index.md`. A valid direct paired run used the same binary/source/options/server/token/environment, ten readiness polls, one local player, stable world/material invariants, 125-second holds, and six unprofiled samples per condition. Enabled measured 31.767 FPS / 54.177 ms; disabled measured 36.843 FPS / 54.482 ms. Disabling M2 UV updates raised FPS but worsened frame time by 0.305 ms, so the required directional criterion rejected the hypothesis. Temporary selector/tests/flag were removed in `58e2f9c2`. First startup attempt exposed zero-byte hardcoded UI-toolkit font files; local cached copies restored startup.
+
+## [2026-08-08] investigation | Record stabilized UI/render performance evidence
+
+Updated `investigations/procedural-cloud-regeneration.md`, `systems/rendering-pipeline.md`, and `index.md`. Recorded the enabled control (**12.332 FPS / 81.157 ms**, 71 remote entities, `game-engine` `00e7b3b0` / `ui-toolkit` `5ead575`) and all-text-disabled diagnostic (**37.415 FPS / 26.785 ms**, 76 remote entities, `game-engine` `6806717c` / `ui-toolkit` `43a2784`). The runs used different revisions and exact workloads; the delta strongly implicates UI-text-associated rendering with moderate confidence, not proof. Recorded the rejected/reverted equality-guard experiment (**11.373 FPS / 90.230 ms**, commits `33fa74d`/`36d4692`), engine CPU/Compute Task Pool load, adapter-wide shared GPU-busy measurement, wgpu buffer-transition/unmap attribution, low text-extraction self-cost, and unresolved downstream causality. Distinguished unprofiled CLI performance evidence from profiler attribution. Recorded transient reconnect failures later cleared by an unchanged logged launch. Shadow-only diagnostic is implemented with a GREEN behavioral test; live measurement is pending. No production fix or FPS improvement claim is made.
+
+## [2026-08-08] fix | Record SSAO anti-aliasing compatibility
+
+Updated `investigations/procedural-cloud-regeneration.md`, `systems/rendering-pipeline.md`, and `index.md` for commit `cff4ad46` (`Keep SSAO compatible with anti-aliasing`). The real `WowCamera` now removes SSAO under default MSAA4x; switching to TAA restores `Msaa::Off`, `TemporalAntiAliasing`, and SSAO. The RED test reproduced SSAO with `Msaa::Sample4`; the exact GREEN compatibility test passes, removing the per-frame Bevy incompatibility error path. No runtime FPS improvement is claimed until the restarted engine is measured.
+
+## [2026-08-08] correction | Record Mailbox presentation evidence
+
+Updated `investigations/procedural-cloud-regeneration.md`, `systems/rendering-pipeline.md`, and `index.md` for commit `89f58874` (`Use mailbox presentation for VSync`). Corrected prior performance evidence: screenshots and the stale 15.68 FPS overlay are visual artifacts, not baselines; five seconds without CLI requests produced zero completed SSAO extraction frames; `ping`, `status`, and `performance` waited approximately one second; main-thread stacks waited in `SubApps::update`; and the render worker blocked in Vulkan `Queue::present` through Wayland `wl_display_dispatch_queue`/`ppoll` with events every approximately 0.96–0.97 seconds. The Vulkan surface supports Mailbox and FIFO. Existing `vsyncEnabled=false` selected Mailbox and removed the stall; production now maps VSync-enabled mode to Mailbox while VSync-disabled remains `AutoNoVsync`. Fully visible unfocused Mailbox evidence: 142 frames/5.009 seconds (28.35 FPS), CLI six-sample mean 29.32 FPS / 34.37 ms, request mean 38.7 ms, CPU 226.57% of one core, process GPU gfx busy 58.01%, system GPU busy mean 60.33%, network InWorld/connected. The cloud simplex hotspot disappeared, but its earlier FPS attribution is invalidated by the presentation stall. SSAO/MSAA remains unresolved.
+
 ## [2026-08-07] update | Record final procedural-cloud post-fix evidence
 
-Updated `investigations/procedural-cloud-regeneration.md` with final evidence: clean focused and visible-unfocused baselines of 27.98 FPS and 27.89 FPS; the exactly-once post-fix read-only `game-engine-cli performance` result `fps=28.14 frame_time_ms=35.54 focused=false`; a +0.25 FPS delta that is not meaningful; no screenshot use; five-second CPU/GPU samples; ten-second `perf record` with 1K samples, zero lost samples, and no procedural-cloud rows; healthy IPC/network state; and a 15,431-line entity-tree dump. The prior approximately 60% procedural simplex hotspot is removed, but frame rate is effectively unchanged. The engine journal also confirms 5,229 repeated SSAO/MSAA configuration errors, no reconnect loop, and no out-of-memory errors; no FPS-causality claim or fix was made. The screenshot `FPS: 1.00` artifact remains not fully isolated.
+Updated `investigations/procedural-cloud-regeneration.md` with provisional post-fix evidence later superseded by the presentation-stall investigation: screenshot-derived 27.98/27.89 FPS values and the single 28.14 CLI result were not valid baselines. The later correction records the Mailbox presentation fix and valid CLI evidence. The cloud simplex hotspot remains removed; SSAO/MSAA remains separate and unresolved.
 
 ## [2026-08-07] update | Document IPC performance diagnostics
 
@@ -12,7 +28,7 @@ Updated `AGENTS.md` and `investigations/procedural-cloud-regeneration.md` for co
 
 ## [2026-08-07] investigation | Remove synchronous procedural cloud regeneration
 
-Updated `systems/rendering-pipeline.md` and added `investigations/procedural-cloud-regeneration.md` for commit `b2b07e5b`: 512×1024 six-octave cloud textures regenerated synchronously every five seconds, with profiler self samples placing about 60% of sampled CPU in simplex cloud functions. Shader UV/time scrolling already animates clouds, so runtime regeneration was removed while preserving the three startup textures and visual settings. Clean user baselines are 27.98 FPS focused and 27.89 FPS unfocused; no post-fix improvement is claimed yet. IPC screenshots can show a transient 1.00 FPS overlay and are not valid FPS evidence; capture does not leave screenshot entities in the scene.
+Updated `systems/rendering-pipeline.md` and added `investigations/procedural-cloud-regeneration.md` for commit `b2b07e5b`: 512×1024 six-octave cloud textures regenerated synchronously every five seconds, with profiler self samples placing about 60% of sampled CPU in simplex cloud functions. Shader UV/time scrolling already animates clouds, so runtime regeneration was removed while preserving the three startup textures and visual settings. The earlier screenshot/CLI FPS values are now marked invalid because a separate presentation stall affected the measurement. IPC screenshots can show a transient 1.00 FPS overlay and are not valid FPS evidence; capture does not leave screenshot entities in the scene.
 
 ## [2026-04-30] update | Add Scenemachine M2 loading reference
 
