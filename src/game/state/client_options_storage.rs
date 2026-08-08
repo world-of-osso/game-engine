@@ -380,7 +380,8 @@ pub fn login_credentials_path() -> PathBuf {
 }
 
 fn world_of_osso_config_dir() -> PathBuf {
-    dirs::config_dir()
+    directories::BaseDirs::new()
+        .map(|dirs| dirs.config_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."))
         .join("world-of-osso")
 }
