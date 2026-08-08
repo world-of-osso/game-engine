@@ -1,13 +1,13 @@
 # Wiki Index
 
 Knowledge base for the game-engine project. 34 pages across 4 categories.
-Last updated: 2026-05-12.
+Last updated: 2026-08-08.
 
 ## Systems
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, blend modes, terrain/particle/skybox pipelines, known Bevy bugs
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; M2 UV mutation rejected as root cause
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, planned streaming
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, nameplates, unit frames, JS automation, keybindings
@@ -53,7 +53,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Synchronous procedural cloud regeneration hotspot and runtime-removal evidence
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, presentation/SSAO fixes, and current UI/render-resource investigation
 
 ## Reference
 
