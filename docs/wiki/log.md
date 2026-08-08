@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-07] update | Record final procedural-cloud post-fix evidence
+
+Updated `investigations/procedural-cloud-regeneration.md` with final evidence: clean focused and visible-unfocused baselines of 27.98 FPS and 27.89 FPS; the exactly-once post-fix read-only `game-engine-cli performance` result `fps=28.14 frame_time_ms=35.54 focused=false`; a +0.25 FPS delta that is not meaningful; no screenshot use; five-second CPU/GPU samples; ten-second `perf record` with 1K samples, zero lost samples, and no procedural-cloud rows; healthy IPC/network state; and a 15,431-line entity-tree dump. The prior approximately 60% procedural simplex hotspot is removed, but frame rate is effectively unchanged. The engine journal also confirms 5,229 repeated SSAO/MSAA configuration errors, no reconnect loop, and no out-of-memory errors; no FPS-causality claim or fix was made. The screenshot `FPS: 1.00` artifact remains not fully isolated.
+
 ## [2026-08-07] update | Document IPC performance diagnostics
 
 Updated `AGENTS.md` and `investigations/procedural-cloud-regeneration.md` for commit `9003b421`: `game-engine-cli performance` reports `fps`, `frame_time_ms`, and `focused`; screenshot `FPS: 1.00` overlays are capture-frame artifacts, not timing evidence.
