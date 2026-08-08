@@ -70,7 +70,7 @@ fn lookup_fdid_persists_reverse_lookup_results_in_local_cache() {
 }
 
 #[test]
-fn local_sqlite_cache_is_loaded_on_demand() {
+fn local_sqlite_cache_is_preloaded() {
     let test_dir = Path::new("target/test-artifacts/listfile");
     std::fs::create_dir_all(test_dir).unwrap();
     let community = test_dir.join("community-on-demand.csv");
@@ -81,7 +81,14 @@ fn local_sqlite_cache_is_loaded_on_demand() {
 
     let community_cache = test_dir.join("community-on-demand.sqlite");
     let listfile = Listfile::new(community, community_cache, local.clone());
-    assert!(listfile.local.lock().unwrap().by_fdid.is_empty());
+    {
+        let cache = listfile.local.lock().unwrap();
+        assert_eq!(
+            cache.by_fdid.get(&789).copied(),
+            Some("world/test/on_demand.m2")
+        );
+        assert_eq!(cache.by_path.get("world/test/on_demand.m2"), Some(&789));
+    }
 
     assert_eq!(listfile.lookup_fdid(789), Some("world/test/on_demand.m2"));
     assert_eq!(listfile.lookup_path("world/test/on_demand.m2"), Some(789));
