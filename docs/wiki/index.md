@@ -7,7 +7,7 @@ Last updated: 2026-08-08.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; M2 UV mutation rejected as root cause
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; initial M2 UV comparison inconclusive pending clean repeat
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, planned streaming
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, nameplates, unit frames, JS automation, keybindings
