@@ -96,6 +96,7 @@ fn save_regression_screenshot(img: &bevy::image::Image, output: &PathBuf) {
 
 fn register_bevy_plugins(app: &mut App) {
     app.add_plugins(default_plugins());
+    register_exit_diagnostics(app);
     register_ui_plugins(app);
     register_world_plugins(app);
     register_render_plugins(app);
@@ -105,6 +106,34 @@ fn register_bevy_plugins(app: &mut App) {
             ..default()
         },
     });
+}
+
+fn register_exit_diagnostics(app: &mut App) {
+    app.add_systems(Startup, || warn!("Exit diagnostics armed"))
+        .add_systems(PreUpdate, log_window_exit_messages)
+        .add_systems(Last, log_app_exit_messages);
+}
+
+fn log_window_exit_messages(
+    mut close_requested: MessageReader<bevy::window::WindowCloseRequested>,
+    mut closed: MessageReader<bevy::window::WindowClosed>,
+    mut destroyed: MessageReader<bevy::window::WindowDestroyed>,
+) {
+    for event in close_requested.read() {
+        warn!(window = ?event.window, "Exit diagnostics: WindowCloseRequested");
+    }
+    for event in closed.read() {
+        warn!(window = ?event.window, "Exit diagnostics: WindowClosed");
+    }
+    for event in destroyed.read() {
+        warn!(window = ?event.window, "Exit diagnostics: WindowDestroyed");
+    }
+}
+
+fn log_app_exit_messages(mut exits: MessageReader<AppExit>) {
+    for exit in exits.read() {
+        warn!(?exit, "Exit diagnostics: AppExit");
+    }
 }
 
 fn register_ui_plugins(app: &mut App) {
