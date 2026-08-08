@@ -22,15 +22,15 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Widget Types
 
-19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../ui-addon-architecture.md) for the full capability matrix.
+19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
 
 ## Nameplates
 
-Target-first nameplate design: current target gets full plate (name, health, cast), nearby combatants get compact plates, non-hostile/distant actors are hidden or faded. Three display states: hidden, compact, full. State driven by targeting, hostility, recent damage, and distance. See [nameplate-research-2026-03-27.md](../nameplate-research-2026-03-27.md).
+Target-first nameplate design: current target gets full plate (name, health, cast), nearby combatants get compact plates, non-hostile/distant actors are hidden or faded. Three display states: hidden, compact, full. State driven by targeting, hostility, recent damage, and distance. See [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md).
 
 ## Unit Frames
 
-PlayerFrame (232×100) and TargetFrame (232×100) mirror WoW's XML structure. PlayerFrame anchored at `x=268 y=850`; TargetFrame at `x=1100 y=850`. Both use real replicated ECS data: `LocalPlayer` + `Health`/`Mana` components; target via `CurrentTarget(Entity)`. Font: `FRIZQT__.TTF` 10px (`GameFontNormalSmall`). See [inworld-unit-frames-reference.md](../inworld-unit-frames-reference.md).
+PlayerFrame (232×100) and TargetFrame (232×100) mirror WoW's XML structure. PlayerFrame anchored at `x=268 y=850`; TargetFrame at `x=1100 y=850`. Both use real replicated ECS data: `LocalPlayer` + `Health`/`Mana` components; target via `CurrentTarget(Entity)`. Font: `FRIZQT__.TTF` 10px (`GameFontNormalSmall`). See [inworld-unit-frames-reference.md](../../inworld-unit-frames-reference.md).
 
 ## World Builder Sidebar
 
@@ -63,20 +63,20 @@ Machine-side proof at `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.j
 
 ## Known Issues
 
-**Hotreload frame stability**: on Dioxus hotreload, changed static attrs become dynamic, producing a new `Template` that doesn't match the old one. `diff_node` tears down and rebuilds the entire frame tree, making cached frame IDs stale. Fix: replace `templates: Vec<Template>` with `HashMap<TemplateGlobalKey, Template>` in `GameUiRenderer`. See [hotreload-frame-stability.md](../hotreload-frame-stability.md).
+**Hotreload frame stability**: on Dioxus hotreload, changed static attrs become dynamic, producing a new `Template` that doesn't match the old one. `diff_node` tears down and rebuilds the entire frame tree, making cached frame IDs stale. Fix: replace `templates: Vec<Template>` with `HashMap<TemplateGlobalKey, Template>` in `GameUiRenderer`. See [hotreload-frame-stability.md](../../hotreload-frame-stability.md).
 
-**EditBox focus visual**: nine-slice center part only covers the interior (inset by `edge_size`). Border textures have transparent inner areas, creating a gap between center fill and border line. WoW solves this with `backdropColor`; current approaches either produce square corners or leave unfilled strips. See [editbox-focus-texture-swap-2026-04-06.md](../editbox-focus-texture-swap-2026-04-06.md).
+**EditBox focus visual**: nine-slice center part only covers the interior (inset by `edge_size`). Border textures have transparent inner areas, creating a gap between center fill and border line. WoW solves this with `backdropColor`; current approaches either produce square corners or leave unfilled strips. See [editbox-focus-texture-swap-2026-04-06.md](../../editbox-focus-texture-swap-2026-04-06.md).
 
 ## Sources
 
-- [ui-addon-architecture.md](../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
-- [login-ui-porting.md](../login-ui-porting.md) — nine-slice editboxes, anchor layout, y-offset convention
-- [hotreload-frame-stability.md](../hotreload-frame-stability.md) — template key bug, fix approach
-- [ui-automation-debugging.md](../ui-automation-debugging.md) — JS automation API, debug scripts
-- [editbox-focus-texture-swap-2026-04-06.md](../editbox-focus-texture-swap-2026-04-06.md) — focus visual problem, core nine-slice gap issue
-- [inworld-unit-frames-reference.md](../inworld-unit-frames-reference.md) — PlayerFrame/TargetFrame geometry
-- [wow-ui-sim-layout-spec-2026-03-31.md](../wow-ui-sim-layout-spec-2026-03-31.md) — exact pixel geometry for frames and tabs
-- [nameplate-research-2026-03-27.md](../nameplate-research-2026-03-27.md) — nameplate design research
+- [ui-addon-architecture.md](../../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
+- [login-ui-porting.md](../../login-ui-porting.md) — nine-slice editboxes, anchor layout, y-offset convention
+- [hotreload-frame-stability.md](../../hotreload-frame-stability.md) — template key bug, fix approach
+- [ui-automation-debugging.md](../../ui-automation-debugging.md) — JS automation API, debug scripts
+- [editbox-focus-texture-swap-2026-04-06.md](../../editbox-focus-texture-swap-2026-04-06.md) — focus visual problem, core nine-slice gap issue
+- [inworld-unit-frames-reference.md](../../inworld-unit-frames-reference.md) — PlayerFrame/TargetFrame geometry
+- [wow-ui-sim-layout-spec-2026-03-31.md](../../wow-ui-sim-layout-spec-2026-03-31.md) — exact pixel geometry for frames and tabs
+- [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — nameplate design research
 - [keybindings-scope.md](../../keybindings-scope.md) — bindable vs fixed inputs
 - [in-world stage gating](../../../src/game/state/inworld_scene_stage.rs) — cumulative stage predicates
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration

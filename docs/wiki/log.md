@@ -2,7 +2,6 @@
 
 Chronological record of wiki operations.
 
-<<<<<<< HEAD
 ## [2026-08-09] fix | Record permanent Empty-to-Npcs camera gate
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and `index.md` for permanent behavior commit `3b144afc`. Recorded removal of the WowCamera TAA/SSAO/depth/normal/motion-prepass bundle plus `TemporalJitter`/`MipBias` through cumulative `Empty`–`Npcs`; `Lighting` onward and unconfigured/default stages retain graphics-option-driven behavior, including TAA restoration and configured MSAA depth/normal prepasses. Common bloom/render-scale/CAS/DoF, camera identity, tonemapping, shadow filtering, spatial audio, UI/network/IPC, and FPS overlay remain unchanged. The temporary selector was removed in `e9d3d470`. Alessio accepted the diagnostic cause. The historical PID `3367453` diagnostic client later exited at `2026-08-09T06:05:43Z` with `WindowCloseRequested` followed by `AppExit Success`; its socket is gone, with no coredump, OOM kill, crash, or agent lifecycle action. It was not permanent-build verification, and the permanent Empty replacement human gate remains pending; do not relaunch or advance it without Alessio's explicit permission.
@@ -21,7 +20,7 @@ Added `investigations/replicated-unit-noops.md`; updated `systems/networking.md`
 
 ## [2026-08-08] feature | Document World Builder diagnostic sidebar
 
-Added `systems/world-builder.md` and updated `systems/ui-system.md`, `reference/keybindings.md`, and `index.md`. Recorded opt-in lifecycle, scene inventory, reversible render/processing overrides, bounded property editing, fixed F9 input, and measurement constraints.
+Added `specs/world-builder.md` and `systems/world-builder.md`; updated `systems/ui-system.md`, `reference/keybindings.md`, and `index.md`. Recorded opt-in lifecycle, scene inventory, reversible render/processing overrides, bounded property editing, fixed F9 input, and measurement constraints.
 
 ## [2026-08-08] investigation | Record preliminary M2 UV comparison
 
