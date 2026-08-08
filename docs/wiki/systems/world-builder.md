@@ -58,6 +58,8 @@ Do not treat screenshot frames or frames immediately following `dump-scene` as p
 - [`src/rendering/ui/world_builder/runtime.rs`](../../../src/rendering/ui/world_builder/runtime.rs) — interaction, ECS mutation, and M2 material filtering
 - [`src/rendering/particles/emitters.rs`](../../../src/rendering/particles/emitters.rs) — particle-effect registration query
 - [`src/rendering/particles/emitters_model_particles.rs`](../../../src/rendering/particles/emitters_model_particles.rs) — model-particle tick and simulation queries
+- [`src/rendering/particles/mod.rs`](../../../src/rendering/particles/mod.rs) — particle system scheduling
+- [`src/rendering/model/animation.rs`](../../../src/rendering/model/animation.rs) — M2 animation queries filtered by `Disabled`
 - [`src/ui/screens/world_builder_component.rs`](../../../src/ui/screens/world_builder_component.rs) — sidebar view and action contract
 
 ## See Also

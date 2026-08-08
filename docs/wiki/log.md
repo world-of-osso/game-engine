@@ -4,7 +4,7 @@ Chronological record of wiki operations.
 
 ## [2026-08-08] feature | Document World Builder diagnostic sidebar
 
-Added `systems/world-builder.md` and updated `systems/ui-system.md`, `reference/keybindings.md`, and `index.md`. Recorded opt-in lifecycle, scene inventory, reversible render/processing overrides, bounded property editing, fixed F9 input, and measurement constraints.
+Added `specs/world-builder.md` and `systems/world-builder.md`; updated `systems/ui-system.md`, `reference/keybindings.md`, and `index.md`. Recorded opt-in lifecycle, scene inventory, reversible render/processing overrides, bounded property editing, fixed F9 input, and measurement constraints.
 
 ## [2026-08-08] investigation | Record preliminary M2 UV comparison
 
