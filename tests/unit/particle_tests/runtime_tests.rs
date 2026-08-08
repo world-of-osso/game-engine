@@ -1,5 +1,18 @@
 use super::*;
 
+fn model_particle_test_app() -> App {
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<Mesh>>();
+    app.world_mut().init_resource::<Assets<StandardMaterial>>();
+    app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
+    app.world_mut().init_resource::<Assets<Image>>();
+    app.world_mut()
+        .init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+    app.world_mut().insert_resource(CreatureDisplayMap);
+    app.world_mut().insert_resource(Time::<()>::default());
+    app
+}
+
 #[test]
 fn world_space_emitters_skip_bone_parent_transform() {
     let mut emitter = sample_emitter();
@@ -313,16 +326,7 @@ fn burst_model_particle_spawner_fires_only_once() {
 
 #[test]
 fn model_particle_runtime_spawns_static_m2_instance() {
-    let mut app = App::new();
-    app.world_mut().init_resource::<Assets<Mesh>>();
-    app.world_mut().init_resource::<Assets<StandardMaterial>>();
-    app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
-    app.world_mut().init_resource::<Assets<Image>>();
-    app.world_mut()
-        .init_resource::<Assets<SkinnedMeshInverseBindposes>>();
-    app.world_mut().insert_resource(CreatureDisplayMap);
-    app.world_mut().insert_resource(Time::<()>::default());
-
+    let mut app = model_particle_test_app();
     let emitter = {
         let mut emitter = sample_emitter();
         emitter.particle_model_filename = Some("data/models/club_1h_torch_a_01.m2".to_string());
@@ -363,6 +367,89 @@ fn model_particle_runtime_spawns_static_m2_instance() {
             .count()
             > 0
     );
+}
+
+#[test]
+fn disabled_model_particle_emitter_is_not_ticked() {
+    let mut app = model_particle_test_app();
+    let emitter_entity = app
+        .world_mut()
+        .spawn((
+            Disabled,
+            GlobalTransform::IDENTITY,
+            Transform::IDENTITY,
+            ModelParticleEmitterComp {
+                emitter: sample_emitter(),
+                bone_entity: None,
+                scale_source: Entity::PLACEHOLDER,
+                spawn_mode: ParticleSpawnMode::BurstOnce,
+                spawn_source: ParticleSpawnSource::Standalone,
+                requested_model_path: "unused.m2".to_string(),
+                resolved_model_path: Some("unused.m2".into()),
+            },
+            ModelParticleEmitterRuntime::default(),
+        ))
+        .id();
+    app.world_mut()
+        .entity_mut(emitter_entity)
+        .get_mut::<ModelParticleEmitterComp>()
+        .unwrap()
+        .scale_source = emitter_entity;
+
+    app.world_mut()
+        .run_system_once(super::super::emitters::tick_model_particle_emitters)
+        .expect("model particle tick should run");
+    app.world_mut().flush();
+
+    let runtime = app
+        .world()
+        .entity(emitter_entity)
+        .get::<ModelParticleEmitterRuntime>()
+        .expect("emitter runtime should remain present");
+    assert!(!runtime.burst_fired);
+    assert_eq!(runtime.spawn_serial, 0);
+    assert_eq!(
+        app.world_mut()
+            .query::<&ModelParticleInstance>()
+            .iter(app.world())
+            .count(),
+        0
+    );
+}
+
+#[test]
+fn disabled_hanabi_emitter_is_not_registered() {
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<EffectAsset>>();
+    let emitter_entity = app
+        .world_mut()
+        .spawn((Disabled, Transform::IDENTITY, GlobalTransform::IDENTITY))
+        .id();
+    app.world_mut()
+        .entity_mut(emitter_entity)
+        .insert(ParticleEmitterComp {
+            emitter: sample_emitter(),
+            bone_entity: None,
+            scale_source: emitter_entity,
+            spawn_mode: ParticleSpawnMode::Continuous,
+            spawn_source: ParticleSpawnSource::Standalone,
+            child_emitters: Vec::new(),
+            effect_parent: None,
+            pending_texture: None,
+        });
+
+    app.world_mut()
+        .run_system_once(super::super::emitters::register_pending_particle_effects)
+        .expect("particle registration should run");
+    app.world_mut().flush();
+
+    assert!(
+        app.world()
+            .entity(emitter_entity)
+            .get::<ParticleEffect>()
+            .is_none()
+    );
+    assert!(app.world().resource::<Assets<EffectAsset>>().is_empty());
 }
 
 #[test]

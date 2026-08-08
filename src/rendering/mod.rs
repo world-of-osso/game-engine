@@ -86,5 +86,7 @@ pub mod target;
 pub mod targeting;
 #[path = "ui/unit_frames.rs"]
 pub mod unit_frames;
+#[path = "ui/world_builder.rs"]
+pub mod world_builder;
 #[path = "ui/wow_cursor.rs"]
 pub mod wow_cursor;

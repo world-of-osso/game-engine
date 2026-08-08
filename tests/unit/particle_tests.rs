@@ -1,11 +1,14 @@
 use bevy::asset::Assets;
-use bevy::ecs::system::RunSystemOnce;
+use bevy::ecs::{entity_disabling::Disabled, system::RunSystemOnce};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::{
     App, Entity, GlobalTransform, Image, Mesh, Quat, StandardMaterial, Time, Transform, Update,
     Vec3,
 };
-use bevy_hanabi::{AlphaMode, Attribute, EffectProperties, ExprWriter, SimulationSpace, Value};
+use bevy_hanabi::{
+    AlphaMode, Attribute, EffectAsset, EffectProperties, ExprWriter, ParticleEffect,
+    SimulationSpace, Value,
+};
 use std::path::Path;
 use std::time::Instant;
 

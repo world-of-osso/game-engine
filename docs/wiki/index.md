@@ -1,6 +1,6 @@
 # Wiki Index
 
-Knowledge base for the game-engine project. 34 pages across 4 categories.
+Knowledge base for the game-engine project. 35 pages across 4 categories.
 Last updated: 2026-08-08.
 
 ## Systems
@@ -11,6 +11,7 @@ Engine subsystems and how they work.
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, planned streaming
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, nameplates, unit frames, JS automation, keybindings
+- [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, collision reference
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, geosets, texture compositing, helmet hiding, target circles

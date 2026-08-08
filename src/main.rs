@@ -74,7 +74,7 @@ pub use rendering::{
     sky_lightdata, sky_material, skybox_m2_material, target, terrain, terrain_heightmap,
     terrain_load_limits, terrain_load_progress, terrain_lod, terrain_material,
     terrain_memory_debug, terrain_objects, terrain_tile, unit_frames, water_material, weather,
-    wow_cursor,
+    world_builder, wow_cursor,
 };
 
 use animation::AnimationPlugin;
@@ -127,6 +127,7 @@ fn main() {
         cli.dump_tree,
         cli.dump_ui_tree,
         cli.dump_scene,
+        cli.world_builder,
         cli.screenshot,
         cli.initial_state,
     );
@@ -146,6 +147,7 @@ struct CliFlags {
     dump_tree: bool,
     dump_ui_tree: bool,
     dump_scene: bool,
+    world_builder: bool,
     load_scene: Option<PathBuf>,
     screenshot: Option<ScreenshotRequest>,
     initial_state: Option<game_state::GameState>,
@@ -182,6 +184,7 @@ fn parse_cli_flags(args: &[String]) -> CliFlags {
         dump_tree: args.iter().any(|a| a == "--dump-tree"),
         dump_ui_tree: args.iter().any(|a| a == "--dump-ui-tree"),
         dump_scene: args.iter().any(|a| a == "--dump-scene"),
+        world_builder: args.iter().any(|a| a == "--world-builder"),
         load_scene,
         screenshot: parse_screenshot_args(args),
         initial_state,
@@ -366,6 +369,7 @@ fn run_app(
     dump_tree: bool,
     dump_ui_tree: bool,
     dump_scene: bool,
+    world_builder_enabled: bool,
     screenshot: Option<ScreenshotRequest>,
     initial_state: Option<game_state::GameState>,
 ) {
@@ -378,10 +382,17 @@ fn run_app(
     configure_app_plugins(&mut app, args, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
+    add_optional_world_builder_plugin(&mut app, world_builder_enabled);
     if parsed.auto_enter_world {
         app.insert_resource(scenes::char_select::AutoEnterWorld);
     }
     app.run();
+}
+
+fn add_optional_world_builder_plugin(app: &mut App, enabled: bool) {
+    if enabled {
+        app.add_plugins(world_builder::WorldBuilderPlugin);
+    }
 }
 
 fn insert_startup_resources(
