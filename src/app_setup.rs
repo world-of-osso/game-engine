@@ -235,13 +235,17 @@ pub(crate) fn register_plugins(app: &mut App) {
         (
             log_window_backend,
             setup_explicit_asset_scene,
-            wow_cursor::install_wow_cursor,
-            game_engine::ui::panel_styles::register_panel_styles,
+            wow_cursor::install_wow_cursor
+                .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
+            game_engine::ui::panel_styles::register_panel_styles
+                .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
         ),
     )
     .add_systems(
         Update,
-        wow_cursor::update_wow_cursor_style.run_if(in_state(game_state::GameState::InWorld)),
+        wow_cursor::update_wow_cursor_style
+            .run_if(in_state(game_state::GameState::InWorld))
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
     );
     status_sync::init_status_resources(app);
 }

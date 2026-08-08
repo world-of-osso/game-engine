@@ -10,6 +10,7 @@ use game_engine::ui::screens::talent_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
 
@@ -36,7 +37,10 @@ pub struct TalentFramePlugin;
 impl Plugin for TalentFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TalentFrameOpen>();
-        app.add_systems(OnEnter(GameState::InWorld), build_talent_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_talent_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_talent_frame_ui);
         app.add_systems(
             Update,
@@ -45,7 +49,8 @@ impl Plugin for TalentFramePlugin {
                 sync_talent_frame_state,
                 handle_talent_frame_input,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

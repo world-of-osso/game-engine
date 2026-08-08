@@ -18,6 +18,7 @@ use game_engine::ui::screens::raid_frame_component::{RaidFrameState, RaidGroup, 
 use shared::components::{Health as NetHealth, Player as NetPlayer};
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use crate::ui_input::walk_up_for_onclick;
@@ -67,12 +68,16 @@ impl Plugin for GroupFramesPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GroupFrameMenu>();
         app.init_resource::<GroupFrameClickMap>();
-        app.add_systems(OnEnter(GameState::InWorld), build_group_frames_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_group_frames_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_group_frames_ui);
         app.add_systems(
             Update,
             (sync_group_frames_state, handle_group_frame_pointer)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

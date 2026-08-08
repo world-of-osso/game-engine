@@ -9,6 +9,7 @@ use game_engine::ui::screens::world_map_frame_component::{
 use game_engine::world_map_data::{PinType, WorldMapState};
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::CurrentZone;
 use crate::ui_input::walk_up_for_onclick;
@@ -41,7 +42,10 @@ pub struct WorldMapFramePlugin;
 impl Plugin for WorldMapFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WorldMapFrameOpen>();
-        app.add_systems(OnEnter(GameState::InWorld), build_world_map_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_world_map_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_world_map_frame_ui);
         app.add_systems(
             Update,
@@ -50,7 +54,8 @@ impl Plugin for WorldMapFramePlugin {
                 sync_world_map_frame_state,
                 handle_world_map_frame_input,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

@@ -18,6 +18,7 @@ use game_engine::ui::screens::calendar_frame_component::{
 use shared::protocol::CalendarSignupStatusSnapshot;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
 
@@ -49,12 +50,16 @@ impl Plugin for CalendarFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CalendarFrameOpen>();
         app.init_resource::<CalendarFrameSelection>();
-        app.add_systems(OnEnter(GameState::InWorld), build_calendar_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_calendar_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_calendar_frame_ui);
         app.add_systems(
             Update,
             (sync_calendar_frame_state, handle_calendar_frame_input)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

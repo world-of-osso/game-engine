@@ -52,6 +52,76 @@ fn parse_inworld_scene_stage_rejects_unknown_values() {
 }
 
 #[test]
+fn every_pre_ui_stage_disables_ui_processing_and_rendering() {
+    use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
+
+    for stage in [
+        InWorldSceneStage::Empty,
+        InWorldSceneStage::Character,
+        InWorldSceneStage::Skybox,
+        InWorldSceneStage::Terrain,
+        InWorldSceneStage::Npcs,
+        InWorldSceneStage::Lighting,
+        InWorldSceneStage::Particles,
+    ] {
+        let mut app = App::new();
+        app.insert_resource(stage);
+        apply_inworld_scene_stage_ui_gates(&mut app);
+
+        assert!(!app.world().resource::<UiProcessingEnabled>().0);
+        assert!(!app.world().resource::<UiRenderEnabled>().0);
+        assert!(!app.world().resource::<UiTextRenderEnabled>().0);
+    }
+}
+
+#[test]
+fn ui_and_unconfigured_stages_preserve_enabled_ui_defaults() {
+    use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
+
+    for stage in [Some(InWorldSceneStage::Ui), None] {
+        let mut app = App::new();
+        if let Some(stage) = stage {
+            app.insert_resource(stage);
+        }
+        app.insert_resource(UiProcessingEnabled::default());
+        app.insert_resource(UiRenderEnabled::default());
+        app.insert_resource(UiTextRenderEnabled::default());
+
+        apply_inworld_scene_stage_ui_gates(&mut app);
+
+        assert!(app.world().resource::<UiProcessingEnabled>().0);
+        assert!(app.world().resource::<UiRenderEnabled>().0);
+        assert!(app.world().resource::<UiTextRenderEnabled>().0);
+    }
+}
+
+#[test]
+fn pre_ui_processing_gate_keeps_fps_overlay_active() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::text::TextPlugin::default());
+    app.init_asset::<bevy::shader::Shader>();
+    app.init_asset::<bevy::render::storage::ShaderStorageBuffer>();
+    app.add_plugins(FpsOverlayPlugin {
+        config: FpsOverlayConfig {
+            refresh_interval: Duration::from_secs(1),
+            ..default()
+        },
+    });
+    app.insert_resource(InWorldSceneStage::Empty);
+    apply_inworld_scene_stage_ui_gates(&mut app);
+
+    app.update();
+
+    let mut text_query = app.world_mut().query::<&Text>();
+    assert!(
+        text_query.iter(app.world()).any(|text| text.0 == "FPS: "),
+        "FPS overlay text was not spawned while game UI processing was disabled"
+    );
+}
+
+#[test]
 fn parse_screen_alias_matches_state_parser() {
     let parsed = parse_state_arg(&args(&["--screen", "charselect"]))
         .expect("expected valid parse")

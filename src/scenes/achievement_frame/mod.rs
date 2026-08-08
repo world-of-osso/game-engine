@@ -6,6 +6,7 @@ use game_engine::ui::screens::achievement_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use game_engine::achievements::{
     AchievementCompletionState, achievements_for_category, build_category_tree, categories_for_tab,
@@ -35,12 +36,16 @@ impl Plugin for AchievementFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AchievementFrameOpen>();
         app.init_resource::<AchievementCompletionState>();
-        app.add_systems(OnEnter(GameState::InWorld), build_achievement_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_achievement_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_achievement_frame_ui);
         app.add_systems(
             Update,
             (toggle_achievement_frame, sync_achievement_frame_state)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

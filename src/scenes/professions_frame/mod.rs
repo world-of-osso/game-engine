@@ -10,6 +10,7 @@ use game_engine::ui::screens::professions_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
 
@@ -43,7 +44,10 @@ impl Plugin for ProfessionsFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ProfessionsFrameOpen>();
         app.init_resource::<ProfessionsFrameSelection>();
-        app.add_systems(OnEnter(GameState::InWorld), build_professions_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_professions_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_professions_frame_ui);
         app.add_systems(
             Update,
@@ -52,7 +56,8 @@ impl Plugin for ProfessionsFramePlugin {
                 sync_professions_frame_state,
                 handle_professions_frame_input,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

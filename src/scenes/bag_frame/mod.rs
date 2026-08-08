@@ -9,6 +9,7 @@ use game_engine::ui::screens::bag_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::sound::{UiSoundKind, UiSoundQueue, queue_ui_sound};
 use crate::ui_input::walk_up_for_onclick;
@@ -61,11 +62,16 @@ impl Plugin for BagFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BagFrameOpenState>();
         app.init_resource::<InventoryState>();
-        app.add_systems(OnEnter(GameState::InWorld), build_bag_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_bag_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_bag_frame_ui);
         app.add_systems(
             Update,
-            (toggle_bag_frame, sync_bag_frame_state).run_if(in_state(GameState::InWorld)),
+            (toggle_bag_frame, sync_bag_frame_state)
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

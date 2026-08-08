@@ -9,6 +9,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
 use crate::client_options::HudVisibilityToggles;
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::minimap_render::{
     blit_image, create_arrow_image, create_blank_image, create_border_image, render_tile_image,
@@ -117,21 +118,28 @@ impl Plugin for MinimapPlugin {
 }
 
 fn register_minimap_systems(app: &mut App) {
-    let in_world = in_state(GameState::InWorld);
-    app.add_systems(Startup, create_minimap_frames)
-        .add_systems(OnEnter(GameState::InWorld), show_minimap_hud)
-        .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
-        .add_systems(Update, sync_minimap_visibility)
-        .add_systems(Update, generate_tile_textures.run_if(in_world.clone()))
-        .add_systems(
-            Update,
-            update_minimap_composite
-                .after(generate_tile_textures)
-                .run_if(in_world.clone()),
+    app.add_systems(
+        Startup,
+        create_minimap_frames.run_if(inworld_scene_stage_allows_ui),
+    )
+    .add_systems(
+        OnEnter(GameState::InWorld),
+        show_minimap_hud.run_if(inworld_scene_stage_allows_ui),
+    )
+    .add_systems(OnExit(GameState::InWorld), hide_minimap_hud)
+    .add_systems(
+        Update,
+        (
+            sync_minimap_visibility,
+            generate_tile_textures,
+            update_minimap_composite.after(generate_tile_textures),
+            update_coord_text,
+            update_zone_name,
+            rotate_minimap,
         )
-        .add_systems(Update, update_coord_text.run_if(in_world.clone()))
-        .add_systems(Update, update_zone_name.run_if(in_world.clone()))
-        .add_systems(Update, rotate_minimap.run_if(in_world));
+            .run_if(in_state(GameState::InWorld))
+            .run_if(inworld_scene_stage_allows_ui),
+    );
 }
 
 fn resolve_frame_id(registry: &FrameRegistry, name: &str) -> u64 {

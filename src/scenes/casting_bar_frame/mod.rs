@@ -6,6 +6,7 @@ use game_engine::ui::screens::casting_bar_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 
 struct CastingBarFrameRes {
@@ -27,13 +28,17 @@ pub struct CastingBarFramePlugin;
 impl Plugin for CastingBarFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CastingState>();
-        app.add_systems(OnEnter(GameState::InWorld), build_casting_bar_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_casting_bar_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_casting_bar_ui);
         app.add_systems(
             Update,
             (tick_casting_state, sync_casting_bar_state)
                 .chain()
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

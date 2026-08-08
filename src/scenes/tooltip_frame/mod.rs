@@ -12,6 +12,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
 
 use crate::client_options::GraphicsOptions;
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 
@@ -113,11 +114,16 @@ pub struct TooltipFramePlugin;
 
 impl Plugin for TooltipFramePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::InWorld), build_tooltip_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_tooltip_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_tooltip_frame_ui);
         app.add_systems(
             Update,
-            (sync_tooltip_root_size, sync_tooltip_frame_state).run_if(in_state(GameState::InWorld)),
+            (sync_tooltip_root_size, sync_tooltip_frame_state)
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

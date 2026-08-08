@@ -7,6 +7,7 @@ use game_engine::ui::screens::character_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 
 /// Tracks whether the Character panel is open.
@@ -32,12 +33,16 @@ pub struct CharacterFramePlugin;
 impl Plugin for CharacterFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CharacterFrameOpen>();
-        app.add_systems(OnEnter(GameState::InWorld), build_character_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_character_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_character_frame_ui);
         app.add_systems(
             Update,
             (toggle_character_frame, sync_character_frame_state)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

@@ -10,6 +10,7 @@ use game_engine::ui::screens::encounter_journal_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 
 #[derive(Resource, Default)]
@@ -36,7 +37,7 @@ impl Plugin for EncounterJournalFramePlugin {
         app.init_resource::<EncounterJournalFrameOpen>();
         app.add_systems(
             OnEnter(GameState::InWorld),
-            build_encounter_journal_frame_ui,
+            build_encounter_journal_frame_ui.run_if(inworld_scene_stage_allows_ui),
         );
         app.add_systems(
             OnExit(GameState::InWorld),
@@ -48,7 +49,8 @@ impl Plugin for EncounterJournalFramePlugin {
                 toggle_encounter_journal_frame,
                 sync_encounter_journal_frame_state,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

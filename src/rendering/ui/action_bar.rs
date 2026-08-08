@@ -12,6 +12,7 @@ use game_engine::ui::widgets::font_string::{FontStringData, JustifyH};
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::client_options::HudVisibilityToggles;
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use game_engine::ui::anchor::{Anchor, AnchorPoint};
 
@@ -70,7 +71,10 @@ pub struct ActionBarPlugin;
 
 impl Plugin for ActionBarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::InWorld), build_action_bars);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_action_bars.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_action_bars);
         app.add_systems(
             Update,
@@ -80,7 +84,8 @@ impl Plugin for ActionBarPlugin {
                 sync_action_bar_money_display,
                 sync_action_bar_visibility,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }
@@ -479,6 +484,62 @@ mod tests {
             panic!("{name} is not a font string");
         };
         data.justify_h
+    }
+
+    fn action_bar_plugin_app(stage: crate::game::inworld_scene_stage::InWorldSceneStage) -> App {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.insert_state(GameState::InWorld);
+        app.insert_resource(stage);
+        app.insert_resource(UiState {
+            registry: FrameRegistry::new(1920.0, 1080.0),
+            event_bus: game_engine::ui::event::EventBus::new(),
+            focused_frame: None,
+        });
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.init_resource::<InputBindings>();
+        app.add_plugins(ActionBarPlugin);
+        app.update();
+        app
+    }
+
+    #[test]
+    fn action_bar_plugin_skips_every_pre_ui_stage() {
+        use crate::game::inworld_scene_stage::InWorldSceneStage;
+
+        for stage in [
+            InWorldSceneStage::Empty,
+            InWorldSceneStage::Character,
+            InWorldSceneStage::Skybox,
+            InWorldSceneStage::Terrain,
+            InWorldSceneStage::Npcs,
+            InWorldSceneStage::Lighting,
+            InWorldSceneStage::Particles,
+        ] {
+            let app = action_bar_plugin_app(stage);
+            assert!(
+                app.world()
+                    .resource::<UiState>()
+                    .registry
+                    .get_by_name("MainActionBar")
+                    .is_none(),
+                "action bars were built during {stage:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn action_bar_plugin_builds_ui_stage() {
+        let app = action_bar_plugin_app(crate::game::inworld_scene_stage::InWorldSceneStage::Ui);
+        assert!(
+            app.world()
+                .resource::<UiState>()
+                .registry
+                .get_by_name("MainActionBar")
+                .is_some()
+        );
     }
 
     #[test]

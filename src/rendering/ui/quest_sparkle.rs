@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use game_engine::quest_data::QuestLogState;
 use game_engine::quest_tracking::{QuestTrackedItem, should_sparkle};
@@ -10,7 +11,9 @@ impl Plugin for QuestSparklePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            sync_quest_sparkles.run_if(in_state(GameState::InWorld)),
+            sync_quest_sparkles
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

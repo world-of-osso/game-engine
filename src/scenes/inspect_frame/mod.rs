@@ -8,6 +8,7 @@ use game_engine::ui::screens::inspect_frame_component::{
 use shared::components::{EquipmentAppearance, EquipmentVisualSlot};
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 
 struct InspectFrameRes {
@@ -28,11 +29,16 @@ pub struct InspectFramePlugin;
 
 impl Plugin for InspectFramePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::InWorld), build_inspect_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_inspect_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_inspect_frame_ui);
         app.add_systems(
             Update,
-            sync_inspect_frame_state.run_if(in_state(GameState::InWorld)),
+            sync_inspect_frame_state
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

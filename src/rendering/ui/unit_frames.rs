@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use shared::components::{Health as NetHealth, Mana as NetMana, Npc, Player as NetPlayer};
 
 use crate::client_options::{GraphicsOptions, HudVisibilityToggles};
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
@@ -44,7 +45,10 @@ pub struct InWorldUnitFramesPlugin;
 
 impl Plugin for InWorldUnitFramesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::InWorld), build_inworld_unit_frames_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_inworld_unit_frames_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_inworld_unit_frames_ui);
         app.add_systems(
             Update,
@@ -52,7 +56,8 @@ impl Plugin for InWorldUnitFramesPlugin {
                 sync_inworld_unit_frames_root_size,
                 sync_inworld_unit_frames_ui,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

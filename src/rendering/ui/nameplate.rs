@@ -6,6 +6,9 @@ use crate::asset::asset_cache;
 use crate::client_options::{
     DEFAULT_NAMEPLATE_DISTANCE, GraphicsOptions, HudOptions, HudVisibilityToggles,
 };
+use crate::game::inworld_scene_stage::{
+    InWorldSceneStage, configured_inworld_scene_stage, inworld_scene_stage_allows_ui,
+};
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
@@ -27,7 +30,8 @@ impl Plugin for NameplatePlugin {
                 fade_nameplates_by_distance,
                 sync_quest_indicators,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }
@@ -65,7 +69,11 @@ fn spawn_player_nameplate(
     trigger: On<Add, NetPlayer>,
     mut commands: Commands,
     query: Query<&NetPlayer>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
 ) {
+    if !configured_inworld_scene_stage(scene_stage).includes(InWorldSceneStage::Ui) {
+        return;
+    }
     let entity = trigger.entity;
     let Ok(player) = query.get(entity) else {
         return;
@@ -82,7 +90,15 @@ fn spawn_player_nameplate(
 }
 
 /// Observer: spawn a nameplate child when an Npc is added.
-fn spawn_npc_nameplate(trigger: On<Add, Npc>, mut commands: Commands, query: Query<&Npc>) {
+fn spawn_npc_nameplate(
+    trigger: On<Add, Npc>,
+    mut commands: Commands,
+    query: Query<&Npc>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
+) {
+    if !configured_inworld_scene_stage(scene_stage).includes(InWorldSceneStage::Ui) {
+        return;
+    }
     let entity = trigger.entity;
     let Ok(npc) = query.get(entity) else { return };
     let label = format!("Creature {}", npc.template_id);

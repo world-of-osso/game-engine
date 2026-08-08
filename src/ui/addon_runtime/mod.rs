@@ -6,7 +6,7 @@ use std::sync::mpsc::Receiver;
 use bevy::log::{info, warn};
 use bevy::prelude::*;
 use ui_toolkit::anchor::AnchorPoint;
-use ui_toolkit::plugin::UiState;
+use ui_toolkit::plugin::{UiProcessingEnabled, UiState};
 
 use crate::ui::addon_watcher::{scan_addon_dir, start_addon_watcher};
 
@@ -83,9 +83,18 @@ pub struct AddonRuntimePlugin;
 
 impl Plugin for AddonRuntimePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, init_addon_runtime);
-        app.add_systems(Update, (reload_changed_addons, apply_loaded_addons).chain());
+        app.add_systems(Startup, init_addon_runtime.run_if(ui_updates_enabled));
+        app.add_systems(
+            Update,
+            (reload_changed_addons, apply_loaded_addons)
+                .chain()
+                .run_if(ui_updates_enabled),
+        );
     }
+}
+
+fn ui_updates_enabled(enabled: Res<UiProcessingEnabled>) -> bool {
+    enabled.0
 }
 
 fn init_addon_runtime(mut commands: Commands, mut ui: ResMut<UiState>) {

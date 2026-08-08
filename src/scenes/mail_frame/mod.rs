@@ -6,6 +6,7 @@ use game_engine::ui::screens::mail_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 
 #[derive(Resource, Default)]
@@ -31,11 +32,16 @@ impl Plugin for MailFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MailFrameOpen>();
         app.init_resource::<MailState>();
-        app.add_systems(OnEnter(GameState::InWorld), build_mail_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_mail_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_mail_frame_ui);
         app.add_systems(
             Update,
-            (toggle_mail_frame, sync_mail_frame_state).run_if(in_state(GameState::InWorld)),
+            (toggle_mail_frame, sync_mail_frame_state)
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

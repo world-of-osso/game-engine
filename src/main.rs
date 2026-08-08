@@ -377,7 +377,7 @@ fn run_app(
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     insert_inworld_scene_stage_resource(&mut app, args);
     register_plugins(&mut app);
-    apply_inworld_scene_stage_render_gates(&mut app);
+    apply_inworld_scene_stage_ui_gates(&mut app);
     configure_app_plugins(&mut app, args, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
@@ -397,11 +397,12 @@ fn insert_inworld_scene_stage_resource(app: &mut App, args: &[String]) {
     }
 }
 
-fn apply_inworld_scene_stage_render_gates(app: &mut App) {
+fn apply_inworld_scene_stage_ui_gates(app: &mut App) {
     let scene_stage = game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
     if scene_stage.includes(InWorldSceneStage::Ui) {
         return;
     }
+    app.insert_resource(game_engine::ui::plugin::UiProcessingEnabled(false));
     app.insert_resource(game_engine::ui::plugin::UiRenderEnabled(false));
     app.insert_resource(game_engine::ui::plugin::UiTextRenderEnabled(false));
 }

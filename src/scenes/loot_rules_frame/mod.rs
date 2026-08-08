@@ -9,6 +9,7 @@ use game_engine::ui::screens::loot_rules_frame_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
 
@@ -36,7 +37,10 @@ impl Plugin for LootRulesFramePlugin {
         app.init_resource::<LootRulesFrameOpen>();
         app.init_resource::<PartyState>();
         app.init_resource::<GroupIntentQueue>();
-        app.add_systems(OnEnter(GameState::InWorld), build_loot_rules_frame_ui);
+        app.add_systems(
+            OnEnter(GameState::InWorld),
+            build_loot_rules_frame_ui.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::InWorld), teardown_loot_rules_frame_ui);
         app.add_systems(
             Update,
@@ -45,7 +49,8 @@ impl Plugin for LootRulesFramePlugin {
                 sync_loot_rules_frame_state,
                 handle_loot_rules_input,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }

@@ -11,6 +11,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::client_options::{
     self, CameraOptions, ClientOptionsUiState, GraphicsOptions, HudOptions,
 };
+use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::scenes::game_menu::interaction::handle_overlay_input;
 use crate::scenes::game_menu::options::{
@@ -59,21 +60,29 @@ pub struct GameMenuScreenPlugin;
 impl Plugin for GameMenuScreenPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InWorldEscapeStack>();
-        app.add_systems(OnEnter(GameState::GameMenu), open_menu_overlay);
+        app.add_systems(
+            OnEnter(GameState::GameMenu),
+            open_menu_overlay.run_if(inworld_scene_stage_allows_ui),
+        );
         app.add_systems(OnExit(GameState::GameMenu), close_menu_overlay);
         app.add_systems(
             Update,
-            sync_inworld_escape_stack.run_if(in_state(GameState::InWorld)),
+            sync_inworld_escape_stack
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
         app.add_systems(
             Update,
             open_inworld_menu_on_escape
                 .after(sync_inworld_escape_stack)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
         app.add_systems(
             Update,
-            handle_overlay_input.run_if(resource_exists::<GameMenuOverlay>),
+            handle_overlay_input
+                .run_if(resource_exists::<GameMenuOverlay>)
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }
