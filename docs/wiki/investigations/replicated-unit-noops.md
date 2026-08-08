@@ -1,6 +1,6 @@
 # Empty-Stage Replicated-Unit NOOP Workload
 
-The empty InWorld diagnostic stage suppresses world visuals, but it does not suppress networking or replicated entities. The investigation found semantic no-op work at both the client ECS boundary and the server replication boundary. The fixes are committed, but no runtime performance improvement is claimed until the corrected binaries are relaunched and measured.
+The empty InWorld diagnostic stage suppresses world visuals, but it does not suppress networking or replicated entities. The investigation found semantic no-op work at both the client ECS boundary and the server replication boundary. The fixes are committed; machine-side empty-stage relaunch proof confirms the corrected client remains connected without the prior UI log flood, but no runtime performance improvement is claimed.
 
 ## Reproduction boundary
 
@@ -35,7 +35,7 @@ These changes preserve actual movement, interpolation, policy transitions, jumpi
 
 ## Runtime status
 
-The fixes are source- and test-backed. The corrected server binary is running, while a clean corrected-client empty-stage relaunch remains pending after the separate game-UI/toolkit gates (`game-engine` `508891a6`, `ui-toolkit` `50e4a17`). Runtime FPS or frame-time improvement is unmeasured; no performance improvement is established by this investigation alone.
+The fixes are source- and test-backed. The corrected server binary is running, and `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` records the corrected empty-stage client using `game-engine` `508891a6` and `ui-toolkit` `50e4a17`: connected `InWorld`, one link, one local player, and 133 remote entities. The toolkit UI tree and `MainActionBar` filter were empty; stderr had zero `[UI]` and zero `UIActionBar.BLP` lines, with no font panic, GPU OOM, device-loss, or panic. `ping` and `performance` were responsive. Exactly one client remains live for Alessio's visual inspection; human visual approval is pending and no next stage launched. The three performance samples are not comparative evidence; no FPS or frame-time improvement is established.
 
 ## Sources
 
@@ -52,5 +52,5 @@ The fixes are source- and test-backed. The corrected server binary is running, w
 ## See Also
 
 - [[networking]] — replication architecture and server/client boundaries
-- [[procedural-cloud-regeneration]] — broader in-world performance investigation; this NOOP finding is a separate workload cause and has no FPS claim yet
+- [[procedural-cloud-regeneration]] — broader in-world performance investigation; this NOOP finding is separate, with no comparative FPS claim
 - [[ui-system]] — pre-`Ui` game-UI and toolkit scheduling boundary

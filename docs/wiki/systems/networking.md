@@ -40,7 +40,7 @@ The empty InWorld diagnostic stage suppresses visuals, not networking. A preserv
 
 Two client systems previously performed unconditional same-value writes every frame: remote interpolation rewrote `Transform`, and NPC policy evaluation rewrote `Visibility`. Lightyear equality-suppresses the final client ECS replacement for equal replicated components, but server-side same-value `Rotation`/`MovementSpeed` input writes and grounded gravity state still entered change detection, serialization, and transmission. Actual wander movement remains real `Position` change, not a replication NOOP. The current nearby movement-type-2 NPCs have no waypoint rows, so waypoint-delay behavior is not implicated in this workload.
 
-Conditional client writes and server state updates are committed in `3c77d346`, `2927382`, and `ae81c65`, with regression tests for stable and changing state. Runtime FPS improvement remains unmeasured until the corrected binaries are relaunched. See [[replicated-unit-noops]].
+Conditional client writes and server state updates are committed in `3c77d346`, `2927382`, and `ae81c65`, with regression tests for stable and changing state. The corrected empty-stage client relaunch remained connected with one link, one local player, and 133 remote entities, without the prior UI log flood; the recorded performance samples are not comparative evidence. See [[replicated-unit-noops]].
 
 ## Multi-ADT Terrain Streaming (Planned Phase 3)
 
@@ -58,6 +58,7 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [replicated-unit-noops](../investigations/replicated-unit-noops.md) — empty-stage NOOP evidence and suppression commits
 - [client networking source](../../../src/game/networking/mod.rs) — interpolation and replication receive systems
 - [server networking source](../../../../game-server/crates/server/src/networking.rs) — movement and gravity mutation boundaries
+- `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — connected empty-stage relaunch proof
 
 ## See Also
 

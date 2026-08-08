@@ -53,7 +53,9 @@ Pre-`Ui` cumulative stages must not build or synchronize game UI. The empty-stag
 
 `game-engine` commit `508891a6` gates in-world UI builders and sync systems with `inworld_scene_stage_allows_ui`, including minimap, action bars, unit frames, frame plugins, group frames, game-menu in-world paths, quest sparkles, and nameplate/health-bar observers. Cursor and addon/panel-style processing are also stopped before the `Ui` stage. `OnExit(InWorld)` teardown remains unconditional.
 
-`ui-toolkit` commit `50e4a17` adds default-enabled `UiProcessingEnabled` around the complete chained `Update` UI schedule: screen-size synchronization, layout, button nine-slice conversion, render systems, and button input. `UiRenderEnabled` remains the inner render-only gate; the standalone Bevy FPS overlay is separate and remains active. Tests cover every pre-`Ui` stage, `Ui`/unconfigured defaults, the toolkit pause/re-enable boundary, and FPS-overlay survival. Runtime empty-stage relaunch proof remains pending.
+`ui-toolkit` commit `50e4a17` adds default-enabled `UiProcessingEnabled` around the complete chained `Update` UI schedule: screen-size synchronization, layout, button nine-slice conversion, render systems, and button input. `UiRenderEnabled` remains the inner render-only gate; the standalone Bevy FPS overlay is separate and remains active. Tests cover every pre-`Ui` stage, `Ui`/unconfigured defaults, the toolkit pause/re-enable boundary, and FPS-overlay survival.
+
+Machine-side proof at `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` used behavior commit `508891a6` and toolkit commit `50e4a17`: the client reached connected `InWorld` with one link, one local player, and 133 remote entities. The toolkit UI tree and `MainActionBar` filter were empty; stderr contained zero `[UI]` lines and zero `UIActionBar.BLP` blacklist lines, with no font panic, GPU OOM, device-loss, or panic mentions. `ping` and `performance` remained responsive. Exactly one empty-stage client remains live for Alessio's visual inspection; human approval is pending, so no next stage has launched. The three recorded performance samples are not comparative evidence and do not establish an FPS improvement.
 
 ## Known Issues
 
@@ -76,9 +78,10 @@ Pre-`Ui` cumulative stages must not build or synchronize game UI. The empty-stag
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
 - [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
 - [ui-toolkit processing gate](../../../../ui-toolkit/src/plugin.rs) — registry/layout/input/render schedule boundary
+- `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — machine-side connected empty-stage relaunch proof
 
 ## See Also
 
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene
-- [[procedural-cloud-regeneration]] — empty-stage performance investigation and pending relaunch proof
+- [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending

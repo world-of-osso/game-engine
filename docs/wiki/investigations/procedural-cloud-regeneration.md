@@ -44,11 +44,13 @@ The preserved empty-stage run emitted **853,196** repeated `UIActionBar.BLP` bla
 
 `game-engine` commit `508891a6` gates in-world UI builders and sync systems before the cumulative `Ui` stage, including minimap, action bars, unit frames, all registered in-world frame plugins, group frames, in-world game-menu paths, quest sparkles, and nameplate/health-bar observers. Teardown remains unconditional. `ui-toolkit` commit `50e4a17` adds default-enabled `UiProcessingEnabled` around the entire chained UI `Update` schedule while preserving the inner `UiRenderEnabled` and text gates.
 
-The Bevy performance panel is independent of this boundary: its startup, diagnostics, and overlay text systems are registered by `FpsOverlayPlugin` separately from ui-toolkit processing. Added tests cover each pre-`Ui` stage, enabled defaults, processing pause/re-enable behavior, and overlay survival. A corrected empty-stage runtime relaunch with networking, IPC, camera, window, and the performance panel still remains pending; no post-fix FPS or frame-time claim is made.
+The Bevy performance panel is independent of this boundary: its startup, diagnostics, and overlay text systems are registered by `FpsOverlayPlugin` separately from ui-toolkit processing. Added tests cover each pre-`Ui` stage, enabled defaults, processing pause/re-enable behavior, and overlay survival.
+
+Machine-side empty-stage relaunch proof is recorded in `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` using `game-engine` behavior commit `508891a6` and `ui-toolkit` commit `50e4a17`. The client reached connected `InWorld` with `connected_links=1`, `local_players=1`, and `remote_entities=133`. The toolkit UI tree and `MainActionBar` filter were empty. Engine stderr had zero `[UI]` lines and zero `UIActionBar.BLP` blacklist lines, plus zero font-parse failures, GPU-OOM mentions, device-loss mentions, and panic mentions; `ping` and `performance` remained responsive. Exactly one client remains live for Alessio's visual inspection. Human visual approval is still pending, so no next stage launched. The three captured performance samples are not comparative evidence and no FPS improvement is claimed.
 
 ## Current In-World Performance Investigation
 
-A separate empty-stage investigation found replicated-unit semantic NOOPs before any visual-stage conclusion: the preserved client kept 133 `RemoteEntity` entries (132 NPCs plus one local player), rewrote stable `Transform`/`Visibility` state every frame, and received server payloads caused by equal movement/gravity writes. Fixes are committed in `game-engine` `3c77d346` and `game-server` `2927382`/`ae81c65`; no runtime FPS improvement is claimed until relaunch. See [[replicated-unit-noops]].
+A separate empty-stage investigation found replicated-unit semantic NOOPs before any visual-stage conclusion: the preserved client kept 133 `RemoteEntity` entries (132 NPCs plus one local player), rewrote stable `Transform`/`Visibility` state every frame, and received server payloads caused by equal movement/gravity writes. Fixes are committed in `game-engine` `3c77d346` and `game-server` `2927382`/`ae81c65`; the corrected empty-stage relaunch confirms connectivity and no UI log flood, but supplies no comparative FPS evidence. See [[replicated-unit-noops]].
 
 The enabled UI control measured **12.332 FPS** and **81.157 ms** from six unprofiled `game-engine-cli performance` samples with **71 remote entities** (`game-engine` `00e7b3b0`, `ui-toolkit` `5ead575`). The all-text-disabled diagnostic measured **37.415 FPS** and **26.785 ms** with **76 remote entities** (`game-engine` `6806717c`, `ui-toolkit` `43a2784`). These runs did not use identical revisions or exact workloads. The large delta strongly implicates UI-text-associated rendering with **moderate confidence**, but does not prove that text is the sole cause or identify which text stage owns it.
 
@@ -73,6 +75,7 @@ IPC screenshots are visual captures, not frame-timing measurements. The screensh
 - [in-world stage predicates](../../../src/game/state/inworld_scene_stage.rs) — cumulative stage ordering
 - `game-engine` commit `508891a6` — stop game-UI work before the `Ui` stage
 - `ui-toolkit` commit `50e4a17` — gate the complete toolkit UI update chain
+- `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — connected empty-stage relaunch proof and retained live-client state
 - `/tmp/claude/game-engine-perf/ui-enabled-systemd-control-stable.json` — enabled unprofiled control
 - `/tmp/claude/game-engine-perf/ui-text-disabled-unprofiled.json` — all-text-disabled unprofiled diagnostic
 - `/tmp/claude/game-engine-perf/ui-text-fix-logged-observation.json` — rejected equality-guard measurement and logged reconnect observation
