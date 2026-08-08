@@ -1,4 +1,41 @@
+use bevy::ecs::entity_disabling::Disabled;
+
 use super::*;
+
+#[test]
+fn disabled_m2_animation_root_is_not_evaluated() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_systems(Update, apply_animation);
+
+    let joint = app
+        .world_mut()
+        .spawn((Transform::IDENTITY, BonePivot(Vec3::ZERO)))
+        .id();
+    app.world_mut().spawn((
+        M2AnimPlayer {
+            current_seq_idx: 0,
+            time_ms: 0.0,
+            looping: true,
+            transition: None,
+        },
+        M2AnimData {
+            bones: single_root_bone(),
+            spherical_billboards: vec![false],
+            sequences: vec![stand_sequence()],
+            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+            joint_entities: vec![joint],
+        },
+        Disabled,
+    ));
+
+    app.update();
+
+    assert_eq!(
+        app.world().get::<Transform>(joint),
+        Some(&Transform::IDENTITY)
+    );
+}
 
 #[test]
 fn apply_animation_updates_each_model_with_its_own_data() {

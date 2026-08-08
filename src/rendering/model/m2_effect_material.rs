@@ -91,19 +91,23 @@ fn m2_effect_uv_updates_enabled(enabled: Res<M2EffectUvUpdatesEnabled>) -> bool 
 fn update_m2_effect_uvs(time: Res<Time>, mut materials: ResMut<Assets<M2EffectMaterial>>) {
     let time_ms = (time.elapsed_secs_f64() * 1000.0) as u32;
     for (_id, material) in materials.iter_mut() {
-        material.settings.uv_offset_1 = material
-            .texture_anim_1
-            .as_ref()
-            .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
-            .map(|offset| Vec2::new(offset[0], offset[1]))
-            .unwrap_or(Vec2::ZERO);
-        material.settings.uv_offset_2 = material
-            .texture_anim_2
-            .as_ref()
-            .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
-            .map(|offset| Vec2::new(offset[0], offset[1]))
-            .unwrap_or(Vec2::ZERO);
+        update_m2_effect_material_uv(material, time_ms);
     }
+}
+
+pub(crate) fn update_m2_effect_material_uv(material: &mut M2EffectMaterial, time_ms: u32) {
+    material.settings.uv_offset_1 = material
+        .texture_anim_1
+        .as_ref()
+        .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
+        .map(|offset| Vec2::new(offset[0], offset[1]))
+        .unwrap_or(Vec2::ZERO);
+    material.settings.uv_offset_2 = material
+        .texture_anim_2
+        .as_ref()
+        .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
+        .map(|offset| Vec2::new(offset[0], offset[1]))
+        .unwrap_or(Vec2::ZERO);
 }
 
 pub fn repeat_sampler() -> ImageSampler {

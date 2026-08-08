@@ -25,6 +25,7 @@ Persisted with client options; configurable via Options → Keybindings.
 | Char select navigation | Fixed to screen flow |
 | Menu/options overlay | Navigation and modal dismissal must stay stable even if gameplay bindings break |
 | Action-bar edit/debug controls | Editor affordances outside the player-facing binding set |
+| `F9` World Builder toggle | Fixed diagnostic UI control; active only when launched with `--world-builder` |
 
 ## Non-Goals of the Current System
 
@@ -44,3 +45,4 @@ If scope expands, the source document should be updated before implementation so
 ## See Also
 
 - [[ui-addon-system]] — menu/overlay inputs that remain fixed live in the UI layer
+- [[world-builder]] — opt-in diagnostic sidebar controlled by F9

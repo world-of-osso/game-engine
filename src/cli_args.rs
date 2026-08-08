@@ -254,6 +254,7 @@ pub fn print_help() {
     );
     println!("  --skybox-verify     Strip skyboxdebug helper visuals and procedural fallback");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
+    println!("  --world-builder     Enable the in-world scene diagnostic sidebar (F9 toggles)");
     println!("  --disable-m2-effect-uv-updates  Disable M2 effect UV animation updates");
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");

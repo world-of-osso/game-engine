@@ -546,6 +546,36 @@ fn parse_screen_arg_preserves_m2debug_variant() {
 }
 
 #[test]
+fn world_builder_flag_is_opt_in() {
+    let normal = parse_cli_flags(&args(&["--state", "inworld"]));
+    let enabled = parse_cli_flags(&args(&["--state", "inworld", "--world-builder"]));
+
+    assert!(!normal.world_builder);
+    assert!(enabled.world_builder);
+}
+
+#[test]
+fn world_builder_plugin_is_only_added_when_requested() {
+    let mut normal = App::new();
+    add_optional_world_builder_plugin(&mut normal, false);
+    assert!(
+        normal
+            .world()
+            .get_resource::<world_builder::WorldBuilderEnabled>()
+            .is_none()
+    );
+
+    let mut enabled = App::new();
+    add_optional_world_builder_plugin(&mut enabled, true);
+    assert!(
+        enabled
+            .world()
+            .get_resource::<world_builder::WorldBuilderEnabled>()
+            .is_some()
+    );
+}
+
+#[test]
 fn binary_asset_module_reuses_library_casc_resolver() {
     let binary_fn: fn(u32) -> Option<PathBuf> = crate::asset::asset_cache::model;
     let lib_fn: fn(u32) -> Option<PathBuf> = game_engine::asset::asset_cache::model;

@@ -32,6 +32,10 @@ Target-first nameplate design: current target gets full plate (name, health, cas
 
 PlayerFrame (232×100) and TargetFrame (232×100) mirror WoW's XML structure. PlayerFrame anchored at `x=268 y=850`; TargetFrame at `x=1100 y=850`. Both use real replicated ECS data: `LocalPlayer` + `Health`/`Mana` components; target via `CurrentTarget(Entity)`. Font: `FRIZQT__.TTF` 10px (`GameFontNormalSmall`). See [inworld-unit-frames-reference.md](../inworld-unit-frames-reference.md).
 
+## World Builder Sidebar
+
+The opt-in `--world-builder` plugin adds an InWorld diagnostic sidebar without changing normal runs. Its `Screen` reads a stable `SharedContext` view model, uses entity-derived frame names, preserves EditBox focus across rebuilds, and handles pagination in the engine because `ScrollFrame` is passive. F9 is a fixed visibility toggle. See [[world-builder]].
+
 ## UI Automation
 
 JavaScript-driven automation for testing UI flows:
@@ -45,7 +49,7 @@ Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForSta
 
 ## Keybindings
 
-Configurable bindings cover in-world gameplay: movement (forward/backward/strafe/jump/run/autorun), camera (turn/pitch/zoom), targeting, action bar slots 1–12, audio mute. Fixed (non-bindable) inputs: LMB+RMB chord, login/charselect/menu screen keys, debug controls. See [keybindings-scope.md](../keybindings-scope.md).
+Configurable bindings cover in-world gameplay: movement (forward/backward/strafe/jump/run/autorun), camera (turn/pitch/zoom), targeting, action bar slots 1–12, audio mute. Fixed (non-bindable) inputs: LMB+RMB chord, login/charselect/menu screen keys, debug controls. See [keybindings-scope.md](../../keybindings-scope.md).
 
 ## In-World Diagnostic Stage Boundary
 
@@ -73,7 +77,7 @@ Machine-side proof at `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.j
 - [inworld-unit-frames-reference.md](../inworld-unit-frames-reference.md) — PlayerFrame/TargetFrame geometry
 - [wow-ui-sim-layout-spec-2026-03-31.md](../wow-ui-sim-layout-spec-2026-03-31.md) — exact pixel geometry for frames and tabs
 - [nameplate-research-2026-03-27.md](../nameplate-research-2026-03-27.md) — nameplate design research
-- [keybindings-scope.md](../keybindings-scope.md) — bindable vs fixed inputs
+- [keybindings-scope.md](../../keybindings-scope.md) — bindable vs fixed inputs
 - [in-world stage gating](../../../src/game/state/inworld_scene_stage.rs) — cumulative stage predicates
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
 - [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
@@ -85,3 +89,4 @@ Machine-side proof at `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.j
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending
+- [[world-builder]] — diagnostic sidebar built on Screen, SharedContext, and FrameRegistry
