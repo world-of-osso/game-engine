@@ -1,4 +1,5 @@
 use super::*;
+use std::io::Write;
 
 fn default_plugins() -> bevy::app::PluginGroupBuilder {
     DefaultPlugins.set(WindowPlugin {
@@ -108,10 +109,43 @@ fn register_bevy_plugins(app: &mut App) {
     });
 }
 
+const EXIT_DIAGNOSTICS_PATH: &str = "/tmp/game-engine-exit-diagnostics.log";
+
+#[derive(Resource)]
+struct ExitDiagnosticsGuard;
+
+impl Drop for ExitDiagnosticsGuard {
+    fn drop(&mut self) {
+        write_exit_diagnostic("ExitDiagnosticsGuard dropped");
+    }
+}
+
 fn register_exit_diagnostics(app: &mut App) {
-    app.add_systems(Startup, || warn!("Exit diagnostics armed"))
+    write_exit_diagnostic("exit diagnostics plugin registered");
+    app.insert_resource(ExitDiagnosticsGuard)
+        .add_systems(Startup, arm_exit_diagnostics)
         .add_systems(PreUpdate, log_window_exit_messages)
         .add_systems(Last, log_app_exit_messages);
+}
+
+fn arm_exit_diagnostics() {
+    write_exit_diagnostic("Startup schedule reached");
+    warn!("Exit diagnostics armed");
+}
+
+fn write_exit_diagnostic(message: &str) {
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(EXIT_DIAGNOSTICS_PATH)
+        .expect("failed to open exit diagnostics log");
+    writeln!(
+        file,
+        "{:?} pid={} {message}",
+        std::time::SystemTime::now(),
+        std::process::id()
+    )
+    .expect("failed to write exit diagnostics log");
 }
 
 fn log_window_exit_messages(
@@ -120,18 +154,22 @@ fn log_window_exit_messages(
     mut destroyed: MessageReader<bevy::window::WindowDestroyed>,
 ) {
     for event in close_requested.read() {
+        write_exit_diagnostic(&format!("WindowCloseRequested window={:?}", event.window));
         warn!(window = ?event.window, "Exit diagnostics: WindowCloseRequested");
     }
     for event in closed.read() {
+        write_exit_diagnostic(&format!("WindowClosed window={:?}", event.window));
         warn!(window = ?event.window, "Exit diagnostics: WindowClosed");
     }
     for event in destroyed.read() {
+        write_exit_diagnostic(&format!("WindowDestroyed window={:?}", event.window));
         warn!(window = ?event.window, "Exit diagnostics: WindowDestroyed");
     }
 }
 
 fn log_app_exit_messages(mut exits: MessageReader<AppExit>) {
     for exit in exits.read() {
+        write_exit_diagnostic(&format!("AppExit {exit:?}"));
         warn!(?exit, "Exit diagnostics: AppExit");
     }
 }
