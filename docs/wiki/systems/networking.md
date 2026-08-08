@@ -34,6 +34,14 @@ On `Added<Position>` with `Replicated` marker:
 
 NPC display resolution: `Npc { template_id }` → `ModelDisplay { display_id }` → FDID → M2 file.
 
+## Empty-Stage Replication NOOPs
+
+The empty InWorld diagnostic stage suppresses visuals, not networking. A preserved run reported `remote_entities=133` with one local player; the scene contained 132 NPCs plus that local player, so the count includes the local player despite its name.
+
+Two client systems previously performed unconditional same-value writes every frame: remote interpolation rewrote `Transform`, and NPC policy evaluation rewrote `Visibility`. Lightyear equality-suppresses the final client ECS replacement for equal replicated components, but server-side same-value `Rotation`/`MovementSpeed` input writes and grounded gravity state still entered change detection, serialization, and transmission. Actual wander movement remains real `Position` change, not a replication NOOP. The current nearby movement-type-2 NPCs have no waypoint rows, so waypoint-delay behavior is not implicated in this workload.
+
+Conditional client writes and server state updates are committed in `3c77d346`, `2927382`, and `ae81c65`, with regression tests for stable and changing state. Runtime FPS improvement remains unmeasured until the corrected binaries are relaunched. See [[replicated-unit-noops]].
+
 ## Multi-ADT Terrain Streaming (Planned Phase 3)
 
 Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `TerrainManager` tracks loaded tiles in a `HashMap<(u8,u8), Entity>` and despawns out-of-range tiles.
@@ -44,12 +52,16 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 
 ## Sources
 
-- [network-integration.md](../network-integration.md) — phased integration plan, crate deps, phase deliverables
-- [remote-login-debug-2026-03-06.md](../remote-login-debug-2026-03-06.md) — remote login failure, lightyear replication panic
-- [authentication.md](../authentication.md) — auth flow, token storage, argon2, redb tables
+- [network-integration.md](../../network-integration.md) — phased integration plan, crate deps, phase deliverables
+- [remote-login-debug-2026-03-06.md](../../remote-login-debug-2026-03-06.md) — remote login failure, lightyear replication panic
+- [authentication.md](../../authentication.md) — auth flow, token storage, argon2, redb tables
+- [replicated-unit-noops](../investigations/replicated-unit-noops.md) — empty-stage NOOP evidence and suppression commits
+- [client networking source](../../../src/game/networking/mod.rs) — interpolation and replication receive systems
+- [server networking source](../../../../game-server/crates/server/src/networking.rs) — movement and gravity mutation boundaries
 
 ## See Also
 
 - [[ui-system]] — login UI that feeds into the auth flow
 - [[terrain]] — terrain streaming (Phase 3 networking dependency)
 - [[lore-knowledge-graph]] — server-side graph authority model
+- [[replicated-unit-noops]] — empty-stage semantic no-op boundaries and suppression fixes

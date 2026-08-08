@@ -1,6 +1,6 @@
 # Wiki Index
 
-Knowledge base for the game-engine project. 34 pages across 4 categories.
+Knowledge base for the game-engine project. 35 pages across 4 categories.
 Last updated: 2026-08-08.
 
 ## Systems
@@ -9,7 +9,7 @@ Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; initial M2 UV comparison inconclusive pending clean repeat
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
-- [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, planned streaming
+- [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, empty-stage NOOP boundaries, planned streaming
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, nameplates, unit frames, JS automation, keybindings
 - [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, collision reference
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
@@ -54,6 +54,7 @@ Root cause analyses and debug findings.
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, presentation/SSAO fixes, and current UI/render-resource investigation
+- [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, fixes, tests, and pending relaunch measurement
 
 ## Reference
 

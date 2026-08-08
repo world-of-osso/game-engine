@@ -40,6 +40,8 @@ The cloud fix is confirmed to remove the procedural simplex hotspot: later profi
 
 ## Current In-World Performance Investigation
 
+A separate empty-stage investigation found replicated-unit semantic NOOPs before any visual-stage conclusion: the preserved client kept 133 `RemoteEntity` entries (132 NPCs plus one local player), rewrote stable `Transform`/`Visibility` state every frame, and received server payloads caused by equal movement/gravity writes. Fixes are committed in `game-engine` `3c77d346` and `game-server` `2927382`/`ae81c65`; no runtime FPS improvement is claimed until relaunch. See [[replicated-unit-noops]].
+
 The enabled UI control measured **12.332 FPS** and **81.157 ms** from six unprofiled `game-engine-cli performance` samples with **71 remote entities** (`game-engine` `00e7b3b0`, `ui-toolkit` `5ead575`). The all-text-disabled diagnostic measured **37.415 FPS** and **26.785 ms** with **76 remote entities** (`game-engine` `6806717c`, `ui-toolkit` `43a2784`). These runs did not use identical revisions or exact workloads. The large delta strongly implicates UI-text-associated rendering with **moderate confidence**, but does not prove that text is the sole cause or identify which text stage owns it.
 
 An equality-guard experiment in `ui-toolkit` commit `33fa74d` stopped unchanged main-text component assignments from advancing Bevy change ticks. The behavioral test passed, but the enabled-text live measurement was **11.373 FPS** and **90.230 ms** after 120 seconds, so the experiment was rejected and reverted by `36d4692`. This is not a performance fix.
@@ -76,3 +78,4 @@ IPC screenshots are visual captures, not frame-timing measurements. The screensh
 
 - [[rendering-pipeline]] — skybox and known rendering bottlenecks
 - [[skybox]] — authored and procedural sky composition
+- [[replicated-unit-noops]] — separate empty-stage networking/ECS no-op workload
