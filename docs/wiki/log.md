@@ -2,9 +2,9 @@
 
 Chronological record of wiki operations.
 
-## [2026-08-08] investigation | Reject unconditional M2 UV mutation
+## [2026-08-08] investigation | Record preliminary M2 UV comparison
 
-Updated `investigations/procedural-cloud-regeneration.md`, `systems/rendering-pipeline.md`, and `index.md`. A valid direct paired run used the same binary/source/options/server/token/environment, ten readiness polls, one local player, stable world/material invariants, 125-second holds, and six unprofiled samples per condition. Enabled measured 31.767 FPS / 54.177 ms; disabled measured 36.843 FPS / 54.482 ms. Disabling M2 UV updates raised FPS but worsened frame time by 0.305 ms, so the required directional criterion rejected the hypothesis. Temporary selector/tests/flag were removed in `58e2f9c2`. First startup attempt exposed zero-byte hardcoded UI-toolkit font files; local cached copies restored startup.
+Updated `investigations/procedural-cloud-regeneration.md`, `systems/rendering-pipeline.md`, and `index.md`. The initial direct pair used the same binary/source/options/server/token/environment, ten readiness polls, one local player, stable recorded world/material invariants, 125-second holds, and six unprofiled samples per condition. Enabled measured **31.767 FPS / 54.177 ms**; disabled measured **36.843 FPS / 54.482 ms**. The first sample in each condition immediately followed an expensive `dump-scene` request and inherited its long diagnostic frame (**188.06 ms** enabled after **215 ms** scene latency; **210.88 ms** disabled after **266 ms** scene latency). Recorded readiness workloads also differed (**135** versus **133** remote entities). The result is therefore **preliminary/inconclusive pending a clean repeat** with a prospective performance warm-up; it supports no M2 performance conclusion or fix. An earlier startup attempt ended at a Friz parse failure; the pre-overwrite bytes were not preserved, while the current Friz/Arial bytes pass the exact Bevy parser. Selector/tests/flag were removed in `58e2f9c2`, then restored temporarily in `a7784e70` for the repeat.
 
 ## [2026-08-08] investigation | Record stabilized UI/render performance evidence
 
