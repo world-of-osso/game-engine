@@ -285,7 +285,9 @@ fn register_gameplay_net_systems(app: &mut App) {
 fn register_inworld_sync_systems(app: &mut App) {
     app.add_systems(
         Update,
-        crate::networking_messages::receive_load_terrain.run_if(should_receive_load_terrain),
+        crate::networking_messages::receive_load_terrain
+            .run_if(should_receive_load_terrain)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_terrain),
     );
     register_inworld_snapshot_systems(app);
     register_inworld_replication_systems(app);

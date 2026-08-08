@@ -52,7 +52,8 @@ impl Plugin for WeatherPlugin {
                 Update,
                 (sync_active_weather, sync_weather_effect)
                     .chain()
-                    .run_if(in_state(GameState::InWorld)),
+                    .run_if(in_state(GameState::InWorld))
+                    .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_particles),
             )
             .add_systems(OnExit(GameState::InWorld), teardown_weather_effects);
     }

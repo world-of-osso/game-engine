@@ -596,7 +596,12 @@ fn sky_scene_active(state: Res<State<GameState>>) -> bool {
 
 fn register_inworld_systems(app: &mut App) {
     let iw = in_state(GameState::InWorld);
-    app.add_systems(Update, advance_game_time.run_if(iw.clone()));
+    app.add_systems(
+        Update,
+        advance_game_time
+            .run_if(iw.clone())
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_skybox),
+    );
     register_sky_visual_systems(app);
     app.add_systems(
         Update,
@@ -606,7 +611,8 @@ fn register_inworld_systems(app: &mut App) {
             sync_inworld_skybox_to_camera.after(update_inworld_skybox_transition),
             time_speed_controls,
         )
-            .run_if(iw),
+            .run_if(iw)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_skybox),
     );
     app.add_systems(OnExit(GameState::InWorld), teardown_inworld_skybox);
 }
@@ -622,23 +628,29 @@ fn register_shared_sky_visual_systems(app: &mut App) {
         Update,
         update_sky_colors
             .after(advance_game_time)
-            .run_if(sky_active),
+            .run_if(sky_active)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     )
     .add_systems(
         Update,
         update_sun_direction
             .after(advance_game_time)
-            .run_if(sky_scene_active),
+            .run_if(sky_scene_active)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     )
     .add_systems(
         Update,
-        update_fog.after(advance_game_time).run_if(sky_scene_active),
+        update_fog
+            .after(advance_game_time)
+            .run_if(sky_scene_active)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     )
     .add_systems(
         Update,
         update_sky_env_map
             .after(advance_game_time)
-            .run_if(sky_scene_active),
+            .run_if(sky_scene_active)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );
 }
 
@@ -646,7 +658,10 @@ fn register_inworld_time_display_system(app: &mut App) {
     let iw = in_state(GameState::InWorld);
     app.add_systems(
         Update,
-        update_time_display.after(advance_game_time).run_if(iw),
+        update_time_display
+            .after(advance_game_time)
+            .run_if(iw)
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
     );
 }
 
@@ -662,7 +677,11 @@ impl Plugin for SkyPlugin {
             .insert_resource(LightKeyframes(keyframes))
             .add_systems(Startup, init_procedural_cloud_maps)
             .add_systems(Startup, spawn_time_display)
-            .add_systems(OnEnter(GameState::InWorld), show_time_display)
+            .add_systems(
+                OnEnter(GameState::InWorld),
+                show_time_display
+                    .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
+            )
             .add_systems(OnExit(GameState::InWorld), hide_time_display);
         register_inworld_systems(app);
     }

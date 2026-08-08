@@ -4,6 +4,9 @@ use lightyear::prelude::*;
 use shared::components::{ModelDisplay, Npc, Position as NetPosition, Rotation as NetRotation};
 
 use crate::creature_display::CreatureDisplayMap;
+use crate::game::inworld_scene_stage::{
+    InWorldSceneStage, configured_inworld_scene_stage, npc_visuals_are_enabled,
+};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::networking::{InterpolationTarget, LocalAliveState, RemoteEntity, RotationTarget};
 use crate::rendering::sky::GameTime;
@@ -189,12 +192,18 @@ pub(crate) fn spawn_replicated_npc(
     mut npc_assets: NpcSpawnAssets,
     query: NpcReplicatedQuery,
     display_map: Option<Res<CreatureDisplayMap>>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
 ) {
     let entity = trigger.entity;
     let Ok((pos, npc, rotation, model_display)) = query.get(entity) else {
         return;
     };
     insert_npc_transform(&mut commands, entity, pos, rotation);
+    let scene_stage = configured_inworld_scene_stage(scene_stage);
+    if !npc_visuals_are_enabled(scene_stage) {
+        return;
+    }
+
     let display_scale = npc_display_scale(model_display, display_map.as_deref());
     let visual_root = spawn_npc_visual_root(&mut commands, entity, display_scale);
     let m2_loaded = spawn_npc_model_or_capsule(

@@ -15,6 +15,9 @@ use crate::character_models::{ensure_named_model_bundle, race_model_wow_path};
 use crate::creature_display::CreatureDisplayMap;
 use crate::equipment::EquipmentItem;
 use crate::equipment_appearance::{self, ResolvedEquipmentAppearance};
+use crate::game::inworld_scene_stage::{
+    InWorldSceneStage, configured_inworld_scene_stage, player_visual_is_enabled,
+};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::networking::{
     InterpolationTarget, LocalAliveState, LocalPlayer, RemoteEntity, ReplicatedVisualEntity,
@@ -152,6 +155,7 @@ pub(crate) fn spawn_replicated_player(
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<CreatureDisplayMap>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
     query: Query<
         (
             &NetPosition,
@@ -177,11 +181,17 @@ pub(crate) fn spawn_replicated_player(
     commands.entity(entity).insert((
         Transform::from_translation(position).with_rotation(Quat::from_rotation_y(yaw)),
         Visibility::default(),
-        ReplicatedVisualEntity,
         RemoteEntity,
         InterpolationTarget { target: position },
         RotationTarget { yaw },
     ));
+
+    let scene_stage = configured_inworld_scene_stage(scene_stage);
+    if !player_visual_is_enabled(scene_stage, is_local) {
+        return;
+    }
+
+    commands.entity(entity).insert(ReplicatedVisualEntity);
     let mut ctx = PlayerModelSpawnContext {
         commands: &mut commands,
         meshes: &mut meshes,

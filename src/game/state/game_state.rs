@@ -6,6 +6,10 @@ use bevy::prelude::*;
 use lightyear::prelude::client::Connected;
 
 use crate::camera::{self, WowCamera};
+use crate::game::inworld_scene_stage::{
+    InWorldSceneStage, configured_inworld_scene_stage, inworld_scene_stage_allows_ui,
+    terrain_is_required_for_loading,
+};
 use crate::networking::{CurrentZone, LocalPlayer, ServerAddr};
 use crate::shadow_config::default_cascade_shadow_config;
 use crate::terrain::AdtManager;
@@ -152,7 +156,8 @@ fn register_in_world_systems(app: &mut App) {
             game_engine::ui::game_plugin::tick_spellbook_cooldowns,
         )
             .chain()
-            .run_if(in_state(GameState::InWorld)),
+            .run_if(in_state(GameState::InWorld))
+            .run_if(inworld_scene_stage_allows_ui),
     );
     app.add_systems(
         Update,
@@ -161,7 +166,8 @@ fn register_in_world_systems(app: &mut App) {
             game_engine::ui::game_plugin::handle_spellbook_keyboard,
         )
             .chain()
-            .run_if(in_state(GameState::InWorld).and(crate::networking::gameplay_input_allowed)),
+            .run_if(in_state(GameState::InWorld).and(crate::networking::gameplay_input_allowed))
+            .run_if(inworld_scene_stage_allows_ui),
     );
 }
 
@@ -249,16 +255,27 @@ fn reset_zone_transition_tracker(mut tracker: ResMut<ZoneTransitionTracker>) {
 
 /// Spawn world environment (lights, sky dome) when entering InWorld in server mode.
 /// Only registered when ServerAddr is present — skipped in standalone mode.
-fn spawn_world_environment(mut commands: Commands, camera_q: Query<Entity, With<WowCamera>>) {
+fn spawn_world_environment(
+    mut commands: Commands,
+    camera_q: Query<Entity, With<WowCamera>>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
+) {
     if camera_q.single().ok().is_none() {
         camera::spawn_wow_camera(&mut commands);
     }
     commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
+
+    let scene_stage = configured_inworld_scene_stage(scene_stage);
+    let lighting_enabled = scene_stage.includes(InWorldSceneStage::Lighting);
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,
-        brightness: 0.0,
+        brightness: if lighting_enabled { 0.0 } else { 150.0 },
         ..default()
     });
+    if !lighting_enabled {
+        return;
+    }
+
     commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     commands.spawn((
         DirectionalLight {
@@ -369,9 +386,17 @@ pub(crate) fn evaluate_world_loading(
 fn check_loading_complete(
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if evaluate_world_loading(!local_player_q.is_empty(), &adt_manager).complete {
+    let local_player_ready = !local_player_q.is_empty();
+    let scene_stage = configured_inworld_scene_stage(scene_stage);
+    let loading_complete = if terrain_is_required_for_loading(scene_stage) {
+        evaluate_world_loading(local_player_ready, &adt_manager).complete
+    } else {
+        local_player_ready
+    };
+    if loading_complete {
         next_state.set(GameState::InWorld);
     }
 }
@@ -556,6 +581,27 @@ mod tests {
             GameState::InWorld,
             "world-ready loading should enter InWorld"
         );
+    }
+
+    #[test]
+    fn inworld_scene_stage_enters_inworld_without_terrain_before_terrain_stage() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.insert_state(GameState::Loading);
+        app.insert_resource(AdtManager::default());
+        app.insert_resource(crate::InWorldSceneStage::Character);
+        app.add_systems(
+            Update,
+            check_loading_complete.run_if(in_state(GameState::Loading)),
+        );
+        app.world_mut().spawn(LocalPlayer);
+
+        app.update();
+        app.update();
+
+        let state = app.world().resource::<State<GameState>>();
+        assert_eq!(*state.get(), GameState::InWorld);
     }
 
     #[test]

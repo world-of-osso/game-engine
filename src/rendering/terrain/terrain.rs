@@ -596,7 +596,8 @@ impl Plugin for AdtStreamingPlugin {
                     doodad_lod_swap_system,
                 )
                     .chain()
-                    .run_if(in_state(GameState::Loading).or(in_state(GameState::InWorld))),
+                    .run_if(in_state(GameState::Loading).or(in_state(GameState::InWorld)))
+                    .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_terrain),
             );
     }
 }

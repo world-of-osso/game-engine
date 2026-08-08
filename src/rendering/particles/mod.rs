@@ -64,7 +64,8 @@ impl Plugin for ParticlePlugin {
                     emitters::trigger_pending_particle_bursts,
                     emitters::tick_model_particle_emitters,
                     emitters::simulate_model_particle_instances,
-                ),
+                )
+                    .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_particles),
             );
     }
 }

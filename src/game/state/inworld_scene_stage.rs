@@ -34,10 +34,14 @@ impl InWorldSceneStage {
     }
 }
 
+pub(crate) fn effective_inworld_scene_stage(stage: Option<InWorldSceneStage>) -> InWorldSceneStage {
+    stage.unwrap_or(InWorldSceneStage::Ui)
+}
+
 pub(crate) fn configured_inworld_scene_stage(
     stage: Option<Res<InWorldSceneStage>>,
 ) -> InWorldSceneStage {
-    stage.as_deref().copied().unwrap_or(InWorldSceneStage::Ui)
+    effective_inworld_scene_stage(stage.as_deref().copied())
 }
 
 pub(crate) fn inworld_scene_stage_includes(
@@ -45,4 +49,76 @@ pub(crate) fn inworld_scene_stage_includes(
     required: InWorldSceneStage,
 ) -> bool {
     configured_inworld_scene_stage(stage).includes(required)
+}
+
+pub(crate) fn player_visual_is_enabled(stage: InWorldSceneStage, is_local: bool) -> bool {
+    let required = if is_local {
+        InWorldSceneStage::Character
+    } else {
+        InWorldSceneStage::Npcs
+    };
+    stage.includes(required)
+}
+
+pub(crate) fn npc_visuals_are_enabled(stage: InWorldSceneStage) -> bool {
+    stage.includes(InWorldSceneStage::Npcs)
+}
+
+pub(crate) fn terrain_is_required_for_loading(stage: InWorldSceneStage) -> bool {
+    stage.includes(InWorldSceneStage::Terrain)
+}
+
+pub(crate) fn inworld_scene_stage_allows_skybox(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Skybox)
+}
+
+pub(crate) fn inworld_scene_stage_allows_terrain(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Terrain)
+}
+
+pub(crate) fn inworld_scene_stage_allows_lighting(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Lighting)
+}
+
+pub(crate) fn inworld_scene_stage_allows_particles(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Particles)
+}
+
+pub(crate) fn inworld_scene_stage_allows_ui(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Ui)
+}
+
+pub(crate) fn configured_inworld_scene_stage_for_app(app: &App) -> InWorldSceneStage {
+    effective_inworld_scene_stage(app.world().get_resource::<InWorldSceneStage>().copied())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn local_character_precedes_remote_entity_visuals() {
+        assert!(!player_visual_is_enabled(InWorldSceneStage::Empty, true));
+        assert!(player_visual_is_enabled(InWorldSceneStage::Character, true));
+        assert!(!player_visual_is_enabled(
+            InWorldSceneStage::Character,
+            false
+        ));
+        assert!(player_visual_is_enabled(InWorldSceneStage::Npcs, false));
+        assert!(!npc_visuals_are_enabled(InWorldSceneStage::Terrain));
+        assert!(npc_visuals_are_enabled(InWorldSceneStage::Npcs));
+    }
+
+    #[test]
+    fn terrain_loading_is_required_only_from_terrain_stage() {
+        assert!(!terrain_is_required_for_loading(InWorldSceneStage::Empty));
+        assert!(!terrain_is_required_for_loading(InWorldSceneStage::Skybox));
+        assert!(terrain_is_required_for_loading(InWorldSceneStage::Terrain));
+        assert!(terrain_is_required_for_loading(InWorldSceneStage::Ui));
+    }
+
+    #[test]
+    fn unconfigured_stage_preserves_the_full_scene() {
+        assert_eq!(effective_inworld_scene_stage(None), InWorldSceneStage::Ui);
+    }
 }

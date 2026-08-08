@@ -101,12 +101,15 @@ fn register_bevy_plugins(app: &mut App) {
     register_ui_plugins(app);
     register_world_plugins(app);
     register_render_plugins(app);
-    app.add_plugins(FpsOverlayPlugin {
-        config: FpsOverlayConfig {
-            refresh_interval: Duration::from_millis(500),
-            ..default()
-        },
-    });
+    let scene_stage = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
+    if scene_stage.includes(InWorldSceneStage::Ui) {
+        app.add_plugins(FpsOverlayPlugin {
+            config: FpsOverlayConfig {
+                refresh_interval: Duration::from_millis(500),
+                ..default()
+            },
+        });
+    }
 }
 
 const EXIT_DIAGNOSTICS_PATH: &str = "/tmp/game-engine-exit-diagnostics.log";
@@ -220,7 +223,8 @@ fn register_render_plugins(app: &mut App) {
         .add_systems(
             Update,
             terrain_objects::sync_wmo_sidn_emissive
-                .run_if(in_state(game_state::GameState::InWorld)),
+                .run_if(in_state(game_state::GameState::InWorld))
+                .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
         );
 }
 
