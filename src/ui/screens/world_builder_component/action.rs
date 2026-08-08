@@ -68,7 +68,9 @@ fn parse_static_action(value: &str) -> Option<WorldBuilderAction> {
     }
 }
 
-const ENTITY_ACTIONS: [(&str, fn(u64) -> WorldBuilderAction); 9] = [
+type EntityAction = (&'static str, fn(u64) -> WorldBuilderAction);
+
+const ENTITY_ACTIONS: [EntityAction; 9] = [
     ("world_builder_select:", WorldBuilderAction::SelectEntity),
     (
         "world_builder_toggle_expand:",
