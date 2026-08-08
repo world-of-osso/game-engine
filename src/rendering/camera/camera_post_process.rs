@@ -2,10 +2,12 @@ use bevy::anti_alias::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::camera::MainPassResolutionOverride;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::post_process::dof::DepthOfField;
 use bevy::prelude::*;
 
+use super::WowCamera;
 use crate::client_options::{AntiAliasMode, GraphicsOptions};
 
 const MIN_RENDER_SCALE: f32 = 0.5;
@@ -62,12 +64,26 @@ pub(super) fn sync_camera_graphics_post_process(
             Option<&mut DepthOfField>,
             Option<&Msaa>,
             Option<&TemporalAntiAliasing>,
+            Has<ScreenSpaceAmbientOcclusion>,
+            Has<WowCamera>,
         ),
         With<Camera3d>,
     >,
 ) {
     let desired_bloom = additive_particle_glow_bloom(&graphics);
-    for (entity, camera, bloom, resolution_override, cas, dof, msaa, taa) in &mut cameras {
+    for (
+        entity,
+        camera,
+        bloom,
+        resolution_override,
+        cas,
+        dof,
+        msaa,
+        taa,
+        has_ssao,
+        is_wow_camera,
+    ) in &mut cameras
+    {
         sync_bloom(&mut commands, entity, desired_bloom.clone(), bloom);
         let desired_resolution = camera
             .physical_target_size()
@@ -81,6 +97,13 @@ pub(super) fn sync_camera_graphics_post_process(
         sync_sharpening(&mut commands, entity, graphics.render_scale < 0.999, cas);
         sync_depth_of_field(&mut commands, entity, graphics.depth_of_field, dof);
         sync_anti_alias(&mut commands, entity, graphics.anti_alias, msaa, taa);
+        sync_ssao_compatibility(
+            &mut commands,
+            entity,
+            graphics.anti_alias,
+            has_ssao,
+            is_wow_camera,
+        );
     }
 }
 
@@ -171,6 +194,28 @@ fn sync_sharpening(
                 .remove::<ContrastAdaptiveSharpening>();
         }
         (false, None) => {}
+    }
+}
+
+fn sync_ssao_compatibility(
+    commands: &mut Commands,
+    entity: Entity,
+    mode: AntiAliasMode,
+    has_ssao: bool,
+    is_wow_camera: bool,
+) {
+    match mode {
+        AntiAliasMode::Msaa4x if has_ssao => {
+            commands
+                .entity(entity)
+                .remove::<ScreenSpaceAmbientOcclusion>();
+        }
+        AntiAliasMode::None | AntiAliasMode::Taa if is_wow_camera && !has_ssao => {
+            commands
+                .entity(entity)
+                .insert(ScreenSpaceAmbientOcclusion::default());
+        }
+        _ => {}
     }
 }
 
