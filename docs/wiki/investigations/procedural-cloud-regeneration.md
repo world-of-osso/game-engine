@@ -12,16 +12,35 @@ Before `b2b07e5b`, `update_procedural_cloud_maps()` regenerated the next texture
 
 Commit `b2b07e5b` removed runtime regeneration and its `Update` registration. The three startup textures, texture dimensions, six octaves, cloud parameters, and visual settings remain unchanged. `assets/shaders/sky.wgsl` continues to animate clouds by offsetting sampled UVs with time-derived cloud parameters, so runtime pixel regeneration was not required for cloud motion.
 
-## Performance Evidence
+## Final Post-Fix Performance Evidence
 
 Clean user-provided in-world baselines:
 
 - **Focused:** 27.98 FPS
-- **Unfocused:** 27.89 FPS
+- **Visible-unfocused:** 27.89 FPS
 
-These are pre/post-comparison baselines only. No post-fix FPS improvement is claimed yet.
+The dedicated read-only `game-engine-cli performance` command was invoked exactly once post-fix while the window was fully visible. It returned:
 
-Use `cargo run --bin game-engine-cli -- performance` for valid runtime diagnostics. Its text output contains exactly `fps`, `frame_time_ms`, and `focused`; these values come from Bevy's smoothed frame diagnostics and primary-window focus state. IPC screenshots are visual captures, not frame-timing measurements. Their overlay can display a transient `FPS: 1.00` even when `performance` reports normal timing, so that value is a capture-frame artifact rather than normal unfocused behavior. `game-engine-cli screenshot` writes the captured frame as WebP.
+```text
+fps=28.14 frame_time_ms=35.54 focused=false
+```
+
+Compared with the matching visible-unfocused baseline, the delta is **+0.25 FPS**, which is not a meaningful FPS improvement. No screenshot was used.
+
+A five-second read-only sample recorded:
+
+- Process CPU: **214.96% of one core**
+- Process AMD gfx-engine busy: **53.28%**
+- System GPU busy samples: **[67, 58, 61, 64, 63, 59]**
+- Average system GPU busy: **62.00%**
+
+A ten-second `perf record` collected **1K samples** with **zero lost samples**. It contained no `simplex`, `fbm`, `cloud_density`, or `generate_cloud` rows. The prior approximately 60% procedural simplex hotspot is removed, but frame rate is effectively unchanged; the cloud fix must not be credited with raising FPS.
+
+The engine journal separately recorded **5,229** repeated `bevy_pbr::ssao` errors from 18:46:15 through 19:14:41 local time: SSAO requires `Msaa::Off`, while the engine uses `Msaa::Sample4`. This confirms a live render-configuration error and substantial log spam. Its contribution to the unchanged frame rate is not established, and it was not changed in this work.
+
+IPC/network evidence remained healthy: `pong`; `InWorld`; `connected=true`; `connected_links=1`; `remote_entities=78`; `local_players=1`. The entity-tree dump succeeded with **15,431 lines**. The same journal window contained only the expected initial connecting-state disconnect and reconnect, with no reconnect loop, GPU out-of-memory error, or general out-of-memory error.
+
+IPC screenshots are visual captures, not frame-timing measurements. The screenshot `FPS: 1.00` artifact remains not fully isolated; no stronger cause is established here.
 
 ## Sources
 
