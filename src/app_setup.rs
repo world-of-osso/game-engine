@@ -187,6 +187,7 @@ fn register_ui_plugins(app: &mut App) {
         .add_plugins(game_engine::trade::TradePlugin)
         .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
+        .insert_resource(game_engine::ui::plugin::UiTextRenderEnabled(false))
         .add_plugins(game_engine::ui::automation::UiAutomationPlugin)
         .add_plugins(IpcPlugin)
         .add_plugins(client_options::ClientOptionsPlugin);
