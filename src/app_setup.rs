@@ -1,5 +1,4 @@
 use super::*;
-use std::env::VarError;
 use std::io::Write;
 
 fn default_plugins() -> bevy::app::PluginGroupBuilder {
@@ -175,23 +174,6 @@ fn log_app_exit_messages(mut exits: MessageReader<AppExit>) {
     }
 }
 
-fn read_shadow_render_mode() -> Result<bool, String> {
-    match std::env::var("WOO_UI_TEXT_SHADOWS") {
-        Ok(value) => match value.as_str() {
-            "enabled" => Ok(true),
-            "disabled" => Ok(false),
-            _ => Err(format!(
-                "WOO_UI_TEXT_SHADOWS must be 'enabled' or 'disabled', got {value:?}"
-            )),
-        },
-        Err(VarError::NotPresent) => Err(
-            "WOO_UI_TEXT_SHADOWS must be set to 'enabled' or 'disabled' for diagnostics"
-                .to_string(),
-        ),
-        Err(VarError::NotUnicode(_)) => Err("WOO_UI_TEXT_SHADOWS must be valid UTF-8".to_string()),
-    }
-}
-
 fn register_ui_plugins(app: &mut App) {
     app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
         .add_plugins(game_engine::collection::CollectionPlugin)
@@ -205,9 +187,7 @@ fn register_ui_plugins(app: &mut App) {
         .add_plugins(game_engine::trade::TradePlugin)
         .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
-        .insert_resource(game_engine::ui::plugin::UiTextShadowRenderEnabled(
-            read_shadow_render_mode().expect("WOO_UI_TEXT_SHADOWS must be set for diagnostics"),
-        ))
+        .insert_resource(game_engine::ui::plugin::UiTextShadowRenderEnabled(false))
         .add_plugins(game_engine::ui::automation::UiAutomationPlugin)
         .add_plugins(IpcPlugin)
         .add_plugins(client_options::ClientOptionsPlugin);
