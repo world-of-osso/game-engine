@@ -398,14 +398,7 @@ fn insert_startup_resources(
         app.insert_resource(scenes::char_select::PreselectedCharName(name));
     }
     insert_screen_resources(app, args);
-    insert_m2_effect_uv_update_resource(app, args);
     insert_data_resources(app);
-}
-
-fn insert_m2_effect_uv_update_resource(app: &mut App, args: &[String]) {
-    if has_flag(args, "--disable-m2-effect-uv-updates") {
-        app.insert_resource(m2_effect_material::M2EffectUvUpdatesEnabled(false));
-    }
 }
 
 fn insert_screen_resources(app: &mut App, args: &[String]) {
