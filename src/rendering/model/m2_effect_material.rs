@@ -60,11 +60,32 @@ impl Material for M2EffectMaterial {
 
 pub struct M2EffectMaterialPlugin;
 
+#[derive(Resource, Debug, Clone, Copy)]
+pub(crate) struct M2EffectUvUpdatesEnabled(pub(crate) bool);
+
+impl Default for M2EffectUvUpdatesEnabled {
+    fn default() -> Self {
+        Self(true)
+    }
+}
+
 impl Plugin for M2EffectMaterialPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MaterialPlugin::<M2EffectMaterial>::default())
-            .add_systems(Update, update_m2_effect_uvs);
+            .init_resource::<M2EffectUvUpdatesEnabled>();
+        register_m2_effect_uv_update_system(app);
     }
+}
+
+pub(crate) fn register_m2_effect_uv_update_system(app: &mut App) {
+    app.add_systems(
+        Update,
+        update_m2_effect_uvs.run_if(m2_effect_uv_updates_enabled),
+    );
+}
+
+fn m2_effect_uv_updates_enabled(enabled: Res<M2EffectUvUpdatesEnabled>) -> bool {
+    enabled.0
 }
 
 fn update_m2_effect_uvs(time: Res<Time>, mut materials: ResMut<Assets<M2EffectMaterial>>) {
@@ -113,8 +134,16 @@ pub(crate) fn alpha_test_threshold_for_blend(blend_mode: u16, transparency: f32)
 
 #[cfg(test)]
 mod tests {
-    use super::{alpha_mode_for_blend, alpha_test_threshold_for_blend};
-    use bevy::prelude::AlphaMode;
+    use super::{
+        M2EffectMaterial, M2EffectSettings, M2EffectUvUpdatesEnabled, alpha_mode_for_blend,
+        alpha_test_threshold_for_blend, register_m2_effect_uv_update_system,
+    };
+    use crate::asset::m2_anim::AnimTrack;
+    use bevy::prelude::{AlphaMode, App, Assets, Handle, Time, Vec2};
+    use std::time::Duration;
+
+    const SENTINEL_UV_OFFSET_1: Vec2 = Vec2::new(9.0, 10.0);
+    const SENTINEL_UV_OFFSET_2: Vec2 = Vec2::new(11.0, 12.0);
 
     #[test]
     fn invalid_blend_modes_fallback_to_additive() {
@@ -133,5 +162,86 @@ mod tests {
         assert_eq!(alpha_test_threshold_for_blend(1, 0.5), 224.0 / 255.0 * 0.5);
         assert_eq!(alpha_test_threshold_for_blend(2, 0.25), 1.0 / 255.0 * 0.25);
         assert_eq!(alpha_test_threshold_for_blend(7, 0.75), 1.0 / 255.0 * 0.75);
+    }
+
+    #[test]
+    fn disabled_m2_effect_uv_updates_leave_material_offsets_unchanged() {
+        let (mut app, material_handle) = build_uv_update_test_app(false);
+        advance_test_time(&mut app);
+
+        let material = app
+            .world()
+            .resource::<Assets<M2EffectMaterial>>()
+            .get(&material_handle)
+            .expect("test material");
+
+        assert_eq!(material.settings.uv_offset_1, SENTINEL_UV_OFFSET_1);
+        assert_eq!(material.settings.uv_offset_2, SENTINEL_UV_OFFSET_2);
+    }
+
+    #[test]
+    fn enabled_m2_effect_uv_updates_evaluate_animation_tracks() {
+        let (mut app, material_handle) = build_uv_update_test_app(true);
+        advance_test_time(&mut app);
+
+        let material = app
+            .world()
+            .resource::<Assets<M2EffectMaterial>>()
+            .get(&material_handle)
+            .expect("test material");
+
+        assert_eq!(material.settings.uv_offset_1, Vec2::new(0.5, 0.75));
+        assert_eq!(material.settings.uv_offset_2, Vec2::ZERO);
+    }
+
+    fn build_uv_update_test_app(enabled: bool) -> (App, Handle<M2EffectMaterial>) {
+        let mut app = App::new();
+        app.insert_resource(Time::<()>::default());
+        app.insert_resource(M2EffectUvUpdatesEnabled(enabled));
+        app.init_resource::<Assets<M2EffectMaterial>>();
+        register_m2_effect_uv_update_system(&mut app);
+
+        let material_handle = app
+            .world_mut()
+            .resource_mut::<Assets<M2EffectMaterial>>()
+            .add(test_material());
+        (app, material_handle)
+    }
+
+    fn advance_test_time(app: &mut App) {
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_millis(500));
+        app.update();
+    }
+
+    fn test_material() -> M2EffectMaterial {
+        M2EffectMaterial {
+            settings: M2EffectSettings {
+                transparency: 1.0,
+                alpha_test: 0.0,
+                shader_id: 0,
+                blend_mode: 0,
+                uv_mode_1: 0,
+                uv_mode_2: 0,
+                render_flags: 0,
+                uv_offset_1: SENTINEL_UV_OFFSET_1,
+                uv_offset_2: SENTINEL_UV_OFFSET_2,
+            },
+            base_texture: Handle::default(),
+            second_texture: Handle::default(),
+            blend_mode: 0,
+            two_sided: false,
+            texture_anim_1: Some(test_anim_track()),
+            texture_anim_2: None,
+        }
+    }
+
+    fn test_anim_track() -> AnimTrack<[f32; 3]> {
+        AnimTrack {
+            interpolation_type: 0,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 1000], vec![[0.0, 0.0, 0.0], [1.0, 1.5, 0.0]])],
+        }
     }
 }
