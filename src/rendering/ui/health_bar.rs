@@ -2,6 +2,9 @@ use bevy::prelude::*;
 use shared::components::Health;
 
 use crate::client_options::HudVisibilityToggles;
+use crate::game::inworld_scene_stage::{
+    InWorldSceneStage, configured_inworld_scene_stage, inworld_scene_stage_allows_ui,
+};
 use crate::game_state::GameState;
 
 pub struct HealthBarPlugin;
@@ -16,7 +19,8 @@ impl Plugin for HealthBarPlugin {
                 update_health_bars,
                 billboard_health_bars,
             )
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }
@@ -69,9 +73,15 @@ fn spawn_health_bars(
     trigger: On<Add, Health>,
     mut commands: Commands,
     query: Query<&Health>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    let scene_stage = configured_inworld_scene_stage(scene_stage);
+    if !scene_stage.includes(InWorldSceneStage::Ui) {
+        return;
+    }
+
     let entity = trigger.entity;
     let Ok(health) = query.get(entity) else {
         return;
@@ -238,6 +248,45 @@ fn sync_health_bar_visibility(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scene_stage_health_bars_are_hidden_until_ui_stage() {
+        let mut empty_app = health_bar_test_app(crate::InWorldSceneStage::Empty);
+        spawn_test_health_entity(&mut empty_app);
+        empty_app.update();
+        assert_eq!(health_bar_count(&mut empty_app), 0);
+
+        let mut ui_app = health_bar_test_app(crate::InWorldSceneStage::Ui);
+        spawn_test_health_entity(&mut ui_app);
+        ui_app.update();
+        assert_eq!(health_bar_count(&mut ui_app), 1);
+    }
+
+    fn health_bar_test_app(stage: crate::InWorldSceneStage) -> App {
+        let mut app = App::new();
+        app.init_resource::<Assets<Mesh>>();
+        app.init_resource::<Assets<StandardMaterial>>();
+        app.insert_resource(stage);
+        app.add_observer(spawn_health_bars);
+        app
+    }
+
+    fn spawn_test_health_entity(app: &mut App) {
+        app.world_mut().spawn((
+            Transform::default(),
+            Health {
+                current: 100.0,
+                max: 100.0,
+            },
+        ));
+    }
+
+    fn health_bar_count(app: &mut App) -> usize {
+        app.world_mut()
+            .query_filtered::<Entity, With<HealthBar>>()
+            .iter(app.world())
+            .count()
+    }
 
     #[test]
     fn test_health_color_full_hp() {
