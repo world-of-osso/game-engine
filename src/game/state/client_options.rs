@@ -177,7 +177,7 @@ impl GraphicsOptions {
 
     pub fn present_mode(&self) -> PresentMode {
         if self.vsync_enabled {
-            PresentMode::AutoVsync
+            PresentMode::Mailbox
         } else {
             PresentMode::AutoNoVsync
         }
