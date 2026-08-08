@@ -431,6 +431,32 @@ fn sync_window_present_mode_updates_primary_window() {
 }
 
 #[test]
+fn sync_window_present_mode_maps_vsync_to_mailbox() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(GraphicsOptions {
+        vsync_enabled: true,
+        ..GraphicsOptions::default()
+    });
+    app.add_systems(Update, sync_window_present_mode);
+    let window_entity = app
+        .world_mut()
+        .spawn((
+            PrimaryWindow,
+            Window {
+                present_mode: PresentMode::Fifo,
+                ..Window::default()
+            },
+        ))
+        .id();
+
+    app.update();
+
+    let window = app.world().entity(window_entity).get::<Window>().unwrap();
+    assert_eq!(window.present_mode, PresentMode::Mailbox);
+}
+
+#[test]
 fn frame_limit_interval_is_none_when_disabled() {
     assert_eq!(frame_limit_interval(false, 144), None);
 }
