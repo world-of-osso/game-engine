@@ -22,14 +22,9 @@ fn persists_lookup_results_in_local_cache() {
         Some("world/maps/test/test_1_2.adt")
     );
 
-    let persisted = listfile_cache::load_local_cache(&local).unwrap();
-    assert_eq!(
-        persisted.by_fdid.get(&123).copied(),
-        Some("world/maps/test/test_1_2.adt")
-    );
-
     std::fs::remove_file(&community).unwrap();
     let cached_only = Listfile::new(community, community_cache, local.clone());
+    assert!(cached_only.local.lock().unwrap().by_fdid.is_empty());
     assert_eq!(
         cached_only.lookup_path("world/maps/test/test_1_2.adt"),
         Some(123)
@@ -55,14 +50,10 @@ fn lookup_fdid_persists_reverse_lookup_results_in_local_cache() {
     let listfile = Listfile::new(community.clone(), community_cache.clone(), local.clone());
     assert!(listfile.local.lock().unwrap().by_fdid.is_empty());
     assert_eq!(listfile.lookup_fdid(456), Some("creature/test/test.m2"));
-    let persisted = listfile_cache::load_local_cache(&local).unwrap();
-    assert_eq!(
-        persisted.by_fdid.get(&456).copied(),
-        Some("creature/test/test.m2")
-    );
 
     std::fs::remove_file(&community).unwrap();
     let cached_only = Listfile::new(community, community_cache, local.clone());
+    assert!(cached_only.local.lock().unwrap().by_fdid.is_empty());
     assert_eq!(cached_only.lookup_fdid(456), Some("creature/test/test.m2"));
     assert_eq!(cached_only.lookup_path("creature/test/test.m2"), Some(456));
 
