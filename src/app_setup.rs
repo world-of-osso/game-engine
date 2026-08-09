@@ -223,6 +223,7 @@ fn register_render_plugins(app: &mut App) {
                 .run_if(in_state(game_state::GameState::InWorld))
                 .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
         );
+    rendering::camera_post_process_diagnostic::register_wow_camera_post_process_diagnostic(app);
 }
 
 pub(crate) fn register_plugins(app: &mut App) {

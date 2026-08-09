@@ -1,5 +1,7 @@
 #[path = "camera/camera.rs"]
 pub mod camera;
+#[path = "camera/camera_post_process_diagnostic.rs"]
+pub(crate) mod camera_post_process_diagnostic;
 #[path = "camera/orbit_camera.rs"]
 pub mod orbit_camera;
 

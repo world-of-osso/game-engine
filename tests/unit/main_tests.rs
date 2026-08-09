@@ -52,6 +52,32 @@ fn parse_inworld_scene_stage_rejects_unknown_values() {
 }
 
 #[test]
+fn camera_diagnostic_flag_is_opt_in() {
+    use crate::rendering::camera_post_process_diagnostic::DisableWowCameraPostProcess;
+
+    let mut default_app = App::new();
+    insert_wow_camera_post_process_diagnostic_resource(&mut default_app, &args(&[]));
+    assert!(
+        default_app
+            .world()
+            .get_resource::<DisableWowCameraPostProcess>()
+            .is_none()
+    );
+
+    let mut selected_app = App::new();
+    insert_wow_camera_post_process_diagnostic_resource(
+        &mut selected_app,
+        &args(&["--disable-wow-camera-post-process"]),
+    );
+    assert!(
+        selected_app
+            .world()
+            .get_resource::<DisableWowCameraPostProcess>()
+            .is_some()
+    );
+}
+
+#[test]
 fn every_pre_ui_stage_disables_ui_processing_and_rendering() {
     use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
 
