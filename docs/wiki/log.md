@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-09] fix | Record event-driven NPC visibility
+
+Updated [[networking]], [[replicated-unit-noops]], and `index.md` for `e745d35e` (`Make NPC visibility event driven`). Recorded the prior per-`Update` scan history (`1a1a8179`, extended by `6ffa6ce0`, with `3c77d346` guarding writes only), then the new trigger boundaries: added/changed `Npc` entity-scoped updates, semantic `LocalAliveState` changes for `DeadOnly` policies, dawn/dusk phase changes for scheduled policies, and one full reconciliation on state/NPC-stage activation. Recorded focused RED/GREEN behavioral proof without claiming measured CPU improvement.
+
 ## [2026-08-09] fix | Record Npcs-gated remote interpolation
 
 Updated [[networking]], [[replicated-unit-noops]], [[procedural-cloud-regeneration]], and [[rendering-pipeline]] for `538e8329` (`Gate remote interpolation at Npcs`). Connection/auth, replication receive, and replicated target synchronization remain active before `Npcs`; `interpolate_remote_entities` now runs only from cumulative `Npcs`, so `Empty`, `Character`, `Skybox`, and `Terrain` no longer mutate remote visual `Transform`. Recorded the RED failure and GREEN pass in `/tmp/claude/game-engine-perf/strict-empty-interpolation-red.log` and `strict-empty-interpolation-green.log`. The live replacement (`538e83290769c70a6980ec0903db74bf2981c0fb`, PID `2960624`, start ticks `182917558`, socket `/tmp/game-engine-2960624.sock`) compared cautiously with the pre-gate client (`96e1308a31940ed5c03046b574ca0b52fe15d8e2`, PID `2592665`, start ticks `182782909`, socket `/tmp/game-engine-2592665.sock`): both had no world camera, remote counts `133` versus `134`, aggregate CPU `325.49% → 288.12%`, compute CPU `229.17% → 197.62%`, and client gfx `6.93% → 5.60%`. FPS/frame direction is not acceptance evidence because runqueue and live conditions drifted. The subsequent strict-Empty eu-stack capture contains no interpolation stack, but about `2.9` cores remain, so the root-cause loop continues.

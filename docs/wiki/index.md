@@ -55,7 +55,7 @@ Root cause analyses and debug findings.
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, presentation/SSAO fixes, UI scheduling boundary, and permanent Empty-to-Npcs camera gate; permanent Empty replacement human gate pending
-- [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, fixes, tests, and connected relaunch proof without comparative FPS evidence
+- [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof without comparative FPS evidence
 
 ## Reference
 

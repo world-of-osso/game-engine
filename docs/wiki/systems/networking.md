@@ -42,7 +42,9 @@ Before `538e8329`, `interpolate_remote_entities` performed remote visual `Transf
 
 Lightyear equality-suppresses the final client ECS replacement for equal replicated components, but server-side same-value `Rotation`/`MovementSpeed` input writes and grounded gravity state still entered change detection, serialization, and transmission. Actual wander movement remains real `Position` change, not a replication NOOP. The current nearby movement-type-2 NPCs have no waypoint rows, so waypoint-delay behavior is not implicated in this workload.
 
-Conditional client writes and server state updates are committed in `3c77d346`, `2927382`, and `ae81c65`, with regression tests for stable and changing state. The post-gate live replacement used game-engine commit `538e83290769c70a6980ec0903db74bf2981c0fb`, PID `2960624`, start ticks `182917558`, and socket `/tmp/game-engine-2960624.sock`; its pre-gate comparison used commit `96e1308a31940ed5c03046b574ca0b52fe15d8e2`, PID `2592665`, start ticks `182782909`, and socket `/tmp/game-engine-2592665.sock`. Both had no world camera; remote counts were `133` and `134`. Aggregate CPU changed `325.49% → 288.12%`, compute-pool CPU `229.17% → 197.62%`, and client gfx occupancy `6.93% → 5.60%`. FPS/frame direction is not acceptance evidence because runqueue delay and live conditions drifted. The subsequent strict-Empty eu-stack capture contains no interpolation stack, but about `2.9` cores remain, so the root-cause loop continues. See [[replicated-unit-noops]].
+`e745d35e` removes the steady-state NPC visibility scan. `Changed<Npc>` applies policy to only the added or changed entity. `sync_local_alive_state` writes `LocalAliveState` only when its boolean changes; that transition triggers a one-time scan that reapplies only `DeadOnly` policies. Dawn/dusk phase transitions trigger a one-time scan that reapplies only scheduled policies. Game-state or NPC-stage activation performs one full reconciliation. No full replicated-NPC visibility query runs between those triggers. History: `1a1a8179` introduced per-frame reconciliation, `6ffa6ce0` retained it for day/night policies, and `3c77d346` only guarded equal writes.
+
+Conditional client writes and server state updates are committed in `3c77d346`, `e745d35e`, `2927382`, and `ae81c65`, with regression tests for stable and changing state. The focused `e745d35e` GREEN run passes 7 event-driven visibility tests; no CPU improvement is claimed. The post-gate live replacement used game-engine commit `538e83290769c70a6980ec0903db74bf2981c0fb`, PID `2960624`, start ticks `182917558`, and socket `/tmp/game-engine-2960624.sock`; its pre-gate comparison used commit `96e1308a31940ed5c03046b574ca0b52fe15d8e2`, PID `2592665`, start ticks `182782909`, and socket `/tmp/game-engine-2592665.sock`. Both had no world camera; remote counts were `133` and `134`. Aggregate CPU changed `325.49% → 288.12%`, compute-pool CPU `229.17% → 197.62%`, and client gfx occupancy `6.93% → 5.60%`. FPS/frame direction is not acceptance evidence because runqueue delay and live conditions drifted. The subsequent strict-Empty eu-stack capture contains no interpolation stack, but about `2.9` cores remain, so the root-cause loop continues. See [[replicated-unit-noops]].
 
 ## Multi-ADT Terrain Streaming (Planned Phase 3)
 
@@ -59,7 +61,10 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [authentication.md](../../authentication.md) — auth flow, token storage, argon2, redb tables
 - [replicated-unit-noops](../investigations/replicated-unit-noops.md) — empty-stage NOOP evidence and suppression commits
 - [client networking source](../../../src/game/networking/mod.rs) — interpolation and replication receive systems
+- [client NPC networking source](../../../src/game/networking/npc.rs) — event-driven visibility policy systems
+- [client player networking source](../../../src/game/networking/player.rs) — semantic alive-state updates
 - [server networking source](../../../../game-server/crates/server/src/networking.rs) — movement and gravity mutation boundaries
+- `game-engine` commit `e745d35e` — event-driven NPC visibility
 - `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — connected empty-stage relaunch proof
 
 ## See Also
