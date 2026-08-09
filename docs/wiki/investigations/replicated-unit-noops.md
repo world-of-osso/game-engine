@@ -35,7 +35,7 @@ These changes preserve actual movement, interpolation, policy transitions, jumpi
 
 ## Runtime status
 
-The fixes are source- and test-backed. The corrected server binary is running, and `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` records the corrected empty-stage client using `game-engine` `508891a6` and `ui-toolkit` `50e4a17`: connected `InWorld`, one link, one local player, and 133 remote entities. The toolkit UI tree and `MainActionBar` filter were empty; stderr had zero `[UI]` and zero `UIActionBar.BLP` lines, with no font panic, GPU OOM, device-loss, or panic. `ping` and `performance` were responsive. Exactly one client remains live for Alessio's visual inspection; human visual approval is pending and no next stage launched. The three performance samples are not comparative evidence; no FPS or frame-time improvement is established.
+The fixes are source- and test-backed. The corrected server binary is running, and `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` records the corrected empty-stage client using `game-engine` `508891a6` and `ui-toolkit` `50e4a17`: connected `InWorld`, one link, one local player, and 133 remote entities. The toolkit UI tree and `MainActionBar` filter were empty; stderr had zero `[UI]` and zero `UIActionBar.BLP` lines, with no font panic, GPU OOM, device-loss, or panic. `ping` and `performance` were responsive. The client was left running for visual inspection at capture time; current live-client state and the launch gate are tracked in [[procedural-cloud-regeneration]]. The three performance samples are not comparative evidence; no FPS or frame-time improvement is established.
 
 ## Sources
 

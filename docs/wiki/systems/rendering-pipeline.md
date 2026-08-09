@@ -54,6 +54,7 @@ The complete WMVx blend mode reference:
 - **Procedural cloud regeneration (fixed)**: before `b2b07e5b`, one 512×1024 six-octave cloud texture regenerated synchronously every five seconds, consuming about 60% of sampled CPU in simplex functions. Runtime regeneration is now removed and the hotspot disappeared from later profiler samples; FPS attribution from the earlier comparison is invalid because a separate Wayland/Vulkan presentation stall was present.
 - **Wayland/Vulkan presentation stall (fixed)**: VSync-enabled FIFO presentation blocked `Queue::present` for approximately 0.96–0.97 seconds on the affected surface. Commit `89f58874` selects Mailbox for VSync-enabled mode; corrected fully visible unfocused evidence reached 28.35–29.32 FPS with approximately 38.7 ms CLI request latency.
 - **SSAO/MSAA compatibility (fixed)**: commit `cff4ad46` removes SSAO from the real `WowCamera` when default MSAA4x is active. TAA restores `Msaa::Off`, `TemporalAntiAliasing`, and SSAO. The RED test reproduced SSAO with `Msaa::Sample4`; the exact GREEN test passes, removing Bevy's per-frame incompatibility errors. No runtime FPS improvement is claimed before restart measurement.
+- **Temporary Empty-stage camera diagnostic**: commit `b6468868` adds opt-in `--disable-wow-camera-post-process`, removing only the WowCamera TAA/SSAO/depth/normal/motion-vector prepass bundle and its temporal jitter/mip-bias support. The performance overlay and other camera behavior remain outside the removal set; selected/unselected behavior and opt-in parsing are covered by tests. This is a diagnostic comparison condition only: live-client judgment is pending Alessio, and no performance improvement is claimed.
 - **Current UI/render-resource investigation (open)**: all-text disablement strongly implicates UI-text-associated rendering with moderate confidence, but the enabled and disabled runs used different revisions and 71 versus 76 remote entities. The calibrated profile points primarily to downstream wgpu buffer/resource work rather than high self-cost in text extraction. Shadow-only isolation is implemented and behaviorally GREEN; live measurement is pending. No code fix or FPS improvement claim exists yet.
 
 ## Sources
@@ -62,6 +63,8 @@ The complete WMVx blend mode reference:
 - [torch-halo-investigation-2026-03-30.md](../torch-halo-investigation-2026-03-30.md) — blend mode fallback fix, WMVx reference
 - [pointlight-skinned-mesh-bug-2026-04-04.md](../pointlight-skinned-mesh-bug-2026-04-04.md) — bloom/point-light Bevy rendering bug
 - [procedural-cloud-regeneration](../investigations/procedural-cloud-regeneration.md) — synchronous cloud regeneration investigation and runtime-removal evidence
+- [camera post-process diagnostic](../../../src/rendering/camera/camera_post_process_diagnostic.rs) — temporary Empty-stage component-removal boundary
+- [camera post-process diagnostic tests](../../../tests/unit/camera_post_process_tests.rs) — selected/unselected camera preservation proof
 - AGENTS.md — `src/rendering/` structure
 
 ## See Also
