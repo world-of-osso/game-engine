@@ -2,9 +2,9 @@
 
 Chronological record of wiki operations.
 
-## [2026-08-09] investigation | Record temporary Empty-stage camera diagnostic
+## [2026-08-09] investigation | Confirm Empty-stage camera bundle cause
 
-Updated [[procedural-cloud-regeneration]] and [[rendering-pipeline]] for `game-engine` commit `b6468868`. Recorded the opt-in `--disable-wow-camera-post-process` boundary: only the WowCamera TAA/SSAO/depth/normal/motion-vector prepass bundle and its temporal jitter/mip-bias support are removed; the performance overlay and other camera behavior remain outside the removal set. Selected/unselected camera behavior and flag opt-in parsing are covered by tests. This is temporary diagnostic evidence only; live-client visual judgment remains pending Alessio, and no performance improvement is claimed.
+Updated [[procedural-cloud-regeneration]] and [[rendering-pipeline]] for diagnostic commit `b6468868` and live proof `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json`. PID `3367453` remains the only running client on `/tmp/game-engine-3367453.sock`, connected to `InWorld` with one link, one local player, 134 remote entities after sampling, zero terrain tiles, empty game UI, and zero UI/font/panic/GPU-error evidence. The performance panel and non-targeted camera behavior remained active. Alessio judged performance improved and accepted the camera bundle as the Empty-stage cause; six post-warmup samples are supporting only. Commit `e9d3d470` removed the temporary selector from source before permanent implementation. No permanent fix is claimed yet.
 
 ## [2026-08-08] fix | Record pre-UI game/UI-toolkit scheduling boundary
 

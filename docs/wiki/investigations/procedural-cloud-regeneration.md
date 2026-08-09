@@ -50,9 +50,11 @@ Machine-side empty-stage relaunch proof is recorded in `/tmp/claude/game-engine-
 
 ## Temporary Empty-Stage Camera Diagnostic
 
-Commit `b6468868` adds the opt-in `--disable-wow-camera-post-process` flag for Empty-stage diagnosis. On `WowCamera`, it removes only the TAA, SSAO, depth, normal, and motion-vector prepass bundle; the implementation also removes that bundle's associated `TemporalJitter` and `MipBias` components. `Camera3d`, `WowCamera`, transforms, MSAA, tonemapping, shadow filtering, spatial audio, the performance overlay, and other camera behavior remain outside the removal set. Without the flag, the normal post-process bundle remains.
+Commit `b6468868` added the opt-in `--disable-wow-camera-post-process` flag for Empty-stage diagnosis. On `WowCamera`, it removed only the TAA, SSAO, depth, normal, and motion-vector prepass bundle plus the associated `TemporalJitter` and `MipBias` components. `Camera3d`, `WowCamera`, transforms, MSAA, tonemapping, shadow filtering, spatial audio, the performance overlay, and other camera behavior remained outside the removal set. Selected/unselected camera tests and the CLI opt-in test established a controlled diagnostic condition.
 
-The selected/unselected camera tests and CLI opt-in test establish this as a controlled diagnostic condition, not a production change or performance fix. No game client or engine socket is currently live (verified 2026-08-09); launching the diagnostic replacement and collecting Alessio's visual judgment require his explicit permission. No FPS improvement is claimed.
+Live proof is recorded in `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json`: exactly one client remains running as PID `3367453` on `/tmp/game-engine-3367453.sock`, connected to `InWorld` with one link, one local player, 134 remote entities after sampling, zero loaded/pending/failed terrain tiles, an empty game UI, and zero UI/font/panic/GPU-error evidence. The performance panel remains active by source/test proof. Alessio judged performance improved and accepted the camera bundle as the Empty-stage cause. Six post-warmup samples are supporting observations only; they did not make the decision.
+
+Commit `e9d3d470` removed the temporary flag, resource, system, and selector tests from source before any permanent change. The already-running diagnostic client still executes the preserved `b6468868` binary for inspection. No permanent stage-aware camera fix is implemented yet.
 
 ## Current In-World Performance Investigation
 
