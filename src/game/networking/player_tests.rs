@@ -71,3 +71,47 @@ fn local_mount_visual_root_copies_parent_movement_state() {
     assert!(movement.jumping);
     assert!(movement.autorun);
 }
+
+#[derive(Resource, Default)]
+struct LocalAliveStateChangeCount(usize);
+
+fn count_local_alive_state_changes(
+    local_alive: Res<LocalAliveState>,
+    mut count: ResMut<LocalAliveStateChangeCount>,
+) {
+    if local_alive.is_changed() {
+        count.0 += 1;
+    }
+}
+
+#[test]
+fn event_driven_npc_visibility_sync_ignores_unchanged_health() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<LocalAliveState>();
+    app.init_resource::<LocalAliveStateChangeCount>();
+    app.add_systems(
+        Update,
+        (sync_local_alive_state, count_local_alive_state_changes).chain(),
+    );
+    app.world_mut().spawn((
+        LocalPlayer,
+        NetHealth {
+            current: 100.0,
+            max: 100.0,
+        },
+    ));
+
+    app.update();
+    app.world_mut()
+        .resource_mut::<LocalAliveStateChangeCount>()
+        .0 = 0;
+    app.update();
+
+    assert_eq!(
+        app.world().resource::<LocalAliveStateChangeCount>().0,
+        0,
+        "unchanged health must not emit a LocalAliveState change"
+    );
+    assert!(app.world().resource::<LocalAliveState>().0);
+}

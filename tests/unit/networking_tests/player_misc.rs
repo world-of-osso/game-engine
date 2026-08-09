@@ -1,5 +1,5 @@
 use super::*;
-use crate::networking_npc::apply_npc_visibility_policy;
+use crate::networking_npc::register_npc_visibility_policy_systems;
 
 #[test]
 fn chat_log_caps_at_max() {
@@ -199,12 +199,8 @@ fn npc_visibility_schedule_test_app(
     app.init_resource::<LocalAliveState>();
     app.init_resource::<crate::rendering::sky::GameTime>();
     app.init_resource::<NpcVisibilityChangeCount>();
-    app.add_systems(
-        Update,
-        (apply_npc_visibility_policy, count_npc_visibility_changes)
-            .chain()
-            .run_if(npc_visibility_policy_is_active),
-    );
+    register_npc_visibility_policy_systems(&mut app);
+    app.add_systems(Last, count_npc_visibility_changes);
     app
 }
 

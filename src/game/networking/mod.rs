@@ -335,19 +335,6 @@ fn register_inworld_replication_systems(app: &mut App) {
     );
 }
 
-fn npc_visibility_policy_is_active(
-    state: Res<State<crate::game_state::GameState>>,
-    stage: Option<Res<crate::game::inworld_scene_stage::InWorldSceneStage>>,
-) -> bool {
-    match state.get() {
-        crate::game_state::GameState::Loading => true,
-        crate::game_state::GameState::InWorld => {
-            crate::game::inworld_scene_stage::inworld_scene_stage_allows_npcs(stage)
-        }
-        _ => false,
-    }
-}
-
 fn register_entity_tag_systems(app: &mut App) {
     use crate::game_state::GameState;
     app.add_systems(
@@ -360,12 +347,7 @@ fn register_entity_tag_systems(app: &mut App) {
             .chain()
             .run_if(in_state(GameState::Loading).or(in_state(GameState::InWorld))),
     );
-    app.add_systems(
-        Update,
-        crate::networking_npc::apply_npc_visibility_policy
-            .after(crate::networking_player::sync_local_alive_state)
-            .run_if(npc_visibility_policy_is_active),
-    );
+    crate::networking_npc::register_npc_visibility_policy_systems(app);
 }
 
 fn terrain_messages_allowed_in_state(state: crate::game_state::GameState) -> bool {

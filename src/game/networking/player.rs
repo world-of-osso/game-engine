@@ -718,11 +718,14 @@ pub(crate) fn sync_local_alive_state(
     mut local_alive: ResMut<LocalAliveState>,
     local_player_query: Query<&NetHealth, With<LocalPlayer>>,
 ) {
-    local_alive.0 = local_player_query
+    let is_alive = local_player_query
         .iter()
         .next()
         .map(|health| health.current > 0.0)
         .unwrap_or(true);
+    if local_alive.0 != is_alive {
+        local_alive.0 = is_alive;
+    }
 }
 
 #[cfg(test)]

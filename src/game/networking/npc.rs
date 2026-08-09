@@ -61,40 +61,152 @@ fn npc_should_be_visible(
     }
 }
 
-pub(crate) fn apply_npc_visibility_policy(
+fn apply_visibility_policy(
+    npc: &Npc,
+    visibility: &mut Visibility,
+    local_alive: bool,
+    game_minutes: f32,
+) {
+    let should_show = npc_should_be_visible(
+        npc_visibility_policy(npc.template_id),
+        local_alive,
+        game_minutes,
+    );
+    let desired = if should_show {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+    if *visibility != desired {
+        *visibility = desired;
+    }
+}
+
+fn apply_changed_npc_visibility_policy(
+    local_alive: Res<LocalAliveState>,
+    game_time: Res<GameTime>,
+    mut npcs: Query<(&Npc, &mut Visibility), (With<Replicated>, Changed<Npc>)>,
+) {
+    for (npc, mut visibility) in &mut npcs {
+        apply_visibility_policy(npc, &mut visibility, local_alive.0, game_time.minutes);
+    }
+}
+
+fn refresh_dead_only_npc_visibility(
     local_alive: Res<LocalAliveState>,
     game_time: Res<GameTime>,
     mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
 ) {
+    if !local_alive.is_changed() {
+        return;
+    }
+
     for (npc, mut visibility) in &mut npcs {
-        let should_show = npc_should_be_visible(
-            npc_visibility_policy(npc.template_id),
-            local_alive.0,
-            game_time.minutes,
-        );
-        let desired = if should_show {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
-        };
-        if *visibility != desired {
-            *visibility = desired;
+        if npc_visibility_policy(npc.template_id) == NpcVisibilityPolicy::DeadOnly {
+            apply_visibility_policy(npc, &mut visibility, local_alive.0, game_time.minutes);
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NpcVisibilityDayPhase {
+    Day,
+    Night,
+}
+
+fn npc_visibility_day_phase(minutes: f32) -> NpcVisibilityDayPhase {
+    if schedule_is_active(NpcSchedule::DayOnly, minutes) {
+        NpcVisibilityDayPhase::Day
+    } else {
+        NpcVisibilityDayPhase::Night
+    }
+}
+
+fn refresh_scheduled_npc_visibility(
+    local_alive: Res<LocalAliveState>,
+    game_time: Res<GameTime>,
+    mut previous_phase: Local<Option<NpcVisibilityDayPhase>>,
+    mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
+) {
+    let current_phase = npc_visibility_day_phase(game_time.minutes);
+    let previous_phase = previous_phase.replace(current_phase);
+    let Some(previous_phase) = previous_phase else {
+        return;
+    };
+    if previous_phase == current_phase {
+        return;
+    }
+
+    for (npc, mut visibility) in &mut npcs {
+        if matches!(
+            npc_visibility_policy(npc.template_id),
+            NpcVisibilityPolicy::Scheduled(_)
+        ) {
+            apply_visibility_policy(npc, &mut visibility, local_alive.0, game_time.minutes);
+        }
+    }
+}
+
+fn refresh_npc_visibility_on_activation(
+    state: Res<State<crate::game_state::GameState>>,
+    stage: Option<Res<InWorldSceneStage>>,
+    local_alive: Res<LocalAliveState>,
+    game_time: Res<GameTime>,
+    mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
+) {
+    let stage_changed = stage.as_ref().is_some_and(|stage| stage.is_changed());
+    if !state.is_changed() && !stage_changed {
+        return;
+    }
+
+    for (npc, mut visibility) in &mut npcs {
+        apply_visibility_policy(npc, &mut visibility, local_alive.0, game_time.minutes);
+    }
+}
+
+fn npc_visibility_policy_is_active(
+    state: Res<State<crate::game_state::GameState>>,
+    stage: Option<Res<InWorldSceneStage>>,
+) -> bool {
+    match state.get() {
+        crate::game_state::GameState::Loading => true,
+        crate::game_state::GameState::InWorld => {
+            crate::game::inworld_scene_stage::inworld_scene_stage_allows_npcs(stage)
+        }
+        _ => false,
+    }
+}
+
+pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
+    app.add_systems(
+        Update,
+        (
+            apply_changed_npc_visibility_policy,
+            refresh_dead_only_npc_visibility,
+            refresh_scheduled_npc_visibility,
+            refresh_npc_visibility_on_activation,
+        )
+            .chain()
+            .after(crate::networking_player::sync_local_alive_state)
+            .run_if(npc_visibility_policy_is_active),
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
     use lightyear::prelude::Replicated;
-    use shared::components::Npc;
+    use shared::components::{Health as NetHealth, Npc};
 
-    use crate::networking::LocalAliveState;
+    use crate::game::inworld_scene_stage::InWorldSceneStage;
+    use crate::game_state::GameState;
+    use crate::networking::{LocalAliveState, LocalPlayer};
+    use crate::networking_player::sync_local_alive_state;
     use crate::rendering::sky::GameTime;
 
     use super::{
-        DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, NpcVisibilityPolicy, apply_npc_visibility_policy,
-        npc_should_be_visible, npc_visibility_policy, schedule_is_active,
+        DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, NpcVisibilityPolicy, npc_should_be_visible,
+        npc_visibility_policy, register_npc_visibility_policy_systems, schedule_is_active,
     };
 
     #[derive(Resource, Default)]
@@ -109,15 +221,37 @@ mod tests {
 
     fn visibility_policy_test_app() -> App {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins);
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.insert_state(GameState::InWorld);
+        app.insert_resource(InWorldSceneStage::Npcs);
         app.init_resource::<LocalAliveState>();
         app.init_resource::<GameTime>();
         app.init_resource::<VisibilityChangeCount>();
-        app.add_systems(
-            Update,
-            (apply_npc_visibility_policy, count_visibility_changes).chain(),
-        );
+        register_npc_visibility_policy_systems(&mut app);
+        app.add_systems(Last, count_visibility_changes);
         app
+    }
+
+    fn staged_visibility_policy_test_app(stage: InWorldSceneStage, sync_alive_state: bool) -> App {
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.insert_state(GameState::InWorld);
+        app.insert_resource(stage);
+        app.init_resource::<LocalAliveState>();
+        app.init_resource::<GameTime>();
+
+        if sync_alive_state {
+            app.add_systems(Update, sync_local_alive_state);
+        }
+        register_npc_visibility_policy_systems(&mut app);
+        app
+    }
+
+    fn set_visibility(app: &mut App, entity: Entity, visibility: Visibility) {
+        *app.world_mut()
+            .entity_mut(entity)
+            .get_mut::<Visibility>()
+            .expect("NPC visibility") = visibility;
     }
 
     fn spawn_visibility_test_npc(
@@ -166,6 +300,180 @@ mod tests {
         app.world_mut().resource_mut::<VisibilityChangeCount>().0 = 0;
         app.update();
         assert_eq!(app.world().resource::<VisibilityChangeCount>().0, 0);
+    }
+
+    #[test]
+    fn event_driven_npc_visibility_updates_added_npc_without_refreshing_unchanged_npc() {
+        let mut app = staged_visibility_policy_test_app(InWorldSceneStage::Npcs, false);
+        let unchanged = spawn_visibility_test_npc(&mut app, 0, Visibility::Visible);
+        app.update();
+        set_visibility(&mut app, unchanged, Visibility::Hidden);
+
+        let added = spawn_visibility_test_npc(&mut app, 32820, Visibility::Visible);
+        app.update();
+
+        assert_eq!(
+            *app.world().get::<Visibility>(added).unwrap(),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(unchanged).unwrap(),
+            Visibility::Hidden,
+            "an unrelated NPC must not be refreshed"
+        );
+    }
+
+    #[test]
+    fn event_driven_npc_visibility_updates_changed_npc_without_refreshing_unchanged_npc() {
+        let mut app = staged_visibility_policy_test_app(InWorldSceneStage::Npcs, false);
+        let unchanged = spawn_visibility_test_npc(&mut app, 0, Visibility::Visible);
+        let changed = spawn_visibility_test_npc(&mut app, 0, Visibility::Visible);
+        app.update();
+        set_visibility(&mut app, unchanged, Visibility::Hidden);
+        app.world_mut()
+            .entity_mut(changed)
+            .get_mut::<Npc>()
+            .expect("changed NPC")
+            .template_id = 32820;
+
+        app.update();
+
+        assert_eq!(
+            *app.world().get::<Visibility>(changed).unwrap(),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(unchanged).unwrap(),
+            Visibility::Hidden,
+            "an unchanged NPC must not be refreshed"
+        );
+    }
+
+    #[test]
+    fn event_driven_npc_visibility_updates_dead_only_npcs_on_alive_transition() {
+        let mut app = staged_visibility_policy_test_app(InWorldSceneStage::Npcs, true);
+        let player = app
+            .world_mut()
+            .spawn((
+                LocalPlayer,
+                NetHealth {
+                    current: 100.0,
+                    max: 100.0,
+                },
+            ))
+            .id();
+        let dead_only = spawn_visibility_test_npc(&mut app, 6491, Visibility::Hidden);
+        let scheduled = spawn_visibility_test_npc(&mut app, 12783, Visibility::Visible);
+        app.update();
+        set_visibility(&mut app, scheduled, Visibility::Hidden);
+        app.world_mut()
+            .entity_mut(player)
+            .get_mut::<NetHealth>()
+            .expect("local health")
+            .current = 0.0;
+
+        app.update();
+
+        assert_eq!(
+            *app.world().get::<Visibility>(dead_only).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(scheduled).unwrap(),
+            Visibility::Hidden,
+            "alive transitions must not refresh scheduled NPCs"
+        );
+    }
+
+    #[test]
+    fn event_driven_npc_visibility_updates_scheduled_npcs_at_dawn_and_dusk() {
+        let mut app = staged_visibility_policy_test_app(InWorldSceneStage::Npcs, false);
+        app.world_mut().resource_mut::<GameTime>().minutes = DAWN_MINUTES - 1.0;
+        let day_only = spawn_visibility_test_npc(&mut app, 12783, Visibility::Hidden);
+        let night_only = spawn_visibility_test_npc(&mut app, 918, Visibility::Visible);
+        let always = spawn_visibility_test_npc(&mut app, 0, Visibility::Visible);
+        app.update();
+        set_visibility(&mut app, always, Visibility::Hidden);
+
+        app.world_mut().resource_mut::<GameTime>().minutes = DAWN_MINUTES;
+        app.update();
+        assert_eq!(
+            *app.world().get::<Visibility>(day_only).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(night_only).unwrap(),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(always).unwrap(),
+            Visibility::Hidden,
+            "dawn must not refresh unrelated NPCs"
+        );
+
+        app.world_mut().resource_mut::<GameTime>().minutes = DUSK_MINUTES;
+        app.update();
+        assert_eq!(
+            *app.world().get::<Visibility>(day_only).unwrap(),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(night_only).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(always).unwrap(),
+            Visibility::Hidden,
+            "dusk must not refresh unrelated NPCs"
+        );
+    }
+
+    #[test]
+    fn event_driven_npc_visibility_handles_time_jump_across_midnight_and_dawn() {
+        let mut app = staged_visibility_policy_test_app(InWorldSceneStage::Npcs, false);
+        app.world_mut().resource_mut::<GameTime>().minutes = 2879.0;
+        let day_only = spawn_visibility_test_npc(&mut app, 12783, Visibility::Hidden);
+        let night_only = spawn_visibility_test_npc(&mut app, 918, Visibility::Visible);
+        let always = spawn_visibility_test_npc(&mut app, 0, Visibility::Visible);
+        app.update();
+        set_visibility(&mut app, always, Visibility::Hidden);
+
+        app.world_mut().resource_mut::<GameTime>().minutes = 721.0;
+        app.update();
+
+        assert_eq!(
+            *app.world().get::<Visibility>(day_only).unwrap(),
+            Visibility::Visible
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(night_only).unwrap(),
+            Visibility::Hidden
+        );
+        assert_eq!(
+            *app.world().get::<Visibility>(always).unwrap(),
+            Visibility::Hidden,
+            "a wrapped time jump must not refresh unrelated NPCs"
+        );
+    }
+
+    #[test]
+    fn event_driven_npc_visibility_refreshes_existing_npc_when_npcs_stage_activates() {
+        let mut app = staged_visibility_policy_test_app(InWorldSceneStage::Empty, false);
+        let npc = spawn_visibility_test_npc(&mut app, 6491, Visibility::Hidden);
+        app.world_mut().resource_mut::<LocalAliveState>().0 = false;
+        app.update();
+        assert_eq!(
+            *app.world().get::<Visibility>(npc).unwrap(),
+            Visibility::Hidden
+        );
+
+        *app.world_mut().resource_mut::<InWorldSceneStage>() = InWorldSceneStage::Npcs;
+        app.update();
+
+        assert_eq!(
+            *app.world().get::<Visibility>(npc).unwrap(),
+            Visibility::Visible
+        );
     }
 
     #[test]
