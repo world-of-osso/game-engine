@@ -324,9 +324,14 @@ fn register_inworld_replication_systems(app: &mut App) {
             sync_replicated_transforms,
             crate::networking_player::sync_replicated_player_customization,
             crate::networking_player::sync_local_mount_visual_movement,
-            interpolate_remote_entities,
         )
             .run_if(in_state(GameState::InWorld)),
+    );
+    app.add_systems(
+        Update,
+        interpolate_remote_entities
+            .run_if(in_state(GameState::InWorld))
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_npcs),
     );
 }
 

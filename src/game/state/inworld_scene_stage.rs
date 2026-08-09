@@ -76,6 +76,10 @@ pub(crate) fn inworld_scene_stage_allows_terrain(stage: Option<Res<InWorldSceneS
     inworld_scene_stage_includes(stage, InWorldSceneStage::Terrain)
 }
 
+pub(crate) fn inworld_scene_stage_allows_npcs(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Npcs)
+}
+
 pub(crate) fn inworld_scene_stage_allows_lighting(stage: Option<Res<InWorldSceneStage>>) -> bool {
     inworld_scene_stage_includes(stage, InWorldSceneStage::Lighting)
 }
