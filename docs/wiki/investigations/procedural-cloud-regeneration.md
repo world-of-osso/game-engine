@@ -56,7 +56,7 @@ Commit `3b144afc` makes the accepted diagnostic behavior permanent for cumulativ
 
 The temporary selector was removed in `e9d3d470`; no `--disable-wow-camera-post-process` compatibility path remains. Alessio accepted the diagnostic cause from the old comparison, and machine samples remain supporting evidence only. The permanent Empty-stage replacement has not yet passed the human gate.
 
-Live proof `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json` belongs to PID `3367453`, socket `/tmp/game-engine-3367453.sock`, and the preserved diagnostic binary from `b6468868`. That client must not be described as running the permanent `3b144afc` build. Its connected Empty workload and zero-error observations document the diagnostic only; they are not permanent-build verification.
+Historical live proof `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json` belongs to PID `3367453`, socket `/tmp/game-engine-3367453.sock`, and the preserved diagnostic binary from `b6468868`. That client exited by `2026-08-09T06:05:43Z`; the socket is gone, and stderr ends with `WindowCloseRequested` followed by `AppExit Success`. No coredump, OOM kill, crash, or agent lifecycle action was observed. Its connected Empty workload and zero-error observations document the accepted diagnostic cause only; they are not permanent-build verification. Do not relaunch a client or advance the human gate without Alessio's explicit permission.
 
 ## Current In-World Performance Investigation
 
