@@ -1,14 +1,18 @@
 use bevy::anti_alias::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::camera::MainPassResolutionOverride;
+use bevy::core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass};
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::ecs::query::QueryData;
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode, BloomPrefilter};
 use bevy::post_process::dof::DepthOfField;
 use bevy::prelude::*;
+use bevy::render::camera::{MipBias, TemporalJitter};
 
 use super::WowCamera;
 use crate::client_options::{AntiAliasMode, GraphicsOptions};
+use crate::game::inworld_scene_stage::{InWorldSceneStage, configured_inworld_scene_stage};
 
 const MIN_RENDER_SCALE: f32 = 0.5;
 const MAX_RENDER_SCALE: f32 = 1.0;
@@ -51,59 +55,160 @@ pub(super) fn scaled_main_pass_resolution(target_size: UVec2, render_scale: f32)
     }
 }
 
+#[derive(QueryData)]
+#[query_data(mutable)]
+pub(super) struct CameraPostProcessQuery {
+    entity: Entity,
+    camera: &'static Camera,
+    bloom: Option<&'static mut Bloom>,
+    resolution_override: Option<&'static mut MainPassResolutionOverride>,
+    cas: Option<&'static mut ContrastAdaptiveSharpening>,
+    dof: Option<&'static mut DepthOfField>,
+    msaa: Option<&'static Msaa>,
+    taa: Option<&'static TemporalAntiAliasing>,
+    has_ssao: Has<ScreenSpaceAmbientOcclusion>,
+    has_depth_prepass: Has<DepthPrepass>,
+    has_normal_prepass: Has<NormalPrepass>,
+    is_wow_camera: Has<WowCamera>,
+}
+
 pub(super) fn sync_camera_graphics_post_process(
     graphics: Res<GraphicsOptions>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
     mut commands: Commands,
-    mut cameras: Query<
-        (
-            Entity,
-            &Camera,
-            Option<&mut Bloom>,
-            Option<&mut MainPassResolutionOverride>,
-            Option<&mut ContrastAdaptiveSharpening>,
-            Option<&mut DepthOfField>,
-            Option<&Msaa>,
-            Option<&TemporalAntiAliasing>,
-            Has<ScreenSpaceAmbientOcclusion>,
-            Has<WowCamera>,
-        ),
-        With<Camera3d>,
-    >,
+    mut cameras: Query<CameraPostProcessQuery, With<Camera3d>>,
 ) {
     let desired_bloom = additive_particle_glow_bloom(&graphics);
-    for (
-        entity,
-        camera,
-        bloom,
-        resolution_override,
-        cas,
-        dof,
-        msaa,
-        taa,
-        has_ssao,
-        is_wow_camera,
-    ) in &mut cameras
-    {
-        sync_bloom(&mut commands, entity, desired_bloom.clone(), bloom);
-        let desired_resolution = camera
-            .physical_target_size()
-            .and_then(|size| scaled_main_pass_resolution(size, graphics.render_scale));
-        sync_resolution(
+    let wow_camera_render_bundle_enabled =
+        configured_inworld_scene_stage(scene_stage).includes(InWorldSceneStage::Lighting);
+    for mut camera in &mut cameras {
+        sync_common_camera_post_process(&graphics, &desired_bloom, &mut commands, &mut camera);
+        sync_camera_render_bundle(
+            &graphics,
+            wow_camera_render_bundle_enabled,
             &mut commands,
-            entity,
-            desired_resolution,
-            resolution_override,
+            &camera,
         );
-        sync_sharpening(&mut commands, entity, graphics.render_scale < 0.999, cas);
-        sync_depth_of_field(&mut commands, entity, graphics.depth_of_field, dof);
-        sync_anti_alias(&mut commands, entity, graphics.anti_alias, msaa, taa);
-        sync_ssao_compatibility(
-            &mut commands,
-            entity,
-            graphics.anti_alias,
-            has_ssao,
-            is_wow_camera,
+    }
+}
+
+fn sync_common_camera_post_process(
+    graphics: &GraphicsOptions,
+    desired_bloom: &Option<Bloom>,
+    commands: &mut Commands,
+    camera: &mut CameraPostProcessQueryItem<'_, '_>,
+) {
+    sync_bloom(
+        commands,
+        camera.entity,
+        desired_bloom.clone(),
+        camera.bloom.take(),
+    );
+    sync_camera_resolution(graphics, commands, camera);
+    sync_sharpening(
+        commands,
+        camera.entity,
+        graphics.render_scale < 0.999,
+        camera.cas.take(),
+    );
+    sync_depth_of_field(
+        commands,
+        camera.entity,
+        graphics.depth_of_field,
+        camera.dof.take(),
+    );
+}
+
+fn sync_camera_resolution(
+    graphics: &GraphicsOptions,
+    commands: &mut Commands,
+    camera: &mut CameraPostProcessQueryItem<'_, '_>,
+) {
+    let desired_resolution = camera
+        .camera
+        .physical_target_size()
+        .and_then(|size| scaled_main_pass_resolution(size, graphics.render_scale));
+    sync_resolution(
+        commands,
+        camera.entity,
+        desired_resolution,
+        camera.resolution_override.take(),
+    );
+}
+
+fn sync_camera_render_bundle(
+    graphics: &GraphicsOptions,
+    wow_camera_render_bundle_enabled: bool,
+    commands: &mut Commands,
+    camera: &CameraPostProcessQueryItem<'_, '_>,
+) {
+    if camera.is_wow_camera && !wow_camera_render_bundle_enabled {
+        remove_wow_camera_render_bundle(commands, camera.entity);
+        return;
+    }
+    if camera.is_wow_camera {
+        restore_wow_camera_prepasses(
+            commands,
+            camera.entity,
+            camera.has_depth_prepass,
+            camera.has_normal_prepass,
         );
+    }
+    sync_camera_anti_aliasing_and_ssao(graphics, commands, camera);
+}
+
+fn sync_camera_anti_aliasing_and_ssao(
+    graphics: &GraphicsOptions,
+    commands: &mut Commands,
+    camera: &CameraPostProcessQueryItem<'_, '_>,
+) {
+    sync_anti_alias(
+        commands,
+        camera.entity,
+        graphics.anti_alias,
+        camera.msaa,
+        camera.taa,
+    );
+    sync_ssao_compatibility(
+        commands,
+        camera.entity,
+        graphics.anti_alias,
+        camera.has_ssao,
+        camera.is_wow_camera,
+    );
+}
+
+fn remove_wow_camera_render_bundle(commands: &mut Commands, entity: Entity) {
+    commands.entity(entity).remove::<(
+        TemporalAntiAliasing,
+        ScreenSpaceAmbientOcclusion,
+        DepthPrepass,
+        NormalPrepass,
+        MotionVectorPrepass,
+        TemporalJitter,
+        MipBias,
+    )>();
+}
+
+fn restore_wow_camera_prepasses(
+    commands: &mut Commands,
+    entity: Entity,
+    has_depth_prepass: bool,
+    has_normal_prepass: bool,
+) {
+    match (has_depth_prepass, has_normal_prepass) {
+        (false, false) => {
+            commands
+                .entity(entity)
+                .insert((DepthPrepass, NormalPrepass));
+        }
+        (false, true) => {
+            commands.entity(entity).insert(DepthPrepass);
+        }
+        (true, false) => {
+            commands.entity(entity).insert(NormalPrepass);
+        }
+        (true, true) => {}
     }
 }
 
