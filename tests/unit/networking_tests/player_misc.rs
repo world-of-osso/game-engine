@@ -1,4 +1,5 @@
 use super::*;
+use crate::networking_npc::apply_npc_visibility_policy;
 
 #[test]
 fn chat_log_caps_at_max() {
@@ -173,6 +174,116 @@ fn npc_visibility_policy_hides_debug_pedestals_and_turkeys() {
 #[test]
 fn npc_visibility_policy_only_shows_spirit_healer_when_dead() {
     assert_eq!(npc_visibility_policy(6491), NpcVisibilityPolicy::DeadOnly);
+}
+
+#[derive(Resource, Default)]
+struct NpcVisibilityChangeCount(usize);
+
+fn count_npc_visibility_changes(
+    changed: Query<(), Changed<Visibility>>,
+    mut count: ResMut<NpcVisibilityChangeCount>,
+) {
+    count.0 += changed.iter().count();
+}
+
+fn npc_visibility_schedule_test_app(
+    state: crate::game_state::GameState,
+    stage: Option<crate::game::inworld_scene_stage::InWorldSceneStage>,
+) -> App {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+    app.insert_state(state);
+    if let Some(stage) = stage {
+        app.insert_resource(stage);
+    }
+    app.init_resource::<LocalAliveState>();
+    app.init_resource::<crate::rendering::sky::GameTime>();
+    app.init_resource::<NpcVisibilityChangeCount>();
+    app.add_systems(
+        Update,
+        (apply_npc_visibility_policy, count_npc_visibility_changes)
+            .chain()
+            .run_if(npc_visibility_policy_is_active),
+    );
+    app
+}
+
+fn spawn_npc_visibility_fixture(app: &mut App, visibility: Visibility) -> Entity {
+    let receiver = app.world_mut().spawn_empty().id();
+    app.world_mut()
+        .spawn((
+            shared::components::Npc { template_id: 6491 },
+            Replicated { receiver },
+            visibility,
+        ))
+        .id()
+}
+
+#[test]
+fn inworld_npc_visibility_waits_until_npcs_stage() {
+    for stage in [
+        crate::game::inworld_scene_stage::InWorldSceneStage::Empty,
+        crate::game::inworld_scene_stage::InWorldSceneStage::Character,
+        crate::game::inworld_scene_stage::InWorldSceneStage::Skybox,
+        crate::game::inworld_scene_stage::InWorldSceneStage::Terrain,
+    ] {
+        let mut app =
+            npc_visibility_schedule_test_app(crate::game_state::GameState::InWorld, Some(stage));
+        let npc = spawn_npc_visibility_fixture(&mut app, Visibility::Hidden);
+
+        app.update();
+        app.world_mut().resource_mut::<NpcVisibilityChangeCount>().0 = 0;
+        app.world_mut().resource_mut::<LocalAliveState>().0 = false;
+        app.update();
+
+        assert_eq!(
+            *app.world().get::<Visibility>(npc).unwrap(),
+            Visibility::Hidden,
+            "NPC policy must stay disabled at {stage:?}"
+        );
+        assert_eq!(
+            app.world().resource::<NpcVisibilityChangeCount>().0,
+            0,
+            "NPC policy must not mutate visibility at {stage:?}"
+        );
+    }
+}
+
+#[test]
+fn inworld_npc_visibility_applies_at_npcs_stage() {
+    let mut app = npc_visibility_schedule_test_app(
+        crate::game_state::GameState::InWorld,
+        Some(crate::game::inworld_scene_stage::InWorldSceneStage::Npcs),
+    );
+    let npc = spawn_npc_visibility_fixture(&mut app, Visibility::Hidden);
+
+    app.update();
+    app.world_mut().resource_mut::<NpcVisibilityChangeCount>().0 = 0;
+    app.world_mut().resource_mut::<LocalAliveState>().0 = false;
+    app.update();
+
+    assert_eq!(
+        *app.world().get::<Visibility>(npc).unwrap(),
+        Visibility::Visible
+    );
+    assert_eq!(app.world().resource::<NpcVisibilityChangeCount>().0, 1);
+}
+
+#[test]
+fn loading_npc_visibility_policy_remains_active() {
+    let mut app = npc_visibility_schedule_test_app(crate::game_state::GameState::Loading, None);
+    let npc = spawn_npc_visibility_fixture(&mut app, Visibility::Hidden);
+
+    app.update();
+    app.world_mut().resource_mut::<NpcVisibilityChangeCount>().0 = 0;
+    app.world_mut().resource_mut::<LocalAliveState>().0 = false;
+    app.update();
+
+    assert_eq!(
+        *app.world().get::<Visibility>(npc).unwrap(),
+        Visibility::Visible
+    );
+    assert_eq!(app.world().resource::<NpcVisibilityChangeCount>().0, 1);
 }
 
 #[test]

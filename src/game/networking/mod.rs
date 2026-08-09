@@ -335,6 +335,19 @@ fn register_inworld_replication_systems(app: &mut App) {
     );
 }
 
+fn npc_visibility_policy_is_active(
+    state: Res<State<crate::game_state::GameState>>,
+    stage: Option<Res<crate::game::inworld_scene_stage::InWorldSceneStage>>,
+) -> bool {
+    match state.get() {
+        crate::game_state::GameState::Loading => true,
+        crate::game_state::GameState::InWorld => {
+            crate::game::inworld_scene_stage::inworld_scene_stage_allows_npcs(stage)
+        }
+        _ => false,
+    }
+}
+
 fn register_entity_tag_systems(app: &mut App) {
     use crate::game_state::GameState;
     app.add_systems(
@@ -343,10 +356,15 @@ fn register_entity_tag_systems(app: &mut App) {
             crate::networking_player::tag_local_player,
             crate::networking_auth::sync_selected_character_roster_entry,
             crate::networking_player::sync_local_alive_state,
-            crate::networking_npc::apply_npc_visibility_policy,
         )
             .chain()
             .run_if(in_state(GameState::Loading).or(in_state(GameState::InWorld))),
+    );
+    app.add_systems(
+        Update,
+        crate::networking_npc::apply_npc_visibility_policy
+            .after(crate::networking_player::sync_local_alive_state)
+            .run_if(npc_visibility_policy_is_active),
     );
 }
 
