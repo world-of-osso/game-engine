@@ -260,12 +260,12 @@ fn spawn_world_environment(
     camera_q: Query<Entity, With<WowCamera>>,
     scene_stage: Option<Res<InWorldSceneStage>>,
 ) {
-    if camera_q.single().ok().is_none() {
+    let scene_stage = configured_inworld_scene_stage(scene_stage);
+    if scene_stage.includes(InWorldSceneStage::Character) && camera_q.single().ok().is_none() {
         camera::spawn_wow_camera(&mut commands);
     }
     commands.insert_resource(ClearColor(Color::srgb(0.05, 0.05, 0.12)));
 
-    let scene_stage = configured_inworld_scene_stage(scene_stage);
     let lighting_enabled = scene_stage.includes(InWorldSceneStage::Lighting);
     commands.insert_resource(GlobalAmbientLight {
         color: Color::WHITE,

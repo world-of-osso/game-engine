@@ -121,6 +121,60 @@ fn pre_ui_processing_gate_keeps_fps_overlay_active() {
     );
 }
 
+fn world_environment_test_app(stage: InWorldSceneStage) -> App {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+    app.insert_resource(networking::ServerAddr(
+        "127.0.0.1:5000".parse().expect("valid test server address"),
+    ));
+    app.insert_resource(game_state::InitialGameState(game_state::GameState::InWorld));
+    app.insert_resource(stage);
+    app.add_plugins(game_state::GameStatePlugin);
+    app
+}
+
+fn world_camera_counts(app: &mut App) -> (usize, usize) {
+    let wow_camera_count = app
+        .world_mut()
+        .query_filtered::<Entity, With<camera::WowCamera>>()
+        .iter(app.world())
+        .count();
+    let camera_3d_count = app
+        .world_mut()
+        .query_filtered::<Entity, With<Camera3d>>()
+        .iter(app.world())
+        .count();
+    (wow_camera_count, camera_3d_count)
+}
+
+#[test]
+fn empty_world_environment_has_no_world_camera() {
+    let mut app = world_environment_test_app(InWorldSceneStage::Empty);
+
+    app.update();
+
+    assert_eq!(world_camera_counts(&mut app), (0, 0));
+}
+
+#[test]
+fn character_world_environment_keeps_one_world_camera_across_reentry() {
+    let mut app = world_environment_test_app(InWorldSceneStage::Character);
+
+    app.update();
+    assert_eq!(world_camera_counts(&mut app), (1, 1));
+
+    app.world_mut()
+        .resource_mut::<NextState<game_state::GameState>>()
+        .set(game_state::GameState::Login);
+    app.update();
+    app.world_mut()
+        .resource_mut::<NextState<game_state::GameState>>()
+        .set(game_state::GameState::InWorld);
+    app.update();
+
+    assert_eq!(world_camera_counts(&mut app), (1, 1));
+}
+
 #[test]
 fn parse_screen_alias_matches_state_parser() {
     let parsed = parse_state_arg(&args(&["--screen", "charselect"]))
