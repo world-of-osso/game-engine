@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-09] fix | Record Npcs-gated remote interpolation
+
+Updated [[networking]], [[replicated-unit-noops]], [[procedural-cloud-regeneration]], and [[rendering-pipeline]] for `538e8329` (`Gate remote interpolation at Npcs`). Connection/auth, replication receive, and replicated target synchronization remain active before `Npcs`; `interpolate_remote_entities` now runs only from cumulative `Npcs`, so `Empty`, `Character`, `Skybox`, and `Terrain` no longer mutate remote visual `Transform`. Recorded the RED failure and GREEN pass in `/tmp/claude/game-engine-perf/strict-empty-interpolation-red.log` and `strict-empty-interpolation-green.log`. The live replacement (`538e83290769c70a6980ec0903db74bf2981c0fb`, PID `2960624`, start ticks `182917558`, socket `/tmp/game-engine-2960624.sock`) compared cautiously with the pre-gate client (`96e1308a31940ed5c03046b574ca0b52fe15d8e2`, PID `2592665`, start ticks `182782909`, socket `/tmp/game-engine-2592665.sock`): both had no world camera, remote counts `133` versus `134`, aggregate CPU `325.49% → 288.12%`, compute CPU `229.17% → 197.62%`, and client gfx `6.93% → 5.60%`. FPS/frame direction is not acceptance evidence because runqueue and live conditions drifted. The subsequent strict-Empty eu-stack capture contains no interpolation stack, but about `2.9` cores remain, so the root-cause loop continues.
+
 ## [2026-08-09] fix | Record strict Empty world-camera boundary
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and [[replicated-unit-noops]] for `96e1308a` (`Skip world camera at Empty stage`). `Empty` no longer spawns the world `WowCamera`/`Camera3d`; `Character` and later cumulative stages still retain one. The standalone performance panel/UI camera remains active, and the permanent `Empty`–`Npcs` post-process gate from `3b144afc` is unchanged. Commit tests cover zero world cameras in `Empty` and one world camera across `Character` re-entry. This audit changed documentation only; no live relaunch or performance claim was made.

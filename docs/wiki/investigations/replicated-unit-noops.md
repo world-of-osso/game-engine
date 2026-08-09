@@ -10,7 +10,8 @@ The preserved pre-`96e1308a` empty-stage client remained connected with networki
 
 ### Client per-frame ECS writes
 
-- `interpolate_remote_entities` ran every rendered `Update` frame for non-local `RemoteEntity` entities and assigned `Transform` translation and rotation even when interpolation was already at the target. At the preserved workload this was 132 hidden NPC roots per frame.
+- Before `538e8329`, `interpolate_remote_entities` ran every rendered `Update` frame for non-local `RemoteEntity` entities and could assign remote visual `Transform` translation and rotation even when interpolation was already at the target. At the preserved workload this was 132 hidden NPC roots per frame.
+- `538e8329` gates remote visual interpolation behind cumulative `Npcs`. `Empty`, `Character`, `Skybox`, and `Terrain` no longer mutate remote visual `Transform`; connection/replication receive and `sync_replicated_transforms` remain active and continue updating interpolation targets for later stages.
 - `apply_npc_visibility_policy` ran every `Update` frame for replicated NPCs and assigned the same `Visibility` value repeatedly. These assignments advanced `Changed<Visibility>` despite no policy change.
 - Equal `Transform` writes woke Bevy transform change detection and propagation. Equal `Visibility` writes woke visibility propagation queries, although hidden roots without visual children avoided render-queue work.
 
@@ -29,6 +30,7 @@ The nearby NPC population must be separated from those NOOPs. Current nearby `Mo
 
 - `game-engine` commit `3c77d346` assigns interpolated `Transform` fields only when the exact result differs and assigns NPC `Visibility` only when the desired state differs. Tests cover stable interpolation, stable visibility, and real visibility changes.
 - `game-engine` commit `96e1308a` removes the world `WowCamera`/`Camera3d` from `Empty` while retaining it for `Character` and later stages; the standalone performance panel/UI camera remains. Tests cover the Empty zero-camera boundary and Character re-entry.
+- `game-engine` commit `538e8329` gates remote visual interpolation at cumulative `Npcs` while preserving replicated target synchronization earlier. The RED run (`/tmp/claude/game-engine-perf/strict-empty-interpolation-red.log`) failed `registered_interpolation_does_not_move_remote_before_npcs` with `Vec3(0.1118857, 0.0, 0.0)` at `Empty` while the `Npcs` test passed; the GREEN run (`/tmp/claude/game-engine-perf/strict-empty-interpolation-green.log`) passed both stage-boundary tests.
 - `game-server` commit `2927382` assigns `Rotation` and `MovementSpeed` only when their desired values differ. Its regression test proves identical input does not dirty either component while changed input still applies.
 - `game-server` commit `ae81c65` calculates gravity state off-component and writes `Position`, `VerticalVelocity`, `FallTracker`, and `Health` only when values differ. Tests cover grounded stability and real falling changes.
 
@@ -36,7 +38,9 @@ These changes preserve actual movement, interpolation, policy transitions, jumpi
 
 ## Runtime status
 
-The fixes are source- and test-backed. The corrected server binary is running, and `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` records the corrected empty-stage client using `game-engine` `508891a6` and `ui-toolkit` `50e4a17`: connected `InWorld`, one link, one local player, and 133 remote entities. The toolkit UI tree and `MainActionBar` filter were empty; stderr had zero `[UI]` and zero `UIActionBar.BLP` lines, with no font panic, GPU OOM, device-loss, or panic. `ping` and `performance` were responsive. The client was left running for visual inspection at capture time; current live-client state and the launch gate are tracked in [[procedural-cloud-regeneration]]. The three performance samples are not comparative evidence; no FPS or frame-time improvement is established.
+The fixes are source- and test-backed. The corrected server binary is running, and `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` records the corrected empty-stage client using `game-engine` `508891a6` and `ui-toolkit` `50e4a17`: connected `InWorld`, one link, one local player, and 133 remote entities. The toolkit UI tree and `MainActionBar` filter were empty; stderr had zero `[UI]` and zero `UIActionBar.BLP` lines, with no font panic, GPU OOM, device-loss, or panic. `ping` and `performance` were responsive.
+
+Commit `538e83290769c70a6980ec0903db74bf2981c0fb` received a live replacement on PID `2960624`, start ticks `182917558`, socket `/tmp/game-engine-2960624.sock`, with server PID `82964` unchanged at start ticks `178818377`. Its pre-gate comparison used commit `96e1308a31940ed5c03046b574ca0b52fe15d8e2`, PID `2592665`, start ticks `182782909`, and socket `/tmp/game-engine-2592665.sock`. Both clients had no world `WowCamera`/`Camera3d`; remote counts were `133` post-gate versus `134` pre-gate. Passive aggregate CPU changed `325.49% → 288.12%`, compute-pool CPU `229.17% → 197.62%`, and client gfx occupancy `6.93% → 5.60%`. FPS/frame direction is not acceptance evidence because runqueue delay changed `2.389 → 4.565` seconds and live conditions drifted. The subsequent three-sample eu-stack capture for PID `2960624` contained no `interpolate_remote_entities` stack, but about `2.9` CPU cores remain; the Empty-stage root-cause loop continues and no final performance acceptance claim is established. See [[procedural-cloud-regeneration]] for the complete evidence paths.
 
 ## Sources
 
