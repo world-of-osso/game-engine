@@ -125,15 +125,15 @@ fn npc_visibility_day_phase(minutes: f32) -> NpcVisibilityDayPhase {
 fn refresh_scheduled_npc_visibility(
     local_alive: Res<LocalAliveState>,
     game_time: Res<GameTime>,
-    mut previous_phase: Local<Option<NpcVisibilityDayPhase>>,
+    mut last_phase: Local<Option<NpcVisibilityDayPhase>>,
     mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
 ) {
     let current_phase = npc_visibility_day_phase(game_time.minutes);
-    let previous_phase = previous_phase.replace(current_phase);
-    let Some(previous_phase) = previous_phase else {
+    let changed_from_phase = last_phase.replace(current_phase);
+    let Some(changed_from_phase) = changed_from_phase else {
         return;
     };
-    if previous_phase == current_phase {
+    if changed_from_phase == current_phase {
         return;
     }
 
@@ -147,7 +147,7 @@ fn refresh_scheduled_npc_visibility(
     }
 }
 
-fn refresh_npc_visibility_on_activation(
+fn refresh_npc_visibility_on_state_or_stage_change(
     state: Res<State<crate::game_state::GameState>>,
     stage: Option<Res<InWorldSceneStage>>,
     local_alive: Res<LocalAliveState>,
@@ -184,7 +184,7 @@ pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
             apply_changed_npc_visibility_policy,
             refresh_dead_only_npc_visibility,
             refresh_scheduled_npc_visibility,
-            refresh_npc_visibility_on_activation,
+            refresh_npc_visibility_on_state_or_stage_change,
         )
             .chain()
             .after(crate::networking_player::sync_local_alive_state)
