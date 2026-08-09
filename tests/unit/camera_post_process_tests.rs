@@ -1,13 +1,9 @@
 use super::*;
 use crate::client_options::{AntiAliasMode, GraphicsOptions};
 use bevy::anti_alias::taa::TemporalAntiAliasing;
-use bevy::audio::SpatialListener;
-use bevy::core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass};
 use bevy::core_pipeline::tonemapping::Tonemapping;
-use bevy::light::ShadowFilteringMethod;
 use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::post_process::bloom::BloomCompositeMode;
-use bevy::render::camera::{MipBias, TemporalJitter};
 
 #[test]
 fn spawn_wow_camera_uses_particle_glow_tonemapping() {
@@ -110,63 +106,4 @@ fn sync_camera_graphics_post_process_keeps_ssao_compatible_with_anti_aliasing() 
     assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
     assert!(camera.get::<TemporalAntiAliasing>().is_some());
     assert!(camera.get::<ScreenSpaceAmbientOcclusion>().is_some());
-}
-
-fn camera_post_process_diagnostic_app(disable_post_process: bool) -> (App, Entity) {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    let mut graphics = GraphicsOptions::default();
-    graphics.anti_alias = AntiAliasMode::Taa;
-    app.insert_resource(graphics);
-    app.add_systems(
-        Update,
-        camera_post_process::sync_camera_graphics_post_process,
-    );
-    if disable_post_process {
-        app.insert_resource(
-            crate::rendering::camera_post_process_diagnostic::DisableWowCameraPostProcess,
-        );
-    }
-    crate::rendering::camera_post_process_diagnostic::register_wow_camera_post_process_diagnostic(
-        &mut app,
-    );
-    let camera = spawn_wow_camera(&mut app.world_mut().commands());
-    app.world_mut().flush();
-    app.update();
-    (app, camera)
-}
-
-#[test]
-fn selected_camera_diagnostic_removes_only_post_process_bundle() {
-    let (app, camera) = camera_post_process_diagnostic_app(true);
-    let entity = app.world().entity(camera);
-
-    assert!(entity.contains::<Camera3d>());
-    assert!(entity.contains::<WowCamera>());
-    assert!(entity.contains::<Transform>());
-    assert!(entity.contains::<Msaa>());
-    assert!(entity.contains::<Tonemapping>());
-    assert!(entity.contains::<ShadowFilteringMethod>());
-    assert!(entity.contains::<SpatialListener>());
-    assert!(!entity.contains::<TemporalAntiAliasing>());
-    assert!(!entity.contains::<ScreenSpaceAmbientOcclusion>());
-    assert!(!entity.contains::<DepthPrepass>());
-    assert!(!entity.contains::<NormalPrepass>());
-    assert!(!entity.contains::<TemporalJitter>());
-    assert!(!entity.contains::<MipBias>());
-    assert!(!entity.contains::<MotionVectorPrepass>());
-}
-
-#[test]
-fn unselected_camera_diagnostic_preserves_post_process_bundle() {
-    let (app, camera) = camera_post_process_diagnostic_app(false);
-    let entity = app.world().entity(camera);
-
-    assert!(entity.contains::<TemporalAntiAliasing>());
-    assert!(entity.contains::<ScreenSpaceAmbientOcclusion>());
-    assert!(entity.contains::<DepthPrepass>());
-    assert!(entity.contains::<NormalPrepass>());
-    assert!(entity.contains::<TemporalJitter>());
-    assert!(entity.contains::<MipBias>());
-    assert!(entity.contains::<MotionVectorPrepass>());
 }

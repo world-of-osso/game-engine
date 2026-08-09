@@ -246,17 +246,6 @@ pub fn print_help() {
     println!(
         "  --inworld-stage <STAGE>  Cumulative scene isolation: empty, character, skybox, terrain, npcs, lighting, particles, ui"
     );
-    print_scene_debug_help();
-    println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
-    println!("  --dump-ui-tree      Dump UI frame registry and exit");
-    println!("  --dump-scene        Dump semantic scene tree and exit");
-    println!("  screenshot <OUT>    Capture screenshot to file and exit");
-    println!("  --run-js-ui-script <PATH>  Run JS UI automation script");
-    println!("  --version           Print version");
-    println!("  --help, -h          Show this help");
-}
-
-fn print_scene_debug_help() {
     println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
     println!("  --skybox-fdid <ID>  Force skyboxdebug to load a specific skybox FileDataID");
     println!("  --light-skybox-id <ID>  Force skyboxdebug to resolve a specific LightSkyboxID");
@@ -266,7 +255,13 @@ fn print_scene_debug_help() {
     println!("  --skybox-verify     Strip skyboxdebug helper visuals and procedural fallback");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --disable-m2-effect-uv-updates  Disable M2 effect UV animation updates");
-    println!("  --disable-wow-camera-post-process  Disable WoW camera TAA/SSAO/prepass bundle");
+    println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
+    println!("  --dump-ui-tree      Dump UI frame registry and exit");
+    println!("  --dump-scene        Dump semantic scene tree and exit");
+    println!("  screenshot <OUT>    Capture screenshot to file and exit");
+    println!("  --run-js-ui-script <PATH>  Run JS UI automation script");
+    println!("  --version           Print version");
+    println!("  --help, -h          Show this help");
 }
 
 fn find_flag_value<'a>(
