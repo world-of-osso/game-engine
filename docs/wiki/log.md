@@ -2,7 +2,7 @@
 
 Chronological record of wiki operations.
 
-## [2026-08-08] investigation | Record temporary Empty-stage camera diagnostic
+## [2026-08-09] investigation | Record temporary Empty-stage camera diagnostic
 
 Updated [[procedural-cloud-regeneration]] and [[rendering-pipeline]] for `game-engine` commit `b6468868`. Recorded the opt-in `--disable-wow-camera-post-process` boundary: only the WowCamera TAA/SSAO/depth/normal/motion-vector prepass bundle and its temporal jitter/mip-bias support are removed; the performance overlay and other camera behavior remain outside the removal set. Selected/unselected camera behavior and flag opt-in parsing are covered by tests. This is temporary diagnostic evidence only; live-client visual judgment remains pending Alessio, and no performance improvement is claimed.
 

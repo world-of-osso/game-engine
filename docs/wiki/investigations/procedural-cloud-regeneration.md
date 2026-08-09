@@ -52,7 +52,7 @@ Machine-side empty-stage relaunch proof is recorded in `/tmp/claude/game-engine-
 
 Commit `b6468868` adds the opt-in `--disable-wow-camera-post-process` flag for Empty-stage diagnosis. On `WowCamera`, it removes only the TAA, SSAO, depth, normal, and motion-vector prepass bundle; the implementation also removes that bundle's associated `TemporalJitter` and `MipBias` components. `Camera3d`, `WowCamera`, transforms, MSAA, tonemapping, shadow filtering, spatial audio, the performance overlay, and other camera behavior remain outside the removal set. Without the flag, the normal post-process bundle remains.
 
-The selected/unselected camera tests and CLI opt-in test establish this as a controlled diagnostic condition, not a production change or performance fix. No game client or engine socket is currently live (verified 2026-08-08); launching the diagnostic replacement and collecting Alessio's visual judgment require his explicit permission. No FPS improvement is claimed.
+The selected/unselected camera tests and CLI opt-in test establish this as a controlled diagnostic condition, not a production change or performance fix. No game client or engine socket is currently live (verified 2026-08-09); launching the diagnostic replacement and collecting Alessio's visual judgment require his explicit permission. No FPS improvement is claimed.
 
 ## Current In-World Performance Investigation
 
