@@ -54,9 +54,13 @@ Commit `3b144afc` makes the accepted diagnostic behavior permanent for cumulativ
 
 `Lighting` and later stages restore the graphics-option-driven path: TAA restores `Msaa::Off`, TAA, SSAO, motion vectors, temporal jitter, and mip bias; non-TAA settings restore the configured MSAA behavior and depth/normal prepasses. An unconfigured/default stage also retains the normal graphics-option-driven path. Bloom, render-scale resolution, CAS, depth of field, camera identity/components, tonemapping, shadow filtering, spatial audio, UI, networking, IPC, and the FPS overlay remain unchanged. The implementation restores prepasses removed by the Empty-to-Npcs gate before applying the normal anti-aliasing/SSAO synchronization.
 
-The temporary selector was removed in `e9d3d470`; no `--disable-wow-camera-post-process` compatibility path remains. Alessio accepted the diagnostic cause from the old comparison, and machine samples remain supporting evidence only. The permanent Empty-stage replacement has not yet passed the human gate.
+The temporary selector was removed in `e9d3d470`; no `--disable-wow-camera-post-process` compatibility path remains. Alessio accepted the diagnostic cause from the old comparison, and machine samples remain supporting evidence only.
 
-Historical live proof `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json` belongs to PID `3367453`, socket `/tmp/game-engine-3367453.sock`, and the preserved diagnostic binary from `b6468868`. That client exited by `2026-08-09T06:05:43Z`; the socket is gone, and stderr ends with `WindowCloseRequested` followed by `AppExit Success`. No coredump, OOM kill, crash, or agent lifecycle action was observed. Its connected Empty workload and zero-error observations document the accepted diagnostic cause only; they are not permanent-build verification. Do not relaunch a client or advance the human gate without Alessio's explicit permission.
+## Strict Empty World-Camera Boundary
+
+Commit `96e1308a` (`Skip world camera at Empty stage`) makes `Empty` stricter than the render-bundle gate above: `spawn_world_environment` creates the world `WowCamera`/`Camera3d` only when the cumulative stage includes `Character`. `Empty` therefore has no world camera; `Character` and every later configured stage still retain one. The standalone performance panel and its UI camera remain available, and the permanent `Empty`–`Npcs` post-process gate from `3b144afc` is unchanged. The commit's tests prove zero world cameras in `Empty` and one world camera across `Character` re-entry. This audit updated documentation only; no live relaunch or performance claim was made.
+
+Historical live proof `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json` belongs to PID `3367453`, socket `/tmp/game-engine-3367453.sock`, and the preserved diagnostic binary from `b6468868`. That client exited by `2026-08-09T06:05:43Z`; the socket is gone, and stderr ends with `WindowCloseRequested` followed by `AppExit Success`. No coredump, OOM kill, crash, or agent lifecycle action was observed. Its connected Empty workload and zero-error observations document the accepted diagnostic cause only; they predate `96e1308a` and do not verify the strict world-camera boundary.
 
 ## Current In-World Performance Investigation
 
@@ -98,6 +102,8 @@ IPC screenshots are visual captures, not frame-timing measurements. The screensh
 - [client options](../../src/game/state/client_options.rs) — VSync setting and presentation-mode selection
 - [camera post-process](../../src/rendering/camera/camera_post_process.rs) — anti-aliasing synchronization and SSAO compatibility
 - [camera post-process tests](../../tests/unit/camera_post_process_tests.rs) — RED/GREEN compatibility behavior
+- [world environment](../../../src/game/state/game_state.rs) — strict Empty world-camera spawn boundary
+- [world environment tests](../../../tests/unit/main_tests.rs) — Empty has no world camera; Character retains one across re-entry
 
 ## See Also
 

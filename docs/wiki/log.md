@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-09] fix | Record strict Empty world-camera boundary
+
+Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and [[replicated-unit-noops]] for `96e1308a` (`Skip world camera at Empty stage`). `Empty` no longer spawns the world `WowCamera`/`Camera3d`; `Character` and later cumulative stages still retain one. The standalone performance panel/UI camera remains active, and the permanent `Empty`–`Npcs` post-process gate from `3b144afc` is unchanged. Commit tests cover zero world cameras in `Empty` and one world camera across `Character` re-entry. This audit changed documentation only; no live relaunch or performance claim was made.
+
 ## [2026-08-09] fix | Record permanent Empty-to-Npcs camera gate
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and `index.md` for permanent behavior commit `3b144afc`. Recorded removal of the WowCamera TAA/SSAO/depth/normal/motion-prepass bundle plus `TemporalJitter`/`MipBias` through cumulative `Empty`–`Npcs`; `Lighting` onward and unconfigured/default stages retain graphics-option-driven behavior, including TAA restoration and configured MSAA depth/normal prepasses. Common bloom/render-scale/CAS/DoF, camera identity, tonemapping, shadow filtering, spatial audio, UI/network/IPC, and FPS overlay remain unchanged. The temporary selector was removed in `e9d3d470`. Alessio accepted the diagnostic cause. The historical PID `3367453` diagnostic client later exited at `2026-08-09T06:05:43Z` with `WindowCloseRequested` followed by `AppExit Success`; its socket is gone, with no coredump, OOM kill, crash, or agent lifecycle action. It was not permanent-build verification, and the permanent Empty replacement human gate remains pending; do not relaunch or advance it without Alessio's explicit permission.

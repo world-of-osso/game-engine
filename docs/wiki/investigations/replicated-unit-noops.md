@@ -1,10 +1,10 @@
 # Empty-Stage Replicated-Unit NOOP Workload
 
-The empty InWorld diagnostic stage suppresses world visuals, but it does not suppress networking or replicated entities. The investigation found semantic no-op work at both the client ECS boundary and the server replication boundary. The fixes are committed; machine-side empty-stage relaunch proof confirms the corrected client remains connected without the prior UI log flood, but no runtime performance improvement is claimed.
+The empty InWorld diagnostic stage suppresses world visuals and, since `96e1308a`, does not spawn the world camera; it still does not suppress networking or replicated entities. The investigation found semantic no-op work at both the client ECS boundary and the server replication boundary. The fixes are committed; machine-side empty-stage relaunch proof confirms the corrected client remains connected without the prior UI log flood, but no runtime performance improvement is claimed.
 
 ## Reproduction boundary
 
-The preserved empty-stage client remained connected with networking, IPC, window, camera, and the performance panel active. IPC reported `remote_entities=133` and `local_players=1`; the scene contained 132 NPCs plus one local player, so the `RemoteEntity` count includes the local player despite its field name. NPC visuals were suppressed (`is_displayed=false`), but replicated unit entities remained present.
+The preserved pre-`96e1308a` empty-stage client remained connected with networking, IPC, window, world camera, and the performance panel active. Current `Empty` behavior removes that world camera while retaining the standalone performance panel/UI camera. IPC reported `remote_entities=133` and `local_players=1`; the scene contained 132 NPCs plus one local player, so the `RemoteEntity` count includes the local player despite its field name. NPC visuals were suppressed (`is_displayed=false`), but replicated unit entities remained present.
 
 ## Confirmed NOOP boundaries
 
@@ -28,6 +28,7 @@ The nearby NPC population must be separated from those NOOPs. Current nearby `Mo
 ## Fixes and tests
 
 - `game-engine` commit `3c77d346` assigns interpolated `Transform` fields only when the exact result differs and assigns NPC `Visibility` only when the desired state differs. Tests cover stable interpolation, stable visibility, and real visibility changes.
+- `game-engine` commit `96e1308a` removes the world `WowCamera`/`Camera3d` from `Empty` while retaining it for `Character` and later stages; the standalone performance panel/UI camera remains. Tests cover the Empty zero-camera boundary and Character re-entry.
 - `game-server` commit `2927382` assigns `Rotation` and `MovementSpeed` only when their desired values differ. Its regression test proves identical input does not dirty either component while changed input still applies.
 - `game-server` commit `ae81c65` calculates gravity state off-component and writes `Position`, `VerticalVelocity`, `FallTracker`, and `Health` only when values differ. Tests cover grounded stability and real falling changes.
 
@@ -48,6 +49,7 @@ The fixes are source- and test-backed. The corrected server binary is running, a
 - `game-engine` commit `3c77d346` — skip unchanged replicated unit writes
 - `game-server` commit `2927382` — avoid dirtying unchanged player movement state
 - `game-server` commit `ae81c65` — avoid dirtying unchanged gravity state
+- `game-engine` commit `96e1308a` — skip world camera at Empty stage
 
 ## See Also
 
