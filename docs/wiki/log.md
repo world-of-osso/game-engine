@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-09] fix | Record permanent Empty-to-Npcs camera gate
+
+Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and `index.md` for permanent behavior commit `3b144afc`. Recorded removal of the WowCamera TAA/SSAO/depth/normal/motion-prepass bundle plus `TemporalJitter`/`MipBias` through cumulative `Empty`–`Npcs`; `Lighting` onward and unconfigured/default stages retain graphics-option-driven behavior, including TAA restoration and configured MSAA depth/normal prepasses. Common bloom/render-scale/CAS/DoF, camera identity, tonemapping, shadow filtering, spatial audio, UI/network/IPC, and FPS overlay remain unchanged. The temporary selector was removed in `e9d3d470`. Alessio accepted the diagnostic cause, but PID `3367453` still runs the old `b6468868` diagnostic binary; it is not permanent-build verification, and the permanent Empty replacement human gate remains pending.
+
 ## [2026-08-09] investigation | Confirm Empty-stage camera bundle cause
 
 Updated [[procedural-cloud-regeneration]] and [[rendering-pipeline]] for diagnostic commit `b6468868` and live proof `/tmp/claude/game-engine-perf/empty-camera-post-process-live.json`. PID `3367453` remains the only running client on `/tmp/game-engine-3367453.sock`, connected to `InWorld` with one link, one local player, 134 remote entities after sampling, zero terrain tiles, empty game UI, and zero UI/font/panic/GPU-error evidence. The performance panel and non-targeted camera behavior remained active. Alessio judged performance improved and accepted the camera bundle as the Empty-stage cause; six post-warmup samples are supporting only. Commit `e9d3d470` removed the temporary selector from source before permanent implementation. No permanent fix is claimed yet.
