@@ -214,12 +214,21 @@ pub(crate) fn particle_plugin_is_enabled(stage: Option<InWorldSceneStage>) -> bo
         .includes(InWorldSceneStage::Particles)
 }
 
+fn m2_effect_material_plugin_is_enabled(stage: Option<InWorldSceneStage>) -> bool {
+    game::inworld_scene_stage::effective_inworld_scene_stage(stage)
+        .includes(InWorldSceneStage::Character)
+}
+
 fn register_render_plugins(app: &mut App) {
-    let particle_plugin_enabled =
-        particle_plugin_is_enabled(app.world().get_resource::<InWorldSceneStage>().copied());
-    app.add_plugins(terrain_material::TerrainMaterialPlugin)
-        .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
-        .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
+    let stage = app.world().get_resource::<InWorldSceneStage>().copied();
+    let m2_effect_material_plugin_enabled = m2_effect_material_plugin_is_enabled(stage);
+    let particle_plugin_enabled = particle_plugin_is_enabled(stage);
+
+    app.add_plugins(terrain_material::TerrainMaterialPlugin);
+    if m2_effect_material_plugin_enabled {
+        app.add_plugins(m2_effect_material::M2EffectMaterialPlugin);
+    }
+    app.add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
         .add_plugins(sky::SkyPlugin);
     if particle_plugin_enabled {
@@ -489,5 +498,47 @@ fn add_debug_scene_plugin(app: &mut App, initial_state: Option<game_state::GameS
             app.add_plugins(scenes::particle_debug::ParticleDebugScenePlugin);
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn m2_effect_material_infrastructure_is_stage_gated() {
+        let observed = [
+            Some(InWorldSceneStage::Empty),
+            Some(InWorldSceneStage::Character),
+            None,
+        ]
+        .into_iter()
+        .map(|stage| {
+            let mut app = App::new();
+            app.add_plugins(bevy::asset::AssetPlugin::default());
+            app.init_asset::<bevy::mesh::Mesh>();
+            app.init_asset::<bevy::shader::Shader>();
+            if let Some(stage) = stage {
+                app.insert_resource(stage);
+            }
+
+            register_render_plugins(&mut app);
+
+            (
+                stage,
+                app.world()
+                    .contains_resource::<Assets<m2_effect_material::M2EffectMaterial>>(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+        assert_eq!(
+            observed,
+            vec![
+                (Some(InWorldSceneStage::Empty), false),
+                (Some(InWorldSceneStage::Character), true),
+                (None, true),
+            ],
+        );
     }
 }
