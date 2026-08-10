@@ -121,6 +121,16 @@ Before pacing, rebuilt status-demand client PID `2093844` reached `InWorld` with
 
 The paced replacement, PID `2130439`, reported **9.98 FPS / 100.23 ms**, remained connected with one link and one local player, and retained the visible performance panel. Terrain counts were zero; scene evidence contained zero `Camera3d` and zero displayed NPCs. The passive 10-second measurement was **11.20% of one core**, so the required `<=10%` gate still failed. Evidence: `/tmp/claude/game-engine-perf/empty-10fps-launch-identity.json`, `empty-10fps-readiness.json`, `empty-10fps-cpu-2130439.json`, and `empty-10fps-2130439.webp`. Stderr had no panic, device loss, or OOM; it contained one nonfatal Lightyear missing-despawn error. The client later exited cleanly through `WindowCloseRequested` and `AppExit Success`. Alessio rejected lower frame pacing as a fix and chose to keep 10 FPS temporarily only as an investigation aid. Character remains blocked while the per-frame application/render cost is decomposed and removed.
 
+## Strict Empty Camera/Input Update Boundary
+
+Commit `c446d81c` (`Gate camera updates at Character stage`) adds an exact cumulative-stage guard around the chained camera/input systems. Strict `Empty` now skips `sync_camera_options`, `camera_input`, `cursor_grab`, `player_movement`, and `camera_follow`; `Character` and every later cumulative stage retain them. The standalone FPS/IPC path and networking remain separate.
+
+Source inspection identified `player_movement` as avoidable Empty work: each dispatched frame allocated collision/pathing collections and initialized mesh-raycast setup despite `Empty` having no world `Camera3d`, terrain, or displayed character. The guard removes that setup rather than changing movement or collision behavior for `Character` and later stages.
+
+Behavioral RED evidence is `/tmp/claude/game-engine-perf/character-stage-guard-red.log`. Focused GREEN evidence is `/tmp/claude/game-engine-perf/character-stage-guard-green.log`; module GREEN evidence is `/tmp/claude/game-engine-perf/character-stage-tests-green.log`. Formatting evidence is `/tmp/claude/game-engine-perf/character-stage-cargo-fmt-check.log`; Rust readability artifacts are under `/tmp/claude/game-engine-perf/character-stage-readability/`. The protected `src/rendering/camera/camera.rs` movement instrumentation was preserved through partial staging and is not part of the `c446d81c` source change.
+
+Rebuilt PID `2176863` remained connected with one link/player, reported **10.01 FPS / 99.89 ms**, zero terrain, zero `Camera3d`, and zero displayed NPCs. Its passive 10-second CPU result was **11.10% of one core**, versus **11.20%** for the prior paced client; remote entities also changed from 70 to 75, so the 0.10-point difference is not accepted as a measurable improvement. Evidence: `/tmp/claude/game-engine-perf/character-camera-gate-{launch-identity,readiness}.json`, `character-camera-gate-cpu-2176863.json`, and `character-camera-gate-2176863.webp`. The 10 FPS limiter remains a temporary investigation aid, and Character remains blocked pending the `<=10%` Empty gate.
+
 ## Sources
 
 - [rendering-pipeline](../systems/rendering-pipeline.md) — pipeline summary and known performance history
@@ -150,6 +160,10 @@ The paced replacement, PID `2130439`, reported **9.98 FPS / 100.23 ms**, remaine
 - [IPC plugin](../../../src/ipc/plugin.rs) — Receive/RefreshStatus/Dispatch sets, pending commands, and request dependency matrix
 - [status synchronization](../../../src/status_sync.rs) — demand-gated snapshot systems and map refresh
 - [game networking registration](../../../src/game/networking/mod.rs) — duplicate map snapshot registration removal
+- [camera systems](../../../src/rendering/camera/camera.rs) — camera/input/player movement/follow systems and preserved movement instrumentation
+- [in-world stage predicates](../../../src/game/state/inworld_scene_stage.rs) — Character-stage guard and cumulative-stage behavior
+- `/tmp/claude/game-engine-perf/character-stage-guard-red.log`, `character-stage-guard-green.log`, and `character-stage-tests-green.log` — behavioral RED/GREEN evidence
+- `/tmp/claude/game-engine-perf/character-stage-cargo-fmt-check.log` and `character-stage-readability/` — formatting/readability evidence
 - `/tmp/claude/game-engine-perf/status-demand-red.log` and `status-refresh-matrix-red.log` — RED compile-boundary evidence
 - `/tmp/claude/game-engine-perf/status-demand-green-2.log` and `status-refresh-matrix-green-2.log` — GREEN behavioral evidence
 - `/tmp/claude/game-engine-perf/status-demand-cargo-fmt-check-final.log` — formatting check evidence

@@ -1,6 +1,6 @@
 # Empty-Stage Replicated-Unit NOOP Workload
 
-The empty InWorld diagnostic stage suppresses world visuals and, since `96e1308a`, does not spawn the world camera; it still does not suppress networking or replicated entities. The investigation found semantic no-op work at both the client ECS boundary and the server replication boundary. The fixes are committed; `e745d35e` also removes the steady-state full scan of replicated NPC visibility policies. Machine-side empty-stage relaunch proof confirms the corrected client remains connected without the prior UI log flood, but no runtime performance improvement is claimed.
+The empty InWorld diagnostic stage suppresses world visuals and, since `96e1308a`, does not spawn the world camera; it still does not suppress networking or replicated entities. The investigation found semantic no-op work at both the client ECS boundary and the server replication boundary. The fixes are committed; `e745d35e` also removes the steady-state full scan of replicated NPC visibility policies. `c446d81c` additionally removes camera/input/player movement/follow dispatch before `Character`, including Empty-only collision/pathing collection and raycast setup. Machine-side empty-stage relaunch proof confirms the corrected client remains connected without the prior UI log flood, but no runtime performance improvement is claimed.
 
 ## Reproduction boundary
 
@@ -16,7 +16,15 @@ The preserved pre-`96e1308a` empty-stage client remained connected with networki
 - `e745d35e` makes visibility trigger-driven: `Changed<Npc>` updates only the changed/added NPC entity; semantic `LocalAliveState` changes trigger a one-time scan that reapplies only `DeadOnly` policies; dawn/dusk phase transitions trigger a one-time scan that reapplies only scheduled policies; state or NPC-stage activation performs one full reconciliation. Between those triggers, no full replicated-NPC visibility query runs.
 - Equal `Transform` writes woke Bevy transform change detection and propagation. Equal `Visibility` writes woke visibility propagation queries, although hidden roots without visual children avoided render-queue work.
 
-### Server-to-client replication
+### Strict Empty camera/input boundary
+
+`c446d81c` gates the chained `sync_camera_options`, `camera_input`, `cursor_grab`, `player_movement`, and `camera_follow` systems at the exact `Character` stage. `Empty` skips their per-frame dispatch; `Character` and later stages retain camera control, movement, collision, and follow behavior. This is separate from networking/replication receive and does not alter replicated state.
+
+The source evidence is `player_movement`: before the guard, it allocated collision/pathing collections and prepared raycast state every dispatched frame even though strict `Empty` has no world camera, terrain, or displayed character. The guard removes that Empty-only setup without changing the later-stage movement path. RED/GREEN evidence is recorded in `/tmp/claude/game-engine-perf/character-stage-guard-red.log`, `character-stage-guard-green.log`, and `character-stage-tests-green.log`; formatting/readability evidence is in `character-stage-cargo-fmt-check.log` and `character-stage-readability/`. The protected camera instrumentation was preserved through partial staging and excluded from `c446d81c`.
+
+Rebuilt PID `2176863` remained connected with zero world camera/terrain/displayed NPCs and measured **10.01 FPS / 99.89 ms** plus **11.10% of one core** over 10 seconds. The prior paced client measured 11.20%, but remote entities changed from 70 to 75; the 0.10-point difference is not accepted as measurable improvement. The 10 FPS limiter remains temporary, and Character remains blocked pending the `<=10%` Empty gate.
+
+## Server-to-client replication
 
 Lightyear's sender uses Bevy change ticks. Its receiver compares an incoming component with the existing value and suppresses the final ECS replacement when equal. That prevents downstream client `Changed<T>` observers, but it does not avoid server change detection, serialization, transmission, deserialization, or equality comparison.
 
@@ -58,6 +66,8 @@ Commit `538e83290769c70a6980ec0903db74bf2981c0fb` received a live replacement on
 - `game-server` commit `ae81c65` — avoid dirtying unchanged gravity state
 - `game-engine` commit `96e1308a` — skip world camera at Empty stage
 - `game-engine` commit `e745d35e` — event-driven NPC visibility
+- `game-engine` commit `c446d81c` — gate camera/input/player movement/follow at Character
+- `/tmp/claude/game-engine-perf/character-stage-guard-red.log`, `character-stage-guard-green.log`, `character-stage-tests-green.log` — stage-boundary behavioral evidence
 
 ## See Also
 

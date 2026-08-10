@@ -54,7 +54,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, presentation/SSAO fixes, UI/status scheduling boundaries, and strict Empty pacing; 10 FPS still measured 11.20% CPU, so per-frame root-cause work and Character gate remain open
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, corrected performance evidence, UI/status/camera scheduling boundaries, and strict Empty pacing; latest 10 FPS client measured 11.10% CPU, so per-frame root-cause work and Character gate remain open
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof without comparative FPS evidence
 
 ## Reference
