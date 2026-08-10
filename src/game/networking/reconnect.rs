@@ -50,6 +50,15 @@ pub(crate) fn advance_network_update_frame(
     frame.0 = frame.0.saturating_add(1);
 }
 
+pub(crate) fn network_world_reset_is_due(
+    frame: Res<crate::networking::NetworkUpdateFrame>,
+    pending_reset: Res<crate::networking::PendingNetworkWorldReset>,
+) -> bool {
+    pending_reset
+        .0
+        .is_some_and(|target_frame| frame.0 >= target_frame)
+}
+
 pub(crate) fn flush_pending_network_world_reset(world: &mut World) {
     let current_frame = world
         .get_resource::<crate::networking::NetworkUpdateFrame>()
@@ -431,30 +440,80 @@ mod tests {
     fn flush_pending_network_world_reset_runs_once_and_clears_flag() {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins);
-        app.insert_resource(crate::networking::PendingNetworkWorldReset(Some(1)));
+        app.insert_resource(crate::networking::PendingNetworkWorldReset(None));
         app.insert_resource(crate::networking::NetworkUpdateFrame(0));
         let client = app.world_mut().spawn(Client::default()).id();
-        app.add_systems(Update, flush_pending_network_world_reset);
+        let receiver = app.world_mut().spawn_empty().id();
+        let replicated = app.world_mut().spawn(Replicated { receiver }).id();
+        app.add_systems(
+            Update,
+            flush_pending_network_world_reset.run_if(network_world_reset_is_due),
+        );
         app.add_systems(Last, advance_network_update_frame);
 
         app.update();
+        app.update();
 
         assert!(app.world().get_entity(client).is_ok());
+        assert!(app.world().get_entity(replicated).is_ok());
         assert_eq!(
             app.world()
                 .resource::<crate::networking::PendingNetworkWorldReset>()
                 .0,
-            Some(1)
+            None
+        );
+
+        let target_frame = app
+            .world()
+            .resource::<crate::networking::NetworkUpdateFrame>()
+            .0
+            .saturating_add(2);
+        app.world_mut()
+            .resource_mut::<crate::networking::PendingNetworkWorldReset>()
+            .0 = Some(target_frame);
+
+        app.update();
+        app.update();
+
+        assert!(app.world().get_entity(client).is_ok());
+        assert!(app.world().get_entity(replicated).is_ok());
+        assert_eq!(
+            app.world()
+                .resource::<crate::networking::PendingNetworkWorldReset>()
+                .0,
+            Some(target_frame)
         );
 
         app.update();
 
         assert!(app.world().get_entity(client).is_err());
-        assert!(
+        assert!(app.world().get_entity(replicated).is_err());
+        assert_eq!(
             app.world()
                 .resource::<crate::networking::PendingNetworkWorldReset>()
-                .0
-                .is_none()
+                .0,
+            None
+        );
+
+        let post_reset_client = app.world_mut().spawn(Client::default()).id();
+        let post_reset_receiver = app.world_mut().spawn_empty().id();
+        let post_reset_replicated = app
+            .world_mut()
+            .spawn(Replicated {
+                receiver: post_reset_receiver,
+            })
+            .id();
+
+        app.update();
+        app.update();
+
+        assert!(app.world().get_entity(post_reset_client).is_ok());
+        assert!(app.world().get_entity(post_reset_replicated).is_ok());
+        assert_eq!(
+            app.world()
+                .resource::<crate::networking::PendingNetworkWorldReset>()
+                .0,
+            None
         );
     }
 

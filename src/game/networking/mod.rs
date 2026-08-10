@@ -8,7 +8,8 @@ pub(crate) use self::disconnect::handle_client_disconnected;
 pub(crate) use self::reconnect::reset_network_world;
 pub(crate) use self::reconnect::{
     advance_network_update_frame, drive_inworld_reconnect, finish_reconnect_when_world_ready,
-    flush_pending_network_world_reset, rand_client_id, request_network_world_reset,
+    flush_pending_network_world_reset, network_world_reset_is_due, rand_client_id,
+    request_network_world_reset,
 };
 use bevy::prelude::*;
 use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
@@ -250,7 +251,7 @@ fn register_net_systems(app: &mut App) {
     app.add_systems(
         Update,
         (
-            flush_pending_network_world_reset,
+            flush_pending_network_world_reset.run_if(network_world_reset_is_due),
             drive_inworld_reconnect,
             update_reconnect_overlay,
             finish_reconnect_when_world_ready,
