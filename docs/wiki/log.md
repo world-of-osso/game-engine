@@ -2,6 +2,12 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record network reset due-gate boundary
+
+Updated [[procedural-cloud-regeneration]], [[networking]], and `index.md` for `ce0ce2d0` (`Gate network reset flush until due`). The due predicate skips no-pending/not-due frames while preserving earliest-target selection, one-frame deferral, exactly-once reset, and existing reset content. Recorded RED `/tmp/claude/game-engine-perf/network-reset-due-gate-red.log`, GREEN `network-reset-due-gate-green.log`, formatting, and readability artifacts.
+
+Post-fix PID `2402583` remained focused, `InWorld`, connected with one link/player, and visually Empty. Its steady profile contained neither the flush wrapper nor due predicate. Twelve passive windows measured **12.05% mean**, **11.75% median**, and **14.00% maximum** CPU; **0/12** met `<=10.0%`. The due gate is verified, but the performance hypothesis is rejected and Character remains blocked.
+
 ## [2026-08-10] fix | Record final Empty M2 asset-store boundary
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and `index.md` for the `0a1a1bfb` → `49304144` → `e7f98704` correction. Exact Empty now keeps lightweight `Assets<M2EffectMaterial>` for active consumers while omitting Bevy `EntitiesNeedingSpecialization` and material/render schedules; Character+, unconfigured, and debug runs retain the full plugin. PID `2339740` scene-setup and PID `2365242` `sync_equipment` panics remain failure evidence; their stale sockets were removed only after identity-safe verification. Corrective RED, GREEN, formatting, and readability artifacts use the `empty-m2-asset-specialization-*` prefix.

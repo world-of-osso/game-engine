@@ -151,6 +151,14 @@ Rebuilt PID `2297374` matched commit `beead231`, remained `InWorld` and connecte
 
 Three identity-bound passive 10-second process samples on that binary measured **12.50%**, **12.70%**, and **9.90%** of one core. The first two fail the `<=10%` gate and the third crosses it, so the result is not stable. The post-fix callgraph `/tmp/claude/game-engine-perf/empty-particle-plugin-perf-2297374.data` contained no Hanabi symbol. Its largest self-sample shares instead included M2 material-specialization parameter validation (**10.19%**), PipeWire audio conversion (**9.43%**), Lightyear link/UDP iteration (**9.36%**), and render-view preparation/scheduling. Those percentages are shares of sampled CPU cycles, not percentages of a Linux core. The profile verifies Hanabi absence during the interval but does not establish a total CPU reduction. Temporary 10 FPS pacing remains, and Character remains blocked.
 
+## Network reset flush boundary
+
+Commit `ce0ce2d0` (`Gate network reset flush until due`) adds a due predicate before the exclusive `flush_pending_network_world_reset` system. Frames with no pending reset or a not-yet-reached target now skip the exclusive system; the due path preserves the earliest target, one-frame deferral, exactly-once reset, and existing reset contents.
+
+The final pre-fix Empty PID `2390217` profile sampled the flush wrapper at **16.12%**. Because that interval may include a real one-time startup reset, it did not establish steady-state CPU savings. RED evidence is `/tmp/claude/game-engine-perf/network-reset-due-gate-red.log`; GREEN is `network-reset-due-gate-green.log`; formatting is `network-reset-due-gate-cargo-fmt.log`; Rust-readability artifacts are under `network-reset-due-gate-readability/`.
+
+Post-fix PID `2402583` remained focused, `InWorld`, and connected with one link/player; it retained FPS text and zero terrain, `Camera3d`, or displayed NPCs. Its steady profile contained neither `flush_pending_network_world_reset` nor `network_world_reset_is_due`. Twelve passive windows after the same 30-second warm-up measured **12.05% mean**, **11.75% median**, and **14.00% maximum** CPU; **0/12** met `<=10.0%`. The top post-fix samples moved to general Bevy scheduling, PipeWire, Vulkan/render-pass encoding, Lightyear netcode, SSAO query maintenance, and text/UI work. The due gate is behaviorally valid but the performance hypothesis is rejected; Character remains blocked.
+
 ## M2 Effect Material Empty registration boundary
 
 Commit `0a1a1bfb` omitted the full `M2EffectMaterialPlugin` for exact `Empty` and unintentionally removed the lightweight `Assets<M2EffectMaterial>` resource required by active consumers. PID `2339740` panicked in scene setup before IPC readiness; PID `2365242` later panicked in `sync_equipment`. Their stale sockets were removed only after identity-safe verification. These panic logs are failure evidence, not successful runtime proof.
