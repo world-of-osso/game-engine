@@ -16,7 +16,7 @@ Engine subsystems and how they work.
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, geosets, texture compositing, helmet hiding, target circles
 - [skybox](systems/skybox.md) — Light.csv → LightParams → LightSkybox → FDID lookup chain, fallback skybox
-- [sound](systems/sound.md) — Footsteps, music catalog, zone music
+- [sound](systems/sound.md) — Footsteps, music catalog, zone music, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 
 ## Formats
@@ -54,7 +54,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot and Empty UI/camera/particle/M2-material/network-reset scheduling boundaries; latest twelve-window CPU is 12.05% mean / 14.00% max under temporary 10 FPS pacing
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot and Empty scheduling boundaries; no-sound twelve-window CPU is 9.61% mean / 10.60% max, so the strict gate remains open
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof without comparative FPS evidence
 
 ## Reference

@@ -2,6 +2,12 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record audio backend Empty boundary
+
+Updated [[sound]], [[procedural-cloud-regeneration]], and `index.md` for `463e9e47` (`Disable audio backend without sound flag`). No-sound mode now omits Bevy `AudioPlugin`, while `--sound` retains Bevy audio plus project `SoundPlugin` exactly. Outside `src/sound/`, optional `AudioSink` status and `SoundSettings` do not require `AudioPlugin`. Recorded RED/GREEN, formatting, and readability artifacts.
+
+Post-fix PID `2468254` remained focused, connected, and visually Empty. It had no audio backend threads or PipeWire/CPAL/ALSA profile symbols. Twelve passive windows measured **9.61% mean**, **9.55% median**, and **10.60% maximum** CPU; **8/12** met `<=10.0%`. Audio removal materially lowered the mean, but the strict all-window gate and Character advancement remain blocked.
+
 ## [2026-08-10] fix | Record network reset due-gate boundary
 
 Updated [[procedural-cloud-regeneration]], [[networking]], and `index.md` for `ce0ce2d0` (`Gate network reset flush until due`). The due predicate skips no-pending/not-due frames while preserving earliest-target selection, one-frame deferral, exactly-once reset, and existing reset content. Recorded RED `/tmp/claude/game-engine-perf/network-reset-due-gate-red.log`, GREEN `network-reset-due-gate-green.log`, formatting, and readability artifacts.

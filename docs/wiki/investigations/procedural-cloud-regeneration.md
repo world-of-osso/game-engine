@@ -159,6 +159,14 @@ The final pre-fix Empty PID `2390217` profile sampled the flush wrapper at **16.
 
 Post-fix PID `2402583` remained focused, `InWorld`, and connected with one link/player; it retained FPS text and zero terrain, `Camera3d`, or displayed NPCs. Its steady profile contained neither `flush_pending_network_world_reset` nor `network_world_reset_is_due`. Twelve passive windows after the same 30-second warm-up measured **12.05% mean**, **11.75% median**, and **14.00% maximum** CPU; **0/12** met `<=10.0%`. The top post-fix samples moved to general Bevy scheduling, PipeWire, Vulkan/render-pass encoding, Lightyear netcode, SSAO query maintenance, and text/UI work. The due gate is behaviorally valid but the performance hypothesis is rejected; Character remains blocked.
 
+## Audio backend Empty boundary
+
+Commit `463e9e47` (`Disable audio backend without sound flag`) makes no-sound mode omit Bevy's `AudioPlugin`, which `DefaultPlugins` previously registered even when project `SoundPlugin` was disabled. `--sound` retains Bevy audio and project `SoundPlugin` exactly. Outside `src/sound/`, only an optional `AudioSink` status query and optional `SoundSettings` exist; neither requires `AudioPlugin`.
+
+The pre-fix strict-Empty PID `2402583` profile sampled PipeWire audio conversion at **7.61%** plus CPAL/ALSA output-thread work. RED evidence is `/tmp/claude/game-engine-perf/audio-plugin-registration-red.log`; GREEN is `audio-plugin-registration-green-3.log`; formatting is `audio-plugin-registration-cargo-fmt-3.log`; readability artifacts are under `audio-plugin-registration-readability/`.
+
+Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/player and 81 remote entities; it retained FPS text and zero terrain, `Camera3d`, or displayed NPCs. No audio backend thread or PipeWire/CPAL/ALSA profile symbol remained. Twelve passive windows after the same 30-second warm-up measured **9.61% mean**, **9.55% median**, and **10.60% maximum** CPU; **8/12** met `<=10.0%`. The next profile's largest project-owned idle sample was `PvpRuntimeState` parameter validation at **11.76%** of sampled CPU, while motion-blur query and UI extraction were larger framework samples. Audio removal materially lowered the mean, but the strict all-window CPU gate and Character advancement remain blocked.
+
 ## M2 Effect Material Empty registration boundary
 
 Commit `0a1a1bfb` omitted the full `M2EffectMaterialPlugin` for exact `Empty` and unintentionally removed the lightweight `Assets<M2EffectMaterial>` resource required by active consumers. PID `2339740` panicked in scene setup before IPC readiness; PID `2365242` later panicked in `sync_equipment`. Their stale sockets were removed only after identity-safe verification. These panic logs are failure evidence, not successful runtime proof.
