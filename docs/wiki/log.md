@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-08-10] docs | Record Bevy 0.19 / Lightyear 0.28 migration boundary
+
+Updated [[networking]], [[rendering-pipeline]], `AGENTS.md`, `docs/network-integration.md`, and `docs/character-generation.md` for game-engine commit `4bc50a22` (`Upgrade engine to Bevy 0.19 and Lightyear 0.28`). Recorded the current engine boundary as Bevy 0.19, `bevy_hanabi` 0.19, Lightyear 0.28, and Rust 1.95; renamed current client receive-marker references from deprecated `Replicated` to `Remote`. Historical Bevy 0.18 bug findings and the game-server's separate dependency state remain unchanged.
+
 ## [2026-08-10] proof | Record stable rebuilt reconnect runtime
 
 Updated [[networking]] and [[procedural-cloud-regeneration]] with post-build proof for `0d215316` at engine docs commit `6b034959`. The old strict-Empty client PID `2846177`/SHA `84f6ecc...` was terminated before fixed PID `3715288`/start ticks `192167263`/SHA `aef6f08d318a21063d698816b8202ed21f6ca70b7cf4d015a2520a5f107619c3` launched; exactly one current socket remained. Ten-second stability held the same PID/start/client ID with `InWorld`, `connected=true`, `connected_links=1`, `local_players=1`, ping `pong`, and **10.21 FPS / 97.98 ms**, `focused=false`. Scene output had 78 undisplayed NPC entries, zero camera/terrain/WMO/doodad/particle terms, and zero terrain/cache counts. Logs showed one expected initial Connecting marker, one connect/login/InWorld path, and zero InWorld disconnects/reconnect loop/panic/OOM/device-loss. Cargo-watch server PID `3123827` remained unchanged, target-matched, admin-responsive, and at server HEAD `4aca4d3` containing the Who fix. This completes the pending Who live health gate without another server restart; the real reconnect ordering is covered by the App RED/GREEN proof.

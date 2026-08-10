@@ -1,6 +1,6 @@
 # Rendering Pipeline
 
-The engine renders WoW assets using Bevy 0.18: M2 character and doodad models, ADT terrain, skybox M2 models, particle effects, and an in-world UI layer. Rendering is split across `src/rendering/` subsystems, each owning one concern.
+The engine renders WoW assets using Bevy 0.19: M2 character and doodad models, ADT terrain, skybox M2 models, particle effects, and an in-world UI layer. Rendering is split across `src/rendering/` subsystems, each owning one concern.
 
 ## M2 Models
 
@@ -37,7 +37,7 @@ Readiness held one client/server with healthy IPC/admin ping, approximately **10
 
 ## Particles
 
-GPU particles run via `bevy_hanabi`. Each live particle is a separate Bevy entity with `Mesh3d` (unit quad) + `StandardMaterial`. The emitter (`ParticleEmitterComp`) accumulates emission and resolves bone position per frame. Color, opacity, and scale use 3-point FakeAnimBlock interpolation. Texture tiles are static (chosen at spawn, not animated).
+GPU particles run via `bevy_hanabi` 0.19. Each live particle is a separate Bevy entity with `Mesh3d` (unit quad) + `StandardMaterial`. The emitter (`ParticleEmitterComp`) accumulates emission and resolves bone position per frame. Color, opacity, and scale use 3-point FakeAnimBlock interpolation. Texture tiles are static (chosen at spawn, not animated).
 
 Commit `beead231` registers `ParticlePlugin` only when the configured cumulative stage includes `Particles`. Exact `Empty`, `Character`, `Skybox`, `Terrain`, `Npcs`, and `Lighting` therefore do not register Hanabi or its render graph; `Particles`, `Ui`, and an unconfigured normal run retain it. This removes plugin/render-graph work rather than merely skipping emitter systems.
 

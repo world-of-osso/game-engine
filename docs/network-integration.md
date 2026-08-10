@@ -68,7 +68,7 @@ client sees its own replicated position. Auto-connect on launch (no login screen
 
 **File**: `game-engine/src/networking.rs`
 
-- System: detect `Added<Position>` with `Replicated` marker
+- System: detect `Added<Position>` with `Remote` marker
 - For own player: attach camera follow
 - For other entities: spawn placeholder mesh
 
@@ -111,7 +111,7 @@ WASD moves with server authority.
 
 **File**: `game-engine/src/networking.rs`
 
-- System: on `Added<Npc>` with `Replicated` — resolve model, spawn M2 mesh
+- System: on `Added<Npc>` with `Remote` — resolve model, spawn M2 mesh
 - Position from replicated `Position` component
 - Idle animation (Stand=0)
 

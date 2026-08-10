@@ -1,6 +1,6 @@
 # Networking
 
-The game-engine connects to game-server over UDP using lightyear 0.26 (netcode). The server runs at 20Hz; the client receives replicated entity components (`Position`, `Health`, `Mana`, etc.) and sends `PlayerInput` messages.
+The game-engine connects to game-server over UDP using Lightyear 0.28 (netcode). The server runs at 20Hz; the client receives replicated entity components (`Position`, `Health`, `Mana`, etc.) and sends `PlayerInput` messages.
 
 ## Architecture
 
@@ -8,7 +8,7 @@ The game-engine connects to game-server over UDP using lightyear 0.26 (netcode).
 game-engine (client)              game-server (headless Bevy)
   lightyear client plugin    ←→   lightyear server, UDP :5000
   shared crate components         shared crate components
-  Replicated entity detection     Player spawn on connect
+  Remote entity detection        Player spawn on connect
   PlayerInput → server            Apply movement, creature spawning
 ```
 
@@ -24,11 +24,13 @@ The `game-server/crates/shared/` crate is depended on by both sides. It defines 
 
 Token is stored client-side at `data/auth_token`. Delete to force password re-entry.
 
+The client uses Lightyear 0.28's `Remote` receive marker; `Replicated` is only the deprecated compatibility alias.
+
 **Security note**: passwords are transmitted in plaintext over UDP — netcode has no encryption. Acceptable for LAN/dev only.
 
 ## Entity Replication
 
-On `Added<Position>` with `Replicated` marker:
+On `Added<Position>` with Lightyear's `Remote` marker:
 - Own player entity: attach camera follow
 - Other entities: spawn placeholder mesh or M2 model
 

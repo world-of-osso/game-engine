@@ -186,7 +186,7 @@ The breathe clip is the key to WoW's "alive" feel. It runs as an additive layer 
 - ~1 degree Clavicle lift (shoulders rise/fall with breath)
 - Weight: 0.3-0.5 (subtle, not exaggerated)
 
-In Bevy 0.18, this uses `AnimationGraph` with two layers:
+In Bevy 0.19, this uses `AnimationGraph` with two layers:
 1. Base layer: current movement/jump animation
 2. Additive layer: breathe clip (always playing, blended additively)
 
