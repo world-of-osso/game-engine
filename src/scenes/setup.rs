@@ -30,17 +30,12 @@ pub fn should_load_explicit_scene_at_startup(server_mode: bool, asset_path: Opti
     !server_mode && asset_path.is_some()
 }
 
-pub fn explicit_asset_scene_is_requested(server_addr: Option<Res<networking::ServerAddr>>) -> bool {
-    let asset_path = crate::parse_asset_path();
-    should_load_explicit_scene_at_startup(server_addr.is_some(), asset_path.as_deref())
-}
-
 #[derive(SystemParam)]
 pub struct SceneSetupSystemParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
     materials: ResMut<'w, Assets<StandardMaterial>>,
-    effect_materials: Option<ResMut<'w, Assets<M2EffectMaterial>>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     terrain_mats: ResMut<'w, Assets<terrain_material::TerrainMaterial>>,
     water_mats: ResMut<'w, Assets<water_material::WaterMaterial>>,
     sky_mats: ResMut<'w, Assets<sky::SkyMaterial>>,
@@ -79,10 +74,7 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
             commands: &mut params.commands,
             meshes: &mut params.meshes,
             materials: &mut params.materials,
-            effect_materials: params
-                .effect_materials
-                .as_deref_mut()
-                .expect("M2 effect-material assets are required for scene setup"),
+            effect_materials: &mut params.effect_materials,
             terrain_mats: &mut params.terrain_mats,
             water_mats: &mut params.water_mats,
             sky_mats: &mut params.sky_mats,
@@ -217,9 +209,11 @@ impl<'a, 'w, 's> SceneSetupContext<'a, 'w, 's> {
 }
 
 pub fn setup_explicit_asset_scene(mut params: SceneSetupSystemParams) {
-    let asset_path = crate::parse_asset_path()
-        .expect("setup_explicit_asset_scene requires an explicit asset path");
-    SceneSetupContext::from_system_params(&mut params).setup_world_scene(Some(&asset_path));
+    let asset_path = crate::parse_asset_path();
+    if !should_load_explicit_scene_at_startup(params.server_addr.is_some(), asset_path.as_deref()) {
+        return;
+    }
+    SceneSetupContext::from_system_params(&mut params).setup_world_scene(asset_path.as_deref());
 }
 
 pub fn setup_default_world_scene(mut params: SceneSetupSystemParams) {

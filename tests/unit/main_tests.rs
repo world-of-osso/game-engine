@@ -593,34 +593,6 @@ fn startup_scene_loading_only_runs_for_explicit_assets() {
 }
 
 #[test]
-fn server_world_setup_skips_before_effect_material_validation() {
-    let mut app = App::new();
-    app.add_plugins((MinimalPlugins, bevy::asset::AssetPlugin::default()));
-    app.insert_resource(InWorldSceneStage::Empty);
-    app.insert_resource(networking::ServerAddr(
-        "127.0.0.1:5000".parse().expect("valid test server address"),
-    ));
-    app.init_asset::<Mesh>();
-    app.init_asset::<StandardMaterial>();
-    app.init_asset::<terrain_material::TerrainMaterial>();
-    app.init_asset::<water_material::WaterMaterial>();
-    app.init_asset::<sky::SkyMaterial>();
-    app.init_asset::<Image>();
-    app.init_asset::<bevy::mesh::skinning::SkinnedMeshInverseBindposes>();
-    app.insert_resource(terrain_heightmap::TerrainHeightmap::default());
-    app.insert_resource(terrain::AdtManager::default());
-    app.insert_resource(creature_display::CreatureDisplayMap);
-    app.add_systems(Startup, scenes::setup::setup_default_world_scene);
-
-    app.update();
-
-    assert!(
-        !app.world()
-            .contains_resource::<Assets<m2_effect_material::M2EffectMaterial>>()
-    );
-}
-
-#[test]
 fn parse_screen_menu_alias() {
     let parsed = parse_state_arg(&args(&["--screen", "menu"]))
         .expect("valid parse")

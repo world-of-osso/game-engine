@@ -227,6 +227,8 @@ fn register_render_plugins(app: &mut App) {
     app.add_plugins(terrain_material::TerrainMaterialPlugin);
     if m2_effect_material_plugin_enabled {
         app.add_plugins(m2_effect_material::M2EffectMaterialPlugin);
+    } else {
+        app.init_asset::<m2_effect_material::M2EffectMaterial>();
     }
     app.add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
@@ -251,7 +253,7 @@ pub(crate) fn register_plugins(app: &mut App) {
         Startup,
         (
             log_window_backend,
-            setup_explicit_asset_scene.run_if(scenes::setup::explicit_asset_scene_is_requested),
+            setup_explicit_asset_scene,
             wow_cursor::install_wow_cursor
                 .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
             game_engine::ui::panel_styles::register_panel_styles
@@ -528,6 +530,11 @@ mod tests {
                 stage,
                 app.world()
                     .contains_resource::<Assets<m2_effect_material::M2EffectMaterial>>(),
+                app.world().contains_resource::<
+                    bevy::pbr::EntitiesNeedingSpecialization<
+                        m2_effect_material::M2EffectMaterial,
+                    >,
+                >(),
             )
         })
         .collect::<Vec<_>>();
@@ -535,9 +542,9 @@ mod tests {
         assert_eq!(
             observed,
             vec![
-                (Some(InWorldSceneStage::Empty), false),
-                (Some(InWorldSceneStage::Character), true),
-                (None, true),
+                (Some(InWorldSceneStage::Empty), true, false),
+                (Some(InWorldSceneStage::Character), true, true),
+                (None, true, true),
             ],
         );
     }
