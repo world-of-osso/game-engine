@@ -181,7 +181,9 @@ The preceding identity-bound profiler was PID `2655273`. Its exact `perf` interv
 
 RED evidence is `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`; GREEN evidence is `/tmp/claude/game-engine-perf/empty-gizmo-registration-green.log`; Rust-readability evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-readability/`. The exact profiler artifacts are `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data`, `final-polling-loops-perf-2655273-header.txt`, `final-polling-loops-perf-2655273-record.log`, `final-polling-loops-perf-2655273-self.txt`, `final-polling-loops-perf-2655273-children.txt`, and `final-polling-loops-perf-2655273-script.txt`.
 
-The source boundary is committed, but it has not yet received rebuilt-runtime A/B proof. Do not claim CPU savings or final strict-Empty acceptance until an identity-matched rebuild compares gizmos-enabled and explicit-Empty-disabled clients under the same workload.
+Rebuilt candidate PID `2846177` (SHA `84f6ecc9590979a2fba498b8206549d33ebff7fdc27878a16331acccc19811da`) completed the A/B proof. After a 30-second warm-up, **10/12** passive windows passed, with **9.47% mean** and **10.60% maximum** CPU versus baseline PID `2655273` at **8/12**, **9.97% mean**, and **10.90% maximum**. The passive mean improved by **0.50 percentage points**. A 60-second profile collected **1,936 samples** with **0 lost samples** and no `Gizmo` symbol, confirming the targeted path disappeared. Commit `1503cd1c` is retained; the final `<=10.0%` every-window gate remains open.
+
+Readiness held one client/server with healthy IPC/admin ping, approximately **10.09 FPS**, zero displayed NPCs/cameras/terrain, no panic/device-loss/OOM, and no Character advancement. One startup `Received despawn for an entity that does not exist` warning was recorded without blocking readiness.
 
 ## M2 Effect Material Empty registration boundary
 
@@ -205,6 +207,7 @@ After a prospective 30-second warm-up, twelve contiguous passive 10-second windo
 - [game-engine app setup](../../src/app_setup.rs) — strict-Empty gizmo disablement and diagnostic plugin registration
 - [game-engine main](../../src/main.rs) — stage-aware gizmo policy wiring and screenshot/default retention
 - `game-engine` commit `1503cd1c` — disable Bevy gizmo plugins only for explicit Empty
+- `/tmp/claude/game-engine-perf/empty-gizmo-cpu-2846177.json` and rebuilt 60-second perf artifacts — accepted A/B proof; final every-window CPU gate remains open
 - `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`, `empty-gizmo-registration-green.log`, and `empty-gizmo-registration-readability/` — gizmo registration RED/GREEN/readability evidence
 - `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data` and companion header/self/children/script artifacts — 59.950-second PID 2655273 profiler evidence
 - [game-engine networking](../../src/game/networking/mod.rs) — connection and transport lifecycle evidence

@@ -29,7 +29,11 @@ ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split fil
 
 Commit `1503cd1c` disables both Bevy `GizmoPlugin` and `GizmoRenderPlugin` only when the configured cumulative stage is the explicit fixed `Empty` diagnostic stage. Unconfigured/default runs, `Character` and later stages, debug modes, and screenshot/default paths retain gizmos. No project gizmo consumers exist; the change removes Bevy gizmo registration/render work without changing project-owned behavior.
 
-PID `2655273` provided the pre-A/B attribution: a **59.950-second** identity-bound `perf` interval collected **2,153 samples** with **0 lost samples**. `GizmoBuffer<LightGizmoConfigGroup>::queue` was the strongest current project-retained symbol at **1.51% of sampled CPU**. This is profiler share, not Linux-core utilization. RED/GREEN evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-{red,green}.log`; readability evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-readability/`. No runtime CPU savings or final Empty acceptance is claimed before rebuilt A/B proof.
+PID `2655273` provided the pre-A/B attribution: a **59.950-second** identity-bound `perf` interval collected **2,153 samples** with **0 lost samples**. `GizmoBuffer<LightGizmoConfigGroup>::queue` was the strongest current project-retained symbol at **1.51% of sampled CPU**. This is profiler share, not Linux-core utilization. RED/GREEN evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-{red,green}.log`; readability evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-readability/`.
+
+Rebuilt candidate PID `2846177` (SHA `84f6ecc9590979a2fba498b8206549d33ebff7fdc27878a16331acccc19811da`) completed the A/B proof. After a 30-second warm-up, **10/12** passive windows passed, with **9.47% mean** and **10.60% maximum** CPU versus baseline PID `2655273` at **8/12**, **9.97% mean**, and **10.90% maximum**. The passive mean improved by **0.50 percentage points**. A 60-second profile collected **1,936 samples** with **0 lost samples** and no `Gizmo` symbol, confirming the targeted path disappeared. Commit `1503cd1c` is retained; the strict `<=10.0%` every-window gate remains open.
+
+Readiness held one client/server with healthy IPC/admin ping, approximately **10.09 FPS**, zero displayed NPCs/cameras/terrain, no panic/device-loss/OOM, and no Character advancement. One startup `Received despawn for an entity that does not exist` warning was recorded without blocking readiness.
 
 ## Particles
 
@@ -90,7 +94,8 @@ The complete WMVx blend mode reference:
 - [game-engine main](../../src/main.rs) — stage-aware gizmo policy wiring
 - `game-engine` commit `1503cd1c` — disable Bevy gizmo plugins only for explicit Empty
 - `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`, `empty-gizmo-registration-green.log`, and `empty-gizmo-registration-readability/` — behavioral and readability evidence
-- `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data` and companion header/self/children/script artifacts — identity-bound profiler evidence
+- `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data` and companion header/self/children/script artifacts — baseline identity-bound profiler evidence
+- `/tmp/claude/game-engine-perf/empty-gizmo-cpu-2846177.json` and rebuilt candidate 60-second perf artifacts — accepted A/B evidence; final every-window CPU gate remains open
 
 - [particle-system.md](../particle-system.md) — emitter architecture, known limitations
 - [torch-halo-investigation-2026-03-30.md](../torch-halo-investigation-2026-03-30.md) — blend mode fallback fix, WMVx reference

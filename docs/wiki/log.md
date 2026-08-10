@@ -2,9 +2,9 @@
 
 Chronological record of wiki operations.
 
-## [2026-08-10] fix | Record strict Empty gizmo registration boundary
+## [2026-08-10] fix | Accept strict Empty gizmo A/B result
 
-Updated [[rendering-pipeline]], [[procedural-cloud-regeneration]], and `index.md` for `1503cd1c` (`Disable gizmos in strict Empty`). Explicit fixed `InWorldSceneStage::Empty` now disables both Bevy `GizmoPlugin` and `GizmoRenderPlugin`; unconfigured/default, `Character+`, debug, and screenshot/default paths retain gizmos. No project gizmo consumers exist. PID `2655273` supplied the pre-A/B target profile: **59.950 seconds**, **2,153 samples**, **0 lost**, with `GizmoBuffer<LightGizmoConfigGroup>::queue` at **1.51% sampled CPU**. RED: `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`; GREEN: `empty-gizmo-registration-green.log`; readability: `empty-gizmo-registration-readability/`. No CPU-savings or final Empty claim is made until rebuilt runtime A/B proof.
+Updated [[rendering-pipeline]], [[procedural-cloud-regeneration]], and `index.md` for `1503cd1c` (`Disable gizmos in strict Empty`). Explicit fixed `InWorldSceneStage::Empty` disables both Bevy `GizmoPlugin` and `GizmoRenderPlugin`; unconfigured/default, `Character+`, debug, and screenshot/default paths retain gizmos. Baseline PID `2655273` measured **8/12** passing windows, **9.97% mean**, **10.90% maximum**, and a 60-second profile with **2,153 samples** where `GizmoBuffer<LightGizmoConfigGroup>::queue` contributed **1.51% sampled CPU**. Candidate PID `2846177`, SHA `84f6ecc9590979a2fba498b8206549d33ebff7fdc27878a16331acccc19811da`, measured **10/12**, **9.47% mean**, **10.60% maximum**; its 60-second profile collected **1,936 samples**, **0 lost**, and no `Gizmo` symbol. The targeted path disappeared and passive mean improved **0.50 percentage points**, so the commit is retained, but the final every-window `<=10.0%` gate remains open. Readiness proved one client/server, IPC/admin ping, approximately **10.09 FPS**, zero displayed NPCs/cameras/terrain, no panic/device-loss/OOM, and no Character advancement. One startup missing-despawn warning was recorded without blocking readiness.
 
 ## [2026-08-10] fix | Record idle Who runtime change-tick correction
 
