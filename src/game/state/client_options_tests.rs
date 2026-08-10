@@ -55,6 +55,23 @@ fn hud_visibility_toggles_follow_hud_options() {
 }
 
 #[test]
+fn fps_overlay_visibility_keeps_graph_disabled_at_empty() {
+    let mut overlay = FpsOverlayConfig::default();
+
+    apply_fps_overlay_visibility(&mut overlay, true, Some(InWorldSceneStage::Empty));
+    assert!(overlay.enabled);
+    assert!(!overlay.frame_time_graph_config.enabled);
+
+    apply_fps_overlay_visibility(&mut overlay, true, Some(InWorldSceneStage::Character));
+    assert!(overlay.enabled);
+    assert!(overlay.frame_time_graph_config.enabled);
+
+    apply_fps_overlay_visibility(&mut overlay, false, Some(InWorldSceneStage::Character));
+    assert!(!overlay.enabled);
+    assert!(!overlay.frame_time_graph_config.enabled);
+}
+
+#[test]
 fn effective_frame_interval_uses_empty_stage_only_in_inworld() {
     let disabled_graphics = GraphicsOptions {
         frame_rate_limit_enabled: false,

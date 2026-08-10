@@ -393,19 +393,25 @@ pub fn login_credentials_path() -> PathBuf {
 
 fn apply_loaded_client_options(
     mut loaded: ResMut<LoadedClientOptions>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
     if loaded.applied {
         return;
     }
     if let Some(fps) = fps.as_mut() {
-        apply_fps_overlay_visibility(fps.as_mut(), loaded.file.hud.show_fps_overlay);
+        apply_fps_overlay_visibility(
+            fps.as_mut(),
+            loaded.file.hud.show_fps_overlay,
+            scene_stage.as_deref().copied(),
+        );
     }
     loaded.applied = true;
 }
 
 fn sync_hud_visibility_toggles(
     hud: Res<HudOptions>,
+    scene_stage: Option<Res<InWorldSceneStage>>,
     mut toggles: ResMut<HudVisibilityToggles>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
@@ -417,7 +423,11 @@ fn sync_hud_visibility_toggles(
         *toggles = next.clone();
     }
     if let Some(fps) = fps.as_mut() {
-        apply_fps_overlay_visibility(fps.as_mut(), next.show_fps_overlay);
+        apply_fps_overlay_visibility(
+            fps.as_mut(),
+            next.show_fps_overlay,
+            scene_stage.as_deref().copied(),
+        );
     }
 }
 
@@ -523,9 +533,13 @@ fn frame_limit_interval(enabled: bool, frame_rate_limit: u16) -> Option<Duration
     Some(Duration::from_secs_f64(1.0 / f64::from(clamped_limit)))
 }
 
-pub fn apply_fps_overlay_visibility(fps: &mut FpsOverlayConfig, visible: bool) {
+pub fn apply_fps_overlay_visibility(
+    fps: &mut FpsOverlayConfig,
+    visible: bool,
+    scene_stage: Option<InWorldSceneStage>,
+) {
     fps.enabled = visible;
-    fps.frame_time_graph_config.enabled = visible;
+    fps.frame_time_graph_config.enabled = visible && scene_stage != Some(InWorldSceneStage::Empty);
 }
 
 #[cfg(test)]

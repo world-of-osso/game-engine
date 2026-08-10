@@ -318,14 +318,21 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
     apply_camera_snapshot(&mut world.resource_mut::<CameraOptions>(), &snapshot.camera);
     apply_hud_snapshot(&mut world.resource_mut::<HudOptions>(), &snapshot.hud);
     *world.resource_mut::<InputBindings>() = snapshot.bindings.clone();
-    if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
-        client_options::apply_fps_overlay_visibility(&mut fps, snapshot.hud.show_fps_overlay);
-    }
+    apply_fps_overlay_snapshot(world, snapshot.hud.show_fps_overlay);
     let mut ui_state = world.resource_mut::<ClientOptionsUiState>();
     ui_state.modal_offset = Some(snapshot.modal_position);
     ui_state.legacy_modal_position = None;
     apply_ui_hud_visibility(world, &snapshot.hud);
     apply_target_marker_visibility(world, snapshot.hud.show_target_marker);
+}
+
+fn apply_fps_overlay_snapshot(world: &mut World, visible: bool) {
+    let scene_stage = world
+        .get_resource::<crate::game::inworld_scene_stage::InWorldSceneStage>()
+        .copied();
+    if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
+        client_options::apply_fps_overlay_visibility(&mut fps, visible, scene_stage);
+    }
 }
 
 fn save_snapshot(world: &mut World, snapshot: &ApplySnapshot) {
