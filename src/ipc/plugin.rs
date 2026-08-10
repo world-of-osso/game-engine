@@ -5,6 +5,7 @@ mod plugin_combat;
 #[path = "plugin/scene.rs"]
 mod plugin_scene;
 
+use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::mpsc;
 
@@ -84,6 +85,102 @@ pub enum EquipmentControlCommand {
 #[derive(Resource, Default, Debug)]
 pub struct EquipmentControlQueue {
     pub pending: Vec<EquipmentControlCommand>,
+}
+
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IpcUpdateSet {
+    Receive,
+    RefreshStatus,
+    Dispatch,
+}
+
+#[derive(Default, PartialEq, Eq)]
+struct StatusRefreshes {
+    network: bool,
+    terrain: bool,
+    sound: bool,
+    character_stats: bool,
+    equipped_gear: bool,
+    equipment_appearance: bool,
+    character_roster: bool,
+    map: bool,
+}
+
+impl StatusRefreshes {
+    fn include_request(&mut self, request: &Request) {
+        match request {
+            Request::NetworkStatus => self.network = true,
+            Request::TerrainStatus => self.terrain = true,
+            Request::SoundStatus => self.sound = true,
+            Request::CharacterStatsStatus => self.character_stats = true,
+            Request::EquippedGearStatus => self.equipped_gear = true,
+            Request::ExportCharacter { .. } => {
+                self.character_stats = true;
+                self.equipped_gear = true;
+                self.equipment_appearance = true;
+                self.character_roster = true;
+            }
+            Request::MapPosition
+            | Request::MapTarget
+            | Request::MapWaypointAdd { .. }
+            | Request::MapWaypointClear => self.map = true,
+            _ => {}
+        }
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct PendingIpcCommands {
+    commands: VecDeque<Command>,
+    refreshes: StatusRefreshes,
+}
+
+impl PendingIpcCommands {
+    pub fn enqueue(&mut self, command: Command) {
+        self.refreshes.include_request(&command.request);
+        self.commands.push_back(command);
+    }
+
+    fn take_commands(&mut self) -> VecDeque<Command> {
+        self.refreshes = StatusRefreshes::default();
+        std::mem::take(&mut self.commands)
+    }
+
+    pub fn needs_network_status(&self) -> bool {
+        self.refreshes.network
+    }
+
+    pub fn needs_terrain_status(&self) -> bool {
+        self.refreshes.terrain
+    }
+
+    pub fn needs_sound_status(&self) -> bool {
+        self.refreshes.sound
+    }
+
+    pub fn needs_character_stats(&self) -> bool {
+        self.refreshes.character_stats
+    }
+
+    pub fn needs_equipped_gear(&self) -> bool {
+        self.refreshes.equipped_gear
+    }
+
+    pub fn needs_equipment_appearance(&self) -> bool {
+        self.refreshes.equipment_appearance
+    }
+
+    pub fn needs_character_roster(&self) -> bool {
+        self.refreshes.character_roster
+    }
+
+    pub fn needs_map_status(&self) -> bool {
+        self.refreshes.map
+    }
+
+    pub fn needs_any_status_refresh(&self) -> bool {
+        self.refreshes != StatusRefreshes::default()
+    }
 }
 
 /// Type alias for the entity tree query used in dump and map-target operations.
@@ -220,21 +317,41 @@ pub struct IpcPlugin;
 
 impl Plugin for IpcPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<EquipmentControlQueue>();
+        app.init_resource::<EquipmentControlQueue>()
+            .init_resource::<PendingIpcCommands>()
+            .configure_sets(
+                Update,
+                (
+                    IpcUpdateSet::Receive,
+                    IpcUpdateSet::RefreshStatus,
+                    IpcUpdateSet::Dispatch,
+                )
+                    .chain(),
+            );
         #[cfg(feature = "ipc")]
         {
             let (receiver, guard) = init();
             app.insert_non_send_resource(receiver)
                 .insert_non_send_resource(guard)
-                .add_systems(Update, poll_ipc);
+                .add_systems(Update, receive_ipc_commands.in_set(IpcUpdateSet::Receive))
+                .add_systems(Update, dispatch_ipc_commands.in_set(IpcUpdateSet::Dispatch));
         }
     }
 }
 
-/// Poll IPC commands each frame and dispatch them.
 #[cfg(feature = "ipc")]
-fn poll_ipc(
+fn receive_ipc_commands(
     receiver: NonSend<mpsc::Receiver<Command>>,
+    mut pending: ResMut<PendingIpcCommands>,
+) {
+    while let Ok(command) = receiver.try_recv() {
+        pending.enqueue(command);
+    }
+}
+
+#[cfg(feature = "ipc")]
+fn dispatch_ipc_commands(
+    mut pending: ResMut<PendingIpcCommands>,
     mut scene: SceneParams,
     mut world: WorldParams,
     mut snapshots: StatusSnapshotParams,
@@ -242,9 +359,9 @@ fn poll_ipc(
     mut sender_params: IpcSenderParams,
 ) {
     let connected = !sender_params.connected_query.is_empty();
-    while let Ok(cmd) = receiver.try_recv() {
+    for command in pending.take_commands() {
         let ctx = build_dispatch_context(&mut snapshots, &current_target, connected);
-        dispatch(cmd, &mut scene, &mut world, ctx, &mut sender_params);
+        dispatch(command, &mut scene, &mut world, ctx, &mut sender_params);
     }
 }
 
@@ -622,4 +739,45 @@ fn handle_export_character(
         payload.name,
         output.display()
     )));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pending_request(request: Request) -> PendingIpcCommands {
+        let (respond, _responses) = mpsc::channel();
+        let mut pending = PendingIpcCommands::default();
+        pending.enqueue(Command { request, respond });
+        pending
+    }
+
+    #[test]
+    fn status_refresh_dependencies_follow_request_semantics() {
+        let network = pending_request(Request::NetworkStatus);
+        assert!(network.needs_network_status());
+        assert!(!network.needs_terrain_status());
+
+        let terrain = pending_request(Request::TerrainStatus);
+        assert!(terrain.needs_terrain_status());
+        assert!(!terrain.needs_network_status());
+
+        let export = pending_request(Request::ExportCharacter {
+            output_path: "character.json".into(),
+            character_name: None,
+            character_id: None,
+        });
+        assert!(export.needs_character_stats());
+        assert!(export.needs_equipped_gear());
+        assert!(export.needs_equipment_appearance());
+        assert!(export.needs_character_roster());
+        assert!(!export.needs_map_status());
+
+        let map = pending_request(Request::MapWaypointAdd { x: 1.0, y: 2.0 });
+        assert!(map.needs_map_status());
+        assert!(!map.needs_character_stats());
+
+        let performance = pending_request(Request::Performance);
+        assert!(!performance.needs_any_status_refresh());
+    }
 }

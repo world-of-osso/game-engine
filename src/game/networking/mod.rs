@@ -273,7 +273,6 @@ fn register_gameplay_net_systems(app: &mut App) {
             msg::receive_emote_events,
             msg::send_target_to_server,
             msg::track_player_zone,
-            crate::status_sync::sync_map_status_snapshot,
             msg::receive_quest_log_snapshot,
             msg::receive_group_roster_snapshot,
         )

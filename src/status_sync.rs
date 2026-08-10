@@ -5,7 +5,9 @@ use bevy::ecs::system::SystemParam;
 use bevy::image::Image;
 use bevy::mesh::Mesh;
 use bevy::prelude::*;
-use game_engine::ipc::plugin::{EquipmentControlCommand, EquipmentControlQueue};
+use game_engine::ipc::plugin::{
+    EquipmentControlCommand, EquipmentControlQueue, IpcUpdateSet, PendingIpcCommands,
+};
 use game_engine::status::{
     BarberShopStatusSnapshot, CalendarStatusSnapshot, CharacterRosterStatusSnapshot,
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
@@ -389,27 +391,110 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(WarbankStatusSnapshot::default());
 }
 
+fn pending_network_status_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_network_status())
+}
+
+fn pending_terrain_status_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_terrain_status())
+}
+
+fn pending_sound_status_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_sound_status())
+}
+
+fn pending_character_stats_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_character_stats())
+}
+
+fn pending_equipped_gear_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_equipped_gear())
+}
+
+fn pending_equipment_appearance_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_equipment_appearance())
+}
+
+fn pending_character_roster_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_character_roster())
+}
+
+fn pending_map_status_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
+    pending.is_some_and(|pending| pending.needs_map_status())
+}
+
 pub(crate) fn register_status_sync_systems(app: &mut App) {
-    app.add_systems(Update, sync_character_roster_status_snapshot);
+    app.add_systems(
+        Update,
+        apply_equipment_ipc_commands
+            .run_if(in_state(crate::game_state::GameState::InWorld))
+            .before(IpcUpdateSet::RefreshStatus),
+    );
+    app.add_systems(
+        Update,
+        sync_character_roster_status_snapshot
+            .run_if(pending_character_roster_refresh)
+            .in_set(IpcUpdateSet::RefreshStatus),
+    );
     app.add_systems(
         Update,
         (
-            sync_network_status_snapshot,
-            sync_terrain_status_snapshot,
-            sync_sound_status_snapshot,
-            sync_character_stats_snapshot,
-            apply_equipment_ipc_commands,
-            sync_equipped_gear_status_snapshot,
-            sync_equipment_appearance_status_snapshot,
-            sync_map_status_snapshot,
+            sync_network_status_snapshot.run_if(pending_network_status_refresh),
+            sync_terrain_status_snapshot.run_if(pending_terrain_status_refresh),
+            sync_sound_status_snapshot.run_if(pending_sound_status_refresh),
+            sync_character_stats_snapshot.run_if(pending_character_stats_refresh),
+            sync_equipped_gear_status_snapshot.run_if(pending_equipped_gear_refresh),
+            sync_equipment_appearance_status_snapshot.run_if(pending_equipment_appearance_refresh),
+            sync_map_status_snapshot.run_if(pending_map_status_refresh),
         )
+            .in_set(IpcUpdateSet::RefreshStatus)
             .run_if(in_state(crate::game_state::GameState::InWorld)),
     );
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::mpsc;
+
+    use game_engine::ipc::plugin::PendingIpcCommands;
+    use game_engine::ipc::{Command, Request};
+
     use super::*;
+
+    #[test]
+    fn pending_map_request_refreshes_snapshot_but_idle_update_does_not() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins)
+            .init_resource::<MapStatusSnapshot>()
+            .init_resource::<networking::CurrentZone>()
+            .init_resource::<PendingIpcCommands>()
+            .add_systems(
+                Update,
+                sync_map_status_snapshot.run_if(pending_map_status_refresh),
+            );
+        app.world_mut()
+            .spawn((Player, Transform::from_xyz(12.5, 0.0, -7.25)));
+
+        app.update();
+
+        let idle_snapshot = app.world().resource::<MapStatusSnapshot>();
+        assert_eq!(idle_snapshot.player_x, 0.0);
+        assert_eq!(idle_snapshot.player_z, 0.0);
+
+        let (respond, _responses) = mpsc::channel();
+        app.world_mut()
+            .resource_mut::<PendingIpcCommands>()
+            .enqueue(Command {
+                request: Request::MapPosition,
+                respond,
+            });
+
+        app.update();
+
+        let refreshed_snapshot = app.world().resource::<MapStatusSnapshot>();
+        assert_eq!(refreshed_snapshot.player_x, 12.5);
+        assert_eq!(refreshed_snapshot.player_z, -7.25);
+    }
 
     #[test]
     fn paladin_class_maps_to_holy_power() {
