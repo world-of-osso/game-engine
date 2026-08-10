@@ -11,6 +11,16 @@ M2 models are parsed by `src/asset/m2_format/` (pure, no Bevy) and assembled int
 
 See [[character-rendering]] for character-specific mesh assembly.
 
+## M2 Effect Material Empty boundary
+
+Commit `0a1a1bfb` omitted the full `M2EffectMaterialPlugin` for exact `Empty`, but also removed `Assets<M2EffectMaterial>`, which remained required by active consumers. The rebuilt PID `2339740` therefore panicked during scene setup before IPC readiness; after identity verification, its stale socket was removed. A later rebuilt PID `2365242` reached `sync_equipment` and panicked for the same missing asset resource; its stale socket was likewise removed only after identity verification. These are failure evidence, not runtime proof.
+
+Commit `49304144` (`Skip inactive scene setup validation`) attempted optional-resource and run-condition compatibility for those failures, but was incomplete. Commit `e7f98704` (`Keep Empty M2 assets without render plugin`) forward-reverted that approach and establishes the final architecture: exact `Empty` initializes lightweight `Assets<M2EffectMaterial>` only, while omitting Bevy `EntitiesNeedingSpecialization<M2EffectMaterial>` and the full material/render schedules. `Character` and later cumulative stages, plus unconfigured and debug runs, retain the full plugin.
+
+The original PID `2297374` profile attributed recurring CPU to Bevy material-specialization parameter validation, not actual M2 draws. Corrective RED evidence: `/tmp/claude/game-engine-perf/empty-m2-asset-specialization-red.log`. GREEN: `/tmp/claude/game-engine-perf/empty-m2-asset-specialization-green.log`. Formatting: `/tmp/claude/game-engine-perf/empty-m2-asset-specialization-cargo-fmt.log`. Rust readability: `/tmp/claude/game-engine-perf/empty-m2-asset-specialization-readability/`. Earlier panic artifacts remain failure evidence: `/tmp/claude/game-engine-perf/empty-scene-setup-validation-red.log` and `/tmp/claude/game-engine-perf/empty-scene-setup-validation-red-3.log`.
+
+Final PID `2390217` matched `e7f98704`, stayed connected with one link/player, retained the FPS text, and had zero terrain, `Camera3d`, or displayed NPCs. Its post-fix profile contained no Hanabi, `M2EffectMaterial`, or M2 `EntitiesNeedingSpecialization` symbol. Twelve passive windows after a 30-second warm-up measured **10.24% mean**, **10.20% median**, and **10.60% maximum** CPU; only **2/12** met `<=10.0%`. The M2 boundary is verified, but the overall Empty CPU and Character gates remain open.
+
 ## Terrain
 
 ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split files are loaded in three parts: root `.adt` (heights/normals), `_tex0.adt` (texture layers), `_obj0.adt` (doodads/WMOs). See [[terrain]] for details.

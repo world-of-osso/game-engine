@@ -2,6 +2,12 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record final Empty M2 asset-store boundary
+
+Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], and `index.md` for the `0a1a1bfb` → `49304144` → `e7f98704` correction. Exact Empty now keeps lightweight `Assets<M2EffectMaterial>` for active consumers while omitting Bevy `EntitiesNeedingSpecialization` and material/render schedules; Character+, unconfigured, and debug runs retain the full plugin. PID `2339740` scene-setup and PID `2365242` `sync_equipment` panics remain failure evidence; their stale sockets were removed only after identity-safe verification. Corrective RED, GREEN, formatting, and readability artifacts use the `empty-m2-asset-specialization-*` prefix.
+
+Final PID `2390217` matched `e7f98704`, stayed `InWorld` and connected with one link/player, retained FPS text, and had zero terrain, `Camera3d`, or displayed NPCs. Its profile contained no Hanabi, `M2EffectMaterial`, or M2 specialization symbol. After a 30-second warm-up, twelve passive windows measured **10.24% mean**, **10.20% median**, and **10.60% maximum** CPU; only **2/12** met `<=10.0%`. The M2 boundary is verified, but the overall Empty CPU and Character gates remain open.
+
 ## [2026-08-10] fix | Record Particle/Hanabi Empty render boundary
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], `docs/particle-system.md`, and `index.md` for `beead231` (`Register particles only at Particles stage`). Recorded that exact Empty through Lighting no longer registers ParticlePlugin/Hanabi, while Particles, Ui, and unconfigured normal runs retain it. The pre-fix PID `2176863` profile sampled `bevy_hanabi::render::VfxSimulateNode::run` at 2.18% self CPU despite stage-gated emitter systems. Recorded RED `/tmp/claude/game-engine-perf/empty-particle-plugin-red.log`, GREEN `empty-particle-plugin-green.log`, and formatting/readability artifacts. Rebuilt PID `2297374` stayed connected with one link/player, FPS text, and zero world content; its post-fix profile contained no Hanabi symbol. Three passive samples measured 12.50%, 12.70%, and 9.90% of one core, so the `<=10%` result is not stable and no causal CPU reduction is claimed. Temporary 10 FPS pacing and the blocked Character gate remain.
