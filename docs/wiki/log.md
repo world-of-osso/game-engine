@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record strict Empty gizmo registration boundary
+
+Updated [[rendering-pipeline]], [[procedural-cloud-regeneration]], and `index.md` for `1503cd1c` (`Disable gizmos in strict Empty`). Explicit fixed `InWorldSceneStage::Empty` now disables both Bevy `GizmoPlugin` and `GizmoRenderPlugin`; unconfigured/default, `Character+`, debug, and screenshot/default paths retain gizmos. No project gizmo consumers exist. PID `2655273` supplied the pre-A/B target profile: **59.950 seconds**, **2,153 samples**, **0 lost**, with `GizmoBuffer<LightGizmoConfigGroup>::queue` at **1.51% sampled CPU**. RED: `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`; GREEN: `empty-gizmo-registration-green.log`; readability: `empty-gizmo-registration-readability/`. No CPU-savings or final Empty claim is made until rebuilt runtime A/B proof.
+
 ## [2026-08-10] fix | Record idle Who runtime change-tick correction
 
 Updated [[networking]], [[procedural-cloud-regeneration]], and `index.md` for `2c265ffa` (`Avoid dirtying idle Who runtime`). `send_pending_queries` previously called `pop_front()` on an empty queue every `Update`, advancing `WhoRuntimeState` change ticks without a query, send, reply, or snapshot transition. A read-only empty guard now preserves FIFO query sending, unavailable replies, inbound receive handling, reset cleanup, and later-stage behavior. RED evidence: `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log`; GREEN evidence: `/tmp/claude/game-engine-perf/who-idle-change-tick-green.log`; `cargo fmt` passed, and Rust-readability evidence is under `/tmp/claude/game-engine-perf/who-idle-change-tick-readability/`. No CPU-savings or Character-readiness claim is made before runtime measurement.

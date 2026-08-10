@@ -25,6 +25,12 @@ Final PID `2390217` matched `e7f98704`, stayed connected with one link/player, r
 
 ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split files are loaded in three parts: root `.adt` (heights/normals), `_tex0.adt` (texture layers), `_obj0.adt` (doodads/WMOs). See [[terrain]] for details.
 
+## Gizmo Registration
+
+Commit `1503cd1c` disables both Bevy `GizmoPlugin` and `GizmoRenderPlugin` only when the configured cumulative stage is the explicit fixed `Empty` diagnostic stage. Unconfigured/default runs, `Character` and later stages, debug modes, and screenshot/default paths retain gizmos. No project gizmo consumers exist; the change removes Bevy gizmo registration/render work without changing project-owned behavior.
+
+PID `2655273` provided the pre-A/B attribution: a **59.950-second** identity-bound `perf` interval collected **2,153 samples** with **0 lost samples**. `GizmoBuffer<LightGizmoConfigGroup>::queue` was the strongest current project-retained symbol at **1.51% of sampled CPU**. This is profiler share, not Linux-core utilization. RED/GREEN evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-{red,green}.log`; readability evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-readability/`. No runtime CPU savings or final Empty acceptance is claimed before rebuilt A/B proof.
+
 ## Particles
 
 GPU particles run via `bevy_hanabi`. Each live particle is a separate Bevy entity with `Mesh3d` (unit quad) + `StandardMaterial`. The emitter (`ParticleEmitterComp`) accumulates emission and resolves bone position per frame. Color, opacity, and scale use 3-point FakeAnimBlock interpolation. Texture tiles are static (chosen at spawn, not animated).
@@ -79,6 +85,12 @@ The complete WMVx blend mode reference:
 - **Strict Empty FPS graph boundary**: `8cac2b03` disabled `frame_time_graph_config` only at startup, but later writers (`apply_loaded_client_options`, `sync_hud_visibility_toggles`, `apply_snapshot_to_world`) restored it; `/tmp/claude/game-engine-perf/empty-fps-graph-2246158.webp` shows the solid red graph. Follow-up `cc5780a8` makes all overlay visibility writers stage-aware: exact Empty keeps FPS text enabled and graph disabled, while Character/later stages restore the graph. Rebuilt PID `2283621` visually removed the graph, stayed connected at 9.95 FPS with zero world scene content, and measured 9.80% of one core. This meets the numerical CPU threshold under temporary pacing but is not accepted as the final Empty design or Character gate.
 
 ## Sources
+
+- [game-engine app setup](../../src/app_setup.rs) — strict-Empty gizmo plugin filtering and screenshot/default retention
+- [game-engine main](../../src/main.rs) — stage-aware gizmo policy wiring
+- `game-engine` commit `1503cd1c` — disable Bevy gizmo plugins only for explicit Empty
+- `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`, `empty-gizmo-registration-green.log`, and `empty-gizmo-registration-readability/` — behavioral and readability evidence
+- `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data` and companion header/self/children/script artifacts — identity-bound profiler evidence
 
 - [particle-system.md](../particle-system.md) — emitter architecture, known limitations
 - [torch-halo-investigation-2026-03-30.md](../torch-halo-investigation-2026-03-30.md) — blend mode fallback fix, WMVx reference

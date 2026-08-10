@@ -173,6 +173,16 @@ Commit `2c265ffa` (`Avoid dirtying idle Who runtime`) fixes a client-side no-op 
 
 The guard preserves FIFO query sending, the immediate `who is unavailable: not connected` reply, inbound `WhoStateUpdate` handling, reconnect/reset cleanup, and later-stage behavior. RED evidence is `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log`; GREEN evidence is `/tmp/claude/game-engine-perf/who-idle-change-tick-green.log`; `cargo fmt` passed, and Rust-readability evidence is under `/tmp/claude/game-engine-perf/who-idle-change-tick-readability/`. This correction records the root cause and behavioral preservation only: it makes no CPU-savings or Character-readiness claim before runtime measurement.
 
+## Strict Empty Gizmo Registration Boundary
+
+Commit `1503cd1c` (`Disable gizmos in strict Empty`) makes the fixed diagnostic stage explicit at Bevy plugin registration. Exact `InWorldSceneStage::Empty` disables both `bevy::gizmos::GizmoPlugin` and `bevy::gizmos_render::GizmoRenderPlugin`; the rest of the application remains registered. Unconfigured/default runs, `Character` and later cumulative stages, debug modes, and screenshot/default paths retain gizmos. Source inspection found no project gizmo consumers, so this boundary removes registration/render work without changing project behavior.
+
+The preceding identity-bound profiler was PID `2655273`. Its exact `perf` interval was **59.950 seconds**, with **2,153 samples** and **0 lost samples**. `GizmoBuffer<LightGizmoConfigGroup>::queue` was the strongest current project-retained target at **1.51% sampled CPU**. This is a share of sampled cycles, not 1.51% of one Linux core, and it identifies a target rather than proving causal savings.
+
+RED evidence is `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`; GREEN evidence is `/tmp/claude/game-engine-perf/empty-gizmo-registration-green.log`; Rust-readability evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-readability/`. The exact profiler artifacts are `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data`, `final-polling-loops-perf-2655273-header.txt`, `final-polling-loops-perf-2655273-record.log`, `final-polling-loops-perf-2655273-self.txt`, `final-polling-loops-perf-2655273-children.txt`, and `final-polling-loops-perf-2655273-script.txt`.
+
+The source boundary is committed, but it has not yet received rebuilt-runtime A/B proof. Do not claim CPU savings or final strict-Empty acceptance until an identity-matched rebuild compares gizmos-enabled and explicit-Empty-disabled clients under the same workload.
+
 ## M2 Effect Material Empty registration boundary
 
 Commit `0a1a1bfb` omitted the full `M2EffectMaterialPlugin` for exact `Empty` and unintentionally removed the lightweight `Assets<M2EffectMaterial>` resource required by active consumers. PID `2339740` panicked in scene setup before IPC readiness; PID `2365242` later panicked in `sync_equipment`. Their stale sockets were removed only after identity-safe verification. These panic logs are failure evidence, not successful runtime proof.
@@ -192,7 +202,11 @@ After a prospective 30-second warm-up, twelve contiguous passive 10-second windo
 - `src/who.rs` — Who runtime queue/send/receive/reset behavior
 - `game-engine` commit `2c265ffa` — idle Who change-tick guard
 - `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log` and `who-idle-change-tick-green.log` — behavioral RED/GREEN evidence; `cargo fmt` passed and readability evidence is under `who-idle-change-tick-readability/`
-- [game-engine app setup](../../src/app_setup.rs) — UI plugin registration and diagnostic override cleanup
+- [game-engine app setup](../../src/app_setup.rs) — strict-Empty gizmo disablement and diagnostic plugin registration
+- [game-engine main](../../src/main.rs) — stage-aware gizmo policy wiring and screenshot/default retention
+- `game-engine` commit `1503cd1c` — disable Bevy gizmo plugins only for explicit Empty
+- `/tmp/claude/game-engine-perf/empty-gizmo-registration-red.log`, `empty-gizmo-registration-green.log`, and `empty-gizmo-registration-readability/` — gizmo registration RED/GREEN/readability evidence
+- `/tmp/claude/game-engine-perf/final-polling-loops-perf-2655273.data` and companion header/self/children/script artifacts — 59.950-second PID 2655273 profiler evidence
 - [game-engine networking](../../src/game/networking/mod.rs) — connection and transport lifecycle evidence
 - [game-engine disconnect handling](../../src/game/networking/disconnect.rs) — reconnect/reset behavior
 - `ui-toolkit/src/plugin.rs` — `UiProcessingEnabled` full-schedule gate, inner render/text gates, and pause/re-enable test

@@ -7,7 +7,7 @@ Last updated: 2026-08-10.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, stage-gated camera/particle/M2-material registration, lightweight Empty M2 assets without material schedules (`e7f98704`), blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; M2 removal is runtime-proven but Empty CPU remains 10.24% mean
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, strict-Empty gizmo/camera/particle/M2-material registration boundaries, lightweight Empty M2 assets without material schedules (`e7f98704`), blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; gizmo A/B CPU proof remains pending
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow, entity replication, Who query runtime, Empty-stage NOOP and due-gated network-reset boundaries, planned streaming; reset gating removed its profile symbol but did not improve CPU
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
