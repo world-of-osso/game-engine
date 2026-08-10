@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record strict Empty FPS graph boundary
+
+Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], [[ui-system]], and `index.md` for `8cac2b03` (`Disable Empty FPS frame-time graph`) and follow-up `cc5780a8` (`Preserve Empty FPS graph disablement`). Corrected the startup-only failure: runtime option writers restored the graph, visibly producing the solid red block in `empty-fps-graph-2246158.webp`. `cc5780a8` makes every writer stage-aware. Rebuilt PID `2283621` kept FPS text with no graph (`empty-fps-graph-options-2283621.webp`), stayed connected with one link/player and zero world content, reported 9.95 FPS / 100.45 ms, and measured 9.80% of one core over 10 seconds. This meets the numerical threshold under temporary 10 FPS pacing; it is not accepted as the final Empty design, and Character remains blocked.
+
 ## [2026-08-10] fix | Record Character-stage camera/input guard
 
 Updated [[procedural-cloud-regeneration]], [[replicated-unit-noops]], [[rendering-pipeline]], and `index.md` for `c446d81c` (`Gate camera updates at Character stage`). Recorded that strict Empty skips `sync_camera_options`, `camera_input`, `cursor_grab`, `player_movement`, and `camera_follow`; Character and later stages retain them. Recorded Empty-only collision/pathing collection and raycast setup, RED/GREEN/fmt/readability evidence, and protected `camera.rs` instrumentation preservation through partial staging. Rebuilt PID `2176863` remained connected at 10.01 FPS / 99.89 ms with zero world camera/terrain/displayed NPCs and measured 11.10% of one core. The prior paced result was 11.20%, but remote entities changed from 70 to 75, so no measurable improvement is accepted. The 10 FPS pacing remains temporary and Character remains blocked.

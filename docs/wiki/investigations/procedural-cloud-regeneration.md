@@ -131,6 +131,16 @@ Behavioral RED evidence is `/tmp/claude/game-engine-perf/character-stage-guard-r
 
 Rebuilt PID `2176863` remained connected with one link/player, reported **10.01 FPS / 99.89 ms**, zero terrain, zero `Camera3d`, and zero displayed NPCs. Its passive 10-second CPU result was **11.10% of one core**, versus **11.20%** for the prior paced client; remote entities also changed from 70 to 75, so the 0.10-point difference is not accepted as a measurable improvement. Evidence: `/tmp/claude/game-engine-perf/character-camera-gate-{launch-identity,readiness}.json`, `character-camera-gate-cpu-2176863.json`, and `character-camera-gate-2176863.webp`. The 10 FPS limiter remains a temporary investigation aid, and Character remains blocked pending the `<=10%` Empty gate.
 
+## Strict Empty FPS Frame-Time Graph Boundary
+
+Commit `8cac2b03` disables only `FpsOverlayConfig.frame_time_graph_config` for exact strict Empty while keeping the FPS overlay enabled and its visible FPS text/config active. Empty therefore avoids the frame-time graph's per-frame diagnostic-history reads and shader-storage-buffer updates; the green frame-time graph is absent. `Character` and later stages preserve the graph. The performance panel, networking, IPC, and temporary 10 FPS pacing remain active.
+
+The initial `8cac2b03` startup-only disablement was incomplete: later visibility writers in `apply_loaded_client_options`, `sync_hud_visibility_toggles`, and `apply_snapshot_to_world` restored the graph setting. The screenshot `/tmp/claude/game-engine-perf/empty-fps-graph-2246158.webp` visibly proves the failure with a solid red frame-time graph in strict Empty.
+
+Commit `cc5780a8` makes all three overlay visibility paths stage-aware. Exact Empty keeps FPS text/overlay enabled while forcing the frame-time graph disabled; Character and later stages restore graph visibility. RED evidence is `/tmp/claude/game-engine-perf/empty-fps-graph-options-red.log`; GREEN evidence is `/tmp/claude/game-engine-perf/empty-fps-graph-options-green.log` and `/tmp/claude/game-engine-perf/empty-fps-graph-all-green-2.log`. Formatting evidence is `/tmp/claude/game-engine-perf/empty-fps-graph-options-cargo-fmt-check-final.log`; Rust-readability artifacts are under `/tmp/claude/game-engine-perf/empty-fps-graph-options-readability/`.
+
+Rebuilt PID `2283621` remained connected with one link/player and 78 remote entities, reported **9.95 FPS / 100.45 ms**, and retained the FPS text with no graph in `/tmp/claude/game-engine-perf/empty-fps-graph-options-2283621.webp`. Terrain, world camera, and displayed-NPC counts remained zero. The passive 10-second process measurement was **9.80% of one core**, meeting the numerical `<=10%` threshold. Evidence: `empty-fps-graph-options-launch-identity.json`, `empty-fps-graph-options-readiness.json`, and `empty-fps-graph-options-cpu-2283621.json`. Stderr contains no panic, device loss, or OOM; one nonfatal Lightyear missing-despawn error remains. Because Alessio explicitly kept 10 FPS only as a temporary investigation aid, this numerical result is not accepted as the final Empty design and does not authorize Character advancement.
+
 ## Sources
 
 - [rendering-pipeline](../systems/rendering-pipeline.md) — pipeline summary and known performance history
