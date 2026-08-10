@@ -249,7 +249,7 @@ pub fn spawn_scene_environment(
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             shadow_depth_bias: 0.02,
             shadow_normal_bias: 1.8,
             ..default()

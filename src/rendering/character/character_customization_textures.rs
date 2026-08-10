@@ -115,7 +115,7 @@ fn apply_replacement_textures_to_materials(
         ) else {
             continue;
         };
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
+        if let Some(mut mat) = materials.get_mut(&mat_handle.0) {
             mat.base_color_texture = Some(replacement);
             mat.base_color = Color::WHITE;
         }

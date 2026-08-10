@@ -128,7 +128,7 @@ fn spawn_nameplate_entity(
             kind,
             Text2d::new(text),
             TextFont {
-                font_size,
+                font_size: FontSize::Px(font_size),
                 ..default()
             },
             TextColor(color),

@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use lightyear::prelude::client::*;
-use lightyear::prelude::*;
 
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::networking::{
@@ -107,7 +106,7 @@ fn despawn_client_entities(world: &mut World) {
 }
 
 fn despawn_replicated_entities(world: &mut World) {
-    despawn_entities_with::<Replicated>(world);
+    despawn_entities_with::<Remote>(world);
 }
 
 fn despawn_entities_with<C: Component>(world: &mut World) {
@@ -124,7 +123,7 @@ fn despawn_entities_with<C: Component>(world: &mut World) {
 
 fn strip_local_player_components(world: &mut World) {
     let entities: Vec<_> = world
-        .query_filtered::<Entity, (With<LocalPlayer>, Without<Replicated>)>()
+        .query_filtered::<Entity, (With<LocalPlayer>, Without<Remote>)>()
         .iter(world)
         .collect();
     for entity in entities {
@@ -348,7 +347,9 @@ fn reset_world_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::WarbankStatusSnapshot>(world);
 }
 
-fn reset_resource<T: Resource + Default>(world: &mut World) {
+fn reset_resource<T: Resource<Mutability = bevy::ecs::component::Mutable> + Default>(
+    world: &mut World,
+) {
     if let Some(mut resource) = world.get_resource_mut::<T>() {
         *resource = T::default();
     }
@@ -444,7 +445,7 @@ mod tests {
         app.insert_resource(crate::networking::NetworkUpdateFrame(0));
         let client = app.world_mut().spawn(Client::default()).id();
         let receiver = app.world_mut().spawn_empty().id();
-        let replicated = app.world_mut().spawn(Replicated { receiver }).id();
+        let replicated = app.world_mut().spawn(Remote { receiver }).id();
         app.add_systems(
             Update,
             flush_pending_network_world_reset.run_if(network_world_reset_is_due),
@@ -499,7 +500,7 @@ mod tests {
         let post_reset_receiver = app.world_mut().spawn_empty().id();
         let post_reset_replicated = app
             .world_mut()
-            .spawn(Replicated {
+            .spawn(Remote {
                 receiver: post_reset_receiver,
             })
             .id();
@@ -522,7 +523,7 @@ mod tests {
         let mut world = World::default();
         let client = world.spawn(Client::default()).id();
         let receiver = world.spawn_empty().id();
-        let replicated = world.spawn(Replicated { receiver }).id();
+        let replicated = world.spawn(Remote { receiver }).id();
 
         reset_network_world(&mut world);
 

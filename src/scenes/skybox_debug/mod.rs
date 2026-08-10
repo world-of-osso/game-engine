@@ -285,7 +285,7 @@ fn spawn_skybox_debug_light(commands: &mut Commands) {
         SkyboxDebugScene,
         DirectionalLight {
             illuminance: 2500.0,
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 5.0, PI / 6.0, 0.0)),

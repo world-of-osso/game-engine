@@ -2,7 +2,7 @@
 
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
-use lightyear::prelude::Replicated;
+use lightyear::prelude::Remote;
 use shared::components::{ModelDisplay, Npc, Player as NetPlayer};
 
 use crate::networking::{LocalPlayer, ReplicatedVisualEntity, ResolvedModelAssetInfo};
@@ -31,7 +31,7 @@ fn build_inworld_scene_tree(
             Option<&ModelDisplay>,
             Option<&ResolvedModelAssetInfo>,
         ),
-        With<Replicated>,
+        With<Remote>,
     >,
     camera: Query<Entity, With<Camera3d>>,
     local_player: Query<Entity, With<LocalPlayer>>,
@@ -87,7 +87,7 @@ fn collect_npc_nodes(
             Option<&ModelDisplay>,
             Option<&ResolvedModelAssetInfo>,
         ),
-        With<Replicated>,
+        With<Remote>,
     >,
     children: &mut Vec<SceneNode>,
 ) {

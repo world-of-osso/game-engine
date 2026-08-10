@@ -166,7 +166,9 @@ fn register_in_world_systems(app: &mut App) {
             game_engine::ui::game_plugin::handle_spellbook_keyboard,
         )
             .chain()
-            .run_if(in_state(GameState::InWorld).and(crate::networking::gameplay_input_allowed))
+            .run_if(
+                in_state(GameState::InWorld).and_then(crate::networking::gameplay_input_allowed),
+            )
             .run_if(inworld_scene_stage_allows_ui),
     );
 }
@@ -280,7 +282,7 @@ fn spawn_world_environment(
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             shadow_depth_bias: 0.02,
             shadow_normal_bias: 1.8,
             ..default()

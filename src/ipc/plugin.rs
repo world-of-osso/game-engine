@@ -331,8 +331,8 @@ impl Plugin for IpcPlugin {
         #[cfg(feature = "ipc")]
         {
             let (receiver, guard) = init();
-            app.insert_non_send_resource(receiver)
-                .insert_non_send_resource(guard)
+            app.insert_non_send(receiver)
+                .insert_non_send(guard)
                 .add_systems(Update, receive_ipc_commands.in_set(IpcUpdateSet::Receive))
                 .add_systems(Update, dispatch_ipc_commands.in_set(IpcUpdateSet::Dispatch));
         }

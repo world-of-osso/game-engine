@@ -319,7 +319,7 @@ fn set_inworld_skybox_alpha(
     skybox_materials: &mut Assets<SkyboxM2Material>,
 ) {
     if let Ok(material) = material_q.get(entity)
-        && let Some(material) = skybox_materials.get_mut(material)
+        && let Some(mut material) = skybox_materials.get_mut(material)
     {
         material.settings.color.w = alpha;
     }

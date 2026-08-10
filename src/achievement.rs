@@ -111,7 +111,7 @@ fn spawn_achievement_toast_overlay(mut commands: Commands) {
                 AchievementToastText,
                 Text::new("Achievement Earned"),
                 TextFont {
-                    font_size: 22.0,
+                    font_size: FontSize::Px(22.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.86, 0.45)),

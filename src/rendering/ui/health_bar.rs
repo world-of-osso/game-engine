@@ -207,7 +207,7 @@ fn update_foreground(
             *fg_transform = foreground_transform(pct);
         }
         if let Ok(mat_handle) = mat_query.get(bar_child)
-            && let Some(mat) = materials.get_mut(&mat_handle.0)
+            && let Some(mut mat) = materials.get_mut(&mat_handle.0)
         {
             mat.base_color = health_bar_color(health.current, health.max);
         }

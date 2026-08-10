@@ -175,14 +175,14 @@ fn light_edits_reject_invalid_values_without_mutation() {
         .spawn(PointLight {
             intensity: 1000.0,
             range: 10.0,
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         })
         .id();
     let directional = world
         .spawn(DirectionalLight {
             illuminance: 5000.0,
-            shadows_enabled: false,
+            shadow_maps_enabled: false,
             ..default()
         })
         .id();

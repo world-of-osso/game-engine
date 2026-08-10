@@ -48,7 +48,7 @@ struct PlayerModelSpawnContext<'a, 'w, 's> {
 }
 
 type LocalPlayerTagQuery<'w, 's> =
-    Query<'w, 's, (Entity, &'static NetPlayer, Has<LocalPlayer>), With<Replicated>>;
+    Query<'w, 's, (Entity, &'static NetPlayer, Has<LocalPlayer>), With<Remote>>;
 
 #[derive(SystemParam)]
 pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
@@ -163,7 +163,7 @@ pub(crate) fn spawn_replicated_player(
             Option<&NetRotation>,
             Option<&Mounted>,
         ),
-        With<Replicated>,
+        With<Remote>,
     >,
     selected: Option<Res<SelectedCharacterId>>,
 ) {

@@ -110,7 +110,7 @@ fn configure_skybox_pipeline(descriptor: &mut RenderPipelineDescriptor, two_side
     // single-sided batches keep default backface culling like reference clients.
     descriptor.primitive.cull_mode = if two_sided { None } else { Some(Face::Back) };
     if let Some(ds) = descriptor.depth_stencil.as_mut() {
-        ds.depth_write_enabled = false;
+        ds.depth_write_enabled = Some(false);
     }
 }
 

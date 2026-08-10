@@ -217,7 +217,6 @@ pub(crate) struct OffsetBySpinModifier {
     pub(crate) negate_spin: bool,
 }
 
-#[typetag::serde]
 impl Modifier for SizeVariationModifier {
     fn context(&self) -> ModifierContext {
         ModifierContext::Render
@@ -251,7 +250,6 @@ impl Modifier for SizeVariationModifier {
     }
 }
 
-#[typetag::serde]
 impl RenderModifier for SizeVariationModifier {
     fn apply_render(
         &self,
@@ -274,7 +272,6 @@ impl RenderModifier for SizeVariationModifier {
     }
 }
 
-#[typetag::serde]
 impl Modifier for OffsetBySpinModifier {
     fn context(&self) -> ModifierContext {
         ModifierContext::Render
@@ -317,7 +314,6 @@ impl Modifier for OffsetBySpinModifier {
     }
 }
 
-#[typetag::serde]
 impl RenderModifier for OffsetBySpinModifier {
     fn apply_render(
         &self,
@@ -354,7 +350,6 @@ impl RenderModifier for OffsetBySpinModifier {
     }
 }
 
-#[typetag::serde]
 impl Modifier for TwinkleSizeModifier {
     fn context(&self) -> ModifierContext {
         ModifierContext::Render
@@ -388,7 +383,6 @@ impl Modifier for TwinkleSizeModifier {
     }
 }
 
-#[typetag::serde]
 impl RenderModifier for TwinkleSizeModifier {
     fn apply_render(
         &self,

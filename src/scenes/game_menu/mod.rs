@@ -100,6 +100,8 @@ pub fn close_game_menu(commands: &mut Commands) {
 struct OpenMenuCommand(GameState);
 
 impl Command for OpenMenuCommand {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         if world
             .resource::<UiState>()
@@ -129,6 +131,8 @@ impl Command for OpenMenuCommand {
 struct CloseMenuCommand;
 
 impl Command for CloseMenuCommand {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         let Some(mut overlay) = world.remove_resource::<GameMenuOverlay>() else {
             return;
@@ -293,6 +297,8 @@ fn queue_apply_current_options(overlay: &mut GameMenuOverlay, commands: &mut Com
 struct ApplyDraftOptionsCommand(ApplySnapshot);
 
 impl Command for ApplyDraftOptionsCommand {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         apply_snapshot_to_world(world, &self.0);
         save_snapshot(world, &self.0);
@@ -466,6 +472,8 @@ fn set_named_frames_visible(reg: &mut FrameRegistry, names: &[&str], visible: bo
 struct SaveModalPositionCommand([f32; 2]);
 
 impl Command for SaveModalPositionCommand {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         let mut ui_state = world.resource_mut::<ClientOptionsUiState>();
         ui_state.modal_offset = Some(self.0);
@@ -476,6 +484,8 @@ impl Command for SaveModalPositionCommand {
 struct SetStateCommand(GameState);
 
 impl Command for SetStateCommand {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         if let Some(mut next) = world.get_resource_mut::<NextState<GameState>>() {
             next.set(self.0);

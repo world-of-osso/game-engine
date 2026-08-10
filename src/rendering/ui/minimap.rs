@@ -462,7 +462,7 @@ fn apply_circular_crop(
         &last.circle_mask,
     );
 
-    if let Some(img) = images.get_mut(&composite_res.handle) {
+    if let Some(mut img) = images.get_mut(&composite_res.handle) {
         img.data = Some(last.crop_buf.clone());
     }
 }

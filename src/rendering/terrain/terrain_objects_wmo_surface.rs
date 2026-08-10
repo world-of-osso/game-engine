@@ -246,7 +246,7 @@ pub(super) fn apply_sidn_emissive_updates<F: QueryFilter>(
     strength: f32,
 ) {
     for (material_handle, glow) in query.iter() {
-        let Some(material) = materials.get_mut(material_handle) else {
+        let Some(mut material) = materials.get_mut(material_handle) else {
             continue;
         };
         material.emissive = sidn_emissive_color(glow.base_sidn_color, strength);

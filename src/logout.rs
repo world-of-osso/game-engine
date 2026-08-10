@@ -59,6 +59,8 @@ impl Plugin for LogoutPlugin {
 pub struct RequestLogoutCommand;
 
 impl Command for RequestLogoutCommand {
+    type Out = ();
+
     fn apply(self, world: &mut World) {
         let snapshot = world.resource::<CharacterStatsSnapshot>().clone();
         let outcome = {
@@ -127,7 +129,7 @@ fn spawn_logout_overlay(mut commands: Commands) {
                 LogoutOverlayText,
                 Text::new("Logging out"),
                 TextFont {
-                    font_size: 24.0,
+                    font_size: FontSize::Px(24.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.82, 0.52)),

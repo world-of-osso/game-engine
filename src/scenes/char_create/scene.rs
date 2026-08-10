@@ -197,7 +197,7 @@ fn spawn_lighting(commands: &mut Commands) {
         CharCreateScene,
         DirectionalLight {
             illuminance: 8000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             color: Color::srgb(1.0, 0.92, 0.8),
             ..default()
         },

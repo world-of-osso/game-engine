@@ -50,7 +50,7 @@ fn spawn_fill_light(commands: &mut Commands) -> Entity {
             DirectionalLight {
                 color: CHAR_SELECT_FILL_LIGHT_COLOR,
                 illuminance: CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
-                shadows_enabled: false,
+                shadow_maps_enabled: false,
                 ..default()
             },
             Transform::from_rotation(Quat::from_euler(
@@ -84,7 +84,7 @@ fn spawn_primary_light(
             DirectionalLight {
                 color: CAMPFIRE_LIGHT_COLOR,
                 illuminance: CAMPFIRE_LIGHT_ILLUMINANCE,
-                shadows_enabled: false,
+                shadow_maps_enabled: false,
                 ..default()
             },
             Transform::from_rotation(Quat::from_euler(

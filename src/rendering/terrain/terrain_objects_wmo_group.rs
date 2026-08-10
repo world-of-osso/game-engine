@@ -305,7 +305,7 @@ pub(super) fn authored_wmo_point_light(light: &wmo::WmoLight) -> PointLight {
         intensity: wmo_light_intensity(light),
         range: wmo_light_range(light),
         radius: light.attenuation_start.min(light.attenuation_end),
-        shadows_enabled: false,
+        shadow_maps_enabled: false,
         ..default()
     }
 }
@@ -318,7 +318,7 @@ pub(super) fn authored_wmo_spot_light(light: &wmo::WmoLight) -> SpotLight {
         radius: light.attenuation_start.min(light.attenuation_end),
         inner_angle: std::f32::consts::FRAC_PI_6,
         outer_angle: std::f32::consts::FRAC_PI_3,
-        shadows_enabled: false,
+        shadow_maps_enabled: false,
         ..default()
     }
 }

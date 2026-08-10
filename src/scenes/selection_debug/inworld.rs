@@ -198,7 +198,7 @@ fn spawn_debug_light(commands: &mut Commands) {
         InWorldSelectionDebugScene,
         DirectionalLight {
             illuminance: 9000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             ..default()
         },
         Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.9, -0.6, 0.0)),

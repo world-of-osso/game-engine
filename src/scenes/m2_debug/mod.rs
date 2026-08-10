@@ -103,7 +103,7 @@ fn spawn_m2_debug_light(commands: &mut Commands) -> Entity {
             M2DebugScene,
             DirectionalLight {
                 illuminance: 12_000.0,
-                shadows_enabled: true,
+                shadow_maps_enabled: true,
                 ..default()
             },
             Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -0.9, -0.6, 0.0)),

@@ -75,7 +75,7 @@ fn spawn_reputation_toast_overlay(mut commands: Commands) {
                 ReputationToastText,
                 Text::new("Reputation Updated"),
                 TextFont {
-                    font_size: 20.0,
+                    font_size: FontSize::Px(20.0),
                     ..default()
                 },
                 TextColor(Color::srgb(0.72, 1.0, 0.72)),

@@ -432,7 +432,7 @@ fn spawn_lighting(commands: &mut Commands) {
         ParticleDebugScene,
         DirectionalLight {
             illuminance: 2000.0,
-            shadows_enabled: true,
+            shadow_maps_enabled: true,
             color: Color::srgb(1.0, 0.96, 0.9),
             ..default()
         },
@@ -489,7 +489,7 @@ fn spawn_emitter_overlay_from_emitters(
         ParticleDebugScene,
         Text::new(text),
         TextFont {
-            font_size: 15.0,
+            font_size: FontSize::Px(15.0),
             ..default()
         },
         TextColor(Color::WHITE),

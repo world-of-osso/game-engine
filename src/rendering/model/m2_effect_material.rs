@@ -52,7 +52,7 @@ impl Material for M2EffectMaterial {
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
         descriptor.primitive.cull_mode = Some(Face::Back);
         if let Some(ds) = descriptor.depth_stencil.as_mut() {
-            ds.depth_write_enabled = false;
+            ds.depth_write_enabled = Some(false);
         }
         Ok(())
     }

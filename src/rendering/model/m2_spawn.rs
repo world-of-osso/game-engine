@@ -216,7 +216,7 @@ fn authored_point_light(authored: &m2_light::EvaluatedLight) -> PointLight {
         intensity: authored.intensity,
         range: authored.attenuation_end,
         radius: authored.attenuation_start.min(authored.attenuation_end),
-        shadows_enabled: false,
+        shadow_maps_enabled: false,
         ..default()
     }
 }

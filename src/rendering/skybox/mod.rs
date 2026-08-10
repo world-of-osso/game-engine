@@ -282,7 +282,7 @@ fn update_sky_dome_material(
     let sun_direction = (sun_rotation(minutes) * Vec3::NEG_Z).normalize_or_zero();
     let cloud_scroll = Vec2::new(minutes * 0.00012, minutes * 0.00004);
     for mat_handle in sky_dome_q.iter() {
-        if let Some(mat) = sky_materials.get_mut(mat_handle) {
+        if let Some(mut mat) = sky_materials.get_mut(mat_handle) {
             mat.uniforms.sky_top = color_to_vec4(colors.sky_top);
             mat.uniforms.sky_middle = color_to_vec4(colors.sky_middle);
             mat.uniforms.sky_band1 = color_to_vec4(colors.sky_band1);
@@ -502,7 +502,7 @@ fn update_sky_env_map(
     }
     *last = game_time.minutes;
     let colors = interpolate_colors(&keyframes.0, game_time.minutes);
-    if let Some(image) = images.get_mut(&handle.0) {
+    if let Some(mut image) = images.get_mut(&handle.0) {
         *image = build_sky_cubemap(&colors);
     }
 }
@@ -517,7 +517,7 @@ fn spawn_time_display(mut commands: Commands) {
         Visibility::Hidden,
         Text::new("12:00"),
         TextFont {
-            font_size: 20.0,
+            font_size: FontSize::Px(20.0),
             ..default()
         },
         TextColor(Color::WHITE),

@@ -85,7 +85,7 @@ fn apply_visibility_policy(
 fn apply_changed_npc_visibility_policy(
     local_alive: Res<LocalAliveState>,
     game_time: Res<GameTime>,
-    mut npcs: Query<(&Npc, &mut Visibility), (With<Replicated>, Changed<Npc>)>,
+    mut npcs: Query<(&Npc, &mut Visibility), (With<Remote>, Changed<Npc>)>,
 ) {
     for (npc, mut visibility) in &mut npcs {
         apply_visibility_policy(npc, &mut visibility, local_alive.0, game_time.minutes);
@@ -95,7 +95,7 @@ fn apply_changed_npc_visibility_policy(
 fn refresh_dead_only_npc_visibility(
     local_alive: Res<LocalAliveState>,
     game_time: Res<GameTime>,
-    mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
+    mut npcs: Query<(&Npc, &mut Visibility), With<Remote>>,
 ) {
     if !local_alive.is_changed() {
         return;
@@ -126,7 +126,7 @@ fn refresh_scheduled_npc_visibility(
     local_alive: Res<LocalAliveState>,
     game_time: Res<GameTime>,
     mut last_phase: Local<Option<NpcVisibilityDayPhase>>,
-    mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
+    mut npcs: Query<(&Npc, &mut Visibility), With<Remote>>,
 ) {
     let current_phase = npc_visibility_day_phase(game_time.minutes);
     let changed_from_phase = last_phase.replace(current_phase);
@@ -152,7 +152,7 @@ fn refresh_npc_visibility_on_state_or_stage_change(
     stage: Option<Res<InWorldSceneStage>>,
     local_alive: Res<LocalAliveState>,
     game_time: Res<GameTime>,
-    mut npcs: Query<(&Npc, &mut Visibility), With<Replicated>>,
+    mut npcs: Query<(&Npc, &mut Visibility), With<Remote>>,
 ) {
     let stage_changed = stage.as_ref().is_some_and(|stage| stage.is_changed());
     if !state.is_changed() && !stage_changed {
@@ -195,7 +195,7 @@ pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use bevy::prelude::*;
-    use lightyear::prelude::Replicated;
+    use lightyear::prelude::Remote;
     use shared::components::{Health as NetHealth, Npc};
 
     use crate::game::inworld_scene_stage::InWorldSceneStage;
@@ -261,7 +261,7 @@ mod tests {
     ) -> Entity {
         let receiver = app.world_mut().spawn_empty().id();
         app.world_mut()
-            .spawn((Npc { template_id }, Replicated { receiver }, visibility))
+            .spawn((Npc { template_id }, Remote { receiver }, visibility))
             .id()
     }
 
@@ -562,7 +562,7 @@ type NpcReplicatedQuery<'w, 's> = Query<
         Option<&'static NetRotation>,
         Option<&'static ModelDisplay>,
     ),
-    With<Replicated>,
+    With<Remote>,
 >;
 
 #[derive(bevy::ecs::system::SystemParam)]

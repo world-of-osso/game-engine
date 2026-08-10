@@ -81,12 +81,12 @@ pub(super) fn snapshot_entity(world: &World, entity: Entity) -> Option<SceneEnti
             .map(|light| PointLightSnapshot {
                 intensity: light.intensity,
                 range: light.range,
-                shadows_enabled: light.shadows_enabled,
+                shadows_enabled: light.shadow_maps_enabled,
             }),
         directional_light: world.get::<DirectionalLight>(entity).map(|light| {
             DirectionalLightSnapshot {
                 illuminance: light.illuminance,
-                shadows_enabled: light.shadows_enabled,
+                shadows_enabled: light.shadow_maps_enabled,
             }
         }),
     })

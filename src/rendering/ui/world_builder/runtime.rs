@@ -14,7 +14,7 @@ pub(super) fn build_world_builder_ui(world: &mut World) {
     shared.insert(view_state);
     let mut screen = Screen::new(world_builder_screen);
     screen.sync(&shared, &mut world.resource_mut::<UiState>().registry);
-    world.insert_non_send_resource(WorldBuilderScreenWrap(WorldBuilderScreenRes {
+    world.insert_non_send(WorldBuilderScreenWrap(WorldBuilderScreenRes {
         screen,
         shared,
     }));
@@ -410,7 +410,7 @@ pub(super) fn toggle_point_light_shadows(world: &mut World, entity: Entity) -> R
     let Some(mut light) = world.get_mut::<PointLight>(entity) else {
         return Err(format!("entity {entity:?} has no PointLight"));
     };
-    light.shadows_enabled = !light.shadows_enabled;
+    light.shadow_maps_enabled = !light.shadow_maps_enabled;
     Ok(())
 }
 
@@ -421,7 +421,7 @@ pub(super) fn toggle_directional_light_shadows(
     let Some(mut light) = world.get_mut::<DirectionalLight>(entity) else {
         return Err(format!("entity {entity:?} has no DirectionalLight"));
     };
-    light.shadows_enabled = !light.shadows_enabled;
+    light.shadow_maps_enabled = !light.shadow_maps_enabled;
     Ok(())
 }
 
@@ -519,7 +519,7 @@ pub(super) fn exit_world_builder(world: &mut World) {
     reconcile_render_suppression(world, &HashSet::new());
     reconcile_processing_suspension(world, &HashSet::new());
     world.insert_resource(WorldBuilderSuppressedM2Materials::default());
-    if let Some(mut screen) = world.remove_non_send_resource::<WorldBuilderScreenWrap>() {
+    if let Some(mut screen) = world.remove_non_send::<WorldBuilderScreenWrap>() {
         let mut ui = world.resource_mut::<UiState>();
         screen.0.screen.teardown(&mut ui.registry);
         clear_world_builder_focus(&mut ui);

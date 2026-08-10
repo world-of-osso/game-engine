@@ -14,6 +14,7 @@ pub(crate) use self::reconnect::{
 use bevy::prelude::*;
 use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
+use lightyear::prelude::client::Remote;
 use lightyear::prelude::client::*;
 use lightyear::prelude::*;
 use shared::components::{Position as NetPosition, Rotation as NetRotation};
@@ -345,7 +346,7 @@ fn register_entity_tag_systems(app: &mut App) {
             crate::networking_player::sync_local_alive_state,
         )
             .chain()
-            .run_if(in_state(GameState::Loading).or(in_state(GameState::InWorld))),
+            .run_if(in_state(GameState::Loading).or_else(in_state(GameState::InWorld))),
     );
     crate::networking_npc::register_npc_visibility_policy_systems(app);
 }
@@ -544,9 +545,9 @@ fn interpolate_remote_entities(
     }
 }
 
-/// When a replicated entity loses its Replicated marker (remote disconnect), despawn it.
+/// When a replicated entity loses its Remote marker (remote disconnect), despawn it.
 fn cleanup_disconnected_player(
-    trigger: On<Remove, Replicated>,
+    trigger: On<Remove, Remote>,
     query: Query<Entity, With<ReplicatedVisualEntity>>,
     mut commands: Commands,
 ) {
@@ -591,7 +592,7 @@ fn spawn_reconnect_overlay(mut commands: Commands) {
                 ReconnectOverlayText,
                 Text::new("Reconnecting..."),
                 TextFont {
-                    font_size: 28.0,
+                    font_size: FontSize::Px(28.0),
                     ..default()
                 },
                 TextColor(Color::srgb(1.0, 0.86, 0.45)),

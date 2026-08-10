@@ -67,7 +67,7 @@ impl Material for SkyMaterial {
         descriptor.primitive.cull_mode = Some(Face::Back);
         // Sky must render behind everything — disable depth write.
         if let Some(ds) = descriptor.depth_stencil.as_mut() {
-            ds.depth_write_enabled = false;
+            ds.depth_write_enabled = Some(false);
         }
         Ok(())
     }
