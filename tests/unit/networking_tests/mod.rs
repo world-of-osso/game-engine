@@ -4,8 +4,8 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use crate::camera::MoveDirection;
 use crate::networking::{
-    advance_network_update_frame, finish_reconnect_when_world_ready,
-    flush_pending_network_world_reset, reset_network_world,
+    advance_network_update_frame, drive_inworld_reconnect, finish_reconnect_when_world_ready,
+    flush_pending_network_world_reset, network_world_reset_is_due, reset_network_world,
 };
 use crate::networking_npc::{NpcVisibilityPolicy, npc_visibility_policy};
 use crate::networking_player::{

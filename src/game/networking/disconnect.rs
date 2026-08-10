@@ -19,6 +19,17 @@ pub(crate) fn handle_client_disconnected(
     let Ok(disconnected) = disconnected_q.get(trigger.entity) else {
         return;
     };
+    if is_initial_reconnect_marker(
+        disconnected,
+        reconnect.as_deref(),
+        forced_disconnect.0.is_some(),
+    ) {
+        info!(
+            "Ignoring initial disconnected marker for reconnect client entity {:?}",
+            trigger.entity
+        );
+        return;
+    }
     let forced_notice = forced_disconnect.0.take();
     let auth_token_label = auth_token
         .as_deref()
@@ -52,6 +63,16 @@ pub(crate) fn handle_client_disconnected(
         trigger.entity,
         &mut commands,
     );
+}
+
+fn is_initial_reconnect_marker(
+    disconnected: &Disconnected,
+    reconnect: Option<&ReconnectState>,
+    has_forced_notice: bool,
+) -> bool {
+    disconnected.reason.is_none()
+        && !has_forced_notice
+        && reconnect.is_some_and(|state| state.phase == ReconnectPhase::PendingConnect)
 }
 
 struct DisconnectInputs<'a, 'b, 'c, 'd> {

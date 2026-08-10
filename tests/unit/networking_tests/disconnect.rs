@@ -311,3 +311,93 @@ fn disconnect_during_game_menu_reconnects_without_bouncing_to_login() {
     assert!(app.world().get_entity(client).is_err());
     assert!(app.world().get_entity(replicated).is_err());
 }
+
+#[test]
+fn initial_netcode_disconnected_marker_does_not_restart_inworld_reconnect() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::state::app::StatesPlugin);
+    app.insert_state(crate::game_state::GameState::InWorld);
+    app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<PendingForcedDisconnect>();
+    app.insert_resource(AuthToken(Some("saved-token".to_string())));
+    app.insert_resource(selected_with_name("Elara"));
+    app.insert_resource(ReconnectState {
+        phase: ReconnectPhase::PendingConnect,
+        terrain_refresh_seen: false,
+    });
+    app.init_resource::<PendingNetworkWorldReset>();
+    app.init_resource::<NetworkUpdateFrame>();
+    app.insert_resource(ServerAddr("127.0.0.1:5000".parse().unwrap()));
+    app.insert_resource(LoginMode::Login);
+    app.insert_resource(LoginUsername(String::new()));
+    app.insert_resource(LoginPassword(String::new()));
+    app.add_systems(
+        Update,
+        (
+            flush_pending_network_world_reset.run_if(network_world_reset_is_due),
+            drive_inworld_reconnect,
+        )
+            .chain(),
+    );
+    app.add_systems(Last, advance_network_update_frame);
+    app.add_observer(handle_client_disconnected);
+
+    app.update();
+
+    let mut clients = app.world_mut().query_filtered::<Entity, With<Client>>();
+    let first_clients = clients.iter(app.world()).collect::<Vec<_>>();
+    assert_eq!(first_clients.len(), 1, "reconnect should spawn one client");
+    let first_client = first_clients[0];
+    let first_client_id = app.world().resource::<LocalClientId>().0;
+    assert_eq!(
+        app.world().resource::<PendingNetworkWorldReset>().0,
+        None,
+        "the required initial Disconnected marker must not schedule a world reset"
+    );
+    assert!(
+        !app.world()
+            .contains_resource::<crate::scenes::char_select::AutoEnterWorld>(),
+        "the initial marker must not re-enter the world state"
+    );
+    assert!(
+        !app.world()
+            .contains_resource::<crate::scenes::char_select::PreselectedCharName>(),
+        "the initial marker must not reinsert the selected-character transition"
+    );
+
+    for _ in 0..3 {
+        app.update();
+
+        let mut clients = app.world_mut().query_filtered::<Entity, With<Client>>();
+        let current_clients = clients.iter(app.world()).collect::<Vec<_>>();
+        assert_eq!(
+            current_clients,
+            vec![first_client],
+            "reconnect must retain one client entity instead of churning entities"
+        );
+        assert_eq!(
+            app.world().resource::<LocalClientId>().0,
+            first_client_id,
+            "reconnect must retain the same client id"
+        );
+        assert_eq!(
+            app.world().resource::<PendingNetworkWorldReset>().0,
+            None,
+            "initial marker handling must not schedule repeated world resets"
+        );
+    }
+}
+
+#[test]
+fn failed_pending_inworld_connection_still_rearms_reconnect() {
+    let mut app = inworld_disconnect_base_app();
+    app.world_mut().resource_mut::<ReconnectState>().phase = ReconnectPhase::PendingConnect;
+    let (client, replicated) = populate_inworld_disconnect_entities(&mut app);
+
+    trigger_disconnect_entity(&mut app, client);
+    app.update();
+    app.update();
+
+    assert_inworld_reconnect_state(&app, client, replicated);
+}
