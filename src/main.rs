@@ -404,6 +404,11 @@ fn insert_inworld_scene_stage_resource(app: &mut App, args: &[String]) {
 
 fn apply_inworld_scene_stage_ui_gates(app: &mut App) {
     let scene_stage = game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
+    if scene_stage == InWorldSceneStage::Empty
+        && let Some(mut overlay) = app.world_mut().get_resource_mut::<FpsOverlayConfig>()
+    {
+        overlay.frame_time_graph_config.enabled = false;
+    }
     if scene_stage.includes(InWorldSceneStage::Ui) {
         return;
     }

@@ -112,6 +112,10 @@ fn pre_ui_processing_gate_keeps_fps_overlay_active() {
     app.insert_resource(InWorldSceneStage::Empty);
     apply_inworld_scene_stage_ui_gates(&mut app);
 
+    let overlay = app.world().resource::<FpsOverlayConfig>();
+    assert!(overlay.enabled);
+    assert!(!overlay.frame_time_graph_config.enabled);
+
     app.update();
 
     let mut text_query = app.world_mut().query::<&Text>();
@@ -119,6 +123,24 @@ fn pre_ui_processing_gate_keeps_fps_overlay_active() {
         text_query.iter(app.world()).any(|text| text.0 == "FPS: "),
         "FPS overlay text was not spawned while game UI processing was disabled"
     );
+}
+
+#[test]
+fn character_stage_preserves_fps_overlay_graph() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::text::TextPlugin::default());
+    app.init_asset::<bevy::shader::Shader>();
+    app.init_asset::<bevy::render::storage::ShaderStorageBuffer>();
+    app.add_plugins(FpsOverlayPlugin::default());
+    app.insert_resource(InWorldSceneStage::Character);
+
+    apply_inworld_scene_stage_ui_gates(&mut app);
+
+    let overlay = app.world().resource::<FpsOverlayConfig>();
+    assert!(overlay.enabled);
+    assert!(overlay.frame_time_graph_config.enabled);
 }
 
 fn world_environment_test_app(stage: InWorldSceneStage) -> App {
