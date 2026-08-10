@@ -326,8 +326,9 @@ fn spawn_headless_terrain_tile(app: &mut App, adt_path: &Path) -> Entity {
         ResMut<Assets<WaterMaterial>>,
         ResMut<Assets<Image>>,
     )> = SystemState::new(world);
-    let (mut commands, mut meshes, mut terrain_materials, mut water_materials, mut images) =
-        state.get_mut(world);
+    let (mut commands, mut meshes, mut terrain_materials, mut water_materials, mut images) = state
+        .get_mut(world)
+        .expect("terrain test SystemState should initialize");
     let mut assets = TerrainOnlySpawnAssets {
         commands: &mut commands,
         meshes: &mut meshes,

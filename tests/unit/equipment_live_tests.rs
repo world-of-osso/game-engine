@@ -279,7 +279,9 @@ fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::Spawn
         ResMut<Assets<SkinnedMeshInverseBindposes>>,
     )> = SystemState::new(world);
     let (mut commands, mut meshes, mut materials, mut effect_materials, mut images, mut inv_bp) =
-        state.get_mut(world);
+        state
+            .get_mut(world)
+            .expect("live equipment spawn system state");
     let mut ctx = live_m2_scene_spawn_context(
         &creature_display_map,
         &mut commands,

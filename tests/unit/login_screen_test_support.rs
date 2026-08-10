@@ -221,7 +221,9 @@ pub(super) fn run_try_connect_with_credentials(
 ) -> World {
     let (mut world, mut system_state) = make_world_with_commands();
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         try_connect(
             reg,
             login,
@@ -314,7 +316,9 @@ pub(super) fn run_automation_action(
     let auth_token = networking::AuthToken(None);
     let (mut world, mut system_state) = make_world_with_commands();
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         run_login_automation_action(
             crate::scenes::login::connect::LoginAutomationContext {
                 ui,

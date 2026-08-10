@@ -250,8 +250,8 @@ fn configure_skybox_pipeline_uses_default_backface_culling_for_single_sided_batc
         },
         depth_stencil: Some(DepthStencilState {
             format: TextureFormat::Depth32Float,
-            depth_write_enabled: true,
-            depth_compare: CompareFunction::LessEqual,
+            depth_write_enabled: Some(true),
+            depth_compare: Some(CompareFunction::LessEqual),
             stencil: Default::default(),
             bias: DepthBiasState::default(),
         }),
@@ -267,7 +267,7 @@ fn configure_skybox_pipeline_uses_default_backface_culling_for_single_sided_batc
             })],
         }),
         layout: Vec::new(),
-        push_constant_ranges: Vec::new(),
+        immediate_size: 0,
         label: None,
         zero_initialize_workgroup_memory: false,
     };
@@ -276,8 +276,8 @@ fn configure_skybox_pipeline_uses_default_backface_culling_for_single_sided_batc
 
     assert_eq!(descriptor.primitive.cull_mode, Some(Face::Back));
     let depth = descriptor.depth_stencil.unwrap();
-    assert!(!depth.depth_write_enabled);
-    assert_eq!(depth.depth_compare, CompareFunction::LessEqual);
+    assert_eq!(depth.depth_write_enabled, Some(false));
+    assert_eq!(depth.depth_compare, Some(CompareFunction::LessEqual));
 }
 
 #[test]
@@ -290,8 +290,8 @@ fn configure_skybox_pipeline_preserves_two_sided_batches() {
         },
         depth_stencil: Some(DepthStencilState {
             format: TextureFormat::Depth32Float,
-            depth_write_enabled: true,
-            depth_compare: CompareFunction::LessEqual,
+            depth_write_enabled: Some(true),
+            depth_compare: Some(CompareFunction::LessEqual),
             stencil: Default::default(),
             bias: DepthBiasState::default(),
         }),
@@ -307,7 +307,7 @@ fn configure_skybox_pipeline_preserves_two_sided_batches() {
             })],
         }),
         layout: Vec::new(),
-        push_constant_ranges: Vec::new(),
+        immediate_size: 0,
         label: None,
         zero_initialize_workgroup_memory: false,
     };
@@ -316,8 +316,8 @@ fn configure_skybox_pipeline_preserves_two_sided_batches() {
 
     assert_eq!(descriptor.primitive.cull_mode, None);
     let depth = descriptor.depth_stencil.unwrap();
-    assert!(!depth.depth_write_enabled);
-    assert_eq!(depth.depth_compare, CompareFunction::LessEqual);
+    assert_eq!(depth.depth_write_enabled, Some(false));
+    assert_eq!(depth.depth_compare, Some(CompareFunction::LessEqual));
 }
 
 #[test]

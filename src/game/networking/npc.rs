@@ -259,9 +259,8 @@ mod tests {
         template_id: u32,
         visibility: Visibility,
     ) -> Entity {
-        let receiver = app.world_mut().spawn_empty().id();
         app.world_mut()
-            .spawn((Npc { template_id }, Remote { receiver }, visibility))
+            .spawn((Npc { template_id }, Remote, visibility))
             .id()
     }
 

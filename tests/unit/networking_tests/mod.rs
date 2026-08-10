@@ -125,10 +125,9 @@ fn inworld_disconnect_base_app() -> App {
 
 fn populate_inworld_disconnect_entities(app: &mut App) -> (Entity, Entity) {
     let client = app.world_mut().spawn(Client::default()).id();
-    let receiver = app.world_mut().spawn_empty().id();
     let replicated = app
         .world_mut()
-        .spawn((Replicated { receiver }, RemoteEntity, net_player("Theron")))
+        .spawn((Remote, RemoteEntity, net_player("Theron")))
         .id();
     app.world_mut().resource_mut::<ChatLog>().messages.push((
         "system".to_string(),

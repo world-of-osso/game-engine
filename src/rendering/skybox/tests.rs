@@ -415,7 +415,9 @@ fn active_wmo_local_skybox_prefers_nearest_containing_wmo() {
         Query<(Entity, &GlobalTransform, &WmoLocalSkybox), With<Wmo>>,
         Query<(&WmoGroup, &ChildOf)>,
     )>::new(&mut world);
-    let (wmo_query, group_query) = system_state.get(&world);
+    let (wmo_query, group_query) = system_state
+        .get(&world)
+        .expect("WMO skybox query system state");
 
     let skybox =
         active_wmo_local_skybox_wow_path(Vec3::new(1.0, 1.0, 1.0), &wmo_query, &group_query);

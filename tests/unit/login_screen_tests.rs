@@ -199,7 +199,9 @@ fn automation_click_focuses_username_editbox() {
     let (mut world, mut system_state) = make_world_with_commands();
 
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         run_login_automation_action(
             crate::scenes::login::connect::LoginAutomationContext {
                 ui: &mut ui,
@@ -250,7 +252,9 @@ fn automation_type_uses_login_editbox_code_path() {
     let (mut world, mut system_state) = make_world_with_commands();
 
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         run_login_automation_action(
             crate::scenes::login::connect::LoginAutomationContext {
                 ui: &mut ui,
@@ -377,7 +381,9 @@ fn automation_click_realm_button_cycles_selection_and_updates_server_resources()
     let (mut world, mut system_state) = make_world_with_commands();
 
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         run_login_automation_action(
             crate::scenes::login::connect::LoginAutomationContext {
                 ui: &mut ui,
@@ -421,7 +427,9 @@ fn automation_login_reaches_connecting_state() {
     let (mut world, mut system_state) = make_world_with_commands();
 
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         run_login_actions(
             &mut ui,
             &login,
@@ -453,7 +461,9 @@ fn try_connect_requires_all_fields() {
     let (mut world, mut system_state) = make_world_with_commands();
 
     {
-        let mut commands = system_state.get_mut(&mut world);
+        let mut commands = system_state
+            .get_mut(&mut world)
+            .expect("login test command SystemState should initialize");
         try_connect(
             &mut reg,
             &login,

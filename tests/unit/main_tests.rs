@@ -102,7 +102,6 @@ fn pre_ui_processing_gate_keeps_fps_overlay_active() {
     app.add_plugins(bevy::asset::AssetPlugin::default());
     app.add_plugins(bevy::text::TextPlugin::default());
     app.init_asset::<bevy::shader::Shader>();
-    app.init_asset::<bevy::render::storage::ShaderStorageBuffer>();
     app.add_plugins(FpsOverlayPlugin {
         config: FpsOverlayConfig {
             refresh_interval: Duration::from_secs(1),
@@ -132,7 +131,6 @@ fn character_stage_preserves_fps_overlay_graph() {
     app.add_plugins(bevy::asset::AssetPlugin::default());
     app.add_plugins(bevy::text::TextPlugin::default());
     app.init_asset::<bevy::shader::Shader>();
-    app.init_asset::<bevy::render::storage::ShaderStorageBuffer>();
     app.add_plugins(FpsOverlayPlugin::default());
     app.insert_resource(InWorldSceneStage::Character);
 

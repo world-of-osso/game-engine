@@ -444,8 +444,7 @@ mod tests {
         app.insert_resource(crate::networking::PendingNetworkWorldReset(None));
         app.insert_resource(crate::networking::NetworkUpdateFrame(0));
         let client = app.world_mut().spawn(Client::default()).id();
-        let receiver = app.world_mut().spawn_empty().id();
-        let replicated = app.world_mut().spawn(Remote { receiver }).id();
+        let replicated = app.world_mut().spawn(Remote).id();
         app.add_systems(
             Update,
             flush_pending_network_world_reset.run_if(network_world_reset_is_due),
@@ -497,13 +496,7 @@ mod tests {
         );
 
         let post_reset_client = app.world_mut().spawn(Client::default()).id();
-        let post_reset_receiver = app.world_mut().spawn_empty().id();
-        let post_reset_replicated = app
-            .world_mut()
-            .spawn(Remote {
-                receiver: post_reset_receiver,
-            })
-            .id();
+        let post_reset_replicated = app.world_mut().spawn(Remote).id();
 
         app.update();
         app.update();
@@ -522,14 +515,14 @@ mod tests {
     fn reset_network_world_despawns_client_and_replicated_entities() {
         let mut world = World::default();
         let client = world.spawn(Client::default()).id();
-        let receiver = world.spawn_empty().id();
-        let replicated = world.spawn(Remote { receiver }).id();
+        let unrelated = world.spawn_empty().id();
+        let replicated = world.spawn(Remote).id();
 
         reset_network_world(&mut world);
 
         assert!(world.get_entity(client).is_err());
         assert!(world.get_entity(replicated).is_err());
-        assert!(world.get_entity(receiver).is_ok());
+        assert!(world.get_entity(unrelated).is_ok());
     }
 
     #[test]
