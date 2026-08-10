@@ -159,6 +159,12 @@ The final pre-fix Empty PID `2390217` profile sampled the flush wrapper at **16.
 
 Post-fix PID `2402583` remained focused, `InWorld`, and connected with one link/player; it retained FPS text and zero terrain, `Camera3d`, or displayed NPCs. Its steady profile contained neither `flush_pending_network_world_reset` nor `network_world_reset_is_due`. Twelve passive windows after the same 30-second warm-up measured **12.05% mean**, **11.75% median**, and **14.00% maximum** CPU; **0/12** met `<=10.0%`. The top post-fix samples moved to general Bevy scheduling, PipeWire, Vulkan/render-pass encoding, Lightyear netcode, SSAO query maintenance, and text/UI work. The due gate is behaviorally valid but the performance hypothesis is rejected; Character remains blocked.
 
+## Initial Reconnect Disconnect Marker
+
+Lightyear `NetcodeClient` requires an initial `Disconnected { reason: None }` marker. Before `0d215316`, the InWorld disconnect observer treated that required marker as a real connection loss while `GameState::InWorld` and `ReconnectPhase::PendingConnect`; it queued another reset and replaced the client entity and client ID about every 100 ms before handshake. The resulting storm produced thousands of failed reconnect attempts and prevented any live Who verification.
+
+Commit `0d215316` ignores only a reasonless marker with no forced-disconnect notice during `PendingConnect`. Reasoned pending failures, connected disconnects, forced disconnects, auth/token and character-selection behavior, world-reset behavior, and retry handling remain unchanged. RED evidence is `/tmp/claude/game-engine/reconnect-initial-marker-red.log`; GREEN evidence is `/tmp/claude/game-engine/reconnect-initial-marker-green.log` (**14 passed**); formatting is `/tmp/claude/game-engine/reconnect-initial-marker-fmt.log`; readability artifacts are `/tmp/claude/game-engine/reconnect-initial-marker-readability.json` and `/tmp/claude/game-engine/reconnect-initial-marker-readability-metrics/`. HEAD `0d215316` is rebased on `origin/master` `e09944e9` with 85 local commits. This is source/test proof only; no rebuilt live-runtime completion claim exists yet.
+
 ## Audio backend Empty boundary
 
 Commit `463e9e47` (`Disable audio backend without sound flag`) makes no-sound mode omit Bevy's `AudioPlugin`, which `DefaultPlugins` previously registered even when project `SoundPlugin` was disabled. `--sound` retains Bevy audio and project `SoundPlugin` exactly. Outside `src/sound/`, only an optional `AudioSink` status query and optional `SoundSettings` exist; neither requires `AudioPlugin`.
@@ -216,6 +222,7 @@ After a prospective 30-second warm-up, twelve contiguous passive 10-second windo
 - [game-engine UI stage gates](../../../src/app_setup.rs) — pre-`Ui` plugin registration boundary
 - [in-world stage predicates](../../../src/game/state/inworld_scene_stage.rs) — cumulative stage ordering
 - `game-engine` commit `508891a6` — stop game-UI work before the `Ui` stage
+- `game-engine` commit `0d215316` — ignore the initial reconnect disconnect marker
 - `ui-toolkit` commit `50e4a17` — gate the complete toolkit UI update chain
 - `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — connected empty-stage relaunch proof and retained live-client state
 - `/tmp/claude/game-engine-perf/ui-enabled-systemd-control-stable.json` — enabled unprofiled control

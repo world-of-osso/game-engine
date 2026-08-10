@@ -54,6 +54,12 @@ The pre-fix final Empty PID `2390217` profile sampled the exclusive flush wrappe
 
 Post-fix PID `2402583` remained focused, `InWorld`, and connected with one link/player; it retained FPS text and zero terrain, `Camera3d`, or displayed NPCs. The steady profile contained neither `flush_pending_network_world_reset` nor `network_world_reset_is_due`. However, twelve passive windows after the same 30-second warm-up measured **12.05% mean**, **11.75% median**, and **14.00% maximum** CPU; **0/12** met `<=10.0%`. The due gate is behaviorally verified but did not improve the Empty CPU result. Character remains blocked.
 
+## Initial Reconnect Disconnect Marker
+
+Lightyear `NetcodeClient` requires an initial `Disconnected { reason: None }` marker. Before `0d215316`, the client observer misclassified that marker as a real loss while `GameState::InWorld` and `ReconnectPhase::PendingConnect`; it queued another network reset and replaced the client entity and client ID about every 100 ms before the netcode handshake. This was the source of the reconnect storm, not auth/token rejection.
+
+Commit `0d215316` ignores only a reasonless initial marker with no forced-disconnect notice during `PendingConnect`. Reasoned pending failures, connected disconnects, forced disconnects, and existing authentication/token, character-selection, world-reset, and retry behavior remain handled. RED evidence is `/tmp/claude/game-engine/reconnect-initial-marker-red.log`; GREEN evidence is `/tmp/claude/game-engine/reconnect-initial-marker-green.log` (**14 passed**); formatting is `/tmp/claude/game-engine/reconnect-initial-marker-fmt.log`; readability artifacts are `/tmp/claude/game-engine/reconnect-initial-marker-readability.json` and `/tmp/claude/game-engine/reconnect-initial-marker-readability-metrics/`. HEAD `0d215316` is rebased on `origin/master` `e09944e9` with 85 local commits. No rebuilt live-runtime completion claim exists yet.
+
 ## Demand-Driven IPC Status Snapshots
 
 Commit `abf68fd9` moves the eight expensive status snapshots out of unconditional InWorld `Update` work. IPC now orders `Receive → RefreshStatus → Dispatch`; queued commands select only their required network, terrain, sound, character, gear, appearance, roster, or map refresh. Idle updates with no IPC command perform no status-snapshot rebuild, and `Ping`/`Performance` request none. The duplicate map-sync registration in `game/networking/mod.rs` was removed. See [[procedural-cloud-regeneration]] for the exact dependency matrix and RED/GREEN evidence. The rebuilt status-demand client still consumed 369.05% of one core; without a matched pre-change workload this establishes no isolated status-refresh CPU effect and did not satisfy the Empty gate.
@@ -82,7 +88,9 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [remote-login-debug-2026-03-06.md](../../remote-login-debug-2026-03-06.md) — remote login failure, lightyear replication panic
 - [authentication.md](../../authentication.md) — auth flow, token storage, argon2, redb tables
 - [replicated-unit-noops](../investigations/replicated-unit-noops.md) — empty-stage NOOP evidence and suppression commits
-- [client networking source](../../../src/game/networking/mod.rs) — interpolation and replication receive systems
+- [client networking source](../../../src/game/networking/mod.rs) — interpolation, replication receive, and client connection lifecycle
+- [client disconnect handling](../../../src/game/networking/disconnect.rs) — initial disconnect-marker filtering and reconnect/reset behavior
+- `game-engine` commit `0d215316` — ignore initial reconnect disconnect marker
 - [client NPC networking source](../../../src/game/networking/npc.rs) — event-driven visibility policy systems
 - [client player networking source](../../../src/game/networking/player.rs) — semantic alive-state updates
 - [client Who runtime source](../../../src/who.rs) — Who query/send/receive/reset behavior

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-08-10] fix | Ignore initial reconnect disconnect marker
+
+Updated [[networking]], [[procedural-cloud-regeneration]], and `index.md` for `0d215316` (`Ignore initial reconnect disconnect marker`). Recorded root cause: Lightyear `NetcodeClient` requires initial `Disconnected { reason: None }`; while `GameState::InWorld` and `ReconnectPhase::PendingConnect`, the observer misclassified it as a real loss, queued another reset, and replaced client entity/ID about every 100 ms before handshake. The fix ignores only reasonless/no-forced-notice initial markers during `PendingConnect`; reasoned pending failures, connected disconnects, forced disconnects, auth/token/selection/world-reset behavior, and retry behavior remain. RED `/tmp/claude/game-engine/reconnect-initial-marker-red.log`; GREEN `/tmp/claude/game-engine/reconnect-initial-marker-green.log` (**14 passed**); fmt `/tmp/claude/game-engine/reconnect-initial-marker-fmt.log`; readability `/tmp/claude/game-engine/reconnect-initial-marker-readability.json` and `reconnect-initial-marker-readability-metrics/`. HEAD `0d215316` is rebased on `origin/master` `e09944e9` with 85 local commits. No rebuilt live-runtime completion claim.
+
 Chronological record of wiki operations.
 
 ## [2026-08-10] fix | Accept strict Empty gizmo A/B result
