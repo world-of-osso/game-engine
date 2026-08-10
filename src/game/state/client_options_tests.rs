@@ -55,6 +55,80 @@ fn hud_visibility_toggles_follow_hud_options() {
 }
 
 #[test]
+fn effective_frame_interval_uses_empty_stage_only_in_inworld() {
+    let disabled_graphics = GraphicsOptions {
+        frame_rate_limit_enabled: false,
+        frame_rate_limit: 144,
+        ..GraphicsOptions::default()
+    };
+    let disabled_before = disabled_graphics.clone();
+
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::InWorld,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Empty),
+            &disabled_graphics,
+        ),
+        Some(Duration::from_millis(100))
+    );
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::InWorld,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Character),
+            &disabled_graphics,
+        ),
+        None
+    );
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::InWorld,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Ui),
+            &disabled_graphics,
+        ),
+        None
+    );
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::Login,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Empty),
+            &disabled_graphics,
+        ),
+        None
+    );
+    assert_eq!(disabled_graphics, disabled_before);
+
+    let enabled_graphics = GraphicsOptions {
+        frame_rate_limit_enabled: true,
+        frame_rate_limit: 75,
+        ..GraphicsOptions::default()
+    };
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::InWorld,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Empty),
+            &enabled_graphics,
+        ),
+        Some(Duration::from_millis(100))
+    );
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::InWorld,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Character),
+            &enabled_graphics,
+        ),
+        Some(Duration::from_secs_f64(1.0 / 75.0))
+    );
+    assert_eq!(
+        effective_frame_interval(
+            crate::game::game_state::GameState::InWorld,
+            Some(crate::game::inworld_scene_stage::InWorldSceneStage::Ui),
+            &enabled_graphics,
+        ),
+        Some(Duration::from_secs_f64(1.0 / 75.0))
+    );
+}
+
+#[test]
 fn graphics_defaults_use_full_particle_density() {
     let defaults = GraphicsOptions::default();
     assert_eq!(defaults.particle_density, 100);
