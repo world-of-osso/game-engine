@@ -251,7 +251,7 @@ pub(crate) fn register_plugins(app: &mut App) {
         Startup,
         (
             log_window_backend,
-            setup_explicit_asset_scene,
+            setup_explicit_asset_scene.run_if(scenes::setup::explicit_asset_scene_is_requested),
             wow_cursor::install_wow_cursor
                 .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
             game_engine::ui::panel_styles::register_panel_styles
