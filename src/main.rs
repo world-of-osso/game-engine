@@ -376,13 +376,14 @@ fn run_app(
 ) {
     let mut parsed = parse_run_args(args);
     parsed.initial_state = parsed.initial_state.or(initial_state);
+    let enable_sound = args.iter().any(|arg| arg == "--sound");
     let mut app = App::new();
     app.set_error_handler(handle_app_error);
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     insert_inworld_scene_stage_resource(&mut app, args);
-    register_plugins(&mut app);
+    register_plugins(&mut app, enable_sound);
     apply_inworld_scene_stage_ui_gates(&mut app);
-    configure_app_plugins(&mut app, args, &mut parsed);
+    configure_app_plugins(&mut app, enable_sound, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     add_optional_world_builder_plugin(&mut app, world_builder_enabled);

@@ -1,14 +1,19 @@
 use super::*;
 use std::io::Write;
 
-fn default_plugins() -> bevy::app::PluginGroupBuilder {
-    DefaultPlugins.set(WindowPlugin {
+fn default_plugins(enable_sound: bool) -> bevy::app::PluginGroupBuilder {
+    let plugins = DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
             name: Some("com.worldofosso.game-engine".to_string()),
             ..default()
         }),
         ..default()
-    })
+    });
+    if enable_sound {
+        plugins
+    } else {
+        plugins.disable::<bevy::audio::AudioPlugin>()
+    }
 }
 
 pub(crate) fn run_screenshot_regression_app(
@@ -18,7 +23,7 @@ pub(crate) fn run_screenshot_regression_app(
     let screenshot = screenshot_regression_request_or_exit(args, screenshot);
 
     let mut app = App::new();
-    app.add_plugins(default_plugins());
+    app.add_plugins(default_plugins(false));
     app.init_state::<game_state::GameState>();
     app.insert_state(game_state::GameState::InWorld);
     app.insert_resource(game_engine::ui::plugin::UiState {
@@ -95,8 +100,8 @@ fn save_regression_screenshot(img: &bevy::image::Image, output: &PathBuf) {
     println!("Saved {} ({} bytes)", output.display(), webp_data.len());
 }
 
-fn register_bevy_plugins(app: &mut App) {
-    app.add_plugins(default_plugins());
+fn register_bevy_plugins(app: &mut App, enable_sound: bool) {
+    app.add_plugins(default_plugins(enable_sound));
     register_exit_diagnostics(app);
     register_ui_plugins(app);
     register_world_plugins(app);
@@ -244,8 +249,8 @@ fn register_render_plugins(app: &mut App) {
     );
 }
 
-pub(crate) fn register_plugins(app: &mut App) {
-    register_bevy_plugins(app);
+pub(crate) fn register_plugins(app: &mut App, enable_sound: bool) {
+    register_bevy_plugins(app, enable_sound);
     app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
         GameBlpLoader,
     )));
@@ -392,7 +397,7 @@ fn insert_startup_login_resources(app: &mut App, startup_login: Option<(String, 
     }
 }
 
-pub(crate) fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut ParsedArgs) {
+pub(crate) fn configure_app_plugins(app: &mut App, enable_sound: bool, parsed: &mut ParsedArgs) {
     #[cfg(debug_assertions)]
     game_engine::ui::screen::init_global_hot_reload(vec![std::path::PathBuf::from(
         "src/ui/screens",
@@ -400,7 +405,7 @@ pub(crate) fn configure_app_plugins(app: &mut App, args: &[String], parsed: &mut
 
     configure_server_resources(
         app,
-        args.iter().any(|a| a == "--sound"),
+        enable_sound,
         parsed.server_addr.take(),
         parsed.server_override,
         parsed.initial_state,
@@ -547,5 +552,30 @@ mod tests {
                 (None, true, true),
             ],
         );
+    }
+
+    #[test]
+    fn audio_plugin_registration_follows_sound_flag() {
+        for enable_sound in [false, true] {
+            let mut app = App::new();
+            app.add_plugins(
+                default_plugins(enable_sound)
+                    .disable::<bevy::winit::WinitPlugin>()
+                    .disable::<bevy::log::LogPlugin>()
+                    .disable::<bevy::gilrs::GilrsPlugin>()
+                    .disable::<bevy::app::TerminalCtrlCHandlerPlugin>(),
+            );
+            add_optional_sound_plugin(&mut app, enable_sound);
+
+            assert_eq!(
+                app.world()
+                    .contains_resource::<Assets<bevy::audio::AudioSource>>(),
+                enable_sound,
+            );
+            assert_eq!(
+                app.world().contains_resource::<sound::SoundSettings>(),
+                enable_sound,
+            );
+        }
     }
 }
