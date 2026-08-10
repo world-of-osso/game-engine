@@ -1,19 +1,28 @@
 use super::*;
 use std::io::Write;
 
-fn default_plugins(enable_sound: bool) -> bevy::app::PluginGroupBuilder {
-    let plugins = DefaultPlugins.set(WindowPlugin {
+pub(crate) fn gizmos_enabled_for_app(app: &App) -> bool {
+    game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
+        != InWorldSceneStage::Empty
+}
+
+fn default_plugins(enable_sound: bool, enable_gizmos: bool) -> bevy::app::PluginGroupBuilder {
+    let mut plugins = DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
             name: Some("com.worldofosso.game-engine".to_string()),
             ..default()
         }),
         ..default()
     });
-    if enable_sound {
-        plugins
-    } else {
-        plugins.disable::<bevy::audio::AudioPlugin>()
+    if !enable_sound {
+        plugins = plugins.disable::<bevy::audio::AudioPlugin>();
     }
+    if !enable_gizmos {
+        plugins = plugins
+            .disable::<bevy::gizmos::GizmoPlugin>()
+            .disable::<bevy::gizmos_render::GizmoRenderPlugin>();
+    }
+    plugins
 }
 
 pub(crate) fn run_screenshot_regression_app(
@@ -23,7 +32,7 @@ pub(crate) fn run_screenshot_regression_app(
     let screenshot = screenshot_regression_request_or_exit(args, screenshot);
 
     let mut app = App::new();
-    app.add_plugins(default_plugins(false));
+    app.add_plugins(default_plugins(false, true));
     app.init_state::<game_state::GameState>();
     app.insert_state(game_state::GameState::InWorld);
     app.insert_resource(game_engine::ui::plugin::UiState {
@@ -100,8 +109,8 @@ fn save_regression_screenshot(img: &bevy::image::Image, output: &PathBuf) {
     println!("Saved {} ({} bytes)", output.display(), webp_data.len());
 }
 
-fn register_bevy_plugins(app: &mut App, enable_sound: bool) {
-    app.add_plugins(default_plugins(enable_sound));
+fn register_bevy_plugins(app: &mut App, enable_sound: bool, enable_gizmos: bool) {
+    app.add_plugins(default_plugins(enable_sound, enable_gizmos));
     register_exit_diagnostics(app);
     register_ui_plugins(app);
     register_world_plugins(app);
@@ -249,8 +258,8 @@ fn register_render_plugins(app: &mut App) {
     );
 }
 
-pub(crate) fn register_plugins(app: &mut App, enable_sound: bool) {
-    register_bevy_plugins(app, enable_sound);
+pub(crate) fn register_plugins(app: &mut App, enable_sound: bool, enable_gizmos: bool) {
+    register_bevy_plugins(app, enable_sound, enable_gizmos);
     app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
         GameBlpLoader,
     )));
@@ -555,11 +564,63 @@ mod tests {
     }
 
     #[test]
+    fn gizmos_are_disabled_only_for_explicit_empty_stage() {
+        let observed = [
+            Some(InWorldSceneStage::Empty),
+            Some(InWorldSceneStage::Character),
+            None,
+        ]
+        .into_iter()
+        .map(|stage| {
+            let mut app = App::new();
+            if let Some(stage) = stage {
+                app.insert_resource(stage);
+            }
+            (stage, gizmos_enabled_for_app(&app))
+        })
+        .collect::<Vec<_>>();
+
+        assert_eq!(
+            observed,
+            vec![
+                (Some(InWorldSceneStage::Empty), false),
+                (Some(InWorldSceneStage::Character), true),
+                (None, true),
+            ]
+        );
+    }
+
+    #[test]
+    fn gizmo_runtime_resources_follow_policy() {
+        for enable_gizmos in [false, true] {
+            let mut app = App::new();
+            app.add_plugins(
+                default_plugins(false, enable_gizmos)
+                    .disable::<bevy::winit::WinitPlugin>()
+                    .disable::<bevy::log::LogPlugin>()
+                    .disable::<bevy::gilrs::GilrsPlugin>()
+                    .disable::<bevy::app::TerminalCtrlCHandlerPlugin>(),
+            );
+
+            assert_eq!(
+                app.world()
+                    .contains_resource::<bevy::prelude::GizmoConfigStore>(),
+                enable_gizmos,
+            );
+            assert_eq!(
+                app.world()
+                    .contains_resource::<bevy::gizmos::GizmoHandles>(),
+                enable_gizmos,
+            );
+        }
+    }
+
+    #[test]
     fn audio_plugin_registration_follows_sound_flag() {
         for enable_sound in [false, true] {
             let mut app = App::new();
             app.add_plugins(
-                default_plugins(enable_sound)
+                default_plugins(enable_sound, true)
                     .disable::<bevy::winit::WinitPlugin>()
                     .disable::<bevy::log::LogPlugin>()
                     .disable::<bevy::gilrs::GilrsPlugin>()

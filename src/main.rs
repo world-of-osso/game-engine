@@ -79,7 +79,9 @@ pub use rendering::{
 };
 
 use animation::AnimationPlugin;
-use app_setup::{configure_app_plugins, register_plugins, run_screenshot_regression_app};
+use app_setup::{
+    configure_app_plugins, gizmos_enabled_for_app, register_plugins, run_screenshot_regression_app,
+};
 use camera::WowCameraPlugin;
 use cli_args::*;
 use collision::CollisionPlugin;
@@ -381,7 +383,8 @@ fn run_app(
     app.set_error_handler(handle_app_error);
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     insert_inworld_scene_stage_resource(&mut app, args);
-    register_plugins(&mut app, enable_sound);
+    let enable_gizmos = gizmos_enabled_for_app(&app);
+    register_plugins(&mut app, enable_sound, enable_gizmos);
     apply_inworld_scene_stage_ui_gates(&mut app);
     configure_app_plugins(&mut app, enable_sound, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
