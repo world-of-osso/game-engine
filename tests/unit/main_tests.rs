@@ -198,6 +198,27 @@ fn character_world_environment_keeps_one_world_camera_across_reentry() {
 }
 
 #[test]
+fn particle_plugin_is_enabled_only_from_particles_stage() {
+    for stage in [
+        InWorldSceneStage::Empty,
+        InWorldSceneStage::Character,
+        InWorldSceneStage::Skybox,
+        InWorldSceneStage::Terrain,
+        InWorldSceneStage::Npcs,
+        InWorldSceneStage::Lighting,
+    ] {
+        assert!(!app_setup::particle_plugin_is_enabled(Some(stage)));
+    }
+    assert!(app_setup::particle_plugin_is_enabled(Some(
+        InWorldSceneStage::Particles
+    )));
+    assert!(app_setup::particle_plugin_is_enabled(Some(
+        InWorldSceneStage::Ui
+    )));
+    assert!(app_setup::particle_plugin_is_enabled(None));
+}
+
+#[test]
 fn parse_screen_alias_matches_state_parser() {
     let parsed = parse_state_arg(&args(&["--screen", "charselect"]))
         .expect("expected valid parse")

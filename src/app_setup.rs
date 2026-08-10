@@ -209,20 +209,28 @@ fn register_world_plugins(app: &mut App) {
         .add_plugins(character_customization::CharacterCustomizationPlugin);
 }
 
+pub(crate) fn particle_plugin_is_enabled(stage: Option<InWorldSceneStage>) -> bool {
+    game::inworld_scene_stage::effective_inworld_scene_stage(stage)
+        .includes(InWorldSceneStage::Particles)
+}
+
 fn register_render_plugins(app: &mut App) {
+    let particle_plugin_enabled =
+        particle_plugin_is_enabled(app.world().get_resource::<InWorldSceneStage>().copied());
     app.add_plugins(terrain_material::TerrainMaterialPlugin)
         .add_plugins(m2_effect_material::M2EffectMaterialPlugin)
         .add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
         .add_plugins(water_material::WaterMaterialPlugin)
-        .add_plugins(sky::SkyPlugin)
-        .add_plugins(particle::ParticlePlugin)
-        .add_plugins(weather::WeatherPlugin)
-        .add_systems(
-            Update,
-            terrain_objects::sync_wmo_sidn_emissive
-                .run_if(in_state(game_state::GameState::InWorld))
-                .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
-        );
+        .add_plugins(sky::SkyPlugin);
+    if particle_plugin_enabled {
+        app.add_plugins(particle::ParticlePlugin);
+    }
+    app.add_plugins(weather::WeatherPlugin).add_systems(
+        Update,
+        terrain_objects::sync_wmo_sidn_emissive
+            .run_if(in_state(game_state::GameState::InWorld))
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
+    );
 }
 
 pub(crate) fn register_plugins(app: &mut App) {
