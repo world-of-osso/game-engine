@@ -167,6 +167,12 @@ The pre-fix strict-Empty PID `2402583` profile sampled PipeWire audio conversion
 
 Post-fix PID `2468254` remained focused, `InWorld`, and connected with one link/player and 81 remote entities; it retained FPS text and zero terrain, `Camera3d`, or displayed NPCs. No audio backend thread or PipeWire/CPAL/ALSA profile symbol remained. Twelve passive windows after the same 30-second warm-up measured **9.61% mean**, **9.55% median**, and **10.60% maximum** CPU; **8/12** met `<=10.0%`. The next profile's largest project-owned idle sample was `PvpRuntimeState` parameter validation at **11.76%** of sampled CPU, while motion-blur query and UI extraction were larger framework samples. Audio removal materially lowered the mean, but the strict all-window CPU gate and Character advancement remain blocked.
 
+## Who runtime idle change boundary
+
+Commit `2c265ffa` (`Avoid dirtying idle Who runtime`) fixes a client-side no-op in `send_pending_queries`. The old `while let Some(query) = runtime.pending_queries.pop_front()` called `pop_front()` on an empty queue every `Update`; the mutable dereference advanced `WhoRuntimeState` change ticks despite no query, send, reply, or snapshot work. A read-only empty-queue guard now returns before the destructive loop.
+
+The guard preserves FIFO query sending, the immediate `who is unavailable: not connected` reply, inbound `WhoStateUpdate` handling, reconnect/reset cleanup, and later-stage behavior. RED evidence is `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log`; GREEN evidence is `/tmp/claude/game-engine-perf/who-idle-change-tick-green.log`; `cargo fmt` passed, and Rust-readability evidence is under `/tmp/claude/game-engine-perf/who-idle-change-tick-readability/`. This correction records the root cause and behavioral preservation only: it makes no CPU-savings or Character-readiness claim before runtime measurement.
+
 ## M2 Effect Material Empty registration boundary
 
 Commit `0a1a1bfb` omitted the full `M2EffectMaterialPlugin` for exact `Empty` and unintentionally removed the lightweight `Assets<M2EffectMaterial>` resource required by active consumers. PID `2339740` panicked in scene setup before IPC readiness; PID `2365242` later panicked in `sync_equipment`. Their stale sockets were removed only after identity-safe verification. These panic logs are failure evidence, not successful runtime proof.
@@ -182,6 +188,10 @@ After a prospective 30-second warm-up, twelve contiguous passive 10-second windo
 ## Sources
 
 - [rendering-pipeline](../systems/rendering-pipeline.md) — pipeline summary and known performance history
+- [networking](../systems/networking.md) — Who query runtime and Empty-stage performance boundaries
+- `src/who.rs` — Who runtime queue/send/receive/reset behavior
+- `game-engine` commit `2c265ffa` — idle Who change-tick guard
+- `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log` and `who-idle-change-tick-green.log` — behavioral RED/GREEN evidence; `cargo fmt` passed and readability evidence is under `who-idle-change-tick-readability/`
 - [game-engine app setup](../../src/app_setup.rs) — UI plugin registration and diagnostic override cleanup
 - [game-engine networking](../../src/game/networking/mod.rs) — connection and transport lifecycle evidence
 - [game-engine disconnect handling](../../src/game/networking/disconnect.rs) — reconnect/reset behavior

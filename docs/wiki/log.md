@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record idle Who runtime change-tick correction
+
+Updated [[networking]], [[procedural-cloud-regeneration]], and `index.md` for `2c265ffa` (`Avoid dirtying idle Who runtime`). `send_pending_queries` previously called `pop_front()` on an empty queue every `Update`, advancing `WhoRuntimeState` change ticks without a query, send, reply, or snapshot transition. A read-only empty guard now preserves FIFO query sending, unavailable replies, inbound receive handling, reset cleanup, and later-stage behavior. RED evidence: `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log`; GREEN evidence: `/tmp/claude/game-engine-perf/who-idle-change-tick-green.log`; `cargo fmt` passed, and Rust-readability evidence is under `/tmp/claude/game-engine-perf/who-idle-change-tick-readability/`. No CPU-savings or Character-readiness claim is made before runtime measurement.
+
 ## [2026-08-10] fix | Record audio backend Empty boundary
 
 Updated [[sound]], [[procedural-cloud-regeneration]], and `index.md` for `463e9e47` (`Disable audio backend without sound flag`). No-sound mode now omits Bevy `AudioPlugin`, while `--sound` retains Bevy audio plus project `SoundPlugin` exactly. Outside `src/sound/`, optional `AudioSink` status and `SoundSettings` do not require `AudioPlugin`. Recorded RED/GREEN, formatting, and readability artifacts.

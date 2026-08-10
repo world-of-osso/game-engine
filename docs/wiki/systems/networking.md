@@ -62,6 +62,12 @@ Commit `abf68fd9` moves the eight expensive status snapshots out of unconditiona
 
 Commit `4fb2e5c9` adds a diagnostic frame limiter after the demand-driven IPC status refresh. Only exact `GameState::InWorld` plus exact `InWorldSceneStage::Empty` uses a fixed **100 ms** interval (**10 FPS**) through the existing limiter. `Character` and later stages, plus all other states, retain the persisted/global graphics frame-rate limit and `PresentMode`; FPS overlay, networking, and IPC remain active. This is frame-cadence control, not removal of render/application work. PID `2130439` measured **9.98 FPS / 100.23 ms** and **11.20% of one core**, so the `<=10%` gate still failed. Alessio chose to keep 10 FPS temporarily for investigation, not as the final fix; Character remains blocked. See [[procedural-cloud-regeneration]].
 
+## Who Query Runtime
+
+`WhoPlugin` keeps query and response handling active across stages because IPC Who requests need immediate unavailable replies, while Lightyear inbound messages must be consumed before its `Last`-schedule receiver clear. Commit `2c265ffa` (`Avoid dirtying idle Who runtime`) fixes the idle sender path: `send_pending_queries` previously called `pop_front()` on an empty queue every `Update`, which advanced `WhoRuntimeState` change ticks. A read-only empty guard now skips the destructive loop while preserving FIFO sends, unavailable replies, inbound updates, reset cleanup, and later-stage behavior.
+
+The behavioral RED/GREEN evidence is `/tmp/claude/game-engine-perf/who-idle-change-tick-red.log` and `/tmp/claude/game-engine-perf/who-idle-change-tick-green.log`. `cargo fmt` passed, and Rust-readability evidence is under `/tmp/claude/game-engine-perf/who-idle-change-tick-readability/`. This is a semantic idle-state correction, not a measured CPU-savings or Character-readiness claim.
+
 ## Multi-ADT Terrain Streaming (Planned Phase 3)
 
 Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `TerrainManager` tracks loaded tiles in a `HashMap<(u8,u8), Entity>` and despawns out-of-range tiles.
@@ -79,6 +85,7 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [client networking source](../../../src/game/networking/mod.rs) — interpolation and replication receive systems
 - [client NPC networking source](../../../src/game/networking/npc.rs) — event-driven visibility policy systems
 - [client player networking source](../../../src/game/networking/player.rs) — semantic alive-state updates
+- [client Who runtime source](../../../src/who.rs) — Who query/send/receive/reset behavior
 - [server networking source](../../../../game-server/crates/server/src/networking.rs) — movement and gravity mutation boundaries
 - `game-engine` commit `e745d35e` — event-driven NPC visibility
 - `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — connected empty-stage relaunch proof
