@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record Particle/Hanabi Empty render boundary
+
+Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], `docs/particle-system.md`, and `index.md` for `beead231` (`Register particles only at Particles stage`). Recorded that exact Empty through Lighting no longer registers ParticlePlugin/Hanabi, while Particles, Ui, and unconfigured normal runs retain it. The pre-fix PID `2176863` profile sampled `bevy_hanabi::render::VfxSimulateNode::run` at 2.18% self CPU despite stage-gated emitter systems. Recorded RED `/tmp/claude/game-engine-perf/empty-particle-plugin-red.log`, GREEN `empty-particle-plugin-green.log`, and formatting/readability artifacts. Rebuilt PID `2297374` stayed connected with one link/player, FPS text, and zero world content; its post-fix profile contained no Hanabi symbol. Three passive samples measured 12.50%, 12.70%, and 9.90% of one core, so the `<=10%` result is not stable and no causal CPU reduction is claimed. Temporary 10 FPS pacing and the blocked Character gate remain.
+
 ## [2026-08-10] fix | Record strict Empty FPS graph boundary
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], [[ui-system]], and `index.md` for `8cac2b03` (`Disable Empty FPS frame-time graph`) and follow-up `cc5780a8` (`Preserve Empty FPS graph disablement`). Corrected the startup-only failure: runtime option writers restored the graph, visibly producing the solid red block in `empty-fps-graph-2246158.webp`. `cc5780a8` makes every writer stage-aware. Rebuilt PID `2283621` kept FPS text with no graph (`empty-fps-graph-options-2283621.webp`), stayed connected with one link/player and zero world content, reported 9.95 FPS / 100.45 ms, and measured 9.80% of one core over 10 seconds. This meets the numerical threshold under temporary 10 FPS pacing; it is not accepted as the final Empty design, and Character remains blocked.

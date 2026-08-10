@@ -18,6 +18,8 @@ Parses M2 particle emitters from MD20 header at offset 0x128. Cata+ layout, 476-
 
 ### Renderer (`src/particle.rs`)
 
+**Stage registration:** Commit `beead231` registers the particle/Hanabi plugin only from cumulative `Particles` onward. `Empty` through `Lighting` do not register Hanabi or its render graph; `Particles`, `Ui`, and unconfigured normal runs retain the plugin. This is separate from the emitter systems' stage run condition and removes the render-side plugin work in strict Empty.
+
 **Entity model:** One Bevy entity per live particle, each with `Mesh3d` (unit quad), `MeshMaterial3d<StandardMaterial>`, `Transform`, and `Particle` component.
 
 **Emitter entity:** `ParticleEmitterComp` with emitter data, bone link, emission accumulator. Parented to M2 model entity.
@@ -32,6 +34,12 @@ Parses M2 particle emitters from MD20 header at offset 0x128. Cata+ layout, 476-
 **Randomness:** `hash_float(seed, salt)` — deterministic hash from spawn position, not a real PRNG.
 
 **Atlas:** Static random tile selected at spawn, not animated over lifetime.
+
+## Empty-stage performance evidence
+
+The pre-registration strict-Empty profile for PID `2176863` sampled `bevy_hanabi::render::VfxSimulateNode::run` at **2.18% self CPU** despite particle emitter systems being stage-gated. Artifact: `/tmp/claude/game-engine-perf/character-camera-gate-2176863.perf-*.txt` (captured before `beead231`).
+
+The post-fix PID `2297374` profile contained no Hanabi symbol. Three same-build passive 10-second process samples measured **12.50%**, **12.70%**, and **9.90%** of one core. The plugin boundary is proven, but the variable totals do not establish a causal CPU reduction or a stable `<=10%` Empty result.
 
 ## Known Limitations
 

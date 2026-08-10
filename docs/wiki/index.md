@@ -7,7 +7,7 @@ Last updated: 2026-08-10.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, stage-gated camera render bundle, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; initial M2 UV comparison inconclusive pending clean repeat
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, stage-gated camera/particle render registration, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, open UI/render-resource investigation; initial M2 UV comparison inconclusive pending clean repeat
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow (password + token), entity replication, empty-stage NOOP boundaries, planned streaming
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings
@@ -54,7 +54,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot and Empty scheduling boundaries; latest connected 10 FPS client removed the graph and measured 9.80% CPU, but temporary pacing is not the accepted final design and Character remains blocked
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot and Empty UI/camera/particle scheduling boundaries; post-Hanabi-removal samples range from 9.90% to 12.70% CPU under temporary 10 FPS pacing, so Character remains blocked
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof without comparative FPS evidence
 
 ## Reference

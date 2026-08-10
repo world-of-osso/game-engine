@@ -19,6 +19,12 @@ ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split fil
 
 GPU particles run via `bevy_hanabi`. Each live particle is a separate Bevy entity with `Mesh3d` (unit quad) + `StandardMaterial`. The emitter (`ParticleEmitterComp`) accumulates emission and resolves bone position per frame. Color, opacity, and scale use 3-point FakeAnimBlock interpolation. Texture tiles are static (chosen at spawn, not animated).
 
+Commit `beead231` registers `ParticlePlugin` only when the configured cumulative stage includes `Particles`. Exact `Empty`, `Character`, `Skybox`, `Terrain`, `Npcs`, and `Lighting` therefore do not register Hanabi or its render graph; `Particles`, `Ui`, and an unconfigured normal run retain it. This removes plugin/render-graph work rather than merely skipping emitter systems.
+
+The pre-fix strict-Empty profile for PID `2176863` (`character-camera-gate-2176863.perf-*.txt`, captured before `beead231`) sampled `bevy_hanabi::render::VfxSimulateNode::run` at **2.18% self CPU**, proving stage-gated emitter systems alone left Hanabi render work active. The same profile also sampled sprite 2D bind-group command application at **1.97%**.
+
+The post-fix PID `2297374` profile contained no Hanabi symbol. Same-build passive 10-second process samples measured **12.50%**, **12.70%**, and **9.90%** of one core. The stage-registration boundary is verified, but measurement variance prevents a causal CPU-savings claim or a stable `<=10%` result.
+
 **Current limitations:** one entity per particle is the main performance bottleneck; no drag/wind physics; no tail/ribbon particles; bone position can be stale for fast-moving animated bones.
 
 ## Skybox
@@ -72,6 +78,8 @@ The complete WMVx blend mode reference:
 - [camera post-process tests](../../../tests/unit/camera_post_process_tests.rs) — Empty-stage removal, Lighting restoration, MSAA restoration, and unconfigured behavior
 - [world environment](../../../src/game/state/game_state.rs) — strict Empty world-camera boundary
 - [world environment tests](../../../tests/unit/main_tests.rs) — Empty has no world camera; Character retains one across re-entry
+- [app setup](../../../src/app_setup.rs) — stage-dependent ParticlePlugin registration
+- [particle system](../../../src/rendering/particles/mod.rs) — Hanabi plugin and emitter-system stage boundary
 - AGENTS.md — `src/rendering/` structure
 
 ## See Also

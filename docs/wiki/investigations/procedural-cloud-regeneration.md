@@ -141,6 +141,16 @@ Commit `cc5780a8` makes all three overlay visibility paths stage-aware. Exact Em
 
 Rebuilt PID `2283621` remained connected with one link/player and 78 remote entities, reported **9.95 FPS / 100.45 ms**, and retained the FPS text with no graph in `/tmp/claude/game-engine-perf/empty-fps-graph-options-2283621.webp`. Terrain, world camera, and displayed-NPC counts remained zero. The passive 10-second process measurement was **9.80% of one core**, meeting the numerical `<=10%` threshold. Evidence: `empty-fps-graph-options-launch-identity.json`, `empty-fps-graph-options-readiness.json`, and `empty-fps-graph-options-cpu-2283621.json`. Stderr contains no panic, device loss, or OOM; one nonfatal Lightyear missing-despawn error remains. Because Alessio explicitly kept 10 FPS only as a temporary investigation aid, this numerical result is not accepted as the final Empty design and does not authorize Character advancement.
 
+## Particle/Hanabi Empty render boundary
+
+Commit `beead231` (`Register particles only at Particles stage`) removes `ParticlePlugin` and Hanabi registration for exact `Empty` through `Lighting`. `Particles`, `Ui`, and unconfigured normal runs retain the plugin. The prior emitter systems already had a stage run condition, but the pre-fix strict-Empty profile still sampled `bevy_hanabi::render::VfxSimulateNode::run` at **2.18% self CPU**; artifact family: `/tmp/claude/game-engine-perf/character-camera-gate-2176863.perf-*.txt`. This is source attribution from PID `2176863` before `beead231`, not a post-fix measurement.
+
+Behavioral RED evidence is `/tmp/claude/game-engine-perf/empty-particle-plugin-red.log`; GREEN evidence is `/tmp/claude/game-engine-perf/empty-particle-plugin-green.log`. Formatting evidence is `/tmp/claude/game-engine-perf/empty-particle-plugin-cargo-fmt-check.log`; readability artifacts are under `/tmp/claude/game-engine-perf/empty-particle-plugin-readability/`.
+
+Rebuilt PID `2297374` matched commit `beead231`, remained `InWorld` and connected with one link/player and 80 remote entities, reported **10.22 FPS / 97.85 ms**, and retained the FPS text. Terrain, world-camera, and displayed-NPC counts remained zero; screenshot: `/tmp/claude/game-engine-perf/empty-particle-plugin-2297374.webp`.
+
+Three identity-bound passive 10-second process samples on that binary measured **12.50%**, **12.70%**, and **9.90%** of one core. The first two fail the `<=10%` gate and the third crosses it, so the result is not stable. The post-fix callgraph `/tmp/claude/game-engine-perf/empty-particle-plugin-perf-2297374.data` contained no Hanabi symbol. Its largest self-sample shares instead included M2 material-specialization parameter validation (**10.19%**), PipeWire audio conversion (**9.43%**), Lightyear link/UDP iteration (**9.36%**), and render-view preparation/scheduling. Those percentages are shares of sampled CPU cycles, not percentages of a Linux core. The profile verifies Hanabi absence during the interval but does not establish a total CPU reduction. Temporary 10 FPS pacing remains, and Character remains blocked.
+
 ## Sources
 
 - [rendering-pipeline](../systems/rendering-pipeline.md) — pipeline summary and known performance history
