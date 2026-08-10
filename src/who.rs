@@ -51,6 +51,10 @@ fn send_pending_queries(
     mut runtime: ResMut<WhoRuntimeState>,
     mut senders: Query<&mut MessageSender<QueryWho>>,
 ) {
+    if runtime.pending_queries.is_empty() {
+        return;
+    }
+
     while let Some(query) = runtime.pending_queries.pop_front() {
         let sent = send_all(
             &mut senders,
@@ -132,7 +136,31 @@ fn format_status(snapshot: &WhoStatusSnapshot) -> String {
 
 #[cfg(test)]
 mod tests {
+    use bevy::ecs::change_detection::DetectChanges;
+
     use super::*;
+
+    #[test]
+    fn idle_who_update_does_not_advance_runtime_change_tick() {
+        let mut app = crate::test_harness::headless_app();
+        app.add_plugins(WhoPlugin);
+        app.init_resource::<WhoStatusSnapshot>();
+        app.update();
+
+        let before = app
+            .world()
+            .get_resource_ref::<WhoRuntimeState>()
+            .unwrap()
+            .last_changed();
+        app.update();
+        let after = app
+            .world()
+            .get_resource_ref::<WhoRuntimeState>()
+            .unwrap()
+            .last_changed();
+
+        assert_eq!(after, before);
+    }
 
     #[test]
     fn who_state_update_populates_status_snapshot() {
