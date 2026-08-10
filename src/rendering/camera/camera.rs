@@ -44,7 +44,8 @@ impl Plugin for WowCameraPlugin {
                 camera_follow,
             )
                 .chain()
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(in_state(GameState::InWorld))
+                .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_character),
         );
     }
 }

@@ -68,6 +68,10 @@ pub(crate) fn terrain_is_required_for_loading(stage: InWorldSceneStage) -> bool 
     stage.includes(InWorldSceneStage::Terrain)
 }
 
+pub(crate) fn inworld_scene_stage_allows_character(stage: Option<Res<InWorldSceneStage>>) -> bool {
+    inworld_scene_stage_includes(stage, InWorldSceneStage::Character)
+}
+
 pub(crate) fn inworld_scene_stage_allows_skybox(stage: Option<Res<InWorldSceneStage>>) -> bool {
     inworld_scene_stage_includes(stage, InWorldSceneStage::Skybox)
 }
@@ -99,6 +103,32 @@ pub(crate) fn configured_inworld_scene_stage_for_app(app: &App) -> InWorldSceneS
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Resource, Default)]
+    struct Counter(usize);
+
+    fn increment_counter(mut counter: ResMut<Counter>) {
+        counter.0 += 1;
+    }
+
+    #[test]
+    fn character_guard_skips_empty_then_runs_after_stage_change() {
+        let mut app = App::new();
+        app.insert_resource(InWorldSceneStage::Empty)
+            .init_resource::<Counter>()
+            .add_systems(
+                Update,
+                increment_counter.run_if(inworld_scene_stage_allows_character),
+            );
+
+        app.update();
+        assert_eq!(app.world().resource::<Counter>().0, 0);
+
+        app.world_mut()
+            .insert_resource(InWorldSceneStage::Character);
+        app.update();
+        assert_eq!(app.world().resource::<Counter>().0, 1);
+    }
 
     #[test]
     fn local_character_precedes_remote_entity_visuals() {
