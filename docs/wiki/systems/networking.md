@@ -46,6 +46,10 @@ Lightyear equality-suppresses the final client ECS replacement for equal replica
 
 Conditional client writes and server state updates are committed in `3c77d346`, `e745d35e`, `2927382`, and `ae81c65`, with regression tests for stable and changing state. The focused `e745d35e` GREEN run passes 7 event-driven visibility tests; no CPU improvement is claimed. The post-gate live replacement used game-engine commit `538e83290769c70a6980ec0903db74bf2981c0fb`, PID `2960624`, start ticks `182917558`, and socket `/tmp/game-engine-2960624.sock`; its pre-gate comparison used commit `96e1308a31940ed5c03046b574ca0b52fe15d8e2`, PID `2592665`, start ticks `182782909`, and socket `/tmp/game-engine-2592665.sock`. Both had no world camera; remote counts were `133` and `134`. Aggregate CPU changed `325.49% → 288.12%`, compute-pool CPU `229.17% → 197.62%`, and client gfx occupancy `6.93% → 5.60%`. FPS/frame direction is not acceptance evidence because runqueue delay and live conditions drifted. The subsequent strict-Empty eu-stack capture contains no interpolation stack, but about `2.9` cores remain, so the root-cause loop continues. See [[replicated-unit-noops]].
 
+## Demand-Driven IPC Status Snapshots
+
+Commit `abf68fd9` moves the eight expensive status snapshots out of unconditional InWorld `Update` work. IPC now orders `Receive → RefreshStatus → Dispatch`; queued commands select only their required network, terrain, sound, character, gear, appearance, roster, or map refresh. Idle updates with no IPC command perform no status-snapshot rebuild, and `Ping`/`Performance` request none. The duplicate map-sync registration in `game/networking/mod.rs` was removed. See [[procedural-cloud-regeneration]] for the exact dependency matrix and RED/GREEN evidence. No CPU improvement or `<=10%` Empty-stage claim exists until a rebuilt live measurement.
+
 ## Multi-ADT Terrain Streaming (Planned Phase 3)
 
 Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `TerrainManager` tracks loaded tiles in a `HashMap<(u8,u8), Entity>` and despawns out-of-range tiles.

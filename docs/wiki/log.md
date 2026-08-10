@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record demand-driven IPC status refresh
+
+Updated [[procedural-cloud-regeneration]] and [[networking]] for `abf68fd9` (`Refresh IPC status snapshots on demand`). Recorded the `Receive → RefreshStatus → Dispatch` ordering, explicit request-to-snapshot dependency matrix, FIFO command dispatch with coalesced refresh flags, no-command idle behavior, and removal of duplicate map synchronization. Recorded RED evidence in `/tmp/claude/game-engine-perf/status-demand-red.log` and `status-refresh-matrix-red.log`, GREEN evidence in the corresponding `*-green-2.log` files, formatting checks with empty stderr, and readability artifacts under `status-demand-readability/`. No CPU improvement or `<=10%` Empty-stage claim is made until a rebuilt live measurement. Protected `src/rendering/camera/camera.rs` and all source/tests/PLAN/Cargo files were left untouched.
+
 ## [2026-08-09] fix | Record event-driven NPC visibility
 
 Updated [[networking]], [[replicated-unit-noops]], and `index.md` for `e745d35e` (`Make NPC visibility event driven`). Recorded the prior per-`Update` scan history (`1a1a8179`, extended by `6ffa6ce0`, with `3c77d346` guarding writes only), then the new trigger boundaries: added/changed `Npc` entity-scoped updates, semantic `LocalAliveState` changes for `DeadOnly` policies, dawn/dusk phase changes for scheduled policies, and one full reconciliation on state/NPC-stage activation. Recorded focused RED/GREEN behavioral proof without claiming measured CPU improvement.

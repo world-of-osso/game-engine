@@ -88,6 +88,29 @@ The RED test failed because SSAO remained present with `Msaa::Sample4`. The exac
 
 IPC screenshots are visual captures, not frame-timing measurements. The screenshot `FPS: 1.00` artifact remains a visual artifact and is not used as performance evidence.
 
+## Demand-Driven IPC Status Refresh
+
+Commit `abf68fd9` (`Refresh IPC status snapshots on demand`) removes unconditional InWorld status-snapshot rebuilding from every `Update`. IPC now uses three ordered sets: `Receive` drains the socket channel into `PendingIpcCommands`; `RefreshStatus` runs only the snapshot systems selected by the queued requests; `Dispatch` formats and executes those requests after refresh. Equipment IPC commands remain before `RefreshStatus`, so an export observes equipment changes in the same update.
+
+The request dependency matrix is explicit:
+
+| Request | Refreshed snapshot(s) |
+|---|---|
+| `NetworkStatus` | network |
+| `TerrainStatus` | terrain |
+| `SoundStatus` | sound |
+| `CharacterStatsStatus` | character stats |
+| `EquippedGearStatus` | equipped gear |
+| `ExportCharacter` | character stats, equipped gear, equipment appearance, character roster |
+| `MapPosition`, `MapTarget`, `MapWaypointAdd`, `MapWaypointClear` | map |
+| Every other IPC request, including `Ping` and `Performance` | none |
+
+Multiple queued requests coalesce these refresh flags, while command order remains FIFO for dispatch. The duplicate `sync_map_status_snapshot` registration in `game/networking/mod.rs` was removed; map status is now refreshed through the demand path, preserving waypoint/graveyard fields while updating zone and player coordinates.
+
+Behavioral RED evidence is recorded in `/tmp/claude/game-engine-perf/status-demand-red.log` and `/tmp/claude/game-engine-perf/status-refresh-matrix-red.log`; both captured the expected pre-implementation compile boundary. GREEN evidence is recorded in `/tmp/claude/game-engine-perf/status-demand-green-2.log` and `/tmp/claude/game-engine-perf/status-refresh-matrix-green-2.log`: the idle-update/map-refresh boundary and request dependency matrix pass. Formatting evidence is recorded in `/tmp/claude/game-engine-perf/status-demand-cargo-fmt-check.log` and `status-demand-cargo-fmt-check-final.log` (empty stderr). Rust readability audit artifacts are under `/tmp/claude/game-engine-perf/status-demand-readability/`.
+
+This change has no CPU measurement and establishes no improvement or `<=10%` Empty-stage claim. A rebuilt live client must be measured before attributing any performance effect or advancing the Empty gate.
+
 ## Sources
 
 - [rendering-pipeline](../systems/rendering-pipeline.md) — pipeline summary and known performance history
@@ -114,6 +137,13 @@ IPC screenshots are visual captures, not frame-timing measurements. The screensh
 - [camera post-process tests](../../tests/unit/camera_post_process_tests.rs) — RED/GREEN compatibility behavior
 - [world environment](../../../src/game/state/game_state.rs) — strict Empty world-camera spawn boundary
 - [world environment tests](../../../tests/unit/main_tests.rs) — Empty has no world camera; Character retains one across re-entry
+- [IPC plugin](../../../src/ipc/plugin.rs) — Receive/RefreshStatus/Dispatch sets, pending commands, and request dependency matrix
+- [status synchronization](../../../src/status_sync.rs) — demand-gated snapshot systems and map refresh
+- [game networking registration](../../../src/game/networking/mod.rs) — duplicate map snapshot registration removal
+- `/tmp/claude/game-engine-perf/status-demand-red.log` and `status-refresh-matrix-red.log` — RED compile-boundary evidence
+- `/tmp/claude/game-engine-perf/status-demand-green-2.log` and `status-refresh-matrix-green-2.log` — GREEN behavioral evidence
+- `/tmp/claude/game-engine-perf/status-demand-cargo-fmt-check-final.log` — formatting check evidence
+- `/tmp/claude/game-engine-perf/status-demand-readability/` — Rust readability audit artifacts
 
 ## See Also
 
