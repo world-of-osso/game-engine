@@ -2,6 +2,10 @@
 
 Chronological record of wiki operations.
 
+## [2026-08-10] fix | Record strict Empty diagnostic pacing
+
+Updated [[procedural-cloud-regeneration]], [[networking]], [[rendering-pipeline]], and `index.md` for `4fb2e5c9` (`Pace strict Empty stage at 10 FPS`). Recorded the exact gate: only `GameState::InWorld` with exact `InWorldSceneStage::Empty` uses the existing limiter's 100 ms interval; Character/later stages and other states retain persisted/global frame limiting and PresentMode, while FPS overlay, networking, and IPC remain registered. Framed pacing as diagnostic frame-cadence control, not render/application-work removal. Recorded RED `/tmp/claude/game-engine-perf/empty-frame-interval-red.log`, valid GREEN `/tmp/claude/game-engine-perf/empty-frame-interval-green-2.log`, module GREEN `/tmp/claude/game-engine-perf/empty-frame-client-options-green-2.log`, formatting/readability evidence, and runtime measurements: pre-pacing PID `2093844` at 490.62 FPS / 369.05% one-core CPU; paced PID `2130439` at 9.98 FPS / 100.23 ms and 11.20% one-core CPU, connected with one link/player and zero world camera/terrain/displayed NPCs. The `<=10%` gate failed. Alessio chose to keep 10 FPS temporarily for investigation, not as the final fix; Character remains blocked.
+
 ## [2026-08-10] fix | Record demand-driven IPC status refresh
 
 Updated [[procedural-cloud-regeneration]] and [[networking]] for `abf68fd9` (`Refresh IPC status snapshots on demand`). Recorded the `Receive → RefreshStatus → Dispatch` ordering, explicit request-to-snapshot dependency matrix, FIFO command dispatch with coalesced refresh flags, no-command idle behavior, and removal of duplicate map synchronization. Recorded RED evidence in `/tmp/claude/game-engine-perf/status-demand-red.log` and `status-refresh-matrix-red.log`, GREEN evidence in the corresponding `*-green-2.log` files, formatting checks with empty stderr, and readability artifacts under `status-demand-readability/`. No CPU improvement or `<=10%` Empty-stage claim is made until a rebuilt live measurement. Protected `src/rendering/camera/camera.rs` and all source/tests/PLAN/Cargo files were left untouched.
