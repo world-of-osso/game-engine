@@ -1,5 +1,6 @@
 use super::*;
 use bevy::ecs::system::SystemState;
+use bevy::math::primitives::ViewFrustum;
 
 type CullState = SystemState<(
     Res<'static, CullingConfig>,
@@ -54,19 +55,23 @@ fn setup_world(cam_pos: Vec3, threshold_sq: f32) -> (World, CullState) {
 }
 
 fn run_cull(world: &mut World, state: &mut CullState) {
-    let (config, last_pos, camera_q, chunks, doodads, wmos) = state.get_mut(world);
+    let (config, last_pos, camera_q, chunks, doodads, wmos) = state
+        .get_mut(world)
+        .expect("distance culling test SystemState should initialize");
     distance_cull_system(config, last_pos, camera_q, chunks, doodads, wmos);
     state.apply(world);
 }
 
 fn run_portal_cull(world: &mut World, state: &mut PortalCullState) {
-    let (camera_q, wmo_q, group_q) = state.get_mut(world);
+    let (camera_q, wmo_q, group_q) = state
+        .get_mut(world)
+        .expect("portal culling test SystemState should initialize");
     wmo_portal_cull_system(camera_q, wmo_q, group_q);
     state.apply(world);
 }
 
 fn unit_test_frustum() -> Frustum {
-    Frustum::from_clip_from_world(&Mat4::IDENTITY)
+    Frustum(ViewFrustum::from_clip_from_world(&Mat4::IDENTITY))
 }
 
 fn spawn_portal_test_wmo(world: &mut World, portal_verts: Vec<Vec3>) -> (Entity, Entity, Entity) {
