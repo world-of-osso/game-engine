@@ -435,9 +435,7 @@ fn on_link_established(trigger: On<Add, Connected>, mut commands: Commands) {
         "Transport link established for client entity {:?}; inserting ReplicationReceiver",
         trigger.entity
     );
-    commands
-        .entity(trigger.entity)
-        .insert(ReplicationReceiver::default());
+    commands.entity(trigger.entity).insert(ReplicationReceiver);
 }
 
 fn on_connected(
