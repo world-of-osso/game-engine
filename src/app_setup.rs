@@ -19,6 +19,7 @@ fn default_plugins(enable_sound: bool, enable_gizmos: bool) -> bevy::app::Plugin
     }
     if !enable_gizmos {
         plugins = plugins
+            .disable::<bevy::light::LightPlugin>()
             .disable::<bevy::gizmos::GizmoPlugin>()
             .disable::<bevy::gizmos_render::GizmoRenderPlugin>();
     }
