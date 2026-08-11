@@ -627,23 +627,21 @@ mod tests {
 
     #[test]
     fn emitter_overlay_load_uses_model_cache() {
-        let Some((model_path, _skin_path)) = copy_torch_model_to_temp() else {
+        let Some((model_path, skin_path)) = copy_torch_model_to_temp() else {
             return;
         };
-        let cache_entries_before = crate::asset::m2::model_cache_stats().entries;
+        let skin_fdids = [0, 0, 0];
 
-        let text = super::load_emitter_overlay_text(&model_path, &[0, 0, 0])
-            .expect("overlay text should load from cached M2 path");
-        let cache_entries_after_first = crate::asset::m2::model_cache_stats().entries;
+        let text = super::load_emitter_overlay_text(&model_path, &skin_fdids)
+            .expect("overlay text should load from the unique M2 path");
+        std::fs::remove_file(&model_path).expect("remove cached test model source");
+        std::fs::remove_file(&skin_path).expect("remove cached test skin source");
 
-        let second_text = super::load_emitter_overlay_text(&model_path, &[0, 0, 0])
-            .expect("overlay text should reuse cached M2 path");
-        let cache_entries_after_second = crate::asset::m2::model_cache_stats().entries;
+        let second_text = super::load_emitter_overlay_text(&model_path, &skin_fdids)
+            .expect("overlay text should reuse the exact cached M2 key after source removal");
 
         assert!(!text.is_empty());
         assert_eq!(text, second_text);
-        assert_eq!(cache_entries_after_first, cache_entries_before + 1);
-        assert_eq!(cache_entries_after_second, cache_entries_after_first);
     }
 
     fn copy_torch_model_to_temp() -> Option<(PathBuf, PathBuf)> {
