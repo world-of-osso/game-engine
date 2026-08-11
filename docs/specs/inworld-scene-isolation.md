@@ -9,6 +9,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Preserve the full existing scene when no `InWorldSceneStage` resource is configured.
 - [x] Keep stages cumulative from `Empty` through `Ui`.
 
+### Plugin registration
+
+- [x] In exact configured `InWorldSceneStage::Empty`, disable Bevy `LightPlugin` together with `GizmoPlugin` and `GizmoRenderPlugin` so nested `LightGizmoPlugin` resources are not recreated.
+- [x] Preserve LightPlugin, gizmos, and their render behavior for unconfigured/default runs, `Character` and later stages, debug modes, and screenshot/default paths.
+
 ### Camera rendering
 
 - [x] Remove TAA, SSAO, depth/normal/motion prepasses, temporal jitter, and mip bias from `WowCamera` before `Lighting`.
@@ -28,6 +33,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/game/state/inworld_scene_stage.rs` — cumulative stage ordering and predicates.
 - `src/rendering/camera/camera_post_process.rs` — stage-aware WowCamera render-bundle synchronization.
 - `src/main.rs` — startup stage selection and pre-UI processing gates.
+- `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary.
 
 ## Tests asserting this spec
 

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-08-11] docs | Record Bevy 0.19 strict-Empty LightPlugin boundary
+
+Updated [[rendering-pipeline]], [[inworld-scene-isolation]], and `index.md` for `17c2bdc6` (`Preserve strict Empty gizmo isolation on Bevy 0.19`). Bevy 0.19 `LightPlugin` registers nested `LightGizmoPlugin` resources, so exact configured `InWorldSceneStage::Empty` now disables `LightPlugin` as well as `GizmoPlugin` and `GizmoRenderPlugin`; unconfigured/default, `Character+`, debug, and screenshot/default paths retain the normal LightPlugin/gizmo boundary. The in-world isolation spec and implementation inventory now record this requirement.
+
 ## [2026-08-10] docs | Record Bevy 0.19 / Lightyear 0.28 migration boundary
 
 Updated [[networking]], [[rendering-pipeline]], `AGENTS.md`, `docs/network-integration.md`, and `docs/character-generation.md` for game-engine commit `4bc50a22` (`Upgrade engine to Bevy 0.19 and Lightyear 0.28`). Recorded the current engine boundary as Bevy 0.19, `bevy_hanabi` 0.19, Lightyear 0.28, and Rust 1.95; renamed current client receive-marker references from deprecated `Replicated` to `Remote`. Historical Bevy 0.18 bug findings and the game-server's separate dependency state remain unchanged.

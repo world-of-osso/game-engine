@@ -27,7 +27,7 @@ ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split fil
 
 ## Gizmo Registration
 
-Commit `1503cd1c` disables both Bevy `GizmoPlugin` and `GizmoRenderPlugin` only when the configured cumulative stage is the explicit fixed `Empty` diagnostic stage. Unconfigured/default runs, `Character` and later stages, debug modes, and screenshot/default paths retain gizmos. No project gizmo consumers exist; the change removes Bevy gizmo registration/render work without changing project-owned behavior.
+Commit `1503cd1c` disabled Bevy `GizmoPlugin` and `GizmoRenderPlugin` only when the configured cumulative stage was the explicit fixed `Empty` diagnostic stage. After the Bevy 0.19 upgrade, commit `17c2bdc6` also disables `LightPlugin` for that exact boundary because `LightPlugin` registers nested `LightGizmoPlugin` resources; disabling the two standalone gizmo plugins alone recreated light-gizmo state. Unconfigured/default runs, `Character` and later stages, debug modes, and screenshot/default paths retain LightPlugin and gizmos. No project gizmo consumers exist; the change removes Bevy light-gizmo registration/render work without changing project-owned behavior.
 
 PID `2655273` provided the pre-A/B attribution: a **59.950-second** identity-bound `perf` interval collected **2,153 samples** with **0 lost samples**. `GizmoBuffer<LightGizmoConfigGroup>::queue` was the strongest current project-retained symbol at **1.51% of sampled CPU**. This is profiler share, not Linux-core utilization. RED/GREEN evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-{red,green}.log`; readability evidence is under `/tmp/claude/game-engine-perf/empty-gizmo-registration-readability/`.
 
