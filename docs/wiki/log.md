@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-08-11] docs | Record movement performance probe
+
+Updated [[procedural-cloud-regeneration]] for `53a9f66a` (`Add gated movement performance probe`). Recorded `WOO_PERF_MOVEMENT` activation, once-per-second movement/pathing/collision timing and collider-count output, and the absence of any performance conclusion before controlled runtime measurement.
+
 ## [2026-08-11] docs | Record Bevy 0.19 strict-Empty LightPlugin boundary
 
 Updated [[rendering-pipeline]], [[inworld-scene-isolation]], and `index.md` for `17c2bdc6` (`Preserve strict Empty gizmo isolation on Bevy 0.19`). Bevy 0.19 `LightPlugin` registers nested `LightGizmoPlugin` resources, so exact configured `InWorldSceneStage::Empty` now disables `LightPlugin` as well as `GizmoPlugin` and `GizmoRenderPlugin`; unconfigured/default, `Character+`, debug, and screenshot/default paths retain the normal LightPlugin/gizmo boundary. The in-world isolation spec and implementation inventory now record this requirement.
