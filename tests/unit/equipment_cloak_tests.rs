@@ -1,6 +1,5 @@
 use super::*;
 use std::path::Path;
-use std::path::PathBuf;
 
 #[test]
 fn debug_human_male_cape_batches() {
@@ -56,29 +55,26 @@ fn merged_cloak_display_enables_cape_geoset_without_runtime_model() {
 }
 
 #[test]
-fn merged_cloak_display_extracts_display_material_texture() {
-    assert_merged_cloak_texture_extracted(192738, 4046069);
+fn merged_cloak_display_caches_display_material_texture() {
+    assert_merged_cloak_texture_cached(192738, 4046069);
 }
 
 #[test]
-fn merged_cloak_alt_display_extracts_display_material_texture() {
-    assert_merged_cloak_texture_extracted(192748, 4046070);
+fn merged_cloak_alt_display_caches_display_material_texture() {
+    assert_merged_cloak_texture_cached(192748, 4046070);
 }
 
 #[test]
-fn merged_cloak_third_display_extracts_display_material_texture() {
-    assert_merged_cloak_texture_extracted(192768, 4046072);
+fn merged_cloak_third_display_caches_display_material_texture() {
+    assert_merged_cloak_texture_cached(192768, 4046072);
 }
 
 #[test]
-fn merged_cloak_fourth_display_extracts_display_material_texture() {
-    assert_merged_cloak_texture_extracted(192778, 4046073);
+fn merged_cloak_fourth_display_caches_display_material_texture() {
+    assert_merged_cloak_texture_cached(192778, 4046073);
 }
 
-fn assert_merged_cloak_texture_extracted(display_info_id: u32, expected_fdid: u32) {
-    let target = PathBuf::from(format!("data/textures/{expected_fdid}.blp"));
-    let _ = std::fs::remove_file(&target);
-
+fn assert_merged_cloak_texture_cached(display_info_id: u32, expected_fdid: u32) {
     let data = OutfitData::load(Path::new("data"));
     let appearance = NetEquipmentAppearance {
         entries: vec![shared::components::EquippedAppearanceEntry {
@@ -90,12 +86,16 @@ fn assert_merged_cloak_texture_extracted(display_info_id: u32, expected_fdid: u3
         }],
     };
 
-    let resolved = resolve_equipment_appearance(&appearance, &data, 1, 0);
+    let mut cached_texture_fdids = Vec::new();
+    let resolved =
+        resolve_equipment_appearance_with_texture_cache(&appearance, &data, 1, 0, &mut |fdid| {
+            cached_texture_fdids.push(fdid)
+        });
 
     assert_eq!(resolved.merged_cape_texture_fdid, Some(expected_fdid));
     assert!(
-        target.exists(),
-        "expected display material texture {expected_fdid} to be extracted for display {display_info_id}"
+        cached_texture_fdids.contains(&expected_fdid),
+        "expected display material texture {expected_fdid} to be requested from the cache for display {display_info_id}: {cached_texture_fdids:?}"
     );
 }
 

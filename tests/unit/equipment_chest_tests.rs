@@ -26,16 +26,16 @@ fn geoset_only_chest_appearance() -> NetEquipmentAppearance {
 }
 
 #[test]
-fn geoset_only_chest_display_keeps_and_extracts_chest_textures() {
-    let upper = Path::new("data/textures/5213107.blp");
-    let torso_upper = Path::new("data/textures/5213102.blp");
-    let torso_lower = Path::new("data/textures/5213101.blp");
-    let _ = std::fs::remove_file(upper);
-    let _ = std::fs::remove_file(torso_upper);
-    let _ = std::fs::remove_file(torso_lower);
-
+fn geoset_only_chest_display_keeps_and_caches_chest_textures() {
     let data = OutfitData::load(Path::new("data"));
-    let resolved = resolve_equipment_appearance(&geoset_only_chest_appearance(), &data, 1, 0);
+    let mut cached_texture_fdids = Vec::new();
+    let resolved = resolve_equipment_appearance_with_texture_cache(
+        &geoset_only_chest_appearance(),
+        &data,
+        1,
+        0,
+        &mut |fdid| cached_texture_fdids.push(fdid),
+    );
 
     assert!(
         resolved.outfit.item_textures.contains(&(0, 5213107))
@@ -58,14 +58,11 @@ fn geoset_only_chest_display_keeps_and_extracts_chest_textures() {
         "expected geoset-only chest display to drive the chest geoset: {:?}",
         resolved.outfit.geoset_overrides
     );
-    assert!(upper.exists(), "expected upper-arm texture extraction");
-    assert!(
-        torso_upper.exists(),
-        "expected upper-torso texture extraction"
-    );
-    assert!(
-        torso_lower.exists(),
-        "expected lower-torso texture extraction"
+    cached_texture_fdids.sort_unstable();
+    assert_eq!(
+        cached_texture_fdids,
+        vec![5213101, 5213102, 5213107],
+        "expected each merged chest texture to be requested from the cache"
     );
 }
 

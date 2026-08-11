@@ -31,14 +31,16 @@ fn resolved_hybrid_legs() -> ResolvedEquipmentAppearance {
 }
 
 #[test]
-fn geoset_only_legs_display_keeps_and_extracts_leg_textures() {
-    let upper = Path::new("data/textures/360325.blp");
-    let lower = Path::new("data/textures/360317.blp");
-    let _ = std::fs::remove_file(upper);
-    let _ = std::fs::remove_file(lower);
-
+fn geoset_only_legs_display_keeps_and_caches_leg_textures() {
     let data = OutfitData::load(Path::new("data"));
-    let resolved = resolve_equipment_appearance(&geoset_only_legs_appearance(), &data, 1, 0);
+    let mut cached_texture_fdids = Vec::new();
+    let resolved = resolve_equipment_appearance_with_texture_cache(
+        &geoset_only_legs_appearance(),
+        &data,
+        1,
+        0,
+        &mut |fdid| cached_texture_fdids.push(fdid),
+    );
 
     assert!(
         resolved.outfit.item_textures.contains(&(5, 360325))
@@ -60,8 +62,12 @@ fn geoset_only_legs_display_keeps_and_extracts_leg_textures() {
         "expected geoset-only legs display to drive the pants geoset: {:?}",
         resolved.outfit.geoset_overrides
     );
-    assert!(upper.exists(), "expected upper-leg texture extraction");
-    assert!(lower.exists(), "expected lower-leg texture extraction");
+    cached_texture_fdids.sort_unstable();
+    assert_eq!(
+        cached_texture_fdids,
+        vec![360317, 360325],
+        "expected each merged leg texture to be requested from the cache"
+    );
 }
 
 #[test]

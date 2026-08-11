@@ -66,9 +66,27 @@ pub fn resolve_equipment_appearance(
     race: u8,
     sex: u8,
 ) -> ResolvedEquipmentAppearance {
+    resolve_equipment_appearance_with_texture_cache(
+        appearance,
+        outfit_data,
+        race,
+        sex,
+        &mut |fdid| {
+            let _ = asset_cache::texture(fdid);
+        },
+    )
+}
+
+fn resolve_equipment_appearance_with_texture_cache(
+    appearance: &NetEquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
+) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
     for entry in &appearance.entries {
-        apply_equipment_entry(&mut resolved, entry, outfit_data, race, sex);
+        apply_equipment_entry(&mut resolved, entry, outfit_data, race, sex, cache_texture);
     }
     resolved
 }
@@ -79,6 +97,7 @@ fn apply_equipment_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) {
     resolved.explicit_slots.insert(entry.slot);
     if entry.hidden {
@@ -94,6 +113,7 @@ fn apply_equipment_entry(
         outfit_data,
         race,
         sex,
+        cache_texture,
     );
 }
 
@@ -104,29 +124,37 @@ fn apply_visible_equipment_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) {
     match slot {
         EquipmentVisualSlot::Head => {
             apply_head_equipment_entry(resolved, display_info_id, outfit_data, race, sex);
         }
-        EquipmentVisualSlot::Back => {
-            apply_back_equipment_entry(resolved, display_info_id, outfit_data, race, sex);
-        }
-        EquipmentVisualSlot::Waist => {
-            apply_waist_equipment_entry(resolved, display_info_id, outfit_data, race, sex);
-        }
-        EquipmentVisualSlot::Shoulder
-        | EquipmentVisualSlot::Chest
-        | EquipmentVisualSlot::Shirt
-        | EquipmentVisualSlot::Tabard
-        | EquipmentVisualSlot::Wrist
-        | EquipmentVisualSlot::Hands
-        | EquipmentVisualSlot::Legs
-        | EquipmentVisualSlot::Feet
-        | EquipmentVisualSlot::MainHand
-        | EquipmentVisualSlot::OffHand => {
-            apply_non_head_equipment_entry(resolved, slot, display_info_id, outfit_data, race, sex)
-        }
+        EquipmentVisualSlot::Back => apply_back_equipment_entry(
+            resolved,
+            display_info_id,
+            outfit_data,
+            race,
+            sex,
+            cache_texture,
+        ),
+        EquipmentVisualSlot::Waist => apply_waist_equipment_entry(
+            resolved,
+            display_info_id,
+            outfit_data,
+            race,
+            sex,
+            cache_texture,
+        ),
+        _ => apply_non_head_equipment_entry(
+            resolved,
+            slot,
+            display_info_id,
+            outfit_data,
+            race,
+            sex,
+            cache_texture,
+        ),
     }
 }
 
@@ -167,9 +195,10 @@ fn apply_non_head_equipment_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) {
     let mut display = outfit_data.resolve_display_info(display_info_id);
-    ensure_item_component_textures(&display);
+    ensure_item_component_textures(&display, cache_texture);
     apply_slot_geoset_overrides(slot, display_info_id, outfit_data, &mut display);
     resolved.outfit =
         crate::character_customization::merge_overlay_texture_sets(&resolved.outfit, &display);
@@ -182,6 +211,7 @@ fn apply_non_head_equipment_entry(
             outfit_data,
             race,
             sex,
+            cache_texture,
         );
     }
 }
@@ -192,9 +222,10 @@ fn apply_back_equipment_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) {
     if let Some(cape_texture_fdid) = outfit_data.cape_texture_fdid(display_info_id) {
-        let _ = asset_cache::texture(cape_texture_fdid);
+        cache_texture(cape_texture_fdid);
         resolved.merged_cape_texture_fdid = Some(cape_texture_fdid);
     }
     apply_non_head_equipment_entry(
@@ -204,6 +235,7 @@ fn apply_back_equipment_entry(
         outfit_data,
         race,
         sex,
+        cache_texture,
     );
 }
 
@@ -213,6 +245,7 @@ fn apply_waist_equipment_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) {
     let before_runtime = resolved.runtime_models.len();
     let before_geosets = resolved.outfit.geoset_overrides.len();
@@ -224,6 +257,7 @@ fn apply_waist_equipment_entry(
         outfit_data,
         race,
         sex,
+        cache_texture,
     );
     eprintln!(
         "waist display {} resolved: new_item_textures={:?} new_geosets={:?} new_runtime_models={:?}",
@@ -352,10 +386,17 @@ fn maybe_push_runtime_model(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) {
-    if let Some((model_path, skin_fdids)) =
-        runtime_model_for_slot(slot, display_info_id, display, outfit_data, race, sex)
-    {
+    if let Some((model_path, skin_fdids)) = runtime_model_for_slot(
+        slot,
+        display_info_id,
+        display,
+        outfit_data,
+        race,
+        sex,
+        cache_texture,
+    ) {
         resolved.runtime_models.push(RuntimeModelAppearance {
             slot,
             path: model_path,
@@ -409,6 +450,7 @@ fn runtime_model_for_slot(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    cache_texture: &mut dyn FnMut(u32),
 ) -> Option<(PathBuf, [u32; 3])> {
     let (fdid, skin_fdids) = match slot {
         EquipmentSlot::ShoulderLeft => {
@@ -420,7 +462,7 @@ fn runtime_model_for_slot(
         _ => outfit_data.resolve_runtime_model(display_info_id, race, sex)?,
     };
     let path = resolve_model_path(fdid)?;
-    ensure_runtime_model_textures(&skin_fdids);
+    ensure_runtime_model_textures(&skin_fdids, cache_texture);
     Some((path, skin_fdids))
 }
 
@@ -439,17 +481,17 @@ fn resolve_model_path(fdid: u32) -> Option<PathBuf> {
     Some(path)
 }
 
-fn ensure_runtime_model_textures(skin_fdids: &[u32; 3]) {
+fn ensure_runtime_model_textures(skin_fdids: &[u32; 3], cache_texture: &mut dyn FnMut(u32)) {
     for &fdid in skin_fdids {
         if fdid != 0 {
-            let _ = asset_cache::texture(fdid);
+            cache_texture(fdid);
         }
     }
 }
 
-fn ensure_item_component_textures(display: &OutfitResult) {
+fn ensure_item_component_textures(display: &OutfitResult, cache_texture: &mut dyn FnMut(u32)) {
     for &(_, fdid) in &display.item_textures {
-        let _ = asset_cache::texture(fdid);
+        cache_texture(fdid);
     }
 }
 
