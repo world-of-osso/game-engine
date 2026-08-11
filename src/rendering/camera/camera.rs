@@ -7,6 +7,7 @@ use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use std::collections::HashSet;
+use std::time::{Duration, Instant};
 
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
@@ -318,6 +319,7 @@ fn player_movement(
     bindings: Res<InputBindings>,
     mut pathing: ResMut<PathingState>,
     mut ray_cast: MeshRayCast,
+    mut perf: Local<MovementPerfProbe>,
     wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
     doodad_collider_q: Query<&game_engine::culling::DoodadCollider>,
     mut player_q: Query<
@@ -352,8 +354,10 @@ fn player_movement(
     let manual_override =
         has_manual_movement_override(&keys, &mouse_buttons, &bindings, modal_open.as_deref());
     let current_position = transform.translation;
+    let perf_start = perf.frame_start();
     let collision_meshes = collect_collision_meshes(&wmo_collision_meshes_q);
     let doodad_colliders = collect_doodad_colliders(&doodad_collider_q);
+    let pathing_start = perf.section_start();
     let scripted_forward = crate::pathing::update_waypoint_pathing(
         &mut pathing,
         &mut map_status,
@@ -369,6 +373,7 @@ fn player_movement(
         true
     })
     .unwrap_or(false);
+    let pathing_elapsed = perf.elapsed_since(pathing_start);
     let (direction, speed) = resolve_player_movement_state(
         &keys,
         &mouse_buttons,
@@ -379,6 +384,23 @@ fn player_movement(
     );
     let proposed =
         build_proposed_ground_movement(current_position, direction, speed, time.delta_secs());
+    let mut collision_elapsed = Duration::ZERO;
+    let proposed_after_collision = proposed.map(|proposed| {
+        let collision_start = perf.section_start();
+        let after_wmo = collision::clamp_movement_against_wmo_meshes(
+            current_position,
+            proposed,
+            &mut ray_cast,
+            &collision_meshes,
+        );
+        let after_doodads = collision::clamp_movement_against_doodad_colliders(
+            current_position,
+            after_wmo,
+            &doodad_colliders,
+        );
+        collision_elapsed = perf.elapsed_since(collision_start);
+        after_doodads
+    });
     apply_horizontal_movement(HorizontalMovementContext {
         transform: &mut transform,
         movement: &mut movement,
@@ -387,24 +409,134 @@ fn player_movement(
         mouse_buttons: &mouse_buttons,
         bindings: &bindings,
         terrain: terrain.as_deref(),
-        proposed: proposed.map(|proposed| {
-            let after_wmo = collision::clamp_movement_against_wmo_meshes(
-                current_position,
-                proposed,
-                &mut ray_cast,
-                &collision_meshes,
-            );
-            collision::clamp_movement_against_doodad_colliders(
-                current_position,
-                after_wmo,
-                &doodad_colliders,
-            )
-        }),
+        proposed: proposed_after_collision,
     });
 
     sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
+    perf.record(MovementPerfSample {
+        frame_start: perf_start,
+        moving: proposed.is_some(),
+        wmo_meshes: collision_meshes.len(),
+        doodad_colliders: doodad_colliders.len(),
+        pathing_elapsed,
+        collision_elapsed,
+    });
+}
+
+#[derive(Default)]
+struct MovementPerfProbe {
+    initialized: bool,
+    enabled: bool,
+    last_report: Option<Instant>,
+    frames: u32,
+    moving_frames: u32,
+    total_frame_time: Duration,
+    max_frame_time: Duration,
+    total_pathing_time: Duration,
+    max_pathing_time: Duration,
+    total_collision_time: Duration,
+    max_collision_time: Duration,
+    last_wmo_meshes: usize,
+    last_doodad_colliders: usize,
+}
+
+struct MovementPerfSample {
+    frame_start: Option<Instant>,
+    moving: bool,
+    wmo_meshes: usize,
+    doodad_colliders: usize,
+    pathing_elapsed: Duration,
+    collision_elapsed: Duration,
+}
+
+impl MovementPerfProbe {
+    fn frame_start(&mut self) -> Option<Instant> {
+        self.ensure_initialized();
+        self.enabled.then(Instant::now)
+    }
+
+    fn section_start(&self) -> Option<Instant> {
+        self.enabled.then(Instant::now)
+    }
+
+    fn elapsed_since(&self, start: Option<Instant>) -> Duration {
+        start.map(|start| start.elapsed()).unwrap_or_default()
+    }
+
+    fn record(&mut self, sample: MovementPerfSample) {
+        let Some(frame_start) = sample.frame_start else {
+            return;
+        };
+        let frame_elapsed = frame_start.elapsed();
+        self.frames += 1;
+        self.moving_frames += u32::from(sample.moving);
+        self.total_frame_time += frame_elapsed;
+        self.max_frame_time = self.max_frame_time.max(frame_elapsed);
+        self.total_pathing_time += sample.pathing_elapsed;
+        self.max_pathing_time = self.max_pathing_time.max(sample.pathing_elapsed);
+        self.total_collision_time += sample.collision_elapsed;
+        self.max_collision_time = self.max_collision_time.max(sample.collision_elapsed);
+        self.last_wmo_meshes = sample.wmo_meshes;
+        self.last_doodad_colliders = sample.doodad_colliders;
+        self.report_if_due(frame_start);
+    }
+
+    fn ensure_initialized(&mut self) {
+        if self.initialized {
+            return;
+        }
+        self.initialized = true;
+        self.enabled = std::env::var_os("WOO_PERF_MOVEMENT").is_some();
+        self.last_report = self.enabled.then(Instant::now);
+    }
+
+    fn report_if_due(&mut self, now: Instant) {
+        let Some(last_report) = self.last_report else {
+            return;
+        };
+        if now.duration_since(last_report) < Duration::from_secs(1) {
+            return;
+        }
+        eprintln!(
+            "movement_perf frames={} moving={} frame_avg_us={} frame_max_us={} pathing_avg_us={} pathing_max_us={} collision_avg_us={} collision_max_us={} wmo_meshes={} doodad_colliders={}",
+            self.frames,
+            self.moving_frames,
+            average_micros(self.total_frame_time, self.frames),
+            duration_micros(self.max_frame_time),
+            average_micros(self.total_pathing_time, self.frames),
+            duration_micros(self.max_pathing_time),
+            average_micros(self.total_collision_time, self.frames),
+            duration_micros(self.max_collision_time),
+            self.last_wmo_meshes,
+            self.last_doodad_colliders,
+        );
+        self.reset(now);
+    }
+
+    fn reset(&mut self, now: Instant) {
+        self.last_report = Some(now);
+        self.frames = 0;
+        self.moving_frames = 0;
+        self.total_frame_time = Duration::ZERO;
+        self.max_frame_time = Duration::ZERO;
+        self.total_pathing_time = Duration::ZERO;
+        self.max_pathing_time = Duration::ZERO;
+        self.total_collision_time = Duration::ZERO;
+        self.max_collision_time = Duration::ZERO;
+    }
+}
+
+fn average_micros(duration: Duration, samples: u32) -> u128 {
+    if samples == 0 {
+        return 0;
+    }
+    duration.as_micros() / u128::from(samples)
+}
+
+fn duration_micros(duration: Duration) -> u128 {
+    duration.as_micros()
 }
 
 fn collect_collision_meshes(
