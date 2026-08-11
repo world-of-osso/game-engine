@@ -78,7 +78,7 @@ src/
 - `./run-tests.sh` — cargo test + clippy
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
-- Dev profile: `[profile.dev] debug = 1, incremental = true, split-debuginfo = "unpacked"`; `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
+- Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 
