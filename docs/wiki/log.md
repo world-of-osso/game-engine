@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] fix | Record replicated M2 cache reuse
+
+Updated [[procedural-cloud-regeneration]] and `index.md` for `484586ac` (`Reuse parsed models for replicated spawns`) and `dfb29983` (`Test cached NPC model spawning`). Shared replicated spawn helpers now reuse the existing model cache keyed by path, skin FileDataIDs, and zero-opacity mode while preserving filtering and joint binding. A concrete model/skin/skeleton regression removes the M2 after the first spawn and proves the second independent-root spawn retains identical vertices and indices; RED `/tmp/claude/npc-cache-red-corrected.log`, GREEN `/tmp/claude/npc-cache-green.log` (**1 passed**). No startup, FPS, connection-stability, or movement-performance effect is claimed before a fresh runtime measurement.
+
 ## [2026-09-05] investigation | Record startup parser blocker before movement measurement
 
 Updated [[procedural-cloud-regeneration]] and `index.md`. A current-source client could not reach a controlled movement workload: synchronous replicated-NPC visual spawning used `load_m2_uncached` on the main thread. A five-second profile captured 241 samples with zero lost; `read_i16` held 16.60% self cost. A live stack traced `spawn_replicated_npc` through uncached M2 skeleton/animation parsing. The FPS overlay was enabled but retained its empty numeric span (`FPS:`) while IPC timed out. This records a startup blocker only—no movement root cause, fix, or performance claim.

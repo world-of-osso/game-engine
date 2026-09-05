@@ -84,9 +84,13 @@ A live main-thread stack established the call path: `spawn_replicated_npc` → `
 
 The FPS overlay setting was enabled, but the captured window showed `FPS:` without a number. Bevy creates the numeric `TextSpan` empty and updates it only after an `Update`-stage FPS diagnostic has a smoothed value. This proves the overlay text was not populated at capture time; together with timed-out IPC and parser-heavy main-thread samples, it supports a startup-progress stall. It does not prove parser work explains every missing-FPS observation.
 
-A separate connected attempt logged Connecting at 08:54:37, token-login processing at 08:56:54, then connection timeout and Loading at 08:56:54. That attempt did not reach a comparable in-world workload. No movement root cause, fix, or performance improvement is claimed.
+A separate connected attempt logged Connecting at 08:54:37, token-login processing at 08:56:54, then connection timeout and Loading at 08:56:54. That attempt did not reach a comparable in-world workload.
 
-**Evidence:** `data/diagnostics/movement-perf-20260905/startup-stall.perf-report.txt`; `data/diagnostics/movement-perf-20260905/startup-eu-stack.txt`; `data/diagnostics/movement-perf-20260905/connected-warm2/client.log`; `/tmp/game-engine-fps-missing.png`; `src/rendering/model/m2_spawn.rs`; `src/game/networking/npc.rs`; Bevy `bevy_dev_tools-0.19.0/src/fps_overlay.rs`.
+Commit `484586ac` changes both shared replicated-model spawn helpers in `m2_spawn.rs` to use the existing parsed M2 cache. The cache key remains model path, skin FileDataIDs, and zero-opacity-batch mode. The loaded model is still filtered and attached with the existing batch/joint-binding behavior. Commit `dfb29983` adds a concrete model/skin/skeleton fixture regression: after a first spawn, removing the source M2 still permits a second independent-root spawn with identical vertices and indices. The RED log is `/tmp/claude/npc-cache-red-corrected.log`; GREEN is `/tmp/claude/npc-cache-green.log` (**1 passed**).
+
+This proves cache reuse in the shared replicated spawn path. It does not yet prove startup time, FPS, connection stability, or movement performance improved; a fresh connected runtime measurement remains required.
+
+**Evidence:** `data/diagnostics/movement-perf-20260905/startup-stall.perf-report.txt`; `data/diagnostics/movement-perf-20260905/startup-eu-stack.txt`; `data/diagnostics/movement-perf-20260905/connected-warm2/client.log`; `/tmp/game-engine-fps-missing.png`; `src/rendering/model/m2_spawn.rs`; `tests/unit/npc_spawn_loading_tests.rs`; Bevy `bevy_dev_tools-0.19.0/src/fps_overlay.rs`.
 
 A separate empty-stage investigation found replicated-unit semantic NOOPs before any visual-stage conclusion: the preserved client kept 133 `RemoteEntity` entries (132 NPCs plus one local player), rewrote stable `Transform`/`Visibility` state every frame, and received server payloads caused by equal movement/gravity writes. Fixes are committed in `game-engine` `3c77d346` and `game-server` `2927382`/`ae81c65`; the corrected empty-stage relaunch confirms connectivity and no UI log flood, but supplies no comparative FPS evidence. See [[replicated-unit-noops]].
 
