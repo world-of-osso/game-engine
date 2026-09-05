@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] investigation | Separate sustained-FPS report from tile stall
+
+Updated [[movement-performance]] with the user-reported approximately 10-FPS settled condition, the non-reproducing 30–45 FPS full-scene IPC samples, and the confounded 56–76 FPS terrain-stage isolation. The terrain selector also excludes lighting and particles, so it is not subsystem attribution. No runtime selector result, optimization, or tile-stall closure is claimed.
+
 ## [2026-09-05] experiment | Target BLP residency does not reproduce the stall
 
 Updated [[movement-performance]] with a per-file cache-advice control, verified residency changes, and bracketing CPU/fault observations. Target BLP residency alone did not reproduce the original delay. The original stall remains open in `PLAN.md`; no optimisation, global kernel-setting change, or asset-content change was made.

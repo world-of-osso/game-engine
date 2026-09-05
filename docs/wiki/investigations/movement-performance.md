@@ -102,6 +102,14 @@ The original raw log also recorded only three movement-system frames between the
 
 The extra requests for `(30,47)`, `(30,48)`, and `(30,49)` are expected server 3×3-neighborhood requests when its player crosses into row 31, not proof that the intended tile was wrong. Source inspection additionally found render-frame-rate-dependent input emission and server movement applied once per received packet; no protocol or reconciliation fix was made. The original approximately 3.12-second stall remains open in `PLAN.md`.
 
+## Sustained low-FPS checkpoint
+
+A separate active investigation concerns the user's report of approximately 10 FPS after the client had remained open for more than 20 minutes. Initial settled full-scene IPC samples from PID `3323344` were 30–37 FPS, then 39–45 FPS; every sample reported `focused=false` despite an attempted Niri focus request. They therefore do **not** reproduce or disprove the reported focused 10-FPS condition.
+
+The user reported the character disabled, but a scene dump’s `is_displayed=false` is a raycast/display heuristic, not proof that rendering or processing was disabled. The inspected PID had no `--inworld-stage` argument, so its exact character-disable mechanism was not established.
+
+A temporary `--inworld-stage terrain` run was used only as a coarse user-requested isolation: it reported 56.56–76.23 FPS. This result is confounded because that existing stage disables more than NPCs, nameplates, and game UI: it also excludes local-character visuals, lighting, and particles. It is not evidence assigning the improvement to any one subsystem and does not test a new `no-npcs-ui` selector. The active next step is a bounded, exact isolation while recording focus and scene state for each sample.
+
 ## Sources
 
 - [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree, `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}`, and `tile-attribution/file-residency/{summary.json,control/,target-blp-evicted/}` for measured subcosts and residency controls.
