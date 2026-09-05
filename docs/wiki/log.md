@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] measurement | Reproduce cold tile-crossing stall
+
+Updated [[movement-performance]] with a normal timed segment crossing `(32,48)` to `(31,48)`. Local CASC supplied the uncached tile. The old tile unloaded at +0.94 s, background parsing finished at +5.67 s, and spawn statistics appeared at +8.73 s; one IPC request waited 3,124 ms across the main-thread tile-application interval. This establishes a boundary-associated stall, not a fix or per-subsystem timing attribution. Client remained connected with the new tile loaded; LOD swaps remain unmeasured.
+
 ## [2026-09-05] measurement | Verify autonomous route and separate movement cost
 
 Added [[movement-performance]] and reconciled [[scripted-movement]], its spec, and the earlier investigation. Ten timed segments completed 140 yards of travel with normal collision; matched focused samples averaged 26.58 FPS idle and 26.97 moving. A separate 1,379-sample profile identified transform parent propagation at 20.45% self cost. Documented the canopy bounding-box trap and startup cache recovery separately. Streaming/LOD boundaries remain unmeasured; no general world-performance fix claimed.

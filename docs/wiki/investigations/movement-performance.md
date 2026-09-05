@@ -1,6 +1,6 @@
 # Movement Performance
 
-Verified September 5, 2026 on local dev client code `4a503876`. A repeatable, collision-respecting route now works. No movement-specific frame-rate drop was demonstrated on this short loaded-tile route. Startup parsing and solid canopy bounding boxes were separate blockers encountered before measurement.
+Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, collision-respecting movement now works. A short loaded-tile route showed no movement-specific FPS drop, but a separate cold tile crossing reproduced a **3.12-second frame-progress/IPC stall**. Startup parsing and solid canopy bounding boxes were separate blockers encountered before measurement.
 
 ## Startup and missing FPS number
 
@@ -38,17 +38,35 @@ Same binary and client, focused throughout; one loaded tile, zero pending tiles.
 
 The instrumented portion of `player_movement` averaged 177 microseconds idle and 359 microseconds during the route. Collision averaged 214 microseconds per moving frame. These are **not whole-frame or camera-follow timings**. Frame-rate variation and the later faster idle result do not support a causal movement-specific drop.
 
-## Attribution and remaining limits
+## Steady-route attribution
 
 A separate 12-second, 49-Hz CPU attribution capture recorded 1,379 samples with zero lost. No FPS collected during profiling was used in the comparison. Transform parent propagation was the largest sampled symbol at **20.45% self cost**; skin extraction was **1.67%**. A later hierarchy dump contained 21,372 lines. The profile does not isolate which local, remote, or animated hierarchies cause that work, so no transform optimization is established yet.
 
-Tile-boundary streaming and LOD transitions were **not measured**. The route stayed within one loaded tile; adjacent root ADTs were absent from the local terrain directory during the investigation. Source shows main-thread tile application and synchronous LOD swaps, but these remain unmeasured risks rather than demonstrated causes.
+## Cold tile-boundary crossing
+
+A separate two-second segment at heading `180` moved from Bevy `(-9016, 88.57, 6)` to XZ `(-9016,-8)`, crossing from tile `(32,48)` into `(31,48)`. The adjacent tile was not initially cached; the engine resolved it from local CASC as `data/terrain/777827.adt`. The client remained connected and ended with one loaded tile and no pending/failed loads.
+
+The external log monitor observed these events relative to the movement command acknowledgement (approximately 50 ms polling resolution):
+
+| Time | Event |
+|---:|---|
+| +0.94 s | Old tile unloaded; replacement background parse starts |
+| +5.67 s | Background parse succeeds; heightmap registration starts |
+| +5.77 s | Heightmap registration ends |
+| +8.73 s | New tile spawn/memory statistics emitted |
+
+The new tile contained 256 chunks, 650 doodads, and 8 WMOs. An IPC performance request spanning +5.745 to +8.869 seconds waited **3,124 ms**, versus a pre-crossing mean of 99 ms and maximum of 120 ms. The approximately 2.96-second registration-to-spawn-statistics gap brackets the main-thread entity/asset spawning path in `terrain_streaming::record_loaded_tile_entities`, including its bookkeeping/statistics. This is measured evidence of a boundary-associated main-loop stall; individual object creation, texture work, and deferred/render preparation costs are not yet isolated.
+
+The delayed response still reported 36.92 FPS, illustrating why the smoothed FPS field alone does not measure the long wait. The old tile was removed approximately 7.8 seconds before replacement spawn statistics finished. With default `load_radius=0`, there was no already-loaded neighbor to cover the transition.
+
+This was one cold crossing, not a warm-repeat comparison or a survey of other maps. LOD-level swaps remain unmeasured. No streaming or canopy-collision fix was applied.
 
 ## Sources
 
 - [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — `clear-route-performance-samples.json`, `clear-route-performance-phases.json`, `clear-route-probe-summary.json`, `clear-route.perf-report.txt`, `clear-route-displacement.json`, and `clear-route-tree.txt`.
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), and [doodad collider construction](../../../src/rendering/terrain/terrain_objects.rs) — actual path and clamp boundaries.
+- [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — cold-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md) and [startup investigation](procedural-cloud-regeneration.md) — contracts and earlier proof.
 
 ## See Also
