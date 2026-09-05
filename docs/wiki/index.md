@@ -1,6 +1,6 @@
 # Wiki Index
 
-Knowledge base for the game-engine project. 39 pages across 5 categories.
+Knowledge base for the game-engine project. 40 pages across 5 categories.
 Last updated: 2026-09-05.
 
 ## Systems
@@ -10,7 +10,7 @@ Engine subsystems and how they work.
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, strict-Empty LightPlugin/gizmo/camera/particle/M2-material registration boundaries, lightweight Empty M2 assets without material schedules (`e7f98704`), blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; gizmo A/B removed its targeted path and improved passive mean 0.50 percentage points, but the every-window CPU gate remains open
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow, entity replication, reconnect lifecycle, Who query runtime, Empty-stage NOOP and due-gated network-reset boundaries, planned streaming; reset gating removed its profile symbol but did not improve CPU
-- [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement for reproducible connected performance runs; no teleporting or valid live moving-frame comparison yet
+- [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, collision reference
@@ -41,6 +41,8 @@ Architecture decisions and feature designs.
 - [collision-system](design/collision-system.md) — Terrain/WMO/M2 collision layers, sweep detection, camera collision
 
 ## Investigations
+
+- [movement-performance](investigations/movement-performance.md) — September 5 matched route measurements, startup recovery, canopy collision trap, transform-propagation hotspot, and unmeasured streaming boundary
 
 Root cause analyses and debug findings.
 

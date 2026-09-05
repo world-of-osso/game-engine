@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] measurement | Verify autonomous route and separate movement cost
+
+Added [[movement-performance]] and reconciled [[scripted-movement]], its spec, and the earlier investigation. Ten timed segments completed 140 yards of travel with normal collision; matched focused samples averaged 26.58 FPS idle and 26.97 moving. A separate 1,379-sample profile identified transform parent propagation at 20.45% self cost. Documented the canopy bounding-box trap and startup cache recovery separately. Streaming/LOD boundaries remain unmeasured; no general world-performance fix claimed.
+
 ## [2026-09-05] feature | Record scripted movement IPC controls
 
 Updated [[scripted-movement]] and `docs/specs/scripted-movement.md` for `51456222` (`Add scripted movement IPC controls`). The CLI now exposes `movement forward --seconds N [--yaw-degrees D]` and `movement stop`; IPC carries `ScriptedMovementForward { duration_secs, heading_degrees }` and `ScriptedMovementStop`. Focused proof: CLI **3 passed**, IPC **4 passed**, playback validation **3 passed**, and camera integration **6 passed**. Connected-runtime displacement and a valid moving-frame comparison remain open.

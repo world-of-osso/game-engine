@@ -30,7 +30,7 @@ Timed client movement provides repeatable performance-test routes without deskto
 
 ## Known gaps (current cycle)
 
-- [ ] Demonstrate actual connected-runtime displacement before using scripted movement for performance comparisons.
+Connected-runtime displacement and a loaded-tile route comparison are recorded in [movement performance](../wiki/investigations/movement-performance.md). No open control-implementation gap; tile-boundary profiling remains outside this control spec.
 
 ## Out of scope
 

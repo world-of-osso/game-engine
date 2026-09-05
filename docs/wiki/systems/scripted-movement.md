@@ -12,7 +12,7 @@ Each frame consumes at most the remaining segment time, so the final movement st
 
 ## Measurement boundary
 
-This system makes a route reproducible; it does not establish a performance result. The September 5 movement investigation has no valid moving-frame comparison yet: waypoint attempts did not displace the player, and scripted control still requires connected-runtime displacement proof.
+This system makes a route reproducible; it does not itself establish a performance result. Connected displacement and the September 5 loaded-tile comparison are documented in [[movement-performance]]. Earlier zero-displacement attempts were blocked by canopy collision boxes and are not moving-frame evidence.
 
 ## Sources
 
@@ -29,4 +29,5 @@ This system makes a route reproducible; it does not establish a performance resu
 
 - [[networking]] — connection/input lifecycle
 - [[terrain]] — terrain and object collision
-- [[procedural-cloud-regeneration]] — performance investigation and measurement status
+- [[movement-performance]] — measured route, canopy collision trap, and profiling limits
+- [[procedural-cloud-regeneration]] — earlier startup and rendering investigations
