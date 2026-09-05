@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] docs | Record bounded scripted movement
+
+Added [[scripted-movement]], updated [[procedural-cloud-regeneration]], and `index.md` for `15928f4e`, `d3f525ac`, and `6c9d82a3`. Timed forward segments validate duration/heading, clip their final frame, and run through ordinary player movement/collision/networking rather than teleporting. Waypoint attempts at the current spawn did not move the player, so no valid moving-frame comparison exists; connected IPC/CLI displacement proof remains required.
+
 ## [2026-09-05] fix | Record replicated M2 cache reuse
 
 Updated [[procedural-cloud-regeneration]] and `index.md` for `484586ac` (`Reuse parsed models for replicated spawns`) and `dfb29983` (`Test cached NPC model spawning`). Shared replicated spawn helpers now reuse the existing model cache keyed by path, skin FileDataIDs, and zero-opacity mode while preserving filtering and joint binding. A concrete model/skin/skeleton regression removes the M2 after the first spawn and proves the second independent-root spawn retains identical vertices and indices; RED `/tmp/claude/npc-cache-red-corrected.log`, GREEN `/tmp/claude/npc-cache-green.log` (**1 passed**). No startup, FPS, connection-stability, or movement-performance effect is claimed before a fresh runtime measurement.
