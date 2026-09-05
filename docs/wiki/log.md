@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] experiment | Reduced-scene material freeze does not sustain gain
+
+Updated [[movement-performance]] with conflicting unchanged-code freeze results: 47.53 mean FPS before, one80.95 sample then21–27 after, mean31.81. Same position/assets/view; CPU and GPU busy counters increased. Normal updates restored, later48–55FPS. Earlier material-freeze gain is not a general resolution; frequency/thread/render-state attribution remains open.
+
 ## [2026-09-05] diagnostic | Water and skybox visual isolation
 
 Updated [[movement-performance]] with opt-in streamed-water and skybox-visual exclusion, zero water assets in the new client, and 46.65 mean FPS. Recorded retained lighting/camera paths and position/focus differences that prevent a controlled speed comparison. Terrain-material updates remain the stronger prior measured lead; no optimization applied.

@@ -138,7 +138,17 @@ The next requested diagnostic (`544d32a5`) adds `--no-terrain-water --no-skybox`
 
 PID `3831399`, SHA256 `0651ee1a516fce0d77c77efda512f2dcb37f79970c0a2c35443cce3e44a034c1`, recorded **zero water materials**, 256 terrain materials, 261 mesh assets, no object placement loads, an empty game-UI tree, and no pending terrain. Ten samples were **39.54–54.31 FPS**, mean **46.65 FPS / 21.59 ms**, all reporting unfocused. The pre-restart client reported XZ `(-8923.71,151.58)` and the new client `(-8866.80,329.22)`; view/position equality was not preserved. Do not treat this as a controlled before/after speed result or claim water/skybox cost is zero.
 
-Artifacts: `settled-low-fps/water-sky-case/{identity,performance,summary}.json`, `previous-position.txt`, `position.txt`, `terrain.txt`, `tree.txt`, and `no-water-skybox.webp`. The earlier same-process terrain-material freeze remains the stronger measured lead; its effect in this further-reduced scene is not yet tested.
+Artifacts: `settled-low-fps/water-sky-case/{identity,performance,summary}.json`, `previous-position.txt`, `position.txt`, `terrain.txt`, `tree.txt`, and `no-water-skybox.webp`. The earlier object-present freeze suggested substantial material-update cost, but the reduced-scene repeat below did not reproduce a sustained gain.
+
+### Conflicting freeze result in the reduced scene
+
+A follow-up on unchanged code `544d32a5` retained every exclusion and froze the same 256 terrain materials at a logged **60.018 seconds**. PID `3889239` kept XZ `(-8866.80,329.22)`, asset counts, and the same visible terrain view. All samples reported focused. Eight before samples averaged **47.53 FPS**. The first after sample reached 80.95 FPS, then seven fell to **21.32–27.43 FPS**; the full after mean was **31.81 FPS**. This contradicts a general claim that freezing material updates resolves the current slowdown.
+
+Across the sampled counter brackets, process CPU time rose from 27.49 seconds over 14.234 wall seconds to 37.49 over 14.617; process-associated GPU-engine busy fraction rose from 44.05% to 54.12%. Host CPU-pressure snapshots stayed low. These counters do not identify the changed work or establish clock, power, scheduling, shader, or render-pipeline causality. CPU/GPU frequency and per-thread stacks during the slowdown were not captured.
+
+Normal updates were restored in PID `3896680` with all user-requested exclusions retained. Six later focused samples, 205–215 seconds after its launch, were **48.20–54.57 FPS**. Age alone is therefore not established as the trigger either. Preserve both freeze outcomes; the bottleneck remains unresolved. Next evidence needed is a CPU/render-state capture during the slow frozen interval, not another claim of improvement from the first fast sample.
+
+Artifacts: `settled-low-fps/reduced-terrain-freeze-case/{before,after,freeze-event,result,requests,restored-performance}.json`, the paired screenshots, and `restored/identity.json`.
 
 ## Sources
 
