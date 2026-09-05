@@ -26,10 +26,16 @@ fn stop_discards_remaining_scripted_movement() {
 }
 
 #[test]
-fn start_rejects_invalid_duration_or_heading() {
+fn invalid_start_preserves_active_scripted_movement() {
     let mut movement = ScriptedMovement::default();
+    movement.start(1.0, Some(450.0)).unwrap();
 
     assert!(movement.start(0.0, None).is_err());
+    assert!(movement.start(60.1, None).is_err());
     assert!(movement.start(f32::NAN, None).is_err());
     assert!(movement.start(1.0, Some(f32::INFINITY)).is_err());
+
+    let step = movement.next_step(0.1).unwrap();
+    assert!((step.duration_secs - 0.1).abs() < f32::EPSILON);
+    assert_eq!(step.facing_yaw, Some(std::f32::consts::FRAC_PI_2));
 }

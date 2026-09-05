@@ -1,5 +1,7 @@
 use bevy::prelude::Resource;
 
+const MAX_DURATION_SECS: f32 = 60.0;
+
 #[derive(Resource, Default)]
 pub struct ScriptedMovement {
     active: Option<ActiveScriptedMovement>,
@@ -23,8 +25,13 @@ impl ScriptedMovement {
         duration_secs: f32,
         heading_degrees: Option<f32>,
     ) -> Result<(), String> {
-        if !duration_secs.is_finite() || duration_secs <= 0.0 {
-            return Err("duration must be finite and positive".into());
+        if !duration_secs.is_finite()
+            || !(0.0..=MAX_DURATION_SECS).contains(&duration_secs)
+            || duration_secs == 0.0
+        {
+            return Err(format!(
+                "duration must be finite, positive, and no more than {MAX_DURATION_SECS} seconds"
+            ));
         }
         let facing_yaw = heading_degrees.map(degrees_to_radians).transpose()?;
         self.active = Some(ActiveScriptedMovement {
@@ -60,7 +67,7 @@ fn degrees_to_radians(degrees: f32) -> Result<f32, String> {
     if !degrees.is_finite() {
         return Err("heading must be finite".into());
     }
-    Ok(degrees.to_radians())
+    Ok(degrees.rem_euclid(360.0).to_radians())
 }
 
 #[cfg(test)]
