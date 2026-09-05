@@ -1,6 +1,6 @@
 # Movement Performance
 
-Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, collision-respecting movement now works. A short loaded-tile route showed no movement-specific FPS drop, but a separate cold tile crossing reproduced a **3.12-second frame-progress/IPC stall**. Startup parsing and solid canopy bounding boxes were separate blockers encountered before measurement.
+Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, collision-respecting movement now works. A short loaded-tile route showed no movement-specific FPS drop, but a separate tile crossing reproduced a **3.12-second frame-progress/IPC stall**. Startup parsing and solid canopy bounding boxes were separate blockers encountered before measurement.
 
 ## Startup and missing FPS number
 
@@ -42,9 +42,9 @@ The instrumented portion of `player_movement` averaged 177 microseconds idle and
 
 A separate 12-second, 49-Hz CPU attribution capture recorded 1,379 samples with zero lost. No FPS collected during profiling was used in the comparison. Transform parent propagation was the largest sampled symbol at **20.45% self cost**; skin extraction was **1.67%**. A later hierarchy dump contained 21,372 lines. The profile does not isolate which local, remote, or animated hierarchies cause that work, so no transform optimization is established yet.
 
-## Cold tile-boundary crossing
+## First recorded tile-boundary crossing
 
-A separate two-second segment at heading `180` moved from Bevy `(-9016, 88.57, 6)` to XZ `(-9016,-8)`, crossing from tile `(32,48)` into `(31,48)`. The adjacent tile was not initially cached; the engine resolved it from local CASC as `data/terrain/777827.adt`. The client remained connected and ended with one loaded tile and no pending/failed loads.
+A separate two-second segment at heading `180` moved from Bevy `(-9016, 88.57, 6)` to XZ `(-9016,-8)`, crossing from tile `(32,48)` into `(31,48)`. The root file already existed as `data/terrain/777827.adt`, with March 5, 2026 file timestamps. `resolve_tile_path` selects existing coordinate-named or FDID-named files; it does not extract missing roots. The earlier description of this as an uncached/CASC-supplied tile was incorrect. OS page-cache and render-asset residency were not controlled. The client remained connected and ended with one loaded tile and no pending/failed loads.
 
 The external log monitor observed these events relative to the movement command acknowledgement (approximately 50 ms polling resolution):
 
@@ -59,14 +59,22 @@ The new tile contained 256 chunks, 650 doodads, and 8 WMOs. An IPC performance r
 
 The delayed response still reported 36.92 FPS, illustrating why the smoothed FPS field alone does not measure the long wait. The old tile was removed approximately 7.8 seconds before replacement spawn statistics finished. With default `load_radius=0`, there was no already-loaded neighbor to cover the transition.
 
-This was one cold crossing, not a warm-repeat comparison or a survey of other maps. LOD-level swaps remain unmeasured. No streaming or canopy-collision fix was applied.
+This was one recorded crossing, not a controlled cold/warm comparison or a survey of other maps. LOD-level swaps remain unmeasured. No streaming or canopy-collision fix was applied.
+
+## Tile-application attribution follow-up
+
+Two repeat captures on unchanged code `4a503876` observed approximately 350 ms between registration completion and tile-spawn statistics, versus approximately 2.96 seconds in the original run. Both used existing disk assets, but cache residency and host load were not controlled, so the difference is not an optimization result. The original application excerpt contains no CASC extraction/cache-miss/error lines.
+
+The 499-Hz capture provides 141 samples in a conservative application-core interval. Strided `u8` maximum scans, texture conversion/compositing, and procedural water-normal work appear in those samples. The scan signature matches `fix_1bit_alpha` in `src/asset/blp.rs`, but poor stack unwinding prevents reliable enclosing-caller attribution. An event-triggered full-process stack did not catch the tile caller and is not positive attribution evidence.
+
+Gated diagnostics added in `d4eaf8cf` and `7d9e7370` report BLP read/decode/convert/alpha durations (`blp_perf`) and tile/object stage durations (`tile_spawn_perf`) when `WOO_PERF_MOVEMENT` is present. They do not change pixels, spawning, or collision behavior. Runtime collection with those timers is pending.
 
 ## Sources
 
 - [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — `clear-route-performance-samples.json`, `clear-route-performance-phases.json`, `clear-route-probe-summary.json`, `clear-route.perf-report.txt`, `clear-route-displacement.json`, and `clear-route-tree.txt`.
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), and [doodad collider construction](../../../src/rendering/terrain/terrain_objects.rs) — actual path and clamp boundaries.
-- [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — cold-crossing evidence and application boundary.
+- [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md) and [startup investigation](procedural-cloud-regeneration.md) — contracts and earlier proof.
 
 ## See Also

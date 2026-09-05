@@ -42,7 +42,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [movement-performance](investigations/movement-performance.md) — September 5 route measurements, 3.12-second cold tile-crossing stall, startup recovery, canopy collision trap, and transform-propagation hotspot
+- [movement-performance](investigations/movement-performance.md) — September 5 route measurements, 3.12-second tile-crossing stall, startup recovery, canopy collision trap, and transform-propagation hotspot
 
 Root cause analyses and debug findings.
 
