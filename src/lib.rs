@@ -98,6 +98,7 @@ pub mod mesh_asset_stats;
 pub mod minimap_data;
 #[path = "game/missile_data.rs"]
 pub mod missile_data;
+pub mod movement_control;
 #[path = "game/nameplate_data.rs"]
 pub mod nameplate_data;
 #[path = "game/objective_tracker_data.rs"]
