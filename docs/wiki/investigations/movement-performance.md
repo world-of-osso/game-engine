@@ -67,13 +67,29 @@ Two repeat captures on unchanged code `4a503876` observed approximately 350 ms b
 
 The 499-Hz capture provides 141 samples in a conservative application-core interval. Strided `u8` maximum scans, texture conversion/compositing, and procedural water-normal work appear in those samples. The scan signature matches `fix_1bit_alpha` in `src/asset/blp.rs`, but poor stack unwinding prevents reliable enclosing-caller attribution. An event-triggered full-process stack did not catch the tile caller and is not positive attribution evidence.
 
-Gated diagnostics added in `d4eaf8cf` and `7d9e7370` report BLP read/decode/convert/alpha durations (`blp_perf`) and tile/object stage durations (`tile_spawn_perf`) when `WOO_PERF_MOVEMENT` is present. They do not change pixels, spawning, or collision behavior. Runtime collection with those timers is pending.
+Gated diagnostics added in `d4eaf8cf` and `7d9e7370` report BLP read/decode/convert/alpha durations (`blp_perf`) and tile/object stage durations (`tile_spawn_perf`) when `WOO_PERF_MOVEMENT` is present. They preserve the existing pixel and spawn operations. A subsequent crossing without a sampling profiler produced:
+
+| Application work | Measured time |
+|---|---:|
+| 650 doodad spawn paths | 159.696 ms |
+| 8 WMO spawn paths | 132.490 ms |
+| Terrain water | 22.125 ms |
+| Other terrain/setup, computed remainder | 2.154 ms |
+| **Total `spawn_parsed_tile`** | **316.465 ms** |
+
+The spawn-path measurements include synchronous asset preparation and recording Bevy commands, not subsequent deferred command execution or GPU preparation. Work runs in the main-world Update schedule, which may execute on a Compute Task Pool worker rather than the OS main thread.
+
+Inside those stages, **156 CPU BLP loads across 147 paths** spent 17.559 ms reading files, 3.519 ms stripping/parsing BLP containers, 30.523 ms converting/decompressing to RGBA, and **110.015 ms normalizing alpha**. The log field `decode_us` means container parsing; `convert_us` includes `blp_to_image` conversion/decompression. These totals are nested inside the table above and must not be added to it.
+
+Alpha normalization accounts for approximately 35% of this repeat's tile-application time: 77.803 ms inside doodad spawning and 32.212 ms inside WMO spawning. `fix_1bit_alpha` computes the maximum alpha over the entire RGBA image before deciding whether zero/one-valued alpha needs adjustment. It scans once per CPU-decoded load, not on every cache hit or every terrain batch. This directly measured cost corroborates the earlier strided-byte profile signature.
+
+The repeat ended connected with the destination loaded. Three separate requests for missing `(30,47)`, `(30,48)`, and `(30,49)` roots failed; they are not a failure to load `(31,48)`. The approximately 2.6-second excess in the original application interval remains unattributed: the repeat timings do not retroactively explain it. No alpha, texture-cache, water-map, or spawning optimization was implemented.
 
 ## Sources
 
-- [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — `clear-route-performance-samples.json`, `clear-route-performance-phases.json`, `clear-route-probe-summary.json`, `clear-route.perf-report.txt`, `clear-route-displacement.json`, and `clear-route-tree.txt`.
+- [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree and `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}` for the measured subcosts.
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
-- [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), and [doodad collider construction](../../../src/rendering/terrain/terrain_objects.rs) — actual path and clamp boundaries.
+- [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md) and [startup investigation](procedural-cloud-regeneration.md) — contracts and earlier proof.
 

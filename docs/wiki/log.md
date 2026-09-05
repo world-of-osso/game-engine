@@ -1,12 +1,16 @@
 # Wiki Log
 
+## [2026-09-05] measurement | Split repeat tile application into stages
+
+Updated [[movement-performance]] with gated timing output from `7d9e7370`: 316.465 ms total application, including 159.696 ms doodads, 132.490 ms WMOs, and 22.125 ms terrain water. Nested BLP timings record 110.015 ms alpha normalization across 156 loads. This identifies repeat CPU subcosts, not the cause of the original additional delay; no optimization was implemented.
+
 ## [2026-09-05] diagnostic | Correct cache characterization and split tile timing
 
 Corrected [[movement-performance]]: FDID-named root `777827.adt` predated the experiment; the resolver only selects existing local roots. Earlier cold-cache/CASC-supply wording was unsupported. Repeat application intervals were approximately 350 ms, but the original 2.96-second application gap remains valid. Added gated BLP and tile-stage diagnostics (`d4eaf8cf`, `7d9e7370`) for caller-independent timing; no optimization or collision change.
 
-## [2026-09-05] measurement | Reproduce cold tile-crossing stall
+## [2026-09-05] measurement | Reproduce tile-crossing stall
 
-Updated [[movement-performance]] with a normal timed segment crossing `(32,48)` to `(31,48)`. Local CASC supplied the uncached tile. The old tile unloaded at +0.94 s, background parsing finished at +5.67 s, and spawn statistics appeared at +8.73 s; one IPC request waited 3,124 ms across the main-thread tile-application interval. This establishes a boundary-associated stall, not a fix or per-subsystem timing attribution. Client remained connected with the new tile loaded; LOD swaps remain unmeasured.
+Updated [[movement-performance]] with a normal timed segment crossing `(32,48)` to `(31,48)`. The initial cache characterization was later corrected: the FDID-named root already existed; see the diagnostic entry and investigation. The old tile unloaded at +0.94 s, background parsing finished at +5.67 s, and spawn statistics appeared at +8.73 s; one IPC request waited 3,124 ms across the main-thread tile-application interval. This establishes a boundary-associated stall, not a fix or per-subsystem timing attribution. Client remained connected with the new tile loaded; LOD swaps remain unmeasured.
 
 ## [2026-09-05] measurement | Verify autonomous route and separate movement cost
 
