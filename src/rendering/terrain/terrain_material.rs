@@ -527,8 +527,8 @@ fn build_fallback_materials(
 /// layer transitions. 0 = flat alpha blending, 2-4 = natural rocky edges.
 const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
 const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
-const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
-const TERRAIN_REFLECTANCE: f32 = 0.2;
+pub(crate) const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
+pub(crate) const TERRAIN_REFLECTANCE: f32 = 0.2;
 const TERRAIN_OVERBRIGHT_MULTIPLIER: f32 = 2.0;
 const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 1.0);
 const TERRAIN_ANIMATION_SPEEDS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0];

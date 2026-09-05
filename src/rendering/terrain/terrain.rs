@@ -145,6 +145,8 @@ pub struct AdtManager {
     pub(crate) load_objects: bool,
     /// Include terrain water surfaces in streamed tiles.
     pub(crate) load_water: bool,
+    /// Use the textured terrain shader instead of a flat diagnostic material.
+    pub(crate) render_textures: bool,
     /// Tile coordinates of the initially loaded tile.
     pub initial_tile: (u32, u32),
     /// Whether we've already reported that the initial terrain load finished.
@@ -167,6 +169,7 @@ impl Default for AdtManager {
             load_radius: 0,
             load_objects: true,
             load_water: true,
+            render_textures: true,
             initial_tile: (0, 0),
             initial_load_reported: false,
         }

@@ -104,7 +104,8 @@ fn record_loaded_tile_entities(
     key: (u32, u32),
     parsed: &ParsedTile,
 ) {
-    let (root, doodad_entities) = spawn_parsed_tile(refs, heightmap, parsed);
+    let (root, doodad_entities) =
+        spawn_parsed_tile(refs, heightmap, parsed, adt_manager.render_textures);
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);
     adt_manager

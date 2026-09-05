@@ -16,6 +16,10 @@ use crate::water_material::{self, WaterMaterial, WaterSettings};
 use super::terrain_spawn_position::choose_safe_spawn_position;
 use super::{AdtTile, ParsedTile};
 
+#[cfg(test)]
+#[path = "terrain_spawn/tests.rs"]
+mod tests;
+
 /// Grouped asset refs for spawn helpers (reduces per-function argument count).
 pub(super) struct SpawnRefs<'a, 'w, 's> {
     pub(super) commands: &'a mut Commands<'w, 's>,
@@ -94,37 +98,25 @@ pub(super) fn spawn_parsed_tile(
     refs: &mut SpawnRefs,
     heightmap: &TerrainHeightmap,
     parsed: &ParsedTile,
+    render_textures: bool,
 ) -> (Entity, Vec<Entity>) {
     let mut timings = super::TileSpawnTimings::start((parsed.tile_y, parsed.tile_x), "tile");
     let tile = parsed_adt_tile(parsed);
     log_parsed_tile(parsed);
 
-    let ground_images = register_ground_images(refs.images, parsed);
-    let height_images = register_height_images(refs.images, parsed);
-    let alpha_handles = register_image_vec(refs.images, &parsed.chunk_alpha_maps);
-    let shadow_handles = register_image_vec(refs.images, &parsed.chunk_shadow_maps);
-    timings.record_stage("images");
-
-    eprintln!("build_terrain_materials {}", parsed.adt_path.display());
-    let chunk_materials = terrain_material::build_terrain_materials(
-        refs.terrain_materials,
-        refs.images,
-        &parsed.adt_data,
-        parsed.tex_data.as_ref(),
-        ground_images.as_deref(),
-        height_images.as_deref(),
-        non_empty_slice(&alpha_handles),
-        non_empty_slice(&shadow_handles),
-    );
-    timings.record_stage("terrain_materials");
-
-    let root = spawn_chunk_entities(
-        refs.commands,
-        refs.meshes,
-        &chunk_materials,
-        &parsed.adt_data,
-        &tile,
-    );
+    let root = if render_textures {
+        spawn_textured_tile_chunks(refs, parsed, &tile, &mut timings)
+    } else {
+        timings.record_stage("images");
+        timings.record_stage("terrain_materials");
+        spawn_flat_terrain_chunks(
+            refs.commands,
+            refs.meshes,
+            refs.materials,
+            &parsed.adt_data,
+            &tile,
+        )
+    };
     timings.record_stage("terrain_chunks");
     spawn_water(
         refs.commands,
@@ -138,6 +130,38 @@ pub(super) fn spawn_parsed_tile(
     timings.record_stage("objects");
     timings.finish();
     (root, doodad_entities)
+}
+
+fn spawn_textured_tile_chunks(
+    refs: &mut SpawnRefs,
+    parsed: &ParsedTile,
+    tile: &AdtTile,
+    timings: &mut super::TileSpawnTimings,
+) -> Entity {
+    let ground_images = register_ground_images(refs.images, parsed);
+    let height_images = register_height_images(refs.images, parsed);
+    let alpha_handles = register_image_vec(refs.images, &parsed.chunk_alpha_maps);
+    let shadow_handles = register_image_vec(refs.images, &parsed.chunk_shadow_maps);
+    timings.record_stage("images");
+    eprintln!("build_terrain_materials {}", parsed.adt_path.display());
+    let chunk_materials = terrain_material::build_terrain_materials(
+        refs.terrain_materials,
+        refs.images,
+        &parsed.adt_data,
+        parsed.tex_data.as_ref(),
+        ground_images.as_deref(),
+        height_images.as_deref(),
+        non_empty_slice(&alpha_handles),
+        non_empty_slice(&shadow_handles),
+    );
+    timings.record_stage("terrain_materials");
+    spawn_chunk_entities(
+        refs.commands,
+        refs.meshes,
+        &chunk_materials,
+        &parsed.adt_data,
+        tile,
+    )
 }
 
 /// Register pre-decoded ground images or fall back to loading from disk.
@@ -246,10 +270,29 @@ pub(super) fn log_adt_spawn(adt_data: &adt::AdtData, adt_path: &Path) {
     );
 }
 
-pub(super) fn spawn_chunk_entities(
+fn spawn_flat_terrain_chunks(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    chunk_materials: &[Handle<TerrainMaterial>],
+    materials: &mut Assets<StandardMaterial>,
+    adt_data: &adt::AdtData,
+    tile: &AdtTile,
+) -> Entity {
+    let flat_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.5, 0.5, 0.5),
+        perceptual_roughness: terrain_material::TERRAIN_PERCEPTUAL_ROUGHNESS,
+        reflectance: terrain_material::TERRAIN_REFLECTANCE,
+        double_sided: true,
+        cull_mode: None,
+        ..default()
+    });
+    let chunk_materials = vec![flat_material; adt_data.chunks.len()];
+    spawn_chunk_entities(commands, meshes, &chunk_materials, adt_data, tile)
+}
+
+pub(super) fn spawn_chunk_entities<M: Material>(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    chunk_materials: &[Handle<M>],
     adt_data: &adt::AdtData,
     tile: &AdtTile,
 ) -> Entity {
@@ -264,10 +307,10 @@ pub(super) fn spawn_chunk_entities(
 
     for (i, chunk) in adt_data.chunks.iter().enumerate() {
         let mesh_handle = meshes.add(chunk.mesh.clone());
-        let mat = chunk_materials.get(i).unwrap_or(&chunk_materials[0]);
+        let material = chunk_materials.get(i).unwrap_or(&chunk_materials[0]);
         let mut spawn = commands.spawn((
             Mesh3d(mesh_handle),
-            MeshMaterial3d(mat.clone()),
+            MeshMaterial3d(material.clone()),
             tile.clone(),
             Transform::default(),
             Visibility::default(),

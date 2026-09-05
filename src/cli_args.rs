@@ -266,6 +266,9 @@ pub fn print_help() {
     println!(
         "  --no-skybox         Disable skybox visuals, retaining lighting/fog/IBL (diagnostic)"
     );
+    println!(
+        "  --no-terrain-textures  Render streamed terrain with a flat lit material (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
