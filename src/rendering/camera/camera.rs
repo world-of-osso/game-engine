@@ -15,6 +15,7 @@ use crate::pathing::PathingState;
 use crate::taxi::TaxiState;
 use crate::terrain_heightmap::TerrainHeightmap;
 use game_engine::input_bindings::{InputAction, InputBindings};
+use game_engine::movement_control::{ScriptedMovement, ScriptedMovementStep};
 
 #[path = "camera_controls.rs"]
 mod camera_controls;
@@ -34,6 +35,7 @@ impl Plugin for WowCameraPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<crate::client_options::CameraOptions>();
         app.init_resource::<PathingState>();
+        register_scripted_movement(app);
         app.add_systems(Update, sync_camera_graphics_post_process);
         app.add_systems(
             Update,
@@ -49,6 +51,15 @@ impl Plugin for WowCameraPlugin {
                 .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_character),
         );
     }
+}
+
+fn register_scripted_movement(app: &mut App) {
+    app.init_resource::<ScriptedMovement>()
+        .add_systems(OnExit(GameState::InWorld), stop_scripted_movement);
+}
+
+fn stop_scripted_movement(mut movement: ResMut<ScriptedMovement>) {
+    movement.stop();
 }
 
 /// Marker for the player entity the camera orbits around.
@@ -318,6 +329,7 @@ fn player_movement(
     mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
     bindings: Res<InputBindings>,
     mut pathing: ResMut<PathingState>,
+    mut scripted: ResMut<ScriptedMovement>,
     mut ray_cast: MeshRayCast,
     mut perf: Local<MovementPerfProbe>,
     wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
@@ -333,18 +345,22 @@ fn player_movement(
     >,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) {
+        scripted.stop();
         return;
     }
     let Ok((mut transform, mut movement, mut facing, mut physics)) = player_q.single_mut() else {
+        scripted.stop();
         return;
     };
     if taxi.as_deref().is_some_and(TaxiState::is_active) {
+        scripted.stop();
         movement.autorun = false;
         movement.direction = MoveDirection::None;
         return;
     }
 
     if close_player_movement_for_modal(modal_open.as_deref(), &mut movement) {
+        scripted.stop();
         return;
     }
 
@@ -353,12 +369,19 @@ fn player_movement(
     sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
     let manual_override =
         has_manual_movement_override(&keys, &mouse_buttons, &bindings, modal_open.as_deref());
+    let scripted_step = advance_scripted_movement(
+        &mut scripted,
+        &mut movement,
+        &mut facing,
+        manual_override,
+        time.delta_secs(),
+    );
     let current_position = transform.translation;
     let perf_start = perf.frame_start();
     let collision_meshes = collect_collision_meshes(&wmo_collision_meshes_q);
     let doodad_colliders = collect_doodad_colliders(&doodad_collider_q);
     let pathing_start = perf.section_start();
-    let scripted_forward = crate::pathing::update_waypoint_pathing(
+    let waypoint_forward = crate::pathing::update_waypoint_pathing(
         &mut pathing,
         &mut map_status,
         current_position,
@@ -379,11 +402,12 @@ fn player_movement(
         &mouse_buttons,
         &bindings,
         &mut movement,
-        scripted_forward,
+        waypoint_forward || scripted_step.is_some(),
         &facing,
     );
+    let movement_delta = scripted_step.map_or(time.delta_secs(), |step| step.duration_secs);
     let proposed =
-        build_proposed_ground_movement(current_position, direction, speed, time.delta_secs());
+        build_proposed_ground_movement(current_position, direction, speed, movement_delta);
     let mut collision_elapsed = Duration::ZERO;
     let proposed_after_collision = proposed.map(|proposed| {
         let collision_start = perf.section_start();
@@ -423,6 +447,25 @@ fn player_movement(
         pathing_elapsed,
         collision_elapsed,
     });
+}
+
+fn advance_scripted_movement(
+    scripted: &mut ScriptedMovement,
+    movement: &mut MovementState,
+    facing: &mut CharacterFacing,
+    manual_override: bool,
+    delta_secs: f32,
+) -> Option<ScriptedMovementStep> {
+    if manual_override {
+        scripted.stop();
+        return None;
+    }
+    let step = scripted.next_step(delta_secs)?;
+    movement.autorun = false;
+    if let Some(yaw) = step.facing_yaw {
+        facing.yaw = yaw;
+    }
+    Some(step)
 }
 
 #[derive(Default)]
@@ -794,3 +837,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../../tests/unit/camera_post_process_tests.rs"]
 mod post_process_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/camera_scripted_movement_tests.rs"]
+mod scripted_movement_tests;
