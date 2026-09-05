@@ -85,9 +85,26 @@ Alpha normalization accounts for approximately 35% of this repeat's tile-applica
 
 The repeat ended connected with the destination loaded. Three separate requests for missing `(30,47)`, `(30,48)`, and `(30,49)` roots failed; they are not a failure to load `(31,48)`. The approximately 2.6-second excess in the original application interval remains unattributed: the repeat timings do not retroactively explain it. No alpha, texture-cache, water-map, or spawning optimization was implemented.
 
+## File-residency hypothesis test
+
+A controlled follow-up on unchanged diagnostic code `7d9e7370` compared a normal crossing with a crossing after `POSIX_FADV_DONTNEED` hints on the 147 BLP paths previously loaded during application. `fincore` verified reported residency before and after; no files were deleted, no global cache drop or kernel setting was used, and file sizes/mtimes remained unchanged. The files total 7,775,564 logical bytes; resident counts are page-rounded.
+
+| Case | Resident bytes immediately before/after hints | Tile application | BLP file reads | BLP alpha normalization |
+|---|---:|---:|---:|---:|
+| Control, no hints | 2,416,640 → 2,416,640 | 317.072 ms | 18.531 ms | 107.595 ms |
+| Target BLP files evicted | 7,897,088 → 0 | 313.629 ms | 23.303 ms | 105.588 ms |
+
+Both cases recorded 156 BLP loads. The control was only partially resident, not a fully warm baseline. This experiment rejects lack of residency in these target BLP files **as a sufficient explanation under the tested conditions**; it does not rule out other file/code pages, allocator state, or host contention during the original run.
+
+Per-thread sampling brackets were approximately 411 ms, wider than application itself. The busiest Compute Task Pool thread accrued approximately 330/340 ms CPU time in the control/evicted cases, with zero observed major faults. These are bracketing observations, not exact exclusive stage CPU times. Scheduler statistics were disabled (`sched_schedstats=0`) and remained disabled, so stored runqueue counters must not be treated as active wait-time evidence.
+
+The original raw log also recorded only three movement-system frames between the pre-stall report and the report after tile spawning, across approximately 3.2 seconds. That supports a real client-update stall rather than merely slow CLI startup. The original and repeat logs report the same eight WMO roots/group counts, 1,990 WMO collision meshes, and 520 doodad colliders; overall NPC/asset counts nevertheless varied.
+
+The extra requests for `(30,47)`, `(30,48)`, and `(30,49)` are expected server 3×3-neighborhood requests when its player crosses into row 31, not proof that the intended tile was wrong. Source inspection additionally found render-frame-rate-dependent input emission and server movement applied once per received packet; no protocol or reconciliation fix was made. The original approximately 3.12-second stall remains open in `PLAN.md`.
+
 ## Sources
 
-- [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree and `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}` for the measured subcosts.
+- [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree, `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}`, and `tile-attribution/file-residency/{summary.json,control/,target-blp-evicted/}` for measured subcosts and residency controls.
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.

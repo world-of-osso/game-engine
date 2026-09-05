@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] experiment | Target BLP residency does not reproduce the stall
+
+Updated [[movement-performance]] with a per-file cache-advice control, verified residency changes, and bracketing CPU/fault observations. Target BLP residency alone did not reproduce the original delay. The original stall remains open in `PLAN.md`; no optimisation, global kernel-setting change, or asset-content change was made.
+
 ## [2026-09-05] measurement | Split repeat tile application into stages
 
 Updated [[movement-performance]] with gated timing output from `7d9e7370`: 316.465 ms total application, including 159.696 ms doodads, 132.490 ms WMOs, and 22.125 ms terrain water. Nested BLP timings record 110.015 ms alpha normalization across 156 loads. This identifies repeat CPU subcosts, not the cause of the original additional delay; no optimization was implemented.
