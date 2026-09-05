@@ -409,17 +409,19 @@ fn player_movement(
     let proposed =
         build_proposed_ground_movement(current_position, direction, speed, movement_delta);
     let mut collision_elapsed = Duration::ZERO;
+    let mut after_wmo = None;
     let proposed_after_collision = proposed.map(|proposed| {
         let collision_start = perf.section_start();
-        let after_wmo = collision::clamp_movement_against_wmo_meshes(
+        let wmo_clamped = collision::clamp_movement_against_wmo_meshes(
             current_position,
             proposed,
             &mut ray_cast,
             &collision_meshes,
         );
+        after_wmo = Some(wmo_clamped);
         let after_doodads = collision::clamp_movement_against_doodad_colliders(
             current_position,
-            after_wmo,
+            wmo_clamped,
             &doodad_colliders,
         );
         collision_elapsed = perf.elapsed_since(collision_start);
@@ -442,6 +444,10 @@ fn player_movement(
     perf.record(MovementPerfSample {
         frame_start: perf_start,
         moving: proposed.is_some(),
+        proposed_distance: distance_from(current_position, proposed),
+        wmo_distance: distance_from(current_position, after_wmo),
+        doodad_distance: distance_from(current_position, proposed_after_collision),
+        applied_distance: transform.translation.distance(current_position),
         wmo_meshes: collision_meshes.len(),
         doodad_colliders: doodad_colliders.len(),
         pathing_elapsed,
@@ -481,6 +487,10 @@ struct MovementPerfProbe {
     max_pathing_time: Duration,
     total_collision_time: Duration,
     max_collision_time: Duration,
+    total_proposed_distance: f32,
+    total_wmo_distance: f32,
+    total_doodad_distance: f32,
+    total_applied_distance: f32,
     last_wmo_meshes: usize,
     last_doodad_colliders: usize,
 }
@@ -488,6 +498,10 @@ struct MovementPerfProbe {
 struct MovementPerfSample {
     frame_start: Option<Instant>,
     moving: bool,
+    proposed_distance: f32,
+    wmo_distance: f32,
+    doodad_distance: f32,
+    applied_distance: f32,
     wmo_meshes: usize,
     doodad_colliders: usize,
     pathing_elapsed: Duration,
@@ -521,6 +535,10 @@ impl MovementPerfProbe {
         self.max_pathing_time = self.max_pathing_time.max(sample.pathing_elapsed);
         self.total_collision_time += sample.collision_elapsed;
         self.max_collision_time = self.max_collision_time.max(sample.collision_elapsed);
+        self.total_proposed_distance += sample.proposed_distance;
+        self.total_wmo_distance += sample.wmo_distance;
+        self.total_doodad_distance += sample.doodad_distance;
+        self.total_applied_distance += sample.applied_distance;
         self.last_wmo_meshes = sample.wmo_meshes;
         self.last_doodad_colliders = sample.doodad_colliders;
         self.report_if_due(frame_start);
@@ -543,9 +561,13 @@ impl MovementPerfProbe {
             return;
         }
         eprintln!(
-            "movement_perf frames={} moving={} frame_avg_us={} frame_max_us={} pathing_avg_us={} pathing_max_us={} collision_avg_us={} collision_max_us={} wmo_meshes={} doodad_colliders={}",
+            "movement_perf frames={} moving={} proposed_distance={:.3} wmo_distance={:.3} doodad_distance={:.3} applied_distance={:.3} frame_avg_us={} frame_max_us={} pathing_avg_us={} pathing_max_us={} collision_avg_us={} collision_max_us={} wmo_meshes={} doodad_colliders={}",
             self.frames,
             self.moving_frames,
+            self.total_proposed_distance,
+            self.total_wmo_distance,
+            self.total_doodad_distance,
+            self.total_applied_distance,
             average_micros(self.total_frame_time, self.frames),
             duration_micros(self.max_frame_time),
             average_micros(self.total_pathing_time, self.frames),
@@ -568,7 +590,15 @@ impl MovementPerfProbe {
         self.max_pathing_time = Duration::ZERO;
         self.total_collision_time = Duration::ZERO;
         self.max_collision_time = Duration::ZERO;
+        self.total_proposed_distance = 0.0;
+        self.total_wmo_distance = 0.0;
+        self.total_doodad_distance = 0.0;
+        self.total_applied_distance = 0.0;
     }
+}
+
+fn distance_from(current: Vec3, position: Option<Vec3>) -> f32 {
+    position.map_or(0.0, |position| position.distance(current))
 }
 
 fn average_micros(duration: Duration, samples: u32) -> u128 {
