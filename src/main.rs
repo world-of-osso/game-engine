@@ -442,12 +442,25 @@ fn insert_startup_resources(
     }
     insert_screen_resources(app, args);
     insert_m2_effect_uv_update_resource(app, args);
+    insert_terrain_material_freeze_resource(app, args);
     insert_data_resources(app);
 }
 
 fn insert_m2_effect_uv_update_resource(app: &mut App, args: &[String]) {
     if has_flag(args, "--disable-m2-effect-uv-updates") {
         app.insert_resource(m2_effect_material::M2EffectUvUpdatesEnabled(false));
+    }
+}
+
+fn insert_terrain_material_freeze_resource(app: &mut App, args: &[String]) {
+    match parse_u32_flag(args, "--freeze-terrain-materials-after") {
+        Ok(Some(seconds)) => {
+            app.insert_resource(terrain_material::TerrainMaterialFreezeAfter(
+                Duration::from_secs(u64::from(seconds)),
+            ));
+        }
+        Ok(None) => {}
+        Err(err) => exit_with_arg_parse_error(&err),
     }
 }
 

@@ -256,6 +256,9 @@ pub fn print_help() {
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --world-builder     Enable the in-world scene diagnostic sidebar (F9 toggles)");
     println!("  --disable-m2-effect-uv-updates  Disable M2 effect UV animation updates");
+    println!(
+        "  --freeze-terrain-materials-after <SECONDS>  Freeze terrain time/environment updates after startup elapsed time (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -311,8 +314,15 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             continue;
         }
         match args[i].as_str() {
-            "--server" | "--state" | "--screen" | "--char" | "--load-scene" | "--skybox-fdid"
-            | "--light-skybox-id" | "--skybox-time-ms" => {
+            "--server"
+            | "--state"
+            | "--screen"
+            | "--char"
+            | "--load-scene"
+            | "--skybox-fdid"
+            | "--light-skybox-id"
+            | "--skybox-time-ms"
+            | "--freeze-terrain-materials-after" => {
                 i += 2;
             }
             "--login-dev-admin" => {

@@ -69,6 +69,34 @@ fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
 }
 
 #[test]
+fn terrain_material_freeze_startup_config_is_opt_in() {
+    let mut app = App::new();
+    insert_terrain_material_freeze_resource(&mut app, &args(&[]));
+    assert!(
+        app.world()
+            .get_resource::<terrain_material::TerrainMaterialFreezeAfter>()
+            .is_none()
+    );
+
+    let flags = args(&["--freeze-terrain-materials-after", "30"]);
+    insert_terrain_material_freeze_resource(&mut app, &flags);
+    assert_eq!(
+        app.world()
+            .resource::<terrain_material::TerrainMaterialFreezeAfter>()
+            .0,
+        Duration::from_secs(30)
+    );
+    assert!(parse_asset_path_from_args(&flags).is_none());
+    assert!(
+        parse_u32_flag(
+            &args(&["--freeze-terrain-materials-after", "-1"]),
+            "--freeze-terrain-materials-after"
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn parse_inworld_scene_stage_rejects_unknown_values() {
     let error = parse_inworld_scene_stage_arg(&args(&["--inworld-stage", "everything"]))
         .expect_err("unknown stage must fail");

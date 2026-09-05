@@ -11,6 +11,12 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
 - [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
+### Terrain-material diagnostic
+
+- [x] Accept opt-in `--freeze-terrain-materials-after <SECONDS>` (unsigned integer): after that startup real-time deadline, stop terrain animation-time and environment-map material updates together. Preserve the material assets, last values, terrain drawing, and all other material systems.
+- [x] Report the first frozen update with elapsed time, configured deadline, and material count. Without the option, preserve existing updates.
+- [x] Use only for a settled-scene comparison with terrain already loaded before the deadline. Animated terrain textures and environment-map synchronization remain frozen afterward; newly loaded tiles are not part of this diagnostic. Remove the selector when the experiment is retired.
+
 ### Plugin registration
 
 - [x] In exact configured `InWorldSceneStage::Empty`, disable Bevy `LightPlugin` together with `GizmoPlugin` and `GizmoRenderPlugin` so nested `LightGizmoPlugin` resources are not recreated.
