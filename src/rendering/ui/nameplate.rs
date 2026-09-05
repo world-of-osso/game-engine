@@ -354,6 +354,21 @@ mod tests {
     use super::*;
 
     #[test]
+    fn no_npcs_ui_skips_replicated_npc_nameplate_creation() {
+        for (selector, expected_count) in [("ui", 1), ("no-npcs-ui", 0)] {
+            let mut app = App::new();
+            app.insert_resource(InWorldSceneStage::parse(selector).expect("valid selector"));
+            app.add_observer(spawn_npc_nameplate);
+            let npc = app.world_mut().spawn(Npc { template_id: 1642 }).id();
+            app.update();
+
+            let mut nameplates = app.world_mut().query_filtered::<Entity, With<Nameplate>>();
+            assert_eq!(nameplates.iter(app.world()).count(), expected_count);
+            assert!(app.world().get::<Npc>(npc).is_some());
+        }
+    }
+
+    #[test]
     fn test_player_nameplate_color() {
         // Player nameplates should be white.
         let color = Color::WHITE;

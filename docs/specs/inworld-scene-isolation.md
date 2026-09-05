@@ -8,6 +8,8 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 
 - [x] Preserve the full existing scene when no `InWorldSceneStage` resource is configured.
 - [x] Keep stages cumulative from `Empty` through `Ui`.
+- [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
+- [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
 ### Plugin registration
 

@@ -244,7 +244,7 @@ pub fn print_help() {
     );
     println!("  --char <NAME>       Pick character by name (with --screen inworld)");
     println!(
-        "  --inworld-stage <STAGE>  Cumulative scene isolation: empty, character, skybox, terrain, npcs, lighting, particles, ui"
+        "  --inworld-stage <STAGE>  Scene isolation: empty, character, skybox, terrain, npcs, lighting, particles, ui; no-npcs-ui keeps the full scene except remote visuals and game UI/nameplates"
     );
     println!("  --load-scene <PATH> Load a saved semantic scene snapshot");
     println!("  --skybox-fdid <ID>  Force skyboxdebug to load a specific skybox FileDataID");

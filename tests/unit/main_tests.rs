@@ -45,6 +45,30 @@ fn parse_inworld_scene_stage_supports_cumulative_stages() {
 }
 
 #[test]
+fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
+    let stage = parse_inworld_scene_stage_arg(&args(&["--inworld-stage", "no-npcs-ui"]))
+        .expect("no-npcs-ui selector must parse")
+        .expect("no-npcs-ui selector must configure a stage");
+
+    assert!(stage.includes(InWorldSceneStage::Character));
+    assert!(stage.includes(InWorldSceneStage::Skybox));
+    assert!(stage.includes(InWorldSceneStage::Terrain));
+    assert!(stage.includes(InWorldSceneStage::Lighting));
+    assert!(stage.includes(InWorldSceneStage::Particles));
+    assert!(!stage.includes(InWorldSceneStage::Npcs));
+    assert!(!stage.includes(InWorldSceneStage::Ui));
+
+    let mut app = App::new();
+    app.insert_resource(stage);
+    apply_inworld_scene_stage_ui_gates(&mut app);
+
+    use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
+    assert!(!app.world().resource::<UiProcessingEnabled>().0);
+    assert!(!app.world().resource::<UiRenderEnabled>().0);
+    assert!(!app.world().resource::<UiTextRenderEnabled>().0);
+}
+
+#[test]
 fn parse_inworld_scene_stage_rejects_unknown_values() {
     let error = parse_inworld_scene_stage_arg(&args(&["--inworld-stage", "everything"]))
         .expect_err("unknown stage must fail");

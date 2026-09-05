@@ -10,6 +10,7 @@ pub(crate) enum InWorldSceneStage {
     Lighting,
     Particles,
     Ui,
+    NoNpcsUi,
 }
 
 impl InWorldSceneStage {
@@ -23,13 +24,17 @@ impl InWorldSceneStage {
             "lighting" => Ok(Self::Lighting),
             "particles" => Ok(Self::Particles),
             "ui" => Ok(Self::Ui),
+            "no-npcs-ui" => Ok(Self::NoNpcsUi),
             _ => Err(format!(
-                "unknown InWorld stage '{value}'; expected empty, character, skybox, terrain, npcs, lighting, particles, or ui"
+                "unknown InWorld stage '{value}'; expected empty, character, skybox, terrain, npcs, lighting, particles, ui, or no-npcs-ui"
             )),
         }
     }
 
     pub(crate) fn includes(self, required: Self) -> bool {
+        if self == Self::NoNpcsUi {
+            return !matches!(required, Self::Npcs | Self::Ui);
+        }
         self >= required
     }
 }
