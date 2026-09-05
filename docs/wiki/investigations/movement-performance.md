@@ -116,6 +116,22 @@ A subsequent CPU leaf profile had approximately 3,000 readable samples and zero 
 
 The next untested candidate is terrain-material modification churn. Both `update_terrain_animation_time` and `sync_terrain_environment_map` iterate mutable terrain assets; Bevy 0.19 queues `AssetEvent::Modified` for every yielded asset even when the environment handle comparison makes no assignment. With 256 terrain materials, stopping only the time writer would leave the second source of modification events. A settled-scene freeze of both systems can isolate this candidate without removing terrain rendering. Commit `4ab3deb6` adds opt-in `--freeze-terrain-materials-after <SECONDS>`: normal startup updates continue until a `Time<Real>` deadline, then both systems are gated off together and log the cutoff with elapsed time, deadline, and material count. It retains terrain material assets and their last time/environment values; terrain rendering, textures, lighting, particles, and other material systems remain active. This intentionally freezes animated terrain UVs and future environment-map synchronization, so it applies only after a settled scene has loaded. Focused tests (3/3) and the build passed; runtime comparison is pending. No production optimization is established.
 
+### Controlled terrain-material freeze
+
+On diagnostic code `4ab3deb6`, the main-thread-controlled run kept the same client, view, terrain objects, lighting, particles, and `no-npcs-ui` exclusions. At a logged real-time deadline of **60.006 seconds**, both terrain-material writers stopped for **256 materials**, retaining their current values and handles. Eight focused samples before the cutoff averaged **19.87 FPS / 50.67 ms**; eight after averaged **67.80 FPS / 16.17 ms**, including a 30.88-FPS low outlier. Screenshots retain the same visible geometry. This is evidence of substantial cost from the terrain-material update path in that scene, not proof that it explains every reported 10-FPS episode. Normal updates were restored afterward; no production optimization was applied.
+
+Artifacts: `settled-low-fps/terrain-freeze-case/{before,after,freeze-event,result,requests}.json`, `before.webp`, and `after.webp`. An earlier worker-run 35-second capture had only two pre-cutoff samples and is not substituted for this main-controlled comparison.
+
+### Terrain without world objects
+
+The user's next requested run retained normal terrain-material updates and added `--no-terrain-objects` to `--inworld-stage no-npcs-ui`. Code `d289a685` disables streamed `_obj*` companion loading, M2/WMO preloading and spawning, and later object-LOD loading; it does not merely hide objects after loading them. Terrain meshes/textures, water, lighting, and particles retain their existing paths.
+
+Client PID `3700518`, SHA256 `1e6cc3a2394eb908965049f94d511411565ff83a960c1abaaf0ce53f114c7327`, remained connected at XZ `(-9016,-9.75)` with one loaded tile, no pending loads, an empty game-UI tree, **zero WMO collision meshes / zero doodad colliders**, and **256 terrain materials**. Mesh assets fell from the preceding object-loaded snapshot's 3,458 to 362; standard materials fell from 3,091 to 1. User observed approximately 60 FPS. Ten IPC samples ranged **18.99–67.82 FPS**, mean **54.41 FPS**; four reported focused and six unfocused, so this is not a fully focus-controlled benchmark.
+
+Screenshots show a dark, close-up/sloped terrain view rather than a representative outdoor vista; this limits generalization. The terrain-only screenshot removes the object foliage seen in the preceding capture. Object-related work is a remaining cost candidate, but this run does not distinguish drawing, material preparation, animation, transforms, or other object processing. Neither this result nor the separate material-freeze result resolves the original tile hitch.
+
+Artifacts: `settled-low-fps/no-objects-case/{identity,performance}.json`, `terrain.txt`, `ui.txt`, `tree.txt`, `client/stderr.log`, and `terrain-only.webp`. Behavioral tests cover actual file-backed terrain/placement parsing, empty disabled preloads, default loading, CLI selection, and suppressed object-LOD reload decisions.
+
 ## Sources
 
 - [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree, `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}`, and `tile-attribution/file-residency/{summary.json,control/,target-blp-evicted/}` for measured subcosts and residency controls.

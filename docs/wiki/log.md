@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] measurement | Terrain-material freeze and object-free isolation
+
+Updated [[movement-performance]] with the main-controlled 256-material freeze (19.87→67.80 mean FPS), normal-update restoration, and requested object-free terrain run (user ~60 FPS; IPC mean54.41 with mixed focus). Recorded zero object colliders, reduced asset counts, close-up-view limitations, and unresolved attribution. No production optimization or tile-hitch resolution claimed.
+
 ## [2026-09-05] diagnostic | Add timed terrain-material freeze selector
 
 Updated [[movement-performance]] for `4ab3deb6` (`Add timed terrain material freeze diagnostic`). Optional `--freeze-terrain-materials-after <SECONDS>` keeps normal startup updates, then gates terrain animation-time and environment-map synchronization together using `Time<Real>` while retaining loaded terrain material values and rendering. This isolates `Assets::iter_mut` modification churn; it intentionally freezes animated terrain and later environment-map changes. Focused tests **3/3** and build passed; no runtime comparison or performance claim yet.
