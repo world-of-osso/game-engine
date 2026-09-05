@@ -15,6 +15,53 @@ use crate::terrain_objects::WmoLocalSkybox;
 use game_engine::culling::{Wmo, WmoGroup};
 
 #[test]
+fn water_skybox_isolation_removes_dome_without_removing_camera_or_light() {
+    for disabled in [false, true] {
+        let mut app = App::new();
+        app.add_systems(PostUpdate, remove_disabled_sky_domes);
+        if disabled {
+            app.insert_resource(SkyboxVisualsDisabled);
+        }
+        let camera = app.world_mut().spawn(Camera3d::default()).id();
+        let light = app.world_mut().spawn(DirectionalLight::default()).id();
+        let dome = app.world_mut().spawn(SkyDome).id();
+        app.update();
+
+        assert_eq!(app.world().get_entity(dome).is_ok(), !disabled);
+        assert!(app.world().get::<Camera3d>(camera).is_some());
+        assert!(app.world().get::<DirectionalLight>(light).is_some());
+    }
+}
+
+#[test]
+fn water_skybox_isolation_disables_visual_gate_only() {
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = App::new();
+    assert!(
+        app.world_mut()
+            .run_system_once(skybox_visuals_enabled)
+            .unwrap()
+    );
+    app.insert_resource(SkyboxVisualsDisabled);
+    assert!(
+        !app.world_mut()
+            .run_system_once(skybox_visuals_enabled)
+            .unwrap()
+    );
+
+    let mut time = Time::<()>::default();
+    time.advance_by(Duration::from_secs(1));
+    app.insert_resource(time);
+    app.insert_resource(GameTime {
+        minutes: 100.0,
+        speed: 1.0,
+    });
+    app.world_mut().run_system_once(advance_game_time).unwrap();
+    assert_eq!(app.world().resource::<GameTime>().minutes, 101.0);
+}
+
+#[test]
 fn game_time_to_clock() {
     assert_eq!(format_game_clock(1440.0), "12:00");
     assert_eq!(format_game_clock(720.0), "06:00");

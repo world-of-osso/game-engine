@@ -590,6 +590,26 @@ fn time_speed_controls(keys: Res<ButtonInput<KeyCode>>, mut game_time: ResMut<Ga
 
 pub struct SkyPlugin;
 
+#[derive(Resource)]
+pub(crate) struct SkyboxVisualsDisabled;
+
+fn skybox_visuals_enabled(disabled: Option<Res<SkyboxVisualsDisabled>>) -> bool {
+    disabled.is_none()
+}
+
+fn remove_disabled_sky_domes(
+    mut commands: Commands,
+    disabled: Option<Res<SkyboxVisualsDisabled>>,
+    domes: Query<Entity, With<SkyDome>>,
+) {
+    if disabled.is_none() {
+        return;
+    }
+    for dome in &domes {
+        commands.entity(dome).despawn();
+    }
+}
+
 fn sky_scene_active(state: Res<State<GameState>>) -> bool {
     matches!(state.get(), GameState::InWorld | GameState::CharSelect)
 }
@@ -598,7 +618,7 @@ fn register_inworld_systems(app: &mut App) {
     let iw = in_state(GameState::InWorld);
     app.add_systems(
         Update,
-        advance_game_time
+        (advance_game_time, time_speed_controls)
             .run_if(iw.clone())
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_skybox),
     );
@@ -609,10 +629,10 @@ fn register_inworld_systems(app: &mut App) {
             sync_inworld_authored_skybox,
             update_inworld_skybox_transition.after(sync_inworld_authored_skybox),
             sync_inworld_skybox_to_camera.after(update_inworld_skybox_transition),
-            time_speed_controls,
         )
             .run_if(iw)
-            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_skybox),
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_skybox)
+            .run_if(skybox_visuals_enabled),
     );
     app.add_systems(OnExit(GameState::InWorld), teardown_inworld_skybox);
 }
@@ -673,6 +693,7 @@ impl Plugin for SkyPlugin {
             keyframes.len()
         );
         app.add_plugins(MaterialPlugin::<SkyMaterial>::default())
+            .add_systems(PostUpdate, remove_disabled_sky_domes)
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
             .add_systems(Startup, init_procedural_cloud_maps)

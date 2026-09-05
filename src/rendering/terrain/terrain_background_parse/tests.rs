@@ -3,9 +3,9 @@ use super::*;
 struct FixtureDirectory(PathBuf);
 
 impl FixtureDirectory {
-    fn create() -> Self {
+    fn create(label: &str) -> Self {
         let path = std::env::temp_dir().join(format!(
-            "game-engine-terrain-object-isolation-{}",
+            "game-engine-terrain-isolation-{label}-{}",
             std::process::id()
         ));
         std::fs::create_dir(&path).expect("isolated terrain fixture directory");
@@ -26,7 +26,7 @@ impl Drop for FixtureDirectory {
 
 #[test]
 fn no_terrain_objects_preserves_terrain_without_companion_preloads() {
-    let directory = FixtureDirectory::create();
+    let directory = FixtureDirectory::create("objects");
     let root = directory.0.join("azeroth_31_48.adt");
     std::fs::copy("data/terrain/777827.adt", &root).expect("cached terrain fixture");
     let mut objects = Vec::new();
@@ -42,6 +42,7 @@ fn no_terrain_objects_preserves_terrain_without_companion_preloads() {
         root.clone(),
         DoodadLod::Full,
         true,
+        true,
     )
     .expect("terrain with object companion");
     let placements = enabled.obj_data.as_ref().expect("object companion loaded");
@@ -52,7 +53,7 @@ fn no_terrain_objects_preserves_terrain_without_companion_preloads() {
     assert!(enabled.preloaded_doodads[0].is_none());
     assert!(enabled.preloaded_wmos[0].is_none());
 
-    let disabled = build_parsed_tile("azeroth".into(), 31, 48, root, DoodadLod::Full, false)
+    let disabled = build_parsed_tile("azeroth".into(), 31, 48, root, DoodadLod::Full, false, true)
         .expect("terrain without object loading");
     assert!(disabled.obj_data.is_none());
     assert!(disabled.preloaded_doodads.is_empty());
@@ -81,6 +82,46 @@ fn no_terrain_objects_preserves_terrain_without_companion_preloads() {
             .attribute(Mesh::ATTRIBUTE_POSITION)
             .unwrap()
             .as_float3(),
+    );
+}
+
+#[test]
+fn water_skybox_isolation_omits_water_but_preserves_terrain() {
+    let directory = FixtureDirectory::create("water");
+    let root = directory.0.join("azeroth_31_48.adt");
+    std::fs::copy("data/terrain/777827.adt", &root).expect("cached water-bearing terrain");
+    let enabled = build_parsed_tile(
+        "azeroth".into(),
+        31,
+        48,
+        root.clone(),
+        DoodadLod::Full,
+        false,
+        true,
+    )
+    .expect("normal water-bearing terrain");
+    assert!(enabled.adt_data.water.is_some());
+
+    let disabled = build_parsed_tile(
+        "azeroth".into(),
+        31,
+        48,
+        root,
+        DoodadLod::Full,
+        false,
+        false,
+    )
+    .expect("terrain with water disabled");
+    assert!(disabled.adt_data.water.is_none());
+    assert_eq!(disabled.adt_data.chunks.len(), 256);
+    assert_eq!(disabled.adt_data.height_grids.len(), 256);
+    assert_eq!(
+        disabled.adt_data.chunk_positions,
+        enabled.adt_data.chunk_positions
+    );
+    assert_eq!(
+        disabled.adt_data.center_surface,
+        enabled.adt_data.center_surface
     );
 }
 

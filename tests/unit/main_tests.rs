@@ -69,6 +69,26 @@ fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
 }
 
 #[test]
+fn water_skybox_isolation_startup_flags_are_opt_in() {
+    let mut app = App::new();
+    app.init_resource::<terrain::AdtManager>();
+    configure_water_and_skybox_isolation(&mut app, &args(&[]));
+    assert!(app.world().resource::<terrain::AdtManager>().load_water);
+    assert!(
+        !app.world()
+            .contains_resource::<sky::SkyboxVisualsDisabled>()
+    );
+
+    configure_water_and_skybox_isolation(&mut app, &args(&["--no-terrain-water", "--no-skybox"]));
+    assert!(!app.world().resource::<terrain::AdtManager>().load_water);
+    assert!(
+        app.world()
+            .contains_resource::<sky::SkyboxVisualsDisabled>()
+    );
+    assert!(app.world().resource::<terrain::AdtManager>().load_objects);
+}
+
+#[test]
 fn no_terrain_objects_startup_flag_keeps_default_loading_unchanged() {
     let mut app = App::new();
     app.init_resource::<terrain::AdtManager>();

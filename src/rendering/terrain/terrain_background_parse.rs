@@ -14,6 +14,7 @@ pub(super) fn parse_tile_background(
     adt_path: PathBuf,
     lod: DoodadLod,
     load_objects: bool,
+    load_water: bool,
 ) -> TileLoadResult {
     let start_mem = crate::terrain_memory_debug::current_process_memory_kb();
     log_tile_background_parse_start(tile_y, tile_x, &adt_path, lod, &start_mem);
@@ -24,6 +25,7 @@ pub(super) fn parse_tile_background(
         adt_path,
         lod,
         load_objects,
+        load_water,
     ) {
         Ok(parsed) => parsed,
         Err(error) => {
@@ -46,8 +48,12 @@ fn build_parsed_tile(
     adt_path: PathBuf,
     lod: DoodadLod,
     load_objects: bool,
+    load_water: bool,
 ) -> Result<ParsedTile, String> {
-    let adt_data = load_parsed_adt_data(tile_y, tile_x, &adt_path)?;
+    let mut adt_data = load_parsed_adt_data(tile_y, tile_x, &adt_path)?;
+    if !load_water {
+        adt_data.water = None;
+    }
     let tex_data = load_parsed_tile_textures(tile_y, tile_x, &adt_path, &adt_data);
     let obj_data = if load_objects {
         load_parsed_tile_objects(tile_y, tile_x, &adt_path, lod)

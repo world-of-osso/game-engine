@@ -11,6 +11,12 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
 - [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
+### Water and skybox diagnostics
+
+- [x] Accept opt-in `--no-terrain-water`: omit streamed ADT water surfaces and water-height registration while preserving terrain geometry/textures. Combine with `--no-terrain-objects` to exclude WMO liquids too.
+- [x] Accept opt-in `--no-skybox`: suppress sky-dome entities and authored InWorld skybox visual loading/updates. Preserve the camera, game-time progression/controls, directional/ambient lighting, fog, and environment-map lighting.
+- [x] Preserve normal behavior without these flags. These are visual-isolation controls, not a minimal renderer: shared sky/cloud resources and empty material plugins may remain initialized.
+
 ### Terrain-object diagnostic
 
 - [x] Accept opt-in `--no-terrain-objects`: skip `_obj*` companion parsing, doodad/WMO preloads, object spawning, and later object-LOD swaps. Preserve root terrain, `_tex0` materials, water, heightmap registration, networking, terrain streaming, lighting, particles, and non-object scene behavior.

@@ -211,6 +211,7 @@ fn dispatch_single_tile(
 
     let lod = tile_lod_for_distance(ty, tx, center_y, center_x);
     let load_objects = adt_manager.load_objects;
+    let load_water = adt_manager.load_water;
     adt_manager.pending.insert((ty, tx));
     let tx_chan = adt_manager.tile_tx.clone();
     let map_name = adt_manager.map_name.clone();
@@ -227,6 +228,7 @@ fn dispatch_single_tile(
                     path,
                     lod,
                     load_objects,
+                    load_water,
                 ))
                 .ok();
         });

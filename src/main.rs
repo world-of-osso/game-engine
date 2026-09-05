@@ -444,12 +444,24 @@ fn insert_startup_resources(
     insert_m2_effect_uv_update_resource(app, args);
     insert_terrain_material_freeze_resource(app, args);
     configure_terrain_object_loading(app, args);
+    configure_water_and_skybox_isolation(app, args);
     insert_data_resources(app);
 }
 
 fn insert_m2_effect_uv_update_resource(app: &mut App, args: &[String]) {
     if has_flag(args, "--disable-m2-effect-uv-updates") {
         app.insert_resource(m2_effect_material::M2EffectUvUpdatesEnabled(false));
+    }
+}
+
+fn configure_water_and_skybox_isolation(app: &mut App, args: &[String]) {
+    if has_flag(args, "--no-terrain-water") {
+        app.world_mut()
+            .resource_mut::<terrain::AdtManager>()
+            .load_water = false;
+    }
+    if has_flag(args, "--no-skybox") {
+        app.insert_resource(sky::SkyboxVisualsDisabled);
     }
 }
 

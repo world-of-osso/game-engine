@@ -143,6 +143,8 @@ pub struct AdtManager {
     pub load_radius: u32,
     /// Whether background tile loads include object companions and object spawns.
     pub(crate) load_objects: bool,
+    /// Include terrain water surfaces in streamed tiles.
+    pub(crate) load_water: bool,
     /// Tile coordinates of the initially loaded tile.
     pub initial_tile: (u32, u32),
     /// Whether we've already reported that the initial terrain load finished.
@@ -164,6 +166,7 @@ impl Default for AdtManager {
             tile_tx,
             load_radius: 0,
             load_objects: true,
+            load_water: true,
             initial_tile: (0, 0),
             initial_load_reported: false,
         }

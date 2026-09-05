@@ -262,6 +262,10 @@ pub fn print_help() {
     println!(
         "  --freeze-terrain-materials-after <SECONDS>  Freeze terrain time/environment updates after startup elapsed time (diagnostic)"
     );
+    println!("  --no-terrain-water  Skip streamed ADT water surfaces (diagnostic)");
+    println!(
+        "  --no-skybox         Disable skybox visuals, retaining lighting/fog/IBL (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
