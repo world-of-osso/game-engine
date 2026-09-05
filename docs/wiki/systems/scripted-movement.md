@@ -1,6 +1,6 @@
 # Scripted Movement
 
-`ScriptedMovement` provides finite, repeatable forward movement for connected performance runs without desktop input injection or teleportation.
+`ScriptedMovement` provides finite, repeatable forward movement for connected performance runs without desktop input injection or teleportation. `game-engine-cli movement forward --seconds N [--yaw-degrees D]` sends `ScriptedMovementForward { duration_secs, heading_degrees }`; `movement stop` sends `ScriptedMovementStop`.
 
 ## Behavior
 
@@ -12,15 +12,18 @@ Each frame consumes at most the remaining segment time, so the final movement st
 
 ## Measurement boundary
 
-This system makes a route reproducible; it does not establish a performance result. The September 5 movement investigation has no valid moving-frame comparison yet: waypoint attempts did not displace the player, and the scripted IPC/CLI route still requires connected-runtime proof.
+This system makes a route reproducible; it does not establish a performance result. The September 5 movement investigation has no valid moving-frame comparison yet: waypoint attempts did not displace the player, and scripted control still requires connected-runtime displacement proof.
 
 ## Sources
 
 - [scripted movement spec](../../specs/scripted-movement.md) — user-facing contract and exclusions
 - [movement state](../../../src/movement_control.rs) — duration, heading, and step semantics
 - [camera movement](../../../src/rendering/camera/camera.rs) — normal movement-path integration and cancellation
-- [movement-state tests](../../../tests/unit/movement_control_tests.rs) — validation and clipped-expiry behavior
+- [IPC protocol](../../../src/ipc/mod.rs) and [dispatch](../../../src/ipc/plugin.rs) — InWorld-gated start, waypoint cancellation, and stop
+- [CLI commands](../../../src/bin/game-engine-cli/main.rs) — `movement forward` and `movement stop`
+- [movement-state tests](../../../tests/unit/movement_control_tests.rs) — validation and clipped expiry
 - [camera movement tests](../../../tests/unit/camera_scripted_movement_tests.rs) — normal-path behavior
+- [CLI request tests](../../../src/bin/game-engine-cli/tests/request_world_and_equipment.rs) — command mapping and negative heading parsing
 
 ## See Also
 

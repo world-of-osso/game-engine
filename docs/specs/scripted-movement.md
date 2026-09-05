@@ -4,11 +4,11 @@ Timed client movement provides repeatable performance-test routes without deskto
 
 ## What it must do
 
-- [ ] `movement forward --seconds N [--yaw-degrees D]` starts a finite forward segment in InWorld; `movement stop` cancels it.
-- [ ] Reject nonfinite, nonpositive, or over-60-second durations and nonfinite headings without replacing active playback. Heading is character-facing yaw: zero points along Bevy +Z, 90 degrees along +X.
-- [ ] Preserve normal movement speed, collision, animation direction, and network input. Do not teleport. Clip the final movement step to the remaining duration.
-- [ ] Stop on expiry, explicit stop, manual movement, modal opening, reconnect, or leaving InWorld. Never resume cancelled playback automatically.
-- [ ] Starting a segment clears an existing map waypoint so pathfinding cannot compete with timed movement.
+- [x] `movement forward --seconds N [--yaw-degrees D]` starts a finite forward segment in InWorld; `movement stop` cancels it.
+- [x] Reject nonfinite, nonpositive, or over-60-second durations and nonfinite headings without replacing active playback. Heading is character-facing yaw: zero points along Bevy +Z, 90 degrees along +X.
+- [x] Preserve normal movement speed, collision, animation direction, and network input. Do not teleport. Clip the final movement step to the remaining duration.
+- [x] Stop on expiry, explicit stop, manual movement, modal opening, reconnect, or leaving InWorld. Never resume cancelled playback automatically.
+- [x] Starting a segment clears an existing map waypoint so pathfinding cannot compete with timed movement.
 
 ## How it works
 
@@ -19,18 +19,18 @@ Timed client movement provides repeatable performance-test routes without deskto
 - `src/movement_control.rs` — bounded playback state and time steps.
 - `src/rendering/camera/camera.rs` — normal movement integration and cancellation.
 - `src/ipc/mod.rs`, `src/ipc/plugin.rs` — request protocol and dispatch.
-- `src/bin/game-engine-cli/` — command parsing and transport.
+- `src/bin/game-engine-cli/` — `movement forward` / `movement stop` parsing and IPC transport.
 
 ## Tests asserting this spec
 
 - `tests/unit/movement_control_tests.rs` — duration and heading validation, clipped expiry, stop.
 - `tests/unit/camera_scripted_movement_tests.rs` — displacement, collision, network direction, cancellation.
-- `src/bin/game-engine-cli/tests/` — CLI request behavior.
+- `src/bin/game-engine-cli/tests/request_world_and_equipment.rs` — command mapping and negative heading parsing.
 - `src/ipc/plugin.rs` — InWorld dispatch, validation, waypoint cancellation, stop response.
 
 ## Known gaps (current cycle)
 
-- [ ] Verify an actual live route before using it for performance comparisons.
+- [ ] Demonstrate actual connected-runtime displacement before using scripted movement for performance comparisons.
 
 ## Out of scope
 

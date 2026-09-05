@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] feature | Record scripted movement IPC controls
+
+Updated [[scripted-movement]] and `docs/specs/scripted-movement.md` for `51456222` (`Add scripted movement IPC controls`). The CLI now exposes `movement forward --seconds N [--yaw-degrees D]` and `movement stop`; IPC carries `ScriptedMovementForward { duration_secs, heading_degrees }` and `ScriptedMovementStop`. Focused proof: CLI **3 passed**, IPC **4 passed**, playback validation **3 passed**, and camera integration **6 passed**. Connected-runtime displacement and a valid moving-frame comparison remain open.
+
 ## [2026-09-05] docs | Record bounded scripted movement
 
 Added [[scripted-movement]], updated [[procedural-cloud-regeneration]], and `index.md` for `15928f4e`, `d3f525ac`, and `6c9d82a3`. Timed forward segments validate duration/heading, clip their final frame, and run through ordinary player movement/collision/networking rather than teleporting. Waypoint attempts at the current spawn did not move the player, so no valid moving-frame comparison exists; connected IPC/CLI displacement proof remains required.
