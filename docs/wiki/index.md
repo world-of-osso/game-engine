@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project. 38 pages across 5 categories.
-Last updated: 2026-08-11.
+Last updated: 2026-09-05.
 
 ## Systems
 
@@ -54,7 +54,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Who idle change-tick correction, and Empty scheduling boundaries; no-sound twelve-window CPU is 9.61% mean / 10.60% max, so the strict gate remains open
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, and September 5 startup parser finding: uncached replicated-NPC M2 loading blocks movement measurement; no movement conclusion yet
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof without comparative FPS evidence
 
 ## Reference

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] investigation | Record startup parser blocker before movement measurement
+
+Updated [[procedural-cloud-regeneration]] and `index.md`. A current-source client could not reach a controlled movement workload: synchronous replicated-NPC visual spawning used `load_m2_uncached` on the main thread. A five-second profile captured 241 samples with zero lost; `read_i16` held 16.60% self cost. A live stack traced `spawn_replicated_npc` through uncached M2 skeleton/animation parsing. The FPS overlay was enabled but retained its empty numeric span (`FPS:`) while IPC timed out. This records a startup blocker only—no movement root cause, fix, or performance claim.
+
 ## [2026-08-11] docs | Record movement performance probe
 
 Updated [[procedural-cloud-regeneration]] for `53a9f66a` (`Add gated movement performance probe`). Recorded `WOO_PERF_MOVEMENT` activation, once-per-second movement/pathing/collision timing and collider-count output, and the absence of any performance conclusion before controlled runtime measurement.

@@ -74,6 +74,20 @@ Across the approximately 10-second passive windows, aggregate CPU changed from `
 
 ## Current In-World Performance Investigation
 
+### 2026-09-05: NPC model parsing blocks movement measurement
+
+No movement workload was measured. A current-source client at `d2e1a36a` spent startup on the main thread spawning replicated NPC visuals, so IPC frame-time requests timed out before a controlled stationary-versus-moving comparison could begin.
+
+A five-second `cpu-clock:u` profile collected 241 samples with zero lost. `game_engine::asset::read_bytes::read_i16` held 16.60% self cost; related primitive M2 readers filled the remaining leading samples. The profile identifies synchronous binary M2 parsing during startup, not a movement-frame hotspot.
+
+A live main-thread stack established the call path: `spawn_replicated_npc` → `try_spawn_npc_model` → `spawn_m2_on_entity_filtered` → `load_m2_uncached` → `load_skel_data` → `parse_bone_animations_at` → quaternion/int16 decoding. `m2_spawn.rs` deliberately calls the uncached loader for this NPC spawn path, so the general model-cache behavior does not prevent these parses.
+
+The FPS overlay setting was enabled, but the captured window showed `FPS:` without a number. Bevy creates the numeric `TextSpan` empty and updates it only after an `Update`-stage FPS diagnostic has a smoothed value. This proves the overlay text was not populated at capture time; together with timed-out IPC and parser-heavy main-thread samples, it supports a startup-progress stall. It does not prove parser work explains every missing-FPS observation.
+
+A separate connected attempt logged Connecting at 08:54:37, token-login processing at 08:56:54, then connection timeout and Loading at 08:56:54. That attempt did not reach a comparable in-world workload. No movement root cause, fix, or performance improvement is claimed.
+
+**Evidence:** `data/diagnostics/movement-perf-20260905/startup-stall.perf-report.txt`; `data/diagnostics/movement-perf-20260905/startup-eu-stack.txt`; `data/diagnostics/movement-perf-20260905/connected-warm2/client.log`; `/tmp/game-engine-fps-missing.png`; `src/rendering/model/m2_spawn.rs`; `src/game/networking/npc.rs`; Bevy `bevy_dev_tools-0.19.0/src/fps_overlay.rs`.
+
 A separate empty-stage investigation found replicated-unit semantic NOOPs before any visual-stage conclusion: the preserved client kept 133 `RemoteEntity` entries (132 NPCs plus one local player), rewrote stable `Transform`/`Visibility` state every frame, and received server payloads caused by equal movement/gravity writes. Fixes are committed in `game-engine` `3c77d346` and `game-server` `2927382`/`ae81c65`; the corrected empty-stage relaunch confirms connectivity and no UI log flood, but supplies no comparative FPS evidence. See [[replicated-unit-noops]].
 
 The enabled UI control measured **12.332 FPS** and **81.157 ms** from six unprofiled `game-engine-cli performance` samples with **71 remote entities** (`game-engine` `00e7b3b0`, `ui-toolkit` `5ead575`). The all-text-disabled diagnostic measured **37.415 FPS** and **26.785 ms** with **76 remote entities** (`game-engine` `6806717c`, `ui-toolkit` `43a2784`). These runs did not use identical revisions or exact workloads. The large delta strongly implicates UI-text-associated rendering with **moderate confidence**, but does not prove that text is the sole cause or identify which text stage owns it.
@@ -246,6 +260,9 @@ After a prospective 30-second warm-up, twelve contiguous passive 10-second windo
 - [status synchronization](../../../src/status_sync.rs) — demand-gated snapshot systems and map refresh
 - [game networking registration](../../../src/game/networking/mod.rs) — duplicate map snapshot registration removal
 - [camera systems](../../../src/rendering/camera/camera.rs) — camera/input/player movement/follow systems and preserved movement instrumentation
+- [NPC model spawning](../../../src/game/networking/npc.rs) — replicated NPC visual spawn path
+- [M2 spawning](../../../src/rendering/model/m2_spawn.rs) — uncached model loading used by NPC visual spawn
+- [M2 animation format](../formats/m2-format.md) — animation-track decoding
 - [in-world stage predicates](../../../src/game/state/inworld_scene_stage.rs) — Character-stage guard and cumulative-stage behavior
 - `/tmp/claude/game-engine-perf/character-stage-guard-red.log`, `character-stage-guard-green.log`, and `character-stage-tests-green.log` — behavioral RED/GREEN evidence
 - `/tmp/claude/game-engine-perf/character-stage-cargo-fmt-check.log` and `character-stage-readability/` — formatting/readability evidence
