@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] diagnostic | Add timed terrain-material freeze selector
+
+Updated [[movement-performance]] for `4ab3deb6` (`Add timed terrain material freeze diagnostic`). Optional `--freeze-terrain-materials-after <SECONDS>` keeps normal startup updates, then gates terrain animation-time and environment-map synchronization together using `Time<Real>` while retaining loaded terrain material values and rendering. This isolates `Assets::iter_mut` modification churn; it intentionally freezes animated terrain and later environment-map changes. Focused tests **3/3** and build passed; no runtime comparison or performance claim yet.
+
 ## [2026-09-05] diagnostic | Add exact NPC and UI isolation selector
 
 Updated [[movement-performance]] for `3d364dc8` (`Add NPC and UI isolation without changing scene lighting`). `--inworld-stage no-npcs-ui` preserves terrain, lighting, particles, local-character policy, networking, and FPS overlay while excluding remote visuals plus game UI/nameplates; selector and nameplate-observer behavior have focused coverage. PID `3510050` did not survive its Pyrun launch, so no runtime FPS result is claimed.
