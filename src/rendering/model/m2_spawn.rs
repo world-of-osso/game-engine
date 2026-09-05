@@ -628,6 +628,10 @@ const PLACEHOLDER_COLORS: &[Color] = &[
 ];
 
 #[cfg(test)]
+#[path = "../../../tests/unit/npc_spawn_loading_tests.rs"]
+mod npc_spawn_loading_tests;
+
+#[cfg(test)]
 mod tests {
     use super::{initial_batch_visibility, skinned_mesh_visibility};
     use bevy::prelude::Visibility;
