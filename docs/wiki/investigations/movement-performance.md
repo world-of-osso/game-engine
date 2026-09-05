@@ -6,7 +6,7 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 The replicated-NPC spawn path synchronously called `load_m2_uncached` on the main thread. A live stack traced it through skeleton/bone-animation parsing; a 241-sample profile lost zero samples. The enabled FPS overlay initially rendered only `FPS:` because its numeric span starts empty and needs an Update diagnostic value.
 
-After cache reuse in `484586ac`, the measured client reached connected InWorld at approximately 22 seconds rather than timing out after approximately 139 seconds. IPC and FPS updates resumed. The regression in `dfb29983` proves identical mesh vertices/indices on a second spawn after removing an isolated source-model copy. These observations establish startup recovery, not a general rendering-speed improvement. Earlier evidence and implementation details remain in [[procedural-cloud-regeneration]].
+After cache reuse in `484586ac`, the measured client reached connected InWorld at approximately 22 seconds rather than timing out after approximately 139 seconds. IPC and FPS updates resumed. The final code-`4a503876` [window capture](../../../data/diagnostics/movement-perf-20260905/fps-final.png) visibly contains `FPS: 44.17`, proving the missing numeric display is restored; that screenshot value is not a performance benchmark. The regression in `dfb29983` proves identical mesh vertices/indices on a second spawn after removing an isolated source-model copy. These observations establish startup recovery, not a general rendering-speed improvement. Earlier evidence and implementation details remain in [[procedural-cloud-regeneration]].
 
 ## Why the first routes could not move
 
