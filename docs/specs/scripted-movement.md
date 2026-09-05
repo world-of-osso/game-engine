@@ -1,6 +1,6 @@
 # Scripted movement
 
-Timed client movement provides repeatable performance-test routes without desktop keyboard injection. Playback lives in `src/movement_control.rs`; the camera movement system consumes it. See the [performance investigation](../wiki/investigations/procedural-cloud-regeneration.md) for measurement context.
+Timed client movement provides repeatable performance-test routes without desktop keyboard injection. Playback lives in `src/movement_control.rs`; the camera movement system consumes it. See the [performance investigation](../wiki/investigations/movement-performance.md) for measurement context.
 
 ## What it must do
 
@@ -12,7 +12,7 @@ Timed client movement provides repeatable performance-test routes without deskto
 
 ## How it works
 
-- [Performance investigation](../wiki/investigations/procedural-cloud-regeneration.md)
+- [Performance investigation](../wiki/investigations/movement-performance.md)
 
 ## Implementation inventory
 
