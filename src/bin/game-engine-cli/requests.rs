@@ -10,8 +10,8 @@ use shared::protocol::{
 use crate::{
     AuctionCmd, BarberCmd, CalendarCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd,
     EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, GuildCmd, IgnoreCmd, InspectCmd, InventoryCmd,
-    ItemCmd, LfgCmd, MailCmd, MapCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd, ReputationCmd,
-    SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
+    ItemCmd, LfgCmd, MailCmd, MapCmd, MovementCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd,
+    ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -354,6 +354,20 @@ pub fn map_request(command: MapCmd) -> Result<Request, String> {
             WaypointCmd::Add { x, y } => Request::MapWaypointAdd { x, y },
             WaypointCmd::Clear => Request::MapWaypointClear,
         },
+    };
+    Ok(request)
+}
+
+pub fn movement_request(command: MovementCmd) -> Result<Request, String> {
+    let request = match command {
+        MovementCmd::Forward {
+            seconds,
+            yaw_degrees,
+        } => Request::ScriptedMovementForward {
+            duration_secs: seconds,
+            heading_degrees: yaw_degrees,
+        },
+        MovementCmd::Stop => Request::ScriptedMovementStop,
     };
     Ok(request)
 }

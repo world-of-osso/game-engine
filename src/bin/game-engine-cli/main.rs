@@ -195,6 +195,11 @@ enum Cmd {
         #[command(subcommand)]
         command: MapCmd,
     },
+    /// Bounded scripted player movement
+    Movement {
+        #[command(subcommand)]
+        command: MovementCmd,
+    },
     /// Runtime equipment rendering controls
     Equipment {
         #[command(subcommand)]
@@ -679,6 +684,17 @@ pub(crate) enum WaypointCmd {
         y: f32,
     },
     Clear,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum MovementCmd {
+    Forward {
+        #[arg(long)]
+        seconds: f32,
+        #[arg(long, allow_hyphen_values = true)]
+        yaw_degrees: Option<f32>,
+    },
+    Stop,
 }
 
 #[derive(Subcommand)]

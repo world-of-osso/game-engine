@@ -286,6 +286,11 @@ pub enum Request {
         y: f32,
     },
     MapWaypointClear,
+    ScriptedMovementForward {
+        duration_secs: f32,
+        heading_degrees: Option<f32>,
+    },
+    ScriptedMovementStop,
     DumpScene {
         filter: Option<String>,
     },

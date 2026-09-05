@@ -26,10 +26,11 @@ Timed client movement provides repeatable performance-test routes without deskto
 - `tests/unit/movement_control_tests.rs` — duration and heading validation, clipped expiry, stop.
 - `tests/unit/camera_scripted_movement_tests.rs` — displacement, collision, network direction, cancellation.
 - `src/bin/game-engine-cli/tests/` — CLI request behavior.
+- `src/ipc/plugin.rs` — InWorld dispatch, validation, waypoint cancellation, stop response.
 
 ## Known gaps (current cycle)
 
-- [ ] Finish IPC integration and verify an actual live route before using it for performance comparisons.
+- [ ] Verify an actual live route before using it for performance comparisons.
 
 ## Out of scope
 

@@ -8,8 +8,9 @@ use super::requests::{
     currency_request, death_request, duel_request, emote_request, equipment_request,
     export_character_request, export_scene_request, friend_request, group_request, guild_request,
     ignore_request, inspect_request, inventory_request, item_request, lfg_request, mail_request,
-    map_request, presence_request, profession_request, pvp_request, quest_request,
-    reputation_request, spell_request, status_request, talent_request, trade_request, who_request,
+    map_request, movement_request, presence_request, profession_request, pvp_request,
+    quest_request, reputation_request, spell_request, status_request, talent_request,
+    trade_request, who_request,
 };
 use super::*;
 
@@ -158,6 +159,7 @@ fn dispatch_world_action_command(socket: &PathBuf, command: Cmd, json: bool) -> 
         Cmd::Collection { command } => handle_collection(socket, command, json),
         Cmd::Profession { command } => handle_profession(socket, command, json),
         Cmd::Map { command } => handle_map(socket, command, json),
+        Cmd::Movement { command } => handle_movement(socket, command, json),
         Cmd::Equipment { command } => handle_equipment(socket, command, json),
         _ => unreachable!("command routed to wrong world/action dispatcher"),
     }
@@ -345,6 +347,11 @@ fn handle_profession(socket: &PathBuf, command: ProfessionCmd, json: bool) -> Re
 
 fn handle_map(socket: &PathBuf, command: MapCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, map_request(command)?, json)
+}
+
+fn handle_movement(socket: &PathBuf, command: MovementCmd, json: bool) -> Result<(), String> {
+    let request = movement_request(command)?;
+    handle_text_response(socket, request, json)
 }
 
 fn handle_equipment(socket: &PathBuf, command: EquipmentCmd, json: bool) -> Result<(), String> {

@@ -57,6 +57,53 @@ fn pvp_dequeue_command_maps_to_request() {
 }
 
 #[test]
+fn movement_forward_parses_negative_yaw_degrees() {
+    let cli = Cli::try_parse_from([
+        "game-engine-cli",
+        "movement",
+        "forward",
+        "--seconds",
+        "1",
+        "--yaw-degrees",
+        "-90",
+    ])
+    .unwrap();
+
+    assert!(matches!(
+        cli.command,
+        Cmd::Movement {
+            command: MovementCmd::Forward {
+                seconds,
+                yaw_degrees: Some(-90.0),
+            },
+        } if seconds == 1.0
+    ));
+}
+
+#[test]
+fn movement_forward_command_maps_to_request() {
+    assert_eq!(
+        movement_request(MovementCmd::Forward {
+            seconds: 3.0,
+            yaw_degrees: Some(450.0),
+        })
+        .unwrap(),
+        Request::ScriptedMovementForward {
+            duration_secs: 3.0,
+            heading_degrees: Some(450.0),
+        }
+    );
+}
+
+#[test]
+fn movement_stop_command_maps_to_request() {
+    assert_eq!(
+        movement_request(MovementCmd::Stop).unwrap(),
+        Request::ScriptedMovementStop
+    );
+}
+
+#[test]
 fn map_waypoint_add_command_maps_to_request() {
     let request = map_request(MapCmd::Waypoint {
         command: WaypointCmd::Add { x: 42.1, y: 65.7 },

@@ -41,6 +41,7 @@ use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc
 use crate::item_info::lookup_item_info;
 use crate::lfg::{LfgRuntimeState, queue_ipc_request as queue_lfg_ipc_request};
 use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
+use crate::movement_control::ScriptedMovement;
 use crate::profession::{
     ProfessionRuntimeState, queue_ipc_request as queue_profession_ipc_request,
 };
@@ -310,6 +311,8 @@ struct IpcSenderParams<'w, 's> {
     group_invite_senders: Query<'w, 's, &'static mut MessageSender<GroupInviteIntent>>,
     group_uninvite_senders: Query<'w, 's, &'static mut MessageSender<GroupUninviteIntent>>,
     equipment_control: ResMut<'w, EquipmentControlQueue>,
+    scripted_movement: ResMut<'w, ScriptedMovement>,
+    game_state: Res<'w, State<crate::game_state_enum::GameState>>,
     connected_query: Query<'w, 's, Entity, With<Connected>>,
 }
 
@@ -318,6 +321,7 @@ pub struct IpcPlugin;
 impl Plugin for IpcPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EquipmentControlQueue>()
+            .init_resource::<ScriptedMovement>()
             .init_resource::<PendingIpcCommands>()
             .configure_sets(
                 Update,
@@ -615,6 +619,20 @@ fn dispatch_map_and_equipment_request(
         Request::MapTarget => respond_with_map_target(cmd, ctx, tree_query),
         Request::MapWaypointAdd { x, y } => handle_waypoint_add(cmd, ctx.map_status, x, y),
         Request::MapWaypointClear => handle_waypoint_clear(cmd, ctx.map_status),
+        Request::ScriptedMovementForward {
+            duration_secs,
+            heading_degrees,
+        } => handle_scripted_movement_start(
+            cmd.respond,
+            &mut sender_params.scripted_movement,
+            ctx.map_status,
+            *sender_params.game_state.get() == crate::game_state_enum::GameState::InWorld,
+            duration_secs,
+            heading_degrees,
+        ),
+        Request::ScriptedMovementStop => {
+            handle_scripted_movement_stop(cmd.respond, &mut sender_params.scripted_movement);
+        }
         Request::EquipmentSet { .. } => {
             dispatch_equipment_set_request(cmd, &mut sender_params.equipment_control);
         }
@@ -669,6 +687,37 @@ fn handle_waypoint_add(cmd: Command, map_status: &mut MapStatusSnapshot, x: f32,
     let _ = cmd
         .respond
         .send(Response::Text(format_map_position(map_status)));
+}
+
+fn handle_scripted_movement_start(
+    respond: mpsc::Sender<Response>,
+    scripted_movement: &mut ScriptedMovement,
+    map_status: &mut MapStatusSnapshot,
+    in_world: bool,
+    duration_secs: f32,
+    heading_degrees: Option<f32>,
+) {
+    if !in_world {
+        let _ = respond.send(Response::Error("scripted movement requires InWorld".into()));
+        return;
+    }
+    match scripted_movement.start(duration_secs, heading_degrees) {
+        Ok(()) => {
+            map_status.waypoint = None;
+            let _ = respond.send(Response::Text("scripted movement started".into()));
+        }
+        Err(error) => {
+            let _ = respond.send(Response::Error(error));
+        }
+    }
+}
+
+fn handle_scripted_movement_stop(
+    respond: mpsc::Sender<Response>,
+    scripted_movement: &mut ScriptedMovement,
+) {
+    scripted_movement.stop();
+    let _ = respond.send(Response::Text("scripted movement stopped".into()));
 }
 
 fn handle_waypoint_clear(cmd: Command, map_status: &mut MapStatusSnapshot) {
@@ -750,6 +799,75 @@ mod tests {
         let mut pending = PendingIpcCommands::default();
         pending.enqueue(Command { request, respond });
         pending
+    }
+
+    #[test]
+    fn scripted_movement_start_requires_inworld_and_preserves_waypoint() {
+        let (respond, responses) = mpsc::channel();
+        let mut movement = ScriptedMovement::default();
+        let mut map_status = MapStatusSnapshot {
+            waypoint: Some(Waypoint { x: 1.0, y: 2.0 }),
+            ..default()
+        };
+
+        handle_scripted_movement_start(respond, &mut movement, &mut map_status, false, 1.0, None);
+
+        assert!(matches!(
+            responses.recv().unwrap(),
+            Response::Error(error) if error == "scripted movement requires InWorld"
+        ));
+        assert!(map_status.waypoint.is_some());
+        assert!(movement.next_step(0.1).is_none());
+    }
+
+    #[test]
+    fn scripted_movement_start_clears_waypoint_only_after_valid_request() {
+        let (respond, responses) = mpsc::channel();
+        let mut movement = ScriptedMovement::default();
+        let mut map_status = MapStatusSnapshot {
+            waypoint: Some(Waypoint { x: 1.0, y: 2.0 }),
+            ..default()
+        };
+
+        handle_scripted_movement_start(respond, &mut movement, &mut map_status, true, 1.0, None);
+
+        assert!(matches!(
+            responses.recv().unwrap(),
+            Response::Text(message) if message == "scripted movement started"
+        ));
+        assert!(map_status.waypoint.is_none());
+        assert!(movement.next_step(0.1).is_some());
+    }
+
+    #[test]
+    fn scripted_movement_start_rejects_invalid_request_without_clearing_waypoint() {
+        let (respond, responses) = mpsc::channel();
+        let mut movement = ScriptedMovement::default();
+        let mut map_status = MapStatusSnapshot {
+            waypoint: Some(Waypoint { x: 1.0, y: 2.0 }),
+            ..default()
+        };
+
+        handle_scripted_movement_start(respond, &mut movement, &mut map_status, true, 0.0, None);
+
+        assert!(matches!(responses.recv().unwrap(), Response::Error(_)));
+        assert!(map_status.waypoint.is_some());
+        assert!(movement.next_step(0.1).is_none());
+    }
+
+    #[test]
+    fn scripted_movement_stop_cancels_active_playback() {
+        let (respond, responses) = mpsc::channel();
+        let mut movement = ScriptedMovement::default();
+        movement.start(1.0, None).unwrap();
+
+        handle_scripted_movement_stop(respond, &mut movement);
+
+        assert!(matches!(
+            responses.recv().unwrap(),
+            Response::Text(message) if message == "scripted movement stopped"
+        ));
+        assert!(movement.next_step(0.1).is_none());
     }
 
     #[test]
