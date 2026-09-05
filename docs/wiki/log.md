@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] diagnostic | Add exact NPC and UI isolation selector
+
+Updated [[movement-performance]] for `3d364dc8` (`Add NPC and UI isolation without changing scene lighting`). `--inworld-stage no-npcs-ui` preserves terrain, lighting, particles, local-character policy, networking, and FPS overlay while excluding remote visuals plus game UI/nameplates; selector and nameplate-observer behavior have focused coverage. PID `3510050` did not survive its Pyrun launch, so no runtime FPS result is claimed.
+
 ## [2026-09-05] investigation | Separate sustained-FPS report from tile stall
 
 Updated [[movement-performance]] with the user-reported approximately 10-FPS settled condition, the non-reproducing 30–45 FPS full-scene IPC samples, and the confounded 56–76 FPS terrain-stage isolation. The terrain selector also excludes lighting and particles, so it is not subsystem attribution. No runtime selector result, optimization, or tile-stall closure is claimed.

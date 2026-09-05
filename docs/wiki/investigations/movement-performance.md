@@ -108,7 +108,9 @@ A separate active investigation concerns the user's report of approximately 10 F
 
 The user reported the character disabled, but a scene dump’s `is_displayed=false` is a raycast/display heuristic, not proof that rendering or processing was disabled. The inspected PID had no `--inworld-stage` argument, so its exact character-disable mechanism was not established.
 
-A temporary `--inworld-stage terrain` run was used only as a coarse user-requested isolation: it reported 56.56–76.23 FPS. This result is confounded because that existing stage disables more than NPCs, nameplates, and game UI: it also excludes local-character visuals, lighting, and particles. It is not evidence assigning the improvement to any one subsystem and does not test a new `no-npcs-ui` selector. The active next step is a bounded, exact isolation while recording focus and scene state for each sample.
+A temporary `--inworld-stage terrain` run was used only as a coarse user-requested isolation: it reported 56.56–76.23 FPS. This result is confounded because that existing stage disables more than NPCs, nameplates, and game UI: it also excludes local-character visuals, lighting, and particles. It is not evidence assigning the improvement to any one subsystem and does not test the exact selector below.
+
+Commit `3d364dc8` adds the temporary `--inworld-stage no-npcs-ui` selector for that exact isolation. It retains local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and the standalone FPS overlay, while excluding remote visual attachment and game UI processing/rendering. Consequently, nameplate observers and their Update systems are gated off; remote replicated state remains present. Behavioral tests cover selector/gate semantics and absence of an NPC nameplate. No sustained runtime sample from this selector is recorded yet: a PID `3510050` launch did not survive its Pyrun invocation, so it cannot support an FPS claim. A native-launch identity and paired samples remain required.
 
 ## Sources
 
@@ -116,7 +118,7 @@ A temporary `--inworld-stage terrain` run was used only as a coarse user-request
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
-- [Movement spec](../../specs/scripted-movement.md) and [startup investigation](procedural-cloud-regeneration.md) — contracts and earlier proof.
+- [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
 
 ## See Also
 
