@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-05] diagnostic | Water and skybox visual isolation
+
+Updated [[movement-performance]] with opt-in streamed-water and skybox-visual exclusion, zero water assets in the new client, and 46.65 mean FPS. Recorded retained lighting/camera paths and position/focus differences that prevent a controlled speed comparison. Terrain-material updates remain the stronger prior measured lead; no optimization applied.
+
 ## [2026-09-05] measurement | Terrain-material freeze and object-free isolation
 
 Updated [[movement-performance]] with the main-controlled 256-material freeze (19.87→67.80 mean FPS), normal-update restoration, and requested object-free terrain run (user ~60 FPS; IPC mean54.41 with mixed focus). Recorded zero object colliders, reduced asset counts, close-up-view limitations, and unresolved attribution. No production optimization or tile-hitch resolution claimed.

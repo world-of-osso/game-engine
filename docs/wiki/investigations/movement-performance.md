@@ -132,6 +132,14 @@ Screenshots show a dark, close-up/sloped terrain view rather than a representati
 
 Artifacts: `settled-low-fps/no-objects-case/{identity,performance}.json`, `terrain.txt`, `ui.txt`, `tree.txt`, `client/stderr.log`, and `terrain-only.webp`. Behavioral tests cover actual file-backed terrain/placement parsing, empty disabled preloads, default loading, CLI selection, and suppressed object-LOD reload decisions.
 
+### Water and skybox visual removal
+
+The next requested diagnostic (`544d32a5`) adds `--no-terrain-water --no-skybox` to the existing exclusions. ADT water data is omitted before surface spawning and water-height registration; authored skybox visual systems are gated, and sky-dome entities are removed after spawning commands finish. Lighting, fog/environment lighting, game time, camera effects, and normal terrain-material updates remain unchanged. Shared cloud/sky resources and empty material plugins remain initialized; this is still not a minimal terrain renderer.
+
+PID `3831399`, SHA256 `0651ee1a516fce0d77c77efda512f2dcb37f79970c0a2c35443cce3e44a034c1`, recorded **zero water materials**, 256 terrain materials, 261 mesh assets, no object placement loads, an empty game-UI tree, and no pending terrain. Ten samples were **39.54–54.31 FPS**, mean **46.65 FPS / 21.59 ms**, all reporting unfocused. The pre-restart client reported XZ `(-8923.71,151.58)` and the new client `(-8866.80,329.22)`; view/position equality was not preserved. Do not treat this as a controlled before/after speed result or claim water/skybox cost is zero.
+
+Artifacts: `settled-low-fps/water-sky-case/{identity,performance,summary}.json`, `previous-position.txt`, `position.txt`, `terrain.txt`, `tree.txt`, and `no-water-skybox.webp`. The earlier same-process terrain-material freeze remains the stronger measured lead; its effect in this further-reduced scene is not yet tested.
+
 ## Sources
 
 - [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree, `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}`, and `tile-attribution/file-residency/{summary.json,control/,target-blp-evicted/}` for measured subcosts and residency controls.
