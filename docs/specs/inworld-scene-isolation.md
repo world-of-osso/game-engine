@@ -11,6 +11,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
 - [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
+### Terrain-object diagnostic
+
+- [x] Accept opt-in `--no-terrain-objects`: skip `_obj*` companion parsing, doodad/WMO preloads, object spawning, and later object-LOD swaps. Preserve root terrain, `_tex0` materials, water, heightmap registration, networking, terrain streaming, lighting, particles, and non-object scene behavior.
+- [x] Without the option, preserve existing object parsing/preload/spawn behavior. This temporary control changes the playable world and collision coverage; use only for the settled terrain-only FPS comparison. Remove it after the experiment.
+
 ### Terrain-material diagnostic
 
 - [x] Accept opt-in `--freeze-terrain-materials-after <SECONDS>` (unsigned integer): after that startup real-time deadline, stop terrain animation-time and environment-map material updates together. Preserve the material assets, last values, terrain drawing, and all other material systems.

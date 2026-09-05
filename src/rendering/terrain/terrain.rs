@@ -141,6 +141,8 @@ pub struct AdtManager {
     tile_tx: mpsc::Sender<TileLoadResult>,
     /// Radius of tiles to keep loaded around player (1 = 3×3 grid).
     pub load_radius: u32,
+    /// Whether background tile loads include object companions and object spawns.
+    pub(crate) load_objects: bool,
     /// Tile coordinates of the initially loaded tile.
     pub initial_tile: (u32, u32),
     /// Whether we've already reported that the initial terrain load finished.
@@ -161,6 +163,7 @@ impl Default for AdtManager {
             tile_rx: Mutex::new(tile_rx),
             tile_tx,
             load_radius: 0,
+            load_objects: true,
             initial_tile: (0, 0),
             initial_load_reported: false,
         }

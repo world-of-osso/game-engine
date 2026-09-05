@@ -69,6 +69,19 @@ fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
 }
 
 #[test]
+fn no_terrain_objects_startup_flag_keeps_default_loading_unchanged() {
+    let mut app = App::new();
+    app.init_resource::<terrain::AdtManager>();
+    configure_terrain_object_loading(&mut app, &args(&[]));
+    assert!(app.world().resource::<terrain::AdtManager>().load_objects);
+
+    let flags = args(&["--no-terrain-objects"]);
+    configure_terrain_object_loading(&mut app, &flags);
+    assert!(!app.world().resource::<terrain::AdtManager>().load_objects);
+    assert!(parse_asset_path_from_args(&flags).is_none());
+}
+
+#[test]
 fn terrain_material_freeze_startup_config_is_opt_in() {
     let mut app = App::new();
     insert_terrain_material_freeze_resource(&mut app, &args(&[]));

@@ -3,16 +3,28 @@ use crate::terrain_objects;
 
 use super::*;
 
+#[cfg(test)]
+#[path = "terrain_background_parse/tests.rs"]
+mod tests;
+
 pub(super) fn parse_tile_background(
     map_name: String,
     tile_y: u32,
     tile_x: u32,
     adt_path: PathBuf,
     lod: DoodadLod,
+    load_objects: bool,
 ) -> TileLoadResult {
     let start_mem = crate::terrain_memory_debug::current_process_memory_kb();
     log_tile_background_parse_start(tile_y, tile_x, &adt_path, lod, &start_mem);
-    let parsed = match build_parsed_tile(map_name.clone(), tile_y, tile_x, adt_path, lod) {
+    let parsed = match build_parsed_tile(
+        map_name.clone(),
+        tile_y,
+        tile_x,
+        adt_path,
+        lod,
+        load_objects,
+    ) {
         Ok(parsed) => parsed,
         Err(error) => {
             return TileLoadResult::Failed {
@@ -33,10 +45,15 @@ fn build_parsed_tile(
     tile_x: u32,
     adt_path: PathBuf,
     lod: DoodadLod,
+    load_objects: bool,
 ) -> Result<ParsedTile, String> {
     let adt_data = load_parsed_adt_data(tile_y, tile_x, &adt_path)?;
     let tex_data = load_parsed_tile_textures(tile_y, tile_x, &adt_path, &adt_data);
-    let obj_data = load_parsed_tile_objects(tile_y, tile_x, &adt_path, lod);
+    let obj_data = if load_objects {
+        load_parsed_tile_objects(tile_y, tile_x, &adt_path, lod)
+    } else {
+        None
+    };
     let (ground_images, height_images) = decode_tile_textures(&tex_data, &adt_path);
     let chunk_alpha_maps = pack_tile_alpha_maps(&tex_data);
     let chunk_shadow_maps = pack_tile_shadow_maps(&adt_data);

@@ -59,6 +59,9 @@ pub(crate) fn doodad_lod_swap_system(
 
 /// Find tiles whose LOD level needs changing.
 fn find_lod_swaps(adt_manager: &AdtManager, cy: u32, cx: u32) -> Vec<((u32, u32), DoodadLod)> {
+    if !adt_manager.load_objects {
+        return Vec::new();
+    }
     adt_manager
         .tile_lod
         .iter()
@@ -71,6 +74,24 @@ fn find_lod_swaps(adt_manager: &AdtManager, cy: u32, cx: u32) -> Vec<((u32, u32)
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_terrain_objects_prevents_lod_reloading() {
+        let mut manager = AdtManager::default();
+        manager.tile_lod.insert((31, 48), DoodadLod::Lod2);
+        assert_eq!(
+            find_lod_swaps(&manager, 31, 48),
+            vec![((31, 48), DoodadLod::Full)]
+        );
+
+        manager.load_objects = false;
+        assert!(find_lod_swaps(&manager, 31, 48).is_empty());
+    }
 }
 
 /// Swap a tile's doodads to a new LOD level.

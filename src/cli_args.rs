@@ -257,6 +257,9 @@ pub fn print_help() {
     println!("  --world-builder     Enable the in-world scene diagnostic sidebar (F9 toggles)");
     println!("  --disable-m2-effect-uv-updates  Disable M2 effect UV animation updates");
     println!(
+        "  --no-terrain-objects  Skip streamed ADT doodad/WMO loading and spawning (diagnostic)"
+    );
+    println!(
         "  --freeze-terrain-materials-after <SECONDS>  Freeze terrain time/environment updates after startup elapsed time (diagnostic)"
     );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
