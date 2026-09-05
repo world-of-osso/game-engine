@@ -28,6 +28,8 @@ use crate::water_material::WaterMaterial;
 mod terrain_background_parse;
 #[path = "terrain_spawn.rs"]
 mod terrain_spawn;
+#[path = "terrain_spawn_perf.rs"]
+mod terrain_spawn_perf;
 #[path = "terrain_spawn_position.rs"]
 mod terrain_spawn_position;
 #[path = "terrain_streaming.rs"]
@@ -38,6 +40,7 @@ use terrain_spawn::{
     SpawnRefs, compute_spawn_result, load_and_parse_adt, log_adt_spawn, spawn_chunk_entities,
     spawn_parsed_tile, spawn_terrain_chunks, spawn_water,
 };
+pub(crate) use terrain_spawn_perf::TileSpawnTimings;
 use terrain_streaming::{
     compute_desired_tiles, dispatch_tile_loads, handle_tile_result,
     report_initial_world_load_complete, unload_distant_tiles,

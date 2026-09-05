@@ -95,6 +95,7 @@ pub(super) fn spawn_parsed_tile(
     heightmap: &TerrainHeightmap,
     parsed: &ParsedTile,
 ) -> (Entity, Vec<Entity>) {
+    let mut timings = super::TileSpawnTimings::start((parsed.tile_y, parsed.tile_x), "tile");
     let tile = parsed_adt_tile(parsed);
     log_parsed_tile(parsed);
 
@@ -102,6 +103,7 @@ pub(super) fn spawn_parsed_tile(
     let height_images = register_height_images(refs.images, parsed);
     let alpha_handles = register_image_vec(refs.images, &parsed.chunk_alpha_maps);
     let shadow_handles = register_image_vec(refs.images, &parsed.chunk_shadow_maps);
+    timings.record_stage("images");
 
     eprintln!("build_terrain_materials {}", parsed.adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
@@ -114,6 +116,7 @@ pub(super) fn spawn_parsed_tile(
         non_empty_slice(&alpha_handles),
         non_empty_slice(&shadow_handles),
     );
+    timings.record_stage("terrain_materials");
 
     let root = spawn_chunk_entities(
         refs.commands,
@@ -122,6 +125,7 @@ pub(super) fn spawn_parsed_tile(
         &parsed.adt_data,
         &tile,
     );
+    timings.record_stage("terrain_chunks");
     spawn_water(
         refs.commands,
         refs.meshes,
@@ -129,7 +133,10 @@ pub(super) fn spawn_parsed_tile(
         refs.images,
         &parsed.adt_data,
     );
+    timings.record_stage("water");
     let doodad_entities = spawn_parsed_tile_doodads(refs, heightmap, parsed);
+    timings.record_stage("objects");
+    timings.finish();
     (root, doodad_entities)
 }
 

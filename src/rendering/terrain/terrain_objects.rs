@@ -108,6 +108,7 @@ pub(super) fn spawn_obj_entities_preloaded(
     preloaded_doodads: &[Option<crate::terrain::PreloadedDoodad>],
     preloaded_wmos: &[Option<crate::terrain::PreloadedWmo>],
 ) -> SpawnedTerrainObjects {
+    let mut timings = crate::terrain::TileSpawnTimings::start((tile_y, tile_x), "objects");
     let mut spawned = SpawnedTerrainObjects::default();
     let doodad_chunk_refs = build_object_chunk_refs(
         obj_data.doodads.len(),
@@ -123,6 +124,7 @@ pub(super) fn spawn_obj_entities_preloaded(
             .iter()
             .map(|chunk_refs| chunk_refs.wmo_refs.as_slice()),
     );
+    timings.record_stage("chunk_refs");
     spawn_doodads_preloaded(
         commands,
         meshes,
@@ -138,6 +140,7 @@ pub(super) fn spawn_obj_entities_preloaded(
         preloaded_doodads,
         &mut spawned.doodads,
     );
+    timings.record_stage("doodads");
     terrain_objects_wmo::spawn_wmos_preloaded(
         commands,
         meshes,
@@ -153,6 +156,8 @@ pub(super) fn spawn_obj_entities_preloaded(
         preloaded_wmos,
         &mut spawned.wmos,
     );
+    timings.record_stage("wmos");
+    timings.finish();
     spawned
 }
 
