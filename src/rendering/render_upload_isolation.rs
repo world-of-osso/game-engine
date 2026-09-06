@@ -13,6 +13,7 @@ enum UploadTarget {
     IndirectParameters,
     BatchedInstances,
     GpuClusterPreparation,
+    MeshCollection,
 }
 
 #[derive(Resource)]
@@ -31,6 +32,10 @@ pub(crate) fn configure(app: &mut App, args: &[String]) {
         (
             UploadTarget::GpuClusterPreparation,
             "--freeze-gpu-clusters-after",
+        ),
+        (
+            UploadTarget::MeshCollection,
+            "--freeze-mesh-collection-after",
         ),
     ]
     .into_iter()
@@ -73,6 +78,11 @@ fn freeze_render_uploads(world: &mut World) {
         UploadTarget::GpuClusterPreparation,
         "bevy_pbr::cluster::gpu::prepare_clusters_for_gpu_clustering",
     );
+    remove_named_target_once(
+        world,
+        UploadTarget::MeshCollection,
+        "bevy_pbr::render::mesh::collect_meshes_for_gpu_building",
+    );
 }
 
 fn remove_target_once<M>(world: &mut World, kind: UploadTarget, target: impl IntoSystemSet<M>) {
@@ -82,7 +92,7 @@ fn remove_target_once<M>(world: &mut World, kind: UploadTarget, target: impl Int
     remove_render_system(world, target);
     world.resource_mut::<FreezeDeadlines>().0.remove(&kind);
     info!(
-        "Render upload system removed at {:.3}s: {kind:?}",
+        "Render isolation system removed at {:.3}s: {kind:?}",
         elapsed.as_secs_f64()
     );
 }
@@ -288,6 +298,62 @@ mod tests {
     }
 
     #[test]
+    fn configured_mesh_collection_removal_preserves_unrelated_render_work() {
+        let mut app = App::new();
+        app.insert_sub_app(RenderApp, SubApp::new());
+        configure(
+            &mut app,
+            &["--freeze-mesh-collection-after".into(), "20".into()],
+        );
+        let render_app = app.sub_app_mut(RenderApp);
+        let world = render_app.world_mut();
+        world
+            .resource_mut::<Schedules>()
+            .insert(Schedule::new(Render));
+        if !world.contains_resource::<FreezeDeadlines>() {
+            world
+                .resource_mut::<Schedules>()
+                .insert(Schedule::new(ExtractSchedule));
+            world.schedule_scope(ExtractSchedule, |_world, schedule| {
+                schedule.add_systems(freeze_render_uploads);
+            });
+        }
+        let mut main_world = MainWorld::default();
+        let mut time = Time::<Real>::default();
+        time.advance_by(Duration::from_secs(19));
+        main_world.insert_resource(time);
+        world.insert_resource(main_world);
+        world.init_resource::<WorkCounts>();
+        world.schedule_scope(Render, |_world, schedule| {
+            schedule.add_systems((
+                IntoSystem::into_system(first_work)
+                    .with_name("bevy_pbr::render::mesh::collect_meshes_for_gpu_building"),
+                unrelated_work,
+            ));
+        });
+
+        world.run_schedule(Render);
+        world.run_schedule(ExtractSchedule);
+        world.run_schedule(Render);
+        assert_eq!(world.resource::<WorkCounts>().first, 2);
+        assert_eq!(world.resource::<WorkCounts>().unrelated, 2);
+
+        world
+            .resource_mut::<MainWorld>()
+            .resource_mut::<Time<Real>>()
+            .advance_by(Duration::from_secs(1));
+        world.run_schedule(ExtractSchedule);
+        world.run_schedule(Render);
+        assert_eq!(world.resource::<WorkCounts>().first, 2);
+        assert_eq!(world.resource::<WorkCounts>().unrelated, 3);
+
+        world.run_schedule(ExtractSchedule);
+        world.run_schedule(Render);
+        assert_eq!(world.resource::<WorkCounts>().first, 2);
+        assert_eq!(world.resource::<WorkCounts>().unrelated, 4);
+    }
+
+    #[test]
     fn absent_flag_does_not_require_or_change_a_render_app() {
         configure(&mut App::new(), &[]);
         assert_eq!(
@@ -315,11 +381,17 @@ mod tests {
             "25".into(),
             "--freeze-gpu-clusters-after".into(),
             "30".into(),
+            "--freeze-mesh-collection-after".into(),
+            "35".into(),
             "model.m2".into(),
         ];
         assert_eq!(
             parse_deadline(&args, "--freeze-gpu-clusters-after"),
             Some(Duration::from_secs(30))
+        );
+        assert_eq!(
+            parse_deadline(&args, "--freeze-mesh-collection-after"),
+            Some(Duration::from_secs(35))
         );
         assert_eq!(
             crate::cli_args::parse_asset_path_from_args(&args),
