@@ -28,6 +28,9 @@ pub struct PostEulaState(pub GameState);
 #[derive(Resource)]
 pub struct StartupPerfTimer(pub Instant);
 
+#[derive(Resource)]
+pub(crate) struct DirectionalShadowsDisabled;
+
 #[derive(Resource, Default)]
 struct ZoneTransitionTracker {
     observed_zone_id: u32,
@@ -261,6 +264,7 @@ fn spawn_world_environment(
     mut commands: Commands,
     camera_q: Query<Entity, With<WowCamera>>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    directional_shadows_disabled: Option<Res<DirectionalShadowsDisabled>>,
 ) {
     let scene_stage = configured_inworld_scene_stage(scene_stage);
     if scene_stage.includes(InWorldSceneStage::Character) && camera_q.single().ok().is_none() {
@@ -278,11 +282,15 @@ fn spawn_world_environment(
         return;
     }
 
+    let shadows_enabled = directional_shadows_disabled.is_none();
+    if !shadows_enabled {
+        info!("Directional shadow maps disabled by --no-directional-shadows");
+    }
     commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     commands.spawn((
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
-            shadow_maps_enabled: true,
+            shadow_maps_enabled: shadows_enabled,
             shadow_depth_bias: 0.02,
             shadow_normal_bias: 1.8,
             ..default()
@@ -465,6 +473,47 @@ mod tests {
             GameState::InWorld,
             "Standalone mode should start in InWorld"
         );
+    }
+
+    #[test]
+    fn world_environment_keeps_directional_shadows_enabled_by_default() {
+        let mut app = App::new();
+        app.insert_resource(InWorldSceneStage::NoNpcsUi);
+        app.world_mut().spawn(WowCamera::default());
+        app.add_systems(Update, spawn_world_environment);
+        app.update();
+
+        let light = app
+            .world_mut()
+            .query::<&DirectionalLight>()
+            .single(app.world())
+            .expect("expected world directional light");
+        assert!(light.shadow_maps_enabled);
+    }
+
+    #[test]
+    fn world_environment_keeps_lighting_but_disables_only_directional_shadows() {
+        let mut app = App::new();
+        app.insert_resource(InWorldSceneStage::NoNpcsUi);
+        app.world_mut().spawn(WowCamera::default());
+        app.insert_resource(DirectionalShadowsDisabled);
+        app.add_systems(Update, spawn_world_environment);
+        app.update();
+
+        let light = app
+            .world_mut()
+            .query::<&DirectionalLight>()
+            .single(app.world())
+            .expect("expected world directional light");
+        assert!(!light.shadow_maps_enabled);
+        assert_eq!(light.illuminance, light_consts::lux::OVERCAST_DAY);
+        assert!(app.world().contains_resource::<DirectionalLightShadowMap>());
+        let cascade_count = app
+            .world_mut()
+            .query::<&bevy::light::CascadeShadowConfig>()
+            .iter(app.world())
+            .count();
+        assert_eq!(cascade_count, 1);
     }
 
     #[test]

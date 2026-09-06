@@ -17,6 +17,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, depth/normal prepasses, common camera effects, and lighting.
 - [x] Keep the composited UI camera's MSAA synchronized with the active 3D camera after graphics updates, including diagnostic restoration and preserved pre-Lighting sampling. Preserve UI clear/order behavior and readable changing FPS digits; do not apply 3D post-processing to the UI camera.
 
+### Directional-shadow diagnostic
+
+- [x] Accept opt-in `--no-directional-shadows` for the InWorld world-environment directional light. Set only `DirectionalLight.shadow_maps_enabled` false; retain the light entity, illuminance, transform, ambient light, cascade configuration, shadow-map resource, camera effects, and normal lighting.
+- [x] Preserve enabled directional shadows without the option. Do not affect standalone or other scene setup paths.
+
 ### Frame-time-graph control
 
 - [x] Accept opt-in `--no-frame-time-graph`: keep numeric FPS visibility under the existing HUD preference, but hide the frame-time graph and stop its per-frame shader-buffer updates.

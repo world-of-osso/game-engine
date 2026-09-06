@@ -5,6 +5,18 @@ fn args(items: &[&str]) -> Vec<String> {
 }
 
 #[test]
+fn no_directional_shadows_configures_startup_world_light_override() {
+    let mut app = App::new();
+
+    configure_directional_shadow_isolation(&mut app, &args(&["--no-directional-shadows"]));
+
+    assert!(
+        app.world()
+            .contains_resource::<game_state::DirectionalShadowsDisabled>()
+    );
+}
+
+#[test]
 fn screenshot_args_allow_flags_before_command() {
     let parsed = parse_screenshot_args(&args(&[
         "--state",

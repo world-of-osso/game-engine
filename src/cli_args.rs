@@ -278,6 +278,9 @@ pub fn print_help() {
     println!(
         "  --no-msaa           Disable MSAA only, preserving configured SSAO/TAA policy (diagnostic)"
     );
+    println!(
+        "  --no-directional-shadows  Disable directional shadow maps, retaining lighting (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
