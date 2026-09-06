@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use bevy::ecs::schedule::{IntoSystemSet, ScheduleCleanupPolicy, Schedules};
+use bevy::ecs::schedule::{IntoSystemSet, ScheduleCleanupPolicy};
 use bevy::pbr::MeshPipeline;
 use bevy::prelude::*;
 use bevy::render::batching::gpu_preprocessing::{
@@ -89,10 +89,8 @@ fn remove_target_once<M>(world: &mut World, kind: UploadTarget, target: impl Int
 }
 
 fn remove_render_system<M>(world: &mut World, target: impl IntoSystemSet<M>) {
-    let removed = world.resource_scope(|world, mut schedules: Mut<Schedules>| {
-        schedules
-            .get_mut(Render)
-            .expect("render upload isolation requires the Render schedule")
+    let removed = world.schedule_scope(Render, |world, schedule| {
+        schedule
             .remove_systems_in_set(target, world, ScheduleCleanupPolicy::RemoveSystemsOnly)
             .expect("failed to remove the render upload system")
     });
@@ -179,6 +177,36 @@ mod tests {
         world.run_schedule(Render);
         assert_eq!(world.resource::<WorkCounts>().second, 4);
         assert_eq!(world.resource::<WorkCounts>().unrelated, 6);
+    }
+
+    #[test]
+    fn removes_two_targets_in_one_extract_before_render_rebuilds() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        let mut world = World::new();
+        let mut main_world = MainWorld::default();
+        let mut time = Time::<Real>::default();
+        time.advance_by(Duration::from_secs(20));
+        main_world.insert_resource(time);
+        world.insert_resource(main_world);
+        world.insert_resource(FreezeDeadlines(HashMap::from([
+            (UploadTarget::IndirectParameters, Duration::from_secs(20)),
+            (UploadTarget::BatchedInstances, Duration::from_secs(20)),
+        ])));
+        world.init_resource::<WorkCounts>();
+        let mut schedules = Schedules::default();
+        let mut render = Schedule::new(Render);
+        render.add_systems((first_work, second_work, unrelated_work));
+        schedules.insert(render);
+        world.insert_resource(schedules);
+        world.run_schedule(Render);
+
+        remove_target_once(&mut world, UploadTarget::IndirectParameters, first_work);
+        remove_target_once(&mut world, UploadTarget::BatchedInstances, second_work);
+        world.run_schedule(Render);
+        assert_eq!(world.resource::<WorkCounts>().first, 1);
+        assert_eq!(world.resource::<WorkCounts>().second, 1);
+        assert_eq!(world.resource::<WorkCounts>().unrelated, 2);
     }
 
     #[test]
