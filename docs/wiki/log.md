@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] audit | Record terrain-off, frame-graph, and MSAA isolation through `56258e5f`
+
+Updated [[movement-performance]] and `index.md` from saved `settled-low-fps` artifacts. Recorded terrain-rendering-off as a logical terrain/height-state control, its 120-second focused mean (**98.25 FPS**, **311.67%** CPU), and its two 600 MHz-limited lows; no CPU reduction or terrain-mesh attribution is claimed. Recorded the lid-open matched graph pair (**180.47** versus **179.87 FPS**; **333.60%** versus **338.89%** CPU), which shows no material graph-cost improvement. Recorded the MSAA-only pair (**106.14** versus **180.68 FPS**) as inconclusive because the samples ran under different firmware-limit regimes and MSAA-off CPU was higher (**337.33%** versus **317.76%**). Graph was restored for both MSAA commands. Verifier 115 saved `cargo fmt --check` and locked binary check exits 0 for `56258e5f`; `binrw v0.15.1` retains its existing future-incompatibility notice, and live component readback was not independently verified. The original tile hitch remains unresolved; nameplate implementation remains queued.
+
 ## [2026-09-05] investigation | Foreground FPS collapse matches firmware frequency clamps
 
 Updated [[movement-performance]] with the flat-material diagnostic, persistent slow periods, verified GPU execution, and a foreground transition to 600 MHz CPU/GPU firmware limits with advancing thermal-throttle counters. Cooling/platform-policy cause and original tile hitch remain unresolved; no hardware controls or optimization changed.

@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project. 40 pages across 5 categories.
-Last updated: 2026-09-05.
+Last updated: 2026-09-06.
 
 ## Systems
 
@@ -42,7 +42,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [movement-performance](investigations/movement-performance.md) — revision-scoped route/tile measurements, rendering isolation, and foreground FPS collapses with firmware frequency clamps; original tile hitch remains unresolved
+- [movement-performance](investigations/movement-performance.md) — revision-scoped route/tile measurements; terrain-rendering-off and frame-graph controls show no CPU reduction; MSAA pair is confounded by different firmware-limit regimes; original tile hitch remains unresolved and nameplate work remains queued
 
 Root cause analyses and debug findings.
 

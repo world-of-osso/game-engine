@@ -162,6 +162,28 @@ The first CPU profile was taken after recovery (48–85 FPS, unfocused), not dur
 
 Artifacts: `settled-low-fps/no-textures-case/` contains identity, samples, snapshots, user screenshots, `slow-state/`, `focus-comparison-2/`, and `auto-low-capture/`. Source verification passed fmt/check, the two targeted tests, and build; no optimization was applied.
 
+### Terrain-rendering-off control
+
+Commit `1ce425ea`, clarified by `9d4e5d53`, adds `--no-terrain-meshes`: the streamed tile root, background parsing, height/streaming lifecycle, and height queries remain, but ground chunk meshes and their terrain materials/images are not created. It is therefore a settled rendering-workload control, not an empty-app or all-terrain-CPU measurement. The first reference/terrain-off pair ran on `9d4e5d53`; it was interrupted by the monitor-layout change and its reference had only 15 samples, so it is not a comparative result.
+
+A later **120-second focused** terrain-off observation recorded 60 samples, mean **98.25 FPS** and **311.67%** process CPU. Twenty fast samples were 123.08–169.99 FPS with CPU limits 2,273–4,311 MHz and GPU limits 1,158–2,476 MHz. Its two 19.63–26.72 FPS lows instead had both enforced limits at 600 MHz. Removing terrain ground meshes therefore did not eliminate intermittent collapse, while that captured low pair is consistent with the separately established firmware-clamp regime. It does **not** measure a CPU reduction, establish terrain-mesh cost, or compare directly with the earlier closed-lid/display-layout runs.
+
+Artifacts: `settled-low-fps/no-meshes-case/{focused-summary,summary,result,identity,reference-identity}.json` and `terrain-off.webp`.
+
+### Frame-time graph isolation
+
+Commit `4e55f6ff` adds `--no-frame-time-graph`, which keeps numeric FPS visible but hides the graph and skips its per-frame shader-buffer writes; plugin/material/hidden-node registration remains. A fresh 30-sample-per-side comparison used the same `4e55f6ff` executable, saved view, 1280×989 window geometry, all focused samples, and lid open. Graph-on mean was **180.47 FPS** with **333.60%** process CPU; graph-off was **179.87 FPS** with **338.89%** process CPU. GPU activity means were 71.03% and 70.10%, respectively. This shows no material graph-cost improvement in this reference scene; it does not establish zero overhead in every workload.
+
+Artifacts: `settled-low-fps/no-graph-case/{summary,result,identity,reference-identity}.json`, paired position files, and screenshots. The new lid-open/display-layout setup is not comparable to older closed-lid measurements.
+
+### MSAA-only isolation
+
+Commit `56258e5f` adds `--no-msaa`, changing configured 4× MSAA to single-sample rendering without persisting an option change. Its source test covers the intended camera policy: configured MSAA keeps SSAO disabled while depth/normal prepasses and common effects remain; independently configured TAA retains TAA and SSAO. Verifier 115 confirmed `cargo fmt --check` and `cargo check --locked --bin game-engine --bin game-engine-cli` exited 0 at this revision; `binrw v0.15.1` emitted the pre-existing future-incompatibility notice. The verifier did not independently read live camera components.
+
+The fresh pair restored the frame-time graph in both commands and otherwise retained the terrain-rendering-off exclusions. Both sides used the same `56258e5f` binary hash, saved view/window geometry, 30 focused samples, and lid-open layout. MSAA-on averaged **106.14 FPS** / **317.76%** process CPU; MSAA-off averaged **180.68 FPS** / **337.33%** process CPU. This is **not causal MSAA attribution**: the MSAA-on interval included 600 MHz CPU and GPU limits (CPU 600–4,573 MHz; GPU 600–2,609 MHz), while MSAA-off ran under a different limiting regime (CPU 3,057–3,699 MHz; GPU 632–1,398 MHz). CPU time also increased rather than decreased. The pair neither proves an MSAA improvement nor a CPU-cost reduction; it preserves the next controlled candidate and separates it from the known clamp evidence.
+
+Artifacts: `settled-low-fps/no-msaa-case/{summary,result,identity,reference-identity,msaa-on,msaa-off}.json`, paired position files, screenshots, and `settled-low-fps/{no-msaa-red,no-msaa-green,no-msaa-build,verifier-56258e5f-fmt,verifier-56258e5f-check}.log`.
+
 ### Foreground firmware-clamp evidence
 
 The client is using the **AMD Radeon 890M through Vulkan/RADV**, not software rasterization. Its DRM graphics-engine counter advanced 1.798 seconds over 2.001 wall seconds in a dedicated read, with duplicate file descriptors counted only once. The user's 296.7% CPU observation represents about three logical cores of CPU time; CPU scheduling/game systems/render preparation still occur alongside GPU work.
@@ -183,6 +205,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
+- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, MSAA samples, identities, screenshots, and verifier output through `56258e5f`.
 
 ## See Also
 
