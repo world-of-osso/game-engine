@@ -184,9 +184,25 @@ Commit `c3ad0ccf` adds `--freeze-indirect-parameters-after <SECONDS>`. At a `Tim
 
 The behavioral RED showed the target still ran three times where two were expected; GREEN verifies removal of only the target after the deadline and once-only enforcement. A same-process runtime comparison at PID `2428304`, hash `75546f46d689ca61cef5b1f8e75e5227ff15c54721748ef9e971558648a889a2`, used a 20-second cutoff and preserved saved position/view with all 13 samples focused on both sides. The controller log records removal at the deadline. CPU increased from **321.63%** before removal to **330.97%** after, so removing this system did **not** lower process CPU. FPS increased from **134.47** to **197.57**, but CPU/GPU limit ranges differed; it is neither a pure FPS gain nor evidence that the writer was unnecessary. Both screenshots retain the empty diagnostic view and readable FPS overlay.
 
-This must run only in a stationary scene: frozen indirect metadata can affect downstream rendering, so the result measures the target and downstream render boundary, not a production optimization or the cause of CPU load. A second exact system-removal control for `write_batched_instance_buffers<MeshPipeline>` is pending separate source and runtime proof; it will retain the first removal.
+This must run only in a stationary scene: frozen indirect metadata can affect downstream rendering, so the result measures the target and downstream render boundary, not a production optimization or the cause of CPU load. The next experiment retained this removal while excluding `write_batched_instance_buffers<MeshPipeline>` separately.
 
 Artifacts: `settled-low-fps/cpu-system-isolation/{baseline,indirect-parameters/}`; runtime identity/result, before/after summaries, screenshots, client log, and `indirect-parameters/{corrected-red-behavior,green,build}.log`.
+
+### Batched-instance uploads and controller correction
+
+Commit `7d7153b7` adds the independent `--freeze-batched-instances-after <SECONDS>` cutoff. With indirect-parameter uploads already removed, the saved comparison recorded **323.68→314.30% CPU**, but the second interval was under approximately 600 MHz CPU/GPU limits and FPS fell **95.90→56.46**. A later focused, recovered-state check still used **331.46% CPU at 206.40 FPS**. This did not identify the bulk of the load. Artifacts: `cpu-system-isolation/batched-instances/`, including `later-after/`.
+
+Applying both cutoffs in the same extraction pass exposed a controller bug. `resource_scope<Schedules>` temporarily hid the schedule registry; the second removal rebuilt the changed Render schedule, whose initialization recreated that registry and panicked. Commit `09e77aa1` uses `World::schedule_scope(Render, …)`, leaving the registry available. A regression reproduces two consecutive removals with no intervening Render execution and verifies both targets stop while unrelated work continues. The upload suite passed **5/5**; the earlier failed run under `pipelining/on/` is not performance evidence.
+
+### Pipelined-rendering CPU contribution
+
+Commit `e3a4ddcb` adds `--no-pipelined-rendering`. It omits only Bevy's `PipelinedRenderingPlugin`, retaining the RenderApp, GPU rendering, and scene settings. Render-app frames then execute sequentially with the main app instead of using the separate rendering-thread handoff. Individual schedules can still use compute workers; this does **not** switch the ECS executor to single-threaded operation. Headless behavioral RED/GREEN verifies frame delivery and the caller/render-thread distinction (**2/2 GREEN**).
+
+The corrected same-binary pair at `09e77aa1` kept both earlier upload removals applied. All 13 samples per side were focused, with matching saved position/view and 1280×1198 windows. Disabling pipelining reduced process CPU from **320.72% to 208.15%**, approximately **35%**, while mean FPS fell from **194.86 to 146.81**, approximately **25%**. Both screenshots preserve the empty view and readable FPS overlay. This identifies pipelined frame coordination as a substantial CPU-use contributor in this diagnostic scene, but **not a free optimization**: throughput also changed and hardware clocks were not fixed. Exact per-frame CPU cost was not measured.
+
+The earlier exclusions were then restored individually with pipelining still disabled. Restoring indirect uploads measured **218.57% CPU / 144.02 FPS**. Restoring batched uploads too measured **191.80% CPU / 34.26 FPS**, but every sample in that last interval had 600/600 MHz limits, so it is not a steady-clock restoration comparison. The retained client has ordinary upload systems active and only `--no-pipelined-rendering` beyond the prior terrain/shadow exclusions. Normal application defaults remain unchanged. Independent final source/data verification is pending.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/pipelining/`, especially `fixed-pair/{on,off}/`, `restore-indirect/`, `restore-batched/`, `red-thread-affinity.log`, `green.log`, `consecutive-removal-{red,green}.log`, and `fixed-build.log`.
 
 ### Directional-shadow isolation
 

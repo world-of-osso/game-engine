@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] measurement | Isolate pipelined-rendering CPU contribution
+
+Updated [[movement-performance]] with sequential upload removals, the `09e77aa1` same-extraction schedule-registry repair, and the pipelining comparison. Upload removals did not eliminate the bulk CPU load. Omitting only `PipelinedRenderingPlugin` reduced process CPU **320.72→208.15%** while FPS fell **194.86→146.81**; render frames and readable FPS remained. Earlier upload exclusions were restored individually, leaving ordinary uploads active. This is a measured CPU/throughput trade-off, not a default optimization or resolution of firmware clamps. Source/data verification is pending.
+
 ## [2026-09-06] measurement | Remove indirect-parameter uploads
 
 Updated [[movement-performance]] from the first actual CPU-system removal. Same-process PID `2428304` at `c3ad0ccf` removed only Bevy Render's `write_indirect_parameters_buffers` after 20 seconds while preserving position/view and all 13 focused samples per side. Process CPU **increased** from **321.63%** to **330.97%**; this target did not reduce CPU usage. FPS changed **134.47→197.57**, but CPU/GPU limit ranges differed, so no pure FPS conclusion follows. Before/after screenshots preserve the empty view and readable overlay. The stationary-scene control can affect downstream render behavior; it is diagnostic, not an optimization. The next distinct target, `write_batched_instance_buffers<MeshPipeline>`, remains pending separate proof.
