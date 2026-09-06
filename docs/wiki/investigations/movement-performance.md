@@ -176,6 +176,12 @@ Commit `4e55f6ff` adds `--no-frame-time-graph`, which keeps numeric FPS visible 
 
 Artifacts: `settled-low-fps/no-graph-case/{summary,result,identity,reference-identity}.json`, paired position files, and screenshots. The new lid-open/display-layout setup is not comparable to older closed-lid measurements.
 
+### Directional-shadow isolation
+
+Commit `ba6b756a` adds opt-in `--no-directional-shadows` for the InWorld world-environment light. Startup inserts a diagnostic resource only when requested; `spawn_world_environment` reads it while creating the directional light and sets only `DirectionalLight.shadow_maps_enabled` to false. It logs the applied override. The light entity, overcast-day illuminance, transform, ambient lighting, cascade configuration, 4096-pixel `DirectionalLightShadowMap` resource, camera effects, and general directional-light calculations remain. Standalone and other scene setup paths are unchanged.
+
+Focused RED/GREEN coverage is saved in `settled-low-fps/no-directional-shadows-case/{red,green}.log` (**3/3** GREEN). No build, runtime relaunch, FPS/CPU/GPU measurement, or independent final check has occurred. This is a shadow-map-work control, not evidence of an FPS benefit or a broader lighting exclusion.
+
 ### MSAA-only isolation
 
 Commit `56258e5f` adds `--no-msaa`, changing configured 4× MSAA to single-sample rendering without persisting an option change. Its source test covers the intended camera policy: configured MSAA keeps SSAO disabled while depth/normal prepasses and common effects remain; independently configured TAA retains TAA and SSAO. Verifier 115 confirmed `cargo fmt --check` and `cargo check --locked --bin game-engine --bin game-engine-cli` exited 0 at this revision; `binrw v0.15.1` emitted the pre-existing future-incompatibility notice. The verifier did not independently read live camera components.

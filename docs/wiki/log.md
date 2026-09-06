@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] diagnostic | Add directional-shadow isolation control
+
+Updated [[movement-performance]] for `ba6b756a`. Opt-in `--no-directional-shadows` inserts a startup resource consumed only by InWorld `spawn_world_environment`, which sets the spawned directional light's `shadow_maps_enabled` false and logs the override. The light, illuminance, transform, ambient lighting, cascade configuration, 4096-pixel shadow-map resource, camera effects, and general lighting remain; standalone/other scene setup paths are unchanged. Saved focused RED/GREEN is **3/3**. No build, relaunch, measurement, or independent final verification has occurred, so no FPS benefit is claimed.
+
 ## [2026-09-06] repair | Synchronize UI and world camera MSAA
 
 Updated [[movement-performance]] for `256bd37d`. The original `--no-msaa` path left the non-clearing UI camera at Bevy-default 4× MSAA while the world camera became single-sample, splitting their intermediate targets and accumulating dynamic FPS glyphs. `sync_ui_camera_msaa` now runs after 3D graphics synchronization and copies the actual active 3D sample count to the UI camera without changing its clear/order behavior or adding UI effects. RED `514259b9` reproduced UI `Sample4` where `Off` was required; saved GREEN passed **11/11** and the game-engine build exited 0, both with the existing `binrw v0.15.1` future-incompatibility notice. Fixed live `--no-msaa` PID `1875826` produced three readable changing FPS values in both Niri-native and IPC captures, ten seconds apart. This repairs the display regression; it does not turn earlier mixed-camera MSAA timing into pure sampling-cost evidence.
