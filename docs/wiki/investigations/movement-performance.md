@@ -184,6 +184,16 @@ The fresh pair restored the frame-time graph in both commands and otherwise reta
 
 Artifacts: `settled-low-fps/no-msaa-case/{summary,result,identity,reference-identity,msaa-on,msaa-off}.json`, paired position files, screenshots, and `settled-low-fps/{no-msaa-red,no-msaa-green,no-msaa-build,verifier-56258e5f-fmt,verifier-56258e5f-check}.log`.
 
+### Repeated MSAA comparison
+
+A four-phase ON/OFF/ON/OFF repeat under `settled-low-fps/no-msaa-repeat/` strengthens the throughput evidence but remains bounded. All runs used the same saved position and camera FOV, options hash, workspace, and 1280×1198 logical window. Parsed output configurations matched even though one raw JSON key-order hash differed. The lid was **closed** throughout, so this series is not directly comparable with the earlier lid-open, 1280×989 MSAA pair. The first MSAA-on phase had only 29 focused samples and is excluded from the causal comparison. The fully focused phases recorded **196.19 FPS** MSAA-off, **173.45 FPS** MSAA-on, and **204.75 FPS** MSAA-off (60 samples each).
+
+The adjacent focused ON/OFF phases had effectively equal process CPU use (**339.29%** versus **339.55%**), comparable mean GPU clock (**1,947.13** versus **1,920.32 MHz**), and lower GPU activity with MSAA off (**74.07%** versus **65.65%**). This is stronger evidence that 4× MSAA reduces rendered throughput in this fixed diagnostic scene. It does **not** show that removing MSAA reduces CPU work, fixes intermittent collapse, or supports an exact attributable percentage. Aggregated 500 MHz joint CPU/GPU-limit bins also favor MSAA-off, but their counts are small and actual clocks still vary, so they do not remove all frequency confounding.
+
+Both commands restored the numeric FPS/graph flags. Screenshot output is visually limited: phase 3 MSAA-on has clean numeric FPS but no visible graph bars, while phases 2 and 4 MSAA-off have overdrawn numeric glyphs. Do not infer graph state or a mode-specific cause from those images. Independent data verification for this repeat is pending.
+
+Artifacts: `settled-low-fps/no-msaa-repeat/{summary,conditions-summary,joint-limit-bins}.json`, raw phase samples, positions, camera/output captures, and screenshots.
+
 ### Foreground firmware-clamp evidence
 
 The client is using the **AMD Radeon 890M through Vulkan/RADV**, not software rasterization. Its DRM graphics-engine counter advanced 1.798 seconds over 2.001 wall seconds in a dedicated read, with duplicate file descriptors counted only once. The user's 296.7% CPU observation represents about three logical cores of CPU time; CPU scheduling/game systems/render preparation still occur alongside GPU work.
@@ -205,7 +215,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
-- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, MSAA samples, identities, screenshots, and verifier output through `56258e5f`.
+- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original MSAA pair, and the `no-msaa-repeat` raw/summary artifacts; repeat data verification remains pending.
 
 ## See Also
 
