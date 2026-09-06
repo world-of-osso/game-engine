@@ -194,6 +194,16 @@ Commit `7d7153b7` adds the independent `--freeze-batched-instances-after <SECOND
 
 Applying both cutoffs in the same extraction pass exposed a controller bug. `resource_scope<Schedules>` temporarily hid the schedule registry; the second removal rebuilt the changed Render schedule, whose initialization recreated that registry and panicked. Commit `09e77aa1` uses `World::schedule_scope(Render, …)`, leaving the registry available. A regression reproduces two consecutive removals with no intervening Render execution and verifies both targets stop while unrelated work continues. The upload suite passed **5/5**; the earlier failed run under `pipelining/on/` is not performance evidence.
 
+### GPU-cluster preparation isolation
+
+A roughly five-second instrumented trace named `bevy_pbr::cluster::gpu::prepare_clusters_for_gpu_clustering` as a lead: about **128 ms** of self wall time across roughly **552 calls**. Those spans overlap with other instrumented work and include tracing overhead; they are neither exclusive CPU time nor evidence that this callback causes idle CPU use.
+
+Commit `7d8baeb9` adds `--freeze-gpu-clusters-after <SECONDS>`. At its deadline it resolves that exact private runtime name to one implicit system set and removes exactly one callback, retaining existing buffers, every other callback, normal pipelining, and normal upload writers. Bevy's implementation allocates and reinserts `ViewClusterBindings` and `ViewGpuClusteringBuffers` per view per frame, which motivated the bounded test; it does not establish a performance cost by itself.
+
+The same-process pair used PID `3445983` and a 60-second cutoff. `before/` and `before-second/` were both pre-removal: **328.89% / 193.37 FPS** and **336.47% / 214.99 FPS**. The client log records removal at **60.006 s**. Post-removal `after/` measured **326.38% / 137.43 FPS** with CPU/GPU limits reaching 600 MHz; later `after-later/` measured **316.04% / 54.87 FPS** with the same clamp. The post-removal intervals are not comparable-FPS controls. They establish neither CPU reduction nor callback causality; no production optimization follows.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.log` and `gpu-clusters/pair/{before,before-second,after,after-later}/`, screenshots, and `client/stderr.log`.
+
 ### Pipelined-rendering CPU contribution
 
 Commit `e3a4ddcb` adds `--no-pipelined-rendering`. It omits only Bevy's `PipelinedRenderingPlugin`, retaining the RenderApp, GPU rendering, and scene settings. Render-app frames then execute sequentially with the main app instead of using the separate rendering-thread handoff. Individual schedules can still use compute workers; this does **not** switch the ECS executor to single-threaded operation. Headless behavioral RED/GREEN verifies frame delivery and the caller/render-thread distinction (**2/2 GREEN**).
@@ -281,7 +291,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
-- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original/corrected MSAA, directional-shadow, reported-drop, and independent-audit artifacts.
+- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original/corrected MSAA, directional-shadow, GPU-cluster preparation, reported-drop, and independent-audit artifacts.
 
 ## See Also
 
