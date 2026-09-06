@@ -196,6 +196,16 @@ Both commands restored the numeric FPS/graph flags. Screenshot output is visuall
 
 Artifacts: `settled-low-fps/no-msaa-repeat/{summary,conditions-summary,joint-limit-bins}.json`, `audit-2026-09-06.md`, raw phase samples, positions, camera/output captures, and screenshots.
 
+### MSAA-off FPS-overlay glyph corruption
+
+The MSAA repeat exposed a separate diagnostic defect: with `--no-msaa`, the changing numeric portion of the Bevy FPS overlay accumulates into solid glyph blocks. The static `FPS:` prefix remains clean. A compositor-native Niri capture and the engine IPC screenshot of live PID `1553387` both reproduce it, while frame-time graph bars are visible and update. The defect is therefore in the displayed render surface, not WebP encoding or IPC screenshot copy. Saved-image review finds the same correlation in both MSAA-off repeat phases and the earlier MSAA-off pair; known MSAA-on and graph-only captures have clean digits. This is an observed runtime correlation, not yet proof that the MSAA selector is its direct cause.
+
+The source boundary is concrete. The MSAA selector synchronizes only `Camera3d`, changing the WoW world camera from `Msaa::Sample4` to `Msaa::Off`; it deliberately preserves SSAO policy and prepasses. The `ui-toolkit` UI camera renders after it with `order: 1` and `ClearColorConfig::None`. Bevy registers `Msaa` as a required component of every `Camera`, whose default is `Sample4`; thus the UI camera remains 4× MSAA even when the world camera is single-sample. Bevy keys intermediate main textures by render target, usage, format, and `Msaa`; the two cameras therefore use different intermediate targets. The UI camera's non-clearing pass can preserve its own target rather than the world camera's new single-sample target. This is the current root-cause hypothesis for stale UI composition, supported by source and reproduction but **not experimentally confirmed**.
+
+Bevy's text update path is not the leading explanation: the overlay overwrites the numeric `TextSpan`, clears layout glyph data before rebuilding, and clears extracted UI glyph lists per extraction. No runtime control can inspect or change only `UiCamera` MSAA or clear behavior. The minimal proposed fix is to synchronize the composited UI camera's MSAA with the world camera, pending user approval, a behavioral RED/GREEN test, and live proof. Until then, the repeat is valid for its recorded process/FPS telemetry but is not a verified whole-frame MSAA-off visual configuration.
+
+Artifacts: `settled-low-fps/fps-overdraw/{msaa-off-niri.png,msaa-off-ipc.webp}`, `no-msaa-case/msaa-off.webp`, and `no-msaa-repeat/{2-msaa-off,4-msaa-off}/view.webp`.
+
 ### Foreground firmware-clamp evidence
 
 The client is using the **AMD Radeon 890M through Vulkan/RADV**, not software rasterization. Its DRM graphics-engine counter advanced 1.798 seconds over 2.001 wall seconds in a dedicated read, with duplicate file descriptors counted only once. The user's 296.7% CPU observation represents about three logical cores of CPU time; CPU scheduling/game systems/render preparation still occur alongside GPU work.
