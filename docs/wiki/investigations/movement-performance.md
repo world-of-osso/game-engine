@@ -180,13 +180,15 @@ Artifacts: `settled-low-fps/no-graph-case/{summary,result,identity,reference-ide
 
 Commit `ba6b756a` adds opt-in `--no-directional-shadows` for the InWorld world-environment light. Startup inserts a diagnostic resource only when requested; `spawn_world_environment` reads it while creating the directional light and sets only `DirectionalLight.shadow_maps_enabled` to false. It logs the applied override. The light entity, overcast-day illuminance, transform, ambient lighting, cascade configuration, 4096-pixel `DirectionalLightShadowMap` resource, camera effects, and general directional-light calculations remain. Standalone and other scene setup paths are unchanged.
 
-Focused RED/GREEN coverage is saved in `settled-low-fps/no-directional-shadows-case/{red,green}.log` (**3/3** GREEN); the `ba6b756a` game-engine build exited 0. A planned four-phase ON/OFF capture was deliberately interrupted after its first 60-sample shadows-on phase and 27 shadows-off samples when the user observed a sudden **170–200 FPS to about 40 FPS** foreground drop. It is not a completed A/B and establishes no shadow benefit.
+Focused RED/GREEN coverage is saved in `settled-low-fps/no-directional-shadows-case/{red,green}.log` (**3/3** GREEN); the `ba6b756a` game-engine build exited 0. A planned four-phase ON/OFF capture was deliberately interrupted after its first 60-sample shadows-on phase and 27 shadows-off samples when the user observed a sudden **170–200 FPS to about 40 FPS** foreground drop. Only eight of the 60 shadows-on rows were focused. It is not a completed, focus-matched A/B and establishes no shadow benefit.
 
 The retained shadow-off client (PID `2004379`, hash `5b5e1619e03ed4396ff3c8b5dca08813c42c4cd38bb38c5ce136fc93f74de921`) used normal MSAA and the graph with the terrain-off exclusions. An immediate 12-second focused capture measured **43.92–58.24 FPS**, with both enforced CPU and GPU limits at **600 MHz in all 12 rows**, mean GPU activity **43.5%**, and **309.04%** process CPU. Raw core/GFX thermal-residency counters each advanced by 11,006; their units remain unspecified. A CPU profile captured only after recovery (**192.33–202.57 FPS**) is not slow-state attribution.
 
 The user clarified that FPS settles in under 15 seconds. Future relaunch comparisons use a 10-second settling delay, distinct from a measurement window; this later drop is not startup settling. The detached capture was cancelled to preserve the live client. Its absent advertised detach log and lack of later CLI/runner output do not establish an application stall.
 
-Artifacts: `settled-low-fps/no-directional-shadows-case/{repeat,reported-drop,red.log,green.log,build.log}`. This remains a shadow-map-work control, not evidence of an FPS benefit, a broader lighting exclusion, or a physical-cooling cause.
+Independent verification passed fmt/check and changed-Rust readability at `ba6b756a`, reused the 3/3 GREEN/build proof, confirmed the startup override log, and recomputed the 12-row drop (mean 52.82 FPS). The existing `binrw v0.15.1` future-incompatibility notice remains.
+
+Artifacts: `settled-low-fps/no-directional-shadows-case/{repeat,reported-drop,red.log,green.log,build.log,audit-2026-09-06.md}`. This remains a shadow-map-work control, not evidence of an FPS benefit, a broader lighting exclusion, or a physical-cooling cause.
 
 ### MSAA-only isolation
 
