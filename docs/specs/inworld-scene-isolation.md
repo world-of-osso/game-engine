@@ -15,6 +15,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 
 - [x] Accept opt-in `--no-msaa`: override configured 4x MSAA to single-sample rendering in the camera render bundle, without changing the saved graphics option.
 - [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, depth/normal prepasses, common camera effects, and lighting.
+- [x] Keep the composited UI camera's MSAA synchronized with the active 3D camera after graphics updates, including diagnostic restoration and preserved pre-Lighting sampling. Preserve UI clear/order behavior and readable changing FPS digits; do not apply 3D post-processing to the UI camera.
 
 ### Frame-time-graph control
 

@@ -12,7 +12,7 @@ use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode};
 use bevy::post_process::dof::DepthOfField;
 use bevy::render::camera::{MipBias, TemporalJitter};
-use ui_toolkit::render::{setup_ui_camera, UiCamera};
+use ui_toolkit::render::{UiCamera, setup_ui_camera};
 
 #[test]
 fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bundle() {
@@ -24,7 +24,11 @@ fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bund
     app.add_systems(Startup, setup_ui_camera);
     app.add_systems(
         Update,
-        camera_post_process::sync_camera_graphics_post_process,
+        (
+            camera_post_process::sync_camera_graphics_post_process,
+            camera_post_process::sync_ui_camera_msaa,
+        )
+            .chain(),
     );
     let world_entity = spawn_wow_camera(&mut app.world_mut().commands());
     app.update();
@@ -77,15 +81,32 @@ fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bund
     assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
     assert!(world_camera.contains::<TemporalAntiAliasing>());
     assert!(world_camera.contains::<ScreenSpaceAmbientOcclusion>());
-    assert!(!app
-        .world()
-        .entity(ui_entity)
-        .contains::<TemporalAntiAliasing>());
+    assert!(
+        !app.world()
+            .entity(ui_entity)
+            .contains::<TemporalAntiAliasing>()
+    );
     assert!(!app.world().entity(ui_entity).contains::<DepthPrepass>());
     assert!(!app.world().entity(ui_entity).contains::<NormalPrepass>());
 
     app.world_mut().remove_resource::<MsaaDisabled>();
+    app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::None;
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Off));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
+
     app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Msaa4x;
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Sample4));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Sample4));
+
+    app.insert_resource(InWorldSceneStage::Character);
+    app.world_mut().entity_mut(world_entity).insert(Msaa::Off);
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Off));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
+
+    app.insert_resource(InWorldSceneStage::NoNpcsUi);
     app.update();
     assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Sample4));
     assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Sample4));

@@ -26,8 +26,8 @@ mod camera_post_process;
 
 use camera_controls::{apply_keyboard_camera, camera_pitch_delta};
 use camera_follow::camera_follow;
-use camera_post_process::sync_camera_graphics_post_process;
 pub(crate) use camera_post_process::{MsaaDisabled, additive_particle_glow_tonemapping};
+use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
 
 pub struct WowCameraPlugin;
 
@@ -36,7 +36,10 @@ impl Plugin for WowCameraPlugin {
         app.init_resource::<crate::client_options::CameraOptions>();
         app.init_resource::<PathingState>();
         register_scripted_movement(app);
-        app.add_systems(Update, sync_camera_graphics_post_process);
+        app.add_systems(
+            Update,
+            (sync_camera_graphics_post_process, sync_ui_camera_msaa).chain(),
+        );
         app.add_systems(
             Update,
             (

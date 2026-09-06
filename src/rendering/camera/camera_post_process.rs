@@ -21,6 +21,30 @@ const DEFAULT_CAS_SHARPENING: f32 = 0.6;
 #[derive(Resource)]
 pub(crate) struct MsaaDisabled;
 
+pub(super) fn sync_ui_camera_msaa(
+    world_cameras: Query<(&Camera, &Msaa), With<Camera3d>>,
+    mut ui_cameras: Query<&mut Msaa, (With<ui_toolkit::render::UiCamera>, Without<Camera3d>)>,
+) {
+    let mut active_cameras = world_cameras.iter().filter(|(camera, _)| camera.is_active);
+    let Some((_, world_msaa)) = active_cameras.next() else {
+        return;
+    };
+    if active_cameras.next().is_some() {
+        bevy::log::error_once!("Cannot synchronize UI MSAA with multiple active 3D cameras");
+        return;
+    }
+    // Composited cameras must share sampling so Bevy reuses their main target.
+    for mut ui_msaa in &mut ui_cameras {
+        if *ui_msaa != *world_msaa {
+            info!(
+                "UI camera MSAA synchronized: {:?} -> {:?}",
+                *ui_msaa, world_msaa
+            );
+            *ui_msaa = *world_msaa;
+        }
+    }
+}
+
 pub(crate) fn additive_particle_glow_tonemapping() -> Tonemapping {
     Tonemapping::TonyMcMapface
 }
