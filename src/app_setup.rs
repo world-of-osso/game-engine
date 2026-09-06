@@ -6,7 +6,11 @@ pub(crate) fn gizmos_enabled_for_app(app: &App) -> bool {
         != InWorldSceneStage::Empty
 }
 
-fn default_plugins(enable_sound: bool, enable_gizmos: bool) -> bevy::app::PluginGroupBuilder {
+fn default_plugins(
+    enable_sound: bool,
+    enable_gizmos: bool,
+    enable_pipelining: bool,
+) -> bevy::app::PluginGroupBuilder {
     let mut plugins = DefaultPlugins.set(WindowPlugin {
         primary_window: Some(Window {
             name: Some("com.worldofosso.game-engine".to_string()),
@@ -23,8 +27,27 @@ fn default_plugins(enable_sound: bool, enable_gizmos: bool) -> bevy::app::Plugin
             .disable::<bevy::gizmos::GizmoPlugin>()
             .disable::<bevy::gizmos_render::GizmoRenderPlugin>();
     }
-    plugins
+    apply_pipelining_policy(plugins, enable_pipelining)
 }
+
+pub(crate) fn pipelining_enabled(args: &[String]) -> bool {
+    !has_flag(args, "--no-pipelined-rendering")
+}
+
+fn apply_pipelining_policy(
+    plugins: bevy::app::PluginGroupBuilder,
+    enabled: bool,
+) -> bevy::app::PluginGroupBuilder {
+    if enabled {
+        plugins
+    } else {
+        plugins.disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>()
+    }
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/pipeline_isolation_tests.rs"]
+mod pipeline_isolation_tests;
 
 pub(crate) fn run_screenshot_regression_app(
     args: &[String],
@@ -33,7 +56,7 @@ pub(crate) fn run_screenshot_regression_app(
     let screenshot = screenshot_regression_request_or_exit(args, screenshot);
 
     let mut app = App::new();
-    app.add_plugins(default_plugins(false, true));
+    app.add_plugins(default_plugins(false, true, pipelining_enabled(args)));
     app.init_state::<game_state::GameState>();
     app.insert_state(game_state::GameState::InWorld);
     app.insert_resource(game_engine::ui::plugin::UiState {
@@ -110,8 +133,20 @@ fn save_regression_screenshot(img: &bevy::image::Image, output: &PathBuf) {
     println!("Saved {} ({} bytes)", output.display(), webp_data.len());
 }
 
-fn register_bevy_plugins(app: &mut App, enable_sound: bool, enable_gizmos: bool) {
-    app.add_plugins(default_plugins(enable_sound, enable_gizmos));
+fn register_bevy_plugins(
+    app: &mut App,
+    enable_sound: bool,
+    enable_gizmos: bool,
+    enable_pipelining: bool,
+) {
+    app.add_plugins(default_plugins(
+        enable_sound,
+        enable_gizmos,
+        enable_pipelining,
+    ));
+    if !enable_pipelining {
+        info!("Pipelined rendering disabled: render work runs sequentially on the main thread");
+    }
     register_exit_diagnostics(app);
     register_ui_plugins(app);
     register_world_plugins(app);
@@ -259,8 +294,13 @@ fn register_render_plugins(app: &mut App) {
     );
 }
 
-pub(crate) fn register_plugins(app: &mut App, enable_sound: bool, enable_gizmos: bool) {
-    register_bevy_plugins(app, enable_sound, enable_gizmos);
+pub(crate) fn register_plugins(
+    app: &mut App,
+    enable_sound: bool,
+    enable_gizmos: bool,
+    enable_pipelining: bool,
+) {
+    register_bevy_plugins(app, enable_sound, enable_gizmos, enable_pipelining);
     app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
         GameBlpLoader,
     )));
@@ -596,7 +636,7 @@ mod tests {
         for enable_gizmos in [false, true] {
             let mut app = App::new();
             app.add_plugins(
-                default_plugins(false, enable_gizmos)
+                default_plugins(false, enable_gizmos, true)
                     .disable::<bevy::winit::WinitPlugin>()
                     .disable::<bevy::log::LogPlugin>()
                     .disable::<bevy::gilrs::GilrsPlugin>()
@@ -621,7 +661,7 @@ mod tests {
         for enable_sound in [false, true] {
             let mut app = App::new();
             app.add_plugins(
-                default_plugins(enable_sound, true)
+                default_plugins(enable_sound, true, true)
                     .disable::<bevy::winit::WinitPlugin>()
                     .disable::<bevy::log::LogPlugin>()
                     .disable::<bevy::gilrs::GilrsPlugin>()

@@ -17,6 +17,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, depth/normal prepasses, common camera effects, and lighting.
 - [x] Keep the composited UI camera's MSAA synchronized with the active 3D camera after graphics updates, including diagnostic restoration and preserved pre-Lighting sampling. Preserve UI clear/order behavior and readable changing FPS digits; do not apply 3D post-processing to the UI camera.
 
+### Pipelined-rendering control
+
+- [x] Accept opt-in `--no-pipelined-rendering`: omit Bevy's pipelined-rendering plugin while retaining the render app and its rendering work. Execute render-app frames sequentially on the calling thread rather than via the separate render-thread handoff.
+- [x] Preserve normal pipelining without the flag and retain scene/camera/FPS-overlay settings. Report the selected diagnostic mode. Compare CPU time and FPS together because removing overlap can change throughput.
+
 ### Render upload controls
 
 - [x] Accept opt-in `--freeze-indirect-parameters-after <SECONDS>`: after startup elapsed time, remove only Bevy's `write_indirect_parameters_buffers` system from the render schedule. Preserve dependency ordering, allocated buffers, other render systems, camera settings, and existing scene exclusions.

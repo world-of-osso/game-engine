@@ -287,6 +287,9 @@ pub fn print_help() {
     println!(
         "  --freeze-batched-instances-after <SECONDS>  Stop PBR batched-instance uploads after startup elapsed time (stationary-scene diagnostic)"
     );
+    println!(
+        "  --no-pipelined-rendering  Run render work sequentially instead of on a separate render thread (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");

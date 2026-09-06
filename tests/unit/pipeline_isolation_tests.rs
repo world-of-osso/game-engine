@@ -1,9 +1,9 @@
-use super::apply_pipelining_policy;
+use super::{apply_pipelining_policy, pipelining_enabled};
 use bevy::app::{App, Main, PluginGroup, PluginGroupBuilder, SubApp};
-use bevy::ecs::schedule::ScheduleLabel;
+use bevy::ecs::schedule::{ScheduleLabel, SingleThreadedExecutor};
 use bevy::prelude::*;
-use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use bevy::render::RenderApp;
+use bevy::render::pipelined_rendering::PipelinedRenderingPlugin;
 use std::sync::mpsc::{self, Receiver};
 use std::thread::{self, ThreadId};
 use std::time::Duration;
@@ -26,6 +26,9 @@ fn probe_render_thread() -> (App, Receiver<ThreadId>) {
             .expect("render probe receiver dropped");
     });
 
+    render_app.edit_schedule(Main, |schedule| {
+        schedule.set_executor(SingleThreadedExecutor::new());
+    });
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.insert_sub_app(RenderApp, render_app);
@@ -38,7 +41,7 @@ fn disabled_pipelining_keeps_render_frames_on_the_calling_thread() {
     let (mut app, receiver) = probe_render_thread();
     app.add_plugins(apply_pipelining_policy(
         PipelineGroup::build(PipelineGroup),
-        false,
+        pipelining_enabled(&["--no-pipelined-rendering".to_owned()]),
     ));
     app.finish();
     app.cleanup();
@@ -58,7 +61,7 @@ fn enabled_pipelining_delivers_render_frames_from_a_different_thread() {
     let (mut app, receiver) = probe_render_thread();
     app.add_plugins(apply_pipelining_policy(
         PipelineGroup::build(PipelineGroup),
-        true,
+        pipelining_enabled(&[]),
     ));
     app.finish();
     app.cleanup();

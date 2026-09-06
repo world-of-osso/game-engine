@@ -384,7 +384,12 @@ fn run_app(
     app.insert_resource(game_state::StartupPerfTimer(std::time::Instant::now()));
     insert_inworld_scene_stage_resource(&mut app, args);
     let enable_gizmos = gizmos_enabled_for_app(&app);
-    register_plugins(&mut app, enable_sound, enable_gizmos);
+    register_plugins(
+        &mut app,
+        enable_sound,
+        enable_gizmos,
+        app_setup::pipelining_enabled(args),
+    );
     apply_inworld_scene_stage_ui_gates(&mut app);
     configure_app_plugins(&mut app, enable_sound, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
