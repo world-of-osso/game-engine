@@ -180,7 +180,13 @@ Artifacts: `settled-low-fps/no-graph-case/{summary,result,identity,reference-ide
 
 Commit `ba6b756a` adds opt-in `--no-directional-shadows` for the InWorld world-environment light. Startup inserts a diagnostic resource only when requested; `spawn_world_environment` reads it while creating the directional light and sets only `DirectionalLight.shadow_maps_enabled` to false. It logs the applied override. The light entity, overcast-day illuminance, transform, ambient lighting, cascade configuration, 4096-pixel `DirectionalLightShadowMap` resource, camera effects, and general directional-light calculations remain. Standalone and other scene setup paths are unchanged.
 
-Focused RED/GREEN coverage is saved in `settled-low-fps/no-directional-shadows-case/{red,green}.log` (**3/3** GREEN). No build, runtime relaunch, FPS/CPU/GPU measurement, or independent final check has occurred. This is a shadow-map-work control, not evidence of an FPS benefit or a broader lighting exclusion.
+Focused RED/GREEN coverage is saved in `settled-low-fps/no-directional-shadows-case/{red,green}.log` (**3/3** GREEN); the `ba6b756a` game-engine build exited 0. A planned four-phase ON/OFF capture was deliberately interrupted after its first 60-sample shadows-on phase and 27 shadows-off samples when the user observed a sudden **170–200 FPS to about 40 FPS** foreground drop. It is not a completed A/B and establishes no shadow benefit.
+
+The retained shadow-off client (PID `2004379`, hash `5b5e1619e03ed4396ff3c8b5dca08813c42c4cd38bb38c5ce136fc93f74de921`) used normal MSAA and the graph with the terrain-off exclusions. An immediate 12-second focused capture measured **43.92–58.24 FPS**, with both enforced CPU and GPU limits at **600 MHz in all 12 rows**, mean GPU activity **43.5%**, and **309.04%** process CPU. Raw core/GFX thermal-residency counters each advanced by 11,006; their units remain unspecified. A CPU profile captured only after recovery (**192.33–202.57 FPS**) is not slow-state attribution.
+
+The user clarified that FPS settles in under 15 seconds. Future relaunch comparisons use a 10-second settling delay, distinct from a measurement window; this later drop is not startup settling. The detached capture was cancelled to preserve the live client. Its absent advertised detach log and lack of later CLI/runner output do not establish an application stall.
+
+Artifacts: `settled-low-fps/no-directional-shadows-case/{repeat,reported-drop,red.log,green.log,build.log}`. This remains a shadow-map-work control, not evidence of an FPS benefit, a broader lighting exclusion, or a physical-cooling cause.
 
 ### MSAA-only isolation
 
@@ -243,7 +249,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
-- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original MSAA pair, and independently audited `no-msaa-repeat` artifacts.
+- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original/corrected MSAA, directional-shadow, reported-drop, and independent-audit artifacts.
 
 ## See Also
 
