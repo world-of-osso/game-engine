@@ -290,6 +290,9 @@ pub fn print_help() {
     println!(
         "  --no-pipelined-rendering  Run render work sequentially instead of on a separate render thread (diagnostic)"
     );
+    println!(
+        "  --freeze-gpu-clusters-after <SECONDS>  Stop GPU light-cluster buffer preparation after startup elapsed time (stationary-scene diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -355,7 +358,8 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             | "--skybox-time-ms"
             | "--freeze-terrain-materials-after"
             | "--freeze-indirect-parameters-after"
-            | "--freeze-batched-instances-after" => {
+            | "--freeze-batched-instances-after"
+            | "--freeze-gpu-clusters-after" => {
                 i += 2;
             }
             "--login-dev-admin" => {
