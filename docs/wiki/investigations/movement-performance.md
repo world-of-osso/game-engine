@@ -214,9 +214,13 @@ Commit `36d1d994` adds the diagnostic-only `cpu-system-profile` feature. A build
 
 The JSON groups selected Bevy `system`, `schedule`, `multithreaded executor`, and `main_render_schedule` spans by thread. Each group reports call count plus inclusive and self `CLOCK_THREAD_CPUTIME_ID` nanoseconds, the thread's observed capture-window CPU delta, and spans excluded for crossing the window boundary. Only spans that both enter and exit during the five-second interval count. This excludes blocked time and avoids charging one thread's CPU to another.
 
-This is an attribution instrument, not a comparable performance baseline. It cannot assign uninstrumented worker-task CPU to a parent span; tracing and clock reads also perturb the profiled process. The `bevy/trace` feature activates optional tracing-related transitive dependencies, including `tracing-error` and profiling macros, only for the diagnostic feature build. No runtime capture or CPU/FPS result exists yet, and this does not identify the excess CPU source.
+The first feature-build capture, from `36d1d994`, ran PID `3611636` in the reduced stationary scene. All 13 overlapping telemetry samples were focused: **358.55% process CPU** and **161.64 FPS**, with CPU limits 3,737–3,964 MHz and GPU limits 600–1,139 MHz. The five-second JSON reports **18.122 s observed thread CPU** and **11.061 s summed named-span self CPU**. The remaining **7.061 s** is not native CPU ownership: it includes uninstrumented worker-task work and profiler overhead. Nine boundary-crossing spans were excluded, all on main/render threads; no worker span crossed a boundary. The capture therefore identifies neither a root cause nor a comparable normal-build result.
 
-Artifacts and proof ledger: `settled-low-fps/cpu-system-isolation/thread-cpu-profile/`.
+Commit `5f3fb679` changes stored span labels from per-entry `String` clones to shared labels and adds real concurrent-same-span plus blocked-sleep tests. Its subsequent captures have lower label-allocation overhead and are distinct from this first result.
+
+The `bevy/trace` feature activates optional tracing-related transitive dependencies, including `tracing-error` and profiling macros, only for the diagnostic feature build.
+
+Artifacts and proof ledger: `settled-low-fps/cpu-system-isolation/thread-cpu-profile/`, especially `capture/{profile.json,cpu-ranking.json,telemetry/}`.
 
 ### Pipelined-rendering CPU contribution
 
@@ -305,7 +309,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
-- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original/corrected MSAA, directional-shadow, GPU-cluster preparation, reported-drop, and independent-audit artifacts.
+- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original/corrected MSAA, directional-shadow, GPU-cluster preparation, thread-CPU profiling, reported-drop, and independent-audit artifacts.
 
 ## See Also
 

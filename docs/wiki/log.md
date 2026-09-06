@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-06] measurement | Record first named-span thread-CPU capture
+
+Updated [[movement-performance]] from feature-build `36d1d994` PID `3611636`. The five-second selected-span capture reported **18.122 s** observed thread CPU and **11.061 s** summed self CPU while overlapping focused telemetry measured **358.55%** process CPU and **161.64 FPS**. The **7.061 s** residual includes uninstrumented worker-task work and profiler overhead; it is not native CPU ownership. Nine boundary-crossing spans were excluded, none on Compute Task Pool workers. `5f3fb679` subsequently shares span labels and adds concurrent-same-span and blocked-sleep tests, so future captures have lower label-allocation overhead and are distinct. No root cause, normal-build comparison, or optimization claim follows.
+
 ## [2026-09-06] diagnostic | Add named-span thread-CPU profiler
 
-Documented `36d1d994` in [[movement-performance]] and the InWorld isolation spec. The diagnostic-only `cpu-system-profile` feature installs its tracing layer only when `WOO_CPU_PROFILE_OUTPUT` is set. It captures selected named system/schedule/executor spans from seconds 10–15 and exports aggregate per-thread CPU-clock JSON after a one-second drain at approximately second 16. It reports inclusive/self CPU, observed thread CPU, and boundary-excluded spans; blocked time and uninstrumented worker work remain outside attribution. `bevy/trace` enables optional tracing-related transitive dependencies only in this feature build. No runtime capture, CPU/FPS comparison, cause, or optimization claim exists yet.
+Documented `36d1d994` in [[movement-performance]] and the InWorld isolation spec. The diagnostic-only `cpu-system-profile` feature installs its tracing layer only when `WOO_CPU_PROFILE_OUTPUT` is set. It captures selected named system/schedule/executor spans from seconds 10–15 and exports aggregate per-thread CPU-clock JSON after a one-second drain at approximately second 16. It reports inclusive/self CPU, observed thread CPU, and boundary-excluded spans; blocked time and uninstrumented worker work remain outside attribution. `bevy/trace` enables optional tracing-related transitive dependencies only in this feature build. First runtime results are recorded in the later capture entry; no cause or optimization claim follows.
 
 ## [2026-09-06] measurement | Isolate pipelined-rendering CPU contribution
 

@@ -110,7 +110,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `tests/unit/main_tests.rs` — stage parsing, default/full-scene behavior, UI processing gates, and performance-overlay survival.
 - `tests/unit/pipeline_isolation_tests.rs` — render-frame delivery and calling-thread versus render-thread execution through the pipelining selector.
 - `src/rendering/render_upload_isolation.rs` tests — separate removal deadlines, continued unrelated work, and CLI value handling.
-- `src/cpu_system_profile.rs` tests — nested and independent-thread CPU accounting.
+- `src/cpu_system_profile.rs` tests — nested, boundary, independent-thread, concurrent same-span, and blocked-sleep CPU accounting.
 
 ## Known gaps (current cycle)
 
