@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] clarification | Bound CPU-profile coverage claims
+
+Clarified [[movement-performance]] and JSON metadata: observed CPU is bracketed by each thread's first/last captured selected-span clocks, not exact five-second CPU. Residuals apply only inside those intervals; unobserved threads and boundary time are absent. The crossing counter records late exits, not spans already active at capture start. Accounting arithmetic is unchanged.
+
 ## [2026-09-06] measurement | Trace upload exclusions with thread CPU clocks
 
 Updated [[movement-performance]] with three `5f3fb679` feature-build captures: both upload writers active, indirect removed, then batched also removed. Exact callback spans disappear, but worker residual remains 5.828 CPU-seconds with both absent. Differing frame counts and instrumentation prevent a normal-build optimization claim. Recovered native flat leaf samples using `perf script -G` and the matching saved binary; full ancestry remains unresolved. Default build restored; profiling clients stopped.

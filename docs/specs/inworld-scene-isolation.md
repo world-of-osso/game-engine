@@ -33,7 +33,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 ### Named-span CPU attribution
 
 - [ ] With the diagnostic-only `cpu-system-profile` feature and `WOO_CPU_PROFILE_OUTPUT` set, capture a bounded five-second sample starting ten seconds after profiler setup and write aggregate JSON. Without the environment variable, install no CPU-accounting layer; normal builds do not include it.
-- [x] Report calls, inclusive thread CPU, and nested-span-exclusive thread CPU for named systems, schedules, and executor spans. Account independently for each thread and span entry; exclude blocked time and never subtract CPU from another thread.
+- [x] Report calls, inclusive thread CPU, and nested-span-exclusive thread CPU for named systems, schedules, and executor spans. Account independently for each thread and span entry; exclude blocked time and never subtract CPU from another thread. `observed_cpu_ns` covers only the first-to-last captured selected-span clock observations, not the entire five-second window; threads without observations are absent. The boundary counter counts entries inside the window that exit afterward.
 - [ ] Preserve rendering, worker counts, CPU availability, and frame-rate policy. Fail explicitly on clock or output errors. Treat results as instrumented attribution, not a normal-build performance comparison; uninstrumented task work and profiling overhead limit coverage.
 
 ### Directional-shadow diagnostic

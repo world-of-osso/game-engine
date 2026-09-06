@@ -194,8 +194,8 @@ impl SharedProfiler {
             capture_start_after_seconds: START_DELAY.as_secs(),
             capture_duration_seconds: CAPTURE_DURATION.as_secs(),
             export_after_seconds: (START_DELAY + CAPTURE_DURATION + EXPORT_DELAY).as_secs(),
-            boundary_policy: "Only spans that enter and exit inside the five-second capture window are counted. Spans crossing either boundary are excluded and counted separately; export waits one second after the window to observe ordinary exits.".to_string(),
-            limitation: "CPU is measured only on the thread entering a selected tracing span. Blocked time is excluded; uninstrumented worker tasks and profiler overhead remain outside named-span attribution.".to_string(),
+            boundary_policy: "Only spans that enter and exit inside the capture window are counted. boundary_crossing_spans counts entries inside the window that exit afterward, not spans already active at its start. Export waits one second for ordinary exits.".to_string(),
+            limitation: "observed_cpu_ns is the first-to-last captured selected-span CPU-clock delta on each thread, not its complete five-second CPU use. Unobserved boundary intervals and threads without selected spans are absent. Blocked time is excluded; uninstrumented work and profiler overhead within the observed intervals remain outside named-span attribution.".to_string(),
             threads: reports,
         };
         let encoded = serde_json::to_vec_pretty(&payload)
@@ -533,6 +533,20 @@ mod tests {
         );
         assert_eq!(profiler.measurement("before-window"), None);
         assert_eq!(profiler.boundary_crossing_spans, 0);
+    }
+
+    #[test]
+    fn observed_cpu_is_the_selected_span_interval_including_unattributed_gaps() {
+        let mut report = ThreadReport::new("sampled-thread".into());
+        report.enter(SpanKey::new("first"), 50, true);
+        report.exit(60, true).unwrap();
+        report.enter(SpanKey::new("second"), 80, true);
+        report.exit(90, true).unwrap();
+
+        let snapshot = report.snapshot();
+        assert_eq!(snapshot.observed_cpu_ns, 40);
+        let attributed_cpu: u64 = snapshot.spans.iter().map(|span| span.self_cpu_ns).sum();
+        assert_eq!(attributed_cpu, 20);
     }
 
     #[test]

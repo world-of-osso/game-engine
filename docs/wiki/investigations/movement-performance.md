@@ -212,15 +212,15 @@ Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.
 
 Commit `36d1d994` adds the diagnostic-only `cpu-system-profile` feature. A build with that feature installs no profiling layer unless `WOO_CPU_PROFILE_OUTPUT` names an output file. Once enabled, it starts its fixed capture ten seconds after setup, records five seconds, and exports aggregate JSON after a one-second drain at approximately sixteen seconds.
 
-The JSON groups selected Bevy `system`, `schedule`, `multithreaded executor`, and `main_render_schedule` spans by thread. Each group reports call count plus inclusive and self `CLOCK_THREAD_CPUTIME_ID` nanoseconds, the thread's observed capture-window CPU delta, and spans excluded for crossing the window boundary. Only spans that both enter and exit during the five-second interval count. This excludes blocked time and avoids charging one thread's CPU to another.
+The JSON groups selected Bevy `system`, `schedule`, `multithreaded executor`, and `main_render_schedule` spans by thread. Each group reports call count plus inclusive and self `CLOCK_THREAD_CPUTIME_ID` nanoseconds, the CPU-clock delta between that thread's first and last captured selected-span observations, and a count of entries inside the window that exit afterward. Only spans that both enter and exit during the five-second interval contribute named CPU. `observed_cpu_ns` is not exact full-window CPU: intervals before/after those observations and threads without observations are absent. Residuals and coverage ratios below refer only to these observed intervals. Blocked time is excluded.
 
-The first feature-build capture, from `36d1d994`, ran PID `3611636` in the reduced stationary scene. All 13 overlapping telemetry samples were focused: **358.55% process CPU** and **161.64 FPS**, with CPU limits 3,737–3,964 MHz and GPU limits 600–1,139 MHz. The five-second JSON reports **18.122 s observed thread CPU** and **11.061 s summed named-span self CPU**. The remaining **7.061 s** is not native CPU ownership: it includes uninstrumented worker-task work and profiler overhead. Nine boundary-crossing spans were excluded, all on main/render threads; no worker span crossed a boundary. The capture therefore identifies neither a root cause nor a comparable normal-build result.
+The first feature-build capture, from `36d1d994`, ran PID `3611636` in the reduced stationary scene. All 13 overlapping telemetry samples were focused: **358.55% process CPU** and **161.64 FPS**, with CPU limits 3,737–3,964 MHz and GPU limits 600–1,139 MHz. The five-second JSON reports **18.122 s observed thread CPU** and **11.061 s summed named-span self CPU**. The remaining **7.061 s** is not native CPU ownership: it includes uninstrumented worker-task work and profiler overhead. Nine end-crossing spans were counted, all on main/render threads; worker end-crossing counters were zero. Spans already active at capture start are also excluded but are not counted by that counter. The capture therefore identifies neither a root cause nor a comparable normal-build result.
 
 Commit `5f3fb679` changes stored span labels from per-entry `String` clones to shared labels and adds real concurrent-same-span plus blocked-sleep tests. Its captures use different instrumentation from the first result.
 
 Three captures with the same `92bd0b01` feature binary removed one additional upload callback at each step, before the capture window:
 
-| Profiling mode | Observed CPU seconds | Unattributed CPU seconds | Render frames |
+| Profiling mode | Selected-interval CPU seconds | Residual within those intervals | Render frames |
 |---|---:|---:|---:|
 | Both writers active | 17.765 | 6.798 | 814 |
 | Indirect writer removed | 17.501 | 6.628 | 874 |
