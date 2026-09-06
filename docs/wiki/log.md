@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] diagnostic | Add timed camera-follow isolation
+
+Documented `a9de6b17` in [[movement-performance]]. `--freeze-camera-follow-after <SECONDS>` removes only the registered `camera_follow` callback from `Update` at its `Last`-schedule cutoff, retaining the current camera transform while leaving camera input, player movement, graphics synchronization, rendering, normal pipelining, and unrelated systems active. Behavioral proof passed 5/5. This is stationary-only attribution infrastructure; no CPU/FPS result or optimization claim exists yet.
+
 ## [2026-09-06] clarification | Bound CPU-profile coverage claims
 
 Clarified [[movement-performance]] and JSON metadata: observed CPU is bracketed by each thread's first/last captured selected-span clocks, not exact five-second CPU. Residuals apply only inside those intervals; unobserved threads and boundary time are absent. The crossing counter records late exits, not spans already active at capture start. Accounting arithmetic is unchanged.

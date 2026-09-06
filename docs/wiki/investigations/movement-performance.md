@@ -208,6 +208,14 @@ Independent verification reused the 6/6 behavioral tests and normal build, passe
 
 Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.log` and `gpu-clusters/pair/{before,before-second,after,after-later,after-recovery,after-refocused}/`, screenshots, and `client/stderr.log`.
 
+### Camera-follow isolation
+
+Commit `a9de6b17` adds `--freeze-camera-follow-after <SECONDS>`. At the elapsed-time cutoff, its `Last`-schedule controller removes exactly the registered `camera_follow` callback from `Update`; the existing camera transform remains in place. Camera input, player movement, graphics synchronization, rendering, normal pipelining, and unrelated systems remain registered.
+
+This is a stationary-scene attribution control, not a movement or camera-control optimization. A behavioral test passes **5/5**: before its deadline the target continues, at its deadline the last transform is retained, unrelated chained work continues, repeated removal does not re-run, omitted flags add no controller, invalid seconds fail, and the value is not treated as an asset path. No runtime CPU/FPS comparison has been recorded.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/camera-follow/{red-behavior,green}.log`.
+
 ### Named-span thread-CPU diagnostic
 
 Commit `36d1d994` adds the diagnostic-only `cpu-system-profile` feature. A build with that feature installs no profiling layer unless `WOO_CPU_PROFILE_OUTPUT` names an output file. Once enabled, it starts its fixed capture ten seconds after setup, records five seconds, and exports aggregate JSON after a one-second drain at approximately sixteen seconds.
