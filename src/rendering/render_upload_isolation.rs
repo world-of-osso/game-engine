@@ -92,7 +92,7 @@ fn remove_target_once<M>(world: &mut World, kind: UploadTarget, target: impl Int
     remove_render_system(world, target);
     world.resource_mut::<FreezeDeadlines>().0.remove(&kind);
     info!(
-        "Render isolation system removed at {:.3}s: {kind:?}",
+        "Render upload system removed at {:.3}s: {kind:?}",
         elapsed.as_secs_f64()
     );
 }
@@ -310,14 +310,6 @@ mod tests {
         world
             .resource_mut::<Schedules>()
             .insert(Schedule::new(Render));
-        if !world.contains_resource::<FreezeDeadlines>() {
-            world
-                .resource_mut::<Schedules>()
-                .insert(Schedule::new(ExtractSchedule));
-            world.schedule_scope(ExtractSchedule, |_world, schedule| {
-                schedule.add_systems(freeze_render_uploads);
-            });
-        }
         let mut main_world = MainWorld::default();
         let mut time = Time::<Real>::default();
         time.advance_by(Duration::from_secs(19));
