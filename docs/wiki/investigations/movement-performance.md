@@ -188,7 +188,7 @@ Artifacts: `settled-low-fps/no-msaa-case/{summary,result,identity,reference-iden
 
 A four-phase ON/OFF/ON/OFF repeat under `settled-low-fps/no-msaa-repeat/` strengthens the throughput evidence but remains bounded. All runs used the same saved position and camera FOV, options hash, workspace, and 1280×1198 logical window. Parsed output configurations matched even though one raw JSON key-order hash differed. The lid was **closed** throughout, so this series is not directly comparable with the earlier lid-open, 1280×989 MSAA pair. The first MSAA-on phase had only 29 focused samples and is excluded from the causal comparison. The fully focused phases recorded **196.19 FPS** MSAA-off, **173.45 FPS** MSAA-on, and **204.75 FPS** MSAA-off (60 samples each).
 
-The adjacent focused ON/OFF phases had effectively equal process CPU use (**339.29%** versus **339.55%**) and similar mean GPU clock (**1,947.13** versus **1,920.32 MHz**). MSAA-off was **31.29 FPS (+18.0%)** faster, with mean frame time **5.818→4.951 ms (-14.9%)**, and had lower GPU activity (**74.07%** versus **65.65%**). This is stronger evidence that 4× MSAA reduces rendered throughput in this fixed diagnostic scene. It does **not** show that removing MSAA reduces CPU work, fixes intermittent collapse, or supports an exact causal/attributable percentage.
+The adjacent focused ON/OFF phases had effectively equal process CPU use (**339.29%** versus **339.55%**) and similar mean GPU clock (**1,947.13** versus **1,920.32 MHz**). MSAA-off was **31.29 FPS (+18.0%)** faster, with mean frame time **5.818→4.951 ms (-14.9%)**, and had lower GPU activity (**74.07%** versus **65.65%**). This establishes a repeated throughput difference for the diagnostic selector. The subsequent [glyph-corruption investigation](#msaa-off-fps-overlay-glyph-corruption) found that the selector also separates the world/UI intermediate targets by leaving UI MSAA enabled. The comparison therefore cannot isolate pure MSAA sampling cost. It does **not** show a CPU reduction, fix intermittent collapse, or support an exact causal/attributable percentage.
 
 Independent saved-data audit confirmed the phase boundary and calculations. Six joint 500 MHz CPU/GPU-limit bins overlap for phases 3/4, but only **26** minimum-count rows overlap; actual graphics-clock deltas within those bins span **-431.6 to +279.0 MHz**. They are distributional cohorts rather than matched controls, so the consistent direction warrants a future controlled repeat but does not remove frequency/workload confounding.
 
@@ -204,7 +204,9 @@ The source boundary is concrete. The MSAA selector synchronizes only `Camera3d`,
 
 Bevy's text update path is not the leading explanation: the overlay overwrites the numeric `TextSpan`, clears layout glyph data before rebuilding, and clears extracted UI glyph lists per extraction. No runtime control can inspect or change only `UiCamera` MSAA or clear behavior. The minimal proposed fix is to synchronize the composited UI camera's MSAA with the world camera, pending user approval, a behavioral RED/GREEN test, and live proof. Until then, the repeat is valid for its recorded process/FPS telemetry but is not a verified whole-frame MSAA-off visual configuration.
 
-Artifacts: `settled-low-fps/fps-overdraw/{msaa-off-niri.png,msaa-off-ipc.webp}`, `no-msaa-case/msaa-off.webp`, and `no-msaa-repeat/{2-msaa-off,4-msaa-off}/view.webp`.
+Independent source/evidence audit confirmed the implicit UI `Sample4`, 3D-only override, target partitioning, and UI writeback path. Live component/pass readback and a corrected-runtime comparison remain missing; no fix is claimed.
+
+Artifacts: `settled-low-fps/fps-overdraw/{msaa-off-niri.png,msaa-off-ipc.webp,audit.md}`, `no-msaa-case/msaa-off.webp`, and `no-msaa-repeat/{2-msaa-off,4-msaa-off}/view.webp`.
 
 ### Foreground firmware-clamp evidence
 
