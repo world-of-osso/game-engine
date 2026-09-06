@@ -202,7 +202,11 @@ Commit `7d8baeb9` adds `--freeze-gpu-clusters-after <SECONDS>`. At its deadline 
 
 The same-process pair used PID `3445983` and a 60-second cutoff. `before/` and `before-second/` were both pre-removal: **328.89% / 193.37 FPS** and **336.47% / 214.99 FPS**. The client log records removal at **60.006 s**. Post-removal `after/` measured **326.38% / 137.43 FPS** with CPU/GPU limits reaching 600 MHz; later `after-later/` measured **316.04% / 54.87 FPS** with the same clamp. The post-removal intervals are not comparable-FPS controls. They establish neither CPU reduction nor callback causality; no production optimization follows.
 
-Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.log` and `gpu-clusters/pair/{before,before-second,after,after-later}/`, screenshots, and `client/stderr.log`.
+A subsequent focused window, `after-refocused/`, recovered to **204.07 FPS / 337.64% CPU**, with all 13 samples focused and limits above 600 MHz. The callback remained removed. Against the two pre-removal windows, bulk CPU use persists at similar throughput; no material CPU saving is observed. `after-recovery/` is excluded because none of its 13 samples were focused. Screenshots before and after show the same blank reduced scene and FPS overlay; they do not verify dynamic lighting correctness.
+
+Independent verification reused the 6/6 behavioral tests and normal build, passed `cargo fmt --check` and `cargo check --locked --bin game-engine`, and audited changed Rust readability. See `gpu-clusters/verifier-report-7d8baeb9.md`.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.log` and `gpu-clusters/pair/{before,before-second,after,after-later,after-recovery,after-refocused}/`, screenshots, and `client/stderr.log`.
 
 ### Pipelined-rendering CPU contribution
 
