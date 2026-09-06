@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-06] diagnostic | Isolate mesh-collection task fan-out
+## [2026-09-06] measurement | Mesh-collection removal lacks comparable-throughput benefit
 
-Documented `9271c885` in [[movement-performance]]. The exact private mesh-collection callback was removed at 30.005 seconds while normal pipeline and upload writers remained enabled. All-focused normal-build windows measured **326.47% CPU / 174.88 FPS** before and **331.22% / 185.82 FPS** after; changing limits prevent matched-clock interpretation, but no material CPU reduction appears. The seven behavioral tests passed. This is stationary-only because later mesh changes are not collected.
+Updated [[movement-performance]] with the main-owned `78b3a63c` pair. The exact callback was removed at 30.004 seconds: all-focused windows measured **330.55% CPU / 200.17 FPS** before and **326.55% / 179.20 FPS** after, with a post-removal 600 MHz GPU limit. A later **310.70% / 103.89 FPS** window is excluded for collapsed throughput. The earlier agent-created pair corroborates but does not replace this evidence. `9271c885` behavioral proof passed 7/7; `78b3a63c` retained the established log prefix and removed test-only schedule synthesis. No CPU benefit.
 
 ## [2026-09-06] measurement | Camera-follow removal leaves bulk CPU unchanged
 

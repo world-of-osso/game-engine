@@ -226,9 +226,11 @@ Commit `9271c885` adds `--freeze-mesh-collection-after <SECONDS>`. At its elapse
 
 The callback was a task-fan-out lead, not a root-cause claim: the earlier trace recorded 9,656 `prepared_mesh_producer` spans across 568 frames. The seven behavioral tests cover the named removal at its deadline, continued unrelated render work, repeated controller execution, omitted configuration, invalid arguments, and asset-path parsing. This control is stationary-only: mesh changes/removals after the cutoff are intentionally not collected.
 
-Normal-build PID `3812466` logged removal at **30.005 s**. The all-focused same-process pair measured **326.47% CPU / 174.88 FPS** before and **331.22% CPU / 185.82 FPS** after. CPU and GPU limits varied across windows, so the pair is not a matched-clock benchmark; it nevertheless shows no material CPU reduction at comparable throughput. Screenshots retain the same blank reduced view and changing FPS overlay. No optimization or root-cause conclusion follows.
+The main-owned normal-build PID `3860843` logged removal at **30.004 s**. Its all-focused same-process pair measured **330.55% CPU / 200.17 FPS** before and **326.55% CPU / 179.20 FPS** after. The post-removal GPU limit reached 600 MHz, so the lower CPU and FPS are not a comparable-throughput result. A later all-focused post-removal window measured **310.70% CPU / 103.89 FPS** and is likewise excluded because throughput collapsed. No CPU benefit follows.
 
-Artifacts: `settled-low-fps/cpu-system-isolation/mesh-collection/{red,green,build}.log`, `pair/{before,after}/`, and `pair/removal-event.txt`.
+An earlier agent-created pair (`PID 3812466`, **326.47% / 174.88 FPS** before and **331.22% / 185.82 FPS** after) corroborates the absence of an obvious benefit but is not the primary evidence. The earlier trace's roughly **17** `prepared_mesh_producer` spans per frame remains a task-fan-out lead only. The controller retains the existing log prefix, and `78b3a63c` removes test-only schedule synthesis so the behavioral test requires configured production scheduling.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/mesh-collection/{red,green,build}.log`, `main-pair/{before,after,after-later}/`, `main-pair/removal-event.txt`, and the corroborating `pair/{before,after}/`.
 
 ### Named-span thread-CPU diagnostic
 
