@@ -216,7 +216,21 @@ The JSON groups selected Bevy `system`, `schedule`, `multithreaded executor`, an
 
 The first feature-build capture, from `36d1d994`, ran PID `3611636` in the reduced stationary scene. All 13 overlapping telemetry samples were focused: **358.55% process CPU** and **161.64 FPS**, with CPU limits 3,737–3,964 MHz and GPU limits 600–1,139 MHz. The five-second JSON reports **18.122 s observed thread CPU** and **11.061 s summed named-span self CPU**. The remaining **7.061 s** is not native CPU ownership: it includes uninstrumented worker-task work and profiler overhead. Nine boundary-crossing spans were excluded, all on main/render threads; no worker span crossed a boundary. The capture therefore identifies neither a root cause nor a comparable normal-build result.
 
-Commit `5f3fb679` changes stored span labels from per-entry `String` clones to shared labels and adds real concurrent-same-span plus blocked-sleep tests. Its subsequent captures have lower label-allocation overhead and are distinct from this first result.
+Commit `5f3fb679` changes stored span labels from per-entry `String` clones to shared labels and adds real concurrent-same-span plus blocked-sleep tests. Its captures use different instrumentation from the first result.
+
+Three captures with the same `92bd0b01` feature binary removed one additional upload callback at each step, before the capture window:
+
+| Profiling mode | Observed CPU seconds | Unattributed CPU seconds | Render frames |
+|---|---:|---:|---:|
+| Both writers active | 17.765 | 6.798 | 814 |
+| Indirect writer removed | 17.501 | 6.628 | 874 |
+| Batched writer also removed | 17.274 | 6.236 | 736 |
+
+Removal logs confirm the exact targets; their named spans disappear from the corresponding capture. Even with both writers absent, worker threads retain **5.828 CPU-seconds** outside selected spans. The upload task fan-out therefore does not explain the entire residual. Each run has 13 focused telemetry rows, but different frame counts and hardware limits prevent interpreting these instrumented runs as a comparable-FPS optimization result. See `shared-label-comparison.json` and the three `shared-label-*/` directories.
+
+Flat native leaf records from the earlier deep-DWARF capture were recovered without another recording: `perf script -G` suppresses broken callchain rendering, while `--symfs` selects the saved matching binary. `profile-deep-dwarf/leaf-only-correct-binary.log` contains all **2,138 samples**, including **1,581 worker samples**. Those leaves remain distributed across parameter access, task dispatch, queues, and locks; complete caller ancestry is still unavailable. Leaf names alone do not identify the responsible integration callback.
+
+Default-feature build restored successfully (`restore-normal-build.log`, hash `bf090caa`). Owned profiling clients were stopped after identity checks; no profiling configuration persists in the normal build.
 
 The `bevy/trace` feature activates optional tracing-related transitive dependencies, including `tracing-error` and profiling macros, only for the diagnostic feature build.
 

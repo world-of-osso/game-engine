@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] measurement | Trace upload exclusions with thread CPU clocks
+
+Updated [[movement-performance]] with three `5f3fb679` feature-build captures: both upload writers active, indirect removed, then batched also removed. Exact callback spans disappear, but worker residual remains 5.828 CPU-seconds with both absent. Differing frame counts and instrumentation prevent a normal-build optimization claim. Recovered native flat leaf samples using `perf script -G` and the matching saved binary; full ancestry remains unresolved. Default build restored; profiling clients stopped.
+
 ## [2026-09-06] measurement | Record first named-span thread-CPU capture
 
 Updated [[movement-performance]] from feature-build `36d1d994` PID `3611636`. The five-second selected-span capture reported **18.122 s** observed thread CPU and **11.061 s** summed self CPU while overlapping focused telemetry measured **358.55%** process CPU and **161.64 FPS**. The **7.061 s** residual includes uninstrumented worker-task work and profiler overhead; it is not native CPU ownership. Nine boundary-crossing spans were excluded, none on Compute Task Pool workers. `5f3fb679` subsequently shares span labels and adds concurrent-same-span and blocked-sleep tests, so future captures have lower label-allocation overhead and are distinct. No root cause, normal-build comparison, or optimization claim follows.
