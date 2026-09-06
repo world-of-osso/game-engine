@@ -284,6 +284,9 @@ pub fn print_help() {
     println!(
         "  --freeze-indirect-parameters-after <SECONDS>  Stop render indirect-parameter uploads after startup elapsed time (stationary-scene diagnostic)"
     );
+    println!(
+        "  --freeze-batched-instances-after <SECONDS>  Stop PBR batched-instance uploads after startup elapsed time (stationary-scene diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -348,7 +351,8 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             | "--light-skybox-id"
             | "--skybox-time-ms"
             | "--freeze-terrain-materials-after"
-            | "--freeze-indirect-parameters-after" => {
+            | "--freeze-indirect-parameters-after"
+            | "--freeze-batched-instances-after" => {
                 i += 2;
             }
             "--login-dev-admin" => {
