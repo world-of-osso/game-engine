@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] diagnostic | Add named-span thread-CPU profiler
+
+Documented `36d1d994` in [[movement-performance]] and the InWorld isolation spec. The diagnostic-only `cpu-system-profile` feature installs its tracing layer only when `WOO_CPU_PROFILE_OUTPUT` is set. It captures selected named system/schedule/executor spans from seconds 10–15 and exports aggregate per-thread CPU-clock JSON after a one-second drain at approximately second 16. It reports inclusive/self CPU, observed thread CPU, and boundary-excluded spans; blocked time and uninstrumented worker work remain outside attribution. `bevy/trace` enables optional tracing-related transitive dependencies only in this feature build. No runtime capture, CPU/FPS comparison, cause, or optimization claim exists yet.
+
 ## [2026-09-06] measurement | Isolate pipelined-rendering CPU contribution
 
 Updated [[movement-performance]] with sequential upload removals, the `09e77aa1` same-extraction schedule-registry repair, and the pipelining comparison. Upload removals did not eliminate the bulk CPU load. Omitting only `PipelinedRenderingPlugin` reduced process CPU **320.72→208.15%** while FPS fell **194.86→146.81**; render frames and readable FPS remained. Earlier upload exclusions were restored individually, leaving ordinary uploads active. This is a measured CPU/throughput trade-off, not a default optimization or resolution of firmware clamps. Final source/data audit passed formatting, locked checks for both binaries, readability, and reused 5/5 upload plus 2/2 pipeline tests. A later all-uploads-active observation measured219.23%CPU/142.54FPS with recoveredCPUlimits, so the lower-CPU diagnostic mode does not require frozen upload data. Details and limitations remain in [[movement-performance]].

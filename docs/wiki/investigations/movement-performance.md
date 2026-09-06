@@ -208,6 +208,16 @@ Independent verification reused the 6/6 behavioral tests and normal build, passe
 
 Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.log` and `gpu-clusters/pair/{before,before-second,after,after-later,after-recovery,after-refocused}/`, screenshots, and `client/stderr.log`.
 
+### Named-span thread-CPU diagnostic
+
+Commit `36d1d994` adds the diagnostic-only `cpu-system-profile` feature. A build with that feature installs no profiling layer unless `WOO_CPU_PROFILE_OUTPUT` names an output file. Once enabled, it starts its fixed capture ten seconds after setup, records five seconds, and exports aggregate JSON after a one-second drain at approximately sixteen seconds.
+
+The JSON groups selected Bevy `system`, `schedule`, `multithreaded executor`, and `main_render_schedule` spans by thread. Each group reports call count plus inclusive and self `CLOCK_THREAD_CPUTIME_ID` nanoseconds, the thread's observed capture-window CPU delta, and spans excluded for crossing the window boundary. Only spans that both enter and exit during the five-second interval count. This excludes blocked time and avoids charging one thread's CPU to another.
+
+This is an attribution instrument, not a comparable performance baseline. It cannot assign uninstrumented worker-task CPU to a parent span; tracing and clock reads also perturb the profiled process. The `bevy/trace` feature activates optional tracing-related transitive dependencies, including `tracing-error` and profiling macros, only for the diagnostic feature build. No runtime capture or CPU/FPS result exists yet, and this does not identify the excess CPU source.
+
+Artifacts and proof ledger: `settled-low-fps/cpu-system-isolation/thread-cpu-profile/`.
+
 ### Pipelined-rendering CPU contribution
 
 Commit `e3a4ddcb` adds `--no-pipelined-rendering`. It omits only Bevy's `PipelinedRenderingPlugin`, retaining the RenderApp, GPU rendering, and scene settings. Render-app frames then execute sequentially with the main app instead of using the separate rendering-thread handoff. Individual schedules can still use compute workers; this does **not** switch the ECS executor to single-threaded operation. Headless behavioral RED/GREEN verifies frame delivery and the caller/render-thread distinction (**2/2 GREEN**).
