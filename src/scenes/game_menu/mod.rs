@@ -336,8 +336,14 @@ fn apply_fps_overlay_snapshot(world: &mut World, visible: bool) {
     let scene_stage = world
         .get_resource::<crate::game::inworld_scene_stage::InWorldSceneStage>()
         .copied();
+    let graph_disabled = world.contains_resource::<client_options::FrameTimeGraphDisabled>();
     if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
-        client_options::apply_fps_overlay_visibility(&mut fps, visible, scene_stage);
+        client_options::apply_fps_overlay_visibility(
+            &mut fps,
+            visible,
+            scene_stage,
+            graph_disabled,
+        );
     }
 }
 

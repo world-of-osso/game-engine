@@ -272,6 +272,9 @@ pub fn print_help() {
     println!(
         "  --no-terrain-meshes  Skip ground terrain rendering, retaining height/streaming data (diagnostic)"
     );
+    println!(
+        "  --no-frame-time-graph  Disable frame-time graph drawing/buffer updates, keeping FPS text"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");

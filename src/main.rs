@@ -447,12 +447,23 @@ fn insert_startup_resources(
     configure_water_and_skybox_isolation(app, args);
     configure_terrain_texture_isolation(app, args);
     configure_terrain_mesh_isolation(app, args);
+    configure_frame_time_graph_isolation(app, args);
     insert_data_resources(app);
 }
 
 fn insert_m2_effect_uv_update_resource(app: &mut App, args: &[String]) {
     if has_flag(args, "--disable-m2-effect-uv-updates") {
         app.insert_resource(m2_effect_material::M2EffectUvUpdatesEnabled(false));
+    }
+}
+
+fn configure_frame_time_graph_isolation(app: &mut App, args: &[String]) {
+    if has_flag(args, "--no-frame-time-graph") {
+        app.insert_resource(client_options::FrameTimeGraphDisabled);
+        app.world_mut()
+            .resource_mut::<FpsOverlayConfig>()
+            .frame_time_graph_config
+            .enabled = false;
     }
 }
 

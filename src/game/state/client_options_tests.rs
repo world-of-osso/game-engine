@@ -58,15 +58,25 @@ fn hud_visibility_toggles_follow_hud_options() {
 fn fps_overlay_visibility_keeps_graph_disabled_at_empty() {
     let mut overlay = FpsOverlayConfig::default();
 
-    apply_fps_overlay_visibility(&mut overlay, true, Some(InWorldSceneStage::Empty));
+    apply_fps_overlay_visibility(&mut overlay, true, Some(InWorldSceneStage::Empty), false);
     assert!(overlay.enabled);
     assert!(!overlay.frame_time_graph_config.enabled);
 
-    apply_fps_overlay_visibility(&mut overlay, true, Some(InWorldSceneStage::Character));
+    apply_fps_overlay_visibility(
+        &mut overlay,
+        true,
+        Some(InWorldSceneStage::Character),
+        false,
+    );
     assert!(overlay.enabled);
     assert!(overlay.frame_time_graph_config.enabled);
 
-    apply_fps_overlay_visibility(&mut overlay, false, Some(InWorldSceneStage::Character));
+    apply_fps_overlay_visibility(
+        &mut overlay,
+        false,
+        Some(InWorldSceneStage::Character),
+        false,
+    );
     assert!(!overlay.enabled);
     assert!(!overlay.frame_time_graph_config.enabled);
 }

@@ -69,6 +69,86 @@ fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
 }
 
 #[test]
+fn no_frame_time_graph_stops_buffer_updates_but_keeps_numeric_fps() {
+    use bevy::dev_tools::frame_time_graph::FrametimeGraphMaterial;
+    use bevy::render::storage::ShaderBuffer;
+    use bevy::time::TimeUpdateStrategy;
+    use bevy::ui_render::prelude::MaterialNode;
+
+    const SENTINEL: [u8; 4] = [7, 11, 13, 17];
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.add_plugins(bevy::text::TextPlugin::default());
+    app.init_asset::<bevy::shader::Shader>();
+    app.init_asset::<ShaderBuffer>();
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        100,
+    )));
+    app.add_plugins(FpsOverlayPlugin::default());
+    app.update();
+
+    configure_frame_time_graph_isolation(&mut app, &args(&["--no-frame-time-graph"]));
+    let disabled = app
+        .world()
+        .contains_resource::<client_options::FrameTimeGraphDisabled>();
+    client_options::apply_fps_overlay_visibility(
+        &mut app.world_mut().resource_mut::<FpsOverlayConfig>(),
+        true,
+        Some(InWorldSceneStage::NoNpcsUi),
+        disabled,
+    );
+    for (_, buffer) in app
+        .world_mut()
+        .resource_mut::<Assets<ShaderBuffer>>()
+        .iter_mut()
+    {
+        buffer.data = Some(SENTINEL.to_vec());
+    }
+    app.update();
+    app.update();
+
+    let buffers = app.world().resource::<Assets<ShaderBuffer>>();
+    assert!(!buffers.is_empty());
+    assert!(
+        buffers
+            .iter()
+            .all(|(_, buffer)| buffer.data.as_deref() == Some(SENTINEL.as_slice()))
+    );
+    let mut graphs = app
+        .world_mut()
+        .query_filtered::<&Node, With<MaterialNode<FrametimeGraphMaterial>>>();
+    assert!(
+        graphs
+            .iter(app.world())
+            .all(|node| node.display == Display::None)
+    );
+    let mut spans = app.world_mut().query::<&TextSpan>();
+    assert!(
+        spans
+            .iter(app.world())
+            .any(|span| span.0.parse::<f64>().is_ok_and(|value| value > 0.0))
+    );
+    assert!(app.world().resource::<FpsOverlayConfig>().enabled);
+
+    app.world_mut()
+        .remove_resource::<client_options::FrameTimeGraphDisabled>();
+    client_options::apply_fps_overlay_visibility(
+        &mut app.world_mut().resource_mut::<FpsOverlayConfig>(),
+        true,
+        None,
+        false,
+    );
+    app.update();
+    assert!(
+        app.world()
+            .resource::<Assets<ShaderBuffer>>()
+            .iter()
+            .any(|(_, buffer)| buffer.data.as_deref() != Some(SENTINEL.as_slice()))
+    );
+}
+
+#[test]
 fn no_terrain_meshes_startup_flag_changes_only_ground_rendering() {
     let mut app = App::new();
     app.init_resource::<terrain::AdtManager>();

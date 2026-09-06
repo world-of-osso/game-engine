@@ -30,6 +30,9 @@ use storage::{
 
 pub struct ClientOptionsPlugin;
 
+#[derive(Resource)]
+pub(crate) struct FrameTimeGraphDisabled;
+
 impl Plugin for ClientOptionsPlugin {
     fn build(&self, app: &mut App) {
         let loaded = load_options_file();
@@ -394,6 +397,7 @@ pub fn login_credentials_path() -> PathBuf {
 fn apply_loaded_client_options(
     mut loaded: ResMut<LoadedClientOptions>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    graph_disabled: Option<Res<FrameTimeGraphDisabled>>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
     if loaded.applied {
@@ -404,6 +408,7 @@ fn apply_loaded_client_options(
             fps.as_mut(),
             loaded.file.hud.show_fps_overlay,
             scene_stage.as_deref().copied(),
+            graph_disabled.is_some(),
         );
     }
     loaded.applied = true;
@@ -412,6 +417,7 @@ fn apply_loaded_client_options(
 fn sync_hud_visibility_toggles(
     hud: Res<HudOptions>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    graph_disabled: Option<Res<FrameTimeGraphDisabled>>,
     mut toggles: ResMut<HudVisibilityToggles>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
@@ -427,6 +433,7 @@ fn sync_hud_visibility_toggles(
             fps.as_mut(),
             next.show_fps_overlay,
             scene_stage.as_deref().copied(),
+            graph_disabled.is_some(),
         );
     }
 }
@@ -537,9 +544,11 @@ pub fn apply_fps_overlay_visibility(
     fps: &mut FpsOverlayConfig,
     visible: bool,
     scene_stage: Option<InWorldSceneStage>,
+    graph_disabled: bool,
 ) {
     fps.enabled = visible;
-    fps.frame_time_graph_config.enabled = visible && scene_stage != Some(InWorldSceneStage::Empty);
+    fps.frame_time_graph_config.enabled =
+        visible && scene_stage != Some(InWorldSceneStage::Empty) && !graph_disabled;
 }
 
 #[cfg(test)]
