@@ -99,12 +99,17 @@ pub(super) fn spawn_parsed_tile(
     heightmap: &TerrainHeightmap,
     parsed: &ParsedTile,
     render_textures: bool,
+    render_terrain: bool,
 ) -> (Entity, Vec<Entity>) {
     let mut timings = super::TileSpawnTimings::start((parsed.tile_y, parsed.tile_x), "tile");
     let tile = parsed_adt_tile(parsed);
     log_parsed_tile(parsed);
 
-    let root = if render_textures {
+    let root = if !render_terrain {
+        timings.record_stage("images");
+        timings.record_stage("terrain_materials");
+        spawn_terrain_root(refs.commands, &tile)
+    } else if render_textures {
         spawn_textured_tile_chunks(refs, parsed, &tile, &mut timings)
     } else {
         timings.record_stage("images");
@@ -289,6 +294,17 @@ fn spawn_flat_terrain_chunks(
     spawn_chunk_entities(commands, meshes, &chunk_materials, adt_data, tile)
 }
 
+fn spawn_terrain_root(commands: &mut Commands, tile: &AdtTile) -> Entity {
+    commands
+        .spawn((
+            super::AdtTerrain,
+            tile.clone(),
+            Transform::default(),
+            Visibility::default(),
+        ))
+        .id()
+}
+
 pub(super) fn spawn_chunk_entities<M: Material>(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -296,14 +312,7 @@ pub(super) fn spawn_chunk_entities<M: Material>(
     adt_data: &adt::AdtData,
     tile: &AdtTile,
 ) -> Entity {
-    let root = commands
-        .spawn((
-            super::AdtTerrain,
-            tile.clone(),
-            Transform::default(),
-            Visibility::default(),
-        ))
-        .id();
+    let root = spawn_terrain_root(commands, tile);
 
     for (i, chunk) in adt_data.chunks.iter().enumerate() {
         let mesh_handle = meshes.add(chunk.mesh.clone());

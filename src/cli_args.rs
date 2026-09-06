@@ -269,6 +269,9 @@ pub fn print_help() {
     println!(
         "  --no-terrain-textures  Render streamed terrain with a flat lit material (diagnostic)"
     );
+    println!(
+        "  --no-terrain-meshes  Skip ground terrain rendering, retaining height/streaming data (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");

@@ -14,6 +14,34 @@ struct ParsedFixture(ParsedTile);
 struct SpawnedRoot(Option<Entity>);
 
 #[test]
+fn no_terrain_meshes_preserves_logical_tile_without_render_assets() {
+    let mut app = terrain_spawn_test_app(parse_fixture_tile());
+    app.world_mut().resource_mut::<AdtManager>().render_terrain = false;
+    app.update();
+
+    let root = app
+        .world()
+        .resource::<SpawnedRoot>()
+        .0
+        .expect("logical tile root");
+    assert!(app.world().get_entity(root).is_ok());
+    assert_eq!(app.world().get::<AdtTile>(root).unwrap()._tile_y, 32);
+    assert_eq!(app.world().get::<AdtTile>(root).unwrap()._tile_x, 48);
+    assert_eq!(app.world().resource::<Assets<Mesh>>().len(), 0);
+    assert_eq!(app.world().resource::<Assets<StandardMaterial>>().len(), 0);
+    assert_eq!(app.world().resource::<Assets<Image>>().len(), 0);
+    assert_eq!(
+        app.world()
+            .resource::<ParsedFixture>()
+            .0
+            .adt_data
+            .height_grids
+            .len(),
+        256
+    );
+}
+
+#[test]
 fn no_terrain_textures_skips_image_assets_and_preserves_chunk_geometry() {
     let parsed = parse_fixture_tile();
     let expected_positions = first_chunk_positions(&parsed);
@@ -91,7 +119,13 @@ fn spawn_fixture_without_terrain_textures(
         images: &mut params.images,
         inverse_bp: &mut params.inverse_bp,
     };
-    let (root, _) = spawn_parsed_tile(&mut refs, &params.heightmap, &fixture.0, false);
+    let (root, _) = spawn_parsed_tile(
+        &mut refs,
+        &params.heightmap,
+        &fixture.0,
+        false,
+        params.adt_manager.render_terrain,
+    );
     spawned_root.0 = Some(root);
 }
 

@@ -69,6 +69,21 @@ fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
 }
 
 #[test]
+fn no_terrain_meshes_startup_flag_changes_only_ground_rendering() {
+    let mut app = App::new();
+    app.init_resource::<terrain::AdtManager>();
+    configure_terrain_mesh_isolation(&mut app, &args(&[]));
+    assert!(app.world().resource::<terrain::AdtManager>().render_terrain);
+
+    configure_terrain_mesh_isolation(&mut app, &args(&["--no-terrain-meshes"]));
+    let manager = app.world().resource::<terrain::AdtManager>();
+    assert!(!manager.render_terrain);
+    assert!(manager.render_textures);
+    assert!(manager.load_objects);
+    assert!(manager.load_water);
+}
+
+#[test]
 fn no_terrain_textures_startup_flag_preserves_other_loading_options() {
     let mut app = App::new();
     app.init_resource::<terrain::AdtManager>();

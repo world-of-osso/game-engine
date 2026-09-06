@@ -147,6 +147,8 @@ pub struct AdtManager {
     pub(crate) load_water: bool,
     /// Use the textured terrain shader instead of a flat diagnostic material.
     pub(crate) render_textures: bool,
+    /// Spawn ground terrain meshes and their materials.
+    pub(crate) render_terrain: bool,
     /// Tile coordinates of the initially loaded tile.
     pub initial_tile: (u32, u32),
     /// Whether we've already reported that the initial terrain load finished.
@@ -170,6 +172,7 @@ impl Default for AdtManager {
             load_objects: true,
             load_water: true,
             render_textures: true,
+            render_terrain: true,
             initial_tile: (0, 0),
             initial_load_reported: false,
         }

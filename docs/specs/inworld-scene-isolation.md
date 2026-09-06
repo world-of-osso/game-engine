@@ -11,9 +11,14 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
 - [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
+### Terrain-rendering-off control
+
+- [x] Accept opt-in `--no-terrain-meshes`: retain each streamed tile's logical root and height/streaming data, but create no ground-terrain meshes or their materials/images. Preserve other rendering settings and isolation flags.
+- [x] Keep initial loading completion, tile lifetime/unloading, and player/camera height state functional. Background parsing and height queries remain; this is a settled rendering-workload control, not removal of all terrain CPU code.
+
 ### Untextured-terrain diagnostic
 
-- [x] Accept opt-in `--no-terrain-textures`: render streamed terrain with a shared flat, lit material without terrain texture bindings. Preserve chunk geometry, culling metadata, lighting/camera settings, and other isolation flags.
+- [x] Accept opt-in `--no-terrain-textures`: render streamed terrain with a flat, lit material shared by that tile's chunks without terrain texture bindings. Preserve chunk geometry, culling metadata, lighting/camera settings, and other isolation flags.
 - [x] Skip terrain image registration and custom terrain-material creation on this path. Background terrain/texture parsing remains unchanged; this is not an asset-loading benchmark.
 - [x] Record that this also bypasses the custom multilayer terrain shader and its per-frame material updates. Results must not be attributed to texture sampling alone. Default textured behavior remains unchanged.
 
