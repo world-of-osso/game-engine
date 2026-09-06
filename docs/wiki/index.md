@@ -42,7 +42,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [movement-performance](investigations/movement-performance.md) — revision-scoped route/tile measurements; terrain-rendering-off and frame-graph controls show no CPU reduction; a repeated closed-lid MSAA pair supports a rendered-throughput cost but not CPU/collapse attribution; original tile hitch remains unresolved and nameplate work remains queued
+- [movement-performance](investigations/movement-performance.md) — revision-scoped route/tile measurements; terrain-rendering-off and frame-graph controls show no CPU reduction; repaired mixed world/UI MSAA glyph regression leaves earlier MSAA timing confounded, not pure sampling-cost attribution; original tile hitch remains unresolved and nameplate work remains queued
 
 Root cause analyses and debug findings.
 
