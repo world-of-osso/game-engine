@@ -42,7 +42,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [movement-performance](investigations/movement-performance.md) — September 5 route measurements, 3.12-second tile-crossing stall, measured repeat texture/spawn subcosts, startup recovery, canopy collision trap, and transform-propagation hotspot
+- [movement-performance](investigations/movement-performance.md) — revision-scoped route/tile measurements, rendering isolation, and foreground FPS collapses with firmware frequency clamps; original tile hitch remains unresolved
 
 Root cause analyses and debug findings.
 

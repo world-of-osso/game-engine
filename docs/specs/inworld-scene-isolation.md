@@ -59,6 +59,8 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/rendering/camera/camera_post_process.rs` — stage-aware WowCamera render-bundle synchronization.
 - `src/main.rs` — startup stage selection and pre-UI processing gates.
 - `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary.
+- `src/rendering/terrain/terrain{,_background_parse,_streaming,_spawn}.rs` — streamed object/water loading and flat-material controls.
+- `src/rendering/skybox/mod.rs` — skybox-visual gates and dome removal with lighting retained.
 
 ## Tests asserting this spec
 

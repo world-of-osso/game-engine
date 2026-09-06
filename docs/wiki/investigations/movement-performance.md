@@ -2,6 +2,8 @@
 
 Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, collision-respecting movement now works. A short loaded-tile route showed no movement-specific FPS drop, but a separate tile crossing reproduced a **3.12-second frame-progress/IPC stall**. Startup parsing and solid canopy bounding boxes were separate blockers encountered before measurement.
 
+Current investigation: [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) now explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
+
 ## Startup and missing FPS number
 
 The replicated-NPC spawn path synchronously called `load_m2_uncached` on the main thread. A live stack traced it through skeleton/bone-animation parsing; a 241-sample profile lost zero samples. The enabled FPS overlay initially rendered only `FPS:` because its numeric span starts empty and needs an Update diagnostic value.
@@ -149,6 +151,30 @@ Across the sampled counter brackets, process CPU time rose from 27.49 seconds ov
 Normal updates were restored in PID `3896680` with all user-requested exclusions retained. Six later focused samples, 205–215 seconds after its launch, were **48.20–54.57 FPS**. Age alone is therefore not established as the trigger either. Preserve both freeze outcomes; the bottleneck remains unresolved. Next evidence needed is a CPU/render-state capture during the slow frozen interval, not another claim of improvement from the first fast sample.
 
 Artifacts: `settled-low-fps/reduced-terrain-freeze-case/{before,after,freeze-event,result,requests,restored-performance}.json`, the paired screenshots, and `restored/identity.json`.
+
+### Flat, untextured terrain
+
+Diagnostic `cd557051` adds `--no-terrain-textures`. Streamed chunks use one flat, lit, double-sided material rather than the custom multilayer terrain material; image registration is skipped while geometry/culling metadata remain. Background texture parsing/decoding still occurs. This bypasses both terrain texture rendering and custom material-update/preparation work, so it is not a texture-bandwidth-only experiment.
+
+PID `4060136`, SHA256 `8c32116bebb1f4556b264690cc3d2a42bc7949ed0d57462eba56e040fd40493f`, retained all prior exclusions. Runtime showed 261 meshes, 16 images, two standard materials, and zero custom terrain/water/effect materials. Five initial focused samples averaged **116.00 FPS** (112.89–123.43), followed by five at **15.66–20.15 FPS**, mean **17.85**. The user's foreground screenshots show both 16.39 and 121.20 FPS. Removing textures/custom terrain materials did not eliminate the slow periods.
+
+The first CPU profile was taken after recovery (48–85 FPS, unfocused), not during the original low interval. A later automatic watcher captured three sub-30-FPS samples before recording another profile; after that profile, FPS was still 18.54. Leaf symbols include ECS executor/task queues/locks, but incomplete symbolization/ancestry prevents precise subsystem ownership. A focus-only comparison did not reproduce 20 FPS: the final focused group was 53.91–60.19 FPS. Bevy's default runner uses different focused/unfocused update strategies, but background-only throttling does not explain the user's foreground drops.
+
+Artifacts: `settled-low-fps/no-textures-case/` contains identity, samples, snapshots, user screenshots, `slow-state/`, `focus-comparison-2/`, and `auto-low-capture/`. Source verification passed fmt/check, the two targeted tests, and build; no optimization was applied.
+
+### Foreground firmware-clamp evidence
+
+The client is using the **AMD Radeon 890M through Vulkan/RADV**, not software rasterization. Its DRM graphics-engine counter advanced 1.798 seconds over 2.001 wall seconds in a dedicated read, with duplicate file descriptors counted only once. The user's 296.7% CPU observation represents about three logical cores of CPU time; CPU scheduling/game systems/render preparation still occur alongside GPU work.
+
+Hardware-clock snapshots differed substantially between faster and slow captures: average GPU clock **2,244.5 MHz versus 840.5 MHz**, and reported average power **27.72 W versus 11.75 W**. Those differences alone were correlation, so the firmware telemetry was checked directly.
+
+The read-only decoder in `read_gpu_metrics.py` matches upstream AMDGPU `gpu_metrics_v3_0`: 264 bytes, format 3/content 0, verified native alignment and field offsets. `current_core_maxfreq` and `current_gfx_maxfreq` are firmware-enforced frequency limits in MHz, not idle-clock observations. STAPM limit fields were `65535` and were not treated as valid limits. Thermal-residency fields remain raw ASIC-dependent counters; no units or percentages were inferred.
+
+A **same-process, foreground** watch then captured the transition: earlier samples around 52–60 FPS had GPU limits roughly 2.1–2.3 GHz; the final five samples were **13.89–17.21 FPS with both CPU and GPU limits at 600 MHz**. GPU activity remained 100%, and thermal-throttle counters increased through that transition. This identifies firmware frequency clamping with thermal-throttle indications as a cause of this captured FPS collapse. It does not identify the cooling/platform-policy cause, explain every engine cost, or retroactively attribute the original 3.12-second hitch.
+
+Separate read-only platform checks reported AC connected, performance platform/EPP settings, lap mode 0, and enabled automatic fans. Fan readings varied between observations (ThinkPad sensors reported 7,075 RPM earlier; a later fan-status read reported 5,272 RPM). No power limits, fan settings, kernel settings, or thermal protections were changed. Profiling/build subprocesses had exited when checked.
+
+Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-decoded,gpu-metrics-watch,platform-readings,fan-readings}.json`, `gpu-metrics-initial.bin`, and `focused-firmware-watch/{samples,result}.json`. Upstream layout/mapping provenance is recorded in `read_gpu_metrics.py`; the latter watch is the foreground-matched evidence, unlike the earlier unfocused telemetry.
 
 ## Sources
 
