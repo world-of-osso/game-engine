@@ -18,6 +18,9 @@ const MIN_RENDER_SCALE: f32 = 0.5;
 const MAX_RENDER_SCALE: f32 = 1.0;
 const DEFAULT_CAS_SHARPENING: f32 = 0.6;
 
+#[derive(Resource)]
+pub(crate) struct MsaaDisabled;
+
 pub(crate) fn additive_particle_glow_tonemapping() -> Tonemapping {
     Tonemapping::TonyMcMapface
 }
@@ -75,6 +78,7 @@ pub(super) struct CameraPostProcessQuery {
 pub(super) fn sync_camera_graphics_post_process(
     graphics: Res<GraphicsOptions>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    msaa_disabled: Option<Res<MsaaDisabled>>,
     mut commands: Commands,
     mut cameras: Query<CameraPostProcessQuery, With<Camera3d>>,
 ) {
@@ -86,6 +90,7 @@ pub(super) fn sync_camera_graphics_post_process(
         sync_camera_render_bundle(
             &graphics,
             wow_camera_render_bundle_enabled,
+            msaa_disabled.is_some(),
             &mut commands,
             &camera,
         );
@@ -139,6 +144,7 @@ fn sync_camera_resolution(
 fn sync_camera_render_bundle(
     graphics: &GraphicsOptions,
     wow_camera_render_bundle_enabled: bool,
+    msaa_disabled: bool,
     commands: &mut Commands,
     camera: &CameraPostProcessQueryItem<'_, '_>,
 ) {
@@ -154,21 +160,22 @@ fn sync_camera_render_bundle(
             camera.has_normal_prepass,
         );
     }
-    sync_camera_anti_aliasing_and_ssao(graphics, commands, camera);
+    sync_camera_anti_aliasing_and_ssao(graphics, msaa_disabled, commands, camera);
 }
 
 fn sync_camera_anti_aliasing_and_ssao(
     graphics: &GraphicsOptions,
+    msaa_disabled: bool,
     commands: &mut Commands,
     camera: &CameraPostProcessQueryItem<'_, '_>,
 ) {
-    sync_anti_alias(
-        commands,
-        camera.entity,
-        graphics.anti_alias,
-        camera.msaa,
-        camera.taa,
-    );
+    let anti_alias = if msaa_disabled && graphics.anti_alias == AntiAliasMode::Msaa4x {
+        AntiAliasMode::None
+    } else {
+        graphics.anti_alias
+    };
+    sync_anti_alias(commands, camera.entity, anti_alias, camera.msaa, camera.taa);
+    // Keep the configured SSAO policy: disabling MSAA must not implicitly enable SSAO.
     sync_ssao_compatibility(
         commands,
         camera.entity,

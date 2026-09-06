@@ -13,6 +13,48 @@ use bevy::post_process::dof::DepthOfField;
 use bevy::render::camera::{MipBias, TemporalJitter};
 
 #[test]
+fn no_msaa_disables_multisampling_without_enabling_ssao_or_removing_prepasses() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(GraphicsOptions::default());
+    app.insert_resource(InWorldSceneStage::NoNpcsUi);
+    app.add_systems(
+        Update,
+        camera_post_process::sync_camera_graphics_post_process,
+    );
+    let entity = spawn_wow_camera(&mut app.world_mut().commands());
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(entity), Some(&Msaa::Sample4));
+
+    crate::configure_msaa_isolation(&mut app, &["--no-msaa".to_owned()]);
+    app.update();
+    let camera = app.world().entity(entity);
+    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
+    assert!(camera.contains::<DepthPrepass>());
+    assert!(camera.contains::<NormalPrepass>());
+    assert!(camera.contains::<Tonemapping>());
+    assert!(camera.contains::<ShadowFilteringMethod>());
+    assert!(!camera.contains::<TemporalAntiAliasing>());
+    assert!(!camera.contains::<ScreenSpaceAmbientOcclusion>());
+    assert_eq!(
+        app.world().resource::<GraphicsOptions>().anti_alias,
+        AntiAliasMode::Msaa4x
+    );
+
+    app.world_mut().remove_resource::<MsaaDisabled>();
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(entity), Some(&Msaa::Sample4));
+
+    app.insert_resource(MsaaDisabled);
+    app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Taa;
+    app.update();
+    let camera = app.world().entity(entity);
+    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
+    assert!(camera.contains::<TemporalAntiAliasing>());
+    assert!(camera.contains::<ScreenSpaceAmbientOcclusion>());
+}
+
+#[test]
 fn spawn_wow_camera_uses_particle_glow_tonemapping() {
     let mut world = World::new();
     let entity = spawn_wow_camera(&mut world.commands());

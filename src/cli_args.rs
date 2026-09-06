@@ -275,6 +275,9 @@ pub fn print_help() {
     println!(
         "  --no-frame-time-graph  Disable frame-time graph drawing/buffer updates, keeping FPS text"
     );
+    println!(
+        "  --no-msaa           Disable MSAA only, preserving configured SSAO/TAA policy (diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");

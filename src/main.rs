@@ -448,12 +448,19 @@ fn insert_startup_resources(
     configure_terrain_texture_isolation(app, args);
     configure_terrain_mesh_isolation(app, args);
     configure_frame_time_graph_isolation(app, args);
+    configure_msaa_isolation(app, args);
     insert_data_resources(app);
 }
 
 fn insert_m2_effect_uv_update_resource(app: &mut App, args: &[String]) {
     if has_flag(args, "--disable-m2-effect-uv-updates") {
         app.insert_resource(m2_effect_material::M2EffectUvUpdatesEnabled(false));
+    }
+}
+
+fn configure_msaa_isolation(app: &mut App, args: &[String]) {
+    if has_flag(args, "--no-msaa") {
+        app.insert_resource(camera::MsaaDisabled);
     }
 }
 

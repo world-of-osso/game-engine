@@ -11,6 +11,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
 - [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
+### MSAA-only control
+
+- [x] Accept opt-in `--no-msaa`: override configured 4x MSAA to single-sample rendering in the camera render bundle, without changing the saved graphics option.
+- [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, depth/normal prepasses, common camera effects, and lighting.
+
 ### Frame-time-graph control
 
 - [x] Accept opt-in `--no-frame-time-graph`: keep numeric FPS visibility under the existing HUD preference, but hide the frame-time graph and stop its per-frame shader-buffer updates.

@@ -26,8 +26,8 @@ mod camera_post_process;
 
 use camera_controls::{apply_keyboard_camera, camera_pitch_delta};
 use camera_follow::camera_follow;
-pub(crate) use camera_post_process::additive_particle_glow_tonemapping;
 use camera_post_process::sync_camera_graphics_post_process;
+pub(crate) use camera_post_process::{MsaaDisabled, additive_particle_glow_tonemapping};
 
 pub struct WowCameraPlugin;
 
