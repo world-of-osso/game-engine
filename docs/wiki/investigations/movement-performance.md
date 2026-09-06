@@ -182,9 +182,11 @@ The 13-focused-sample baseline at `ba6b756a` used **314.38%** process CPU: named
 
 Commit `c3ad0ccf` adds `--freeze-indirect-parameters-after <SECONDS>`. At a `Time<Real>` deadline, its controller removes exactly one Bevy Render-schedule system, `write_indirect_parameters_buffers`, with `ScheduleCleanupPolicy::RemoveSystemsOnly`. It leaves allocated buffers, every other render callback, camera configuration, and scene exclusions in place. The removal deadline includes initial reference sampling; it is not an FPS-stabilization delay. An earlier attempted implicit-type-set condition was rejected by Bevy and abandoned; the retained implementation uses typed schedule removal instead.
 
-The behavioral RED showed the target still ran three times where two were expected; GREEN verifies removal of only the target after the deadline and once-only enforcement. Runtime, build, and independent verification are pending. This must run only in a stationary scene: frozen indirect metadata can affect downstream rendering, so any result measures the render-schedule boundary, not proof that upload work was unnecessary or the cause of CPU load.
+The behavioral RED showed the target still ran three times where two were expected; GREEN verifies removal of only the target after the deadline and once-only enforcement. A same-process runtime comparison at PID `2428304`, hash `75546f46d689ca61cef5b1f8e75e5227ff15c54721748ef9e971558648a889a2`, used a 20-second cutoff and preserved saved position/view with all 13 samples focused on both sides. The controller log records removal at the deadline. CPU increased from **321.63%** before removal to **330.97%** after, so removing this system did **not** lower process CPU. FPS increased from **134.47** to **197.57**, but CPU/GPU limit ranges differed; it is neither a pure FPS gain nor evidence that the writer was unnecessary. Both screenshots retain the empty diagnostic view and readable FPS overlay.
 
-Artifacts: `settled-low-fps/cpu-system-isolation/baseline/` and `settled-low-fps/indirect-parameter-isolation/{corrected-red-behavior,green}.log`.
+This must run only in a stationary scene: frozen indirect metadata can affect downstream rendering, so the result measures the target and downstream render boundary, not a production optimization or the cause of CPU load. A second exact system-removal control for `write_batched_instance_buffers<MeshPipeline>` is pending separate source and runtime proof; it will retain the first removal.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/{baseline,indirect-parameters/}`; runtime identity/result, before/after summaries, screenshots, client log, and `indirect-parameters/{corrected-red-behavior,green,build}.log`.
 
 ### Directional-shadow isolation
 

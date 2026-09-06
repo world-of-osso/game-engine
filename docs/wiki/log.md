@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] measurement | Remove indirect-parameter uploads
+
+Updated [[movement-performance]] from the first actual CPU-system removal. Same-process PID `2428304` at `c3ad0ccf` removed only Bevy Render's `write_indirect_parameters_buffers` after 20 seconds while preserving position/view and all 13 focused samples per side. Process CPU **increased** from **321.63%** to **330.97%**; this target did not reduce CPU usage. FPS changed **134.47→197.57**, but CPU/GPU limit ranges differed, so no pure FPS conclusion follows. Before/after screenshots preserve the empty view and readable overlay. The stationary-scene control can affect downstream render behavior; it is diagnostic, not an optimization. The next distinct target, `write_batched_instance_buffers<MeshPipeline>`, remains pending separate proof.
+
 ## [2026-09-06] diagnostic | Add timed indirect-parameter upload isolation
 
 Updated [[movement-performance]] for `c3ad0ccf`. The next CPU baseline recorded **314.38%** process CPU across 13 focused samples: named Compute Task Pool workers accounted for **234.14%**, and game-engine threads **80.08%**; terrain, water, and M2-effect materials were all absent. Opt-in `--freeze-indirect-parameters-after <SECONDS>` removes only Bevy Render's typed `write_indirect_parameters_buffers` system at a `Time<Real>` deadline using `RemoveSystemsOnly`; allocated buffers and other render callbacks remain. The rejected implicit-type-set approach was abandoned. Corrected behavioral RED proved the target still ran 3 rather than 2 times; GREEN, build, runtime, and independent verification remain pending. Stationary-scene only: frozen indirect metadata can affect downstream render work, so no CPU-drop or efficiency claim is made.
