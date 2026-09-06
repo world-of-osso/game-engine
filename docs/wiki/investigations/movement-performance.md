@@ -212,7 +212,11 @@ Artifacts: `settled-low-fps/cpu-system-isolation/gpu-clusters/{red,green,build}.
 
 Commit `a9de6b17` adds `--freeze-camera-follow-after <SECONDS>`. At the elapsed-time cutoff, its `Last`-schedule controller removes exactly the registered `camera_follow` callback from `Update`; the existing camera transform remains in place. Camera input, player movement, graphics synchronization, rendering, normal pipelining, and unrelated systems remain registered.
 
-This is a stationary-scene attribution control, not a movement or camera-control optimization. A behavioral test passes **5/5**: before its deadline the target continues, at its deadline the last transform is retained, unrelated chained work continues, repeated removal does not re-run, omitted flags add no controller, invalid seconds fail, and the value is not treated as an asset path. No runtime CPU/FPS comparison has been recorded.
+This is a stationary-scene attribution control, not a movement or camera-control optimization. The five behavioral tests pass: before its deadline the target continues, at its deadline the last transform is retained, unrelated chained work continues, repeated removal does not re-run, omitted flags add no controller, invalid seconds fail, and the value is not treated as an asset path.
+
+Normal-build PID `3743994` logged removal at **30.004 s**. The same-process focused pair measured **338.80% CPU / 210.41 FPS** before and **338.39% CPU / 214.54 FPS** after, with all 13 samples focused in each window. CPU limits remained above 3,600 MHz. Semantic scene snapshots report the same camera position `(-8868.5, 79.2, 392.9)` at their displayed precision and unchanged player position; IPC does not expose rotation. Screenshots retain the blank reduced view and readable FPS. The attempted filtered `dump-tree` camera files were empty and are not evidence. No material CPU reduction follows.
+
+Independent verification passed formatting, locked normal-binary checking, readability, reused 5/5 tests/build, and runtime-data review. Artifacts: `camera-follow/pair/` and `camera-follow/verifier-report-a9de6b17.md` under the CPU-system-isolation directory.
 
 Artifacts: `settled-low-fps/cpu-system-isolation/camera-follow/{red-behavior,green}.log`.
 

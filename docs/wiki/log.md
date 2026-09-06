@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] measurement | Camera-follow removal leaves bulk CPU unchanged
+
+Updated [[movement-performance]] with the verified `a9de6b17` same-process pair: 338.80→338.39% CPU and 210.41→214.54 FPS after removal at 30.004 seconds. Focus and reported camera/player positions remained unchanged; rotation was not exposed. Five behavioral tests, formatting, locked checking, and readability passed. No material CPU reduction.
+
 ## [2026-09-06] diagnostic | Add timed camera-follow isolation
 
 Documented `a9de6b17` in [[movement-performance]]. `--freeze-camera-follow-after <SECONDS>` removes only the registered `camera_follow` callback from `Update` at its `Last`-schedule cutoff, retaining the current camera transform while leaving camera input, player movement, graphics synchronization, rendering, normal pipelining, and unrelated systems active. Behavioral proof passed 5/5. This is stationary-only attribution infrastructure; no CPU/FPS result or optimization claim exists yet.
