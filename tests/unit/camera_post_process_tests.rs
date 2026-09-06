@@ -4,6 +4,7 @@ use crate::game::inworld_scene_stage::InWorldSceneStage;
 use bevy::anti_alias::contrast_adaptive_sharpening::ContrastAdaptiveSharpening;
 use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::audio::SpatialListener;
+use bevy::camera::ClearColorConfig;
 use bevy::core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass};
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::light::ShadowFilteringMethod;
@@ -11,31 +12,53 @@ use bevy::pbr::ScreenSpaceAmbientOcclusion;
 use bevy::post_process::bloom::{Bloom, BloomCompositeMode};
 use bevy::post_process::dof::DepthOfField;
 use bevy::render::camera::{MipBias, TemporalJitter};
+use ui_toolkit::render::{setup_ui_camera, UiCamera};
 
 #[test]
-fn no_msaa_disables_multisampling_without_enabling_ssao_or_removing_prepasses() {
+fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bundle() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
+    app.register_required_components::<Camera, Msaa>();
     app.insert_resource(GraphicsOptions::default());
     app.insert_resource(InWorldSceneStage::NoNpcsUi);
+    app.add_systems(Startup, setup_ui_camera);
     app.add_systems(
         Update,
         camera_post_process::sync_camera_graphics_post_process,
     );
-    let entity = spawn_wow_camera(&mut app.world_mut().commands());
+    let world_entity = spawn_wow_camera(&mut app.world_mut().commands());
     app.update();
-    assert_eq!(app.world().get::<Msaa>(entity), Some(&Msaa::Sample4));
+    let ui_entity = {
+        let mut query = app.world_mut().query_filtered::<Entity, With<UiCamera>>();
+        query.iter(app.world()).next().expect("expected UI camera")
+    };
+
+    assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Sample4));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Sample4));
+    let ui_camera = app.world().entity(ui_entity);
+    assert_eq!(
+        ui_camera.get::<Camera>().map(|camera| camera.order),
+        Some(1)
+    );
+    assert!(matches!(
+        ui_camera.get::<Camera>().map(|camera| &camera.clear_color),
+        Some(ClearColorConfig::None)
+    ));
+    assert!(!ui_camera.contains::<TemporalAntiAliasing>());
+    assert!(!ui_camera.contains::<DepthPrepass>());
+    assert!(!ui_camera.contains::<NormalPrepass>());
 
     crate::configure_msaa_isolation(&mut app, &["--no-msaa".to_owned()]);
     app.update();
-    let camera = app.world().entity(entity);
-    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
-    assert!(camera.contains::<DepthPrepass>());
-    assert!(camera.contains::<NormalPrepass>());
-    assert!(camera.contains::<Tonemapping>());
-    assert!(camera.contains::<ShadowFilteringMethod>());
-    assert!(!camera.contains::<TemporalAntiAliasing>());
-    assert!(!camera.contains::<ScreenSpaceAmbientOcclusion>());
+    let world_camera = app.world().entity(world_entity);
+    assert_eq!(world_camera.get::<Msaa>(), Some(&Msaa::Off));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
+    assert!(world_camera.contains::<DepthPrepass>());
+    assert!(world_camera.contains::<NormalPrepass>());
+    assert!(world_camera.contains::<Tonemapping>());
+    assert!(world_camera.contains::<ShadowFilteringMethod>());
+    assert!(!world_camera.contains::<TemporalAntiAliasing>());
+    assert!(!world_camera.contains::<ScreenSpaceAmbientOcclusion>());
     assert_eq!(
         app.world().resource::<GraphicsOptions>().anti_alias,
         AntiAliasMode::Msaa4x
@@ -43,15 +66,29 @@ fn no_msaa_disables_multisampling_without_enabling_ssao_or_removing_prepasses() 
 
     app.world_mut().remove_resource::<MsaaDisabled>();
     app.update();
-    assert_eq!(app.world().get::<Msaa>(entity), Some(&Msaa::Sample4));
+    assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Sample4));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Sample4));
 
     app.insert_resource(MsaaDisabled);
     app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Taa;
     app.update();
-    let camera = app.world().entity(entity);
-    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
-    assert!(camera.contains::<TemporalAntiAliasing>());
-    assert!(camera.contains::<ScreenSpaceAmbientOcclusion>());
+    let world_camera = app.world().entity(world_entity);
+    assert_eq!(world_camera.get::<Msaa>(), Some(&Msaa::Off));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
+    assert!(world_camera.contains::<TemporalAntiAliasing>());
+    assert!(world_camera.contains::<ScreenSpaceAmbientOcclusion>());
+    assert!(!app
+        .world()
+        .entity(ui_entity)
+        .contains::<TemporalAntiAliasing>());
+    assert!(!app.world().entity(ui_entity).contains::<DepthPrepass>());
+    assert!(!app.world().entity(ui_entity).contains::<NormalPrepass>());
+
+    app.world_mut().remove_resource::<MsaaDisabled>();
+    app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Msaa4x;
+    app.update();
+    assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Sample4));
+    assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Sample4));
 }
 
 #[test]
