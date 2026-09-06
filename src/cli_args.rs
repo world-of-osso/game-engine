@@ -293,6 +293,9 @@ pub fn print_help() {
     println!(
         "  --freeze-gpu-clusters-after <SECONDS>  Stop GPU light-cluster buffer preparation after startup elapsed time (stationary-scene diagnostic)"
     );
+    println!(
+        "  --freeze-camera-follow-after <SECONDS>  Retain the last camera pose and remove camera-follow work (stationary-scene diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -359,7 +362,8 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             | "--freeze-terrain-materials-after"
             | "--freeze-indirect-parameters-after"
             | "--freeze-batched-instances-after"
-            | "--freeze-gpu-clusters-after" => {
+            | "--freeze-gpu-clusters-after"
+            | "--freeze-camera-follow-after" => {
                 i += 2;
             }
             "--login-dev-admin" => {
