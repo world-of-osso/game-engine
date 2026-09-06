@@ -457,6 +457,7 @@ fn insert_startup_resources(
     configure_directional_shadow_isolation(app, args);
     rendering::render_upload_isolation::configure(app, args);
     camera::configure_follow_isolation(app, args);
+    networking::message_send_isolation::configure(app, args);
     insert_data_resources(app);
 }
 

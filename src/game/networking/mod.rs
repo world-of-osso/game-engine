@@ -1,4 +1,5 @@
 mod disconnect;
+pub(crate) mod message_send_isolation;
 mod reconnect;
 
 use std::time::Duration;

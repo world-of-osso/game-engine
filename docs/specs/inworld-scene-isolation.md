@@ -42,6 +42,12 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Accept opt-in `--freeze-camera-follow-after <SECONDS>`: remove exactly the registered camera-follow callback from `Update` after the cutoff, preserving the last camera transform, camera input, player movement, graphics synchronization, rendering, and unrelated systems.
 - [x] Keep normal behavior and register no removal controller without the flag. Reject missing/invalid unsigned seconds, keep the value out of asset-path parsing, and log the actual removal time. Use only in a stationary scene; this is not a movement or camera-control optimization.
 
+### Application-message sender diagnostic
+
+- [x] Accept `--freeze-message-send-after <SECONDS>`: after the cutoff remove only the uniquely named PostUpdate `MessagePlugin::send` callback and its single-member implicit type set, not the broader send system group. Reject ambiguity before removal; retain receive, transport, rendering, and unrelated systems.
+- [x] Preserve default behavior without the flag, reject missing/invalid unsigned seconds, keep its value out of asset-path parsing, and report actual removal time.
+- [ ] Use only after login in a stationary client. Outgoing application messages remain queued and may accumulate; do not interact with gameplay while frozen. Verify connection health and incoming synchronization throughout the comparison; disconnects or changed workloads invalidate CPU/FPS attribution. This is not a networking optimization.
+
 ### Directional-shadow diagnostic
 
 - [x] Accept opt-in `--no-directional-shadows` for the InWorld world-environment directional light. Set only `DirectionalLight.shadow_maps_enabled` false; retain the light entity, illuminance, transform, ambient light, cascade configuration, shadow-map resource, camera effects, and normal lighting.
@@ -108,6 +114,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary and opt-in profiling-layer installation.
 - `src/cpu_system_profile.rs` — bounded named-span thread-CPU accounting and JSON output.
 - `src/rendering/camera/camera_follow_isolation.rs` — one-time camera-follow removal with retained pose.
+- `src/game/networking/message_send_isolation.rs` — exact application-message sender removal, preserving other send-group members.
 - `src/rendering/terrain/terrain{,_background_parse,_streaming,_spawn}.rs` — streamed object/water loading and flat-material controls.
 - `src/rendering/skybox/mod.rs` — skybox-visual gates and dome removal with lighting retained.
 
@@ -119,6 +126,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/rendering/render_upload_isolation.rs` tests — separate removal deadlines, continued unrelated work, and CLI value handling.
 - `src/cpu_system_profile.rs` tests — nested, boundary, independent-thread, concurrent same-span, and blocked-sleep CPU accounting.
 - `tests/unit/camera_follow_isolation_tests.rs` — deadline, retained transform, continued unrelated work, and argument handling.
+- `tests/unit/message_send_isolation_tests.rs` — pending-message retention, unrelated send-group work, ambiguity, defaults, and arguments.
 
 ## Known gaps (current cycle)
 
