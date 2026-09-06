@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] diagnostic | Add exact application-message sender isolation
+
+Documented `dc922265` in [[movement-performance]]. `--freeze-message-send-after <SECONDS>` resolves only the uniquely named PostUpdate `MessagePlugin::send` callback and its one-member implicit set; receive, transport, rendering, and other send-group work remain active. The five tests cover exact removal, queued-message retention, unrelated work, ambiguity, defaults, and argument parsing. A worker stack proves the sender loop executes, not that it sent a message or explains CPU. Connected-idle runtime validation is still required; no CPU/FPS result or optimization claim follows.
+
 ## [2026-09-06] measurement | Mesh-collection removal lacks comparable-throughput benefit
 
 Updated [[movement-performance]] with the main-owned `78b3a63c` pair. The exact callback was removed at 30.004 seconds: all-focused windows measured **330.55% CPU / 200.17 FPS** before and **326.55% / 179.20 FPS** after, with a post-removal 600 MHz GPU limit. A later **310.70% / 103.89 FPS** window is excluded for collapsed throughput. The earlier agent-created pair corroborates but does not replace this evidence. `9271c885` behavioral proof passed 7/7; `78b3a63c` retained the established log prefix and removed test-only schedule synthesis. No CPU benefit.

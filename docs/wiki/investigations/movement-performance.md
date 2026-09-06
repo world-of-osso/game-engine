@@ -232,6 +232,16 @@ An earlier agent-created pair (`PID 3812466`, **326.47% / 174.88 FPS** before an
 
 Artifacts: `settled-low-fps/cpu-system-isolation/mesh-collection/{red,green,build}.log`, `main-pair/{before,after,after-later}/`, `main-pair/removal-event.txt`, and the corroborating `pair/{before,after}/`.
 
+### Application-message sender isolation
+
+Commit `dc922265` adds `--freeze-message-send-after <SECONDS>`. After its cutoff, the `Last`-schedule controller resolves the exact PostUpdate runtime name `MessagePlugin::send`, requires one match and a one-member implicit type set, then removes only that callback. It does not remove the broader Lightyear send group: receive, transport, rendering, and other send-group members remain active.
+
+This is connected-idle attribution infrastructure. The five behavioral tests prove queued application messages stop draining after removal while unrelated send-group work continues; omitted/invalid flags and ambiguous sender names fail safely, and the value is not treated as an asset path. While frozen, outgoing application messages remain queued and may accumulate. Any runtime comparison must begin after login, avoid gameplay interaction, and verify connection health plus incoming synchronization throughout; a disconnect or altered workload invalidates CPU/FPS attribution.
+
+A post-removal live worker-stack snapshot reached `lightyear_messages::send_message_typed` through `MessagePlugin::send`'s parallel sender query. That proves the sender loop executes in this workload, not that it sent an application message or accounts for bulk CPU. No runtime CPU/FPS comparison has been recorded.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/message-send/{red,green}.log`.
+
 ### Named-span thread-CPU diagnostic
 
 Commit `36d1d994` adds the diagnostic-only `cpu-system-profile` feature. A build with that feature installs no profiling layer unless `WOO_CPU_PROFILE_OUTPUT` names an output file. Once enabled, it starts its fixed capture ten seconds after setup, records five seconds, and exports aggregate JSON after a one-second drain at approximately sixteen seconds.
