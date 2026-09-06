@@ -100,6 +100,8 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 
 - `tests/unit/camera_post_process_tests.rs` — pre-Lighting removal, Lighting restoration, MSAA behavior, default behavior, and preserved common camera effects.
 - `tests/unit/main_tests.rs` — stage parsing, default/full-scene behavior, UI processing gates, and performance-overlay survival.
+- `tests/unit/pipeline_isolation_tests.rs` — render-frame delivery and calling-thread versus render-thread execution through the pipelining selector.
+- `src/rendering/render_upload_isolation.rs` tests — separate removal deadlines, continued unrelated work, and CLI value handling.
 
 ## Known gaps (current cycle)
 
