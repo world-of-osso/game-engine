@@ -17,6 +17,12 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, depth/normal prepasses, common camera effects, and lighting.
 - [x] Keep the composited UI camera's MSAA synchronized with the active 3D camera after graphics updates, including diagnostic restoration and preserved pre-Lighting sampling. Preserve UI clear/order behavior and readable changing FPS digits; do not apply 3D post-processing to the UI camera.
 
+### Indirect-parameter upload control
+
+- [x] Accept opt-in `--freeze-indirect-parameters-after <SECONDS>`: after startup elapsed time, remove only Bevy's `write_indirect_parameters_buffers` system from the render schedule. Preserve dependency ordering, allocated buffers, other render systems, camera settings, and existing scene exclusions.
+- [x] Report actual removal time and fail explicitly unless exactly one target system is removed. Without the flag, add no removal controller. Reject missing/invalid seconds and do not interpret its value as an asset path.
+- [x] Use only after initial uploads in a stationary diagnostic scene. Frozen draw metadata can invalidate moving/changing scenes; CPU differences may include downstream rendering effects and are not proof of unnecessary upload work. The cutoff includes reference sampling and is not an FPS-stabilization delay.
+
 ### Directional-shadow diagnostic
 
 - [x] Accept opt-in `--no-directional-shadows` for the InWorld world-environment directional light. Set only `DirectionalLight.shadow_maps_enabled` false; retain the light entity, illuminance, transform, ambient light, cascade configuration, shadow-map resource, camera effects, and normal lighting.

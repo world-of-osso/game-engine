@@ -14,6 +14,7 @@ pub mod m2_texture_composite;
 pub(crate) mod db2_path;
 #[path = "image_sampler.rs"]
 pub mod image_sampler;
+pub(crate) mod indirect_parameter_isolation;
 #[path = "lighting/light_lookup.rs"]
 pub mod light_lookup;
 #[path = "lighting/shadow_config.rs"]

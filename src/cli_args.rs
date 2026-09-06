@@ -281,6 +281,9 @@ pub fn print_help() {
     println!(
         "  --no-directional-shadows  Disable directional shadow maps, retaining lighting (diagnostic)"
     );
+    println!(
+        "  --freeze-indirect-parameters-after <SECONDS>  Stop render indirect-parameter uploads after startup elapsed time (stationary-scene diagnostic)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -344,7 +347,8 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             | "--skybox-fdid"
             | "--light-skybox-id"
             | "--skybox-time-ms"
-            | "--freeze-terrain-materials-after" => {
+            | "--freeze-terrain-materials-after"
+            | "--freeze-indirect-parameters-after" => {
                 i += 2;
             }
             "--login-dev-admin" => {

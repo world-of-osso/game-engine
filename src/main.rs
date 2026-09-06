@@ -450,6 +450,7 @@ fn insert_startup_resources(
     configure_frame_time_graph_isolation(app, args);
     configure_msaa_isolation(app, args);
     configure_directional_shadow_isolation(app, args);
+    rendering::indirect_parameter_isolation::configure(app, args);
     insert_data_resources(app);
 }
 
