@@ -188,11 +188,13 @@ Artifacts: `settled-low-fps/no-msaa-case/{summary,result,identity,reference-iden
 
 A four-phase ON/OFF/ON/OFF repeat under `settled-low-fps/no-msaa-repeat/` strengthens the throughput evidence but remains bounded. All runs used the same saved position and camera FOV, options hash, workspace, and 1280×1198 logical window. Parsed output configurations matched even though one raw JSON key-order hash differed. The lid was **closed** throughout, so this series is not directly comparable with the earlier lid-open, 1280×989 MSAA pair. The first MSAA-on phase had only 29 focused samples and is excluded from the causal comparison. The fully focused phases recorded **196.19 FPS** MSAA-off, **173.45 FPS** MSAA-on, and **204.75 FPS** MSAA-off (60 samples each).
 
-The adjacent focused ON/OFF phases had effectively equal process CPU use (**339.29%** versus **339.55%**), comparable mean GPU clock (**1,947.13** versus **1,920.32 MHz**), and lower GPU activity with MSAA off (**74.07%** versus **65.65%**). This is stronger evidence that 4× MSAA reduces rendered throughput in this fixed diagnostic scene. It does **not** show that removing MSAA reduces CPU work, fixes intermittent collapse, or supports an exact attributable percentage. Aggregated 500 MHz joint CPU/GPU-limit bins also favor MSAA-off, but their counts are small and actual clocks still vary, so they do not remove all frequency confounding.
+The adjacent focused ON/OFF phases had effectively equal process CPU use (**339.29%** versus **339.55%**) and similar mean GPU clock (**1,947.13** versus **1,920.32 MHz**). MSAA-off was **31.29 FPS (+18.0%)** faster, with mean frame time **5.818→4.951 ms (-14.9%)**, and had lower GPU activity (**74.07%** versus **65.65%**). This is stronger evidence that 4× MSAA reduces rendered throughput in this fixed diagnostic scene. It does **not** show that removing MSAA reduces CPU work, fixes intermittent collapse, or supports an exact causal/attributable percentage.
 
-Both commands restored the numeric FPS/graph flags. Screenshot output is visually limited: phase 3 MSAA-on has clean numeric FPS but no visible graph bars, while phases 2 and 4 MSAA-off have overdrawn numeric glyphs. Do not infer graph state or a mode-specific cause from those images. Independent data verification for this repeat is pending.
+Independent saved-data audit confirmed the phase boundary and calculations. Six joint 500 MHz CPU/GPU-limit bins overlap for phases 3/4, but only **26** minimum-count rows overlap; actual graphics-clock deltas within those bins span **-431.6 to +279.0 MHz**. They are distributional cohorts rather than matched controls, so the consistent direction warrants a future controlled repeat but does not remove frequency/workload confounding.
 
-Artifacts: `settled-low-fps/no-msaa-repeat/{summary,conditions-summary,joint-limit-bins}.json`, raw phase samples, positions, camera/output captures, and screenshots.
+Both commands restored the numeric FPS/graph flags. Screenshot output is visually limited: phase 3 MSAA-on has clean numeric FPS but no visible graph bars, while phases 2 and 4 MSAA-off have overdrawn numeric glyphs. Do not infer graph state or a mode-specific cause from those images.
+
+Artifacts: `settled-low-fps/no-msaa-repeat/{summary,conditions-summary,joint-limit-bins}.json`, `audit-2026-09-06.md`, raw phase samples, positions, camera/output captures, and screenshots.
 
 ### Foreground firmware-clamp evidence
 
@@ -215,7 +217,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
 - [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
-- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original MSAA pair, and the `no-msaa-repeat` raw/summary artifacts; repeat data verification remains pending.
+- [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original MSAA pair, and independently audited `no-msaa-repeat` artifacts.
 
 ## See Also
 
