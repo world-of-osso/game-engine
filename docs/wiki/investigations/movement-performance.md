@@ -176,6 +176,16 @@ Commit `4e55f6ff` adds `--no-frame-time-graph`, which keeps numeric FPS visible 
 
 Artifacts: `settled-low-fps/no-graph-case/{summary,result,identity,reference-identity}.json`, paired position files, and screenshots. The new lid-open/display-layout setup is not comparable to older closed-lid measurements.
 
+### Indirect-parameter upload isolation
+
+The 13-focused-sample baseline at `ba6b756a` used **314.38%** process CPU: named `Compute Task Pool` workers contributed **234.14%** and the four `game-engine` threads **80.08%**. The scene had zero terrain, water, and M2-effect material assets, so their writers were not selected as the next CPU boundary.
+
+Commit `c3ad0ccf` adds `--freeze-indirect-parameters-after <SECONDS>`. At a `Time<Real>` deadline, its controller removes exactly one Bevy Render-schedule system, `write_indirect_parameters_buffers`, with `ScheduleCleanupPolicy::RemoveSystemsOnly`. It leaves allocated buffers, every other render callback, camera configuration, and scene exclusions in place. The removal deadline includes initial reference sampling; it is not an FPS-stabilization delay. An earlier attempted implicit-type-set condition was rejected by Bevy and abandoned; the retained implementation uses typed schedule removal instead.
+
+The behavioral RED showed the target still ran three times where two were expected; GREEN verifies removal of only the target after the deadline and once-only enforcement. Runtime, build, and independent verification are pending. This must run only in a stationary scene: frozen indirect metadata can affect downstream rendering, so any result measures the render-schedule boundary, not proof that upload work was unnecessary or the cause of CPU load.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/baseline/` and `settled-low-fps/indirect-parameter-isolation/{corrected-red-behavior,green}.log`.
+
 ### Directional-shadow isolation
 
 Commit `ba6b756a` adds opt-in `--no-directional-shadows` for the InWorld world-environment light. Startup inserts a diagnostic resource only when requested; `spawn_world_environment` reads it while creating the directional light and sets only `DirectionalLight.shadow_maps_enabled` to false. It logs the applied override. The light entity, overcast-day illuminance, transform, ambient lighting, cascade configuration, 4096-pixel `DirectionalLightShadowMap` resource, camera effects, and general directional-light calculations remain. Standalone and other scene setup paths are unchanged.

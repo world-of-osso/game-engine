@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] diagnostic | Add timed indirect-parameter upload isolation
+
+Updated [[movement-performance]] for `c3ad0ccf`. The next CPU baseline recorded **314.38%** process CPU across 13 focused samples: named Compute Task Pool workers accounted for **234.14%**, and game-engine threads **80.08%**; terrain, water, and M2-effect materials were all absent. Opt-in `--freeze-indirect-parameters-after <SECONDS>` removes only Bevy Render's typed `write_indirect_parameters_buffers` system at a `Time<Real>` deadline using `RemoveSystemsOnly`; allocated buffers and other render callbacks remain. The rejected implicit-type-set approach was abandoned. Corrected behavioral RED proved the target still ran 3 rather than 2 times; GREEN, build, runtime, and independent verification remain pending. Stationary-scene only: frozen indirect metadata can affect downstream render work, so no CPU-drop or efficiency claim is made.
+
 ## [2026-09-06] measurement | Preserve directional-shadow FPS collapse
 
 Updated [[movement-performance]] from the interrupted `ba6b756a` directional-shadow run. The planned ON/OFF series stopped after 60 shadows-on samples and 27 shadows-off samples when the user observed foreground FPS fall from 170–200 to about 40. This is not a completed A/B and provides no shadow benefit claim. The retained shadow-off PID `2004379` immediately measured 12 focused samples at **43.92–58.24 FPS** with both enforced CPU/GPU limits at **600 MHz** in every row, **309.04%** process CPU, **43.5%** mean GPU activity, and +11,006 raw core/GFX thermal-residency counters (units unspecified). A 192.33–202.57 FPS CPU profile ran after recovery and is not slow-state attribution. User clarified FPS settles in under 15 seconds; future relaunches use 10-second settling, distinct from measurement. The cancelled detach capture's missing log is not application-stall evidence.
