@@ -238,9 +238,27 @@ Commit `dc922265` adds `--freeze-message-send-after <SECONDS>`. After its cutoff
 
 This is connected-idle attribution infrastructure. The five behavioral tests prove queued application messages stop draining after removal while unrelated send-group work continues; omitted/invalid flags and ambiguous sender names fail safely, and the value is not treated as an asset path. While frozen, outgoing application messages remain queued and may accumulate. Any runtime comparison must begin after login, avoid gameplay interaction, and verify connection health plus incoming synchronization throughout; a disconnect or altered workload invalidates CPU/FPS attribution.
 
-A post-removal live worker-stack snapshot reached `lightyear_messages::send_message_typed` through `MessagePlugin::send`'s parallel sender query. That proves the sender loop executes in this workload, not that it sent an application message or accounts for bulk CPU. No runtime CPU/FPS comparison has been recorded.
+A live single-worker snapshot during the preceding mesh-collector experiment reached `send_message_typed` through `MessagePlugin::send`'s parallel query. That proves sender-loop execution, not that an application message was sent or that the loop owns bulk CPU.
 
-Artifacts: `settled-low-fps/cpu-system-isolation/message-send/{red,green}.log`.
+Normal-build PID `3944700` logged sender removal at **30.003 s**. Before/after measurements were **332.55% CPU / 199.51 FPS** and **341.05% CPU / 220.96 FPS**. All 13 samples in each window remained focused and reported `InWorld`, connected, one link, 41 remote entities and one local player. Later connection status remained healthy. Camera/player coordinates and the 40 NPC scene entries were unchanged; these static snapshots do not prove receipt of fresh application state. No CPU reduction follows. Independent verification passed formatting, checking, readability, reused 5/5 tests/build, and data review.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/message-send/{red,green,build}.log`, `pair/`, and `verifier-report-dc922265.md`.
+
+### Cumulative single-callback sequence
+
+The user selected retaining previous exclusions. One normal `dc922265` process first established a baseline, then removed indirect uploads, batched uploads, cluster preparation, mesh collection, camera follow, and application-message sending at separate 20-second intervals. Each phase's event count was checked before and after sampling; all six removals occurred in the intended order with no other policy changes.
+
+| Retained exclusions | Process CPU | FPS | Evidence |
+|---|---:|---:|---|
+| None | 335.89% | 204.43 | 13 focused samples |
+| Indirect upload | 327.97% | 213.01 | 13 focused samples |
+| Both upload writers | 333.56% | 224.86 | 13 focused samples |
+| All six, final focused tail | 330.30% | 214.74 | Only six seconds / seven focused rows |
+| All six, recreated state | 331.80% | 234.68 | Separate process, 12 seconds / 13 focused rows |
+
+The cluster and collector phases hit 600 MHz firmware limits. Camera and sender phases lost focus for part of their intervals. The apparent final full-window **210.90% CPU** is therefore invalid as a savings claim; its fully focused tail still uses roughly 330%. A fresh process recreated the already-excluded six-callback state before measurement, not a new multi-callback comparison. That qualified 12-second observation confirms bulk absolute CPU persists. This does not establish zero cost for the excluded work.
+
+Independent data audit validated identities, removal order, phase boundaries, and exclusions for clocks/focus. Fresh perf sampling occurred after the recreated state's telemetry; all 1,584 worker callchains were still empty, although live single-worker `eu-stack` can recover callers. All diagnostic clients were stopped. Artifacts: `cpu-system-isolation/cumulative/{summaries.json,removal-events.txt,data-audit-2026-09-06.md}`, `6-message-send/focused-tail-summary.json`, and `continued-baseline/`.
 
 ### Named-span thread-CPU diagnostic
 

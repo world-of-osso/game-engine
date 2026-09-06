@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] measurement | Cumulative exclusions retain bulk CPU
+
+Updated [[movement-performance]] with sender-only and cumulative results. Sender removal retained connection state but did not reduce CPU. All six retained exclusions still measured 330.30% CPU / 214.74 FPS in a focused six-second tail, then 331.80% / 234.68 FPS in a separately recreated, fully focused 12-second state. Mixed-focus and firmware-clamped phases are excluded from savings claims. Independent audits passed; diagnostic clients stopped.
+
 ## [2026-09-06] diagnostic | Add exact application-message sender isolation
 
 Documented `dc922265` in [[movement-performance]]. `--freeze-message-send-after <SECONDS>` resolves only the uniquely named PostUpdate `MessagePlugin::send` callback and its one-member implicit set; receive, transport, rendering, and other send-group work remain active. The five tests cover exact removal, queued-message retention, unrelated work, ambiguity, defaults, and argument parsing. A worker stack proves the sender loop executes, not that it sent a message or explains CPU. Connected-idle runtime validation is still required; no CPU/FPS result or optimization claim follows.
