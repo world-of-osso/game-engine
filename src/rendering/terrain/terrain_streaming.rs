@@ -116,7 +116,15 @@ fn record_loaded_tile_entities(
     adt_manager
         .tile_doodad_entities
         .insert(key, doodad_entities);
-    log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
+    if adt_manager.render_terrain {
+        log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
+    } else {
+        eprintln!(
+            "Registered ADT height data with ground rendering disabled: {} grids from {}",
+            parsed.adt_data.height_grids.len(),
+            parsed.adt_path.display(),
+        );
+    }
     log_tile_memory_stats(refs, parsed);
 }
 
