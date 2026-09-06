@@ -221,11 +221,11 @@ fn export_profile_once(profile: Res<CpuSpanProfileResource>) {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-struct SpanKey(String);
+struct SpanKey(Arc<str>);
 
 impl SpanKey {
     #[cfg(test)]
-    fn new(name: impl Into<String>) -> Self {
+    fn new(name: impl Into<Arc<str>>) -> Self {
         Self(name.into())
     }
 
@@ -234,7 +234,7 @@ impl SpanKey {
             Some(name) => format!("{}: {name}", metadata.name()),
             None => metadata.name().to_string(),
         };
-        Self(name)
+        Self(name.into())
     }
 }
 
@@ -404,7 +404,7 @@ impl ThreadReport {
                 .measurements
                 .iter()
                 .map(|(key, measurement)| SpanCpuProfile {
-                    name: key.0.clone(),
+                    name: key.0.to_string(),
                     calls: measurement.calls,
                     inclusive_cpu_ns: measurement.inclusive_ns,
                     self_cpu_ns: measurement.self_ns,
@@ -546,19 +546,22 @@ mod tests {
     }
 
     #[test]
-    fn thread_cpu_clock_advances_during_real_cpu_work() {
-        let before = thread_cpu_time_ns().unwrap();
-        let mut value = 0_u64;
-        for index in 0..1_000_000 {
-            value = value.wrapping_add(index);
-        }
-        std::hint::black_box(value);
-        assert!(thread_cpu_time_ns().unwrap() > before);
+    fn thread_cpu_clock_excludes_blocked_sleep() {
+        let wall_start = Instant::now();
+        let cpu_start = thread_cpu_time_ns().unwrap();
+        std::thread::sleep(Duration::from_millis(30));
+        consume_thread_cpu_for(Duration::from_millis(2));
+        let cpu_elapsed = thread_cpu_time_ns().unwrap() - cpu_start;
+
+        assert!(wall_start.elapsed() >= Duration::from_millis(25));
+        assert!(cpu_elapsed >= Duration::from_millis(2).as_nanos() as u64);
+        assert!(cpu_elapsed < wall_start.elapsed().as_nanos() as u64 / 2);
     }
 
     #[test]
-    fn tracing_layer_attributes_nested_system_spans_on_each_real_thread() {
+    fn tracing_layer_attributes_concurrent_entries_of_one_span_on_each_real_thread() {
         use log::tracing_subscriber::prelude::*;
+        use std::sync::Barrier;
 
         let output = std::env::temp_dir().join(format!(
             "game-engine-thread-cpu-profile-{}-{}.json",
@@ -570,29 +573,31 @@ mod tests {
             profiler: profiler.clone(),
         });
         let dispatch = log::tracing::Dispatch::new(subscriber);
+        let barrier = Arc::new(Barrier::new(2));
 
-        log::tracing::dispatcher::with_default(&dispatch, || {
-            let outer = log::tracing::info_span!("system", name = "outer");
-            let _outer = outer.enter();
-            let inner = log::tracing::info_span!("system", name = "inner");
-            let _inner = inner.enter();
-            std::hint::black_box((0..100_000_u64).fold(0_u64, u64::wrapping_add));
+        let worker = log::tracing::dispatcher::with_default(&dispatch, || {
+            let shared = log::tracing::info_span!("system", name = "shared");
+            let worker_span = shared.clone();
+            let worker_dispatch = dispatch.clone();
+            let worker_barrier = barrier.clone();
+            let worker = std::thread::Builder::new()
+                .name("cpu-profile-test-worker".to_string())
+                .spawn(move || {
+                    log::tracing::dispatcher::with_default(&worker_dispatch, || {
+                        run_shared_span_work(worker_span, worker_barrier);
+                    });
+                })
+                .unwrap();
+
+            let _shared = shared.enter();
+            barrier.wait();
+            consume_thread_cpu_for(Duration::from_millis(2));
+            let nested = log::tracing::info_span!("system", name = "nested");
+            let _nested = nested.enter();
+            consume_thread_cpu_for(Duration::from_millis(2));
+            worker
         });
-        let worker_dispatch = dispatch.clone();
-        std::thread::Builder::new()
-            .name("cpu-profile-test-worker".to_string())
-            .spawn(move || {
-                log::tracing::dispatcher::with_default(&worker_dispatch, || {
-                    let outer = log::tracing::info_span!("system", name = "outer");
-                    let _outer = outer.enter();
-                    let inner = log::tracing::info_span!("system", name = "inner");
-                    let _inner = inner.enter();
-                    std::hint::black_box((0..100_000_u64).fold(0_u64, u64::wrapping_add));
-                });
-            })
-            .unwrap()
-            .join()
-            .unwrap();
+        worker.join().unwrap();
 
         profiler.export().unwrap();
         let value: serde_json::Value =
@@ -600,11 +605,50 @@ mod tests {
         let threads = value["threads"].as_array().unwrap();
         assert_eq!(threads.len(), 2);
         for thread in threads {
-            assert!(thread["observed_cpu_ns"].as_u64().unwrap() > 0);
+            let observed_cpu_ns = thread["observed_cpu_ns"].as_u64().unwrap();
+            assert!(observed_cpu_ns > 0);
             let spans = thread["spans"].as_array().unwrap();
-            assert_eq!(spans.len(), 2);
-            assert!(spans.iter().all(|span| span["calls"] == 1));
+            assert_eq!(span_count(spans, "shared"), 1);
+            assert_eq!(span_count(spans, "nested"), 1);
+            assert!(spans.iter().all(span_has_positive_cpu));
+            let summed_self_cpu_ns = spans
+                .iter()
+                .map(|span| span["self_cpu_ns"].as_u64().unwrap())
+                .sum::<u64>();
+            assert!(summed_self_cpu_ns <= observed_cpu_ns);
         }
         std::fs::remove_file(output).unwrap();
+    }
+
+    fn run_shared_span_work(span: log::tracing::Span, barrier: Arc<std::sync::Barrier>) {
+        let _shared = span.enter();
+        barrier.wait();
+        consume_thread_cpu_for(Duration::from_millis(2));
+        let nested = log::tracing::info_span!("system", name = "nested");
+        let _nested = nested.enter();
+        consume_thread_cpu_for(Duration::from_millis(2));
+    }
+
+    fn consume_thread_cpu_for(duration: Duration) {
+        let start = thread_cpu_time_ns().unwrap();
+        let target = start + duration.as_nanos() as u64;
+        let mut value = 0_u64;
+        while thread_cpu_time_ns().unwrap() < target {
+            value = value.wrapping_add(1);
+        }
+        std::hint::black_box(value);
+    }
+
+    fn span_count(spans: &[serde_json::Value], expected_name: &str) -> u64 {
+        spans
+            .iter()
+            .find(|span| span["name"].as_str().unwrap().contains(expected_name))
+            .unwrap()["calls"]
+            .as_u64()
+            .unwrap()
+    }
+
+    fn span_has_positive_cpu(span: &serde_json::Value) -> bool {
+        span["inclusive_cpu_ns"].as_u64().unwrap() > 0 && span["self_cpu_ns"].as_u64().unwrap() > 0
     }
 }
