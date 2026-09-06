@@ -220,6 +220,16 @@ Independent verification passed formatting, locked normal-binary checking, reada
 
 Artifacts: `settled-low-fps/cpu-system-isolation/camera-follow/{red-behavior,green}.log`.
 
+### Mesh-collection task isolation
+
+Commit `9271c885` adds `--freeze-mesh-collection-after <SECONDS>`. At its elapsed-time cutoff it resolves the exact private `bevy_pbr::render::mesh::collect_meshes_for_gpu_building` callback to one implicit Render-system set and removes exactly that callback. It preserves other callbacks, normal pipelining, normal upload writers, and the last prepared render-mesh data.
+
+The callback was a task-fan-out lead, not a root-cause claim: the earlier trace recorded 9,656 `prepared_mesh_producer` spans across 568 frames. The seven behavioral tests cover the named removal at its deadline, continued unrelated render work, repeated controller execution, omitted configuration, invalid arguments, and asset-path parsing. This control is stationary-only: mesh changes/removals after the cutoff are intentionally not collected.
+
+Normal-build PID `3812466` logged removal at **30.005 s**. The all-focused same-process pair measured **326.47% CPU / 174.88 FPS** before and **331.22% CPU / 185.82 FPS** after. CPU and GPU limits varied across windows, so the pair is not a matched-clock benchmark; it nevertheless shows no material CPU reduction at comparable throughput. Screenshots retain the same blank reduced view and changing FPS overlay. No optimization or root-cause conclusion follows.
+
+Artifacts: `settled-low-fps/cpu-system-isolation/mesh-collection/{red,green,build}.log`, `pair/{before,after}/`, and `pair/removal-event.txt`.
+
 ### Named-span thread-CPU diagnostic
 
 Commit `36d1d994` adds the diagnostic-only `cpu-system-profile` feature. A build with that feature installs no profiling layer unless `WOO_CPU_PROFILE_OUTPUT` names an output file. Once enabled, it starts its fixed capture ten seconds after setup, records five seconds, and exports aggregate JSON after a one-second drain at approximately sixteen seconds.

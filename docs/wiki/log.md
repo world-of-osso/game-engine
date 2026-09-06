@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-06] diagnostic | Isolate mesh-collection task fan-out
+
+Documented `9271c885` in [[movement-performance]]. The exact private mesh-collection callback was removed at 30.005 seconds while normal pipeline and upload writers remained enabled. All-focused normal-build windows measured **326.47% CPU / 174.88 FPS** before and **331.22% / 185.82 FPS** after; changing limits prevent matched-clock interpretation, but no material CPU reduction appears. The seven behavioral tests passed. This is stationary-only because later mesh changes are not collected.
+
 ## [2026-09-06] measurement | Camera-follow removal leaves bulk CPU unchanged
 
 Updated [[movement-performance]] with the verified `a9de6b17` same-process pair: 338.80→338.39% CPU and 210.41→214.54 FPS after removal at 30.004 seconds. Focus and reported camera/player positions remained unchanged; rotation was not exposed. Five behavioral tests, formatting, locked checking, and readability passed. No material CPU reduction.
