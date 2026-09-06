@@ -18,6 +18,13 @@ fn default_plugins(
         }),
         ..default()
     });
+    #[cfg(feature = "cpu-system-profile")]
+    {
+        plugins = plugins.set(bevy::log::LogPlugin {
+            custom_layer: game_engine::cpu_system_profile::layer,
+            ..default()
+        });
+    }
     if !enable_sound {
         plugins = plugins.disable::<bevy::audio::AudioPlugin>();
     }

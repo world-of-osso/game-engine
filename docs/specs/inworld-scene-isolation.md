@@ -30,6 +30,12 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Report actual removal time and fail explicitly unless exactly one target system is removed per cutoff. Without either flag, add no removal controller. Reject missing/invalid seconds and do not interpret values as asset paths.
 - [x] Use only after initial uploads in a stationary diagnostic scene. Frozen draw metadata can invalidate moving/changing scenes; CPU differences may include downstream rendering effects and are not proof of unnecessary upload work. The cutoff includes reference sampling and is not an FPS-stabilization delay. Trace spans are overlapping instrumented wall time, not exclusive CPU cost; a trace lead must not be treated as proof that removing its callback changes CPU or FPS.
 
+### Named-span CPU attribution
+
+- [ ] With the diagnostic-only `cpu-system-profile` feature and `WOO_CPU_PROFILE_OUTPUT` set, capture a bounded five-second sample starting ten seconds after profiler setup and write aggregate JSON. Without the environment variable, install no CPU-accounting layer; normal builds do not include it.
+- [ ] Report calls, inclusive thread CPU, and nested-span-exclusive thread CPU for named systems, schedules, and executor spans. Account independently for each thread and span entry; exclude blocked time and never subtract CPU from another thread.
+- [ ] Preserve rendering, worker counts, CPU availability, and frame-rate policy. Fail explicitly on clock or output errors. Treat results as instrumented attribution, not a normal-build performance comparison; uninstrumented task work and profiling overhead limit coverage.
+
 ### Directional-shadow diagnostic
 
 - [x] Accept opt-in `--no-directional-shadows` for the InWorld world-environment directional light. Set only `DirectionalLight.shadow_maps_enabled` false; retain the light entity, illuminance, transform, ambient light, cascade configuration, shadow-map resource, camera effects, and normal lighting.
@@ -93,7 +99,8 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/game/state/inworld_scene_stage.rs` — cumulative stage ordering and predicates.
 - `src/rendering/camera/camera_post_process.rs` — stage-aware WowCamera render-bundle synchronization.
 - `src/main.rs` — startup stage selection and pre-UI processing gates.
-- `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary.
+- `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary and opt-in profiling-layer installation.
+- `src/cpu_system_profile.rs` — bounded named-span thread-CPU accounting and JSON output.
 - `src/rendering/terrain/terrain{,_background_parse,_streaming,_spawn}.rs` — streamed object/water loading and flat-material controls.
 - `src/rendering/skybox/mod.rs` — skybox-visual gates and dome removal with lighting retained.
 
@@ -103,6 +110,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `tests/unit/main_tests.rs` — stage parsing, default/full-scene behavior, UI processing gates, and performance-overlay survival.
 - `tests/unit/pipeline_isolation_tests.rs` — render-frame delivery and calling-thread versus render-thread execution through the pipelining selector.
 - `src/rendering/render_upload_isolation.rs` tests — separate removal deadlines, continued unrelated work, and CLI value handling.
+- `src/cpu_system_profile.rs` tests — nested and independent-thread CPU accounting.
 
 ## Known gaps (current cycle)
 

@@ -36,6 +36,8 @@ pub mod combat_feedback;
 pub mod communities_data;
 #[path = "game/cooldown_data.rs"]
 pub mod cooldown_data;
+#[cfg(feature = "cpu-system-profile")]
+pub mod cpu_system_profile;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
 pub mod csv_util;

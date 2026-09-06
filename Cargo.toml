@@ -43,6 +43,8 @@ required-features = ["ipc"]
 [features]
 default = ["ipc", "casc"]
 dev = ["bevy_dylib"]
+# Diagnostic-only per-span CPU clocks; normal builds retain no profiling layer.
+cpu-system-profile = ["bevy/trace", "libc"]
 ipc = ["peercred-ipc", "libc", "glob"]
 casc = ["dep:osso_asset_resolver", "osso_asset_resolver/casc"]
 
