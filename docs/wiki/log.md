@@ -2,7 +2,7 @@
 
 ## [2026-09-06] measurement | Isolate pipelined-rendering CPU contribution
 
-Updated [[movement-performance]] with sequential upload removals, the `09e77aa1` same-extraction schedule-registry repair, and the pipelining comparison. Upload removals did not eliminate the bulk CPU load. Omitting only `PipelinedRenderingPlugin` reduced process CPU **320.72→208.15%** while FPS fell **194.86→146.81**; render frames and readable FPS remained. Earlier upload exclusions were restored individually, leaving ordinary uploads active. This is a measured CPU/throughput trade-off, not a default optimization or resolution of firmware clamps. Source/data verification is pending.
+Updated [[movement-performance]] with sequential upload removals, the `09e77aa1` same-extraction schedule-registry repair, and the pipelining comparison. Upload removals did not eliminate the bulk CPU load. Omitting only `PipelinedRenderingPlugin` reduced process CPU **320.72→208.15%** while FPS fell **194.86→146.81**; render frames and readable FPS remained. Earlier upload exclusions were restored individually, leaving ordinary uploads active. This is a measured CPU/throughput trade-off, not a default optimization or resolution of firmware clamps. Final source/data audit passed formatting, locked checks for both binaries, readability, and reused 5/5 upload plus 2/2 pipeline tests. A later all-uploads-active observation measured219.23%CPU/142.54FPS with recoveredCPUlimits, so the lower-CPU diagnostic mode does not require frozen upload data. Details and limitations remain in [[movement-performance]].
 
 ## [2026-09-06] measurement | Remove indirect-parameter uploads
 
