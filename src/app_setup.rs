@@ -145,11 +145,18 @@ fn register_bevy_plugins(
     enable_gizmos: bool,
     enable_pipelining: bool,
 ) {
-    app.add_plugins(default_plugins(
-        enable_sound,
-        enable_gizmos,
-        enable_pipelining,
-    ));
+    let empty = game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
+        == InWorldSceneStage::Empty;
+    let mut plugins = default_plugins(enable_sound, enable_gizmos, enable_pipelining);
+    if empty {
+        plugins = plugins
+            .disable::<bevy::pbr::PbrPlugin>()
+            .disable::<bevy::light::LightPlugin>();
+    }
+    app.add_plugins(plugins);
+    if empty {
+        app.init_asset::<StandardMaterial>();
+    }
     if !enable_pipelining {
         info!("Pipelined rendering disabled: render work runs sequentially on the main thread");
     }
@@ -280,15 +287,25 @@ fn register_render_plugins(app: &mut App) {
     let m2_effect_material_plugin_enabled = m2_effect_material_plugin_is_enabled(stage);
     let particle_plugin_enabled = particle_plugin_is_enabled(stage);
 
-    app.add_plugins(terrain_material::TerrainMaterialPlugin);
+    let empty = stage == Some(InWorldSceneStage::Empty);
+    if empty {
+        app.init_asset::<terrain_material::TerrainMaterial>();
+    } else {
+        app.add_plugins(terrain_material::TerrainMaterialPlugin);
+    }
     if m2_effect_material_plugin_enabled {
         app.add_plugins(m2_effect_material::M2EffectMaterialPlugin);
     } else {
         app.init_asset::<m2_effect_material::M2EffectMaterial>();
     }
-    app.add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
-        .add_plugins(water_material::WaterMaterialPlugin)
-        .add_plugins(sky::SkyPlugin);
+    if empty {
+        app.init_asset::<skybox_m2_material::SkyboxM2Material>()
+            .init_asset::<water_material::WaterMaterial>();
+    } else {
+        app.add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
+            .add_plugins(water_material::WaterMaterialPlugin);
+    }
+    app.add_plugins(sky::SkyPlugin);
     if particle_plugin_enabled {
         app.add_plugins(particle::ParticlePlugin);
     }

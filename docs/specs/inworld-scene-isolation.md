@@ -11,6 +11,12 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Provide opt-in `--inworld-stage no-npcs-ui` for settled-FPS diagnosis: omit NPC/remote-player visuals, nameplate creation/update, and game UI processing/rendering while preserving the full scene's local-character policy, terrain, skybox, lighting, particles, camera effects, networking, and standalone FPS overlay. Remote replicated state remains available; this is not a server-side NPC disable.
 - [x] Keep this diagnostic separate from `terrain`, which also excludes lighting and particles. Remove the selector when this isolation experiment is retired.
 
+### Empty registration boundary
+
+- [ ] `Empty` omits PBR and its light provider together; it must not retain consumers whose provider resources were removed.
+- [ ] Empty terrain, water, M2, and sky material stores remain available for data/status access without registering their PBR material pipelines.
+- [ ] Non-Empty stages retain their normal rendering plugins. Camera, UI overlay, and renderer progress must remain available in Empty.
+
 ### MSAA-only control
 
 - [x] Accept opt-in `--no-msaa`: override configured 4x MSAA to single-sample rendering in the camera render bundle, without changing the saved graphics option.

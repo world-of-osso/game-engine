@@ -692,8 +692,14 @@ impl Plugin for SkyPlugin {
             "Loaded {} sky keyframes for LightParamID 12",
             keyframes.len()
         );
-        app.add_plugins(MaterialPlugin::<SkyMaterial>::default())
-            .add_systems(PostUpdate, remove_disabled_sky_domes)
+        let empty = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
+            == crate::game::inworld_scene_stage::InWorldSceneStage::Empty;
+        if empty {
+            app.init_asset::<SkyMaterial>();
+        } else {
+            app.add_plugins(MaterialPlugin::<SkyMaterial>::default());
+        }
+        app.add_systems(PostUpdate, remove_disabled_sky_domes)
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
             .add_systems(Startup, init_procedural_cloud_maps)
