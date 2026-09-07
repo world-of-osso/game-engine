@@ -26,6 +26,7 @@ use runtime::{apply_emote_animation, switch_animation, sync_turn_in_place_state,
 
 /// Marker component for bone entities, storing their local pivot relative to the parent bone.
 #[derive(Component)]
+#[require(bevy_curves::RawBonePose)]
 pub struct BonePivot(pub Vec3);
 
 /// Bone flag: spherical billboard — bone always faces the camera.
@@ -48,8 +49,16 @@ pub struct M2AnimData {
     pub joint_entities: Vec<Entity>,
 }
 
-/// Active crossfade between two animation sequences.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TransitionSource {
+    Sequence,
+    PendingSnapshot,
+    Snapshot,
+}
+
+/// Active crossfade from a sequence or the last evaluated blended pose.
 pub struct AnimTransition {
+    pub(crate) source: TransitionSource,
     pub from_seq_idx: usize,
     pub from_time_ms: f32,
     pub blend_duration_ms: f32,

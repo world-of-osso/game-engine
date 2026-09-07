@@ -197,26 +197,18 @@ fn find_seq_idx(sequences: &[M2AnimSequence], anim_id: u16) -> Option<usize> {
 fn start_transition(player: &mut M2AnimPlayer, target_idx: usize, blend_ms: f32) {
     let blend_duration = blend_ms.max(MIN_MOVEMENT_BLEND_MS);
 
-    // If mid-transition, keep blending from current pose by preserving from_* as-is
-    // but update the blend progress proportionally so the pose doesn't jump.
-    if let Some(ref existing) = player.transition {
-        let progress = (existing.blend_elapsed_ms / existing.blend_duration_ms).clamp(0.0, 1.0);
-        // Start the new blend from where the old blend currently is
-        player.transition = Some(AnimTransition {
-            from_seq_idx: player.current_seq_idx,
-            from_time_ms: player.time_ms,
-            blend_duration_ms: blend_duration,
-            // Start partway through so the outgoing pose weight matches current blend
-            blend_elapsed_ms: blend_duration * (1.0 - progress) * 0.5,
-        });
+    let source = if player.transition.is_some() {
+        TransitionSource::PendingSnapshot
     } else {
-        player.transition = Some(AnimTransition {
-            from_seq_idx: player.current_seq_idx,
-            from_time_ms: player.time_ms,
-            blend_duration_ms: blend_duration,
-            blend_elapsed_ms: 0.0,
-        });
-    }
+        TransitionSource::Sequence
+    };
+    player.transition = Some(AnimTransition {
+        source,
+        from_seq_idx: player.current_seq_idx,
+        from_time_ms: player.time_ms,
+        blend_duration_ms: blend_duration,
+        blend_elapsed_ms: 0.0,
+    });
     player.current_seq_idx = target_idx;
     player.time_ms = 0.0;
 }
@@ -461,7 +453,9 @@ fn tick_transition(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) 
         return false;
     };
     transition.blend_elapsed_ms += delta_ms;
-    tick_transition_source_time(transition, data, delta_ms);
+    if transition.source == TransitionSource::Sequence {
+        tick_transition_source_time(transition, data, delta_ms);
+    }
     transition.blend_elapsed_ms >= transition.blend_duration_ms
 }
 
@@ -511,6 +505,7 @@ mod tests {
             time_ms: 0.0,
             looping: true,
             transition: Some(AnimTransition {
+                source: TransitionSource::Sequence,
                 from_seq_idx: 0,
                 from_time_ms: 100.0,
                 blend_duration_ms: 150.0,

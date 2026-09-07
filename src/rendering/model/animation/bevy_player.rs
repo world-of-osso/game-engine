@@ -6,7 +6,7 @@ use bevy::animation::{AnimatedBy, AnimationTargetId, graph::AnimationNodeIndex};
 use bevy::ecs::entity_disabling::Disabled;
 use bevy::prelude::*;
 
-use super::{M2AnimData, M2AnimPlayer, animation_active_state, bevy_curves};
+use super::{M2AnimData, M2AnimPlayer, TransitionSource, animation_active_state, bevy_curves};
 use crate::game_state::GameState;
 
 #[derive(Component)]
@@ -14,6 +14,8 @@ pub(crate) struct M2BevyAnimation {
     joints: Vec<Entity>,
     current_nodes: Vec<AnimationNodeIndex>,
     outgoing_nodes: Vec<AnimationNodeIndex>,
+    snapshot_node: AnimationNodeIndex,
+    snapshot_clip: Handle<AnimationClip>,
 }
 
 /// Two nodes per clip retain independent seek times even when a sequence crossfades to itself.
@@ -65,12 +67,16 @@ fn build_animation_graph(
         current_nodes.push(graph.add_clip(clip.clone(), 1.0, graph.root));
         outgoing_nodes.push(graph.add_clip(clip, 1.0, graph.root));
     }
+    let snapshot_clip = clips.add(bevy_curves::build_pose_clip(std::iter::empty()));
+    let snapshot_node = graph.add_clip(snapshot_clip.clone(), 1.0, graph.root);
     (
         AnimationGraphHandle(graphs.add(graph)),
         M2BevyAnimation {
             joints: data.joint_entities.clone(),
             current_nodes,
             outgoing_nodes,
+            snapshot_node,
+            snapshot_clip,
         },
     )
 }
@@ -116,10 +122,12 @@ pub(crate) fn remove_m2_animation_player(
 /// This must also run in inactive states, where it stops previously selected clips.
 pub(crate) fn sync_m2_animation_players(
     state: Option<Res<State<GameState>>>,
-    mut players: Query<(&M2AnimPlayer, &M2BevyAnimation, &mut AnimationPlayer)>,
+    mut players: Query<(&mut M2AnimPlayer, &M2BevyAnimation, &mut AnimationPlayer)>,
+    poses: Query<&bevy_curves::RawBonePose>,
+    mut clips: ResMut<Assets<AnimationClip>>,
 ) {
     let active = animation_active_state(state);
-    for (controller, binding, mut player) in &mut players {
+    for (mut controller, binding, mut player) in &mut players {
         player.stop_all();
         if !active {
             continue;
@@ -130,13 +138,40 @@ pub(crate) fn sync_m2_animation_players(
                 controller.current_seq_idx
             );
         };
-        let current_weight = apply_outgoing_transition(controller, binding, &mut player);
+        capture_interrupted_pose(&mut controller, binding, &poses, &mut clips);
+        let current_weight = apply_outgoing_transition(&controller, binding, &mut player);
         player
             .play(current)
             .pause()
             .set_weight(current_weight)
             .seek_to(controller.time_ms / 1000.0);
     }
+}
+
+fn capture_interrupted_pose(
+    controller: &mut M2AnimPlayer,
+    binding: &M2BevyAnimation,
+    poses: &Query<&bevy_curves::RawBonePose>,
+    clips: &mut Assets<AnimationClip>,
+) {
+    let Some(transition) = controller.transition.as_mut() else {
+        return;
+    };
+    if transition.source != TransitionSource::PendingSnapshot {
+        return;
+    }
+    let snapshot = binding
+        .joints
+        .iter()
+        .enumerate()
+        .filter_map(|(index, joint)| {
+            // Only BonePivot joints are animation targets; model data can retain other entities.
+            poses.get(*joint).ok().map(|pose| (index, pose.0))
+        });
+    *clips
+        .get_mut(&binding.snapshot_clip)
+        .expect("owned M2 snapshot clip") = bevy_curves::build_pose_clip(snapshot);
+    transition.source = TransitionSource::Snapshot;
 }
 
 fn apply_outgoing_transition(
@@ -148,11 +183,13 @@ fn apply_outgoing_transition(
         return 1.0;
     };
     let blend = (transition.blend_elapsed_ms / transition.blend_duration_ms).clamp(0.0, 1.0);
-    let Some(&outgoing) = binding.outgoing_nodes.get(transition.from_seq_idx) else {
-        panic!(
-            "M2 outgoing animation sequence {} has no Bevy clip",
-            transition.from_seq_idx
-        );
+    let outgoing = match transition.source {
+        TransitionSource::Snapshot => binding.snapshot_node,
+        TransitionSource::Sequence => *binding
+            .outgoing_nodes
+            .get(transition.from_seq_idx)
+            .expect("M2 outgoing sequence must have a Bevy clip"),
+        TransitionSource::PendingSnapshot => unreachable!("snapshot captured before playback"),
     };
     player
         .play(outgoing)
@@ -285,6 +322,7 @@ mod tests {
             let mut controller = app.world_mut().get_mut::<M2AnimPlayer>(owner).unwrap();
             controller.time_ms = 800.0;
             controller.transition = Some(AnimTransition {
+                source: TransitionSource::Sequence,
                 from_seq_idx: 0,
                 from_time_ms: 200.0,
                 blend_duration_ms: 150.0,
