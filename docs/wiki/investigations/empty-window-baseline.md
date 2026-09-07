@@ -73,6 +73,14 @@ The first native capture still lacked worker entries: Bevy 0.19's aggregate `tra
 
 The accompanying ten-second process sample recorded 251.179% one-core CPU and about 930.945 logged main updates/s. Focus was 0/11, recorded informationally: the user waived focus gating and the main thread took no focus. GPU ceilings ranged 646–2454 MHz, so no cross-run efficiency or causal focus claim follows. These measurements prove worker-span output, not bulk CPU ownership.
 
+## Isolated dirty-tree removal
+
+`aeff05db` and `ccc9b47a` allow one existing `--remove-system-after` request after `--service-window continuous`; other service modes remain exclusive. Parser tests demonstrated RED before the extension and GREEN 5/5 afterward. The experiment removes only `main:PostUpdate bevy_transform::systems::mark_dirty_trees` through the existing controller.
+
+With the CPU profiler layer disabled but the same tracing-feature binary retained, one process logged the unique removal at 20.000 seconds. Ten-second process CPU samples measured 190.182% before and 187.484% afterward. Nearby logged update-rate means were 847.874/s and 1005.674/s respectively; these are not presented FPS. Pools, pipelining, window and binary remained unchanged. GPU ceilings reached 600 MHz in both windows and CPU ceilings varied, preventing an isolated efficiency claim. Bulk CPU remained high. The preceding profiler-enabled pair overlapped 81% host busy CPU and a GPU ceiling collapse, so it is not causal evidence.
+
+A separate same-binary run removed the callback at 0.000 seconds. Its subsequent profile retained 170 other span names across 18 reporting threads but contained neither the target system nor its producer, consumer or traversal spans. This proves the intervention stopped that work, not that it solved bulk CPU usage. Artifacts: `data/diagnostics/movement-perf-20260905/service-window/renderer/named-profile/dirty-removal/`.
+
 ## Measurement scope
 
 Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Native and core stages have no game workload or continuous rendering. Renderer stages add only blank-frame work; their deliberately different update policies do not establish a same-throughput game optimization.

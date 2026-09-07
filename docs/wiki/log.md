@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] diagnostic | Isolate blank-renderer dirty-tree callback
+
+Updated [[empty-window-baseline]] and [[movement-performance]] for the single-selector continuous-window extension and native before/after experiment. The removed callback and its worker spans disappear, but bulk CPU remains. Clock variation prevents an efficiency claim; the source investigation remains open.
+
 ## [2026-09-07] diagnostic | Add dirty-tree worker CPU spans
 
 Updated [[empty-window-baseline]] for `5712ae71` and `55a7abe9`. The first behavioral test proved the existing Bevy `producer_mark_dirty`, `consumer_mark_dirty`, and `par_traversal_mark_dirty` spans were excluded; the retained selector now exports them with positive CPU. This records worker-span entries, including future polls and final drop, independently, does not charge them to `mark_dirty_trees` or count distinct tasks. Bevy creates the consumer/traversal workers before scanning changed transforms, a source candidate only. `d37278bb` enables the omitted transform tracing feature; native worker output is now recorded in the investigation, without a bulk root-cause claim.
