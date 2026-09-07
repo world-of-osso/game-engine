@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] investigation | Record Bevy dynamic-link compile measurement
+
+Added [[compile-latency]] for the corrected `dev = ["bevy/dynamic_linking"]` wiring in `8fca26b9` and the command documentation in `50991d70`. Same-literal real-edit samples fell from 21.173815 s default to 6.956593 s, then 4.566569 s after the dynamic cache warmed. Deleted-cache warmups and concurrent compile activity are excluded; the requested under-three-second edit-build target remains unmet. Repository history does not support a Windows rationale for the prior unwired direct `bevy_dylib` dependency.
+
 ## [2026-09-07] systems | Replace M2 pose loop with Bevy playback
 
 Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `6ed7129b`, `780baa1f`, `efe0cb26`, `8056741d`, and `12cced65`. M2 sequence policy, timing, and crossfade state remain in `M2AnimPlayer`; paused Bevy graph clips seek to those times. Bevy now evaluates/blends supported sequence-local raw TRS through custom curves, then commits existing `BonePivot` correction. The old per-model bone-application loop is removed. Graph bindings use existing joints and two nodes per sequence for independent outgoing/current times. Bevy evaluates in `PostUpdate` before transform propagation; this is not a separate 60 Hz animation worker. Focused integrated evidence is 67/67; native equivalence and CPU/FPS claims remain open.
