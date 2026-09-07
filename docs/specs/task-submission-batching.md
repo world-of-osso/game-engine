@@ -4,8 +4,8 @@ User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whet
 
 ## What it must do
 
-- [ ] Retain every system and its execution count, dependency ordering, run conditions, and deferred-command visibility.
-- [ ] Keep each system independently runnable, with normal worker pools, non-Send/exclusive execution paths, per-system completion, and panic propagation.
+- [x] Retain every system and its execution count, dependency ordering, run conditions, and deferred-command visibility.
+- [x] Keep each system independently runnable, with normal worker pools, non-Send/exclusive execution paths, per-system completion, and panic propagation.
 - [ ] With the existing async-executor backend, `BEVY_ECS_BATCH_TASK_SUBMISSIONS=1` enables bulk submission; absence or `0` keeps baseline submission. Reject other values explicitly. Executor-local configuration may override this setting.
 - [ ] Provide baseline and batched submission in the same feature configuration; do not alter CPU availability, pipelining, renderer behavior, or compiler optimization settings.
 - [ ] Measure engine CPU per update and throughput in bounded 10-second samples, without changing focus or testing the profiler.
@@ -31,7 +31,7 @@ User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whet
 ## Known gaps (current cycle)
 
 - [x] Implement scoped bulk registration without fusing system bodies. Targeted `bevy_tasks` tests pass 3/3.
-- [ ] Run targeted ECS behavioral coverage for batching: conditions, dependencies, conflicting access, deferred/exclusive/non-Send work, and panic propagation.
+- [x] Run targeted ECS behavioral coverage for batching: conditions, dependencies, conflicting access, deferred/exclusive/non-Send work, and panic propagation.
 - [ ] Build and compare baseline/batched engine behavior and CPU/update.
 
 ## Out of scope
