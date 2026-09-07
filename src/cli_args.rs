@@ -19,14 +19,29 @@ pub(crate) fn requests_empty_window(args: &[String]) -> Result<bool, &'static st
     Ok(true)
 }
 
-pub(crate) fn requests_service_window(args: &[String]) -> Result<bool, &'static str> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ServiceWindowMode {
+    Core,
+    Render,
+    Continuous,
+}
+
+pub(crate) fn requests_service_window(
+    args: &[String],
+) -> Result<Option<ServiceWindowMode>, &'static str> {
     if !args.iter().any(|arg| arg == "--service-window") {
-        return Ok(false);
+        return Ok(None);
     }
-    if args.len() != 1 {
-        return Err("--service-window must be used without other arguments");
+    let usage = "--service-window requires exactly one stage: core, render, or continuous";
+    if args.len() != 2 || args[0] != "--service-window" {
+        return Err(usage);
     }
-    Ok(true)
+    match args[1].as_str() {
+        "core" => Ok(Some(ServiceWindowMode::Core)),
+        "render" => Ok(Some(ServiceWindowMode::Render)),
+        "continuous" => Ok(Some(ServiceWindowMode::Continuous)),
+        _ => Err(usage),
+    }
 }
 
 #[cfg(test)]
@@ -313,7 +328,7 @@ pub fn print_help() {
     );
 
     println!(
-        "  --empty-window      Open only an event-driven empty native window (exclusive baseline mode)\n  --service-window    Add Bevy task pools, clock and schedules to that native event loop"
+        "  --empty-window      Open only an event-driven empty native window (exclusive baseline mode)\n  --service-window <core|render|continuous>  Add core services, blank GPU rendering, then continuous frames"
     );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");

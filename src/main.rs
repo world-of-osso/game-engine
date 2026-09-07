@@ -49,6 +49,7 @@ mod model_path_resolver;
 mod pathing;
 mod process_limits;
 mod process_memory_status;
+mod render_window;
 mod rendering;
 mod scene_graph_utils;
 mod scenes;
@@ -143,17 +144,22 @@ fn main() {
 }
 
 fn run_diagnostic_window_if_requested(args: &[String]) -> bool {
-    let reject_arguments = |error| {
+    fn reject_arguments(error: &str) -> ! {
         eprintln!("{error}");
         std::process::exit(2);
-    };
-    let empty = requests_empty_window(args).unwrap_or_else(reject_arguments);
-    let services = requests_service_window(args).unwrap_or_else(reject_arguments);
-    if !empty && !services {
+    }
+    let empty = requests_empty_window(args).unwrap_or_else(|error| reject_arguments(error));
+    let services = requests_service_window(args).unwrap_or_else(|error| reject_arguments(error));
+    if !empty && services.is_none() {
         return false;
     }
-    let app = services.then(service_window::build_app);
-    if let Err(error) = empty_window::run(app) {
+    let result = match services {
+        None => empty_window::run(None),
+        Some(ServiceWindowMode::Core) => empty_window::run(Some(service_window::build_app())),
+        Some(ServiceWindowMode::Render) => render_window::run(false),
+        Some(ServiceWindowMode::Continuous) => render_window::run(true),
+    };
+    if let Err(error) = result {
         eprintln!("diagnostic window failed: {error}");
         std::process::exit(1);
     }

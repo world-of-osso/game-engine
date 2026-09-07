@@ -1,11 +1,19 @@
-use super::{requests_empty_window, requests_service_window};
+use super::{ServiceWindowMode, requests_empty_window, requests_service_window};
 
 #[test]
 fn service_window_mode_is_explicit_and_exclusive() {
-    assert_eq!(
-        requests_service_window(&["--service-window".into()]),
-        Ok(true)
-    );
+    for (name, mode) in [
+        ("core", ServiceWindowMode::Core),
+        ("render", ServiceWindowMode::Render),
+        ("continuous", ServiceWindowMode::Continuous),
+    ] {
+        assert_eq!(
+            requests_service_window(&["--service-window".into(), name.into()]),
+            Ok(Some(mode))
+        );
+    }
+    assert!(requests_service_window(&["--service-window".into()]).is_err());
+    assert!(requests_service_window(&["--service-window".into(), "unknown".into()]).is_err());
     assert!(
         requests_service_window(&["--service-window".into(), "--empty-window".into()]).is_err()
     );
@@ -13,14 +21,14 @@ fn service_window_mode_is_explicit_and_exclusive() {
         requests_service_window(&["--service-window".into(), "--server".into(), "dev".into()])
             .is_err()
     );
-    assert_eq!(requests_service_window(&[]), Ok(false));
+    assert_eq!(requests_service_window(&[]), Ok(None));
     assert_eq!(
         requests_service_window(&["--screen".into(), "inworld".into()]),
-        Ok(false)
+        Ok(None)
     );
     assert_eq!(
         requests_service_window(&["--empty-window".into()]),
-        Ok(false)
+        Ok(None)
     );
 }
 

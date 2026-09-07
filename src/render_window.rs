@@ -10,9 +10,11 @@ use bevy::{
         system::{Commands, Res, ResMut},
     },
     image::ImagePlugin,
+    input::InputPlugin,
     log::LogPlugin,
-    prelude::MinimalPlugins,
-    render::{pipelined_rendering::PipelinedRenderingPlugin, RenderPlugin},
+    mesh::MeshPlugin,
+    prelude::{MinimalPlugins, default},
+    render::{RenderPlugin, pipelined_rendering::PipelinedRenderingPlugin},
     time::{Real, Time},
     transform::TransformPlugin,
     window::{Window, WindowPlugin, WindowResolution},
@@ -38,6 +40,7 @@ fn build_app(continuous: bool) -> App {
     app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>())
         .add_plugins(LogPlugin::default())
         .add_plugins(TransformPlugin)
+        .add_plugins(InputPlugin)
         .add_plugins(WindowPlugin {
             primary_window: Some(render_window()),
             ..default()
@@ -46,6 +49,7 @@ fn build_app(continuous: bool) -> App {
         .add_plugins(WinitPlugin::default())
         .add_plugins(RenderPlugin::default())
         .add_plugins(ImagePlugin::default())
+        .add_plugins(MeshPlugin)
         .add_plugins(CameraPlugin)
         .add_plugins(PipelinedRenderingPlugin)
         .add_plugins(CorePipelinePlugin)
@@ -120,7 +124,7 @@ mod tests {
         ecs::query::With,
     };
 
-    use super::{spawn_blank_camera, BLANK_CLEAR_COLOR};
+    use super::{BLANK_CLEAR_COLOR, spawn_blank_camera};
 
     #[test]
     fn blank_renderer_starts_one_active_2d_camera_with_its_clear_color() {
