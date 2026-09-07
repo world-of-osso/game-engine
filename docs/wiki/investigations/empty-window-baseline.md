@@ -83,6 +83,12 @@ A separate same-binary run removed the callback at 0.000 seconds. Its subsequent
 
 Both blank update telemetry and full-game IPC FPS describe app-update cadence, not presentation; their aggregation differs. See [metric provenance and normalization](movement-performance.md#update-rate-metric-provenance-2026-09-07).
 
+## Native task-dispatch attribution
+
+Reaggregating the original continuous blank renderer's `native-profile/flat-script.log` yields 3,109 records and 11,618,357,418 sampled cycle period. Concrete flat leaves include runnable-queue `pop` (3.0056%), ECS `Context::tick_executor` (2.6872%), system-completion queue `push_or_else` (2.5550%), and contended mutex locking (2.0247%). These are sampled instruction costs, not elapsed-time percentages or callback-inclusive costs.
+
+Bevy 0.19's `multi_threaded.rs::spawn_system_task` creates a task around each dispatched system and reports completion; `Context::tick_executor` processes queued completion events and advances execution. This establishes actual task-dispatch and synchronization CPU work in a renderer without project services. It does not identify the callers of generic queue/mutex leaves or account for the entire excess: 95.7148% of sampled period lacks decoded ancestry. Further profiler testing was stopped at the user's request; no additional measurements accompanied this analysis.
+
 ## Local profiler entry overhead
 
 The ignored test-only benchmark, relocated without behavioral change by `93cef709` to `src/cpu_system_profile/overhead_benchmark.rs`, compares the real `CpuSpanLayer` against registry-only tracing. It precreates spans, runs 50,000 equal-work enter/drop iterations per case, and alternates disabled/enabled order across three rounds while timing the current thread's CPU. Paired median added CPU was **2.202289 µs per entry** for 154 distinct span names and **2.355397 µs per entry** for 1,031 names.
