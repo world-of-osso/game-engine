@@ -428,9 +428,13 @@ mod tests {
             app.update();
         }
 
+        fn rotations_match(before: Quat, after: Quat, tolerance: f32) -> bool {
+            before.abs_diff_eq(after, tolerance) || before.abs_diff_eq(-after, tolerance)
+        }
+
         fn assert_same_pose(before: Transform, after: Transform) {
             assert!(before.translation.abs_diff_eq(after.translation, 0.0001));
-            assert!(before.rotation.abs_diff_eq(after.rotation, 0.0001));
+            assert!(rotations_match(before.rotation, after.rotation, 0.0001));
             assert!(before.scale.abs_diff_eq(after.scale, 0.0001));
         }
 
@@ -502,7 +506,11 @@ mod tests {
                     .translation
                     .abs_diff_eq(progressed.translation, 0.001)
             );
-            assert!(!before.rotation.abs_diff_eq(progressed.rotation, 0.001));
+            assert!(!rotations_match(
+                before.rotation,
+                progressed.rotation,
+                0.001
+            ));
             assert!(!before.scale.abs_diff_eq(progressed.scale, 0.001));
         }
     }
