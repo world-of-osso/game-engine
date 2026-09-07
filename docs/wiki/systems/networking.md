@@ -18,13 +18,17 @@ The `game-server/crates/shared/` crate is depended on by both sides. It defines 
 
 ## Application network cadence and dispatch
 
-`1aec1091` adds `NetworkTick`: a logical 60 Hz application schedule using real-time accumulation. It shares the main ECS thread, so due ticks may batch after lower render cadence and cannot run while that thread is blocked. It is not an independent OS networking thread. Lightyear link, transport, and message receive/send sets are gated by due ticks; typed `MessageReceiver` inboxes remain the protocol boundary.
+`NetworkTick` is a logical 60 Hz application schedule using real-time accumulation. It shares the main ECS thread, so due ticks may batch after lower render cadence and cannot run while that thread is blocked. It is not an independent OS networking thread. The authoritative client/server simulation remains negotiated at 20 Hz; the application cadence changes neither wire formats nor simulation rate.
 
-The authoritative client/server simulation remains negotiated at 20 Hz. The 60 Hz application cadence does not change wire formats or the simulation tick rate.
+Lightyear link, transport, and message maintenance stay on every frame. Transport sender maintenance advances delta-based timers there, so gating it would delay retransmit/send pacing. `2a8abacb` instead parks typed `MessageReceiver` contents before Lightyear's `Last` clear when no logical tick is due, restores them in `First`, and dispatches them only in `NetworkTick`. Moving the receiver preserves its private channel/tick metadata.
 
-`network_events` owns one incoming and one outgoing registry. Incoming routing samples each typed inbox once, invokes eligible handlers in registration order only when buffered work exists, and leaves each receiver's FIFO drain to its handler. Outgoing routing invokes registered handlers only when their cheap queue/dirty predicate is ready. `1aec1091` routes auth handlers; `fc82c5b7` routes profession requests and updates. Broad application/API migration is incomplete, and integrated delivery/reconnect proof is pending.
+`network_events` owns one incoming and one outgoing registry. Incoming routing samples each typed inbox once, invokes eligible handlers in registration order only when buffered work exists, and leaves each receiver's per-type FIFO drain to its handler. Outgoing routing invokes registered handlers only when their cheap queue/dirty predicate is ready. Auth, gameplay/API, profession, auction, and social handlers now use this route. Collection/death retain their reply-owning consumers rather than competing generic handlers. Auth solely consumes character-creation responses and emits a local result event; the character-create scene observes that event only while active, avoiding a second network consumer.
 
-`db7e6e7b` also makes IPC dispatch conditional on nonempty `PendingIpcCommands`, before `dispatch_ipc_commands` acquires heavy parameters. IPC ordering remains receive, requested-status refresh, then dispatch. These changes have no native CPU comparison or CPU-fix claim.
+Equipment uses owner-specific `EquipmentChanged` notifications for direct mutation, model dependency arrival, and replication confirmation. Rendering requests coalesce while work is pending; a final changed IPC batch renders once. `db7e6e7b` makes IPC dispatch conditional on nonempty `PendingIpcCommands`, before `dispatch_ipc_commands` acquires heavy parameters. IPC ordering remains receive, requested-status refresh, then dispatch. These changes have no native CPU comparison or CPU-fix claim.
+
+## Current proof and limits
+
+Focused proof currently records network **8/8**, migrated API **55/55**, equipment **13 passed** plus **2 appearance-event tests**, equipment IPC FIFO **1/1**, and character-create response **3/3**. It does not prove a connected/reconnect lifecycle, native appearance delivery, independent transport/thread execution, or an idle-CPU improvement.
 
 ## Auth Flow
 
@@ -102,7 +106,12 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [remote-login-debug-2026-03-06.md](../../remote-login-debug-2026-03-06.md) — remote login failure, lightyear replication panic
 - [authentication.md](../../authentication.md) — auth flow, token storage, argon2, redb tables
 - [replicated-unit-noops](../investigations/replicated-unit-noops.md) — empty-stage NOOP evidence and suppression commits
+- [application network tick source](../../../src/network_tick.rs) — logical cadence and receiver park/restore ordering
+- [application network dispatcher](../../../src/network_events.rs) — typed inbox/outbox registration and deferred receiver storage
 - [client networking source](../../../src/game/networking/mod.rs) — interpolation, replication receive, and client connection lifecycle
+- [equipment source](../../../src/game/equipment/equipment.rs) — owner-specific render invalidation and coalescing
+- [character-create source](../../../src/scenes/char_create/mod.rs) — local creation-result UI observer
+- [event-driven application updates](../../specs/event-driven-application-updates.md) — behavior contract and focused proof
 - [client disconnect handling](../../../src/game/networking/disconnect.rs) — initial disconnect-marker filtering and reconnect/reset behavior
 - `game-engine` commit `0d215316` — ignore initial reconnect disconnect marker
 - `/tmp/claude/game-engine/reconnect-fixed-runtime.json` and `reconnect-fixed-live-current.log` — fixed rebuilt-client stability, scene, IPC, and server identity proof

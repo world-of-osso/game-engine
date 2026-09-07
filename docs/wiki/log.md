@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record deferred application inbox dispatch
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `2a8abacb`, `71d80355`, migrated API handlers, event-driven equipment, and character-create response ownership. Link/transport/message maintenance remains per-frame because transport timers consume frame delta. When no logical 60 Hz application tick is due, typed inboxes move out before `Last` clears them and return in `First`; handlers run only at logical ticks on the main thread. Collection/death and character-create responses now have one network consumer. Focused proof: network 8/8, APIs 55/55, equipment 13 plus 2 appearance tests, IPC FIFO 1/1, character-create 3/3. Connected lifecycle, independent transport/thread execution, native appearance delivery, and CPU improvement remain unproven.
+
 ## [2026-09-07] docs | Record event-driven network groundwork and IPC queue guard
 
 Updated [[networking]], [event-driven application updates](../specs/event-driven-application-updates.md), and `index.md` for `1aec1091`, `fc82c5b7`, and `db7e6e7b`. `NetworkTick` is a 60 Hz logical schedule on the main ECS thread, not an independent OS networking thread; it leaves the negotiated 20 Hz simulation unchanged. The central dispatcher now routes auth and profession work over existing typed FIFO inboxes, and IPC skips dispatch parameter acquisition with no pending command. Broad application/API migration, integrated delivery/reconnect and appearance proof, idle-work measurement, and any CPU improvement remain open.

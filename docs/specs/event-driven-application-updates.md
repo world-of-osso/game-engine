@@ -7,7 +7,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 ### Networking
 
 - [x] Add a 60 logical-ticks-per-second application network schedule whose tick count is independent of render-frame count.
-- [x] Gate Lightyear link/transport/message receive and send sets to network-due frames without changing wire formats or the negotiated 20 Hz simulation tick.
+- [x] Keep Lightyear link/transport/message maintenance on every frame so delta-based transport timers retain real elapsed-time behavior; defer only typed application inbox dispatch to due network ticks.
 - [x] Add one incoming dispatcher over existing typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
 - [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready.
@@ -15,8 +15,9 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ### Equipment and other application work
 
-- [ ] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame.
-- [ ] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
+- [x] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame.
+- [x] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
+- [x] Give collection/death replies and character-creation responses one consuming handler; notify the character-create UI locally after auth consumes its response.
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
 - [ ] Keep required active movement/animation and render-loop work, while avoiding unrelated idle application handlers.
 
@@ -24,9 +25,9 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
 - `NetworkTick` shares the main ECS thread. Due ticks can run together at lower render cadences and cannot progress while that thread is blocked; it is a logical 60 Hz cadence, **not an independent OS network thread**.
-- Existing Bevy maximum-delta policy bounds catch-up after a long stall. Network timeouts still use real time. The authoritative client/server simulation remains negotiated at **20 Hz**; this schedule does not alter it.
-- Typed Lightyear buffers remain the source of truth. The dispatcher checks inbox readiness at logical network ticks; it does not introduce a second wire protocol or claim zero network polling.
-- `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7` routed profession request/update work. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
+- Existing Bevy maximum-delta policy bounds catch-up after a long stall. The authoritative client/server simulation remains negotiated at **20 Hz**; this schedule does not alter it.
+- Link, transport, and message maintenance remain per-frame because transport senders advance delta-based timers there. Typed application inbox contents are parked before Lightyear's `Last` clear on frames with no due tick, restored in `First`, then dispatched at logical network ticks. This preserves buffered message metadata without a second wire protocol.
+- `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `2a8abacb` preserves transport timers while deferring application inboxes; `71d80355` makes its cadence fixtures use Bevy manual time. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
 
@@ -38,15 +39,16 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ## Tests asserting this spec
 
-- Network clock tests compare equal elapsed time at different render cadences.
-- Dispatcher tests cover empty input, real message buffers, once-only routing, and ordered outgoing work.
-- Equipment tests cover mutation, late model data, replacement, and unchanged state.
-- IPC queue tests cover idle dispatch and FIFO behavior.
+- Network tests: **8/8** cover equal elapsed time at different render cadences, unchanged time, real message buffers parked through no-tick `Last` frames, once-only routing, and ordered outgoing work.
+- API tests: **55/55** cover queue/readiness gating and existing state mapping across migrated handlers.
+- Equipment agent tests: **13 passed** plus **2 appearance-event tests**; IPC FIFO test: **1/1**.
+- Character-create response tests: **3/3** cover success, failure, and a response after the scene exits.
 
 ## Known gaps
 
-- [ ] Integration and native delivery/appearance proof.
-- [ ] Broad application-handler migration: auth and profession are routed; other gameplay/API registrations remain on frame `Update` or await conversion.
+- [ ] Integrated connection/reconnection and native delivery/appearance proof.
+- [ ] Independent transport/thread execution. The current 60 Hz cadence is main-thread logical work only.
+- [ ] Remaining non-network application work and active movement/animation scheduling review.
 - [ ] Idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
 
 ## Out of scope
