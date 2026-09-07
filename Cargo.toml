@@ -7,7 +7,6 @@ rust-version = "1.95"
 [dependencies]
 bevy = { version = "0.19", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 bevy_hanabi = "0.19"
-bevy_dylib = { version = "0.19", optional = true }
 # Bevy's aggregate trace feature omits transform-worker spans; reuse its existing crate.
 bevy_transform = { version = "0.19", default-features = false, features = ["trace"], optional = true }
 image-blp = "1"
@@ -49,7 +48,7 @@ required-features = ["ipc"]
 
 [features]
 default = ["ipc", "casc"]
-dev = ["bevy_dylib"]
+dev = ["bevy/dynamic_linking"]
 # Diagnostic-only per-span CPU clocks; normal builds retain no profiling layer.
 cpu-system-profile = ["bevy/trace", "dep:bevy_transform", "libc"]
 ipc = ["peercred-ipc", "libc", "glob"]
