@@ -1,39 +1,31 @@
-# Temporary task-submission batching experiment
+# Retired task-submission batching experiment
 
-User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whether bulk submission reduces executor coordination cost. The vendor trees began as unchanged Bevy 0.19.0 registry sources; the root feature graph and package versions remain unchanged. [Native evidence](../wiki/investigations/empty-window-baseline.md#native-instruction-attribution) motivates the experiment; it does not establish an optimization.
+The temporary September 7, 2026 experiment tested bulk registration of independent ECS tasks, not event batching or serial execution of callback bodies. The dependency patches were removed after measurement: no causal performance improvement was established. Stock Bevy 0.19.0 dependencies are restored.
 
-## What it must do
+## What it had to do
 
-- [x] Retain every system and its execution count, dependency ordering, run conditions, and deferred-command visibility.
-- [x] Keep each system independently runnable, with normal worker pools, non-Send/exclusive execution paths, per-system completion, and panic propagation.
-- [ ] With the existing async-executor backend, `BEVY_ECS_BATCH_TASK_SUBMISSIONS=1` enables bulk submission; absence or `0` keeps baseline submission. Reject other values explicitly. Executor-local configuration may override this setting.
-- [ ] Provide baseline and batched submission in the same feature configuration; do not alter CPU availability, pipelining, renderer behavior, or compiler optimization settings.
-- [ ] Measure engine CPU per update and throughput in bounded 10-second samples, without changing focus or testing the profiler.
-- [ ] Reject batching if behavior changes or throughput falls; do not present clock-confounded observations as causal improvements.
+- Preserve systems, access checks, conditions, dependencies, non-Send/exclusive paths, deferred commands, and per-system completion.
+- Preserve worker pools, CPU availability, pipelining, and rendering; never substitute lower throughput for an efficiency gain.
+- Compare the same binary with baseline/batched submission using bounded engine samples, without profiler tests or focus actions.
 
-## How it works
+## How it worked
 
-- [Native instruction attribution](../wiki/investigations/empty-window-baseline.md#native-instruction-attribution).
+- [Experiment and measured limitations](../wiki/investigations/empty-window-baseline.md#retired-task-submission-batching-experiment).
 
 ## Implementation inventory
 
-- `Cargo.toml`: temporary local patches for unchanged Bevy 0.19.0 package versions.
-- `vendor/bevy_tasks/src/task_pool.rs`: `Scope::spawn_many` preserves the original unwind/result wrapper around each independent future before bulk registration.
-- `vendor/bevy_ecs/src/schedule/executor/multi_threaded.rs`: ready-system dispatch, unchanged access/condition checks, and per-system completion.
-- `vendor/bevy_ecs/src/schedule/executor/multi_threaded/submission_batching.rs`: a stack buffer of up to 32 ready Send-system indexes, configuration, and bulk registration.
+No active batching implementation or environment control remains. Historical source is retained in commits `2a818246`, `9b68de16`, `876fa5db`, and `fa15321b`; initial vendor import was `bc827e0f`.
 
-## Tests asserting this spec
+## Historical test evidence
 
-- `vendor/bevy_tasks/src/task_pool/bulk_tests.rs`: borrowed results, independent task progress, and panic cleanup.
-- `vendor/bevy_ecs/src/schedule/executor/multi_threaded/submission_batch_tests.rs`: system counts, conditions, dependencies, conflicting access, deferred/exclusive/non-Send work, and panic propagation.
-- `vendor/bevy_ecs/src/schedule/executor/multi_threaded/submission_batching.rs`: configuration values.
+- Scoped submission tests: 3 passed, covering borrowed results, independent progress, and panic cleanup.
+- ECS targeted tests at `876fa5db`: 5 passed, covering conditions/dependencies, conflicting access, deferred/exclusive/non-Send work, panic propagation, and configuration.
+- `fa15321b` corrected backend gates and expanded multi-batch coverage; those follow-up tests were not run before retirement. The measured Linux binary predates this cfg/test-only follow-up.
 
-## Known gaps (current cycle)
+## Remaining gaps
 
-- [x] Implement scoped bulk registration without fusing system bodies. Targeted `bevy_tasks` tests pass 3/3.
-- [x] Run targeted ECS behavioral coverage for batching: conditions, dependencies, conflicting access, deferred/exclusive/non-Send work, and panic propagation.
-- [ ] Build and compare baseline/batched engine behavior and CPU/update.
+The experiment did not establish whole-game performance improvement or explain the bulk CPU cost. It did not test callback removal, callback-body fusion, or batching events.
 
 ## Out of scope
 
-Profiler tests, serial system-body fusion, worker/FPS limits, compiler optimization experiments, unrelated fixes, and production deployment.
+Profiler tests, worker/FPS limits, compiler optimization experiments, unrelated fixes, and deployment.

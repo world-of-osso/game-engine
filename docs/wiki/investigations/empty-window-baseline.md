@@ -102,13 +102,22 @@ The matching libc build ID (`503200d7fda94a5dc6058d7e0694e5d1dcb2e372`) was pres
 
 A separate full-scene capture had 2,138 samples, 1,898 from the executable across 1,512 addresses. Its nearest-source counts were `bevy_ecs` 27.689%, `concurrent-queue` 7.016%, `fixedbitset` 5.940%, `async-executor` 5.005%, and `async-task` 2.479%. Those are sample-count fractions, unlike the blank cycle-period fractions, and the capture used `--inworld-stage no-npcs-ui` plus terrain/render isolation. It is neither an intact-game baseline nor a literal Empty scene; do not compare these percentages causally.
 
-## Temporary task-submission batching experiment
+## Retired task-submission batching experiment
 
-The user approved a temporary dependency-level experiment after the instruction attribution identified task registration and completion work. `bc827e0f` vendors unchanged Bevy 0.19.0 `bevy_ecs` and `bevy_tasks` sources and patches only those two package sources; package versions and the root feature graph are unchanged. This is a reversible experiment, not a production change or an optimization result.
+The user-approved experiment batched registration of up to 32 ready Send-system tasks while retaining independent futures, individual conditions/access checks/completions, non-Send/exclusive paths, worker pools, and pipelining. It did not batch events, fuse callback bodies, or reduce callback/task count. Historical implementation and behavioral evidence are recorded in the [retired experiment spec](../../specs/task-submission-batching.md).
 
-`Scope::spawn_many` preserves the former per-future `AssertUnwindSafe`/`catch_unwind` result path, but bulk-registers the resulting independent futures with async-executor. The ECS executor still evaluates each ready system's access and run conditions, marks it running, and retains individual completion reporting. It collects at most 32 ready **Send** system indexes in a stack buffer before registration. Non-Send and exclusive paths keep their original submission path. The change does not combine system bodies, reduce task count, change worker pools, or alter pipelining.
+Four ten-second blank-renderer samples used the same binary (`0ec4b821…67bf2ae`, code `876fa5db`), 28 threads, intact systems, and profiler layer disabled. Baseline/batched mode was selected at launch; there was no runtime mode acknowledgment. Replacing registry crate identities with local paths triggered a broad dependent rebuild lasting 10m16s, including an initial build-lock wait—not a cheap incremental build.
 
-`BEVY_ECS_BATCH_TASK_SUBMISSIONS=1` enables the batched path; unset or `0` preserves baseline submission, other values fail explicitly, and `MultiThreadedExecutor::with_task_submission_batching` overrides the environment setting for an executor. This targets repeated async-executor active-task registration locking, not all allocation, queue, polling, or render costs. Targeted `bevy_tasks` coverage passes 3/3 for borrowed results/empty input, independent sibling progress, and panic cleanup. ECS behavioral coverage and engine comparison remain pending, so no CPU or throughput claim follows.
+| Order | Submission | Process CPU | Nearby updates/s | Approximate CPU ms/update |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Baseline | 207.679% | 1159.200 | 1.7916 |
+| 2 | Batched | 220.981% | 1285.986 | 1.7184 |
+| 3 | Batched | 203.752% | 1242.757 | 1.6395 |
+| 4 | Baseline | 215.581% | 1200.473 | 1.7958 |
+
+CPU samples and adjacent update-log intervals differ by up to one logging interval. Host load and clock ceilings varied; one batched sample reached a 600MHz GPU ceiling. All windows opened unfocused; sample focus was 0/11, 0/11, 0/11, and 11/11, recorded informationally without focus actions or causal attribution. Independent audit verified arithmetic and identities, not an isolated performance gain. Bulk CPU remained high. The temporary dependency patches and environment control were removed rather than retaining an unproven optimization; stock Bevy package sources and the pre-experiment root lockfile are restored. No additional engine rebuild was performed for retirement.
+
+Artifacts: `data/diagnostics/movement-perf-20260905/task-submission-batching/`, including `native-comparison.json` and `native-offline-audit-2026-09-07.md`. The measured binary predates cfg/test-only corrections `fa15321b`; those follow-up tests were not run before retirement.
 
 ## Local profiler entry overhead
 
