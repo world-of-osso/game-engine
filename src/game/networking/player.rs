@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::animation::M2AnimData;
-use bevy::ecs::system::SystemParam;
+use bevy::ecs::system::{RunSystemOnce, SystemParam};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use bevy_replicon::client::confirm_history::EntityReplicated;
@@ -624,6 +624,13 @@ fn apply_player_customization_for_entity(
     equipment_snapshot: NetEquipmentAppearance,
     mount_display_id: Option<u32>,
 ) {
+    let replacement_player = {
+        let (_, player, _, _, applied, _) = params
+            .player_query
+            .get(entity)
+            .expect("appearance target must remain available during its observer");
+        player_model_changed(applied, selection, mount_display_id).then(|| player.clone())
+    };
     let resolved_equipment = resolve_player_equipment(params, &equipment_snapshot, selection);
     // Publish deduplication state before model insertion observers run.
     insert_applied_player_appearance(
@@ -633,15 +640,31 @@ fn apply_player_customization_for_entity(
         equipment_snapshot,
         mount_display_id,
     );
-    reset_player_visual(params, entity);
-    apply_player_visual_choice(
-        params,
-        entity,
-        selection,
-        mount_display_id,
-        &resolved_equipment,
-    );
+    if let Some(player) = replacement_player {
+        reset_player_visual(params, entity);
+        if let Some(mount_display_id) = mount_display_id {
+            apply_mounted_visual(params, entity, mount_display_id);
+        } else {
+            restore_character_visual(params, entity, player, selection, resolved_equipment);
+            return;
+        }
+    } else if mount_display_id.is_none() {
+        apply_character_visual(params, entity, selection, &resolved_equipment);
+    }
     apply_runtime_equipment_snapshot(params, entity, &resolved_equipment);
+}
+
+fn player_model_changed(
+    applied: Option<&AppliedPlayerAppearance>,
+    selection: CharacterCustomizationSelection,
+    mount_display_id: Option<u32>,
+) -> bool {
+    applied.is_some_and(|previous| {
+        previous.mount_display_id != mount_display_id
+            || (mount_display_id.is_none()
+                && (previous.selection.race != selection.race
+                    || previous.selection.sex != selection.sex))
+    })
 }
 
 fn resolve_player_equipment(
@@ -657,18 +680,38 @@ fn resolve_player_equipment(
     )
 }
 
-fn apply_player_visual_choice(
+fn restore_character_visual(
     params: &mut ReplicatedPlayerCustomizationParams,
     entity: Entity,
+    player: NetPlayer,
     selection: CharacterCustomizationSelection,
-    mount_display_id: Option<u32>,
-    resolved_equipment: &ResolvedEquipmentAppearance,
+    resolved_equipment: ResolvedEquipmentAppearance,
 ) {
-    if let Some(mount_display_id) = mount_display_id {
-        apply_mounted_visual(params, entity, mount_display_id);
-    } else {
-        apply_character_visual(params, entity, selection, resolved_equipment);
+    let mut context = PlayerModelSpawnContext {
+        commands: &mut params.commands,
+        meshes: &mut params.meshes,
+        materials: &mut params.materials,
+        effect_materials: &mut params.effect_materials,
+        images: &mut params.images,
+        inv_bp: &mut params.inv_bp,
+        creature_display_map: &CreatureDisplayMap,
+    };
+    if !try_spawn_player_m2(&mut context, entity, &player) {
+        error!(
+            "Failed to restore character model for '{}' on {entity:?}",
+            player.name
+        );
+        return;
     }
+    // New mesh/joint commands must be applied before customization queries read them.
+    params.commands.queue(move |world: &mut World| {
+        world
+            .run_system_once(move |mut params: ReplicatedPlayerCustomizationParams| {
+                apply_character_visual(&mut params, entity, selection, &resolved_equipment);
+                apply_runtime_equipment_snapshot(&mut params, entity, &resolved_equipment);
+            })
+            .expect("restored character customization must have its registered resources");
+    });
 }
 
 fn insert_applied_player_appearance(
