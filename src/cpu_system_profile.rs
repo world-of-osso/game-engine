@@ -691,7 +691,7 @@ mod tests {
     #[test]
     #[ignore = "manual profiler CPU overhead measurement"]
     fn measure_system_span_cpu_overhead() {
-        for span_count in [154, 1180] {
+        for span_count in [154, 1031] {
             for round in 0..3 {
                 let order = if round % 2 == 0 {
                     [false, true]
