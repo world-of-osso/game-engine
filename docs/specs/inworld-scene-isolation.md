@@ -13,8 +13,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 
 ### Empty registration boundary
 
+Empty is a startup-only diagnostic; returning to the full rendering pipeline requires restarting without that stage.
+
 - [ ] `Empty` omits PBR and its light provider together; it must not retain consumers whose provider resources were removed.
 - [ ] Empty terrain, water, M2, and sky material stores remain available for data/status access without registering their PBR material pipelines.
+- [ ] Target-circle visual systems are not registered in Empty; target data resources remain available.
 - [ ] Non-Empty stages retain their normal rendering plugins. Camera, UI overlay, and renderer progress must remain available in Empty.
 
 ### MSAA-only control
