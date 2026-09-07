@@ -709,13 +709,16 @@ type AddedMountRoots<'w, 's> = Query<
 >;
 
 pub(crate) fn sync_local_mount_visual_movement(
-    changed_parents: ChangedMovementParents,
-    added_roots: AddedMountRoots,
     mut queries: ParamSet<(
-        Query<&MovementState, With<Player>>,
+        (
+            ChangedMovementParents,
+            AddedMountRoots,
+            Query<&MovementState, With<Player>>,
+        ),
         Query<&mut MovementState, With<MountedVisualRoot>>,
     )>,
 ) {
+    let (changed_parents, added_roots, parents) = queries.p0();
     let dirty_roots = changed_parents
         .iter()
         .flat_map(|(parent, children)| children.iter().map(move |child| (child, parent)))
@@ -724,7 +727,6 @@ pub(crate) fn sync_local_mount_visual_movement(
                 .iter()
                 .map(|(root, parent)| (root, parent.parent())),
         );
-    let parents = queries.p0();
     let updates: std::collections::HashMap<_, _> = dirty_roots
         .filter_map(|(root, parent)| {
             parents
