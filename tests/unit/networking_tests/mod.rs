@@ -20,6 +20,7 @@ use shared::protocol::ForcedDisconnect;
 mod disconnect;
 mod movement;
 mod player_misc;
+mod player_scheduling;
 mod status_updates;
 mod sync_interp;
 

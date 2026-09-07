@@ -397,10 +397,13 @@ fn register_inworld_replication_systems(app: &mut App) {
     crate::networking_player::register_player_appearance_events(app);
     app.add_systems(
         Update,
-        (
-            sync_replicated_transforms,
-            crate::networking_player::sync_local_mount_visual_movement,
-        )
+        sync_replicated_transforms.run_if(in_state(GameState::InWorld)),
+    );
+    app.add_systems(
+        game_engine::network_tick::NetworkTick,
+        crate::networking_player::sync_local_mount_visual_movement
+            .in_set(game_engine::network_tick::NetworkTickSystems::Apply)
+            .after(crate::networking_player::tag_local_player)
             .run_if(in_state(GameState::InWorld)),
     );
     app.add_systems(
@@ -414,13 +417,18 @@ fn register_inworld_replication_systems(app: &mut App) {
 fn register_entity_tag_systems(app: &mut App) {
     use crate::game_state::GameState;
     app.add_systems(
-        Update,
+        game_engine::network_tick::NetworkTick,
         (
             crate::networking_player::tag_local_player,
-            crate::networking_auth::sync_selected_character_roster_entry,
             crate::networking_player::sync_local_alive_state,
         )
             .chain()
+            .in_set(game_engine::network_tick::NetworkTickSystems::Apply)
+            .run_if(in_state(GameState::Loading).or_else(in_state(GameState::InWorld))),
+    );
+    app.add_systems(
+        Update,
+        crate::networking_auth::sync_selected_character_roster_entry
             .run_if(in_state(GameState::Loading).or_else(in_state(GameState::InWorld))),
     );
     crate::networking_npc::register_npc_visibility_policy_systems(app);
