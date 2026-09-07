@@ -11,7 +11,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Add one incoming dispatcher over existing typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
 - [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready.
-- [ ] Prove integrated connection/reconnection lifecycle and actual client/server delivery after the remaining migration.
+- [x] Prove one actual client/server login plus routed Who/friends replies. Reconnection and full reply coverage remain unproven.
 
 ### Equipment and other application work
 
@@ -31,7 +31,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ## Implementation inventory
 
-- `src/network_tick.rs`: fixed-cadence driver and network I/O conditions.
+- `src/network_tick.rs`: fixed-cadence application driver; Lightyear transport I/O remains frame-driven.
 - `src/network_events.rs`: registered handlers and centralized inbox/outbox dispatch.
 - `src/game/networking/mod.rs`: application network registration.
 - `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment mutation and reconciliation boundaries.
@@ -44,10 +44,15 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - Equipment agent tests: **13 passed** plus **2 appearance-event tests**; IPC FIFO test: **1/1**.
 - Character-create response tests: **3/3** cover success, failure, and a response after the scene exits.
 
+## Native evidence (2026-09-07)
+
+- Empty-stage login reached InWorld. A 10-second unfocused sample recorded **265.779%** one-core CPU and **503.746 application updates/s**. The prior intact Empty sample recorded **293.279%** and **422.366 updates/s**. Different clock ranges and runs make this non-causal; it does not establish an idle-work reduction or CPU fix.
+- A full-world client logged in, entered the world, and completed routed Who and friends requests. Its visual smoke is invalid: repeated `bevy_render::slab_allocator` unallocated-key errors and a white/dark screenshot occurred. The same error predates this work in `data/diagnostics/movement-perf-20260905/connected-warm2/client.log:149`; no equipment-event causality is established. Test clients were stopped.
+
 ## Known gaps
 
-- [ ] Integrated connection/reconnection and native delivery/appearance proof.
-- [ ] Independent transport/thread execution. The current 60 Hz cadence is main-thread logical work only.
+- [ ] Reconnection lifecycle, complete connected API coverage, and clean native appearance proof.
+- [ ] Independent network-world/thread execution. The current 60 Hz cadence is main-thread logical application work; transport remains frame-driven.
 - [ ] Remaining non-network application work and active movement/animation scheduling review.
 - [ ] Idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
 

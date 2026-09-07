@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] investigation | Record event-driven native follow-up
+
+Updated [event-driven application updates](../specs/event-driven-application-updates.md) and [[movement-performance]]. Empty-stage login reached InWorld; its ten-second unfocused sample was 265.779% one-core CPU and 503.746 application updates/s. The earlier 293.279%/422.366 Empty sample used different clocks, so no causal CPU reduction is claimed. A full-world client logged in and completed Who/friends replies, but its visual smoke is invalid from repeated slab-allocator errors and a white/dark screenshot. The same error predates this work in `connected-warm2/client.log:149`; no equipment-event causality is established. Test clients stopped. Render-independent network-world execution remains open.
+
 ## [2026-09-07] systems | Record deferred application inbox dispatch
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `2a8abacb`, `71d80355`, migrated API handlers, event-driven equipment, and character-create response ownership. Link/transport/message maintenance remains per-frame because transport timers consume frame delta. When no logical 60 Hz application tick is due, typed inboxes move out before `Last` clears them and return in `First`; handlers run only at logical ticks on the main thread. Collection/death and character-create responses now have one network consumer. Focused proof: network 8/8, APIs 55/55, equipment 13 plus 2 appearance tests, IPC FIFO 1/1, character-create 3/3. Connected lifecycle, independent transport/thread execution, native appearance delivery, and CPU improvement remain unproven.

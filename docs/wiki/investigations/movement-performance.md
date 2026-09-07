@@ -4,6 +4,12 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 Current CPU baseline: the [additive empty-window investigation](empty-window-baseline.md#native-instruction-attribution) locates the first substantial increase at continuous blank-frame processing, before project services, and maps decoded blank CPU to task dispatch, queue, and synchronization instructions. The [isolated dirty-tree removal](empty-window-baseline.md#isolated-dirty-tree-removal) stopped that callback and its worker spans without a bulk CPU drop. Full-game per-frame CPU ownership remains unresolved. Separately, [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
+## Event-driven application native follow-up (2026-09-07)
+
+After the event-driven networking/equipment groundwork, an unfocused, empty-stage InWorld client completed login and ran for 10.0008 seconds at **265.779%** one-core CPU and **503.746 application updates/s**. The earlier intact Empty sample was **293.279%** CPU and **422.366 updates/s**. Clock ranges differ, so the samples are not a controlled comparison and do not demonstrate lower CPU or a fix.
+
+A separate full-world client logged in, entered InWorld, and completed routed Who and friends responses. Its visual smoke is invalid: it emitted repeated `bevy_render::slab_allocator` unallocated-key errors and produced a white/dark screenshot. The identical slab error appears in the pre-eventification `data/diagnostics/movement-perf-20260905/connected-warm2/client.log:149`; no causal link to equipment events is established. Test clients were stopped. Render-independent networking remains an open design investigation: current 60 Hz application dispatch shares the main ECS thread, while Lightyear transport remains frame-driven.
+
 ## Update-rate metric provenance (2026-09-07)
 
 Full-game IPC `performance.fps` reads the smoothed `FrameTimeDiagnosticsPlugin::FPS` diagnostic (`src/ipc/mod.rs::build_performance_snapshot`). Bevy computes that diagnostic as `1.0 / Time<Real>::delta_secs_f64()` during app updates. The overlay displays the same diagnostic. Blank-renderer telemetry instead divides counted app updates by its elapsed logging interval. Both describe **app-update cadence**, not surface presentations; smoothing and aggregation differ.
