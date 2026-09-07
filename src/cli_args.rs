@@ -28,19 +28,26 @@ pub(crate) enum ServiceWindowMode {
 
 pub(crate) fn requests_service_window(
     args: &[String],
-) -> Result<Option<ServiceWindowMode>, &'static str> {
+) -> Result<Option<ServiceWindowMode>, String> {
     if !args.iter().any(|arg| arg == "--service-window") {
         return Ok(None);
     }
-    let usage = "--service-window requires exactly one stage: core, render, or continuous";
-    if args.len() != 2 || args[0] != "--service-window" {
-        return Err(usage);
+    let usage = "--service-window requires core, render, or continuous; only continuous accepts one --remove-system-after selector";
+    let [flag, stage, tail @ ..] = args else {
+        return Err(usage.into());
+    };
+    if flag != "--service-window" {
+        return Err(usage.into());
     }
-    match args[1].as_str() {
-        "core" => Ok(Some(ServiceWindowMode::Core)),
-        "render" => Ok(Some(ServiceWindowMode::Render)),
-        "continuous" => Ok(Some(ServiceWindowMode::Continuous)),
-        _ => Err(usage),
+    match (stage.as_str(), tail) {
+        ("core", []) => Ok(Some(ServiceWindowMode::Core)),
+        ("render", []) => Ok(Some(ServiceWindowMode::Render)),
+        ("continuous", []) => Ok(Some(ServiceWindowMode::Continuous)),
+        ("continuous", [selector, _, _, _]) if selector == "--remove-system-after" => {
+            crate::system_isolation::validate_requests(tail)?;
+            Ok(Some(ServiceWindowMode::Continuous))
+        }
+        _ => Err(usage.into()),
     }
 }
 

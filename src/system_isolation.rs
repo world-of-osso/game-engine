@@ -45,6 +45,10 @@ impl PendingRemovals {
     }
 }
 
+pub(crate) fn validate_requests(arguments: &[String]) -> Result<(), String> {
+    args::parse_requests(arguments).map(|_| ())
+}
+
 pub(crate) fn configure(app: &mut App, arguments: &[String]) {
     let requests = args::parse_requests(arguments)
         .unwrap_or_else(|error| panic!("invalid system isolation request: {error}"));
