@@ -194,6 +194,10 @@ mod tests {
     struct Allowed(bool);
 
     fn fixture() -> (App, Entity) {
+        fixture_with_cadence(false)
+    }
+
+    fn fixture_with_cadence(network_tick: bool) -> (App, Entity) {
         let mut app = App::new();
         initialize_dispatcher(&mut app);
         app.add_plugins(bevy::state::app::StatesPlugin);
@@ -205,6 +209,9 @@ mod tests {
             ..Default::default()
         });
         app.init_resource::<Output>();
+        if network_tick {
+            app.add_plugins(crate::network_tick::NetworkTickPlugin);
+        }
         app.finish();
         app.cleanup();
         let channels = app.world().resource::<ChannelRegistry>();
@@ -242,6 +249,51 @@ mod tests {
         }
         drop(link);
         app.world_mut().run_schedule(PreUpdate);
+    }
+
+    #[test]
+    fn network_tick_preserves_packets_across_frames_without_a_tick() {
+        let (mut app, peer) = fixture_with_cadence(true);
+        register_message_handler::<First, _>(
+            &mut app,
+            |mut receivers: Query<&mut MessageReceiver<First>>, mut output: ResMut<Output>| {
+                for mut receiver in &mut receivers {
+                    output.0.extend(receiver.receive().map(|message| message.0));
+                }
+            },
+            always,
+        );
+        {
+            let mut entity = app.world_mut().entity_mut(peer);
+            let mut sender = entity.get_mut::<MessageSender<First>>().unwrap();
+            sender.send::<TestChannel>(First(7));
+            sender.send::<TestChannel>(First(8));
+        }
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(17));
+        app.update();
+        {
+            let mut entity = app.world_mut().entity_mut(peer);
+            let mut link = entity.get_mut::<Link>().unwrap();
+            let packets: Vec<_> = link.send.drain().collect();
+            assert!(!packets.is_empty(), "real transport packets required");
+            for packet in packets {
+                link.recv.push_raw(packet);
+            }
+        }
+        // Last executes twice without a tick, before the queued packets are decoded.
+        app.update();
+        app.update();
+        assert!(app.world().resource::<Output>().0.is_empty());
+        // Two catch-up ticks must consume each message only once.
+        app.world_mut()
+            .resource_mut::<Time<Real>>()
+            .advance_by(std::time::Duration::from_millis(34));
+        app.update();
+        assert_eq!(app.world().resource::<Output>().0, [7, 8]);
+        app.update();
+        assert_eq!(app.world().resource::<Output>().0, [7, 8]);
     }
 
     fn always(_: &World) -> bool {
