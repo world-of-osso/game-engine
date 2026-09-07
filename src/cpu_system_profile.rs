@@ -456,7 +456,13 @@ impl Visit for SpanNameVisitor {
 fn is_selected_span(name: &str) -> bool {
     matches!(
         name,
-        "system" | "schedule" | "multithreaded executor" | "main_render_schedule"
+        "system"
+            | "schedule"
+            | "multithreaded executor"
+            | "main_render_schedule"
+            | "producer_mark_dirty"
+            | "consumer_mark_dirty"
+            | "par_traversal_mark_dirty"
     )
 }
 

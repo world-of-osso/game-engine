@@ -14,7 +14,7 @@
 
 ## Optional CPU attribution
 
-GPU stages honor the existing `cpu-system-profile` feature and `WOO_CPU_PROFILE_OUTPUT` environment variable. With both enabled, export named system-span thread CPU through the existing profiler; without opt-in, preserve default logging. Keep pools, pipelining, presentation and update policy unchanged. Named spans do not cover all executor, driver or uninstrumented work. Measure profiling overhead separately; update counts are not presented frames.
+GPU stages honor the existing `cpu-system-profile` feature and `WOO_CPU_PROFILE_OUTPUT` environment variable. With both enabled, export named system-span thread CPU through the existing profiler; without opt-in, preserve default logging. Keep pools, pipelining, presentation and update policy unchanged. Include Bevy's existing `producer_mark_dirty`, `consumer_mark_dirty` and `par_traversal_mark_dirty` spans to measure dirty-tree worker CPU on the threads executing it. Keep worker CPU separate from its parent system's thread CPU; span entries count task polls, not necessarily distinct tasks. Named spans do not cover all executor, driver or uninstrumented work. Measure profiling overhead separately; update counts are not presented frames.
 
 ## Implementation and tests
 
