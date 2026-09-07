@@ -146,7 +146,7 @@ fn live_bevy_animation_helm_follows_character_bone() {
     let local = app.world().get::<Transform>(helm).unwrap().to_matrix();
     let mut positions = Vec::new();
     for fraction in [0.0, 0.5] {
-        sample_live_walk(&mut app, spawned.model_root, fraction);
+        sample_live_stand(&mut app, spawned.model_root, fraction);
         let expected = sampled_joint_world(app.world(), spawned.model_root, bone) * local;
         let actual = app
             .world()
@@ -218,7 +218,7 @@ fn live_bevy_animation_chest_vertex_follows_character_skin() {
         .clone();
     let mut samples = Vec::new();
     for fraction in [0.0, 0.5] {
-        sample_live_walk(&mut app, spawned.model_root, fraction);
+        sample_live_stand(&mut app, spawned.model_root, fraction);
         let retained = app.world().get::<SkinnedMesh>(mesh_entity).unwrap();
         assert_eq!(retained.joints, skin.joints);
         assert_eq!(retained.inverse_bindposes, skin.inverse_bindposes);
@@ -253,11 +253,11 @@ fn live_bevy_animation_chest_vertex_follows_character_skin() {
     }
     assert!(
         samples[0].distance(samples[1]) > 0.0001,
-        "concrete chest vertex must deform across walk samples"
+        "concrete chest vertex must deform across stand samples"
     );
 }
 
-fn sample_live_walk(app: &mut App, owner: Entity, fraction: f32) {
+fn sample_live_stand(app: &mut App, owner: Entity, fraction: f32) {
     let data = app
         .world()
         .get::<crate::animation::M2AnimData>(owner)
@@ -265,8 +265,8 @@ fn sample_live_walk(app: &mut App, owner: Entity, fraction: f32) {
     let sequence = data
         .sequences
         .iter()
-        .position(|sequence| sequence.id == 4)
-        .expect("human walk clip");
+        .position(|sequence| sequence.id == 0)
+        .expect("human stand clip");
     let time_ms = data.sequences[sequence].duration as f32 * fraction;
     app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
         Duration::ZERO,
@@ -279,6 +279,15 @@ fn sample_live_walk(app: &mut App, owner: Entity, fraction: f32) {
     player.time_ms = time_ms;
     player.transition = None;
     app.update();
+    let player = app
+        .world()
+        .get::<crate::animation::M2AnimPlayer>(owner)
+        .unwrap();
+    assert_eq!(player.current_seq_idx, sequence);
+    assert!(
+        player.transition.is_none(),
+        "sample must not introduce a policy crossfade"
+    );
 }
 
 fn sampled_joint_world(world: &World, owner: Entity, joint: Entity) -> Mat4 {
