@@ -637,12 +637,10 @@ pub struct Scope<'scope, 'env: 'scope, T> {
 struct ScopedTaskSink<'a, 'scope, 'env, T>(&'a Scope<'scope, 'env, T>);
 
 #[cfg(feature = "async_executor")]
-impl<T> Extend<async_task::Task<Result<T, Box<dyn core::any::Any + Send>>>>
-    for ScopedTaskSink<'_, '_, '_, T>
-{
+impl<T> Extend<Task<Result<T, Box<dyn core::any::Any + Send>>>> for ScopedTaskSink<'_, '_, '_, T> {
     fn extend<I>(&mut self, tasks: I)
     where
-        I: IntoIterator<Item = async_task::Task<Result<T, Box<dyn core::any::Any + Send>>>>,
+        I: IntoIterator<Item = Task<Result<T, Box<dyn core::any::Any + Send>>>>,
     {
         for task in tasks {
             // The scope owns this unbounded queue and never closes it.
