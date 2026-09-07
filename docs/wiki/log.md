@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record independent UDP proof and explicit wire identity mappings
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `52508d1d`, `a5f6eab0`, `23ebb85b`, and `2d8b3c0f`. `independent-udp-handshake.log` records 1/1 real UDP handshake after `54411453`, without a main-app update. Target, emote, combat, duel, inspect, and current/default spell entity fields now use explicit main/server identity conversion; numeric spell selectors remain server IDs. Scoped proof now includes worker character-create transport responses 3/3, worker auth 23/23, and wire identity 19/19. `e9e7e034` repairs the binary fixture behind the prior 60/61 result, but its targeted rerun remains pending; no integrated lifecycle, native appearance, or CPU claim follows.
+
 ## [2026-09-07] systems | Record dedicated connection-owned network world boundary
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `aa6fda57`, `6eb52d96`, and `54411453`. Main now starts one separate 60 Hz network ECS world per connection; that world owns Lightyear transport, protocol, replication, and typed receive buffers while preserving the 20 Hz simulation. Main holds only connection proxy markers, typed application inboxes, and a server-to-render entity mirror. This is not completion: focused runtime evidence is 19/20 after a UDP replication run exposed Bevy B0002 from querying resources as `EntityRef`; `54411453` excludes those resources but awaits a fresh integrated run. Wire entity-bit boundary conversions, binary fixtures, reconnect, native appearance, CPU, and renderer limits remain open.
