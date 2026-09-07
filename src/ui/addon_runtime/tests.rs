@@ -20,6 +20,98 @@ fn font_text(registry: &ui_toolkit::registry::FrameRegistry, name: &str) -> Opti
     Some(data.text.clone())
 }
 
+fn run_addon_update(app: &mut App) {
+    app.world_mut().run_schedule(Update);
+    app.world_mut().clear_trackers();
+}
+
+#[test]
+fn addon_apply_runs_only_after_load_or_reload_and_respects_ui_enabled() {
+    let dir = std::env::temp_dir().join(format!("addon_idle_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("idle.js");
+    let script =
+        |text: &str| format!("addon.createFontString('IdleLabel', 'ParentRoot', '{text}');");
+    std::fs::write(&path, script("Loaded")).unwrap();
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let mut registry = make_registry_with_root();
+    let mut runtime = AddonRuntime {
+        addon_dir: dir.clone(),
+        watcher: Some(Mutex::new(receiver)),
+        addons: HashMap::new(),
+    };
+    runtime.refresh_all(&mut registry);
+    let mut app = App::new();
+    app.add_plugins(AddonRuntimePlugin);
+    app.insert_resource(UiProcessingEnabled(true));
+    app.insert_resource(UiState {
+        registry,
+        event_bus: crate::ui::event::EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(runtime);
+    run_addon_update(&mut app);
+    assert_eq!(
+        font_text(&app.world().resource::<UiState>().registry, "IdleLabel").as_deref(),
+        Some("Loaded")
+    );
+
+    let label = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("IdleLabel")
+        .unwrap();
+    if let Some(WidgetData::FontString(data)) = app
+        .world_mut()
+        .resource_mut::<UiState>()
+        .registry
+        .get_mut(label)
+        .unwrap()
+        .widget_data
+        .as_mut()
+    {
+        data.text = "User edit".into();
+    }
+    for _ in 0..3 {
+        run_addon_update(&mut app);
+    }
+    assert_eq!(
+        font_text(&app.world().resource::<UiState>().registry, "IdleLabel").as_deref(),
+        Some("User edit")
+    );
+
+    app.world_mut().resource_mut::<UiProcessingEnabled>().0 = false;
+    std::fs::write(&path, script("Reloaded")).unwrap();
+    sender.send(path.clone()).unwrap();
+    run_addon_update(&mut app);
+    assert_eq!(
+        font_text(&app.world().resource::<UiState>().registry, "IdleLabel").as_deref(),
+        Some("User edit")
+    );
+    app.world_mut().resource_mut::<UiProcessingEnabled>().0 = true;
+    run_addon_update(&mut app);
+    assert_eq!(
+        font_text(&app.world().resource::<UiState>().registry, "IdleLabel").as_deref(),
+        Some("Reloaded")
+    );
+
+    app.world_mut().clear_trackers();
+    app.world_mut().run_schedule(Update);
+    assert!(!app.world().is_resource_changed::<UiState>());
+    std::fs::remove_file(&path).unwrap();
+    sender.send(path).unwrap();
+    run_addon_update(&mut app);
+    assert!(
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .get_by_name("IdleLabel")
+            .is_none()
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[test]
 fn js_addon_script_emits_expected_operations() {
     let script = r#"

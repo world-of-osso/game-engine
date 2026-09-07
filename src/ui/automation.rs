@@ -80,9 +80,30 @@ impl Plugin for UiAutomationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<UiAutomationQueue>();
         app.init_resource::<UiAutomationRunner>();
-        app.add_systems(Update, process_automation_waits);
-        app.add_systems(Update, process_automation_dump_requests);
+        app.add_systems(
+            Update,
+            process_automation_waits.run_if(automation_wait_work_pending),
+        );
+        app.add_systems(
+            Update,
+            process_automation_dump_requests.run_if(automation_dump_pending),
+        );
     }
+}
+
+fn automation_wait_work_pending(queue: Res<UiAutomationQueue>) -> bool {
+    queue.is_changed()
+        || matches!(
+            queue.peek(),
+            Some(UiAutomationAction::WaitForState(..) | UiAutomationAction::WaitForFrame(..))
+        )
+}
+
+fn automation_dump_pending(queue: Res<UiAutomationQueue>) -> bool {
+    matches!(
+        queue.peek(),
+        Some(UiAutomationAction::DumpTree | UiAutomationAction::DumpUiTree)
+    )
 }
 
 fn handle_wait_for_state(
@@ -253,6 +274,75 @@ mod tests {
         });
         app.init_state::<GameState>();
         app
+    }
+
+    #[test]
+    fn idle_automation_does_not_access_ui_or_dirty_runner() {
+        let mut app = make_automation_app();
+        app.update();
+        assert!(app.world().resource::<UiAutomationRunner>().completed);
+        app.world_mut().remove_resource::<UiState>();
+        app.world_mut().clear_trackers();
+        for _ in 0..3 {
+            app.update();
+        }
+        assert!(!app.world().is_resource_changed::<UiAutomationRunner>());
+    }
+
+    #[test]
+    fn active_wait_times_out_without_queue_changes() {
+        let mut app = make_automation_app();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_millis(100),
+        ));
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::WaitForFrame(
+                "MissingFrame".into(),
+                0.15,
+            ));
+        app.update();
+        app.update();
+        assert!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .waiting
+                .is_some()
+        );
+        app.update();
+        assert!(app.world().resource::<UiAutomationQueue>().is_empty());
+        app.update();
+        let runner = app.world().resource::<UiAutomationRunner>();
+        assert!(runner.waiting.is_none());
+        assert!(!runner.completed);
+        assert!(runner.last_error.as_ref().unwrap().contains("MissingFrame"));
+    }
+
+    #[test]
+    fn dump_actions_drain_in_order_and_complete() {
+        let mut app = make_automation_app();
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::DumpTree);
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::DumpUiTree);
+        app.update();
+        assert!(
+            app.world()
+                .contains_resource::<UiAutomationDumpTreeRequest>()
+        );
+        assert!(
+            !app.world()
+                .contains_resource::<UiAutomationDumpUiTreeRequest>()
+        );
+        app.update();
+        assert!(
+            app.world()
+                .contains_resource::<UiAutomationDumpUiTreeRequest>()
+        );
+        app.update();
+        assert!(app.world().resource::<UiAutomationRunner>().completed);
     }
 
     #[test]

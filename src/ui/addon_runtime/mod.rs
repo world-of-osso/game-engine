@@ -86,7 +86,10 @@ impl Plugin for AddonRuntimePlugin {
         app.add_systems(Startup, init_addon_runtime.run_if(ui_updates_enabled));
         app.add_systems(
             Update,
-            (reload_changed_addons, apply_loaded_addons)
+            (
+                reload_changed_addons,
+                apply_loaded_addons.run_if(addons_changed),
+            )
                 .chain()
                 .run_if(ui_updates_enabled),
         );
@@ -122,7 +125,13 @@ fn init_addon_runtime(mut commands: Commands, mut ui: ResMut<UiState>) {
 
 fn reload_changed_addons(mut ui: ResMut<UiState>, runtime: Option<ResMut<AddonRuntime>>) {
     let Some(mut runtime) = runtime else { return };
-    runtime.reload_pending_changes(&mut ui.registry);
+    for path in runtime.take_changed_paths() {
+        runtime.reload_path(path, &mut ui.registry);
+    }
+}
+
+fn addons_changed(runtime: Option<Res<AddonRuntime>>) -> bool {
+    runtime.is_some_and(|runtime| runtime.is_changed())
 }
 
 fn apply_loaded_addons(mut ui: ResMut<UiState>, runtime: Option<Res<AddonRuntime>>) {
@@ -140,20 +149,19 @@ impl AddonRuntime {
         }
     }
 
-    fn reload_pending_changes(&mut self, registry: &mut ui_toolkit::registry::FrameRegistry) {
-        let Some(watcher) = &self.watcher else { return };
+    fn take_changed_paths(&self) -> Vec<PathBuf> {
+        let Some(watcher) = &self.watcher else {
+            return Vec::new();
+        };
         let Ok(receiver) = watcher.lock() else {
             warn!("addon watcher lock poisoned");
-            return;
+            return Vec::new();
         };
         let mut changed_paths = Vec::new();
         while let Ok(path) = receiver.try_recv() {
             changed_paths.push(path);
         }
-        drop(receiver);
-        for path in changed_paths {
-            self.reload_path(path, registry);
-        }
+        changed_paths
     }
 
     fn reload_path(&mut self, path: PathBuf, registry: &mut ui_toolkit::registry::FrameRegistry) {
