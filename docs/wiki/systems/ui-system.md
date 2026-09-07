@@ -47,6 +47,10 @@ LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- \
 
 Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForState(name, secs)`, `ui.waitForFrame(name, secs)`, `ui.dumpTree()`, `ui.dumpUiTree()`, `env.NAME`.
 
+## Runtime scheduling
+
+Commits `1a8c6d58`, `cd47743e`, `9a6b6679`, `ae222f0e`, `e9b81652`, and `fc99128b` remove the combined clean UI frame path: screen sync and pointer hit-testing require relevant changes; automation requires queued work; addon application runs after load/reload; watcher handling sleeps through clean frames; cooldown display advancement runs at `NetworkTick` only while active. Rendering, active interaction, and active presentation remain render-frame-driven. This is not a CPU/FPS-improvement claim; controlled measurement and user observation remain required.
+
 ## Keybindings
 
 Configurable bindings cover in-world gameplay: movement (forward/backward/strafe/jump/run/autorun), camera (turn/pitch/zoom), targeting, action bar slots 1–12, audio mute. Fixed (non-bindable) inputs: LMB+RMB chord, login/charselect/menu screen keys, debug controls. See [keybindings-scope.md](../../keybindings-scope.md).

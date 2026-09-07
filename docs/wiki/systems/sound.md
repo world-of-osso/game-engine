@@ -10,6 +10,10 @@ The sound system lives in `src/sound/` and covers three areas: footstep sounds, 
 
 The sound system coexists with the rest of the engine as a Bevy plugin registered from `src/main.rs`.
 
+## Runtime scheduling
+
+Commit `550b637a` removes sound clean-frame maintenance. Footstep trackers attach when relevant player/model entities appear. Ambient and music reconciliation run when their inputs change or playback is removed; they do not poll on otherwise clean render frames. Active playback remains active presentation work. No CPU or FPS improvement is claimed without controlled measurement and user observation.
+
 ## Audio backend registration
 
 Commit `463e9e47` (`Disable audio backend without sound flag`) makes no-sound mode omit Bevy's `AudioPlugin`, which `DefaultPlugins` previously included even when project `SoundPlugin` was disabled. `--sound` retains Bevy audio and project `SoundPlugin` exactly. Outside `src/sound/`, the only audio-related consumers are an optional `AudioSink` status query and optional `SoundSettings`; neither requires `AudioPlugin`.

@@ -37,9 +37,9 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
 - `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`, `connection.rs`: dedicated worker, typed queues, replication mirror, and per-connection lifecycle bridge.
 - `src/game/networking/mod.rs`: starts the worker connection; main reconnect/reset lifecycle work runs at `NetworkTick` cadence. Remote interpolation remains render-frame-driven.
-- `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment and local-player work use mutation/component-change boundaries.
-- `src/ui/game_plugin.rs`, `automation.rs`, `addon_runtime/mod.rs`: UI sync/pointer, automation, addon application, and active cooldown work are change/request/active-cooldown driven.
-- `src/sound/runtime.rs`, `runtime_ambient.rs`, `runtime_music.rs`: footstep attachment is relevance-driven; ambient/music reconciliation follows input or playback removal.
+- `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment and local-player work use mutation/component-change boundaries. Mount synchronization, local-player tagging, and alive-state updates no longer scan on clean render frames.
+- `src/ui/game_plugin.rs`, `automation.rs`, `addon_runtime/mod.rs`: a clean UI frame skips screen sync, spellbook pointer hit-testing, automation processing, addon application, and addon watcher reload handling. Active cooldown progression runs on `NetworkTick`, not the render schedule.
+- `src/sound/runtime.rs`, `runtime_ambient.rs`, `runtime_music.rs`: footstep attachment is relevance-driven; ambient/music reconciliation follows input or playback removal rather than clean-frame polling.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
 
 ## Tests asserting this spec
@@ -51,6 +51,12 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - Equipment agent tests: **13 passed** plus **2 appearance-event tests**; IPC FIFO test: **1/1**.
 - `worker-char-create-response.log`: **3/3** success, failure, and response-after-scene-exit tests through a separate worker App with real transport encode/decode and relay to the main inbox.
 - `worker-restart-tests.log`: **3/3** worker shutdown cleanup and restart tests; `migrated-ui-reconnect-fixtures.log`: **11/11** UI/reconnect fixture checks.
+
+## Literal frame-loop exits
+
+Commits `dc6183f8`, `550b637a`, `9a6b6679`, `1c1d7998`, `ae222f0e`, `e9b81652`, and `fc99128b` remove confirmed clean-frame application work: reconnect/reset lifecycle; sound maintenance; active cooldown advancement; local mount/tag/alive synchronization; addon watcher clean-frame processing; and the combined spellbook/UI clean cycle. These are scheduling boundaries, not a claim that every Bevy system or every active presentation update is event-driven.
+
+Rendering, remote interpolation, animation, input needed for active interaction, and active UI presentation remain render-frame-driven. CPU and FPS improvement await controlled measurement and user observation.
 
 ## Native evidence (2026-09-07)
 

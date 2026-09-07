@@ -9,7 +9,7 @@ Engine subsystems and how they work.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; successful startup is build-backed and uncapped runtime Green remains pending
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
-- [networking](systems/networking.md) — Lightyear UDP, 60 Hz main-thread logical application dispatch over unchanged 20 Hz simulation, auth/profession routing groundwork, entity replication, reconnect lifecycle, and IPC queue guard; broad migration and CPU proof remain open
+- [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
