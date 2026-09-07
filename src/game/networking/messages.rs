@@ -26,6 +26,7 @@ use game_engine::duel::apply_duel_state_update as map_duel_state_update;
 use game_engine::durability::apply_durability_state_update as map_durability_state_update;
 use game_engine::ignore_list::is_ignored as is_ignored_sender;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::reputation::{ReputationToastState, map_reputation_state_update};
 use game_engine::status::{
     AchievementsStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot, GroupMemberEntry,
@@ -111,14 +112,22 @@ pub(crate) fn receive_chat_messages(
 pub(crate) fn receive_emote_events(
     mut commands: Commands,
     mut receivers: MessageReceivers<EmoteEvent>,
+    mirror: Res<ReplicationMirrorMap>,
     children_query: Query<&Children>,
     mounted_visual_roots: Query<(), With<crate::networking_player::MountedVisualRoot>>,
     existing_entities: Query<(), ()>,
 ) {
     for receiver in receivers.iter_mut() {
         for event in receiver.receive() {
+            let Some(player) = resolve_server_entity(event.player_entity, &mirror) else {
+                debug!(
+                    "Ignoring emote for unmapped server entity {}",
+                    event.player_entity
+                );
+                continue;
+            };
             let Some(entity) = resolve_emote_visual_entity(
-                event.player_entity,
+                player.to_bits(),
                 &children_query,
                 &mounted_visual_roots,
                 &existing_entities,
@@ -268,13 +277,18 @@ pub(crate) fn apply_rest_state_update(
     snapshot.rested_xp_max = rest.rested_xp_max;
 }
 
+fn resolve_server_entity(server_bits: u64, mirror: &ReplicationMirrorMap) -> Option<Entity> {
+    Entity::try_from_bits(server_bits).and_then(|server| mirror.server_to_main(server))
+}
+
+// This helper receives main-world identity, after the wire boundary has been mapped.
 fn resolve_emote_visual_entity(
     player_entity_bits: u64,
     children_query: &Query<&Children>,
     mounted_visual_roots: &Query<(), With<crate::networking_player::MountedVisualRoot>>,
     existing_entities: &Query<(), ()>,
 ) -> Option<Entity> {
-    let player_entity = Entity::from_bits(player_entity_bits);
+    let player_entity = Entity::try_from_bits(player_entity_bits)?;
     let Ok(()) = existing_entities.get(player_entity) else {
         return None;
     };
@@ -602,6 +616,7 @@ pub(crate) fn apply_duel_state_update(snapshot: &mut DuelStatusSnapshot, update:
 /// When CurrentTarget changes, send a SetTarget message to the server.
 pub(crate) fn send_target_to_server(
     current: Res<CurrentTarget>,
+    mirror: Res<ReplicationMirrorMap>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mut senders: MessageSenders<SetTarget>,
 ) {
@@ -611,13 +626,19 @@ pub(crate) fn send_target_to_server(
     if !current.is_changed() {
         return;
     }
-    let target_bits = current.0.map(|e| e.to_bits());
+    let target_bits = target_server_bits(current.0, &mirror);
     let msg = SetTarget {
         target_entity: target_bits,
     };
     for mut sender in senders.iter_mut() {
         sender.send::<CombatChannel>(msg.clone());
     }
+}
+
+fn target_server_bits(target: Option<Entity>, mirror: &ReplicationMirrorMap) -> Option<u64> {
+    target
+        .and_then(|entity| mirror.main_to_server(entity))
+        .map(Entity::to_bits)
 }
 
 /// Watch for Zone component changes on the local player and update the CurrentZone resource.
@@ -664,3 +685,60 @@ pub(crate) fn send_player_input(
 #[cfg(test)]
 #[path = "messages_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod wire_identity_tests {
+    use super::*;
+    use bevy::ecs::system::RunSystemOnce;
+    use game_engine::network_runtime::messages::Inbox;
+
+    #[test]
+    fn target_serializes_server_identity_and_never_unmapped_main_bits() {
+        let server = Entity::from_bits(101);
+        let main = Entity::from_bits(202);
+        let mut mirror = ReplicationMirrorMap::default();
+        mirror.insert(server, main);
+        assert_eq!(
+            target_server_bits(Some(main), &mirror),
+            Some(server.to_bits())
+        );
+        assert_eq!(target_server_bits(Some(server), &mirror), None);
+        assert_eq!(target_server_bits(None, &mirror), None);
+    }
+
+    #[test]
+    fn emotes_apply_to_mapped_main_entities_only() {
+        let mut app = App::new();
+        let main = app.world_mut().spawn_empty().id();
+        let unrelated = app.world_mut().spawn_empty().id();
+        let server = Entity::from_bits(101);
+        let mut mirror = ReplicationMirrorMap::default();
+        mirror.insert(server, main);
+        app.insert_resource(mirror);
+        app.insert_resource(Inbox::new(vec![
+            EmoteEvent {
+                player_entity: server.to_bits(),
+                sender: "mapped".into(),
+                emote: shared::protocol::EmoteKind::Wave,
+            },
+            EmoteEvent {
+                player_entity: unrelated.to_bits(),
+                sender: "unmapped".into(),
+                emote: shared::protocol::EmoteKind::Wave,
+            },
+        ]));
+        app.world_mut()
+            .run_system_once(receive_emote_events)
+            .unwrap();
+        assert!(
+            app.world()
+                .get::<crate::animation::EmoteAnimState>(main)
+                .is_some()
+        );
+        assert!(
+            app.world()
+                .get::<crate::animation::EmoteAnimState>(unrelated)
+                .is_none()
+        );
+    }
+}

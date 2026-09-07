@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use game_engine::network_runtime::messages::MessageReceivers;
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use shared::protocol::{
     CombatEvent, CombatEventType, CombatLogEntrySnapshot, CombatLogEventKindSnapshot,
     CombatLogSnapshot,
@@ -155,7 +156,10 @@ fn floating_text_from_combat_event(msg: &CombatEvent) -> Option<(u64, FloatingCo
     ))
 }
 
-fn spell_sound_from_combat_event(msg: &CombatEvent) -> Option<SpellSoundRequest> {
+fn spell_sound_from_combat_event(
+    msg: &CombatEvent,
+    mirror: &ReplicationMirrorMap,
+) -> Option<SpellSoundRequest> {
     if msg.spell_id == 0 {
         return None;
     }
@@ -177,28 +181,31 @@ fn spell_sound_from_combat_event(msg: &CombatEvent) -> Option<SpellSoundRequest>
     Some(SpellSoundRequest {
         spell_id: msg.spell_id,
         kind,
-        emitter_entity: Some(spell_sound_emitter_entity(msg, kind)),
+        emitter_entity: Some(spell_sound_emitter_entity(msg, kind, mirror)?),
     })
 }
 
-fn spell_sound_emitter_entity(msg: &CombatEvent, kind: SpellSoundKind) -> Entity {
+fn spell_sound_emitter_entity(
+    msg: &CombatEvent,
+    kind: SpellSoundKind,
+    mirror: &ReplicationMirrorMap,
+) -> Option<Entity> {
     let bits = match kind {
         SpellSoundKind::Impact | SpellSoundKind::Heal | SpellSoundKind::Miss => msg.target,
         SpellSoundKind::Interrupt | SpellSoundKind::CastStart => msg.attacker,
     };
-    Entity::from_bits(bits)
+    super::resolve_server_entity(bits, mirror)
 }
 
 fn push_floating_text(
-    target_bits: u64,
+    entity: Entity,
     text: FloatingCombatText,
     stacks: &mut Query<&mut FloatingCombatTextStack>,
     existing_entities: &Query<(), ()>,
     commands: &mut Commands,
 ) {
-    let entity = Entity::from_bits(target_bits);
     if existing_entities.get(entity).is_err() {
-        debug!("Ignoring floating combat text for unknown entity bits {target_bits}");
+        debug!("Ignoring floating combat text for missing main entity {entity:?}");
         return;
     }
     if let Ok(mut stack) = stacks.get_mut(entity) {
@@ -212,6 +219,7 @@ fn push_floating_text(
 
 pub(crate) fn receive_combat_events(
     mut receivers: MessageReceivers<CombatEvent>,
+    mirror: Res<ReplicationMirrorMap>,
     mut snapshot: ResMut<CombatLogStatusSnapshot>,
     mut stacks: Query<&mut FloatingCombatTextStack>,
     mut spell_sounds: Option<ResMut<SpellSoundQueue>>,
@@ -222,19 +230,18 @@ pub(crate) fn receive_combat_events(
         for msg in receiver.receive() {
             let entry = combat_event_to_log_entry(&msg);
             append_combat_entry(&mut snapshot, entry);
-            if let Some(request) = spell_sound_from_combat_event(&msg)
+            if let Some(request) = spell_sound_from_combat_event(&msg, &mirror)
+                && request
+                    .emitter_entity
+                    .is_some_and(|entity| existing_entities.contains(entity))
                 && let Some(queue) = spell_sounds.as_mut()
             {
                 queue.requests.push(request);
             }
-            if let Some((target_bits, text)) = floating_text_from_combat_event(&msg) {
-                push_floating_text(
-                    target_bits,
-                    text,
-                    &mut stacks,
-                    &existing_entities,
-                    &mut commands,
-                );
+            if let Some((target_bits, text)) = floating_text_from_combat_event(&msg)
+                && let Some(target) = super::resolve_server_entity(target_bits, &mirror)
+            {
+                push_floating_text(target, text, &mut stacks, &existing_entities, &mut commands);
             }
         }
     }
@@ -331,47 +338,98 @@ mod tests {
         );
     }
 
-    #[test]
-    fn spell_sound_from_combat_event_maps_spell_categories() {
-        let cast =
-            spell_sound_from_combat_event(&combat_event(CombatEventType::SpellDamage, 40.0, 133))
-                .expect("spell impact");
-        assert_eq!(cast.kind, crate::sound::SpellSoundKind::Impact);
-        assert_eq!(cast.spell_id, 133);
-        assert_eq!(cast.emitter_entity, Some(Entity::from_bits(2)));
-
-        let heal =
-            spell_sound_from_combat_event(&combat_event(CombatEventType::SpellHeal, 55.0, 2061))
-                .expect("spell heal");
-        assert_eq!(heal.kind, crate::sound::SpellSoundKind::Heal);
-        assert_eq!(heal.spell_id, 2061);
-        assert_eq!(heal.emitter_entity, Some(Entity::from_bits(2)));
-
-        let miss = spell_sound_from_combat_event(&combat_event(CombatEventType::Miss, 0.0, 17))
-            .expect("spell miss");
-        assert_eq!(miss.kind, crate::sound::SpellSoundKind::Miss);
-        assert_eq!(miss.emitter_entity, Some(Entity::from_bits(2)));
-
-        let interrupt =
-            spell_sound_from_combat_event(&combat_event(CombatEventType::Interrupt, 0.0, 2139))
-                .expect("spell interrupt");
-        assert_eq!(interrupt.kind, crate::sound::SpellSoundKind::Interrupt);
-        assert_eq!(interrupt.emitter_entity, Some(Entity::from_bits(1)));
+    fn mirror_fixture() -> ReplicationMirrorMap {
+        let mut mirror = ReplicationMirrorMap::default();
+        mirror.insert(Entity::from_bits(1), Entity::from_bits(101));
+        mirror.insert(Entity::from_bits(2), Entity::from_bits(202));
+        mirror
     }
 
     #[test]
-    fn spell_sound_from_combat_event_ignores_non_spell_events() {
+    fn spell_sound_from_combat_event_maps_spell_categories() {
+        let mirror = mirror_fixture();
+        let cases = [
+            (
+                CombatEventType::SpellDamage,
+                133,
+                SpellSoundKind::Impact,
+                202,
+            ),
+            (CombatEventType::SpellHeal, 2061, SpellSoundKind::Heal, 202),
+            (CombatEventType::Miss, 17, SpellSoundKind::Miss, 202),
+            (
+                CombatEventType::Interrupt,
+                2139,
+                SpellSoundKind::Interrupt,
+                101,
+            ),
+        ];
+        for (event, spell_id, kind, main_bits) in cases {
+            let sound =
+                spell_sound_from_combat_event(&combat_event(event, 40.0, spell_id), &mirror)
+                    .unwrap();
+            assert_eq!(sound.kind, kind);
+            assert_eq!(sound.spell_id, spell_id);
+            assert_eq!(sound.emitter_entity, Some(Entity::from_bits(main_bits)));
+        }
+    }
+
+    #[test]
+    fn spell_sound_ignores_non_spell_events_and_unmapped_emitters() {
+        let mirror = mirror_fixture();
+        for event in [
+            CombatEventType::MeleeDamage,
+            CombatEventType::SpellDamage,
+            CombatEventType::Death,
+        ] {
+            assert!(
+                spell_sound_from_combat_event(&combat_event(event, 22.0, 0), &mirror).is_none()
+            );
+        }
         assert!(
-            spell_sound_from_combat_event(&combat_event(CombatEventType::MeleeDamage, 22.0, 0,))
+            spell_sound_from_combat_event(
+                &combat_event(CombatEventType::SpellDamage, 22.0, 133),
+                &ReplicationMirrorMap::default(),
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn combat_visuals_use_main_identity_while_logs_keep_server_identity() {
+        use game_engine::network_runtime::messages::Inbox;
+        let mut app = App::new();
+        let target = app.world_mut().spawn_empty().id();
+        let unrelated = app.world_mut().spawn_empty().id();
+        let server = Entity::from_bits(202);
+        let mut mirror = ReplicationMirrorMap::default();
+        mirror.insert(server, target);
+        app.insert_resource(mirror);
+        app.init_resource::<CombatLogStatusSnapshot>();
+        app.init_resource::<SpellSoundQueue>();
+        let mut mapped = combat_event(CombatEventType::SpellDamage, 42.0, 133);
+        mapped.target = server.to_bits();
+        let mut unmapped = mapped.clone();
+        unmapped.target = unrelated.to_bits();
+        app.insert_resource(Inbox::new(vec![mapped, unmapped]));
+        app.world_mut()
+            .run_system_once(receive_combat_events)
+            .unwrap();
+        let stack = app.world().get::<FloatingCombatTextStack>(target).unwrap();
+        assert_eq!(stack.texts.len(), 1);
+        assert_eq!(stack.texts[0].amount, 42);
+        assert!(
+            app.world()
+                .get::<FloatingCombatTextStack>(unrelated)
                 .is_none()
         );
-        assert!(
-            spell_sound_from_combat_event(&combat_event(CombatEventType::SpellDamage, 22.0, 0,))
-                .is_none()
-        );
-        assert!(
-            spell_sound_from_combat_event(&combat_event(CombatEventType::Death, 0.0, 0,)).is_none()
-        );
+        let sounds = &app.world().resource::<SpellSoundQueue>().requests;
+        assert_eq!(sounds.len(), 1);
+        assert_eq!(sounds[0].emitter_entity, Some(target));
+        let log = &app.world().resource::<CombatLogStatusSnapshot>().entries;
+        assert_eq!(log.len(), 2);
+        assert_eq!(log[0].target, server.to_bits().to_string());
+        assert_eq!(log[1].target, unrelated.to_bits().to_string());
     }
 
     #[test]
@@ -385,7 +443,7 @@ mod tests {
                  mut stacks: Query<&mut FloatingCombatTextStack>,
                  existing_entities: Query<(), ()>| {
                     push_floating_text(
-                        Entity::from_bits(999_999).to_bits(),
+                        Entity::from_bits(999_999),
                         FloatingCombatText::new(CombatTextKind::Miss, 0),
                         &mut stacks,
                         &existing_entities,
