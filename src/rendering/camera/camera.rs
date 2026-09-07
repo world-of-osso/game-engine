@@ -21,14 +21,11 @@ use game_engine::movement_control::{ScriptedMovement, ScriptedMovementStep};
 mod camera_controls;
 #[path = "camera_follow.rs"]
 mod camera_follow;
-#[path = "camera_follow_isolation.rs"]
-mod camera_follow_isolation;
 #[path = "camera_post_process.rs"]
 mod camera_post_process;
 
 use camera_controls::{apply_keyboard_camera, camera_pitch_delta};
 use camera_follow::camera_follow;
-pub(crate) use camera_follow_isolation::configure as configure_follow_isolation;
 pub(crate) use camera_post_process::{MsaaDisabled, additive_particle_glow_tonemapping};
 use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
 

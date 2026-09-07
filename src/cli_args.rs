@@ -282,26 +282,12 @@ pub fn print_help() {
         "  --no-directional-shadows  Disable directional shadow maps, retaining lighting (diagnostic)"
     );
     println!(
-        "  --freeze-indirect-parameters-after <SECONDS>  Stop render indirect-parameter uploads after startup elapsed time (stationary-scene diagnostic)"
-    );
-    println!(
-        "  --freeze-batched-instances-after <SECONDS>  Stop PBR batched-instance uploads after startup elapsed time (stationary-scene diagnostic)"
+        "  --remove-system-after <main:SCHEDULE|render:SCHEDULE> <EXACT_NAME> <SECONDS>  Remove one callback at its deadline (repeatable diagnostic)"
     );
     println!(
         "  --no-pipelined-rendering  Run render work sequentially instead of on a separate render thread (diagnostic)"
     );
-    println!(
-        "  --freeze-gpu-clusters-after <SECONDS>  Stop GPU light-cluster buffer preparation after startup elapsed time (stationary-scene diagnostic)"
-    );
-    println!(
-        "  --freeze-mesh-collection-after <SECONDS>  Stop GPU mesh-collection task dispatch after startup elapsed time (stationary-scene diagnostic)"
-    );
-    println!(
-        "  --freeze-camera-follow-after <SECONDS>  Retain the last camera pose and remove camera-follow work (stationary-scene diagnostic)"
-    );
-    println!(
-        "  --freeze-message-send-after <SECONDS>  Stop application-message sending after startup elapsed time (connected-idle diagnostic)"
-    );
+
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
@@ -365,14 +351,11 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             | "--skybox-fdid"
             | "--light-skybox-id"
             | "--skybox-time-ms"
-            | "--freeze-terrain-materials-after"
-            | "--freeze-indirect-parameters-after"
-            | "--freeze-batched-instances-after"
-            | "--freeze-gpu-clusters-after"
-            | "--freeze-mesh-collection-after"
-            | "--freeze-camera-follow-after"
-            | "--freeze-message-send-after" => {
+            | "--freeze-terrain-materials-after" => {
                 i += 2;
+            }
+            "--remove-system-after" => {
+                i += 4;
             }
             "--login-dev-admin" => {
                 i += 1;

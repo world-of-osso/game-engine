@@ -22,14 +22,13 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - [x] Accept opt-in `--no-pipelined-rendering`: omit Bevy's pipelined-rendering plugin while retaining the render app and its rendering work. Execute render-app frames sequentially on the calling thread rather than via the separate render-thread handoff.
 - [x] Preserve normal pipelining without the flag and retain scene/camera/FPS-overlay settings. Report the selected diagnostic mode. Compare CPU time and FPS together because removing overlap can change throughput.
 
-### Render upload controls
+### Timed exact-name callback removal
 
-- [x] Accept opt-in `--freeze-indirect-parameters-after <SECONDS>`: after startup elapsed time, remove only Bevy's `write_indirect_parameters_buffers` system from the render schedule. Preserve dependency ordering, allocated buffers, other render systems, camera settings, and existing scene exclusions.
-- [x] Accept `--freeze-batched-instances-after <SECONDS>` independently: remove only `write_batched_instance_buffers<MeshPipeline>` at its cutoff. Support separate cutoffs so an earlier exclusion stays applied while measuring the next one; also handle multiple due removals in one extraction pass without replacing the schedule registry.
-- [x] Accept `--freeze-gpu-clusters-after <SECONDS>`: remove only the private Bevy `prepare_clusters_for_gpu_clustering` callback, resolved by its exact runtime name and implicit type set. Keep existing buffers, other callbacks, CPU availability, and rendering rate policy unchanged; moving/changing scenes are not supported by this diagnostic.
-- [x] Accept `--freeze-mesh-collection-after <SECONDS>`: remove only the private Bevy `collect_meshes_for_gpu_building` callback, resolved by its exact runtime name and implicit type set. Preserve existing render-mesh instance data, other callbacks, CPU availability, and rendering-rate policy. Use only in a stationary scene: changed/removed mesh instances are not collected after the cutoff.
-- [x] Report actual removal time and fail explicitly unless exactly one target system is removed per cutoff. Without either flag, add no removal controller. Reject missing/invalid seconds and do not interpret values as asset paths.
-- [x] Use only after initial uploads in a stationary diagnostic scene. Frozen draw metadata can invalidate moving/changing scenes; CPU differences may include downstream rendering effects and are not proof of unnecessary upload work. The cutoff includes reference sampling and is not an FPS-stabilization delay. Trace spans are overlapping instrumented wall time, not exclusive CPU cost; a trace lead must not be treated as proof that removing its callback changes CPU or FPS.
+- [x] Accept repeatable `--remove-system-after <main:SCHEDULE|render:SCHEDULE> <EXACT_SYSTEM_NAME> <SECONDS>`. Preserve names exactly, sort requests by deadline within each safe execution phase, and reject invalid owners, empty names, missing fields, non-unsigned seconds, and duplicate targets. Do not interpret the three values as asset paths.
+- [x] Resolve the registered schedule and callback by exact runtime names. Require a unique callback and a single-member implicit type set; do not remove a broader explicit group. Missing or ambiguous selection must fail before target removal.
+- [x] Apply main-world and render-schedule removals during extraction; defer removal from `render:ExtractSchedule` until extraction has finished. Preserve main-world and schedule registries, including consecutive removals without `MainWorld` present during render cleanup.
+- [x] Register no controller without requests. Report each actual removal with time, world, schedule, and name. Reject the six former dedicated callback-removal flags; provide no compatibility aliases. Other visual/terrain diagnostics remain unchanged.
+- [ ] Use after initial loading in a stationary scene. Removing a callback can freeze data or change downstream work; it does not prove that work unnecessary. Preserve view, connection, focus, and comparable throughput for attribution. A delayed frame can make multiple deadlines due; reject such an interval as a one-change comparison. The cutoff includes measurement time, not additional FPS stabilization.
 
 ### Named-span CPU attribution
 
@@ -39,13 +38,11 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 
 ### Camera-follow diagnostic
 
-- [x] Accept opt-in `--freeze-camera-follow-after <SECONDS>`: remove exactly the registered camera-follow callback from `Update` after the cutoff, preserving the last camera transform, camera input, player movement, graphics synchronization, rendering, and unrelated systems.
-- [x] Keep normal behavior and register no removal controller without the flag. Reject missing/invalid unsigned seconds, keep the value out of asset-path parsing, and log the actual removal time. Use only in a stationary scene; this is not a movement or camera-control optimization.
+- [x] Selecting only the camera-follow callback retains its last transform while unrelated systems remain registered. Use only in a stationary scene; this is not a movement or camera-control optimization.
 
 ### Application-message sender diagnostic
 
-- [x] Accept `--freeze-message-send-after <SECONDS>`: after the cutoff remove only the uniquely named PostUpdate `MessagePlugin::send` callback and its single-member implicit type set, not the broader send system group. Reject ambiguity before removal; retain receive, transport, rendering, and unrelated systems.
-- [x] Preserve default behavior without the flag, reject missing/invalid unsigned seconds, keep its value out of asset-path parsing, and report actual removal time.
+- [x] Selecting only PostUpdate `MessagePlugin::send` retains unrelated send-group members; queued application payloads stop draining without removing the whole group.
 - [ ] Use only after login in a stationary client. Outgoing application messages remain queued and may accumulate; do not interact with gameplay while frozen. Verify connection health and incoming synchronization throughout the comparison; disconnects or changed workloads invalidate CPU/FPS attribution. This is not a networking optimization.
 
 ### Directional-shadow diagnostic
@@ -113,8 +110,8 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/main.rs` — startup stage selection and pre-UI processing gates.
 - `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary and opt-in profiling-layer installation.
 - `src/cpu_system_profile.rs` — bounded named-span thread-CPU accounting and JSON output.
-- `src/rendering/camera/camera_follow_isolation.rs` — one-time camera-follow removal with retained pose.
-- `src/game/networking/message_send_isolation.rs` — exact application-message sender removal, preserving other send-group members.
+- `src/system_isolation.rs` — shared exact-name removal and safe main/render/extraction phases.
+- `src/system_isolation/args.rs` — repeatable selector parsing and retired-flag rejection.
 - `src/rendering/terrain/terrain{,_background_parse,_streaming,_spawn}.rs` — streamed object/water loading and flat-material controls.
 - `src/rendering/skybox/mod.rs` — skybox-visual gates and dome removal with lighting retained.
 
@@ -123,10 +120,9 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `tests/unit/camera_post_process_tests.rs` — pre-Lighting removal, Lighting restoration, MSAA behavior, default behavior, and preserved common camera effects.
 - `tests/unit/main_tests.rs` — stage parsing, default/full-scene behavior, UI processing gates, and performance-overlay survival.
 - `tests/unit/pipeline_isolation_tests.rs` — render-frame delivery and calling-thread versus render-thread execution through the pipelining selector.
-- `src/rendering/render_upload_isolation.rs` tests — separate removal deadlines, continued unrelated work, and CLI value handling.
 - `src/cpu_system_profile.rs` tests — nested, boundary, independent-thread, concurrent same-span, and blocked-sleep CPU accounting.
-- `tests/unit/camera_follow_isolation_tests.rs` — deadline, retained transform, continued unrelated work, and argument handling.
-- `tests/unit/message_send_isolation_tests.rs` — pending-message retention, unrelated send-group work, ambiguity, defaults, and arguments.
+- `tests/unit/system_isolation_tests.rs` — cross-world deadlines, extraction cleanup, retained pose/payloads, exact identity, and defaults.
+- `src/system_isolation/args.rs` tests — argument validation, retired flags, duplicate targets, and ordering.
 
 ## Known gaps (current cycle)
 
@@ -136,5 +132,5 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 ## Out of scope
 
 - Globally disabling camera post-processing in normal full gameplay.
-- Changing tonemapping, MSAA selection, shadow filtering, window behavior, networking, IPC, or UI rendering.
+- Changing unconfigured/default tonemapping, MSAA selection, shadow filtering, window behavior, networking, IPC, or UI rendering.
 - Advancing to later cumulative stages before Empty is accepted.

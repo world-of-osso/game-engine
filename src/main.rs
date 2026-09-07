@@ -57,6 +57,7 @@ mod sqlite_util;
 mod status_asset_stats;
 mod status_map_sync;
 mod status_sync;
+mod system_isolation;
 mod taxi;
 mod trash_button_screen;
 mod ui_input;
@@ -455,9 +456,7 @@ fn insert_startup_resources(
     configure_frame_time_graph_isolation(app, args);
     configure_msaa_isolation(app, args);
     configure_directional_shadow_isolation(app, args);
-    rendering::render_upload_isolation::configure(app, args);
-    camera::configure_follow_isolation(app, args);
-    networking::message_send_isolation::configure(app, args);
+    system_isolation::configure(app, args);
     insert_data_resources(app);
 }
 

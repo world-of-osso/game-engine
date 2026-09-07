@@ -16,7 +16,6 @@ pub(crate) mod db2_path;
 pub mod image_sampler;
 #[path = "lighting/light_lookup.rs"]
 pub mod light_lookup;
-pub(crate) mod render_upload_isolation;
 #[path = "lighting/shadow_config.rs"]
 pub mod shadow_config;
 
