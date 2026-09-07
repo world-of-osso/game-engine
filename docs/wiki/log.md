@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record native replicated-equipment preservation
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `eaeaf9ed`. Native `bevy-animation/native-fixed/{before,head,cleared}.json` proves server-driven Head 1128 set/clear retained `humanmale_hd.m2` and restored the exact baseline appearance data. This is exported lifecycle-state evidence, not pixel-level appearance or animation-equivalence proof. Forced disconnect remains unresolved pending worker-side handling of the explicit server notice; CPU/FPS claims remain open.
+
 ## [2026-09-07] investigation | Record Bevy dynamic-link compile measurement
 
 Added [[compile-latency]] for the corrected `dev = ["bevy/dynamic_linking"]` wiring in `8fca26b9` and the command documentation in `50991d70`. Same-literal real-edit samples fell from 21.173815 s default to 6.956593 s, then 4.566569 s after the dynamic cache warmed. Deleted-cache warmups and concurrent compile activity are excluded; the requested under-three-second edit-build target remains unmet. Repository history does not support a Windows rationale for the prior unwired direct `bevy_dylib` dependency.

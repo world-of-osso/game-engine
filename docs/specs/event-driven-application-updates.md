@@ -15,7 +15,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ### Equipment and other application work
 
-- [x] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame. Gear/face-only replicated changes retain the existing character rig; mount or race/sex changes replace it.
+- [x] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame. Gear/face-only replicated changes retain the existing character rig; mount or race/sex changes replace it. Native Head 1128 set/clear proves rig/model retention and restoration of baseline appearance data.
 - [x] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
 - [x] Give collection/death replies and character-creation responses one consuming handler; notify the character-create UI locally after auth consumes its response.
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
@@ -73,12 +73,12 @@ Rendering, remote interpolation, camera-facing billboards, input needed for acti
 
 ## Known gaps
 
-- [ ] Complete connected API coverage and clean native appearance proof. Real human/helmet `EntityReplicated` regressions pass (RED 2/2 → GREEN 4/4), but the post-fix native lifecycle run remains pending.
-- [ ] Verify the integrated dedicated network world. It exclusively owns Lightyear client/transport/replication state and bridges typed outgoing commands, incoming FIFO data, replicated snapshots, and connection state into the render world; focused real UDP handshaking is proven, but end-to-end lifecycle and native proof remain incomplete.
+- [ ] Complete connected API coverage and remaining native appearance cases. Real human/helmet `EntityReplicated` regressions pass (RED 2/2 → GREEN 4/4); `native-fixed/{before,head,cleared}.json` proves server-driven Head 1128 set/clear retained the human model and restored baseline appearance data. Pixel-level appearance proof remains pending.
+- [ ] Verify forced-disconnect lifecycle. The server notice currently does not produce the worker's real Lightyear disconnect; its worker-side handling is pending. The dedicated world otherwise exclusively owns Lightyear client/transport/replication state and bridges typed outgoing commands, incoming FIFO data, replicated snapshots, and connection state into the render world.
 - [ ] Convert remaining wire entity-bit boundaries between server identity and render entities. Target, duel, inspect, spell current/default, emote, and combat now map explicitly; related UI and remaining protocol fields need an inventory.
 - [x] Review confirmed non-render application frame work: UI, automation, addons, local-player state, reconnect lifecycle, and sound maintenance no longer perform their prior idle scans/application.
 - [ ] Controlled idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
-- [ ] Native animation equivalence and broader scene coverage beyond the focused 67/67 integrated animation tests.
+- [ ] Native animation equivalence and broader scene coverage beyond the focused 67/67 integrated animation tests. Interrupted-transition continuity, attachment world transforms, skinning deformation, and real offline-scene lifecycle still need direct proof. No animation performance or CPU/FPS improvement is established.
 
 ## Out of scope
 
