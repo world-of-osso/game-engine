@@ -110,7 +110,7 @@ A separate `PreUpdate`+`Update`+`PostUpdate` cutoff ran at a 60/s baseline and r
 
 Removing render `Prepare` removed **148 systems** and recorded **340.170% → 190.186%**, but cadence collapsed **226.447 → 114.746/s** and CPU/update worsened **15.022 → 16.575 ms**. This is invalid as a saving claim: rendering no longer performed equivalent work. `Specialize` removal recorded **335.071% → 343.169%** while cadence rose **210.930 → 235.077/s**; no bulk reduction. `Queue` remains pending. Artifacts: `data/diagnostics/movement-perf-20260905/{update-schedule-isolation,render-set-isolation}/`.
 
-An attempted literal `--inworld-stage empty` run crashed before measurement because `extract_lights` lacked `PointLightShadowMap`, and scattering-medium asset extraction lacked initialized messages. It is a broken configuration, not low-CPU evidence.
+The historical literal `--inworld-stage empty` run crashed before measurement because the then-active configuration disabled `LightPlugin`, leaving `extract_lights` without `PointLightShadowMap` and scattering-medium asset extraction without initialized messages. It is broken-configuration evidence, not low-CPU evidence. Commit `be9a1ff7` removes that incorrect LightPlugin disable while retaining the gizmo disables; `LightPlugin` is required as a PBR resource provider, not evidence of populated light entities. Native GREEN remains pending at `data/diagnostics/movement-perf-20260905/update-schedule-isolation/strict-empty-fixed/`.
 
 ## Recovered full-scene caller stacks
 

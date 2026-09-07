@@ -7,7 +7,7 @@ Last updated: 2026-09-07.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, strict-Empty LightPlugin/gizmo/camera/particle/M2-material registration boundaries, lightweight Empty M2 assets without material schedules (`e7f98704`), blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; gizmo A/B removed its targeted path and improved passive mean 0.50 percentage points, but the every-window CPU gate remains open
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, strict-Empty gizmo/camera/particle/M2-material registration boundaries and required LightPlugin PBR providers, lightweight Empty M2 assets without material schedules (`e7f98704`), blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; gizmo A/B removed its targeted path and improved passive mean 0.50 percentage points, but the every-window CPU gate remains open
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow, entity replication, reconnect lifecycle, Who query runtime, Empty-stage NOOP and due-gated network-reset boundaries, planned streaming; reset gating removed its profile symbol but did not improve CPU
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated

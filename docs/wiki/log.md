@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] docs | Correct strict-Empty LightPlugin boundary
+
+Updated [[rendering-pipeline]], [[empty-window-baseline]], [[movement-performance]], [[inworld-scene-isolation]], and `index.md` for `be9a1ff7`. The August 11, 2026 LightPlugin-absent Empty claim remains historical: native RED showed PBR requires `PointLightShadowMap` and scattering-medium assets even with no light entities. Current documentation records LightPlugin as a required provider and retains only the gizmo disables. Native GREEN is still running; no pass is claimed until `update-schedule-isolation/strict-empty-fixed/` exists and the main session confirms it.
+
 ## [2026-09-07] diagnostic | Record coarse idle-CPU isolation and repaired caller stacks
 
 Updated [[empty-window-baseline]] and [[movement-performance]] with destructive reduced-scene schedule/render-set cutoffs. `Update`, `PostUpdate`, and the combined main schedules are material contributors, while `Prepare`'s apparent CPU drop is invalid because it halves update cadence; `Specialize` is negative and `Queue` is pending. A literal Empty-stage launch failed before measurement from missing `PointLightShadowMap` and scattering-medium initialization. Recovered Deep-DWARF ancestry now covers all 2,138 archived reduced-game samples in `flamegraphs/reduced-game-dwarf.svg`; the prior raw flamegraph's corrupt caller frames remain historical only. Bevy 0.19 scheduling/material hazards and upstream #24448 are candidates or external context, not local causal findings.

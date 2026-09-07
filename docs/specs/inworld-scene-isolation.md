@@ -97,7 +97,8 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 
 ### Plugin registration
 
-- [x] In exact configured `InWorldSceneStage::Empty`, disable Bevy `LightPlugin` together with `GizmoPlugin` and `GizmoRenderPlugin` so nested `LightGizmoPlugin` resources are not recreated.
+- [x] In exact configured `InWorldSceneStage::Empty`, disable `GizmoPlugin` and `GizmoRenderPlugin`.
+- [x] Keep `LightPlugin` registered in Empty as a PBR resource provider: `PointLightShadowMap` and scattering-medium assets are required even with no `Light` entities.
 - [x] Preserve LightPlugin, gizmos, and their render behavior for unconfigured/default runs, `Character` and later stages, debug modes, and screenshot/default paths.
 
 ### Camera rendering
@@ -119,7 +120,7 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 - `src/game/state/inworld_scene_stage.rs` — cumulative stage ordering and predicates.
 - `src/rendering/camera/camera_post_process.rs` — stage-aware WowCamera render-bundle synchronization.
 - `src/main.rs` — startup stage selection and pre-UI processing gates.
-- `src/app_setup.rs` — exact-Empty LightPlugin/gizmo plugin boundary and opt-in profiling-layer installation.
+- `src/app_setup.rs` — exact-Empty gizmo-plugin boundary, required LightPlugin provider registration, and opt-in profiling-layer installation.
 - `src/cpu_system_profile.rs` — bounded named-span thread-CPU accounting and JSON output.
 - `src/system_isolation.rs` — shared exact-name removal and safe main/render/extraction phases.
 - `src/system_isolation/args.rs` — repeatable selector parsing and retired-flag rejection.
