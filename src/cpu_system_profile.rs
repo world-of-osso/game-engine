@@ -634,6 +634,54 @@ mod tests {
         std::fs::remove_file(output).unwrap();
     }
 
+    #[test]
+    fn tracing_layer_exports_dirty_tree_worker_spans_with_positive_cpu() {
+        use log::tracing_subscriber::prelude::*;
+
+        let output = std::env::temp_dir().join(format!(
+            "game-engine-dirty-worker-profile-{}-{}.json",
+            std::process::id(),
+            NEXT_PROFILER_ID.load(Ordering::Relaxed)
+        ));
+        let profiler = Arc::new(SharedProfiler::for_test(output.clone()));
+        let subscriber = log::tracing_subscriber::registry().with(CpuSpanLayer {
+            profiler: profiler.clone(),
+        });
+        log::tracing::subscriber::with_default(subscriber, || {
+            let spans = [
+                log::tracing::info_span!("producer_mark_dirty"),
+                log::tracing::info_span!("consumer_mark_dirty"),
+                log::tracing::info_span!("par_traversal_mark_dirty"),
+            ];
+            for span in spans {
+                let _entered = span.enter();
+                consume_thread_cpu_for(Duration::from_millis(2));
+            }
+        });
+        profiler.export().unwrap();
+        let value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&output).unwrap()).unwrap();
+        std::fs::remove_file(output).unwrap();
+        let exported = value["threads"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|thread| thread["spans"].as_array().unwrap())
+            .collect::<Vec<_>>();
+        for name in [
+            "producer_mark_dirty",
+            "consumer_mark_dirty",
+            "par_traversal_mark_dirty",
+        ] {
+            let span = exported
+                .iter()
+                .find(|span| span["name"].as_str() == Some(name))
+                .unwrap_or_else(|| panic!("missing exported worker span: {name}"));
+            assert!(span["calls"].as_u64().unwrap() > 0, "{name}");
+            assert!(span_has_positive_cpu(span), "{name}");
+        }
+    }
+
     fn run_shared_span_work(span: log::tracing::Span, barrier: Arc<std::sync::Barrier>) {
         let _shared = span.enter();
         barrier.wait();
