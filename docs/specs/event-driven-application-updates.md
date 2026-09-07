@@ -15,7 +15,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ### Equipment and other application work
 
-- [x] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame.
+- [x] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame. Gear/face-only replicated changes retain the existing character rig; mount or race/sex changes replace it.
 - [x] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
 - [x] Give collection/death replies and character-creation responses one consuming handler; notify the character-create UI locally after auth consumes its response.
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
@@ -44,7 +44,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
 - `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`, `connection.rs`: dedicated worker, typed queues, replication mirror, and per-connection lifecycle bridge.
 - `src/game/networking/mod.rs`: starts the worker connection; main reconnect/reset lifecycle work runs at `NetworkTick` cadence. Remote interpolation remains render-frame-driven.
-- `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment and local-player work use mutation/component-change boundaries. Mount synchronization, local-player tagging, and alive-state updates no longer scan on clean render frames.
+- `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment and local-player work use mutation/component-change boundaries. Player appearance retains its rig for gear, face, and same-mount changes; only mount or race/sex changes replace the visual. A new authoritative snapshot clears slots previously owned by replication while preserving unrelated local equipment. Mount synchronization, local-player tagging, and alive-state updates no longer scan on clean render frames.
 - `src/ui/game_plugin.rs`, `automation.rs`, `addon_runtime/mod.rs`: a clean UI frame skips screen sync, spellbook pointer hit-testing, automation processing, addon application, and addon watcher reload handling. Active cooldown progression runs on `NetworkTick`, not the render schedule.
 - `src/sound/runtime.rs`, `runtime_ambient.rs`, `runtime_music.rs`: footstep attachment is relevance-driven; ambient/music reconciliation follows input or playback removal rather than clean-frame polling.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
@@ -73,7 +73,7 @@ Rendering, remote interpolation, camera-facing billboards, input needed for acti
 
 ## Known gaps
 
-- [ ] Complete connected API coverage, replicated component/equipment lifecycle proof against the server, and clean native appearance proof.
+- [ ] Complete connected API coverage and clean native appearance proof. Real human/helmet `EntityReplicated` regressions pass (RED 2/2 → GREEN 4/4), but the post-fix native lifecycle run remains pending.
 - [ ] Verify the integrated dedicated network world. It exclusively owns Lightyear client/transport/replication state and bridges typed outgoing commands, incoming FIFO data, replicated snapshots, and connection state into the render world; focused real UDP handshaking is proven, but end-to-end lifecycle and native proof remain incomplete.
 - [ ] Convert remaining wire entity-bit boundaries between server identity and render entities. Target, duel, inspect, spell current/default, emote, and combat now map explicitly; related UI and remaining protocol fields need an inventory.
 - [x] Review confirmed non-render application frame work: UI, automation, addons, local-player state, reconnect lifecycle, and sound maintenance no longer perform their prior idle scans/application.
