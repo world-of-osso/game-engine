@@ -315,6 +315,8 @@ fn disconnect_during_game_menu_reconnects_without_bouncing_to_login() {
 #[test]
 fn initial_netcode_disconnected_marker_does_not_restart_inworld_reconnect() {
     let mut app = App::new();
+    game_engine::network_events::initialize_dispatcher(&mut app);
+    game_engine::network_runtime::connection::initialize_connection_bridge(&mut app);
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(crate::game_state::GameState::InWorld);
