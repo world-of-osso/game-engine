@@ -44,7 +44,13 @@ pub(crate) fn requests_service_window(
         ("render", []) => Ok(Some(ServiceWindowMode::Render)),
         ("continuous", []) => Ok(Some(ServiceWindowMode::Continuous)),
         ("continuous", [selector, seconds])
-            if selector == "--skip-update-after" || selector == "--skip-main-work-after" =>
+            if [
+                "--skip-update-after",
+                "--skip-main-work-after",
+                "--skip-pre-update-after",
+                "--skip-post-update-after",
+            ]
+            .contains(&selector.as_str()) =>
         {
             seconds
                 .parse::<u64>()

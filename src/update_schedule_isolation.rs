@@ -9,6 +9,8 @@ use bevy::time::{Real, Time};
 
 const FLAG: &str = "--skip-update-after";
 const MAIN_WORK_FLAG: &str = "--skip-main-work-after";
+const PRE_FLAG: &str = "--skip-pre-update-after";
+const POST_FLAG: &str = "--skip-post-update-after";
 
 #[derive(Resource)]
 struct UpdateCutoff {
@@ -17,16 +19,19 @@ struct UpdateCutoff {
     last_report: Duration,
     updates: u64,
     removed: bool,
-    skip_main_work: bool,
+    flag: &'static str,
 }
 
 pub(crate) fn configure(app: &mut App, arguments: &[String]) {
-    let skip_main_work = arguments.iter().any(|arg| arg == MAIN_WORK_FLAG);
+    let selected: Vec<_> = [FLAG, MAIN_WORK_FLAG, PRE_FLAG, POST_FLAG]
+        .into_iter()
+        .filter(|flag| arguments.iter().any(|arg| arg == flag))
+        .collect();
     assert!(
-        !skip_main_work || !arguments.iter().any(|arg| arg == FLAG),
+        selected.len() <= 1,
         "choose only one main-schedule cutoff diagnostic"
     );
-    let flag = if skip_main_work { MAIN_WORK_FLAG } else { FLAG };
+    let flag = selected.first().copied().unwrap_or(FLAG);
     let Some(deadline) = parse_deadline(arguments, flag) else {
         return;
     };
@@ -36,7 +41,7 @@ pub(crate) fn configure(app: &mut App, arguments: &[String]) {
         last_report: Duration::ZERO,
         updates: 0,
         removed: false,
-        skip_main_work,
+        flag,
     })
     .add_systems(Last, track_updates)
     // Main temporarily takes MainScheduleOrder while its child schedules run.
@@ -83,10 +88,11 @@ fn remove_update_at_cutoff(mut order: ResMut<MainScheduleOrder>, mut cutoff: Res
     if cutoff.removed || cutoff.elapsed < cutoff.deadline {
         return;
     }
-    let labels = if cutoff.skip_main_work {
-        vec![PreUpdate.intern(), Update.intern(), PostUpdate.intern()]
-    } else {
-        vec![Update.intern()]
+    let labels = match cutoff.flag {
+        MAIN_WORK_FLAG => vec![PreUpdate.intern(), Update.intern(), PostUpdate.intern()],
+        PRE_FLAG => vec![PreUpdate.intern()],
+        POST_FLAG => vec![PostUpdate.intern()],
+        _ => vec![Update.intern()],
     };
     for label in labels {
         let index = order
@@ -96,10 +102,11 @@ fn remove_update_at_cutoff(mut order: ResMut<MainScheduleOrder>, mut cutoff: Res
             .unwrap_or_else(|| panic!("{FLAG}: {label:?} absent from MainScheduleOrder"));
         order.labels.remove(index);
     }
-    let removed = if cutoff.skip_main_work {
-        "PreUpdate,Update,PostUpdate"
-    } else {
-        "Update"
+    let removed = match cutoff.flag {
+        MAIN_WORK_FLAG => "PreUpdate,Update,PostUpdate",
+        PRE_FLAG => "PreUpdate",
+        POST_FLAG => "PostUpdate",
+        _ => "Update",
     };
     cutoff.removed = true;
     eprintln!(
@@ -204,6 +211,19 @@ mod tests {
             ),
             (3, 1, 1, 1, 3)
         );
+    }
+
+    #[test]
+    fn individual_pre_and_post_cutoffs_preserve_other_work() {
+        for (flag, expected) in [(PRE_FLAG, (1, 3, 3)), (POST_FLAG, (3, 3, 1))] {
+            let mut app = test_app(&[flag, "0"]);
+            for _ in 0..3 {
+                app.update();
+            }
+            let counts = app.world().resource::<Counts>();
+            assert_eq!((counts.pre, counts.update, counts.post), expected);
+            assert_eq!((counts.first, counts.last), (3, 3));
+        }
     }
 
     #[test]
