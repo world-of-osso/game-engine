@@ -15,7 +15,7 @@ use game_engine::ui::screens::char_create_component::{
 };
 use game_engine::ui_resource;
 use shared::components::CharacterAppearance;
-use shared::protocol::{AuthChannel, CreateCharacter, CreateCharacterResponse};
+use shared::protocol::{AuthChannel, CreateCharacter};
 use ui_toolkit::screen::Screen;
 
 use crate::game_state::GameState;
@@ -98,6 +98,7 @@ impl Plugin for CharCreatePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::CharCreate), build_char_create_ui);
         app.add_systems(OnExit(GameState::CharCreate), teardown_char_create_ui);
+        app.add_observer(handle_create_response);
         app.add_systems(
             Update,
             (
@@ -106,7 +107,6 @@ impl Plugin for CharCreatePlugin {
                 char_create_run_automation,
                 char_create_hover_visuals,
                 char_create_update_visuals,
-                handle_create_response,
             )
                 .into_configs()
                 .run_if(in_state(GameState::CharCreate)),
@@ -225,23 +225,30 @@ fn teardown_char_create_ui(
 // --- Create response handler ---
 
 fn handle_create_response(
-    mut receivers: Query<&mut MessageReceiver<CreateCharacterResponse>>,
+    result: On<crate::networking_auth::CharacterCreationResult>,
+    game_state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
-    mut state: ResMut<CharCreateState>,
+    state: Option<ResMut<CharCreateState>>,
 ) {
-    for mut receiver in receivers.iter_mut() {
-        for resp in receiver.receive() {
-            if resp.success {
-                info!("Character created, returning to CharSelect");
-                next_state.set(GameState::CharSelect);
-            } else {
-                let err = resp.error.unwrap_or_else(|| "Creation failed".to_string());
-                error!("Create character failed: {err}");
-                state.error_text = Some(err);
-            }
-        }
+    if *game_state.get() != GameState::CharCreate {
+        return;
+    }
+    let Some(mut state) = state else { return };
+    if result.success {
+        info!("Character created, returning to CharSelect");
+        next_state.set(GameState::CharSelect);
+    } else {
+        let err = result
+            .error
+            .clone()
+            .unwrap_or_else(|| "Creation failed".to_string());
+        state.error_text = Some(err);
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/char_create_response_tests.rs"]
+mod response_tests;
 
 // --- Hover ---
 

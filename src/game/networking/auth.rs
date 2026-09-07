@@ -417,14 +417,27 @@ fn send_enter_world(
     }
 }
 
-/// Handle CreateCharacterResponse: append new character to list.
+/// Local notification emitted after the roster has consumed the server response.
+#[derive(Event)]
+pub(crate) struct CharacterCreationResult {
+    pub success: bool,
+    pub error: Option<String>,
+}
+
+/// Handle CreateCharacterResponse: update the roster, then notify the UI.
 pub fn receive_create_character_response(
     mut receivers: Query<&mut MessageReceiver<CreateCharacterResponse>>,
     mut char_list: ResMut<CharacterList>,
+    mut commands: Commands,
 ) {
     for mut receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
+            let result = CharacterCreationResult {
+                success: resp.success,
+                error: resp.error.clone(),
+            };
             handle_create_character_response(resp, &mut char_list);
+            commands.trigger(result);
         }
     }
 }
