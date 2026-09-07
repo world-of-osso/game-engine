@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use bevy::app::{First, PostUpdate, Update};
+use bevy::app::{First, Update};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::time::{Real, TimeSystems, Virtual};
@@ -48,8 +48,7 @@ impl Plugin for NetworkTickPlugin {
                     .chain(),
             )
             .add_systems(First, plan_network_ticks.after(TimeSystems))
-            .add_systems(First, crate::network_events::restore_incoming)
-            .add_systems(PostUpdate, park_between_network_ticks)
+            .add_systems(First, apply_network_updates)
             .add_systems(Update, run_network_ticks)
             .add_systems(
                 NetworkTick,
@@ -62,9 +61,14 @@ impl Plugin for NetworkTickPlugin {
     }
 }
 
-fn park_between_network_ticks(world: &mut World) {
-    if world.resource::<NetworkTickClock>().due == 0 {
-        crate::network_events::park_incoming(world);
+fn apply_network_updates(world: &mut World) {
+    use crate::network_runtime::worker::NetworkRuntime;
+    if world.contains_resource::<NetworkRuntime>() {
+        world.resource_scope(|world, runtime: Mut<NetworkRuntime>| {
+            runtime
+                .drain_updates(world)
+                .unwrap_or_else(|error| panic!("{error}"));
+        });
     }
 }
 
