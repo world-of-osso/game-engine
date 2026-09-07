@@ -32,7 +32,7 @@ pub(crate) fn requests_service_window(
     if !args.iter().any(|arg| arg == "--service-window") {
         return Ok(None);
     }
-    let usage = "--service-window requires core, render, or continuous; only continuous accepts one --remove-system-after selector";
+    let usage = "--service-window requires core, render, or continuous; only continuous accepts one --remove-system-after selector or --skip-update-after SECONDS";
     let [flag, stage, tail @ ..] = args else {
         return Err(usage.into());
     };
@@ -43,6 +43,12 @@ pub(crate) fn requests_service_window(
         ("core", []) => Ok(Some(ServiceWindowMode::Core)),
         ("render", []) => Ok(Some(ServiceWindowMode::Render)),
         ("continuous", []) => Ok(Some(ServiceWindowMode::Continuous)),
+        ("continuous", [selector, seconds]) if selector == "--skip-update-after" => {
+            seconds
+                .parse::<u64>()
+                .map_err(|_| "skip-update seconds must be an unsigned integer".to_string())?;
+            Ok(Some(ServiceWindowMode::Continuous))
+        }
         ("continuous", [selector, _, _, _]) if selector == "--remove-system-after" => {
             crate::system_isolation::validate_requests(tail)?;
             Ok(Some(ServiceWindowMode::Continuous))

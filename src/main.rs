@@ -64,6 +64,7 @@ mod system_isolation;
 mod taxi;
 mod trash_button_screen;
 mod ui_input;
+mod update_schedule_isolation;
 
 pub use app_runtime::rgba_image;
 pub(crate) use app_runtime::{ScreenshotRequest, run_headless_ui_dump_app, take_screenshot};
@@ -486,6 +487,7 @@ fn insert_startup_resources(
     configure_msaa_isolation(app, args);
     configure_directional_shadow_isolation(app, args);
     system_isolation::configure(app, args);
+    update_schedule_isolation::configure(app, args);
     insert_data_resources(app);
 }
 

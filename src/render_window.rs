@@ -30,6 +30,7 @@ const UPDATE_LOG_INTERVAL: Duration = Duration::from_secs(1);
 pub(crate) fn run(continuous: bool, arguments: &[String]) -> Result<(), String> {
     let mut app = build_app(continuous);
     crate::system_isolation::configure(&mut app, arguments);
+    crate::update_schedule_isolation::configure(&mut app, arguments);
     match app.run() {
         AppExit::Success => Ok(()),
         AppExit::Error(code) => Err(format!("blank renderer exited with status {code}")),
