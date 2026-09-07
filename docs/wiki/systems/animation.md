@@ -10,7 +10,7 @@ The animation system adapts M2 bone tracks to Bevy `AnimationClip`/`AnimationGra
 translation + pivot - rotation * (scale * pivot)
 ```
 
-This ordering preserves pivoted mid-crossfades. `bevy_player.rs` creates two graph nodes per sequence so outgoing and current instances can retain independent seek times during a same-sequence or ordinary transition. It seeks paused clips from `M2AnimPlayer`; the controller remains the single WoW sequence/time clock.
+This ordering preserves pivoted mid-crossfades. `bevy_player.rs` creates two graph nodes per sequence so outgoing and current instances can retain independent seek times during a same-sequence or ordinary transition. On a re-transition, `PivotEvaluator::commit` has already retained the last blended raw pose before pivot correction and billboards; the player replaces its snapshot clip with that pose, then blends it to the new sequence. It seeks paused clips from `M2AnimPlayer`; the controller remains the single WoW sequence/time clock.
 
 Bevy runs animation in `PostUpdate` before transform propagation. This replaces custom M2 pose evaluation, but it is still part of the windowed render application—not a separate 60 Hz animation worker.
 
@@ -30,7 +30,7 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 
 - Transitions must always crossfade. Never snap between poses.
 - `blend_time` comes from M2 sequence data with a **minimum of 150ms** for movement transitions.
-- The legacy controller retains its two-pose timing when re-transitioned. `a6a5d917` proves `x0→4→16→20`; it does not prove full-pose/outgoing-weight continuity. A 40% A→B blend interrupted by B→C at 30% begins B→C with B weight 70%.
+- A re-transition starts from the last Bevy-evaluated raw pose, not the former source sequence. `aaec3864`/`a495893f` replace the historic `a6a5d917` `x0→4→16→20` jump. `interrupted-continuity/green-attempt.log` proves zero-elapsed translation continuity in the focused fixture. Rotation/scale interruption coverage remains pending.
 
 | Transition | Blend time |
 |------------|------------|

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Fix interrupted M2 crossfade continuity
+
+Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `aaec3864` and `a495893f`. Bevy retains the last blended raw pose in evaluator commit before pivot correction and billboard rotation; an interruption blends that snapshot to the new sequence. `interrupted-continuity/green-attempt.log` proves focused zero-elapsed position continuity. The historic `a6a5d917` jump remains recorded; rotation/scale interruption coverage, pixel equivalence, offline scene lifecycle, and performance remain open.
+
 ## [2026-09-07] systems | Prove native forced-disconnect lifecycle
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `1cce4171`. Authenticated client771292 matched the server netcode connection before an admin kick produced real `Disconnected`, InWorld → Login, visible `LoginRoot`, and zero links/replicas. Hidden semantic scene entries remain; this is not full cleanup or visual proof.
