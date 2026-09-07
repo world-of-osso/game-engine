@@ -113,7 +113,6 @@ The addon system does not aim to provide:
 - XML layout files or TOC manifests
 - WoW frame, widget, `C_*`, or saved-variable compatibility
 - WoW load-order, taint, mixin, or global-environment behavior
-- A Rust/WASM addon ABI as the primary authoring interface
 
 If sandboxing becomes necessary, it should protect the JavaScript runtime without changing the JavaScript authoring model.
 
