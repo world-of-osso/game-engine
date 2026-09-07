@@ -1,5 +1,4 @@
-use bevy::prelude::*;
-use lightyear::prelude::MessageSender;
+use game_engine::network_runtime::messages::{MessageSenders, WorkerMessageSender};
 use shared::protocol::{
     ChatChannel, CombatChannel, EmoteIntent, GroupInviteIntent, GroupUninviteIntent,
     SpellCastIntent, StopSpellCast,
@@ -83,7 +82,7 @@ fn handle_spell_cast(
     target: Option<String>,
     current_target: &CurrentTarget,
     connected: bool,
-    senders: &mut Query<&mut MessageSender<SpellCastIntent>>,
+    senders: &mut MessageSenders<SpellCastIntent>,
 ) {
     if !connected {
         let _ = cmd.respond.send(Response::Error(
@@ -111,11 +110,7 @@ fn handle_spell_cast(
     }
 }
 
-fn handle_spell_stop(
-    cmd: &Command,
-    connected: bool,
-    senders: &mut Query<&mut MessageSender<StopSpellCast>>,
-) {
+fn handle_spell_stop(cmd: &Command, connected: bool, senders: &mut MessageSenders<StopSpellCast>) {
     if !connected {
         let _ = cmd.respond.send(Response::Error(
             "spell stop is unavailable: not connected".into(),
@@ -137,7 +132,7 @@ fn handle_group_invite(
     cmd: &Command,
     name: String,
     connected: bool,
-    senders: &mut Query<&mut MessageSender<GroupInviteIntent>>,
+    senders: &mut MessageSenders<GroupInviteIntent>,
 ) {
     if !connected {
         let _ = cmd.respond.send(Response::Error(
@@ -158,7 +153,7 @@ fn handle_group_uninvite(
     cmd: &Command,
     name: String,
     connected: bool,
-    senders: &mut Query<&mut MessageSender<GroupUninviteIntent>>,
+    senders: &mut MessageSenders<GroupUninviteIntent>,
 ) {
     if !connected {
         let _ = cmd.respond.send(Response::Error(
@@ -179,7 +174,7 @@ fn handle_emote(
     cmd: &Command,
     emote: shared::protocol::EmoteKind,
     connected: bool,
-    senders: &mut Query<&mut MessageSender<EmoteIntent>>,
+    senders: &mut MessageSenders<EmoteIntent>,
 ) {
     if !connected {
         let _ = cmd.respond.send(Response::Error(
@@ -197,7 +192,7 @@ fn handle_emote(
 }
 
 fn send_combat_message<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     send_channel_message(senders, message, |sender, message| {
@@ -206,7 +201,7 @@ fn send_combat_message<T: Clone + lightyear::prelude::Message>(
 }
 
 fn send_social_message<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     send_channel_message(senders, message, |sender, message| {
@@ -215,9 +210,9 @@ fn send_social_message<T: Clone + lightyear::prelude::Message>(
 }
 
 fn send_channel_message<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
-    send: impl Fn(&mut MessageSender<T>, T),
+    send: impl Fn(&mut WorkerMessageSender<'_, T>, T),
 ) -> bool {
     let mut sent = false;
     for mut sender in senders.iter_mut() {

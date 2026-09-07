@@ -14,7 +14,7 @@ use bevy::diagnostic::DiagnosticsStore;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use lightyear::prelude::MessageSender;
+use game_engine::network_runtime::messages::MessageSenders;
 use lightyear::prelude::client::Connected;
 
 #[cfg(feature = "ipc")]
@@ -305,11 +305,11 @@ struct WorldParams<'w> {
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct IpcSenderParams<'w, 's> {
-    emote_senders: Query<'w, 's, &'static mut MessageSender<EmoteIntent>>,
-    spell_cast_senders: Query<'w, 's, &'static mut MessageSender<SpellCastIntent>>,
-    spell_stop_senders: Query<'w, 's, &'static mut MessageSender<StopSpellCast>>,
-    group_invite_senders: Query<'w, 's, &'static mut MessageSender<GroupInviteIntent>>,
-    group_uninvite_senders: Query<'w, 's, &'static mut MessageSender<GroupUninviteIntent>>,
+    emote_senders: MessageSenders<'w, 's, EmoteIntent>,
+    spell_cast_senders: MessageSenders<'w, 's, SpellCastIntent>,
+    spell_stop_senders: MessageSenders<'w, 's, StopSpellCast>,
+    group_invite_senders: MessageSenders<'w, 's, GroupInviteIntent>,
+    group_uninvite_senders: MessageSenders<'w, 's, GroupUninviteIntent>,
     equipment_control: ResMut<'w, EquipmentControlQueue>,
     scripted_movement: ResMut<'w, ScriptedMovement>,
     game_state: Res<'w, State<crate::game_state_enum::GameState>>,

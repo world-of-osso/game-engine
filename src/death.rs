@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AcceptSpiritHealerResurrection, DeathChannel, DeathPositionSnapshot, DeathStateSnapshot,
     DeathStateUpdate, QueryDeathStatus, ReleaseSpirit, ResurrectAtCorpse, UseStuckEscape,
@@ -93,7 +93,7 @@ fn death_query_pending(world: &World) -> bool {
 
 fn request_death_status_on_enter_world(
     mut runtime: ResMut<DeathRuntimeState>,
-    mut senders: Query<&mut MessageSender<QueryDeathStatus>>,
+    mut senders: MessageSenders<QueryDeathStatus>,
 ) {
     if send_all(&mut senders, QueryDeathStatus) {
         runtime.queried_inworld = true;
@@ -102,10 +102,10 @@ fn request_death_status_on_enter_world(
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct DeathSenders<'w, 's> {
-    release: Query<'w, 's, &'static mut MessageSender<ReleaseSpirit>>,
-    resurrect: Query<'w, 's, &'static mut MessageSender<ResurrectAtCorpse>>,
-    spirit_healer: Query<'w, 's, &'static mut MessageSender<AcceptSpiritHealerResurrection>>,
-    stuck_escape: Query<'w, 's, &'static mut MessageSender<UseStuckEscape>>,
+    release: MessageSenders<'w, 's, ReleaseSpirit>,
+    resurrect: MessageSenders<'w, 's, ResurrectAtCorpse>,
+    spirit_healer: MessageSenders<'w, 's, AcceptSpiritHealerResurrection>,
+    stuck_escape: MessageSenders<'w, 's, UseStuckEscape>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<DeathRuntimeState>, mut senders: DeathSenders) {
@@ -127,7 +127,7 @@ fn send_pending_actions(mut runtime: ResMut<DeathRuntimeState>, mut senders: Dea
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -142,9 +142,9 @@ fn receive_death_updates(
     mut runtime: ResMut<DeathRuntimeState>,
     mut snapshot: ResMut<DeathStatusSnapshot>,
     mut map_status: ResMut<MapStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<DeathStateUpdate>>,
+    mut receivers: MessageReceivers<DeathStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_death_state_update(&mut snapshot, &mut map_status, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -212,16 +212,25 @@ mod tests {
 
     #[test]
     fn dispatcher_retries_initial_query_until_a_sender_exists() {
+        use crate::network_runtime::messages::ConnectionSender;
+        use crate::network_runtime::worker::NetworkCommand;
+
         let mut app = App::new();
+        app.init_resource::<ConnectionSender>();
         app.add_plugins(DeathPlugin);
         crate::network_events::dispatch_outgoing(app.world_mut());
         assert!(!app.world().resource::<DeathRuntimeState>().queried_inworld);
-        app.world_mut()
-            .spawn(MessageSender::<QueryDeathStatus>::default());
+        let (sender, commands) = mpsc::channel();
+        app.insert_resource(ConnectionSender::new(Some(sender)));
         crate::network_events::dispatch_outgoing(app.world_mut());
         assert!(app.world().resource::<DeathRuntimeState>().queried_inworld);
+        assert!(matches!(commands.try_recv(), Ok(NetworkCommand::Apply(_))));
         app.world_mut().remove_resource::<DeathStatusSnapshot>();
         crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(matches!(
+            commands.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
     }
     use shared::protocol::DeathSnapshot;
 
