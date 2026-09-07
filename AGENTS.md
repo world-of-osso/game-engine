@@ -2,7 +2,7 @@
 
 > **CLAUDE.md is a symlink to AGENTS.md.** Edit AGENTS.md directly; git tracks AGENTS.md.
 
-Bevy 0.19 3D engine rebuilding the WoW client. Renders M2 models, terrain, and eventually the full game world. Standalone renderer with its own Bevy UI/debug tooling.
+Bevy 0.19 3D game engine. Renders models, terrain, and eventually the full game world. Standalone renderer with its own Bevy UI/debug tooling.
 
 ## Structure
 
