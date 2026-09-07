@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use bevy::audio::{AudioSinkPlayback, AudioSource, Volume};
+use bevy::ecs::schedule::common_conditions::resource_changed;
 use bevy::prelude::*;
 
 use crate::sound_footsteps::{
@@ -42,11 +43,22 @@ impl Plugin for SoundPlugin {
                     .chain(),
             )
             .add_systems(Update, toggle_mute)
-            .add_systems(Update, update_audio_volumes)
-            .add_systems(Update, runtime_ambient::maintain_ambient_playback)
-            .add_systems(Update, runtime_music::maintain_music_playback)
-            .add_systems(Update, attach_footstep_tracker)
-            .add_systems(Update, footstep_trigger.after(attach_footstep_tracker))
+            .add_systems(
+                Update,
+                update_audio_volumes.run_if(resource_changed::<SoundSettings>),
+            )
+            .add_systems(
+                Update,
+                runtime_ambient::maintain_ambient_playback
+                    .run_if(playback_needs_reconciliation::<AmbientSound>),
+            )
+            .add_systems(
+                Update,
+                runtime_music::maintain_music_playback
+                    .run_if(playback_needs_reconciliation::<MusicSound>),
+            )
+            .add_observer(attach_footstep_tracker)
+            .add_systems(Update, footstep_trigger)
             .add_systems(Update, queue_active_spell_sounds)
             .add_systems(Update, runtime_ui::queue_button_click_sound)
             .add_systems(
@@ -167,14 +179,22 @@ fn load_sound_assets(mut commands: Commands, mut audio_assets: ResMut<Assets<Aud
     commands.insert_resource(build_sound_assets(&mut audio_assets));
 }
 
+type AudioVolumeQueries<'w, 's> = ParamSet<
+    'w,
+    's,
+    (
+        Query<'static, 'static, &'static mut AudioSink, With<AmbientSound>>,
+        Query<'static, 'static, &'static mut AudioSink, With<MusicSound>>,
+    ),
+>;
+
 fn toggle_mute(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     bindings: Res<InputBindings>,
     mut settings: ResMut<SoundSettings>,
-    mut ambient_sinks: Query<&mut AudioSink, With<AmbientSound>>,
-    mut music_sinks: Query<&mut AudioSink, With<MusicSound>>,
+    mut sinks: AudioVolumeQueries<'_, '_>,
 ) {
     if modal_open.is_some() {
         return;
@@ -182,30 +202,23 @@ fn toggle_mute(
     if bindings.is_just_pressed(InputAction::ToggleMute, &keys, &mouse_buttons) {
         settings.muted = !settings.muted;
         let ambient_volume = compute_ambient_volume(&settings);
-        for mut sink in &mut ambient_sinks {
+        for mut sink in &mut sinks.p0() {
             sink.set_volume(Volume::Linear(ambient_volume));
         }
         let music_volume = compute_music_volume(&settings);
-        for mut sink in &mut music_sinks {
+        for mut sink in &mut sinks.p1() {
             sink.set_volume(Volume::Linear(music_volume));
         }
     }
 }
 
-fn update_audio_volumes(
-    settings: Res<SoundSettings>,
-    mut ambient_sinks: Query<&mut AudioSink, With<AmbientSound>>,
-    mut music_sinks: Query<&mut AudioSink, With<MusicSound>>,
-) {
-    if !settings.is_changed() {
-        return;
-    }
+fn update_audio_volumes(settings: Res<SoundSettings>, mut sinks: AudioVolumeQueries<'_, '_>) {
     let ambient_volume = compute_ambient_volume(&settings);
-    for mut sink in &mut ambient_sinks {
+    for mut sink in &mut sinks.p0() {
         sink.set_volume(Volume::Linear(ambient_volume));
     }
     let music_volume = compute_music_volume(&settings);
-    for mut sink in &mut music_sinks {
+    for mut sink in &mut sinks.p1() {
         sink.set_volume(Volume::Linear(music_volume));
     }
 }
@@ -221,10 +234,32 @@ type FootstepTrackerAttachQuery<'w, 's> = Query<
     ),
 >;
 
-fn attach_footstep_tracker(mut commands: Commands, query: FootstepTrackerAttachQuery<'_, '_>) {
-    for entity in &query {
+fn attach_footstep_tracker(
+    event: On<Add, (crate::camera::Player, crate::animation::M2AnimPlayer)>,
+    mut commands: Commands,
+    query: FootstepTrackerAttachQuery<'_, '_>,
+) {
+    if let Ok(entity) = query.get(event.entity) {
         commands.entity(entity).insert(FootstepTracker::default());
     }
+}
+
+fn playback_needs_reconciliation<T: Component>(
+    settings: Res<SoundSettings>,
+    assets: Option<Res<SoundAssets>>,
+    zone: Option<Res<crate::networking::CurrentZone>>,
+    mut removed: RemovedComponents<T>,
+    mut had_zone: Local<bool>,
+) -> bool {
+    // DESPAWN playback is removed by Bevy when the sink finishes. Consume every
+    // removal even when settings/zone changes also wake this reconciliation.
+    let playback_removed = removed.read().count() > 0;
+    let zone_removed = *had_zone && zone.is_none();
+    *had_zone = zone.is_some();
+    let zone_changed = zone.as_ref().is_some_and(|zone| zone.is_changed());
+    let assets_changed = assets.as_ref().is_some_and(|assets| assets.is_changed());
+    let inputs_changed = settings.is_changed() || assets_changed || zone_changed;
+    inputs_changed || zone_removed || playback_removed
 }
 
 fn footstep_trigger(

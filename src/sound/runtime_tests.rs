@@ -4,6 +4,214 @@ use super::runtime_assets::{
 };
 use super::*;
 
+fn maintenance_test_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(SoundPlugin)
+        .init_resource::<ButtonInput<KeyCode>>()
+        .init_resource::<ButtonInput<MouseButton>>()
+        .init_resource::<InputBindings>()
+        .insert_resource(SoundAssets {
+            footstep_light: Handle::default(),
+            footstep_heavy: Handle::default(),
+            footstep_catalog: Default::default(),
+            spell_cast: Handle::default(),
+            spell_impact: Handle::default(),
+            spell_heal: Handle::default(),
+            spell_miss: Handle::default(),
+            spell_interrupt: Handle::default(),
+            ui_button_click: Handle::default(),
+            ui_bag_open: Handle::default(),
+            ui_bag_close: Handle::default(),
+            ambient_loop: Handle::default(),
+            music_loop_fallback: Handle::default(),
+            music_tracks: vec![
+                LoadedMusicTrack {
+                    handle: Handle::default(),
+                    name: "first".into(),
+                },
+                LoadedMusicTrack {
+                    handle: Handle::default(),
+                    name: "second".into(),
+                },
+            ],
+            ambient_tracks_by_zone: HashMap::from([(5, vec![0, 1])]),
+            music_tracks_by_zone: HashMap::from([(5, vec![0, 1])]),
+        });
+    app
+}
+
+fn sound_update(app: &mut App) {
+    // Exercise production Update registration without opening an audio device or loading files.
+    app.world_mut().run_schedule(Update);
+    app.world_mut().clear_trackers();
+}
+
+fn sound_entity<T: Component>(app: &mut App) -> Entity {
+    app.world_mut()
+        .query_filtered::<Entity, With<T>>()
+        .single(app.world())
+        .unwrap()
+}
+
+fn test_anim_player() -> crate::animation::M2AnimPlayer {
+    crate::animation::M2AnimPlayer {
+        current_seq_idx: 0,
+        time_ms: 0.0,
+        looping: true,
+        transition: None,
+    }
+}
+
+#[test]
+fn maintenance_attaches_tracker_at_either_relevance_boundary_without_an_update() {
+    let mut app = maintenance_test_app();
+    let player_first = app.world_mut().spawn(crate::camera::Player).id();
+    let model_first = app.world_mut().spawn(test_anim_player()).id();
+    assert!(app.world().get::<FootstepTracker>(player_first).is_none());
+    assert!(app.world().get::<FootstepTracker>(model_first).is_none());
+    app.world_mut()
+        .entity_mut(player_first)
+        .insert(test_anim_player());
+    app.world_mut()
+        .entity_mut(model_first)
+        .insert(crate::camera::Player);
+    app.world_mut().flush();
+    assert!(app.world().get::<FootstepTracker>(player_first).is_some());
+    assert!(app.world().get::<FootstepTracker>(model_first).is_some());
+    app.world_mut()
+        .get_mut::<FootstepTracker>(player_first)
+        .unwrap()
+        .last_half = 1;
+    app.world_mut()
+        .entity_mut(player_first)
+        .insert(test_anim_player());
+    app.world_mut().flush();
+    assert_eq!(
+        app.world()
+            .get::<FootstepTracker>(player_first)
+            .unwrap()
+            .last_half,
+        1
+    );
+}
+
+#[test]
+fn maintenance_idle_does_not_acquire_sound_assets() {
+    let mut app = maintenance_test_app();
+    sound_update(&mut app);
+    sound_update(&mut app);
+    let ambient = sound_entity::<AmbientSound>(&mut app);
+    let music = sound_entity::<MusicSound>(&mut app);
+    app.world_mut().remove_resource::<SoundAssets>();
+    for _ in 0..3 {
+        sound_update(&mut app);
+    }
+    assert_eq!(sound_entity::<AmbientSound>(&mut app), ambient);
+    assert_eq!(sound_entity::<MusicSound>(&mut app), music);
+}
+
+#[test]
+fn maintenance_unlisted_zone_keeps_playback_through_idle_and_volume_changes() {
+    let mut app = maintenance_test_app();
+    app.insert_resource(crate::networking::CurrentZone { zone_id: 99 });
+    sound_update(&mut app);
+    let ambient = sound_entity::<AmbientSound>(&mut app);
+    let music = sound_entity::<MusicSound>(&mut app);
+    for _ in 0..3 {
+        sound_update(&mut app);
+    }
+    app.world_mut()
+        .resource_mut::<SoundSettings>()
+        .master_volume = 0.4;
+    sound_update(&mut app);
+    assert_eq!(sound_entity::<AmbientSound>(&mut app), ambient);
+    assert_eq!(sound_entity::<MusicSound>(&mut app), music);
+}
+
+#[test]
+fn maintenance_completion_removal_advances_zone_tracks_and_recovers() {
+    let mut app = maintenance_test_app();
+    app.insert_resource(crate::networking::CurrentZone { zone_id: 5 });
+    sound_update(&mut app);
+    let ambient = sound_entity::<AmbientSound>(&mut app);
+    let music = sound_entity::<MusicSound>(&mut app);
+    assert_eq!(
+        app.world()
+            .resource::<MusicPlaybackState>()
+            .active_track_name
+            .as_deref(),
+        Some("zone:5:first")
+    );
+    // Bevy cleanup_finished_audio despawns DESPAWN players after sink completion.
+    app.world_mut().despawn(ambient);
+    app.world_mut().despawn(music);
+    sound_update(&mut app);
+    assert_ne!(sound_entity::<AmbientSound>(&mut app), ambient);
+    assert_ne!(sound_entity::<MusicSound>(&mut app), music);
+    assert_eq!(
+        app.world()
+            .resource::<AmbientPlaybackState>()
+            .active_track_name
+            .as_deref(),
+        Some("ambient:5:second")
+    );
+    assert_eq!(
+        app.world()
+            .resource::<MusicPlaybackState>()
+            .active_track_name
+            .as_deref(),
+        Some("zone:5:second")
+    );
+    app.world_mut()
+        .resource_mut::<SoundSettings>()
+        .music_enabled = false;
+    sound_update(&mut app);
+    sound_update(&mut app);
+    assert_eq!(
+        app.world_mut()
+            .query_filtered::<Entity, With<MusicSound>>()
+            .iter(app.world())
+            .count(),
+        0
+    );
+    app.world_mut()
+        .resource_mut::<SoundSettings>()
+        .music_enabled = true;
+    sound_update(&mut app);
+    assert_eq!(
+        app.world()
+            .resource::<MusicPlaybackState>()
+            .active_track_name
+            .as_deref(),
+        Some("zone:5:first")
+    );
+}
+
+#[test]
+fn maintenance_zone_removal_replaces_tracks_then_stays_idle() {
+    let mut app = maintenance_test_app();
+    app.insert_resource(crate::networking::CurrentZone { zone_id: 5 });
+    sound_update(&mut app);
+    let previous = sound_entity::<AmbientSound>(&mut app);
+    app.world_mut()
+        .remove_resource::<crate::networking::CurrentZone>();
+    sound_update(&mut app);
+    sound_update(&mut app);
+    let current = sound_entity::<AmbientSound>(&mut app);
+    assert_ne!(previous, current);
+    assert_eq!(
+        app.world()
+            .resource::<AmbientPlaybackState>()
+            .active_track_name
+            .as_deref(),
+        Some("procedural-ambient-fallback")
+    );
+    for _ in 0..3 {
+        sound_update(&mut app);
+    }
+    assert_eq!(sound_entity::<AmbientSound>(&mut app), current);
+}
+
 #[test]
 fn footstep_samples_length() {
     let samples = generate_footstep_samples(0.5, 100);

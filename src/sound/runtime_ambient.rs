@@ -58,16 +58,14 @@ fn spawn_next_ambient_track(
     current_zone: Option<&crate::networking::CurrentZone>,
     state: &mut AmbientPlaybackState,
 ) {
-    if let Some((handle, name, looped, zone_id)) =
-        next_ambient_track(sound_assets, current_zone, state)
-    {
+    if let Some((handle, name, looped, _)) = next_ambient_track(sound_assets, current_zone, state) {
         commands.spawn((
             AmbientSound,
             AudioPlayer::<AudioSource>::new(handle),
             playback_settings_for_track(settings, looped),
         ));
         state.active_track_name = Some(name);
-        state.active_zone_id = zone_id;
+        state.active_zone_id = desired_zone_id(current_zone);
     }
 }
 
