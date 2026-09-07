@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AuctionChannel, AuctionHouseOpened, AuctionInventoryItem, AuctionInventorySnapshot,
     AuctionListingSummary, AuctionMailboxSnapshot, AuctionOperationResponse, AuctionSearchQuery,
@@ -171,17 +171,17 @@ fn enqueue_auction_request(
 
 #[derive(SystemParam)]
 struct AuctionSenders<'w, 's> {
-    open_senders: Query<'w, 's, &'static mut MessageSender<OpenAuctionHouse>>,
-    browse_senders: Query<'w, 's, &'static mut MessageSender<QueryAuctions>>,
-    owned_senders: Query<'w, 's, &'static mut MessageSender<QueryOwnedAuctions>>,
-    bids_senders: Query<'w, 's, &'static mut MessageSender<QueryBidAuctions>>,
-    inventory_senders: Query<'w, 's, &'static mut MessageSender<QueryAuctionInventory>>,
-    mailbox_senders: Query<'w, 's, &'static mut MessageSender<QueryAuctionMailbox>>,
-    create_senders: Query<'w, 's, &'static mut MessageSender<CreateAuction>>,
-    bid_senders: Query<'w, 's, &'static mut MessageSender<PlaceBid>>,
-    buyout_senders: Query<'w, 's, &'static mut MessageSender<BuyoutAuction>>,
-    cancel_senders: Query<'w, 's, &'static mut MessageSender<CancelAuction>>,
-    claim_senders: Query<'w, 's, &'static mut MessageSender<ClaimAuctionMail>>,
+    open_senders: MessageSenders<'w, 's, OpenAuctionHouse>,
+    browse_senders: MessageSenders<'w, 's, QueryAuctions>,
+    owned_senders: MessageSenders<'w, 's, QueryOwnedAuctions>,
+    bids_senders: MessageSenders<'w, 's, QueryBidAuctions>,
+    inventory_senders: MessageSenders<'w, 's, QueryAuctionInventory>,
+    mailbox_senders: MessageSenders<'w, 's, QueryAuctionMailbox>,
+    create_senders: MessageSenders<'w, 's, CreateAuction>,
+    bid_senders: MessageSenders<'w, 's, PlaceBid>,
+    buyout_senders: MessageSenders<'w, 's, BuyoutAuction>,
+    cancel_senders: MessageSenders<'w, 's, CancelAuction>,
+    claim_senders: MessageSenders<'w, 's, ClaimAuctionMail>,
 }
 
 fn send_pending_actions(mut state: ResMut<AuctionHouseState>, mut senders: AuctionSenders) {
@@ -211,7 +211,7 @@ fn send_pending_actions(mut state: ResMut<AuctionHouseState>, mut senders: Aucti
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -223,7 +223,7 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 }
 
 fn receive_opened(
-    mut receivers: Query<&mut MessageReceiver<AuctionHouseOpened>>,
+    mut receivers: MessageReceivers<AuctionHouseOpened>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -258,7 +258,7 @@ fn opened_response_to_ipc(success: bool, error: Option<String>) -> Response {
 }
 
 fn receive_search_results(
-    mut receivers: Query<&mut MessageReceiver<AuctionSearchResults>>,
+    mut receivers: MessageReceivers<AuctionSearchResults>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -276,7 +276,7 @@ fn receive_search_results(
 }
 
 fn receive_owned_results(
-    mut receivers: Query<&mut MessageReceiver<OwnedAuctionListResponse>>,
+    mut receivers: MessageReceivers<OwnedAuctionListResponse>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -293,7 +293,7 @@ fn receive_owned_results(
 }
 
 fn receive_bid_results(
-    mut receivers: Query<&mut MessageReceiver<BidAuctionListResponse>>,
+    mut receivers: MessageReceivers<BidAuctionListResponse>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -310,7 +310,7 @@ fn receive_bid_results(
 }
 
 fn receive_inventory_snapshot(
-    mut receivers: Query<&mut MessageReceiver<AuctionInventorySnapshot>>,
+    mut receivers: MessageReceivers<AuctionInventorySnapshot>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -324,7 +324,7 @@ fn receive_inventory_snapshot(
 }
 
 fn receive_mailbox_snapshot(
-    mut receivers: Query<&mut MessageReceiver<AuctionMailboxSnapshot>>,
+    mut receivers: MessageReceivers<AuctionMailboxSnapshot>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -338,7 +338,7 @@ fn receive_mailbox_snapshot(
 }
 
 fn receive_operation_response(
-    mut receivers: Query<&mut MessageReceiver<AuctionOperationResponse>>,
+    mut receivers: MessageReceivers<AuctionOperationResponse>,
     mut state: ResMut<AuctionHouseState>,
 ) {
     for mut receiver in &mut receivers {
@@ -482,6 +482,7 @@ mod tests {
     #[test]
     fn queued_request_without_connection_reports_failure_once() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(AuctionHousePlugin);
         let (respond, replies) = mpsc::channel();
         queue_ipc_request(

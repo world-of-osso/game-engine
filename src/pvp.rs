@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     DequeueFromPvp, PvpBracketSnapshot, PvpChannel, PvpQueueKindSnapshot, PvpStateUpdate,
     QueryPvpStatus, QueueForBattleground, QueueForRatedPvp,
@@ -86,7 +86,7 @@ fn pvp_query_pending(world: &World) -> bool {
 fn request_pvp_status_on_enter_world(
     mut runtime: ResMut<PvpRuntimeState>,
     snapshot: Res<PvpStatusSnapshot>,
-    mut senders: Query<&mut MessageSender<QueryPvpStatus>>,
+    mut senders: MessageSenders<QueryPvpStatus>,
 ) {
     if runtime.queried_inworld || !snapshot.brackets.is_empty() || snapshot.queue.is_some() {
         return;
@@ -98,9 +98,9 @@ fn request_pvp_status_on_enter_world(
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct PvpSenders<'w, 's> {
-    battleground: Query<'w, 's, &'static mut MessageSender<QueueForBattleground>>,
-    rated: Query<'w, 's, &'static mut MessageSender<QueueForRatedPvp>>,
-    dequeue: Query<'w, 's, &'static mut MessageSender<DequeueFromPvp>>,
+    battleground: MessageSenders<'w, 's, QueueForBattleground>,
+    rated: MessageSenders<'w, 's, QueueForRatedPvp>,
+    dequeue: MessageSenders<'w, 's, DequeueFromPvp>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<PvpRuntimeState>, mut senders: PvpSenders) {
@@ -122,7 +122,7 @@ fn send_pending_actions(mut runtime: ResMut<PvpRuntimeState>, mut senders: PvpSe
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -136,9 +136,9 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 fn receive_pvp_updates(
     mut runtime: ResMut<PvpRuntimeState>,
     mut snapshot: ResMut<PvpStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<PvpStateUpdate>>,
+    mut receivers: MessageReceivers<PvpStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_pvp_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {

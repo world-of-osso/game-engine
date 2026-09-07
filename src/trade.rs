@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AcceptTrade, CancelTrade, ClearTradeItem, ConfirmTrade, DeclineTrade, InitiateTrade,
     SetTradeItem, SetTradeMoney, TradeChannel, TradePhase, TradeSnapshot, TradeStateUpdate,
@@ -94,14 +94,14 @@ fn map_action(request: &Request) -> Option<Action> {
 
 #[derive(SystemParam)]
 struct TradeSenders<'w, 's> {
-    initiate: Query<'w, 's, &'static mut MessageSender<InitiateTrade>>,
-    accept: Query<'w, 's, &'static mut MessageSender<AcceptTrade>>,
-    decline: Query<'w, 's, &'static mut MessageSender<DeclineTrade>>,
-    cancel: Query<'w, 's, &'static mut MessageSender<CancelTrade>>,
-    set_item: Query<'w, 's, &'static mut MessageSender<SetTradeItem>>,
-    clear_item: Query<'w, 's, &'static mut MessageSender<ClearTradeItem>>,
-    set_money: Query<'w, 's, &'static mut MessageSender<SetTradeMoney>>,
-    confirm: Query<'w, 's, &'static mut MessageSender<ConfirmTrade>>,
+    initiate: MessageSenders<'w, 's, InitiateTrade>,
+    accept: MessageSenders<'w, 's, AcceptTrade>,
+    decline: MessageSenders<'w, 's, DeclineTrade>,
+    cancel: MessageSenders<'w, 's, CancelTrade>,
+    set_item: MessageSenders<'w, 's, SetTradeItem>,
+    clear_item: MessageSenders<'w, 's, ClearTradeItem>,
+    set_money: MessageSenders<'w, 's, SetTradeMoney>,
+    confirm: MessageSenders<'w, 's, ConfirmTrade>,
 }
 
 fn send_pending_actions(mut state: ResMut<TradeClientState>, mut senders: TradeSenders) {
@@ -128,7 +128,7 @@ fn send_pending_actions(mut state: ResMut<TradeClientState>, mut senders: TradeS
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -140,7 +140,7 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 }
 
 fn receive_trade_updates(
-    mut receivers: Query<&mut MessageReceiver<TradeStateUpdate>>,
+    mut receivers: MessageReceivers<TradeStateUpdate>,
     mut state: ResMut<TradeClientState>,
 ) {
     for mut receiver in &mut receivers {
@@ -278,6 +278,7 @@ mod tests {
     #[test]
     fn dispatcher_reports_disconnected_action_then_leaves_idle_state_unchanged() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(TradePlugin);
         let (reply, responses) = mpsc::channel();
         {

@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     ApplyTalentChoice, QueryTalents, ResetTalents, TalentChannel, TalentStateUpdate,
 };
@@ -80,7 +80,7 @@ fn talent_query_pending(world: &World) -> bool {
 
 fn request_talents_on_enter_world(
     mut runtime: ResMut<TalentRuntimeState>,
-    mut senders: Query<&mut MessageSender<QueryTalents>>,
+    mut senders: MessageSenders<QueryTalents>,
 ) {
     if send_all(&mut senders, QueryTalents) {
         runtime.queried_inworld = true;
@@ -89,8 +89,8 @@ fn request_talents_on_enter_world(
 
 #[derive(SystemParam)]
 struct TalentSenders<'w, 's> {
-    apply: Query<'w, 's, &'static mut MessageSender<ApplyTalentChoice>>,
-    reset: Query<'w, 's, &'static mut MessageSender<ResetTalents>>,
+    apply: MessageSenders<'w, 's, ApplyTalentChoice>,
+    reset: MessageSenders<'w, 's, ResetTalents>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<TalentRuntimeState>, mut senders: TalentSenders) {
@@ -110,7 +110,7 @@ fn send_pending_actions(mut runtime: ResMut<TalentRuntimeState>, mut senders: Ta
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -124,9 +124,9 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 fn receive_talent_updates(
     mut runtime: ResMut<TalentRuntimeState>,
     mut snapshot: ResMut<TalentStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<TalentStateUpdate>>,
+    mut receivers: MessageReceivers<TalentStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_talent_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -245,6 +245,7 @@ mod tests {
     #[test]
     fn dispatcher_queries_only_when_existing_talents_are_cleared() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(TalentPlugin);
         app.insert_resource(TalentStatusSnapshot {
             talents: vec![TalentNodeEntry {
@@ -256,16 +257,26 @@ mod tests {
             }],
             ..Default::default()
         });
-        app.world_mut()
-            .spawn(MessageSender::<QueryTalents>::default());
+        let (sender, commands) = std::sync::mpsc::channel();
+        app.insert_resource(
+            game_engine::network_runtime::messages::ConnectionSender::new(Some(sender)),
+        );
         crate::network_events::dispatch_outgoing(app.world_mut());
         assert!(!app.world().resource::<TalentRuntimeState>().queried_inworld);
+        assert!(matches!(
+            commands.try_recv(),
+            Err(std::sync::mpsc::TryRecvError::Empty)
+        ));
         app.world_mut()
             .resource_mut::<TalentStatusSnapshot>()
             .talents
             .clear();
         crate::network_events::dispatch_outgoing(app.world_mut());
         assert!(app.world().resource::<TalentRuntimeState>().queried_inworld);
+        assert!(matches!(
+            commands.try_recv(),
+            Ok(crate::network_runtime::worker::NetworkCommand::Apply(_))
+        ));
     }
 
     #[test]

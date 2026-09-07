@@ -3,7 +3,8 @@ use std::sync::mpsc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use bevy::prelude::*;
-use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSender};
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{
     CalendarChannel, CalendarSignupStatusSnapshot, CalendarStateUpdate, QueryCalendar,
     RespondCalendarSignup, ScheduleCalendarEvent,
@@ -115,9 +116,9 @@ pub fn queue_signup_action(
 
 fn send_pending_actions(
     mut runtime: ResMut<CalendarRuntimeState>,
-    mut query_senders: Query<&mut MessageSender<QueryCalendar>>,
-    mut schedule_senders: Query<&mut MessageSender<ScheduleCalendarEvent>>,
-    mut signup_senders: Query<&mut MessageSender<RespondCalendarSignup>>,
+    mut query_senders: MessageSenders<QueryCalendar>,
+    mut schedule_senders: MessageSenders<ScheduleCalendarEvent>,
+    mut signup_senders: MessageSenders<RespondCalendarSignup>,
 ) {
     while let Some(action) = runtime.pending_actions.pop_front() {
         let sent = match action {
@@ -150,10 +151,7 @@ fn send_pending_actions(
     }
 }
 
-fn send_all<T: Clone + NetworkMessage>(
-    senders: &mut Query<&mut MessageSender<T>>,
-    message: T,
-) -> bool {
+fn send_all<T: Clone + NetworkMessage>(senders: &mut MessageSenders<T>, message: T) -> bool {
     let mut sent = false;
     for mut sender in senders.iter_mut() {
         sender.send::<CalendarChannel>(message.clone());
@@ -165,9 +163,9 @@ fn send_all<T: Clone + NetworkMessage>(
 fn receive_calendar_updates(
     mut runtime: ResMut<CalendarRuntimeState>,
     mut snapshot: ResMut<CalendarStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<CalendarStateUpdate>>,
+    mut receivers: MessageReceivers<CalendarStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_calendar_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -278,6 +276,7 @@ mod tests {
     #[test]
     fn queued_requests_wait_for_dispatch_then_report_disconnection() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(CalendarPlugin)
             .init_resource::<CalendarStatusSnapshot>();
         let (reply, responses) = mpsc::channel();
@@ -319,6 +318,7 @@ mod tests {
     #[test]
     fn idle_dispatch_leaves_waiting_replies_untouched() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(CalendarPlugin);
         let (reply, responses) = mpsc::channel();
         app.world_mut()

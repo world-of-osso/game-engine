@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::components::CharacterAppearance;
 use shared::protocol::{
     ApplyBarberShopChanges, BarberShopChannel, BarberShopStateUpdate, QueryBarberShopStatus,
@@ -94,7 +94,7 @@ fn barber_shop_query_pending(world: &World) -> bool {
 fn request_barber_shop_status_on_enter_world(
     mut runtime: ResMut<BarberShopRuntimeState>,
     snapshot: Res<BarberShopStatusSnapshot>,
-    mut senders: Query<&mut MessageSender<QueryBarberShopStatus>>,
+    mut senders: MessageSenders<QueryBarberShopStatus>,
 ) {
     if runtime.queried_inworld
         || snapshot.gold > 0
@@ -109,7 +109,7 @@ fn request_barber_shop_status_on_enter_world(
 
 fn send_pending_actions(
     mut runtime: ResMut<BarberShopRuntimeState>,
-    mut senders: Query<&mut MessageSender<ApplyBarberShopChanges>>,
+    mut senders: MessageSenders<ApplyBarberShopChanges>,
 ) {
     while let Some(action) = runtime.pending_actions.pop_front() {
         let sent = match action {
@@ -126,7 +126,7 @@ fn send_pending_actions(
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -140,9 +140,9 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 fn receive_barber_shop_updates(
     mut runtime: ResMut<BarberShopRuntimeState>,
     mut snapshot: ResMut<BarberShopStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<BarberShopStateUpdate>>,
+    mut receivers: MessageReceivers<BarberShopStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_barber_shop_state_update(&mut runtime, &mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::components::Player as NetPlayer;
 use shared::protocol::{InspectChannel, InspectStateUpdate, QueryInspectTarget};
 
@@ -79,7 +79,7 @@ fn clear_snapshot(snapshot: &mut InspectStatusSnapshot) {
 
 fn send_pending_queries(
     mut runtime: ResMut<InspectRuntimeState>,
-    mut senders: Query<&mut MessageSender<QueryInspectTarget>>,
+    mut senders: MessageSenders<QueryInspectTarget>,
 ) {
     if !runtime.pending_query {
         return;
@@ -101,7 +101,7 @@ fn send_pending_queries(
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -115,9 +115,9 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 fn receive_inspect_updates(
     mut runtime: ResMut<InspectRuntimeState>,
     mut snapshot: ResMut<InspectStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<InspectStateUpdate>>,
+    mut receivers: MessageReceivers<InspectStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_inspect_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -247,6 +247,7 @@ mod tests {
     #[test]
     fn dispatcher_consumes_pending_query_and_replies_when_disconnected() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(InspectPlugin);
         let (reply, responses) = mpsc::channel();
         {

@@ -2,7 +2,8 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 
 use bevy::prelude::*;
-use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSender};
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{QueryWho, WhoChannel, WhoStateUpdate};
 
 use crate::ipc::{Request, Response};
@@ -56,7 +57,7 @@ pub fn queue_query(runtime: &mut WhoRuntimeState, query: String) {
 
 fn send_pending_queries(
     mut runtime: ResMut<WhoRuntimeState>,
-    mut senders: Query<&mut MessageSender<QueryWho>>,
+    mut senders: MessageSenders<QueryWho>,
 ) {
     if runtime.pending_queries.is_empty() {
         return;
@@ -75,10 +76,7 @@ fn send_pending_queries(
     }
 }
 
-fn send_all<T: Clone + NetworkMessage>(
-    senders: &mut Query<&mut MessageSender<T>>,
-    message: T,
-) -> bool {
+fn send_all<T: Clone + NetworkMessage>(senders: &mut MessageSenders<T>, message: T) -> bool {
     let mut sent = false;
     for mut sender in senders.iter_mut() {
         sender.send::<WhoChannel>(message.clone());
@@ -90,9 +88,9 @@ fn send_all<T: Clone + NetworkMessage>(
 fn receive_who_updates(
     mut runtime: ResMut<WhoRuntimeState>,
     mut snapshot: ResMut<WhoStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<WhoStateUpdate>>,
+    mut receivers: MessageReceivers<WhoStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_who_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -150,6 +148,7 @@ mod tests {
     #[test]
     fn queued_requests_wait_for_dispatch_then_report_disconnection() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(WhoPlugin)
             .init_resource::<WhoStatusSnapshot>();
         let (reply, responses) = mpsc::channel();
@@ -187,6 +186,7 @@ mod tests {
     #[test]
     fn idle_dispatch_leaves_waiting_replies_untouched() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(WhoPlugin);
         let (reply, responses) = mpsc::channel();
         app.world_mut()

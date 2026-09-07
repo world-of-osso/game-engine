@@ -3,7 +3,8 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSender};
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{CurrencyChannel, CurrencyStateUpdate, EarnCurrency, SpendCurrency};
 
 use crate::ipc::{Request, Response};
@@ -75,8 +76,8 @@ pub fn queue_ipc_request(
 
 #[derive(SystemParam)]
 struct CurrencySenders<'w, 's> {
-    earn: Query<'w, 's, &'static mut MessageSender<EarnCurrency>>,
-    spend: Query<'w, 's, &'static mut MessageSender<SpendCurrency>>,
+    earn: MessageSenders<'w, 's, EarnCurrency>,
+    spend: MessageSenders<'w, 's, SpendCurrency>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<CurrencyRuntimeState>, mut senders: CurrencySenders) {
@@ -111,10 +112,7 @@ fn send_pending_actions(mut runtime: ResMut<CurrencyRuntimeState>, mut senders: 
     }
 }
 
-fn send_all<T: Clone + NetworkMessage>(
-    senders: &mut Query<&mut MessageSender<T>>,
-    message: T,
-) -> bool {
+fn send_all<T: Clone + NetworkMessage>(senders: &mut MessageSenders<T>, message: T) -> bool {
     let mut sent = false;
     for mut sender in senders.iter_mut() {
         sender.send::<CurrencyChannel>(message.clone());
@@ -126,9 +124,9 @@ fn send_all<T: Clone + NetworkMessage>(
 fn receive_currency_updates(
     mut runtime: ResMut<CurrencyRuntimeState>,
     mut snapshot: ResMut<CurrenciesStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<CurrencyStateUpdate>>,
+    mut receivers: MessageReceivers<CurrencyStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_currency_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -194,6 +192,7 @@ mod tests {
     #[test]
     fn idle_dispatch_needs_no_currency_snapshot() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(CurrencyPlugin);
         crate::network_events::dispatch_incoming(app.world_mut());
         crate::network_events::dispatch_outgoing(app.world_mut());

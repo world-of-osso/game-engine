@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AcceptDuel, DeclineDuel, DuelBoundarySnapshot, DuelChannel, DuelPhaseSnapshot,
     DuelResultSnapshot, DuelStateUpdate, InitiateDuel,
@@ -74,9 +74,9 @@ fn map_action(request: &Request, current_target: &CurrentTarget) -> Option<Actio
 
 #[derive(SystemParam)]
 struct DuelSenders<'w, 's> {
-    challenge: Query<'w, 's, &'static mut MessageSender<InitiateDuel>>,
-    accept: Query<'w, 's, &'static mut MessageSender<AcceptDuel>>,
-    decline: Query<'w, 's, &'static mut MessageSender<DeclineDuel>>,
+    challenge: MessageSenders<'w, 's, InitiateDuel>,
+    accept: MessageSenders<'w, 's, AcceptDuel>,
+    decline: MessageSenders<'w, 's, DeclineDuel>,
 }
 
 fn send_pending_actions(mut state: ResMut<DuelClientState>, mut senders: DuelSenders) {
@@ -93,7 +93,7 @@ fn send_pending_actions(mut state: ResMut<DuelClientState>, mut senders: DuelSen
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -105,11 +105,11 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 }
 
 fn receive_duel_updates(
-    mut receivers: Query<&mut MessageReceiver<DuelStateUpdate>>,
+    mut receivers: MessageReceivers<DuelStateUpdate>,
     mut state: ResMut<DuelClientState>,
     mut snapshot: ResMut<DuelStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_duel_state_update(&mut snapshot, update);
             if let Some(reply) = state.pending_replies.pop_front() {

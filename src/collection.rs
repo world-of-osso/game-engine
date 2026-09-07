@@ -3,7 +3,8 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSender};
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{
     CollectionChannel, CollectionStateUpdate, DismissMount, DismissPet, SummonMount, SummonPet,
 };
@@ -65,10 +66,10 @@ pub fn queue_ipc_request(
 
 #[derive(SystemParam)]
 struct CollectionSenders<'w, 's> {
-    summon_mount: Query<'w, 's, &'static mut MessageSender<SummonMount>>,
-    dismiss_mount: Query<'w, 's, &'static mut MessageSender<DismissMount>>,
-    summon_pet: Query<'w, 's, &'static mut MessageSender<SummonPet>>,
-    dismiss_pet: Query<'w, 's, &'static mut MessageSender<DismissPet>>,
+    summon_mount: MessageSenders<'w, 's, SummonMount>,
+    dismiss_mount: MessageSenders<'w, 's, DismissMount>,
+    summon_pet: MessageSenders<'w, 's, SummonPet>,
+    dismiss_pet: MessageSenders<'w, 's, DismissPet>,
 }
 
 fn send_pending_actions(
@@ -92,10 +93,7 @@ fn send_pending_actions(
     }
 }
 
-fn send_all<T: Clone + NetworkMessage>(
-    senders: &mut Query<&mut MessageSender<T>>,
-    message: T,
-) -> bool {
+fn send_all<T: Clone + NetworkMessage>(senders: &mut MessageSenders<T>, message: T) -> bool {
     let mut sent = false;
     for mut sender in senders.iter_mut() {
         sender.send::<CollectionChannel>(message.clone());
@@ -107,9 +105,9 @@ fn send_all<T: Clone + NetworkMessage>(
 fn receive_collection_updates(
     mut runtime: ResMut<CollectionRuntimeState>,
     mut snapshot: ResMut<CollectionStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<CollectionStateUpdate>>,
+    mut receivers: MessageReceivers<CollectionStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_collection_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -171,6 +169,7 @@ mod tests {
     #[test]
     fn dispatcher_skips_idle_receivers_and_defers_queued_actions_until_dispatch() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(CollectionPlugin);
         // No snapshot: an idle incoming handler must not acquire its parameters.
         dispatch_incoming(app.world_mut());

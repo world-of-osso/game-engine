@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     CraftProfessionRecipe, GatherProfessionNode, ProfessionChannel, ProfessionSkillSnapshot,
     ProfessionStateUpdate, QueryProfessions,
@@ -97,7 +97,7 @@ fn profession_query_pending(world: &World) -> bool {
 
 fn request_professions_on_enter_world(
     mut runtime: ResMut<ProfessionRuntimeState>,
-    mut senders: Query<&mut MessageSender<QueryProfessions>>,
+    mut senders: MessageSenders<QueryProfessions>,
 ) {
     if send_all(&mut senders, QueryProfessions) {
         runtime.queried_inworld = true;
@@ -106,8 +106,8 @@ fn request_professions_on_enter_world(
 
 #[derive(SystemParam)]
 struct ProfessionSenders<'w, 's> {
-    craft: Query<'w, 's, &'static mut MessageSender<CraftProfessionRecipe>>,
-    gather: Query<'w, 's, &'static mut MessageSender<GatherProfessionNode>>,
+    craft: MessageSenders<'w, 's, CraftProfessionRecipe>,
+    gather: MessageSenders<'w, 's, GatherProfessionNode>,
 }
 
 fn send_pending_actions(
@@ -132,7 +132,7 @@ fn send_pending_actions(
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -146,9 +146,9 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 fn receive_profession_updates(
     mut runtime: ResMut<ProfessionRuntimeState>,
     mut snapshot: ResMut<ProfessionStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<ProfessionStateUpdate>>,
+    mut receivers: MessageReceivers<ProfessionStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_profession_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
@@ -272,6 +272,7 @@ mod tests {
     #[test]
     fn idle_dispatch_skips_profession_snapshot_parameters() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(ProfessionPlugin);
         app.world_mut()
             .resource_mut::<ProfessionRuntimeState>()
@@ -285,6 +286,7 @@ mod tests {
     #[test]
     fn queued_actions_wait_for_dispatch_and_report_disconnection() {
         let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
         app.add_plugins(ProfessionPlugin)
             .init_resource::<ProfessionStatusSnapshot>();
         let (reply, responses) = mpsc::channel();

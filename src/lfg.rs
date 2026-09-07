@@ -3,7 +3,7 @@ use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     DequeueFromLfg, GroupRoleSnapshot, LfgChannel, LfgMatchFoundSnapshot, LfgRoleCheckSnapshot,
     LfgStateUpdate, QueryLfgStatus, QueueForLfg, RespondToLfgRoleCheck,
@@ -104,7 +104,7 @@ fn lfg_query_pending(world: &World) -> bool {
 fn request_lfg_status_on_enter_world(
     mut runtime: ResMut<LfgRuntimeState>,
     snapshot: Res<LfgStatusSnapshot>,
-    mut senders: Query<&mut MessageSender<QueryLfgStatus>>,
+    mut senders: MessageSenders<QueryLfgStatus>,
 ) {
     if runtime.queried_inworld
         || snapshot.queued
@@ -121,9 +121,9 @@ fn request_lfg_status_on_enter_world(
 
 #[derive(SystemParam)]
 struct LfgSenders<'w, 's> {
-    queue: Query<'w, 's, &'static mut MessageSender<QueueForLfg>>,
-    dequeue: Query<'w, 's, &'static mut MessageSender<DequeueFromLfg>>,
-    respond: Query<'w, 's, &'static mut MessageSender<RespondToLfgRoleCheck>>,
+    queue: MessageSenders<'w, 's, QueueForLfg>,
+    dequeue: MessageSenders<'w, 's, DequeueFromLfg>,
+    respond: MessageSenders<'w, 's, RespondToLfgRoleCheck>,
 }
 
 fn send_pending_actions(mut runtime: ResMut<LfgRuntimeState>, mut senders: LfgSenders) {
@@ -148,7 +148,7 @@ fn send_pending_actions(mut runtime: ResMut<LfgRuntimeState>, mut senders: LfgSe
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut Query<&mut MessageSender<T>>,
+    senders: &mut MessageSenders<T>,
     message: T,
 ) -> bool {
     let mut sent = false;
@@ -162,9 +162,9 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
 fn receive_lfg_updates(
     mut runtime: ResMut<LfgRuntimeState>,
     mut snapshot: ResMut<LfgStatusSnapshot>,
-    mut receivers: Query<&mut MessageReceiver<LfgStateUpdate>>,
+    mut receivers: MessageReceivers<LfgStateUpdate>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_lfg_state_update(&mut snapshot, update);
             if let Some(reply) = runtime.pending_replies.pop_front() {
