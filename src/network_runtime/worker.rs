@@ -207,6 +207,7 @@ mod tests {
     fn worker_ticks_while_main_app_is_not_updated_and_stops_cleanly() {
         let ticks = Arc::new(AtomicUsize::new(0));
         let observed_ticks = Arc::clone(&ticks);
+        let (progress, observed) = mpsc::channel();
         let (ready, started) = mpsc::channel();
         let mut runtime = NetworkRuntime::spawn(move |app, updates| {
             app.add_systems(Startup, move || {
@@ -214,6 +215,7 @@ mod tests {
             });
             app.add_systems(Update, move || {
                 let count = observed_ticks.fetch_add(1, Ordering::SeqCst) + 1;
+                progress.send(count).expect("main awaiting worker ticks");
                 updates
                     .send(Box::new(move |world| {
                         world.resource_mut::<MainCounter>().0 = count;
@@ -227,9 +229,14 @@ mod tests {
         started
             .recv_timeout(TEST_TIMEOUT)
             .expect("worker startup completes");
-        let before = ticks.load(Ordering::SeqCst);
-        thread::sleep(Duration::from_millis(100));
-        assert!(ticks.load(Ordering::SeqCst) >= before + 2);
+        for expected in 1..=3 {
+            assert_eq!(
+                observed
+                    .recv_timeout(TEST_TIMEOUT)
+                    .expect("worker progresses"),
+                expected
+            );
+        }
         assert_eq!(main.world().resource::<MainCounter>().0, 0);
         runtime
             .drain_updates(main.world_mut())
