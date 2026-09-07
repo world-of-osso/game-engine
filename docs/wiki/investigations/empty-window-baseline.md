@@ -55,6 +55,14 @@ Whole-host busy CPU was 5.799% for native, 5.407% for core, 7.165% for reactive 
 
 Independent source verification and runtime audit `248` pass the bounded finding: the first major CPU increase appears when the otherwise blank framework enters continuous updates, before project services are registered. This is not an optimization, a same-throughput comparison, or a full-game root-cause conclusion. The evidence has no presented FPS, frame-time pacing, render-thread breakdown, per-thread CPU attribution, or hardware-counter proof. The continuous client remains open as PID 1217890, window 331.
 
+## Optional named-system CPU attribution
+
+Commit `29c3251d` lets the blank GPU stages use the existing opt-in `cpu-system-profile` layer. Only a `cpu-system-profile` feature build with `WOO_CPU_PROFILE_OUTPUT` set installs the layer; ordinary blank-renderer logging remains unchanged. The control does not alter pools, pipelining, presentation, or Winit update policy.
+
+The control exports named Bevy system spans, not complete process ownership. Executor, driver, and uninstrumented work remain residual; any profiling run must measure instrumentation overhead separately. See [[movement-performance#named-span-thread-cpu-diagnostic]] for the profiler's capture window and accounting boundaries.
+
+The native RED used the pre-integration feature binary `7aa4` with `WOO_CPU_PROFILE_OUTPUT` set. It logged updates for 46 seconds but wrote no profile output, proving that the former blank-renderer path bypassed the layer. `29c3251d` is the integration change; native GREEN output is pending. No profiler runtime result is claimed yet.
+
 ## Measurement scope
 
 Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Native and core stages have no game workload or continuous rendering. Renderer stages add only blank-frame work; their deliberately different update policies do not establish a same-throughput game optimization.
@@ -72,7 +80,7 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 ## Sources
 
 - [empty-window baseline spec](../../specs/empty-window-baseline.md) — native boundary and measurement scope
-- [service-window baseline spec](../../specs/service-window-baseline.md) — staged core, reactive-renderer, and continuous-renderer contract
+- [service-window baseline spec](../../specs/service-window-baseline.md) — staged contract and opt-in blank-renderer CPU-attribution control
 - [main startup](../../../src/main.rs) — early diagnostic routing and error exit
 - [CLI parsing](../../../src/cli_args.rs) — exclusive argument selection
 - [empty window runtime](../../../src/empty_window.rs) — shared winit/softbuffer loop and optional app update
@@ -81,5 +89,5 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 
 ## See Also
 
-- [[movement-performance]] — comparative game-runtime CPU investigation results
+- [[movement-performance]] — comparative game-runtime CPU investigation results and named-span profiler accounting
 - [[rendering-pipeline]] — full-game rendering architecture beyond the blank diagnostic scene

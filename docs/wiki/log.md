@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] diagnostic | Wire blank renderer to existing named-system profiler
+
+Updated [[empty-window-baseline]] for `29c3251d` and linked the [service-window baseline spec](../../specs/service-window-baseline.md). A `cpu-system-profile` feature build now installs the existing opt-in `WOO_CPU_PROFILE_OUTPUT` layer for blank GPU stages; ordinary logging and renderer scheduling remain unchanged. The pre-integration `7aa4` RED logged updates for 46 seconds with the environment variable but exported no profile, proving the old path bypassed the layer. Native GREEN output and overhead measurement remain pending. Named spans will remain partial attribution, not process ownership.
+
 ## [2026-09-07] measurement | Continuous blank renderer is the first major CPU rise
 
 Updated [[empty-window-baseline]], the staged service spec, and the index for source `76076850` and renderer binary `d847c8c5568a549b976972f8cdffc8e2cf8e1d99ec1cbfccb7a499bfe9cfa56d`. Twelve-second, 13/13-focused 1280×1198 samples measured native 0 ticks, Bevy core 0.16664% one core, reactive blank GPU 0.08331%, and continuous blank GPU 216.31478%. Reactive telemetry was 0.2 updates/s; continuous mean was 1212.906 updates/s (1071.767–1306.683 logged range), not presented FPS. `continuous` changes only Winit policy; renderer, camera, Mailbox, default pools, pipelining and no FPS limiter remain fixed. This locates the first major rise in continuous framework updates before project services, not a full-game root cause or an optimization. Independent runtime audit 248 passes this bounded attribution. Raw GPU metrics captured average graphics activity 0–1 reactive versus 80–86 continuous and average GPU clocks 618–682 versus 1945–2326 MHz; there is still no presented FPS, frame pacing, render-thread/per-thread CPU attribution, or hardware-counter proof. Continuous PID 1217890/window 331 remains open.
