@@ -41,12 +41,12 @@ fn parse_cutoff(arguments: &[String]) -> Option<Cutoff> {
         .get(index + 1)
         .expect("render-set cutoff: missing NAME");
     let set = match name.as_str() {
-        "Prepare" => RenderSystems::Prepare,
+        "PrepareNonUi" => RenderSystems::Prepare,
         "PrepareAssets" => RenderSystems::PrepareAssets,
         "Specialize" => RenderSystems::Specialize,
         "Queue" => RenderSystems::Queue,
         _ => panic!(
-            "{FLAG}: invalid set {name:?}; expected Prepare, PrepareAssets, Specialize, or Queue"
+            "{FLAG}: invalid set {name:?}; expected PrepareNonUi, PrepareAssets, Specialize, or Queue"
         ),
     };
     let value = arguments
@@ -106,6 +106,9 @@ fn remove_set(world: &mut World, set: RenderSystems) -> usize {
         schedule
             .initialize(world)
             .unwrap_or_else(|error| panic!("render-set schedule initialization failed: {error:?}"));
+        if set == RenderSystems::Prepare {
+            return remove_non_ui_preparation(schedule, world);
+        }
         let removed = schedule
             .remove_systems_in_set(set.clone(), world, ScheduleCleanupPolicy::RemoveSystemsOnly)
             .unwrap_or_else(|error| panic!("render-set removal {set:?} failed: {error:?}"));
@@ -115,6 +118,47 @@ fn remove_set(world: &mut World, set: RenderSystems) -> usize {
         );
         removed
     })
+}
+
+fn collect_non_ui_preparation(
+    schedule: &Schedule,
+) -> Vec<(String, bevy::ecs::schedule::InternedSystemSet)> {
+    let members = schedule
+        .graph()
+        .systems_in_set(RenderSystems::Prepare.intern())
+        .expect("Prepare set must exist")
+        .clone();
+    schedule
+        .systems()
+        .expect("initialized schedule")
+        .filter_map(|(key, system)| {
+            let name = system.name().to_string();
+            if !members.contains(&key) {
+                return None;
+            }
+            // UI and sprite preparation also drain extracted per-frame data.
+            // Removing that cleanup creates growing queues rather than isolating work.
+            if name.contains("bevy_ui_render::") || name.contains("bevy_sprite_render::") {
+                eprintln!("render set isolation preserved cleanup: {name}");
+                return None;
+            }
+            let sets = system.default_system_sets();
+            assert_eq!(sets.len(), 1, "expected one implicit set for {name}");
+            Some((name, sets[0]))
+        })
+        .collect()
+}
+
+fn remove_non_ui_preparation(schedule: &mut Schedule, world: &mut World) -> usize {
+    let targets = collect_non_ui_preparation(schedule);
+    assert!(!targets.is_empty(), "PrepareNonUi matched zero systems");
+    for (name, target) in &targets {
+        let removed = schedule
+            .remove_systems_in_set(*target, world, ScheduleCleanupPolicy::RemoveSystemsOnly)
+            .unwrap_or_else(|error| panic!("preparation removal {name} failed: {error:?}"));
+        assert_eq!(removed, 1, "ambiguous preparation callback {name}");
+    }
+    targets.len()
 }
 
 #[cfg(test)]
@@ -157,7 +201,8 @@ mod tests {
             vec![FLAG],
             vec![FLAG, "Prepare"],
             vec![FLAG, "Cleanup", "1"],
-            vec![FLAG, "Prepare", "-1"],
+            vec![FLAG, "PrepareNonUi", "-1"],
+            vec![FLAG, "Prepare", "0"],
             vec![FLAG, "Queue", "1.5"],
             vec![FLAG, "Queue", "18446744073709551616"],
             vec![FLAG, "Queue", "0", FLAG, "Prepare", "1"],
@@ -166,7 +211,7 @@ mod tests {
             assert!(std::panic::catch_unwind(|| parse_cutoff(&args)).is_err());
         }
         assert!(parse_cutoff(&[]).is_none());
-        for name in ["Prepare", "PrepareAssets", "Specialize", "Queue"] {
+        for name in ["PrepareNonUi", "PrepareAssets", "Specialize", "Queue"] {
             let args = [FLAG, name, "0"].map(str::to_owned);
             assert_eq!(parse_cutoff(&args).unwrap().deadline, Duration::ZERO);
         }

@@ -1,6 +1,6 @@
 # Render-set isolation
 
-`--remove-render-set-after NAME SECONDS` removes a whole render-system set after startup for frozen-scene CPU attribution. Supported groups are Prepare, PrepareAssets, Specialize, and Queue. This is a destructive diagnostic, not an equivalent-work optimization.
+`--remove-render-set-after NAME SECONDS` removes a whole render-system set after startup for frozen-scene CPU attribution. Supported groups are PrepareNonUi, PrepareAssets, Specialize, and Queue. PrepareNonUi removes the Prepare members except UI/sprite-render callbacks, whose preparation also clears extracted per-frame data. The old Prepare selector is rejected: removing it creates accumulating UI queues and invalid CPU comparisons. This is a destructive diagnostic, not an equivalent-work optimization.
 
 ## What it must do
 
