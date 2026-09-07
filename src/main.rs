@@ -149,15 +149,15 @@ fn run_diagnostic_window_if_requested(args: &[String]) -> bool {
         std::process::exit(2);
     }
     let empty = requests_empty_window(args).unwrap_or_else(|error| reject_arguments(error));
-    let services = requests_service_window(args).unwrap_or_else(|error| reject_arguments(error));
+    let services = requests_service_window(args).unwrap_or_else(|error| reject_arguments(&error));
     if !empty && services.is_none() {
         return false;
     }
     let result = match services {
         None => empty_window::run(None),
         Some(ServiceWindowMode::Core) => empty_window::run(Some(service_window::build_app())),
-        Some(ServiceWindowMode::Render) => render_window::run(false),
-        Some(ServiceWindowMode::Continuous) => render_window::run(true),
+        Some(ServiceWindowMode::Render) => render_window::run(false, &[]),
+        Some(ServiceWindowMode::Continuous) => render_window::run(true, args),
     };
     if let Err(error) = result {
         eprintln!("diagnostic window failed: {error}");

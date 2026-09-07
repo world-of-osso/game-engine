@@ -4,7 +4,7 @@
 
 ## What it must do
 
-- [x] Require exactly one stage after `--service-window`; reject missing/unknown stages and combinations with native-baseline or game arguments. No implicit core-stage alias. Preserve `--empty-window` and normal startup without diagnostic flags.
+- [x] Require exactly one stage after `--service-window`; reject missing/unknown stages and combinations with native-baseline or game arguments. Only `continuous` may append one existing `--remove-system-after <main:SCHEDULE|render:SCHEDULE> <EXACT_NAME> <SECONDS>` request; validate it through the shared selector parser and execute it through the existing extraction-boundary controller. No implicit core-stage alias. Preserve `--empty-window` and normal startup without diagnostic flags.
 - [x] `core`: reuse the native winit `Wait` loop and softbuffer presentation. Add Bevy's task pools, frame counter, clock and core schedules; run one app update at the native loop's `about_to_wait` boundary. Do not introduce timers or continuous redraws.
 - [x] `render`: add the minimal blank Camera2d GPU renderer with Bevy's window/event integration and normal pipelined rendering. Use Bevy's desktop event policy (focused reactive timeout five seconds, unfocused low-power timeout sixty seconds), not continuous frames. Preserve default Bevy task pools and the game's default Mailbox presentation, with no FPS limiter.
 - [x] `continuous`: retain the same renderer, camera, presentation and pools, changing only to Bevy's normal game event policy (focused continuous updates). Record actual update rate together with CPU; this deliberately adds frame work and is not a same-throughput optimization.

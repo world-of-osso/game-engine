@@ -27,8 +27,10 @@ use crate::game::client_options::GraphicsOptions;
 const BLANK_CLEAR_COLOR: bevy::color::Color = bevy::color::Color::srgb(0.094, 0.094, 0.094);
 const UPDATE_LOG_INTERVAL: Duration = Duration::from_secs(1);
 
-pub(crate) fn run(continuous: bool) -> Result<(), String> {
-    match build_app(continuous).run() {
+pub(crate) fn run(continuous: bool, arguments: &[String]) -> Result<(), String> {
+    let mut app = build_app(continuous);
+    crate::system_isolation::configure(&mut app, arguments);
+    match app.run() {
         AppExit::Success => Ok(()),
         AppExit::Error(code) => Err(format!("blank renderer exited with status {code}")),
     }
