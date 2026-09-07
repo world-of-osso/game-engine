@@ -30,7 +30,7 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 
 - Transitions must always crossfade. Never snap between poses.
 - `blend_time` comes from M2 sequence data with a **minimum of 150ms** for movement transitions.
-- A re-transition starts from the last Bevy-evaluated raw pose, not the former source sequence. `aaec3864`/`a495893f` replace the historic `a6a5d917` `x0→4→16→20` jump. `interrupted-continuity/green-attempt.log` proves zero-elapsed translation continuity in the focused fixture. Rotation/scale interruption coverage remains pending.
+- A re-transition starts from the last Bevy-evaluated raw pose, not the former source sequence. `aaec3864`/`a495893f` replace the historic `a6a5d917` `x0→4→16→20` jump. `5de8e843` proves zero-elapsed and repeated-interruption continuity for translation, rotation, scale, and a nonzero pivot in actual Bevy evaluation.
 
 | Transition | Blend time |
 |------------|------------|
