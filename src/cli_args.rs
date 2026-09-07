@@ -19,6 +19,16 @@ pub(crate) fn requests_empty_window(args: &[String]) -> Result<bool, &'static st
     Ok(true)
 }
 
+pub(crate) fn requests_service_window(args: &[String]) -> Result<bool, &'static str> {
+    if !args.iter().any(|arg| arg == "--service-window") {
+        return Ok(false);
+    }
+    if args.len() != 1 {
+        return Err("--service-window must be used without other arguments");
+    }
+    Ok(true)
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/empty_window_args_tests.rs"]
 mod empty_window_args_tests;
@@ -303,7 +313,7 @@ pub fn print_help() {
     );
 
     println!(
-        "  --empty-window      Open only an event-driven empty native window (exclusive baseline mode)"
+        "  --empty-window      Open only an event-driven empty native window (exclusive baseline mode)\n  --service-window    Add Bevy task pools, clock and schedules to that native event loop"
     );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");

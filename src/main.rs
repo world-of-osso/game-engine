@@ -53,6 +53,7 @@ mod rendering;
 mod scene_graph_utils;
 mod scenes;
 mod screen_auto_login;
+mod service_window;
 mod sound;
 mod sqlite_util;
 mod status_asset_stats;
@@ -109,7 +110,7 @@ struct DumpSceneFlag;
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if run_empty_window_if_requested(&args) {
+    if run_diagnostic_window_if_requested(&args) {
         return;
     }
     configure_thread_pools();
@@ -141,16 +142,19 @@ fn main() {
     );
 }
 
-fn run_empty_window_if_requested(args: &[String]) -> bool {
-    let requested = requests_empty_window(args).unwrap_or_else(|error| {
+fn run_diagnostic_window_if_requested(args: &[String]) -> bool {
+    let reject_arguments = |error| {
         eprintln!("{error}");
         std::process::exit(2);
-    });
-    if !requested {
+    };
+    let empty = requests_empty_window(args).unwrap_or_else(reject_arguments);
+    let services = requests_service_window(args).unwrap_or_else(reject_arguments);
+    if !empty && !services {
         return false;
     }
-    if let Err(error) = empty_window::run() {
-        eprintln!("empty-window baseline failed: {error}");
+    let app = services.then(service_window::build_app);
+    if let Err(error) = empty_window::run(app) {
+        eprintln!("diagnostic window failed: {error}");
         std::process::exit(1);
     }
     true

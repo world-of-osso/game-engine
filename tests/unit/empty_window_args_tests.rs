@@ -1,4 +1,28 @@
-use super::requests_empty_window;
+use super::{requests_empty_window, requests_service_window};
+
+#[test]
+fn service_window_mode_is_explicit_and_exclusive() {
+    assert_eq!(
+        requests_service_window(&["--service-window".into()]),
+        Ok(true)
+    );
+    assert!(
+        requests_service_window(&["--service-window".into(), "--empty-window".into()]).is_err()
+    );
+    assert!(
+        requests_service_window(&["--service-window".into(), "--server".into(), "dev".into()])
+            .is_err()
+    );
+    assert_eq!(requests_service_window(&[]), Ok(false));
+    assert_eq!(
+        requests_service_window(&["--screen".into(), "inworld".into()]),
+        Ok(false)
+    );
+    assert_eq!(
+        requests_service_window(&["--empty-window".into()]),
+        Ok(false)
+    );
+}
 
 #[test]
 fn empty_window_mode_is_explicit_and_exclusive() {

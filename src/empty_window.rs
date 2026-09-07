@@ -12,13 +12,13 @@ use winit::window::{Window, WindowId};
 const TITLE: &str = "game-engine — empty baseline";
 const BACKGROUND: u32 = 0x00181818;
 
-pub(crate) fn run() -> Result<(), String> {
+pub(crate) fn run(services: Option<bevy::app::App>) -> Result<(), String> {
     let event_loop = EventLoop::new().map_err(|error| format!("create event loop: {error}"))?;
     event_loop.set_control_flow(ControlFlow::Wait);
 
     let context = Context::new(event_loop.owned_display_handle())
         .map_err(|error| format!("create softbuffer context: {error}"))?;
-    let mut app = EmptyWindowApp::new(context);
+    let mut app = EmptyWindowApp::new(context, services);
 
     event_loop
         .run_app(&mut app)
@@ -33,20 +33,22 @@ struct EmptyWindowApp {
     // Declared after `surface` so the surface drops first.
     context: Context<OwnedDisplayHandle>,
     error: Option<String>,
+    services: Option<bevy::app::App>,
 }
 
 impl EmptyWindowApp {
-    fn new(context: Context<OwnedDisplayHandle>) -> Self {
+    fn new(context: Context<OwnedDisplayHandle>, services: Option<bevy::app::App>) -> Self {
         Self {
             window: None,
             surface: None,
             context,
             error: None,
+            services,
         }
     }
 
     fn create_window(&mut self, event_loop: &ActiveEventLoop) -> Result<(), String> {
-        let attributes = window_attributes();
+        let attributes = window_attributes(self.services.is_some());
         let window = Rc::new(
             event_loop
                 .create_window(attributes)
@@ -91,6 +93,12 @@ impl EmptyWindowApp {
 }
 
 impl ApplicationHandler for EmptyWindowApp {
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(app) = &mut self.services {
+            app.update();
+        }
+    }
+
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
             if let Err(error) = self.create_window(event_loop) {
@@ -130,11 +138,23 @@ impl ApplicationHandler for EmptyWindowApp {
     }
 }
 
-fn window_attributes() -> winit::window::WindowAttributes {
-    let attributes = Window::default_attributes().with_title(TITLE);
+fn window_attributes(services: bool) -> winit::window::WindowAttributes {
+    let title = if services {
+        "game-engine — Bevy core services"
+    } else {
+        TITLE
+    };
+    let attributes = Window::default_attributes().with_title(title);
 
     #[cfg(target_os = "linux")]
-    let attributes = attributes.with_name("com.worldofosso.game-engine.empty", "game-engine");
+    let attributes = attributes.with_name(
+        if services {
+            "com.worldofosso.game-engine.services"
+        } else {
+            "com.worldofosso.game-engine.empty"
+        },
+        "game-engine",
+    );
 
     attributes
 }
