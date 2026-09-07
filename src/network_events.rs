@@ -301,7 +301,15 @@ mod tests {
                 MessageSender::<Second>::default(),
             ))
             .id();
+        if network_tick {
+            advance_fixture(&mut app, std::time::Duration::ZERO);
+        }
         (app, peer)
+    }
+
+    fn advance_fixture(app: &mut App, delta: std::time::Duration) {
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(delta));
+        app.update();
     }
 
     fn deliver(app: &mut App, peer: Entity) {
@@ -338,10 +346,7 @@ mod tests {
             sender.send::<TestChannel>(First(7));
             sender.send::<TestChannel>(First(8));
         }
-        app.world_mut()
-            .resource_mut::<Time<Real>>()
-            .advance_by(std::time::Duration::from_millis(17));
-        app.update();
+        advance_fixture(&mut app, std::time::Duration::from_millis(17));
         {
             let mut entity = app.world_mut().entity_mut(peer);
             let mut link = entity.get_mut::<Link>().unwrap();
@@ -352,16 +357,13 @@ mod tests {
             }
         }
         // Last executes twice without a tick, before the queued packets are decoded.
-        app.update();
-        app.update();
+        advance_fixture(&mut app, std::time::Duration::ZERO);
+        advance_fixture(&mut app, std::time::Duration::ZERO);
         assert!(app.world().resource::<Output>().0.is_empty());
         // Two catch-up ticks must consume each message only once.
-        app.world_mut()
-            .resource_mut::<Time<Real>>()
-            .advance_by(std::time::Duration::from_millis(34));
-        app.update();
+        advance_fixture(&mut app, std::time::Duration::from_millis(34));
         assert_eq!(app.world().resource::<Output>().0, [7, 8]);
-        app.update();
+        advance_fixture(&mut app, std::time::Duration::ZERO);
         assert_eq!(app.world().resource::<Output>().0, [7, 8]);
     }
 
@@ -387,11 +389,8 @@ mod tests {
             let mut previous = Duration::ZERO;
             for frame in 1..=hz {
                 let elapsed = Duration::from_nanos(frame * 1_000_000_000 / hz);
-                app.world_mut()
-                    .resource_mut::<Time<Real>>()
-                    .advance_by(elapsed - previous);
+                advance_fixture(&mut app, elapsed - previous);
                 previous = elapsed;
-                app.update();
                 let mut entity = app.world_mut().entity_mut(peer);
                 let mut link = entity.get_mut::<Link>().unwrap();
                 let packets: Vec<_> = link.send.drain().collect();
