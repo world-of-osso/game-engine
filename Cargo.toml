@@ -32,6 +32,9 @@ notify = "7"
 directories = "5"
 arboard = { version = "3", features = ["wayland-data-control"] }
 raw-window-handle = "0.6"
+# Empty-window baseline: reuse winit and paint only OS-requested frames in shared memory.
+winit = { version = "0.30.13", default-features = false, features = ["rwh_06"] }
+softbuffer = { version = "0.4.8", default-features = false, features = ["wayland", "wayland-dlopen"] }
 binrw = "0.15.1"
 rusqlite = { version = "0.35", features = ["bundled"] }
 

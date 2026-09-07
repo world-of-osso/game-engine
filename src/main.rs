@@ -40,6 +40,7 @@ mod cli_args;
 mod collision;
 mod csv_util;
 mod dump_systems;
+mod empty_window;
 mod game;
 mod little_endian;
 mod logout;
@@ -107,10 +108,13 @@ struct DumpUiTreeFlag;
 struct DumpSceneFlag;
 
 fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if run_empty_window_if_requested(&args) {
+        return;
+    }
     configure_thread_pools();
     ensure_asset_root();
     process_limits::apply_resource_limits();
-    let args: Vec<String> = std::env::args().skip(1).collect();
     if handle_simple_flags(&args) {
         return;
     }
@@ -135,6 +139,21 @@ fn main() {
         cli.screenshot,
         cli.initial_state,
     );
+}
+
+fn run_empty_window_if_requested(args: &[String]) -> bool {
+    let requested = requests_empty_window(args).unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
+    if !requested {
+        return false;
+    }
+    if let Err(error) = empty_window::run() {
+        eprintln!("empty-window baseline failed: {error}");
+        std::process::exit(1);
+    }
+    true
 }
 
 fn configure_thread_pools() {

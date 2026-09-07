@@ -9,6 +9,20 @@ use crate::game_state;
 use game_engine::game_state_enum::ScreenArg;
 use serde::{Deserialize, Serialize};
 
+pub(crate) fn requests_empty_window(args: &[String]) -> Result<bool, &'static str> {
+    if !args.iter().any(|arg| arg == "--empty-window") {
+        return Ok(false);
+    }
+    if args.len() != 1 {
+        return Err("--empty-window must be used without other arguments");
+    }
+    Ok(true)
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/empty_window_args_tests.rs"]
+mod empty_window_args_tests;
+
 #[cfg(debug_assertions)]
 pub const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:5000";
 #[cfg(not(debug_assertions))]
@@ -288,6 +302,9 @@ pub fn print_help() {
         "  --no-pipelined-rendering  Run render work sequentially instead of on a separate render thread (diagnostic)"
     );
 
+    println!(
+        "  --empty-window      Open only an event-driven empty native window (exclusive baseline mode)"
+    );
     println!("  --dump-tree         Dump Bevy entity hierarchy and exit");
     println!("  --dump-ui-tree      Dump UI frame registry and exit");
     println!("  --dump-scene        Dump semantic scene tree and exit");
