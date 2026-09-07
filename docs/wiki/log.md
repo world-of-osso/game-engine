@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-07] diagnostic | Attribute decoded continuous-renderer instructions
+
+Updated [[empty-window-baseline]] and linked [[movement-performance]] to offline attribution from preserved matching binaries. Blank continuous rendering resolves 78.61% of sampled cycle period across 1,089 executable addresses: `bevy_ecs` 19.6184%, `concurrent-queue` 15.7290%, `async-executor` 6.7951%, and `async-task` 5.5316%. Hottest sites are queue empty probing, executor locking, completion publication, and mutex spin. This identifies task lifecycle/synchronization operations, not upstream callbacks, waste, or a safe removal. Full-scene proportions use a different sample-count denominator and a reduced `no-npcs-ui`/terrain-isolated workload, so no causal comparison follows. No profiler test, build, capture, runtime, focus, or process action occurred.
+
 ## [2026-09-07] diagnostic | Bound local profiler entry overhead
 
-Updated [[empty-window-baseline]] from the retained single-thread CPU benchmark. Across three alternating disabled/enabled rounds of 50,000 precreated equal-work span entries, median added CPU was 2.202289 µs/entry at 154 names and 2.355397 µs/entry at 1,031 names. `93cef709` relocated the test-only benchmark without behavioral change to `src/cpu_system_profile/overhead_benchmark.rs`; its relocation verification remains pending. This is not a whole-app bound, subtraction, or scheduling-causation result.
+Updated [[empty-window-baseline]] from the retained single-thread CPU benchmark. Across three alternating disabled/enabled rounds of 50,000 precreated equal-work span entries, median added CPU was 2.202289 µs/entry at 154 names and 2.355397 µs/entry at 1,031 names. `93cef709` relocated the test-only benchmark without behavioral change to `src/cpu_system_profile/overhead_benchmark.rs`; independent verification passed formatting and both changed Rust files' readability audit without rerunning the benchmark. This is not a whole-app bound, subtraction, or scheduling-causation result.
 
 ## [2026-09-07] investigation | Clarify update-rate normalization
 

@@ -83,11 +83,22 @@ A separate same-binary run removed the callback at 0.000 seconds. Its subsequent
 
 Both blank update telemetry and full-game IPC FPS describe app-update cadence, not presentation; their aggregation differs. See [metric provenance and normalization](movement-performance.md#update-rate-metric-provenance-2026-09-07).
 
-## Native task-dispatch attribution
+## Native instruction attribution
 
-Reaggregating the original continuous blank renderer's `native-profile/flat-script.log` yields 3,109 records and 11,618,357,418 sampled cycle period. Concrete flat leaves include runnable-queue `pop` (3.0056%), ECS `Context::tick_executor` (2.6872%), system-completion queue `push_or_else` (2.5550%), and contended mutex locking (2.0247%). These are sampled instruction costs, not elapsed-time percentages or callback-inclusive costs.
+The original continuous blank-renderer profile has 3,109 records totaling 11,618,357,418 sampled cycle period. Offline LLVM symbolization of the preserved matching ELF assigns each of 1,089 executable instruction addresses once to the nearest registry-source frame in its deepest-first inline chain. It resolves 9,137,307,152 period (78.61%); this is instruction ownership, not runtime caller ancestry or inclusive callback cost.
 
-Bevy 0.19's `multi_threaded.rs::spawn_system_task` creates a task around each dispatched system and reports completion; `Context::tick_executor` processes queued completion events and advances execution. This establishes actual task-dispatch and synchronization CPU work in a renderer without project services. It does not identify the callers of generic queue/mutex leaves or account for the entire excess: 95.7148% of sampled period lacks decoded ancestry. Further profiler testing was stopped at the user's request; no additional measurements accompanied this analysis.
+| Nearest source package | Sampled period share |
+| --- | ---: |
+| `bevy_ecs` | 19.6184% |
+| `concurrent-queue` | 15.7290% |
+| `async-executor` | 6.7951% |
+| `async-task` | 5.5316% |
+
+The hottest runnable-queue instruction resolves to `concurrent_queue::bounded::Bounded<Runnable>::pop` at `bounded.rs:268`: it reads the tail after a fence and returns `Empty` when tail equals head. ECS `Context::tick_executor` resolves to its `try_lock` at `multi_threaded.rs:356`; system completion pushes resolve to the bounded queue's slot-stamp compare/CAS at `bounded.rs:182`. The hottest mutex instruction is the standard library's bounded spin loop. These establish repeated queue probes, task dispatch/completion, and synchronization as real blank-renderer CPU operations.
+
+`spawn_system_task` wraps each runnable Bevy system in a task and reports completion; `tick_executor` consumes completions and advances ready work. This does not establish that all queue work is empty or wasteful, identify the upstream systems behind generic helpers, or select a safe callback removal. In particular, an empty Bevy query scope returns after `f(scope)` when its scoped-task queue is empty (`bevy_tasks::task_pool::scope_with_executor_inner`); it does not enter the executor-draining path. The blank camera still keeps render/window/camera work populated. Missing decoded ancestry covers 95.7148% of total period, so bulk callback ownership remains unresolved. Further profiler testing stopped at the user's request; this analysis reused preserved artifacts only.
+
+A separate full-scene capture had 2,138 samples, 1,898 from the executable across 1,512 addresses. Its nearest-source counts were `bevy_ecs` 27.689%, `concurrent-queue` 7.016%, `fixedbitset` 5.940%, `async-executor` 5.005%, and `async-task` 2.479%. Those are sample-count fractions, unlike the blank cycle-period fractions, and the capture used `--inworld-stage no-npcs-ui` plus terrain/render isolation. It is neither an intact-game baseline nor a literal Empty scene; do not compare these percentages causally.
 
 ## Local profiler entry overhead
 
@@ -117,6 +128,8 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 - [CLI parsing](../../../src/cli_args.rs) — exclusive argument selection
 - [empty window runtime](../../../src/empty_window.rs) — shared winit/softbuffer loop and optional app update
 - [service window runtime](../../../src/service_window.rs) — minimal Bevy-core plugin boundary
+- [native instruction attribution](../../../data/diagnostics/movement-perf-20260905/service-window/renderer/continuous/native-profile/instruction-owner-analysis.json) — one-address blank-renderer source attribution
+- [full-scene instruction attribution](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/cpu-system-isolation/profile-deep-dwarf/instruction-owner-analysis.json) — sample-count-only comparison scope
 - [profiler overhead benchmark](../../../src/cpu_system_profile/overhead_benchmark.rs) — test-only local entry-overhead control
 - [Cargo manifest](../../../Cargo.toml) — direct dependency features
 
