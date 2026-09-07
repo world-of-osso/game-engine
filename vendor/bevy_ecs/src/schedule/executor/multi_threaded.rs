@@ -26,6 +26,9 @@ use crate::{
 
 use super::__rust_begin_short_backtrace;
 
+#[cfg(feature = "async_executor")]
+mod submission_batching;
+
 /// Borrowed data used by the [`MultiThreadedExecutor`].
 struct Environment<'env, 'sys> {
     executor: &'env MultiThreadedExecutor,
@@ -128,6 +131,9 @@ pub struct ExecutorState {
     completed_systems: FixedBitSet,
     /// Systems that have run but have not had their buffers applied.
     unapplied_systems: FixedBitSet,
+    /// Whether ready Send systems share bulk submission calls.
+    #[cfg(feature = "async_executor")]
+    batch_task_submissions: bool,
 }
 
 /// References to data required by the executor.
@@ -413,6 +419,8 @@ impl ExecutorState {
             skipped_systems: FixedBitSet::new(),
             completed_systems: FixedBitSet::new(),
             unapplied_systems: FixedBitSet::new(),
+            #[cfg(feature = "async_executor")]
+            batch_task_submissions: submission_batching::read_enabled(),
         }
     }
 
@@ -461,6 +469,8 @@ impl ExecutorState {
 
         // can't borrow since loop mutably borrows `self`
         let mut ready_systems = core::mem::take(&mut self.ready_systems_copy);
+        #[cfg(feature = "async_executor")]
+        let mut pending = submission_batching::PendingSubmissions::new();
 
         // Skipping systems may cause their dependents to become ready immediately.
         // If that happens, we need to run again immediately or we may fail to spawn those dependents.
@@ -525,6 +535,14 @@ impl ExecutorState {
                     break;
                 }
 
+                #[cfg(feature = "async_executor")]
+                if self.batch_task_submissions && self.system_task_metadata[system_index].is_send {
+                    // SAFETY: The existing checks passed and this Send, non-exclusive
+                    // system is marked running, reserving its access until completion.
+                    unsafe { submission_batching::enqueue(context, &mut pending, system_index) };
+                    continue;
+                }
+
                 // SAFETY:
                 // - Caller ensured no other reference to this system exists.
                 // - `system_task_metadata[system_index].is_exclusive` is `false`,
@@ -534,6 +552,12 @@ impl ExecutorState {
                     self.spawn_system_task(context, system_index);
                 }
             }
+        }
+
+        #[cfg(feature = "async_executor")]
+        // SAFETY: Pending systems were individually validated and marked running.
+        unsafe {
+            submission_batching::submit(context, &mut pending);
         }
 
         // give back
@@ -648,45 +672,39 @@ impl ExecutorState {
     /// - `world` must have permission to access the world data
     ///   used by the specified system.
     unsafe fn spawn_system_task(&mut self, context: &Context, system_index: usize) {
-        // SAFETY: this system is not running, no other reference exists
-        let system = &mut unsafe { &mut *context.environment.systems[system_index].get() }.system;
-        // Move the full context object into the new future.
-        let context = *context;
-
-        let system_meta = &self.system_task_metadata[system_index];
-
-        let task = async move {
-            let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
-                // SAFETY:
-                // - The caller ensures that we have permission to
-                // access the world data used by the system.
-                // - `is_exclusive` returned false
-                unsafe {
-                    if let Err(RunSystemError::Failed(err)) =
-                        __rust_begin_short_backtrace::run_unsafe(
-                            system,
-                            context.environment.world_cell,
-                        )
-                    {
-                        (context.error_handler)(
-                            err,
-                            ErrorContext::System {
-                                name: system.name(),
-                                last_run: system.get_last_run(),
-                            },
-                        );
-                    }
-                };
-            }));
-            context.system_completed(system_index, res, system);
-        };
-
-        if system_meta.is_send {
+        // SAFETY: The caller reserved this non-exclusive system's world access.
+        let task = unsafe { Self::run_system_task(*context, system_index) };
+        if self.system_task_metadata[system_index].is_send {
             context.scope.spawn(task);
         } else {
             self.local_thread_running = true;
             context.scope.spawn_on_external(task);
         }
+    }
+
+    /// # Safety
+    /// The system must be reserved as running after access and condition checks.
+    /// Non-Send systems must be polled only by the external thread executor.
+    async unsafe fn run_system_task(context: Context<'_, '_, '_>, system_index: usize) {
+        // SAFETY: The reservation prevents another task from accessing this system.
+        let system = &mut unsafe { &mut *context.environment.systems[system_index].get() }.system;
+        let res = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            // SAFETY: The caller reserved this non-exclusive system's world access.
+            unsafe {
+                if let Err(RunSystemError::Failed(err)) =
+                    __rust_begin_short_backtrace::run_unsafe(system, context.environment.world_cell)
+                {
+                    (context.error_handler)(
+                        err,
+                        ErrorContext::System {
+                            name: system.name(),
+                            last_run: system.get_last_run(),
+                        },
+                    );
+                }
+            };
+        }));
+        context.system_completed(system_index, res, system);
     }
 
     /// # Safety

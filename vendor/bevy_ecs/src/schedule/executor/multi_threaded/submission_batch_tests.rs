@@ -75,7 +75,7 @@ struct Spawned;
 fn submission_batch_preserves_deferred_exclusive_and_non_send_work() {
     let mut world = World::new();
     world.insert_resource(Count::default());
-    world.insert_non_send_resource(Rc::new(Cell::new(0_usize)));
+    world.insert_non_send(Rc::new(Cell::new(0_usize)));
     let mut schedule = batched_schedule();
     schedule.add_systems(
         (
@@ -96,7 +96,7 @@ fn submission_batch_preserves_deferred_exclusive_and_non_send_work() {
     for round in 1..=3 {
         schedule.run(&mut world);
         assert_eq!(world.resource::<Count>().0, round);
-        assert_eq!(world.non_send_resource::<Rc<Cell<usize>>>().get(), round);
+        assert_eq!(world.non_send::<Rc<Cell<usize>>>().get(), round);
     }
 }
 
