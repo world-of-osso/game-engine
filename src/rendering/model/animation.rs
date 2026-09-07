@@ -531,7 +531,7 @@ impl Plugin for AnimationPlugin {
             .add_systems(
                 PostUpdate,
                 apply_billboard_rotation
-                    .after(bevy::animation::AnimationSystems)
+                    .after(bevy::app::AnimationSystems)
                     .before(bevy::transform::TransformSystems::Propagate),
             )
             .add_systems(Update, sync_model_lights.run_if(animation_active_state));
