@@ -104,6 +104,7 @@ pub mod movement_control;
 #[path = "game/nameplate_data.rs"]
 pub mod nameplate_data;
 pub mod network_events;
+pub mod network_runtime;
 pub mod network_tick;
 #[path = "game/objective_tracker_data.rs"]
 pub mod objective_tracker_data;
