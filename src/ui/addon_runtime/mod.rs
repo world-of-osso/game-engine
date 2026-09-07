@@ -1,7 +1,8 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex, Weak};
 
 use bevy::log::{info, warn};
 use bevy::prelude::*;
@@ -75,8 +76,61 @@ struct LoadedAddon {
 #[derive(Resource, Default)]
 struct AddonRuntime {
     addon_dir: PathBuf,
-    watcher: Option<Mutex<Receiver<PathBuf>>>,
     addons: HashMap<PathBuf, LoadedAddon>,
+}
+
+#[derive(Default)]
+struct PendingAddonChanges {
+    paths: Mutex<Vec<PathBuf>>,
+    dirty: AtomicBool,
+}
+
+#[derive(Resource, Clone, Default)]
+struct AddonReloadSignal(Arc<PendingAddonChanges>);
+
+impl AddonReloadSignal {
+    fn from_receiver(receiver: Receiver<PathBuf>) -> Result<Self, String> {
+        let signal = Self::default();
+        let pending = Arc::downgrade(&signal.0);
+        std::thread::Builder::new()
+            .name("addon-reload-bridge".into())
+            .spawn(move || forward_addon_changes(receiver, pending))
+            .map_err(|error| format!("failed to spawn addon reload bridge: {error}"))?;
+        Ok(signal)
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.0.dirty.load(Ordering::Acquire)
+    }
+
+    fn take_paths(&self) -> Vec<PathBuf> {
+        let mut paths = self
+            .0
+            .paths
+            .lock()
+            .expect("addon change queue lock poisoned");
+        let changed = std::mem::take(&mut *paths);
+        // Publish/clear under the same lock so concurrent notifications cannot be lost.
+        self.0.dirty.store(false, Ordering::Release);
+        changed
+    }
+}
+
+fn forward_addon_changes(receiver: Receiver<PathBuf>, pending: Weak<PendingAddonChanges>) {
+    while let Ok(path) = receiver.recv() {
+        let Some(pending) = pending.upgrade() else {
+            return;
+        };
+        let mut paths = pending
+            .paths
+            .lock()
+            .expect("addon change queue lock poisoned");
+        paths.push(path);
+        pending.dirty.store(true, Ordering::Release);
+    }
+    if pending.strong_count() > 0 {
+        warn!("addon watcher notification channel closed");
+    }
 }
 
 pub struct AddonRuntimePlugin;
@@ -87,7 +141,7 @@ impl Plugin for AddonRuntimePlugin {
         app.add_systems(
             Update,
             (
-                reload_changed_addons,
+                reload_changed_addons.run_if(addon_reload_pending),
                 apply_loaded_addons.run_if(addons_changed),
             )
                 .chain()
@@ -108,24 +162,30 @@ fn init_addon_runtime(mut commands: Commands, mut ui: ResMut<UiState>) {
             addon_dir.display()
         );
     }
-    let watcher = start_addon_watcher(&addon_dir)
-        .map(Mutex::new)
-        .map_err(|err| {
-            warn!("addon watcher unavailable: {err}");
-            err
-        });
+    match start_addon_watcher(&addon_dir).and_then(AddonReloadSignal::from_receiver) {
+        Ok(signal) => {
+            commands.insert_resource(signal);
+        }
+        Err(err) => warn!("addon watcher unavailable: {err}"),
+    }
     let mut runtime = AddonRuntime {
         addon_dir,
-        watcher: watcher.ok(),
         addons: HashMap::new(),
     };
     runtime.refresh_all(&mut ui.registry);
     commands.insert_resource(runtime);
 }
 
-fn reload_changed_addons(mut ui: ResMut<UiState>, runtime: Option<ResMut<AddonRuntime>>) {
-    let Some(mut runtime) = runtime else { return };
-    for path in runtime.take_changed_paths() {
+fn addon_reload_pending(signal: Option<Res<AddonReloadSignal>>) -> bool {
+    signal.is_some_and(|signal| signal.is_dirty())
+}
+
+fn reload_changed_addons(
+    signal: Res<AddonReloadSignal>,
+    mut ui: ResMut<UiState>,
+    mut runtime: ResMut<AddonRuntime>,
+) {
+    for path in signal.take_paths() {
         runtime.reload_path(path, &mut ui.registry);
     }
 }
@@ -147,21 +207,6 @@ impl AddonRuntime {
         for path in paths {
             self.reload_path(path, registry);
         }
-    }
-
-    fn take_changed_paths(&self) -> Vec<PathBuf> {
-        let Some(watcher) = &self.watcher else {
-            return Vec::new();
-        };
-        let Ok(receiver) = watcher.lock() else {
-            warn!("addon watcher lock poisoned");
-            return Vec::new();
-        };
-        let mut changed_paths = Vec::new();
-        while let Ok(path) = receiver.try_recv() {
-            changed_paths.push(path);
-        }
-        changed_paths
     }
 
     fn reload_path(&mut self, path: PathBuf, registry: &mut ui_toolkit::registry::FrameRegistry) {

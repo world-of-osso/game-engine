@@ -25,6 +25,61 @@ fn run_addon_update(app: &mut App) {
     app.world_mut().clear_trackers();
 }
 
+fn wait_for_addon_change(signal: &AddonReloadSignal) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while !signal.is_dirty() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "addon bridge did not publish change"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn bridge_preserves_fifo_and_clears_dirty_after_drain() {
+    let (sender, receiver) = std::sync::mpsc::channel();
+    let signal = AddonReloadSignal::from_receiver(receiver).unwrap();
+    let expected = [PathBuf::from("first.js"), PathBuf::from("second.js")];
+    for path in &expected {
+        sender.send(path.clone()).unwrap();
+    }
+    let mut received = Vec::new();
+    while received.len() < expected.len() {
+        wait_for_addon_change(&signal);
+        received.extend(signal.take_paths());
+    }
+    assert_eq!(received, expected);
+    assert!(!signal.is_dirty());
+    sender.send(PathBuf::from("third.js")).unwrap();
+    wait_for_addon_change(&signal);
+    assert_eq!(signal.take_paths(), [PathBuf::from("third.js")]);
+    assert!(!signal.is_dirty());
+}
+
+#[test]
+fn clean_addon_updates_do_not_require_ui_state() {
+    let (_sender, receiver) = std::sync::mpsc::channel();
+    let mut app = App::new();
+    app.add_plugins(AddonRuntimePlugin);
+    app.insert_resource(UiProcessingEnabled(true));
+    app.insert_resource(UiState {
+        registry: make_registry_with_root(),
+        event_bus: crate::ui::event::EventBus::new(),
+        focused_frame: None,
+    });
+    let signal = AddonReloadSignal::from_receiver(receiver).unwrap();
+    app.insert_resource(signal.clone());
+    app.insert_resource(AddonRuntime::default());
+    run_addon_update(&mut app);
+    app.world_mut().remove_resource::<UiState>();
+    // A clean frame must not touch the queue even while another owner holds its lock.
+    let _guard = signal.0.paths.lock().unwrap();
+    for _ in 0..3 {
+        run_addon_update(&mut app);
+    }
+}
+
 #[test]
 fn addon_apply_runs_only_after_load_or_reload_and_respects_ui_enabled() {
     let dir = std::env::temp_dir().join(format!("addon_idle_{}", std::process::id()));
@@ -37,11 +92,12 @@ fn addon_apply_runs_only_after_load_or_reload_and_respects_ui_enabled() {
     let mut registry = make_registry_with_root();
     let mut runtime = AddonRuntime {
         addon_dir: dir.clone(),
-        watcher: Some(Mutex::new(receiver)),
         addons: HashMap::new(),
     };
     runtime.refresh_all(&mut registry);
+    let signal = AddonReloadSignal::from_receiver(receiver).unwrap();
     let mut app = App::new();
+    app.insert_resource(signal.clone());
     app.add_plugins(AddonRuntimePlugin);
     app.insert_resource(UiProcessingEnabled(true));
     app.insert_resource(UiState {
@@ -84,6 +140,7 @@ fn addon_apply_runs_only_after_load_or_reload_and_respects_ui_enabled() {
     app.world_mut().resource_mut::<UiProcessingEnabled>().0 = false;
     std::fs::write(&path, script("Reloaded")).unwrap();
     sender.send(path.clone()).unwrap();
+    wait_for_addon_change(&signal);
     run_addon_update(&mut app);
     assert_eq!(
         font_text(&app.world().resource::<UiState>().registry, "IdleLabel").as_deref(),
@@ -101,6 +158,7 @@ fn addon_apply_runs_only_after_load_or_reload_and_respects_ui_enabled() {
     assert!(!app.world().is_resource_changed::<UiState>());
     std::fs::remove_file(&path).unwrap();
     sender.send(path).unwrap();
+    wait_for_addon_change(&signal);
     run_addon_update(&mut app);
     assert!(
         app.world()
@@ -212,7 +270,6 @@ fn reload_path_replaces_owned_frames() {
     .unwrap();
     let mut runtime = AddonRuntime {
         addon_dir: dir.clone(),
-        watcher: None,
         addons: HashMap::new(),
     };
     let mut registry = make_registry_with_root();
