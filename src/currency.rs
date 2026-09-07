@@ -7,6 +7,7 @@ use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSend
 use shared::protocol::{CurrencyChannel, CurrencyStateUpdate, EarnCurrency, SpendCurrency};
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{CurrenciesStatusSnapshot, CurrencyEntry};
 
 #[derive(Resource, Default)]
@@ -25,8 +26,13 @@ pub struct CurrencyPlugin;
 impl Plugin for CurrencyPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrencyRuntimeState>();
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_currency_updates);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<CurrencyRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<CurrencyStateUpdate, _>(app, receive_currency_updates, |_| true);
     }
 }
 
@@ -184,6 +190,20 @@ fn format_status(snapshot: &CurrenciesStatusSnapshot) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_dispatch_needs_no_currency_snapshot() {
+        let mut app = App::new();
+        app.add_plugins(CurrencyPlugin);
+        crate::network_events::dispatch_incoming(app.world_mut());
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(
+            app.world()
+                .resource::<CurrencyRuntimeState>()
+                .pending_actions
+                .is_empty()
+        );
+    }
 
     #[test]
     fn format_status_includes_server_message() {

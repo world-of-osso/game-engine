@@ -9,6 +9,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot};
 
 #[derive(Resource, Default)]
@@ -28,9 +29,14 @@ pub struct TalentPlugin;
 impl Plugin for TalentPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TalentRuntimeState>();
-        app.add_systems(Update, request_talents_on_enter_world);
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_talent_updates);
+        register_outgoing_handler(app, request_talents_on_enter_world, talent_query_pending);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<TalentRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<TalentStateUpdate, _>(app, receive_talent_updates, |_| true);
     }
 }
 
@@ -67,14 +73,15 @@ pub fn queue_reset(runtime: &mut TalentRuntimeState) {
     runtime.pending_actions.push_back(Action::Reset);
 }
 
+fn talent_query_pending(world: &World) -> bool {
+    !world.resource::<TalentRuntimeState>().queried_inworld
+        && world.resource::<TalentStatusSnapshot>().talents.is_empty()
+}
+
 fn request_talents_on_enter_world(
     mut runtime: ResMut<TalentRuntimeState>,
-    snapshot: Res<TalentStatusSnapshot>,
     mut senders: Query<&mut MessageSender<QueryTalents>>,
 ) {
-    if runtime.queried_inworld || !snapshot.talents.is_empty() {
-        return;
-    }
     if send_all(&mut senders, QueryTalents) {
         runtime.queried_inworld = true;
     }
@@ -234,6 +241,32 @@ fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dispatcher_queries_only_when_existing_talents_are_cleared() {
+        let mut app = App::new();
+        app.add_plugins(TalentPlugin);
+        app.insert_resource(TalentStatusSnapshot {
+            talents: vec![TalentNodeEntry {
+                talent_id: 101,
+                name: "Divine Strength".into(),
+                points_spent: 1,
+                max_points: 1,
+                active: true,
+            }],
+            ..Default::default()
+        });
+        app.world_mut()
+            .spawn(MessageSender::<QueryTalents>::default());
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(!app.world().resource::<TalentRuntimeState>().queried_inworld);
+        app.world_mut()
+            .resource_mut::<TalentStatusSnapshot>()
+            .talents
+            .clear();
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(app.world().resource::<TalentRuntimeState>().queried_inworld);
+    }
 
     #[test]
     fn format_status_reports_selected_talents() {

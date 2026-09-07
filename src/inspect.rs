@@ -7,6 +7,7 @@ use shared::components::Player as NetPlayer;
 use shared::protocol::{InspectChannel, InspectStateUpdate, QueryInspectTarget};
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{InspectStatusSnapshot, TalentNodeEntry, TalentSpecTabEntry};
 use crate::targeting::CurrentTarget;
 
@@ -23,8 +24,10 @@ impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InspectRuntimeState>();
         app.add_systems(Update, sync_target_change);
-        app.add_systems(Update, send_pending_queries);
-        app.add_systems(Update, receive_inspect_updates);
+        register_outgoing_handler(app, send_pending_queries, |world| {
+            world.resource::<InspectRuntimeState>().pending_query
+        });
+        register_message_handler::<InspectStateUpdate, _>(app, receive_inspect_updates, |_| true);
     }
 }
 
@@ -240,6 +243,29 @@ fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>)
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dispatcher_consumes_pending_query_and_replies_when_disconnected() {
+        let mut app = App::new();
+        app.add_plugins(InspectPlugin);
+        let (reply, responses) = mpsc::channel();
+        {
+            let mut runtime = app.world_mut().resource_mut::<InspectRuntimeState>();
+            runtime.pending_query = true;
+            runtime.pending_replies.push_back(reply.clone());
+            runtime.pending_replies.push_back(reply);
+        }
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        for _ in 0..2 {
+            let Response::Error(error) = responses.try_recv().unwrap() else {
+                panic!("expected disconnected inspect error");
+            };
+            assert_eq!(error, "inspect is unavailable: not connected");
+        }
+        assert!(!app.world().resource::<InspectRuntimeState>().pending_query);
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(responses.try_recv().is_err());
+    }
     use shared::components::{EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry};
 
     #[test]

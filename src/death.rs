@@ -9,6 +9,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{
     DeathPositionEntry, DeathStateEntry, DeathStatusSnapshot, MapStatusSnapshot, Waypoint,
 };
@@ -33,9 +34,18 @@ impl Plugin for DeathPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DeathRuntimeState>();
         app.init_resource::<DeathStatusSnapshot>();
-        app.add_systems(Update, request_death_status_on_enter_world);
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_death_updates);
+        register_outgoing_handler(
+            app,
+            request_death_status_on_enter_world,
+            death_query_pending,
+        );
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<DeathRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<DeathStateUpdate, _>(app, receive_death_updates, |_| true);
     }
 }
 
@@ -76,14 +86,15 @@ pub fn queue_ipc_request(
     }
 }
 
+fn death_query_pending(world: &World) -> bool {
+    !world.resource::<DeathRuntimeState>().queried_inworld
+        && world.resource::<DeathStatusSnapshot>().state.is_none()
+}
+
 fn request_death_status_on_enter_world(
     mut runtime: ResMut<DeathRuntimeState>,
-    snapshot: Res<DeathStatusSnapshot>,
     mut senders: Query<&mut MessageSender<QueryDeathStatus>>,
 ) {
-    if runtime.queried_inworld || snapshot.state.is_some() {
-        return;
-    }
     if send_all(&mut senders, QueryDeathStatus) {
         runtime.queried_inworld = true;
     }
@@ -198,6 +209,20 @@ fn format_status(snapshot: &DeathStatusSnapshot) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dispatcher_retries_initial_query_until_a_sender_exists() {
+        let mut app = App::new();
+        app.add_plugins(DeathPlugin);
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(!app.world().resource::<DeathRuntimeState>().queried_inworld);
+        app.world_mut()
+            .spawn(MessageSender::<QueryDeathStatus>::default());
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(app.world().resource::<DeathRuntimeState>().queried_inworld);
+        app.world_mut().remove_resource::<DeathStatusSnapshot>();
+        crate::network_events::dispatch_outgoing(app.world_mut());
+    }
     use shared::protocol::DeathSnapshot;
 
     #[test]

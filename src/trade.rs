@@ -10,6 +10,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 
 #[derive(Resource, Default)]
 pub struct TradeClientState {
@@ -38,8 +39,13 @@ pub struct TradePlugin;
 impl Plugin for TradePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TradeClientState>();
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_trade_updates);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<TradeClientState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<TradeStateUpdate, _>(app, receive_trade_updates, |_| true);
     }
 }
 
@@ -268,6 +274,35 @@ fn format_party(label: &str, party: &game_engine::trade_data::TradePlayerData) -
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dispatcher_reports_disconnected_action_then_leaves_idle_state_unchanged() {
+        let mut app = App::new();
+        app.add_plugins(TradePlugin);
+        let (reply, responses) = mpsc::channel();
+        {
+            let mut state = app.world_mut().resource_mut::<TradeClientState>();
+            assert!(queue_ipc_request(&mut state, &Request::TradeCancel, reply));
+        }
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        let Response::Error(error) = responses.try_recv().unwrap() else {
+            panic!("expected disconnected trade error");
+        };
+        assert_eq!(error, "trade is unavailable: not connected");
+        {
+            let mut state = app.world_mut().resource_mut::<TradeClientState>();
+            assert!(state.pending_actions.is_empty());
+            state.last_error = Some("retained while idle".into());
+        }
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert_eq!(
+            app.world()
+                .resource::<TradeClientState>()
+                .last_error
+                .as_deref(),
+            Some("retained while idle")
+        );
+    }
 
     fn sample_snapshot(phase: TradePhase) -> TradeSnapshot {
         TradeSnapshot {

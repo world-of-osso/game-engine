@@ -10,6 +10,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{DuelBoundaryEntry, DuelPhaseEntry, DuelResultEntry, DuelStatusSnapshot};
 use crate::targeting::CurrentTarget;
 
@@ -31,8 +32,13 @@ pub struct DuelPlugin;
 impl Plugin for DuelPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DuelClientState>();
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_duel_updates);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<DuelClientState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<DuelStateUpdate, _>(app, receive_duel_updates, |_| true);
     }
 }
 
