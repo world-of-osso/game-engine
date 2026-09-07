@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Replace M2 pose loop with Bevy playback
+
+Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `6ed7129b`, `780baa1f`, `efe0cb26`, `8056741d`, and `12cced65`. M2 sequence policy, timing, and crossfade state remain in `M2AnimPlayer`; paused Bevy graph clips seek to those times. Bevy now evaluates/blends supported sequence-local raw TRS through custom curves, then commits existing `BonePivot` correction. The old per-model bone-application loop is removed. Graph bindings use existing joints and two nodes per sequence for independent outgoing/current times. Bevy evaluates in `PostUpdate` before transform propagation; this is not a separate 60 Hz animation worker. Focused integrated evidence is 67/67; native equivalence and CPU/FPS claims remain open.
+
 ## [2026-09-07] systems | Record literal clean-frame application exits
 
 Updated [[networking]], [[sound]], [[ui-system]], and [event-driven application updates](../specs/event-driven-application-updates.md) for `dc6183f8`, `550b637a`, `9a6b6679`, `1c1d7998`, `ae222f0e`, `e9b81652`, and `fc99128b`. Clean render frames no longer run reconnect/reset lifecycle, sound maintenance, active cooldown advancement, local mount/tag/alive synchronization, addon watcher handling, or the combined spellbook/UI path. Rendering, interpolation, animation, and active presentation remain render-frame-driven. CPU/FPS improvement remains unclaimed pending controlled measurement and user observation.

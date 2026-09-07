@@ -1,8 +1,24 @@
 # Animation
 
-The animation system drives bone-based M2 model animation using data from the M2 format's bone tracks. Transitions between animations always crossfade — never snap — to maintain visual continuity.
+The animation system adapts M2 bone tracks to Bevy `AnimationClip`/`AnimationGraph` playback. WoW sequence policy remains in `M2AnimPlayer`; Bevy evaluates and blends joint poses before transform propagation. Transitions always crossfade — never snap.
 
 ## M2 Bone Animation
+
+`bevy_curves.rs` builds one Bevy clip per supported M2 sequence. A custom Bevy curve samples the existing translation/rotation/scale track semantics, so Bevy owns curve evaluation and blending instead of a model-level loop writing every joint. Curves blend raw TRS first; their commit step applies the existing local pivot correction:
+
+```text
+translation + pivot - rotation * (scale * pivot)
+```
+
+This ordering preserves pivoted mid-crossfades. `bevy_player.rs` creates two graph nodes per sequence so outgoing and current instances can retain independent seek times during a same-sequence or ordinary transition. It seeks paused clips from `M2AnimPlayer`; the controller remains the single WoW sequence/time clock.
+
+Bevy runs animation in `PostUpdate` before transform propagation. This replaces custom M2 pose evaluation, but it is still part of the windowed render application—not a separate 60 Hz animation worker.
+
+### Supported boundary
+
+Current runtime supports sequence-local translation, rotation, and scale tracks with linear vector interpolation and quaternion slerp, loop/next-sequence policy, crossfades, and pivots. M2 global sequences and other parsed interpolation modes are not currently part of this bone runtime; the adapter keeps that existing boundary explicit rather than fabricating support.
+
+Camera-facing spherical billboards remain a frame-driven pass after Bevy animation and before transform propagation. Animated lights remain render-facing. Existing joint entities preserve attachment and skinning identity.
 
 M2 models store animation sequences inline in the MD20 header (legacy) or in external `.skel` files (HD models, loaded via the SKID chunk). Each sequence has per-bone translation/rotation/scale tracks. Animation data is parsed in `src/asset/m2_format/m2_anim.rs`.
 
@@ -43,14 +59,18 @@ Three skeleton templates share animation sets: Humanoid (~25 bones), Digitigrade
 ## Key Files
 
 - `src/asset/m2_format/m2_anim.rs` — bone track parsing, sequence parsing
-- `src/rendering/model/animation.rs` — ANIM_* constants, crossfade state machine, apply_animation
+- `src/rendering/model/animation.rs` — ANIM_* constants, WoW sequence/crossfade state machine, Bevy registration
+- `src/rendering/model/animation/bevy_curves.rs` — exact M2 raw-TRS Bevy curves and pivot commit
+- `src/rendering/model/animation/bevy_player.rs` — target/graph binding and paused controller seeks
 
 ## Sources
 
 - AGENTS.md — Animation section, blend_time rules, ANIM_* location
+- `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation
 - [character-generation.md](../character-generation.md) — glTF animation pipeline, template skeletons, crossfade table
 
 ## See Also
 
 - [[character-rendering]] — HD skeleton loading, bone remapping, jaw bone hack
 - [[rendering-pipeline]] — M2 mesh assembly that animation drives
+- [[networking]] — separate transport clock versus windowed animation stage

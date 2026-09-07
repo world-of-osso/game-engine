@@ -19,14 +19,14 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
 - [x] Give collection/death replies and character-creation responses one consuming handler; notify the character-create UI locally after auth consumes its response.
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
-- [x] Move confirmed idle application work to queued, change-driven, relevance-driven, or 60 Hz logical-tick execution; retain rendering, interpolation, animation, and active cooldown presentation where needed.
+- [x] Move confirmed idle application work to queued, change-driven, relevance-driven, or 60 Hz logical-tick execution; retain rendering, interpolation, and active presentation where needed.
 
 ### M2 animation runtime
 
-- [ ] Use Bevy `AnimationPlayer`, `AnimationGraph`, and animation targets for M2 bone pose evaluation and blending; do not retain the old per-model pose application loop as an alternate path.
-- [ ] Adapt the currently supported M2 translation/rotation/scale semantics exactly, including coordinate conversion, defaults, and crossfading raw TRS before pivot correction.
-- [ ] Preserve WoW sequence selection, transition continuity, debug time overrides, attachment joint identity, billboards, skinning, and offline/login/debug scene playback.
-- [ ] Prove single-clip and crossfade poses through real Bevy playback before claiming replacement. Parsed but unsupported M2 interpolation/global-sequence features remain explicitly unsupported, not silently changed.
+- [x] Use Bevy `AnimationPlayer`, `AnimationGraph`, and animation targets for M2 bone pose evaluation and blending; the old per-model pose application loop is removed.
+- [x] Adapt currently supported M2 translation/rotation/scale semantics through Bevy curves: coordinate conversion, defaults, raw-TRS crossfading, then pivot correction.
+- [x] Preserve WoW sequence selection, transition continuity, debug time overrides, attachment joint identity, billboards, skinning, and offline/login/debug scene playback in focused integration tests.
+- [x] Prove single-clip and crossfade poses through real Bevy playback. Parsed but unsupported M2 interpolation/global-sequence features remain explicitly unsupported, not silently changed.
 
 ## How it works
 
@@ -48,6 +48,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - `src/ui/game_plugin.rs`, `automation.rs`, `addon_runtime/mod.rs`: a clean UI frame skips screen sync, spellbook pointer hit-testing, automation processing, addon application, and addon watcher reload handling. Active cooldown progression runs on `NetworkTick`, not the render schedule.
 - `src/sound/runtime.rs`, `runtime_ambient.rs`, `runtime_music.rs`: footstep attachment is relevance-driven; ambient/music reconciliation follows input or playback removal rather than clean-frame polling.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
+- `src/rendering/model/animation/bevy_curves.rs`, `bevy_player.rs`: M2 curves and controller-to-Bevy playback binding. M2 sequence policy remains in `M2AnimPlayer`; paused Bevy clips are sought to that controller time, so Bevy does not advance a second clock. Bevy evaluates and blends raw TRS, then the target `BonePivot` applies the existing pivot correction after blending. `apply_billboard_rotation` remains camera/frame-driven after Bevy animation and before transform propagation.
 
 ## Tests asserting this spec
 
@@ -63,7 +64,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 Commits `dc6183f8`, `550b637a`, `9a6b6679`, `1c1d7998`, `ae222f0e`, `e9b81652`, `fc99128b`, and `00467125` remove confirmed clean-frame application work: reconnect/reset lifecycle; sound maintenance; active cooldown advancement; local mount/tag/alive synchronization; addon watcher clean-frame processing; the combined spellbook/UI clean cycle; and render-time logical network tick planning. These are scheduling boundaries, not a claim that every Bevy system or every active presentation update is event-driven.
 
-Rendering, remote interpolation, animation, input needed for active interaction, and active UI presentation remain render-frame-driven. CPU and FPS improvement await controlled measurement and user observation.
+Rendering, remote interpolation, camera-facing billboards, input needed for active interaction, and active UI presentation remain render-frame-driven. Bevy's M2 pose evaluation runs in its `PostUpdate` animation stage before transform propagation; it is not a separate 60 Hz animation worker. CPU and FPS improvement await controlled measurement and user observation.
 
 ## Native evidence (2026-09-07)
 
@@ -77,6 +78,7 @@ Rendering, remote interpolation, animation, input needed for active interaction,
 - [ ] Convert remaining wire entity-bit boundaries between server identity and render entities. Target, duel, inspect, spell current/default, emote, and combat now map explicitly; related UI and remaining protocol fields need an inventory.
 - [x] Review confirmed non-render application frame work: UI, automation, addons, local-player state, reconnect lifecycle, and sound maintenance no longer perform their prior idle scans/application.
 - [ ] Controlled idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
+- [ ] Native animation equivalence and broader scene coverage beyond the focused 67/67 integrated animation tests.
 
 ## Out of scope
 
