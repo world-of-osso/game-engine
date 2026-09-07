@@ -2,12 +2,13 @@
 
 use std::time::Duration;
 
-use bevy::app::{Last, Main, MainScheduleOrder, Update};
+use bevy::app::{Last, Main, MainScheduleOrder, PostUpdate, PreUpdate, Update};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::{App, IntoScheduleConfigs, Res, ResMut, Resource};
 use bevy::time::{Real, Time};
 
 const FLAG: &str = "--skip-update-after";
+const MAIN_WORK_FLAG: &str = "--skip-main-work-after";
 
 #[derive(Resource)]
 struct UpdateCutoff {
@@ -16,10 +17,17 @@ struct UpdateCutoff {
     last_report: Duration,
     updates: u64,
     removed: bool,
+    skip_main_work: bool,
 }
 
 pub(crate) fn configure(app: &mut App, arguments: &[String]) {
-    let Some(deadline) = parse_deadline(arguments) else {
+    let skip_main_work = arguments.iter().any(|arg| arg == MAIN_WORK_FLAG);
+    assert!(
+        !skip_main_work || !arguments.iter().any(|arg| arg == FLAG),
+        "choose only one main-schedule cutoff diagnostic"
+    );
+    let flag = if skip_main_work { MAIN_WORK_FLAG } else { FLAG };
+    let Some(deadline) = parse_deadline(arguments, flag) else {
         return;
     };
     app.insert_resource(UpdateCutoff {
@@ -28,16 +36,17 @@ pub(crate) fn configure(app: &mut App, arguments: &[String]) {
         last_report: Duration::ZERO,
         updates: 0,
         removed: false,
+        skip_main_work,
     })
     .add_systems(Last, track_updates)
     // Main temporarily takes MainScheduleOrder while its child schedules run.
     .add_systems(Main, remove_update_at_cutoff.after(Main::run_main));
 }
 
-fn parse_deadline(arguments: &[String]) -> Option<Duration> {
+fn parse_deadline(arguments: &[String], flag: &str) -> Option<Duration> {
     let mut deadline = None;
     for (index, argument) in arguments.iter().enumerate() {
-        if argument != FLAG {
+        if argument != flag {
             continue;
         }
         assert!(deadline.is_none(), "{FLAG}: duplicate option");
@@ -74,15 +83,27 @@ fn remove_update_at_cutoff(mut order: ResMut<MainScheduleOrder>, mut cutoff: Res
     if cutoff.removed || cutoff.elapsed < cutoff.deadline {
         return;
     }
-    let index = order
-        .labels
-        .iter()
-        .position(|label| *label == Update.intern())
-        .unwrap_or_else(|| panic!("{FLAG}: Update absent from MainScheduleOrder"));
-    order.labels.remove(index);
+    let labels = if cutoff.skip_main_work {
+        vec![PreUpdate.intern(), Update.intern(), PostUpdate.intern()]
+    } else {
+        vec![Update.intern()]
+    };
+    for label in labels {
+        let index = order
+            .labels
+            .iter()
+            .position(|candidate| *candidate == label)
+            .unwrap_or_else(|| panic!("{FLAG}: {label:?} absent from MainScheduleOrder"));
+        order.labels.remove(index);
+    }
+    let removed = if cutoff.skip_main_work {
+        "PreUpdate,Update,PostUpdate"
+    } else {
+        "Update"
+    };
     cutoff.removed = true;
     eprintln!(
-        "update schedule isolation cutoff elapsed_s={:.3} updates={} removed=Update deadline_s={}",
+        "update schedule isolation cutoff elapsed_s={:.3} updates={} removed={removed} deadline_s={}",
         cutoff.elapsed.as_secs_f64(),
         cutoff.updates,
         cutoff.deadline.as_secs(),
@@ -97,7 +118,9 @@ mod tests {
     #[derive(Resource, Default)]
     struct Counts {
         first: usize,
+        pre: usize,
         update: usize,
+        post: usize,
         last: usize,
     }
 
@@ -106,7 +129,9 @@ mod tests {
         app.init_resource::<Time<Real>>()
             .init_resource::<Counts>()
             .add_systems(First, |mut counts: ResMut<Counts>| counts.first += 1)
+            .add_systems(PreUpdate, |mut counts: ResMut<Counts>| counts.pre += 1)
             .add_systems(Update, |mut counts: ResMut<Counts>| counts.update += 1)
+            .add_systems(PostUpdate, |mut counts: ResMut<Counts>| counts.post += 1)
             .add_systems(Last, |mut counts: ResMut<Counts>| counts.last += 1);
         let arguments = arguments
             .iter()
@@ -160,6 +185,25 @@ mod tests {
         app.update();
         let counts = app.world().resource::<Counts>();
         assert_eq!((counts.first, counts.update, counts.last), (2, 1, 2));
+    }
+
+    #[test]
+    fn whole_main_work_stops_while_first_and_last_continue() {
+        let mut app = test_app(&["--skip-main-work-after", "0"]);
+        for _ in 0..3 {
+            app.update();
+        }
+        let counts = app.world().resource::<Counts>();
+        assert_eq!(
+            (
+                counts.first,
+                counts.pre,
+                counts.update,
+                counts.post,
+                counts.last
+            ),
+            (3, 1, 1, 1, 3)
+        );
     }
 
     #[test]

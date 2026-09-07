@@ -43,7 +43,9 @@ pub(crate) fn requests_service_window(
         ("core", []) => Ok(Some(ServiceWindowMode::Core)),
         ("render", []) => Ok(Some(ServiceWindowMode::Render)),
         ("continuous", []) => Ok(Some(ServiceWindowMode::Continuous)),
-        ("continuous", [selector, seconds]) if selector == "--skip-update-after" => {
+        ("continuous", [selector, seconds])
+            if selector == "--skip-update-after" || selector == "--skip-main-work-after" =>
+        {
             seconds
                 .parse::<u64>()
                 .map_err(|_| "skip-update seconds must be an unsigned integer".to_string())?;

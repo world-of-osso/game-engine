@@ -2,6 +2,8 @@
 
 `--skip-update-after SECONDS` removes main `Update` from `MainScheduleOrder` after the deadline. This intentionally freezes gameplay and any networking/IPC/UI callbacks in that schedule, while other schedules and rendering remain enabled. It is destructive attribution, not an optimization.
 
+`--skip-main-work-after SECONDS` is the broader diagnostic: it removes `PreUpdate`, `Update`, and `PostUpdate` together. `First`, `Last`, fixed schedules, state transitions, extraction, and rendering remain scheduled. The two cutoff flags are mutually exclusive. This also freezes camera/transform preparation and network processing in those stages; only frozen-scene attribution is valid.
+
 ## What it must do
 
 - [ ] Remove only Update once after the deadline; a zero deadline permits the first update.
