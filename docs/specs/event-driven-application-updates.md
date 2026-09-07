@@ -74,8 +74,8 @@ Rendering, remote interpolation, camera-facing billboards, input needed for acti
 ## Known gaps
 
 - [x] Verify forced-disconnect native lifecycle. `4d3c7ed6` stores the server notice, requests the worker's real Lightyear client disconnect, and preserves the notice for existing lifecycle policy. At `1cce4171`, an authenticated InWorld client matched the server netcode connection; an admin kick delivered the notice and produced real `Disconnected`, InWorld → Login, visible `LoginRoot`, and zero links/replicas. Hidden semantic scene entries remain, so this is not complete scene cleanup or visual proof.
-- [ ] Prove a native ordinary disconnect/reconnect round trip. Worker restart/queue cleanup and permit-driven reconnect fixtures are covered; the remaining boundary is reconnecting a real client after an ordinary transport loss.
-- [ ] Prove real offline model spawn, animation binding, despawn, and reload lifecycle. State-level offline animation coverage and CPU-side attachment/skinning propagation do not establish that lifecycle.
+- [x] Prove a native ordinary disconnect/reconnect round trip. Client `1057253` reached InWorld on test-server PID `483229`; restarting that server as PID `1060054` produced a transport timeout, a new client connection ID, authentication, and a second InWorld entry with the human player and routed `Who Theron` one-result reply. The test client was stopped; the restarted test server remains running.
+- [x] Prove real offline model spawn, animation binding, despawn, and reload lifecycle. `f616f48a` runs the actual CharSelect real-asset path: human + helm spawn and Bevy motion, root/joint/helm removal, then a second spawn with animation and attachment motion. Independent verification retained the targeted 1/1 proof.
 - [ ] Establish native visual equivalence. Known slab-allocator errors plus white/dark smoke invalidate pixel-level appearance, GPU-deformation, and scene-equivalence conclusions.
 - [ ] Establish controlled CPU/performance impact. The scheduling changes have no CPU/FPS improvement claim.
 
