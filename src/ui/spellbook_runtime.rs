@@ -43,6 +43,8 @@ pub enum SpellbookKeyInput {
 
 /// Drives a Screen and applies its mutations into the frame registry.
 pub struct SpellbookUiRuntime {
+    #[cfg(test)]
+    pub(crate) execution_counts: (usize, usize),
     shared_ctx: ui_toolkit::screen::SharedContext,
     screen: Screen,
     spellbook_seeded: bool,
@@ -67,6 +69,8 @@ impl Default for SpellbookUiRuntime {
 impl SpellbookUiRuntime {
     pub fn new() -> Self {
         Self {
+            #[cfg(test)]
+            execution_counts: (0, 0),
             shared_ctx: ui_toolkit::screen::SharedContext::new(),
             screen: Screen::new(game_ui_root),
             spellbook_seeded: false,
@@ -84,6 +88,10 @@ impl SpellbookUiRuntime {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) {
+        #[cfg(test)]
+        {
+            self.execution_counts.0 += 1;
+        }
         self.screen.sync(&self.shared_ctx, registry);
 
         if !self.spellbook_seeded {
@@ -96,12 +104,18 @@ impl SpellbookUiRuntime {
         self.has_keyboard_focus
     }
 
-    pub fn handle_pointer_move(&mut self, registry: &mut FrameRegistry, x: f32, y: f32) {
+    /// Returns whether hover changed the displayed spellbook.
+    pub fn handle_pointer_move(&mut self, registry: &mut FrameRegistry, x: f32, y: f32) -> bool {
+        #[cfg(test)]
+        {
+            self.execution_counts.1 += 1;
+        }
         let hovered = self.hit_target_at(registry, x, y);
         if hovered != self.hovered_target {
             self.hovered_target = hovered;
-            let _ = self.rebuild_spellbook(registry);
+            return self.rebuild_spellbook(registry).is_some();
         }
+        false
     }
 
     pub fn handle_pointer_button(

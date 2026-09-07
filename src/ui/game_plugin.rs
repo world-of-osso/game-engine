@@ -7,11 +7,35 @@ use crate::ui::plugin::UiState;
 use crate::ui::spellbook_runtime::{SpellbookAction, SpellbookKeyInput, SpellbookUiRuntime};
 use shared::protocol::{CombatChannel, SpellCastIntent};
 
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum SpellbookUiSystems {
+    Sync,
+    Input,
+}
+
+pub fn register_spellbook_frame_systems(app: &mut App) {
+    app.configure_sets(
+        Update,
+        (SpellbookUiSystems::Sync, SpellbookUiSystems::Input).chain(),
+    );
+    app.add_systems(Update, sync_screen_ui.in_set(SpellbookUiSystems::Sync));
+    app.add_systems(
+        Update,
+        (handle_spellbook_pointer, handle_spellbook_keyboard)
+            .chain()
+            .in_set(SpellbookUiSystems::Input),
+    );
+}
+
 pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<SpellbookUiRuntime>>) {
     if let Some(mut runtime) = runtime
         && (state.is_changed() || runtime.is_changed())
     {
-        runtime.sync(&mut state.registry);
+        // Registry mutations carry their own render/layout dirtiness. Consuming
+        // an invalidation must not publish another UiState/runtime invalidation.
+        runtime
+            .bypass_change_detection()
+            .sync(&mut state.bypass_change_detection().registry);
     }
 }
 
@@ -50,7 +74,14 @@ pub fn handle_spellbook_pointer(
     let y = window.height() - cursor.y;
     let position = Vec2::new(x, y);
     if *last_cursor != Some(position) || state.is_changed() || runtime.is_changed() {
-        runtime.handle_pointer_move(&mut state.registry, x, y);
+        let changed = runtime.bypass_change_detection().handle_pointer_move(
+            &mut state.bypass_change_detection().registry,
+            x,
+            y,
+        );
+        if changed {
+            state.set_changed();
+        }
         *last_cursor = Some(position);
     }
 
@@ -148,6 +179,142 @@ mod idle_tests {
         text.text.clone()
     }
 
+    fn production_app() -> (App, Entity) {
+        let mut app = app();
+        let mut window = Window::default();
+        window.resolution.set(1920.0, 1080.0);
+        window.set_cursor_position(Some(Vec2::new(1900.0, 1000.0)));
+        let window = app
+            .world_mut()
+            .spawn((window, bevy::window::PrimaryWindow))
+            .id();
+        app.add_message::<KeyboardInput>();
+        register_spellbook_frame_systems(&mut app);
+        app.add_systems(Last, record_changes);
+        (app, window)
+    }
+
+    fn assert_idle(app: &mut App) {
+        // Consume the last real output invalidation before measuring idle work.
+        app.update();
+        app.update();
+        let initial_changes = app.world().resource::<Changes>().0;
+        let initial_calls = app
+            .world()
+            .non_send::<SpellbookUiRuntime>()
+            .execution_counts;
+        for _ in 0..8 {
+            app.update();
+        }
+        assert_eq!(app.world().resource::<Changes>().0, initial_changes);
+        assert_eq!(
+            app.world()
+                .non_send::<SpellbookUiRuntime>()
+                .execution_counts,
+            initial_calls,
+            "idle frames must not sync screens or hit-test the pointer"
+        );
+    }
+
+    #[test]
+    fn production_spellbook_registration_settles_without_idle_work() {
+        let (mut app, window) = production_app();
+        assert_idle(&mut app);
+        assert_eq!(first_spell(&app), "Avenger's Shield");
+        point_at_holy_tab(&mut app, window);
+        assert_idle(&mut app);
+    }
+
+    fn tab_color(app: &App) -> Option<[f32; 4]> {
+        let registry = &app.world().resource::<UiState>().registry;
+        registry
+            .get(registry.get_by_name("SpellBookTabPanel4").unwrap())
+            .unwrap()
+            .background_color
+    }
+
+    #[test]
+    fn production_layout_change_rechecks_stationary_hover_then_settles() {
+        let (mut app, window) = production_app();
+        assert_idle(&mut app);
+        let normal = tab_color(&app);
+        point_at_holy_tab(&mut app, window);
+        assert_idle(&mut app);
+        assert_ne!(tab_color(&app), normal);
+        {
+            let mut state = app.world_mut().resource_mut::<UiState>();
+            let ids: Vec<_> = state.registry.frames_iter().map(|frame| frame.id).collect();
+            for id in ids {
+                if let Some(rect) = &mut state.registry.get_mut(id).unwrap().layout_rect {
+                    rect.x += 2000.0;
+                }
+            }
+        }
+        assert_idle(&mut app);
+        assert_eq!(tab_color(&app), normal);
+    }
+
+    #[test]
+    fn production_click_release_sends_once_and_keyboard_remains_responsive() {
+        let (mut app, window) = production_app();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        app.insert_resource(ConnectionSender::new(Some(sender)));
+        assert_idle(&mut app);
+        let cursor = {
+            let registry = &app.world().resource::<UiState>().registry;
+            let id = registry.get_by_name("SpellBookSpellName1").unwrap();
+            let rect = registry.get(id).unwrap().layout_rect.as_ref().unwrap();
+            Vec2::new(
+                rect.x + rect.width / 2.0,
+                1080.0 - rect.y - rect.height / 2.0,
+            )
+        };
+        app.world_mut()
+            .get_mut::<Window>(window)
+            .unwrap()
+            .set_cursor_position(Some(cursor));
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+        assert!(receiver.try_recv().is_err());
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .release(MouseButton::Left);
+        app.update();
+        assert!(matches!(
+            receiver.try_recv(),
+            Ok(game_engine::network_runtime::worker::NetworkCommand::Apply(
+                _
+            ))
+        ));
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .clear();
+        assert_idle(&mut app);
+        assert!(receiver.try_recv().is_err());
+        assert!(
+            app.world()
+                .non_send::<SpellbookUiRuntime>()
+                .has_active_cooldowns()
+        );
+        for ch in ["e", "y", "e"] {
+            app.world_mut().write_message(KeyboardInput {
+                key_code: KeyCode::KeyE,
+                logical_key: bevy::input::keyboard::Key::Character(ch.into()),
+                state: ButtonState::Pressed,
+                text: Some(ch.into()),
+                repeat: false,
+                window,
+            });
+        }
+        assert_idle(&mut app);
+        assert_eq!(first_spell(&app), "Eye of Tyr");
+    }
+
     #[test]
     fn screen_sync_preserves_initial_output_without_idle_changes() {
         let mut app = app();
@@ -239,7 +406,18 @@ mod idle_tests {
         assert!(app.world().resource::<Changes>().0 > before);
         app.world_mut().insert_non_send(SpellbookUiRuntime::new());
         app.update();
-        assert!(app.world().resource::<Changes>().0 > before + 1);
+        assert_eq!(
+            app.world()
+                .non_send::<SpellbookUiRuntime>()
+                .execution_counts
+                .1,
+            1
+        );
+        assert_eq!(
+            app.world().resource::<Changes>().0,
+            before + 1,
+            "hit-testing unchanged output must not dirty UiState"
+        );
     }
 }
 

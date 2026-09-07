@@ -152,9 +152,11 @@ fn register_state_update_transitions(app: &mut App) {
 }
 
 fn register_in_world_systems(app: &mut App) {
-    app.add_systems(
+    use game_engine::ui::game_plugin::{SpellbookUiSystems, register_spellbook_frame_systems};
+    register_spellbook_frame_systems(app);
+    app.configure_sets(
         Update,
-        game_engine::ui::game_plugin::sync_screen_ui
+        SpellbookUiSystems::Sync
             .run_if(in_state(GameState::InWorld))
             .run_if(inworld_scene_stage_allows_ui),
     );
@@ -166,13 +168,9 @@ fn register_in_world_systems(app: &mut App) {
             .run_if(inworld_scene_stage_allows_ui)
             .run_if(game_engine::ui::game_plugin::spellbook_cooldowns_active),
     );
-    app.add_systems(
+    app.configure_sets(
         Update,
-        (
-            game_engine::ui::game_plugin::handle_spellbook_pointer,
-            game_engine::ui::game_plugin::handle_spellbook_keyboard,
-        )
-            .chain()
+        SpellbookUiSystems::Input
             .run_if(
                 in_state(GameState::InWorld).and_then(crate::networking::gameplay_input_allowed),
             )
