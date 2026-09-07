@@ -85,7 +85,7 @@ Both blank update telemetry and full-game IPC FPS describe app-update cadence, n
 
 ## Native instruction attribution
 
-The original continuous blank-renderer profile has 3,109 records totaling 11,618,357,418 sampled cycle period. Offline LLVM symbolization of the preserved matching ELF assigns each of 1,089 executable instruction addresses once to the nearest registry-source frame in its deepest-first inline chain. It resolves 9,137,307,152 period (78.61%); this is instruction ownership, not runtime caller ancestry or inclusive callback cost.
+The original continuous blank-renderer profile has 3,109 records totaling 11,618,357,418 sampled cycle period. Offline LLVM symbolization of the preserved matching ELF assigns each of 1,089 executable instruction addresses once to the nearest registry-source frame in its deepest-first inline chain, keeping addresses without such a frame in a separate unmapped/stdlib category. These executable addresses cover 9,137,307,152 period (78.6454%); this is instruction ownership, not runtime caller ancestry or inclusive callback cost. Independent audit verified address coverage, sums, single assignment, matching ELF identities, relocation biases, and the four hot instruction sites.
 
 | Nearest source package | Sampled period share |
 | --- | ---: |
