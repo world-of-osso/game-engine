@@ -337,10 +337,15 @@ impl Plugin for IpcPlugin {
             let (receiver, guard) = init();
             app.insert_non_send(receiver)
                 .insert_non_send(guard)
-                .add_systems(Update, receive_ipc_commands.in_set(IpcUpdateSet::Receive))
-                .add_systems(Update, dispatch_ipc_commands.in_set(IpcUpdateSet::Dispatch));
+                .add_systems(Update, receive_ipc_commands.in_set(IpcUpdateSet::Receive));
+            register_ipc_dispatch(app);
         }
     }
+}
+
+#[cfg(feature = "ipc")]
+fn register_ipc_dispatch(app: &mut App) {
+    app.add_systems(Update, dispatch_ipc_commands.in_set(IpcUpdateSet::Dispatch));
 }
 
 #[cfg(feature = "ipc")]
@@ -799,6 +804,56 @@ mod tests {
         let mut pending = PendingIpcCommands::default();
         pending.enqueue(Command { request, respond });
         pending
+    }
+
+    #[cfg(feature = "ipc")]
+    #[test]
+    fn empty_queue_skips_dispatch_without_world_resources() {
+        let mut app = App::new();
+        app.init_resource::<PendingIpcCommands>();
+        register_ipc_dispatch(&mut app);
+
+        app.update();
+        app.update();
+
+        let pending = app.world().resource::<PendingIpcCommands>();
+        assert!(pending.commands.is_empty());
+        assert!(!pending.needs_any_status_refresh());
+    }
+
+    #[cfg(feature = "ipc")]
+    #[test]
+    fn received_commands_preserve_fifo_and_refresh_dependencies() {
+        let (send, receive) = mpsc::channel();
+        let (respond, _responses) = mpsc::channel();
+        let mut app = App::new();
+        app.init_resource::<PendingIpcCommands>()
+            .insert_non_send(receive)
+            .add_systems(Update, receive_ipc_commands);
+        for request in [
+            Request::NetworkStatus,
+            Request::TerrainStatus,
+            Request::Performance,
+        ] {
+            send.send(Command {
+                request,
+                respond: respond.clone(),
+            })
+            .unwrap();
+        }
+
+        app.update();
+
+        let mut pending = app.world_mut().resource_mut::<PendingIpcCommands>();
+        assert!(pending.needs_network_status());
+        assert!(pending.needs_terrain_status());
+        let commands = pending.take_commands();
+        assert_eq!(commands.len(), 3);
+        assert!(matches!(commands[0].request, Request::NetworkStatus));
+        assert!(matches!(commands[1].request, Request::TerrainStatus));
+        assert!(matches!(commands[2].request, Request::Performance));
+        assert!(pending.commands.is_empty());
+        assert!(!pending.needs_any_status_refresh());
     }
 
     #[test]
