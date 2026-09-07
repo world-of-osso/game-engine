@@ -16,6 +16,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::network_runtime::connection::Connected;
 use game_engine::network_runtime::messages::MessageSenders;
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
 
 #[cfg(feature = "ipc")]
 use super::init;
@@ -305,6 +306,7 @@ struct WorldParams<'w> {
 
 #[derive(bevy::ecs::system::SystemParam)]
 struct IpcSenderParams<'w, 's> {
+    replication_map: Res<'w, ReplicationMirrorMap>,
     emote_senders: MessageSenders<'w, 's, EmoteIntent>,
     spell_cast_senders: MessageSenders<'w, 's, SpellCastIntent>,
     spell_stop_senders: MessageSenders<'w, 's, StopSpellCast>,

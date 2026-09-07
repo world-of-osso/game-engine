@@ -4,6 +4,7 @@ use std::sync::mpsc;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use shared::protocol::{
     AcceptDuel, DeclineDuel, DuelBoundarySnapshot, DuelChannel, DuelPhaseSnapshot,
     DuelResultSnapshot, DuelStateUpdate, InitiateDuel,
@@ -79,17 +80,51 @@ struct DuelSenders<'w, 's> {
     decline: MessageSenders<'w, 's, DeclineDuel>,
 }
 
-fn send_pending_actions(mut state: ResMut<DuelClientState>, mut senders: DuelSenders) {
+fn send_pending_actions(
+    mut state: ResMut<DuelClientState>,
+    mut senders: DuelSenders,
+    map: Res<ReplicationMirrorMap>,
+) {
     while let Some(action) = state.pending_actions.pop_front() {
-        let sent = match action {
-            Action::Challenge(message) => send_all(&mut senders.challenge, message),
-            Action::Accept => send_all(&mut senders.accept, AcceptDuel),
-            Action::Decline => send_all(&mut senders.decline, DeclineDuel),
-        };
-        if !sent && let Some(reply) = state.pending_replies.pop_front() {
-            let _ = reply.send(Response::Error("duel is unavailable: not connected".into()));
+        if let Err(error) = send_action(action, &mut senders, &map)
+            && let Some(reply) = state.pending_replies.pop_front()
+        {
+            let _ = reply.send(Response::Error(error.into()));
         }
     }
+}
+
+fn send_action(
+    action: Action,
+    senders: &mut DuelSenders,
+    map: &ReplicationMirrorMap,
+) -> Result<(), &'static str> {
+    let sent = match action {
+        Action::Challenge(message) => {
+            if senders.challenge.is_empty() {
+                return Err("duel is unavailable: not connected");
+            }
+            let message = map_challenge_target(message, map)?;
+            send_all(&mut senders.challenge, message)
+        }
+        Action::Accept => send_all(&mut senders.accept, AcceptDuel),
+        Action::Decline => send_all(&mut senders.decline, DeclineDuel),
+    };
+    sent.then_some(())
+        .ok_or("duel is unavailable: not connected")
+}
+
+fn map_challenge_target(
+    mut message: InitiateDuel,
+    map: &ReplicationMirrorMap,
+) -> Result<InitiateDuel, &'static str> {
+    if let Some(bits) = message.target_entity {
+        let server = Entity::try_from_bits(bits)
+            .and_then(|main| map.main_to_server(main))
+            .ok_or("duel target is no longer replicated")?;
+        message.target_entity = Some(server.to_bits());
+    }
+    Ok(message)
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
@@ -212,6 +247,71 @@ fn format_result(result: &DuelResultEntry) -> &'static str {
 mod tests {
     use super::*;
     use shared::protocol::DuelSnapshot;
+
+    #[test]
+    fn removed_challenge_target_replies_without_sending_a_command() {
+        use crate::network_runtime::messages::ConnectionSender;
+        let mut app = App::new();
+        app.init_resource::<ReplicationMirrorMap>();
+        app.add_plugins(DuelPlugin);
+        let main = app.world_mut().spawn_empty().id();
+        let (commands, pending_commands) = mpsc::channel();
+        app.insert_resource(ConnectionSender::new(Some(commands)));
+        let (reply, responses) = mpsc::channel();
+        queue_ipc_request_with_snapshot(
+            &mut app.world_mut().resource_mut::<DuelClientState>(),
+            &DuelStatusSnapshot::default(),
+            &CurrentTarget(Some(main)),
+            &Request::DuelChallenge,
+            reply,
+        );
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        let Response::Error(error) = responses.try_recv().unwrap() else {
+            panic!("expected unmapped target error");
+        };
+        assert_eq!(error, "duel target is no longer replicated");
+        assert!(pending_commands.try_recv().is_err());
+        assert!(
+            app.world()
+                .resource::<DuelClientState>()
+                .pending_actions
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn challenge_target_uses_server_identity_and_rejects_removed_mapping() {
+        let mut world = World::new();
+        let main = world.spawn_empty().id();
+        let server = world.spawn_empty().id();
+        let mut map = ReplicationMirrorMap::default();
+        map.insert(server, main);
+        let request = InitiateDuel {
+            target_entity: Some(main.to_bits()),
+        };
+        assert_eq!(
+            map_challenge_target(request.clone(), &map)
+                .unwrap()
+                .target_entity,
+            Some(server.to_bits())
+        );
+        map.clear();
+        assert_eq!(
+            map_challenge_target(request, &map).unwrap_err(),
+            "duel target is no longer replicated"
+        );
+        assert_eq!(
+            map_challenge_target(
+                InitiateDuel {
+                    target_entity: None
+                },
+                &map
+            )
+            .unwrap()
+            .target_entity,
+            None
+        );
+    }
 
     #[test]
     fn format_status_reports_active_boundary() {

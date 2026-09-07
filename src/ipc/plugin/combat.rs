@@ -1,4 +1,5 @@
 use game_engine::network_runtime::messages::{MessageSenders, WorkerMessageSender};
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use shared::protocol::{
     ChatChannel, CombatChannel, EmoteIntent, GroupInviteIntent, GroupUninviteIntent,
     SpellCastIntent, StopSpellCast,
@@ -19,6 +20,7 @@ pub(super) fn dispatch_combat_request(
                 target.clone(),
                 ctx.current_target,
                 ctx.connected,
+                &sender_params.replication_map,
                 &mut sender_params.spell_cast_senders,
             );
         }
@@ -54,8 +56,9 @@ fn resolve_spell_cast_intent(
     spell: &str,
     target: Option<&str>,
     current_target: &CurrentTarget,
+    map: &ReplicationMirrorMap,
 ) -> Option<SpellCastIntent> {
-    let target_bits = match super::super::format::resolve_spell_target(target, current_target) {
+    let target_bits = match resolve_network_spell_target(target, current_target, map) {
         Ok(bits) => bits,
         Err(error) => {
             let _ = cmd.respond.send(Response::Error(error));
@@ -76,12 +79,33 @@ fn resolve_spell_cast_intent(
     })
 }
 
+fn resolve_network_spell_target(
+    selector: Option<&str>,
+    current_target: &CurrentTarget,
+    map: &ReplicationMirrorMap,
+) -> Result<Option<u64>, String> {
+    let uses_current = selector.is_none_or(|value| value.eq_ignore_ascii_case("current"));
+    let server_target = if uses_current {
+        current_target
+            .0
+            .map(|main| {
+                map.main_to_server(main)
+                    .ok_or_else(|| "spell target is no longer replicated".to_string())
+            })
+            .transpose()?
+    } else {
+        None
+    };
+    super::super::format::resolve_spell_target(selector, &CurrentTarget(server_target))
+}
+
 fn handle_spell_cast(
     cmd: &Command,
     spell: String,
     target: Option<String>,
     current_target: &CurrentTarget,
     connected: bool,
+    map: &ReplicationMirrorMap,
     senders: &mut MessageSenders<SpellCastIntent>,
 ) {
     if !connected {
@@ -90,7 +114,8 @@ fn handle_spell_cast(
         ));
         return;
     }
-    let Some(intent) = resolve_spell_cast_intent(cmd, &spell, target.as_deref(), current_target)
+    let Some(intent) =
+        resolve_spell_cast_intent(cmd, &spell, target.as_deref(), current_target, map)
     else {
         return;
     };
@@ -188,6 +213,80 @@ fn handle_emote(
         let _ = cmd
             .respond
             .send(Response::Error("emote sender unavailable".into()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::prelude::World;
+
+    #[test]
+    fn unmapped_spell_target_reports_ipc_error_instead_of_building_intent() {
+        let mut world = World::new();
+        let main = world.spawn_empty().id();
+        let (respond, responses) = std::sync::mpsc::channel();
+        let command = Command {
+            request: Request::SpellCast {
+                spell: "123".into(),
+                target: None,
+            },
+            respond,
+        };
+        let intent = resolve_spell_cast_intent(
+            &command,
+            "123",
+            None,
+            &CurrentTarget(Some(main)),
+            &ReplicationMirrorMap::default(),
+        );
+        assert!(intent.is_none());
+        let Response::Error(error) = responses.try_recv().unwrap() else {
+            panic!("expected unmapped target error");
+        };
+        assert_eq!(error, "spell target is no longer replicated");
+    }
+
+    #[test]
+    fn spell_current_targets_map_but_explicit_server_ids_do_not() {
+        let mut world = World::new();
+        let main = world.spawn_empty().id();
+        let server = world.spawn_empty().id();
+        let mut map = ReplicationMirrorMap::default();
+        map.insert(server, main);
+        let target = CurrentTarget(Some(main));
+        for selector in [None, Some("current"), Some("CURRENT")] {
+            assert_eq!(
+                resolve_network_spell_target(selector, &target, &map).unwrap(),
+                Some(server.to_bits())
+            );
+        }
+        let explicit = main.to_bits().to_string();
+        assert_eq!(
+            resolve_network_spell_target(Some(&explicit), &target, &map).unwrap(),
+            Some(main.to_bits())
+        );
+        map.clear();
+        assert_eq!(
+            resolve_network_spell_target(Some(&explicit), &target, &map).unwrap(),
+            Some(main.to_bits())
+        );
+        assert_eq!(
+            resolve_network_spell_target(Some("none"), &target, &map).unwrap(),
+            None
+        );
+        assert_eq!(
+            resolve_network_spell_target(None, &target, &map).unwrap_err(),
+            "spell target is no longer replicated"
+        );
+        assert_eq!(
+            resolve_network_spell_target(None, &CurrentTarget(None), &map).unwrap_err(),
+            "no current target selected"
+        );
+        assert_eq!(
+            resolve_network_spell_target(Some("bogus"), &target, &map).unwrap_err(),
+            "invalid target selector 'bogus'"
+        );
     }
 }
 

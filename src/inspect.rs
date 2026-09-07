@@ -3,6 +3,7 @@ use std::sync::mpsc;
 
 use bevy::prelude::*;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use shared::components::Player as NetPlayer;
 use shared::protocol::{InspectChannel, InspectStateUpdate, QueryInspectTarget};
 
@@ -80,24 +81,41 @@ fn clear_snapshot(snapshot: &mut InspectStatusSnapshot) {
 fn send_pending_queries(
     mut runtime: ResMut<InspectRuntimeState>,
     mut senders: MessageSenders<QueryInspectTarget>,
+    map: Res<ReplicationMirrorMap>,
 ) {
     if !runtime.pending_query {
         return;
     }
 
     runtime.pending_query = false;
-    let request = QueryInspectTarget {
-        target_entity: runtime.current_target.map(|entity| entity.to_bits()),
+    let outcome = if senders.is_empty() {
+        Err("inspect is unavailable: not connected")
+    } else {
+        build_inspect_query(runtime.current_target, &map).and_then(|request| {
+            send_all(&mut senders, request)
+                .then_some(())
+                .ok_or("inspect is unavailable: not connected")
+        })
     };
-    if send_all(&mut senders, request) {
-        return;
+    if let Err(error) = outcome {
+        while let Some(reply) = runtime.pending_replies.pop_front() {
+            let _ = reply.send(Response::Error(error.into()));
+        }
     }
+}
 
-    while let Some(reply) = runtime.pending_replies.pop_front() {
-        let _ = reply.send(Response::Error(
-            "inspect is unavailable: not connected".into(),
-        ));
-    }
+fn build_inspect_query(
+    target: Option<Entity>,
+    map: &ReplicationMirrorMap,
+) -> Result<QueryInspectTarget, &'static str> {
+    let target_entity = target
+        .map(|main| {
+            map.main_to_server(main)
+                .map(Entity::to_bits)
+                .ok_or("inspect target is no longer replicated")
+        })
+        .transpose()?;
+    Ok(QueryInspectTarget { target_entity })
 }
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
@@ -245,9 +263,53 @@ mod tests {
     use super::*;
 
     #[test]
+    fn removed_inspect_target_replies_without_sending_a_command() {
+        use crate::network_runtime::messages::ConnectionSender;
+        let mut app = App::new();
+        app.init_resource::<ReplicationMirrorMap>();
+        app.add_plugins(InspectPlugin);
+        let main = app.world_mut().spawn_empty().id();
+        let (commands, pending_commands) = mpsc::channel();
+        app.insert_resource(ConnectionSender::new(Some(commands)));
+        let (reply, responses) = mpsc::channel();
+        {
+            let mut runtime = app.world_mut().resource_mut::<InspectRuntimeState>();
+            request_query_for_target(&mut runtime, Some(main));
+            runtime.pending_replies.push_back(reply);
+        }
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        let Response::Error(error) = responses.try_recv().unwrap() else {
+            panic!("expected unmapped target error");
+        };
+        assert_eq!(error, "inspect target is no longer replicated");
+        assert!(pending_commands.try_recv().is_err());
+        assert!(!app.world().resource::<InspectRuntimeState>().pending_query);
+    }
+
+    #[test]
+    fn inspect_query_uses_server_identity_and_rejects_removed_mapping() {
+        let mut world = World::new();
+        let main = world.spawn_empty().id();
+        let server = world.spawn_empty().id();
+        let mut map = ReplicationMirrorMap::default();
+        map.insert(server, main);
+        assert_eq!(
+            build_inspect_query(Some(main), &map).unwrap().target_entity,
+            Some(server.to_bits())
+        );
+        map.clear();
+        assert_eq!(
+            build_inspect_query(Some(main), &map).unwrap_err(),
+            "inspect target is no longer replicated"
+        );
+        assert_eq!(build_inspect_query(None, &map).unwrap().target_entity, None);
+    }
+
+    #[test]
     fn dispatcher_consumes_pending_query_and_replies_when_disconnected() {
         let mut app = App::new();
         app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
+        app.init_resource::<ReplicationMirrorMap>();
         app.add_plugins(InspectPlugin);
         let (reply, responses) = mpsc::channel();
         {
