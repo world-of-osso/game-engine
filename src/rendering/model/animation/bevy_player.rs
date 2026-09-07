@@ -38,14 +38,7 @@ pub(crate) fn bind_m2_animation_players(
                 &targets,
             );
         }
-        let mut graph = AnimationGraph::new();
-        let mut current_nodes = Vec::new();
-        let mut outgoing_nodes = Vec::new();
-        for sequence in 0..data.sequences.len().max(1) {
-            let clip = clips.add(bevy_curves::build_clip(data, sequence));
-            current_nodes.push(graph.add_clip(clip.clone(), 1.0, graph.root));
-            outgoing_nodes.push(graph.add_clip(clip, 1.0, graph.root));
-        }
+        let (graph, binding) = build_animation_graph(data, &mut clips, &mut graphs);
         for (index, &joint) in data.joint_entities.iter().enumerate() {
             if joints.contains(joint) {
                 commands
@@ -53,16 +46,33 @@ pub(crate) fn bind_m2_animation_players(
                     .insert((bevy_curves::bone_target_id(index), AnimatedBy(owner)));
             }
         }
-        commands.entity(owner).insert((
-            AnimationPlayer::default(),
-            AnimationGraphHandle(graphs.add(graph)),
-            M2BevyAnimation {
-                joints: data.joint_entities.clone(),
-                current_nodes,
-                outgoing_nodes,
-            },
-        ));
+        commands
+            .entity(owner)
+            .insert((AnimationPlayer::default(), graph, binding));
     }
+}
+
+fn build_animation_graph(
+    data: &M2AnimData,
+    clips: &mut Assets<AnimationClip>,
+    graphs: &mut Assets<AnimationGraph>,
+) -> (AnimationGraphHandle, M2BevyAnimation) {
+    let mut graph = AnimationGraph::new();
+    let mut current_nodes = Vec::new();
+    let mut outgoing_nodes = Vec::new();
+    for sequence in 0..data.sequences.len().max(1) {
+        let clip = clips.add(bevy_curves::build_clip(data, sequence));
+        current_nodes.push(graph.add_clip(clip.clone(), 1.0, graph.root));
+        outgoing_nodes.push(graph.add_clip(clip, 1.0, graph.root));
+    }
+    (
+        AnimationGraphHandle(graphs.add(graph)),
+        M2BevyAnimation {
+            joints: data.joint_entities.clone(),
+            current_nodes,
+            outgoing_nodes,
+        },
+    )
 }
 
 fn detach_obsolete_targets(
@@ -120,30 +130,36 @@ pub(crate) fn sync_m2_animation_players(
                 controller.current_seq_idx
             );
         };
-        let current_weight = if let Some(transition) = &controller.transition {
-            let blend =
-                (transition.blend_elapsed_ms / transition.blend_duration_ms).clamp(0.0, 1.0);
-            let Some(&outgoing) = binding.outgoing_nodes.get(transition.from_seq_idx) else {
-                panic!(
-                    "M2 outgoing animation sequence {} has no Bevy clip",
-                    transition.from_seq_idx
-                );
-            };
-            player
-                .play(outgoing)
-                .pause()
-                .set_weight(1.0 - blend)
-                .seek_to(transition.from_time_ms / 1000.0);
-            blend
-        } else {
-            1.0
-        };
+        let current_weight = apply_outgoing_transition(controller, binding, &mut player);
         player
             .play(current)
             .pause()
             .set_weight(current_weight)
             .seek_to(controller.time_ms / 1000.0);
     }
+}
+
+fn apply_outgoing_transition(
+    controller: &M2AnimPlayer,
+    binding: &M2BevyAnimation,
+    player: &mut AnimationPlayer,
+) -> f32 {
+    let Some(transition) = &controller.transition else {
+        return 1.0;
+    };
+    let blend = (transition.blend_elapsed_ms / transition.blend_duration_ms).clamp(0.0, 1.0);
+    let Some(&outgoing) = binding.outgoing_nodes.get(transition.from_seq_idx) else {
+        panic!(
+            "M2 outgoing animation sequence {} has no Bevy clip",
+            transition.from_seq_idx
+        );
+    };
+    player
+        .play(outgoing)
+        .pause()
+        .set_weight(1.0 - blend)
+        .seek_to(transition.from_time_ms / 1000.0);
+    blend
 }
 
 #[cfg(test)]
