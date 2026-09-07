@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::{
+    a11y::AccessibilityPlugin,
     app::{App, AppExit, Last, PluginGroup, ScheduleRunnerPlugin},
     asset::AssetPlugin,
     camera::{Camera, Camera2d, CameraPlugin, ClearColorConfig},
@@ -41,6 +42,7 @@ fn build_app(continuous: bool) -> App {
         .add_plugins(LogPlugin::default())
         .add_plugins(TransformPlugin)
         .add_plugins(InputPlugin)
+        .add_plugins(AccessibilityPlugin)
         .add_plugins(WindowPlugin {
             primary_window: Some(render_window()),
             ..default()

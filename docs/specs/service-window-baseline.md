@@ -17,7 +17,7 @@
 - `src/service_window.rs` constructs the core app using `MinimalPlugins` without `ScheduleRunnerPlugin`.
 - `src/empty_window.rs` owns native presentation and calls the optional app at event-loop boundaries.
 - `src/main.rs` routes before ordinary initialization; `src/cli_args.rs` enforces exclusive stage selection.
-- `src/render_window.rs` installs Bevy logging, transforms, input, window/assets/event integration, renderer, image/mesh assets, camera, pipelining and core render pipelines. Input messages are required by Winit's keyboard-focus systems; mesh assets are required by RenderPlugin's mesh extraction even for a clear-only camera. No PBR, lights, sprites or UI plugins.
+- `src/render_window.rs` installs Bevy logging, transforms, input, accessibility resources, window/assets/event integration, renderer, image/mesh assets, camera, pipelining and core render pipelines. Input messages are required by Winit's keyboard-focus systems and accessibility resources by its window creation; mesh assets are required by RenderPlugin's mesh extraction even for a clear-only camera. No PBR, lights, sprites or UI plugins.
 - Render stages log cumulative updates and interval update rate at most once per second during existing app updates, without a separate timer. Update rate is not presented/display FPS.
 - `tests/unit/empty_window_args_tests.rs` exercises stage selection and invalid combinations; the service module test executes updates and checks time advancement. The render module test executes Startup and checks one active Camera2d with the specified clear color. Native smoke/measurement must also exercise the actual GPU/plugin lifecycle.
 
