@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record unintegrated dedicated network-world foundation
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `a35b1c5c`. `src/network_runtime/worker.rs` is a committed, unwired 60 Hz Bevy worker owner with the existing 20 Hz client simulation configuration, FIFO worker commands, main-world update closures, and shutdown/error plumbing. It starts no production client and moves no transport, replication, message routing, entity mirroring, or reconnect lifecycle. Its tests were written but not run. Existing main-thread `NetworkTick` proof and CPU limitations remain unchanged.
+
 ## [2026-09-07] investigation | Record event-driven native follow-up
 
 Updated [event-driven application updates](../specs/event-driven-application-updates.md) and [[movement-performance]]. Empty-stage login reached InWorld; its ten-second unfocused sample was 265.779% one-core CPU and 503.746 application updates/s. The earlier 293.279%/422.366 Empty sample used different clocks, so no causal CPU reduction is claimed. A full-world client logged in and completed Who/friends replies, but its visual smoke is invalid from repeated slab-allocator errors and a white/dark screenshot. The same error predates this work in `connected-warm2/client.log:149`; no equipment-event causality is established. Test clients stopped. Render-independent network-world execution remains open.

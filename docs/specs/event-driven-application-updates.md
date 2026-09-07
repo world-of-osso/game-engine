@@ -25,6 +25,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
 - `NetworkTick` shares the main ECS thread. Due ticks can run together at lower render cadences and cannot progress while that thread is blocked; it is a logical 60 Hz cadence, **not an independent OS network thread**.
+- `a35b1c5c` adds an unwired `src/network_runtime/worker.rs` foundation for a dedicated 60 Hz network ECS world. It owns a separate Bevy app, preserves the 20 Hz client simulation configuration, and exposes ordered worker commands plus main-world update closures. It does not yet own a live client, message bridge, replicated-entity mapping, or reconnect lifecycle; its tests are written but unrun.
 - Existing Bevy maximum-delta policy bounds catch-up after a long stall. The authoritative client/server simulation remains negotiated at **20 Hz**; this schedule does not alter it.
 - Link, transport, and message maintenance remain per-frame because transport senders advance delta-based timers there. Typed application inbox contents are parked before Lightyear's `Last` clear on frames with no due tick, restored in `First`, then dispatched at logical network ticks. This preserves buffered message metadata without a second wire protocol.
 - `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `2a8abacb` preserves transport timers while deferring application inboxes; `71d80355` makes its cadence fixtures use Bevy manual time. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
@@ -33,6 +34,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - `src/network_tick.rs`: fixed-cadence application driver; Lightyear transport I/O remains frame-driven.
 - `src/network_events.rs`: registered handlers and centralized inbox/outbox dispatch.
+- `src/network_runtime/worker.rs`: committed but unintegrated dedicated-world owner; it is not runtime behavior yet.
 - `src/game/networking/mod.rs`: application network registration.
 - `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment mutation and reconciliation boundaries.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
@@ -52,7 +54,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 ## Known gaps
 
 - [ ] Reconnection lifecycle, complete connected API coverage, and clean native appearance proof.
-- [ ] Independent network-world/thread execution. The current 60 Hz cadence is main-thread logical application work; transport remains frame-driven.
+- [ ] Independent network-world/thread execution. Integrate the committed worker so it exclusively owns Lightyear client/transport/replication state; bridge typed outgoing commands, incoming FIFO data, replicated entity/component snapshots, connection state, and reconnect cleanup into the render world. The current live path remains main-thread logical application work with frame-driven transport.
 - [ ] Remaining non-network application work and active movement/animation scheduling review.
 - [ ] Idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
 

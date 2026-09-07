@@ -24,11 +24,17 @@ Lightyear link, transport, and message maintenance stay on every frame. Transpor
 
 `network_events` owns one incoming and one outgoing registry. Incoming routing samples each typed inbox once, invokes eligible handlers in registration order only when buffered work exists, and leaves each receiver's per-type FIFO drain to its handler. Outgoing routing invokes registered handlers only when their cheap queue/dirty predicate is ready. Auth, gameplay/API, profession, auction, and social handlers now use this route. Collection/death retain their reply-owning consumers rather than competing generic handlers. Auth solely consumes character-creation responses and emits a local result event; the character-create scene observes that event only while active, avoiding a second network consumer.
 
+### Pending dedicated network world
+
+Commit `a35b1c5c` adds `src/network_runtime/worker.rs`, an unintegrated owner for a separately clocked 60 Hz Bevy network app. It configures Lightyear's client plugin at the existing 50 ms simulation interval and provides FIFO worker commands, main-world update closures, explicit stop/join, and failure propagation. No production plugin starts it yet; no live client, transport, replication, typed message route, render-world entity mirror, connection marker, or reconnect reset has moved into it. The worker tests are committed but have not run.
+
+Integration must give that world exclusive ownership of Lightyear client/transport/replication entities. The render world needs explicit bridges for ordered typed requests and replies, connection/disconnection lifecycle, and replicated entity identity/component updates before existing Player/Npc visual observers run. A socket-only thread is insufficient because those responsibilities currently live in the main ECS world. Until those boundaries are wired and tested, `NetworkTick` remains the only active networking cadence described above.
+
 Equipment uses owner-specific `EquipmentChanged` notifications for direct mutation, model dependency arrival, and replication confirmation. Rendering requests coalesce while work is pending; a final changed IPC batch renders once. `db7e6e7b` makes IPC dispatch conditional on nonempty `PendingIpcCommands`, before `dispatch_ipc_commands` acquires heavy parameters. IPC ordering remains receive, requested-status refresh, then dispatch. These changes have no native CPU comparison or CPU-fix claim.
 
 ## Current proof and limits
 
-Focused proof currently records network **8/8**, migrated API **55/55**, equipment **13 passed** plus **2 appearance-event tests**, equipment IPC FIFO **1/1**, and character-create response **3/3**. It does not prove a connected/reconnect lifecycle, native appearance delivery, independent transport/thread execution, or an idle-CPU improvement.
+Focused proof currently records network **8/8**, migrated API **55/55**, equipment **13 passed** plus **2 appearance-event tests**, equipment IPC FIFO **1/1**, and character-create response **3/3**. It does not cover the committed-but-unwired worker tests and does not prove a connected/reconnect lifecycle, native appearance delivery, independent transport/thread execution, or an idle-CPU improvement.
 
 ## Auth Flow
 
