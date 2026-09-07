@@ -534,6 +534,62 @@ mod tests {
     }
 
     #[test]
+    fn deferred_binding_teardown_survives_recursive_root_despawn() {
+        let mut app = fixture_app();
+        app.insert_resource(bevy::ecs::error::FallbackErrorHandler(
+            bevy::ecs::error::panic,
+        ));
+        let (owner, joint) = spawn_model(&mut app);
+        app.world_mut().entity_mut(joint).insert(ChildOf(owner));
+        settle(&mut app);
+        app.world_mut().commands().entity(owner).despawn();
+        app.world_mut().flush();
+        assert!(app.world().get_entity(owner).is_err());
+        assert!(app.world().get_entity(joint).is_err());
+    }
+
+    #[test]
+    fn deferred_binding_teardown_preserves_reassignment_after_enqueue() {
+        use bevy::ecs::system::SystemState;
+        let mut app = fixture_app();
+        app.insert_resource(bevy::ecs::error::FallbackErrorHandler(
+            bevy::ecs::error::panic,
+        ));
+        let (owner, joint) = spawn_model(&mut app);
+        settle(&mut app);
+        let other = app.world_mut().spawn_empty().id();
+        let mut state =
+            SystemState::<(Commands, Query<&AnimatedBy, Allow<Disabled>>)>::new(app.world_mut());
+        {
+            let (mut commands, targets) = state.get_mut(app.world_mut());
+            detach_obsolete_targets(&mut commands, owner, &[joint], &[], &targets);
+        }
+        app.world_mut().entity_mut(joint).insert(AnimatedBy(other));
+        state.apply(app.world_mut());
+        assert_eq!(app.world().get::<AnimatedBy>(joint).unwrap().0, other);
+        assert!(app.world().get::<AnimationTargetId>(joint).is_some());
+    }
+
+    #[test]
+    fn deferred_binding_teardown_removes_retained_owned_joint_binding() {
+        let mut app = fixture_app();
+        app.insert_resource(bevy::ecs::error::FallbackErrorHandler(
+            bevy::ecs::error::panic,
+        ));
+        let (owner, joint) = spawn_model(&mut app);
+        settle(&mut app);
+        app.world_mut()
+            .commands()
+            .entity(owner)
+            .remove::<M2AnimData>();
+        app.world_mut().flush();
+        assert!(app.world().get_entity(joint).is_ok());
+        assert!(app.world().get::<AnimatedBy>(joint).is_none());
+        assert!(app.world().get::<AnimationTargetId>(joint).is_none());
+        assert!(app.world().get::<AnimationPlayer>(owner).is_none());
+    }
+
+    #[test]
     fn retiring_model_preserves_joints_reassigned_to_another_owner() {
         let mut app = fixture_app();
         let (owner, joint) = spawn_model(&mut app);
