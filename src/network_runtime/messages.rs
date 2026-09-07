@@ -167,7 +167,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<Inbox<Number>>();
         let mut state = SystemState::<MessageReceivers<Number>>::new(&mut world);
-        let mut receivers = state.get_mut(&mut world);
+        let mut receivers = state.get_mut(&mut world).unwrap();
         assert!(!receivers.is_empty());
         let mut inboxes = receivers.iter_mut();
         assert!(!inboxes.next().unwrap().has_messages());
@@ -179,7 +179,7 @@ mod tests {
         let mut world = World::new();
         world.init_resource::<ConnectionSender>();
         let mut state = SystemState::<MessageSenders<Number>>::new(&mut world);
-        let mut senders = state.get_mut(&mut world);
+        let mut senders = state.get_mut(&mut world).unwrap();
         assert!(senders.is_empty());
         assert!(senders.iter_mut().next().is_none());
     }
@@ -192,7 +192,7 @@ mod tests {
         let mut world = World::new();
         world.insert_resource(ConnectionSender::new(Some(sender)));
         let mut state = SystemState::<MessageSenders<Number>>::new(&mut world);
-        let mut senders = state.get_mut(&mut world);
+        let mut senders = state.get_mut(&mut world).unwrap();
         assert!(!senders.is_empty());
         senders
             .iter_mut()
@@ -228,7 +228,7 @@ mod tests {
         main.insert_resource(ConnectionSender::new(Some(commands)));
         let mut state = SystemState::<MessageSenders<Number>>::new(&mut main);
         {
-            let mut senders = state.get_mut(&mut main);
+            let mut senders = state.get_mut(&mut main).unwrap();
             let mut iter = senders.iter_mut();
             let mut sender = iter.next().unwrap();
             assert!(iter.next().is_none());
