@@ -246,9 +246,20 @@ fn replicated_helmet_preserves_character_skeleton_and_adds_then_removes_attachme
     let helm = head_items(app.world_mut());
     assert_eq!(helm.len(), 1);
     app.world_mut()
+        .get_mut::<NetPlayer>(owner)
+        .unwrap()
+        .appearance
+        .face = 1;
+    publish_appearance(&mut app, owner, 2);
+    assert_eq!(
+        app.world().get::<M2AnimData>(owner).unwrap().joint_entities,
+        joints
+    );
+    assert_eq!(head_items(app.world_mut()), helm);
+    app.world_mut()
         .entity_mut(owner)
         .insert(NetEquipmentAppearance::default());
-    publish_appearance(&mut app, owner, 2);
+    publish_appearance(&mut app, owner, 3);
     assert!(head_items(app.world_mut()).is_empty());
     assert!(app.world().get_entity(helm[0]).is_err());
     assert_eq!(
@@ -308,8 +319,16 @@ fn replicated_dismount_replaces_mount_root_with_cached_character_model() {
             skin_path: None,
             display_scale: Some(1.0),
         });
-    app.world_mut().entity_mut(owner).remove::<Mounted>();
+    app.world_mut()
+        .get_mut::<NetPlayer>(owner)
+        .unwrap()
+        .appearance
+        .face = 1;
     publish_appearance(&mut app, owner, 1);
+    assert!(app.world().get_entity(mount).is_ok());
+    assert!(app.world().get_entity(mount_joint).is_ok());
+    app.world_mut().entity_mut(owner).remove::<Mounted>();
+    publish_appearance(&mut app, owner, 2);
     assert!(app.world().get_entity(mount).is_err());
     assert!(app.world().get_entity(mount_joint).is_err());
     let restored = app

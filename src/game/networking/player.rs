@@ -624,14 +624,20 @@ fn apply_player_customization_for_entity(
     equipment_snapshot: NetEquipmentAppearance,
     mount_display_id: Option<u32>,
 ) {
+    let mut resolved_equipment = resolve_player_equipment(params, &equipment_snapshot, selection);
     let replacement_player = {
         let (_, player, _, _, applied, _) = params
             .player_query
             .get(entity)
             .expect("appearance target must remain available during its observer");
+        if let Some(previous) = applied {
+            // Slots omitted by the new full snapshot must clear prior replicated models.
+            resolved_equipment
+                .explicit_slots
+                .extend(previous.equipment.entries.iter().map(|entry| entry.slot));
+        }
         player_model_changed(applied, selection, mount_display_id).then(|| player.clone())
     };
-    let resolved_equipment = resolve_player_equipment(params, &equipment_snapshot, selection);
     // Publish deduplication state before model insertion observers run.
     insert_applied_player_appearance(
         params,
