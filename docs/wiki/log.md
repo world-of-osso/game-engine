@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] documentation | Record additive Bevy-core service-window stage
+
+Updated [[empty-window-baseline]], its specs, and the index for `217b4de8` and `6f6e10e3`. `--service-window` reuses the native softbuffer `Wait` loop, adds `MinimalPlugins` without `ScheduleRunnerPlugin`, and calls `App::update()` at `about_to_wait`. It excludes renderer, assets, game services, networking, IPC, sound, UI, timers, and continuous redraws. Native zero-work proof remains canonical on [[empty-window-baseline]]; service-stage runtime CPU measurement is pending.
+
 ## [2026-09-07] measurement | Empty window waits with no measurable idle CPU
 
 Verified [[empty-window-baseline]]: two 12-second idle samples recorded zero CPU ticks, one sleeping thread in `do_epoll_wait`, and no game IPC/GPU resources. Each sample is below approximately 0.0833% of one core at accounting resolution. Native resizing and closing worked; the window was reopened for observation. Routing tests, formatting, checking, readability, dependency-version review, and independent native-data audit passed. This establishes the requested zero-work baseline, not a full-game optimization.

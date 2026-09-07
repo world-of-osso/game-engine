@@ -1,6 +1,6 @@
 # Empty-window baseline
 
-`--empty-window` isolates native window/event handling from the game runtime. Sources: `src/empty_window.rs` and the early startup branch in `src/main.rs`. Results belong in the [performance investigation](../wiki/investigations/movement-performance.md).
+`--empty-window` isolates native window/event handling from the game runtime. Sources: `src/empty_window.rs` and the early startup branch in `src/main.rs`. Its proof is canonical in the [empty-window baseline investigation](../wiki/investigations/empty-window-baseline.md); the additive Bevy-core layer has its own [service-window baseline spec](service-window-baseline.md).
 
 ## What it must do
 
@@ -28,7 +28,7 @@
 
 ## Known gaps (current cycle)
 
-None for this baseline. Identifying the full game runtime's CPU cost remains a separate investigation.
+None for this native baseline. The service-window layer has no runtime CPU result yet; identifying the full game runtime's CPU cost remains a separate investigation.
 
 ## Out of scope
 

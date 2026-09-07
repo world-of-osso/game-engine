@@ -16,9 +16,15 @@ Painting occurs only for `RedrawRequested`. Resize and scale-factor events reque
 
 Linux window attributes set the Wayland application name. The direct softbuffer dependency enables only `wayland` and `wayland-dlopen`; this diagnostic does not provide X11 or KMS painting. `winit` is reused as a direct dependency for its public event-loop API. `softbuffer` is the only added dependency, used for a shared-memory surface without starting a GPU renderer. Existing locked versions remain unchanged.
 
+## Additive Bevy-core stage
+
+`--service-window` retains the same native event loop, `ControlFlow::Wait`, softbuffer surface, and resize/close path, then constructs an optional Bevy app before normal startup. It installs `MinimalPlugins` without `ScheduleRunnerPlugin`: task pools, frame counter, time, and core schedules. The native handler calls `App::update()` from `about_to_wait`; it adds no timer, redraw request, renderer, assets, game services, networking, IPC, sound, UI, or resource-limit setup. It logs the first update and each 64th update.
+
+This separates Bevy core-service overhead from both native waiting and later renderer or game workload. `--service-window` is exclusive, has its own title/application name, and leaves ordinary startup unchanged. Runtime CPU measurement has not yet been recorded.
+
 ## Measurement scope
 
-Measure process/thread idle CPU externally after the window is visible. Do not add an FPS overlay or diagnostic server. Because the mode deliberately has no game workload or continuous rendering, FPS is not a comparable-performance constraint and this baseline cannot establish a game optimization.
+Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Both diagnostic modes deliberately have no game workload or continuous rendering, so FPS is not a comparable-performance constraint and neither establishes a game optimization.
 
 ## Verified native baseline
 
@@ -32,12 +38,15 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 
 ## Sources
 
-- [empty-window baseline spec](../../specs/empty-window-baseline.md) — intended boundary and measurement scope
-- [main startup](../../../src/main.rs) — early exclusive route and error exit
+- [empty-window baseline spec](../../specs/empty-window-baseline.md) — native boundary and measurement scope
+- [service-window baseline spec](../../specs/service-window-baseline.md) — additive core-service contract and pending measurement
+- [main startup](../../../src/main.rs) — early diagnostic routing and error exit
 - [CLI parsing](../../../src/cli_args.rs) — exclusive argument selection
-- [empty window runtime](../../../src/empty_window.rs) — winit/softbuffer event handling and presentation
+- [empty window runtime](../../../src/empty_window.rs) — shared winit/softbuffer loop and optional app update
+- [service window runtime](../../../src/service_window.rs) — minimal Bevy-core plugin boundary
 - [Cargo manifest](../../../Cargo.toml) — direct dependency features
 
 ## See Also
 
-- [[movement-performance]] — records comparative game-runtime CPU investigation results
+- [[movement-performance]] — comparative game-runtime CPU investigation results
+- [[rendering-pipeline]] — later renderer layers remain outside this diagnostic stage

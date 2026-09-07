@@ -43,7 +43,7 @@ Architecture decisions and feature designs.
 ## Investigations
 
 - [movement-performance](investigations/movement-performance.md) — Current exact-name timed callback-removal interface and historical CPU-isolation evidence: upload removals showed no bulk reduction; disabling pipelined rendering lowered CPU with an FPS trade-off. Includes repaired MSAA glyph corruption, firmware-limit evidence, and unresolved original tile hitch.
-- [empty-window-baseline](investigations/empty-window-baseline.md) — Native Wayland `--empty-window` event-loop baseline outside Bevy/game initialization; implementation recorded, with no CPU result yet.
+- [empty-window-baseline](investigations/empty-window-baseline.md) — Verified native Wayland `--empty-window` zero-work baseline (two 12-second zero-tick samples), plus the unmeasured additive `--service-window` Bevy-core stage.
 
 Root cause analyses and debug findings.
 
