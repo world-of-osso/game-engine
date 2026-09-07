@@ -10,6 +10,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{FriendEntry, FriendsStatusSnapshot, PresenceStateEntry};
 
 #[derive(Resource, Default)]
@@ -29,7 +30,13 @@ pub struct FriendsPlugin;
 impl Plugin for FriendsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FriendsRuntimeState>();
-        app.add_systems(Update, (send_pending_actions, receive_friends_updates));
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<FriendsRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<FriendsStateUpdate, _>(app, receive_friends_updates, |_| true);
     }
 }
 
@@ -183,6 +190,73 @@ fn format_presence_status(snapshot: &crate::status::CharacterStatsSnapshot) -> S
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn queued_requests_wait_for_dispatch_then_report_disconnection() {
+        let mut app = App::new();
+        app.add_plugins(FriendsPlugin)
+            .init_resource::<FriendsStatusSnapshot>();
+        let (reply, responses) = mpsc::channel();
+        {
+            let mut runtime = app.world_mut().resource_mut::<FriendsRuntimeState>();
+            runtime.pending_actions.extend([
+                Action::SetPresence {
+                    presence: PresenceStatus::Afk,
+                },
+                Action::Add {
+                    name: "Alice".into(),
+                },
+            ]);
+            runtime.pending_replies.extend([reply.clone(), reply]);
+        }
+        app.update();
+        assert_eq!(
+            app.world()
+                .resource::<FriendsRuntimeState>()
+                .pending_actions
+                .len(),
+            2
+        );
+        assert!(matches!(
+            responses.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        for _ in 0..2 {
+            let Response::Error(error) = responses.try_recv().unwrap() else {
+                panic!("expected disconnected error");
+            };
+            assert_eq!(error, "friends are unavailable: not connected");
+        }
+        let runtime = app.world().resource::<FriendsRuntimeState>();
+        assert!(runtime.pending_actions.is_empty());
+        assert!(runtime.pending_replies.is_empty());
+    }
+
+    #[test]
+    fn idle_dispatch_leaves_waiting_replies_untouched() {
+        let mut app = App::new();
+        app.add_plugins(FriendsPlugin);
+        let (reply, responses) = mpsc::channel();
+        app.world_mut()
+            .resource_mut::<FriendsRuntimeState>()
+            .pending_replies
+            .push_back(reply);
+        // No inbox means no snapshot is needed by incoming handlers.
+        crate::network_events::dispatch_incoming(app.world_mut());
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert_eq!(
+            app.world()
+                .resource::<FriendsRuntimeState>()
+                .pending_replies
+                .len(),
+            1
+        );
+        assert!(matches!(
+            responses.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+    }
 
     #[test]
     fn friends_state_update_populates_status_snapshot() {

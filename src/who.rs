@@ -6,6 +6,7 @@ use lightyear::prelude::{Message as NetworkMessage, MessageReceiver, MessageSend
 use shared::protocol::{QueryWho, WhoChannel, WhoStateUpdate};
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{WhoEntry, WhoStatusSnapshot};
 
 #[derive(Resource, Default)]
@@ -19,7 +20,13 @@ pub struct WhoPlugin;
 impl Plugin for WhoPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WhoRuntimeState>();
-        app.add_systems(Update, (send_pending_queries, receive_who_updates));
+        register_outgoing_handler(app, send_pending_queries, |world| {
+            !world
+                .resource::<WhoRuntimeState>()
+                .pending_queries
+                .is_empty()
+        });
+        register_message_handler::<WhoStateUpdate, _>(app, receive_who_updates, |_| true);
     }
 }
 
@@ -141,18 +148,82 @@ mod tests {
     use super::*;
 
     #[test]
+    fn queued_requests_wait_for_dispatch_then_report_disconnection() {
+        let mut app = App::new();
+        app.add_plugins(WhoPlugin)
+            .init_resource::<WhoStatusSnapshot>();
+        let (reply, responses) = mpsc::channel();
+        {
+            let mut runtime = app.world_mut().resource_mut::<WhoRuntimeState>();
+            runtime
+                .pending_queries
+                .extend(["Alice".into(), "Bob".into()]);
+            runtime.pending_replies.extend([reply.clone(), reply]);
+        }
+        app.update();
+        assert_eq!(
+            app.world()
+                .resource::<WhoRuntimeState>()
+                .pending_queries
+                .len(),
+            2
+        );
+        assert!(matches!(
+            responses.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        for _ in 0..2 {
+            let Response::Error(error) = responses.try_recv().unwrap() else {
+                panic!("expected disconnected error");
+            };
+            assert_eq!(error, "who is unavailable: not connected");
+        }
+        let runtime = app.world().resource::<WhoRuntimeState>();
+        assert!(runtime.pending_queries.is_empty());
+        assert!(runtime.pending_replies.is_empty());
+    }
+
+    #[test]
+    fn idle_dispatch_leaves_waiting_replies_untouched() {
+        let mut app = App::new();
+        app.add_plugins(WhoPlugin);
+        let (reply, responses) = mpsc::channel();
+        app.world_mut()
+            .resource_mut::<WhoRuntimeState>()
+            .pending_replies
+            .push_back(reply);
+        // No inbox means no snapshot is needed by incoming handlers.
+        crate::network_events::dispatch_incoming(app.world_mut());
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert_eq!(
+            app.world()
+                .resource::<WhoRuntimeState>()
+                .pending_replies
+                .len(),
+            1
+        );
+        assert!(matches!(
+            responses.try_recv(),
+            Err(mpsc::TryRecvError::Empty)
+        ));
+    }
+
+    #[test]
     fn idle_who_update_does_not_advance_runtime_change_tick() {
         let mut app = crate::test_harness::headless_app();
         app.add_plugins(WhoPlugin);
         app.init_resource::<WhoStatusSnapshot>();
-        app.update();
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        crate::network_events::dispatch_incoming(app.world_mut());
 
         let before = app
             .world()
             .get_resource_ref::<WhoRuntimeState>()
             .unwrap()
             .last_changed();
-        app.update();
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        crate::network_events::dispatch_incoming(app.world_mut());
         let after = app
             .world()
             .get_resource_ref::<WhoRuntimeState>()
