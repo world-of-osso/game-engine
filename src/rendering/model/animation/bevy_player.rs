@@ -94,7 +94,10 @@ fn detach_obsolete_targets(
         {
             commands
                 .entity(joint)
-                .remove::<(AnimationTargetId, AnimatedBy)>();
+                .queue(bevy::ecs::system::entity_command::remove::<(
+                    AnimationTargetId,
+                    AnimatedBy,
+                )>());
         }
     }
 }
