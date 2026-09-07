@@ -11,7 +11,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Add one incoming dispatcher over application-owned typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
 - [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready. Application handlers use worker-backed typed sender/receiver adapters; the main lifecycle starts one dedicated worker per connection.
-- [x] Prove historical actual client/server login plus routed Who/friends replies. Reconnection and full reply coverage remain unproven.
+- [x] Prove native login, routed Who/friends replies, forced disconnect to Login, and ordinary transport-loss reconnect to InWorld. This samples lifecycle behavior; it is not exhaustive reply coverage.
 
 ### Equipment and other application work
 
@@ -35,7 +35,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - `a35b1c5c` through `01cfcade` add the separately clocked 60 Hz worker, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. `aa6fda57` moves live Lightyear client, UDP transport, protocol registration, replication receiver, and typed receiver relays into one worker world per connection. The old main-world receiver park/restore path is removed.
 - `cec56837` and `aa6fda57` bridge replicated snapshots, despawns, and server-entity-to-render-entity identity into the main world. Main-world `Client`, `Connected`, and `Disconnected` markers are lifecycle proxies; they do not own Lightyear transport state. `52508d1d` maps target/emote/combat entity fields at the worker/main boundary; `a5f6eab0` maps duel, inspect, and current/default spell targets. Explicit numeric spell selectors remain server IDs.
 - The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Main-world receive, apply, send, reconnect, reset, and active spellbook cooldown work run once per worker-published permit in `NetworkTick`; no wire format or negotiated simulation behavior changes.
-- This is an implementation boundary, not completion proof. A UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query; `54411453` excludes resources. `independent-udp-handshake.log` records **1/1** real UDP handshake proof without a main-app update; `worker-restart-tests.log` records **3/3** shutdown cleanup and second-worker handshake cases. `worker-char-create-response.log`, `worker-auth.log`, `wire-identity.log`, and `migrated-ui-reconnect-fixtures.log` record scoped **3/3**, **23/23**, **19/19**, and **11/11** results. A native client reached InWorld with player/NPC mirrors and Who result `Theron`, one result; dark scene/white UI leaves visual proof invalid. Complete replication/equipment lifecycle and CPU proof remain pending.
+- A UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query; `54411453` excludes resources. `independent-udp-handshake.log` records **1/1** real UDP handshake proof without a main-app update; `worker-restart-tests.log` records **3/3** shutdown cleanup and second-worker handshake cases. `worker-char-create-response.log`, `worker-auth.log`, `wire-identity.log`, and `migrated-ui-reconnect-fixtures.log` record scoped **3/3**, **23/23**, **19/19**, and **11/11** results. Native clients reached InWorld with player/NPC mirrors, routed Who replies, forced-disconnect Login, and ordinary reconnect; this is behavior proof, not pixel or performance proof.
 - `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
@@ -69,15 +69,17 @@ Rendering, remote interpolation, camera-facing billboards, input needed for acti
 ## Native evidence (2026-09-07)
 
 - Empty-stage login reached InWorld. A 10-second unfocused sample recorded **265.779%** one-core CPU and **503.746 application updates/s**. The prior intact Empty sample recorded **293.279%** and **422.366 updates/s**. Different clock ranges and runs make this non-causal; it does not establish an idle-work reduction or CPU fix.
-- A full-world client logged in, entered the world, and completed routed Who and friends requests. Its visual smoke is invalid: repeated `bevy_render::slab_allocator` unallocated-key errors and a white/dark screenshot occurred. The same error predates this work in `data/diagnostics/movement-perf-20260905/connected-warm2/client.log:149`; no equipment-event causality is established. Test clients were stopped.
+- A full-world client logged in, entered the world, and completed routed Who and friends requests. Earlier white/dark smoke and slab-allocator errors predate this work and do not establish equipment-event causality. Separately, native `--screen m2debug` at `206f844f` rendered `data/models/126487.m2`: `dump-scene` reported it displayed, the retained screenshot is available, and paired trees show 25 changed bone positions. `--screenshot-regression` bypasses the custom animation plugin, so it is not animation evidence. Test clients were stopped.
 
-## Known gaps
+## Completed behavior proof
 
-- [x] Verify forced-disconnect native lifecycle. `4d3c7ed6` stores the server notice, requests the worker's real Lightyear client disconnect, and preserves the notice for existing lifecycle policy. At `1cce4171`, an authenticated InWorld client matched the server netcode connection; an admin kick delivered the notice and produced real `Disconnected`, InWorld → Login, visible `LoginRoot`, and zero links/replicas. Hidden semantic scene entries remain, so this is not complete scene cleanup or visual proof.
-- [x] Prove a native ordinary disconnect/reconnect round trip. Client `1057253` reached InWorld on test-server PID `483229`; restarting that server as PID `1060054` produced a transport timeout, a new client connection ID, authentication, and a second InWorld entry with the human player and routed `Who Theron` one-result reply. The test client was stopped; the restarted test server remains running.
-- [x] Prove real offline model spawn, animation binding, despawn, and reload lifecycle. `f616f48a` runs the actual CharSelect real-asset path: human + helm spawn and Bevy motion, root/joint/helm removal, then a second spawn with animation and attachment motion. Independent verification retained the targeted 1/1 proof.
-- [ ] Establish native visual equivalence. Known slab-allocator errors plus white/dark smoke invalidate pixel-level appearance, GPU-deformation, and scene-equivalence conclusions.
-- [ ] Establish controlled CPU/performance impact. The scheduling changes have no CPU/FPS improvement claim.
+- [x] Forced disconnect: `4d3c7ed6` stores the server notice, requests the worker's real Lightyear client disconnect, and preserves the notice for existing lifecycle policy. At `1cce4171`, an authenticated InWorld client matched the server netcode connection; an admin kick produced real `Disconnected`, InWorld → Login, visible `LoginRoot`, and zero links/replicas. Hidden semantic scene entries remain.
+- [x] Ordinary reconnect: client `1057253` reached InWorld on test-server PID `483229`; restarting that server as PID `1060054` produced a transport timeout, a new client connection ID, authentication, and a second InWorld entry with the human player and routed `Who Theron` one-result reply.
+- [x] Offline model lifecycle: `f616f48a` runs the real CharSelect asset path: human + helm spawn and Bevy motion, root/joint/helm removal, then a second spawn with animation and attachment motion. `206f844f` also makes deferred binding teardown atomic: reassignment, recursive despawn, and retained-owned cleanup pass **3/3**; binding tests **11/11** and offline lifecycle **1/1** pass with fmt/check.
+
+## Evidence boundaries
+
+Pixel/GPU scene equivalence and controlled CPU/FPS impact were not measured here. They are not implied by the completed behavior proof and are not additional implementation requirements of this spec.
 
 ## Out of scope
 

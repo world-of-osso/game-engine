@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Consolidate execution and animation proof
+
+Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md); [[networking]] already records the native reconnect proof. `206f844f` makes deferred M2 binding retirement atomic: strict teardown RED 2 failures → GREEN 3/3, binding 11/11, and offline lifecycle 1/1 with fmt/check. Native `--screen m2debug` rendered `126487.m2`, reported it displayed, retained a screenshot, and recorded 25 changing bone positions. `--screenshot-regression` bypasses the custom animation plugin, so it is excluded. Native forced disconnect and ordinary reconnect are complete behavior proof. Pixel/GPU equivalence and performance were not measured and are not implied.
+
 ## [2026-09-07] systems | Reconcile network execution proof boundaries
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md). Worker-permit lifecycle/cadence (**3/3**), active cooldown (**3/3**), and native forced-disconnect → Login are complete proof. Remaining execution proof is native ordinary reconnect, real offline model spawn/despawn/reload, native visual equivalence, and controlled CPU/performance measurement. Historical pending statements remain historical.

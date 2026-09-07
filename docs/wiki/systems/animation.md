@@ -12,7 +12,7 @@ translation + pivot - rotation * (scale * pivot)
 
 This ordering preserves pivoted mid-crossfades. `bevy_player.rs` creates two graph nodes per sequence so outgoing and current instances can retain independent seek times during a same-sequence or ordinary transition. On a re-transition, `PivotEvaluator::commit` has already retained the last blended raw pose before pivot correction and billboards; the player replaces its snapshot clip with that pose, then blends it to the new sequence. It seeks paused clips from `M2AnimPlayer`; the controller remains the single WoW sequence/time clock.
 
-Bevy runs animation in `PostUpdate` before transform propagation. This replaces custom M2 pose evaluation, but it is still part of the windowed render application—not a separate 60 Hz animation worker.
+Bevy runs animation in `PostUpdate` before transform propagation. This replaces custom M2 pose evaluation, but it is still part of the windowed render application—not a separate 60 Hz animation worker. Native `--screen m2debug` at `206f844f` rendered `data/models/126487.m2`: its semantic scene reported `is_displayed=true`, a retained screenshot exists, and paired entity trees record 25 changing bone positions. The `--screenshot-regression` route bypasses this custom animation plugin, so it is not animation proof.
 
 ### Supported boundary
 
@@ -30,7 +30,7 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 
 - Transitions must always crossfade. Never snap between poses.
 - `blend_time` comes from M2 sequence data with a **minimum of 150ms** for movement transitions.
-- A re-transition starts from the last Bevy-evaluated raw pose, not the former source sequence. `aaec3864`/`a495893f` replace the historic `a6a5d917` `x0→4→16→20` jump. `5de8e843` proves zero-elapsed and repeated-interruption continuity for translation, rotation, scale, and a nonzero pivot in actual Bevy evaluation.
+- A re-transition starts from the last Bevy-evaluated raw pose, not the former source sequence. `aaec3864`/`a495893f` replace the historic `a6a5d917` `x0→4→16→20` jump. `5de8e843` proves zero-elapsed and repeated-interruption continuity for translation, rotation, scale, and a nonzero pivot in actual Bevy evaluation; `4d832318` makes the rotation assertion invariant to equivalent quaternion signs.
 
 | Transition | Blend time |
 |------------|------------|
@@ -61,12 +61,13 @@ Three skeleton templates share animation sets: Humanoid (~25 bones), Digitigrade
 - `src/asset/m2_format/m2_anim.rs` — bone track parsing, sequence parsing
 - `src/rendering/model/animation.rs` — ANIM_* constants, WoW sequence/crossfade state machine, Bevy registration
 - `src/rendering/model/animation/bevy_curves.rs` — exact M2 raw-TRS Bevy curves and pivot commit
-- `src/rendering/model/animation/bevy_player.rs` — target/graph binding and paused controller seeks
+- `src/rendering/model/animation/bevy_player.rs` — target/graph binding, paused controller seeks, and deferred binding teardown
 
 ## Sources
 
 - AGENTS.md — Animation section, blend_time rules, ANIM_* location
-- `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation
+- `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation and deferred teardown
+- `data/diagnostics/event-driven-updates-20260907/bevy-animation/native-offline/explicit-m2debug/` — native model motion evidence
 - [character-generation.md](../character-generation.md) — glTF animation pipeline, template skeletons, crossfade table
 
 ## See Also
