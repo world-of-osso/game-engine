@@ -20,6 +20,35 @@ fn apply_worker_connection_updates(app: &mut App) {
 }
 
 #[test]
+fn empty_forced_notice_inbox_does_not_require_worker() {
+    let mut app = App::new();
+    game_engine::network_events::register_message_handler::<ForcedDisconnect, _>(
+        &mut app,
+        receive_forced_disconnect,
+        |_| true,
+    );
+    // No worker or pending-notice resource exists on a disconnected main world.
+    game_engine::network_events::dispatch_incoming(app.world_mut());
+}
+
+#[test]
+fn forced_notice_without_worker_fails_explicitly() {
+    let mut app = App::new();
+    app.init_resource::<crate::networking::PendingForcedDisconnect>();
+    app.insert_resource(game_engine::network_runtime::messages::Inbox::new(vec![
+        ForcedDisconnect {
+            message: "invalid disconnected inbox".into(),
+            reconnect_allowed: false,
+        },
+    ]));
+    assert!(
+        app.world_mut()
+            .run_system_once(receive_forced_disconnect)
+            .is_err()
+    );
+}
+
+#[test]
 fn forced_notice_disconnects_real_worker_and_preserves_notice_for_lifecycle() {
     use game_engine::network_runtime::{connection, messages::Inbox};
     use std::{
