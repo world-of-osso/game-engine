@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] diagnostic | Bound local profiler entry overhead
+
+Updated [[empty-window-baseline]] from the retained single-thread CPU benchmark. Across three alternating disabled/enabled rounds of 50,000 precreated equal-work span entries, median added CPU was 2.202289 µs/entry at 154 names and 2.355397 µs/entry at 1,031 names. `93cef709` relocated the test-only benchmark without behavioral change to `src/cpu_system_profile/overhead_benchmark.rs`; its relocation verification remains pending. This is not a whole-app bound, subtraction, or scheduling-causation result.
+
 ## [2026-09-07] investigation | Clarify update-rate normalization
 
 Updated [[movement-performance]] with source-backed metric provenance: game IPC/overlay FPS and blank-renderer logging both measure app-update cadence, with different smoothing. Neither proves presentation cadence. Compare exact per-capture update counts before interpreting CPU-per-update ratios.

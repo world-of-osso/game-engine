@@ -83,6 +83,12 @@ A separate same-binary run removed the callback at 0.000 seconds. Its subsequent
 
 Both blank update telemetry and full-game IPC FPS describe app-update cadence, not presentation; their aggregation differs. See [metric provenance and normalization](movement-performance.md#update-rate-metric-provenance-2026-09-07).
 
+## Local profiler entry overhead
+
+The ignored test-only benchmark, relocated without behavioral change by `93cef709` to `src/cpu_system_profile/overhead_benchmark.rs`, compares the real `CpuSpanLayer` against registry-only tracing. It precreates spans, runs 50,000 equal-work enter/drop iterations per case, and alternates disabled/enabled order across three rounds while timing the current thread's CPU. Paired median added CPU was **2.202289 µs per entry** for 154 distinct span names and **2.355397 µs per entry** for 1,031 names.
+
+This is local single-thread entry/exit overhead for this build and capture shape. It excludes span construction and does not reproduce concurrent scheduling, nesting, cache state, or other tracing work. Do not subtract it from recorded process or selected-span CPU, treat it as a whole-application bound, or infer scheduler causation from the update-normalized correlation. The relocation's independent verification remains pending.
+
 ## Measurement scope
 
 Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Native and core stages have no game workload or continuous rendering. Renderer stages add only blank-frame work; their deliberately different update policies do not establish a same-throughput game optimization.
@@ -105,6 +111,7 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 - [CLI parsing](../../../src/cli_args.rs) — exclusive argument selection
 - [empty window runtime](../../../src/empty_window.rs) — shared winit/softbuffer loop and optional app update
 - [service window runtime](../../../src/service_window.rs) — minimal Bevy-core plugin boundary
+- [profiler overhead benchmark](../../../src/cpu_system_profile/overhead_benchmark.rs) — test-only local entry-overhead control
 - [Cargo manifest](../../../Cargo.toml) — direct dependency features
 
 ## See Also
