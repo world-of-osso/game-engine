@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-07] measurement | Empty window waits with no measurable idle CPU
+
+Verified [[empty-window-baseline]]: two 12-second idle samples recorded zero CPU ticks, one sleeping thread in `do_epoll_wait`, and no game IPC/GPU resources. Each sample is below approximately 0.0833% of one core at accounting resolution. Native resizing and closing worked; the window was reopened for observation. Routing tests, formatting, checking, readability, dependency-version review, and independent native-data audit passed. This establishes the requested zero-work baseline, not a full-game optimization.
+
 ## [2026-09-07] documentation | Record empty native Wayland baseline
 
-Added [[empty-window-baseline]] and linked it from the index. `c3568e59` routes the exclusive `--empty-window` mode before normal startup, so it creates no Bevy app, plugins, assets, networking, IPC, renderer plugins, or game task pools. Winit waits for OS events; softbuffer paints a flat background only for requested redraws and resize-triggered redraws. Linux painting is Wayland-only. `softbuffer` is the sole new dependency; existing locked versions remain unchanged. No native runtime or CPU measurement has been recorded, and the zero-work baseline cannot establish an FPS-comparable game optimization.
+Added [[empty-window-baseline]] and linked it from the index. `c3568e59` routes the exclusive `--empty-window` mode before normal startup, so it creates no Bevy app, plugins, assets, networking, IPC, renderer plugins, or game task pools. Winit waits for OS events; softbuffer paints a flat background only for requested redraws and resize-triggered redraws. Linux painting is Wayland-only. `softbuffer` is the sole new dependency; existing locked versions remain unchanged. Native results are recorded in the subsequent measurement entry; the zero-work baseline cannot establish an FPS-comparable game optimization.
 
 ## [2026-09-07] measurement | Material group negative; native ownership mapped
 

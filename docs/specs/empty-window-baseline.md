@@ -6,13 +6,13 @@
 
 - [x] Require `--empty-window` alone; reject combinations with game/asset/server arguments. Without the flag, keep normal startup selection.
 - [x] Create one visible empty native window, without constructing a Bevy app or initializing game systems, game assets, networking, IPC, renderer plugins, or game task pools.
-- [x] Wait for OS events. Paint a flat background only for initial/OS-requested redraws and resizing; no timers, periodic redraw requests, or update loop. Zero-sized windows must not allocate a surface buffer.
+- [x] Wait for OS events. Paint a flat background only for initial/OS-requested redraws and resizing; no application timers, periodic redraw requests, or update loop. Zero-sized windows must not allocate a surface buffer.
 - [x] Handle resizing and OS close requests; report initialization/presentation/event-loop failures explicitly and exit nonzero on failure.
-- [ ] Measure idle process/thread CPU externally. Do not install an in-window FPS overlay or diagnostic server. This zero-work baseline is not a comparable-render-FPS optimization.
+- [x] Measure idle process/thread CPU externally. Do not install an in-window FPS overlay or diagnostic server. This zero-work baseline is not a comparable-render-FPS optimization.
 
 ## How it works
 
-- [Performance investigation](../wiki/investigations/movement-performance.md) — measurements and limits.
+- [Empty-window baseline](../wiki/investigations/empty-window-baseline.md) — measurements, native proof, and limits.
 
 ## Implementation inventory
 
@@ -24,11 +24,11 @@
 ## Tests asserting this spec
 
 - `tests/unit/empty_window_args_tests.rs` — explicit/exclusive selection and unchanged normal argument routing.
-- Native runtime proof — visibility, idle CPU, resize, close, and absence of game initialization remain to be recorded with investigation artifacts.
+- Native runtime proof — visibility, two zero-tick idle windows, resizing, OS close, and absence of game initialization are recorded in `data/diagnostics/movement-perf-20260905/empty-window-baseline/`.
 
 ## Known gaps (current cycle)
 
-- [ ] Record native runtime and independent verification. No CPU result exists yet.
+None for this baseline. Identifying the full game runtime's CPU cost remains a separate investigation.
 
 ## Out of scope
 
