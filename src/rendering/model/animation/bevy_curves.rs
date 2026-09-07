@@ -291,6 +291,9 @@ mod tests {
                 Transform::from_xyz(99.0, 98.0, 97.0),
             ))
             .id();
+        // The first PostUpdate publishes graph asset events; Bevy builds its
+        // threaded graph from those events on the following update.
+        app.update();
         app.update();
         *app.world().get::<Transform>(bone).unwrap()
     }
