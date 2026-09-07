@@ -1,8 +1,6 @@
 mod disconnect;
 mod reconnect;
 
-use std::time::Duration;
-
 pub(crate) use self::disconnect::handle_client_disconnected;
 #[cfg(test)]
 pub(crate) use self::reconnect::reset_network_world;
@@ -13,10 +11,10 @@ pub(crate) use self::reconnect::{
 };
 use bevy::prelude::*;
 use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
-use core::net::{IpAddr, Ipv4Addr, SocketAddr};
+use core::net::SocketAddr;
+use game_engine::network_runtime::connection::Connected;
+use game_engine::network_runtime::messages::MessageSenders;
 use lightyear::prelude::client::Remote;
-use lightyear::prelude::client::*;
-use lightyear::prelude::*;
 use shared::components::{Position as NetPosition, Rotation as NetRotation};
 pub use shared::protocol::ChatType;
 use shared::protocol::{ChatMessage, EmoteIntent, ForcedDisconnect};
@@ -100,8 +98,6 @@ pub struct EmoteInput(pub Option<EmoteIntent>);
 /// Interpolation speed: 1 / interval between server ticks (~100ms at 20Hz).
 const INTERPOLATION_SPEED: f32 = 10.0;
 
-const CLIENT_PORT: u16 = 0; // OS-assigned ephemeral port
-const TICK_RATE_HZ: f64 = 20.0;
 pub(crate) const MAX_COMBAT_LOG: usize = 200;
 
 /// Resource holding the server address to connect to.
@@ -166,11 +162,14 @@ pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ClientPlugins {
-            tick_duration: Duration::from_secs_f64(1.0 / TICK_RATE_HZ),
-        });
-        app.add_plugins(shared::ProtocolPlugin);
+        game_engine::network_runtime::connection::initialize_connection_bridge(app);
         app.add_plugins(game_engine::network_tick::NetworkTickPlugin);
+        app.add_systems(
+            game_engine::network_tick::NetworkTick,
+            game_engine::network_runtime::connection::apply_connection_events
+                .in_set(game_engine::network_tick::NetworkTickSystems::Receive)
+                .after(game_engine::network_events::dispatch_incoming),
+        );
         register_net_resources(app);
         register_net_systems(app);
         register_net_observers(app);
@@ -461,7 +460,6 @@ fn register_auth_net_systems(app: &mut App) {
 
 fn register_net_observers(app: &mut App) {
     app.add_observer(on_connected);
-    app.add_observer(on_link_established);
     app.add_observer(handle_client_disconnected);
     app.add_observer(crate::networking_player::spawn_replicated_player);
     app.add_observer(crate::networking_npc::spawn_replicated_npc);
@@ -473,48 +471,13 @@ fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
 }
 
 pub(crate) fn connect_to_server_inner(commands: &mut Commands, server_addr: SocketAddr) {
-    let bind_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), CLIENT_PORT);
     let client_id = rand_client_id();
     commands.insert_resource(LocalClientId(client_id));
-    let auth = Authentication::Manual {
-        server_addr,
-        client_id,
-        private_key: [0; 32],
-        protocol_id: 0,
-    };
-    let netcode = match NetcodeClient::new(
-        auth,
-        NetcodeConfig {
-            client_timeout_secs: 60,
-            ..NetcodeConfig::default()
-        },
-    ) {
-        Ok(nc) => nc,
-        Err(e) => {
-            error!("Failed to create netcode client: {e}");
-            return;
-        }
-    };
-    let entity = commands
-        .spawn((
-            LocalAddr(bind_addr),
-            PeerAddr(server_addr),
-            UdpIo::default(),
-            netcode,
-        ))
-        .id();
-    commands.trigger(Connect { entity });
-    info!(
-        "Connecting to server at {server_addr} with client_entity={entity:?} client_id={client_id}"
-    );
-}
-
-fn on_link_established(trigger: On<Add, Connected>, mut commands: Commands) {
-    info!(
-        "Transport link established for client entity {:?}; inserting ReplicationReceiver",
-        trigger.entity
-    );
-    commands.entity(trigger.entity).insert(ReplicationReceiver);
+    commands.queue(move |world: &mut World| {
+        let entity = game_engine::network_runtime::connection::start_connection(world, server_addr, client_id)
+            .unwrap_or_else(|error| panic!("failed to start network connection: {error}"));
+        info!("Connecting to server at {server_addr} with client_entity={entity:?} client_id={client_id}");
+    });
 }
 
 fn on_connected(
@@ -524,8 +487,8 @@ fn on_connected(
     password: Res<LoginPassword>,
     login_mode: Res<LoginMode>,
     reconnect: Option<ResMut<ReconnectState>>,
-    mut login_senders: Query<&mut MessageSender<shared::protocol::LoginRequest>>,
-    mut register_senders: Query<&mut MessageSender<shared::protocol::RegisterRequest>>,
+    mut login_senders: MessageSenders<shared::protocol::LoginRequest>,
+    mut register_senders: MessageSenders<shared::protocol::RegisterRequest>,
 ) {
     let reconnect_phase_before = reconnect.as_deref().map(|r| r.phase);
     info!(

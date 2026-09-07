@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use game_engine::ipc::plugin::{
     EquipmentControlCommand, EquipmentControlQueue, IpcUpdateSet, PendingIpcCommands,
 };
+use game_engine::network_runtime::connection::Connected;
 use game_engine::status::{
     BarberShopStatusSnapshot, CalendarStatusSnapshot, CharacterRosterStatusSnapshot,
     CharacterStatsSnapshot, CollectionStatusSnapshot, CombatLogStatusSnapshot,
@@ -20,7 +21,6 @@ use game_engine::status::{
     SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
     WhoStatusSnapshot,
 };
-use lightyear::prelude::client::Connected;
 use shared::components::{
     CombatStatus as NetCombatStatus, EquipmentAppearance as NetEquipmentAppearance,
     Gold as NetGold, Health as NetHealth, Mana as NetMana, MovementSpeed as NetMovementSpeed,

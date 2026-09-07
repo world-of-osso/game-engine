@@ -14,8 +14,8 @@ use bevy::diagnostic::DiagnosticsStore;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::network_runtime::connection::Connected;
 use game_engine::network_runtime::messages::MessageSenders;
-use lightyear::prelude::client::Connected;
 
 #[cfg(feature = "ipc")]
 use super::init;

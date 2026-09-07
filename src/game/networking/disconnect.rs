@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lightyear::prelude::client::{Client, Disconnected};
+use game_engine::network_runtime::connection::{Client, Disconnected};
 use shared::protocol::ForcedDisconnect;
 
 use super::*;

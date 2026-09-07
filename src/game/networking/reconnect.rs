@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use lightyear::prelude::client::*;
+use game_engine::network_runtime::connection::Client;
+use lightyear::prelude::client::Remote;
 
 use crate::camera::{CharacterFacing, MovementState, Player};
 use crate::networking::{
@@ -94,6 +95,8 @@ pub(crate) fn finish_reconnect_when_world_ready(
 }
 
 pub(crate) fn reset_network_world(world: &mut World) {
+    game_engine::network_runtime::connection::stop_connection(world)
+        .unwrap_or_else(|error| panic!("network reset failed: {error}"));
     despawn_client_entities(world);
     despawn_replicated_entities(world);
     strip_local_player_components(world);

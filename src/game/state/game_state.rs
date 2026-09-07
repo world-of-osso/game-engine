@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use bevy::light::DirectionalLightShadowMap;
 use bevy::prelude::*;
-use lightyear::prelude::client::Connected;
+use game_engine::network_runtime::connection::Connected;
 
 use crate::camera::{self, WowCamera};
 use crate::game::inworld_scene_stage::{
@@ -314,7 +314,7 @@ fn log_screen_switches(state: Res<State<GameState>>, mut last_state: Local<Optio
     *last_state = Some(current);
 }
 
-/// Check if a `Connected` component exists on any entity (lightyear sets this on connection).
+/// Check the main-world connection marker published by the network worker.
 /// Times out after `CONNECT_TIMEOUT_SECS` and returns to Login.
 /// Wait for connection. LoginResponse handler transitions to CharSelect on success.
 /// Times out after `CONNECT_TIMEOUT_SECS` and returns to Login.
