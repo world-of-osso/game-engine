@@ -84,7 +84,7 @@ pub fn stop_connection(world: &mut World) -> Result<(), String> {
 }
 
 fn connect_worker(world: &mut World, server_addr: SocketAddr, client_id: u64) {
-    let auth = client_network::Authentication::Manual {
+    let auth = network::Authentication::Manual {
         server_addr,
         client_id,
         private_key: [0; 32],
