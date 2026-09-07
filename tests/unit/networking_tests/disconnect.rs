@@ -1,6 +1,123 @@
 use super::*;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+fn lifecycle_cadence_app() -> App {
+    let mut app = App::new();
+    app.add_plugins(game_engine::network_tick::NetworkTickPlugin);
+    game_engine::network_runtime::connection::initialize_connection_bridge(&mut app);
+    app.init_resource::<ReconnectState>()
+        .init_resource::<PendingNetworkWorldReset>()
+        .init_resource::<NetworkUpdateFrame>();
+    register_network_lifecycle_systems(&mut app);
+    app
+}
+
+#[test]
+fn lifecycle_cadence_unchanged_time_preserves_pending_reset_and_reconnect() {
+    let mut app = lifecycle_cadence_app();
+    let replica = app.world_mut().spawn(Remote).id();
+    app.world_mut().resource_mut::<PendingNetworkWorldReset>().0 = Some(0);
+    app.world_mut().resource_mut::<ReconnectState>().phase = ReconnectPhase::PendingConnect;
+    app.insert_resource(ServerAddr("127.0.0.1:9".parse().unwrap()));
+    for _ in 0..20 {
+        app.update();
+    }
+    assert!(
+        app.world().get_entity(replica).is_ok(),
+        "reset ran without a tick"
+    );
+    assert!(
+        !app.world().contains_resource::<LocalClientId>(),
+        "reconnect ran without a tick"
+    );
+    assert_eq!(app.world().resource::<NetworkUpdateFrame>().0, 0);
+}
+
+#[test]
+fn lifecycle_cadence_finishes_ready_reconnect_only_on_tick() {
+    let mut app = lifecycle_cadence_app();
+    app.world_mut().spawn(LocalPlayer);
+    {
+        let mut reconnect = app.world_mut().resource_mut::<ReconnectState>();
+        reconnect.phase = ReconnectPhase::AwaitingWorld;
+        reconnect.terrain_refresh_seen = true;
+    }
+    for _ in 0..20 {
+        app.update();
+    }
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::AwaitingWorld
+    );
+    app.world_mut()
+        .resource_mut::<Time<Real>>()
+        .advance_by(std::time::Duration::from_nanos(16_666_667));
+    app.update();
+    assert_eq!(
+        app.world().resource::<ReconnectState>().phase,
+        ReconnectPhase::Inactive
+    );
+}
+
+#[test]
+fn lifecycle_cadence_advances_exactly_sixty_times_per_second() {
+    for render_hz in [30_u64, 60, 144, 400] {
+        let mut app = lifecycle_cadence_app();
+        let mut previous = std::time::Duration::ZERO;
+        for frame in 1..=render_hz {
+            let elapsed = std::time::Duration::from_nanos(frame * 1_000_000_000 / render_hz);
+            app.world_mut()
+                .resource_mut::<Time<Real>>()
+                .advance_by(elapsed - previous);
+            previous = elapsed;
+            app.update();
+        }
+        assert_eq!(
+            app.world().resource::<NetworkUpdateFrame>().0,
+            60,
+            "render cadence {render_hz}"
+        );
+    }
+}
+
+#[test]
+fn lifecycle_cadence_receive_commands_finish_before_next_tick_reset() {
+    use game_engine::network_tick::{NetworkTick, NetworkTickSystems};
+    let mut app = lifecycle_cadence_app();
+    let replica = app.world_mut().spawn(Remote).id();
+    app.add_systems(
+        NetworkTick,
+        (move |mut commands: Commands, mut once: Local<bool>| {
+            if !*once {
+                *once = true;
+                crate::networking::reconnect::request_network_world_reset(&mut commands);
+                commands.entity(replica).insert(LateReceiveMarker);
+            }
+        })
+        .in_set(NetworkTickSystems::Receive),
+    );
+    app.world_mut()
+        .resource_mut::<Time<Real>>()
+        .advance_by(std::time::Duration::from_nanos(16_666_667));
+    app.update();
+    assert!(app.world().get::<LateReceiveMarker>(replica).is_some());
+    assert_eq!(
+        app.world().resource::<PendingNetworkWorldReset>().0,
+        Some(1)
+    );
+    for _ in 0..20 {
+        app.update();
+    }
+    assert!(app.world().get_entity(replica).is_ok());
+    app.world_mut()
+        .resource_mut::<Time<Real>>()
+        .advance_by(std::time::Duration::from_nanos(16_666_667));
+    app.update();
+    assert!(app.world().get_entity(replica).is_err());
+    assert_eq!(app.world().resource::<PendingNetworkWorldReset>().0, None);
+    assert_eq!(app.world().resource::<NetworkUpdateFrame>().0, 2);
+}
+
 #[derive(Component)]
 struct LateReceiveMarker;
 

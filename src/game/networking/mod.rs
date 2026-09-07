@@ -249,17 +249,27 @@ fn register_net_systems(app: &mut App) {
     app.add_systems(Startup, spawn_reconnect_overlay);
     register_gameplay_net_systems(app);
     register_auth_net_systems(app);
+    register_network_lifecycle_systems(app);
+}
+
+fn register_network_lifecycle_systems(app: &mut App) {
+    use game_engine::network_tick::{NetworkTick, NetworkTickSystems};
+
+    app.add_systems(Update, update_reconnect_overlay);
     app.add_systems(
-        Update,
+        NetworkTick,
         (
             flush_pending_network_world_reset.run_if(network_world_reset_is_due),
             drive_inworld_reconnect,
-            update_reconnect_overlay,
             finish_reconnect_when_world_ready,
         )
-            .chain(),
+            .chain()
+            .in_set(NetworkTickSystems::Apply),
     );
-    app.add_systems(Last, advance_network_update_frame);
+    app.add_systems(
+        NetworkTick,
+        advance_network_update_frame.after(NetworkTickSystems::Send),
+    );
 }
 
 fn application_in_world(world: &World) -> bool {
