@@ -103,6 +103,8 @@ pub mod missile_data;
 pub mod movement_control;
 #[path = "game/nameplate_data.rs"]
 pub mod nameplate_data;
+pub mod network_events;
+pub mod network_tick;
 #[path = "game/objective_tracker_data.rs"]
 pub mod objective_tracker_data;
 #[path = "game/equipment/outfit_data.rs"]

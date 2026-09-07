@@ -22,6 +22,8 @@ glob = { version = "0.3", optional = true }
 libc = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"] }
 lightyear = { version = "0.28", features = ["client", "netcode", "replication", "udp"] }
+# Observe existing replication notifications instead of polling equipment each frame.
+bevy_replicon = { version = "0.41.1", default-features = false, features = ["client"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
 ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }

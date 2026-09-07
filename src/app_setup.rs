@@ -257,8 +257,12 @@ fn register_ui_plugins(app: &mut App) {
 }
 
 fn register_world_plugins(app: &mut App) {
+    if game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
+        != InWorldSceneStage::Empty
+    {
+        app.add_plugins(AnimationPlugin);
+    }
     app.add_plugins(WowCameraPlugin)
-        .add_plugins(AnimationPlugin)
         .add_plugins(CollisionPlugin)
         .add_plugins(game_engine::culling::CullingPlugin)
         .add_plugins(AdtStreamingPlugin)

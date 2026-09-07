@@ -170,6 +170,7 @@ impl Plugin for NetworkPlugin {
             tick_duration: Duration::from_secs_f64(1.0 / TICK_RATE_HZ),
         });
         app.add_plugins(shared::ProtocolPlugin);
+        app.add_plugins(game_engine::network_tick::NetworkTickPlugin);
         register_net_resources(app);
         register_net_systems(app);
         register_net_observers(app);
@@ -366,18 +367,35 @@ fn should_receive_load_terrain(state: Res<State<crate::game_state::GameState>>) 
 
 fn register_auth_net_systems(app: &mut App) {
     use crate::networking_auth as auth;
-    app.add_systems(
-        Update,
-        (
-            auth::receive_forced_disconnect,
-            auth::receive_login_response,
-            auth::receive_create_character_response,
-            auth::receive_delete_character_response,
-            auth::receive_character_list_update,
-            auth::receive_enter_world_response,
-            auth::receive_register_response,
-        ),
+    use game_engine::network_events::register_message_handler;
+    use shared::protocol::{
+        CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
+        ForcedDisconnect, LoginResponse, RegisterResponse,
+    };
+
+    register_message_handler::<ForcedDisconnect, _>(app, auth::receive_forced_disconnect, |_| true);
+    register_message_handler::<LoginResponse, _>(app, auth::receive_login_response, |_| true);
+    register_message_handler::<CreateCharacterResponse, _>(
+        app,
+        auth::receive_create_character_response,
+        |_| true,
     );
+    register_message_handler::<DeleteCharacterResponse, _>(
+        app,
+        auth::receive_delete_character_response,
+        |_| true,
+    );
+    register_message_handler::<CharacterListUpdate, _>(
+        app,
+        auth::receive_character_list_update,
+        |_| true,
+    );
+    register_message_handler::<EnterWorldResponse, _>(
+        app,
+        auth::receive_enter_world_response,
+        |_| true,
+    );
+    register_message_handler::<RegisterResponse, _>(app, auth::receive_register_response, |_| true);
 }
 
 fn register_net_observers(app: &mut App) {

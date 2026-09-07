@@ -192,6 +192,10 @@ impl Plugin for TargetPlugin {
         app.init_resource::<GossipIntentQueue>();
         app.init_resource::<MailIntentQueue>();
         app.init_resource::<ZoneTransitionContactState>();
+        let stage = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
+        if stage == crate::game::inworld_scene_stage::InWorldSceneStage::Empty {
+            return;
+        }
         app.add_systems(OnEnter(GameState::InWorld), reset_zone_transition_contact);
         app.add_systems(Update, click_to_target.run_if(targeting_state_active));
         app.add_systems(Update, tab_target.run_if(targeting_state_active));
@@ -202,11 +206,8 @@ impl Plugin for TargetPlugin {
             Update,
             trigger_zone_transition_on_collision.run_if(in_state(GameState::InWorld)),
         );
-        let stage = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
-        if stage != crate::game::inworld_scene_stage::InWorldSceneStage::Empty {
-            app.add_systems(Update, spawn_target_circle.run_if(targeting_state_active));
-            app.add_systems(Update, update_target_circle.run_if(targeting_state_active));
-        }
+        app.add_systems(Update, spawn_target_circle.run_if(targeting_state_active));
+        app.add_systems(Update, update_target_circle.run_if(targeting_state_active));
     }
 }
 
