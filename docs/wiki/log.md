@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] retirement | Remove unproven task-submission batching
+
+Retired `079f0cbf`'s temporary Bevy task-submission patch and restored stock `bevy_ecs`/`bevy_tasks` sources and the root lockfile. Four same-binary, 10-second blank-renderer samples kept CPU high: baseline 207.679% and 215.581% one core; batched 220.981% and 203.752%. Nearby update rates and clock/host conditions varied, so the lower batched CPU/update estimates do not establish a causal gain. No deployment or retirement rebuild occurred. The [spec](../specs/task-submission-batching.md) is historical. The active question is why disabled subsystem registrations, including sky-material paths, still execute and cost CPU; this result does not make their callback volume normal or explain bulk CPU.
+
 ## [2026-09-07] experiment | Batch independent Bevy system-task registration
 
 Documented the user-approved, reversible `bc827e0f`/`2a818246`/`9b68de16`/`876fa5db` task-submission experiment. Unchanged Bevy 0.19.0 `bevy_ecs` and `bevy_tasks` are locally patched without package-version or root-feature changes. `Scope::spawn_many` retains each future's existing panic/result handling while bulk-registering independent futures. The ECS executor buffers at most 32 ready Send-system indexes only after its existing access and condition checks; it retains per-system completion, and leaves non-Send/exclusive execution unchanged. `BEVY_ECS_BATCH_TASK_SUBMISSIONS=1` enables batching; unset/`0` retain baseline and invalid values fail explicitly, with an executor-local override. This changes registration calls, not system count or body parallelism, and targets active-task registration locking rather than all task/memory/render cost. Scoped-task tests pass 3/3; ECS behavioral tests and bounded engine CPU/update/throughput comparison remain pending. No build, runtime, focus, capture, or profiler test occurred for this documentation update.

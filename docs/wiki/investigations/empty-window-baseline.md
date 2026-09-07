@@ -117,7 +117,7 @@ Four ten-second blank-renderer samples used the same binary (`0ec4b821…67bf2ae
 
 CPU samples and adjacent update-log intervals differ by up to one logging interval. Host load and clock ceilings varied; one batched sample reached a 600MHz GPU ceiling. All windows opened unfocused; sample focus was 0/11, 0/11, 0/11, and 11/11, recorded informationally without focus actions or causal attribution. Independent audit verified arithmetic and identities, not an isolated performance gain. Bulk CPU remained high. The temporary dependency patches and environment control were removed rather than retaining an unproven optimization; stock Bevy package sources and the pre-experiment root lockfile are restored. No additional engine rebuild was performed for retirement.
 
-Artifacts: `data/diagnostics/movement-perf-20260905/task-submission-batching/`, including `native-comparison.json` and `native-offline-audit-2026-09-07.md`. The measured binary predates cfg/test-only corrections `fa15321b`; those follow-up tests were not run before retirement.
+Artifacts: `data/diagnostics/movement-perf-20260905/task-submission-batching/`, including `native-comparison.json` and `native-offline-audit-2026-09-07.md`. The measured binary predates cfg/test-only corrections `fa15321b`; those follow-up tests were not run before retirement. This leaves the actual registration question open: the reduced `--no-skybox` capture still contains 27 skybox/sky-material labels, but their aggregate self CPU is neither a full callback cost nor a bulk-CPU explanation.
 
 ## Local profiler entry overhead
 
