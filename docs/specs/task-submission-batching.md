@@ -1,6 +1,6 @@
 # Temporary task-submission batching experiment
 
-User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whether bulk submission reduces executor coordination cost. [Native evidence](../wiki/investigations/empty-window-baseline.md#native-instruction-attribution) motivates the experiment; it does not establish an optimization.
+User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whether bulk submission reduces executor coordination cost. The vendor trees began as unchanged Bevy 0.19.0 registry sources; the root feature graph and package versions remain unchanged. [Native evidence](../wiki/investigations/empty-window-baseline.md#native-instruction-attribution) motivates the experiment; it does not establish an optimization.
 
 ## What it must do
 
@@ -18,9 +18,9 @@ User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whet
 ## Implementation inventory
 
 - `Cargo.toml`: temporary local patches for unchanged Bevy 0.19.0 package versions.
-- `vendor/bevy_tasks/src/task_pool.rs`: scoped task submission.
-- `vendor/bevy_ecs/src/schedule/executor/multi_threaded.rs`: ready-system dispatch and unchanged per-system completion.
-- `vendor/bevy_ecs/src/schedule/executor/multi_threaded/submission_batching.rs`: bounded Send-task submission and experiment configuration.
+- `vendor/bevy_tasks/src/task_pool.rs`: `Scope::spawn_many` preserves the original unwind/result wrapper around each independent future before bulk registration.
+- `vendor/bevy_ecs/src/schedule/executor/multi_threaded.rs`: ready-system dispatch, unchanged access/condition checks, and per-system completion.
+- `vendor/bevy_ecs/src/schedule/executor/multi_threaded/submission_batching.rs`: a stack buffer of up to 32 ready Send-system indexes, configuration, and bulk registration.
 
 ## Tests asserting this spec
 
@@ -30,7 +30,8 @@ User-approved experiment in `vendor/bevy_ecs` and `vendor/bevy_tasks` tests whet
 
 ## Known gaps (current cycle)
 
-- [ ] Implement submission batching and prove scheduler/task-scope semantics.
+- [x] Implement scoped bulk registration without fusing system bodies. Targeted `bevy_tasks` tests pass 3/3.
+- [ ] Run targeted ECS behavioral coverage for batching: conditions, dependencies, conflicting access, deferred/exclusive/non-Send work, and panic propagation.
 - [ ] Build and compare baseline/batched engine behavior and CPU/update.
 
 ## Out of scope

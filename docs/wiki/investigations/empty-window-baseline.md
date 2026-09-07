@@ -102,6 +102,14 @@ The matching libc build ID (`503200d7fda94a5dc6058d7e0694e5d1dcb2e372`) was pres
 
 A separate full-scene capture had 2,138 samples, 1,898 from the executable across 1,512 addresses. Its nearest-source counts were `bevy_ecs` 27.689%, `concurrent-queue` 7.016%, `fixedbitset` 5.940%, `async-executor` 5.005%, and `async-task` 2.479%. Those are sample-count fractions, unlike the blank cycle-period fractions, and the capture used `--inworld-stage no-npcs-ui` plus terrain/render isolation. It is neither an intact-game baseline nor a literal Empty scene; do not compare these percentages causally.
 
+## Temporary task-submission batching experiment
+
+The user approved a temporary dependency-level experiment after the instruction attribution identified task registration and completion work. `bc827e0f` vendors unchanged Bevy 0.19.0 `bevy_ecs` and `bevy_tasks` sources and patches only those two package sources; package versions and the root feature graph are unchanged. This is a reversible experiment, not a production change or an optimization result.
+
+`Scope::spawn_many` preserves the former per-future `AssertUnwindSafe`/`catch_unwind` result path, but bulk-registers the resulting independent futures with async-executor. The ECS executor still evaluates each ready system's access and run conditions, marks it running, and retains individual completion reporting. It collects at most 32 ready **Send** system indexes in a stack buffer before registration. Non-Send and exclusive paths keep their original submission path. The change does not combine system bodies, reduce task count, change worker pools, or alter pipelining.
+
+`BEVY_ECS_BATCH_TASK_SUBMISSIONS=1` enables the batched path; unset or `0` preserves baseline submission, other values fail explicitly, and `MultiThreadedExecutor::with_task_submission_batching` overrides the environment setting for an executor. This targets repeated async-executor active-task registration locking, not all allocation, queue, polling, or render costs. Targeted `bevy_tasks` coverage passes 3/3 for borrowed results/empty input, independent sibling progress, and panic cleanup. ECS behavioral coverage and engine comparison remain pending, so no CPU or throughput claim follows.
+
 ## Local profiler entry overhead
 
 The ignored test-only benchmark, relocated without behavioral change by `93cef709` to `src/cpu_system_profile/overhead_benchmark.rs`, compares the real `CpuSpanLayer` against registry-only tracing. It precreates spans, runs 50,000 equal-work enter/drop iterations per case, and alternates disabled/enabled order across three rounds while timing the current thread's CPU. Paired median added CPU was **2.202289 µs per entry** for 154 distinct span names and **2.355397 µs per entry** for 1,031 names.

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] experiment | Batch independent Bevy system-task registration
+
+Documented the user-approved, reversible `bc827e0f`/`2a818246`/`9b68de16`/`876fa5db` task-submission experiment. Unchanged Bevy 0.19.0 `bevy_ecs` and `bevy_tasks` are locally patched without package-version or root-feature changes. `Scope::spawn_many` retains each future's existing panic/result handling while bulk-registering independent futures. The ECS executor buffers at most 32 ready Send-system indexes only after its existing access and condition checks; it retains per-system completion, and leaves non-Send/exclusive execution unchanged. `BEVY_ECS_BATCH_TASK_SUBMISSIONS=1` enables batching; unset/`0` retain baseline and invalid values fail explicitly, with an executor-local override. This changes registration calls, not system count or body parallelism, and targets active-task registration locking rather than all task/memory/render cost. Scoped-task tests pass 3/3; ECS behavioral tests and bounded engine CPU/update/throughput comparison remain pending. No build, runtime, focus, capture, or profiler test occurred for this documentation update.
+
 ## [2026-09-07] diagnostic | Resolve libc memory operations in preserved native profile
 
 Updated [[empty-window-baseline]] with matching-library offline attribution. libc covers 1,413,726,253 sampled cycle period (12.1680% of the original total); Arch debuginfod symbols resolve `memcpy` at 2.4163%, `memset` at 1.1201%, `_int_free_chunk` at 1.7458%, and `_int_malloc` at 1.3708%. These are sampled-period shares, not CPU percentage points or caller attribution. Allocation/copy work cannot be assigned to task lifecycle or a render callback without runtime ancestry. The 11 MB libc debug artifact is retained under diagnostics; independent verification remains pending. No build, capture, runtime, focus, or profiler test occurred.
