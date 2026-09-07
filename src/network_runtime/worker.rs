@@ -120,16 +120,28 @@ fn run_worker(
     configure(&mut app, updates.clone());
     app.finish();
     app.cleanup();
-    let result = run_ticks(&mut app, &commands);
+    let result = run_ticks(&mut app, &commands, &updates);
     // Keep the update endpoint open even if configure registers no producers.
     drop(updates);
     result
 }
 
-fn run_ticks(app: &mut App, commands: &Receiver<NetworkCommand>) -> Result<(), String> {
+fn run_ticks(
+    app: &mut App,
+    commands: &Receiver<NetworkCommand>,
+    updates: &Sender<MainUpdate>,
+) -> Result<(), String> {
     let started = Instant::now();
     while apply_commands(app.world_mut(), commands)? {
         app.update();
+        updates
+            .send(Box::new(|world| {
+                world.init_resource::<crate::network_tick::PendingNetworkTicks>();
+                world
+                    .resource_mut::<crate::network_tick::PendingNetworkTicks>()
+                    .0 += 1;
+            }))
+            .map_err(|_| "main update queue closed while publishing network tick permit")?;
         if let Some(exit) = app.should_exit() {
             return match exit {
                 AppExit::Success => Ok(()),
