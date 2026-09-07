@@ -1,5 +1,6 @@
 use super::*;
 use bevy::ecs::system::RunSystemOnce;
+use game_engine::network_runtime::connection::{Client, Disconnected};
 use std::f32::consts::{FRAC_PI_2, PI};
 
 use crate::camera::MoveDirection;
