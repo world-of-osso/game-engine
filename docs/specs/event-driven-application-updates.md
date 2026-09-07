@@ -8,9 +8,9 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - [x] Add a 60 logical-ticks-per-second application network schedule whose tick count is independent of render-frame count.
 - [x] Keep Lightyear link/transport/message maintenance on every frame so delta-based transport timers retain real elapsed-time behavior; defer only typed application inbox dispatch to due network ticks.
-- [x] Add one incoming dispatcher over existing typed inboxes; only handlers with pending messages and satisfied eligibility run.
+- [x] Add one incoming dispatcher over application-owned typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
-- [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready.
+- [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready. Application handlers use worker-backed typed sender/receiver adapters; the main client lifecycle has not started the worker yet.
 - [x] Prove one actual client/server login plus routed Who/friends replies. Reconnection and full reply coverage remain unproven.
 
 ### Equipment and other application work
@@ -25,24 +25,27 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
 - `NetworkTick` shares the main ECS thread. Due ticks can run together at lower render cadences and cannot progress while that thread is blocked; it is a logical 60 Hz cadence, **not an independent OS network thread**.
-- `a35b1c5c` adds an unwired `src/network_runtime/worker.rs` foundation for a dedicated 60 Hz network ECS world. It owns a separate Bevy app, preserves the 20 Hz client simulation configuration, and exposes ordered worker commands plus main-world update closures. It does not yet own a live client, message bridge, replicated-entity mapping, or reconnect lifecycle; its tests are written but unrun.
-- Existing Bevy maximum-delta policy bounds catch-up after a long stall. The authoritative client/server simulation remains negotiated at **20 Hz**; this schedule does not alter it.
-- Link, transport, and message maintenance remain per-frame because transport senders advance delta-based timers there. Typed application inbox contents are parked before Lightyear's `Last` clear on frames with no due tick, restored in `First`, then dispatched at logical network ticks. This preserves buffered message metadata without a second wire protocol.
-- `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `2a8abacb` preserves transport timers while deferring application inboxes; `71d80355` makes its cadence fixtures use Bevy manual time. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
+- `a35b1c5c` through `01cfcade` add an unwired dedicated-world foundation: a separately clocked 60 Hz worker preserving the 20 Hz client simulation, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. Worker relays append owned message batches to the main world; old main-world Lightyear receiver park/restore is removed.
+- `cec56837` adds an unintegrated replication mirror foundation keyed by server entity identity. It must still be connected to worker lifecycle, render-world identity mapping, and reconnect cleanup before it affects production behavior.
+- Existing Bevy maximum-delta policy bounds catch-up after a long stall. The authoritative client/server simulation remains negotiated at **20 Hz**; neither foundation alters it.
+- The main binary does not yet start a worker or move its live client, transport, replication, connection markers, or reconnect lifecycle. The current path is therefore not runnable as independent network execution.
+- `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
 
-- `src/network_tick.rs`: fixed-cadence application driver; Lightyear transport I/O remains frame-driven.
-- `src/network_events.rs`: registered handlers and centralized inbox/outbox dispatch.
-- `src/network_runtime/worker.rs`: committed but unintegrated dedicated-world owner; it is not runtime behavior yet.
+- `src/network_tick.rs`: legacy main-thread logical application driver; it remains unable to progress during a main-thread block.
+- `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
+- `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`: committed dedicated-world, typed queue, and replication-mirror foundations. The main binary has not integrated their lifecycle.
 - `src/game/networking/mod.rs`: application network registration.
 - `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment mutation and reconciliation boundaries.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
 
 ## Tests asserting this spec
 
-- Network tests: **8/8** cover equal elapsed time at different render cadences, unchanged time, real message buffers parked through no-tick `Last` frames, once-only routing, and ordered outgoing work.
-- API tests: **55/55** cover queue/readiness gating and existing state mapping across migrated handlers.
+- Historical main-thread transport tests: **8/8** cover equal elapsed time at different render cadences, unchanged time, no-tick buffering, once-only routing, and ordered outgoing work; they do not prove the new worker lifecycle.
+- `runtime-tests-transport.log`: **13/13** worker/module tests, including real Lightyear packet loopback while the main app is not updated, FIFO worker commands/replies, and shutdown/failure behavior.
+- `owned-inbox-red-behavior.log` then `owned-inbox-green.log`: RED followed by **8/8** application-owned inbox dispatcher tests for FIFO, readiness, reset clearing, and queue gating.
+- API tests: historical **55/55** cover queue/readiness gating and existing state mapping; the migrated adapter call sites still require full lifecycle integration proof.
 - Equipment agent tests: **13 passed** plus **2 appearance-event tests**; IPC FIFO test: **1/1**.
 - Character-create response tests: **3/3** cover success, failure, and a response after the scene exits.
 

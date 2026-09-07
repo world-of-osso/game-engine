@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-07] systems | Record unintegrated dedicated network-world foundation
+## [2026-09-07] systems | Record unintegrated owned-inbox network runtime foundations
 
-Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `a35b1c5c`. `src/network_runtime/worker.rs` is a committed, unwired 60 Hz Bevy worker owner with the existing 20 Hz client simulation configuration, FIFO worker commands, main-world update closures, and shutdown/error plumbing. It starts no production client and moves no transport, replication, message routing, entity mirroring, or reconnect lifecycle. Its tests were written but not run. Existing main-thread `NetworkTick` proof and CPU limitations remain unchanged.
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `d4742d87`, `80476abe`, `daa1a7b3`, `cec56837`, and `01cfcade`. Application handlers now use worker-backed `MessageSenders`/`MessageReceivers`; `network_events` dispatches application-owned `Inbox<M>` batches and no longer parks/restores main-world Lightyear receivers. `runtime-tests-transport.log` records worker/module 13/13, including encoded Lightyear loopback while the main app is unupdated; dispatcher RED then GREEN is recorded in `owned-inbox-red-behavior.log` and `owned-inbox-green.log` (8/8). The main binary still does not start the worker or transfer client, transport, replication, lifecycle, or reconnect ownership, so no runnable independent-network or CPU claim follows. Existing native and CPU limits remain unchanged.
 
 ## [2026-09-07] investigation | Record event-driven native follow-up
 
