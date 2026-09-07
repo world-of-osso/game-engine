@@ -195,6 +195,7 @@ mod tests {
 
     fn fixture() -> (App, Entity) {
         let mut app = App::new();
+        initialize_dispatcher(&mut app);
         app.add_plugins(bevy::state::app::StatesPlugin);
         app.add_plugins(ClientPlugins::default());
         app.register_message::<First>();
@@ -251,6 +252,22 @@ mod tests {
     }
     fn forbidden_eligibility(_: &World) -> bool {
         panic!("empty inbox must skip eligibility");
+    }
+
+    #[test]
+    fn initialized_dispatcher_without_handlers_has_no_work() {
+        let mut app = App::new();
+        initialize_dispatcher(&mut app);
+        dispatch_incoming(app.world_mut());
+        dispatch_outgoing(app.world_mut());
+    }
+
+    #[test]
+    #[should_panic(expected = "unknown incoming network handler")]
+    fn route_to_an_unregistered_handler_fails_explicitly() {
+        let mut app = App::new();
+        let id = app.world_mut().register_system(|| {});
+        add_message_route::<First>(&mut app, id);
     }
 
     #[test]
@@ -354,6 +371,11 @@ mod tests {
         app.init_resource::<Output>().init_resource::<Outbox>();
         register_outgoing_handler(
             &mut app,
+            |mut out: ResMut<Output>| out.0.push(100),
+            |world| !world.resource::<Outbox>().0.is_empty(),
+        );
+        register_outgoing_handler(
+            &mut app,
             |_: Res<HeavyResource>, mut queue: ResMut<Outbox>, mut out: ResMut<Output>| {
                 out.0.extend(queue.0.drain(..));
             },
@@ -365,7 +387,7 @@ mod tests {
         dispatch_outgoing(app.world_mut());
         app.world_mut().remove_resource::<HeavyResource>();
         dispatch_outgoing(app.world_mut());
-        assert_eq!(app.world().resource::<Output>().0, [7, 3, 9]);
+        assert_eq!(app.world().resource::<Output>().0, [100, 7, 3, 9]);
         assert!(app.world().resource::<Outbox>().0.is_empty());
     }
 }
