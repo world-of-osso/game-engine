@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 
 use bevy::ecs::system::SystemState;
 use bevy::mesh::VertexAttributeValues;
-use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
+use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::mesh::{Mesh, Mesh3d};
 use bevy::prelude::*;
 
@@ -131,6 +131,185 @@ fn live_human_male_feet_runtime_attachment_uses_character_visual_root() {
     assert!(
         find_named_bone_pivot_y(app.world(), feet_entity, "FootL").is_none(),
         "expected feet runtime attachment to avoid spawning its own named foot skeleton",
+    );
+}
+
+#[test]
+fn live_bevy_animation_helm_follows_character_bone() {
+    let (spawned, path, mut app) =
+        setup_live_helm_test_app().expect("required human and helm assets");
+    equip_live_helm(&mut app, spawned.model_root, path);
+    app.update();
+    app.update();
+    let helm = head_equipment_entity(app.world_mut()).expect("helm");
+    let bone = app.world().get::<ChildOf>(helm).unwrap().parent();
+    let local = app.world().get::<Transform>(helm).unwrap().to_matrix();
+    let mut positions = Vec::new();
+    for fraction in [0.0, 0.5] {
+        sample_live_walk(&mut app, spawned.model_root, fraction);
+        let expected = sampled_joint_world(app.world(), spawned.model_root, bone) * local;
+        let actual = app
+            .world()
+            .get::<GlobalTransform>(helm)
+            .unwrap()
+            .to_matrix();
+        assert_matrix_near(actual, expected);
+        positions.push(actual.transform_point3(Vec3::ZERO));
+    }
+    assert!(
+        positions[0].distance(positions[1]) > 0.0001,
+        "helm must move with the sampled head"
+    );
+}
+
+#[test]
+fn live_bevy_animation_chest_vertex_follows_character_skin() {
+    let (spawned, path, mut app) =
+        setup_live_chest_test_app().expect("required human and chest assets");
+    equip_live_chest(&mut app, spawned.model_root, path);
+    app.update();
+    app.update();
+    let chest = chest_equipment_entity(app.world_mut()).expect("chest");
+    let mut descendants = Vec::new();
+    collect_descendants(app.world(), chest, &mut descendants);
+    let mesh_entity = descendants
+        .into_iter()
+        .find(|&entity| {
+            app.world().get::<SkinnedMesh>(entity).is_some()
+                && app.world().get::<Mesh3d>(entity).is_some()
+        })
+        .expect("shared-skin chest mesh");
+    let skin = app.world().get::<SkinnedMesh>(mesh_entity).unwrap().clone();
+    let mesh = app
+        .world()
+        .resource::<Assets<Mesh>>()
+        .get(&app.world().get::<Mesh3d>(mesh_entity).unwrap().0)
+        .unwrap();
+    let Some(VertexAttributeValues::Float32x3(positions)) =
+        mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+    else {
+        panic!("positions")
+    };
+    let Some(VertexAttributeValues::Uint16x4(indices)) =
+        mesh.attribute(Mesh::ATTRIBUTE_JOINT_INDEX)
+    else {
+        panic!("joint indices")
+    };
+    let Some(VertexAttributeValues::Float32x4(weights)) =
+        mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT)
+    else {
+        panic!("joint weights")
+    };
+    let vertex = Vec3::from(positions[0]);
+    let indices = indices[0];
+    let weights = weights[0];
+    assert!((weights.iter().sum::<f32>() - 1.0).abs() < 0.0001);
+    let inverse_bindposes = app
+        .world()
+        .resource::<Assets<SkinnedMeshInverseBindposes>>()
+        .get(&skin.inverse_bindposes)
+        .unwrap()
+        .to_vec();
+    let character_joints = app
+        .world()
+        .get::<crate::animation::M2AnimData>(spawned.model_root)
+        .unwrap()
+        .joint_entities
+        .clone();
+    let mut samples = Vec::new();
+    for fraction in [0.0, 0.5] {
+        sample_live_walk(&mut app, spawned.model_root, fraction);
+        let retained = app.world().get::<SkinnedMesh>(mesh_entity).unwrap();
+        assert_eq!(retained.joints, skin.joints);
+        assert_eq!(retained.inverse_bindposes, skin.inverse_bindposes);
+        let mut actual = Vec3::ZERO;
+        let mut expected = Vec3::ZERO;
+        for (&index, &weight) in indices.iter().zip(&weights) {
+            if weight == 0.0 {
+                continue;
+            }
+            let index = usize::from(index);
+            let joint = skin.joints[index];
+            assert!(
+                character_joints.contains(&joint),
+                "weighted chest vertex must use character joint"
+            );
+            assert_matrix_near(inverse_bindposes[index], Mat4::IDENTITY);
+            let global = app
+                .world()
+                .get::<GlobalTransform>(joint)
+                .unwrap()
+                .to_matrix();
+            actual += (global * inverse_bindposes[index]).transform_point3(vertex) * weight;
+            expected += sampled_joint_world(app.world(), spawned.model_root, joint)
+                .transform_point3(vertex)
+                * weight;
+        }
+        assert!(
+            actual.distance(expected) < 0.0001,
+            "skinned vertex {actual:?}, expected {expected:?}"
+        );
+        samples.push(actual);
+    }
+    assert!(
+        samples[0].distance(samples[1]) > 0.0001,
+        "concrete chest vertex must deform across walk samples"
+    );
+}
+
+fn sample_live_walk(app: &mut App, owner: Entity, fraction: f32) {
+    let data = app
+        .world()
+        .get::<crate::animation::M2AnimData>(owner)
+        .unwrap();
+    let sequence = data
+        .sequences
+        .iter()
+        .position(|sequence| sequence.id == 4)
+        .expect("human walk clip");
+    let time_ms = data.sequences[sequence].duration as f32 * fraction;
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+        Duration::ZERO,
+    ));
+    let mut player = app
+        .world_mut()
+        .get_mut::<crate::animation::M2AnimPlayer>(owner)
+        .unwrap();
+    player.current_seq_idx = sequence;
+    player.time_ms = time_ms;
+    player.transition = None;
+    app.update();
+}
+
+fn sampled_joint_world(world: &World, owner: Entity, joint: Entity) -> Mat4 {
+    let data = world.get::<crate::animation::M2AnimData>(owner).unwrap();
+    let Some(index) = data
+        .joint_entities
+        .iter()
+        .position(|&candidate| candidate == joint)
+    else {
+        return world.get::<GlobalTransform>(joint).unwrap().to_matrix();
+    };
+    let player = world.get::<crate::animation::M2AnimPlayer>(owner).unwrap();
+    let (translation, rotation, scale) = crate::animation::evaluate_bone_components(
+        &data.bone_tracks[index],
+        player.current_seq_idx,
+        player.time_ms as u32,
+    );
+    let pivot = world.get::<crate::animation::BonePivot>(joint).unwrap().0;
+    let local = Mat4::from_scale_rotation_translation(
+        scale,
+        rotation,
+        translation + pivot - rotation * (scale * pivot),
+    );
+    let parent = world.get::<ChildOf>(joint).unwrap().parent();
+    sampled_joint_world(world, owner, parent) * local
+}
+
+fn assert_matrix_near(actual: Mat4, expected: Mat4) {
+    assert!(
+        actual.abs_diff_eq(expected, 0.0001),
+        "transform {actual:?}, expected {expected:?}"
     );
 }
 
