@@ -36,7 +36,24 @@ The source verifier passed formatting, locked checking, and readability; targete
 
 The renderer deliberately excludes project game services, PBR, lights, sprites, audio, and UI. Required Bevy dependencies are logging, transforms, input, accessibility, window, asset, Winit, render, image, mesh, camera, pipelined rendering, and core pipeline. Input is needed by Winit focus processing, mesh by render mesh extraction, and `AccessibilityPlugin` initializes the `AccessibilityRequested` resource required by Winit window creation.
 
-The first `0669eac5` render smoke initialized the Vulkan adapter but panicked before window creation because `AccessibilityRequested` was absent. Commit `76076850` adds the required accessibility plugin. That failed launch has no CPU or renderer-throughput result; the next smoke must rebuild and prove visible window creation before measurement.
+The first `0669eac5` render smoke initialized the Vulkan adapter but panicked before window creation because `AccessibilityRequested` was absent. Commit `76076850` adds the required accessibility plugin. That failed launch has no CPU or renderer-throughput result.
+
+## Measured renderer and continuous stages
+
+Source `76076850` used renderer binary SHA-256 `d847c8c5568a549b976972f8cdffc8e2cf8e1d99ec1cbfccb7a499bfe9cfa56d`. A visible flat blank view was captured for the repaired `render` stage. Every retained measurement window lasted twelve seconds, had 13/13 focused samples, and used a 1280×1198 compositor window.
+
+| Stage | Process CPU, one core | Threads | Update-rate telemetry |
+| --- | ---: | ---: | --- |
+| Native window | 0 ticks | 1 | Event-driven native wait |
+| Bevy core | 0.16664% | 25 | Event-driven native wait |
+| Blank GPU, reactive `render` | 0.08331% | 28 | 0.2 updates/s |
+| Blank GPU, `continuous` | 216.31478% | 28 | Mean 1212.906 updates/s; logged interval range 1071.767–1306.683 |
+
+The renderer comparison changes only the Winit policy: `render` uses the reactive desktop policy, while `continuous` uses the normal game policy. Renderer, camera, Mailbox presentation, default pools, normal pipelining, and absence of an FPS limiter are retained. Update rate is not presented FPS.
+
+Whole-host busy CPU was 5.799% for native, 5.407% for core, 7.165% for reactive rendering, and 21.071% for continuous rendering. Those values are not single-process attribution. Reactive CPU/GPU clock ceilings were 4504–4937 / 2574–2900 MHz; continuous ceilings were 2274–3799 / 1498–2416 MHz. Raw GPU metrics captured average graphics activity of 0–1 for reactive rendering and 80–86 for continuous rendering, with average GPU clocks 618–682 versus 1945–2326 MHz. No 600 MHz row occurred, but clock limits differ and per-frame efficiency is uncontrolled.
+
+Independent source verification and runtime audit `248` pass the bounded finding: the first major CPU increase appears when the otherwise blank framework enters continuous updates, before project services are registered. This is not an optimization, a same-throughput comparison, or a full-game root-cause conclusion. The evidence has no presented FPS, frame-time pacing, render-thread breakdown, per-thread CPU attribution, or hardware-counter proof. The continuous client remains open as PID 1217890, window 331.
 
 ## Measurement scope
 
