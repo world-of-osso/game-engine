@@ -68,9 +68,9 @@ Post-build proof is `/tmp/claude/game-engine/reconnect-fixed-runtime.json` and `
 
 Commit `abf68fd9` moves the eight expensive status snapshots out of unconditional InWorld `Update` work. IPC now orders `Receive → RefreshStatus → Dispatch`; queued commands select only their required network, terrain, sound, character, gear, appearance, roster, or map refresh. Idle updates with no IPC command perform no status-snapshot rebuild, and `Ping`/`Performance` request none. The duplicate map-sync registration in `game/networking/mod.rs` was removed. See [[procedural-cloud-regeneration]] for the exact dependency matrix and RED/GREEN evidence. The rebuilt status-demand client still consumed 369.05% of one core; without a matched pre-change workload this establishes no isolated status-refresh CPU effect and did not satisfy the Empty gate.
 
-## Strict Empty Diagnostic Pacing
+## Strict Empty Pacing
 
-Commit `4fb2e5c9` adds a diagnostic frame limiter after the demand-driven IPC status refresh. Only exact `GameState::InWorld` plus exact `InWorldSceneStage::Empty` uses a fixed **100 ms** interval (**10 FPS**) through the existing limiter. `Character` and later stages, plus all other states, retain the persisted/global graphics frame-rate limit and `PresentMode`; FPS overlay, networking, and IPC remain active. This is frame-cadence control, not removal of render/application work. PID `2130439` measured **9.98 FPS / 100.23 ms** and **11.20% of one core**, so the `<=10%` gate still failed. Alessio chose to keep 10 FPS temporarily for investigation, not as the final fix; Character remains blocked. See [[procedural-cloud-regeneration]].
+`281d291a` removes the former forced 100 ms / 10 FPS Empty limiter. Only the configured global frame-rate limit now applies; disabling it leaves Empty uncapped. Prior near-10-FPS Empty readings are historical capped data, not CPU-baseline or CPU-savings evidence. Canonical retirement and pending uncapped Green status: [[procedural-cloud-regeneration#strict-empty-pacing-retirement]].
 
 ## Who Query Runtime
 

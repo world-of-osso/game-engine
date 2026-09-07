@@ -2,6 +2,10 @@
 
 `--empty-window` provides a native Wayland window/event-loop baseline outside the game runtime. It measures external idle CPU separately from Bevy/game integration. The initial native baseline is verified below; it does not identify the full game's CPU cause.
 
+## Strict Empty measurement status
+
+This page's native/core/blank-renderer measurements are separate from InWorld strict Empty. Any historical strict-Empty near-10-FPS figures referenced by related investigations were forced-cap measurements, not evidence of an uncapped CPU reduction. `281d291a` removes that cap; canonical retirement and pending uncapped Green status: [[procedural-cloud-regeneration#strict-empty-pacing-retirement]].
+
 ## Runtime boundary
 
 `main` checks the complete argument list before normal startup. The mode accepts only `--empty-window`; any extra argument is an error. A successful selection calls `empty_window::run()` then returns before thread-pool configuration, asset-root discovery, resource limits, simple-flag handling, CLI parsing, and `run_app`.

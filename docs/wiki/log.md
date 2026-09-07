@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] docs | Retire forced strict-Empty pacing claims
+
+Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], [[networking]], [[ui-system]], [[replicated-unit-noops]], [[empty-window-baseline]], and `index.md`. `281d291a` removes `4fb2e5c9`'s forced 100 ms / 10 FPS Empty limiter: only the configured global frame-rate limit applies. Historical near-10-FPS readings, including 11.199% at approximately 9.994 updates/s, are capped data—not an uncapped baseline or a 97% CPU gain. `35e15d27` is build-backed successful startup after omitting Empty PBR/light/debug/material paths and target visuals; Empty is startup-only. Uncapped Green is pending.
+
 ## [2026-09-07] docs | Correct strict-Empty LightPlugin boundary
 
 Updated [[rendering-pipeline]], [[empty-window-baseline]], [[movement-performance]], [[inworld-scene-isolation]], and `index.md` for `be9a1ff7`. The August 11, 2026 LightPlugin-absent Empty claim remains historical: native RED showed PBR requires `PointLightShadowMap` and scattering-medium assets even with no light entities. Current documentation records LightPlugin as a required provider and retains only the gizmo disables. Native GREEN is still running; no pass is claimed until `update-schedule-isolation/strict-empty-fixed/` exists and the main session confirms it.

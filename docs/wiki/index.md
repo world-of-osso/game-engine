@@ -7,7 +7,7 @@ Last updated: 2026-09-07.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, strict-Empty gizmo/camera/particle/M2-material registration boundaries and required LightPlugin PBR providers, lightweight Empty M2 assets without material schedules (`e7f98704`), blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; gizmo A/B removed its targeted path and improved passive mean 0.50 percentage points, but the every-window CPU gate remains open
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; successful startup is build-backed and uncapped runtime Green remains pending
 - [animation](systems/animation.md) — M2 bone animation, crossfade rules, blend times, HD skeleton loading
 - [networking](systems/networking.md) — Lightyear UDP, auth flow, entity replication, reconnect lifecycle, Who query runtime, Empty-stage NOOP and due-gated network-reset boundaries, planned streaming; reset gating removed its profile symbol but did not improve CPU
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
@@ -58,8 +58,8 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` resolves authored skyboxes but renders effectively black output
-- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, and September 5 replicated-NPC M2 cache reuse; runtime startup/FPS/movement effect remains unmeasured
-- [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof without comparative FPS evidence
+- [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
+- [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
 
 ## Reference
 
