@@ -10,6 +10,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{
     ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
 };
@@ -34,9 +35,22 @@ pub struct ProfessionPlugin;
 impl Plugin for ProfessionPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ProfessionRuntimeState>();
-        app.add_systems(Update, request_professions_on_enter_world);
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_profession_updates);
+        register_outgoing_handler(
+            app,
+            request_professions_on_enter_world,
+            profession_query_pending,
+        );
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<ProfessionRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<ProfessionStateUpdate, _>(
+            app,
+            receive_profession_updates,
+            |_| true,
+        );
     }
 }
 
@@ -73,14 +87,18 @@ pub fn queue_gather_action(runtime: &mut ProfessionRuntimeState, node_id: u32) {
     runtime.pending_actions.push_back(Action::Gather(node_id));
 }
 
+fn profession_query_pending(world: &World) -> bool {
+    if world.resource::<ProfessionRuntimeState>().queried_inworld {
+        return false;
+    }
+    let snapshot = world.resource::<ProfessionStatusSnapshot>();
+    snapshot.skills.is_empty() && snapshot.recipes.is_empty()
+}
+
 fn request_professions_on_enter_world(
     mut runtime: ResMut<ProfessionRuntimeState>,
-    snapshot: Res<ProfessionStatusSnapshot>,
     mut senders: Query<&mut MessageSender<QueryProfessions>>,
 ) {
-    if runtime.queried_inworld || !snapshot.skills.is_empty() || !snapshot.recipes.is_empty() {
-        return;
-    }
     if send_all(&mut senders, QueryProfessions) {
         runtime.queried_inworld = true;
     }
@@ -250,6 +268,54 @@ fn format_known_gather_nodes() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn idle_dispatch_skips_profession_snapshot_parameters() {
+        let mut app = App::new();
+        app.add_plugins(ProfessionPlugin);
+        app.world_mut()
+            .resource_mut::<ProfessionRuntimeState>()
+            .queried_inworld = true;
+
+        app.update();
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        crate::network_events::dispatch_incoming(app.world_mut());
+    }
+
+    #[test]
+    fn queued_actions_wait_for_dispatch_and_report_disconnection() {
+        let mut app = App::new();
+        app.add_plugins(ProfessionPlugin)
+            .init_resource::<ProfessionStatusSnapshot>();
+        let (reply, responses) = mpsc::channel();
+        {
+            let mut runtime = app.world_mut().resource_mut::<ProfessionRuntimeState>();
+            runtime.queried_inworld = true;
+            queue_craft_action(&mut runtime, 5001);
+            queue_gather_action(&mut runtime, 1);
+            runtime.pending_replies.extend([reply.clone(), reply]);
+        }
+
+        app.update();
+        assert_eq!(
+            app.world()
+                .resource::<ProfessionRuntimeState>()
+                .pending_actions
+                .len(),
+            2
+        );
+        assert!(responses.try_recv().is_err());
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        for _ in 0..2 {
+            let Response::Error(error) = responses.try_recv().unwrap() else {
+                panic!("expected disconnected profession error");
+            };
+            assert_eq!(error, "professions are unavailable: not connected");
+        }
+        let runtime = app.world().resource::<ProfessionRuntimeState>();
+        assert!(runtime.pending_actions.is_empty());
+        assert!(runtime.pending_replies.is_empty());
+    }
 
     #[test]
     fn format_status_reports_profession_skills() {
