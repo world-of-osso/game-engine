@@ -1,5 +1,5 @@
 use super::*;
-use bevy::ecs::schedule::Schedules;
+use bevy::ecs::schedule::{ScheduleLabel, Schedules};
 use bevy::ecs::system::IntoSystem;
 use bevy::render::{Extract, MainWorld};
 
@@ -250,6 +250,33 @@ fn ambiguous_names_and_shared_implicit_types_are_rejected_without_removal() {
         assert_eq!(counts.target, if same_type { 2 } else { 1 });
         assert_eq!(counts.unrelated, if same_type { 0 } else { 1 });
     }
+}
+
+#[derive(ScheduleLabel, Clone, Eq, PartialEq, Hash)]
+enum DuplicateLabel {
+    First,
+    Second,
+}
+
+impl std::fmt::Debug for DuplicateLabel {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("DuplicateSchedule")
+    }
+}
+
+#[test]
+fn ambiguous_schedule_names_preserve_both_schedules() {
+    let mut world = render_world(20, vec![]);
+    for label in [DuplicateLabel::First, DuplicateLabel::Second] {
+        let mut schedule = Schedule::new(label);
+        schedule.add_systems(IntoSystem::into_system(target).with_name("selected"));
+        world.resource_mut::<Schedules>().insert(schedule);
+    }
+    let error = remove_named_system(&mut world, "DuplicateSchedule", "selected").unwrap_err();
+    assert!(error.contains("ambiguous"));
+    world.run_schedule(DuplicateLabel::First);
+    world.run_schedule(DuplicateLabel::Second);
+    assert_eq!(world.resource::<Counts>().target, 2);
 }
 
 #[test]
