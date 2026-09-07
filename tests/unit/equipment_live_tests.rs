@@ -163,6 +163,84 @@ fn live_bevy_animation_helm_follows_character_bone() {
 }
 
 #[test]
+fn offline_charselect_animated_helm_survives_despawn_and_respawn() {
+    let (spawned, helm_path, mut app) =
+        setup_live_helm_test_app().expect("required human and helm assets for offline lifecycle");
+    let root = spawned.model_root;
+    let helm = equip_and_assert_offline_helm_motion(&mut app, root, helm_path);
+    let joints = app
+        .world()
+        .get::<crate::animation::M2AnimData>(root)
+        .expect("animated character joints")
+        .joint_entities
+        .clone();
+    assert!(!joints.is_empty());
+
+    assert!(app.world_mut().despawn(root));
+    app.update();
+    for entity in std::iter::once(root)
+        .chain(joints)
+        .chain(std::iter::once(helm))
+    {
+        assert!(
+            app.world().get_entity(entity).is_err(),
+            "retained entity {entity:?}"
+        );
+    }
+    assert!(head_equipment_entity(app.world_mut()).is_none());
+
+    let respawned = spawn_live_character(&mut app, Path::new("data/models/humanmale_hd.m2"));
+    assert_ne!(respawned.model_root, root);
+    let new_helm = equip_and_assert_offline_helm_motion(&mut app, respawned.model_root, helm_path);
+    assert_ne!(new_helm, helm);
+}
+
+fn equip_and_assert_offline_helm_motion(app: &mut App, root: Entity, path: &Path) -> Entity {
+    assert_eq!(
+        *app.world().resource::<State<GameState>>().get(),
+        GameState::CharSelect
+    );
+    assert!(
+        !app.world()
+            .contains_resource::<game_engine::network_runtime::worker::NetworkRuntime>()
+    );
+    equip_live_helm(app, root, path);
+    app.update();
+    app.update();
+    let helm = head_equipment_entity(app.world_mut()).expect("equipped offline helm");
+    let bone = app
+        .world()
+        .get::<ChildOf>(helm)
+        .expect("helm bone parent")
+        .parent();
+    let local = app.world().get::<Transform>(helm).unwrap().to_matrix();
+    let mut positions = Vec::new();
+    for fraction in [0.0, 0.5] {
+        sample_live_stand(app, root, fraction);
+        let actual = app
+            .world()
+            .get::<GlobalTransform>(helm)
+            .unwrap()
+            .to_matrix();
+        assert_matrix_near(actual, sampled_joint_world(app.world(), root, bone) * local);
+        positions.push(actual.transform_point3(Vec3::ZERO));
+    }
+    assert!(
+        positions[0].distance(positions[1]) > 0.0001,
+        "offline helm must animate"
+    );
+    assert_eq!(
+        *app.world().resource::<State<GameState>>().get(),
+        GameState::CharSelect
+    );
+    assert!(
+        !app.world()
+            .contains_resource::<game_engine::network_runtime::worker::NetworkRuntime>()
+    );
+    helm
+}
+
+#[test]
 fn live_bevy_animation_chest_vertex_follows_character_skin() {
     let (spawned, path, mut app) =
         setup_live_chest_test_app().expect("required human and chest assets");
