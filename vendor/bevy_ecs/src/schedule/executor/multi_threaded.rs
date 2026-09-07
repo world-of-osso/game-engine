@@ -26,7 +26,11 @@ use crate::{
 
 use super::__rust_begin_short_backtrace;
 
-#[cfg(feature = "async_executor")]
+#[cfg(all(
+    feature = "async_executor",
+    feature = "multi_threaded",
+    not(target_arch = "wasm32")
+))]
 mod submission_batching;
 
 /// Borrowed data used by the [`MultiThreadedExecutor`].
@@ -132,7 +136,11 @@ pub struct ExecutorState {
     /// Systems that have run but have not had their buffers applied.
     unapplied_systems: FixedBitSet,
     /// Whether ready Send systems share bulk submission calls.
-    #[cfg(feature = "async_executor")]
+    #[cfg(all(
+        feature = "async_executor",
+        feature = "multi_threaded",
+        not(target_arch = "wasm32")
+    ))]
     batch_task_submissions: bool,
 }
 
@@ -419,7 +427,11 @@ impl ExecutorState {
             skipped_systems: FixedBitSet::new(),
             completed_systems: FixedBitSet::new(),
             unapplied_systems: FixedBitSet::new(),
-            #[cfg(feature = "async_executor")]
+            #[cfg(all(
+                feature = "async_executor",
+                feature = "multi_threaded",
+                not(target_arch = "wasm32")
+            ))]
             batch_task_submissions: submission_batching::read_enabled(),
         }
     }
@@ -469,7 +481,11 @@ impl ExecutorState {
 
         // can't borrow since loop mutably borrows `self`
         let mut ready_systems = core::mem::take(&mut self.ready_systems_copy);
-        #[cfg(feature = "async_executor")]
+        #[cfg(all(
+            feature = "async_executor",
+            feature = "multi_threaded",
+            not(target_arch = "wasm32")
+        ))]
         let mut pending = submission_batching::PendingSubmissions::new();
 
         // Skipping systems may cause their dependents to become ready immediately.
@@ -535,7 +551,11 @@ impl ExecutorState {
                     break;
                 }
 
-                #[cfg(feature = "async_executor")]
+                #[cfg(all(
+                    feature = "async_executor",
+                    feature = "multi_threaded",
+                    not(target_arch = "wasm32")
+                ))]
                 if self.batch_task_submissions && self.system_task_metadata[system_index].is_send {
                     // SAFETY: The existing checks passed and this Send, non-exclusive
                     // system is marked running, reserving its access until completion.
@@ -554,7 +574,11 @@ impl ExecutorState {
             }
         }
 
-        #[cfg(feature = "async_executor")]
+        #[cfg(all(
+            feature = "async_executor",
+            feature = "multi_threaded",
+            not(target_arch = "wasm32")
+        ))]
         // SAFETY: Pending systems were individually validated and marked running.
         unsafe {
             submission_batching::submit(context, &mut pending);
@@ -875,7 +899,12 @@ impl MainThreadExecutor {
     }
 }
 
-#[cfg(all(test, feature = "async_executor", feature = "multi_threaded"))]
+#[cfg(all(
+    test,
+    feature = "async_executor",
+    feature = "multi_threaded",
+    not(target_arch = "wasm32")
+))]
 mod submission_batch_tests;
 
 #[cfg(test)]

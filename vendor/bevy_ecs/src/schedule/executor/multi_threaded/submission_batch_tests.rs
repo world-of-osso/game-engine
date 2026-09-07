@@ -19,11 +19,15 @@ fn batched_schedule() -> Schedule {
 
 #[test]
 fn submission_batch_preserves_conditions_dependencies_and_repeated_runs() {
-    let counts = Arc::new(core::array::from_fn::<_, 32, _>(|_| AtomicUsize::new(0)));
+    const SYSTEM_COUNT: usize = 150;
+    const ENABLED_SYSTEM_COUNT: usize = SYSTEM_COUNT / 2;
+    let counts = Arc::new(core::array::from_fn::<_, SYSTEM_COUNT, _>(|_| {
+        AtomicUsize::new(0)
+    }));
     let mut world = World::new();
     world.insert_resource(Count::default());
     let mut schedule = batched_schedule();
-    for index in 0..32 {
+    for index in 0..SYSTEM_COUNT {
         let counts = Arc::clone(&counts);
         schedule.add_systems(
             (move || {
@@ -46,7 +50,7 @@ fn submission_batch_preserves_conditions_dependencies_and_repeated_runs() {
 
     for round in 1..=4 {
         schedule.run(&mut world);
-        assert_eq!(world.resource::<Count>().0, round * 16);
+        assert_eq!(world.resource::<Count>().0, round * ENABLED_SYSTEM_COUNT);
         for (index, count) in counts.iter().enumerate() {
             let expected = if index % 2 == 0 { round } else { 0 };
             assert_eq!(count.load(Ordering::Relaxed), expected);
