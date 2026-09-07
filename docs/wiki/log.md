@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Reconcile network execution proof boundaries
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md). Worker-permit lifecycle/cadence (**3/3**), active cooldown (**3/3**), and native forced-disconnect → Login are complete proof. Remaining execution proof is native ordinary reconnect, real offline model spawn/despawn/reload, native visual equivalence, and controlled CPU/performance measurement. Historical pending statements remain historical.
+
 ## [2026-09-07] systems | Fix interrupted M2 crossfade continuity
 
 Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `aaec3864`, `a495893f`, and `5de8e843`. Bevy retains the last blended raw pose in evaluator commit before pivot correction and billboard rotation; an interruption blends that snapshot to the new sequence. The focused Bevy regression proves zero-elapsed and repeated-interruption continuity for translation, rotation, scale, and a nonzero pivot. The historic `a6a5d917` jump remains recorded. Pixel equivalence, GPU deformation, real offline-scene lifecycle, and performance remain open.
