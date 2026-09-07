@@ -151,7 +151,8 @@ fn register_bevy_plugins(
     if empty {
         plugins = plugins
             .disable::<bevy::pbr::PbrPlugin>()
-            .disable::<bevy::light::LightPlugin>();
+            .disable::<bevy::light::LightPlugin>()
+            .disable::<bevy::dev_tools::render_debug::RenderDebugOverlayPlugin>();
     }
     app.add_plugins(plugins);
     if empty {
