@@ -200,6 +200,129 @@ mod tests {
         stop_connection(main.world_mut()).unwrap();
     }
 
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct OldReply(u32);
+
+    fn queue_worker_disconnect(main: &App, reason: &'static str) {
+        let (finished, completion) = std::sync::mpsc::sync_channel(1);
+        main.world()
+            .resource::<NetworkRuntime>()
+            .enqueue(move |world| {
+                let client = world
+                    .query_filtered::<Entity, With<client_network::Client>>()
+                    .single(world)
+                    .unwrap();
+                world
+                    .entity_mut(client)
+                    .remove::<client_network::Disconnected>();
+                world
+                    .entity_mut(client)
+                    .insert(client_network::Disconnected {
+                        reason: Some(reason.into()),
+                    });
+                let mut finished = Some(finished);
+                world
+                    .resource_mut::<Schedules>()
+                    .get_mut(Last)
+                    .unwrap()
+                    .add_systems(move || {
+                        if let Some(finished) = finished.take() {
+                            finished.send(()).unwrap();
+                        }
+                    });
+            })
+            .unwrap();
+        completion.recv_timeout(Duration::from_secs(5)).unwrap();
+    }
+
+    #[test]
+    fn worker_restart_discards_old_queues_and_resumes_udp_handshake() {
+        use super::super::messages::Inbox;
+
+        let server = UdpSocket::bind("127.0.0.1:0").unwrap();
+        server
+            .set_read_timeout(Some(Duration::from_secs(5)))
+            .unwrap();
+        let address = server.local_addr().unwrap();
+        let mut main = App::new();
+        crate::network_events::register_message_handler::<OldReply, _>(&mut main, || {}, |_| true);
+        initialize_connection_bridge(&mut main);
+        let old = start_connection(main.world_mut(), address, 1234).unwrap();
+        let old_sender = main.world().resource::<NetworkRuntime>().command_sender();
+        let mut packet = [0; 2048];
+        assert!(server.recv_from(&mut packet).unwrap().0 > 0);
+
+        // A real worker PostUpdate publishes before the Last-stage barrier.
+        queue_worker_disconnect(&main, "already drained old lifecycle");
+        main.world_mut()
+            .resource_scope(|world, runtime: Mut<NetworkRuntime>| {
+                runtime.drain_updates(world).unwrap();
+            });
+        assert!(
+            main.world()
+                .resource::<ConnectionEvents>()
+                .0
+                .iter()
+                .any(|(proxy, event)| *proxy == old
+                    && matches!(event,
+                ConnectionEvent::Disconnected(Some(reason))
+                    if reason == "already drained old lifecycle"))
+        );
+        main.world_mut()
+            .insert_resource(Inbox::new(vec![OldReply(42)]));
+        let mirrored = main.world_mut().spawn_empty().id();
+        main.world_mut()
+            .resource_mut::<ReplicationMirrorMap>()
+            .insert(old, mirrored);
+        main.world_mut().resource_mut::<ConnectionSender>().sender = Some(old_sender.clone());
+
+        // Leave a second worker-published update undrained across shutdown.
+        queue_worker_disconnect(&main, "undrained old lifecycle");
+        stop_connection(main.world_mut()).unwrap();
+        assert!(
+            old_sender
+                .send(super::super::worker::NetworkCommand::Stop)
+                .is_err()
+        );
+        assert!(!main.world().contains_resource::<NetworkRuntime>());
+        assert!(main.world().resource::<ConnectionSender>().sender.is_none());
+        assert!(main.world().resource::<ConnectionEvents>().0.is_empty());
+        assert!(!main.world().resource::<Inbox<OldReply>>().has_messages());
+        assert!(main.world().get_entity(old).is_err());
+        let map = main.world().resource::<ReplicationMirrorMap>();
+        assert_eq!(map.server_to_main(old), None);
+        assert_eq!(map.main_to_server(mirrored), None);
+
+        // Remove packets from the stopped worker before observing its replacement.
+        server.set_nonblocking(true).unwrap();
+        loop {
+            match server.recv_from(&mut packet) {
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+                Err(error) => panic!("failed to drain old UDP packets: {error}"),
+            }
+        }
+        server.set_nonblocking(false).unwrap();
+        let new = start_connection(main.world_mut(), address, 5678).unwrap();
+        assert_ne!(old, new);
+        assert!(server.recv_from(&mut packet).unwrap().0 > 0);
+        assert!(server.recv_from(&mut packet).unwrap().0 > 0);
+        main.world_mut()
+            .resource_scope(|world, runtime: Mut<NetworkRuntime>| {
+                runtime.drain_updates(world).unwrap();
+            });
+        assert!(
+            main.world()
+                .resource::<ConnectionEvents>()
+                .0
+                .iter()
+                .all(|(proxy, _)| *proxy == new)
+        );
+        assert!(!main.world().resource::<Inbox<OldReply>>().has_messages());
+        assert!(main.world().get::<Client>(new).is_some());
+        stop_connection(main.world_mut()).unwrap();
+    }
+
     #[test]
     fn reset_discards_pending_lifecycle_and_replaces_proxy_identity() {
         let mut app = App::new();
