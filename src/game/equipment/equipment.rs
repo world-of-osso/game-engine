@@ -41,7 +41,8 @@ pub enum EquipmentSlot {
 }
 
 /// Maps equipment slots to item M2 file paths.
-#[derive(Component, Default)]
+#[derive(Component, Default, Clone, PartialEq, Eq)]
+#[require(RenderedEquipment)]
 pub struct Equipment {
     pub slots: HashMap<EquipmentSlot, PathBuf>,
     pub slot_skin_fdids: HashMap<EquipmentSlot, [u32; 3]>,
@@ -71,7 +72,36 @@ struct RenderedItem {
 #[derive(Component, Default)]
 pub struct RenderedEquipment {
     slots: HashMap<EquipmentSlot, RenderedItem>,
+    bindings: Option<RenderedBindings>,
 }
+
+struct RenderedBindings {
+    points: HashMap<u32, (u16, Vec3)>,
+    joints: Vec<Entity>,
+}
+
+impl RenderedEquipment {
+    fn bindings_match(&self, points: &AttachmentPoints, anim: &M2AnimData) -> bool {
+        self.bindings.as_ref().is_some_and(|bindings| {
+            bindings.points == points.points && bindings.joints == anim.joint_entities
+        })
+    }
+}
+
+/// Requests reconciliation only for the equipment owner that changed.
+#[derive(EntityEvent)]
+pub struct EquipmentChanged {
+    pub entity: Entity,
+}
+
+#[derive(EntityEvent)]
+struct RenderEquipmentRequested {
+    entity: Entity,
+}
+
+/// Coalesces model insert notifications until their deferred commands are applied.
+#[derive(Resource, Default)]
+struct PendingEquipmentUpdates(HashMap<Entity, bool>);
 
 /// Attachment lookup ID for each equipment slot.
 fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
@@ -117,14 +147,64 @@ pub fn build_attachment_points(
     AttachmentPoints { points }
 }
 
-/// Ensure entities with equipment have tracking state.
-fn attach_rendered_equipment_state(
+fn equipment_dependency_inserted<C: Component>(event: On<Insert, C>, mut commands: Commands) {
+    commands.trigger(EquipmentChanged {
+        entity: event.entity,
+    });
+}
+
+fn queue_equipment_render(
+    event: On<EquipmentChanged>,
     mut commands: Commands,
-    query: Query<Entity, (With<Equipment>, Without<RenderedEquipment>)>,
+    stage: Option<Res<crate::game::inworld_scene_stage::InWorldSceneStage>>,
+    owners: Query<(
+        &Equipment,
+        &AttachmentPoints,
+        &M2AnimData,
+        &RenderedEquipment,
+    )>,
+    items: Query<(), With<EquipmentItem>>,
+    mut pending: ResMut<PendingEquipmentUpdates>,
 ) {
-    for entity in &query {
-        commands.entity(entity).insert(RenderedEquipment::default());
+    use crate::game::inworld_scene_stage::{InWorldSceneStage, effective_inworld_scene_stage};
+    if !effective_inworld_scene_stage(stage.as_deref().copied())
+        .includes(InWorldSceneStage::Character)
+    {
+        return;
     }
+    let Ok((equipment, points, anim, rendered)) = owners.get(event.entity) else {
+        return;
+    };
+    if rendered_equipment_matches(equipment, points, anim, rendered, &items) {
+        return;
+    }
+    if let Some(dirty) = pending.0.get_mut(&event.entity) {
+        *dirty = true;
+        return;
+    }
+    pending.0.insert(event.entity, false);
+    commands.trigger(RenderEquipmentRequested {
+        entity: event.entity,
+    });
+}
+
+fn rendered_equipment_matches(
+    equipment: &Equipment,
+    points: &AttachmentPoints,
+    anim: &M2AnimData,
+    rendered: &RenderedEquipment,
+    items: &Query<(), With<EquipmentItem>>,
+) -> bool {
+    rendered.bindings_match(points, anim)
+        && rendered.slots.len() == equipment.slots.len()
+        && equipment.slots.iter().all(|(slot, path)| {
+            let skins = equipment
+                .slot_skin_fdids
+                .get(slot)
+                .copied()
+                .unwrap_or([0; 3]);
+            !equipment_slot_needs_respawn(rendered, items, *slot, path, skins)
+        })
 }
 
 /// System: synchronize rendered equipment with desired slots.
@@ -154,90 +234,51 @@ pub struct EquipmentSyncParams<'w, 's> {
     warned: Local<'s, HashSet<String>>,
 }
 
-pub fn sync_equipment(params: EquipmentSyncParams) {
-    run_equipment_sync(EquipmentSyncRuntime::from(params));
-}
-
-struct EquipmentSyncRuntime<'w, 's> {
-    commands: Commands<'w, 's>,
-    meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
-    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
-    images: ResMut<'w, Assets<Image>>,
-    inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
-    transforms: Res<'w, EquipmentTransforms>,
-    query: Query<
-        'w,
-        's,
-        (
-            Entity,
-            &'static Equipment,
-            &'static AttachmentPoints,
-            &'static M2AnimData,
-            &'static mut RenderedEquipment,
-        ),
-    >,
-    parents: Query<'w, 's, &'static ChildOf>,
-    names: Query<'w, 's, &'static Name>,
-    existing_items: Query<'w, 's, (), With<EquipmentItem>>,
-    warned: Local<'s, HashSet<String>>,
-}
-
-impl<'w, 's> From<EquipmentSyncParams<'w, 's>> for EquipmentSyncRuntime<'w, 's> {
-    fn from(params: EquipmentSyncParams<'w, 's>) -> Self {
-        let EquipmentSyncParams {
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inv_bp,
-            transforms,
-            query,
-            parents,
-            names,
-            existing_items,
-            warned,
-        } = params;
-        Self {
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inv_bp,
-            transforms,
-            query,
-            parents,
-            names,
-            existing_items,
-            warned,
+fn sync_equipment(event: On<RenderEquipmentRequested>, mut params: EquipmentSyncParams) {
+    sync_equipment_owner(&mut params, event.entity);
+    let entity = event.entity;
+    params.commands.queue(move |world: &mut World| {
+        let dirty = world
+            .resource_mut::<PendingEquipmentUpdates>()
+            .0
+            .remove(&entity);
+        if dirty == Some(true) {
+            world.trigger(EquipmentChanged { entity });
         }
+    });
+}
+
+fn sync_equipment_owner(params: &mut EquipmentSyncParams, entity: Entity) {
+    let EquipmentSyncParams {
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        images,
+        inv_bp,
+        transforms,
+        query,
+        parents,
+        names,
+        existing_items,
+        warned,
+    } = params;
+    let Ok((owner, equipment, attach_points, anim_data, mut rendered)) = query.get_mut(entity)
+    else {
+        return;
+    };
+    if !rendered.bindings_match(attach_points, anim_data) {
+        for (_, item) in rendered.slots.drain() {
+            if existing_items.get(item.entity).is_ok() {
+                commands.entity(item.entity).despawn();
+            }
+        }
+        rendered.bindings = Some(RenderedBindings {
+            points: attach_points.points.clone(),
+            joints: anim_data.joint_entities.clone(),
+        });
     }
-}
-
-fn run_equipment_sync(mut runtime: EquipmentSyncRuntime<'_, '_>) {
-    sync_equipment_query(&mut runtime);
-}
-
-fn sync_equipment_query(runtime: &mut EquipmentSyncRuntime<'_, '_>) {
-    let EquipmentSyncRuntime {
-        commands,
-        meshes,
-        materials,
-        effect_materials,
-        images,
-        inv_bp,
-        transforms,
-        query,
-        parents,
-        names,
-        existing_items,
-        warned,
-    } = runtime;
-
-    sync_equipment_entries(
-        query,
+    sync_rendered_equipment_owner(
         commands,
         meshes,
         materials,
@@ -249,53 +290,12 @@ fn sync_equipment_query(runtime: &mut EquipmentSyncRuntime<'_, '_>) {
         names,
         existing_items,
         warned,
+        owner,
+        equipment,
+        attach_points,
+        anim_data,
+        &mut rendered,
     );
-}
-
-fn sync_equipment_entries<'w, 's>(
-    query: &mut Query<
-        'w,
-        's,
-        (
-            Entity,
-            &'static Equipment,
-            &'static AttachmentPoints,
-            &'static M2AnimData,
-            &'static mut RenderedEquipment,
-        ),
-    >,
-    commands: &mut Commands<'w, 's>,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    effect_materials: &mut Assets<M2EffectMaterial>,
-    images: &mut Assets<Image>,
-    inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
-    transforms: &EquipmentTransforms,
-    parents: &Query<'w, 's, &'static ChildOf>,
-    names: &Query<'w, 's, &'static Name>,
-    existing_items: &Query<'w, 's, (), With<EquipmentItem>>,
-    warned: &mut Local<'s, HashSet<String>>,
-) {
-    for (owner, equipment, attach_points, anim_data, mut rendered) in query {
-        sync_rendered_equipment_owner(
-            commands,
-            meshes,
-            materials,
-            effect_materials,
-            images,
-            inv_bp,
-            transforms,
-            parents,
-            names,
-            existing_items,
-            warned,
-            owner,
-            equipment,
-            attach_points,
-            anim_data,
-            &mut rendered,
-        );
-    }
 }
 
 fn sync_rendered_equipment_owner<'w, 's>(
@@ -690,13 +690,23 @@ pub struct EquipmentPlugin;
 
 impl Plugin for EquipmentPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(EquipmentTransforms::load_from_disk())
-            .add_systems(
-                Update,
-                (attach_rendered_equipment_state, sync_equipment).chain(),
-            );
+        app.insert_resource(EquipmentTransforms::load_from_disk());
+        register_equipment_observers(app);
     }
 }
+
+pub(crate) fn register_equipment_observers(app: &mut App) {
+    app.init_resource::<PendingEquipmentUpdates>()
+        .add_observer(equipment_dependency_inserted::<Equipment>)
+        .add_observer(equipment_dependency_inserted::<AttachmentPoints>)
+        .add_observer(equipment_dependency_inserted::<M2AnimData>)
+        .add_observer(queue_equipment_render)
+        .add_observer(sync_equipment);
+}
+
+#[cfg(test)]
+#[path = "../../../tests/unit/equipment_event_tests.rs"]
+mod event_tests;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/equipment_tests.rs"]

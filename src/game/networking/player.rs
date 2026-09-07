@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
+use crate::animation::M2AnimData;
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use bevy_replicon::client::confirm_history::EntityReplicated;
 use lightyear::prelude::*;
 use shared::components::{
     EquipmentAppearance as NetEquipmentAppearance, Health as NetHealth, Mounted,
@@ -396,7 +398,6 @@ fn clear_player_visual_components(commands: &mut Commands, entity: Entity) {
         crate::animation::M2AnimData,
         crate::animation::M2AnimPlayer,
         crate::equipment::AttachmentPoints,
-        crate::equipment::RenderedEquipment,
         Mesh3d,
         MeshMaterial3d<StandardMaterial>,
         ResolvedModelAssetInfo,
@@ -491,7 +492,13 @@ fn apply_runtime_equipment_snapshot(
     resolved_equipment: &crate::equipment_appearance::ResolvedEquipmentAppearance,
 ) {
     if let Ok(mut equipment) = params.equipment_query.get_mut(entity) {
+        let previous = equipment.clone();
         equipment_appearance::apply_runtime_equipment(&mut equipment, resolved_equipment);
+        if *equipment != previous {
+            params
+                .commands
+                .trigger(crate::equipment::EquipmentChanged { entity });
+        }
         return;
     }
     let mut equipment = crate::equipment::Equipment::default();
@@ -499,35 +506,115 @@ fn apply_runtime_equipment_snapshot(
     params.commands.entity(entity).insert(equipment);
 }
 
-pub(crate) fn sync_replicated_player_customization(
+#[derive(EntityEvent)]
+struct PlayerAppearanceChanged {
+    entity: Entity,
+}
+
+type AppearanceReadQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static NetPlayer,
+        Option<&'static Mounted>,
+        Option<&'static NetEquipmentAppearance>,
+        Option<&'static AppliedPlayerAppearance>,
+        Option<&'static Children>,
+    ),
+    With<ReplicatedVisualEntity>,
+>;
+
+pub(crate) fn register_player_appearance_events(app: &mut App) {
+    app.add_message::<EntityReplicated>()
+        .add_systems(
+            game_engine::network_tick::NetworkTick,
+            forward_player_appearance_updates
+                .in_set(game_engine::network_tick::NetworkTickSystems::Apply),
+        )
+        .add_observer(player_appearance_ready::<ReplicatedVisualEntity>)
+        .add_observer(player_appearance_ready::<Children>)
+        .add_observer(player_appearance_ready::<M2AnimData>)
+        .add_observer(apply_player_appearance_event);
+}
+
+fn forward_player_appearance_updates(
+    mut messages: MessageReader<EntityReplicated>,
+    mut commands: Commands,
+    players: AppearanceReadQuery,
+    stage: Option<Res<InWorldSceneStage>>,
+) {
+    if !configured_inworld_scene_stage(stage).includes(InWorldSceneStage::Character) {
+        messages.clear();
+        return;
+    }
+    let mut seen = std::collections::HashSet::new();
+    for message in messages.read() {
+        if seen.insert(message.entity) {
+            queue_player_appearance(message.entity, &players, &mut commands);
+        }
+    }
+}
+
+fn player_appearance_ready<C: Component>(
+    event: On<Insert, C>,
+    mut commands: Commands,
+    players: AppearanceReadQuery,
+    stage: Option<Res<InWorldSceneStage>>,
+) {
+    if configured_inworld_scene_stage(stage).includes(InWorldSceneStage::Character) {
+        queue_player_appearance(event.entity, &players, &mut commands);
+    }
+}
+
+fn queue_player_appearance(entity: Entity, players: &AppearanceReadQuery, commands: &mut Commands) {
+    let Ok((player, mounted, equipment, applied, children)) = players.get(entity) else {
+        return;
+    };
+    if children.is_none_or(|children| children.is_empty()) {
+        return;
+    }
+    let selection = net_player_customization_selection(player);
+    let equipment = equipment.cloned().unwrap_or_default();
+    let mount_display_id = mounted.map(|mounted| mounted.mount_display_id);
+    if applied.is_some_and(|applied| {
+        applied.selection == selection
+            && applied.equipment == equipment
+            && applied.mount_display_id == mount_display_id
+    }) {
+        return;
+    }
+    commands.trigger(PlayerAppearanceChanged { entity });
+}
+
+fn apply_player_appearance_event(
+    event: On<PlayerAppearanceChanged>,
     mut params: ReplicatedPlayerCustomizationParams,
 ) {
-    let mut pending = Vec::new();
-    for (entity, player, mounted, equipment_appearance, applied, children) in &params.player_query {
-        let selection = net_player_customization_selection(player);
-        let equipment_snapshot = equipment_appearance.cloned().unwrap_or_default();
-        let mount_display_id = mounted.map(|mounted| mounted.mount_display_id);
-        if applied.is_some_and(|a| {
-            a.selection == selection
-                && a.equipment == equipment_snapshot
-                && a.mount_display_id == mount_display_id
-        }) {
-            continue;
-        }
-        if children.is_none_or(|c| c.is_empty()) {
-            continue;
-        }
-        pending.push((entity, selection, equipment_snapshot, mount_display_id));
+    let Ok((entity, player, mounted, equipment, applied, children)) =
+        params.player_query.get(event.entity)
+    else {
+        return;
+    };
+    if children.is_none_or(|children| children.is_empty()) {
+        return;
     }
-    for (entity, selection, equipment_snapshot, mount_display_id) in pending {
-        apply_player_customization_for_entity(
-            &mut params,
-            entity,
-            selection,
-            equipment_snapshot,
-            mount_display_id,
-        );
+    let selection = net_player_customization_selection(player);
+    let equipment = equipment.cloned().unwrap_or_default();
+    let mount_display_id = mounted.map(|mounted| mounted.mount_display_id);
+    if applied.is_some_and(|applied| {
+        applied.selection == selection
+            && applied.equipment == equipment
+            && applied.mount_display_id == mount_display_id
+    }) {
+        return;
     }
+    apply_player_customization_for_entity(
+        &mut params,
+        entity,
+        selection,
+        equipment,
+        mount_display_id,
+    );
 }
 
 fn apply_player_customization_for_entity(
@@ -538,6 +625,14 @@ fn apply_player_customization_for_entity(
     mount_display_id: Option<u32>,
 ) {
     let resolved_equipment = resolve_player_equipment(params, &equipment_snapshot, selection);
+    // Publish deduplication state before model insertion observers run.
+    insert_applied_player_appearance(
+        params,
+        entity,
+        selection,
+        equipment_snapshot,
+        mount_display_id,
+    );
     reset_player_visual(params, entity);
     apply_player_visual_choice(
         params,
@@ -547,13 +642,6 @@ fn apply_player_customization_for_entity(
         &resolved_equipment,
     );
     apply_runtime_equipment_snapshot(params, entity, &resolved_equipment);
-    insert_applied_player_appearance(
-        params,
-        entity,
-        selection,
-        equipment_snapshot,
-        mount_display_id,
-    );
 }
 
 fn resolve_player_equipment(
@@ -727,6 +815,10 @@ pub(crate) fn sync_local_alive_state(
         local_alive.0 = is_alive;
     }
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/player_appearance_event_tests.rs"]
+mod appearance_event_tests;
 
 #[cfg(test)]
 #[path = "player_tests.rs"]

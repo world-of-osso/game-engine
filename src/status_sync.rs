@@ -287,6 +287,10 @@ pub fn sync_equipment_appearance_status_snapshot(
         .unwrap_or_default();
 }
 
+fn equipment_commands_pending(queue: Res<EquipmentControlQueue>) -> bool {
+    !queue.pending.is_empty()
+}
+
 pub fn apply_equipment_ipc_commands(
     mut queue: ResMut<EquipmentControlQueue>,
     mut commands: Commands,
@@ -301,8 +305,12 @@ pub fn apply_equipment_ipc_commands(
     };
     let mut pending = std::mem::take(&mut queue.pending);
     if let Some(mut equipment) = maybe_equipment {
+        let previous = equipment.clone();
         for command in pending.drain(..) {
             apply_equipment_command(&mut equipment, command);
+        }
+        if *equipment != previous {
+            commands.trigger(equipment::EquipmentChanged { entity });
         }
         return;
     }
@@ -427,6 +435,7 @@ pub(crate) fn register_status_sync_systems(app: &mut App) {
     app.add_systems(
         Update,
         apply_equipment_ipc_commands
+            .run_if(equipment_commands_pending)
             .run_if(in_state(crate::game_state::GameState::InWorld))
             .before(IpcUpdateSet::RefreshStatus),
     );
@@ -494,6 +503,78 @@ mod tests {
         let refreshed_snapshot = app.world().resource::<MapStatusSnapshot>();
         assert_eq!(refreshed_snapshot.player_x, 12.5);
         assert_eq!(refreshed_snapshot.player_z, -7.25);
+    }
+
+    #[derive(Resource, Default)]
+    struct EquipmentNotifications(Vec<equipment::Equipment>);
+
+    fn record_equipment_change(
+        event: On<equipment::EquipmentChanged>,
+        equipment: Query<&equipment::Equipment>,
+        mut notifications: ResMut<EquipmentNotifications>,
+    ) {
+        notifications
+            .0
+            .push(equipment.get(event.entity).unwrap().clone());
+    }
+
+    #[test]
+    fn equipment_ipc_batch_emits_final_fifo_state_once_and_ignores_unchanged_result() {
+        let mut app = App::new();
+        app.init_resource::<EquipmentControlQueue>()
+            .init_resource::<EquipmentNotifications>()
+            .add_observer(record_equipment_change)
+            .add_systems(
+                Update,
+                apply_equipment_ipc_commands.run_if(equipment_commands_pending),
+            );
+        let owner = app
+            .world_mut()
+            .spawn((Player, equipment::Equipment::default()))
+            .id();
+        let model = "data/item-models/item/objectcomponents/head/helm_plate_d_02_hum.m2";
+        assert!(
+            std::path::Path::new(model).exists(),
+            "existing equipment fixture required"
+        );
+        app.world_mut()
+            .resource_mut::<EquipmentControlQueue>()
+            .pending = vec![
+            EquipmentControlCommand::Set {
+                slot: "head".into(),
+                model_path: model.into(),
+            },
+            EquipmentControlCommand::Clear {
+                slot: "head".into(),
+            },
+            EquipmentControlCommand::Set {
+                slot: "head".into(),
+                model_path: model.into(),
+            },
+        ];
+        app.update();
+        let expected = app.world().get::<equipment::Equipment>(owner).unwrap();
+        assert_eq!(
+            expected.slots[&equipment::EquipmentSlot::Head],
+            std::path::PathBuf::from(model)
+        );
+        let notifications = &app.world().resource::<EquipmentNotifications>().0;
+        assert_eq!(notifications.len(), 1);
+        assert!(notifications[0] == *expected);
+        app.world_mut()
+            .resource_mut::<EquipmentControlQueue>()
+            .pending = vec![
+            EquipmentControlCommand::Clear {
+                slot: "head".into(),
+            },
+            EquipmentControlCommand::Set {
+                slot: "head".into(),
+                model_path: model.into(),
+            },
+        ];
+        app.update();
+        app.update();
+        assert_eq!(app.world().resource::<EquipmentNotifications>().0.len(), 1);
     }
 
     #[test]

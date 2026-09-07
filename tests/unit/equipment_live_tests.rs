@@ -189,10 +189,7 @@ fn configure_live_test_app(app: &mut App) {
     app.insert_resource(Assets::<M2EffectMaterial>::default());
     app.insert_resource(Assets::<SkinnedMeshInverseBindposes>::default());
     app.insert_resource(EquipmentTransforms::default());
-    app.add_systems(
-        Update,
-        (attach_rendered_equipment_state, sync_equipment).chain(),
-    );
+    register_equipment_observers(app);
 }
 
 #[test]

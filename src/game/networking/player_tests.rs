@@ -1,7 +1,7 @@
 use super::*;
 use bevy::ecs::system::RunSystemOnce;
 
-fn sample_player() -> NetPlayer {
+pub(super) fn sample_player() -> NetPlayer {
     NetPlayer {
         name: "Alice".into(),
         race: 1,

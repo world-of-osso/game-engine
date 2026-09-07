@@ -486,7 +486,13 @@ fn apply_selected_character_appearance(
         &params.material_query,
     );
     if let Ok(mut equipment) = params.equipment_query.get_mut(selection.root) {
+        let previous = equipment.clone();
         apply_runtime_equipment(&mut equipment, &resolved_equipment);
+        if *equipment != previous {
+            params.commands.trigger(crate::equipment::EquipmentChanged {
+                entity: selection.root,
+            });
+        }
     }
 }
 

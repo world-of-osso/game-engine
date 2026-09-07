@@ -318,7 +318,11 @@ fn finalize_character_render(
     commands: &mut Commands,
 ) {
     if let Ok(mut equipment) = equipment_query.get_mut(entity) {
+        let previous = equipment.clone();
         apply_runtime_equipment(&mut equipment, resolved_equipment);
+        if *equipment != previous {
+            commands.trigger(crate::equipment::EquipmentChanged { entity });
+        }
     }
     commands
         .entity(entity)

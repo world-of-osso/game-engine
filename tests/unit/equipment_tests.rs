@@ -170,7 +170,7 @@ fn wow_vec3(pivot: [f32; 3]) -> Vec3 {
     Vec3::new(x, y, z)
 }
 
-fn configure_equipment_test_app(app: &mut App) {
+pub(super) fn configure_equipment_test_app(app: &mut App) {
     app.add_plugins((MinimalPlugins, TransformPlugin));
     app.insert_resource(Assets::<Mesh>::default());
     app.insert_resource(Assets::<StandardMaterial>::default());
@@ -178,13 +178,10 @@ fn configure_equipment_test_app(app: &mut App) {
     app.insert_resource(Assets::<M2EffectMaterial>::default());
     app.insert_resource(Assets::<SkinnedMeshInverseBindposes>::default());
     app.insert_resource(EquipmentTransforms::default());
-    app.add_systems(
-        Update,
-        (attach_rendered_equipment_state, sync_equipment).chain(),
-    );
+    register_equipment_observers(app);
 }
 
-fn spawn_head_equipment_owner(
+pub(super) fn spawn_head_equipment_owner(
     app: &mut App,
     helm_path: &Path,
     attachment_joint_translation: Vec3,
