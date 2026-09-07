@@ -61,7 +61,11 @@ Commit `29c3251d` lets the blank GPU stages use the existing opt-in `cpu-system-
 
 The control exports named Bevy system spans, not complete process ownership. Executor, driver, and uninstrumented work remain residual; any profiling run must measure instrumentation overhead separately. See [[movement-performance#named-span-thread-cpu-diagnostic]] for the profiler's capture window and accounting boundaries.
 
-The native RED used the pre-integration feature binary `7aa4` with `WOO_CPU_PROFILE_OUTPUT` set. It logged updates for 46 seconds but wrote no profile output, proving that the former blank-renderer path bypassed the layer. `29c3251d` is the integration change; native GREEN output is pending. No profiler runtime result is claimed yet.
+The native RED used pre-integration feature binary `7aa4` with `WOO_CPU_PROFILE_OUTPUT` set. It logged updates for 46 seconds but wrote no profile, proving that the former blank-renderer path bypassed the layer. `29c3251d` is the integration change. Native GREEN produced 1,910 positive named system/thread spans in an initial smoke capture.
+
+A retained focused ten-second pair used the same feature binary (`5a36…`), default pools, and 1280×989 window, with 11/11 focused samples in each retained run. Unprofiled process CPU was 236.080% of one core with mean logged main-update rate 1404.792/s; profiled was 241.581% with 1067.050/s. The first 13-row pair had 0/13 focused samples and is discarded. The unprofiled rate came from 263 seconds after launch while profiled samples began eight seconds after launch, and clocks differ. This pair therefore does not isolate profiler overhead, does not measure presented FPS, and supports no optimization claim.
+
+The five-second profile reports 12.487799 CPU-seconds between each reporting thread's first and last selected span; this is not whole-process CPU. Selected-span self CPU was 6.708256 seconds, named-system self CPU 3.055642 seconds, and 5.779543 seconds lay outside selected spans within those intervals. Largest named-system self entries were `submit_pending_command_buffers` (390.551 ms across 5,411 calls), `mark_dirty_trees` (214.325 ms), `apply_extract_commands` (164.715 ms), and `prepare_windows` (162.395 ms). No dominant callback or bulk CPU root cause follows. Data audit is pending; these are recorded measurements, not a completed attribution claim.
 
 ## Measurement scope
 

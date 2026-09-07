@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-07] diagnostic | Wire blank renderer to existing named-system profiler
+## [2026-09-07] diagnostic | Blank renderer named-system profiler output
 
-Updated [[empty-window-baseline]] for `29c3251d` and linked the [service-window baseline spec](../../specs/service-window-baseline.md). A `cpu-system-profile` feature build now installs the existing opt-in `WOO_CPU_PROFILE_OUTPUT` layer for blank GPU stages; ordinary logging and renderer scheduling remain unchanged. The pre-integration `7aa4` RED logged updates for 46 seconds with the environment variable but exported no profile, proving the old path bypassed the layer. Native GREEN output and overhead measurement remain pending. Named spans will remain partial attribution, not process ownership.
+Updated [[empty-window-baseline]] after `29c3251d` and `23bdab77`. The pre-integration `7aa4` RED logged updates for 46 seconds with `WOO_CPU_PROFILE_OUTPUT` but exported no profile. The native GREEN exported 1,910 positive named system/thread spans. A retained ten-second, 11/11-focused pair on the same `5a36…` feature binary/default pools/1280×989 window measured 236.080% unprofiled versus 241.581% profiled process CPU and 1404.792 versus 1067.050 logged main updates/s. Clock differences and 263-second versus eight-second launch age mean it is not an isolated overhead estimate or an FPS/optimization comparison; a 0/13-focused pair is discarded. The five-second selected-span report has 12.487799 observed CPU-seconds (not whole-process CPU), 6.708256 selected self CPU-seconds, 3.055642 named-system self CPU-seconds, and 5.779543 seconds outside selected spans. `submit_pending_command_buffers` is largest at 390.551 ms/5,411 calls; no dominant callback or bulk root cause follows. Data audit remains pending.
 
 ## [2026-09-07] measurement | Continuous blank renderer is the first major CPU rise
 
