@@ -2,10 +2,10 @@ use bevy::prelude::*;
 use lightyear::prelude::*;
 use shared::components::Zone;
 use shared::protocol::{
-    AchievementStateUpdate, ChatChannel, ChatMessage, CollectionStateUpdate, CombatChannel,
-    DeathStateUpdate, DuelStateUpdate, DurabilityStateUpdate, EmoteEvent, EmoteIntent,
-    GroupCommandResponse, GroupRoleSnapshot, GroupRosterSnapshot, InputChannel, InspectStateUpdate,
-    LoadTerrain, PlayerInput, ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
+    AchievementStateUpdate, ChatChannel, ChatMessage, CombatChannel, DuelStateUpdate,
+    DurabilityStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse, GroupRoleSnapshot,
+    GroupRosterSnapshot, InputChannel, InspectStateUpdate, LoadTerrain, PlayerInput,
+    ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
     QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, RestAreaKindSnapshot,
     RestStateUpdate, SetTarget, TalentStateUpdate, WorldMapStateUpdate,
 };
@@ -22,20 +22,18 @@ use game_engine::achievement::{
 use game_engine::chat_data::{
     ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState,
 };
-use game_engine::collection::apply_collection_state_update as map_collection_state_update;
-use game_engine::death::apply_death_state_update as map_death_state_update;
 use game_engine::duel::apply_duel_state_update as map_duel_state_update;
 use game_engine::durability::apply_durability_state_update as map_durability_state_update;
 use game_engine::ignore_list::is_ignored as is_ignored_sender;
 use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update;
 use game_engine::reputation::{ReputationToastState, map_reputation_state_update};
 use game_engine::status::{
-    AchievementsStatusSnapshot, CollectionStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
-    DurabilityStatusSnapshot, GroupMemberEntry, GroupRole, GroupStatusSnapshot,
-    IgnoreListStatusSnapshot, InspectStatusSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry,
-    ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry, QuestLogStatusSnapshot,
-    QuestObjectiveEntry, QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot,
-    RestAreaKindEntry, TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot,
+    AchievementsStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot, GroupMemberEntry,
+    GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot,
+    ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
+    QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    ReputationsStatusSnapshot, RestAreaKindEntry, TalentNodeEntry, TalentSpecTabEntry,
+    TalentStatusSnapshot,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -436,17 +434,6 @@ pub(crate) fn receive_group_command_response(
     }
 }
 
-pub(crate) fn receive_collection_state_update(
-    mut receivers: Query<&mut MessageReceiver<CollectionStateUpdate>>,
-    mut snapshot: ResMut<CollectionStatusSnapshot>,
-) {
-    for mut receiver in receivers.iter_mut() {
-        for update in receiver.receive() {
-            map_collection_state_update(&mut snapshot, update);
-        }
-    }
-}
-
 pub(crate) fn receive_achievement_state_update(
     mut receivers: Query<&mut MessageReceiver<AchievementStateUpdate>>,
     mut status: ResMut<AchievementsStatusSnapshot>,
@@ -479,18 +466,6 @@ pub(crate) fn receive_world_map_state_update(
     for mut receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_world_map_state_update(&mut world_map, update);
-        }
-    }
-}
-
-pub(crate) fn receive_death_state_update(
-    mut receivers: Query<&mut MessageReceiver<DeathStateUpdate>>,
-    mut status: ResMut<DeathStatusSnapshot>,
-    mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
-) {
-    for mut receiver in receivers.iter_mut() {
-        for update in receiver.receive() {
-            map_death_state_update(&mut status, &mut map_status, update);
         }
     }
 }

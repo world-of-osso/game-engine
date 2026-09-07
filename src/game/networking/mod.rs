@@ -366,19 +366,9 @@ fn register_inworld_snapshot_systems(app: &mut App) {
         msg::receive_rest_state_update,
         application_in_world,
     );
-    register_message_handler::<DeathStateUpdate, _>(
-        app,
-        msg::receive_death_state_update,
-        application_in_world,
-    );
     register_message_handler::<DurabilityStateUpdate, _>(
         app,
         msg::receive_durability_state_update,
-        application_in_world,
-    );
-    register_message_handler::<CollectionStateUpdate, _>(
-        app,
-        msg::receive_collection_state_update,
         application_in_world,
     );
     register_message_handler::<ProfessionSnapshot, _>(
