@@ -87,7 +87,7 @@ Both blank update telemetry and full-game IPC FPS describe app-update cadence, n
 
 The ignored test-only benchmark, relocated without behavioral change by `93cef709` to `src/cpu_system_profile/overhead_benchmark.rs`, compares the real `CpuSpanLayer` against registry-only tracing. It precreates spans, runs 50,000 equal-work enter/drop iterations per case, and alternates disabled/enabled order across three rounds while timing the current thread's CPU. Paired median added CPU was **2.202289 µs per entry** for 154 distinct span names and **2.355397 µs per entry** for 1,031 names.
 
-This is local single-thread entry/exit overhead for this build and capture shape. It excludes span construction and does not reproduce concurrent scheduling, nesting, cache state, or other tracing work. Do not subtract it from recorded process or selected-span CPU, treat it as a whole-application bound, or infer scheduler causation from the update-normalized correlation. The relocation's independent verification remains pending.
+This is local single-thread entry/exit overhead for this build and capture shape. It excludes span construction and does not reproduce concurrent scheduling, nesting, cache state, or other tracing work. Do not subtract it from recorded process or selected-span CPU, treat it as a whole-application bound, or infer scheduler causation from the update-normalized correlation. Independent verification of `93cef709` confirmed unchanged benchmark behavior, passing formatting, and zero readability findings in both affected Rust files; existing compile/list and benchmark evidence was reused without rerunning measurements.
 
 ## Measurement scope
 
