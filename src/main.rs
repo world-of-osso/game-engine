@@ -49,6 +49,7 @@ mod model_path_resolver;
 mod pathing;
 mod process_limits;
 mod process_memory_status;
+mod render_set_isolation;
 mod render_window;
 mod rendering;
 mod scene_graph_utils;
@@ -488,6 +489,7 @@ fn insert_startup_resources(
     configure_directional_shadow_isolation(app, args);
     system_isolation::configure(app, args);
     update_schedule_isolation::configure(app, args);
+    render_set_isolation::configure(app, args);
     insert_data_resources(app);
 }
 
