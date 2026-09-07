@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] documentation | Record empty native Wayland baseline
+
+Added [[empty-window-baseline]] and linked it from the index. `c3568e59` routes the exclusive `--empty-window` mode before normal startup, so it creates no Bevy app, plugins, assets, networking, IPC, renderer plugins, or game task pools. Winit waits for OS events; softbuffer paints a flat background only for requested redraws and resize-triggered redraws. Linux painting is Wayland-only. `softbuffer` is the sole new dependency; existing locked versions remain unchanged. No native runtime or CPU measurement has been recorded, and the zero-work baseline cannot establish an FPS-comparable game optimization.
+
 ## [2026-09-07] measurement | Material group negative; native ownership mapped
 
 Updated [[movement-performance]] with cumulative visibility/tree/material-preparation measurements and the explicitly approved 25-callback material group. With 11 removals retained, the group changed CPU 332.55→340.89% and FPS 231.63→240.90; no CPU benefit. Corrected native CU attribution maps 514/2,134 user-mode samples to application units, mostly generated/helper symbols rather than directly named game functions. ELF file offsets require PT_LOAD conversion; the unadjusted result is invalid. Independent audits passed. Bulk CPU cause remains unresolved; compiler/worker/FPS policy unchanged.
