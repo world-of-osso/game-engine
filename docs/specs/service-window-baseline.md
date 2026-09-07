@@ -8,7 +8,7 @@
 - [x] Reuse the native winit `Wait` loop and softbuffer presentation. Add Bevy's task pools, frame counter, clock and core schedules; run one app update at the native loop's `about_to_wait` boundary. Do not introduce timers or continuous redraws.
 - [x] Keep default Bevy pool availability. Do not initialize game assets, networking, IPC, sound, UI or the GPU renderer; skip normal game initialization and resource-limit setup.
 - [x] Keep a distinct visible window title, native resize/close behavior and explicit error reporting. Log update 1 and every 64 updates without installing a polling diagnostic service.
-- [ ] Measure focused idle process/thread CPU and whole-host CPU separately, with window dimensions and GPU/clock/limit context. Record the event-driven workload; this is not a rendered-FPS optimization or a comparison against the full game.
+- [x] Measure focused idle process/thread CPU and whole-host CPU separately, with window dimensions and GPU/clock/limit context. At source `217b4de8` + `6f6e10e3`, same binary/window loop: core recorded 2 ticks/12 seconds (0.16664% one core), 25 threads and 13/13 focused; native recorded 0 ticks, one thread and 13/13 focused. Whole-host 5.407% versus 5.799% is not single-process attribution. No GPU renderer or continuous-frame/FPS comparison was involved; runtime data audit remains pending.
 
 ## Implementation and tests
 

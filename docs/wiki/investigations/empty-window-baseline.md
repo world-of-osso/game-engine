@@ -20,7 +20,15 @@ Linux window attributes set the Wayland application name. The direct softbuffer 
 
 `--service-window` retains the same native event loop, `ControlFlow::Wait`, softbuffer surface, and resize/close path, then constructs an optional Bevy app before normal startup. It installs `MinimalPlugins` without `ScheduleRunnerPlugin`: task pools, frame counter, time, and core schedules. The native handler calls `App::update()` from `about_to_wait`; it adds no timer, redraw request, renderer, assets, game services, networking, IPC, sound, UI, or resource-limit setup. It logs the first update and each 64th update.
 
-This separates Bevy core-service overhead from both native waiting and later renderer or game workload. `--service-window` is exclusive, has its own title/application name, and leaves ordinary startup unchanged. Runtime CPU measurement has not yet been recorded.
+This separates Bevy core-service overhead from both native waiting and later renderer or game workload. `--service-window` is exclusive, has its own title/application name, and leaves ordinary startup unchanged.
+
+## Measured additive core result
+
+Source revisions `217b4de8` and `6f6e10e3` used binary SHA-256 `822ebfde5fa13dd13c9489a8bd519e41be91fb746954eea5a19c894b4c45fd25` and the same 1280×1198 native window loop as the native baseline. The focused 12-second core sample recorded **2 CPU ticks**: **0.16664% of one core**, across 25 threads, with all 13 samples focused. The corresponding focused native sample recorded **0 ticks**, one thread, and all 13 samples focused.
+
+Whole-host busy CPU was 5.407% during the core sample and 5.799% during the native sample. That difference is not attributable to this single process. An earlier native sample with 0/13 focused observations is excluded because the lid was closed and no compositor window was focused; the user subsequently unlocked the desktop and the later focused samples are valid despite the lid state. There is no bulk CPU source at this core-service stage.
+
+The source verifier passed formatting, locked checking, and readability; targeted tests passed 6/6. The routing RED was valid. The core module test did not demonstrate a pre-implementation RED, so it is not claimed as such. Runtime measurement has not received an independent data audit.
 
 ## Measurement scope
 
@@ -39,7 +47,7 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 ## Sources
 
 - [empty-window baseline spec](../../specs/empty-window-baseline.md) — native boundary and measurement scope
-- [service-window baseline spec](../../specs/service-window-baseline.md) — additive core-service contract and pending measurement
+- [service-window baseline spec](../../specs/service-window-baseline.md) — additive core-service contract and measured result
 - [main startup](../../../src/main.rs) — early diagnostic routing and error exit
 - [CLI parsing](../../../src/cli_args.rs) — exclusive argument selection
 - [empty window runtime](../../../src/empty_window.rs) — shared winit/softbuffer loop and optional app update

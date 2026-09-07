@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] measurement | Bevy core services have no bulk idle CPU source
+
+Updated [[empty-window-baseline]] and its service spec with the source `217b4de8` + `6f6e10e3` focused comparison. Same binary SHA-256 `822ebfde5fa13dd13c9489a8bd519e41be91fb746954eea5a19c894b4c45fd25` and 1280×1198 native loop: core services measured **2 ticks/12 seconds** (**0.16664% of one core**), 25 threads and 13/13 focused; native measured 0 ticks, one thread and 13/13 focused. Host 5.407% versus 5.799% is not attributable to the single process. An unfocused closed-lid native capture is excluded. No renderer, continuous-frame FPS comparison, or full-game CPU conclusion follows. Source verification passed fmt/check/readability and 6/6 targeted tests; routing RED was valid, but the core module test has no demonstrated pre-implementation RED. Runtime data audit remains pending.
+
 ## [2026-09-07] documentation | Record additive Bevy-core service-window stage
 
 Updated [[empty-window-baseline]], its specs, and the index for `217b4de8` and `6f6e10e3`. `--service-window` reuses the native softbuffer `Wait` loop, adds `MinimalPlugins` without `ScheduleRunnerPlugin`, and calls `App::update()` at `about_to_wait`. It excludes renderer, assets, game services, networking, IPC, sound, UI, timers, and continuous redraws. Native zero-work proof remains canonical on [[empty-window-baseline]]; service-stage runtime CPU measurement is pending.
