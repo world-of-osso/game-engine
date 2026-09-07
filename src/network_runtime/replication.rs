@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::mpsc::Sender;
 
-use bevy::prelude::*;
+use bevy::{ecs::resource::IsResource, prelude::*};
 use bevy_replicon::client::confirm_history::EntityReplicated;
 use bevy_replicon::prelude::RepliconTick;
 use bevy_replicon::shared::server_entity_map::ServerEntityMap;
@@ -73,7 +73,7 @@ pub fn register_replication_bridge(app: &mut App, updates: Sender<MainUpdate>) {
 fn forward_replication(
     mut changed: MessageReader<EntityReplicated>,
     mut removed: RemovedComponents<Remote>,
-    entities: Query<EntityRef, With<Remote>>,
+    entities: Query<EntityRef, (With<Remote>, Without<IsResource>)>,
     server_ids: Res<ServerEntityMap>,
     mut known_ids: ResMut<WorkerMirrorIds>,
     updates: Res<ReplicationUpdates>,
