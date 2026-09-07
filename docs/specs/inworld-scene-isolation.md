@@ -18,6 +18,7 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [ ] `Empty` omits PBR and its light provider together; it must not retain consumers whose provider resources were removed.
 - [ ] Empty terrain, water, M2, and sky material stores remain available for data/status access without registering their PBR material pipelines.
 - [ ] Target-circle visual systems are not registered in Empty; target data resources remain available.
+- [ ] Empty must not impose its own frame-rate cap. Only the user's configured global frame limiter applies; disabling that option leaves Empty uncapped.
 - [ ] Non-Empty stages retain their normal rendering plugins. Camera, UI overlay, and renderer progress must remain available in Empty.
 
 ### MSAA-only control

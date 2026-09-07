@@ -10,7 +10,6 @@ use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
 
 use crate::cli_args::{RealmPreset, default_realm_preset};
-use crate::game::game_state::GameState;
 use crate::game::inworld_scene_stage::InWorldSceneStage;
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::InputBindings;
@@ -19,7 +18,6 @@ const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";
 const LEGACY_CREDENTIALS_PATH: &str = "data/ui/credentials.ron";
 const CREDENTIALS_FILE_NAME: &str = "credentials.ron";
-const EMPTY_STAGE_FRAME_INTERVAL: Duration = Duration::from_millis(100);
 
 #[path = "client_options_storage.rs"]
 mod storage;
@@ -476,29 +474,10 @@ struct FrameLimiterState {
     last_interval: Option<Duration>,
 }
 
-fn limit_frame_rate(
-    graphics: Res<GraphicsOptions>,
-    game_state: Option<Res<State<GameState>>>,
-    scene_stage: Option<Res<InWorldSceneStage>>,
-    mut state: Local<FrameLimiterState>,
-) {
-    let next_interval = configured_frame_interval(
-        &graphics,
-        game_state.as_deref(),
-        scene_stage.as_deref().copied(),
-    );
+fn limit_frame_rate(graphics: Res<GraphicsOptions>, mut state: Local<FrameLimiterState>) {
+    let next_interval =
+        frame_limit_interval(graphics.frame_rate_limit_enabled, graphics.frame_rate_limit);
     pace_frame(next_interval, &mut state);
-}
-
-fn configured_frame_interval(
-    graphics: &GraphicsOptions,
-    game_state: Option<&State<GameState>>,
-    scene_stage: Option<InWorldSceneStage>,
-) -> Option<Duration> {
-    game_state.map_or_else(
-        || frame_limit_interval(graphics.frame_rate_limit_enabled, graphics.frame_rate_limit),
-        |game_state| effective_frame_interval(*game_state.get(), scene_stage, graphics),
-    )
 }
 
 fn pace_frame(next_interval: Option<Duration>, state: &mut FrameLimiterState) {
@@ -519,17 +498,6 @@ fn pace_frame(next_interval: Option<Duration>, state: &mut FrameLimiterState) {
         }
     }
     state.last_frame_started = Some(Instant::now());
-}
-
-fn effective_frame_interval(
-    game_state: GameState,
-    scene_stage: Option<InWorldSceneStage>,
-    graphics: &GraphicsOptions,
-) -> Option<Duration> {
-    if game_state == GameState::InWorld && scene_stage == Some(InWorldSceneStage::Empty) {
-        return Some(EMPTY_STAGE_FRAME_INTERVAL);
-    }
-    frame_limit_interval(graphics.frame_rate_limit_enabled, graphics.frame_rate_limit)
 }
 
 fn frame_limit_interval(enabled: bool, frame_rate_limit: u16) -> Option<Duration> {
