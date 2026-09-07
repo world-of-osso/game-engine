@@ -1,5 +1,6 @@
 use super::*;
 use crate::ui_input::walk_up_for_onclick;
+use game_engine::network_runtime::messages::MessageSenders;
 
 const MALE: u8 = 0;
 const FEMALE: u8 = 1;
@@ -29,7 +30,7 @@ pub(super) fn char_create_mouse_input(
     cc_ui: Option<Res<CharCreateUi>>,
     mut state: ResMut<CharCreateState>,
     mut focus: ResMut<CharCreateFocus>,
-    mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
+    mut create_senders: MessageSenders<CreateCharacter>,
     mut next_state: ResMut<NextState<GameState>>,
     cust_db: Res<CustomizationDb>,
 ) {
@@ -75,7 +76,7 @@ fn find_clicked_action(ui: &UiState, mx: f32, my: f32) -> Option<String> {
 fn dispatch_action(
     action_str: &str,
     ctx: &mut ActionDispatchContext,
-    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    create_senders: &mut MessageSenders<CreateCharacter>,
     next_state: &mut NextState<GameState>,
 ) {
     let Some(action) = CharCreateAction::parse(action_str) else {
@@ -222,7 +223,7 @@ fn send_create_request(
     state: &mut CharCreateState,
     reg: &FrameRegistry,
     cc: &CharCreateUi,
-    senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    senders: &mut MessageSenders<CreateCharacter>,
 ) {
     let name = cc
         .name_input
@@ -282,7 +283,7 @@ pub(super) fn char_create_run_automation(
     cc_ui: Option<Res<CharCreateUi>>,
     mut state: ResMut<CharCreateState>,
     mut focus: ResMut<CharCreateFocus>,
-    mut create_senders: Query<&mut MessageSender<CreateCharacter>>,
+    mut create_senders: MessageSenders<CreateCharacter>,
     mut next_state: ResMut<NextState<GameState>>,
     cust_db: Res<CustomizationDb>,
     mut queue: ResMut<UiAutomationQueue>,
@@ -314,7 +315,7 @@ pub(super) fn char_create_run_automation(
 
 fn run_char_create_automation_action(
     ctx: &mut AutomationContext,
-    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    create_senders: &mut MessageSenders<CreateCharacter>,
     next_state: &mut NextState<GameState>,
     action: &UiAutomationAction,
 ) -> Result<(), String> {
@@ -348,7 +349,7 @@ fn run_char_create_automation_action(
 
 fn click_char_create_frame(
     ctx: &mut AutomationContext,
-    create_senders: &mut Query<&mut MessageSender<CreateCharacter>>,
+    create_senders: &mut MessageSenders<CreateCharacter>,
     next_state: &mut NextState<GameState>,
     frame_name: &str,
 ) -> Result<(), String> {

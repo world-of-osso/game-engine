@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::{input::ButtonState, input::keyboard::KeyboardInput};
-use lightyear::prelude::MessageSender;
+use game_engine::network_runtime::messages::MessageSenders;
 
 use crate::targeting::CurrentTarget;
 use crate::ui::plugin::UiState;
@@ -30,7 +30,7 @@ pub fn handle_spellbook_pointer(
     mut state: ResMut<UiState>,
     runtime: Option<NonSendMut<SpellbookUiRuntime>>,
     current_target: Option<Res<CurrentTarget>>,
-    mut spell_senders: Query<&mut MessageSender<SpellCastIntent>>,
+    mut spell_senders: MessageSenders<SpellCastIntent>,
 ) {
     let (Ok(window), Some(mut runtime)) = (windows.single(), runtime) else {
         return;
@@ -102,7 +102,7 @@ pub fn handle_spellbook_keyboard(
 fn send_spellbook_action(
     action: SpellbookAction,
     current_target: Option<&CurrentTarget>,
-    spell_senders: &mut Query<&mut MessageSender<SpellCastIntent>>,
+    spell_senders: &mut MessageSenders<SpellCastIntent>,
 ) {
     let SpellbookAction::CastSpell {
         spell_id,

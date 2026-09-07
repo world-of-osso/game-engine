@@ -1,7 +1,7 @@
 use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::MessageSenders;
 
 use game_engine::ui::automation::{UiAutomationAction, UiAutomationQueue, UiAutomationRunner};
 use game_engine::ui::plugin::UiState;
@@ -57,13 +57,13 @@ pub(crate) fn char_select_keyboard_input(
     mut key_events: MessageReader<KeyboardInput>,
     mut selected: ResMut<SelectedCharIndex>,
     char_list: Res<CharacterList>,
-    mut senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut senders: MessageSenders<SelectCharacter>,
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     mut focus: ResMut<CharSelectFocus>,
     mut delete_confirm: ResMut<DeleteCharacterConfirmationState>,
     cs_ui: Option<Res<CharSelectUi>>,
-    mut del_senders: Query<&mut MessageSender<DeleteCharacter>>,
+    mut del_senders: MessageSenders<DeleteCharacter>,
 ) {
     for event in key_events.read() {
         if event.state != ButtonState::Pressed {
@@ -107,7 +107,7 @@ fn handle_delete_confirm_key(
     focus: &mut CharSelectFocus,
     cs_ui: Option<&CharSelectUi>,
     delete_confirm: &mut DeleteCharacterConfirmationState,
-    del_senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
+    del_senders: &mut MessageSenders<DeleteCharacter>,
 ) -> bool {
     if delete_confirm.target.is_none() {
         return false;
@@ -179,7 +179,7 @@ pub(crate) fn handle_selection_key(
     key: KeyCode,
     selected: &mut SelectedCharIndex,
     char_list: &CharacterList,
-    senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    senders: &mut MessageSenders<SelectCharacter>,
 ) -> bool {
     let count = char_list.0.len();
     if count == 0 {
@@ -209,7 +209,7 @@ pub(crate) fn char_select_run_automation(
     cs_ui: Option<Res<CharSelectUi>>,
     mut selected: ResMut<SelectedCharIndex>,
     char_list: Res<CharacterList>,
-    mut senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut senders: MessageSenders<SelectCharacter>,
     mut events: MessageWriter<CharSelectClickEvent>,
     mut delete_confirm: ResMut<DeleteCharacterConfirmationState>,
     mut queue: ResMut<UiAutomationQueue>,
@@ -242,7 +242,7 @@ fn run_automation_action(
     ui: &mut UiState,
     selected: &mut SelectedCharIndex,
     char_list: &CharacterList,
-    senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    senders: &mut MessageSenders<SelectCharacter>,
     events: &mut MessageWriter<CharSelectClickEvent>,
     delete_confirm: &mut DeleteCharacterConfirmationState,
     action: &UiAutomationAction,
@@ -315,8 +315,8 @@ pub(crate) fn dispatch_char_select_action(
     mut selected: ResMut<SelectedCharIndex>,
     mut focus: ResMut<CharSelectFocus>,
     mut campsite_visible: ResMut<CampsitePanelVisible>,
-    mut senders: Query<&mut MessageSender<SelectCharacter>>,
-    mut del_senders: Query<&mut MessageSender<DeleteCharacter>>,
+    mut senders: MessageSenders<SelectCharacter>,
+    mut del_senders: MessageSenders<DeleteCharacter>,
     char_list: Res<CharacterList>,
     mut next_state: ResMut<NextState<GameState>>,
     mut selected_scene: Option<ResMut<crate::scenes::char_select::warband::SelectedWarbandScene>>,
@@ -394,7 +394,7 @@ pub(crate) fn find_clicked_action(ui: &UiState, mx: f32, my: f32) -> Option<Stri
 pub(crate) fn try_enter_world(
     selected: &SelectedCharIndex,
     char_list: &CharacterList,
-    senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    senders: &mut MessageSenders<SelectCharacter>,
 ) {
     let Some(idx) = selected.0 else { return };
     let Some(ch) = char_list.0.get(idx) else {
@@ -441,7 +441,7 @@ fn clear_delete_confirmation(
 
 fn try_delete_character(
     delete_confirm: &mut DeleteCharacterConfirmationState,
-    senders: &mut Query<&mut MessageSender<DeleteCharacter>>,
+    senders: &mut MessageSenders<DeleteCharacter>,
 ) {
     let Some(ch) = delete_confirm.target.as_ref() else {
         return;

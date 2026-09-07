@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::components::{EquipmentAppearance as NetEquipmentAppearance, Player as NetPlayer};
 use shared::protocol::{
     AuthChannel, CharacterListEntry, CharacterListUpdate, CreateCharacterResponse,
@@ -127,8 +127,8 @@ pub fn send_auth_request(
     username: &LoginUsername,
     password: &LoginPassword,
     mode: &LoginMode,
-    login_senders: &mut Query<&mut MessageSender<LoginRequest>>,
-    register_senders: &mut Query<&mut MessageSender<RegisterRequest>>,
+    login_senders: &mut MessageSenders<LoginRequest>,
+    register_senders: &mut MessageSenders<RegisterRequest>,
 ) {
     match mode {
         LoginMode::Login => send_login(auth_token, username, password, login_senders),
@@ -140,7 +140,7 @@ fn send_login(
     auth_token: &AuthToken,
     username: &LoginUsername,
     password: &LoginPassword,
-    senders: &mut Query<&mut MessageSender<LoginRequest>>,
+    senders: &mut MessageSenders<LoginRequest>,
 ) {
     let request = build_login_request(auth_token, username, password);
     let request_token_label = token_debug_label(request.token.as_deref());
@@ -183,7 +183,7 @@ fn build_login_request(
 fn send_register(
     username: &LoginUsername,
     password: &LoginPassword,
-    senders: &mut Query<&mut MessageSender<RegisterRequest>>,
+    senders: &mut MessageSenders<RegisterRequest>,
 ) {
     let request = RegisterRequest {
         username: username.0.clone(),
@@ -197,7 +197,7 @@ fn send_register(
 
 /// Handle LoginResponse: save token, populate character list, transition state.
 pub fn receive_login_response(
-    mut receivers: Query<&mut MessageReceiver<LoginResponse>>,
+    mut receivers: MessageReceivers<LoginResponse>,
     mut auth_token: ResMut<AuthToken>,
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
@@ -205,14 +205,14 @@ pub fn receive_login_response(
     preselected: Option<Res<crate::scenes::char_select::PreselectedCharName>>,
     startup_screen_target: Option<Res<crate::game_state::StartupScreenTarget>>,
     mut selected_char_idx: ResMut<crate::scenes::char_select::SelectedCharIndex>,
-    mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
+    mut select_senders: MessageSenders<SelectCharacter>,
     mut next_state: ResMut<NextState<GameState>>,
     mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
     server_hostname: Option<Res<crate::networking::ServerHostname>>,
     mut commands: Commands,
 ) {
     let server = server_hostname.as_ref().map(|h| h.0.as_str());
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             handle_login_response(
                 resp,
@@ -234,10 +234,10 @@ pub fn receive_login_response(
 }
 
 pub fn receive_forced_disconnect(
-    mut receivers: Query<&mut MessageReceiver<ForcedDisconnect>>,
+    mut receivers: MessageReceivers<ForcedDisconnect>,
     mut pending: ResMut<crate::networking::PendingForcedDisconnect>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for notice in receiver.receive() {
             pending.0 = Some(notice);
         }
@@ -253,7 +253,7 @@ fn handle_login_response(
     preselected: Option<&Res<crate::scenes::char_select::PreselectedCharName>>,
     startup_screen_target: Option<&Res<crate::game_state::StartupScreenTarget>>,
     selected_char_idx: &mut crate::scenes::char_select::SelectedCharIndex,
-    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    select_senders: &mut MessageSenders<SelectCharacter>,
     next_state: &mut NextState<GameState>,
     reconnect: Option<&mut crate::networking::ReconnectState>,
     server: Option<&str>,
@@ -297,7 +297,7 @@ fn handle_login_success(
     preselected: Option<&Res<crate::scenes::char_select::PreselectedCharName>>,
     startup_screen_target: Option<&Res<crate::game_state::StartupScreenTarget>>,
     selected_char_idx: &mut crate::scenes::char_select::SelectedCharIndex,
-    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
+    select_senders: &mut MessageSenders<SelectCharacter>,
     next_state: &mut NextState<GameState>,
     reconnect: Option<&mut crate::networking::ReconnectState>,
     server: Option<&str>,
@@ -407,10 +407,7 @@ fn decide_login_success_action(
     }
 }
 
-fn send_enter_world(
-    character_id: u64,
-    select_senders: &mut Query<&mut MessageSender<SelectCharacter>>,
-) {
+fn send_enter_world(character_id: u64, select_senders: &mut MessageSenders<SelectCharacter>) {
     let msg = SelectCharacter { character_id };
     for mut sender in select_senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());
@@ -426,11 +423,11 @@ pub(crate) struct CharacterCreationResult {
 
 /// Handle CreateCharacterResponse: update the roster, then notify the UI.
 pub fn receive_create_character_response(
-    mut receivers: Query<&mut MessageReceiver<CreateCharacterResponse>>,
+    mut receivers: MessageReceivers<CreateCharacterResponse>,
     mut char_list: ResMut<CharacterList>,
     mut commands: Commands,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             let result = CharacterCreationResult {
                 success: resp.success,
@@ -467,10 +464,10 @@ fn handle_create_character_failure(error: Option<String>) {
 
 /// Handle DeleteCharacterResponse: remove character from list.
 pub fn receive_delete_character_response(
-    mut receivers: Query<&mut MessageReceiver<DeleteCharacterResponse>>,
+    mut receivers: MessageReceivers<DeleteCharacterResponse>,
     mut char_list: ResMut<CharacterList>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             if resp.success {
                 char_list.0.retain(|c| c.character_id != resp.character_id);
@@ -484,10 +481,10 @@ pub fn receive_delete_character_response(
 }
 
 pub fn receive_character_list_update(
-    mut receivers: Query<&mut MessageReceiver<CharacterListUpdate>>,
+    mut receivers: MessageReceivers<CharacterListUpdate>,
     mut char_list: ResMut<CharacterList>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             if let Some(existing) = char_list
                 .0
@@ -558,7 +555,7 @@ fn find_selected_roster_entry_mut<'a>(
 
 /// Handle RegisterResponse: save token and transition on success.
 pub fn receive_register_response(
-    mut receivers: Query<&mut MessageReceiver<RegisterResponse>>,
+    mut receivers: MessageReceivers<RegisterResponse>,
     mut auth_token: ResMut<AuthToken>,
     mut auth_feedback: ResMut<AuthUiFeedback>,
     mut char_list: ResMut<CharacterList>,
@@ -566,7 +563,7 @@ pub fn receive_register_response(
     server_hostname: Option<Res<crate::networking::ServerHostname>>,
 ) {
     let server = server_hostname.as_ref().map(|h| h.0.as_str());
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             handle_register_response(
                 resp,
@@ -642,7 +639,7 @@ fn resolve_selected_char_index(
 
 /// Handle EnterWorldResponse: store selected character info and transition to Loading.
 pub fn receive_enter_world_response(
-    mut receivers: Query<&mut MessageReceiver<EnterWorldResponse>>,
+    mut receivers: MessageReceivers<EnterWorldResponse>,
     mut selected: ResMut<SelectedCharacterId>,
     char_list: Res<CharacterList>,
     char_idx: Res<crate::scenes::char_select::SelectedCharIndex>,
@@ -650,7 +647,7 @@ pub fn receive_enter_world_response(
     mut reconnect: Option<ResMut<crate::networking::ReconnectState>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for resp in receiver.receive() {
             handle_enter_world_response(
                 resp,

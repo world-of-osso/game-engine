@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use std::time::Instant;
 
+use game_engine::network_runtime::messages::MessageSenders;
 use game_engine::ui::atlas;
 use game_engine::ui::frame::{Dimension, NineSlice};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -402,7 +403,7 @@ fn auto_enter_world(
     auto: Option<Res<AutoEnterWorld>>,
     selected: Res<SelectedCharIndex>,
     char_list: Res<crate::networking_auth::CharacterList>,
-    mut senders: Query<&mut lightyear::prelude::MessageSender<shared::protocol::SelectCharacter>>,
+    mut senders: MessageSenders<shared::protocol::SelectCharacter>,
     mut commands: Commands,
 ) {
     if auto.is_none() {

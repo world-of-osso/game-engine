@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::MessageReceivers;
 use shared::protocol::{
     CombatEvent, CombatEventType, CombatLogEntrySnapshot, CombatLogEventKindSnapshot,
     CombatLogSnapshot,
@@ -13,10 +13,10 @@ use game_engine::floating_combat_text::{
 use game_engine::status::{CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot};
 
 pub(crate) fn receive_combat_log_snapshot(
-    mut receivers: Query<&mut MessageReceiver<CombatLogSnapshot>>,
+    mut receivers: MessageReceivers<CombatLogSnapshot>,
     mut snapshot: ResMut<CombatLogStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             snapshot.entries = msg.entries.into_iter().map(map_combat_entry).collect();
             if snapshot.entries.len() > MAX_COMBAT_LOG {
@@ -211,14 +211,14 @@ fn push_floating_text(
 }
 
 pub(crate) fn receive_combat_events(
-    mut receivers: Query<&mut MessageReceiver<CombatEvent>>,
+    mut receivers: MessageReceivers<CombatEvent>,
     mut snapshot: ResMut<CombatLogStatusSnapshot>,
     mut stacks: Query<&mut FloatingCombatTextStack>,
     mut spell_sounds: Option<ResMut<SpellSoundQueue>>,
     existing_entities: Query<(), ()>,
     mut commands: Commands,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             let entry = combat_event_to_log_entry(&msg);
             append_combat_entry(&mut snapshot, entry);

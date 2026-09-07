@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use lightyear::prelude::*;
+use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::components::Zone;
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CombatChannel, DuelStateUpdate,
@@ -48,7 +48,7 @@ pub(crate) fn send_chat_message(
     mut chat_input: ResMut<ChatInput>,
     mut whisper_state: ResMut<WhisperState>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    mut senders: Query<&mut MessageSender<ChatMessage>>,
+    mut senders: MessageSenders<ChatMessage>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) {
         chat_input.0 = None;
@@ -67,7 +67,7 @@ pub(crate) fn send_chat_message(
 pub(crate) fn send_emote_intent(
     mut emote_input: ResMut<EmoteInput>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    mut senders: Query<&mut MessageSender<EmoteIntent>>,
+    mut senders: MessageSenders<EmoteIntent>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) {
         emote_input.0 = None;
@@ -83,7 +83,7 @@ pub(crate) fn send_emote_intent(
 
 /// Receive chat messages from the server and append to the chat log.
 pub(crate) fn receive_chat_messages(
-    mut receivers: Query<&mut MessageReceiver<ChatMessage>>,
+    mut receivers: MessageReceivers<ChatMessage>,
     mut chat_log: ResMut<ChatLog>,
     mut chat_state: ResMut<ChatState>,
     mut whisper_state: ResMut<WhisperState>,
@@ -93,7 +93,7 @@ pub(crate) fn receive_chat_messages(
     let local_name = selected_character
         .as_deref()
         .and_then(|selected| selected.character_name.as_deref());
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             apply_incoming_chat_message(
                 &msg,
@@ -110,12 +110,12 @@ pub(crate) fn receive_chat_messages(
 /// Receive social emote events and attach a transient animation state to the target entity.
 pub(crate) fn receive_emote_events(
     mut commands: Commands,
-    mut receivers: Query<&mut MessageReceiver<EmoteEvent>>,
+    mut receivers: MessageReceivers<EmoteEvent>,
     children_query: Query<&Children>,
     mounted_visual_roots: Query<(), With<crate::networking_player::MountedVisualRoot>>,
     existing_entities: Query<(), ()>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for event in receiver.receive() {
             let Some(entity) = resolve_emote_visual_entity(
                 event.player_entity,
@@ -137,10 +137,10 @@ pub(crate) fn receive_emote_events(
 }
 
 pub(crate) fn receive_rest_state_update(
-    mut receivers: Query<&mut MessageReceiver<RestStateUpdate>>,
+    mut receivers: MessageReceivers<RestStateUpdate>,
     mut snapshot: ResMut<game_engine::status::CharacterStatsSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_rest_state_update(&mut snapshot, update);
         }
@@ -292,14 +292,14 @@ fn resolve_emote_visual_entity(
 /// Receive LoadTerrain messages from the server and initialize/stream the AdtManager.
 pub(crate) fn receive_load_terrain(
     mut commands: Commands,
-    mut receivers: Query<&mut MessageReceiver<LoadTerrain>>,
+    mut receivers: MessageReceivers<LoadTerrain>,
     mut adt_manager: ResMut<AdtManager>,
     mut heightmap: ResMut<TerrainHeightmap>,
     mut next_state: ResMut<NextState<GameState>>,
     reconnect: Option<ResMut<crate::networking::ReconnectState>>,
 ) {
     let mut reconnect = reconnect;
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             apply_load_terrain_message(
                 &mut commands,
@@ -355,10 +355,10 @@ fn apply_load_terrain_message(
 }
 
 pub(crate) fn receive_quest_log_snapshot(
-    mut receivers: Query<&mut MessageReceiver<QuestLogSnapshot>>,
+    mut receivers: MessageReceivers<QuestLogSnapshot>,
     mut snapshot: ResMut<QuestLogStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             snapshot.entries = msg.entries.into_iter().map(map_quest_entry).collect();
             snapshot.watched_quest_ids = msg.watched_quest_ids;
@@ -395,10 +395,10 @@ fn map_repeatability(value: QuestRepeatabilitySnapshot) -> QuestRepeatability {
 }
 
 pub(crate) fn receive_group_roster_snapshot(
-    mut receivers: Query<&mut MessageReceiver<GroupRosterSnapshot>>,
+    mut receivers: MessageReceivers<GroupRosterSnapshot>,
     mut snapshot: ResMut<GroupStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             snapshot.is_raid = msg.is_raid;
             snapshot.ready_count = msg.ready_count;
@@ -424,10 +424,10 @@ fn map_group_member(member: shared::protocol::GroupMemberSnapshot) -> GroupMembe
 }
 
 pub(crate) fn receive_group_command_response(
-    mut receivers: Query<&mut MessageReceiver<GroupCommandResponse>>,
+    mut receivers: MessageReceivers<GroupCommandResponse>,
     mut snapshot: ResMut<GroupStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             snapshot.last_server_message = Some(msg.message);
         }
@@ -435,12 +435,12 @@ pub(crate) fn receive_group_command_response(
 }
 
 pub(crate) fn receive_achievement_state_update(
-    mut receivers: Query<&mut MessageReceiver<AchievementStateUpdate>>,
+    mut receivers: MessageReceivers<AchievementStateUpdate>,
     mut status: ResMut<AchievementsStatusSnapshot>,
     mut completion: ResMut<game_engine::achievements::AchievementCompletionState>,
     mut toast: ResMut<AchievementToastState>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_achievement_state_update(&mut status, &mut completion, &mut toast, update);
         }
@@ -448,10 +448,10 @@ pub(crate) fn receive_achievement_state_update(
 }
 
 pub(crate) fn receive_profession_snapshot(
-    mut receivers: Query<&mut MessageReceiver<ProfessionSnapshot>>,
+    mut receivers: MessageReceivers<ProfessionSnapshot>,
     mut snapshot: ResMut<ProfessionStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
             snapshot.skills = msg.skills.into_iter().map(map_profession_skill).collect();
             snapshot.recipes = msg.recipes.into_iter().map(map_profession_recipe).collect();
@@ -460,10 +460,10 @@ pub(crate) fn receive_profession_snapshot(
 }
 
 pub(crate) fn receive_world_map_state_update(
-    mut receivers: Query<&mut MessageReceiver<WorldMapStateUpdate>>,
+    mut receivers: MessageReceivers<WorldMapStateUpdate>,
     mut world_map: ResMut<game_engine::world_map_data::WorldMapState>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_world_map_state_update(&mut world_map, update);
         }
@@ -471,10 +471,10 @@ pub(crate) fn receive_world_map_state_update(
 }
 
 pub(crate) fn receive_durability_state_update(
-    mut receivers: Query<&mut MessageReceiver<DurabilityStateUpdate>>,
+    mut receivers: MessageReceivers<DurabilityStateUpdate>,
     mut snapshot: ResMut<DurabilityStatusSnapshot>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_durability_state_update(&mut snapshot, update);
         }
@@ -527,11 +527,11 @@ fn map_profession_recipe(
 }
 
 pub(crate) fn receive_reputation_snapshot(
-    mut receivers: Query<&mut MessageReceiver<ReputationStateUpdate>>,
+    mut receivers: MessageReceivers<ReputationStateUpdate>,
     mut snapshot: ResMut<ReputationsStatusSnapshot>,
     mut toast: ResMut<ReputationToastState>,
 ) {
-    for mut receiver in receivers.iter_mut() {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             map_reputation_state_update(&mut snapshot, &mut toast, update);
         }
@@ -603,7 +603,7 @@ pub(crate) fn apply_duel_state_update(snapshot: &mut DuelStatusSnapshot, update:
 pub(crate) fn send_target_to_server(
     current: Res<CurrentTarget>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    mut senders: Query<&mut MessageSender<SetTarget>>,
+    mut senders: MessageSenders<SetTarget>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) {
         return;
@@ -637,7 +637,7 @@ pub(crate) fn track_player_zone(
 pub(crate) fn send_player_input(
     player_q: Query<(&MovementState, &CharacterFacing), With<Player>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    mut senders: Query<&mut MessageSender<PlayerInput>>,
+    mut senders: MessageSenders<PlayerInput>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) {
         return;
