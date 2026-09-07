@@ -1,36 +1,42 @@
 use std::time::Duration;
 
 use bevy::{
-    app::{App, Last, PluginGroup, ScheduleRunnerPlugin},
+    app::{App, AppExit, Last, PluginGroup, ScheduleRunnerPlugin},
     asset::AssetPlugin,
     camera::{Camera, Camera2d, CameraPlugin, ClearColorConfig},
     core_pipeline::CorePipelinePlugin,
     ecs::{
         resource::Resource,
-        system::{Commands, Res},
+        system::{Commands, Res, ResMut},
     },
     image::ImagePlugin,
+    log::LogPlugin,
     prelude::MinimalPlugins,
     render::{pipelined_rendering::PipelinedRenderingPlugin, RenderPlugin},
     time::{Real, Time},
     transform::TransformPlugin,
-    window::{Window, WindowPlugin},
+    window::{Window, WindowPlugin, WindowResolution},
     winit::{WinitPlugin, WinitSettings},
 };
 
-use crate::game::state::client_options::GraphicsOptions;
+use crate::game::client_options::GraphicsOptions;
 
 const BLANK_CLEAR_COLOR: bevy::color::Color = bevy::color::Color::srgb(0.094, 0.094, 0.094);
 const UPDATE_LOG_INTERVAL: Duration = Duration::from_secs(1);
 
 pub(crate) fn run(continuous: bool) -> Result<(), String> {
-    build_app(continuous).run();
-    Ok(())
+    match build_app(continuous).run() {
+        AppExit::Success => Ok(()),
+        AppExit::Error(code) => Err(format!("blank renderer exited with status {code}")),
+    }
 }
 
+/// Installs only core Bevy, logging, window, asset, Winit, render, image, camera,
+/// pipelined-rendering and core-pipeline plugins. It intentionally excludes game services.
 fn build_app(continuous: bool) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>())
+        .add_plugins(LogPlugin::default())
         .add_plugins(TransformPlugin)
         .add_plugins(WindowPlugin {
             primary_window: Some(render_window()),
@@ -55,6 +61,7 @@ fn render_window() -> Window {
         title: "game-engine — blank Bevy renderer".into(),
         name: Some("com.worldofosso.game-engine.renderer".into()),
         present_mode: GraphicsOptions::default().present_mode(),
+        resolution: WindowResolution::new(1280, 720),
         ..default()
     }
 }
@@ -81,17 +88,27 @@ fn spawn_blank_camera(mut commands: Commands) {
 struct RendererUpdateReport {
     updates: u64,
     last_log: Duration,
+    updates_at_last_log: u64,
 }
 
 fn log_update_rate(time: Res<Time<Real>>, mut report: ResMut<RendererUpdateReport>) {
     report.updates += 1;
     let elapsed = time.elapsed();
-    if report.updates == 1 || elapsed.saturating_sub(report.last_log) >= UPDATE_LOG_INTERVAL {
+    let interval = elapsed.saturating_sub(report.last_log);
+    if report.updates == 1 || interval >= UPDATE_LOG_INTERVAL {
+        let interval_updates = report.updates - report.updates_at_last_log;
+        let updates_per_second = if interval.is_zero() {
+            0.0
+        } else {
+            interval_updates as f64 / interval.as_secs_f64()
+        };
         eprintln!(
-            "blank renderer updates: {} elapsed={elapsed:.3?}",
-            report.updates
+            "blank renderer update_rate elapsed_s={:.3} updates={} updates_per_s={updates_per_second:.3}",
+            elapsed.as_secs_f64(),
+            report.updates,
         );
         report.last_log = elapsed;
+        report.updates_at_last_log = report.updates;
     }
 }
 
