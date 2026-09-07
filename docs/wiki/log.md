@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] diagnostic | Record coarse idle-CPU isolation and repaired caller stacks
+
+Updated [[empty-window-baseline]] and [[movement-performance]] with destructive reduced-scene schedule/render-set cutoffs. `Update`, `PostUpdate`, and the combined main schedules are material contributors, while `Prepare`'s apparent CPU drop is invalid because it halves update cadence; `Specialize` is negative and `Queue` is pending. A literal Empty-stage launch failed before measurement from missing `PointLightShadowMap` and scattering-medium initialization. Recovered Deep-DWARF ancestry now covers all 2,138 archived reduced-game samples in `flamegraphs/reduced-game-dwarf.svg`; the prior raw flamegraph's corrupt caller frames remain historical only. Bevy 0.19 scheduling/material hazards and upstream #24448 are candidates or external context, not local causal findings.
+
 ## [2026-09-07] retirement | Remove unproven task-submission batching
 
 Retired `079f0cbf`'s temporary Bevy task-submission patch and restored stock `bevy_ecs`/`bevy_tasks` sources and the root lockfile. Four same-binary, 10-second blank-renderer samples kept CPU high: baseline 207.679% and 215.581% one core; batched 220.981% and 203.752%. Nearby update rates and clock/host conditions varied, so the lower batched CPU/update estimates do not establish a causal gain. No deployment or retirement rebuild occurred. The [spec](../specs/task-submission-batching.md) is historical. The active question is why disabled subsystem registrations, including sky-material paths, still execute and cost CPU; this result does not make their callback volume normal or explain bulk CPU.

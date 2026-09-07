@@ -10,6 +10,14 @@ Full-game IPC `performance.fps` reads the smoothed `FrameTimeDiagnosticsPlugin::
 
 Therefore, “blank updates versus game FPS” is not a difference of underlying event type. CPU per app update is a useful investigative normalization when numerator and denominator cover the same capture. Different scenes, revisions, clocks and instrumentation still prevent an uncontrolled cross-run ratio from proving an efficiency gain. Smoothed FPS must not be treated as an exact update count for a five-second profiler window.
 
+## Coarse idle-CPU attribution (2026-09-07)
+
+Reduced-scene destructive cutoffs show distributed work, not one proven callback. In same-run comparisons: removing `Update` changed CPU **330.874% → 278.579%**; removing `PostUpdate`, **344.274% → 305.174%**; removing `PreUpdate`, **340.370% → 333.274%**. Removing all three main schedules in a separate ~60-update/s run changed **86.293% → 46.295%** while cadence stayed near 60/s. Different run cadences prevent comparing those absolute levels.
+
+Render `Prepare` removal changed **340.170% → 190.186%** but halved cadence **226.447 → 114.746/s** and worsened CPU/update; it is deliberately not interpreted as a saving. Removing `Specialize` produced no reduction (**335.071% → 343.169%**). The `Queue` split remains unparsed. A true empty-stage run failed before sampling due to missing `PointLightShadowMap` and scattering-medium initialization.
+
+The archived reduced-game flamegraph was repaired with recovered Deep-DWARF call chains: `data/diagnostics/movement-perf-20260905/flamegraphs/reduced-game-dwarf.svg` covers all **2,138** samples. The earlier raw view contains corrupt caller addresses and must not be used for ancestry. Bevy 0.19's skipped-system task validation, broad query conflicts, and unnecessary asset/material mutation are upstream candidates only; issue #24448 describes a different workload and establishes nothing locally.
+
 ## Current timed callback-removal interface (2026-09-06)
 
 Commit `52e44eff` replaces the six per-target flags with repeatable exact-name requests:

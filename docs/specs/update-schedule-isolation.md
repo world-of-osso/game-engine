@@ -25,11 +25,12 @@
 
 ## Tests asserting this spec
 
+- [x] Initial implementation behavioral proof: 5/5 tests passed.
 - `src/update_schedule_isolation.rs::tests` exercises real App updates before and after cutoff.
 
 ## Known gaps
 
-- [ ] Run targeted behavioral proof and a bounded native comparison.
+Runtime cutoffs are documented in [[empty-window-baseline]]; no additional test gate is introduced here.
 
 ## Out of scope
 

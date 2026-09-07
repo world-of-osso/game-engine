@@ -102,6 +102,22 @@ The matching libc build ID (`503200d7fda94a5dc6058d7e0694e5d1dcb2e372`) was pres
 
 A separate full-scene capture had 2,138 samples, 1,898 from the executable across 1,512 addresses. Its nearest-source counts were `bevy_ecs` 27.689%, `concurrent-queue` 7.016%, `fixedbitset` 5.940%, `async-executor` 5.005%, and `async-task` 2.479%. Those are sample-count fractions, unlike the blank cycle-period fractions, and the capture used `--inworld-stage no-npcs-ui` plus terrain/render isolation. It is neither an intact-game baseline nor a literal Empty scene; do not compare these percentages causally.
 
+## Coarse schedule and render-set cutoffs
+
+The reduced `no-npcs-ui` scene was used for destructive same-process cutoffs; its scene, clocks, and update cadence differ between runs, so only each run's before/after direction is descriptive. `Update` removal recorded **330.874% → 278.579%** CPU while app updates rose **198.425 → 223.264/s**. `PostUpdate` removal recorded **344.274% → 305.174%** at **235.230 → 245.707/s**. `PreUpdate` removal recorded **340.370% → 333.274%** at **228.147 → 247.830/s**. Each leaves substantial CPU; none is a complete cause.
+
+A separate `PreUpdate`+`Update`+`PostUpdate` cutoff ran at a 60/s baseline and recorded **86.293% → 46.295%** with cadence unchanged at about 60/s. It proves those three schedules contain substantial work in that run, not that the lower absolute CPU is comparable to the 200+/s runs. Main-loop progress continued through `Last`; gameplay, network, IPC, and other work in removed schedules intentionally froze.
+
+Removing render `Prepare` removed **148 systems** and recorded **340.170% → 190.186%**, but cadence collapsed **226.447 → 114.746/s** and CPU/update worsened **15.022 → 16.575 ms**. This is invalid as a saving claim: rendering no longer performed equivalent work. `Specialize` removal recorded **335.071% → 343.169%** while cadence rose **210.930 → 235.077/s**; no bulk reduction. `Queue` remains pending. Artifacts: `data/diagnostics/movement-perf-20260905/{update-schedule-isolation,render-set-isolation}/`.
+
+An attempted literal `--inworld-stage empty` run crashed before measurement because `extract_lights` lacked `PointLightShadowMap`, and scattering-medium asset extraction lacked initialized messages. It is a broken configuration, not low-CPU evidence.
+
+## Recovered full-scene caller stacks
+
+The previous frame-pointer flamegraph contained invalid caller addresses such as `0`, `1`, and `0xcccc…`; those are corrupt ancestry, not top CPU consumers. A read-only `samply import` of the preserved Deep-DWARF `perf.data`, with its matching executable bound at the original path inside a sandbox, recovered multi-frame stacks for all **2,138 archived samples**. The viewable result is `data/diagnostics/movement-perf-20260905/flamegraphs/reduced-game-dwarf.svg`; `reduced-game-raw-callchains.svg` preserves the bad original view. Flame width is inclusive sample count, not self CPU. This repairs the caller-stack availability limit for that reduced historical capture only; it does not create a current or intact-game profile.
+
+Bevy 0.19 guidance identifies three relevant candidates: skipped systems can still be task-spawned under the multithreaded executor, broad entity-access queries can conflict with resources, and unnecessary asset/material mutation can trigger render work. These are candidates, not findings in this project. Saved discussion of upstream issue 24448 identifies a different workload involving per-chunk materials and bindless rendering; it must not be treated as our root cause.
+
 ## Retired task-submission batching experiment
 
 The user-approved experiment batched registration of up to 32 ready Send-system tasks while retaining independent futures, individual conditions/access checks/completions, non-Send/exclusive paths, worker pools, and pipelining. It did not batch events, fuse callback bodies, or reduce callback/task count. Historical implementation and behavioral evidence are recorded in the [retired experiment spec](../../specs/task-submission-batching.md).
@@ -149,6 +165,11 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 - [service window runtime](../../../src/service_window.rs) — minimal Bevy-core plugin boundary
 - [native instruction attribution](../../../data/diagnostics/movement-perf-20260905/service-window/renderer/continuous/native-profile/instruction-owner-analysis.json) — one-address blank-renderer source attribution
 - [full-scene instruction attribution](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/cpu-system-isolation/profile-deep-dwarf/instruction-owner-analysis.json) — sample-count-only comparison scope
+- [schedule-cutoff artifacts](../../../data/diagnostics/movement-perf-20260905/update-schedule-isolation/) — within-run before/after measurements
+- [render-set artifacts](../../../data/diagnostics/movement-perf-20260905/render-set-isolation/) — Prepare, Specialize, and pending Queue measurements
+- [recovered call chains](../../../data/diagnostics/movement-perf-20260905/flamegraphs/recovered-callchains.json) — Deep-DWARF recovery input for the corrected flamegraph
+- [Bevy 0.19 migration guide](https://bevy.org/learn/migration-guides/0-18-to-0-19/) — task-validation behavior cited as an upstream candidate
+- [Bevy issue #24448](https://github.com/bevyengine/bevy/issues/24448) — external, non-equivalent idle-scene report
 - [profiler overhead benchmark](../../../src/cpu_system_profile/overhead_benchmark.rs) — test-only local entry-overhead control
 - [Cargo manifest](../../../Cargo.toml) — direct dependency features
 
