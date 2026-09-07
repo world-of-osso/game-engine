@@ -60,6 +60,9 @@ fn live_human_male_back_cloak_spawns_runtime_attachment() {
     equipment
         .slot_skin_fdids
         .insert(EquipmentSlot::Back, [5644278, 0, 0]);
+    app.world_mut().trigger(EquipmentChanged {
+        entity: spawned.model_root,
+    });
 
     app.update();
     app.update();
@@ -333,6 +336,8 @@ fn equip_live_helm(app: &mut App, model_root: Entity, helm_path: &Path) {
     equipment
         .slot_skin_fdids
         .insert(EquipmentSlot::Head, [140455, 0, 0]);
+    app.world_mut()
+        .trigger(EquipmentChanged { entity: model_root });
 }
 
 fn equip_live_chest(app: &mut App, model_root: Entity, chest_path: &Path) {
@@ -346,6 +351,8 @@ fn equip_live_chest(app: &mut App, model_root: Entity, chest_path: &Path) {
     equipment
         .slot_skin_fdids
         .insert(EquipmentSlot::Chest, [2373825, 0, 0]);
+    app.world_mut()
+        .trigger(EquipmentChanged { entity: model_root });
 }
 
 fn equip_live_feet(app: &mut App, model_root: Entity, feet_path: &Path) {
@@ -359,6 +366,8 @@ fn equip_live_feet(app: &mut App, model_root: Entity, feet_path: &Path) {
     equipment
         .slot_skin_fdids
         .insert(EquipmentSlot::Feet, [1360784, 0, 0]);
+    app.world_mut()
+        .trigger(EquipmentChanged { entity: model_root });
 }
 
 fn head_equipment_entity(world: &mut World) -> Option<Entity> {

@@ -541,21 +541,21 @@ mod tests {
             .resource_mut::<EquipmentControlQueue>()
             .pending = vec![
             EquipmentControlCommand::Set {
-                slot: "head".into(),
+                slot: "mainhand".into(),
                 model_path: model.into(),
             },
             EquipmentControlCommand::Clear {
-                slot: "head".into(),
+                slot: "mainhand".into(),
             },
             EquipmentControlCommand::Set {
-                slot: "head".into(),
+                slot: "mainhand".into(),
                 model_path: model.into(),
             },
         ];
         app.update();
         let expected = app.world().get::<equipment::Equipment>(owner).unwrap();
         assert_eq!(
-            expected.slots[&equipment::EquipmentSlot::Head],
+            expected.slots[&equipment::EquipmentSlot::MainHand],
             std::path::PathBuf::from(model)
         );
         let notifications = &app.world().resource::<EquipmentNotifications>().0;
@@ -565,10 +565,10 @@ mod tests {
             .resource_mut::<EquipmentControlQueue>()
             .pending = vec![
             EquipmentControlCommand::Clear {
-                slot: "head".into(),
+                slot: "mainhand".into(),
             },
             EquipmentControlCommand::Set {
-                slot: "head".into(),
+                slot: "mainhand".into(),
                 model_path: model.into(),
             },
         ];
