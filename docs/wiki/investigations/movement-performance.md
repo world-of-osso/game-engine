@@ -2,7 +2,7 @@
 
 Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, collision-respecting movement now works. A short loaded-tile route showed no movement-specific FPS drop, but a separate tile crossing reproduced a **3.12-second frame-progress/IPC stall**. Startup parsing and solid canopy bounding boxes were separate blockers encountered before measurement.
 
-Current investigation: [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) now explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
+Current CPU baseline: the [additive empty-window investigation](empty-window-baseline.md) locates the first substantial increase at continuous blank-frame processing, before project services. Full-game per-frame CPU ownership remains unresolved. Separately, [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
 ## Current timed callback-removal interface (2026-09-06)
 
