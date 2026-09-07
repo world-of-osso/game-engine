@@ -15,15 +15,18 @@ pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<Spe
     }
 }
 
+pub fn spellbook_cooldowns_active(runtime: Option<NonSend<SpellbookUiRuntime>>) -> bool {
+    runtime.is_some_and(|runtime| runtime.has_active_cooldowns())
+}
+
 pub fn tick_spellbook_cooldowns(
-    time: Option<Res<Time>>,
     mut state: ResMut<UiState>,
-    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
+    mut runtime: NonSendMut<SpellbookUiRuntime>,
 ) {
-    let (Some(time), Some(mut runtime)) = (time, runtime) else {
-        return;
-    };
-    runtime.advance_cooldowns(&mut state.registry, time.delta_secs());
+    runtime.advance_cooldowns(
+        &mut state.registry,
+        1.0 / game_engine::network_tick::NETWORK_TICKS_PER_SECOND as f32,
+    );
 }
 
 pub fn handle_spellbook_pointer(

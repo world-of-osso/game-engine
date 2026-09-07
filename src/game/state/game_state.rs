@@ -154,13 +154,17 @@ fn register_state_update_transitions(app: &mut App) {
 fn register_in_world_systems(app: &mut App) {
     app.add_systems(
         Update,
-        (
-            game_engine::ui::game_plugin::sync_screen_ui,
-            game_engine::ui::game_plugin::tick_spellbook_cooldowns,
-        )
-            .chain()
+        game_engine::ui::game_plugin::sync_screen_ui
             .run_if(in_state(GameState::InWorld))
             .run_if(inworld_scene_stage_allows_ui),
+    );
+    app.add_systems(
+        game_engine::network_tick::NetworkTick,
+        game_engine::ui::game_plugin::tick_spellbook_cooldowns
+            .in_set(game_engine::network_tick::NetworkTickSystems::Apply)
+            .run_if(in_state(GameState::InWorld))
+            .run_if(inworld_scene_stage_allows_ui)
+            .run_if(game_engine::ui::game_plugin::spellbook_cooldowns_active),
     );
     app.add_systems(
         Update,
@@ -444,6 +448,10 @@ fn should_enter_loading_for_zone_change(tracker: &mut ZoneTransitionTracker, zon
 
     previous_zone_id != 0 && zone_id != 0 && zone_id != previous_zone_id
 }
+
+#[cfg(test)]
+#[path = "../../../tests/unit/spellbook_cooldown_schedule_tests.rs"]
+mod cooldown_schedule_tests;
 
 #[cfg(test)]
 mod tests {

@@ -183,6 +183,10 @@ impl SpellbookUiRuntime {
         changed
     }
 
+    pub fn has_active_cooldowns(&self) -> bool {
+        !self.cooldowns.is_empty()
+    }
+
     pub fn advance_cooldowns(&mut self, registry: &mut FrameRegistry, delta_seconds: f32) {
         if self.cooldowns.is_empty() || delta_seconds <= 0.0 {
             return;
