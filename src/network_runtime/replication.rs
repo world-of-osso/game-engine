@@ -37,7 +37,7 @@ impl ReplicationMirrorMap {
         self.main_to_server.clear();
     }
 
-    fn insert(&mut self, server: Entity, main: Entity) {
+    pub fn insert(&mut self, server: Entity, main: Entity) {
         self.server_to_main.insert(server, main);
         self.main_to_server.insert(main, server);
     }
