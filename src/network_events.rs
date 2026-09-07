@@ -170,7 +170,6 @@ fn invoke_handler(world: &mut World, system: SystemId) {
 mod tests {
     use super::*;
     use bevy::app::{PostUpdate, PreUpdate};
-    use bevy::prelude::*;
     use lightyear::prelude::client::ClientPlugins;
     use lightyear::prelude::{
         AppChannelExt, AppMessageExt, ChannelMode, ChannelRegistry, ChannelSettings, Connected,
@@ -196,6 +195,7 @@ mod tests {
 
     fn fixture() -> (App, Entity) {
         let mut app = App::new();
+        app.add_plugins(bevy::state::app::StatesPlugin);
         app.add_plugins(ClientPlugins::default());
         app.register_message::<First>();
         app.register_message::<Second>();
