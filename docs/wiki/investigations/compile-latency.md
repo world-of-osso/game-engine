@@ -12,7 +12,11 @@ A same observable edit to the `--empty-window` error literal was built after a c
 | Dynamic-link at `50991d70` | 6.956593 s | 6.86 s |
 | Restored literal, dynamic-link | 4.566569 s | 4.50 s |
 
-The 937.745784 s dynamic-link warmup and the 50.10 s default warmup followed deleted incremental caches, so neither is edit-build evidence. Other-project compilation was active during samples. These are not idle statistical results, general gameplay coverage, or proof of the requested under-three-second target; the target remains unmet.
+The 937.745784 s dynamic-link feature-graph warmup and the 50.10 s default warmup after incremental-cache deletion are not edit-build evidence. Other-project compilation was active during samples. These are not idle statistical results, general gameplay coverage, or proof of the requested under-three-second target; the target remains unmet.
+
+A subsequent equivalent edit with crate-local `-Ztime-passes` took 4.187155 s wall (rustc total 3.809 s). Linking took 0.541 s; macro expansion 0.394 s, name resolution 0.256 s, codegen-crate processing 1.189 s, and incremental graph serialization 0.461 s. These compiler spans are diagnostic, may overlap, and are not additive. Most remaining time is outside the linker. Diagnostic flags and the literal edit were removed afterwards.
+
+Independent verification at `17238f90` passed `cargo fmt --check`, `cargo check --bin game-engine --features dev`, and CLI `--help`. ELF `NEEDED` explicitly includes `libbevy_dylib`. The existing `binrw 0.15.1` future-incompatibility notice remains. Proof lives under the artifact directory's `verification/`; later unrelated Rust edits invalidate their overlapping check scope.
 
 ## History
 
