@@ -10,7 +10,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Keep Lightyear link/transport/message maintenance on every frame so delta-based transport timers retain real elapsed-time behavior; defer only typed application inbox dispatch to due network ticks.
 - [x] Add one incoming dispatcher over application-owned typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
-- [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready. Application handlers use worker-backed typed sender/receiver adapters; the main client lifecycle has not started the worker yet.
+- [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready. Application handlers use worker-backed typed sender/receiver adapters; the main lifecycle starts one dedicated worker per connection.
 - [x] Prove one actual client/server login plus routed Who/friends replies. Reconnection and full reply coverage remain unproven.
 
 ### Equipment and other application work
@@ -25,18 +25,18 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
 - `NetworkTick` shares the main ECS thread. Due ticks can run together at lower render cadences and cannot progress while that thread is blocked; it is a logical 60 Hz cadence, **not an independent OS network thread**.
-- `a35b1c5c` through `01cfcade` add an unwired dedicated-world foundation: a separately clocked 60 Hz worker preserving the 20 Hz client simulation, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. Worker relays append owned message batches to the main world; old main-world Lightyear receiver park/restore is removed.
-- `cec56837` adds an unintegrated replication mirror foundation keyed by server entity identity. It must still be connected to worker lifecycle, render-world identity mapping, and reconnect cleanup before it affects production behavior.
-- Existing Bevy maximum-delta policy bounds catch-up after a long stall. The authoritative client/server simulation remains negotiated at **20 Hz**; neither foundation alters it.
-- The main binary does not yet start a worker or move its live client, transport, replication, connection markers, or reconnect lifecycle. The current path is therefore not runnable as independent network execution.
+- `a35b1c5c` through `01cfcade` add the separately clocked 60 Hz worker, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. `aa6fda57` moves live Lightyear client, UDP transport, protocol registration, replication receiver, and typed receiver relays into one worker world per connection. The old main-world receiver park/restore path is removed.
+- `cec56837` and `aa6fda57` bridge replicated snapshots, despawns, and server-entity-to-render-entity identity into the main world. Main-world `Client`, `Connected`, and `Disconnected` markers are lifecycle proxies; they do not own Lightyear transport state.
+- The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Existing maximum-delta policy still applies to main-world application work; no wire format or negotiated simulation behavior changes.
+- This is an implementation boundary, not completion proof. The latest focused runtime result is 19/20; a UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query in replication forwarding. `54411453` excludes resource entities from that query, but fresh full integration, binary fixtures, reconnect, and native proof remain pending.
 - `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
 
 - `src/network_tick.rs`: legacy main-thread logical application driver; it remains unable to progress during a main-thread block.
 - `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
-- `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`: committed dedicated-world, typed queue, and replication-mirror foundations. The main binary has not integrated their lifecycle.
-- `src/game/networking/mod.rs`: application network registration.
+- `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`, `connection.rs`: dedicated worker, typed queues, replication mirror, and per-connection lifecycle bridge.
+- `src/game/networking/mod.rs`: starts the worker connection and retains main-world application/auth registration.
 - `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment mutation and reconciliation boundaries.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
 
@@ -56,8 +56,9 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ## Known gaps
 
-- [ ] Reconnection lifecycle, complete connected API coverage, and clean native appearance proof.
-- [ ] Independent network-world/thread execution. Integrate the committed worker so it exclusively owns Lightyear client/transport/replication state; bridge typed outgoing commands, incoming FIFO data, replicated entity/component snapshots, connection state, and reconnect cleanup into the render world. The current live path remains main-thread logical application work with frame-driven transport.
+- [ ] Reconnection lifecycle, complete connected API coverage, binary fixtures, and clean native appearance proof.
+- [ ] Verify the integrated dedicated network world. It exclusively owns Lightyear client/transport/replication state and bridges typed outgoing commands, incoming FIFO data, replicated snapshots, and connection state into the render world, but end-to-end lifecycle and native proof remain incomplete.
+- [ ] Convert remaining wire entity-bit boundaries between server identity and render entities (target, duel, inspect, spell, emote, combat, and related UI handlers).
 - [ ] Remaining non-network application work and active movement/animation scheduling review.
 - [ ] Idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
 

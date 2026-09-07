@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record dedicated connection-owned network world boundary
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `aa6fda57`, `6eb52d96`, and `54411453`. Main now starts one separate 60 Hz network ECS world per connection; that world owns Lightyear transport, protocol, replication, and typed receive buffers while preserving the 20 Hz simulation. Main holds only connection proxy markers, typed application inboxes, and a server-to-render entity mirror. This is not completion: focused runtime evidence is 19/20 after a UDP replication run exposed Bevy B0002 from querying resources as `EntityRef`; `54411453` excludes those resources but awaits a fresh integrated run. Wire entity-bit boundary conversions, binary fixtures, reconnect, native appearance, CPU, and renderer limits remain open.
+
 ## [2026-09-07] systems | Record unintegrated owned-inbox network runtime foundations
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `d4742d87`, `80476abe`, `daa1a7b3`, `cec56837`, and `01cfcade`. Application handlers now use worker-backed `MessageSenders`/`MessageReceivers`; `network_events` dispatches application-owned `Inbox<M>` batches and no longer parks/restores main-world Lightyear receivers. `runtime-tests-transport.log` records worker/module 13/13, including encoded Lightyear loopback while the main app is unupdated; dispatcher RED then GREEN is recorded in `owned-inbox-red-behavior.log` and `owned-inbox-green.log` (8/8). The main binary still does not start the worker or transfer client, transport, replication, lifecycle, or reconnect ownership, so no runnable independent-network or CPU claim follows. Existing native and CPU limits remain unchanged.
