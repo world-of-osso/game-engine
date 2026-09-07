@@ -30,7 +30,6 @@ fn default_plugins(
     }
     if !enable_gizmos {
         plugins = plugins
-            .disable::<bevy::light::LightPlugin>()
             .disable::<bevy::gizmos::GizmoPlugin>()
             .disable::<bevy::gizmos_render::GizmoRenderPlugin>();
     }
