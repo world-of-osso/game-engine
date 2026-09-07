@@ -12,6 +12,10 @@
 - [x] Keep a distinct visible window title, native resize/close behavior and explicit error reporting. Log update 1 and every 64 updates without installing a polling diagnostic service.
 - [x] Measure focused idle process/thread CPU and whole-host CPU separately, with window dimensions and GPU/clock/limit context. All retained twelve-second windows had 13/13 focused samples at 1280×1198: native 0 ticks/one thread; core 0.16664% one core/25 threads; reactive blank GPU 0.08331%/28 threads; continuous blank GPU 216.31478%/28 threads. Reactive telemetry was 0.2 updates/s; continuous mean was 1212.906 updates/s, range 1071.767–1306.683. This is update rate, not presented FPS. Whole-host 5.799%, 5.407%, 7.165%, and 21.071% respectively is not single-process attribution. The continuous stage differs only in Winit policy; Mailbox, pools, pipelining, renderer, camera and no FPS limiter remain fixed. Raw GPU metrics recorded average graphics activity 0–1 reactive versus 80–86 continuous and average GPU clocks 618–682 versus 1945–2326 MHz. Independent source verification and runtime audit 248 pass the bounded finding: continuous blank updates are the first major CPU rise before project services. No presented FPS, frame pacing, render-thread/per-thread CPU attribution, or hardware-counter proof exists.
 
+## Optional CPU attribution
+
+GPU stages honor the existing `cpu-system-profile` feature and `WOO_CPU_PROFILE_OUTPUT` environment variable. With both enabled, export named system-span thread CPU through the existing profiler; without opt-in, preserve default logging. Keep pools, pipelining, presentation and update policy unchanged. Named spans do not cover all executor, driver or uninstrumented work. Measure profiling overhead separately; update counts are not presented frames.
+
 ## Implementation and tests
 
 - `src/service_window.rs` constructs the core app using `MinimalPlugins` without `ScheduleRunnerPlugin`.

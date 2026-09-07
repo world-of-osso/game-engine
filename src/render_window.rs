@@ -39,7 +39,11 @@ pub(crate) fn run(continuous: bool) -> Result<(), String> {
 fn build_app(continuous: bool) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins.build().disable::<ScheduleRunnerPlugin>())
-        .add_plugins(LogPlugin::default())
+        .add_plugins(LogPlugin {
+            #[cfg(feature = "cpu-system-profile")]
+            custom_layer: game_engine::cpu_system_profile::layer,
+            ..default()
+        })
         .add_plugins(TransformPlugin)
         .add_plugins(InputPlugin)
         .add_plugins(AccessibilityPlugin)
