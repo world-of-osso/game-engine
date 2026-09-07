@@ -3908,6 +3908,7 @@ dependencies = [
  "bevy",
  "bevy_dylib",
  "bevy_hanabi",
+ "bevy_replicon",
  "bevy_transform",
  "binrw",
  "clap",

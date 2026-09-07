@@ -263,33 +263,69 @@ fn register_net_systems(app: &mut App) {
     app.add_systems(Last, advance_network_update_frame);
 }
 
+fn application_in_world(world: &World) -> bool {
+    world
+        .resource::<State<crate::game_state::GameState>>()
+        .get()
+        == &crate::game_state::GameState::InWorld
+}
+
 fn register_gameplay_net_systems(app: &mut App) {
     use crate::game_state::GameState;
     use crate::networking_messages as msg;
+    use game_engine::network_events::{register_message_handler, register_outgoing_handler};
+    use game_engine::network_tick::{NetworkTick, NetworkTickSystems};
+    use shared::protocol::{EmoteEvent, GroupRosterSnapshot, QuestLogSnapshot};
+
+    register_message_handler::<ChatMessage, _>(
+        app,
+        msg::receive_chat_messages,
+        application_in_world,
+    );
+    register_message_handler::<EmoteEvent, _>(app, msg::receive_emote_events, application_in_world);
+    register_message_handler::<QuestLogSnapshot, _>(
+        app,
+        msg::receive_quest_log_snapshot,
+        application_in_world,
+    );
+    register_message_handler::<GroupRosterSnapshot, _>(
+        app,
+        msg::receive_group_roster_snapshot,
+        application_in_world,
+    );
+    register_outgoing_handler(app, msg::send_chat_message, |world| {
+        application_in_world(world) && world.resource::<ChatInput>().0.is_some()
+    });
+    register_outgoing_handler(app, msg::send_emote_intent, |world| {
+        application_in_world(world) && world.resource::<EmoteInput>().0.is_some()
+    });
+    register_outgoing_handler(app, msg::send_player_input, application_in_world);
+    register_outgoing_handler(app, msg::send_target_to_server, application_in_world);
     app.add_systems(
-        Update,
-        (
-            msg::send_player_input,
-            msg::send_chat_message,
-            msg::send_emote_intent,
-            msg::receive_chat_messages,
-            msg::receive_emote_events,
-            msg::send_target_to_server,
-            msg::track_player_zone,
-            msg::receive_quest_log_snapshot,
-            msg::receive_group_roster_snapshot,
-        )
+        NetworkTick,
+        msg::track_player_zone
+            .in_set(NetworkTickSystems::Apply)
             .run_if(in_state(GameState::InWorld)),
     );
     register_inworld_sync_systems(app);
 }
 
 fn register_inworld_sync_systems(app: &mut App) {
-    app.add_systems(
-        Update,
-        crate::networking_messages::receive_load_terrain
-            .run_if(should_receive_load_terrain)
-            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_terrain),
+    game_engine::network_events::register_message_handler::<shared::protocol::LoadTerrain, _>(
+        app,
+        crate::networking_messages::receive_load_terrain,
+        |world| {
+            terrain_messages_allowed_in_state(
+                *world
+                    .resource::<State<crate::game_state::GameState>>()
+                    .get(),
+            ) && crate::game::inworld_scene_stage::effective_inworld_scene_stage(
+                world
+                    .get_resource::<crate::game::inworld_scene_stage::InWorldSceneStage>()
+                    .copied(),
+            )
+            .includes(crate::game::inworld_scene_stage::InWorldSceneStage::Terrain)
+        },
     );
     register_inworld_snapshot_systems(app);
     register_inworld_replication_systems(app);
@@ -297,34 +333,73 @@ fn register_inworld_sync_systems(app: &mut App) {
 }
 
 fn register_inworld_snapshot_systems(app: &mut App) {
-    use crate::game_state::GameState;
     use crate::networking_messages as msg;
-    app.add_systems(
-        Update,
-        (
-            msg::receive_group_command_response,
-            msg::receive_combat_log_snapshot,
-            msg::receive_combat_events,
-            msg::receive_achievement_state_update,
-            msg::receive_world_map_state_update,
-            msg::receive_rest_state_update,
-            msg::receive_death_state_update,
-            msg::receive_durability_state_update,
-            msg::receive_collection_state_update,
-            msg::receive_profession_snapshot,
-            msg::receive_reputation_snapshot,
-        )
-            .run_if(in_state(GameState::InWorld)),
+    use game_engine::network_events::register_message_handler;
+    use shared::protocol::*;
+    register_message_handler::<GroupCommandResponse, _>(
+        app,
+        msg::receive_group_command_response,
+        application_in_world,
+    );
+    register_message_handler::<CombatLogSnapshot, _>(
+        app,
+        msg::receive_combat_log_snapshot,
+        application_in_world,
+    );
+    register_message_handler::<CombatEvent, _>(
+        app,
+        msg::receive_combat_events,
+        application_in_world,
+    );
+    register_message_handler::<AchievementStateUpdate, _>(
+        app,
+        msg::receive_achievement_state_update,
+        application_in_world,
+    );
+    register_message_handler::<WorldMapStateUpdate, _>(
+        app,
+        msg::receive_world_map_state_update,
+        application_in_world,
+    );
+    register_message_handler::<RestStateUpdate, _>(
+        app,
+        msg::receive_rest_state_update,
+        application_in_world,
+    );
+    register_message_handler::<DeathStateUpdate, _>(
+        app,
+        msg::receive_death_state_update,
+        application_in_world,
+    );
+    register_message_handler::<DurabilityStateUpdate, _>(
+        app,
+        msg::receive_durability_state_update,
+        application_in_world,
+    );
+    register_message_handler::<CollectionStateUpdate, _>(
+        app,
+        msg::receive_collection_state_update,
+        application_in_world,
+    );
+    register_message_handler::<ProfessionSnapshot, _>(
+        app,
+        msg::receive_profession_snapshot,
+        application_in_world,
+    );
+    register_message_handler::<ReputationStateUpdate, _>(
+        app,
+        msg::receive_reputation_snapshot,
+        application_in_world,
     );
 }
 
 fn register_inworld_replication_systems(app: &mut App) {
     use crate::game_state::GameState;
+    crate::networking_player::register_player_appearance_events(app);
     app.add_systems(
         Update,
         (
             sync_replicated_transforms,
-            crate::networking_player::sync_replicated_player_customization,
             crate::networking_player::sync_local_mount_visual_movement,
         )
             .run_if(in_state(GameState::InWorld)),
@@ -359,10 +434,6 @@ fn terrain_messages_allowed_in_state(state: crate::game_state::GameState) -> boo
             | crate::game_state::GameState::Loading
             | crate::game_state::GameState::InWorld
     )
-}
-
-fn should_receive_load_terrain(state: Res<State<crate::game_state::GameState>>) -> bool {
-    terrain_messages_allowed_in_state(*state.get())
 }
 
 fn register_auth_net_systems(app: &mut App) {

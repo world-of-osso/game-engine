@@ -7,7 +7,8 @@ use bevy::app::{First, PostUpdate, PreUpdate, Update};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::time::{Real, TimeSystems, Virtual};
-use lightyear::prelude::{LinkSystems, MessageSystems, TransportSystems};
+use lightyear::prelude::{LinkSystems, MessageSystems};
+use lightyear_transport::plugin::TransportSystems;
 
 pub const NETWORK_TICKS_PER_SECOND: u64 = 60;
 const NANOS_PER_SECOND: u128 = 1_000_000_000;
