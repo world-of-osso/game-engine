@@ -143,7 +143,7 @@ fn receive_trade_updates(
     mut receivers: MessageReceivers<TradeStateUpdate>,
     mut state: ResMut<TradeClientState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for update in receiver.receive() {
             apply_trade_update(&mut state, update);
         }

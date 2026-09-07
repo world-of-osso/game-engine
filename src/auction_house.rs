@@ -226,7 +226,7 @@ fn receive_opened(
     mut receivers: MessageReceivers<AuctionHouseOpened>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             apply_opened_response(&mut state, response);
         }
@@ -261,7 +261,7 @@ fn receive_search_results(
     mut receivers: MessageReceivers<AuctionSearchResults>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             state.last_query = Some(response.query.clone());
             state.search_total = response.total_results;
@@ -279,7 +279,7 @@ fn receive_owned_results(
     mut receivers: MessageReceivers<OwnedAuctionListResponse>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             state.owned_results = response.listings;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Owned) {
@@ -296,7 +296,7 @@ fn receive_bid_results(
     mut receivers: MessageReceivers<BidAuctionListResponse>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             state.bid_results = response.listings;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Bids) {
@@ -313,7 +313,7 @@ fn receive_inventory_snapshot(
     mut receivers: MessageReceivers<AuctionInventorySnapshot>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             state.inventory = Some(response);
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Inventory) {
@@ -327,7 +327,7 @@ fn receive_mailbox_snapshot(
     mut receivers: MessageReceivers<AuctionMailboxSnapshot>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             state.mailbox = response.entries;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Mailbox) {
@@ -341,7 +341,7 @@ fn receive_operation_response(
     mut receivers: MessageReceivers<AuctionOperationResponse>,
     mut state: ResMut<AuctionHouseState>,
 ) {
-    for mut receiver in &mut receivers {
+    for receiver in receivers.iter_mut() {
         for response in receiver.receive() {
             state.last_message = Some(response.message.clone());
             if !response.success {
