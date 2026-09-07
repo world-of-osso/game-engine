@@ -1,3 +1,7 @@
+#[path = "animation/bevy_curves.rs"]
+pub(crate) mod bevy_curves;
+#[path = "animation/bevy_player.rs"]
+mod bevy_player;
 #[path = "animation/billboard.rs"]
 pub mod billboard;
 #[path = "animation/runtime.rs"]
@@ -404,56 +408,6 @@ fn movement_interrupts_looping_emote(movement: &MovementState) -> bool {
     movement.direction != MoveDirection::None || movement.jumping || movement.swimming
 }
 
-fn blended_bone_components(
-    player: &M2AnimPlayer,
-    data: &M2AnimData,
-    bone_idx: usize,
-) -> Option<(Vec3, Quat, Vec3)> {
-    let tracks = data.bone_tracks.get(bone_idx)?;
-    let current = evaluate_bone_components(tracks, player.current_seq_idx, player.time_ms as u32);
-    Some(if let Some(ref tr) = player.transition {
-        let from = evaluate_bone_components(tracks, tr.from_seq_idx, tr.from_time_ms as u32);
-        let t = (tr.blend_elapsed_ms / tr.blend_duration_ms).clamp(0.0, 1.0);
-        (
-            from.0.lerp(current.0, t),
-            from.1.slerp(current.1, t),
-            from.2.lerp(current.2, t),
-        )
-    } else {
-        current
-    })
-}
-
-fn apply_animation_to_model(
-    player: &M2AnimPlayer,
-    data: &M2AnimData,
-    bone_query: &mut Query<(&mut Transform, &BonePivot)>,
-) {
-    for (bone_idx, joint_entity) in data.joint_entities.iter().enumerate() {
-        let Some((trans, rot, scl)) = blended_bone_components(player, data, bone_idx) else {
-            continue;
-        };
-        let Ok((mut transform, pivot)) = bone_query.get_mut(*joint_entity) else {
-            continue;
-        };
-        let effective_trans = trans + pivot.0 - rot * (scl * pivot.0);
-        *transform = Transform {
-            translation: effective_trans,
-            rotation: rot,
-            scale: scl,
-        };
-    }
-}
-
-fn apply_animation(
-    players: Query<(&M2AnimPlayer, &M2AnimData)>,
-    mut bone_query: Query<(&mut Transform, &BonePivot)>,
-) {
-    for (player, data) in &players {
-        apply_animation_to_model(player, data, &mut bone_query);
-    }
-}
-
 /// Evaluate animation tracks and return (translation, rotation, scale) in Bevy coordinates.
 pub fn evaluate_bone_components(
     tracks: &BoneAnimTracks,
@@ -551,20 +505,36 @@ fn animation_active_state(state: Option<Res<State<GameState>>>) -> bool {
 
 impl Plugin for AnimationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (
-                sync_turn_in_place_state,
-                apply_emote_animation,
-                switch_animation,
-                tick_animation,
-                apply_animation,
+        if !app.is_plugin_added::<AssetPlugin>() {
+            app.add_plugins(AssetPlugin::default());
+        }
+        if !app.is_plugin_added::<bevy::animation::AnimationPlugin>() {
+            app.add_plugins(bevy::animation::AnimationPlugin);
+        }
+        app.add_observer(bevy_player::remove_m2_animation_player)
+            .add_systems(
+                Update,
+                (
+                    bevy_player::bind_m2_animation_players,
+                    (
+                        sync_turn_in_place_state,
+                        apply_emote_animation,
+                        switch_animation,
+                        tick_animation,
+                    )
+                        .chain()
+                        .run_if(animation_active_state),
+                    bevy_player::sync_m2_animation_players,
+                )
+                    .chain(),
             )
-                .chain()
-                .run_if(animation_active_state),
-        )
-        .add_systems(Update, apply_billboard_rotation.after(apply_animation))
-        .add_systems(Update, sync_model_lights.run_if(animation_active_state));
+            .add_systems(
+                PostUpdate,
+                apply_billboard_rotation
+                    .after(bevy::animation::AnimationSystems)
+                    .before(bevy::transform::TransformSystems::Propagate),
+            )
+            .add_systems(Update, sync_model_lights.run_if(animation_active_state));
     }
 }
 

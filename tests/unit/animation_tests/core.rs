@@ -5,8 +5,9 @@ use super::*;
 #[test]
 fn disabled_m2_animation_root_is_not_evaluated() {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, apply_animation);
+    app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+    app.insert_state(GameState::CharSelect);
+    app.add_plugins(AnimationPlugin);
 
     let joint = app
         .world_mut()
@@ -30,6 +31,7 @@ fn disabled_m2_animation_root_is_not_evaluated() {
     ));
 
     app.update();
+    app.update();
 
     assert_eq!(
         app.world().get::<Transform>(joint),
@@ -38,10 +40,11 @@ fn disabled_m2_animation_root_is_not_evaluated() {
 }
 
 #[test]
-fn apply_animation_updates_each_model_with_its_own_data() {
+fn bevy_animation_updates_each_model_with_its_own_data() {
     let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.add_systems(Update, apply_animation);
+    app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+    app.insert_state(GameState::CharSelect);
+    app.add_plugins(AnimationPlugin);
 
     let joint_a = app
         .world_mut()
@@ -83,6 +86,7 @@ fn apply_animation_updates_each_model_with_its_own_data() {
     app.world_mut().spawn((player_b, data_b));
 
     app.update();
+    app.update();
 
     let transform_a = app.world().get::<Transform>(joint_a).unwrap();
     let transform_b = app.world().get::<Transform>(joint_b).unwrap();
@@ -117,6 +121,7 @@ fn assert_animation_plugin_runs_in_state(state: GameState, message: &str) {
         },
     ));
 
+    app.update();
     app.update();
 
     let transform = app.world().get::<Transform>(joint).unwrap();
