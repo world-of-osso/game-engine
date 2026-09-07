@@ -296,6 +296,79 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_crossfade_preserves_controller_two_pose_policy() {
+        use super::super::{ANIM_RUN, ANIM_STAND, ANIM_WALK, MoveDirection, MovementState};
+        use bevy::ecs::system::RunSystemOnce;
+
+        let mut app = fixture_app();
+        let (owner, joint) = spawn_model(&mut app);
+        {
+            let mut model = app.world_mut().get_mut::<M2AnimData>(owner).unwrap();
+            model.sequences = [ANIM_STAND, ANIM_WALK, ANIM_RUN]
+                .into_iter()
+                .map(|id| M2AnimSequence {
+                    id,
+                    variation_id: 0,
+                    duration: 1000,
+                    movespeed: 0.0,
+                    flags: 0,
+                    blend_time: 200,
+                    next_animation: -1,
+                })
+                .collect();
+            model.bone_tracks[0].translation.sequences = [0.0, 10.0, 30.0]
+                .into_iter()
+                .map(|x| (vec![0], vec![[x, 0.0, 0.0]]))
+                .collect();
+        }
+        settle(&mut app);
+        assert_x(&app, joint, 0.0);
+        app.world_mut().entity_mut(owner).insert(MovementState {
+            direction: MoveDirection::Forward,
+            running: false,
+            ..default()
+        });
+        app.world_mut()
+            .run_system_once(super::super::runtime::switch_animation)
+            .unwrap();
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(80));
+        app.world_mut()
+            .run_system_once(super::super::runtime::tick_animation)
+            .unwrap();
+        app.update();
+        assert_x(&app, joint, 4.0);
+
+        app.world_mut()
+            .get_mut::<MovementState>(owner)
+            .unwrap()
+            .running = true;
+        app.world_mut()
+            .run_system_once(super::super::runtime::switch_animation)
+            .unwrap();
+        let controller = app.world().get::<M2AnimPlayer>(owner).unwrap();
+        let transition = controller.transition.as_ref().unwrap();
+        assert_eq!(controller.current_seq_idx, 2);
+        assert_eq!(transition.from_seq_idx, 1);
+        assert!((transition.from_time_ms - 80.0).abs() < 0.001);
+        // Existing policy replaces A with B, retaining (1 - old_progress) / 2
+        // as new progress. It does not retain a three-pose snapshot or guarantee
+        // equal transforms across interruption: B's new weight is 0.7, not 0.4.
+        assert!((transition.blend_elapsed_ms - 60.0).abs() < 0.001);
+        app.update();
+        assert_x(&app, joint, 16.0); // B * 0.7 + C * 0.3, not reset-to-B (10).
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(40));
+        app.world_mut()
+            .run_system_once(super::super::runtime::tick_animation)
+            .unwrap();
+        app.update();
+        assert_x(&app, joint, 20.0); // B * 0.5 + C * 0.5.
+    }
+
+    #[test]
     fn replacing_model_detaches_old_joint_without_despawning_it() {
         let mut app = fixture_app();
         let (owner, old) = spawn_model(&mut app);
