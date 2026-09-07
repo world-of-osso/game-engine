@@ -316,6 +316,127 @@ mod tests {
         );
     }
 
+    #[derive(Clone, serde::Serialize, serde::Deserialize)]
+    struct WireValue(u32);
+    struct WireChannel;
+
+    #[derive(Resource, Default)]
+    struct DeliveredValues(Vec<u32>);
+
+    #[derive(Resource)]
+    struct LoopbackPacketCount(Arc<AtomicUsize>);
+
+    fn spawn_loopback_peer(
+        mut commands: Commands,
+        channels: Res<lightyear::prelude::ChannelRegistry>,
+    ) {
+        use lightyear::prelude::{
+            Connected, Link, Linked, MessageReceiver, MessageSender, PeerId, RemoteId, Transport,
+        };
+        let mut transport = Transport::default();
+        transport.add_sender_from_registry::<WireChannel>(&channels);
+        transport.add_receiver_from_registry::<WireChannel>(&channels);
+        let mut sender = MessageSender::<WireValue>::default();
+        sender.send::<WireChannel>(WireValue(17));
+        sender.send::<WireChannel>(WireValue(23));
+        commands.spawn((
+            Link::default(),
+            transport,
+            Linked,
+            Connected,
+            RemoteId(PeerId::Local(0)),
+            MessageReceiver::<WireValue>::default(),
+            sender,
+        ));
+    }
+
+    fn loopback_packets(
+        mut links: Query<&mut lightyear::prelude::Link>,
+        packet_count: Res<LoopbackPacketCount>,
+    ) {
+        for mut link in &mut links {
+            let packets: Vec<_> = link.send.drain().collect();
+            packet_count.0.fetch_add(packets.len(), Ordering::SeqCst);
+            for packet in packets {
+                assert!(!packet.is_empty(), "transport must encode nonempty packets");
+                link.recv.push_raw(packet);
+            }
+        }
+    }
+
+    fn configure_loopback(
+        app: &mut App,
+        updates: Sender<MainUpdate>,
+        delivered: Sender<Vec<u32>>,
+        packets: Arc<AtomicUsize>,
+    ) {
+        use lightyear::prelude::{
+            AppChannelExt, AppMessageExt, ChannelMode, ChannelSettings, LinkSystems,
+            MessageReceiver,
+        };
+        app.register_message::<WireValue>();
+        app.add_channel::<WireChannel>(ChannelSettings {
+            mode: ChannelMode::OrderedReliable(Default::default()),
+            ..Default::default()
+        });
+        app.insert_resource(LoopbackPacketCount(packets));
+        app.add_systems(Startup, spawn_loopback_peer);
+        app.add_systems(PostUpdate, loopback_packets.after(LinkSystems::Send));
+        app.add_systems(
+            Update,
+            move |mut receivers: Query<&mut MessageReceiver<WireValue>>| {
+                for mut receiver in &mut receivers {
+                    let values: Vec<_> = receiver.receive().map(|message| message.0).collect();
+                    if values.is_empty() {
+                        continue;
+                    }
+                    let proof = values.clone();
+                    updates
+                        .send(Box::new(move |world| {
+                            world.resource_mut::<DeliveredValues>().0.extend(values);
+                        }))
+                        .expect("main update queue remains alive");
+                    delivered
+                        .send(proof)
+                        .expect("main awaiting decoded messages");
+                }
+            },
+        );
+    }
+
+    #[test]
+    fn transport_decodes_packets_while_main_app_remains_unupdated() {
+        let packets = Arc::new(AtomicUsize::new(0));
+        let worker_packets = Arc::clone(&packets);
+        let (decoded, observed) = mpsc::channel();
+        let mut runtime = NetworkRuntime::spawn(move |app, updates| {
+            configure_loopback(app, updates, decoded, worker_packets);
+        })
+        .expect("worker starts");
+        let mut main = App::new();
+        main.init_resource::<DeliveredValues>()
+            .init_resource::<MainCounter>();
+        main.add_systems(Update, |mut count: ResMut<MainCounter>| count.0 += 1);
+        let mut received = Vec::new();
+        while received.len() < 2 {
+            received.extend(
+                observed
+                    .recv_timeout(TEST_TIMEOUT)
+                    .expect("worker decodes real packets"),
+            );
+        }
+        assert_eq!(received, [17, 23]);
+        assert!(packets.load(Ordering::SeqCst) > 0);
+        assert_eq!(main.world().resource::<MainCounter>().0, 0);
+        assert!(main.world().resource::<DeliveredValues>().0.is_empty());
+        runtime
+            .drain_updates(main.world_mut())
+            .expect("apply decoded worker messages");
+        assert_eq!(main.world().resource::<DeliveredValues>().0, [17, 23]);
+        assert_eq!(main.world().resource::<MainCounter>().0, 0);
+        runtime.stop().expect("join network worker");
+    }
+
     #[derive(Resource)]
     struct WorkerLifetime(Arc<AtomicBool>);
 
