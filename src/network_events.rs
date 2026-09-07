@@ -48,7 +48,8 @@ impl NetworkDispatcher {
 
 pub fn initialize_dispatcher(app: &mut App) {
     app.init_resource::<NetworkDispatcher>()
-        .init_resource::<ConnectionSender>();
+        .init_resource::<ConnectionSender>()
+        .init_resource::<crate::network_runtime::replication::ReplicationMirrorMap>();
 }
 
 /// Eligibility and heavy system parameters are acquired only for ready inboxes.
