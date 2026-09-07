@@ -7,7 +7,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 ### Networking
 
 - [x] Add a 60 logical-ticks-per-second application network schedule whose tick count is independent of render-frame count.
-- [x] Keep Lightyear link/transport/message maintenance on every frame so delta-based transport timers retain real elapsed-time behavior; defer only typed application inbox dispatch to due network ticks.
+- [x] Run Lightyear link/transport/message maintenance in a dedicated 60 Hz worker so it retains real elapsed-time behavior independently of main-world/render updates.
 - [x] Add one incoming dispatcher over application-owned typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
 - [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready. Application handlers use worker-backed typed sender/receiver adapters; the main lifecycle starts one dedicated worker per connection.
@@ -24,16 +24,16 @@ Application work is driven by a fixed network schedule, queued commands/messages
 ## How it works
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
-- `NetworkTick` shares the main ECS thread. Due ticks can run together at lower render cadences and cannot progress while that thread is blocked; it is a logical 60 Hz cadence, **not an independent OS network thread**.
+- `NetworkTick` is legacy main-world application cadence. Live Lightyear transport runs in the dedicated 60 Hz worker and continues when the main world is blocked.
 - `a35b1c5c` through `01cfcade` add the separately clocked 60 Hz worker, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. `aa6fda57` moves live Lightyear client, UDP transport, protocol registration, replication receiver, and typed receiver relays into one worker world per connection. The old main-world receiver park/restore path is removed.
 - `cec56837` and `aa6fda57` bridge replicated snapshots, despawns, and server-entity-to-render-entity identity into the main world. Main-world `Client`, `Connected`, and `Disconnected` markers are lifecycle proxies; they do not own Lightyear transport state. `52508d1d` maps target/emote/combat entity fields at the worker/main boundary; `a5f6eab0` maps duel, inspect, and current/default spell targets. Explicit numeric spell selectors remain server IDs.
 - The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Existing maximum-delta policy still applies to main-world application work; no wire format or negotiated simulation behavior changes.
-- This is an implementation boundary, not completion proof. A UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query; `54411453` excludes resources. `independent-udp-handshake.log` then records **1/1** real UDP handshake proof without a main-app update. `worker-char-create-response.log`, `worker-auth.log`, and `wire-identity.log` record scoped **3/3**, **23/23**, and **19/19** results. Binary networking tests were **60/61** because a fixture lacked `NetworkDispatcher`; `e9e7e034` repairs it, but its targeted rerun is pending. Full integration, reconnect, and native proof remain pending.
+- This is an implementation boundary, not completion proof. A UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query; `54411453` excludes resources. `independent-udp-handshake.log` records **1/1** real UDP handshake proof without a main-app update; `worker-restart-tests.log` records **3/3** shutdown cleanup and second-worker handshake cases. `worker-char-create-response.log`, `worker-auth.log`, `wire-identity.log`, and `migrated-ui-reconnect-fixtures.log` record scoped **3/3**, **23/23**, **19/19**, and **11/11** results. A native client reached InWorld with player/NPC mirrors and Who result `Theron`, one result; dark scene/white UI leaves visual proof invalid. Complete replication/equipment lifecycle and CPU proof remain pending.
 - `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
 
-- `src/network_tick.rs`: legacy main-thread logical application driver; it remains unable to progress during a main-thread block.
+- `src/network_tick.rs`: legacy main-thread logical application driver; it does not own live transport.
 - `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
 - `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`, `connection.rs`: dedicated worker, typed queues, replication mirror, and per-connection lifecycle bridge.
 - `src/game/networking/mod.rs`: starts the worker connection and retains main-world application/auth registration.
@@ -48,6 +48,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - API tests: historical **55/55** cover queue/readiness gating and existing state mapping; the migrated adapter call sites still require full lifecycle integration proof.
 - Equipment agent tests: **13 passed** plus **2 appearance-event tests**; IPC FIFO test: **1/1**.
 - `worker-char-create-response.log`: **3/3** success, failure, and response-after-scene-exit tests through a separate worker App with real transport encode/decode and relay to the main inbox.
+- `worker-restart-tests.log`: **3/3** worker shutdown cleanup and restart tests; `migrated-ui-reconnect-fixtures.log`: **11/11** UI/reconnect fixture checks.
 
 ## Native evidence (2026-09-07)
 
@@ -56,7 +57,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ## Known gaps
 
-- [ ] Reconnection lifecycle, complete connected API coverage, targeted rerun of the binary fixture repaired by `e9e7e034`, and clean native appearance proof.
+- [ ] Complete connected API coverage, replicated component/equipment lifecycle proof against the server, and clean native appearance proof.
 - [ ] Verify the integrated dedicated network world. It exclusively owns Lightyear client/transport/replication state and bridges typed outgoing commands, incoming FIFO data, replicated snapshots, and connection state into the render world; focused real UDP handshaking is proven, but end-to-end lifecycle and native proof remain incomplete.
 - [ ] Convert remaining wire entity-bit boundaries between server identity and render entities. Target, duel, inspect, spell current/default, emote, and combat now map explicitly; related UI and remaining protocol fields need an inventory.
 - [ ] Remaining non-network application work and active movement/animation scheduling review.

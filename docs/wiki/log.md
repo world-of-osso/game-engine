@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record worker restart and native bridge evidence
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `cf517c34`. `worker-restart-tests.log` records 3/3 actual worker shutdown cases: old worker join, old sender closure, stale queue cleanup, and a second UDP handshake without a main-app update. `migrated-ui-reconnect-fixtures.log` records 11/11, resolving the previous fixture rerun. `worker-native-build.log` succeeded; `worker-native-inworld/` reached InWorld with mirrored player/NPC entities and routed Who result `Theron`, one result. The dark scene/white UI remains pre-existing invalid visual smoke; no clean-render, complete replication/equipment, or CPU claim follows.
+
 ## [2026-09-07] systems | Record independent UDP proof and explicit wire identity mappings
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `52508d1d`, `a5f6eab0`, `23ebb85b`, and `2d8b3c0f`. `independent-udp-handshake.log` records 1/1 real UDP handshake after `54411453`, without a main-app update. Target, emote, combat, duel, inspect, and current/default spell entity fields now use explicit main/server identity conversion; numeric spell selectors remain server IDs. Scoped proof now includes worker character-create transport responses 3/3, worker auth 23/23, and wire identity 19/19. `e9e7e034` repairs the binary fixture behind the prior 60/61 result, but its targeted rerun remains pending; no integrated lifecycle, native appearance, or CPU claim follows.
