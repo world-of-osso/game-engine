@@ -4,6 +4,27 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 Current investigation: [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) now explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
+## Current timed callback-removal interface (2026-09-06)
+
+Commit `52e44eff` replaces the six per-target flags with repeatable exact-name requests:
+
+```text
+--remove-system-after <main:SCHEDULE|render:SCHEDULE> <EXACT_SYSTEM_NAME> <SECONDS>
+```
+
+Each request resolves one unique schedule and one unique runtime callback by exact name. Its implicit type set must contain exactly that callback; removal uses `RemoveSystemsOnly`, never a broader explicit group. Main-world and ordinary render requests run at the Extract barrier. A `render:ExtractSchedule` request waits until extraction completes, then runs at Render cleanup. The six former flags are retired and have no aliases.
+
+| Retired flag | Current request |
+|---|---|
+| `--freeze-indirect-parameters-after <SECONDS>` | `--remove-system-after render:Render bevy_render::batching::gpu_preprocessing::write_indirect_parameters_buffers <SECONDS>` |
+| `--freeze-batched-instances-after <SECONDS>` | `--remove-system-after render:Render bevy_render::batching::gpu_preprocessing::write_batched_instance_buffers<bevy_pbr::render::mesh::MeshPipeline> <SECONDS>` |
+| `--freeze-gpu-clusters-after <SECONDS>` | `--remove-system-after render:Render bevy_pbr::cluster::gpu::prepare_clusters_for_gpu_clustering <SECONDS>` |
+| `--freeze-mesh-collection-after <SECONDS>` | `--remove-system-after render:Render bevy_pbr::render::mesh::collect_meshes_for_gpu_building <SECONDS>` |
+| `--freeze-camera-follow-after <SECONDS>` | `--remove-system-after main:Update game_engine::rendering::camera::camera_follow::camera_follow <SECONDS>` |
+| `--freeze-message-send-after <SECONDS>` | `--remove-system-after main:PostUpdate MessagePlugin::send <SECONDS>` |
+
+The dated sections below preserve the former per-target syntax as historical evidence; use only the current interface above.
+
 ## Startup and missing FPS number
 
 The replicated-NPC spawn path synchronously called `load_m2_uncached` on the main thread. A live stack traced it through skeleton/bone-animation parsing; a 241-sample profile lost zero samples. The enabled FPS overlay initially rendered only `FPS:` because its numeric span starts empty and needs an Update diagnostic value.
@@ -374,7 +395,7 @@ Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-de
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.
 - [Boundary samples](../../../data/diagnostics/movement-perf-20260905/boundary-samples.json), [event timeline](../../../data/diagnostics/movement-perf-20260905/boundary-events.json), and [streaming implementation](../../../src/rendering/terrain/terrain_streaming.rs) — first-crossing evidence and application boundary.
-- [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, selector scope, and earlier proof.
+- [Movement spec](../../specs/scripted-movement.md), [InWorld scene-isolation spec](../../specs/inworld-scene-isolation.md), [timed-removal implementation](../../../src/system_isolation.rs), and [startup investigation](procedural-cloud-regeneration.md) — control contracts, current selector scope, and earlier proof.
 - [Settled isolation artifacts](../../../data/diagnostics/movement-perf-20260905/settled-low-fps/) — terrain-rendering-off, graph, original/corrected MSAA, directional-shadow, GPU-cluster preparation, thread-CPU profiling, reported-drop, and independent-audit artifacts.
 
 ## See Also

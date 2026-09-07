@@ -25,9 +25,20 @@ InWorld scene isolation provides cumulative rendering stages for controlled diag
 ### Timed exact-name callback removal
 
 - [x] Accept repeatable `--remove-system-after <main:SCHEDULE|render:SCHEDULE> <EXACT_SYSTEM_NAME> <SECONDS>`. Preserve names exactly, sort requests by deadline within each safe execution phase, and reject invalid owners, empty names, missing fields, non-unsigned seconds, and duplicate targets. Do not interpret the three values as asset paths.
-- [x] Resolve the registered schedule and callback by exact runtime names. Require a unique callback and a single-member implicit type set; do not remove a broader explicit group. Missing or ambiguous selection must fail before target removal.
-- [x] Apply main-world and render-schedule removals during extraction; defer removal from `render:ExtractSchedule` until extraction has finished. Preserve main-world and schedule registries, including consecutive removals without `MainWorld` present during render cleanup.
-- [x] Register no controller without requests. Report each actual removal with time, world, schedule, and name. Reject the six former dedicated callback-removal flags; provide no compatibility aliases. Other visual/terrain diagnostics remain unchanged.
+- [x] Resolve the registered schedule and callback by exact runtime names. Require a unique callback and a single-member implicit type set; remove only that set with `RemoveSystemsOnly`, never a broader explicit group. Missing or ambiguous selection must fail before target removal.
+- [x] Use extraction as the safe barrier for main-world and ordinary render-schedule removals. Defer `render:ExtractSchedule` until extraction completes, then remove it in Render cleanup. Preserve main-world and schedule registries, including consecutive removals without `MainWorld` present during cleanup.
+- [x] Register no controller without requests. Report each actual removal with time, world, schedule, and name. The six former dedicated callback-removal flags are rejected with no compatibility aliases. Other visual/terrain diagnostics remain unchanged.
+
+#### Retired-flag migration
+
+| Retired flag | Current exact-name request |
+|---|---|
+| `--freeze-indirect-parameters-after <SECONDS>` | `--remove-system-after render:Render bevy_render::batching::gpu_preprocessing::write_indirect_parameters_buffers <SECONDS>` |
+| `--freeze-batched-instances-after <SECONDS>` | `--remove-system-after render:Render bevy_render::batching::gpu_preprocessing::write_batched_instance_buffers<bevy_pbr::render::mesh::MeshPipeline> <SECONDS>` |
+| `--freeze-gpu-clusters-after <SECONDS>` | `--remove-system-after render:Render bevy_pbr::cluster::gpu::prepare_clusters_for_gpu_clustering <SECONDS>` |
+| `--freeze-mesh-collection-after <SECONDS>` | `--remove-system-after render:Render bevy_pbr::render::mesh::collect_meshes_for_gpu_building <SECONDS>` |
+| `--freeze-camera-follow-after <SECONDS>` | `--remove-system-after main:Update game_engine::rendering::camera::camera_follow::camera_follow <SECONDS>` |
+| `--freeze-message-send-after <SECONDS>` | `--remove-system-after main:PostUpdate MessagePlugin::send <SECONDS>` |
 - [ ] Use after initial loading in a stationary scene. Removing a callback can freeze data or change downstream work; it does not prove that work unnecessary. Preserve view, connection, focus, and comparable throughput for attribution. A delayed frame can make multiple deadlines due; reject such an interval as a one-change comparison. The cutoff includes measurement time, not additional FPS stabilization.
 
 ### Named-span CPU attribution
