@@ -7,6 +7,110 @@ use shared::components::{
     EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player as NetPlayer,
 };
 
+#[derive(Resource, Default)]
+struct ObservedForcedDisconnect(Option<(String, bool)>);
+
+fn apply_worker_connection_updates(app: &mut App) {
+    use game_engine::network_runtime::worker::NetworkRuntime;
+    app.world_mut()
+        .resource_scope(|world, runtime: Mut<NetworkRuntime>| {
+            runtime.drain_updates(world).unwrap();
+        });
+    game_engine::network_runtime::connection::apply_connection_events(app.world_mut());
+}
+
+#[test]
+fn forced_notice_disconnects_real_worker_and_preserves_notice_for_lifecycle() {
+    use game_engine::network_runtime::{connection, messages::Inbox};
+    use std::{
+        net::UdpSocket,
+        time::{Duration, Instant},
+    };
+
+    let server = UdpSocket::bind("127.0.0.1:0").unwrap();
+    server
+        .set_read_timeout(Some(Duration::from_secs(5)))
+        .unwrap();
+    let mut app = App::new();
+    game_engine::network_events::initialize_dispatcher(&mut app);
+    connection::initialize_connection_bridge(&mut app);
+    app.init_resource::<crate::networking::PendingForcedDisconnect>();
+    app.init_resource::<ObservedForcedDisconnect>();
+    app.add_observer(
+        |_: On<Add, connection::Disconnected>,
+         pending: Res<crate::networking::PendingForcedDisconnect>,
+         mut observed: ResMut<ObservedForcedDisconnect>| {
+            let notice = pending
+                .0
+                .as_ref()
+                .expect("notice must precede disconnect lifecycle");
+            observed.0 = Some((notice.message.clone(), notice.reconnect_allowed));
+        },
+    );
+    let client =
+        connection::start_connection(app.world_mut(), server.local_addr().unwrap(), 9157).unwrap();
+    let mut packet = [0; 2048];
+    assert!(server.recv_from(&mut packet).unwrap().0 > 0);
+    apply_worker_connection_updates(&mut app);
+    assert!(
+        app.world()
+            .get::<connection::Disconnected>(client)
+            .is_none()
+    );
+
+    app.insert_resource(Inbox::new(vec![ForcedDisconnect {
+        message: "server requested disconnect".into(),
+        reconnect_allowed: false,
+    }]));
+    app.world_mut()
+        .run_system_once(receive_forced_disconnect)
+        .unwrap();
+    assert_eq!(
+        app.world()
+            .resource::<crate::networking::PendingForcedDisconnect>()
+            .0
+            .as_ref()
+            .unwrap()
+            .message,
+        "server requested disconnect"
+    );
+    assert!(
+        app.world()
+            .get::<connection::Disconnected>(client)
+            .is_none()
+    );
+
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < deadline {
+        apply_worker_connection_updates(&mut app);
+        if app
+            .world()
+            .get::<connection::Disconnected>(client)
+            .is_some()
+        {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(
+        app.world()
+            .get::<connection::Disconnected>(client)
+            .is_some(),
+        "a server notice must invoke the real worker client disconnect API"
+    );
+    assert_eq!(
+        app.world().resource::<ObservedForcedDisconnect>().0,
+        Some(("server requested disconnect".into(), false))
+    );
+    assert!(
+        app.world()
+            .resource::<crate::networking::PendingForcedDisconnect>()
+            .0
+            .is_some()
+    );
+    connection::stop_connection(app.world_mut()).unwrap();
+}
+
 const VALID_TEST_UUID: &str = "22222222-2222-2222-2222-222222222222";
 
 fn make_test_char(id: u64, name: &str) -> CharacterListEntry {

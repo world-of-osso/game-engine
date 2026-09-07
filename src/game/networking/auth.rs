@@ -1,5 +1,9 @@
 use bevy::prelude::*;
-use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
+use game_engine::network_runtime::{
+    connection::request_disconnect,
+    messages::{MessageReceivers, MessageSenders},
+    worker::NetworkRuntime,
+};
 use shared::components::{EquipmentAppearance as NetEquipmentAppearance, Player as NetPlayer};
 use shared::protocol::{
     AuthChannel, CharacterListEntry, CharacterListUpdate, CreateCharacterResponse,
@@ -236,10 +240,12 @@ pub fn receive_login_response(
 pub fn receive_forced_disconnect(
     mut receivers: MessageReceivers<ForcedDisconnect>,
     mut pending: ResMut<crate::networking::PendingForcedDisconnect>,
+    runtime: Res<NetworkRuntime>,
 ) {
     for receiver in receivers.iter_mut() {
         for notice in receiver.receive() {
             pending.0 = Some(notice);
+            request_disconnect(&runtime).expect("failed to request worker client disconnect");
         }
     }
 }

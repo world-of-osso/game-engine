@@ -59,6 +59,20 @@ pub fn start_connection(
     Ok(proxy)
 }
 
+/// Ask the worker's Netcode client to disconnect; its normal lifecycle publisher
+/// reports the resulting state before the main world resets the connection.
+pub fn request_disconnect(runtime: &NetworkRuntime) -> Result<(), String> {
+    runtime.enqueue(|world| {
+        let entity = world
+            .query_filtered::<Entity, With<client_network::NetcodeClient>>()
+            .single(world)
+            .unwrap_or_else(|error| {
+                panic!("expected one worker NetcodeClient for disconnect: {error}")
+            });
+        world.trigger(client_network::Disconnect { entity });
+    })
+}
+
 pub fn stop_connection(world: &mut World) -> Result<(), String> {
     if let Some(mut runtime) = world.remove_resource::<NetworkRuntime>() {
         runtime.stop()?;
@@ -198,6 +212,22 @@ mod tests {
         assert!(first_size > 0 && second_size > 0);
         assert_eq!(first_peer, second_peer);
         stop_connection(main.world_mut()).unwrap();
+    }
+
+    #[test]
+    fn disconnect_request_reports_closed_worker() {
+        let mut runtime = NetworkRuntime::spawn(|_, _| {}).unwrap();
+        runtime.stop().unwrap();
+        let error = request_disconnect(&runtime).unwrap_err();
+        assert!(error.contains("network worker command queue disconnected"));
+    }
+
+    #[test]
+    fn disconnect_request_reports_missing_netcode_client() {
+        let mut runtime = NetworkRuntime::spawn(|_, _| {}).unwrap();
+        request_disconnect(&runtime).unwrap();
+        let error = runtime.stop().unwrap_err();
+        assert!(error.contains("expected one worker NetcodeClient for disconnect"));
     }
 
     #[derive(serde::Serialize, serde::Deserialize)]
