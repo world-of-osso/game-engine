@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] systems | Remove confirmed idle application frame work
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `1a8c6d58`, `cd47743e`, `c4d936b1`, `12cb981e`, `dc6183f8`, `550b637a`, and `9a6b6679`. Dedicated worker transport remains 60 Hz with negotiated 20 Hz simulation. Main receive/apply/send and reconnect/reset run on `NetworkTick`; equipment remains mutation-driven. UI sync/pointer, automation, addon application, local-player/mount synchronization, sound maintenance, and active cooldown progression now use change, request, relevance, playback, or active-cooldown triggers rather than their prior idle per-frame work. Rendering and remote interpolation remain frame-driven. Controlled CPU/FPS savings are unproved.
+
 ## [2026-09-07] systems | Record worker restart and native bridge evidence
 
 Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `cf517c34`. `worker-restart-tests.log` records 3/3 actual worker shutdown cases: old worker join, old sender closure, stale queue cleanup, and a second UDP handshake without a main-app update. `migrated-ui-reconnect-fixtures.log` records 11/11, resolving the previous fixture rerun. `worker-native-build.log` succeeded; `worker-native-inworld/` reached InWorld with mirrored player/NPC entities and routed Who result `Theron`, one result. The dark scene/white UI remains pre-existing invalid visual smoke; no clean-render, complete replication/equipment, or CPU claim follows.

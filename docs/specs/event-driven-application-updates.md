@@ -19,7 +19,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
 - [x] Give collection/death replies and character-creation responses one consuming handler; notify the character-create UI locally after auth consumes its response.
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
-- [ ] Keep required active movement/animation and render-loop work, while avoiding unrelated idle application handlers.
+- [x] Move confirmed idle application work to queued, change-driven, relevance-driven, or 60 Hz logical-tick execution; retain rendering, interpolation, animation, and active cooldown presentation where needed.
 
 ## How it works
 
@@ -27,7 +27,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - `NetworkTick` is legacy main-world application cadence. Live Lightyear transport runs in the dedicated 60 Hz worker and continues when the main world is blocked.
 - `a35b1c5c` through `01cfcade` add the separately clocked 60 Hz worker, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. `aa6fda57` moves live Lightyear client, UDP transport, protocol registration, replication receiver, and typed receiver relays into one worker world per connection. The old main-world receiver park/restore path is removed.
 - `cec56837` and `aa6fda57` bridge replicated snapshots, despawns, and server-entity-to-render-entity identity into the main world. Main-world `Client`, `Connected`, and `Disconnected` markers are lifecycle proxies; they do not own Lightyear transport state. `52508d1d` maps target/emote/combat entity fields at the worker/main boundary; `a5f6eab0` maps duel, inspect, and current/default spell targets. Explicit numeric spell selectors remain server IDs.
-- The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Existing maximum-delta policy still applies to main-world application work; no wire format or negotiated simulation behavior changes.
+- The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Main-world receive, apply, send, reconnect, reset, and active spellbook cooldown work run in `NetworkTick`; no wire format or negotiated simulation behavior changes.
 - This is an implementation boundary, not completion proof. A UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query; `54411453` excludes resources. `independent-udp-handshake.log` records **1/1** real UDP handshake proof without a main-app update; `worker-restart-tests.log` records **3/3** shutdown cleanup and second-worker handshake cases. `worker-char-create-response.log`, `worker-auth.log`, `wire-identity.log`, and `migrated-ui-reconnect-fixtures.log` record scoped **3/3**, **23/23**, **19/19**, and **11/11** results. A native client reached InWorld with player/NPC mirrors and Who result `Theron`, one result; dark scene/white UI leaves visual proof invalid. Complete replication/equipment lifecycle and CPU proof remain pending.
 - `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
@@ -36,8 +36,10 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - `src/network_tick.rs`: legacy main-thread logical application driver; it does not own live transport.
 - `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
 - `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`, `connection.rs`: dedicated worker, typed queues, replication mirror, and per-connection lifecycle bridge.
-- `src/game/networking/mod.rs`: starts the worker connection and retains main-world application/auth registration.
-- `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment mutation and reconciliation boundaries.
+- `src/game/networking/mod.rs`: starts the worker connection; main reconnect/reset lifecycle work runs at `NetworkTick` cadence. Remote interpolation remains render-frame-driven.
+- `src/game/equipment/equipment.rs`, `src/game/networking/player.rs`, `src/status_sync.rs`: equipment and local-player work use mutation/component-change boundaries.
+- `src/ui/game_plugin.rs`, `automation.rs`, `addon_runtime/mod.rs`: UI sync/pointer, automation, addon application, and active cooldown work are change/request/active-cooldown driven.
+- `src/sound/runtime.rs`, `runtime_ambient.rs`, `runtime_music.rs`: footstep attachment is relevance-driven; ambient/music reconciliation follows input or playback removal.
 - `src/ipc/plugin.rs`: empty-queue dispatch condition.
 
 ## Tests asserting this spec
@@ -60,8 +62,8 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [ ] Complete connected API coverage, replicated component/equipment lifecycle proof against the server, and clean native appearance proof.
 - [ ] Verify the integrated dedicated network world. It exclusively owns Lightyear client/transport/replication state and bridges typed outgoing commands, incoming FIFO data, replicated snapshots, and connection state into the render world; focused real UDP handshaking is proven, but end-to-end lifecycle and native proof remain incomplete.
 - [ ] Convert remaining wire entity-bit boundaries between server identity and render entities. Target, duel, inspect, spell current/default, emote, and combat now map explicitly; related UI and remaining protocol fields need an inventory.
-- [ ] Remaining non-network application work and active movement/animation scheduling review.
-- [ ] Idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
+- [x] Review confirmed non-render application frame work: UI, automation, addons, local-player state, reconnect lifecycle, and sound maintenance no longer perform their prior idle scans/application.
+- [ ] Controlled idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
 
 ## Out of scope
 
