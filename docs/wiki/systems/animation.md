@@ -30,7 +30,7 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 
 - Transitions must always crossfade. Never snap between poses.
 - `blend_time` comes from M2 sequence data with a **minimum of 150ms** for movement transitions.
-- When re-transitioning mid-blend (e.g. quick direction changes), preserve the outgoing pose's blend weight — resetting to 0 causes visible pops.
+- The legacy controller retains its two-pose timing when re-transitioned. `a6a5d917` proves `x0→4→16→20`; it does not prove full-pose/outgoing-weight continuity. A 40% A→B blend interrupted by B→C at 30% begins B→C with B weight 70%.
 
 | Transition | Blend time |
 |------------|------------|

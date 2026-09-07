@@ -1,8 +1,16 @@
 # Wiki Log
 
+## [2026-09-07] systems | Prove native forced-disconnect lifecycle
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `1cce4171`. Authenticated client771292 matched the server netcode connection before an admin kick produced real `Disconnected`, InWorld → Login, visible `LoginRoot`, and zero links/replicas. Hidden semantic scene entries remain; this is not full cleanup or visual proof.
+
 ## [2026-09-07] systems | Record worker forced-disconnect handling
 
-Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `4d3c7ed6`. After recording `ForcedDisconnect`, the auth receiver requests the worker's actual Netcode client disconnect; its actual-worker RED/GREEN preserves the notice through the published disconnect lifecycle. Controlled native admin-kick acceptance remains pending.
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `4d3c7ed6`. After recording `ForcedDisconnect`, the auth receiver requests the worker's actual Netcode client disconnect; its actual-worker RED/GREEN preserves the notice through the published disconnect lifecycle.
+
+## [2026-09-07] systems | Bound interrupted Bevy crossfade proof
+
+Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `a6a5d917`. The test preserves legacy two-pose controller timing (`x0→4→16→20`) but does not prove full-pose/outgoing-weight continuity: a 40% A→B blend interrupted by B→C at 30% begins B→C with B weight 70%. Attachment and skinning proof remain open.
 
 ## [2026-09-07] systems | Record native replicated-equipment preservation
 
