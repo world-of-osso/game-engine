@@ -70,14 +70,34 @@ pub struct AuctionHousePlugin;
 impl Plugin for AuctionHousePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AuctionHouseState>();
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_opened);
-        app.add_systems(Update, receive_search_results);
-        app.add_systems(Update, receive_owned_results);
-        app.add_systems(Update, receive_bid_results);
-        app.add_systems(Update, receive_inventory_snapshot);
-        app.add_systems(Update, receive_mailbox_snapshot);
-        app.add_systems(Update, receive_operation_response);
+        use crate::network_events::{register_message_handler, register_outgoing_handler};
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<AuctionHouseState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<AuctionHouseOpened, _>(app, receive_opened, |_| true);
+        register_message_handler::<AuctionSearchResults, _>(app, receive_search_results, |_| true);
+        register_message_handler::<OwnedAuctionListResponse, _>(app, receive_owned_results, |_| {
+            true
+        });
+        register_message_handler::<BidAuctionListResponse, _>(app, receive_bid_results, |_| true);
+        register_message_handler::<AuctionInventorySnapshot, _>(
+            app,
+            receive_inventory_snapshot,
+            |_| true,
+        );
+        register_message_handler::<AuctionMailboxSnapshot, _>(
+            app,
+            receive_mailbox_snapshot,
+            |_| true,
+        );
+        register_message_handler::<AuctionOperationResponse, _>(
+            app,
+            receive_operation_response,
+            |_| true,
+        );
     }
 }
 
@@ -458,6 +478,22 @@ fn format_mailbox(state: &AuctionHouseState) -> String {
 mod tests {
     use super::*;
     use shared::protocol::{AuctionSortDir, AuctionSortField, AuctionTimeLeft};
+
+    #[test]
+    fn queued_request_without_connection_reports_failure_once() {
+        let mut app = App::new();
+        app.add_plugins(AuctionHousePlugin);
+        let (respond, replies) = mpsc::channel();
+        queue_ipc_request(
+            &mut app.world_mut().resource_mut::<AuctionHouseState>(),
+            &Request::AuctionOpen,
+            respond,
+        );
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(matches!(replies.try_recv().unwrap(), Response::Error(_)));
+        crate::network_events::dispatch_outgoing(app.world_mut());
+        assert!(replies.try_recv().is_err());
+    }
 
     #[test]
     fn auction_status_request_returns_immediate_snapshot() {

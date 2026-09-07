@@ -3922,6 +3922,7 @@ dependencies = [
  "ktx2-rw",
  "libc",
  "lightyear",
+ "lightyear_transport",
  "notify",
  "peercred-ipc",
  "quick-js",
