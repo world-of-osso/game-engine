@@ -1,5 +1,56 @@
 use super::*;
+use bevy::app::AppExit;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::Mutex;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::time::Duration;
+
+struct WorkerTickFixture {
+    runtime: game_engine::network_runtime::worker::NetworkRuntime,
+    allow_tick: Sender<bool>,
+    ready: Receiver<()>,
+}
+
+impl WorkerTickFixture {
+    fn new() -> Self {
+        let (allow_tick, allowed) = mpsc::channel();
+        let (signal_ready, ready) = mpsc::channel();
+        let allowed = Mutex::new(allowed);
+        let runtime =
+            game_engine::network_runtime::worker::NetworkRuntime::spawn(move |app, _updates| {
+                app.add_systems(First, move |mut exit: MessageWriter<AppExit>| {
+                    signal_ready.send(()).unwrap();
+                    if !allowed.lock().unwrap().recv().unwrap() {
+                        exit.write(AppExit::Success);
+                    }
+                });
+            })
+            .unwrap();
+        ready.recv_timeout(Duration::from_secs(5)).unwrap();
+        Self {
+            runtime,
+            allow_tick,
+            ready,
+        }
+    }
+
+    fn deliver_ticks(&self, app: &mut App, count: u64) {
+        for _ in 0..count {
+            self.allow_tick.send(true).unwrap();
+            // Entry into the next worker update proves the previous update's
+            // real FIFO permit has been published, without a timing race.
+            self.ready.recv_timeout(Duration::from_secs(5)).unwrap();
+        }
+        self.runtime.drain_updates(app.world_mut()).unwrap();
+    }
+}
+
+impl Drop for WorkerTickFixture {
+    fn drop(&mut self) {
+        self.allow_tick.send(false).unwrap();
+        self.runtime.stop().unwrap();
+    }
+}
 
 fn lifecycle_cadence_app() -> App {
     let mut app = App::new();
@@ -36,6 +87,7 @@ fn lifecycle_cadence_unchanged_time_preserves_pending_reset_and_reconnect() {
 #[test]
 fn lifecycle_cadence_finishes_ready_reconnect_only_on_tick() {
     let mut app = lifecycle_cadence_app();
+    let worker = WorkerTickFixture::new();
     app.world_mut().spawn(LocalPlayer);
     {
         let mut reconnect = app.world_mut().resource_mut::<ReconnectState>();
@@ -49,9 +101,7 @@ fn lifecycle_cadence_finishes_ready_reconnect_only_on_tick() {
         app.world().resource::<ReconnectState>().phase,
         ReconnectPhase::AwaitingWorld
     );
-    app.world_mut()
-        .resource_mut::<Time<Real>>()
-        .advance_by(std::time::Duration::from_nanos(16_666_667));
+    worker.deliver_ticks(&mut app, 1);
     app.update();
     assert_eq!(
         app.world().resource::<ReconnectState>().phase,
@@ -63,13 +113,12 @@ fn lifecycle_cadence_finishes_ready_reconnect_only_on_tick() {
 fn lifecycle_cadence_advances_exactly_sixty_times_per_second() {
     for render_hz in [30_u64, 60, 144, 400] {
         let mut app = lifecycle_cadence_app();
-        let mut previous = std::time::Duration::ZERO;
+        let worker = WorkerTickFixture::new();
+        let mut delivered = 0;
         for frame in 1..=render_hz {
-            let elapsed = std::time::Duration::from_nanos(frame * 1_000_000_000 / render_hz);
-            app.world_mut()
-                .resource_mut::<Time<Real>>()
-                .advance_by(elapsed - previous);
-            previous = elapsed;
+            let due = frame * 60 / render_hz;
+            worker.deliver_ticks(&mut app, due - delivered);
+            delivered = due;
             app.update();
         }
         assert_eq!(
@@ -84,6 +133,7 @@ fn lifecycle_cadence_advances_exactly_sixty_times_per_second() {
 fn lifecycle_cadence_receive_commands_finish_before_next_tick_reset() {
     use game_engine::network_tick::{NetworkTick, NetworkTickSystems};
     let mut app = lifecycle_cadence_app();
+    let worker = WorkerTickFixture::new();
     let replica = app.world_mut().spawn(Remote).id();
     app.add_systems(
         NetworkTick,
@@ -96,9 +146,7 @@ fn lifecycle_cadence_receive_commands_finish_before_next_tick_reset() {
         })
         .in_set(NetworkTickSystems::Receive),
     );
-    app.world_mut()
-        .resource_mut::<Time<Real>>()
-        .advance_by(std::time::Duration::from_nanos(16_666_667));
+    worker.deliver_ticks(&mut app, 1);
     app.update();
     assert!(app.world().get::<LateReceiveMarker>(replica).is_some());
     assert_eq!(
@@ -109,9 +157,7 @@ fn lifecycle_cadence_receive_commands_finish_before_next_tick_reset() {
         app.update();
     }
     assert!(app.world().get_entity(replica).is_ok());
-    app.world_mut()
-        .resource_mut::<Time<Real>>()
-        .advance_by(std::time::Duration::from_nanos(16_666_667));
+    worker.deliver_ticks(&mut app, 1);
     app.update();
     assert!(app.world().get_entity(replica).is_err());
     assert_eq!(app.world().resource::<PendingNetworkWorldReset>().0, None);
