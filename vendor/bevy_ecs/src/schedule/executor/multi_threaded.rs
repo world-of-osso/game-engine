@@ -10,19 +10,19 @@ use std::eprintln;
 use std::sync::{Mutex, MutexGuard};
 
 #[cfg(feature = "trace")]
-use tracing::{info_span, Span};
+use tracing::{Span, info_span};
 
+#[cfg(feature = "hotpatching")]
+use crate::{HotPatchChanges, prelude::DetectChanges};
 use crate::{
     error::{ErrorContext, ErrorHandler, Result},
     prelude::Resource,
     schedule::{
-        is_apply_deferred, ConditionWithAccess, SystemExecutor, SystemSchedule, SystemWithAccess,
+        ConditionWithAccess, SystemExecutor, SystemSchedule, SystemWithAccess, is_apply_deferred,
     },
     system::{RunSystemError, ScheduleSystem},
-    world::{unsafe_world_cell::UnsafeWorldCell, World},
+    world::{World, unsafe_world_cell::UnsafeWorldCell},
 };
-#[cfg(feature = "hotpatching")]
-use crate::{prelude::DetectChanges, HotPatchChanges};
 
 use super::__rust_begin_short_backtrace;
 
@@ -856,6 +856,9 @@ impl MainThreadExecutor {
         MainThreadExecutor(TaskPool::get_thread_executor())
     }
 }
+
+#[cfg(all(test, feature = "async_executor", feature = "multi_threaded"))]
+mod submission_batch_tests;
 
 #[cfg(test)]
 mod tests {
