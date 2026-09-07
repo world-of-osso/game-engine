@@ -11,9 +11,8 @@ use concurrent_queue::ConcurrentQueue;
 use futures_lite::FutureExt;
 
 use crate::{
-    block_on,
+    Task, block_on,
     thread_executor::{ThreadExecutor, ThreadExecutorTicker},
-    Task,
 };
 
 struct CallOnDrop(Option<Arc<dyn Fn() + Send + Sync + 'static>>);
@@ -634,6 +633,24 @@ pub struct Scope<'scope, 'env: 'scope, T> {
     env: PhantomData<&'env mut &'env ()>,
 }
 
+#[cfg(feature = "async_executor")]
+struct ScopedTaskSink<'a, 'scope, 'env, T>(&'a Scope<'scope, 'env, T>);
+
+#[cfg(feature = "async_executor")]
+impl<T> Extend<async_task::Task<Result<T, Box<dyn core::any::Any + Send>>>>
+    for ScopedTaskSink<'_, '_, '_, T>
+{
+    fn extend<I>(&mut self, tasks: I)
+    where
+        I: IntoIterator<Item = async_task::Task<Result<T, Box<dyn core::any::Any + Send>>>>,
+    {
+        for task in tasks {
+            // The scope owns this unbounded queue and never closes it.
+            self.0.spawned.push(task.fallible()).unwrap();
+        }
+    }
+}
+
 impl<'scope, 'env, T: Send + 'scope> Scope<'scope, 'env, T> {
     /// Spawns a scoped future onto the thread pool. The scope *must* outlive
     /// the provided future. The results of the future will be returned as a part of
@@ -651,6 +668,22 @@ impl<'scope, 'env, T: Send + 'scope> Scope<'scope, 'env, T> {
         // ConcurrentQueue only errors when closed or full, but we never
         // close and use an unbounded queue, so it is safe to unwrap
         self.spawned.push(task).unwrap();
+    }
+
+    /// Submits independent scoped futures while batching executor registration.
+    ///
+    /// Futures may borrow for the scope lifetime and execute concurrently. Results
+    /// and panics are handled like [`Scope::spawn`]. The iterator must not block,
+    /// because the executor holds its task-registration lock while consuming it.
+    #[cfg(feature = "async_executor")]
+    pub fn spawn_many<Fut>(&self, futures: impl IntoIterator<Item = Fut>)
+    where
+        Fut: Future<Output = T> + Send + 'scope,
+    {
+        let futures = futures
+            .into_iter()
+            .map(|future| AssertUnwindSafe(future).catch_unwind());
+        self.executor.spawn_many(futures, &mut ScopedTaskSink(self));
     }
 
     /// Spawns a scoped future onto the thread the scope is run on. The scope *must* outlive
@@ -699,6 +732,10 @@ where
         });
     }
 }
+
+#[cfg(all(test, feature = "async_executor"))]
+#[path = "task_pool/bulk_tests.rs"]
+mod bulk_tests;
 
 #[cfg(test)]
 mod tests {
