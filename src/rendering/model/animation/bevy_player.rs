@@ -561,7 +561,7 @@ mod tests {
         let mut state =
             SystemState::<(Commands, Query<&AnimatedBy, Allow<Disabled>>)>::new(app.world_mut());
         {
-            let (mut commands, targets) = state.get_mut(app.world_mut());
+            let (mut commands, targets) = state.get_mut(app.world_mut()).unwrap();
             detach_obsolete_targets(&mut commands, owner, &[joint], &[], &targets);
         }
         app.world_mut().entity_mut(joint).insert(AnimatedBy(other));
