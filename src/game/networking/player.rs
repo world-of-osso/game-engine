@@ -688,37 +688,66 @@ fn insert_applied_player_appearance(
         });
 }
 
+type ChangedMovementParents<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static Children),
+    (With<Player>, Or<(Changed<MovementState>, Added<Player>)>),
+>;
+type AddedMountRoots<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static ChildOf),
+    (
+        With<MountedVisualRoot>,
+        Or<(
+            Added<MountedVisualRoot>,
+            Added<MovementState>,
+            Changed<ChildOf>,
+        )>,
+    ),
+>;
+
 pub(crate) fn sync_local_mount_visual_movement(
+    changed_parents: ChangedMovementParents,
+    added_roots: AddedMountRoots,
     mut queries: ParamSet<(
-        Query<(Entity, &MovementState), With<Player>>,
-        Query<(&ChildOf, &mut MovementState), With<MountedVisualRoot>>,
+        Query<&MovementState, With<Player>>,
+        Query<&mut MovementState, With<MountedVisualRoot>>,
     )>,
 ) {
-    let parent_states: std::collections::HashMap<Entity, MovementState> = queries
-        .p0()
+    let dirty_roots = changed_parents
         .iter()
-        .map(|(entity, movement)| {
-            (
-                entity,
-                MovementState {
-                    direction: movement.direction,
-                    running: movement.running,
-                    jumping: movement.jumping,
-                    autorun: movement.autorun,
-                    swimming: movement.swimming,
-                },
-            )
+        .flat_map(|(parent, children)| children.iter().map(move |child| (child, parent)))
+        .chain(
+            added_roots
+                .iter()
+                .map(|(root, parent)| (root, parent.parent())),
+        );
+    let parents = queries.p0();
+    let updates: std::collections::HashMap<_, _> = dirty_roots
+        .filter_map(|(root, parent)| {
+            parents
+                .get(parent)
+                .ok()
+                .map(|movement| (root, copy_movement_state(movement)))
         })
         .collect();
-    for (parent, mut movement) in &mut queries.p1() {
-        let Some(parent_movement) = parent_states.get(&parent.parent()) else {
-            continue;
-        };
-        movement.direction = parent_movement.direction;
-        movement.running = parent_movement.running;
-        movement.jumping = parent_movement.jumping;
-        movement.autorun = parent_movement.autorun;
-        movement.swimming = parent_movement.swimming;
+    let mut roots = queries.p1();
+    for (entity, state) in updates {
+        if let Ok(mut movement) = roots.get_mut(entity) {
+            *movement = state;
+        }
+    }
+}
+
+fn copy_movement_state(movement: &MovementState) -> MovementState {
+    MovementState {
+        direction: movement.direction,
+        running: movement.running,
+        jumping: movement.jumping,
+        autorun: movement.autorun,
+        swimming: movement.swimming,
     }
 }
 
@@ -752,8 +781,19 @@ pub(crate) fn tag_local_player(
     mut commands: Commands,
     selected: Option<Res<SelectedCharacterId>>,
     players: LocalPlayerTagQuery<'_, '_>,
+    changed_players: Query<
+        (),
+        (
+            With<Remote>,
+            With<NetPlayer>,
+            Or<(Changed<NetPlayer>, Added<Remote>)>,
+        ),
+    >,
 ) {
     let Some(sel) = selected else { return };
+    if !sel.is_changed() && changed_players.is_empty() {
+        return;
+    }
     let Some(ref name) = sel.character_name else {
         return;
     };
@@ -805,7 +845,26 @@ fn apply_local_player_tag(
 pub(crate) fn sync_local_alive_state(
     mut local_alive: ResMut<LocalAliveState>,
     local_player_query: Query<&NetHealth, With<LocalPlayer>>,
+    changed_health: Query<
+        (),
+        (
+            With<LocalPlayer>,
+            Or<(Changed<NetHealth>, Added<LocalPlayer>)>,
+        ),
+    >,
+    local_players: Query<(), With<LocalPlayer>>,
+    mut removed_health: RemovedComponents<NetHealth>,
+    mut removed_local: RemovedComponents<LocalPlayer>,
+    mut initialized: Local<bool>,
 ) {
+    let health_removed = removed_health.read().fold(false, |removed, entity| {
+        local_players.contains(entity) || removed
+    });
+    let local_removed = removed_local.read().count() != 0;
+    if *initialized && changed_health.is_empty() && !health_removed && !local_removed {
+        return;
+    }
+    *initialized = true;
     let is_alive = local_player_query
         .iter()
         .next()
