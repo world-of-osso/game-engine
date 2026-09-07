@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn interrupted_crossfade_preserves_controller_two_pose_policy() {
+    fn interrupted_crossfade_preserves_pose_at_zero_elapsed() {
         use super::super::{ANIM_RUN, ANIM_STAND, ANIM_WALK, MoveDirection, MovementState};
         use bevy::ecs::system::RunSystemOnce;
 
@@ -347,17 +347,9 @@ mod tests {
         app.world_mut()
             .run_system_once(super::super::runtime::switch_animation)
             .unwrap();
-        let controller = app.world().get::<M2AnimPlayer>(owner).unwrap();
-        let transition = controller.transition.as_ref().unwrap();
-        assert_eq!(controller.current_seq_idx, 2);
-        assert_eq!(transition.from_seq_idx, 1);
-        assert!((transition.from_time_ms - 80.0).abs() < 0.001);
-        // Existing policy replaces A with B, retaining (1 - old_progress) / 2
-        // as new progress. It does not retain a three-pose snapshot or guarantee
-        // equal transforms across interruption: B's new weight is 0.7, not 0.4.
-        assert!((transition.blend_elapsed_ms - 60.0).abs() < 0.001);
+        // Evaluate the interrupted transition without advancing controller time.
         app.update();
-        assert_x(&app, joint, 16.0); // B * 0.7 + C * 0.3, not reset-to-B (10).
+        assert_x(&app, joint, 4.0);
         app.world_mut()
             .resource_mut::<Time>()
             .advance_by(std::time::Duration::from_millis(40));
@@ -365,7 +357,22 @@ mod tests {
             .run_system_once(super::super::runtime::tick_animation)
             .unwrap();
         app.update();
-        assert_x(&app, joint, 20.0); // B * 0.5 + C * 0.5.
+        let progressed = app.world().get::<Transform>(joint).unwrap().translation.x;
+        assert!(
+            progressed > 4.0 && progressed < 30.0,
+            "expected progression from interrupted pose toward C, got {progressed}"
+        );
+
+        // Interrupt again before the blend completes; the evaluated pose stays put.
+        app.world_mut()
+            .get_mut::<MovementState>(owner)
+            .unwrap()
+            .running = false;
+        app.world_mut()
+            .run_system_once(super::super::runtime::switch_animation)
+            .unwrap();
+        app.update();
+        assert_x(&app, joint, progressed);
     }
 
     #[test]
