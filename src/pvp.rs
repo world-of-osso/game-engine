@@ -9,6 +9,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{PvpBracketEntry, PvpStatusSnapshot};
 
 #[derive(Resource, Default)]
@@ -29,9 +30,14 @@ pub struct PvpPlugin;
 impl Plugin for PvpPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PvpRuntimeState>();
-        app.add_systems(Update, request_pvp_status_on_enter_world);
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_pvp_updates);
+        register_outgoing_handler(app, request_pvp_status_on_enter_world, pvp_query_pending);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<PvpRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<PvpStateUpdate, _>(app, receive_pvp_updates, |_| true);
     }
 }
 
@@ -67,6 +73,14 @@ pub fn queue_ipc_request(
         }
         _ => false,
     }
+}
+
+fn pvp_query_pending(world: &World) -> bool {
+    if world.resource::<PvpRuntimeState>().queried_inworld {
+        return false;
+    }
+    let snapshot = world.resource::<PvpStatusSnapshot>();
+    snapshot.brackets.is_empty() && snapshot.queue.is_none()
 }
 
 fn request_pvp_status_on_enter_world(
@@ -195,6 +209,34 @@ fn format_status(snapshot: &PvpStatusSnapshot) -> String {
 mod tests {
     use super::*;
     use shared::protocol::{PvpBracketStatsSnapshot, PvpQueueSnapshot, PvpSnapshot};
+
+    #[test]
+    fn query_eligibility_tracks_existing_pvp_state() {
+        let mut world = World::new();
+        world.init_resource::<PvpRuntimeState>();
+        world.init_resource::<PvpStatusSnapshot>();
+        assert!(pvp_query_pending(&world));
+        world.resource_mut::<PvpStatusSnapshot>().queue = Some("Warsong Gulch".into());
+        assert!(!pvp_query_pending(&world));
+        world.resource_mut::<PvpStatusSnapshot>().queue = None;
+        world
+            .resource_mut::<PvpStatusSnapshot>()
+            .brackets
+            .push(PvpBracketEntry {
+                bracket: "2v2".into(),
+                rating: 1500,
+                season_wins: 10,
+                season_losses: 5,
+                weekly_wins: 2,
+                weekly_losses: 1,
+            });
+        assert!(!pvp_query_pending(&world));
+        world.resource_mut::<PvpStatusSnapshot>().brackets.clear();
+        assert!(pvp_query_pending(&world));
+        world.resource_mut::<PvpRuntimeState>().queried_inworld = true;
+        world.remove_resource::<PvpStatusSnapshot>();
+        assert!(!pvp_query_pending(&world));
+    }
 
     #[test]
     fn pvp_state_update_populates_status_snapshot() {

@@ -10,6 +10,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{
     GroupRole, LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry, LfgStatusSnapshot,
 };
@@ -37,9 +38,14 @@ pub struct LfgPlugin;
 impl Plugin for LfgPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<LfgRuntimeState>();
-        app.add_systems(Update, request_lfg_status_on_enter_world);
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_lfg_updates);
+        register_outgoing_handler(app, request_lfg_status_on_enter_world, lfg_query_pending);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<LfgRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<LfgStateUpdate, _>(app, receive_lfg_updates, |_| true);
     }
 }
 
@@ -83,6 +89,16 @@ pub fn queue_ipc_request(
         }
         _ => false,
     }
+}
+
+fn lfg_query_pending(world: &World) -> bool {
+    if world.resource::<LfgRuntimeState>().queried_inworld {
+        return false;
+    }
+    let snapshot = world.resource::<LfgStatusSnapshot>();
+    let selecting_group = snapshot.queued || snapshot.selected_role.is_some();
+    let matching_group = snapshot.role_check.is_some() || snapshot.match_found.is_some();
+    !(selecting_group || matching_group)
 }
 
 fn request_lfg_status_on_enter_world(
@@ -238,6 +254,52 @@ fn format_status(snapshot: &LfgStatusSnapshot) -> String {
 mod tests {
     use super::*;
     use shared::protocol::LfgSnapshot;
+
+    #[test]
+    fn query_eligibility_tracks_each_existing_lfg_state() {
+        let mut world = World::new();
+        world.init_resource::<LfgRuntimeState>();
+        world.init_resource::<LfgStatusSnapshot>();
+        assert!(lfg_query_pending(&world));
+        let snapshots = [
+            LfgStatusSnapshot {
+                queued: true,
+                ..default()
+            },
+            LfgStatusSnapshot {
+                selected_role: Some(GroupRole::Tank),
+                ..default()
+            },
+            LfgStatusSnapshot {
+                role_check: Some(LfgRoleCheckEntry {
+                    dungeon_id: 36,
+                    dungeon_name: "Deadmines".into(),
+                    assigned_role: GroupRole::Tank,
+                    accepted_count: 1,
+                    total_count: 5,
+                }),
+                ..default()
+            },
+            LfgStatusSnapshot {
+                match_found: Some(LfgMatchFoundEntry {
+                    dungeon_id: 36,
+                    dungeon_name: "Deadmines".into(),
+                    assigned_role: GroupRole::Tank,
+                    members: vec![],
+                }),
+                ..default()
+            },
+        ];
+        for snapshot in snapshots {
+            world.insert_resource(snapshot);
+            assert!(!lfg_query_pending(&world));
+        }
+        world.insert_resource(LfgStatusSnapshot::default());
+        assert!(lfg_query_pending(&world));
+        world.resource_mut::<LfgRuntimeState>().queried_inworld = true;
+        world.remove_resource::<LfgStatusSnapshot>();
+        assert!(!lfg_query_pending(&world));
+    }
 
     #[test]
     fn lfg_state_update_populates_status_snapshot() {

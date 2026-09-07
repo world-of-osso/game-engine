@@ -9,6 +9,7 @@ use shared::protocol::{
 };
 
 use crate::ipc::{Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::{CollectionMountEntry, CollectionPetEntry, CollectionStatusSnapshot};
 
 #[derive(Resource, Default)]
@@ -29,8 +30,17 @@ pub struct CollectionPlugin;
 impl Plugin for CollectionPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CollectionRuntimeState>();
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_collection_updates);
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<CollectionRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<CollectionStateUpdate, _>(
+            app,
+            receive_collection_updates,
+            |_| true,
+        );
     }
 }
 
@@ -151,4 +161,50 @@ pub fn apply_collection_state_update(
 
 pub fn reset_runtime(runtime: &mut CollectionRuntimeState) {
     *runtime = CollectionRuntimeState::default();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::network_events::{dispatch_incoming, dispatch_outgoing};
+
+    #[test]
+    fn dispatcher_skips_idle_receivers_and_defers_queued_actions_until_dispatch() {
+        let mut app = App::new();
+        app.add_plugins(CollectionPlugin);
+        // No snapshot: an idle incoming handler must not acquire its parameters.
+        dispatch_incoming(app.world_mut());
+        dispatch_outgoing(app.world_mut());
+        let (reply, responses) = mpsc::channel();
+        for request in [
+            Request::CollectionSummonMount { mount_id: 17 },
+            Request::CollectionDismissMount,
+        ] {
+            assert!(queue_ipc_request(
+                &mut app.world_mut().resource_mut::<CollectionRuntimeState>(),
+                &request,
+                reply.clone(),
+            ));
+        }
+        app.update();
+        assert!(responses.try_recv().is_err());
+        assert_eq!(
+            app.world()
+                .resource::<CollectionRuntimeState>()
+                .pending_actions
+                .len(),
+            2
+        );
+        dispatch_outgoing(app.world_mut());
+        for _ in 0..2 {
+            let Response::Error(message) = responses.try_recv().unwrap() else {
+                panic!("expected disconnected collection error");
+            };
+            assert_eq!(message, "collections are unavailable: not connected");
+        }
+        assert!(responses.try_recv().is_err());
+        let runtime = app.world().resource::<CollectionRuntimeState>();
+        assert!(runtime.pending_actions.is_empty());
+        assert!(runtime.pending_replies.is_empty());
+    }
 }

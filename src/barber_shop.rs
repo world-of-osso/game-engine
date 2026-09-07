@@ -11,6 +11,7 @@ use shared::protocol::{
 use crate::auction_house_data::Money;
 use crate::barber_shop_data::{BarberShopState, CUSTOMIZATIONS};
 use crate::ipc::{BarberOption, Request, Response};
+use crate::network_events::{register_message_handler, register_outgoing_handler};
 use crate::status::BarberShopStatusSnapshot;
 
 #[derive(Resource, Default)]
@@ -30,9 +31,22 @@ pub struct BarberShopPlugin;
 impl Plugin for BarberShopPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<BarberShopRuntimeState>();
-        app.add_systems(Update, request_barber_shop_status_on_enter_world);
-        app.add_systems(Update, send_pending_actions);
-        app.add_systems(Update, receive_barber_shop_updates);
+        register_outgoing_handler(
+            app,
+            request_barber_shop_status_on_enter_world,
+            barber_shop_query_pending,
+        );
+        register_outgoing_handler(app, send_pending_actions, |world| {
+            !world
+                .resource::<BarberShopRuntimeState>()
+                .pending_actions
+                .is_empty()
+        });
+        register_message_handler::<BarberShopStateUpdate, _>(
+            app,
+            receive_barber_shop_updates,
+            |_| true,
+        );
     }
 }
 
@@ -67,6 +81,14 @@ pub fn queue_ipc_request(
         }
         _ => false,
     }
+}
+
+fn barber_shop_query_pending(world: &World) -> bool {
+    if world.resource::<BarberShopRuntimeState>().queried_inworld {
+        return false;
+    }
+    let snapshot = world.resource::<BarberShopStatusSnapshot>();
+    snapshot.gold == 0 && snapshot.current_appearance == CharacterAppearance::default()
 }
 
 fn request_barber_shop_status_on_enter_world(
@@ -244,6 +266,31 @@ pub fn format_cost(copper: u32) -> String {
 mod tests {
     use super::*;
     use shared::protocol::BarberShopSnapshot;
+
+    #[test]
+    fn query_eligibility_tracks_gold_and_current_appearance() {
+        let mut world = World::new();
+        world.init_resource::<BarberShopRuntimeState>();
+        world.init_resource::<BarberShopStatusSnapshot>();
+        assert!(barber_shop_query_pending(&world));
+        world.resource_mut::<BarberShopStatusSnapshot>().gold = 1;
+        assert!(!barber_shop_query_pending(&world));
+        world.resource_mut::<BarberShopStatusSnapshot>().gold = 0;
+        world
+            .resource_mut::<BarberShopStatusSnapshot>()
+            .current_appearance
+            .hair_style = 1;
+        assert!(!barber_shop_query_pending(&world));
+        world
+            .resource_mut::<BarberShopStatusSnapshot>()
+            .current_appearance = CharacterAppearance::default();
+        assert!(barber_shop_query_pending(&world));
+        world
+            .resource_mut::<BarberShopRuntimeState>()
+            .queried_inworld = true;
+        world.remove_resource::<BarberShopStatusSnapshot>();
+        assert!(!barber_shop_query_pending(&world));
+    }
 
     #[test]
     fn state_update_populates_snapshot() {
