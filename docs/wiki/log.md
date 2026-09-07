@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-07] systems | Record worker forced-disconnect handling
+
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `4d3c7ed6`. After recording `ForcedDisconnect`, the auth receiver requests the worker's actual Netcode client disconnect; its actual-worker RED/GREEN preserves the notice through the published disconnect lifecycle. Controlled native admin-kick acceptance remains pending.
+
 ## [2026-09-07] systems | Record native replicated-equipment preservation
 
-Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `eaeaf9ed`. Native `bevy-animation/native-fixed/{before,head,cleared}.json` proves server-driven Head 1128 set/clear retained `humanmale_hd.m2` and restored the exact baseline appearance data. This is exported lifecycle-state evidence, not pixel-level appearance or animation-equivalence proof. Forced disconnect remains unresolved pending worker-side handling of the explicit server notice; CPU/FPS claims remain open.
+Updated [[networking]] and [event-driven application updates](../specs/event-driven-application-updates.md) for `eaeaf9ed`. Native `bevy-animation/native-fixed/{before,head,cleared}.json` proves server-driven Head 1128 set/clear retained `humanmale_hd.m2` and restored the exact baseline appearance data. This is exported lifecycle-state evidence, not pixel-level appearance or animation-equivalence proof. At this point forced-disconnect worker handling was pending; CPU/FPS claims remain open.
 
 ## [2026-09-07] investigation | Record Bevy dynamic-link compile measurement
 
