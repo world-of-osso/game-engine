@@ -311,8 +311,9 @@ mod idle_tests {
                 window,
             });
         }
-        assert_idle(&mut app);
+        app.update();
         assert_eq!(first_spell(&app), "Eye of Tyr");
+        assert_idle(&mut app);
     }
 
     #[test]
