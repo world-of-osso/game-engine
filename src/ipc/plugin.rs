@@ -345,7 +345,17 @@ impl Plugin for IpcPlugin {
 
 #[cfg(feature = "ipc")]
 fn register_ipc_dispatch(app: &mut App) {
-    app.add_systems(Update, dispatch_ipc_commands.in_set(IpcUpdateSet::Dispatch));
+    app.add_systems(
+        Update,
+        dispatch_ipc_commands
+            .run_if(has_pending_ipc_commands)
+            .in_set(IpcUpdateSet::Dispatch),
+    );
+}
+
+#[cfg(feature = "ipc")]
+fn has_pending_ipc_commands(pending: Res<PendingIpcCommands>) -> bool {
+    !pending.commands.is_empty()
 }
 
 #[cfg(feature = "ipc")]
@@ -824,12 +834,19 @@ mod tests {
     #[cfg(feature = "ipc")]
     #[test]
     fn received_commands_preserve_fifo_and_refresh_dependencies() {
+        use bevy::ecs::system::RunSystemOnce;
+
         let (send, receive) = mpsc::channel();
         let (respond, _responses) = mpsc::channel();
         let mut app = App::new();
         app.init_resource::<PendingIpcCommands>()
             .insert_non_send(receive)
             .add_systems(Update, receive_ipc_commands);
+        assert!(
+            !app.world_mut()
+                .run_system_once(has_pending_ipc_commands)
+                .unwrap()
+        );
         for request in [
             Request::NetworkStatus,
             Request::TerrainStatus,
@@ -843,6 +860,11 @@ mod tests {
         }
 
         app.update();
+        assert!(
+            app.world_mut()
+                .run_system_once(has_pending_ipc_commands)
+                .unwrap()
+        );
 
         let mut pending = app.world_mut().resource_mut::<PendingIpcCommands>();
         assert!(pending.needs_network_status());
