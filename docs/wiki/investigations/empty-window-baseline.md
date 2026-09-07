@@ -57,7 +57,7 @@ Independent source verification and runtime audit `248` pass the bounded finding
 
 ## Measurement scope
 
-Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Both diagnostic modes deliberately have no game workload or continuous rendering, so FPS is not a comparable-performance constraint and neither establishes a game optimization.
+Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Native and core stages have no game workload or continuous rendering. Renderer stages add only blank-frame work; their deliberately different update policies do not establish a same-throughput game optimization.
 
 ## Verified native baseline
 
@@ -82,4 +82,4 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 ## See Also
 
 - [[movement-performance]] — comparative game-runtime CPU investigation results
-- [[rendering-pipeline]] — later renderer layers remain outside this diagnostic stage
+- [[rendering-pipeline]] — full-game rendering architecture beyond the blank diagnostic scene
