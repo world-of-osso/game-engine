@@ -18,9 +18,9 @@ Linux window attributes set the Wayland application name. The direct softbuffer 
 
 ## Additive Bevy-core stage
 
-`--service-window` retains the same native event loop, `ControlFlow::Wait`, softbuffer surface, and resize/close path, then constructs an optional Bevy app before normal startup. It installs `MinimalPlugins` without `ScheduleRunnerPlugin`: task pools, frame counter, time, and core schedules. The native handler calls `App::update()` from `about_to_wait`; it adds no timer, redraw request, renderer, assets, game services, networking, IPC, sound, UI, or resource-limit setup. It logs the first update and each 64th update.
+`--service-window core` retains the same native event loop, `ControlFlow::Wait`, softbuffer surface, and resize/close path, then constructs an optional Bevy app before normal startup. It installs `MinimalPlugins` without `ScheduleRunnerPlugin`: task pools, frame counter, time, and core schedules. The native handler calls `App::update()` from `about_to_wait`; it adds no timer, redraw request, renderer, assets, game services, networking, IPC, sound, UI, or resource-limit setup. It logs the first update and each 64th update.
 
-This separates Bevy core-service overhead from both native waiting and later renderer or game workload. `--service-window` is exclusive, has its own title/application name, and leaves ordinary startup unchanged.
+This separates Bevy core-service overhead from both native waiting and later renderer or game workload. The selector requires exactly one of `core`, `render`, or `continuous`; it has no implicit core alias and leaves ordinary startup unchanged.
 
 ## Measured additive core result
 
@@ -29,6 +29,14 @@ Source revisions `217b4de8` and `6f6e10e3` used binary SHA-256 `822ebfde5fa13dd1
 Whole-host busy CPU was 5.407% during the core sample and 5.799% during the native sample. That difference is not attributable to this single process. An earlier native sample with 0/13 focused observations is excluded because the lid was closed and no compositor window was focused; the user subsequently unlocked the desktop and the later focused samples are valid despite the lid state. There is no bulk CPU source at this core-service stage.
 
 The source verifier passed formatting, locked checking, and readability; targeted tests passed 6/6. The routing RED was valid. The core module test did not demonstrate a pre-implementation RED, so it is not claimed as such. Runtime measurement has not received an independent data audit.
+
+## Blank renderer stage
+
+`--service-window render` installs a clear-only `Camera2d` renderer with normal Bevy pipelined rendering and the same default pool availability. It uses the desktop Winit policy: focused reactive updates with a five-second timeout and unfocused reactive-low-power updates with a sixty-second timeout. `--service-window continuous` retains that renderer, camera, Mailbox presentation, and pools but uses Bevy's normal game Winit policy, so focused updates become continuous. It records update rate rather than presenting it as FPS.
+
+The renderer deliberately excludes project game services, PBR, lights, sprites, audio, and UI. Required Bevy dependencies are logging, transforms, input, accessibility, window, asset, Winit, render, image, mesh, camera, pipelined rendering, and core pipeline. Input is needed by Winit focus processing, mesh by render mesh extraction, and `AccessibilityPlugin` initializes the `AccessibilityRequested` resource required by Winit window creation.
+
+The first `0669eac5` render smoke initialized the Vulkan adapter but panicked before window creation because `AccessibilityRequested` was absent. Commit `76076850` adds the required accessibility plugin. That failed launch has no CPU or renderer-throughput result; the next smoke must rebuild and prove visible window creation before measurement.
 
 ## Measurement scope
 
@@ -47,7 +55,7 @@ Independent verification passed routing tests (2/2), formatting, locked checking
 ## Sources
 
 - [empty-window baseline spec](../../specs/empty-window-baseline.md) — native boundary and measurement scope
-- [service-window baseline spec](../../specs/service-window-baseline.md) — additive core-service contract and measured result
+- [service-window baseline spec](../../specs/service-window-baseline.md) — staged core, reactive-renderer, and continuous-renderer contract
 - [main startup](../../../src/main.rs) — early diagnostic routing and error exit
 - [CLI parsing](../../../src/cli_args.rs) — exclusive argument selection
 - [empty window runtime](../../../src/empty_window.rs) — shared winit/softbuffer loop and optional app update
