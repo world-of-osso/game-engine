@@ -19,6 +19,9 @@ use bevy::prelude::*;
 use super::{BonePivot, M2AnimData, evaluate_bone_components};
 use crate::asset::m2_format::m2_anim::{AnimTrack, BoneAnimTracks};
 
+#[derive(Component, Default, Clone, Copy)]
+pub(super) struct RawBonePose(pub Transform);
+
 pub(super) fn bone_target_id(index: usize) -> AnimationTargetId {
     AnimationTargetId::from_name(&Name::new(format!("m2-bone-{index}")))
 }
@@ -28,11 +31,11 @@ pub(super) fn build_clip(data: &M2AnimData, seq_idx: usize) -> AnimationClip {
     let mut clip = AnimationClip::default();
     for (index, tracks) in data.bone_tracks.iter().enumerate() {
         let curve = M2RawCurve {
-            tracks: Arc::new(BoneAnimTracks {
+            source: RawCurveSource::Tracks(Arc::new(BoneAnimTracks {
                 translation: select_sequence(&tracks.translation, seq_idx),
                 rotation: select_sequence(&tracks.rotation, seq_idx),
                 scale: select_sequence(&tracks.scale, seq_idx),
-            }),
+            })),
             domain: Interval::new(0.0, duration).expect("M2 clip duration must be positive"),
         };
         clip.add_curve_to_target(
@@ -41,6 +44,24 @@ pub(super) fn build_clip(data: &M2AnimData, seq_idx: usize) -> AnimationClip {
         );
     }
     clip.set_duration(duration);
+    clip
+}
+
+pub(super) fn build_pose_clip(
+    poses: impl IntoIterator<Item = (usize, Transform)>,
+) -> AnimationClip {
+    let mut clip = AnimationClip::default();
+    for (index, pose) in poses {
+        let curve = M2RawCurve {
+            source: RawCurveSource::Pose(pose),
+            domain: Interval::new(0.0, 1.0).expect("snapshot clip duration must be positive"),
+        };
+        clip.add_curve_to_target(
+            bone_target_id(index),
+            PivotCurve(AnimatableCurve::new(WholeTransform, curve)),
+        );
+    }
+    clip.set_duration(1.0);
     clip
 }
 
@@ -89,8 +110,14 @@ fn last_timestamp<T>(track: &AnimTrack<T>, seq_idx: usize) -> u32 {
 #[derive(Clone, Reflect)]
 #[reflect(opaque)]
 struct M2RawCurve {
-    tracks: Arc<BoneAnimTracks>,
+    source: RawCurveSource,
     domain: Interval,
+}
+
+#[derive(Clone)]
+enum RawCurveSource {
+    Tracks(Arc<BoneAnimTracks>),
+    Pose(Transform),
 }
 
 impl fmt::Debug for M2RawCurve {
@@ -108,12 +135,17 @@ impl Curve<Transform> for M2RawCurve {
     }
 
     fn sample_unchecked(&self, time: f32) -> Transform {
-        let (translation, rotation, scale) =
-            evaluate_bone_components(&self.tracks, 0, (time * 1000.0) as u32);
-        Transform {
-            translation,
-            rotation,
-            scale,
+        match &self.source {
+            RawCurveSource::Tracks(tracks) => {
+                let (translation, rotation, scale) =
+                    evaluate_bone_components(tracks, 0, (time * 1000.0) as u32);
+                Transform {
+                    translation,
+                    rotation,
+                    scale,
+                }
+            }
+            RawCurveSource::Pose(pose) => *pose,
         }
     }
 }
@@ -205,7 +237,27 @@ impl AnimationCurveEvaluator for PivotEvaluator {
             >(
             )))?
             .0;
+        if entity.get::<RawBonePose>().is_none() {
+            return Err(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
+                RawBonePose,
+            >(
+            )));
+        }
         self.raw.commit(entity.reborrow())?;
+        let raw_pose =
+            *entity
+                .get::<Transform>()
+                .ok_or(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
+                    Transform,
+                >(
+                )))?;
+        entity
+            .get_mut::<RawBonePose>()
+            .ok_or(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
+                RawBonePose,
+            >(
+            )))?
+            .0 = raw_pose;
         let mut transform =
             entity
                 .get_mut::<Transform>()
@@ -254,6 +306,19 @@ mod tests {
     }
 
     fn evaluate(data: &M2AnimData, pivot: Vec3, samples: &[(usize, f32, f32)]) -> Transform {
+        evaluate_clips(
+            pivot,
+            samples
+                .iter()
+                .map(|&(sequence, time, weight)| (build_clip(data, sequence), time, weight)),
+        )
+        .0
+    }
+
+    fn evaluate_clips(
+        pivot: Vec3,
+        samples: impl IntoIterator<Item = (AnimationClip, f32, f32)>,
+    ) -> (Transform, Transform) {
         let mut app = App::new();
         app.add_plugins((
             MinimalPlugins,
@@ -262,11 +327,11 @@ mod tests {
         ));
         let mut graph = AnimationGraph::new();
         let mut player = AnimationPlayer::default();
-        for &(sequence, time, weight) in samples {
+        for (clip, time, weight) in samples {
             let clip = app
                 .world_mut()
                 .resource_mut::<Assets<AnimationClip>>()
-                .add(build_clip(data, sequence));
+                .add(clip);
             let node = graph.add_clip(clip, 1.0, graph.root);
             player
                 .play(node)
@@ -288,6 +353,7 @@ mod tests {
                 bone_target_id(0),
                 AnimatedBy(owner),
                 BonePivot(pivot),
+                RawBonePose::default(),
                 Transform::from_xyz(99.0, 98.0, 97.0),
             ))
             .id();
@@ -295,7 +361,34 @@ mod tests {
         // threaded graph from those events on the following update.
         app.update();
         app.update();
-        *app.world().get::<Transform>(bone).unwrap()
+        (
+            *app.world().get::<Transform>(bone).unwrap(),
+            app.world().get::<RawBonePose>(bone).unwrap().0,
+        )
+    }
+
+    #[test]
+    fn snapshot_clip_blends_raw_rotation_scale_before_pivot_and_retains_pose() {
+        let pivot = Vec3::new(2.0, 3.0, 4.0);
+        let pose = Transform {
+            translation: Vec3::new(4.0, 6.0, 8.0),
+            rotation: Quat::from_rotation_z(std::f32::consts::FRAC_PI_2),
+            scale: Vec3::new(3.0, 5.0, 7.0),
+        };
+        let expected = Transform {
+            translation: pose.translation * 0.5,
+            rotation: Quat::IDENTITY.slerp(pose.rotation, 0.5),
+            scale: Vec3::ONE.lerp(pose.scale, 0.5),
+        };
+        let (actual, retained) = evaluate_clips(
+            pivot,
+            [
+                (build_pose_clip([(0, Transform::IDENTITY)]), 0.25, 0.5),
+                (build_pose_clip([(0, pose)]), 0.75, 0.5),
+            ],
+        );
+        assert_pose(actual, expected, pivot);
+        assert_pose(retained, expected, Vec3::ZERO);
     }
 
     fn assert_pose(actual: Transform, raw: Transform, pivot: Vec3) {
