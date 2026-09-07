@@ -6,7 +6,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ### Networking
 
-- [x] Add a 60 logical-ticks-per-second application network schedule whose tick count is independent of render-frame count.
+- [x] Make the dedicated worker the sole 60 Hz network clock; publish one FIFO main-world application permit after each worker update.
 - [x] Run Lightyear link/transport/message maintenance in a dedicated 60 Hz worker so it retains real elapsed-time behavior independently of main-world/render updates.
 - [x] Add one incoming dispatcher over application-owned typed inboxes; only handlers with pending messages and satisfied eligibility run.
 - [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
@@ -21,19 +21,26 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
 - [x] Move confirmed idle application work to queued, change-driven, relevance-driven, or 60 Hz logical-tick execution; retain rendering, interpolation, animation, and active cooldown presentation where needed.
 
+### M2 animation runtime
+
+- [ ] Use Bevy `AnimationPlayer`, `AnimationGraph`, and animation targets for M2 bone pose evaluation and blending; do not retain the old per-model pose application loop as an alternate path.
+- [ ] Adapt the currently supported M2 translation/rotation/scale semantics exactly, including coordinate conversion, defaults, and crossfading raw TRS before pivot correction.
+- [ ] Preserve WoW sequence selection, transition continuity, debug time overrides, attachment joint identity, billboards, skinning, and offline/login/debug scene playback.
+- [ ] Prove single-clip and crossfade poses through real Bevy playback before claiming replacement. Parsed but unsupported M2 interpolation/global-sequence features remain explicitly unsupported, not silently changed.
+
 ## How it works
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
-- `NetworkTick` is legacy main-world application cadence. Live Lightyear transport runs in the dedicated 60 Hz worker and continues when the main world is blocked.
+- The dedicated worker is the sole 60 Hz network clock. After each worker update it publishes one FIFO main-world `NetworkTick` permit; `First` drains worker updates before consuming permits. Live Lightyear transport continues when the main world is blocked.
 - `a35b1c5c` through `01cfcade` add the separately clocked 60 Hz worker, worker-backed `MessageSenders`/`MessageReceivers`, and application-owned `Inbox<M>` FIFO dispatch. `aa6fda57` moves live Lightyear client, UDP transport, protocol registration, replication receiver, and typed receiver relays into one worker world per connection. The old main-world receiver park/restore path is removed.
 - `cec56837` and `aa6fda57` bridge replicated snapshots, despawns, and server-entity-to-render-entity identity into the main world. Main-world `Client`, `Connected`, and `Disconnected` markers are lifecycle proxies; they do not own Lightyear transport state. `52508d1d` maps target/emote/combat entity fields at the worker/main boundary; `a5f6eab0` maps duel, inspect, and current/default spell targets. Explicit numeric spell selectors remain server IDs.
-- The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Main-world receive, apply, send, reconnect, reset, and active spellbook cooldown work run in `NetworkTick`; no wire format or negotiated simulation behavior changes.
+- The worker runs its app at 60 Hz and retains Lightyear's **20 Hz** simulation interval. Main-world receive, apply, send, reconnect, reset, and active spellbook cooldown work run once per worker-published permit in `NetworkTick`; no wire format or negotiated simulation behavior changes.
 - This is an implementation boundary, not completion proof. A UDP/replication bridge run exposed Bevy B0002 from an `EntityRef` resource query; `54411453` excludes resources. `independent-udp-handshake.log` records **1/1** real UDP handshake proof without a main-app update; `worker-restart-tests.log` records **3/3** shutdown cleanup and second-worker handshake cases. `worker-char-create-response.log`, `worker-auth.log`, `wire-identity.log`, and `migrated-ui-reconnect-fixtures.log` record scoped **3/3**, **23/23**, **19/19**, and **11/11** results. A native client reached InWorld with player/NPC mirrors and Who result `Theron`, one result; dark scene/white UI leaves visual proof invalid. Complete replication/equipment lifecycle and CPU proof remain pending.
 - `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7`, `0cf03d06`, `8969c18c`, `50b2df4e`, and `e56ce620` migrated application API handlers. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
 
-- `src/network_tick.rs`: legacy main-thread logical application driver; it does not own live transport.
+- `src/network_tick.rs`: main-world permit consumer. It does not measure render time or own live transport; it drains worker updates, then consumes worker-published permits.
 - `src/network_events.rs`: registered handlers plus centralized application-owned `Inbox<M>`/outbox dispatch and worker-relay registration.
 - `src/network_runtime/worker.rs`, `messages.rs`, `replication.rs`, `connection.rs`: dedicated worker, typed queues, replication mirror, and per-connection lifecycle bridge.
 - `src/game/networking/mod.rs`: starts the worker connection; main reconnect/reset lifecycle work runs at `NetworkTick` cadence. Remote interpolation remains render-frame-driven.
@@ -54,7 +61,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ## Literal frame-loop exits
 
-Commits `dc6183f8`, `550b637a`, `9a6b6679`, `1c1d7998`, `ae222f0e`, `e9b81652`, and `fc99128b` remove confirmed clean-frame application work: reconnect/reset lifecycle; sound maintenance; active cooldown advancement; local mount/tag/alive synchronization; addon watcher clean-frame processing; and the combined spellbook/UI clean cycle. These are scheduling boundaries, not a claim that every Bevy system or every active presentation update is event-driven.
+Commits `dc6183f8`, `550b637a`, `9a6b6679`, `1c1d7998`, `ae222f0e`, `e9b81652`, `fc99128b`, and `00467125` remove confirmed clean-frame application work: reconnect/reset lifecycle; sound maintenance; active cooldown advancement; local mount/tag/alive synchronization; addon watcher clean-frame processing; the combined spellbook/UI clean cycle; and render-time logical network tick planning. These are scheduling boundaries, not a claim that every Bevy system or every active presentation update is event-driven.
 
 Rendering, remote interpolation, animation, input needed for active interaction, and active UI presentation remain render-frame-driven. CPU and FPS improvement await controlled measurement and user observation.
 
