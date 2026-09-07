@@ -1,7 +1,8 @@
 use super::*;
 
 use bevy::ecs::system::RunSystemOnce;
-use lightyear::prelude::client::Client;
+use game_engine::network_runtime::connection::Client;
+use game_engine::network_runtime::messages::{ConnectionSender, MessageSenders};
 use shared::components::{
     EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player as NetPlayer,
 };
@@ -48,6 +49,7 @@ fn build_login_test_app(
     let mut app = game_engine::test_harness::headless_app();
     app.insert_resource(AuthToken(None));
     app.init_resource::<AuthUiFeedback>();
+    app.init_resource::<ConnectionSender>();
     app.insert_resource(CharacterList(chars));
     app.init_resource::<crate::scenes::char_select::SelectedCharIndex>();
     app.init_resource::<NextState<GameState>>();
@@ -59,33 +61,35 @@ fn build_login_test_app(
 }
 
 fn run_handle_login_response(app: &mut App, resp: LoginResponse) {
-    let _ = app.world_mut().run_system_once(
-        move |mut auth_token: ResMut<AuthToken>,
-              mut auth_feedback: ResMut<AuthUiFeedback>,
-              mut char_list: ResMut<CharacterList>,
-              auto_enter_world: Option<Res<crate::scenes::char_select::AutoEnterWorld>>,
-              mut selected_char_idx: ResMut<crate::scenes::char_select::SelectedCharIndex>,
-              mut next_state: ResMut<NextState<GameState>>,
-              mut select_senders: Query<&mut MessageSender<SelectCharacter>>,
-              mut reconnect: ResMut<crate::networking::ReconnectState>,
-              mut commands: Commands| {
-            handle_login_response(
-                resp.clone(),
-                &mut auth_token,
-                &mut auth_feedback,
-                &mut char_list,
-                auto_enter_world.as_ref(),
-                None,
-                None,
-                &mut selected_char_idx,
-                &mut select_senders,
-                &mut next_state,
-                Some(&mut reconnect),
-                None,
-                &mut commands,
-            );
-        },
-    );
+    app.world_mut()
+        .run_system_once(
+            move |mut auth_token: ResMut<AuthToken>,
+                  mut auth_feedback: ResMut<AuthUiFeedback>,
+                  mut char_list: ResMut<CharacterList>,
+                  auto_enter_world: Option<Res<crate::scenes::char_select::AutoEnterWorld>>,
+                  mut selected_char_idx: ResMut<crate::scenes::char_select::SelectedCharIndex>,
+                  mut next_state: ResMut<NextState<GameState>>,
+                  mut select_senders: MessageSenders<SelectCharacter>,
+                  mut reconnect: ResMut<crate::networking::ReconnectState>,
+                  mut commands: Commands| {
+                handle_login_response(
+                    resp.clone(),
+                    &mut auth_token,
+                    &mut auth_feedback,
+                    &mut char_list,
+                    auto_enter_world.as_ref(),
+                    None,
+                    None,
+                    &mut selected_char_idx,
+                    &mut select_senders,
+                    &mut next_state,
+                    Some(&mut reconnect),
+                    None,
+                    &mut commands,
+                );
+            },
+        )
+        .expect("login response system must have its adapter resources");
 }
 
 fn extract_login_result(app: &App) -> LoginResponseResult {
@@ -305,7 +309,7 @@ fn login_failure_despawns_live_client() {
     let mut app = build_login_test_app(Vec::new(), Default::default(), false);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(GameState::Connecting);
-    let client = app.world_mut().spawn(Client::default()).id();
+    let client = app.world_mut().spawn(Client).id();
 
     let resp = LoginResponse {
         success: false,
