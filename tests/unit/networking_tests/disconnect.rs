@@ -13,7 +13,7 @@ struct WorkerTickFixture {
 
 impl WorkerTickFixture {
     fn new() -> Self {
-        let (allow_tick, allowed) = mpsc::channel();
+        let (allow_tick, allowed) = mpsc::channel::<bool>();
         let (signal_ready, ready) = mpsc::channel();
         let allowed = Mutex::new(allowed);
         let runtime =
