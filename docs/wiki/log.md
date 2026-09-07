@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] diagnostic | Resolve libc memory operations in preserved native profile
+
+Updated [[empty-window-baseline]] with matching-library offline attribution. libc covers 1,413,726,253 sampled cycle period (12.1680% of the original total); Arch debuginfod symbols resolve `memcpy` at 2.4163%, `memset` at 1.1201%, `_int_free_chunk` at 1.7458%, and `_int_malloc` at 1.3708%. These are sampled-period shares, not CPU percentage points or caller attribution. Allocation/copy work cannot be assigned to task lifecycle or a render callback without runtime ancestry. The 11 MB libc debug artifact is retained under diagnostics; independent verification remains pending. No build, capture, runtime, focus, or profiler test occurred.
+
 ## [2026-09-07] diagnostic | Attribute decoded continuous-renderer instructions
 
 Updated [[empty-window-baseline]] and linked [[movement-performance]] to offline attribution from preserved matching binaries. Blank continuous rendering resolves 78.61% of sampled cycle period across 1,089 executable addresses: `bevy_ecs` 19.6184%, `concurrent-queue` 15.7290%, `async-executor` 6.7951%, and `async-task` 5.5316%. Hottest sites are queue empty probing, executor locking, completion publication, and mutex spin. This identifies task lifecycle/synchronization operations, not upstream callbacks, waste, or a safe removal. Full-scene proportions use a different sample-count denominator and a reduced `no-npcs-ui`/terrain-isolated workload, so no causal comparison follows. No profiler test, build, capture, runtime, focus, or process action occurred.
