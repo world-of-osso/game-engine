@@ -210,6 +210,7 @@ fn clicking_race_button_changes_selected_race() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(StatesPlugin);
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(UiAutomationPlugin);
     app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
     app.add_message::<bevy::input::keyboard::KeyboardInput>();
@@ -374,6 +375,7 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     app.add_plugins(StatesPlugin);
     app.add_plugins(bevy::asset::AssetPlugin::default());
     app.add_plugins(bevy::text::TextPlugin::default());
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(UiAutomationPlugin);
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.add_plugins(ui_toolkit::plugin::UiPlugin);
