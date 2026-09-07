@@ -20,6 +20,40 @@ struct Handler {
 struct MessageRoute {
     has_messages: InboxCheck,
     handlers: Vec<usize>,
+    deferred: Box<dyn DeferredInbox>,
+}
+
+trait DeferredInbox: Send + Sync {
+    fn park(&mut self, world: &mut World, peers: &[Entity]);
+    fn restore(&mut self, world: &mut World);
+}
+
+// MessageReceiver contains only buffered messages. Moving it preserves private
+// channel/tick metadata while Lightyear clears the empty replacement in Last.
+struct DeferredMessages<M: NetworkMessage>(HashMap<Entity, MessageReceiver<M>>);
+
+impl<M: NetworkMessage> DeferredInbox for DeferredMessages<M> {
+    fn park(&mut self, world: &mut World, peers: &[Entity]) {
+        for &peer in peers {
+            if let Some(mut receiver) = world.get_mut::<MessageReceiver<M>>(peer)
+                && receiver.has_messages()
+            {
+                self.0.insert(peer, std::mem::take(&mut *receiver));
+            }
+        }
+    }
+
+    fn restore(&mut self, world: &mut World) {
+        for (peer, buffered) in self.0.drain() {
+            if let Some(mut receiver) = world.get_mut::<MessageReceiver<M>>(peer) {
+                assert!(
+                    !receiver.has_messages(),
+                    "network inbox populated before restoration"
+                );
+                *receiver = buffered;
+            }
+        }
+    }
 }
 
 #[derive(Resource)]
@@ -106,6 +140,7 @@ pub fn add_message_route<M: NetworkMessage>(app: &mut App, id: SystemId) {
         .or_insert_with(|| MessageRoute {
             has_messages: inbox_has_messages::<M>,
             handlers: Vec::new(),
+            deferred: Box::new(DeferredMessages::<M>(HashMap::new())),
         });
     if !route.handlers.contains(&index) {
         route.handlers.push(index);
@@ -145,6 +180,32 @@ pub fn dispatch_incoming(world: &mut World) {
             if dispatcher.incoming_ready[index] && (handler.condition)(world) {
                 invoke_handler(world, handler.system);
             }
+        }
+    });
+}
+
+/// Preserve application inboxes across Lightyear's per-frame Last cleanup.
+pub fn park_incoming(world: &mut World) {
+    world.resource_scope(|world, mut dispatcher: Mut<NetworkDispatcher>| {
+        let NetworkDispatcher {
+            peers,
+            peer_entities,
+            routes,
+            ..
+        } = &mut *dispatcher;
+        peer_entities.clear();
+        peer_entities.extend(peers.iter(world));
+        for route in routes.values_mut() {
+            route.deferred.park(world, peer_entities);
+        }
+    });
+}
+
+/// Restore older messages before transport appends newly received messages.
+pub fn restore_incoming(world: &mut World) {
+    world.resource_scope(|world, mut dispatcher: Mut<NetworkDispatcher>| {
+        for route in dispatcher.routes.values_mut() {
+            route.deferred.restore(world);
         }
     });
 }
@@ -198,6 +259,13 @@ mod tests {
     }
 
     fn fixture_with_cadence(network_tick: bool) -> (App, Entity) {
+        fixture_with_frequency(network_tick, std::time::Duration::ZERO)
+    }
+
+    fn fixture_with_frequency(
+        network_tick: bool,
+        send_frequency: std::time::Duration,
+    ) -> (App, Entity) {
         let mut app = App::new();
         initialize_dispatcher(&mut app);
         app.add_plugins(bevy::state::app::StatesPlugin);
@@ -206,6 +274,7 @@ mod tests {
         app.register_message::<Second>();
         app.add_channel::<TestChannel>(ChannelSettings {
             mode: ChannelMode::OrderedReliable(Default::default()),
+            send_frequency,
             ..Default::default()
         });
         app.init_resource::<Output>();
@@ -294,6 +363,55 @@ mod tests {
         assert_eq!(app.world().resource::<Output>().0, [7, 8]);
         app.update();
         assert_eq!(app.world().resource::<Output>().0, [7, 8]);
+    }
+
+    #[test]
+    fn transport_send_frequency_uses_full_elapsed_time_between_application_ticks() {
+        use std::time::Duration;
+        for hz in [30_u64, 60, 400] {
+            let (mut app, peer) = fixture_with_frequency(true, Duration::from_millis(100));
+            register_message_handler::<First, _>(
+                &mut app,
+                |mut receivers: Query<&mut MessageReceiver<First>>, mut output: ResMut<Output>| {
+                    for mut receiver in &mut receivers {
+                        output.0.extend(receiver.receive().map(|message| message.0));
+                    }
+                },
+                always,
+            );
+            app.world_mut()
+                .entity_mut(peer)
+                .get_mut::<MessageSender<First>>()
+                .unwrap()
+                .send::<TestChannel>(First(42));
+            let mut previous = Duration::ZERO;
+            for frame in 1..=hz {
+                let elapsed = Duration::from_nanos(frame * 1_000_000_000 / hz);
+                app.world_mut()
+                    .resource_mut::<Time<Real>>()
+                    .advance_by(elapsed - previous);
+                previous = elapsed;
+                app.update();
+                let mut entity = app.world_mut().entity_mut(peer);
+                let mut link = entity.get_mut::<Link>().unwrap();
+                let packets: Vec<_> = link.send.drain().collect();
+                for packet in packets {
+                    link.recv.push_raw(packet);
+                }
+                if !app.world().resource::<Output>().0.is_empty() {
+                    break;
+                }
+            }
+            assert_eq!(
+                app.world().resource::<Output>().0,
+                [42],
+                "frame cadence {hz}"
+            );
+            assert!(
+                previous <= Duration::from_millis(170),
+                "100 ms channel delayed to {previous:?} at {hz} frames/s"
+            );
+        }
     }
 
     fn always(_: &World) -> bool {

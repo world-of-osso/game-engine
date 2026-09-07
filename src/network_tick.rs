@@ -3,12 +3,10 @@
 
 use std::time::Duration;
 
-use bevy::app::{First, PostUpdate, PreUpdate, Update};
+use bevy::app::{First, PostUpdate, Update};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::time::{Real, TimeSystems, Virtual};
-use lightyear::prelude::{LinkSystems, MessageSystems};
-use lightyear_transport::plugin::TransportSystems;
 
 pub const NETWORK_TICKS_PER_SECOND: u64 = 60;
 const NANOS_PER_SECOND: u128 = 1_000_000_000;
@@ -20,12 +18,6 @@ pub struct NetworkTick;
 pub enum NetworkTickSystems {
     Receive,
     Apply,
-    Send,
-}
-
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-enum NetworkIo {
-    Receive,
     Send,
 }
 
@@ -56,6 +48,8 @@ impl Plugin for NetworkTickPlugin {
                     .chain(),
             )
             .add_systems(First, plan_network_ticks.after(TimeSystems))
+            .add_systems(First, crate::network_events::restore_incoming)
+            .add_systems(PostUpdate, park_between_network_ticks)
             .add_systems(Update, run_network_ticks)
             .add_systems(
                 NetworkTick,
@@ -65,31 +59,13 @@ impl Plugin for NetworkTickPlugin {
                 NetworkTick,
                 crate::network_events::dispatch_outgoing.in_set(NetworkTickSystems::Send),
             );
-        configure_network_io_cadence(app);
     }
 }
 
-fn configure_network_io_cadence(app: &mut App) {
-    app.configure_sets(
-        PreUpdate,
-        (
-            LinkSystems::Receive,
-            TransportSystems::Receive,
-            MessageSystems::Receive,
-        )
-            .in_set(NetworkIo::Receive),
-    )
-    .configure_sets(PreUpdate, NetworkIo::Receive.run_if(network_tick_due))
-    .configure_sets(
-        PostUpdate,
-        (
-            MessageSystems::Send,
-            TransportSystems::Send,
-            LinkSystems::Send,
-        )
-            .in_set(NetworkIo::Send),
-    )
-    .configure_sets(PostUpdate, NetworkIo::Send.run_if(network_tick_due));
+fn park_between_network_ticks(world: &mut World) {
+    if world.resource::<NetworkTickClock>().due == 0 {
+        crate::network_events::park_incoming(world);
+    }
 }
 
 fn plan_network_ticks(
@@ -104,10 +80,6 @@ fn plan_network_ticks(
     let accumulated = clock.remainder + delta.as_nanos() * u128::from(NETWORK_TICKS_PER_SECOND);
     clock.due = (accumulated / NANOS_PER_SECOND) as u32;
     clock.remainder = accumulated % NANOS_PER_SECOND;
-}
-
-fn network_tick_due(clock: Res<NetworkTickClock>) -> bool {
-    clock.due > 0
 }
 
 fn run_network_ticks(world: &mut World) {
