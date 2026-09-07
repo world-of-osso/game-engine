@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] investigation | Clarify update-rate normalization
+
+Updated [[movement-performance]] with source-backed metric provenance: game IPC/overlay FPS and blank-renderer logging both measure app-update cadence, with different smoothing. Neither proves presentation cadence. Compare exact per-capture update counts before interpreting CPU-per-update ratios.
+
 ## [2026-09-07] diagnostic | Isolate blank-renderer dirty-tree callback
 
 Updated [[empty-window-baseline]] and [[movement-performance]] for the single-selector continuous-window extension and native before/after experiment. The removed callback and its worker spans disappear, but bulk CPU remains. Clock variation prevents an efficiency claim; the source investigation remains open.

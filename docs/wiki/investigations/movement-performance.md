@@ -4,6 +4,12 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 Current CPU baseline: the [additive empty-window investigation](empty-window-baseline.md) locates the first substantial increase at continuous blank-frame processing, before project services. The [isolated dirty-tree removal](empty-window-baseline.md#isolated-dirty-tree-removal) stopped that callback and its worker spans without a bulk CPU drop. Full-game per-frame CPU ownership remains unresolved. Separately, [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
+## Update-rate metric provenance (2026-09-07)
+
+Full-game IPC `performance.fps` reads the smoothed `FrameTimeDiagnosticsPlugin::FPS` diagnostic (`src/ipc/mod.rs::build_performance_snapshot`). Bevy computes that diagnostic as `1.0 / Time<Real>::delta_secs_f64()` during app updates. The overlay displays the same diagnostic. Blank-renderer telemetry instead divides counted app updates by its elapsed logging interval. Both describe **app-update cadence**, not surface presentations; smoothing and aggregation differ.
+
+Therefore, “blank updates versus game FPS” is not a difference of underlying event type. CPU per app update is a useful investigative normalization when numerator and denominator cover the same capture. Different scenes, revisions, clocks and instrumentation still prevent an uncontrolled cross-run ratio from proving an efficiency gain. Smoothed FPS must not be treated as an exact update count for a five-second profiler window.
+
 ## Current timed callback-removal interface (2026-09-06)
 
 Commit `52e44eff` replaces the six per-target flags with repeatable exact-name requests:

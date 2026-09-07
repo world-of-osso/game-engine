@@ -81,6 +81,8 @@ With the CPU profiler layer disabled but the same tracing-feature binary retaine
 
 A separate same-binary run removed the callback at 0.000 seconds. Its subsequent profile retained 170 other span names across 18 reporting threads but contained neither the target system nor its producer, consumer or traversal spans. This proves the intervention stopped that work, not that it solved bulk CPU usage. Artifacts: `data/diagnostics/movement-perf-20260905/service-window/renderer/named-profile/dirty-removal/`.
 
+Both blank update telemetry and full-game IPC FPS describe app-update cadence, not presentation; their aggregation differs. See [metric provenance and normalization](movement-performance.md#update-rate-metric-provenance-2026-09-07).
+
 ## Measurement scope
 
 Measure process/thread idle CPU externally after the window is visible, and record host CPU, window/focus state, GPU activity, clocks, and limits alongside it. Do not add an FPS overlay or diagnostic server. Native and core stages have no game workload or continuous rendering. Renderer stages add only blank-frame work; their deliberately different update policies do not establish a same-throughput game optimization.
