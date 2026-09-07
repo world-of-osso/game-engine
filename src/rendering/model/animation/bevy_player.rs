@@ -414,6 +414,100 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_crossfade_preserves_rotation_scale_and_pivot() {
+        use super::super::{ANIM_RUN, ANIM_STAND, ANIM_WALK, MoveDirection, MovementState};
+        use bevy::ecs::system::RunSystemOnce;
+
+        fn advance(app: &mut App, millis: u64) {
+            app.world_mut()
+                .resource_mut::<Time>()
+                .advance_by(std::time::Duration::from_millis(millis));
+            app.world_mut()
+                .run_system_once(super::super::runtime::tick_animation)
+                .unwrap();
+            app.update();
+        }
+
+        fn assert_same_pose(before: Transform, after: Transform) {
+            assert!(before.translation.abs_diff_eq(after.translation, 0.0001));
+            assert!(before.rotation.abs_diff_eq(after.rotation, 0.0001));
+            assert!(before.scale.abs_diff_eq(after.scale, 0.0001));
+        }
+
+        let mut app = fixture_app();
+        let (owner, joint) = spawn_model(&mut app);
+        app.world_mut()
+            .entity_mut(joint)
+            .insert(BonePivot(Vec3::new(2.0, -3.0, 4.0)));
+        {
+            let mut model = app.world_mut().get_mut::<M2AnimData>(owner).unwrap();
+            model.sequences = [ANIM_STAND, ANIM_WALK, ANIM_RUN]
+                .into_iter()
+                .map(|id| M2AnimSequence {
+                    id,
+                    variation_id: 0,
+                    duration: 1000,
+                    movespeed: 0.0,
+                    flags: 0,
+                    blend_time: 200,
+                    next_animation: -1,
+                })
+                .collect();
+            let tracks = &mut model.bone_tracks[0];
+            tracks.translation.sequences = [[0.0; 3], [10.0, 2.0, -4.0], [30.0, -5.0, 8.0]]
+                .into_iter()
+                .map(|value| (vec![0], vec![value]))
+                .collect();
+            // Packed WoW quaternions: identity, then quarter-turns about distinct axes.
+            tracks.rotation.sequences = [
+                [32767, 32767, 32767, -1],
+                [-9598, 32767, 32767, -9598],
+                [32767, -9598, 32767, -9598],
+            ]
+            .into_iter()
+            .map(|value| (vec![0], vec![value]))
+            .collect();
+            tracks.scale.sequences = [[1.0, 2.0, 3.0], [3.0, 1.0, 2.0], [2.0, 4.0, 1.0]]
+                .into_iter()
+                .map(|value| (vec![0], vec![value]))
+                .collect();
+        }
+        settle(&mut app);
+        app.world_mut().entity_mut(owner).insert(MovementState {
+            direction: MoveDirection::Forward,
+            running: false,
+            ..default()
+        });
+        app.world_mut()
+            .run_system_once(super::super::runtime::switch_animation)
+            .unwrap();
+        advance(&mut app, 80);
+
+        for running in [true, false] {
+            let before = *app.world().get::<Transform>(joint).unwrap();
+            app.world_mut()
+                .get_mut::<MovementState>(owner)
+                .unwrap()
+                .running = running;
+            app.world_mut()
+                .run_system_once(super::super::runtime::switch_animation)
+                .unwrap();
+            app.update();
+            assert_same_pose(before, *app.world().get::<Transform>(joint).unwrap());
+
+            advance(&mut app, 40);
+            let progressed = *app.world().get::<Transform>(joint).unwrap();
+            assert!(
+                !before
+                    .translation
+                    .abs_diff_eq(progressed.translation, 0.001)
+            );
+            assert!(!before.rotation.abs_diff_eq(progressed.rotation, 0.001));
+            assert!(!before.scale.abs_diff_eq(progressed.scale, 0.001));
+        }
+    }
+
+    #[test]
     fn replacing_model_detaches_old_joint_without_despawning_it() {
         let mut app = fixture_app();
         let (owner, old) = spawn_model(&mut app);
