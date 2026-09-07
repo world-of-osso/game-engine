@@ -25,20 +25,13 @@ pub(crate) fn bind_m2_animation_players(
         (Entity, &M2AnimData, Option<&M2BevyAnimation>),
         (Changed<M2AnimData>, Allow<Disabled>),
     >,
-    targets: Query<&AnimatedBy, Allow<Disabled>>,
     joints: Query<(), (With<super::BonePivot>, Allow<Disabled>)>,
     mut clips: ResMut<Assets<AnimationClip>>,
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     for (owner, data, previous) in &models {
         if let Some(previous) = previous {
-            detach_obsolete_targets(
-                &mut commands,
-                owner,
-                &previous.joints,
-                &data.joint_entities,
-                &targets,
-            );
+            detach_obsolete_targets(&mut commands, owner, &previous.joints, &data.joint_entities);
         }
         let (graph, binding) = build_animation_graph(data, &mut clips, &mut graphs);
         for (index, &joint) in data.joint_entities.iter().enumerate() {
@@ -86,20 +79,27 @@ fn detach_obsolete_targets(
     owner: Entity,
     previous: &[Entity],
     current: &[Entity],
-    targets: &Query<&AnimatedBy, Allow<Disabled>>,
 ) {
     let retained: HashSet<_> = current.iter().copied().collect();
-    for &joint in previous {
-        if !retained.contains(&joint) && targets.get(joint).is_ok_and(|binding| binding.0 == owner)
-        {
-            commands
-                .entity(joint)
-                .queue(bevy::ecs::system::entity_command::remove::<(
-                    AnimationTargetId,
-                    AnimatedBy,
-                )>());
+    let obsolete: Vec<_> = previous
+        .iter()
+        .copied()
+        .filter(|joint| !retained.contains(joint))
+        .collect();
+    commands.queue(move |world: &mut World| {
+        for joint in obsolete {
+            let Ok(mut joint) = world.get_entity_mut(joint) else {
+                // Recursive despawn already retired this joint and its binding.
+                continue;
+            };
+            if joint
+                .get::<AnimatedBy>()
+                .is_some_and(|binding| binding.0 == owner)
+            {
+                joint.remove::<(AnimationTargetId, AnimatedBy)>();
+            }
         }
-    }
+    });
 }
 
 /// Removing model data also retires playback and bindings, without despawning retained joints.
@@ -107,12 +107,11 @@ pub(crate) fn remove_m2_animation_player(
     event: On<Remove, M2AnimData>,
     mut commands: Commands,
     models: Query<&M2BevyAnimation, Allow<Disabled>>,
-    targets: Query<&AnimatedBy, Allow<Disabled>>,
 ) {
     let Ok(model) = models.get(event.entity) else {
         return;
     };
-    detach_obsolete_targets(&mut commands, event.entity, &model.joints, &[], &targets);
+    detach_obsolete_targets(&mut commands, event.entity, &model.joints, &[]);
     let owner = event.entity;
     commands.queue(move |world: &mut World| {
         if let Ok(mut entity) = world.get_entity_mut(owner) {
@@ -561,11 +560,10 @@ mod tests {
         let (owner, joint) = spawn_model(&mut app);
         settle(&mut app);
         let other = app.world_mut().spawn_empty().id();
-        let mut state =
-            SystemState::<(Commands, Query<&AnimatedBy, Allow<Disabled>>)>::new(app.world_mut());
+        let mut state = SystemState::<Commands>::new(app.world_mut());
         {
-            let (mut commands, targets) = state.get_mut(app.world_mut()).unwrap();
-            detach_obsolete_targets(&mut commands, owner, &[joint], &[], &targets);
+            let mut commands = state.get_mut(app.world_mut()).unwrap();
+            detach_obsolete_targets(&mut commands, owner, &[joint], &[]);
         }
         app.world_mut().entity_mut(joint).insert(AnimatedBy(other));
         state.apply(app.world_mut());
