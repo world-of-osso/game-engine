@@ -141,6 +141,7 @@ pub(super) struct CharSelectModelSyncParams<'w, 's> {
 
 #[derive(SystemParam)]
 pub(super) struct CharSelectAppearanceSyncParams<'w, 's> {
+    pub(super) commands: Commands<'w, 's>,
     pub(super) customization_db: Res<'w, CustomizationDb>,
     pub(super) char_tex: Res<'w, CharTextureData>,
     pub(super) outfit_data: Res<'w, OutfitData>,
