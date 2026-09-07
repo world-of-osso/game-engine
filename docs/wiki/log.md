@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] docs | Record event-driven network groundwork and IPC queue guard
+
+Updated [[networking]], [event-driven application updates](../specs/event-driven-application-updates.md), and `index.md` for `1aec1091`, `fc82c5b7`, and `db7e6e7b`. `NetworkTick` is a 60 Hz logical schedule on the main ECS thread, not an independent OS networking thread; it leaves the negotiated 20 Hz simulation unchanged. The central dispatcher now routes auth and profession work over existing typed FIFO inboxes, and IPC skips dispatch parameter acquisition with no pending command. Broad application/API migration, integrated delivery/reconnect and appearance proof, idle-work measurement, and any CPU improvement remain open.
+
 ## [2026-09-07] docs | Retire forced strict-Empty pacing claims
 
 Updated [[procedural-cloud-regeneration]], [[rendering-pipeline]], [[networking]], [[ui-system]], [[replicated-unit-noops]], [[empty-window-baseline]], and `index.md`. `281d291a` removes `4fb2e5c9`'s forced 100 ms / 10 FPS Empty limiter: only the configured global frame-rate limit applies. Historical near-10-FPS readings, including 11.199% at approximately 9.994 updates/s, are capped data—not an uncapped baseline or a 97% CPU gain. `35e15d27` is build-backed successful startup after omitting Empty PBR/light/debug/material paths and target visuals; Empty is startup-only. Uncapped Green is pending.

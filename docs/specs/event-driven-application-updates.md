@@ -6,26 +6,27 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 ### Networking
 
-- [ ] Advance the application network schedule at 60 logical ticks per second, independently of render-frame count.
-- [ ] Gate Lightyear link/transport/message receive and send work to network-due frames without changing wire formats or the negotiated simulation tick rate.
-- [ ] Use one incoming dispatcher over existing typed inboxes; only handlers with pending messages and satisfied eligibility run.
-- [ ] Preserve per-inbox FIFO and deterministic handler registration order; run a handler once when multiple routed inboxes are ready.
-- [ ] Use one outgoing dispatcher; heavy send handlers run only when their existing queues or dirty state require work.
-- [ ] Preserve connection/reconnection lifecycle and actual client/server delivery.
+- [x] Add a 60 logical-ticks-per-second application network schedule whose tick count is independent of render-frame count.
+- [x] Gate Lightyear link/transport/message receive and send sets to network-due frames without changing wire formats or the negotiated 20 Hz simulation tick.
+- [x] Add one incoming dispatcher over existing typed inboxes; only handlers with pending messages and satisfied eligibility run.
+- [x] Preserve dispatcher registration order, per-inbox FIFO, and once-only invocation when multiple routes are ready.
+- [x] Add one outgoing dispatcher; registered send work runs only when its queue or dirty-state predicate is ready.
+- [ ] Prove integrated connection/reconnection lifecycle and actual client/server delivery after the remaining migration.
 
 ### Equipment and other application work
 
 - [ ] Reconcile equipment for affected entities on actual equipment mutation, replicated appearance change, or required model-data arrival/replacement—not by scanning all equipment every frame.
 - [ ] Coalesce a batch of equipment commands to its final rendered state while retaining command/result ordering.
-- [ ] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
+- [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
 - [ ] Keep required active movement/animation and render-loop work, while avoiding unrelated idle application handlers.
 
 ## How it works
 
 - [CPU investigation](../wiki/investigations/empty-window-baseline.md).
-- The network schedule shares the main ECS thread. Due ticks can run together at lower render cadences; it cannot progress while that thread is blocked. It is not a separate OS network thread.
-- Existing Bevy maximum-delta policy bounds catch-up after a long stall. Network timeouts still use real time.
-- Typed Lightyear buffers remain the source of truth. The dispatcher checks inbox readiness at network ticks; it does not introduce a second wire protocol or claim zero network polling.
+- `NetworkTick` shares the main ECS thread. Due ticks can run together at lower render cadences and cannot progress while that thread is blocked; it is a logical 60 Hz cadence, **not an independent OS network thread**.
+- Existing Bevy maximum-delta policy bounds catch-up after a long stall. Network timeouts still use real time. The authoritative client/server simulation remains negotiated at **20 Hz**; this schedule does not alter it.
+- Typed Lightyear buffers remain the source of truth. The dispatcher checks inbox readiness at logical network ticks; it does not introduce a second wire protocol or claim zero network polling.
+- `1aec1091` added the initial tick driver and routed auth handlers. `fc82c5b7` routed profession request/update work. `db7e6e7b` gates idle IPC dispatch before system parameter acquisition.
 
 ## Implementation inventory
 
@@ -45,7 +46,8 @@ Application work is driven by a fixed network schedule, queued commands/messages
 ## Known gaps
 
 - [ ] Integration and native delivery/appearance proof.
-- [ ] Remaining application registrations and idle-work measurement.
+- [ ] Broad application-handler migration: auth and profession are routed; other gameplay/API registrations remain on frame `Update` or await conversion.
+- [ ] Idle-work/CPU measurement. No CPU reduction or CPU fix is claimed by this groundwork.
 
 ## Out of scope
 

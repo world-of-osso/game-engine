@@ -16,6 +16,16 @@ The `game-server/crates/shared/` crate is depended on by both sides. It defines 
 - `MovementChannel` — unreliable, for position updates
 - `CombatChannel` / `ChatChannel` — reliable ordered
 
+## Application network cadence and dispatch
+
+`1aec1091` adds `NetworkTick`: a logical 60 Hz application schedule using real-time accumulation. It shares the main ECS thread, so due ticks may batch after lower render cadence and cannot run while that thread is blocked. It is not an independent OS networking thread. Lightyear link, transport, and message receive/send sets are gated by due ticks; typed `MessageReceiver` inboxes remain the protocol boundary.
+
+The authoritative client/server simulation remains negotiated at 20 Hz. The 60 Hz application cadence does not change wire formats or the simulation tick rate.
+
+`network_events` owns one incoming and one outgoing registry. Incoming routing samples each typed inbox once, invokes eligible handlers in registration order only when buffered work exists, and leaves each receiver's FIFO drain to its handler. Outgoing routing invokes registered handlers only when their cheap queue/dirty predicate is ready. `1aec1091` routes auth handlers; `fc82c5b7` routes profession requests and updates. Broad application/API migration is incomplete, and integrated delivery/reconnect proof is pending.
+
+`db7e6e7b` also makes IPC dispatch conditional on nonempty `PendingIpcCommands`, before `dispatch_ipc_commands` acquires heavy parameters. IPC ordering remains receive, requested-status refresh, then dispatch. These changes have no native CPU comparison or CPU-fix claim.
+
 ## Auth Flow
 
 1. **Register**: client sends `RegisterRequest { username, password }`. Server hashes with argon2, stores in redb `PASSWORDS` table, returns session token.
