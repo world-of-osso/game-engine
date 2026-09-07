@@ -60,6 +60,10 @@ criterion = "0.5"
 name = "parser_benches"
 harness = false
 
+[patch.crates-io]
+bevy_ecs = { path = "vendor/bevy_ecs" }
+bevy_tasks = { path = "vendor/bevy_tasks" }
+
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
 
