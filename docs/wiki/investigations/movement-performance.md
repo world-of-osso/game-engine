@@ -309,6 +309,22 @@ The `bevy/trace` feature activates optional tracing-related transitive dependenc
 
 Artifacts and proof ledger: `settled-low-fps/cpu-system-isolation/thread-cpu-profile/`, especially `capture/{profile.json,cpu-ranking.json,telemetry/}`.
 
+### Further cumulative removals and approved material group
+
+The generic selector retained prior exclusions and removed visibility reset, then scene-tree rebuilding in separate windows. CPU remained **328.39→329.14→331.30%** while FPS was **214.07→223.63→222.62**, with 13 focused rows each. Subsequent terrain-material and sky-material preparation removals measured **331.72→330.06→323.55% CPU** and **232.99→215.45→209.57 FPS**. These do not establish a bulk CPU reduction at unchanged throughput.
+
+The user then explicitly approved **one grouped material-pipeline test**. Its saved `group.json` defines 25 remaining callbacks in four families: erased-material extraction/preparation, mesh-material extraction, and material-specialization checks. Eleven prior removals were retained. Exactly 36 successful removals were recorded: 11 at startup and the approved 25-member group at 30.001 seconds. Resources and plugins were not removed.
+
+The same-process grouped comparison measured **332.55% CPU / 231.63 FPS** before and **340.89% / 240.90 FPS** after. Both windows had 13 focused, connected `InWorld` samples, unchanged reported positions, and identical semantic scene snapshots. Independent data audit found no CPU-benefit claim supported. This is group evidence, not individual-callback attribution. Artifacts: `cumulative/{visibility-and-tree,terrain-and-sky-preparation,material-pipeline-group}/`; group audit is `material-pipeline-group/audit.md`.
+
+### Native compilation-unit and source attribution
+
+A fresh nine-exclusion native capture retained its matching executable. It contains **2,134 user-mode samples**, including **1,536 worker samples**. Perf DSO offsets are file offsets: mapping them to DWARF requires the ELF `PT_LOAD` conversion, which adds `0x1000` for this executable's code segment. The initial unadjusted CU result is invalid and must not be used.
+
+Corrected, independently audited ranges place **514/2,134** samples in `game_engine` compilation units, including **452/1,536** worker samples. A name-based subdivision finds 388 ECS-related generated symbols and 32 directly project-named functions among those 514 samples. Compilation-unit ownership is not business-logic ownership: dependency-looking generic/helper code can be emitted in application units. This does not prove that changing optimization levels would reduce CPU; no such change was made.
+
+The retained ELF, skeleton ranges, corrected per-sample mapping, batch source-line resolution, and audit are under `current-nine-source-map/`. Use `cu-attribution-corrected.json`, `source-attributed-samples.json`, and `verifier-audit-2026-09-07.md`; do not use `cu-attribution.json`. Root cause of the remaining bulk CPU is still unresolved.
+
 ### Pipelined-rendering CPU contribution
 
 Commit `e3a4ddcb` adds `--no-pipelined-rendering`. It omits only Bevy's `PipelinedRenderingPlugin`, retaining the RenderApp, GPU rendering, and scene settings. Render-app frames then execute sequentially with the main app instead of using the separate rendering-thread handoff. Individual schedules can still use compute workers; this does **not** switch the ECS executor to single-threaded operation. Headless behavioral RED/GREEN verifies frame delivery and the caller/render-thread distinction (**2/2 GREEN**).

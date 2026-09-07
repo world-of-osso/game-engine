@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-07] measurement | Material group negative; native ownership mapped
+
+Updated [[movement-performance]] with cumulative visibility/tree/material-preparation measurements and the explicitly approved 25-callback material group. With 11 removals retained, the group changed CPU 332.55→340.89% and FPS 231.63→240.90; no CPU benefit. Corrected native CU attribution maps 514/2,134 user-mode samples to application units, mostly generated/helper symbols rather than directly named game functions. ELF file offsets require PT_LOAD conversion; the unadjusted result is invalid. Independent audits passed. Bulk CPU cause remains unresolved; compiler/worker/FPS policy unchanged.
+
 ## [2026-09-06] measurement | Cumulative exclusions retain bulk CPU
 
 Updated [[movement-performance]] with sender-only and cumulative results. Sender removal retained connection state but did not reduce CPU. All six retained exclusions still measured 330.30% CPU / 214.74 FPS in a focused six-second tail, then 331.80% / 234.68 FPS in a separately recreated, fully focused 12-second state. Mixed-focus and firmware-clamped phases are excluded from savings claims. Independent audits passed; diagnostic clients stopped.
