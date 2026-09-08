@@ -185,8 +185,10 @@ pub(super) fn camera_follow(
         .and_then(|heightmap| heightmap.height_at(pos.x, pos.z))
         .unwrap_or(GROUND_Y);
     pos.y = pos.y.max(cam_ground + 0.5);
-    cam_tf.translation = cam_tf.translation.lerp(pos, follow_t);
-    cam_tf.look_at(eye_target, Vec3::Y);
+    let mut next_transform = *cam_tf;
+    next_transform.translation = next_transform.translation.lerp(pos, follow_t);
+    next_transform.look_at(eye_target, Vec3::Y);
+    cam_tf.set_if_neq(next_transform);
 }
 
 #[cfg(test)]
