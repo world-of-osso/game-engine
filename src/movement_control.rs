@@ -2,7 +2,7 @@ use bevy::prelude::Resource;
 
 const MAX_DURATION_SECS: f32 = 60.0;
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Debug)]
 pub struct ScriptedMovement {
     active: Option<ActiveScriptedMovement>,
 }
