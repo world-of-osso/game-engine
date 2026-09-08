@@ -16,7 +16,7 @@ use bevy::animation::{
 use bevy::math::curve::{Curve, Interval};
 use bevy::prelude::*;
 
-use super::{BonePivot, M2AnimData, evaluate_bone_components};
+use super::{BonePivot, M2AnimData, SphericalBillboard, evaluate_bone_components};
 use crate::asset::m2_format::m2_anim::{AnimTrack, BoneAnimTracks};
 
 #[derive(Component, Default, Clone, Copy)]
@@ -267,6 +267,10 @@ impl AnimationCurveEvaluator for PivotEvaluator {
             )))?
             .0;
         pose.translation = pose.translation + pivot - pose.rotation * (pose.scale * pivot);
+        if let Some(mut billboard) = entity.get_mut::<SphericalBillboard>() {
+            billboard.pending_pose = Some(pose);
+            return Ok(());
+        }
         let mut transform =
             entity
                 .get_mut::<Transform>()

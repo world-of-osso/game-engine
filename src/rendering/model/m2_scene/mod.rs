@@ -528,6 +528,7 @@ pub fn attach_bone_pivots_and_player(
         if bone.flags & M2_BONE_SPHERICAL_BILLBOARD != 0 {
             entity.insert(SphericalBillboard {
                 pivot: Vec3::new(p[0], p[2], -p[1]),
+                pending_pose: None,
             });
         }
     }

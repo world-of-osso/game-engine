@@ -39,6 +39,8 @@ pub const M2_BONE_SPHERICAL_BILLBOARD: u32 = 0x8;
 pub struct SphericalBillboard {
     /// Bone pivot in Bevy coordinates — the point the bone rotates around.
     pub pivot: Vec3,
+    /// Evaluated pose awaiting the final camera-facing transform write.
+    pub pending_pose: Option<Transform>,
 }
 
 /// All animation data for a single animated M2 model root.
@@ -445,17 +447,19 @@ pub fn evaluate_bone_components(
 
 fn apply_billboard_rotation(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    mut bones: Query<(&mut Transform, &SphericalBillboard)>,
+    mut bones: Query<(&mut Transform, &mut SphericalBillboard)>,
 ) {
-    let Some(camera_gt) = camera_query.iter().next() else {
-        return;
-    };
-    let Some(bb_rot) = billboard_rotation_from_camera(camera_gt.rotation()) else {
-        return;
-    };
-    for (mut transform, bb) in &mut bones {
-        transform.translation = bb.pivot;
-        transform.rotation = bb_rot;
+    let billboard_rotation = camera_query
+        .iter()
+        .next()
+        .and_then(|camera| billboard_rotation_from_camera(camera.rotation()));
+    for (mut transform, mut billboard) in &mut bones {
+        let mut pose = billboard.pending_pose.take().unwrap_or(*transform);
+        if let Some(rotation) = billboard_rotation {
+            pose.translation = billboard.pivot;
+            pose.rotation = rotation;
+        }
+        transform.set_if_neq(pose);
     }
 }
 
