@@ -481,9 +481,13 @@ fn register_net_observers(app: &mut App) {
 pub(crate) fn register_connection_tick_systems(app: &mut App) {
     app.add_systems(
         game_engine::network_tick::NetworkTick,
-        game_engine::network_runtime::connection::apply_connection_events
-            .in_set(game_engine::network_tick::NetworkTickSystems::Receive)
-            .after(game_engine::network_events::dispatch_incoming),
+        (
+            game_engine::network_runtime::connection::prepare_connection_senders
+                .before(game_engine::network_events::dispatch_incoming),
+            game_engine::network_runtime::connection::apply_connection_events
+                .after(game_engine::network_events::dispatch_incoming),
+        )
+            .in_set(game_engine::network_tick::NetworkTickSystems::Receive),
     );
 }
 

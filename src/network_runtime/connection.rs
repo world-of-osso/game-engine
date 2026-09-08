@@ -164,6 +164,22 @@ fn publish_connection_event(updates: &Sender<MainUpdate>, proxy: Entity, event: 
         .unwrap_or_else(|_| panic!("main connection event queue closed"));
 }
 
+/// Replies can precede main connection callbacks. Make their sending endpoint ready first,
+/// without moving disconnect callbacks ahead of their server notices.
+pub fn prepare_connection_senders(world: &mut World) {
+    let connected = world
+        .resource::<ConnectionEvents>()
+        .0
+        .iter()
+        .any(|(proxy, event)| {
+            matches!(event, ConnectionEvent::Connected) && world.get::<Client>(*proxy).is_some()
+        });
+    if connected {
+        let sender = world.resource::<NetworkRuntime>().command_sender();
+        world.resource_mut::<ConnectionSender>().sender = Some(sender);
+    }
+}
+
 /// Run after incoming handlers: forced-disconnect notices precede state transitions.
 pub fn apply_connection_events(world: &mut World) {
     let events = std::mem::take(&mut world.resource_mut::<ConnectionEvents>().0);

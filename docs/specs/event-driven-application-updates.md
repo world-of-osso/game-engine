@@ -25,6 +25,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - Queue login/registration when the network worker is created. Transport readiness controls wire delivery; main-thread replica/model construction must not delay the initial authentication request.
 - Keep login responses, UI transitions, and world mutation on the main thread. Do not duplicate authentication when its connected marker is later applied.
+- Prepare sender readiness from worker connection events before dispatching incoming replies, so immediate follow-up requests are not dropped. Apply connection callbacks afterward so forced-disconnect notices remain available to disconnect policy.
 
 ### M2 animation runtime
 
