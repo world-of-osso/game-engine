@@ -646,10 +646,15 @@ fn spawn_npc_model_or_capsule(
     m2_loaded
 }
 
+/// Parent of a replicated NPC's M2 model; selects the model for animation LOD.
+#[derive(Component)]
+pub(crate) struct NpcVisualRoot;
+
 fn spawn_npc_visual_root(commands: &mut Commands, entity: Entity, scale: f32) -> Entity {
     let visual_root = commands
         .spawn((
             Name::new("NpcVisualRoot"),
+            NpcVisualRoot,
             Transform::from_scale(Vec3::splat(scale.max(0.01))),
             Visibility::default(),
         ))

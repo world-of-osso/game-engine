@@ -4,6 +4,8 @@ pub(crate) mod bevy_curves;
 mod bevy_player;
 #[path = "animation/billboard.rs"]
 pub mod billboard;
+#[path = "animation/lod.rs"]
+pub(crate) mod lod;
 #[path = "animation/runtime.rs"]
 mod runtime;
 
@@ -533,6 +535,7 @@ impl Plugin for AnimationPlugin {
                     )
                         .chain()
                         .run_if(animation_active_state),
+                    lod::assign_npc_animation_lod.run_if(in_state(GameState::InWorld)),
                     bevy_player::sync_m2_animation_players,
                 )
                     .chain(),

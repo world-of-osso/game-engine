@@ -56,12 +56,19 @@ For original (non-WoW) generated characters, the same crossfade logic applies bu
 
 Three skeleton templates share animation sets: Humanoid (~25 bones), Digitigrade (~30 bones), Quadruped (~30 bones). Bone scaling at load time allows multiple races to share the same clips via rotation-only retargeting.
 
+## NPC Animation LOD
+
+Replicated NPC models carry an `AnimationLod` chosen each frame in `Update` before `sync_m2_animation_players`, from the model's `GlobalTransform` distance to the `WowCamera` and whether any direct mesh child had `ViewVisibility` set in the previous frame: on screen and within 30 yd samples every frame, 30–60 yd samples every other frame (staggered by entity index), beyond 60 yd or off screen is frozen. On a skipped frame the owner's Bevy `AnimationPlayer` stays stopped, so `animate_targets` evaluates no clips and writes no joints, and the subtree is not dirtied for transform propagation. The `M2AnimPlayer` clock and crossfades still advance, so a resumed NPC shows the correct pose immediately. Only models parented to an `NpcVisualRoot` are affected; the player model, doodads, and debug scenes always sample. Spec: [npc-animation-lod](../../specs/npc-animation-lod.md).
+
+Motivation: in Goldshire the 100 yd server interest sphere holds ~83 creatures (~6,400 bone entities); before this, all of them were sampled and propagated every frame regardless of view. See [[movement-performance]].
+
 ## Key Files
 
 - `src/asset/m2_format/m2_anim.rs` — bone track parsing, sequence parsing
 - `src/rendering/model/animation.rs` — ANIM_* constants, WoW sequence/crossfade state machine, Bevy registration
 - `src/rendering/model/animation/bevy_curves.rs` — exact M2 raw-TRS Bevy curves and pivot commit
 - `src/rendering/model/animation/bevy_player.rs` — target/graph binding, paused controller seeks, and deferred binding teardown
+- `src/rendering/model/animation/lod.rs` — NPC distance/visibility sampling rate
 
 ## Sources
 

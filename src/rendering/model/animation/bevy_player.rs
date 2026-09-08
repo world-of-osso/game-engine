@@ -6,8 +6,10 @@ use bevy::animation::{AnimatedBy, AnimationTargetId, graph::AnimationNodeIndex};
 use bevy::ecs::entity_disabling::Disabled;
 use bevy::prelude::*;
 
+use super::lod::AnimationLod;
 use super::{M2AnimData, M2AnimPlayer, TransitionSource, animation_active_state, bevy_curves};
 use crate::game_state::GameState;
+use bevy::diagnostic::FrameCount;
 
 #[derive(Component)]
 pub(crate) struct M2BevyAnimation {
@@ -122,16 +124,25 @@ pub(crate) fn remove_m2_animation_player(
 
 /// Paused Bevy clips sample controller times exactly once; Bevy does not advance a second clock.
 /// This must also run in inactive states, where it stops previously selected clips.
+/// An owner whose `AnimationLod` skips this frame keeps its clips stopped, so Bevy neither
+/// samples its curves nor writes its joints.
 pub(crate) fn sync_m2_animation_players(
     state: Option<Res<State<GameState>>>,
-    mut players: Query<(&mut M2AnimPlayer, &M2BevyAnimation, &mut AnimationPlayer)>,
+    frame: Res<FrameCount>,
+    mut players: Query<(
+        Entity,
+        &mut M2AnimPlayer,
+        &M2BevyAnimation,
+        &mut AnimationPlayer,
+        Option<&AnimationLod>,
+    )>,
     poses: Query<&bevy_curves::RawBonePose>,
     mut clips: ResMut<Assets<AnimationClip>>,
 ) {
     let active = animation_active_state(state);
-    for (mut controller, binding, mut player) in &mut players {
+    for (owner, mut controller, binding, mut player, lod) in &mut players {
         player.stop_all();
-        if !active {
+        if !active || lod.is_some_and(|lod| !lod.samples_frame(frame.0, owner)) {
             continue;
         }
         let Some(&current) = binding.current_nodes.get(controller.current_seq_idx) else {
