@@ -218,6 +218,140 @@ fn local_server_authenticates_while_main_callbacks_are_stalled() {
     );
 }
 
+#[derive(Resource, Default)]
+struct ObservedLocalServerWorldEntry {
+    selected_character: Option<CharacterListEntry>,
+    responses: Vec<EnterWorldResponse>,
+}
+
+fn select_first_local_server_test_character(
+    mut receivers: MessageReceivers<LoginResponse>,
+    mut senders: MessageSenders<SelectCharacter>,
+    mut observed: ResMut<ObservedLocalServerWorldEntry>,
+) {
+    for receiver in receivers.iter_mut() {
+        for response in receiver.receive() {
+            assert!(response.success, "local-server token login must succeed");
+            let character = response
+                .characters
+                .first()
+                .expect("local-server fixture account must own a character")
+                .clone();
+            let character_id = character.character_id;
+            observed.selected_character = Some(character);
+            for mut sender in senders.iter_mut() {
+                sender.send::<AuthChannel>(SelectCharacter { character_id });
+            }
+        }
+    }
+}
+
+fn record_local_server_world_entry(
+    mut receivers: MessageReceivers<EnterWorldResponse>,
+    mut observed: ResMut<ObservedLocalServerWorldEntry>,
+) {
+    for receiver in receivers.iter_mut() {
+        observed.responses.extend(receiver.receive());
+    }
+}
+
+fn build_local_server_world_entry_app(token: String) -> App {
+    let mut app = App::new();
+    app.add_plugins(game_engine::network_tick::NetworkTickPlugin);
+    game_engine::network_runtime::connection::initialize_connection_bridge(&mut app);
+    crate::networking::register_connection_tick_systems(&mut app);
+    app.init_resource::<ObservedLocalServerWorldEntry>()
+        .insert_resource(LoginMode::Login)
+        .init_resource::<LoginUsername>()
+        .init_resource::<LoginPassword>()
+        .insert_resource(AuthToken(Some(token)));
+    game_engine::network_events::register_message_handler::<LoginResponse, _>(
+        &mut app,
+        select_first_local_server_test_character,
+        |_| true,
+    );
+    game_engine::network_events::register_message_handler::<EnterWorldResponse, _>(
+        &mut app,
+        record_local_server_world_entry,
+        |_| true,
+    );
+    app
+}
+
+fn local_server_entered_player(world: &World) -> Option<(String, u8, u8)> {
+    use game_engine::network_runtime::replication::ReplicationMirrorMap;
+
+    let response = world
+        .resource::<ObservedLocalServerWorldEntry>()
+        .responses
+        .first()?;
+    let server_entity = Entity::try_from_bits(response.player_entity?)?;
+    let entity = world
+        .resource::<ReplicationMirrorMap>()
+        .server_to_main(server_entity)?;
+    let player = world.get::<NetPlayer>(entity)?;
+    Some((player.name.clone(), player.race, player.class))
+}
+
+#[test]
+#[ignore = "requires the existing local server and GAME_ENGINE_TEST_AUTH_TOKEN_FILE; run alone"]
+fn local_server_enters_world_after_login_arrives_before_main_connection_marker() {
+    use game_engine::network_runtime::connection;
+    use std::time::{Duration, Instant};
+
+    let mut app = build_local_server_world_entry_app(read_local_server_auth_test_token());
+    crate::networking::connect_to_server_inner(
+        &mut app.world_mut().commands(),
+        "127.0.0.1:5000".parse().expect("local test server address"),
+    );
+    app.world_mut().flush();
+    let mut clients = app.world_mut().query_filtered::<Entity, With<Client>>();
+    let client = clients
+        .single(app.world())
+        .expect("one main-world client proxy");
+
+    // Authentication progresses on the worker while the main lifecycle remains unapplied.
+    std::thread::sleep(Duration::from_secs(2));
+    assert!(app.world().get::<connection::Connected>(client).is_none());
+    app.update();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while local_server_entered_player(app.world()).is_none() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(25));
+        app.update();
+    }
+
+    let entered_player = local_server_entered_player(app.world());
+    let observed = app
+        .world_mut()
+        .remove_resource::<ObservedLocalServerWorldEntry>()
+        .expect("world-entry observations");
+    connection::stop_connection(app.world_mut()).expect("stop and join world-entry test worker");
+
+    let selected = observed
+        .selected_character
+        .expect("first main update must process the server's login roster");
+    assert!(selected.character_id > 0, "select a persisted character ID");
+    assert_eq!(
+        observed.responses.len(),
+        1,
+        "selecting the first roster character must receive one actual EnterWorldResponse",
+    );
+    let response = &observed.responses[0];
+    assert!(
+        response.success,
+        "server must accept the selected character ID"
+    );
+    assert!(
+        response.player_entity.is_some(),
+        "world entry must identify its server player"
+    );
+    assert_eq!(
+        entered_player,
+        Some((selected.name, selected.race, selected.class)),
+        "the returned server entity must replicate the selected roster character",
+    );
+}
+
 const VALID_TEST_UUID: &str = "22222222-2222-2222-2222-222222222222";
 
 fn make_test_char(id: u64, name: &str) -> CharacterListEntry {
