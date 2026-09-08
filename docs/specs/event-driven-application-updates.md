@@ -65,7 +65,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 Commits `dc6183f8`, `550b637a`, `9a6b6679`, `1c1d7998`, `ae222f0e`, `e9b81652`, `fc99128b`, and `00467125` remove confirmed clean-frame application work: reconnect/reset lifecycle; sound maintenance; active cooldown advancement; local mount/tag/alive synchronization; addon watcher clean-frame processing; the combined spellbook/UI clean cycle; and render-time logical network tick planning. These are scheduling boundaries, not a claim that every Bevy system or every active presentation update is event-driven.
 
-Rendering, remote interpolation, camera-facing billboards, input needed for active interaction, and active UI presentation remain render-frame-driven. Bevy's M2 pose evaluation runs in its `PostUpdate` animation stage before transform propagation; it is not a separate 60 Hz animation worker. CPU and FPS improvement await controlled measurement and user observation.
+Rendering, remote interpolation, camera-facing billboards, input needed for active interaction, and active UI presentation remain render-frame-driven. Bevy's M2 pose evaluation runs in its `PostUpdate` animation stage before transform propagation; it is not a separate 60 Hz animation worker. On 2026-09-08, current InWorld CPU remained 306.86% and 304.85% of one core across comparable 20-second `/proc` captures. `4cfe7bfb` removes a proven constant-pose `Changed<Transform>` invalidation, but no post-fix CPU comparison exists yet; CPU and FPS improvement remain unproven.
 
 ## Native evidence (2026-09-07)
 

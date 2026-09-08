@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-08] investigations | Resume CPU goal with current baseline
+
+Updated [[movement-performance]] and [event-driven application updates](../specs/event-driven-application-updates.md). Current `206f844f` InWorld captures are **306.86%** and **304.85%** one-core CPU over comparable 20-second intervals; Compute Task Pool workers account for **264.02%** and networking **3.60%** in the first capture. `586b619a` reproduced three transform-change notifications for a constant animated pose; `4cfe7bfb` eliminates that invalidation (**1/1** targeted GREEN). CPU improvement is still unmeasured, so the active CPU goal remains unresolved.
+
 ## [2026-09-07] systems | Consolidate execution and animation proof
 
 Updated [[animation]] and [event-driven application updates](../specs/event-driven-application-updates.md); [[networking]] already records the native reconnect proof. `206f844f` makes deferred M2 binding retirement atomic: strict teardown RED 2 failures → GREEN 3/3, binding 11/11, and offline lifecycle 1/1 with fmt/check. Native `--screen m2debug` rendered `126487.m2`, reported it displayed, retained a screenshot, and recorded 25 changing bone positions. `--screenshot-regression` bypasses the custom animation plugin, so it is excluded. Native forced disconnect and ordinary reconnect are complete behavior proof. Pixel/GPU equivalence and performance were not measured and are not implied.

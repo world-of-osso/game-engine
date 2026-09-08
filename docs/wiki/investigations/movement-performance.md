@@ -4,6 +4,12 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 Current CPU baseline: the [additive empty-window investigation](empty-window-baseline.md#native-instruction-attribution) locates the first substantial increase at continuous blank-frame processing, before project services, and maps decoded blank CPU to task dispatch, queue, and synchronization instructions. The [isolated dirty-tree removal](empty-window-baseline.md#isolated-dirty-tree-removal) stopped that callback and its worker spans without a bulk CPU drop. Full-game per-frame CPU ownership remains unresolved. Separately, [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
+## Current full-client CPU baseline (2026-09-08)
+
+Current verified `206f844f` production code (checkout `5dd4ff40`, dev binary) was measured stationary in real InWorld with one loaded tile, zero pending tiles, 83 remote entities, and one local player. Two 20-second `/proc` captures reported **306.86%** and **304.85%** of one core. The Compute Task Pool accounted for **264.02%**, main `game-engine` threads **39.00%**, and `network-60hz` **3.60%** in the first capture. No FPS IPC query was used.
+
+An 8-second 99 Hz `cpu-clock` sample makes Bevy transform parent propagation the largest individual flat symbol at **19.46%** of samples, but does not establish it as the whole-process root cause. It established a concrete upstream invalidation defect: constant animated raw TRS poses produced three downstream `Changed<Transform>` notifications. `4cfe7bfb` redirects Bevy raw-TRS evaluation into `RawBonePose` and writes the pivot-corrected `Transform` with `set_if_neq`; RED reproduces the three notifications and GREEN is **1/1**. CPU improvement has not yet been measured, so the excessive-CPU goal remains unresolved. Artifacts: `data/diagnostics/cpu-goal-resumed/{current-baseline,transform-dirty}`.
+
 ## Event-driven application native follow-up (2026-09-07)
 
 After the event-driven networking/equipment groundwork, an unfocused, empty-stage InWorld client completed login and ran for 10.0008 seconds at **265.779%** one-core CPU and **503.746 application updates/s**. The earlier intact Empty sample was **293.279%** CPU and **422.366 updates/s**. Clock ranges differ, so the samples are not a controlled comparison and do not demonstrate lower CPU or a fix.
