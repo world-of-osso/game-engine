@@ -192,6 +192,148 @@ pub(super) fn camera_follow(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::camera::primitives::Aabb;
+    use std::time::Duration;
+
+    #[derive(Resource, Default)]
+    struct CameraTransformChanges(Vec<Transform>);
+
+    fn record_camera_changes(
+        cameras: Query<&Transform, (With<WowCamera>, Changed<Transform>)>,
+        mut changes: ResMut<CameraTransformChanges>,
+    ) {
+        changes.0.extend(cameras.iter().copied());
+    }
+
+    fn follow_app() -> (App, Entity, Entity) {
+        let mut app = App::new();
+        app.add_plugins(bevy::app::TaskPoolPlugin::default())
+            .init_resource::<Time>()
+            .init_resource::<Assets<Mesh>>()
+            .init_resource::<CameraTransformChanges>()
+            .add_systems(Update, (camera_follow, record_camera_changes).chain());
+        let target = Vec3::new(1.0, 0.0, 2.0);
+        let player = app
+            .world_mut()
+            .spawn((Player, Transform::from_translation(target)))
+            .id();
+        let camera = app
+            .world_mut()
+            .spawn((
+                WowCamera {
+                    pitch: 0.0,
+                    distance: 10.0,
+                    target_distance: 10.0,
+                    ..default()
+                },
+                Transform::from_xyz(1.0, EYE_HEIGHT, 12.0)
+                    .looking_at(target + Vec3::Y * EYE_HEIGHT, Vec3::Y)
+                    .with_scale(Vec3::new(1.25, 0.75, 1.5)),
+            ))
+            .id();
+        advance_follow(&mut app, 0.1);
+        app.world_mut()
+            .resource_mut::<CameraTransformChanges>()
+            .0
+            .clear();
+        (app, player, camera)
+    }
+
+    fn advance_follow(app: &mut App, seconds: f32) {
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs_f32(seconds));
+        app.update();
+    }
+
+    #[test]
+    fn camera_follow_settled_pose_does_not_notify_transform_changes() {
+        let (mut app, _, camera) = follow_app();
+        let settled = *app.world().get::<Transform>(camera).unwrap();
+        for _ in 0..3 {
+            advance_follow(&mut app, 0.1);
+            assert_eq!(*app.world().get::<Transform>(camera).unwrap(), settled);
+        }
+        assert!(
+            app.world()
+                .resource::<CameraTransformChanges>()
+                .0
+                .is_empty(),
+            "settled camera frames must not notify downstream transform consumers",
+        );
+    }
+
+    #[test]
+    fn camera_follow_movement_preserves_smoothing_rotation_and_scale() {
+        let (mut app, player, camera) = follow_app();
+        let scale = app.world().get::<Transform>(camera).unwrap().scale;
+        app.world_mut()
+            .get_mut::<Transform>(player)
+            .unwrap()
+            .translation
+            .x = 9.0;
+        advance_follow(&mut app, 0.025);
+        let expected = Transform::from_xyz(3.0, EYE_HEIGHT, 12.0)
+            .looking_at(Vec3::new(9.0, EYE_HEIGHT, 2.0), Vec3::Y)
+            .with_scale(scale);
+        assert_eq!(*app.world().get::<Transform>(camera).unwrap(), expected);
+        assert_eq!(
+            app.world().resource::<CameraTransformChanges>().0,
+            vec![expected]
+        );
+    }
+
+    #[test]
+    fn camera_follow_retains_mesh_collision_and_recovery() {
+        let (mut app, _, camera) = follow_app();
+        let mesh = app
+            .world_mut()
+            .resource_mut::<Assets<Mesh>>()
+            .add(Cuboid::new(2.0, 4.0, 1.0));
+        let mut visible = ViewVisibility::default();
+        visible.set();
+        let wall = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh),
+                Transform::from_xyz(1.0, EYE_HEIGHT, 7.0),
+                GlobalTransform::from_xyz(1.0, EYE_HEIGHT, 7.0),
+                Aabb::from_min_max(Vec3::new(-1.0, -2.0, -0.5), Vec3::new(1.0, 2.0, 0.5)),
+                InheritedVisibility::VISIBLE,
+                visible,
+            ))
+            .id();
+        advance_follow(&mut app, 0.1);
+        assert!(
+            app.world()
+                .get::<Transform>(camera)
+                .unwrap()
+                .translation
+                .abs_diff_eq(Vec3::new(1.0, EYE_HEIGHT, 6.2), 0.0001,)
+        );
+        assert!(app.world().get::<WowCamera>(camera).unwrap().collided);
+        assert_eq!(app.world().resource::<CameraTransformChanges>().0.len(), 1);
+
+        app.world_mut().despawn(wall);
+        advance_follow(&mut app, 0.1);
+        assert!(
+            app.world()
+                .get::<Transform>(camera)
+                .unwrap()
+                .translation
+                .abs_diff_eq(Vec3::new(1.0, EYE_HEIGHT, 9.1), 0.0001,)
+        );
+        assert!(app.world().get::<WowCamera>(camera).unwrap().collided);
+        advance_follow(&mut app, 0.2);
+        assert!(!app.world().get::<WowCamera>(camera).unwrap().collided);
+        assert!(
+            app.world()
+                .get::<Transform>(camera)
+                .unwrap()
+                .translation
+                .abs_diff_eq(Vec3::new(1.0, EYE_HEIGHT, 12.0), 0.0001,)
+        );
+    }
 
     #[test]
     fn test_smooth_follow_lerps() {
