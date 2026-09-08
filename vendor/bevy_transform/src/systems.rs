@@ -479,7 +479,7 @@ mod serial {
     }
 }
 
-// TODO: Relies on `std` until a `no_std` `mpsc` channel is available.
+// Parallel work waiting relies on `std` mutexes and condition variables.
 //
 /// Parallel hierarchy traversal with a batched work sharing scheduler. Often 2-5 times faster than
 /// the serial version.
@@ -488,15 +488,11 @@ mod parallel {
     use crate::prelude::*;
     // TODO: this implementation could be used in no_std if there are equivalents of these.
     use crate::systems::StaticTransformOptimizations;
-    use alloc::{sync::Arc, vec::Vec};
+    use alloc::{collections::VecDeque, vec::Vec};
     use bevy_ecs::{entity::UniqueEntitySlice, prelude::*, system::lifetimeless::Read};
     use bevy_tasks::{ComputeTaskPool, TaskPool};
     use bevy_utils::Parallel;
-    use core::sync::atomic::{AtomicI32, Ordering};
-    use std::sync::{
-        Mutex,
-        mpsc::{Receiver, Sender},
-    };
+    use std::sync::{Condvar, Mutex};
 
     /// Update [`GlobalTransform`] component of entities based on entity hierarchy and [`Transform`]
     /// component.
@@ -558,16 +554,8 @@ mod parallel {
         // number of channel sends by avoiding sending partial batches.
         queue.send_batches();
 
-        if let Ok(rx) = queue.receiver.try_lock() {
-            if let Some(task) = rx.try_iter().next() {
-                // This is a bit silly, but the only way to see if there is any work is to grab a
-                // task. Peeking will remove the task even if you don't call `next`, resulting in
-                // dropping a task. What we do here is grab the first task if there is one, then
-                // immediately send it to the back of the queue.
-                queue.sender.send(task).ok();
-            } else {
-                return; // No work, don't bother spawning any tasks
-            }
+        if !queue.has_work() {
+            return;
         }
 
         // Spawn workers on the task pool to recursively propagate the hierarchy in parallel.
@@ -576,11 +564,9 @@ mod parallel {
         task_pool.scope(|s| {
             (1..worker_count) // First worker is run locally instead of the task pool.
                 .for_each(|_| {
-                    s.spawn(async {
-                        propagation_worker(&queue, &nodes, &static_optimizations, worker_count)
-                    });
+                    s.spawn(async { propagation_worker(&queue, &nodes, &static_optimizations) });
                 });
-            propagation_worker(&queue, &nodes, &static_optimizations, worker_count);
+            propagation_worker(&queue, &nodes, &static_optimizations);
         });
     }
 
@@ -591,47 +577,13 @@ mod parallel {
         queue: &WorkQueue,
         nodes: &NodeQuery,
         static_optimizations: &StaticTransformOptimizations,
-        worker_count: usize,
     ) {
         #[cfg(feature = "trace")]
         let _span = tracing::info_span!("transform propagation worker").entered();
 
         let mut outbox = queue.local_queue.borrow_local_mut();
-        loop {
-            // One receiver waits for work while other workers sleep on this mutex.
-            // The final busy worker wakes every waiter to observe completion.
-            let rx = queue
-                .receiver
-                .lock()
-                .expect("transform propagation work queue lock poisoned");
-            let mut tasks = rx
-                .recv()
-                .expect("transform propagation work queue sender dropped");
-            if tasks.is_empty() {
-                if queue.busy_threads.load(Ordering::Relaxed) == 0 {
-                    break;
-                }
-                continue;
-            }
-
-            // If the task queue is extremely short, it's worthwhile to gather a few more tasks to
-            // reduce the amount of thread synchronization needed once this very short task is
-            // complete.
-            while tasks.len() < WorkQueue::CHUNK_SIZE / 2 {
-                let Some(mut extra_task) = rx.try_iter().next() else {
-                    break;
-                };
-                tasks.append(&mut extra_task);
-            }
-
-            // At this point, we know there is work to do, so we increment the busy thread counter,
-            // and drop the mutex guard *after* we have incremented the counter. This ensures that
-            // if another thread is able to acquire a lock, the busy thread counter will already be
-            // incremented.
-            queue.busy_threads.fetch_add(1, Ordering::Relaxed);
-            drop(rx); // Important: drop after atomic and before work starts.
-
-            for parent in tasks.drain(..) {
+        while let Some(mut batch) = queue.take_batch() {
+            for parent in batch.entities.drain(..) {
                 // SAFETY: each task pushed to the worker queue represents an unprocessed subtree of
                 // the hierarchy, guaranteeing unique access.
                 #[expect(unsafe_code, reason = "Mutating disjoint entities in parallel")]
@@ -654,10 +606,7 @@ mod parallel {
                     );
                 }
             }
-            WorkQueue::send_batches_with(&queue.sender, &mut outbox);
-            if queue.busy_threads.fetch_add(-1, Ordering::Relaxed) == 1 {
-                queue.wake_workers(worker_count);
-            }
+            queue.enqueue_outbox(&mut outbox);
         }
     }
 
@@ -745,7 +694,7 @@ mod parallel {
                 // Send chunks during traversal. This allows sharing tasks with other threads before
                 // fully completing the traversal.
                 if outbox.len() >= WorkQueue::CHUNK_SIZE {
-                    WorkQueue::send_batches_with(&queue.sender, outbox);
+                    queue.enqueue_outbox(outbox);
                 }
             }
         }
@@ -767,58 +716,99 @@ mod parallel {
         ),
     >;
 
-    /// A queue shared between threads for transform propagation.
+    /// Pending work and active producers share one lock so completion cannot race publication.
+    #[derive(Default)]
+    struct QueueState {
+        pending: VecDeque<Vec<Entity>>,
+        active: usize,
+    }
+
+    #[derive(Default)]
     pub struct WorkQueue {
-        /// A semaphore that tracks how many threads are busy doing work. Used to determine when
-        /// there is no more work to do.
-        busy_threads: AtomicI32,
-        sender: Sender<Vec<Entity>>,
-        receiver: Arc<Mutex<Receiver<Vec<Entity>>>>,
+        state: Mutex<QueueState>,
+        ready: Condvar,
         local_queue: Parallel<Vec<Entity>>,
     }
-    impl Default for WorkQueue {
-        fn default() -> Self {
-            let (tx, rx) = std::sync::mpsc::channel();
-            Self {
-                busy_threads: AtomicI32::default(),
-                sender: tx,
-                receiver: Arc::new(Mutex::new(rx)),
-                local_queue: Default::default(),
+
+    /// Retire checked-out work even if traversal unwinds.
+    struct WorkBatch<'a> {
+        queue: &'a WorkQueue,
+        entities: Vec<Entity>,
+    }
+
+    impl Drop for WorkBatch<'_> {
+        fn drop(&mut self) {
+            let mut state = self
+                .queue
+                .state
+                .lock()
+                .expect("transform work queue poisoned");
+            state.active -= 1;
+            if state.active == 0 {
+                self.queue.ready.notify_all();
             }
         }
     }
+
     impl WorkQueue {
         const CHUNK_SIZE: usize = 512;
 
-        #[inline]
-        fn send_batches_with(sender: &Sender<Vec<Entity>>, outbox: &mut Vec<Entity>) {
-            for chunk in outbox
-                .chunks(WorkQueue::CHUNK_SIZE)
-                .filter(|c| !c.is_empty())
-            {
-                sender.send(chunk.to_vec()).ok();
+        fn has_work(&self) -> bool {
+            !self
+                .state
+                .lock()
+                .expect("transform work queue poisoned")
+                .pending
+                .is_empty()
+        }
+
+        fn take_batch(&self) -> Option<WorkBatch<'_>> {
+            let mut state = self.state.lock().expect("transform work queue poisoned");
+            loop {
+                if let Some(mut entities) = state.pending.pop_front() {
+                    while entities.len() < Self::CHUNK_SIZE / 2 {
+                        let Some(mut extra) = state.pending.pop_front() else {
+                            break;
+                        };
+                        entities.append(&mut extra);
+                    }
+                    state.active += 1;
+                    return Some(WorkBatch {
+                        queue: self,
+                        entities,
+                    });
+                }
+                if state.active == 0 {
+                    return None;
+                }
+                state = self
+                    .ready
+                    .wait(state)
+                    .expect("transform work queue poisoned");
             }
+        }
+
+        fn append_batches(state: &mut QueueState, outbox: &mut Vec<Entity>) {
+            state
+                .pending
+                .extend(outbox.chunks(Self::CHUNK_SIZE).map(<[Entity]>::to_vec));
             outbox.clear();
         }
 
-        fn wake_workers(&self, worker_count: usize) {
-            for _ in 0..worker_count {
-                self.sender.send(Vec::new()).ok();
+        fn enqueue_outbox(&self, outbox: &mut Vec<Entity>) {
+            if outbox.is_empty() {
+                return;
             }
+            let mut state = self.state.lock().expect("transform work queue poisoned");
+            Self::append_batches(&mut state, outbox);
+            self.ready.notify_all();
         }
 
-        #[inline]
         fn send_batches(&mut self) {
-            let Self {
-                sender,
-                local_queue,
-                ..
-            } = self;
-            // Iterate over the locals to send batched tasks, avoiding the need to drain the locals
-            // into a larger allocation.
-            local_queue
-                .iter_mut()
-                .for_each(|outbox| Self::send_batches_with(sender, outbox));
+            let state = self.state.get_mut().expect("transform work queue poisoned");
+            for outbox in self.local_queue.iter_mut() {
+                Self::append_batches(state, outbox);
+            }
         }
     }
 
@@ -826,7 +816,6 @@ mod parallel {
     mod queue_wait_tests {
         use super::*;
         use bevy_ecs::{system::SystemState, world::World};
-        use core::sync::atomic::Ordering;
         use std::{
             fs,
             sync::{Arc, Barrier},
@@ -855,7 +844,7 @@ mod parallel {
             let root = world.spawn(Transform::default()).id();
             let mut parents = Vec::new();
             let mut children = Vec::new();
-            // A full receiving batch leaves previously queued completion wakes unconsumed.
+            // Keep a full receiving batch to exercise the former stale-wake boundary.
             for _ in 0..WorkQueue::CHUNK_SIZE / 2 {
                 let parent = world
                     .spawn((
@@ -872,17 +861,14 @@ mod parallel {
                 parents.push(parent);
             }
             let mut state = SystemState::<NodeQuery>::new(&mut world);
-            // A last busy producer can publish descendants before its completion wakes.
-            queue
-                .sender
-                .send(parents.clone())
-                .expect("queue first pass");
-            queue.wake_workers(2);
+            // Completion notifications cannot replace or discard pending work.
+            queue.enqueue_outbox(&mut parents.clone());
+            queue.ready.notify_all();
             {
                 let nodes = state.get_mut(&mut world).expect("acquire first-pass query");
                 // Both workers are allowed to run sequentially under the task scheduler.
-                propagation_worker(&queue, &nodes, &options, 2);
-                propagation_worker(&queue, &nodes, &options, 2);
+                propagation_worker(&queue, &nodes, &options);
+                propagation_worker(&queue, &nodes, &options);
             }
             for &child in &children {
                 assert_eq!(
@@ -896,13 +882,13 @@ mod parallel {
                 *world.get_mut::<GlobalTransform>(parent).unwrap() =
                     GlobalTransform::from_xyz(20.0, 0.0, 0.0);
             }
-            queue.sender.send(parents).expect("queue second pass");
+            queue.enqueue_outbox(&mut parents);
             {
                 let nodes = state
                     .get_mut(&mut world)
                     .expect("acquire second-pass query");
-                propagation_worker(&queue, &nodes, &options, 2);
-                propagation_worker(&queue, &nodes, &options, 2);
+                propagation_worker(&queue, &nodes, &options);
+                propagation_worker(&queue, &nodes, &options);
             }
             for child in children {
                 assert_eq!(
@@ -916,7 +902,11 @@ mod parallel {
         #[test]
         fn empty_work_queue_waits_for_busy_worker_without_spinning() {
             let queue = WorkQueue::default();
-            queue.busy_threads.store(1, Ordering::Relaxed);
+            queue.state.lock().unwrap().active = 1;
+            let producer = WorkBatch {
+                queue: &queue,
+                entities: Vec::new(),
+            };
             let ready = Arc::new(Barrier::new(2));
             let worker_ready = ready.clone();
             let options = StaticTransformOptimizations::default();
@@ -927,13 +917,12 @@ mod parallel {
                 let worker = scope.spawn(|| {
                     let before = current_thread_cpu_ticks();
                     worker_ready.wait();
-                    propagation_worker(&queue, &nodes, &options, 1);
+                    propagation_worker(&queue, &nodes, &options);
                     current_thread_cpu_ticks() - before
                 });
                 ready.wait();
                 thread::sleep(Duration::from_millis(300));
-                queue.busy_threads.store(0, Ordering::Relaxed);
-                queue.sender.send(Vec::new()).expect("wake worker");
+                drop(producer);
                 worker.join().expect("worker exits after completion")
             });
             assert!(
