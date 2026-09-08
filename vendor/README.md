@@ -2,7 +2,7 @@
 
 ## Skin palettes
 
-`bevy_pbr/` imports the unchanged crates.io `bevy_pbr` 0.19.0 sources and dual MIT/Apache licenses. Registry cache metadata and its standalone lockfile are excluded. It is patched locally and included in the workspace to test the real private skin allocation/extraction boundary using the root build configuration.
+`bevy_pbr/` imports the unchanged crates.io `bevy_pbr` 0.19.0 sources and dual MIT/Apache licenses. Registry cache metadata and its standalone lockfile are excluded. It is patched locally and included in the workspace to test the real private skin allocation/extraction boundary using the root build configuration. An explicit dev-profile override retains its former dependency optimization level2; workspace membership must not turn the PBR comparison into an optimization-level comparison.
 
 Prototype purpose: share identical ordered-joint/inverse-bindpose palettes across render batches, without removing mesh/joint entities or changing shader/batching contracts. At import there is no behavior change or performance claim. Retire the override if the prototype lacks behavioral/performance evidence, or an upstream release provides equivalent sharing with passing lifetime, motion-vector, and workload checks.
 
