@@ -167,7 +167,7 @@ pub fn mark_dirty_trees(
         use bevy_tasks::ComputeTaskPool;
         use core::sync::atomic::Ordering;
         #[cfg(feature = "trace")]
-        use tracing::{info_span, Instrument};
+        use tracing::{Instrument, info_span};
 
         ComputeTaskPool::get().scope(|scope| {
             traversal_channels.chunk_size = 1024;
@@ -457,9 +457,10 @@ mod serial {
         let Some(children) = children else { return };
         for (child, child_of) in child_query.iter_many(children) {
             assert_eq!(
-            child_of.parent(), entity,
-            "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
-        );
+                child_of.parent(),
+                entity,
+                "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
+            );
             // SAFETY: The caller guarantees that `transform_query` will not be fetched for any
             // descendants of `entity`, so it is safe to call `propagate_recursive` for each child.
             //
@@ -493,8 +494,8 @@ mod parallel {
     use bevy_utils::Parallel;
     use core::sync::atomic::{AtomicI32, Ordering};
     use std::sync::{
-        mpsc::{Receiver, Sender},
         Mutex,
+        mpsc::{Receiver, Sender},
     };
 
     /// Update [`GlobalTransform`] component of entities based on entity hierarchy and [`Transform`]
@@ -571,12 +572,15 @@ mod parallel {
 
         // Spawn workers on the task pool to recursively propagate the hierarchy in parallel.
         let task_pool = ComputeTaskPool::get_or_init(TaskPool::default);
+        let worker_count = task_pool.thread_num();
         task_pool.scope(|s| {
-            (1..task_pool.thread_num()) // First worker is run locally instead of the task pool.
+            (1..worker_count) // First worker is run locally instead of the task pool.
                 .for_each(|_| {
-                    s.spawn(async { propagation_worker(&queue, &nodes, &static_optimizations) });
+                    s.spawn(async {
+                        propagation_worker(&queue, &nodes, &static_optimizations, worker_count)
+                    });
                 });
-            propagation_worker(&queue, &nodes, &static_optimizations);
+            propagation_worker(&queue, &nodes, &static_optimizations, worker_count);
         });
     }
 
@@ -587,28 +591,27 @@ mod parallel {
         queue: &WorkQueue,
         nodes: &NodeQuery,
         static_optimizations: &StaticTransformOptimizations,
+        worker_count: usize,
     ) {
         #[cfg(feature = "trace")]
         let _span = tracing::info_span!("transform propagation worker").entered();
 
         let mut outbox = queue.local_queue.borrow_local_mut();
         loop {
-            // Try to acquire a lock on the work queue in a tight loop. Profiling shows this is much
-            // more efficient than relying on `.lock()`, which causes gaps to form between tasks.
-            let Ok(rx) = queue.receiver.try_lock() else {
-                core::hint::spin_loop(); // No apparent impact on profiles, but best practice.
-                continue;
-            };
-            // If the queue is empty and no other threads are busy processing work, we can conclude
-            // there is no more work to do, and end the task by exiting the loop.
-            let Some(mut tasks) = rx.try_iter().next() else {
-                if queue.busy_threads.load(Ordering::Relaxed) == 0 {
-                    break; // All work is complete, kill the worker
-                }
-                continue; // No work to do now, but another thread is busy creating more work.
-            };
+            // One receiver waits for work while other workers sleep on this mutex.
+            // The final busy worker wakes every waiter to observe completion.
+            let rx = queue
+                .receiver
+                .lock()
+                .expect("transform propagation work queue lock poisoned");
+            let mut tasks = rx
+                .recv()
+                .expect("transform propagation work queue sender dropped");
             if tasks.is_empty() {
-                continue; // This shouldn't happen, but if it does, we might as well stop early.
+                if queue.busy_threads.load(Ordering::Relaxed) == 0 {
+                    break;
+                }
+                continue;
             }
 
             // If the task queue is extremely short, it's worthwhile to gather a few more tasks to
@@ -652,7 +655,9 @@ mod parallel {
                 }
             }
             WorkQueue::send_batches_with(&queue.sender, &mut outbox);
-            queue.busy_threads.fetch_add(-1, Ordering::Relaxed);
+            if queue.busy_threads.fetch_add(-1, Ordering::Relaxed) == 1 {
+                queue.wake_workers(worker_count);
+            }
         }
     }
 
@@ -796,6 +801,12 @@ mod parallel {
             outbox.clear();
         }
 
+        fn wake_workers(&self, worker_count: usize) {
+            for _ in 0..worker_count {
+                self.sender.send(Vec::new()).ok();
+            }
+        }
+
         #[inline]
         fn send_batches(&mut self) {
             let Self {
@@ -810,6 +821,61 @@ mod parallel {
                 .for_each(|outbox| Self::send_batches_with(sender, outbox));
         }
     }
+
+    #[cfg(all(test, target_os = "linux"))]
+    mod queue_wait_tests {
+        use super::*;
+        use bevy_ecs::{system::SystemState, world::World};
+        use core::sync::atomic::Ordering;
+        use std::{
+            fs,
+            sync::{Arc, Barrier},
+            thread,
+            time::Duration,
+        };
+
+        fn current_thread_cpu_ticks() -> u64 {
+            let stat = fs::read_to_string("/proc/thread-self/stat").expect("read thread CPU usage");
+            let fields: Vec<_> = stat
+                .rsplit_once(')')
+                .expect("thread stat command field")
+                .1
+                .split_whitespace()
+                .collect();
+            let user: u64 = fields[11].parse().expect("thread user CPU ticks");
+            let system: u64 = fields[12].parse().expect("thread system CPU ticks");
+            user + system
+        }
+
+        #[test]
+        fn empty_work_queue_waits_for_busy_worker_without_spinning() {
+            let queue = WorkQueue::default();
+            queue.busy_threads.store(1, Ordering::Relaxed);
+            let ready = Arc::new(Barrier::new(2));
+            let worker_ready = ready.clone();
+            let options = StaticTransformOptimizations::default();
+            let mut world = World::new();
+            let mut state = SystemState::<NodeQuery>::new(&mut world);
+            let nodes = state.get_mut(&mut world).expect("acquire transform query");
+            let ticks = thread::scope(|scope| {
+                let worker = scope.spawn(|| {
+                    let before = current_thread_cpu_ticks();
+                    worker_ready.wait();
+                    propagation_worker(&queue, &nodes, &options, 1);
+                    current_thread_cpu_ticks() - before
+                });
+                ready.wait();
+                thread::sleep(Duration::from_millis(300));
+                queue.busy_threads.store(0, Ordering::Relaxed);
+                queue.sender.send(Vec::new()).expect("wake worker");
+                worker.join().expect("worker exits after completion")
+            });
+            assert!(
+                ticks <= 2,
+                "empty queue waiting on active work burned {ticks} CPU ticks"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -817,7 +883,7 @@ mod test {
     use alloc::{vec, vec::Vec};
     use bevy_app::prelude::*;
     use bevy_ecs::{prelude::*, world::CommandQueue};
-    use bevy_math::{vec3, Vec3};
+    use bevy_math::{Vec3, vec3};
     use bevy_tasks::{ComputeTaskPool, TaskPool};
 
     use crate::systems::*;
@@ -1194,12 +1260,16 @@ mod test {
         // Child should be positioned relative to its parent
         let parent_global_transform = *world.entity(parent).get::<GlobalTransform>().unwrap();
         let child_global_transform = *world.entity(child).get::<GlobalTransform>().unwrap();
-        assert!(parent_global_transform
-            .translation()
-            .abs_diff_eq(translation, 0.1));
-        assert!(child_global_transform
-            .translation()
-            .abs_diff_eq(2. * translation, 0.1));
+        assert!(
+            parent_global_transform
+                .translation()
+                .abs_diff_eq(translation, 0.1)
+        );
+        assert!(
+            child_global_transform
+                .translation()
+                .abs_diff_eq(2. * translation, 0.1)
+        );
 
         // Reparent child
         world.entity_mut(child).remove::<ChildOf>();
