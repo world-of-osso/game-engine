@@ -46,9 +46,14 @@ pub(super) fn sync_terrain_environment_map(
     mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
 ) {
     let Some(env_handle) = env_handle else { return };
-    for (_id, material) in terrain_materials.iter_mut() {
-        if material.environment_map != env_handle.0 {
-            material.environment_map = env_handle.0.clone();
-        }
+    let changed: Vec<_> = terrain_materials
+        .iter()
+        .filter_map(|(id, material)| (material.environment_map != env_handle.0).then_some(id))
+        .collect();
+    for id in changed {
+        let material = terrain_materials
+            .get_mut(id)
+            .expect("terrain material collected from the same asset storage");
+        material.environment_map = env_handle.0.clone();
     }
 }
