@@ -497,8 +497,17 @@ Separate read-only platform checks reported AC connected, performance platform/E
 
 Evidence: `no-textures-case/{gpu-execution-proof,clock-comparison,gpu-metrics-decoded,gpu-metrics-watch,platform-readings,fan-readings}.json`, `gpu-metrics-initial.bin`, and `focused-firmware-watch/{samples,result}.json`. Upstream layout/mapping provenance is recorded in `read_gpu_metrics.py`; the latter watch is the foreground-matched evidence, unlike the earlier unfocused telemetry.
 
+## Final-source shared-palette CPU comparison (2026-09-08)
+
+At `6e0c4fde`, an unshared baseline and the current shared-palette candidate were rebuilt from the same final source. The baseline replaced only `vendor/bevy_pbr/src/render/skin.rs` with `fe1fdad1^`; the candidate retained HEAD. Each executable ran only with its separately snapshotted Bevy/std libraries, and the candidate source was restored immediately after the baseline build.
+
+Two stationary, 20-second InWorld captures used Theron, one loaded Azeroth 32,48 tile, zero pending tiles, 40 matched threads, and the same local server. The unshared run measured **255.935040%** process CPU at **2242.9 MHz** mean sampled all-core clock, with **119→120** remotes. The shared run measured **264.428382%** at **2149.9 MHz**, with **119→119** remotes. No FPS query, cap, profiler, or host-state change was used.
+
+This does **not** demonstrate a full-client CPU gain or a causal regression: the candidate CPU is higher numerically, but remote population and sampled clocks differ. Do not normalize these results by aggregate clocks or replace them with extraction microbenchmark results. The shared-palette CPU result remains unproven; the broader CPU objective remains open. Proof: `data/diagnostics/cpu-goal-resumed/final-cpu-pair/report.md` and its manifests/captures.
+
 ## Sources
 
+- [Final-source palette comparison](../../../data/diagnostics/cpu-goal-resumed/final-cpu-pair/report.md) — final-source build identity, stationary capture conditions, and bounded conclusion.
 - [Measurement artifacts](../../../data/diagnostics/movement-perf-20260905/) — loaded-route samples/profile/tree, `tile-attribution/stage-timings/{application-excerpt.log,blp-summary.json,result.json}`, and `tile-attribution/file-residency/{summary.json,control/,target-blp-evicted/}` for measured subcosts and residency controls.
 - [Route calculations](../../../data/diagnostics/movement-perf-20260905/computed-doodad-boxes.json) and [candidate selection](../../../data/diagnostics/movement-perf-20260905/find_clear_route.py) — cached assets only; raw placement-Y caveat above.
 - [Movement/collision](../../../src/rendering/camera/camera.rs), [collision math](../../../src/collision.rs), [doodad spawning](../../../src/rendering/terrain/terrain_objects.rs), [BLP loading](../../../src/asset/blp.rs), and [tile stage timers](../../../src/rendering/terrain/terrain_spawn_perf.rs) — actual control, loading, and measurement boundaries.

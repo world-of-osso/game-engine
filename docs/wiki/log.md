@@ -13,6 +13,10 @@ Updated [[skybox]] and [InWorld scene isolation](../specs/inworld-scene-isolatio
 
 Updated [[movement-performance]] with the post-fix1,642-sample capture: diffuse leaf costs, incomplete caller stacks, no demonstrated dominant next fix. Preserved unresolved CPU objective; no speculative renderer or profiler changes.
 
+## [2026-09-08] investigations | Record final-source shared-palette CPU non-result
+
+Updated [[movement-performance]] with the paired final-source (`6e0c4fde`) stationary InWorld captures: unshared **255.935040%** versus shared **264.428382%** process CPU over 20 seconds. Sampled clocks (**2242.9** versus **2149.9 MHz**) and remote populations (unshared **119→120**, shared **119→119**) differ. The evidence demonstrates neither a full-client CPU gain nor a causal regression; CPU objective remains open.
+
 ## [2026-09-08] investigations | Separate billboard and terrain behavior proof from CPU gains
 
 Updated [[animation]] and [[movement-performance]]: billboard raw/final double-write regression and staged final pose fix; terrain-time filtering withdrawn after higher native CPU. Authorized terrain application-throughput proxy rose without proven lower per-update cost. CPU objective remains open.
