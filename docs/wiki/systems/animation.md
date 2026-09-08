@@ -70,6 +70,8 @@ Motivation: in Goldshire the 100 yd server interest sphere holds ~83 creatures (
 - `src/rendering/model/animation/bevy_player.rs` — target/graph binding, paused controller seeks, and deferred binding teardown
 - `src/rendering/model/animation/lod.rs` — NPC distance/visibility sampling rate
 
+Billboard targets stage the pivot-corrected Bevy result in `SphericalBillboard.pending_pose` rather than writing an intermediate `Transform`. The existing post-animation billboard system consumes it, applies valid camera-facing rotation, and conditionally writes the final transform once. Unsampled billboards retain their current scale; sampled raw poses still apply when the camera is missing or vertical-degenerate. `RawBonePose` remains the pre-pivot blend snapshot source. This avoids raw-pose→billboard rewrites falsely invalidating a settled transform (`71535eed`; focused real-Bevy RED3→GREEN8). See [CPU investigation](../investigations/movement-performance.md).
+
 Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve when every channel is non-global and has at most one timestamp and one value in the selected sequence. Missing sequences use the existing sampler defaults. Varying/global tracks retain normal sampling; targets, joints and blending remain intact. At `50454f89`, 87 scoped animation tests and fmt/check passed. Catalog construction improved in characterization; the clock-confounded native pair establishes no additional steady-state CPU gain. See [CPU investigation](../investigations/movement-performance.md#constant-curve-follow-up).
 
 ## Sources

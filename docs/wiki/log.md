@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-08] investigations | Separate billboard and terrain behavior proof from CPU gains
+
+Updated [[animation]] and [[movement-performance]]: billboard raw/final double-write regression and staged final pose fix; terrain-time filtering withdrawn after higher native CPU. Authorized terrain application-throughput proxy rose without proven lower per-update cost. CPU objective remains open.
+
 ## [2026-09-08] systems | Record constant-curve folding proof
 
 Updated [[animation]] and [[movement-performance]] with constant-track eligibility, catalog construction characterization, and 87-test verification at `50454f89`. Native clocks differed; no additional attributable CPU gain claimed.

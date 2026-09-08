@@ -48,6 +48,12 @@ UI toolkit `10da947` also removes repeated blacklist cache-hit notices while ret
 
 A native pair with Theron, one loaded tile and 82 remotes measured **250.431% → 235.184% CPU**, with mean sampled clocks **2.816 → 2.607 GHz**. A repeat measured 234.584% at 2.657 GHz and 81 remotes. These support a bounded observed reduction, not a precise general estimate or overall CPU-goal completion. Artifacts: `data/diagnostics/cpu-goal-resumed/{stable-animation-graph,compact-graph}`.
 
+### Billboard final-transform invalidation follow-up
+
+`f55d3ede` reproduced settled billboard false change notifications with actual Bevy evaluation before the billboard pass. Both sampled and unsampled fixtures emitted three notifications. Sampled bones first wrote raw/pivot-corrected transforms, then billboard rotation overwrote them; merely guarding the latter writer could not fix both paths.
+
+`71535eed` stages evaluated billboard poses in the existing component and applies the final transform once after animation. Raw blend snapshots, new scale samples, camera motion, unsampled scale, and missing/degenerate-camera raw output remain covered. Focused RED3→GREEN8. Native baseline244.782%→patched247.473% CPU; mean clocks2.582→2.514GHz, both84 remotes and one tile. No lower CPU usage demonstrated. Partial model census confirms no billboards in29 of81 saved character/NPC instances; remaining models and world-object instances were not fully counted. Do not infer this is a dominant current CPU cost. Proof: `data/diagnostics/cpu-goal-resumed/billboard-invalidation/`.
+
 ### Terrain material invalidation follow-up
 
 `a90b6ab7` / `2eafe281` synchronize environment handles through immutable comparison before borrowing only mismatched assets mutably. Registered-system AssetEvent regressions reproduced two failures: matching materials notified, and newly added mismatched materials caused existing matching materials to notify too. New assets still synchronize when the environment resource itself is unchanged.
