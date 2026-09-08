@@ -36,7 +36,25 @@ pub(super) fn update_terrain_animation_time(
     mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
 ) {
     let animation_time = time.elapsed_secs();
-    for (_id, material) in terrain_materials.iter_mut() {
+    let changed: Vec<_> = terrain_materials
+        .iter()
+        .filter_map(|(id, material)| {
+            let settings = &material.settings;
+            let moving_uv = [
+                settings.animation_params_0,
+                settings.animation_params_1,
+                settings.animation_params_2,
+                settings.animation_params_3,
+            ]
+            .iter()
+            .any(|params| params.x != 0.0 || params.y != 0.0);
+            (moving_uv && settings.config.w != animation_time).then_some(id)
+        })
+        .collect();
+    for id in changed {
+        let mut material = terrain_materials
+            .get_mut(id)
+            .expect("terrain material collected from the same asset storage");
         material.settings.config.w = animation_time;
     }
 }

@@ -64,7 +64,11 @@ fn terrain_material_test_app(freeze_after: Option<Duration>) -> (App, Handle<Ter
     let material = app
         .world_mut()
         .resource_mut::<Assets<TerrainMaterial>>()
-        .add(test_material());
+        .add({
+            let mut material = test_material();
+            material.settings.animation_params_0.x = 0.125;
+            material
+        });
     (app, material)
 }
 
@@ -138,6 +142,36 @@ fn environment_sync_without_resource_preserves_materials() {
     app.update();
     assert!(take_modified_materials(&mut app).is_empty());
     assert_environment(&app, &handle, &FIRST_ENVIRONMENT);
+}
+
+#[test]
+fn terrain_animation_notifies_only_moving_uv_materials() {
+    let mut app = App::new();
+    app.add_plugins((TaskPoolPlugin::default(), AssetPlugin::default()));
+    app.init_asset::<TerrainMaterial>();
+    app.insert_resource(Time::<()>::default());
+    app.add_systems(Update, update_terrain_animation_time);
+    let stationary = add_environment_material(&mut app, FIRST_ENVIRONMENT.clone());
+    let mut moving = test_material();
+    moving.settings.animation_params_3.y = -0.25;
+    let moving = app
+        .world_mut()
+        .resource_mut::<Assets<TerrainMaterial>>()
+        .add(moving);
+    app.update();
+    take_modified_materials(&mut app);
+
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(Duration::from_secs(2));
+    app.update();
+    assert_eq!(take_modified_materials(&mut app), vec![moving.id()]);
+    let materials = app.world().resource::<Assets<TerrainMaterial>>();
+    assert_eq!(materials.get(&stationary).unwrap().settings.config.w, 0.0);
+    assert_eq!(materials.get(&moving).unwrap().settings.config.w, 2.0);
+
+    app.update();
+    assert!(take_modified_materials(&mut app).is_empty());
 }
 
 fn environment_test_app() -> App {
