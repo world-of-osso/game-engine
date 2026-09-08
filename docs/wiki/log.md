@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-08] systems | Record constant-curve folding proof
+
+Updated [[animation]] and [[movement-performance]] with constant-track eligibility, catalog construction characterization, and 87-test verification at `50454f89`. Native clocks differed; no additional attributable CPU gain claimed.
+
 ## [2026-09-08] systems | Add NPC animation LOD and measure it against the propagation spin
 
 Updated [[animation]] and added [npc-animation-lod](../specs/npc-animation-lod.md). Replicated NPC models now sample Bevy clips every frame within 30 yd, every other frame at 30–60 yd, and not at all beyond 60 yd or off screen. Recorded the A/B in [[movement-performance]]: non-spin CPU fell ~28% but the vendored `propagation_worker` spin absorbed most of it, so total CPU moved only 397% → 378%.

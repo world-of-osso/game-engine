@@ -70,6 +70,8 @@ Motivation: in Goldshire the 100 yd server interest sphere holds ~83 creatures (
 - `src/rendering/model/animation/bevy_player.rs` — target/graph binding, paused controller seeks, and deferred binding teardown
 - `src/rendering/model/animation/lod.rs` — NPC distance/visibility sampling rate
 
+Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve when every channel is non-global and has at most one timestamp and one value in the selected sequence. Missing sequences use the existing sampler defaults. Varying/global tracks retain normal sampling; targets, joints and blending remain intact. At `50454f89`, 87 scoped animation tests and fmt/check passed. Catalog construction improved in characterization; the clock-confounded native pair establishes no additional steady-state CPU gain. See [CPU investigation](../investigations/movement-performance.md#constant-curve-follow-up).
+
 ## Sources
 
 - AGENTS.md — Animation section, blend_time rules, ANIM_* location

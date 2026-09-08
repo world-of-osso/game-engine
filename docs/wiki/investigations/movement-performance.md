@@ -48,6 +48,12 @@ UI toolkit `10da947` also removes repeated blacklist cache-hit notices while ret
 
 A native pair with Theron, one loaded tile and 82 remotes measured **250.431% → 235.184% CPU**, with mean sampled clocks **2.816 → 2.607 GHz**. A repeat measured 234.584% at 2.657 GHz and 81 remotes. These support a bounded observed reduction, not a precise general estimate or overall CPU-goal completion. Artifacts: `data/diagnostics/cpu-goal-resumed/{stable-animation-graph,compact-graph}`.
 
+### Constant-curve follow-up
+
+`a7a38db7` / `50454f89` fold eligible constant sequence-local TRS into existing raw-pose curves without removing targets or joints. Complete-catalog construction medians: human **96.063→85.544 ms**, wolf **2.748→2.488 ms**. These characterize construction, not steady-state CPU. Independent fmt/check and **87 animation tests** passed at `50454f89`.
+
+Native Theron captures both retained 84 remotes and one tile: **240.081%→234.320% CPU**, but sampled clocks changed **2.637→2.840 GHz**. No additional attributable native CPU gain follows. Proof: `data/diagnostics/cpu-goal-resumed/constant-curves/verification/report.md`.
+
 ## Event-driven application native follow-up (2026-09-07)
 
 After the event-driven networking/equipment groundwork, an unfocused, empty-stage InWorld client completed login and ran for 10.0008 seconds at **265.779%** one-core CPU and **503.746 application updates/s**. The earlier intact Empty sample was **293.279%** CPU and **422.366 updates/s**. Clock ranges differ, so the samples are not a controlled comparison and do not demonstrate lower CPU or a fix.
