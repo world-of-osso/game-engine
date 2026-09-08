@@ -200,6 +200,17 @@ fn assert_current_ibl(app: &App, camera: Entity) {
         .resource::<Assets<Image>>()
         .get(&light.environment_map)
         .expect("generated lighting source cubemap must exist");
+    assert_valid_ibl_cube(image);
+    let colors = interpolate_colors(
+        &world.resource::<LightKeyframes>().0,
+        world.resource::<GameTime>().minutes,
+    );
+    let expected = build_sky_cubemap(&colors);
+    assert_eq!(image.data, expected.data);
+    assert_ne!(image.data, build_sky_cubemap(&default_sky_colors()).data);
+}
+
+fn assert_valid_ibl_cube(image: &Image) {
     assert_eq!(
         image.texture_descriptor.size,
         Extent3d {
@@ -217,13 +228,6 @@ fn assert_current_ibl(app: &App, camera: Entity) {
             .and_then(|view| view.dimension),
         Some(TextureViewDimension::Cube)
     );
-    let colors = interpolate_colors(
-        &world.resource::<LightKeyframes>().0,
-        world.resource::<GameTime>().minutes,
-    );
-    let expected = build_sky_cubemap(&colors);
-    assert_eq!(image.data, expected.data);
-    assert_ne!(image.data, build_sky_cubemap(&default_sky_colors()).data);
 }
 
 fn light_row(time: f32, tint: Color) -> LightDataRow {
