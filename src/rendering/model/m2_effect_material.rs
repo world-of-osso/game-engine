@@ -143,6 +143,9 @@ mod tests {
         alpha_test_threshold_for_blend, register_m2_effect_uv_update_system,
     };
     use crate::asset::m2_anim::AnimTrack;
+    use bevy::app::TaskPoolPlugin;
+    use bevy::asset::{AssetApp, AssetEvent, AssetId, AssetPlugin};
+    use bevy::ecs::message::Messages;
     use bevy::prelude::{AlphaMode, App, Assets, Handle, Time, Vec2};
     use std::time::Duration;
 
@@ -171,7 +174,10 @@ mod tests {
     #[test]
     fn disabled_m2_effect_uv_updates_leave_material_offsets_unchanged() {
         let (mut app, material_handle) = build_uv_update_test_app(false);
+        app.update();
+        take_modified_materials(&mut app);
         advance_test_time(&mut app);
+        assert!(take_modified_materials(&mut app).is_empty());
 
         let material = app
             .world()
@@ -186,7 +192,13 @@ mod tests {
     #[test]
     fn enabled_m2_effect_uv_updates_evaluate_animation_tracks() {
         let (mut app, material_handle) = build_uv_update_test_app(true);
+        app.update();
+        take_modified_materials(&mut app);
         advance_test_time(&mut app);
+        assert_eq!(
+            take_modified_materials(&mut app),
+            vec![material_handle.id()]
+        );
 
         let material = app
             .world()
@@ -198,11 +210,95 @@ mod tests {
         assert_eq!(material.settings.uv_offset_2, Vec2::ZERO);
     }
 
+    #[test]
+    fn static_and_constant_uvs_do_not_repeat_modified_events() {
+        let (mut app, static_handle) = build_uv_update_test_app(true);
+        let constant_handle = {
+            let mut materials = app.world_mut().resource_mut::<Assets<M2EffectMaterial>>();
+            materials.get_mut(&static_handle).unwrap().texture_anim_1 = None;
+            let mut constant = test_material();
+            constant.texture_anim_1 = Some(constant_anim_track());
+            constant.texture_anim_2 = Some(constant_anim_track());
+            materials.add(constant)
+        };
+        app.update();
+        take_modified_materials(&mut app);
+
+        for _ in 0..3 {
+            advance_test_time(&mut app);
+            assert!(
+                take_modified_materials(&mut app).is_empty(),
+                "unchanged UVs must not emit Modified events",
+            );
+        }
+        let materials = app.world().resource::<Assets<M2EffectMaterial>>();
+        let static_material = materials.get(&static_handle).unwrap();
+        assert_eq!(static_material.settings.uv_offset_1, Vec2::ZERO);
+        assert_eq!(static_material.settings.uv_offset_2, Vec2::ZERO);
+        let constant = materials.get(&constant_handle).unwrap();
+        assert_eq!(constant.settings.uv_offset_1, Vec2::new(0.25, -0.5));
+        assert_eq!(constant.settings.uv_offset_2, Vec2::new(0.25, -0.5));
+    }
+
+    #[test]
+    fn removing_uv_tracks_resets_offsets_and_then_stays_clean() {
+        let (mut app, handle) = build_uv_update_test_app(true);
+        app.world_mut()
+            .resource_mut::<Assets<M2EffectMaterial>>()
+            .get_mut(&handle)
+            .unwrap()
+            .texture_anim_2 = Some(constant_anim_track());
+        advance_test_time(&mut app);
+        take_modified_materials(&mut app);
+        {
+            let materials = app.world().resource::<Assets<M2EffectMaterial>>();
+            let material = materials.get(&handle).unwrap();
+            assert_eq!(material.settings.uv_offset_1, Vec2::new(0.5, 0.75));
+            assert_eq!(material.settings.uv_offset_2, Vec2::new(0.25, -0.5));
+        }
+        {
+            let mut materials = app.world_mut().resource_mut::<Assets<M2EffectMaterial>>();
+            let mut material = materials.get_mut(&handle).unwrap();
+            material.texture_anim_1 = None;
+            material.texture_anim_2 = None;
+        }
+        advance_test_time(&mut app);
+        assert!(take_modified_materials(&mut app).contains(&handle.id()));
+        {
+            let materials = app.world().resource::<Assets<M2EffectMaterial>>();
+            let material = materials.get(&handle).unwrap();
+            assert_eq!(material.settings.uv_offset_1, Vec2::ZERO);
+            assert_eq!(material.settings.uv_offset_2, Vec2::ZERO);
+        }
+        advance_test_time(&mut app);
+        assert!(take_modified_materials(&mut app).is_empty());
+    }
+
+    fn take_modified_materials(app: &mut App) -> Vec<AssetId<M2EffectMaterial>> {
+        app.world_mut()
+            .resource_mut::<Messages<AssetEvent<M2EffectMaterial>>>()
+            .drain()
+            .filter_map(|event| match event {
+                AssetEvent::Modified { id } => Some(id),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn constant_anim_track() -> AnimTrack<[f32; 3]> {
+        AnimTrack {
+            interpolation_type: 0,
+            global_sequence: -1,
+            sequences: vec![(vec![0, 1000], vec![[0.25, -0.5, 0.0]; 2])],
+        }
+    }
+
     fn build_uv_update_test_app(enabled: bool) -> (App, Handle<M2EffectMaterial>) {
         let mut app = App::new();
+        app.add_plugins((TaskPoolPlugin::default(), AssetPlugin::default()));
         app.insert_resource(Time::<()>::default());
         app.insert_resource(M2EffectUvUpdatesEnabled(enabled));
-        app.init_resource::<Assets<M2EffectMaterial>>();
+        app.init_asset::<M2EffectMaterial>();
         register_m2_effect_uv_update_system(&mut app);
 
         let material_handle = app
