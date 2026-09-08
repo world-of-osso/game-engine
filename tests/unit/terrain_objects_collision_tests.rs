@@ -67,3 +67,26 @@ fn doodad_collision_decorative_bush_has_no_solid_collider() {
     let model = collision_model(189700);
     assert!(build_doodad_collider(&model, &Transform::default()).is_none());
 }
+
+#[test]
+fn doodad_collision_preserves_visual_bounds_for_non_solid_interactions() {
+    let model = collision_model(189700);
+    let bounds = build_doodad_visual_bounds(&model, &Transform::default())
+        .expect("existing visual interaction volume must survive absent solid geometry");
+    assert_eq!(
+        bounds.world_min,
+        Vec3::new(
+            model.bounding_box_min[0],
+            model.bounding_box_min[2],
+            -model.bounding_box_max[1],
+        )
+    );
+    assert_eq!(
+        bounds.world_max,
+        Vec3::new(
+            model.bounding_box_max[0],
+            model.bounding_box_max[2],
+            -model.bounding_box_min[1],
+        )
+    );
+}
