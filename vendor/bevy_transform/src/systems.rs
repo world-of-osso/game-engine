@@ -167,7 +167,7 @@ pub fn mark_dirty_trees(
         use bevy_tasks::ComputeTaskPool;
         use core::sync::atomic::Ordering;
         #[cfg(feature = "trace")]
-        use tracing::{info_span, Instrument};
+        use tracing::{Instrument, info_span};
 
         ComputeTaskPool::get().scope(|scope| {
             traversal_channels.chunk_size = 1024;
@@ -457,9 +457,10 @@ mod serial {
         let Some(children) = children else { return };
         for (child, child_of) in child_query.iter_many(children) {
             assert_eq!(
-            child_of.parent(), entity,
-            "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
-        );
+                child_of.parent(),
+                entity,
+                "Malformed hierarchy. This probably means that your hierarchy has been improperly maintained, or contains a cycle"
+            );
             // SAFETY: The caller guarantees that `transform_query` will not be fetched for any
             // descendants of `entity`, so it is safe to call `propagate_recursive` for each child.
             //
@@ -493,8 +494,8 @@ mod parallel {
     use bevy_utils::Parallel;
     use core::sync::atomic::{AtomicI32, Ordering};
     use std::sync::{
-        mpsc::{Receiver, Sender},
         Mutex,
+        mpsc::{Receiver, Sender},
     };
 
     /// Update [`GlobalTransform`] component of entities based on entity hierarchy and [`Transform`]
@@ -593,12 +594,11 @@ mod parallel {
 
         let mut outbox = queue.local_queue.borrow_local_mut();
         loop {
-            // Try to acquire a lock on the work queue in a tight loop. Profiling shows this is much
-            // more efficient than relying on `.lock()`, which causes gaps to form between tasks.
-            let Ok(rx) = queue.receiver.try_lock() else {
-                core::hint::spin_loop(); // No apparent impact on profiles, but best practice.
-                continue;
-            };
+            // Park contending workers instead of burning CPU retrying the receiver lock.
+            let rx = queue
+                .receiver
+                .lock()
+                .expect("transform propagation work queue lock poisoned");
             // If the queue is empty and no other threads are busy processing work, we can conclude
             // there is no more work to do, and end the task by exiting the loop.
             let Some(mut tasks) = rx.try_iter().next() else {
@@ -810,6 +810,82 @@ mod parallel {
                 .for_each(|outbox| Self::send_batches_with(sender, outbox));
         }
     }
+
+    #[cfg(all(test, target_os = "linux"))]
+    mod contention_tests {
+        use super::*;
+        use alloc::vec;
+        use bevy_ecs::system::SystemState;
+        use std::{fs, sync::mpsc, thread, time::Duration};
+
+        fn current_thread_cpu_ticks() -> u64 {
+            let stat = fs::read_to_string("/proc/thread-self/stat").expect("read thread CPU usage");
+            let fields: Vec<_> = stat
+                .rsplit_once(')')
+                .expect("thread stat command field")
+                .1
+                .split_whitespace()
+                .collect();
+            let user: u64 = fields[11].parse().expect("thread user CPU ticks");
+            let system: u64 = fields[12].parse().expect("thread system CPU ticks");
+            user + system
+        }
+
+        #[test]
+        fn contended_propagation_worker_waits_without_burning_cpu() {
+            let mut world = World::new();
+            let root = world.spawn(Transform::from_xyz(8.0, 0.0, 0.0)).id();
+            let parent = world
+                .spawn((
+                    Transform::from_xyz(2.0, 0.0, 0.0),
+                    GlobalTransform::from_xyz(10.0, 0.0, 0.0),
+                    ChildOf(root),
+                ))
+                .id();
+            let child = world
+                .spawn((Transform::from_xyz(3.0, 0.0, 0.0), ChildOf(parent)))
+                .id();
+            let queue = WorkQueue::default();
+            queue
+                .sender
+                .send(vec![parent])
+                .expect("seed propagation work");
+            let options = StaticTransformOptimizations::default();
+            let mut state = SystemState::<NodeQuery>::new(&mut world);
+            let consumed_ticks = {
+                let nodes = state.get_mut(&mut world).expect("acquire transform query");
+                let guard = queue
+                    .receiver
+                    .lock()
+                    .expect("hold work queue for contention");
+                let (ready_tx, ready_rx) = mpsc::channel();
+                thread::scope(|scope| {
+                    let worker = scope.spawn(|| {
+                        let before = current_thread_cpu_ticks();
+                        ready_tx.send(()).expect("signal worker readiness");
+                        propagation_worker(&queue, &nodes, &options);
+                        current_thread_cpu_ticks() - before
+                    });
+                    let ready = ready_rx.recv_timeout(Duration::from_secs(2));
+                    thread::sleep(Duration::from_millis(300));
+                    // Release before checking errors so even a failed fixture cannot strand the worker.
+                    drop(guard);
+                    let ticks = worker.join().expect("propagation worker completed");
+                    ready.expect("worker reached contention boundary");
+                    ticks
+                })
+            };
+            assert_eq!(
+                world.get::<GlobalTransform>(child).unwrap().translation(),
+                bevy_math::Vec3::new(13.0, 0.0, 0.0),
+                "queued hierarchy work must complete after the lock is released"
+            );
+            assert!(
+                consumed_ticks <= 2,
+                "waiting for the work queue burned {consumed_ticks} thread CPU ticks"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -817,7 +893,7 @@ mod test {
     use alloc::{vec, vec::Vec};
     use bevy_app::prelude::*;
     use bevy_ecs::{prelude::*, world::CommandQueue};
-    use bevy_math::{vec3, Vec3};
+    use bevy_math::{Vec3, vec3};
     use bevy_tasks::{ComputeTaskPool, TaskPool};
 
     use crate::systems::*;
@@ -1194,12 +1270,16 @@ mod test {
         // Child should be positioned relative to its parent
         let parent_global_transform = *world.entity(parent).get::<GlobalTransform>().unwrap();
         let child_global_transform = *world.entity(child).get::<GlobalTransform>().unwrap();
-        assert!(parent_global_transform
-            .translation()
-            .abs_diff_eq(translation, 0.1));
-        assert!(child_global_transform
-            .translation()
-            .abs_diff_eq(2. * translation, 0.1));
+        assert!(
+            parent_global_transform
+                .translation()
+                .abs_diff_eq(translation, 0.1)
+        );
+        assert!(
+            child_global_transform
+                .translation()
+                .abs_diff_eq(2. * translation, 0.1)
+        );
 
         // Reparent child
         world.entity_mut(child).remove::<ChildOf>();
