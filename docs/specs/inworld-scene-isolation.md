@@ -121,9 +121,11 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 
 ### InWorld environment lighting
 
-- [ ] Active `WowCamera` entities in InWorld receive generated environment lighting when neither generated nor baked environment lighting is already present, using current interpolated sky colors at the current game time.
-- [ ] Late camera activation initializes lighting once; unchanged cameras do not allocate replacement cubemaps. Existing environment overrides and unrelated cameras remain untouched.
-- [ ] Initialization requires the Lighting stage, but not skybox visuals. Preserve global ambient brightness, exposure, shadows, and fog behavior.
+- [x] Active `WowCamera` entities in InWorld receive generated environment lighting when neither generated nor baked environment lighting is already present, using current interpolated sky colors at the current game time.
+- [x] Late camera activation initializes lighting once; unchanged cameras do not allocate replacement cubemaps. Existing environment overrides and unrelated cameras remain untouched.
+- [x] Initialization requires the Lighting stage, but not skybox visuals. Global ambient remains zero and initialization does not add fog.
+
+Exposure, shadows, and existing fog update behavior are outside this initialization change.
 
 ## How it works
 
