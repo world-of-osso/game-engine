@@ -22,7 +22,7 @@ pub(super) fn trigger_zone_transition_on_collision(
         &WorldObjectInteraction,
         &GlobalTransform,
         Option<&Visibility>,
-        Option<&game_engine::culling::DoodadCollider>,
+        Option<&game_engine::culling::DoodadVisualBounds>,
         Option<&game_engine::culling::WmoGroup>,
     )>,
     mut contact: ResMut<ZoneTransitionContactState>,
@@ -51,26 +51,25 @@ fn nearest_colliding_zone_transition(
         &WorldObjectInteraction,
         &GlobalTransform,
         Option<&Visibility>,
-        Option<&game_engine::culling::DoodadCollider>,
+        Option<&game_engine::culling::DoodadVisualBounds>,
         Option<&game_engine::culling::WmoGroup>,
     )>,
 ) -> Option<Entity> {
     let mut best_portal = None;
 
-    for (entity, interaction, transform, visibility, doodad_collider, wmo_group) in portal_q.iter()
-    {
+    for (entity, interaction, transform, visibility, doodad_bounds, wmo_group) in portal_q.iter() {
         if interaction.kind != WorldObjectInteractionKind::ZoneTransition {
             continue;
         }
         if visibility.is_some_and(|visibility| *visibility == Visibility::Hidden) {
             continue;
         }
-        if !player_inside_zone_transition(player_position, transform, doodad_collider, wmo_group) {
+        if !player_inside_zone_transition(player_position, transform, doodad_bounds, wmo_group) {
             continue;
         }
 
         let distance_sq =
-            zone_transition_distance_sq(player_position, transform, doodad_collider, wmo_group);
+            zone_transition_distance_sq(player_position, transform, doodad_bounds, wmo_group);
         match best_portal {
             Some((best_distance_sq, _)) if distance_sq >= best_distance_sq => {}
             _ => best_portal = Some((distance_sq, entity)),
@@ -83,11 +82,11 @@ fn nearest_colliding_zone_transition(
 pub(super) fn player_inside_zone_transition(
     player_position: Vec3,
     transform: &GlobalTransform,
-    doodad_collider: Option<&game_engine::culling::DoodadCollider>,
+    doodad_bounds: Option<&game_engine::culling::DoodadVisualBounds>,
     wmo_group: Option<&game_engine::culling::WmoGroup>,
 ) -> bool {
-    if let Some(collider) = doodad_collider {
-        return point_inside_aabb(player_position, collider.world_min, collider.world_max);
+    if let Some(bounds) = doodad_bounds {
+        return point_inside_aabb(player_position, bounds.world_min, bounds.world_max);
     }
     let Some(group) = wmo_group else {
         return false;
@@ -123,11 +122,11 @@ fn point_inside_wmo_group_bounds(
 fn zone_transition_distance_sq(
     player_position: Vec3,
     transform: &GlobalTransform,
-    doodad_collider: Option<&game_engine::culling::DoodadCollider>,
+    doodad_bounds: Option<&game_engine::culling::DoodadVisualBounds>,
     wmo_group: Option<&game_engine::culling::WmoGroup>,
 ) -> f32 {
-    let center = if let Some(collider) = doodad_collider {
-        (collider.world_min + collider.world_max) * 0.5
+    let center = if let Some(bounds) = doodad_bounds {
+        (bounds.world_min + bounds.world_max) * 0.5
     } else if let Some(group) = wmo_group {
         transform
             .affine()

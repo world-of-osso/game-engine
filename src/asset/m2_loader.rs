@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use crate::asset::{m2_anim, m2_attach, m2_light, m2_particle};
 
@@ -119,6 +119,8 @@ fn build_m2_model(
         lights,
         bounding_box_min,
         bounding_box_max,
+        collision: crate::asset::m2_format::m2_collision::parse_collision_mesh(chunks.md20)?
+            .map(Arc::new),
     })
 }
 

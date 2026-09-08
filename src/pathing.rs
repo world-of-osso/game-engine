@@ -84,7 +84,7 @@ pub fn update_waypoint_pathing(
     terrain: Option<&TerrainHeightmap>,
     ray_cast: &mut MeshRayCast,
     collision_meshes: &HashSet<Entity>,
-    doodad_colliders: &[(Vec3, Vec3)],
+    doodad_colliders: &[&game_engine::culling::DoodadCollider],
     manual_override: bool,
 ) -> Option<PathingDirective> {
     let Some(terrain) = terrain else {
@@ -225,7 +225,7 @@ fn build_terrain_path(
     terrain: &TerrainHeightmap,
     ray_cast: &mut MeshRayCast,
     collision_meshes: &HashSet<Entity>,
-    doodad_colliders: &[(Vec3, Vec3)],
+    doodad_colliders: &[&game_engine::culling::DoodadCollider],
 ) -> Option<Vec<Vec2>> {
     find_grid_path(start, goal, PATH_GRID_STEP, |edge_start, edge_end| {
         terrain_segment_is_walkable(
@@ -245,7 +245,7 @@ fn terrain_segment_is_walkable(
     terrain: &TerrainHeightmap,
     ray_cast: &mut MeshRayCast,
     collision_meshes: &HashSet<Entity>,
-    doodad_colliders: &[(Vec3, Vec3)],
+    doodad_colliders: &[&game_engine::culling::DoodadCollider],
 ) -> bool {
     let distance = start.distance(end);
     let steps = (distance / PATH_EDGE_SAMPLE_STEP).ceil().max(1.0) as usize;
@@ -274,7 +274,7 @@ fn terrain_step_is_walkable(
     terrain: &TerrainHeightmap,
     ray_cast: &mut MeshRayCast,
     collision_meshes: &HashSet<Entity>,
-    doodad_colliders: &[(Vec3, Vec3)],
+    doodad_colliders: &[&game_engine::culling::DoodadCollider],
 ) -> bool {
     let Some(start_y) = terrain.height_at(start.x, start.y) else {
         return false;

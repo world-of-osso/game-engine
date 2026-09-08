@@ -2,6 +2,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 #[cfg(test)]
 pub use super::m2_texture::{first_hardcoded_texture, resolve_batch_texture};
@@ -12,6 +13,7 @@ mod m2_batch;
 pub(crate) mod m2_loader;
 
 pub use super::m2_format::ensure_primary_skin_path;
+pub use super::m2_format::m2_collision::M2CollisionMesh;
 #[cfg(test)]
 pub(crate) use super::m2_format::parse_skin_full;
 pub(crate) use super::m2_format::{
@@ -90,6 +92,8 @@ pub struct M2Model {
     pub bounding_box_min: [f32; 3],
     /// Model-local bounding box max (from MD20 header).
     pub bounding_box_max: [f32; 3],
+    /// Authored static collision geometry; absent models must not use visual bounds as solids.
+    pub collision: Option<Arc<M2CollisionMesh>>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash)]

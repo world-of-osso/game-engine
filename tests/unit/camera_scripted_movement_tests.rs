@@ -70,10 +70,22 @@ fn scripted_forward_moves_for_exact_duration_then_stops() {
 #[test]
 fn scripted_forward_uses_normal_doodad_collision() {
     let (mut app, player) = movement_app();
-    app.world_mut().spawn(game_engine::culling::DoodadCollider {
-        world_min: Vec3::new(0.8, -1.0, -1.0),
-        world_max: Vec3::new(1.2, 2.0, 1.0),
-    });
+    let geometry = crate::asset::m2::M2CollisionMesh {
+        bounds_min: [0.8, -1.0, -1.0],
+        bounds_max: [0.8, 1.0, 2.0],
+        vertices: vec![
+            [0.8, -1.0, -1.0],
+            [0.8, 1.0, -1.0],
+            [0.8, 1.0, 2.0],
+            [0.8, -1.0, 2.0],
+        ],
+        indices: vec![0, 1, 2, 0, 2, 3],
+    };
+    app.world_mut()
+        .spawn(game_engine::culling::DoodadCollider::new(
+            std::sync::Arc::new(geometry),
+            &Transform::default(),
+        ));
     app.world_mut()
         .resource_mut::<ScriptedMovement>()
         .start(1.0, Some(90.0))

@@ -32,9 +32,9 @@ fn zone_transition_contact_triggers_only_when_entering_new_portal() {
 }
 
 #[test]
-fn player_inside_zone_transition_accepts_doodad_collider_bounds() {
+fn player_inside_zone_transition_accepts_doodad_visual_bounds() {
     let player_position = Vec3::new(1.5, 2.0, 3.5);
-    let collider = game_engine::culling::DoodadCollider {
+    let collider = game_engine::culling::DoodadVisualBounds {
         world_min: Vec3::new(1.0, 1.0, 3.0),
         world_max: Vec3::new(2.0, 3.0, 4.0),
     };
@@ -94,7 +94,7 @@ fn zone_transition_collision_sets_loading_state_once_per_contact() {
             kind: WorldObjectInteractionKind::ZoneTransition,
         },
         GlobalTransform::IDENTITY,
-        game_engine::culling::DoodadCollider {
+        game_engine::culling::DoodadVisualBounds {
             world_min: Vec3::new(1.0, 1.0, 3.0),
             world_max: Vec3::new(2.0, 3.0, 4.0),
         },

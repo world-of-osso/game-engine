@@ -621,13 +621,10 @@ fn collect_collision_meshes(
     collision_meshes.iter().collect()
 }
 
-fn collect_doodad_colliders(
-    collider_q: &Query<&game_engine::culling::DoodadCollider>,
-) -> Vec<(Vec3, Vec3)> {
-    collider_q
-        .iter()
-        .map(|c| (c.world_min, c.world_max))
-        .collect()
+fn collect_doodad_colliders<'a>(
+    collider_q: &'a Query<&game_engine::culling::DoodadCollider>,
+) -> Vec<&'a game_engine::culling::DoodadCollider> {
+    collider_q.iter().collect()
 }
 
 fn build_proposed_ground_movement(

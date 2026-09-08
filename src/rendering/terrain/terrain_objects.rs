@@ -397,6 +397,7 @@ fn try_spawn_doodad_preloaded(
         .and_then(|s| s.to_str())
         .unwrap_or("prop");
     let collider = build_doodad_collider(&pre.model, &transform);
+    let visual_bounds = build_doodad_visual_bounds(&pre.model, &transform);
     let entity = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
@@ -423,6 +424,9 @@ fn try_spawn_doodad_preloaded(
     }
     if let Some(collider) = collider {
         entity_commands.insert(collider);
+    }
+    if let Some(bounds) = visual_bounds {
+        entity_commands.insert(bounds);
     }
     if let Some(chunk_refs) = build_chunk_refs_component(chunk_refs) {
         entity_commands.insert(chunk_refs);
@@ -496,6 +500,7 @@ fn try_spawn_doodad(
         .and_then(|s| s.to_str())
         .unwrap_or("prop");
     let collider = build_doodad_collider(&model, &transform);
+    let visual_bounds = build_doodad_visual_bounds(&model, &transform);
     let entity = commands
         .spawn((Name::new(name.to_owned()), transform, Visibility::default()))
         .id();
@@ -523,36 +528,46 @@ fn try_spawn_doodad(
     if let Some(collider) = collider {
         entity_commands.insert(collider);
     }
+    if let Some(bounds) = visual_bounds {
+        entity_commands.insert(bounds);
+    }
     if let Some(chunk_refs) = build_chunk_refs_component(chunk_refs) {
         entity_commands.insert(chunk_refs);
     }
     Some(entity)
 }
 
-/// Minimum world-space AABB volume to attach a collider.
-/// Small props (grass, flowers) below this threshold are skipped.
-const MIN_DOODAD_COLLIDER_VOLUME: f32 = 1.0;
+/// Retain the previously published interaction bounds, independently of solidity.
+const MIN_DOODAD_VISUAL_BOUNDS_VOLUME: f32 = 1.0;
 
-/// Build a `DoodadCollider` from an M2 model's bounding box and its world transform.
-/// Returns `None` for small props that shouldn't block movement.
-fn build_doodad_collider(
+fn build_doodad_visual_bounds(
     model: &crate::asset::m2::M2Model,
     transform: &Transform,
-) -> Option<game_engine::culling::DoodadCollider> {
+) -> Option<game_engine::culling::DoodadVisualBounds> {
     let (world_min, world_max) = crate::collision::compute_world_aabb(
         model.bounding_box_min,
         model.bounding_box_max,
         transform,
     );
     let size = world_max - world_min;
-    let volume = size.x * size.y * size.z;
-    if volume < MIN_DOODAD_COLLIDER_VOLUME {
+    if size.x * size.y * size.z < MIN_DOODAD_VISUAL_BOUNDS_VOLUME {
         return None;
     }
-    Some(game_engine::culling::DoodadCollider {
+    Some(game_engine::culling::DoodadVisualBounds {
         world_min,
         world_max,
     })
+}
+
+fn build_doodad_collider(
+    model: &crate::asset::m2::M2Model,
+    transform: &Transform,
+) -> Option<game_engine::culling::DoodadCollider> {
+    let geometry = model.collision.as_ref()?;
+    Some(game_engine::culling::DoodadCollider::new(
+        geometry.clone(),
+        transform,
+    ))
 }
 
 fn build_object_chunk_refs<'a>(

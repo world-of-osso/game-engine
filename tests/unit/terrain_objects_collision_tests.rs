@@ -15,11 +15,7 @@ fn move_against_model(
     to: Vec3,
 ) -> Vec3 {
     let collider = build_doodad_collider(model, &transform).expect("authored solid geometry");
-    crate::collision::clamp_movement_against_doodad_colliders(
-        from,
-        to,
-        &[(collider.world_min, collider.world_max)],
-    )
+    crate::collision::clamp_movement_against_doodad_colliders(from, to, &[&collider])
 }
 
 #[test]

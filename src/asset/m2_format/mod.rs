@@ -6,6 +6,7 @@
 pub mod m2_anim;
 pub mod m2_attach;
 pub mod m2_bone_names;
+pub mod m2_collision;
 pub mod m2_light;
 pub mod m2_particle;
 pub mod m2_ribbon;
