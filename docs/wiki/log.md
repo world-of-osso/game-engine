@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-08] investigations | Record transform invalidation CPU observations
+
+Updated [[movement-performance]] and [event-driven application updates](../specs/event-driven-application-updates.md). `4cfe7bfb` removes a RED-proven constant-pose transform invalidation. Retained post-fix CPU observations are lower than pre-fix observations, but remotes and clocks differ and the repeat was not controlled. CPU goal remains open.
+
 ## [2026-09-08] investigations | Resume CPU goal with current baseline
 
 Updated [[movement-performance]] and [event-driven application updates](../specs/event-driven-application-updates.md). Current `206f844f` InWorld captures are **306.86%** and **304.85%** one-core CPU over comparable 20-second intervals; Compute Task Pool workers account for **264.02%** and networking **3.60%** in the first capture. `586b619a` reproduced three transform-change notifications for a constant animated pose; `4cfe7bfb` eliminates that invalidation (**1/1** targeted GREEN). CPU improvement is still unmeasured, so the active CPU goal remains unresolved.
