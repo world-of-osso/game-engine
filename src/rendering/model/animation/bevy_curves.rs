@@ -31,11 +31,7 @@ pub(super) fn build_clip(data: &M2AnimData, seq_idx: usize) -> AnimationClip {
     let mut clip = AnimationClip::default();
     for (index, tracks) in data.bone_tracks.iter().enumerate() {
         let curve = M2RawCurve {
-            source: RawCurveSource::Tracks(Arc::new(BoneAnimTracks {
-                translation: select_sequence(&tracks.translation, seq_idx),
-                rotation: select_sequence(&tracks.rotation, seq_idx),
-                scale: select_sequence(&tracks.scale, seq_idx),
-            })),
+            source: build_curve_source(tracks, seq_idx),
             domain: Interval::new(0.0, duration).expect("M2 clip duration must be positive"),
         };
         clip.add_curve_to_target(
@@ -63,6 +59,37 @@ pub(super) fn build_pose_clip(
     }
     clip.set_duration(1.0);
     clip
+}
+
+fn build_curve_source(tracks: &BoneAnimTracks, seq_idx: usize) -> RawCurveSource {
+    if is_constant_sequence(&tracks.translation, seq_idx)
+        && is_constant_sequence(&tracks.rotation, seq_idx)
+        && is_constant_sequence(&tracks.scale, seq_idx)
+    {
+        return RawCurveSource::Pose(sample_raw_transform(tracks, seq_idx, 0));
+    }
+    RawCurveSource::Tracks(Arc::new(BoneAnimTracks {
+        translation: select_sequence(&tracks.translation, seq_idx),
+        rotation: select_sequence(&tracks.rotation, seq_idx),
+        scale: select_sequence(&tracks.scale, seq_idx),
+    }))
+}
+
+fn is_constant_sequence<T>(track: &AnimTrack<T>, seq_idx: usize) -> bool {
+    track.global_sequence < 0
+        && track
+            .sequences
+            .get(seq_idx)
+            .is_none_or(|(times, values)| times.len() <= 1 && values.len() <= 1)
+}
+
+fn sample_raw_transform(tracks: &BoneAnimTracks, seq_idx: usize, time_ms: u32) -> Transform {
+    let (translation, rotation, scale) = evaluate_bone_components(tracks, seq_idx, time_ms);
+    Transform {
+        translation,
+        rotation,
+        scale,
+    }
 }
 
 fn select_sequence<T: Clone>(track: &AnimTrack<T>, seq_idx: usize) -> AnimTrack<T> {
@@ -137,13 +164,7 @@ impl Curve<Transform> for M2RawCurve {
     fn sample_unchecked(&self, time: f32) -> Transform {
         match &self.source {
             RawCurveSource::Tracks(tracks) => {
-                let (translation, rotation, scale) =
-                    evaluate_bone_components(tracks, 0, (time * 1000.0) as u32);
-                Transform {
-                    translation,
-                    rotation,
-                    scale,
-                }
+                sample_raw_transform(tracks, 0, (time * 1000.0) as u32)
             }
             RawCurveSource::Pose(pose) => *pose,
         }
@@ -503,6 +524,124 @@ mod tests {
             "scale {actual:?} expected {:?}",
             raw.scale
         );
+    }
+
+    fn constant_tracks() -> BoneAnimTracks {
+        BoneAnimTracks {
+            translation: track(vec![(vec![300], vec![[2.0, 4.0, 6.0]])]),
+            rotation: track(vec![(vec![700], vec![[32767, 32767, -1, 32767]])]),
+            scale: track(vec![(vec![900], vec![[2.0, 3.0, 4.0]])]),
+        }
+    }
+
+    fn legacy_raw_pose(tracks: &BoneAnimTracks, sequence: usize, time_ms: u32) -> Transform {
+        let (translation, rotation, scale) = evaluate_bone_components(tracks, sequence, time_ms);
+        Transform {
+            translation,
+            rotation,
+            scale,
+        }
+    }
+
+    fn assert_curve_matches_legacy(tracks: BoneAnimTracks, sequence: usize) {
+        let data = data(tracks, sequence + 1);
+        let pivot = Vec3::new(2.0, -3.0, 4.0);
+        for time_ms in [0, 100, 500, 900, 1000] {
+            let expected = legacy_raw_pose(&data.bone_tracks[0], sequence, time_ms);
+            let (actual, retained) = evaluate_clips(
+                pivot,
+                [(build_clip(&data, sequence), time_ms as f32 / 1000.0, 1.0)],
+            );
+            assert_pose(actual, expected, pivot);
+            assert_pose(retained, expected, Vec3::ZERO);
+        }
+    }
+
+    #[test]
+    fn constant_curves_preserve_empty_single_key_and_missing_sequence_samples() {
+        assert_curve_matches_legacy(
+            BoneAnimTracks {
+                translation: track(vec![]),
+                rotation: track(vec![]),
+                scale: track(vec![]),
+            },
+            0,
+        );
+        assert_curve_matches_legacy(
+            BoneAnimTracks {
+                translation: track(vec![(vec![300], vec![])]),
+                rotation: track(vec![(vec![], vec![[32767, 32767, -1, 32767]])]),
+                scale: track(vec![(vec![], vec![])]),
+            },
+            0,
+        );
+        assert_curve_matches_legacy(constant_tracks(), 0);
+        let mut tracks = constant_tracks();
+        tracks.translation.sequences[0] = (vec![0, 1000], vec![[1.0, 2.0, 3.0], [7.0, 8.0, 9.0]]);
+        assert_curve_matches_legacy(tracks, 1);
+    }
+
+    #[test]
+    fn mixed_and_global_curves_preserve_existing_samples() {
+        let mut translation = constant_tracks();
+        translation.translation.sequences[0] =
+            (vec![0, 1000], vec![[1.0, 2.0, 3.0], [7.0, 8.0, 9.0]]);
+        let mut rotation = constant_tracks();
+        rotation.rotation.sequences[0] = (
+            vec![0, 1000],
+            vec![[32767, 32767, 32767, -1], [32767, 32767, -1, 32767]],
+        );
+        let mut scale = constant_tracks();
+        scale.scale.sequences[0] = (vec![0, 1000], vec![[1.0; 3], [3.0, 5.0, 7.0]]);
+        let mut global = constant_tracks();
+        global.translation.global_sequence = 0;
+        global.rotation.global_sequence = 1;
+        global.scale.global_sequence = 2;
+        for tracks in [translation, rotation, scale, global] {
+            assert_curve_matches_legacy(tracks, 0);
+        }
+    }
+
+    #[test]
+    fn constant_and_varying_crossfades_preserve_raw_pose_in_both_directions() {
+        let mut tracks = constant_tracks();
+        tracks
+            .translation
+            .sequences
+            .push((vec![0, 1000], vec![[0.0; 3], [10.0, -2.0, 4.0]]));
+        tracks.rotation.sequences.push((
+            vec![0, 1000],
+            vec![[32767, 32767, 32767, -1], [32767, -9598, 32767, -9598]],
+        ));
+        tracks
+            .scale
+            .sequences
+            .push((vec![0, 1000], vec![[1.0; 3], [3.0, 5.0, 7.0]]));
+        let data = data(tracks, 2);
+        let pivot = Vec3::new(2.0, -3.0, 4.0);
+        for (from, to) in [(0, 1), (1, 0)] {
+            for time_ms in [200, 800] {
+                let before = legacy_raw_pose(&data.bone_tracks[0], from, time_ms);
+                let after = legacy_raw_pose(&data.bone_tracks[0], to, time_ms);
+                for blend in [0.0, 0.4, 1.0] {
+                    let expected = Transform {
+                        translation: before.translation.lerp(after.translation, blend),
+                        rotation: before.rotation.slerp(after.rotation, blend),
+                        scale: before.scale.lerp(after.scale, blend),
+                    };
+                    let time = time_ms as f32 / 1000.0;
+                    let (actual, retained) = evaluate_clips(
+                        pivot,
+                        [
+                            (build_clip(&data, from), time, 1.0 - blend),
+                            (build_clip(&data, to), time, blend),
+                        ],
+                    );
+                    assert_pose(actual, expected, pivot);
+                    assert_pose(retained, expected, Vec3::ZERO);
+                }
+            }
+        }
     }
 
     #[test]
