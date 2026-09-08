@@ -1,6 +1,9 @@
 use super::*;
 use bevy::ecs::system::RunSystemOnce;
 
+#[path = "terrain_objects_collision_tests.rs"]
+mod authored_collision;
+
 #[test]
 fn placement_rotation_matches_current_model_rotation_formula() {
     let rot = [17.0, 123.0, -31.0];
