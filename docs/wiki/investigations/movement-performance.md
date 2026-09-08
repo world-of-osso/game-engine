@@ -48,6 +48,12 @@ UI toolkit `10da947` also removes repeated blacklist cache-hit notices while ret
 
 A native pair with Theron, one loaded tile and 82 remotes measured **250.431% → 235.184% CPU**, with mean sampled clocks **2.816 → 2.607 GHz**. A repeat measured 234.584% at 2.657 GHz and 81 remotes. These support a bounded observed reduction, not a precise general estimate or overall CPU-goal completion. Artifacts: `data/diagnostics/cpu-goal-resumed/{stable-animation-graph,compact-graph}`.
 
+### Terrain material invalidation follow-up
+
+`a90b6ab7` / `2eafe281` synchronize environment handles through immutable comparison before borrowing only mismatched assets mutably. Registered-system AssetEvent regressions reproduced two failures: matching materials notified, and newly added mismatched materials caused existing matching materials to notify too. New assets still synchronize when the environment resource itself is unchanged.
+
+`bd244365` updates animation time only when any layer has nonzero XY UV velocity and the time differs. Shader time is consumed only by that velocity multiplication; reflection uses a separate Z component. Mixed static/moving regression emitted both asset IDs before the fix and only the moving ID afterward. Six targeted tests pass, including unchanged time, environment replacement/absence, and animated freeze fixtures. Independent verification and native CPU comparison pending; no CPU gain attributed yet. Proof artifacts: `data/diagnostics/cpu-goal-resumed/terrain-invalidation/`.
+
 ### Constant-curve follow-up
 
 `a7a38db7` / `50454f89` fold eligible constant sequence-local TRS into existing raw-pose curves without removing targets or joints. Complete-catalog construction medians: human **96.063→85.544 ms**, wolf **2.748→2.488 ms**. These characterize construction, not steady-state CPU. Independent fmt/check and **87 animation tests** passed at `50454f89`.
