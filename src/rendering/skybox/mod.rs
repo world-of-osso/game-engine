@@ -2,7 +2,7 @@ use std::f32::consts::{FRAC_PI_2, TAU};
 
 use bevy::asset::RenderAssetUsages;
 use bevy::ecs::system::SystemParam;
-use bevy::light::GeneratedEnvironmentMapLight;
+use bevy::light::{EnvironmentMapLight, GeneratedEnvironmentMapLight};
 use bevy::pbr::{DistanceFog, FogFalloff, MaterialPlugin};
 use bevy::prelude::*;
 use bevy::render::render_resource::{
@@ -230,6 +230,33 @@ pub(crate) fn insert_default_sky_env_map(
 // ---------------------------------------------------------------------------
 // Systems
 // ---------------------------------------------------------------------------
+
+type CamerasWithoutEnvironment<'w, 's> = Query<
+    'w,
+    's,
+    (Entity, &'static Camera),
+    (
+        With<crate::camera::WowCamera>,
+        Without<GeneratedEnvironmentMapLight>,
+        Without<EnvironmentMapLight>,
+    ),
+>;
+
+fn initialize_inworld_camera_ibl(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    game_time: Res<GameTime>,
+    keyframes: Res<LightKeyframes>,
+    cameras: CamerasWithoutEnvironment,
+) {
+    for (entity, camera) in &cameras {
+        if !camera.is_active {
+            continue;
+        }
+        let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+        insert_default_sky_env_map(&mut commands, &mut images, entity, &colors);
+    }
+}
 
 fn advance_game_time(time: Res<Time>, mut game_time: ResMut<GameTime>) {
     if game_time.speed > 0.0 {
@@ -646,6 +673,13 @@ fn register_shared_sky_visual_systems(app: &mut App) {
     let sky_active = sky_scene_active;
     app.add_systems(
         Update,
+        initialize_inworld_camera_ibl
+            .after(advance_game_time)
+            .run_if(in_state(GameState::InWorld))
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
+    )
+    .add_systems(
+        Update,
         update_sky_colors
             .after(advance_game_time)
             .run_if(sky_active)
@@ -669,6 +703,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
         Update,
         update_sky_env_map
             .after(advance_game_time)
+            .after(initialize_inworld_camera_ibl)
             .run_if(sky_scene_active)
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );

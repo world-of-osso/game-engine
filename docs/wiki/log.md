@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-08] systems | Initialize InWorld IBL independently of skybox visuals
+
+Updated [[skybox]] and [InWorld scene isolation](../specs/inworld-scene-isolation.md) with missing camera environment-light initialization, override/stage guards, and registered-system fixtures. Ambient brightness, exposure, shadows, fog, and authored shader combines remain unchanged; native brightness verification is separate.
+
 ## [2026-09-08] investigations | Record current CPU attribution limits
 
 Updated [[movement-performance]] with the post-fix1,642-sample capture: diffuse leaf costs, incomplete caller stacks, no demonstrated dominant next fix. Preserved unresolved CPU objective; no speculative renderer or profiler changes.

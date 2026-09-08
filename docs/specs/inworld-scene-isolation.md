@@ -119,6 +119,12 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [x] Preserve camera identity, transforms, MSAA state before `Lighting`, tonemapping, shadow filtering, spatial audio, bloom, sharpening, and depth-of-field synchronization.
 - [x] Keep the standalone performance overlay active while game UI and early camera rendering are isolated.
 
+### InWorld environment lighting
+
+- [ ] Active `WowCamera` entities in InWorld receive generated environment lighting when neither generated nor baked environment lighting is already present, using current interpolated sky colors at the current game time.
+- [ ] Late camera activation initializes lighting once; unchanged cameras do not allocate replacement cubemaps. Existing environment overrides and unrelated cameras remain untouched.
+- [ ] Initialization requires the Lighting stage, but not skybox visuals. Preserve global ambient brightness, exposure, shadows, and fog behavior.
+
 ## How it works
 
 - [InWorld performance investigation](../wiki/investigations/procedural-cloud-regeneration.md)
@@ -135,7 +141,7 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - `src/system_isolation.rs` — shared exact-name removal and safe main/render/extraction phases.
 - `src/system_isolation/args.rs` — repeatable selector parsing and retired-flag rejection.
 - `src/rendering/terrain/terrain{,_background_parse,_streaming,_spawn}.rs` — streamed object/water loading and flat-material controls.
-- `src/rendering/skybox/mod.rs` — skybox-visual gates and dome removal with lighting retained.
+- `src/rendering/skybox/mod.rs` — skybox-visual gates, independent InWorld camera IBL initialization, and dome removal with lighting retained.
 
 ## Tests asserting this spec
 
@@ -145,6 +151,8 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - `src/cpu_system_profile.rs` tests — nested, boundary, independent-thread, concurrent same-span, and blocked-sleep CPU accounting.
 - `tests/unit/system_isolation_tests.rs` — cross-world deadlines, extraction cleanup, retained pose/payloads, exact identity, and defaults.
 - `src/system_isolation/args.rs` tests — argument validation, retired flags, duplicate targets, and ordering.
+
+- `src/rendering/skybox/tests/inworld_ibl.rs` — current-color cubemap initialization, late activation/idempotence, disabled visuals, override preservation, and state/stage guards.
 
 ## Known gaps (current cycle)
 

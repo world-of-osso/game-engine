@@ -2,6 +2,14 @@
 
 Skybox rendering uses authored WoW sky M2 models resolved through a DB2 lookup chain. The `SkyboxM2Material` render path disables depth writes, depth comparison, and shadow/prepass participation.
 
+## InWorld environment lighting
+
+Authored skybox geometry does not initialize scene IBL. `initialize_inworld_camera_ibl` runs independently of skybox visuals, only in InWorld with the Lighting stage enabled. Active `WowCamera` entities lacking both `GeneratedEnvironmentMapLight` and `EnvironmentMapLight` receive the existing generated-map setup at intensity300, using current interpolated `LightKeyframes` colors. The component filters make initialization idempotent and preserve explicit environment overrides.
+
+This repairs the missing setup connection: the live world camera had no environment component or `SkyEnvMapHandle`, while global ambient was zero. It does not change global ambient, exposure, directional light, shadows, fog, or authored shader-combine behavior. The registered-system fixtures check the source cubemap/component contract; native brightness and GPU filtering still require separate observation.
+
+Contract and fixtures: [InWorld scene spec](../../specs/inworld-scene-isolation.md#inworld-environment-lighting), `src/rendering/skybox/tests/inworld_ibl.rs`.
+
 ## Light.csv Lookup Chain
 
 ```
@@ -96,6 +104,9 @@ Known example: scene 1 should now use this fallback instead of treating the glob
 - Reuse light-volume-driven skybox selection for in-world scenes
 
 ## Sources
+
+- `src/rendering/skybox/mod.rs` — independent camera IBL initialization and existing cubemap setup.
+- `src/rendering/skybox/tests/inworld_ibl.rs` — registered-system initialization and preservation fixtures.
 
 - [skybox-authored-lookup.md](../skybox-authored-lookup.md) — lookup chain, verified path, fallback behavior
 - [casc-db2-keys.md](../casc-db2-keys.md) — TACT key for LightSkybox.db2

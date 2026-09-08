@@ -16,7 +16,7 @@ Engine subsystems and how they work.
 - [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, collision reference
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, geosets, texture compositing, helmet hiding, target circles
-- [skybox](systems/skybox.md) — Light.csv → LightParams → LightSkybox → FDID lookup chain, fallback skybox
+- [skybox](systems/skybox.md) — authored lookup chain and independent InWorld camera environment-light initialization
 - [sound](systems/sound.md) — Footsteps, music catalog, zone music, and sound-flag-aware Bevy backend registration; no-sound Empty has no audio threads
 - [lore-knowledge-graph](systems/lore-knowledge-graph.md) — Graph schema for NPC AI, quest generation, faction relations
 
