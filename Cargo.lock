@@ -2065,8 +2065,9 @@ dependencies = [
 [[package]]
 name = "bevy_transform"
 version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c95fefe69c9223d10e6b52a0fdf12811bab9d0c7dcb27570cb86824b451f180d"
 dependencies = [
- "approx",
  "bevy_app",
  "bevy_ecs",
  "bevy_math",
@@ -2074,7 +2075,6 @@ dependencies = [
  "bevy_tasks",
  "bevy_utils",
  "derive_more",
- "ron 0.12.2",
  "serde",
  "thiserror 2.0.18",
  "tracing",
@@ -7131,9 +7131,6 @@ name = "portable-atomic"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
-dependencies = [
- "critical-section",
-]
 
 [[package]]
 name = "portable-atomic-util"
