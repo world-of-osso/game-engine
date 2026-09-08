@@ -991,6 +991,7 @@ mod test {
 
     #[test]
     fn did_propagate_command_buffer() {
+        ComputeTaskPool::get_or_init(TaskPool::default);
         let mut world = World::default();
 
         let mut schedule = Schedule::default();
@@ -1230,6 +1231,7 @@ mod test {
 
     #[test]
     fn global_transform_should_not_be_overwritten_after_reparenting() {
+        ComputeTaskPool::get_or_init(TaskPool::default);
         let translation = Vec3::ONE;
         let mut world = World::new();
 
