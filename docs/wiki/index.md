@@ -13,7 +13,7 @@ Engine subsystems and how they work.
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
-- [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, collision reference
+- [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, authored doodad collision
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, geosets, texture compositing, helmet hiding, target circles
 - [skybox](systems/skybox.md) — authored lookup chain and independent InWorld camera environment-light initialization
@@ -38,7 +38,7 @@ Architecture decisions and feature designs.
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [nameplate-design](design/nameplate-design.md) — Target-first display, three states, information hierarchy, distance fade
-- [collision-system](design/collision-system.md) — Terrain/WMO/M2 collision layers, sweep detection, camera collision
+- [collision-system](design/collision-system.md) — current authored-M2 triangle collision plus broader terrain/WMO/camera design
 
 ## Investigations
 

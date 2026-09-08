@@ -8,7 +8,7 @@ Collision is split across three geometry layers — terrain heightmap, WMO (worl
 |-------|-------------|-------------|
 | **Terrain** | Bilinear heightmap interpolation | — |
 | **WMO** | Downward ray through collision triangles | Swept + closest-point push against cylinder |
-| **M2** | Ray through mesh triangles or AABB top | Closest-point push (mesh) or AABB segment test |
+| **M2** | Authored collision-triangle ray test | Authored collision-triangle ray test after AABB broadphase |
 
 ## Player Movement Pipeline (per frame)
 
@@ -32,9 +32,9 @@ Player modeled as a horizontal cylinder (`radius = 0.45–0.50f`, `height = 2.0f
 
 ## M2 Collision
 
-AABBs are fitted per category (tree trunks, narrow posts, small solid props, stepped low platforms, default) with per-category XY/Z scale factors. Some M2s (fountains, low platforms) have radial height profiles instead of flat tops.
+Doodad placements use parsed authored M2 collision indices and vertices. Their world-space AABB is broadphase only; a candidate continues to a backface-inclusive triangle ray test through the placement affine transform. An inside-AABB ray does not block without a triangle hit.
 
-Models with a collision mesh use ray/closest-point against that mesh. Models without one fall back to AABB segment intersection.
+A model with no authored collision indices has no solid doodad collider. Render/visual bounds are retained separately for portal/contact interactions and never become a solidity fallback. This current implementation does not establish the broader sweep, closest-point, floor, or spatial-grid design described elsewhere on this page.
 
 ## Ground Resolution Priority
 
@@ -51,8 +51,10 @@ Both renderers use: world AABB broadphase per instance → per-group bounds → 
 ## Sources
 
 - [wowee-collision.md](../../wowee-collision.md) — WoWee source analysis with file/line references
+- `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — implementation and 45 scoped tests
 
 ## See Also
 
 - [[character-generation]] — characters are the moving entities that drive collision queries
 - [[open-source-wow-clients]] — WoWee is the reference client analyzed here
+- [[terrain]] — ADT object placement and doodad collision

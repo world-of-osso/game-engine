@@ -25,17 +25,13 @@ This was derived by visual validation against Adventurer's Rest campsite props. 
 
 **Tests**: `placement_rotation_matches_current_model_rotation_formula` and `placement_rotation_zero_matches_current_yaw_correction` in `terrain_objects.rs` lock in the current formula.
 
-## Collision (Reference: WoWee)
+## Doodad Collision
 
-Collision is not yet implemented in game-engine but WoWee's architecture provides the reference for when it is built:
+Doodad solidity uses authored M2 collision triangles, not render/visual bounds. The M2 parser reads collision bounds, u16 triangle indices, and vertices; placements share the parsed geometry. A world-space AABB narrows candidates, then a backface-inclusive triangle ray test decides a hit through the placement affine transform. Starting inside the broadphase box is not a collision by itself.
 
-- **Terrain**: bilinear heightmap interpolation for floor height
-- **WMO**: vertical ray cast through collision triangles; horizontal cylinder wall sweep (radius 0.45–0.5, height 2.0, max step 1.0)
-- **M2**: AABB-based with per-category scaling (tree trunks, narrow props, small solid props); optional collision mesh via Möller–Trumbore ray test
-- **Priority**: WMO floor beats terrain when inside; M2 platforms use 5-point footprint sampling
-- Camera collision: WMO/M2 raycast + terrain floor clamp
+Models with no authored collision indices create no solid doodad collider. There is no visual-bounds fallback. `DoodadVisualBounds` independently retains the visual extent for zone-transition/contact interactions, so non-solid doodads can still publish those bounds.
 
-See [wowee-collision.md](../wowee-collision.md) for full algorithm reference.
+Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowee-collision.md) remain reference material for broader collision design.
 
 ## Known Issues
 
@@ -46,7 +42,8 @@ See [wowee-collision.md](../wowee-collision.md) for full algorithm reference.
 
 - [adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile ordering bug, mountain silhouette issues
 - [world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — placement rotation formula derivation
-- [wowee-collision.md](../wowee-collision.md) — WoWee collision architecture reference
+- [wowee-collision.md](../wowee-collision.md) — broader collision reference
+- `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — authored doodad collision implementation and scoped proof
 - AGENTS.md — ADT split files section
 
 ## See Also
@@ -54,3 +51,4 @@ See [wowee-collision.md](../wowee-collision.md) for full algorithm reference.
 - [[rendering-pipeline]] — terrain shader, ADT rendering
 - [[asset-pipeline]] — CASC extraction for ADT and companion files
 - [[character-rendering]] — character models spawned from ADT doodad placement
+- [[collision-system]] — broader collision design and remaining layers

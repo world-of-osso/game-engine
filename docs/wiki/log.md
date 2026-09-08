@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-08] systems | Replace visual doodad solidity with authored M2 triangles
+
+Updated [[terrain]], [[collision-system]], [[scripted-movement]], and its spec for `003e2399` / `9b7e61f2`. Doodad AABBs are broadphase only; authored triangles decide solid hits, absent authored geometry has no solidity fallback, and visual bounds remain independently available to zone interactions. Scoped evidence is 45 targeted passing tests. Native displacement, rendering, final integration, and CPU conclusions remain pending.
+
+
 ## [2026-09-08] systems | Initialize InWorld IBL independently of skybox visuals
 
 Updated [[skybox]] and [InWorld scene isolation](../specs/inworld-scene-isolation.md) with missing camera environment-light initialization, override/stage guards, and registered-system fixtures. Ambient brightness, exposure, shadows, fog, and authored shader combines remain unchanged; native brightness verification is separate.
