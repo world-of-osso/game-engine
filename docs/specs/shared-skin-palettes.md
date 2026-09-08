@@ -28,7 +28,7 @@ Share identical skinning palettes across render batches without changing mesh or
 
 ## Implementation inventory
 
-- `vendor/bevy_pbr/src/render/skin.rs` — allocation, extraction, lookup, and buffer preparation.
+- `vendor/bevy_pbr/src/render/skin.rs` — canonical palette membership/allocation, unique palette extraction, constant-time per-mesh lookup, and unchanged buffer preparation.
 - `Cargo.toml` / `Cargo.lock` — exact local Bevy PBR override and preserved dev optimization.
 - `vendor/README.md` — provenance, licenses, and retirement conditions.
 
