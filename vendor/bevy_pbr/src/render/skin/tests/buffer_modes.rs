@@ -40,9 +40,46 @@ fn fragment(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 }
 ";
 
+const UNIFORM_CHILD_TEST: &str = "WOO_SKIN_BUFFER_MODE_CHILD_TEST";
+
+// Bevy caches storage support process-wide. Uniform cases must initialize their
+// device in a fresh process, even when the parent runs the complete ignored suite.
+fn run_uniform_test_in_child(name: &str) -> bool {
+    let (_, module) = module_path!()
+        .split_once("::")
+        .expect("skin tests have a crate-qualified module path");
+    let test_name = format!("{module}::{name}");
+    if let Some(child_test) = std::env::var_os(UNIFORM_CHILD_TEST) {
+        assert_eq!(
+            child_test.to_str(),
+            Some(test_name.as_str()),
+            "GPU child guard must identify exactly the selected test",
+        );
+        return false;
+    }
+
+    let status = std::process::Command::new(
+        std::env::current_exe().expect("resolve current GPU test executable"),
+    )
+    .arg(&test_name)
+    .args(["--exact", "--ignored", "--nocapture", "--test-threads=1"])
+    .env(UNIFORM_CHILD_TEST, &test_name)
+    .status()
+    .expect("start isolated uniform GPU test");
+    assert!(
+        status.success(),
+        "isolated GPU test {test_name} failed: {status}"
+    );
+    true
+}
+
 #[test]
 #[ignore = "requires a Vulkan device; explicit uniform skin binding run"]
 fn shared_palette_uniform_binding_consumes_nonzero_dynamic_offsets() {
+    if run_uniform_test_in_child("shared_palette_uniform_binding_consumes_nonzero_dynamic_offsets")
+    {
+        return;
+    }
     let mut fixture = uniform_fixture();
     let device = fixture.render.resource::<RenderDevice>();
     assert_eq!(device.limits().max_storage_buffers_per_shader_stage, 0);
@@ -86,60 +123,77 @@ fn shared_palette_uniform_binding_consumes_nonzero_dynamic_offsets() {
 #[test]
 #[ignore = "requires a Vulkan device; explicit production skin buffer growth run"]
 fn shared_palette_buffer_growth_resets_history_then_preserves_next_frame() {
-    let storage = SkinFixture::new();
+    let fixture = SkinFixture::new();
     assert!(!skins_use_uniform_buffers(
-        &storage.render.resource::<RenderDevice>().limits()
+        &fixture.render.resource::<RenderDevice>().limits()
     ));
-    for mut fixture in [storage, uniform_fixture()] {
-        let joint = fixture.joint(3.0);
-        let bindposes = fixture.bindposes(&[-1.0]);
-        let mesh = fixture.mesh(&[joint], &bindposes);
-        let sibling = fixture.mesh(&[joint], &bindposes);
-        fixture.extract();
-        fixture.upload();
-        assert_rendered_history(&fixture, mesh, 0, 2.0, 2.0);
-        let original_offset = fixture.offset(mesh);
-        let initial_size = fixture.uniforms().current_buffer.size();
+    assert_buffer_growth_history(fixture);
+}
 
-        fixture.move_joint(joint, 8.0);
-        fixture.extract();
-        fixture.upload();
-        assert_rendered_history(&fixture, sibling, 0, 7.0, 2.0);
-        assert_eq!(fixture.uniforms().current_buffer.size(), initial_size);
-
-        let extra_joints: Vec<_> = (0..MAX_JOINTS)
-            .map(|index| fixture.joint(20.0 + index as f32))
-            .collect();
-        let extra_bindposes = fixture.bindposes(&vec![-1.0; MAX_JOINTS]);
-        let extra_mesh = fixture.mesh(&extra_joints, &extra_bindposes);
-        fixture.move_joint(joint, 12.0);
-        fixture.extract();
-        fixture.upload();
-        let grown_size = fixture.uniforms().current_buffer.size();
-        assert!(grown_size > initial_size);
-        assert_eq!(fixture.uniforms().prev_buffer.size(), grown_size);
-        assert_eq!(fixture.offset(mesh), original_offset);
-        assert_eq!(fixture.offset(sibling), original_offset);
-        assert_rendered_history(&fixture, mesh, 0, 11.0, 11.0);
-        let last_joint = (MAX_JOINTS - 1) as u32;
-        let last_translation = 19.0 + last_joint as f32;
-        assert_rendered_history(
-            &fixture,
-            extra_mesh,
-            last_joint,
-            last_translation,
-            last_translation,
-        );
-
-        fixture.move_joint(joint, 18.0);
-        fixture.move_joint(extra_joints[MAX_JOINTS - 1], 400.0);
-        fixture.extract();
-        fixture.upload();
-        assert_eq!(fixture.uniforms().current_buffer.size(), grown_size);
-        assert_eq!(fixture.uniforms().prev_buffer.size(), grown_size);
-        assert_rendered_history(&fixture, sibling, 0, 17.0, 11.0);
-        assert_rendered_history(&fixture, extra_mesh, last_joint, 399.0, last_translation);
+#[test]
+#[ignore = "requires a Vulkan device; explicit uniform skin buffer growth run"]
+fn shared_palette_uniform_buffer_growth_resets_history_then_preserves_next_frame() {
+    if run_uniform_test_in_child(
+        "shared_palette_uniform_buffer_growth_resets_history_then_preserves_next_frame",
+    ) {
+        return;
     }
+    let fixture = uniform_fixture();
+    assert!(skins_use_uniform_buffers(
+        &fixture.render.resource::<RenderDevice>().limits()
+    ));
+    assert_buffer_growth_history(fixture);
+}
+
+fn assert_buffer_growth_history(mut fixture: SkinFixture) {
+    let joint = fixture.joint(3.0);
+    let bindposes = fixture.bindposes(&[-1.0]);
+    let mesh = fixture.mesh(&[joint], &bindposes);
+    let sibling = fixture.mesh(&[joint], &bindposes);
+    fixture.extract();
+    fixture.upload();
+    assert_rendered_history(&fixture, mesh, 0, 2.0, 2.0);
+    let original_offset = fixture.offset(mesh);
+    let initial_size = fixture.uniforms().current_buffer.size();
+
+    fixture.move_joint(joint, 8.0);
+    fixture.extract();
+    fixture.upload();
+    assert_rendered_history(&fixture, sibling, 0, 7.0, 2.0);
+    assert_eq!(fixture.uniforms().current_buffer.size(), initial_size);
+
+    let extra_joints: Vec<_> = (0..MAX_JOINTS)
+        .map(|index| fixture.joint(20.0 + index as f32))
+        .collect();
+    let extra_bindposes = fixture.bindposes(&vec![-1.0; MAX_JOINTS]);
+    let extra_mesh = fixture.mesh(&extra_joints, &extra_bindposes);
+    fixture.move_joint(joint, 12.0);
+    fixture.extract();
+    fixture.upload();
+    let grown_size = fixture.uniforms().current_buffer.size();
+    assert!(grown_size > initial_size);
+    assert_eq!(fixture.uniforms().prev_buffer.size(), grown_size);
+    assert_eq!(fixture.offset(mesh), original_offset);
+    assert_eq!(fixture.offset(sibling), original_offset);
+    assert_rendered_history(&fixture, mesh, 0, 11.0, 11.0);
+    let last_joint = (MAX_JOINTS - 1) as u32;
+    let last_translation = 19.0 + last_joint as f32;
+    assert_rendered_history(
+        &fixture,
+        extra_mesh,
+        last_joint,
+        last_translation,
+        last_translation,
+    );
+
+    fixture.move_joint(joint, 18.0);
+    fixture.move_joint(extra_joints[MAX_JOINTS - 1], 400.0);
+    fixture.extract();
+    fixture.upload();
+    assert_eq!(fixture.uniforms().current_buffer.size(), grown_size);
+    assert_eq!(fixture.uniforms().prev_buffer.size(), grown_size);
+    assert_rendered_history(&fixture, sibling, 0, 17.0, 11.0);
+    assert_rendered_history(&fixture, extra_mesh, last_joint, 399.0, last_translation);
 }
 
 fn uniform_fixture() -> SkinFixture {
