@@ -367,6 +367,115 @@ mod tests {
         )
     }
 
+    #[derive(Resource, Default)]
+    struct TransformChangeLog(Vec<Transform>);
+
+    fn record_transform_changes(
+        bones: Query<&Transform, (With<BonePivot>, Changed<Transform>)>,
+        mut changes: ResMut<TransformChangeLog>,
+    ) {
+        changes.0.extend(bones.iter().copied());
+    }
+
+    #[test]
+    fn constant_bevy_pose_does_not_notify_transform_changes() {
+        let data = data(
+            BoneAnimTracks {
+                translation: track(vec![(
+                    vec![0, 600, 1000],
+                    vec![[2.0, 4.0, 6.0], [2.0, 4.0, 6.0], [8.0, 10.0, 12.0]],
+                )]),
+                rotation: track(vec![(vec![0], vec![[32767, 32767, -1, 32767]])]),
+                scale: track(vec![(vec![0], vec![[2.0, 3.0, 4.0]])]),
+            },
+            1,
+        );
+        let pivot = Vec3::new(2.0, -3.0, 4.0);
+        let mut app = App::new();
+        app.add_plugins((
+            MinimalPlugins,
+            AssetPlugin::default(),
+            bevy::animation::AnimationPlugin,
+        ));
+        app.init_resource::<TransformChangeLog>();
+        app.add_systems(Last, record_transform_changes);
+        let clip = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationClip>>()
+            .add(build_clip(&data, 0));
+        let mut graph = AnimationGraph::new();
+        let node = graph.add_clip(clip, 1.0, graph.root);
+        let graph = app
+            .world_mut()
+            .resource_mut::<Assets<AnimationGraph>>()
+            .add(graph);
+        let mut player = AnimationPlayer::default();
+        player.play(node).pause().seek_to(0.0);
+        let owner = app
+            .world_mut()
+            .spawn((player, AnimationGraphHandle(graph)))
+            .id();
+        let bone = app
+            .world_mut()
+            .spawn((
+                bone_target_id(0),
+                AnimatedBy(owner),
+                BonePivot(pivot),
+                Transform::from_xyz(99.0, 98.0, 97.0),
+            ))
+            .id();
+        app.update();
+        app.update();
+        let initial = *app.world().get::<Transform>(bone).unwrap();
+        let (translation, rotation, scale) =
+            super::super::evaluate_bone_components(&data.bone_tracks[0], 0, 0);
+        assert_pose(
+            initial,
+            Transform {
+                translation,
+                rotation,
+                scale,
+            },
+            pivot,
+        );
+        app.world_mut()
+            .resource_mut::<TransformChangeLog>()
+            .0
+            .clear();
+
+        for time in [0.1, 0.3, 0.5] {
+            app.world_mut()
+                .get_mut::<AnimationPlayer>(owner)
+                .unwrap()
+                .animation_mut(node)
+                .unwrap()
+                .seek_to(time);
+            app.update();
+            assert_eq!(*app.world().get::<Transform>(bone).unwrap(), initial);
+        }
+        let stationary_changes =
+            std::mem::take(&mut app.world_mut().resource_mut::<TransformChangeLog>().0);
+
+        app.world_mut()
+            .get_mut::<AnimationPlayer>(owner)
+            .unwrap()
+            .animation_mut(node)
+            .unwrap()
+            .seek_to(0.8);
+        app.update();
+        let changed = *app.world().get::<Transform>(bone).unwrap();
+        assert_ne!(changed, initial);
+        assert_eq!(
+            app.world().resource::<TransformChangeLog>().0,
+            vec![changed]
+        );
+        assert!(
+            stationary_changes.is_empty(),
+            "identical evaluated poses emitted {} downstream Transform changes",
+            stationary_changes.len(),
+        );
+    }
+
     #[test]
     fn snapshot_clip_blends_raw_rotation_scale_before_pivot_and_retains_pose() {
         let pivot = Vec3::new(2.0, 3.0, 4.0);
