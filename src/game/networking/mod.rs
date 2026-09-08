@@ -495,6 +495,7 @@ pub(crate) fn connect_to_server_inner(commands: &mut Commands, server_addr: Sock
         let entity = game_engine::network_runtime::connection::start_connection(world, server_addr, client_id)
             .unwrap_or_else(|error| panic!("failed to start network connection: {error}"));
         info!("Connecting to server at {server_addr} with client_entity={entity:?} client_id={client_id}");
+        crate::networking_auth::queue_auth_request(world);
     });
 }
 
@@ -505,8 +506,6 @@ fn on_connected(
     password: Res<LoginPassword>,
     login_mode: Res<LoginMode>,
     reconnect: Option<ResMut<ReconnectState>>,
-    mut login_senders: MessageSenders<shared::protocol::LoginRequest>,
-    mut register_senders: MessageSenders<shared::protocol::RegisterRequest>,
 ) {
     let reconnect_phase_before = reconnect.as_deref().map(|r| r.phase);
     info!(
@@ -527,14 +526,6 @@ fn on_connected(
             reconnect.phase
         );
     }
-    crate::networking_auth::send_auth_request(
-        &auth_token,
-        &username,
-        &password,
-        &login_mode,
-        &mut login_senders,
-        &mut register_senders,
-    );
 }
 
 pub(crate) fn net_position_to_bevy(pos: &NetPosition) -> Vec3 {

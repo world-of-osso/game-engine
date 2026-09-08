@@ -125,18 +125,14 @@ fn save_auth_token(token: &str, server: Option<&str>) {
     }
 }
 
-/// Send LoginRequest or RegisterRequest depending on mode.
-pub fn send_auth_request(
-    auth_token: &AuthToken,
-    username: &LoginUsername,
-    password: &LoginPassword,
-    mode: &LoginMode,
-    login_senders: &mut MessageSenders<LoginRequest>,
-    register_senders: &mut MessageSenders<RegisterRequest>,
-) {
-    match mode {
-        LoginMode::Login => send_login(auth_token, username, password, login_senders),
-        LoginMode::Register => send_register(username, password, register_senders),
+/// Authentication must not wait behind main-world rendering or replica construction.
+pub(crate) fn queue_auth_request(world: &World) {
+    let runtime = world.resource::<NetworkRuntime>();
+    let username = world.resource::<LoginUsername>();
+    let password = world.resource::<LoginPassword>();
+    match world.resource::<LoginMode>() {
+        LoginMode::Login => send_login(world.resource::<AuthToken>(), username, password, runtime),
+        LoginMode::Register => send_register(username, password, runtime),
     }
 }
 
@@ -144,7 +140,7 @@ fn send_login(
     auth_token: &AuthToken,
     username: &LoginUsername,
     password: &LoginPassword,
-    senders: &mut MessageSenders<LoginRequest>,
+    runtime: &NetworkRuntime,
 ) {
     let request = build_login_request(auth_token, username, password);
     let request_token_label = token_debug_label(request.token.as_deref());
@@ -156,11 +152,11 @@ fn send_login(
             username.0
         );
     }
-    for mut sender in senders.iter_mut() {
-        sender.send::<AuthChannel>(request.clone());
-    }
+    runtime
+        .queue_message::<LoginRequest, AuthChannel>(request)
+        .expect("failed to queue initial login request");
     info!(
-        "Sent LoginRequest username='{}' password_present={} token={}",
+        "Queued LoginRequest username='{}' password_present={} token={}",
         username.0,
         !password.0.is_empty(),
         request_token_label,
@@ -184,19 +180,15 @@ fn build_login_request(
     }
 }
 
-fn send_register(
-    username: &LoginUsername,
-    password: &LoginPassword,
-    senders: &mut MessageSenders<RegisterRequest>,
-) {
+fn send_register(username: &LoginUsername, password: &LoginPassword, runtime: &NetworkRuntime) {
     let request = RegisterRequest {
         username: username.0.clone(),
         password: password.0.clone(),
     };
-    for mut sender in senders.iter_mut() {
-        sender.send::<AuthChannel>(request.clone());
-    }
-    info!("Sent RegisterRequest for '{}'", username.0);
+    runtime
+        .queue_message::<RegisterRequest, AuthChannel>(request)
+        .expect("failed to queue initial registration request");
+    info!("Queued RegisterRequest for '{}'", username.0);
 }
 
 /// Handle LoginResponse: save token, populate character list, transition state.

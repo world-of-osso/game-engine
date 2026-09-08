@@ -115,7 +115,7 @@ impl<M: NetworkMessage> WorkerMessageSender<'_, M> {
     }
 }
 
-fn send_in_worker<M: NetworkMessage, C: Channel>(world: &mut World, message: M) {
+pub(super) fn send_in_worker<M: NetworkMessage, C: Channel>(world: &mut World, message: M) {
     let mut query = world.query::<&mut TransportSender<M>>();
     let mut sender = query.single_mut(world).unwrap_or_else(|error| {
         panic!(

@@ -21,6 +21,11 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Skip IPC dispatch before resolving heavy parameters when no command is pending; retain receive → requested status refresh → dispatch ordering.
 - [x] Move confirmed idle application work to queued, change-driven, relevance-driven, or 60 Hz logical-tick execution; retain rendering, interpolation, and active presentation where needed.
 
+### Startup authentication
+
+- Queue login/registration when the network worker is created. Transport readiness controls wire delivery; main-thread replica/model construction must not delay the initial authentication request.
+- Keep login responses, UI transitions, and world mutation on the main thread. Do not duplicate authentication when its connected marker is later applied.
+
 ### M2 animation runtime
 
 - [x] Use Bevy `AnimationPlayer`, `AnimationGraph`, and animation targets for M2 bone pose evaluation and blending; the old per-model pose application loop is removed.

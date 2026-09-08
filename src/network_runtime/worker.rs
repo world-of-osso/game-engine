@@ -59,6 +59,16 @@ impl NetworkRuntime {
             .map_err(|_| "network worker command queue disconnected".into())
     }
 
+    /// Queue protocol data without waiting for a main-world connection callback.
+    /// Lightyear buffers it until its transport is connected.
+    pub fn queue_message<M, C>(&self, message: M) -> Result<(), String>
+    where
+        M: lightyear::prelude::Message,
+        C: lightyear::prelude::Channel,
+    {
+        self.enqueue(move |world| super::messages::send_in_worker::<M, C>(world, message))
+    }
+
     /// Applies queued updates on the caller's world, never on the worker thread.
     pub fn drain_updates(&self, world: &mut World) -> Result<(), String> {
         loop {
