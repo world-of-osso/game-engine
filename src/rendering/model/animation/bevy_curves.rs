@@ -161,10 +161,10 @@ impl AnimatableProperty for WholeTransform {
         entity: &'a mut AnimationEntityMut,
     ) -> Result<&'a mut Transform, AnimationEvaluationError> {
         entity
-            .get_mut::<Transform>()
-            .map(|value| value.into_inner())
+            .get_mut::<RawBonePose>()
+            .map(|value| &mut value.into_inner().0)
             .ok_or(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
-                Transform,
+                RawBonePose,
             >(
             )))
     }
@@ -237,27 +237,15 @@ impl AnimationCurveEvaluator for PivotEvaluator {
             >(
             )))?
             .0;
-        if entity.get::<RawBonePose>().is_none() {
-            return Err(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
-                RawBonePose,
-            >(
-            )));
-        }
         self.raw.commit(entity.reborrow())?;
-        let raw_pose =
-            *entity
-                .get::<Transform>()
-                .ok_or(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
-                    Transform,
-                >(
-                )))?;
-        entity
-            .get_mut::<RawBonePose>()
+        let mut pose = entity
+            .get::<RawBonePose>()
             .ok_or(AnimationEvaluationError::ComponentNotPresent(TypeId::of::<
                 RawBonePose,
             >(
             )))?
-            .0 = raw_pose;
+            .0;
+        pose.translation = pose.translation + pivot - pose.rotation * (pose.scale * pivot);
         let mut transform =
             entity
                 .get_mut::<Transform>()
@@ -265,8 +253,7 @@ impl AnimationCurveEvaluator for PivotEvaluator {
                     Transform,
                 >(
                 )))?;
-        transform.translation =
-            transform.translation + pivot - transform.rotation * (transform.scale * pivot);
+        transform.set_if_neq(pose);
         Ok(())
     }
 }
