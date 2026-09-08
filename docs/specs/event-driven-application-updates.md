@@ -33,7 +33,7 @@ Application work is driven by a fixed network schedule, queued commands/messages
 - [x] Adapt currently supported M2 translation/rotation/scale semantics through Bevy curves: coordinate conversion, defaults, raw-TRS crossfading, then pivot correction.
 - [x] Unchanged evaluated bone poses must not emit transform-change notifications or unnecessarily invalidate transform propagation; changed poses must still notify downstream systems.
 - [x] Settled camera poses must not emit false transform changes; camera motion and collision recovery must still update normally.
-- [ ] Avoid unchanged M2 effect UV material notifications without breaking native asset readiness. The first attempt was withdrawn after native startup failures; existing UV behavior remains in place.
+- [x] Unchanged M2 effect UV offsets must not emit material modifications. Animated UV changes, track-removal resets, disabled updates, and native asset readiness must remain intact.
 - [x] Preserve WoW sequence selection, continuous interrupted crossfades, debug time overrides, attachment joint identity, billboards, skinning, and offline/login/debug scene playback. An interrupted blend starts from the last evaluated raw pose without an instantaneous position, rotation, or scale change; repeated interruptions remain continuous. Ordinary crossfades retain advancing source sequence time.
 - [x] Prove single-clip and crossfade poses through real Bevy playback. Parsed but unsupported M2 interpolation/global-sequence features remain explicitly unsupported, not silently changed.
 
