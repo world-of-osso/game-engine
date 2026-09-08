@@ -61,6 +61,10 @@ criterion = "0.5"
 name = "parser_benches"
 harness = false
 
+# Local transform work-queue patch; provenance and retirement condition in vendor/README.md.
+[patch.crates-io]
+bevy_transform = { path = "vendor/bevy_transform" }
+
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
 
