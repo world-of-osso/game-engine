@@ -2,7 +2,10 @@
 
 use std::collections::HashSet;
 
-use bevy::animation::{AnimatedBy, AnimationTargetId, graph::AnimationNodeIndex};
+use bevy::animation::{
+    AnimatedBy, AnimationTargetId,
+    graph::{AnimationNodeIndex, AnimationNodeType},
+};
 use bevy::ecs::entity_disabling::Disabled;
 use bevy::prelude::*;
 
@@ -14,13 +17,14 @@ use bevy::diagnostic::FrameCount;
 #[derive(Component)]
 pub(crate) struct M2BevyAnimation {
     joints: Vec<Entity>,
-    current_nodes: Vec<AnimationNodeIndex>,
-    outgoing_nodes: Vec<AnimationNodeIndex>,
+    sequence_clips: Vec<Handle<AnimationClip>>,
+    current_node: AnimationNodeIndex,
+    outgoing_node: AnimationNodeIndex,
     snapshot_node: AnimationNodeIndex,
     snapshot_clip: Handle<AnimationClip>,
 }
 
-/// Two nodes per clip retain independent seek times even when a sequence crossfades to itself.
+/// Stable current/outgoing nodes retain independent seek times, including same-sequence blends.
 pub(crate) fn bind_m2_animation_players(
     mut commands: Commands,
     models: Query<
@@ -55,21 +59,20 @@ fn build_animation_graph(
     graphs: &mut Assets<AnimationGraph>,
 ) -> (AnimationGraphHandle, M2BevyAnimation) {
     let mut graph = AnimationGraph::new();
-    let mut current_nodes = Vec::new();
-    let mut outgoing_nodes = Vec::new();
-    for sequence in 0..data.sequences.len().max(1) {
-        let clip = clips.add(bevy_curves::build_clip(data, sequence));
-        current_nodes.push(graph.add_clip(clip.clone(), 1.0, graph.root));
-        outgoing_nodes.push(graph.add_clip(clip, 1.0, graph.root));
-    }
+    let sequence_clips: Vec<_> = (0..data.sequences.len().max(1))
+        .map(|sequence| clips.add(bevy_curves::build_clip(data, sequence)))
+        .collect();
+    let current_node = graph.add_clip(sequence_clips[0].clone(), 1.0, graph.root);
+    let outgoing_node = graph.add_clip(sequence_clips[0].clone(), 1.0, graph.root);
     let snapshot_clip = clips.add(bevy_curves::build_pose_clip(std::iter::empty()));
     let snapshot_node = graph.add_clip(snapshot_clip.clone(), 1.0, graph.root);
     (
         AnimationGraphHandle(graphs.add(graph)),
         M2BevyAnimation {
             joints: data.joint_entities.clone(),
-            current_nodes,
-            outgoing_nodes,
+            sequence_clips,
+            current_node,
+            outgoing_node,
             snapshot_node,
             snapshot_clip,
         },
@@ -133,33 +136,74 @@ pub(crate) fn sync_m2_animation_players(
         Entity,
         &mut M2AnimPlayer,
         &M2BevyAnimation,
+        &AnimationGraphHandle,
         &mut AnimationPlayer,
         Option<&AnimationLod>,
     )>,
     poses: Query<&bevy_curves::RawBonePose>,
     mut clips: ResMut<Assets<AnimationClip>>,
+    mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     let active = animation_active_state(state);
-    for (owner, mut controller, binding, mut player, lod) in &mut players {
+    for (owner, mut controller, binding, graph, mut player, lod) in &mut players {
         player.stop_all();
         let samples_this_frame = lod.is_none_or(|lod| lod.samples_frame(frame.0, owner));
         if !active || !samples_this_frame {
             continue;
         }
-        let Some(&current) = binding.current_nodes.get(controller.current_seq_idx) else {
-            panic!(
-                "M2 animation sequence {} has no Bevy clip",
-                controller.current_seq_idx
-            );
-        };
+        sync_graph_clips(&controller, binding, graph, &mut graphs);
         capture_interrupted_pose(&mut controller, binding, &poses, &mut clips);
         let current_weight = apply_outgoing_transition(&controller, binding, &mut player);
         player
-            .play(current)
+            .play(binding.current_node)
             .pause()
             .set_weight(current_weight)
             .seek_to(controller.time_ms / 1000.0);
     }
+}
+
+fn sync_graph_clips(
+    controller: &M2AnimPlayer,
+    binding: &M2BevyAnimation,
+    graph: &AnimationGraphHandle,
+    graphs: &mut Assets<AnimationGraph>,
+) {
+    let current = binding
+        .sequence_clips
+        .get(controller.current_seq_idx)
+        .expect("M2 current sequence must have a prebuilt Bevy clip");
+    set_graph_clip(graphs, graph, binding.current_node, current);
+    if let Some(transition) = &controller.transition
+        && transition.source == TransitionSource::Sequence
+    {
+        let outgoing = binding
+            .sequence_clips
+            .get(transition.from_seq_idx)
+            .expect("M2 outgoing sequence must have a prebuilt Bevy clip");
+        set_graph_clip(graphs, graph, binding.outgoing_node, outgoing);
+    }
+}
+
+fn set_graph_clip(
+    graphs: &mut Assets<AnimationGraph>,
+    handle: &AnimationGraphHandle,
+    node: AnimationNodeIndex,
+    clip: &Handle<AnimationClip>,
+) {
+    let graph = graphs.get(&handle.0).expect("owned M2 animation graph");
+    let AnimationNodeType::Clip(current) = &graph.get(node).expect("M2 clip node").node_type else {
+        panic!("M2 playback node must remain a clip");
+    };
+    if current == clip {
+        return;
+    }
+    // Topology, masks and weights stay fixed; Bevy reads this payload during evaluation.
+    graphs
+        .get_mut(&handle.0)
+        .expect("owned M2 animation graph")
+        .get_mut(node)
+        .expect("M2 clip node")
+        .node_type = AnimationNodeType::Clip(clip.clone());
 }
 
 fn capture_interrupted_pose(
@@ -199,10 +243,7 @@ fn apply_outgoing_transition(
     let blend = (transition.blend_elapsed_ms / transition.blend_duration_ms).clamp(0.0, 1.0);
     let outgoing = match transition.source {
         TransitionSource::Snapshot => binding.snapshot_node,
-        TransitionSource::Sequence => *binding
-            .outgoing_nodes
-            .get(transition.from_seq_idx)
-            .expect("M2 outgoing sequence must have a Bevy clip"),
+        TransitionSource::Sequence => binding.outgoing_node,
         TransitionSource::PendingSnapshot => unreachable!("snapshot captured before playback"),
     };
     player
@@ -323,9 +364,97 @@ mod tests {
             .world()
             .get::<AnimationPlayer>(owner)
             .unwrap()
-            .animation(binding.current_nodes[0])
+            .animation(binding.current_node)
             .unwrap();
         assert!(active.is_paused());
+    }
+
+    #[test]
+    fn late_sequence_first_use_and_switch_sample_without_a_frame_delay() {
+        let mut app = fixture_app();
+        let (owner, joint) = spawn_model(&mut app);
+        {
+            let mut model = app.world_mut().get_mut::<M2AnimData>(owner).unwrap();
+            let sequence = model.sequences[0].clone();
+            model.sequences = (0..64)
+                .map(|id| M2AnimSequence {
+                    id,
+                    ..sequence.clone()
+                })
+                .collect();
+            model.bone_tracks[0].translation.sequences = (0..64)
+                .map(|index| {
+                    let start = index as f32 * 10.0;
+                    (
+                        vec![0, 1000],
+                        vec![[start, 0.0, 0.0], [start + 10.0, 0.0, 0.0]],
+                    )
+                })
+                .collect();
+        }
+        app.world_mut()
+            .get_mut::<M2AnimPlayer>(owner)
+            .unwrap()
+            .current_seq_idx = 63;
+        settle(&mut app);
+        assert_x(&app, joint, 632.5);
+
+        {
+            let mut controller = app.world_mut().get_mut::<M2AnimPlayer>(owner).unwrap();
+            controller.current_seq_idx = 1;
+            controller.time_ms = 500.0;
+            controller.transition = Some(AnimTransition {
+                source: TransitionSource::Sequence,
+                from_seq_idx: 63,
+                from_time_ms: 750.0,
+                blend_duration_ms: 200.0,
+                blend_elapsed_ms: 50.0,
+            });
+        }
+        app.update();
+        assert_x(&app, joint, 481.875);
+
+        {
+            let mut controller = app.world_mut().get_mut::<M2AnimPlayer>(owner).unwrap();
+            controller.current_seq_idx = 62;
+            controller.time_ms = 900.0;
+            controller.transition = None;
+        }
+        app.update();
+        assert_x(&app, joint, 629.0);
+    }
+
+    #[test]
+    fn unchanged_clip_selection_does_not_emit_graph_modifications() {
+        let mut app = fixture_app();
+        let (owner, joint) = spawn_model(&mut app);
+        settle(&mut app);
+        let graph_id = app
+            .world()
+            .get::<AnimationGraphHandle>(owner)
+            .unwrap()
+            .0
+            .id();
+        app.world_mut()
+            .resource_mut::<Messages<AssetEvent<AnimationGraph>>>()
+            .clear();
+        for time_ms in [300.0, 400.0, 500.0] {
+            app.world_mut()
+                .get_mut::<M2AnimPlayer>(owner)
+                .unwrap()
+                .time_ms = time_ms;
+            app.update();
+            assert_x(&app, joint, time_ms / 100.0);
+            let modified = app
+                .world_mut()
+                .resource_mut::<Messages<AssetEvent<AnimationGraph>>>()
+                .drain()
+                .any(|event| matches!(event, AssetEvent::Modified { id } if id == graph_id));
+            assert!(
+                !modified,
+                "seeking an unchanged clip must not modify its graph asset"
+            );
+        }
     }
 
     #[test]
