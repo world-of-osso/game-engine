@@ -140,6 +140,84 @@ fn forced_notice_disconnects_real_worker_and_preserves_notice_for_lifecycle() {
     connection::stop_connection(app.world_mut()).unwrap();
 }
 
+fn read_local_server_auth_test_token() -> String {
+    let path = std::env::var_os("GAME_ENGINE_TEST_AUTH_TOKEN_FILE")
+        .expect("set GAME_ENGINE_TEST_AUTH_TOKEN_FILE to a private local-server token file");
+    let token = std::fs::read_to_string(path).expect("read private local-server auth token file");
+    let token = token.trim().to_owned();
+    assert!(
+        !token.is_empty(),
+        "private local-server auth token file is empty"
+    );
+    token
+}
+
+fn build_local_server_auth_startup_app(token: String) -> App {
+    use game_engine::network_runtime::{connection, messages::Inbox};
+
+    let mut app = App::new();
+    game_engine::network_events::initialize_dispatcher(&mut app);
+    connection::initialize_connection_bridge(&mut app);
+    game_engine::network_events::register_message_handler::<LoginResponse, _>(
+        &mut app,
+        |_: ResMut<Inbox<LoginResponse>>| {
+            panic!("auth startup regression must not dispatch main-world login callbacks");
+        },
+        |_| true,
+    );
+    app.insert_resource(LoginMode::Login)
+        .init_resource::<LoginUsername>()
+        .init_resource::<LoginPassword>()
+        .insert_resource(AuthToken(Some(token)));
+    app
+}
+
+#[test]
+#[ignore = "requires the existing local server and GAME_ENGINE_TEST_AUTH_TOKEN_FILE; run alone"]
+fn local_server_authenticates_while_main_callbacks_are_stalled() {
+    use game_engine::network_runtime::{connection, messages::Inbox, worker::NetworkRuntime};
+    use std::time::Duration;
+
+    let mut app = build_local_server_auth_startup_app(read_local_server_auth_test_token());
+    crate::networking::connect_to_server_inner(
+        &mut app.world_mut().commands(),
+        "127.0.0.1:5000".parse().expect("local test server address"),
+    );
+    app.world_mut().flush();
+    let mut clients = app.world_mut().query_filtered::<Entity, With<Client>>();
+    let client = clients
+        .single(app.world())
+        .expect("one main-world client proxy");
+    assert!(app.world().get::<connection::Connected>(client).is_none());
+
+    // No main app updates or connection-event application during authentication.
+    std::thread::sleep(Duration::from_secs(2));
+    let mut runtime = app
+        .world_mut()
+        .remove_resource::<NetworkRuntime>()
+        .expect("connection creation starts the network worker");
+    runtime.stop().expect("stop and join auth test worker");
+    runtime
+        .drain_updates(app.world_mut())
+        .expect("drain retained worker updates after join");
+    let main_connected = app.world().get::<connection::Connected>(client).is_some();
+    let authenticated = app
+        .world_mut()
+        .resource_mut::<Inbox<LoginResponse>>()
+        .receive()
+        .any(|response| response.success);
+    connection::stop_connection(app.world_mut()).expect("clear auth test connection state");
+
+    assert!(
+        !main_connected,
+        "authentication must not require a main-world Connected marker"
+    );
+    assert!(
+        authenticated,
+        "worker must receive successful LoginResponse without main callbacks"
+    );
+}
+
 const VALID_TEST_UUID: &str = "22222222-2222-2222-2222-222222222222";
 
 fn make_test_char(id: u64, name: &str) -> CharacterListEntry {
