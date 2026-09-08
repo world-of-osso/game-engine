@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 
+[workspace]
+members = ["vendor/bevy_transform"]
+
 [dependencies]
 bevy = { version = "0.19", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 bevy_hanabi = "0.19"
