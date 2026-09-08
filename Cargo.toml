@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 
+[workspace]
+members = ["vendor/bevy_transform"]
+
 [dependencies]
 bevy = { version = "0.19", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 bevy_hanabi = "0.19"
@@ -60,6 +63,10 @@ criterion = "0.5"
 [[bench]]
 name = "parser_benches"
 harness = false
+
+# Local transform work-queue patch; provenance and retirement condition in vendor/README.md.
+[patch.crates-io]
+bevy_transform = { path = "vendor/bevy_transform" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
