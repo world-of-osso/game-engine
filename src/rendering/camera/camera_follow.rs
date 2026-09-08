@@ -290,8 +290,7 @@ mod tests {
             .world_mut()
             .resource_mut::<Assets<Mesh>>()
             .add(Cuboid::new(2.0, 4.0, 1.0));
-        let mut visible = ViewVisibility::default();
-        visible.set();
+        let visible = ViewVisibility::VISIBLE;
         let wall = app
             .world_mut()
             .spawn((
