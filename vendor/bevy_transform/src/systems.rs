@@ -848,6 +848,72 @@ mod parallel {
         }
 
         #[test]
+        fn completion_wakes_do_not_skip_next_propagation_pass() {
+            let queue = WorkQueue::default();
+            let options = StaticTransformOptimizations::default();
+            let mut world = World::new();
+            let root = world.spawn(Transform::default()).id();
+            let mut parents = Vec::new();
+            let mut children = Vec::new();
+            // A full receiving batch leaves previously queued completion wakes unconsumed.
+            for _ in 0..WorkQueue::CHUNK_SIZE / 2 {
+                let parent = world
+                    .spawn((
+                        Transform::from_xyz(10.0, 0.0, 0.0),
+                        GlobalTransform::from_xyz(10.0, 0.0, 0.0),
+                        ChildOf(root),
+                    ))
+                    .id();
+                children.push(
+                    world
+                        .spawn((Transform::from_xyz(3.0, 0.0, 0.0), ChildOf(parent)))
+                        .id(),
+                );
+                parents.push(parent);
+            }
+            let mut state = SystemState::<NodeQuery>::new(&mut world);
+            // A last busy producer can publish descendants before its completion wakes.
+            queue
+                .sender
+                .send(parents.clone())
+                .expect("queue first pass");
+            queue.wake_workers(2);
+            {
+                let nodes = state.get_mut(&mut world).expect("acquire first-pass query");
+                // Both workers are allowed to run sequentially under the task scheduler.
+                propagation_worker(&queue, &nodes, &options, 2);
+                propagation_worker(&queue, &nodes, &options, 2);
+            }
+            for &child in &children {
+                assert_eq!(
+                    world.get::<GlobalTransform>(child).unwrap().translation().x,
+                    13.0
+                );
+            }
+
+            for &parent in &parents {
+                *world.get_mut::<Transform>(parent).unwrap() = Transform::from_xyz(20.0, 0.0, 0.0);
+                *world.get_mut::<GlobalTransform>(parent).unwrap() =
+                    GlobalTransform::from_xyz(20.0, 0.0, 0.0);
+            }
+            queue.sender.send(parents).expect("queue second pass");
+            {
+                let nodes = state
+                    .get_mut(&mut world)
+                    .expect("acquire second-pass query");
+                propagation_worker(&queue, &nodes, &options, 2);
+                propagation_worker(&queue, &nodes, &options, 2);
+            }
+            for child in children {
+                assert_eq!(
+                    world.get::<GlobalTransform>(child).unwrap().translation().x,
+                    23.0,
+                    "completion wakes must not discard the next pass's queued transform work",
+                );
+            }
+        }
+
+        #[test]
         fn empty_work_queue_waits_for_busy_worker_without_spinning() {
             let queue = WorkQueue::default();
             queue.busy_threads.store(1, Ordering::Relaxed);
