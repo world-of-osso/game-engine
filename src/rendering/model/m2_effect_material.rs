@@ -90,24 +90,43 @@ fn m2_effect_uv_updates_enabled(enabled: Res<M2EffectUvUpdatesEnabled>) -> bool 
 
 fn update_m2_effect_uvs(time: Res<Time>, mut materials: ResMut<Assets<M2EffectMaterial>>) {
     let time_ms = (time.elapsed_secs_f64() * 1000.0) as u32;
-    for (_id, material) in materials.iter_mut() {
-        update_m2_effect_material_uv(material, time_ms);
+    let changed: Vec<_> = materials
+        .iter()
+        .filter_map(|(id, material)| {
+            let offsets = sample_m2_effect_uv_offsets(material, time_ms);
+            let current = (material.settings.uv_offset_1, material.settings.uv_offset_2);
+            (offsets != current).then_some((id, offsets))
+        })
+        .collect();
+    for (id, (offset_1, offset_2)) in changed {
+        let mut material = materials
+            .get_mut(id)
+            .expect("material sampled during this UV update");
+        material.settings.uv_offset_1 = offset_1;
+        material.settings.uv_offset_2 = offset_2;
     }
 }
 
 pub(crate) fn update_m2_effect_material_uv(material: &mut M2EffectMaterial, time_ms: u32) {
-    material.settings.uv_offset_1 = material
+    let (offset_1, offset_2) = sample_m2_effect_uv_offsets(material, time_ms);
+    material.settings.uv_offset_1 = offset_1;
+    material.settings.uv_offset_2 = offset_2;
+}
+
+fn sample_m2_effect_uv_offsets(material: &M2EffectMaterial, time_ms: u32) -> (Vec2, Vec2) {
+    let offset_1 = material
         .texture_anim_1
         .as_ref()
         .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
         .map(|offset| Vec2::new(offset[0], offset[1]))
         .unwrap_or(Vec2::ZERO);
-    material.settings.uv_offset_2 = material
+    let offset_2 = material
         .texture_anim_2
         .as_ref()
         .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
         .map(|offset| Vec2::new(offset[0], offset[1]))
         .unwrap_or(Vec2::ZERO);
+    (offset_1, offset_2)
 }
 
 pub fn repeat_sampler() -> ImageSampler {
