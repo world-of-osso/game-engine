@@ -10,6 +10,7 @@ use bevy::{
     prelude::*,
 };
 use game_engine::{movement_control::ScriptedMovement, ui::plugin::UiState};
+use shared::components::Position as NetworkPosition;
 
 use crate::{
     InWorldSceneStage,
@@ -47,6 +48,7 @@ fn wall_clock_sample_due(mut last_sample: Local<Option<Instant>>) -> bool {
 struct PlayerDiagnostic {
     entity: Entity,
     transform: Option<&'static Transform>,
+    network_position: Option<&'static NetworkPosition>,
     movement: Option<&'static MovementState>,
     facing: Option<&'static CharacterFacing>,
     physics: Option<&'static CharacterPhysics>,
@@ -157,6 +159,7 @@ fn log_player(player: PlayerDiagnosticItem<'_, '_>) {
         entity = ?player.entity,
         local_player = player.local,
         position = ?player.transform.map(|transform| transform.translation),
+        network_position_xyz = ?player.network_position,
         has_movement_state = player.movement.is_some(),
         has_character_facing = player.facing.is_some(),
         has_character_physics = player.physics.is_some(),
