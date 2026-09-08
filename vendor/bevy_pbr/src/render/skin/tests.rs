@@ -3,6 +3,7 @@
 //! Run with `cargo test -p bevy_pbr --lib render::skin::tests:: -- --ignored --test-threads=1`.
 //! These tests require an available Vulkan device; initialization failures are not skipped.
 
+mod buffer_modes;
 mod characterization;
 
 use std::{mem, sync::OnceLock, time::Duration};
@@ -33,7 +34,10 @@ impl SkinFixture {
         let mut main = App::new();
         main.add_plugins((TaskPoolPlugin::default(), AssetPlugin::default()));
         main.init_asset::<SkinnedMeshInverseBindposes>();
-        let gpu = gpu_resources();
+        Self::with_main_and_gpu(main, gpu_resources())
+    }
+
+    fn with_main_and_gpu(main: App, gpu: &RenderResources) -> Self {
         let mut render = World::new();
         render.insert_resource(gpu.0.clone());
         render.insert_resource(gpu.1.clone());
