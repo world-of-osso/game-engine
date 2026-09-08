@@ -8,7 +8,7 @@ Prototype purpose: share identical ordered-joint/inverse-bindpose palettes acros
 
 ## Transform queue
 
-`bevy_transform/` is the unmodified crates.io `bevy_transform` 0.19.0 source at import, retaining its licenses. `Cargo.toml` patches that exact package locally and includes it as a workspace member so its real contention/transform tests use the root build profile and target cache. Other than the PBR prototype above, other Bevy crates remain registry dependencies.
+`bevy_transform/` is the unmodified crates.io `bevy_transform` 0.19.0 source at import, retaining its licenses. Its explicit dev-profile override retains optimization level2: the dependency wildcard excludes workspace members. The earlier import omitted this override; Cargo artifact metadata confirmed level0 before correction. `Cargo.toml` patches that exact package locally and includes it as a workspace member so its real contention/transform tests use the root build profile and target cache. Other than the PBR prototype above, other Bevy crates remain registry dependencies.
 
 Purpose: stop the actual empty-queue/active-worker spin. The current full-client sample attributes 19.46% of samples to transform-worker polling; 90.05% of that symbol lands on its lock-retry branch. Evidence: `data/diagnostics/cpu-goal-resumed/current-baseline/transform-hot-instructions-correct-symbol.log`.
 
