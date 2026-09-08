@@ -1,3 +1,6 @@
+#[cfg(test)]
+mod tests;
+
 use bevy::prelude::*;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::achievement_frame_component::{
