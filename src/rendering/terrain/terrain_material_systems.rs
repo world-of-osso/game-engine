@@ -51,7 +51,7 @@ pub(super) fn sync_terrain_environment_map(
         .filter_map(|(id, material)| (material.environment_map != env_handle.0).then_some(id))
         .collect();
     for id in changed {
-        let material = terrain_materials
+        let mut material = terrain_materials
             .get_mut(id)
             .expect("terrain material collected from the same asset storage");
         material.environment_map = env_handle.0.clone();
