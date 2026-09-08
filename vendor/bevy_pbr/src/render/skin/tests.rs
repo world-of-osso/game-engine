@@ -3,6 +3,8 @@
 //! Run with `cargo test -p bevy_pbr --lib render::skin::tests:: -- --ignored --test-threads=1`.
 //! These tests require an available Vulkan device; initialization failures are not skipped.
 
+mod characterization;
+
 use std::{mem, sync::OnceLock, time::Duration};
 
 use bevy_app::{App, TaskPoolPlugin};
