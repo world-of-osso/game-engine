@@ -3,6 +3,7 @@ use crate::animation::billboard::compute_bone_stages;
 use crate::asset::m2_anim::AnimTrack;
 
 mod billboard;
+mod billboard_invalidation;
 mod cast_attack;
 mod core;
 mod emote;
