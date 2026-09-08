@@ -14,6 +14,8 @@ use crate::terrain::AdtManager;
 use crate::terrain_objects::WmoLocalSkybox;
 use game_engine::culling::{Wmo, WmoGroup};
 
+mod inworld_ibl;
+
 #[test]
 fn water_skybox_isolation_removes_dome_without_removing_camera_or_light() {
     for disabled in [false, true] {
