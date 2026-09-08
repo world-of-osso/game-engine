@@ -103,7 +103,8 @@ fn sync_achievement_frame_state(
     completion: Res<AchievementCompletionState>,
     open: Res<AchievementFrameOpen>,
 ) {
-    if !completion.is_changed() && !open.is_changed() {
+    let inputs_changed = completion.is_changed() || open.is_changed();
+    if !inputs_changed {
         return;
     }
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
