@@ -350,7 +350,6 @@ pub(crate) fn register_plugins(
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
     );
     status_sync::init_status_resources(app);
-    crate::world_diagnostics::register_if_enabled(app);
 }
 
 fn log_window_backend(display: Option<Res<bevy::winit::DisplayHandleWrapper>>) {
