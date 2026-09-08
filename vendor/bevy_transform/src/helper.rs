@@ -119,7 +119,7 @@ mod tests {
 
     fn match_transform_propagation_systems_inner(transforms: Vec<Transform>) {
         let mut app = App::new();
-        app.add_plugins(TransformPlugin);
+        app.add_plugins((bevy_app::TaskPoolPlugin::default(), TransformPlugin));
 
         let mut entity = None;
 
