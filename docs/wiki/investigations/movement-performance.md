@@ -4,6 +4,28 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 Current CPU baseline: the [additive empty-window investigation](empty-window-baseline.md#native-instruction-attribution) locates the first substantial increase at continuous blank-frame processing, before project services, and maps decoded blank CPU to task dispatch, queue, and synchronization instructions. The [isolated dirty-tree removal](empty-window-baseline.md#isolated-dirty-tree-removal) stopped that callback and its worker spans without a bulk CPU drop. Full-game per-frame CPU ownership remains unresolved. Separately, [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
+## NPC animation LOD A/B (2026-09-08)
+
+Branch `npc-anim-lod` (`15200491`, `2dd8ae54`, based on `c5f286a0` with the vendored transform crate) adds [npc-animation-lod](../../specs/npc-animation-lod.md): the 83 NPCs inside the 100 yd interest sphere (all 83 were within 99.2 yd of the player; 22 within 50 yd) now sample every frame only within 30 yd of the camera, every other frame at 30–60 yd, and never beyond 60 yd or when no mesh passed frustum culling. Same host, same scene (`--screen inworld --char Theron`), 20-second `/proc` windows, three interleaved pairs, host load 7–9 from concurrent agents:
+
+| Run | FPS during window | Process CPU | Perf spin-related (`propagation_worker`, `try_lock`, CAS, guard drops) | Everything else |
+|---|---:|---:|---:|---:|
+| base3 | 23–27 | 397.1% | 15.4% ≈ 61% | 83.1% ≈ 330% |
+| lod3 | 25–29 | 377.9% | 39.0% ≈ 147% | 62.7% ≈ 237% |
+| base1 / base2 | 16–20 / 7–10 | 336.9% / 344.4% | — | — |
+| lod1 / lod2 | 28 / 27–29 | 413.4% / 418.6% | — | — |
+
+After rebasing onto `56e04991` (worker synchronization without spinning), one clean pair at host load ~7 on identical code except the LOD:
+
+| Run | FPS during window | Process CPU | CPU per frame | `bevy_animation` self |
+|---|---:|---:|---:|---:|
+| base6 (`56e04991`) | 22.4–23.8 | 246.0% | ≈106 ms | 6.9% |
+| lod7 (`2dd8ae54`) | 26.0–28.1 | 245.3% | ≈90 ms | 6.0% |
+
+With the spin gone, the LOD buys about 15% less CPU per frame and about 20% more FPS; total CPU is unchanged because the uncapped client spends the saving on frames. `bevy_animation` moved little because `animate_targets` still walks every graph node per joint before finding no active clip; skipping that walk needs the owner's `AnimationGraphHandle` detached (Bevy returns before the walk when the player/graph lookup fails) or a graph with only the nodes in use. Runs launched within a few seconds of the previous client failed with `Authentication timed out` because the server still held Theron's session; a 60 s gap avoids it.
+
+Pre-rebase pairs on `c5f286a0`: `bevy_animation` self time fell 7.9% → 4.1%. Non-spin CPU fell about 28%, but with fewer dirty subtrees the propagation becomes one short serial chain and the other 15 workers spin for its whole duration, converting the saving into `propagation_worker` self time (3.5% → 25.5%). Total CPU therefore barely moved; the LOD only pays off once the worker stops spinning. FPS rose in every pair, but the uncapped client spends saved per-frame CPU on more frames and the 30 FPS minimum of the frame limiter cannot bind below the client's rate, so no capped comparison exists. Every client, including the concurrent Pi session's, also exited silently about 110 s after launch with no `AppExit` diagnostic; cause unknown and not investigated here.
+
 ## Current full-client CPU baseline (2026-09-08)
 
 Current verified `206f844f` production code (checkout `5dd4ff40`, dev binary) was measured stationary in real InWorld with one loaded tile, zero pending tiles, 83 remote entities, and one local player. Two 20-second `/proc` captures reported **306.86%** and **304.85%** of one core. The Compute Task Pool accounted for **264.02%**, main `game-engine` threads **39.00%**, and `network-60hz` **3.60%** in the first capture. No FPS IPC query was used.
