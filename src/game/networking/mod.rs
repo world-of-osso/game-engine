@@ -163,12 +163,7 @@ impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
         game_engine::network_runtime::connection::initialize_connection_bridge(app);
         app.add_plugins(game_engine::network_tick::NetworkTickPlugin);
-        app.add_systems(
-            game_engine::network_tick::NetworkTick,
-            game_engine::network_runtime::connection::apply_connection_events
-                .in_set(game_engine::network_tick::NetworkTickSystems::Receive)
-                .after(game_engine::network_events::dispatch_incoming),
-        );
+        register_connection_tick_systems(app);
         register_net_resources(app);
         register_net_systems(app);
         register_net_observers(app);
@@ -481,6 +476,15 @@ fn register_net_observers(app: &mut App) {
     app.add_observer(crate::networking_player::spawn_replicated_player);
     app.add_observer(crate::networking_npc::spawn_replicated_npc);
     app.add_observer(cleanup_disconnected_player);
+}
+
+pub(crate) fn register_connection_tick_systems(app: &mut App) {
+    app.add_systems(
+        game_engine::network_tick::NetworkTick,
+        game_engine::network_runtime::connection::apply_connection_events
+            .in_set(game_engine::network_tick::NetworkTickSystems::Receive)
+            .after(game_engine::network_events::dispatch_incoming),
+    );
 }
 
 fn connect_to_server(mut commands: Commands, server_addr: Res<ServerAddr>) {
