@@ -13,7 +13,6 @@ use bevy::prelude::*;
 use bevy::ui::{AlignItems, BackgroundColor, JustifyContent, Node, PositionType, Val};
 use core::net::SocketAddr;
 use game_engine::network_runtime::connection::Connected;
-use game_engine::network_runtime::messages::MessageSenders;
 use lightyear::prelude::client::Remote;
 use shared::components::{Position as NetPosition, Rotation as NetRotation};
 pub use shared::protocol::ChatType;
