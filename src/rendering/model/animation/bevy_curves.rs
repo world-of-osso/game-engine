@@ -602,6 +602,34 @@ mod tests {
         }
     }
 
+    fn assert_crossfade_samples(
+        data: &M2AnimData,
+        pivot: Vec3,
+        from: usize,
+        to: usize,
+        time_ms: u32,
+    ) {
+        let before = legacy_raw_pose(&data.bone_tracks[0], from, time_ms);
+        let after = legacy_raw_pose(&data.bone_tracks[0], to, time_ms);
+        for blend in [0.0, 0.4, 1.0] {
+            let expected = Transform {
+                translation: before.translation.lerp(after.translation, blend),
+                rotation: before.rotation.slerp(after.rotation, blend),
+                scale: before.scale.lerp(after.scale, blend),
+            };
+            let time = time_ms as f32 / 1000.0;
+            let (actual, retained) = evaluate_clips(
+                pivot,
+                [
+                    (build_clip(data, from), time, 1.0 - blend),
+                    (build_clip(data, to), time, blend),
+                ],
+            );
+            assert_pose(actual, expected, pivot);
+            assert_pose(retained, expected, Vec3::ZERO);
+        }
+    }
+
     #[test]
     fn constant_and_varying_crossfades_preserve_raw_pose_in_both_directions() {
         let mut tracks = constant_tracks();
@@ -621,25 +649,7 @@ mod tests {
         let pivot = Vec3::new(2.0, -3.0, 4.0);
         for (from, to) in [(0, 1), (1, 0)] {
             for time_ms in [200, 800] {
-                let before = legacy_raw_pose(&data.bone_tracks[0], from, time_ms);
-                let after = legacy_raw_pose(&data.bone_tracks[0], to, time_ms);
-                for blend in [0.0, 0.4, 1.0] {
-                    let expected = Transform {
-                        translation: before.translation.lerp(after.translation, blend),
-                        rotation: before.rotation.slerp(after.rotation, blend),
-                        scale: before.scale.lerp(after.scale, blend),
-                    };
-                    let time = time_ms as f32 / 1000.0;
-                    let (actual, retained) = evaluate_clips(
-                        pivot,
-                        [
-                            (build_clip(&data, from), time, 1.0 - blend),
-                            (build_clip(&data, to), time, blend),
-                        ],
-                    );
-                    assert_pose(actual, expected, pivot);
-                    assert_pose(retained, expected, Vec3::ZERO);
-                }
+                assert_crossfade_samples(&data, pivot, from, to, time_ms);
             }
         }
     }
