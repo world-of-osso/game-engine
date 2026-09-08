@@ -8,9 +8,9 @@ On the login screen, click "Don't have an account? Register" to switch to regist
 
 ## Login
 
-Enter your username and password, then click Login. On success, an auth token is saved to `data/auth_token` on the client. Subsequent logins use the cached token automatically (password not required).
+Enter your username and password, then click Login. On success, the client saves a cached token using the [server-specific path](#storage). Subsequent token logins do not require the password.
 
-Delete `data/auth_token` to force password re-entry.
+Delete the relevant server's token file to force password re-entry.
 
 ## How it works
 
@@ -26,8 +26,12 @@ Server-side (redb tables):
 - `PASSWORDS`: account_id (u64) -> argon2 hash (bytes)
 - `ACCOUNT_CHARACTERS`: account_id (u64) -> character_id list
 
-Client-side:
-- `data/auth_token`: cached session token (plaintext file)
+Client-side engine tokens are plaintext files under the build's `CARGO_MANIFEST_DIR/data`:
+- `worldofosso.com` and its subdomains share `auth_token`.
+- Other server strings use `auth_token.<server>`, replacing `:` with `_` and `/` with `_`; for example, `auth_token.127.0.0.1_5000`.
+- `XDG_CONFIG_HOME` does not relocate engine tokens. The headless `game-cli` uses a separate config-directory token cache.
+
+Initial login/registration is queued when the network worker is created, rather than waiting for main-thread connection handling. Lightyear buffers it until connected. Responses, token persistence, UI transitions, and world mutation remain main-thread work; sender readiness is prepared before dispatching responses so immediate character selection is not dropped.
 
 ## Security notes
 
