@@ -42,6 +42,12 @@ A coordinated native pair using Theron, one loaded tile, 84 remote entities and 
 
 UI toolkit `10da947` also removes repeated blacklist cache-hit notices while retaining the first texture-load error. Native output retained three initial failures, emitted no repeated cache-hit notices, and grew zero bytes during a 20-second idle window. Its separate 251.135% CPU observation had 85 remotes and does not establish an additional CPU saving. Evidence: `data/diagnostics/cpu-goal-resumed/ui-log-dedup/`.
 
+### Stable playback graph follow-up
+
+`ae305fa5`/`bade8949` retain all prebuilt sequence clips but replace the per-sequence node catalog with three stable playback nodes. The same standalone characterization changed from a 2.085× median large-catalog/single-clip cost to 1.006×; the original 3× threshold was unchanged and never failed. This is performance characterization, not fabricated RED evidence.
+
+A native pair with Theron, one loaded tile and 82 remotes measured **250.431% → 235.184% CPU**, with mean sampled clocks **2.816 → 2.607 GHz**. A repeat measured 234.584% at 2.657 GHz and 81 remotes. These support a bounded observed reduction, not a precise general estimate or overall CPU-goal completion. Artifacts: `data/diagnostics/cpu-goal-resumed/{stable-animation-graph,compact-graph}`.
+
 ## Event-driven application native follow-up (2026-09-07)
 
 After the event-driven networking/equipment groundwork, an unfocused, empty-stage InWorld client completed login and ran for 10.0008 seconds at **265.779%** one-core CPU and **503.746 application updates/s**. The earlier intact Empty sample was **293.279%** CPU and **422.366 updates/s**. Clock ranges differ, so the samples are not a controlled comparison and do not demonstrate lower CPU or a fix.
