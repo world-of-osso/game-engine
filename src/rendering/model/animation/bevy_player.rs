@@ -166,7 +166,7 @@ fn sync_graph_clips(
     controller: &M2AnimPlayer,
     binding: &M2BevyAnimation,
     graph: &AnimationGraphHandle,
-    graphs: &mut Assets<AnimationGraph>,
+    graphs: &mut ResMut<Assets<AnimationGraph>>,
 ) {
     let current = binding
         .sequence_clips
@@ -185,7 +185,7 @@ fn sync_graph_clips(
 }
 
 fn set_graph_clip(
-    graphs: &mut Assets<AnimationGraph>,
+    graphs: &mut ResMut<Assets<AnimationGraph>>,
     handle: &AnimationGraphHandle,
     node: AnimationNodeIndex,
     clip: &Handle<AnimationClip>,
