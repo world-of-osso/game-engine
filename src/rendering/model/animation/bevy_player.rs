@@ -142,7 +142,8 @@ pub(crate) fn sync_m2_animation_players(
     let active = animation_active_state(state);
     for (owner, mut controller, binding, mut player, lod) in &mut players {
         player.stop_all();
-        if !active || lod.is_some_and(|lod| !lod.samples_frame(frame.0, owner)) {
+        let samples_this_frame = lod.is_none_or(|lod| lod.samples_frame(frame.0, owner));
+        if !active || !samples_this_frame {
             continue;
         }
         let Some(&current) = binding.current_nodes.get(controller.current_seq_idx) else {
