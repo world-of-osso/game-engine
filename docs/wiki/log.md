@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-08] investigations | Record current CPU attribution limits
+
+Updated [[movement-performance]] with the post-fix1,642-sample capture: diffuse leaf costs, incomplete caller stacks, no demonstrated dominant next fix. Preserved unresolved CPU objective; no speculative renderer or profiler changes.
+
 ## [2026-09-08] investigations | Separate billboard and terrain behavior proof from CPU gains
 
 Updated [[animation]] and [[movement-performance]]: billboard raw/final double-write regression and staged final pose fix; terrain-time filtering withdrawn after higher native CPU. Authorized terrain application-throughput proxy rose without proven lower per-update cost. CPU objective remains open.

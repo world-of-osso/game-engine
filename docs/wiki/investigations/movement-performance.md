@@ -48,6 +48,12 @@ UI toolkit `10da947` also removes repeated blacklist cache-hit notices while ret
 
 A native pair with Theron, one loaded tile and 82 remotes measured **250.431% → 235.184% CPU**, with mean sampled clocks **2.816 → 2.607 GHz**. A repeat measured 234.584% at 2.657 GHz and 81 remotes. These support a bounded observed reduction, not a precise general estimate or overall CPU-goal completion. Artifacts: `data/diagnostics/cpu-goal-resumed/{stable-animation-graph,compact-graph}`.
 
+### Current function-level profile after retained fixes
+
+An eight-second user-space CPU capture of `71535eed` recorded **1,642 samples, zero lost**, with Theron/82 remotes/one Azeroth32,48 tile. Largest named leaf: `bevy_pbr::render::skin::extract_skins`, **31 samples (1.89%)**. No single sampled function dominates. Caller-stack coverage is incomplete; generic ECS/allocator helper costs cannot reliably be assigned to systems, and overlapping type-name matches are not subsystem totals.
+
+Source confirms separate skin palettes per M2 render batch despite shared joints/inverse-bindpose handles, but this profile does not establish that duplication as the dominant remaining cost. Five bounded audits found no other demonstrated substantial next fix. More code changes would need stronger attribution; no renderer-allocation redesign or profiler infrastructure work started. Existing span capture is fixed to10–15seconds after startup, before settled InWorld in these runs. CPU objective remains open. Artifacts: `data/diagnostics/cpu-goal-resumed/current-attribution/`.
+
 ### Billboard final-transform invalidation follow-up
 
 `f55d3ede` reproduced settled billboard false change notifications with actual Bevy evaluation before the billboard pass. Both sampled and unsampled fixtures emitted three notifications. Sampled bones first wrote raw/pivot-corrected transforms, then billboard rotation overwrote them; merely guarding the latter writer could not fix both paths.
