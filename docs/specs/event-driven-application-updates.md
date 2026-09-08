@@ -25,7 +25,8 @@ Application work is driven by a fixed network schedule, queued commands/messages
 
 - [x] Use Bevy `AnimationPlayer`, `AnimationGraph`, and animation targets for M2 bone pose evaluation and blending; the old per-model pose application loop is removed.
 - [x] Adapt currently supported M2 translation/rotation/scale semantics through Bevy curves: coordinate conversion, defaults, raw-TRS crossfading, then pivot correction.
-- [ ] Unchanged evaluated bone poses must not emit transform-change notifications or unnecessarily invalidate transform propagation; changed poses must still notify downstream systems.
+- [x] Unchanged evaluated bone poses must not emit transform-change notifications or unnecessarily invalidate transform propagation; changed poses must still notify downstream systems.
+- [x] Settled camera poses and unchanged M2 effect UV offsets must not emit false transform/material changes. Camera motion, collision recovery, animated UV changes, and track-removal resets must still update normally.
 - [x] Preserve WoW sequence selection, continuous interrupted crossfades, debug time overrides, attachment joint identity, billboards, skinning, and offline/login/debug scene playback. An interrupted blend starts from the last evaluated raw pose without an instantaneous position, rotation, or scale change; repeated interruptions remain continuous. Ordinary crossfades retain advancing source sequence time.
 - [x] Prove single-clip and crossfade poses through real Bevy playback. Parsed but unsupported M2 interpolation/global-sequence features remain explicitly unsupported, not silently changed.
 
