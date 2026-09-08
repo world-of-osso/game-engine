@@ -50,7 +50,7 @@ A native pair with Theron, one loaded tile and 82 remotes measured **250.431% �
 
 ### Current function-level profile after retained fixes
 
-An eight-second user-space CPU capture of `71535eed` recorded **1,642 samples, zero lost**, with Theron/82 remotes/one Azeroth32,48 tile. Largest named leaf: `bevy_pbr::render::skin::extract_skins`, **31 samples (1.89%)**. No single sampled function dominates. Caller-stack coverage is incomplete; generic ECS/allocator helper costs cannot reliably be assigned to systems, and overlapping type-name matches are not subsystem totals.
+An eight-second user-space CPU capture of `71535eed` recorded **1,642 samples, zero lost**, with Theron,82→83 remotes, and one Azeroth32,48 tile verified before capture. Largest named leaf: `bevy_pbr::render::skin::extract_skins`, **31 samples (1.89%)**. No single sampled function dominates. Caller-stack coverage is incomplete (1,596 of1,642 exported sample blocks contain no frames); generic ECS/allocator helper costs cannot reliably be assigned to systems, and overlapping type-name matches are not subsystem totals.
 
 Source confirms separate skin palettes per M2 render batch despite shared joints/inverse-bindpose handles, but this profile does not establish that duplication as the dominant remaining cost. Five bounded audits found no other demonstrated substantial next fix. More code changes would need stronger attribution; no renderer-allocation redesign or profiler infrastructure work started. Existing span capture is fixed to10–15seconds after startup, before settled InWorld in these runs. CPU objective remains open. Artifacts: `data/diagnostics/cpu-goal-resumed/current-attribution/`.
 
