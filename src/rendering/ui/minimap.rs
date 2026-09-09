@@ -651,12 +651,19 @@ fn update_zone_name(
 
 /// Update coordinate text with the player's current position.
 fn update_coord_text(
-    player_q: Query<&Transform, With<crate::camera::Player>>,
+    player_q: Query<Ref<Transform>, With<crate::camera::Player>>,
     mut ui: ResMut<UiState>,
     frames: Option<Res<MinimapFrames>>,
+    mut last: Local<Option<(u64, String)>>,
 ) {
     let Ok(tf) = player_q.single() else { return };
     let Some(frames) = frames else { return };
+    if let Some((last_frame, _)) = &*last
+        && *last_frame == frames.coords
+        && !tf.is_changed()
+    {
+        return;
+    }
     let text = format!("{:.0}, {:.0}", tf.translation.x, tf.translation.z);
     let Some(WidgetData::FontString(current)) = ui
         .registry
@@ -671,7 +678,8 @@ fn update_coord_text(
     if let Some(frame) = ui.registry.get_mut(frames.coords)
         && let Some(WidgetData::FontString(fs)) = &mut frame.widget_data
     {
-        fs.text = text;
+        fs.text = text.clone();
+        *last = Some((frames.coords, text));
     }
 }
 
