@@ -20,6 +20,14 @@ Frames use anchor-based positioning: 9 anchor points (TOPLEFT..BOTTOMRIGHT), rel
 
 Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are set after the first `screen.sync()` because rsx! attrs don't cover all frame properties.
 
+## Layout invalidation
+
+`ui-toolkit` `0fdcf3f` makes an empty `rect_dirty` set a no-op: layout does not collect frames, resolve rectangles, or dirty render state. Layout work begins only when an actual geometry boundary explicitly calls `FrameRegistry::mark_rect_dirty`.
+
+Insertion/removal, screen resize, anchor changes, dimension/flex attributes, flex-child changes, text/EditBox auto-sizing, resolved named anchors, and owned-addon resize propagate through children, anchor dependents, and flex parents. `get_mut` remains render-dirty only; arbitrary raw geometry mutation is not made implicitly layout-dirty. Explicit unanchored cached rectangles retain their existing behavior.
+
+Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plugin tests (55 total). Engine addon integration has 7 GREEN tests at `86bbc945`; the coordinated engine integration check remains pending. No CPU or native claim.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
@@ -135,6 +143,9 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
 - [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
 - [ui-toolkit processing gate](../../../../ui-toolkit/src/plugin.rs) — registry/layout/input/render schedule boundary
+- [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — invalidation contract and scope
+- `../../data/diagnostics/ui-layout-dirty-20260909/verification/toolkit-report.md` — 14 focused toolkit regressions and mutation audit
+- `../../data/diagnostics/ui-layout-dirty-20260909/engine-addon/green.log` — 7 addon integration tests
 - [nameplate visibility synchronization](../../../src/rendering/ui/nameplate.rs) — per-Update HUD visibility writes and change detection
 - `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — machine-side connected empty-stage relaunch proof
 
@@ -145,3 +156,4 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending
 - [[world-builder]] — diagnostic sidebar built on Screen, SharedContext, and FrameRegistry
 - [[npc-motion-validation]] — revision-pinned world-picking and `--no-ui` policy evidence
+- [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — explicit geometry invalidation contract

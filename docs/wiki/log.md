@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] ui | Make clean layout state a no-op
+
+Updated [[ui-system]] and [UI layout invalidation spec](../specs/ui-layout-invalidation.md) for ui-toolkit `0fdcf3f` and game-engine `86bbc945`. Empty `rect_dirty` now performs no layout or render-dirty work; insertion/removal, resize, anchors, flex, auto-sizing, and owned-addon geometry changes explicitly propagate. `get_mut` remains render-dirty only and explicit unanchored cached rectangles are unchanged. Proof: 14 focused plus 41 existing toolkit tests (55), and 7 GREEN engine addon tests. No CPU/native claim; coordinated engine integration check remains pending.
+
 ## [2026-09-09] character | Resolve replicated physical item appearances
 
 Item-only equipment entries now resolve through the existing outfit catalog instead of returning without rendering. Hidden and explicit-display precedence remain unchanged. Actual five-item starter regression fails before the fix and passes afterward; see [character rendering](systems/character-rendering.md#replicated-equipped-item-appearances). Native integration remains pending.
