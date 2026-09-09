@@ -375,7 +375,9 @@ pub(super) fn spawn_water(
                 continue;
             }
             let chunk_pos = adt_data.chunk_positions[i];
-            let mesh = adt::build_water_mesh(chunk_pos, layer);
+            let Some(mesh) = adt::build_water_mesh(chunk_pos, layer) else {
+                continue;
+            };
             commands.spawn((
                 Mesh3d(meshes.add(mesh)),
                 MeshMaterial3d(mat.clone()),
