@@ -121,6 +121,90 @@ fn minimap_coordinates_preserve_text_without_player_or_frames() {
     assert_coordinate_frame(&mut app, "99, 88", true);
 }
 
+fn tracking_composite_app(player_position: Vec3, herbs: &[Vec3]) -> (App, Entity, Vec<Entity>) {
+    let mut app = App::new();
+    app.init_resource::<MinimapState>();
+    app.init_resource::<LastMinimapPixel>();
+    app.init_resource::<Assets<Image>>();
+    let handle = app
+        .world_mut()
+        .resource_mut::<Assets<Image>>()
+        .add(Image::default());
+    app.insert_resource(MinimapComposite { handle });
+    app.add_systems(Update, update_minimap_composite);
+    let player = app
+        .world_mut()
+        .spawn((
+            crate::camera::Player,
+            Transform::from_translation(player_position),
+        ))
+        .id();
+    let herbs = herbs
+        .iter()
+        .map(|position| {
+            app.world_mut()
+                .spawn((
+                    MinimapHerbNode,
+                    GlobalTransform::from_translation(*position),
+                ))
+                .id()
+        })
+        .collect();
+    (app, player, herbs)
+}
+
+fn tracking_composite_pixels(app: &App) -> Vec<u8> {
+    let composite = app.world().resource::<MinimapComposite>();
+    app.world()
+        .resource::<Assets<Image>>()
+        .get(&composite.handle)
+        .unwrap()
+        .data
+        .clone()
+        .unwrap()
+}
+
+#[test]
+fn minimap_tracking_redraw_uses_latest_entities_after_stationary_frames() {
+    let initial_player = Vec3::new(100.0, 0.0, 100.0);
+    let moved_herb = Vec3::new(140.0, 0.0, 120.0);
+    let added_herb = Vec3::new(70.0, 0.0, 130.0);
+    let (mut app, player, herbs) = tracking_composite_app(
+        initial_player,
+        &[Vec3::new(120.0, 0.0, 100.0), Vec3::new(70.0, 0.0, 100.0)],
+    );
+    app.update();
+    let original_pixels = tracking_composite_pixels(&app);
+    app.update();
+    assert_eq!(tracking_composite_pixels(&app), original_pixels);
+
+    *app.world_mut()
+        .get_mut::<GlobalTransform>(herbs[0])
+        .unwrap() = GlobalTransform::from_translation(moved_herb);
+    app.world_mut().despawn(herbs[1]);
+    app.world_mut().spawn((
+        MinimapHerbNode,
+        GlobalTransform::from_translation(added_herb),
+    ));
+    app.update();
+    assert_eq!(tracking_composite_pixels(&app), original_pixels);
+
+    let next_player = Vec3::new(110.0, 0.0, 100.0);
+    app.world_mut()
+        .get_mut::<Transform>(player)
+        .unwrap()
+        .translation = next_player;
+    app.update();
+    let updated_pixels = tracking_composite_pixels(&app);
+    assert_ne!(updated_pixels, original_pixels);
+    let (mut expected, _, _) = tracking_composite_app(next_player, &[moved_herb, added_herb]);
+    expected.update();
+    assert_eq!(updated_pixels, tracking_composite_pixels(&expected));
+    let (mut without_icons, _, _) = tracking_composite_app(next_player, &[]);
+    without_icons.update();
+    assert_ne!(updated_pixels, tracking_composite_pixels(&without_icons));
+}
+
 #[test]
 fn minimap_screen_builds_expected_hud_frames() {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
