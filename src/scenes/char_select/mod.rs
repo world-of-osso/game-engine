@@ -278,13 +278,17 @@ fn sync_screen_state(
     };
     let inner = &mut res.0;
     let new_state = build_char_select_state_full(char_list, selected.0);
-    inner.shared.insert(new_state);
-    inner
-        .shared
-        .insert(build_campsite_state(campsite_visible.0));
-    inner
-        .shared
-        .insert(build_delete_confirm_ui_state(delete_confirm, focus));
+    if inner.shared.get::<CharSelectState>() != Some(&new_state) {
+        inner.shared.insert(new_state);
+    }
+    let campsite_state = build_campsite_state(campsite_visible.0);
+    if inner.shared.get::<CampsiteState>() != Some(&campsite_state) {
+        inner.shared.insert(campsite_state);
+    }
+    let delete_state = build_delete_confirm_ui_state(delete_confirm, focus);
+    if inner.shared.get::<DeleteConfirmUiState>() != Some(&delete_state) {
+        inner.shared.insert(delete_state);
+    }
     inner.screen.sync(&inner.shared, reg);
     if delete_confirm.target.is_some() && focus.0.is_none() {
         focus.0 = reg.get_by_name(DELETE_CONFIRM_INPUT.0);

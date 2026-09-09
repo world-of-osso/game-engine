@@ -70,6 +70,7 @@ impl CharSelectAction {
 
 // --- Context types ---
 
+#[derive(PartialEq)]
 pub struct CharSelectState {
     pub characters: Vec<CharDisplayEntry>,
     pub selected_index: Option<usize>,
@@ -88,19 +89,21 @@ impl Default for CharSelectState {
     }
 }
 
+#[derive(PartialEq)]
 pub struct CharDisplayEntry {
     pub name: String,
     pub info: String,
     pub status: String,
 }
 
+#[derive(PartialEq)]
 pub struct CampsiteEntry {
     pub id: u32,
     pub name: String,
     pub preview_image: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq)]
 pub struct CampsiteState {
     pub scenes: Vec<CampsiteEntry>,
     pub panel_visible: bool,
