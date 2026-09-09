@@ -14,6 +14,10 @@ use crate::m2_effect_material::M2EffectMaterial;
 use crate::networking::{InterpolationTarget, LocalAliveState, RemoteEntity, RotationTarget};
 use crate::rendering::sky::GameTime;
 
+#[cfg(test)]
+#[path = "npc_animation_tests.rs"]
+mod animation_tests;
+
 const DAWN_MINUTES: f32 = 720.0;
 const DUSK_MINUTES: f32 = 2160.0;
 
@@ -663,7 +667,8 @@ fn spawn_npc_visual_root(commands: &mut Commands, entity: Entity, scale: f32) ->
         .spawn((
             Name::new("NpcVisualRoot"),
             NpcVisualRoot,
-            Transform::from_scale(Vec3::splat(scale.max(0.01))),
+            Transform::from_scale(Vec3::splat(scale.max(0.01)))
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
             Visibility::default(),
         ))
         .id();
@@ -714,11 +719,13 @@ fn try_spawn_npc_model(
     if display_id == 0 {
         return false;
     }
-    let fdid = display_map.and_then(|dm| dm.get_fdid(display_id));
-    let Some(fdid) = fdid else { return false };
-    let skin_fdids = display_map
-        .and_then(|dm| dm.get_skin_fdids(display_id))
-        .unwrap_or([0, 0, 0]);
+    let Some(display_map) = display_map else {
+        return false;
+    };
+    let Some(fdid) = display_map.get_fdid(display_id) else {
+        return false;
+    };
+    let skin_fdids = display_map.get_skin_fdids(display_id).unwrap_or([0, 0, 0]);
     let Some(m2_path) = crate::asset::asset_cache::model(fdid) else {
         return false;
     };
@@ -730,7 +737,54 @@ fn try_spawn_npc_model(
                 .map(|path| path.display().to_string()),
             display_scale: Some(display_scale),
         });
-    crate::m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, visual_root, &skin_fdids)
+    spawn_animated_npc_model(
+        commands,
+        assets,
+        display_map,
+        &m2_path,
+        visual_root,
+        &skin_fdids,
+    )
+}
+
+fn spawn_animated_npc_model(
+    commands: &mut Commands,
+    assets: &mut crate::m2_spawn::SpawnAssets<'_>,
+    display_map: &CreatureDisplayMap,
+    path: &std::path::Path,
+    visual_root: Entity,
+    skin_fdids: &[u32; 3],
+) -> bool {
+    let model = commands
+        .spawn((
+            Name::new("NpcModel"),
+            Transform::IDENTITY,
+            Visibility::default(),
+            ChildOf(visual_root),
+        ))
+        .id();
+    let mut context = crate::m2_scene::M2SceneSpawnContext {
+        commands,
+        assets: crate::m2_spawn::SpawnAssets {
+            meshes: &mut *assets.meshes,
+            materials: &mut *assets.materials,
+            effect_materials: &mut *assets.effect_materials,
+            skybox_materials: None,
+            images: &mut *assets.images,
+            inverse_bindposes: &mut *assets.inverse_bindposes,
+        },
+        creature_display_map: display_map,
+    };
+    let spawned = crate::m2_scene::spawn_full_m2_on_entity_with_skin_fdids(
+        &mut context,
+        path,
+        model,
+        skin_fdids,
+    );
+    if !spawned {
+        context.commands.entity(model).despawn();
+    }
+    spawned
 }
 
 /// Attach a capsule mesh as fallback for NPCs without M2 models.

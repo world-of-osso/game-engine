@@ -3,6 +3,10 @@
 //! The `M2AnimPlayer` clock always advances; this only decides on which frames Bevy samples the
 //! clips and writes bone transforms. Skipped frames leave joints at their last pose.
 
+#[cfg(test)]
+#[path = "lod_tests.rs"]
+mod tests;
+
 use bevy::prelude::*;
 
 use super::M2AnimPlayer;
@@ -52,7 +56,6 @@ type NpcModelQuery<'w, 's> = Query<
         Entity,
         &'static ChildOf,
         &'static GlobalTransform,
-        &'static Children,
         Option<&'static mut AnimationLod>,
     ),
     With<M2AnimPlayer>,
@@ -65,17 +68,18 @@ pub(crate) fn assign_npc_animation_lod(
     mut models: NpcModelQuery,
     npc_roots: Query<(), With<NpcVisualRoot>>,
     mesh_visibility: Query<&ViewVisibility>,
+    hierarchy: Query<&Children>,
 ) {
     let Ok(camera) = camera.single() else {
         return;
     };
     let camera_position = camera.translation();
-    for (model, child_of, transform, children, lod) in &mut models {
+    for (model, child_of, transform, lod) in &mut models {
         if !npc_roots.contains(child_of.parent()) {
             continue;
         }
-        let visible = children
-            .iter()
+        let visible = hierarchy
+            .iter_descendants(model)
             .any(|child| mesh_visibility.get(child).is_ok_and(|v| v.get()));
         let next = animation_lod(transform.translation().distance(camera_position), visible);
         match lod {

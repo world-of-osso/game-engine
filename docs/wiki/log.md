@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] animation | Attach replicated NPC animation runtime
+
+Updated [[animation]] and [NPC animation LOD spec](../specs/npc-animation-lod.md): exact display skins now use the full animated attachment path, with an animation owner beneath the scaled/facing visual root. LOD sees meshes below grounded descendants. Actual HumanMaleHD and sheep bone-motion fixtures, explicit texture pixels, facing-basis checks, and nested visibility tests pass; native visual proof remains with integration.
+
 ## [2026-09-09] rendering | Compile M2 effect fog variants
 
 Updated [[rendering-pipeline]] with the conditional fog-binding and Bevy `apply_fog` argument fixes. Actual-material headless GPU regression reproduces both shader errors and renders fog-off/fog-on variants after correction; no native client or unrelated motion changes included.

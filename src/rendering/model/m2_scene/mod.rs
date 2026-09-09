@@ -282,6 +282,30 @@ pub fn spawn_full_m2_on_entity(
     let Some(model) = load_m2_model(m2_path, ctx.creature_display_map) else {
         return false;
     };
+    attach_full_m2_model(ctx, model, entity);
+    true
+}
+
+/// Attach animated M2 data while retaining the exact creature-display texture slots.
+/// Unlike model-name loading, this never selects preferred skins from another display.
+pub fn spawn_full_m2_on_entity_with_skin_fdids(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    m2_path: &Path,
+    entity: Entity,
+    skin_fdids: &[u32; 3],
+) -> bool {
+    let Some(model) = load_m2_model_with_skin_fdids(m2_path, skin_fdids) else {
+        return false;
+    };
+    attach_full_m2_model(ctx, model, entity);
+    true
+}
+
+fn attach_full_m2_model(
+    ctx: &mut M2SceneSpawnContext<'_, '_, '_>,
+    model: asset::m2::M2Model,
+    entity: Entity,
+) {
     attach_m2_model_parts(
         ctx,
         model,
@@ -292,7 +316,6 @@ pub fn spawn_full_m2_on_entity(
             skybox_color: None,
         },
     );
-    true
 }
 
 fn attach_m2_model_parts(
