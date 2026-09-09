@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged nameplate and skybox material writes
+
+Updated [[ui-system]] and [[skybox]] for `0357727b` and `e0aa5809`. Nameplate color and authored skybox UV/transparency evaluation remain current, but unchanged output no longer marks components or assets modified. Proof: three nameplate and 21 skybox focused tests after genuine RED cases. No whole-engine CPU claim.
+
 ## [2026-09-09] investigation | Floating Arena Tournament NPCs
 
 Linked the [server-owned event membership investigation](../../../game-server/docs/wiki/systems/world-data.md#event-dependent-creature-spawns) from the index. Exact Northshire GUID96194/96198/96204 belonged to inactive event31; corrected server import/selection, not client coordinates or rendering. Server commits1963dfb/d9784a8/c73a33f,8behavioral tests and independent fmt/check/data proof. Local data/runtime updated; post-fix client view confirmation remains pending.

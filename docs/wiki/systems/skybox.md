@@ -84,6 +84,10 @@ cargo run --bin game-engine -- --screen skyboxdebug --skybox-fdid 5412968
 
 `skyboxdebug` currently resolves authored skyboxes correctly but still renders an effectively black frame, including the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` override. See [[authored-skybox-black-output]].
 
+## Material animation updates
+
+Skybox M2 UV offsets and transparency are still evaluated every update to preserve authored animation. Commit `e0aa5809` compares the evaluated values before mutably borrowing `SkyboxM2Material`; static tracks and repeated override times no longer emit asset modification events, while changed UV or transparency values update together. Two behavioral regression tests cover static and animated material cases. No whole-engine CPU claim follows from those tests.
+
 ## Fallback Behavior
 
 When a warband scene has no local scene-specific skybox row with a resolvable `LightSkyboxID`, it falls back to:
@@ -106,6 +110,8 @@ Known example: scene 1 should now use this fallback instead of treating the glob
 ## Sources
 
 - `src/rendering/skybox/mod.rs` — independent camera IBL initialization and existing cubemap setup.
+- `src/rendering/skybox/skybox_m2_material.rs` — authored UV/transparency evaluation and conditional material mutation.
+- `src/rendering/skybox/skybox_m2_material_tests.rs` — static/animated asset-event regression coverage.
 - `src/rendering/skybox/tests/inworld_ibl.rs` — registered-system initialization and preservation fixtures.
 
 - [skybox-authored-lookup.md](../skybox-authored-lookup.md) — lookup chain, verified path, fallback behavior

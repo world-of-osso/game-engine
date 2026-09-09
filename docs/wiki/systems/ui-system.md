@@ -53,7 +53,7 @@ Commits `1a8c6d58`, `cd47743e`, `9a6b6679`, `ae222f0e`, `e9b81652`, and `fc99128
 
 `ui-toolkit` `0f5d81c` keeps that per-frame visual synchronization but avoids replacing an existing `Transform` or `Sprite` when its computed value is identical, for ordinary and nine-slice backdrop quads. It compares all sprite fields written by the sync path; genuine layout, color, texture, clipping, and default-value updates still write immediately. It does not use `render_dirty` as a skip gate and does not change rendering cadence. Tests through `3eb9aa7` cover unchanged ordinary/backdrop values and changed geometry/color/texture/default behavior. CPU gain remains unproven; native comparable measurement is required.
 
-Engine commit `6edcdc91` similarly runs nameplate and quest-indicator HUD visibility synchronization every `Update`, but uses `Visibility::set_if_neq` so components already at the requested state are not marked changed. Focused tests cover unchanged components and HUD show/hide toggles on each update.
+Engine commit `6edcdc91` similarly runs nameplate and quest-indicator HUD visibility synchronization every `Update`, but uses `Visibility::set_if_neq` so components already at the requested state are not marked changed. Commit `0357727b` applies the same rule to nameplate text color: it still evaluates the current kind and colorblind mode every update, but `TextColor::set_if_neq` avoids emitting a component change when the computed color matches. Three focused behavioral tests cover stable player/NPC colors, colorblind or kind changes, and newly added nameplates. Focused tests also cover unchanged components and HUD show/hide toggles on each update.
 
 ## Keybindings
 
