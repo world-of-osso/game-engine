@@ -23,7 +23,9 @@ impl Fixture {
 
     fn sync(&mut self, status: &str, realm: &str, selectable: bool) {
         let mut state = SystemState::<ResMut<LoginScreenResWrap>>::new(&mut self.world);
-        let mut screen = state.get_mut(&mut self.world);
+        let mut screen = state
+            .get_mut(&mut self.world)
+            .expect("login screen resource");
         sync_login_status(
             &mut self.registry,
             Some(&mut screen),
@@ -55,7 +57,7 @@ impl Fixture {
         else {
             panic!("connect must be a button")
         };
-        assert_eq!(button.disabled, connecting);
+        assert_eq!(button.enabled, !connecting);
     }
 }
 
