@@ -369,14 +369,19 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<GraphicsOptions>();
         app.init_resource::<ColorChanges>();
-        app.add_systems(Update, sync_nameplate_colors);
+        app.add_systems(Update, (sync_nameplate_colors, fade_nameplates_by_distance));
         app.add_systems(PostUpdate, observe_color_changes);
         app
     }
 
     fn spawn_color_plate(app: &mut App, kind: NameplateKind) -> Entity {
         app.world_mut()
-            .spawn((Nameplate, kind, TextColor(Color::BLACK)))
+            .spawn((
+                Nameplate,
+                kind,
+                TextColor(Color::BLACK),
+                GlobalTransform::IDENTITY,
+            ))
             .id()
     }
 
@@ -396,6 +401,109 @@ mod tests {
                 "missing color change for {entity:?}"
             );
         }
+    }
+
+    fn faded_color_test_app() -> (App, Entity, Entity) {
+        let mut app = color_test_app();
+        app.insert_resource(HudOptions {
+            nameplate_distance: 20.0,
+            ..default()
+        });
+        let camera = app
+            .world_mut()
+            .spawn((Camera3d::default(), GlobalTransform::IDENTITY))
+            .id();
+        let plate = spawn_color_plate(&mut app, NameplateKind::Npc);
+        app.world_mut()
+            .entity_mut(plate)
+            .insert(GlobalTransform::from_translation(Vec3::new(15.0, 0.0, 0.0)));
+        (app, camera, plate)
+    }
+
+    #[test]
+    fn nameplate_final_color_stays_unchanged_after_distance_fade() {
+        let (mut app, _, plate) = faded_color_test_app();
+        let yellow = Color::srgba(1.0, 1.0, 0.0, 0.5);
+        assert_color_frame(&mut app, &[(plate, yellow)], &[plate]);
+        for _ in 0..3 {
+            assert_color_frame(&mut app, &[(plate, yellow)], &[]);
+        }
+    }
+
+    #[test]
+    fn nameplate_final_color_tracks_inputs_and_new_plates() {
+        let (mut app, camera, plate) = faded_color_test_app();
+        assert_color_frame(
+            &mut app,
+            &[(plate, Color::srgba(1.0, 1.0, 0.0, 0.5))],
+            &[plate],
+        );
+        app.world_mut()
+            .entity_mut(camera)
+            .insert(GlobalTransform::from_translation(Vec3::new(5.0, 0.0, 0.0)));
+        assert_color_frame(
+            &mut app,
+            &[(plate, Color::srgba(1.0, 1.0, 0.0, 1.0))],
+            &[plate],
+        );
+        app.world_mut()
+            .resource_mut::<GraphicsOptions>()
+            .colorblind_mode = true;
+        assert_color_frame(
+            &mut app,
+            &[(plate, Color::srgba(1.0, 0.92, 0.35, 1.0))],
+            &[plate],
+        );
+        app.world_mut()
+            .entity_mut(plate)
+            .insert(NameplateKind::Player);
+        let friendly = Color::srgba(0.45, 0.9, 1.0, 1.0);
+        assert_color_frame(&mut app, &[(plate, friendly)], &[plate]);
+        app.world_mut()
+            .resource_mut::<HudOptions>()
+            .nameplate_distance = 10.0;
+        assert_color_frame(&mut app, &[(plate, friendly.with_alpha(0.0))], &[plate]);
+        app.world_mut()
+            .entity_mut(plate)
+            .insert(GlobalTransform::from_translation(Vec3::new(12.5, 0.0, 0.0)));
+        let faded = friendly.with_alpha(0.5);
+        assert_color_frame(&mut app, &[(plate, faded)], &[plate]);
+        let added = spawn_color_plate(&mut app, NameplateKind::Player);
+        app.world_mut()
+            .entity_mut(added)
+            .insert(GlobalTransform::from_translation(Vec3::new(12.5, 0.0, 0.0)));
+        assert_color_frame(&mut app, &[(plate, faded), (added, faded)], &[added]);
+        assert_color_frame(&mut app, &[(plate, faded), (added, faded)], &[]);
+    }
+
+    #[test]
+    fn nameplate_final_color_uses_base_color_without_unique_camera() {
+        let (mut app, camera, plate) = faded_color_test_app();
+        let yellow = Color::srgba(1.0, 1.0, 0.0, 1.0);
+        assert_color_frame(&mut app, &[(plate, yellow.with_alpha(0.5))], &[plate]);
+        let second = app
+            .world_mut()
+            .spawn((Camera3d::default(), GlobalTransform::IDENTITY))
+            .id();
+        assert_color_frame(&mut app, &[(plate, yellow)], &[plate]);
+        assert_color_frame(&mut app, &[(plate, yellow)], &[]);
+        app.world_mut().despawn(second);
+        assert_color_frame(&mut app, &[(plate, yellow.with_alpha(0.5))], &[plate]);
+        app.world_mut().despawn(camera);
+        assert_color_frame(&mut app, &[(plate, yellow)], &[plate]);
+        app.world_mut()
+            .resource_mut::<GraphicsOptions>()
+            .colorblind_mode = true;
+        assert_color_frame(
+            &mut app,
+            &[(plate, Color::srgba(1.0, 0.92, 0.35, 1.0))],
+            &[plate],
+        );
+        assert_color_frame(
+            &mut app,
+            &[(plate, Color::srgba(1.0, 0.92, 0.35, 1.0))],
+            &[],
+        );
     }
 
     #[test]
