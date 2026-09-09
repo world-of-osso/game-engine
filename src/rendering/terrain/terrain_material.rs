@@ -15,6 +15,10 @@ use terrain_material_systems::{sync_terrain_environment_map, terrain_material_up
 
 mod terrain_material_systems;
 
+#[cfg(test)]
+#[path = "shared_material_clock_gpu_tests.rs"]
+mod shared_material_clock_gpu_tests;
+
 /// Custom terrain material: ground texture layers + alpha blending + hex tiling.
 /// Replaces CPU compositing with GPU-side sampling for anti-tiling.
 /// Uses height-based blending (ground texture alpha = height channel)
