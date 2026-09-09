@@ -35,7 +35,10 @@ fn raycast_hit_on_npc_child_mesh_selects_npc_root() {
             Transform::from_xyz(0.0, 0.0, 0.0),
             GlobalTransform::default(),
             RemoteEntity,
-            Npc { template_id: 42 },
+            Npc {
+                template_id: 42,
+                name: "Fixture wolf".into(),
+            },
         ))
         .id();
 
@@ -112,7 +115,10 @@ fn raycast_miss_produces_no_target() {
             Transform::from_xyz(0.0, 0.0, 0.0),
             GlobalTransform::default(),
             RemoteEntity,
-            Npc { template_id: 1 },
+            Npc {
+                template_id: 1,
+                name: "Fixture wolf".into(),
+            },
         ))
         .id();
 
@@ -181,7 +187,10 @@ fn raycast_hit_on_hidden_npc_produces_no_target() {
             Transform::from_xyz(0.0, 0.0, 0.0),
             GlobalTransform::default(),
             RemoteEntity,
-            Npc { template_id: 7 },
+            Npc {
+                template_id: 7,
+                name: "Fixture wolf".into(),
+            },
             Visibility::Hidden,
         ))
         .id();

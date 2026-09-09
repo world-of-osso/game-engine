@@ -440,7 +440,10 @@ mod tests {
 
     #[test]
     fn target_state_falls_back_to_npc_template_label() {
-        let npc = Npc { template_id: 42 };
+        let npc = Npc {
+            template_id: 42,
+            name: "Fixture wolf".into(),
+        };
         let state = build_target_state(
             None,
             None,

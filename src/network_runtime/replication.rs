@@ -180,7 +180,7 @@ impl EntitySnapshot {
             mana: entity.get::<Mana>().copied(),
             gold: entity.get::<Gold>().copied(),
             player: entity.get::<Player>().cloned(),
-            npc: entity.get::<Npc>().copied(),
+            npc: entity.get::<Npc>().cloned(),
             model_display: entity.get::<ModelDisplay>().copied(),
             rotation: entity.get::<Rotation>().copied(),
             movement_speed: entity.get::<MovementSpeed>().copied(),
@@ -303,6 +303,68 @@ mod tests {
 
     #[derive(Resource, Default)]
     struct SeenPosition(Option<Position>);
+
+    #[derive(Resource, Default)]
+    struct SeenNpc(Option<(String, u32, Position)>);
+
+    #[test]
+    fn npc_snapshot_preserves_utf8_name_before_add_observer() {
+        let mut worker = World::new();
+        let source = worker
+            .spawn((
+                Npc {
+                    template_id: 299,
+                    name: "Loup — Écorché".into(),
+                },
+                Position {
+                    x: -8949.0,
+                    y: 83.0,
+                    z: 132.0,
+                },
+            ))
+            .id();
+        let captured = snapshot(&worker, source, source, 7);
+        worker.get_mut::<Npc>(source).unwrap().name = "Later server name".into();
+        let mut main = main_app();
+        main.init_resource::<SeenNpc>();
+        main.add_observer(
+            |event: On<Add, Npc>,
+             query: Query<(&Npc, &Position), With<Remote>>,
+             mut seen: ResMut<SeenNpc>| {
+                let (npc, position) = query
+                    .get(event.entity)
+                    .expect("NPC support data before observer");
+                seen.0 = Some((npc.name.clone(), npc.template_id, *position));
+            },
+        );
+        apply(main.world_mut(), captured);
+        assert_eq!(
+            main.world().resource::<SeenNpc>().0,
+            Some((
+                "Loup — Écorché".into(),
+                299,
+                Position {
+                    x: -8949.0,
+                    y: 83.0,
+                    z: 132.0
+                }
+            ))
+        );
+        let mirrored = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        assert_eq!(
+            main.world().get::<Npc>(mirrored).unwrap().name,
+            "Loup — Écorché"
+        );
+        apply(main.world_mut(), snapshot(&worker, source, source, 8));
+        assert_eq!(
+            main.world().get::<Npc>(mirrored).unwrap().name,
+            "Later server name"
+        );
+    }
 
     #[test]
     fn player_add_observer_sees_position_and_remote_marker() {

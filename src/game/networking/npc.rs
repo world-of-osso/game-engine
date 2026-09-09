@@ -268,7 +268,14 @@ mod tests {
         visibility: Visibility,
     ) -> Entity {
         app.world_mut()
-            .spawn((Npc { template_id }, Remote, visibility))
+            .spawn((
+                Npc {
+                    template_id,
+                    name: "Fixture wolf".into(),
+                },
+                Remote,
+                visibility,
+            ))
             .id()
     }
 

@@ -54,7 +54,10 @@ fn spawn_pickable_npc(app: &mut App) -> Entity {
         .world_mut()
         .spawn((
             RemoteEntity,
-            Npc { template_id: 42 },
+            Npc {
+                template_id: 42,
+                name: "Fixture wolf".into(),
+            },
             Transform::default(),
             Visibility::Visible,
         ))

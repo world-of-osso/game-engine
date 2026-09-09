@@ -8,7 +8,14 @@ fn test_resolve_targetable_ancestor_finds_remote_root_from_child_mesh() {
 
     let root = app
         .world_mut()
-        .spawn((Transform::default(), RemoteEntity, Npc { template_id: 99 }))
+        .spawn((
+            Transform::default(),
+            RemoteEntity,
+            Npc {
+                template_id: 99,
+                name: "Fixture wolf".into(),
+            },
+        ))
         .id();
     let child = app.world_mut().spawn(Transform::default()).id();
     app.world_mut().entity_mut(child).insert(ChildOf(root));
@@ -77,7 +84,10 @@ fn test_resolve_targetable_ancestor_ignores_hidden_npcs() {
         .spawn((
             Transform::default(),
             RemoteEntity,
-            Npc { template_id: 7 },
+            Npc {
+                template_id: 7,
+                name: "Fixture wolf".into(),
+            },
             Visibility::Hidden,
         ))
         .id();

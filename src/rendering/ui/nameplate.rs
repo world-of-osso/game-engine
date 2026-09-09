@@ -821,7 +821,13 @@ mod tests {
                     appearance: default(),
                 })
                 .id();
-            let npc = app.world_mut().spawn(Npc { template_id: 1642 }).id();
+            let npc = app
+                .world_mut()
+                .spawn(Npc {
+                    template_id: 1642,
+                    name: "Fixture wolf".into(),
+                })
+                .id();
             app.update();
             let expected = usize::from(!disabled);
             for parent in [player, npc] {
@@ -843,7 +849,13 @@ mod tests {
             let mut app = App::new();
             app.insert_resource(InWorldSceneStage::parse(selector).expect("valid selector"));
             app.add_observer(spawn_npc_nameplate);
-            let npc = app.world_mut().spawn(Npc { template_id: 1642 }).id();
+            let npc = app
+                .world_mut()
+                .spawn(Npc {
+                    template_id: 1642,
+                    name: "Fixture wolf".into(),
+                })
+                .id();
             app.update();
 
             let mut nameplates = app.world_mut().query_filtered::<Entity, With<Nameplate>>();

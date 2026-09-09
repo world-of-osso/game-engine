@@ -207,7 +207,10 @@ fn npc_visibility_schedule_test_app(
 fn spawn_npc_visibility_fixture(app: &mut App, visibility: Visibility) -> Entity {
     app.world_mut()
         .spawn((
-            shared::components::Npc { template_id: 6491 },
+            shared::components::Npc {
+                template_id: 6491,
+                name: "Fixture wolf".into(),
+            },
             Remote,
             visibility,
         ))

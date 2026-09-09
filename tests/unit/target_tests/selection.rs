@@ -67,7 +67,10 @@ fn test_tab_target_ignores_non_npc_remote_entities() {
         .spawn((
             Transform::from_xyz(4.0, 0.0, 0.0),
             RemoteEntity,
-            Npc { template_id: 42 },
+            Npc {
+                template_id: 42,
+                name: "Fixture wolf".into(),
+            },
         ))
         .id();
 
@@ -100,7 +103,10 @@ fn test_tab_target_skips_hidden_npcs() {
         .spawn((
             Transform::from_xyz(2.0, 0.0, 0.0),
             RemoteEntity,
-            Npc { template_id: 1 },
+            Npc {
+                template_id: 1,
+                name: "Fixture wolf".into(),
+            },
             Visibility::Hidden,
         ))
         .id();
@@ -109,7 +115,10 @@ fn test_tab_target_skips_hidden_npcs() {
         .spawn((
             Transform::from_xyz(4.0, 0.0, 0.0),
             RemoteEntity,
-            Npc { template_id: 2 },
+            Npc {
+                template_id: 2,
+                name: "Fixture wolf".into(),
+            },
             Visibility::Visible,
         ))
         .id();
