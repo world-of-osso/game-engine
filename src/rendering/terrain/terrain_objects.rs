@@ -62,8 +62,26 @@ impl SpawnedTerrainObjects {
 
 /// Try to load a companion _obj ADT file at the given LOD suffix.
 fn load_obj(adt_path: &Path, suffix: &str) -> Option<adt_obj::AdtObjData> {
-    let obj_path = resolve_companion_path(adt_path, suffix)?;
-    let data = std::fs::read(&obj_path).ok()?;
+    let obj_path = match resolve_companion_path(adt_path, suffix) {
+        Ok(path) => path?,
+        Err(error) => {
+            eprintln!(
+                "Failed to resolve terrain objects for {} ({suffix}): {error}",
+                adt_path.display()
+            );
+            return None;
+        }
+    };
+    let data = match std::fs::read(&obj_path) {
+        Ok(data) => data,
+        Err(error) => {
+            eprintln!(
+                "Failed to read terrain objects {}: {error}",
+                obj_path.display()
+            );
+            return None;
+        }
+    };
     match adt_obj::load_adt_obj0(&data) {
         Ok(obj) => Some(obj),
         Err(e) => {

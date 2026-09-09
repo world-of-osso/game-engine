@@ -2,6 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::asset::asset_resolver::{AssetResolver, resolver};
 use game_engine::paths;
 
 use crate::asset::adt::{self, CHUNK_SIZE};
@@ -48,23 +49,42 @@ pub(crate) fn resolve_tile_path(
     tile_y: u32,
     tile_x: u32,
 ) -> Result<PathBuf, String> {
+    resolve_tile_path_with(
+        resolver(),
+        &paths::shared_data_path("terrain"),
+        map_name,
+        tile_y,
+        tile_x,
+    )
+}
+
+fn resolve_tile_path_with(
+    resolver: &dyn AssetResolver,
+    cache_dir: &Path,
+    map_name: &str,
+    tile_y: u32,
+    tile_x: u32,
+) -> Result<PathBuf, String> {
     let wow_path = format!("world/maps/{map_name}/{map_name}_{tile_y}_{tile_x}.adt");
-    let fdid = game_engine::listfile::lookup_path(&wow_path)
+    let fdid = resolver
+        .lookup_path(&wow_path)
         .ok_or_else(|| format!("Tile ({tile_y},{tile_x}) not in listfile: {wow_path}"))?;
-    let local = paths::resolve_data_path(format!("terrain/{map_name}_{tile_y}_{tile_x}.adt"));
-    if local.exists() {
-        return Ok(local);
-    }
-    // Fall back to FDID-based naming.
-    let fdid_path = paths::resolve_data_path(format!("terrain/{fdid}.adt"));
-    if fdid_path.exists() {
-        return Ok(fdid_path);
-    }
-    Err(format!(
-        "ADT tile files not found: {} or {}",
-        local.display(),
-        fdid_path.display()
-    ))
+    cache_declared_adt(resolver, cache_dir, fdid, &wow_path)
+}
+
+fn cache_declared_adt(
+    resolver: &dyn AssetResolver,
+    cache_dir: &Path,
+    fdid: u32,
+    wow_path: &str,
+) -> Result<PathBuf, String> {
+    let path = cache_dir.join(format!("{fdid}.adt"));
+    resolver.ensure_cached(fdid, &path).ok_or_else(|| {
+        format!(
+            "Failed to cache local CASC ADT {wow_path} (FDID {fdid}) at {}",
+            path.display()
+        )
+    })
 }
 
 /// Parse map name and tile coordinates from an ADT filename.
@@ -112,36 +132,62 @@ fn parse_coords_from_fdid(fdid: u32) -> Result<(String, u32, u32), String> {
 
 /// Resolve companion file path (e.g. "_tex0", "_obj0") for an ADT.
 ///
-/// For name-based files (e.g. `azeroth_32_48.adt`), appends suffix directly.
-/// For FDID-based files (e.g. `778027.adt`), looks up the companion FDID via listfile.
-pub(crate) fn resolve_companion_path(adt_path: &Path, suffix: &str) -> Option<PathBuf> {
-    let stem = adt_path.file_stem()?.to_str()?;
-    // Name-based: "azeroth_32_48" → "azeroth_32_48_tex0.adt"
-    let direct = adt_path.with_file_name(format!("{stem}{suffix}.adt"));
-    if direct.exists() {
-        return Some(direct);
-    }
-    if let Ok(relative) = direct.strip_prefix(paths::worktree_root()) {
-        let shared = paths::shared_repo_root().join(relative);
-        if shared.exists() {
-            return Some(shared);
-        }
-    }
-    // FDID-based: reverse lookup to get WoW path, then find companion FDID
-    let fdid: u32 = stem.parse().ok()?;
-    let wow_path = game_engine::listfile::lookup_fdid(fdid)?;
-    let wow_stem = wow_path.strip_suffix(".adt")?;
-    let companion_wow = format!("{wow_stem}{suffix}.adt");
-    let companion_fdid = game_engine::listfile::lookup_path(&companion_wow)?;
-    let companion_path = adt_path.with_file_name(format!("{companion_fdid}.adt"));
-    if companion_path.exists() {
-        Some(companion_path)
-    } else if let Ok(relative) = companion_path.strip_prefix(paths::worktree_root()) {
-        let shared = paths::shared_repo_root().join(relative);
-        shared.exists().then_some(shared)
+/// Explicit named sidecars are used directly. Official companions otherwise resolve
+/// through the listfile and are extracted into the canonical FDID cache as needed.
+/// Undeclared optional companions return `None`; declared extraction failures are errors.
+pub(crate) fn resolve_companion_path(
+    adt_path: &Path,
+    suffix: &str,
+) -> Result<Option<PathBuf>, String> {
+    resolve_companion_path_with(
+        resolver(),
+        &paths::shared_data_path("terrain"),
+        adt_path,
+        suffix,
+    )
+}
+
+fn resolve_companion_path_with(
+    resolver: &dyn AssetResolver,
+    cache_dir: &Path,
+    adt_path: &Path,
+    suffix: &str,
+) -> Result<Option<PathBuf>, String> {
+    let stem = adt_path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .ok_or_else(|| format!("Invalid ADT path: {}", adt_path.display()))?;
+    let wow_path = if let Ok(fdid) = stem.parse::<u32>() {
+        resolver
+            .resolve_path(fdid)
+            .ok_or_else(|| format!("ADT FDID {fdid} not in listfile: {}", adt_path.display()))?
     } else {
-        None
-    }
+        let direct = adt_path.with_file_name(format!("{stem}{suffix}.adt"));
+        if direct.is_file() {
+            return Ok(Some(direct));
+        }
+        let Some((map, tile_y, tile_x)) = try_parse_named_stem(stem) else {
+            return Ok(None);
+        };
+        format!("world/maps/{map}/{map}_{tile_y}_{tile_x}.adt")
+    };
+    cache_companion_adt(resolver, cache_dir, &wow_path, suffix)
+}
+
+fn cache_companion_adt(
+    resolver: &dyn AssetResolver,
+    cache_dir: &Path,
+    wow_path: &str,
+    suffix: &str,
+) -> Result<Option<PathBuf>, String> {
+    let wow_stem = wow_path
+        .strip_suffix(".adt")
+        .ok_or_else(|| format!("Expected ADT listfile path, found {wow_path}"))?;
+    let companion_wow = format!("{wow_stem}{suffix}.adt");
+    let Some(fdid) = resolver.lookup_path(&companion_wow) else {
+        return Ok(None);
+    };
+    cache_declared_adt(resolver, cache_dir, fdid, &companion_wow).map(Some)
 }
 
 /// Try to load the companion _tex0.adt file.
@@ -149,8 +195,30 @@ pub(crate) fn load_tex0(
     adt_path: &Path,
     adt_data: Option<&adt::AdtData>,
 ) -> Option<adt::AdtTexData> {
-    let tex0_path = resolve_companion_path(adt_path, "_tex0")?;
-    let data = std::fs::read(&tex0_path).ok()?;
+    let tex0_path = match resolve_companion_path(adt_path, "_tex0") {
+        Ok(path) => path?,
+        Err(error) => {
+            eprintln!(
+                "Failed to resolve terrain textures for {}: {error}",
+                adt_path.display()
+            );
+            return None;
+        }
+    };
+    let data = match std::fs::read(&tex0_path) {
+        Ok(data) => data,
+        Err(error) => {
+            eprintln!(
+                "Failed to read terrain textures {}: {error}",
+                tex0_path.display()
+            );
+            return None;
+        }
+    };
+    parse_tex0_data(&data, adt_data)
+}
+
+fn parse_tex0_data(data: &[u8], adt_data: Option<&adt::AdtData>) -> Option<adt::AdtTexData> {
     let chunk_flags = adt_data
         .map(|adt| {
             adt.chunks
@@ -159,7 +227,7 @@ pub(crate) fn load_tex0(
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    match adt::load_adt_tex0_with_chunk_alpha_flags(&data, &chunk_flags) {
+    match adt::load_adt_tex0_with_chunk_alpha_flags(data, &chunk_flags) {
         Ok(td) => {
             eprintln!(
                 "Loaded _tex0: {} textures, {} chunks",
@@ -174,6 +242,10 @@ pub(crate) fn load_tex0(
         }
     }
 }
+
+#[cfg(test)]
+#[path = "terrain_tile_resolver_tests.rs"]
+mod resolver_tests;
 
 #[cfg(test)]
 mod tests {

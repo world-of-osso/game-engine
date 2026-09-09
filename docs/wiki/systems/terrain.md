@@ -2,6 +2,12 @@
 
 ADT terrain is loaded from split WoW map tiles. The engine renders heightmap meshes with texture layer compositing, spawns doodads and WMOs from placement data, and uses a custom rotation formula to convert WoW-space placement angles into Bevy-space transforms.
 
+## Local Streaming Cache
+
+Official tile requests resolve their listfile FDID and call the existing `AssetResolver::ensure_cached` at `shared_data_path("terrain/<fdid>.adt")`. Missing disk files trigger local CASC extraction rather than a permanent streaming failure. Declared `_tex0` and `_obj*` companions use the same cache mechanism; an absent optional listfile entry returns `None`, while extraction errors include the WoW path, FDID, and destination. Existing explicitly named local sidecars remain supported. Official streaming no longer prefers a potentially stale named tile over the canonical FDID cache or searches alternate checkout caches.
+
+`terrain_tile::resolver_tests` uses temporary filesystem caches to prove root/companion extraction, byte-preserving reuse, named-sidecar behavior, and lookup/extraction errors. Real uncached tile50 acceptance remains with the parent native-validation pass.
+
 ## ADT Split Files
 
 Each tile is three files:
