@@ -1,4 +1,55 @@
 use super::*;
+use crate::client_options::GraphicsOptions;
+use bevy::state::app::StatesPlugin;
+
+#[test]
+fn particles_disabled_preserves_weather_without_hanabi_assets() {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, StatesPlugin));
+    app.init_state::<GameState>();
+    app.insert_state(GameState::InWorld);
+    app.insert_resource(GraphicsOptions {
+        particle_effects_enabled: false,
+        ..default()
+    });
+    app.init_resource::<CurrentZone>();
+    app.insert_resource(AdtManager {
+        map_name: "northrend".into(),
+        ..default()
+    });
+    app.add_plugins(WeatherPlugin);
+    app.world_mut().spawn((WowCamera, Transform::default()));
+
+    app.update();
+    assert!(!app.world().contains_resource::<Assets<EffectAsset>>());
+    assert_eq!(
+        app.world().resource::<ActiveWeather>().kind,
+        WeatherKind::Snow
+    );
+    let colors = crate::sky_lightdata::default_sky_colors();
+    let (_, _, falloff) =
+        weather_adjusted_fog(&colors, Some(app.world().resource::<ActiveWeather>()));
+    assert!(matches!(falloff, FogFalloff::Linear { end, .. } if end < colors.fog_end));
+    assert_eq!(
+        app.world_mut()
+            .query::<&ParticleEffect>()
+            .iter(app.world())
+            .count(),
+        0
+    );
+
+    app.world_mut().resource_mut::<AdtManager>().map_name = "azeroth".into();
+    app.update();
+    assert!(app.world().resource::<ActiveWeather>().is_clear());
+    assert!(!app.world().contains_resource::<Assets<EffectAsset>>());
+    assert_eq!(
+        app.world_mut()
+            .query::<&ParticleEffect>()
+            .iter(app.world())
+            .count(),
+        0
+    );
+}
 
 #[test]
 fn classify_weather_kind_matches_known_zone_names() {
