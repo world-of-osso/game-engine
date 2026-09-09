@@ -8,6 +8,12 @@ Character rendering assembles WoW M2 character models with dynamic geoset visibi
 
 `tests/unit/equipment_item_tests.rs` compares textures, geosets, and attached models for actual starter items 25, 38, 39, 40, and 2362 against their catalog displays. This covers client resolution, not native rendering or combat stats.
 
+### Replicated player construction boundary
+
+Player appearance waits for `ResolvedModelAssetInfo`, published after the complete M2 mesh, animation, and default equipment command sequence. `Children` first appeared when only the visual root existed; applying then recorded the full snapshot as deduplicated before body meshes existed, and later model initialization overwrote its equipment. Waiting for final model metadata fixes that ordering without periodic reconciliation or an InWorld-state delay. `OutfitData` loads lazily; its log after player spawn does not mean the resource was unavailable.
+
+`tests/unit/player_appearance_spawn_tests.rs` registers real observers before spawning Theron during Loading, delivers five starter items before player identity, then enters InWorld. Desired sword/shield slots survive; body pixels match a fully constructed reapplication, change when clothing is removed, and remain unchanged on duplicate notification. The separate rendered-weapon check exposed missing HumanHD attachment IDs 0/1 and remains unresolved; this lifecycle fix does not claim weapon attachment or native validation.
+
 ## Character Models and HD Skeletons
 
 Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD models (`humanmale_hd.m2`) store bones externally in a `.skel` file (referenced via the SKID chunk). The `.skel` file contains SKS1 (sequences + global sequences) and SKB1 (216 bones + animation tracks). `load_skel_data()` handles both paths transparently.

@@ -35,6 +35,11 @@ fn replication_notifications_target_only_changed_player_appearance() {
             NetEquipmentAppearance::default(),
             applied,
             ReplicatedVisualEntity,
+            ResolvedModelAssetInfo {
+                model_path: "ready-model.m2".into(),
+                skin_path: None,
+                display_scale: None,
+            },
         ))
         .id();
     app.world_mut().spawn(ChildOf(owner));
@@ -85,7 +90,15 @@ fn empty_stage_replication_does_not_emit_visual_work() {
         );
     let owner = app
         .world_mut()
-        .spawn((super::tests::sample_player(), ReplicatedVisualEntity))
+        .spawn((
+            super::tests::sample_player(),
+            ReplicatedVisualEntity,
+            ResolvedModelAssetInfo {
+                model_path: "ready-model.m2".into(),
+                skin_path: None,
+                display_scale: None,
+            },
+        ))
         .id();
     app.world_mut().spawn(ChildOf(owner));
     app.world_mut().write_message(EntityReplicated {
@@ -178,7 +191,7 @@ fn live_appearance_app() -> (App, Entity) {
     (app, owner)
 }
 
-fn publish_appearance(app: &mut App, owner: Entity, tick: u32) {
+pub(super) fn publish_appearance(app: &mut App, owner: Entity, tick: u32) {
     app.world_mut().write_message(EntityReplicated {
         entity: owner,
         tick: RepliconTick::new(tick),

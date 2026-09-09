@@ -521,7 +521,7 @@ type AppearanceReadQuery<'w, 's> = Query<
         Option<&'static AppliedPlayerAppearance>,
         Option<&'static Children>,
     ),
-    With<ReplicatedVisualEntity>,
+    (With<ReplicatedVisualEntity>, With<ResolvedModelAssetInfo>),
 >;
 
 pub(crate) fn register_player_appearance_events(app: &mut App) {
@@ -532,8 +532,7 @@ pub(crate) fn register_player_appearance_events(app: &mut App) {
                 .in_set(game_engine::network_tick::NetworkTickSystems::Apply),
         )
         .add_observer(player_appearance_ready::<ReplicatedVisualEntity>)
-        .add_observer(player_appearance_ready::<Children>)
-        .add_observer(player_appearance_ready::<M2AnimData>)
+        .add_observer(player_appearance_ready::<ResolvedModelAssetInfo>)
         .add_observer(apply_player_appearance_event);
 }
 
@@ -929,6 +928,10 @@ pub(crate) fn sync_local_alive_state(
 #[cfg(test)]
 #[path = "../../../tests/unit/player_appearance_event_tests.rs"]
 mod appearance_event_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/player_appearance_spawn_tests.rs"]
+mod appearance_spawn_tests;
 
 #[cfg(test)]
 #[path = "player_tests.rs"]
