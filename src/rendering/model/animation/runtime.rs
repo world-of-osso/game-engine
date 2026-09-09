@@ -373,44 +373,40 @@ pub(crate) fn advance_player_time(
     delta_ms: f32,
     mut sample: impl FnMut(u32) -> u32,
 ) -> Result<(), String> {
-    if !delta_ms.is_finite()
-        || delta_ms < 0.0
-        || !player.time_ms.is_finite()
-        || player.time_ms < 0.0
-    {
-        return Err(format!(
-            "invalid animation time {} with elapsed {delta_ms}",
-            player.time_ms
-        ));
-    }
+    validate_elapsed_time(player.time_ms, delta_ms)?;
     let Some(sequence) = data.sequences.get(player.current_seq_idx) else {
         return Ok(());
     };
-    if !player.looping || sequence.duration == 0 {
-        player.time_ms += delta_ms;
-        if sequence.duration > 0 {
-            player.time_ms = player.time_ms.min(sequence.duration as f32);
-        }
-        update_player_transition(player, data, delta_ms);
-        return Ok(());
-    }
-    let duration = sequence.duration as f64;
-    if f64::from(player.time_ms) + f64::from(delta_ms) < duration {
-        player.time_ms += delta_ms;
+    let duration = f64::from(sequence.duration);
+    let elapsed = f64::from(player.time_ms) + f64::from(delta_ms);
+    if !player.looping || duration == 0.0 || elapsed < duration {
+        player.time_ms = if duration > 0.0 {
+            elapsed.min(duration)
+        } else {
+            elapsed
+        } as f32;
         update_player_transition(player, data, delta_ms);
         return Ok(());
     }
     let family = super::variants::VariationFamily::read(&data.sequences, player.current_seq_idx)?;
     if family.is_single() {
-        player.time_ms = ((f64::from(player.time_ms) + f64::from(delta_ms)) % duration) as f32;
+        player.time_ms = (elapsed % duration) as f32;
         update_player_transition(player, data, delta_ms);
         return Ok(());
     }
-    family.validate_elapsed(
-        &data.sequences,
-        f64::from(delta_ms) + f64::from(player.time_ms),
-    )?;
+    family.validate_elapsed(&data.sequences, elapsed)?;
     advance_loop_variations(player, data, delta_ms, &family, &mut sample)
+}
+
+fn validate_elapsed_time(time_ms: f32, delta_ms: f32) -> Result<(), String> {
+    for value in [time_ms, delta_ms] {
+        if !value.is_finite() || value < 0.0 {
+            return Err(format!(
+                "invalid animation time {time_ms} with elapsed {delta_ms}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn advance_loop_variations(

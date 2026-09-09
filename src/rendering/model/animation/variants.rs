@@ -40,6 +40,14 @@ impl VariationFamily {
             .iter()
             .position(|s| s.id == sequence.id && s.variation_id == 0)
             .ok_or_else(|| format!("animation {} has no base variation", sequence.id))?;
+        Self::collect_linked(sequences, base, sequence.id)
+    }
+
+    fn collect_linked(
+        sequences: &[M2AnimSequence],
+        base: usize,
+        animation: u16,
+    ) -> Result<Self, String> {
         let mut family = Self {
             candidates: Vec::new(),
             total: 0,
@@ -48,15 +56,12 @@ impl VariationFamily {
         let mut next = Some(base);
         while let Some(index) = next {
             if !visited.insert(index) {
-                return Err(format!(
-                    "animation {} has a cyclic variation list",
-                    sequence.id
-                ));
+                return Err(format!("animation {animation} has a cyclic variation list"));
             }
             let candidate = sequences
                 .get(index)
                 .ok_or_else(|| format!("invalid variation index {index}"))?;
-            family.append(index, candidate, sequence.id)?;
+            family.append(index, candidate, animation)?;
             next = match candidate.variation_next {
                 -1 => None,
                 index if index >= 0 => Some(index as usize),
@@ -65,8 +70,7 @@ impl VariationFamily {
         }
         if family.candidates.len() > 1 && family.total == 0 {
             return Err(format!(
-                "animation {} has no positive variation weights",
-                sequence.id
+                "animation {animation} has no positive variation weights"
             ));
         }
         Ok(family)
