@@ -33,6 +33,8 @@ Legacy models embed bones and sequences directly in `MD21`.
 
 Each sequence has a `blend_time` used for crossfade transitions (minimum 150ms enforced). Tracks are stored per-bone per-sequence as M2Track arrays (translation, rotation, scale). External `.anim` files (referenced via `AFID` chunk) may carry additional per-sequence track data not present in the root file.
 
+Sequence records retain signed `frequency` at0x10, replay bounds at0x14/0x18, and `variation_next` at0x3c. The link enumerates weighted alternatives of the same animation ID, not the animation to play next in time. The alias field at0x3e is separate and was not reinterpreted. See [weighted loop playback](../systems/animation.md#weighted-loop-variations) for implemented coverage and the remaining nonzero-replay limitation. Primary format reference: [wowlib M2 records](https://skarndev.github.io/wowlib/python/m2/records/).
+
 ## Geosets and Skin Files
 
 Geosets are sub-meshes selected at runtime based on `mesh_part_id` (mpid = `group * 100 + variant`). Variant 0 = hidden, 1+ = visible options. See [[geosets]] for the full group table.

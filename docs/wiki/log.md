@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] animation | Select authored loop variants by weight
+
+Replaced temporal `next_animation` interpretation with `variation_next` candidate lists and signed frequency weights. Actual wolf indices2/9/10/11 receive30445/1092/1170/60 of32767 deterministic rolls; terminal selection returns to the base family. Per-entity random streams, non-looping completion, invalid metadata, elapsed overflow and crossfade regressions pass in107focused animation tests. Replay bounds are retained but nonzero replay scheduling and native validation remain uncredited. See [loop-variation spec](../specs/m2-loop-variations.md) and [[animation]].
+
 ## [2026-09-09] investigation | Bound Northshire NPC motion and terrain claims
 
 Added [[npc-motion-validation]] at engine revision `9404235d` and linked animation/UI evidence. The record credits authored facing and 422 observed idle bone changes; 20 landing tests and a 20.33-unit grounded endpoint walk; fog-off/on GPU compilation; two `Camera3d` picking tests preserving `--no-ui` health-bar policy; all-seven WMO bounds; radius-one retention; local-CASC roots/companions; and the initial nine-loaded, zero-failed native state. Cold capture observed two roots and companions, with one tile fully spawned before 30 seconds; the third was not observed and is not called a failure. No locomotion producer, WMO vertical-floor, full cold-ring, or performance claim.

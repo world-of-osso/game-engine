@@ -298,7 +298,9 @@ mod tests {
                 movespeed: 0.0,
                 flags: 0,
                 blend_time: 150,
-                next_animation: -1,
+                frequency: 32767,
+                replay: [0, 0],
+                variation_next: -1,
             }],
             bone_tracks: vec![BoneAnimTracks {
                 translation: AnimTrack {
@@ -494,7 +496,9 @@ mod tests {
                     movespeed: 0.0,
                     flags: 0,
                     blend_time: 200,
-                    next_animation: -1,
+                    frequency: 32767,
+                    replay: [0, 0],
+                    variation_next: -1,
                 })
                 .collect();
             model.bone_tracks[0].translation.sequences = [0.0, 10.0, 30.0]
@@ -597,7 +601,9 @@ mod tests {
                     movespeed: 0.0,
                     flags: 0,
                     blend_time: 200,
-                    next_animation: -1,
+                    frequency: 32767,
+                    replay: [0, 0],
+                    variation_next: -1,
                 })
                 .collect();
             let tracks = &mut model.bone_tracks[0];

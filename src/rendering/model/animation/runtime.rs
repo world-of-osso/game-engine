@@ -367,36 +367,82 @@ fn anim_finished(player: &M2AnimPlayer, sequences: &[M2AnimSequence]) -> bool {
         .is_some_and(|seq| player.time_ms >= seq.duration as f32)
 }
 
-fn valid_next_sequence_idx(sequences: &[M2AnimSequence], seq_idx: usize) -> Option<usize> {
-    let next_idx = sequences.get(seq_idx)?.next_animation;
-    let next_idx = usize::try_from(next_idx).ok()?;
-    sequences.get(next_idx)?;
-    Some(next_idx)
+pub(crate) fn advance_player_time(
+    player: &mut M2AnimPlayer,
+    data: &M2AnimData,
+    delta_ms: f32,
+    mut sample: impl FnMut(u32) -> u32,
+) -> Result<(), String> {
+    if !delta_ms.is_finite()
+        || delta_ms < 0.0
+        || !player.time_ms.is_finite()
+        || player.time_ms < 0.0
+    {
+        return Err(format!(
+            "invalid animation time {} with elapsed {delta_ms}",
+            player.time_ms
+        ));
+    }
+    let Some(sequence) = data.sequences.get(player.current_seq_idx) else {
+        return Ok(());
+    };
+    if !player.looping || sequence.duration == 0 {
+        player.time_ms += delta_ms;
+        if sequence.duration > 0 {
+            player.time_ms = player.time_ms.min(sequence.duration as f32);
+        }
+        update_player_transition(player, data, delta_ms);
+        return Ok(());
+    }
+    let duration = sequence.duration as f64;
+    if f64::from(player.time_ms) + f64::from(delta_ms) < duration {
+        player.time_ms += delta_ms;
+        update_player_transition(player, data, delta_ms);
+        return Ok(());
+    }
+    let family = super::variants::VariationFamily::read(&data.sequences, player.current_seq_idx)?;
+    if family.is_single() {
+        player.time_ms = ((f64::from(player.time_ms) + f64::from(delta_ms)) % duration) as f32;
+        update_player_transition(player, data, delta_ms);
+        return Ok(());
+    }
+    family.validate_elapsed(
+        &data.sequences,
+        f64::from(delta_ms) + f64::from(player.time_ms),
+    )?;
+    advance_loop_variations(player, data, delta_ms, &family, &mut sample)
 }
 
-pub(crate) fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, delta_ms: f32) {
-    let Some(seq) = data.sequences.get(player.current_seq_idx) else {
-        return;
-    };
-    player.time_ms += delta_ms;
-    if seq.duration > 0 {
-        if player.looping {
-            if player.time_ms >= seq.duration as f32 {
-                if let Some(next_idx) =
-                    valid_next_sequence_idx(&data.sequences, player.current_seq_idx)
-                        .filter(|next_idx| *next_idx != player.current_seq_idx)
-                {
-                    let overflow = player.time_ms - seq.duration as f32;
-                    player.time_ms = seq.duration as f32;
-                    let blend_ms = data.sequences[next_idx].blend_time as f32;
-                    start_transition(player, next_idx, blend_ms);
-                    player.time_ms = overflow;
-                } else {
-                    player.time_ms %= seq.duration as f32;
-                }
-            }
-        } else {
-            player.time_ms = player.time_ms.min(seq.duration as f32);
+fn advance_loop_variations(
+    player: &mut M2AnimPlayer,
+    data: &M2AnimData,
+    delta_ms: f32,
+    family: &super::variants::VariationFamily,
+    sample: &mut impl FnMut(u32) -> u32,
+) -> Result<(), String> {
+    let mut remaining = f64::from(delta_ms);
+    loop {
+        let duration = f64::from(data.sequences[player.current_seq_idx].duration);
+        let until_boundary = (duration - f64::from(player.time_ms)).max(0.0);
+        if remaining < until_boundary {
+            player.time_ms += remaining as f32;
+            update_player_transition(player, data, remaining as f32);
+            return Ok(());
+        }
+        let next_remaining = remaining - until_boundary;
+        if until_boundary > 0.0 && remaining == next_remaining {
+            return Err("animation elapsed time is too large to advance distinct cycles".into());
+        }
+        update_player_transition(player, data, until_boundary as f32);
+        remaining = next_remaining;
+        let next = family.choose(sample)?;
+        player.time_ms = duration as f32;
+        if next != player.current_seq_idx {
+            start_transition(player, next, data.sequences[next].blend_time as f32);
+        }
+        player.time_ms = 0.0;
+        if remaining == 0.0 {
+            return Ok(());
         }
     }
 }
@@ -404,7 +450,12 @@ pub(crate) fn advance_player_time(player: &mut M2AnimPlayer, data: &M2AnimData, 
 pub(crate) fn tick_animation(
     time: Res<Time>,
     time_override: Option<Res<SkyboxTimeOverrideMs>>,
-    mut players: Query<(&mut M2AnimPlayer, &M2AnimData)>,
+    mut players: Query<(
+        Entity,
+        &mut M2AnimPlayer,
+        &M2AnimData,
+        &mut super::variants::VariantRandom,
+    )>,
 ) {
     if let Some(time_override) = time_override.as_deref() {
         apply_time_override_to_players(&mut players, time_override.0);
@@ -412,17 +463,24 @@ pub(crate) fn tick_animation(
     }
 
     let delta_ms = time.delta_secs() * 1000.0;
-    for (mut player, data) in &mut players {
-        advance_player_time(&mut player, data, delta_ms);
-        update_player_transition(&mut player, data, delta_ms);
+    for (entity, mut player, data, mut random) in &mut players {
+        advance_player_time(&mut player, data, delta_ms, |total| {
+            random.sample(entity, total)
+        })
+        .unwrap_or_else(|error| panic!("M2 animation {entity:?}: {error}"));
     }
 }
 
 fn apply_time_override_to_players(
-    players: &mut Query<(&mut M2AnimPlayer, &M2AnimData)>,
+    players: &mut Query<(
+        Entity,
+        &mut M2AnimPlayer,
+        &M2AnimData,
+        &mut super::variants::VariantRandom,
+    )>,
     override_time_ms: u32,
 ) {
-    for (mut player, data) in players {
+    for (_, mut player, data, _) in players {
         apply_player_time_override(&mut player, data, override_time_ms);
     }
 }
@@ -481,7 +539,9 @@ mod tests {
             movespeed: 0.0,
             flags: 0,
             blend_time: 0,
-            next_animation: -1,
+            frequency: 32767,
+            replay: [0, 0],
+            variation_next: -1,
         }
     }
 

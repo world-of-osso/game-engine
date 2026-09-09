@@ -157,7 +157,33 @@ fn animation_plugin_runs_on_inworld_selection_debug() {
 }
 
 #[test]
-fn looping_stand_advances_into_next_authored_variant() {
+fn wolf_idle_terminal_variant_returns_to_base_instead_of_looping_forever() {
+    let model =
+        crate::asset::m2::load_m2(std::path::Path::new("data/models/126487.m2"), &[0, 0, 0])
+            .unwrap();
+    let mut player = M2AnimPlayer {
+        current_seq_idx: 11,
+        time_ms: 3990.0,
+        looping: true,
+        transition: None,
+    };
+    let data = M2AnimData {
+        bones: vec![],
+        spherical_billboards: vec![],
+        sequences: model.sequences,
+        bone_tracks: vec![],
+        joint_entities: vec![],
+    };
+    advance_player_time(&mut player, &data, 20.0, |_| 0).unwrap();
+    assert_eq!(
+        player.current_seq_idx, 2,
+        "a terminal rare idle must reselect from the base family"
+    );
+    assert_eq!(player.time_ms, 10.0);
+}
+
+#[test]
+fn looping_stand_selects_weighted_variant_and_preserves_overflow() {
     let mut player = M2AnimPlayer {
         current_seq_idx: 0,
         time_ms: 900.0,
@@ -175,11 +201,11 @@ fn looping_stand_advances_into_next_authored_variant() {
         joint_entities: vec![],
     };
 
-    advance_player_time(&mut player, &data, 200.0);
+    advance_player_time(&mut player, &data, 200.0, |total| total - 1).unwrap();
 
     assert_eq!(
         player.current_seq_idx, 1,
-        "should follow the authored idle chain"
+        "should choose the sampled member of the authored idle family"
     );
     assert_eq!(
         player.time_ms, 100.0,

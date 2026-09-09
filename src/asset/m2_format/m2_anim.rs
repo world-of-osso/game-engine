@@ -44,7 +44,7 @@ const SEQ_DURATION_OFFSET: usize = 0x04;
 const SEQ_MOVE_SPEED_OFFSET: usize = 0x08;
 const SEQ_FLAGS_OFFSET: usize = 0x0C;
 const SEQ_BLEND_TIME_OFFSET: usize = 0x1C;
-const SEQ_NEXT_ANIMATION_OFFSET: usize = 0x3C;
+const SEQ_VARIATION_NEXT_OFFSET: usize = 0x3C;
 
 #[derive(Clone)]
 pub struct M2Bone {
@@ -109,8 +109,13 @@ pub struct M2AnimSequence {
     pub duration: u32, // milliseconds
     pub movespeed: f32,
     pub flags: u32,
-    pub blend_time: u16,     // milliseconds, for transitions
-    pub next_animation: i16, // -1 = none, else index into sequences
+    pub blend_time: u16, // milliseconds, for transitions
+    /// Signed probability weight within the linked variation family.
+    pub frequency: i16,
+    /// Authored replay bounds, retained without inventing a delay policy.
+    pub replay: [u32; 2],
+    /// Next candidate in this animation's variation list, not a temporal successor.
+    pub variation_next: i16,
 }
 
 /// Parse `count` sequence entries starting at `offset` in `data`.
@@ -132,7 +137,9 @@ pub fn parse_sequences_at(
             movespeed: read_f32(data, base + SEQ_MOVE_SPEED_OFFSET)?,
             flags: read_u32(data, base + SEQ_FLAGS_OFFSET)?,
             blend_time: read_u16(data, base + SEQ_BLEND_TIME_OFFSET)?,
-            next_animation: read_i16(data, base + SEQ_NEXT_ANIMATION_OFFSET)?,
+            frequency: read_i16(data, base + 0x10)?,
+            replay: [read_u32(data, base + 0x14)?, read_u32(data, base + 0x18)?],
+            variation_next: read_i16(data, base + SEQ_VARIATION_NEXT_OFFSET)?,
         });
     }
     Ok(sequences)
@@ -147,7 +154,9 @@ pub fn parse_sequences_at(
 ///   0x08 f32  movespeed
 ///   0x0C u32  flags
 ///   0x1C u16  blend_time
-///   0x3C i16  next_animation (-1 = none)
+///   0x10 i16  frequency (variation probability weight)
+///   0x14 u32[2] replay bounds
+///   0x3C i16  variation_next (-1 = end of candidate list)
 pub fn parse_sequences(md20: &[u8]) -> Result<Vec<M2AnimSequence>, String> {
     let (count, offset) = read_m2_array_header(md20, MD20_SEQUENCES_COUNT_OFFSET)?;
     parse_sequences_at(md20, offset, count)

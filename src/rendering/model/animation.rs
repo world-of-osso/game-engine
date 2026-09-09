@@ -8,6 +8,8 @@ pub mod billboard;
 pub(crate) mod lod;
 #[path = "animation/runtime.rs"]
 mod runtime;
+#[path = "animation/variants.rs"]
+mod variants;
 
 use super::camera::{MoveDirection, MovementState};
 use crate::asset::m2_anim::{
@@ -71,6 +73,7 @@ pub struct AnimTransition {
 
 /// Animation player component attached to the model entity.
 #[derive(Component)]
+#[require(variants::VariantRandom)]
 pub struct M2AnimPlayer {
     pub current_seq_idx: usize,
     pub time_ms: f32,

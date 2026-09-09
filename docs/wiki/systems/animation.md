@@ -16,7 +16,7 @@ Bevy runs animation in `PostUpdate` before transform propagation. This replaces 
 
 ### Supported boundary
 
-Current runtime supports sequence-local translation, rotation, and scale tracks with linear vector interpolation and quaternion slerp, loop/next-sequence policy, crossfades, and pivots. M2 global sequences and other parsed interpolation modes are not currently part of this bone runtime; the adapter keeps that existing boundary explicit rather than fabricating support.
+Current runtime supports sequence-local translation, rotation, and scale tracks with linear vector interpolation and quaternion slerp, weighted loop variations, crossfades, and pivots. M2 global sequences and other parsed interpolation modes are not currently part of this bone runtime; the adapter keeps that existing boundary explicit rather than fabricating support.
 
 Camera-facing spherical billboards remain a frame-driven pass after Bevy animation and before transform propagation. Animated lights remain render-facing. Commit `c3e28125` still evaluates authored model-light tracks every update, but compares its four owned `PointLight` fields and uses conditional visibility assignment before mutating components. Constant tracks no longer emit changes; color, intensity, range, radius, and visibility changes still apply. Two focused regression tests cover both boundaries. Existing joint entities preserve attachment and skinning identity. Replicated gear and face updates retain this animated rig; a mount or race/sex identity change replaces it, and dismount restores the character model before deferred customization.
 
@@ -25,6 +25,14 @@ M2 models store animation sequences inline in the MD20 header (legacy) or in ext
 HD models store 422+ sequences in the SKB1/SKS1 chunks of a `.skel` file. The parser (`load_skel_data()`) handles both inline and external paths transparently.
 
 Bone indices in vertex data are global skeleton indices. The skin file's bone lookup table is used only to remap per-submesh local indices to global indices via `remap_bone_indices()`.
+
+## Weighted Loop Variations
+
+`variation_next` links candidates with the same animation ID; it is not a temporal successor. Previously the wolf advanced Stand indices2→9→10→11 and looped the terminal rare variant indefinitely. At each looping boundary the runtime now starts at variation0 and draws from signed authored `frequency` weights. This applies to linked looping families generally, not just Stand. Unlinked single sequences wrap normally; non-looping jump/emote completion does not draw variants. Invalid links, cycles, negative weights, zero-total multi-variant families, and positively weighted zero-duration variants are explicit errors—not uniform-weight fallbacks.
+
+Wolf FDID126487 has46 inline sequences. Stand indices2/9/10/11 carry weights30445/1092/1170/60 (total32767), and all four replay ranges arezero. Exhaustive deterministic rolls reproduce those exact counts. Per-entity SplitMix64 streams with rejection sampling avoid synchronized/global RNG state; tests inject rolls directly. Large elapsed updates consume each crossed boundary and preserve remaining time and crossfade progress; a120-second update matches partitioned updates. Multi-variant catch-up requiring4096or more shortest-duration boundaries is rejected before changing playback, rather than silently discarding time. Single-clip wrapping remains constant-time.
+
+Replay bounds are parsed and retained, but nonzero replay scheduling is not implemented or claimed. Alias behavior is unchanged; alias links are not treated as variation links. This correction does not add NPC locomotion-state generation. Native wolf behavior remains pending parent validation; parser/runtime proof lives under `data/diagnostics/wolf-nameplate-equipment-20260909/`.
 
 ## Crossfading Rules
 

@@ -43,7 +43,9 @@ pub(super) fn stand_sequence() -> M2AnimSequence {
         movespeed: 0.0,
         flags: 0,
         blend_time: 0,
-        next_animation: -1,
+        frequency: 32767,
+        replay: [0, 0],
+        variation_next: -1,
     }
 }
 
@@ -55,14 +57,16 @@ pub(super) fn sequence(anim_id: u16, duration: u32) -> M2AnimSequence {
         movespeed: 0.0,
         flags: 0,
         blend_time: 150,
-        next_animation: -1,
+        frequency: 32767,
+        replay: [0, 0],
+        variation_next: -1,
     }
 }
 
 pub(super) fn stand_sequence_with_next(
     duration: u32,
     variation_id: u16,
-    next_animation: i16,
+    variation_next: i16,
 ) -> M2AnimSequence {
     M2AnimSequence {
         id: 0,
@@ -71,7 +75,9 @@ pub(super) fn stand_sequence_with_next(
         movespeed: 0.0,
         flags: 0,
         blend_time: 150,
-        next_animation,
+        frequency: 32767,
+        replay: [0, 0],
+        variation_next,
     }
 }
 
