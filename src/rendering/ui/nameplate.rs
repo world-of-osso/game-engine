@@ -356,6 +356,110 @@ mod tests {
     use super::*;
 
     #[derive(Resource, Default)]
+    struct ColorChanges(Vec<Entity>);
+
+    fn observe_color_changes(
+        query: Query<Entity, (With<Nameplate>, Changed<TextColor>)>,
+        mut changes: ResMut<ColorChanges>,
+    ) {
+        changes.0 = query.iter().collect();
+    }
+
+    fn color_test_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<GraphicsOptions>();
+        app.init_resource::<ColorChanges>();
+        app.add_systems(Update, sync_nameplate_colors);
+        app.add_systems(PostUpdate, observe_color_changes);
+        app
+    }
+
+    fn spawn_color_plate(app: &mut App, kind: NameplateKind) -> Entity {
+        app.world_mut()
+            .spawn((Nameplate, kind, TextColor(Color::BLACK)))
+            .id()
+    }
+
+    fn assert_color_frame(app: &mut App, expected: &[(Entity, Color)], changed: &[Entity]) {
+        app.update();
+        for &(entity, color) in expected {
+            assert_eq!(
+                app.world().get::<TextColor>(entity),
+                Some(&TextColor(color))
+            );
+        }
+        let observed = &app.world().resource::<ColorChanges>().0;
+        assert_eq!(observed.len(), changed.len(), "unexpected color changes");
+        for entity in changed {
+            assert!(
+                observed.contains(entity),
+                "missing color change for {entity:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn nameplate_color_sync_leaves_stable_frames_unchanged() {
+        let mut app = color_test_app();
+        let player = spawn_color_plate(&mut app, NameplateKind::Player);
+        let npc = spawn_color_plate(&mut app, NameplateKind::Npc);
+        let expected = [
+            (player, Color::srgba(1.0, 1.0, 1.0, 1.0)),
+            (npc, Color::srgba(1.0, 1.0, 0.0, 1.0)),
+        ];
+        assert_color_frame(&mut app, &expected, &[player, npc]);
+        for _ in 0..3 {
+            assert_color_frame(&mut app, &expected, &[]);
+        }
+    }
+
+    #[test]
+    fn nameplate_color_sync_applies_mode_and_kind_changes() {
+        let mut app = color_test_app();
+        let entity = spawn_color_plate(&mut app, NameplateKind::Player);
+        assert_color_frame(
+            &mut app,
+            &[(entity, Color::srgba(1.0, 1.0, 1.0, 1.0))],
+            &[entity],
+        );
+        app.world_mut()
+            .resource_mut::<GraphicsOptions>()
+            .colorblind_mode = true;
+        let friendly = Color::srgba(0.45, 0.9, 1.0, 1.0);
+        assert_color_frame(&mut app, &[(entity, friendly)], &[entity]);
+        assert_color_frame(&mut app, &[(entity, friendly)], &[]);
+        app.world_mut()
+            .entity_mut(entity)
+            .insert(NameplateKind::Npc);
+        let neutral = Color::srgba(1.0, 0.92, 0.35, 1.0);
+        assert_color_frame(&mut app, &[(entity, neutral)], &[entity]);
+        app.world_mut()
+            .resource_mut::<GraphicsOptions>()
+            .colorblind_mode = false;
+        let yellow = Color::srgba(1.0, 1.0, 0.0, 1.0);
+        assert_color_frame(&mut app, &[(entity, yellow)], &[entity]);
+        assert_color_frame(&mut app, &[(entity, yellow)], &[]);
+    }
+
+    #[test]
+    fn nameplate_color_sync_initializes_new_entities_without_touching_existing() {
+        let mut app = color_test_app();
+        app.world_mut()
+            .resource_mut::<GraphicsOptions>()
+            .colorblind_mode = true;
+        let player = spawn_color_plate(&mut app, NameplateKind::Player);
+        let friendly = Color::srgba(0.45, 0.9, 1.0, 1.0);
+        assert_color_frame(&mut app, &[(player, friendly)], &[player]);
+        let npc = spawn_color_plate(&mut app, NameplateKind::Npc);
+        let expected = [
+            (player, friendly),
+            (npc, Color::srgba(1.0, 0.92, 0.35, 1.0)),
+        ];
+        assert_color_frame(&mut app, &expected, &[npc]);
+        assert_color_frame(&mut app, &expected, &[]);
+    }
+
+    #[derive(Resource, Default)]
     struct VisibilityChanges(Vec<Entity>);
 
     fn observe_visibility_changes(
