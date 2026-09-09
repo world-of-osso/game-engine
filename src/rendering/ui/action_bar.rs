@@ -166,7 +166,10 @@ fn update_action_bar_slot_flash(
         } else {
             SLOT_BG
         };
-        set_bg(&mut ui.registry, bars.main_slots[index], color);
+        let slot = bars.main_slots[index];
+        if background_needs_update(&ui.registry, slot, color) {
+            set_bg(&mut ui.registry, slot, color);
+        }
     }
 }
 
@@ -441,8 +444,15 @@ fn set_rect(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) {
     }
 }
 
+fn background_needs_update(reg: &FrameRegistry, id: u64, color: [f32; 4]) -> bool {
+    reg.get(id)
+        .is_some_and(|frame| frame.background_color != Some(color))
+}
+
 fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {
-    if let Some(frame) = reg.get_mut(id) {
+    if background_needs_update(reg, id, color)
+        && let Some(frame) = reg.get_mut(id)
+    {
         frame.background_color = Some(color);
     }
 }
