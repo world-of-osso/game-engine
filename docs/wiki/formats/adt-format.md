@@ -37,12 +37,6 @@ The 33×33 grid is a diamond-tessellated mesh: outer ring vertices (17 per row) 
 
 MCNR normals are precomputed by the WoW client/editor. In mountain areas they can be inconsistent with the geometric face normals of the reconstructed mesh, indicating either a decoding issue or a mismatch between the stored normals and the actual vertex layout.
 
-## MH2O Water Layers
-
-An MH2O water layer has a width and height plus an `exists` bitset for its individual quads. Nonzero dimensions do not imply any quad exists. `build_water_mesh()` therefore returns no mesh when the bitset produces no positions, and terrain spawning skips that layer; a layer with existing quads remains renderable.
-
-This prevents an empty `Mesh` from reaching Bevy 0.19's allocator, which otherwise skips zero-byte allocation then attempts the copy and logs an unallocated-key error. The local correction is producer-side; native proof that it removes all observed runtime allocator spam remains pending. Upstream tracks the allocator behavior in [issue #24874](https://github.com/bevyengine/bevy/issues/24874) and [PR #24960](https://github.com/bevyengine/bevy/pull/24960).
-
 ## MDDF / MODF Placements
 
 `_obj0` files contain placement records for M2 doodads (MDDF) and WMO world map objects (MODF).
@@ -62,8 +56,6 @@ For character-select scenes, the primary tile must be loaded first; sorting the 
 - [docs/adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile selection bug, MCNK peak data, normal inconsistency
 - [docs/world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — MDDF/MODF rotation mapping derivation
 - AGENTS.md (ADT Terrain section + `asset/adt_format/`) — split file structure, parser modules
-- `../../src/asset/adt.rs` and `../../src/rendering/terrain/terrain_spawn.rs` — MH2O mesh emission boundary
-- [Bevy issue #24874](https://github.com/bevyengine/bevy/issues/24874) and [PR #24960](https://github.com/bevyengine/bevy/pull/24960) — empty-mesh allocator behavior
 
 ## See Also
 

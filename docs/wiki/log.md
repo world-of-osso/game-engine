@@ -1,9 +1,5 @@
 # Wiki Log
 
-## [2026-09-09] systems/formats | Skip empty MH2O water meshes
-
-Updated [[terrain]], [[adt-format]], and [[movement-performance]] for `d11948b1`. A nonzero MH2O layer can still have no existing quads; the engine now avoids creating that empty mesh. The local probe found 47 empty meshes and 94 allocator errors, but native post-fix proof remains pending. See upstream [issue #24874](https://github.com/bevyengine/bevy/issues/24874) and [PR #24960](https://github.com/bevyengine/bevy/pull/24960).
-
 ## [2026-09-09] investigations | Record temporary GPU-culling probe
 
 Updated [[movement-performance]] for `802b5014`. `WOO_PERF_GPU_CULLING_AFTER_SECS` is a one-shot diagnostic for a native attribution snapshot, not a supported interface or production setting; it has no CPU/visual result and must be removed after measurement.
