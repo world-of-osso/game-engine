@@ -421,3 +421,7 @@ fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCre
 #[cfg(test)]
 #[path = "../../../tests/unit/char_create_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/char_create_shared_tests.rs"]
+mod shared_tests;
