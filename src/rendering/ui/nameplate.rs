@@ -139,10 +139,12 @@ fn spawn_nameplate_entity(
 }
 
 fn sync_nameplate_visibility(
+    ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
     mut query: Query<&mut Visibility, Or<(With<Nameplate>, With<QuestIndicatorModel>)>>,
 ) {
-    let visible = hud_visibility.is_none_or(|toggles| toggles.show_nameplates);
+    let visible =
+        ui_disabled.is_none() && hud_visibility.is_none_or(|toggles| toggles.show_nameplates);
     for mut visibility in &mut query {
         visibility.set_if_neq(if visible {
             Visibility::Inherited
@@ -390,6 +392,21 @@ mod tests {
         );
         for entity in changed {
             assert!(observed.contains(entity), "missing change for {entity:?}");
+        }
+    }
+
+    #[test]
+    fn no_ui_hides_nameplates_and_quest_indicators() {
+        let mut app = App::new();
+        app.insert_resource(crate::client_options::UiDisabled);
+        app.add_systems(Update, sync_nameplate_visibility);
+        let entities = spawn_visibility_pair(&mut app, Visibility::Visible);
+        app.update();
+        for entity in entities {
+            assert_eq!(
+                app.world().get::<Visibility>(entity),
+                Some(&Visibility::Hidden)
+            );
         }
     }
 

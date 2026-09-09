@@ -333,6 +333,7 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
 }
 
 fn apply_fps_overlay_snapshot(world: &mut World, visible: bool) {
+    let visible = visible && !world.contains_resource::<client_options::UiDisabled>();
     let scene_stage = world
         .get_resource::<crate::game::inworld_scene_stage::InWorldSceneStage>()
         .copied();
@@ -451,6 +452,7 @@ fn apply_ui_hud_visibility_for_state(
 }
 
 fn apply_target_marker_visibility(world: &mut World, visible: bool) {
+    let visible = visible && !world.contains_resource::<client_options::UiDisabled>();
     let mut query = world.query_filtered::<&mut Visibility, With<crate::target::TargetMarker>>();
     for mut value in query.iter_mut(world) {
         *value = if visible {

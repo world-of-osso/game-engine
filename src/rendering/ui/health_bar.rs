@@ -232,10 +232,12 @@ fn billboard_health_bars(
 }
 
 fn sync_health_bar_visibility(
+    ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
     mut query: Query<&mut Visibility, With<HealthBar>>,
 ) {
-    let visible = hud_visibility.is_none_or(|toggles| toggles.show_health_bars);
+    let visible =
+        ui_disabled.is_none() && hud_visibility.is_none_or(|toggles| toggles.show_health_bars);
     for mut visibility in &mut query {
         *visibility = if visible {
             Visibility::Inherited
@@ -248,6 +250,19 @@ fn sync_health_bar_visibility(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn no_ui_hides_health_bars() {
+        let mut app = App::new();
+        app.insert_resource(crate::client_options::UiDisabled);
+        app.add_systems(Update, sync_health_bar_visibility);
+        let entity = app.world_mut().spawn((HealthBar, Visibility::Visible)).id();
+        app.update();
+        assert_eq!(
+            app.world().get::<Visibility>(entity),
+            Some(&Visibility::Hidden)
+        );
+    }
 
     #[test]
     fn scene_stage_health_bars_are_hidden_until_ui_stage() {

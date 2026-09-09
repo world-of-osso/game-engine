@@ -13,6 +13,34 @@ fn unique_test_dir(name: &str) -> PathBuf {
 }
 
 #[test]
+fn no_ui_survives_loaded_settings_and_hud_updates() {
+    let mut app = App::new();
+    app.insert_resource(UiDisabled);
+    app.insert_resource(FpsOverlayConfig::default());
+    app.insert_resource(LoadedClientOptions {
+        file: ClientOptionsFile::default(),
+        applied: false,
+    });
+    app.insert_resource(HudOptions::default());
+    app.insert_resource(HudVisibilityToggles::from_hud_options(
+        &HudOptions::default(),
+    ));
+    app.add_systems(
+        Update,
+        (apply_loaded_client_options, sync_hud_visibility_toggles).chain(),
+    );
+    for show in [true, false, true] {
+        app.world_mut()
+            .resource_mut::<HudOptions>()
+            .show_fps_overlay = show;
+        app.update();
+        let fps = app.world().resource::<FpsOverlayConfig>();
+        assert!(!fps.enabled);
+        assert!(!fps.frame_time_graph_config.enabled);
+    }
+}
+
+#[test]
 fn default_file_uses_expected_modal_position() {
     let file = ClientOptionsFile::default();
     assert!(!file.accepted_eula);

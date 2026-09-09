@@ -84,6 +84,7 @@ fn world_aabb_corners(aabb: &Aabb, transform: &GlobalTransform) -> [Vec3; 8] {
 }
 
 pub(super) fn spawn_target_circle(
+    ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
     current: Res<game_engine::targeting::CurrentTarget>,
     style: Res<TargetCircleStyle>,
     mut commands: Commands,
@@ -103,6 +104,9 @@ pub(super) fn spawn_target_circle(
     }
     for e in existing.iter() {
         commands.entity(e).despawn();
+    }
+    if ui_disabled.is_some() {
+        return;
     }
     let Some(target) = current.0 else { return };
     let Ok(tf) = target_tf.get(target) else {

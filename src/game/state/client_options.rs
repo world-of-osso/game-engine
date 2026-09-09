@@ -31,6 +31,9 @@ pub struct ClientOptionsPlugin;
 #[derive(Resource)]
 pub(crate) struct FrameTimeGraphDisabled;
 
+#[derive(Resource)]
+pub(crate) struct UiDisabled;
+
 impl Plugin for ClientOptionsPlugin {
     fn build(&self, app: &mut App) {
         let loaded = load_options_file();
@@ -396,6 +399,7 @@ fn apply_loaded_client_options(
     mut loaded: ResMut<LoadedClientOptions>,
     scene_stage: Option<Res<InWorldSceneStage>>,
     graph_disabled: Option<Res<FrameTimeGraphDisabled>>,
+    ui_disabled: Option<Res<UiDisabled>>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
     if loaded.applied {
@@ -404,7 +408,7 @@ fn apply_loaded_client_options(
     if let Some(fps) = fps.as_mut() {
         apply_fps_overlay_visibility(
             fps.as_mut(),
-            loaded.file.hud.show_fps_overlay,
+            loaded.file.hud.show_fps_overlay && ui_disabled.is_none(),
             scene_stage.as_deref().copied(),
             graph_disabled.is_some(),
         );
@@ -416,6 +420,7 @@ fn sync_hud_visibility_toggles(
     hud: Res<HudOptions>,
     scene_stage: Option<Res<InWorldSceneStage>>,
     graph_disabled: Option<Res<FrameTimeGraphDisabled>>,
+    ui_disabled: Option<Res<UiDisabled>>,
     mut toggles: ResMut<HudVisibilityToggles>,
     mut fps: Option<ResMut<FpsOverlayConfig>>,
 ) {
@@ -429,7 +434,7 @@ fn sync_hud_visibility_toggles(
     if let Some(fps) = fps.as_mut() {
         apply_fps_overlay_visibility(
             fps.as_mut(),
-            next.show_fps_overlay,
+            next.show_fps_overlay && ui_disabled.is_none(),
             scene_stage.as_deref().copied(),
             graph_disabled.is_some(),
         );
