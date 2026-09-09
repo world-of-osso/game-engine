@@ -51,6 +51,12 @@ Some helm models appear with `HelmetGeosetVis = 0,0` (e.g. display 1128), meanin
 
 `HelmetGeosetData.Field_10_0_0_46047_003` shows a binary `32`/`-1` pattern across hide groups but its meaning is unknown. See [helmet-geoset-extra-field-investigation-2026-03-28.md](../helmet-geoset-extra-field-investigation-2026-03-28.md).
 
+## Authored NPC Appearance
+
+Replicated humanoid NPCs load display-specific appearance rows from `cache/npc_appearance.sqlite` and queue a one-shot render request on their visual root after M2 creation. Full customization choice IDs select both direct and related materials/geosets; player UI indices are not used. The compositor supplies head/hair and eye textures. An authored baked body texture replaces the body atlas without clothing-erasing customization overlays; only an authored absence of a bake uses the composited body.
+
+Selected customization geosets use the existing character visibility rules, including persistent group-zero body segments. Authored display geoset overrides apply last. Each affected mesh receives a cloned material before binding replacement textures, so NPCs sharing initial M2 materials cannot overwrite one another. Ordinary displays without an authored appearance remain on their existing path. Cache, unresolved-choice, and required-texture failures report the display ID rather than silently rendering defaults. Runtime visual acceptance is tracked separately by the parent investigation.
+
 ## Target Circles
 
 WoW renders selection circles procedurally (ground-projected ring tinted by unit reaction). The engine supports both procedural and BLP-textured styles. DXT1 textures (no alpha) use additive blending; DXT5 textures (real alpha) use alpha blend. Auto-detected via `is_fully_opaque()` after BLP decode. See [target-circle-styles-2026-03-30.md](../target-circle-styles-2026-03-30.md).

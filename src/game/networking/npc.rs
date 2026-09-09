@@ -1,3 +1,6 @@
+#[path = "../../rendering/character/npc_appearance.rs"]
+mod npc_appearance;
+
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use lightyear::prelude::*;
@@ -178,6 +181,7 @@ fn npc_visibility_policy_is_active(
 }
 
 pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
+    npc_appearance::register_npc_appearance_systems(app);
     app.add_systems(
         Update,
         (
@@ -603,6 +607,10 @@ pub(crate) fn spawn_replicated_npc(
         display_map.as_deref(),
         display_scale,
     );
+    if m2_loaded {
+        let display_id = model_display.map_or(0, |display| display.display_id);
+        npc_appearance::queue_npc_appearance(&mut commands, visual_root, display_id);
+    }
     debug!(
         "Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})",
         npc.template_id, pos.x, pos.y, pos.z

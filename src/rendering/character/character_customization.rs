@@ -440,7 +440,7 @@ fn apply_geoset_visibility(
     }
 }
 
-fn is_geoset_visible(
+pub(crate) fn is_geoset_visible(
     mesh_part_id: u16,
     active_geosets: &[(u16, u16)],
     active_types: &[u16],
@@ -577,7 +577,7 @@ fn hidden_group_variant(
     }
 }
 
-fn apply_exact_geoset_overrides(
+pub(crate) fn apply_exact_geoset_overrides(
     mesh_part_id: u16,
     base_visible: bool,
     overrides: &[(u16, u16)],
