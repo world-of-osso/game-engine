@@ -346,14 +346,6 @@ fn update_minimap_composite(
     let Some(state) = current_minimap_composite_state(&player_q, composite_res) else {
         return;
     };
-    let tracking_points = collect_tracking_points(
-        tracking_state.as_deref(),
-        &world_object_q,
-        &herb_q,
-        &quest_q,
-        quest_log.as_deref(),
-    );
-
     let tile_gen = minimap.generated.len();
     let grid_changed = tile_grid_changed(&last, state.player_row, state.player_col, tile_gen);
     let pixel_changed = state.px_x != last.px_x || state.px_y != last.px_y;
@@ -361,6 +353,14 @@ fn update_minimap_composite(
     if !grid_changed && !pixel_changed {
         return;
     }
+
+    let tracking_points = collect_tracking_points(
+        tracking_state.as_deref(),
+        &world_object_q,
+        &herb_q,
+        &quest_q,
+        quest_log.as_deref(),
+    );
 
     if grid_changed {
         recomposite(
