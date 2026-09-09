@@ -200,7 +200,7 @@ fn graphics_config_effects_round_trip_preserves_unrelated_options() {
                 frameRateLimitEnabled: true, frameRateLimit: 120,
                 colorblindMode: true,
             ),
-            modal_offset: Some([13.0, -9.0]),
+            modal_offset: Some((13.0, -9.0)),
         )"#,
     );
     let graphics = GraphicsOptions::from_file(&loaded.graphics);
