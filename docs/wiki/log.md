@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid equal character-select shared-state inserts
+
+Updated [[ui-system]] for `1262fc58`: character selection, campsite, and delete-confirmation state reinsert only on change while screen synchronization and focus flow remain intact. Three focused tests pass; no CPU claim.
+
 ## [2026-09-09] systems | Avoid unchanged login shared-state insertions
 
 Updated [[ui-system]] for `70f14c2a`: unchanged login screen values preserve dependency generations while screen synchronization remains available. Three scoped tests, compiler check, and focused formatting pass; no native CPU claim.
