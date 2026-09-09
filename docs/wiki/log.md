@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Gate no-UI observer creation
+
+Updated [[ui-system]] for `711ade3c`: the shared UI gate hides the clock and prevents health-bar/player-nameplate/NPC-nameplate observers from creating UI assets/entities under `--no-ui`.
+
 ## [2026-09-09] investigations | Fix empty mesh uploads
 
 Updated [[movement-performance]] for `ebcee198`: skip GPU uploads for meshes that received no allocation. Real GPU empty/populated lifecycle regression passes; native `4ea941c3` InWorld capture has zero allocator errors. Patch provenance lives in [vendor/README.md](../../vendor/README.md#empty-mesh-uploads).
