@@ -34,9 +34,14 @@ Both types use `StandardMaterial` with `base_color` as tint, `base_color_texture
 
 A `TargetCircleStyle` resource was added with a picker in `InWorldSelectionDebug` for switching between procedural and BLP-textured styles. The blend mode detection (`is_fully_opaque()`) applies automatically based on decoded alpha.
 
+## Transform updates
+
+Commit `3ebbd348` retains target-circle translation and scale evaluation every update, while copying the existing rotation and applying the resulting `Transform` only when it differs. A stationary circle no longer creates a changed-transform notification; target movement still updates its translation. Proof covers those boundaries only; no CPU or rotation-specific claim.
+
 ## Sources
 
 - [target-circle-styles-2026-03-30.md](../../target-circle-styles-2026-03-30.md) — approach comparison, BLP inventory, material setup
+- `data/diagnostics/unchanged-writes-20260909/target-circle/` — conditional-transform RED/GREEN and verification evidence
 
 ## See Also
 
