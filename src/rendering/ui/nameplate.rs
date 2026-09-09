@@ -346,6 +346,127 @@ fn despawn_quest_indicator_model(
 mod tests {
     use super::*;
 
+    mod billboard_writes {
+        use super::*;
+
+        #[derive(Resource, Default)]
+        struct Changes(Vec<Entity>);
+
+        fn observe(query: Query<Entity, Changed<Transform>>, mut changes: ResMut<Changes>) {
+            changes.0 = query.iter().collect();
+        }
+
+        fn fixture() -> (App, Vec<Entity>, Transform) {
+            let mut app = App::new();
+            app.init_resource::<Changes>();
+            app.add_systems(Update, billboard_nameplates);
+            app.add_systems(PostUpdate, observe);
+            let pose = Transform::from_xyz(1.0, 2.0, 3.0)
+                .with_rotation(Quat::from_rotation_z(0.3))
+                .with_scale(Vec3::new(2.0, 3.0, 4.0));
+            let entities = vec![
+                app.world_mut().spawn((Nameplate, pose)).id(),
+                app.world_mut().spawn((QuestIndicatorModel, pose)).id(),
+            ];
+            (app, entities, pose)
+        }
+
+        fn assert_facing(app: &App, entities: &[Entity], camera: Vec3) {
+            for &entity in entities {
+                let pose = app.world().get::<Transform>(entity).unwrap();
+                let direction = (camera - pose.translation).normalize();
+                assert!((pose.rotation * Vec3::NEG_Z).distance(direction) < 0.00001);
+            }
+        }
+
+        fn assert_no_changes(app: &mut App) {
+            app.update();
+            assert!(app.world().resource::<Changes>().0.is_empty());
+        }
+
+        #[test]
+        fn stationary_billboards_do_not_mark_transforms_changed() {
+            let (mut app, entities, original) = fixture();
+            let position = Vec3::new(8.0, 5.0, 9.0);
+            app.world_mut().spawn((
+                Camera3d::default(),
+                GlobalTransform::from_translation(position),
+            ));
+            app.update();
+            assert_facing(&app, &entities, position);
+            for _ in 0..3 {
+                assert_no_changes(&mut app);
+            }
+            for entity in entities {
+                let pose = app.world().get::<Transform>(entity).unwrap();
+                assert_eq!(pose.translation, original.translation);
+                assert_eq!(pose.scale, original.scale);
+            }
+        }
+
+        #[test]
+        fn movement_updates_rotation_without_changing_position_or_scale() {
+            let (mut app, entities, original) = fixture();
+            let camera = app
+                .world_mut()
+                .spawn((
+                    Camera3d::default(),
+                    GlobalTransform::from_translation(Vec3::new(8.0, 5.0, 9.0)),
+                ))
+                .id();
+            app.update();
+            let position = Vec3::new(-5.0, 7.0, 4.0);
+            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
+                GlobalTransform::from_translation(position);
+            app.update();
+            assert_facing(&app, &entities, position);
+            assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
+            assert_no_changes(&mut app);
+            for &entity in &entities {
+                app.world_mut()
+                    .get_mut::<Transform>(entity)
+                    .unwrap()
+                    .bypass_change_detection()
+                    .translation = Vec3::new(3.0, 1.0, -2.0);
+            }
+            app.update();
+            assert_facing(&app, &entities, position);
+            assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
+            for entity in entities {
+                let pose = app.world().get::<Transform>(entity).unwrap();
+                assert_eq!(pose.translation, Vec3::new(3.0, 1.0, -2.0));
+                assert_eq!(pose.scale, original.scale);
+            }
+            assert_no_changes(&mut app);
+        }
+
+        #[test]
+        fn missing_multiple_and_degenerate_camera_inputs_leave_pose_unchanged() {
+            let (mut app, entities, original) = fixture();
+            app.update();
+            assert_no_changes(&mut app);
+            let camera = app
+                .world_mut()
+                .spawn((
+                    Camera3d::default(),
+                    GlobalTransform::from_translation(original.translation),
+                ))
+                .id();
+            assert_no_changes(&mut app);
+            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
+                GlobalTransform::from_translation(original.translation + Vec3::X * 0.01);
+            assert_no_changes(&mut app);
+            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
+                GlobalTransform::from_translation(Vec3::new(9.0, 8.0, 7.0));
+            app.world_mut()
+                .spawn((Camera3d::default(), GlobalTransform::IDENTITY));
+            assert_no_changes(&mut app);
+            for entity in entities {
+                assert_eq!(app.world().get::<Transform>(entity), Some(&original));
+            }
+        }
+    }
+
     #[derive(Resource, Default)]
     struct ColorChanges(Vec<Entity>);
 
