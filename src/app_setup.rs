@@ -289,7 +289,11 @@ fn m2_effect_material_plugin_is_enabled(stage: Option<InWorldSceneStage>) -> boo
 
 fn register_particle_plugin(app: &mut App) {
     let stage = app.world().get_resource::<InWorldSceneStage>().copied();
-    if particle_plugin_is_enabled(stage) {
+    let effects_enabled = app
+        .world()
+        .get_resource::<client_options::GraphicsOptions>()
+        .is_none_or(|graphics| graphics.particle_effects_enabled);
+    if particle_plugin_is_enabled(stage) && effects_enabled {
         app.add_plugins(particle::ParticlePlugin);
     }
 }

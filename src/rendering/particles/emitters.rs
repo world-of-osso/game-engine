@@ -262,21 +262,34 @@ pub(crate) fn trigger_pending_particle_bursts(
 
 pub fn spawn_emitters(
     commands: &mut Commands,
-    images: &mut Assets<Image>,
+    _images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
     bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,
     parent: Entity,
 ) {
-    spawn_emitters_with_mode(
-        commands,
-        images,
-        emitters,
-        bones,
-        bone_entities,
-        parent,
-        ParticleSpawnMode::Continuous,
-    );
+    let emitters = emitters.to_vec();
+    let bones = bones.to_vec();
+    let bone_entities = bone_entities.map(<[Entity]>::to_vec);
+    commands.queue(move |world: &mut World| {
+        if world
+            .get_resource::<GraphicsOptions>()
+            .is_some_and(|graphics| !graphics.particle_effects_enabled)
+        {
+            return;
+        }
+        world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
+            spawn_emitters_with_mode(
+                &mut world.commands(),
+                &mut images,
+                &emitters,
+                &bones,
+                bone_entities.as_deref(),
+                parent,
+                ParticleSpawnMode::Continuous,
+            );
+        });
+    });
 }
 
 pub(crate) fn spawn_emitters_with_mode(
