@@ -52,7 +52,11 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Nameplates
 
-Target-first nameplate design: current target gets full plate (name, health, cast), nearby combatants get compact plates, non-hostile/distant actors are hidden or faded. Three display states: hidden, compact, full. State driven by targeting, hostility, recent damage, and distance. See [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md).
+Name text is an unparented `Text2d` overlay on the existing `UiCamera` layer. `Camera3d::world_to_viewport` projects the actor's world anchor, then the UI camera converts the logical viewport point to its 2D world. The old text was parented into 3D actor space on layer0, but Bevy's sprite/text queue renders only `Transparent2d` camera phases; it never reached the 3D image. Layer changes alone cannot fix that.
+
+`NameplateOwner` is a linked ownership relationship, separate from transform parenting, so actor despawn removes its overlay label. NPCs use authoritative `Npc.name`; players use their name. Font sizes remain20/24 logical pixels, distance fade uses the owner world anchor, and hidden owners, off-screen/behind-camera anchors, UI stage, `--no-ui`, and HUD toggles determine one final visibility write. Position/global pose and final color update only when changed. Quest indicator M2s stay in their original world-space billboard path.
+
+Six CPU tests cover camera/actor movement, DPI1/2, visibility, fade, ownership cleanup and unchanged writes. A headless GPU fixture using the real NPC observer and both cameras reproduces zero glyph pixels before the fix and renders yellow glyphs at the projected anchor afterward. Native scene validation remains with integration. Target-first full/compact combat framing is a separate [design proposal](../../nameplate-research-2026-03-27.md), not implemented by this text projection correction.
 
 ## World NPC Picking
 

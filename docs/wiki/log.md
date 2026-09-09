@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] ui | Project world nameplates through the 2D overlay camera
+
+Corrected the `Text2d`/3D camera render-path mismatch in [[ui-system]]. Linked ownership preserves despawn cleanup without world-transform parenting. Six CPU projection/DPI/visibility/fade/lifecycle tests and a real-observer headless GPU RED/GREEN test pass; quest M2 billboarding remains world-space. Native integration remains pending.
+
 ## [2026-09-09] networking | Preserve authoritative NPC names in client snapshots
 
 Documented shared `Npc.name` (`c8a06c0`), server SQLite-template propagation (`fc46567`), and engine cloned snapshot delivery (`79a252be`) in [[networking]]. UTF-8 SQLite/spawn and worker/main snapshot fixtures cover data boundaries. This is not renderer or visible-nameplate proof.

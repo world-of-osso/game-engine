@@ -1,6 +1,10 @@
+use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
+use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
+use bevy::transform::TransformSystems;
 use shared::components::{Npc, Player as NetPlayer};
+use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
 use crate::asset::asset_cache;
 use crate::client_options::{
@@ -22,13 +26,20 @@ impl Plugin for NameplatePlugin {
         app.add_systems(
             Update,
             (
-                sync_nameplate_visibility,
-                sync_nameplate_colors,
+                sync_quest_indicator_visibility,
                 billboard_nameplates,
                 sync_quest_indicators,
             )
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
+        );
+        app.add_systems(
+            PostUpdate,
+            project_nameplates
+                .after(TransformSystems::Propagate)
+                .after(VisibilitySystems::VisibilityPropagate)
+                .before(VisibilitySystems::CheckVisibility)
+                .run_if(in_state(GameState::InWorld)),
         );
     }
 }
@@ -36,6 +47,18 @@ impl Plugin for NameplatePlugin {
 /// Marker component on the text entity displaying a nameplate.
 #[derive(Component)]
 pub(crate) struct Nameplate;
+
+/// Ownership without inheriting the actor's 3D transform.
+#[derive(Component)]
+#[relationship(relationship_target = OwnedNameplates)]
+struct NameplateOwner(Entity);
+
+#[derive(Component)]
+#[relationship_target(relationship = NameplateOwner, linked_spawn)]
+struct OwnedNameplates(Vec<Entity>);
+
+#[derive(Component)]
+struct NameplateOffset(f32);
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
 enum NameplateKind {
@@ -56,8 +79,6 @@ const NPC_NAMEPLATE_Y: f32 = 2.5;
 const PLAYER_FONT_SIZE: f32 = 24.0;
 const NPC_FONT_SIZE: f32 = 20.0;
 const NPC_NAME_COLOR: Color = Color::srgb(1.0, 0.82, 0.0);
-/// Text scale to keep world-space text reasonably sized.
-const TEXT_SCALE: f32 = 0.02;
 /// Y offset for quest indicator M2 above the NPC origin.
 const QUEST_INDICATOR_Y: f32 = 3.5;
 
@@ -76,15 +97,15 @@ fn spawn_player_nameplate(
     let Ok(player) = query.get(entity) else {
         return;
     };
-    let nameplate = spawn_nameplate_entity(
+    spawn_nameplate_entity(
         &mut commands,
+        entity,
         &player.name,
         Color::WHITE,
         PLAYER_FONT_SIZE,
         PLAYER_NAMEPLATE_Y,
         NameplateKind::Player,
     );
-    commands.entity(entity).add_child(nameplate);
 }
 
 /// Observer: spawn a nameplate child when an Npc is added.
@@ -100,21 +121,21 @@ fn spawn_npc_nameplate(
     }
     let entity = trigger.entity;
     let Ok(npc) = query.get(entity) else { return };
-    let label = format!("Creature {}", npc.template_id);
-    let nameplate = spawn_nameplate_entity(
+    spawn_nameplate_entity(
         &mut commands,
-        &label,
+        entity,
+        &npc.name,
         NPC_NAME_COLOR,
         NPC_FONT_SIZE,
         NPC_NAMEPLATE_Y,
         NameplateKind::Npc,
     );
-    commands.entity(entity).add_child(nameplate);
 }
 
-/// Create a Text2d nameplate entity positioned above the parent.
+/// Create overlay text; projection supplies its screen position before extraction.
 fn spawn_nameplate_entity(
     commands: &mut Commands,
+    owner: Entity,
     text: &str,
     color: Color,
     font_size: f32,
@@ -124,6 +145,10 @@ fn spawn_nameplate_entity(
     commands
         .spawn((
             Nameplate,
+            NameplateOwner(owner),
+            NameplateOffset(y_offset),
+            Name::new(format!("Nameplate: {text}")),
+            RenderLayers::layer(UI_RENDER_LAYER),
             kind,
             Text2d::new(text),
             TextFont {
@@ -131,16 +156,16 @@ fn spawn_nameplate_entity(
                 ..default()
             },
             TextColor(color),
-            Transform::from_xyz(0.0, y_offset, 0.0).with_scale(Vec3::splat(TEXT_SCALE)),
-            Visibility::default(),
+            Transform::default(),
+            Visibility::Hidden,
         ))
         .id()
 }
 
-fn sync_nameplate_visibility(
+fn sync_quest_indicator_visibility(
     ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
     hud_visibility: Option<Res<HudVisibilityToggles>>,
-    mut query: Query<&mut Visibility, Or<(With<Nameplate>, With<QuestIndicatorModel>)>>,
+    mut query: Query<&mut Visibility, With<QuestIndicatorModel>>,
 ) {
     let visible =
         ui_disabled.is_none() && hud_visibility.is_none_or(|toggles| toggles.show_nameplates);
@@ -153,32 +178,135 @@ fn sync_nameplate_visibility(
     }
 }
 
-fn sync_nameplate_colors(
-    graphics_options: Option<Res<GraphicsOptions>>,
-    camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    hud_options: Option<Res<HudOptions>>,
-    mut query: Query<(&NameplateKind, Option<&GlobalTransform>, &mut TextColor), With<Nameplate>>,
+type WorldCameraQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Camera, &'static GlobalTransform),
+    (With<Camera3d>, Without<Nameplate>),
+>;
+type OverlayCameraQuery<'w, 's> = Query<
+    'w,
+    's,
+    (&'static Camera, &'static GlobalTransform),
+    (With<UiCamera>, Without<Nameplate>),
+>;
+type NameplateQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static NameplateOwner,
+        &'static NameplateOffset,
+        &'static NameplateKind,
+        &'static mut Transform,
+        &'static mut GlobalTransform,
+        &'static mut TextColor,
+        &'static mut Visibility,
+    ),
+    With<Nameplate>,
+>;
+
+#[derive(SystemParam)]
+struct NameplateOptions<'w> {
+    graphics: Option<Res<'w, GraphicsOptions>>,
+    hud: Option<Res<'w, HudOptions>>,
+    toggles: Option<Res<'w, HudVisibilityToggles>>,
+    disabled: Option<Res<'w, crate::client_options::UiDisabled>>,
+    stage: Option<Res<'w, InWorldSceneStage>>,
+}
+
+struct ProjectedPlate {
+    position: Vec2,
+    alpha: f32,
+}
+
+fn project_nameplates(
+    options: NameplateOptions,
+    world_camera: WorldCameraQuery,
+    overlay_camera: OverlayCameraQuery,
+    owners: Query<(&GlobalTransform, &InheritedVisibility), Without<Nameplate>>,
+    mut plates: NameplateQuery,
 ) {
-    let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    let camera_position = camera_query.single().ok().map(GlobalTransform::translation);
-    let fade_far = hud_options
+    let enabled = inworld_scene_stage_allows_ui(options.stage, options.disabled)
+        && options
+            .toggles
+            .is_none_or(|toggles| toggles.show_nameplates);
+    let fade_far = options
+        .hud
         .as_deref()
         .map_or(DEFAULT_NAMEPLATE_DISTANCE, |hud| hud.nameplate_distance);
-    for (kind, transform, mut color) in &mut query {
-        let mut desired = nameplate_text_color(*kind, colorblind_mode);
-        // Without one camera (or a world transform), retain the base-color behavior.
-        if let (Some(camera_position), Some(transform)) = (camera_position, transform) {
-            let distance = camera_position.distance(transform.translation());
-            desired = desired.with_alpha(nameplate_alpha(distance, fade_far));
+    let colorblind = options
+        .graphics
+        .is_some_and(|graphics| graphics.colorblind_mode);
+    for (owner, offset, kind, mut transform, mut global, mut color, mut visibility) in &mut plates {
+        let projected = enabled
+            .then(|| {
+                project_owner(
+                    owner.0,
+                    offset.0,
+                    fade_far,
+                    &owners,
+                    &world_camera,
+                    &overlay_camera,
+                )
+            })
+            .flatten();
+        let desired_visibility = if projected.is_some() {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+        visibility.set_if_neq(desired_visibility);
+        if let Some(projected) = projected {
+            let desired = Transform::from_translation(projected.position.extend(1.0));
+            transform.set_if_neq(desired);
+            // Labels are unparented UI roots. Update their global pose here because
+            // current-frame owner/camera globals are only ready after propagation.
+            global.set_if_neq(GlobalTransform::from(desired));
+            color.set_if_neq(TextColor(
+                nameplate_text_color(*kind, colorblind).with_alpha(projected.alpha),
+            ));
         }
-        color.set_if_neq(TextColor(desired));
     }
+}
+
+fn project_owner(
+    owner: Entity,
+    height: f32,
+    fade_far: f32,
+    owners: &Query<(&GlobalTransform, &InheritedVisibility), Without<Nameplate>>,
+    world_camera: &WorldCameraQuery,
+    overlay_camera: &OverlayCameraQuery,
+) -> Option<ProjectedPlate> {
+    let (owner_global, inherited) = owners.get(owner).ok()?;
+    if !inherited.get() {
+        return None;
+    }
+    let (world_camera, world_transform) = world_camera.single().ok()?;
+    let (overlay_camera, overlay_transform) = overlay_camera.single().ok()?;
+    if !world_camera.is_active || !overlay_camera.is_active {
+        return None;
+    }
+    let anchor = owner_global.translation() + Vec3::Y * height;
+    let alpha = nameplate_alpha(world_transform.translation().distance(anchor), fade_far);
+    if alpha <= 0.0 {
+        return None;
+    }
+    let viewport = world_camera
+        .world_to_viewport(world_transform, anchor)
+        .ok()?;
+    if !world_camera.logical_viewport_rect()?.contains(viewport) {
+        return None;
+    }
+    let position = overlay_camera
+        .viewport_to_world_2d(overlay_transform, viewport)
+        .ok()?;
+    Some(ProjectedPlate { position, alpha })
 }
 
 /// Rotate nameplates to always face the camera (billboard effect).
 fn billboard_nameplates(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    mut plate_query: Query<&mut Transform, Or<(With<Nameplate>, With<QuestIndicatorModel>)>>,
+    mut plate_query: Query<&mut Transform, With<QuestIndicatorModel>>,
 ) {
     let Ok(camera_global) = camera_query.single() else {
         return;
@@ -345,580 +473,9 @@ fn despawn_quest_indicator_model(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+#[path = "nameplate_gpu_tests.rs"]
+mod gpu_tests;
 
-    mod billboard_writes {
-        use super::*;
-
-        #[derive(Resource, Default)]
-        struct Changes(Vec<Entity>);
-
-        fn observe(
-            query: Query<
-                Entity,
-                (
-                    Changed<Transform>,
-                    Or<(With<Nameplate>, With<QuestIndicatorModel>)>,
-                ),
-            >,
-            mut changes: ResMut<Changes>,
-        ) {
-            changes.0 = query.iter().collect();
-        }
-
-        fn fixture() -> (App, Vec<Entity>, Transform) {
-            let mut app = App::new();
-            app.init_resource::<Changes>();
-            app.add_systems(Update, billboard_nameplates);
-            app.add_systems(PostUpdate, observe);
-            let pose = Transform::from_xyz(1.0, 2.0, 3.0)
-                .with_rotation(Quat::from_rotation_z(0.3))
-                .with_scale(Vec3::new(2.0, 3.0, 4.0));
-            let entities = vec![
-                app.world_mut().spawn((Nameplate, pose)).id(),
-                app.world_mut().spawn((QuestIndicatorModel, pose)).id(),
-            ];
-            (app, entities, pose)
-        }
-
-        fn assert_facing(app: &App, entities: &[Entity], camera: Vec3) {
-            for &entity in entities {
-                let pose = app.world().get::<Transform>(entity).unwrap();
-                let direction = (camera - pose.translation).normalize();
-                assert!((pose.rotation * Vec3::NEG_Z).distance(direction) < 0.00001);
-            }
-        }
-
-        fn assert_no_changes(app: &mut App) {
-            app.update();
-            assert!(app.world().resource::<Changes>().0.is_empty());
-        }
-
-        #[test]
-        fn stationary_billboards_do_not_mark_transforms_changed() {
-            let (mut app, entities, original) = fixture();
-            let position = Vec3::new(8.0, 5.0, 9.0);
-            app.world_mut().spawn((
-                Camera3d::default(),
-                GlobalTransform::from_translation(position),
-            ));
-            app.update();
-            assert_facing(&app, &entities, position);
-            for _ in 0..3 {
-                assert_no_changes(&mut app);
-            }
-            for entity in entities {
-                let pose = app.world().get::<Transform>(entity).unwrap();
-                assert_eq!(pose.translation, original.translation);
-                assert_eq!(pose.scale, original.scale);
-            }
-        }
-
-        #[test]
-        fn movement_updates_rotation_without_changing_position_or_scale() {
-            let (mut app, entities, original) = fixture();
-            let camera = app
-                .world_mut()
-                .spawn((
-                    Camera3d::default(),
-                    GlobalTransform::from_translation(Vec3::new(8.0, 5.0, 9.0)),
-                ))
-                .id();
-            app.update();
-            let position = Vec3::new(-5.0, 7.0, 4.0);
-            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
-                GlobalTransform::from_translation(position);
-            app.update();
-            assert_facing(&app, &entities, position);
-            assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
-            assert_no_changes(&mut app);
-            for &entity in &entities {
-                app.world_mut()
-                    .get_mut::<Transform>(entity)
-                    .unwrap()
-                    .bypass_change_detection()
-                    .translation = Vec3::new(3.0, 1.0, -2.0);
-            }
-            app.update();
-            assert_facing(&app, &entities, position);
-            assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
-            for entity in entities {
-                let pose = app.world().get::<Transform>(entity).unwrap();
-                assert_eq!(pose.translation, Vec3::new(3.0, 1.0, -2.0));
-                assert_eq!(pose.scale, original.scale);
-            }
-            assert_no_changes(&mut app);
-        }
-
-        #[test]
-        fn missing_multiple_and_degenerate_camera_inputs_leave_pose_unchanged() {
-            let (mut app, entities, original) = fixture();
-            app.update();
-            assert_no_changes(&mut app);
-            let camera = app
-                .world_mut()
-                .spawn((
-                    Camera3d::default(),
-                    GlobalTransform::from_translation(original.translation),
-                ))
-                .id();
-            assert_no_changes(&mut app);
-            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
-                GlobalTransform::from_translation(original.translation + Vec3::X * 0.01);
-            assert_no_changes(&mut app);
-            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
-                GlobalTransform::from_translation(Vec3::new(9.0, 8.0, 7.0));
-            app.world_mut()
-                .spawn((Camera3d::default(), GlobalTransform::IDENTITY));
-            assert_no_changes(&mut app);
-            for entity in entities {
-                assert_eq!(app.world().get::<Transform>(entity), Some(&original));
-            }
-        }
-    }
-
-    #[derive(Resource, Default)]
-    struct ColorChanges(Vec<Entity>);
-
-    fn observe_color_changes(
-        query: Query<Entity, (With<Nameplate>, Changed<TextColor>)>,
-        mut changes: ResMut<ColorChanges>,
-    ) {
-        changes.0 = query.iter().collect();
-    }
-
-    fn color_test_app() -> App {
-        let mut app = App::new();
-        app.init_resource::<GraphicsOptions>();
-        app.init_resource::<ColorChanges>();
-        app.add_systems(Update, sync_nameplate_colors);
-        app.add_systems(PostUpdate, observe_color_changes);
-        app
-    }
-
-    fn spawn_color_plate(app: &mut App, kind: NameplateKind) -> Entity {
-        app.world_mut()
-            .spawn((
-                Nameplate,
-                kind,
-                TextColor(Color::BLACK),
-                GlobalTransform::IDENTITY,
-            ))
-            .id()
-    }
-
-    fn assert_color_frame(app: &mut App, expected: &[(Entity, Color)], changed: &[Entity]) {
-        app.update();
-        for &(entity, color) in expected {
-            assert_eq!(
-                app.world().get::<TextColor>(entity),
-                Some(&TextColor(color))
-            );
-        }
-        let observed = &app.world().resource::<ColorChanges>().0;
-        assert_eq!(observed.len(), changed.len(), "unexpected color changes");
-        for entity in changed {
-            assert!(
-                observed.contains(entity),
-                "missing color change for {entity:?}"
-            );
-        }
-    }
-
-    fn faded_color_test_app() -> (App, Entity, Entity) {
-        let mut app = color_test_app();
-        app.insert_resource(HudOptions {
-            nameplate_distance: 20.0,
-            ..default()
-        });
-        let camera = app
-            .world_mut()
-            .spawn((Camera3d::default(), GlobalTransform::IDENTITY))
-            .id();
-        let plate = spawn_color_plate(&mut app, NameplateKind::Npc);
-        app.world_mut()
-            .entity_mut(plate)
-            .insert(GlobalTransform::from_translation(Vec3::new(15.0, 0.0, 0.0)));
-        (app, camera, plate)
-    }
-
-    #[test]
-    fn nameplate_final_color_stays_unchanged_after_distance_fade() {
-        let (mut app, _, plate) = faded_color_test_app();
-        let yellow = Color::srgba(1.0, 1.0, 0.0, 0.5);
-        app.update();
-        app.update();
-        assert!(app.world().resource::<ColorChanges>().0.is_empty());
-        for _ in 0..3 {
-            assert_color_frame(&mut app, &[(plate, yellow)], &[]);
-        }
-    }
-
-    #[test]
-    fn nameplate_final_color_tracks_inputs_and_new_plates() {
-        let (mut app, camera, plate) = faded_color_test_app();
-        assert_color_frame(
-            &mut app,
-            &[(plate, Color::srgba(1.0, 1.0, 0.0, 0.5))],
-            &[plate],
-        );
-        app.world_mut()
-            .entity_mut(camera)
-            .insert(GlobalTransform::from_translation(Vec3::new(5.0, 0.0, 0.0)));
-        assert_color_frame(
-            &mut app,
-            &[(plate, Color::srgba(1.0, 1.0, 0.0, 1.0))],
-            &[plate],
-        );
-        app.world_mut()
-            .resource_mut::<GraphicsOptions>()
-            .colorblind_mode = true;
-        assert_color_frame(
-            &mut app,
-            &[(plate, Color::srgba(1.0, 0.92, 0.35, 1.0))],
-            &[plate],
-        );
-        app.world_mut()
-            .entity_mut(plate)
-            .insert(NameplateKind::Player);
-        let friendly = Color::srgba(0.45, 0.9, 1.0, 1.0);
-        assert_color_frame(&mut app, &[(plate, friendly)], &[plate]);
-        app.world_mut()
-            .resource_mut::<HudOptions>()
-            .nameplate_distance = 10.0;
-        assert_color_frame(&mut app, &[(plate, friendly.with_alpha(0.0))], &[plate]);
-        app.world_mut()
-            .entity_mut(plate)
-            .insert(GlobalTransform::from_translation(Vec3::new(12.5, 0.0, 0.0)));
-        let faded = friendly.with_alpha(0.5);
-        assert_color_frame(&mut app, &[(plate, faded)], &[plate]);
-        let added = spawn_color_plate(&mut app, NameplateKind::Player);
-        app.world_mut()
-            .entity_mut(added)
-            .insert(GlobalTransform::from_translation(Vec3::new(12.5, 0.0, 0.0)));
-        assert_color_frame(&mut app, &[(plate, faded), (added, faded)], &[added]);
-        assert_color_frame(&mut app, &[(plate, faded), (added, faded)], &[]);
-    }
-
-    #[test]
-    fn nameplate_final_color_uses_base_color_without_unique_camera() {
-        let (mut app, camera, plate) = faded_color_test_app();
-        let yellow = Color::srgba(1.0, 1.0, 0.0, 1.0);
-        assert_color_frame(&mut app, &[(plate, yellow.with_alpha(0.5))], &[plate]);
-        let second = app
-            .world_mut()
-            .spawn((Camera3d::default(), GlobalTransform::IDENTITY))
-            .id();
-        assert_color_frame(&mut app, &[(plate, yellow)], &[plate]);
-        assert_color_frame(&mut app, &[(plate, yellow)], &[]);
-        app.world_mut().despawn(second);
-        assert_color_frame(&mut app, &[(plate, yellow.with_alpha(0.5))], &[plate]);
-        app.world_mut().despawn(camera);
-        assert_color_frame(&mut app, &[(plate, yellow)], &[plate]);
-        app.world_mut()
-            .resource_mut::<GraphicsOptions>()
-            .colorblind_mode = true;
-        assert_color_frame(
-            &mut app,
-            &[(plate, Color::srgba(1.0, 0.92, 0.35, 1.0))],
-            &[plate],
-        );
-        assert_color_frame(
-            &mut app,
-            &[(plate, Color::srgba(1.0, 0.92, 0.35, 1.0))],
-            &[],
-        );
-    }
-
-    #[test]
-    fn nameplate_color_sync_leaves_stable_frames_unchanged() {
-        let mut app = color_test_app();
-        let player = spawn_color_plate(&mut app, NameplateKind::Player);
-        let npc = spawn_color_plate(&mut app, NameplateKind::Npc);
-        let expected = [
-            (player, Color::srgba(1.0, 1.0, 1.0, 1.0)),
-            (npc, Color::srgba(1.0, 1.0, 0.0, 1.0)),
-        ];
-        assert_color_frame(&mut app, &expected, &[player, npc]);
-        for _ in 0..3 {
-            assert_color_frame(&mut app, &expected, &[]);
-        }
-    }
-
-    #[test]
-    fn nameplate_color_sync_applies_mode_and_kind_changes() {
-        let mut app = color_test_app();
-        let entity = spawn_color_plate(&mut app, NameplateKind::Player);
-        assert_color_frame(
-            &mut app,
-            &[(entity, Color::srgba(1.0, 1.0, 1.0, 1.0))],
-            &[entity],
-        );
-        app.world_mut()
-            .resource_mut::<GraphicsOptions>()
-            .colorblind_mode = true;
-        let friendly = Color::srgba(0.45, 0.9, 1.0, 1.0);
-        assert_color_frame(&mut app, &[(entity, friendly)], &[entity]);
-        assert_color_frame(&mut app, &[(entity, friendly)], &[]);
-        app.world_mut()
-            .entity_mut(entity)
-            .insert(NameplateKind::Npc);
-        let neutral = Color::srgba(1.0, 0.92, 0.35, 1.0);
-        assert_color_frame(&mut app, &[(entity, neutral)], &[entity]);
-        app.world_mut()
-            .resource_mut::<GraphicsOptions>()
-            .colorblind_mode = false;
-        let yellow = Color::srgba(1.0, 1.0, 0.0, 1.0);
-        assert_color_frame(&mut app, &[(entity, yellow)], &[entity]);
-        assert_color_frame(&mut app, &[(entity, yellow)], &[]);
-    }
-
-    #[test]
-    fn nameplate_color_sync_initializes_new_entities_without_touching_existing() {
-        let mut app = color_test_app();
-        app.world_mut()
-            .resource_mut::<GraphicsOptions>()
-            .colorblind_mode = true;
-        let player = spawn_color_plate(&mut app, NameplateKind::Player);
-        let friendly = Color::srgba(0.45, 0.9, 1.0, 1.0);
-        assert_color_frame(&mut app, &[(player, friendly)], &[player]);
-        let npc = spawn_color_plate(&mut app, NameplateKind::Npc);
-        let expected = [
-            (player, friendly),
-            (npc, Color::srgba(1.0, 0.92, 0.35, 1.0)),
-        ];
-        assert_color_frame(&mut app, &expected, &[npc]);
-        assert_color_frame(&mut app, &expected, &[]);
-    }
-
-    #[derive(Resource, Default)]
-    struct VisibilityChanges(Vec<Entity>);
-
-    fn observe_visibility_changes(
-        query: Query<Entity, Changed<Visibility>>,
-        mut changes: ResMut<VisibilityChanges>,
-    ) {
-        changes.0 = query.iter().collect();
-    }
-
-    fn spawn_visibility_pair(app: &mut App, visibility: Visibility) -> [Entity; 2] {
-        [
-            app.world_mut().spawn((Nameplate, visibility)).id(),
-            app.world_mut()
-                .spawn((QuestIndicatorModel, visibility))
-                .id(),
-        ]
-    }
-
-    fn assert_visibility_frame(
-        app: &mut App,
-        entities: &[Entity],
-        expected: Visibility,
-        changed: &[Entity],
-    ) {
-        app.update();
-        for &entity in entities {
-            assert_eq!(app.world().get::<Visibility>(entity), Some(&expected));
-        }
-        let observed = &app.world().resource::<VisibilityChanges>().0;
-        assert_eq!(
-            observed.len(),
-            changed.len(),
-            "unexpected visibility changes"
-        );
-        for entity in changed {
-            assert!(observed.contains(entity), "missing change for {entity:?}");
-        }
-    }
-
-    #[test]
-    fn no_ui_hides_nameplates_and_quest_indicators() {
-        let mut app = App::new();
-        app.insert_resource(crate::client_options::UiDisabled);
-        app.add_systems(Update, sync_nameplate_visibility);
-        let entities = spawn_visibility_pair(&mut app, Visibility::Visible);
-        app.update();
-        for entity in entities {
-            assert_eq!(
-                app.world().get::<Visibility>(entity),
-                Some(&Visibility::Hidden)
-            );
-        }
-    }
-
-    #[test]
-    fn nameplate_visibility_changes_only_when_needed() {
-        for initial_toggle in [None, Some(true), Some(false)] {
-            let mut app = App::new();
-            app.init_resource::<VisibilityChanges>();
-            app.add_systems(Update, sync_nameplate_visibility);
-            app.add_systems(PostUpdate, observe_visibility_changes);
-            if let Some(show_nameplates) = initial_toggle {
-                app.insert_resource(HudVisibilityToggles {
-                    show_nameplates,
-                    ..default()
-                });
-            }
-            let initial_visibility = if initial_toggle == Some(false) {
-                Visibility::Hidden
-            } else {
-                Visibility::Inherited
-            };
-            let mut entities = spawn_visibility_pair(&mut app, Visibility::Visible).to_vec();
-            let initial_entities = entities.clone();
-            assert_visibility_frame(&mut app, &entities, initial_visibility, &initial_entities);
-            for _ in 0..2 {
-                assert_visibility_frame(&mut app, &entities, initial_visibility, &[]);
-            }
-
-            // New mismatched entities must be corrected even with unchanged HUD input.
-            let added = spawn_visibility_pair(&mut app, Visibility::Visible);
-            entities.extend(added);
-            assert_visibility_frame(&mut app, &entities, initial_visibility, &added);
-            assert_visibility_frame(&mut app, &entities, initial_visibility, &[]);
-
-            let mut previous = initial_visibility;
-            for show_nameplates in [false, true] {
-                app.insert_resource(HudVisibilityToggles {
-                    show_nameplates,
-                    ..default()
-                });
-                let expected = if show_nameplates {
-                    Visibility::Inherited
-                } else {
-                    Visibility::Hidden
-                };
-                let changed = if expected == previous {
-                    &[][..]
-                } else {
-                    &entities
-                };
-                assert_visibility_frame(&mut app, &entities, expected, changed);
-                for _ in 0..2 {
-                    assert_visibility_frame(&mut app, &entities, expected, &[]);
-                }
-                previous = expected;
-            }
-        }
-    }
-
-    #[test]
-    fn no_ui_nameplate_observers_do_not_spawn_children() {
-        for disabled in [false, true] {
-            let mut app = App::new();
-            if disabled {
-                app.insert_resource(crate::client_options::UiDisabled);
-            }
-            app.add_observer(spawn_player_nameplate);
-            app.add_observer(spawn_npc_nameplate);
-            let player = app
-                .world_mut()
-                .spawn(NetPlayer {
-                    name: "Theron".into(),
-                    race: 1,
-                    class: 2,
-                    appearance: default(),
-                })
-                .id();
-            let npc = app
-                .world_mut()
-                .spawn(Npc {
-                    template_id: 1642,
-                    name: "Fixture wolf".into(),
-                })
-                .id();
-            app.update();
-            let expected = usize::from(!disabled);
-            for parent in [player, npc] {
-                assert_eq!(
-                    app.world()
-                        .get::<Children>(parent)
-                        .map_or(0, |children| children.len()),
-                    expected
-                );
-            }
-            let mut nameplates = app.world_mut().query_filtered::<Entity, With<Nameplate>>();
-            assert_eq!(nameplates.iter(app.world()).count(), expected * 2);
-        }
-    }
-
-    #[test]
-    fn no_npcs_ui_skips_replicated_npc_nameplate_creation() {
-        for (selector, expected_count) in [("ui", 1), ("no-npcs-ui", 0)] {
-            let mut app = App::new();
-            app.insert_resource(InWorldSceneStage::parse(selector).expect("valid selector"));
-            app.add_observer(spawn_npc_nameplate);
-            let npc = app
-                .world_mut()
-                .spawn(Npc {
-                    template_id: 1642,
-                    name: "Fixture wolf".into(),
-                })
-                .id();
-            app.update();
-
-            let mut nameplates = app.world_mut().query_filtered::<Entity, With<Nameplate>>();
-            assert_eq!(nameplates.iter(app.world()).count(), expected_count);
-            assert!(app.world().get::<Npc>(npc).is_some());
-        }
-    }
-
-    #[test]
-    fn test_player_nameplate_color() {
-        // Player nameplates should be white.
-        let color = Color::WHITE;
-        let srgba = color.to_srgba();
-        assert!((srgba.red - 1.0).abs() < 1e-4);
-        assert!((srgba.green - 1.0).abs() < 1e-4);
-        assert!((srgba.blue - 1.0).abs() < 1e-4);
-    }
-
-    #[test]
-    fn test_npc_nameplate_color() {
-        // NPC nameplates should be WoW yellow.
-        let srgba = NPC_NAME_COLOR.to_srgba();
-        assert!((srgba.red - 1.0).abs() < 1e-4);
-        assert!((srgba.green - 0.82).abs() < 1e-4);
-        assert!((srgba.blue - 0.0).abs() < 1e-4);
-    }
-
-    #[test]
-    fn test_fade_at_distance() {
-        assert!((nameplate_alpha(10.0, DEFAULT_NAMEPLATE_DISTANCE) - 1.0).abs() < 1e-4);
-        assert!((nameplate_alpha(30.0, DEFAULT_NAMEPLATE_DISTANCE) - 0.5).abs() < 1e-4);
-        assert!((nameplate_alpha(40.0, DEFAULT_NAMEPLATE_DISTANCE)).abs() < 1e-4);
-        assert!((nameplate_alpha(50.0, DEFAULT_NAMEPLATE_DISTANCE)).abs() < 1e-4);
-    }
-
-    #[test]
-    fn farther_nameplate_distance_pushes_fade_out() {
-        assert!((nameplate_alpha(30.0, 60.0) - 1.0).abs() < 1e-4);
-        assert!((nameplate_alpha(45.0, 60.0) - 0.5).abs() < 1e-4);
-        assert!((nameplate_alpha(60.0, 60.0)).abs() < 1e-4);
-    }
-
-    #[test]
-    fn colorblind_player_nameplate_uses_friendly_palette() {
-        let srgba = nameplate_text_color(NameplateKind::Player, true).to_srgba();
-        let expected = UnitReaction::Friendly.name_color_for_mode(true);
-        assert!((srgba.red - expected[0]).abs() < 1e-4);
-        assert!((srgba.green - expected[1]).abs() < 1e-4);
-        assert!((srgba.blue - expected[2]).abs() < 1e-4);
-    }
-
-    #[test]
-    fn npc_quest_indicator_wraps_enum() {
-        let qi = NpcQuestIndicator(QuestIndicator::Available);
-        assert!(qi.0.is_visible());
-        assert_eq!(qi.0.glyph(), "!");
-
-        let none = NpcQuestIndicator(QuestIndicator::None);
-        assert!(!none.0.is_visible());
-    }
-
-    #[test]
-    fn quest_indicator_y_above_nameplate() {
-        assert!(QUEST_INDICATOR_Y > NPC_NAMEPLATE_Y);
-    }
-}
+#[cfg(test)]
+#[path = "nameplate_projection_tests.rs"]
+mod tests;
