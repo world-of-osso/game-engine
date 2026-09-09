@@ -609,7 +609,7 @@ pub(crate) fn spawn_replicated_npc(
     );
     if m2_loaded {
         let display_id = model_display.map_or(0, |display| display.display_id);
-        npc_appearance::queue_npc_appearance(&mut commands, visual_root, display_id);
+        npc_appearance::load_and_queue_npc_appearance(&mut commands, visual_root, display_id);
     }
     debug!(
         "Spawned NPC template_id={} m2={m2_loaded} at ({:.0}, {:.0}, {:.0})",

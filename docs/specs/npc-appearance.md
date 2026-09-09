@@ -6,7 +6,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 - [x] Retain full customization choice IDs and apply related materials/geosets only when their required choice is selected; unresolved choices produce an explicit error.
 - [x] Use an authored baked body texture without overwriting its clothing with the composited body. An authored absence of a bake uses composition; an unavailable declared bake is an error.
-- [x] Bind distinct body/hair textures to individual NPCs without mutating shared materials or ordinary entities outside the affected visual subtree.
+- [x] Bind distinct body/hair textures to individual NPCs without mutating shared materials or ordinary entities outside the affected visual subtree. Material target10 declares a separate hair texture for M2 type6; failed declared hair composition is an error, not a head-texture substitute. Without target10, type6 uses the composed head atlas.
 - [x] Apply selected geosets followed by authored overrides, preserving character group-zero body rules; apply each added request once rather than reallocating materials every update.
 - [ ] The real replicated-NPC spawn path must produce visibly correct clothing and distinct authored hairstyles/colors for the affected Northshire scene.
 

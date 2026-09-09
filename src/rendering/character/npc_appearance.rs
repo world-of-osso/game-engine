@@ -16,7 +16,11 @@ pub(super) struct NpcAppearanceRequest {
     appearance: AuthoredNpcAppearance,
 }
 
-pub(super) fn queue_npc_appearance(commands: &mut Commands, root: Entity, display_id: u32) {
+pub(super) fn load_and_queue_npc_appearance(
+    commands: &mut Commands,
+    root: Entity,
+    display_id: u32,
+) {
     let appearance =
         load_authored_npc_appearance(display_id).unwrap_or_else(|error| panic!("{error}"));
     if let Some(appearance) = appearance {
@@ -45,22 +49,7 @@ fn resolve_npc_choices<'a>(
             continue;
         }
         missing.remove(&choice.id);
-        result.materials.extend_from_slice(&choice.materials);
-        result.materials.extend(
-            choice
-                .related_materials
-                .iter()
-                .filter(|material| selected.contains(&material.related_choice_id))
-                .map(|material| (material.target_id, material.fdid)),
-        );
-        result.geosets.extend_from_slice(&choice.geosets);
-        result.geosets.extend(
-            choice
-                .related_geosets
-                .iter()
-                .filter(|geoset| selected.contains(&geoset.related_choice_id))
-                .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
-        );
+        append_selected_choice(&mut result, choice, &selected);
     }
     if !missing.is_empty() {
         let mut missing: Vec<_> = missing.into_iter().collect();
@@ -71,6 +60,29 @@ fn resolve_npc_choices<'a>(
         ));
     }
     Ok(result)
+}
+
+fn append_selected_choice(
+    output: &mut NpcSelections,
+    choice: &CustomizationChoice,
+    selected: &HashSet<u32>,
+) {
+    output.materials.extend_from_slice(&choice.materials);
+    output.materials.extend(
+        choice
+            .related_materials
+            .iter()
+            .filter(|material| selected.contains(&material.related_choice_id))
+            .map(|material| (material.target_id, material.fdid)),
+    );
+    output.geosets.extend_from_slice(&choice.geosets);
+    output.geosets.extend(
+        choice
+            .related_geosets
+            .iter()
+            .filter(|geoset| selected.contains(&geoset.related_choice_id))
+            .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
+    );
 }
 
 #[derive(Component)]
@@ -101,8 +113,13 @@ fn prepare_npc_appearance(
                 appearance.race, appearance.sex
             )
         })?;
-    let textures =
-        prepare_npc_textures(appearance, &selected.materials, layout, compositor, images)?;
+    let textures = load_and_composite_npc_textures(
+        appearance,
+        &selected.materials,
+        layout,
+        compositor,
+        images,
+    )?;
     Ok(PreparedNpcAppearance {
         display_id: request.display_id,
         textures,
@@ -122,7 +139,7 @@ fn load_npc_texture(fdid: u32) -> Result<Image, String> {
     })
 }
 
-fn prepare_npc_textures(
+fn load_and_composite_npc_textures(
     appearance: &AuthoredNpcAppearance,
     materials: &[(u16, u32)],
     layout: u32,
@@ -145,13 +162,32 @@ fn prepare_npc_textures(
         load_npc_texture,
     )?;
     let mut textures = HashMap::from([(1, images.add(body))]);
-    if let Some((pixels, width, height)) = composed.hair.or(composed.head) {
+    if let Some((pixels, width, height)) =
+        select_npc_type6_texture(materials, composed.hair, composed.head)?
+    {
         textures.insert(6, images.add(crate::rgba_image(pixels, width, height)));
     }
     if let Some(fdid) = compositor.replacement_texture_fdid(materials, layout, 19) {
         textures.insert(19, images.add(load_npc_texture(fdid)?));
     }
     Ok(textures)
+}
+
+type NpcTexturePixels = (Vec<u8>, u32, u32);
+
+fn select_npc_type6_texture(
+    materials: &[(u16, u32)],
+    hair: Option<NpcTexturePixels>,
+    head: Option<NpcTexturePixels>,
+) -> Result<Option<NpcTexturePixels>, String> {
+    // CharTextureData composes a separate hair image only for material target 10.
+    let has_hair_target = materials.iter().any(|(target, _)| *target == 10);
+    if has_hair_target {
+        return hair
+            .map(Some)
+            .ok_or_else(|| "declared NPC hair target 10 did not produce a texture".to_string());
+    }
+    Ok(head)
 }
 
 fn load_npc_body_texture(
@@ -312,6 +348,21 @@ pub(super) fn register_npc_appearance_systems(app: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn npc_appearance_declared_hair_never_substitutes_head_after_composition_failure() {
+        let hair = (vec![180, 90, 30, 255], 1, 1);
+        let head = (vec![230, 180, 160, 255], 1, 1);
+        assert_eq!(
+            select_npc_type6_texture(&[(10, 100)], Some(hair.clone()), Some(head.clone())).unwrap(),
+            Some(hair),
+        );
+        assert_eq!(
+            select_npc_type6_texture(&[(1, 200)], None, Some(head.clone())).unwrap(),
+            Some(head.clone()),
+        );
+        assert!(select_npc_type6_texture(&[(10, 100)], None, Some(head)).is_err());
+    }
 
     #[test]
     fn npc_appearance_baked_body_preserves_clothing_and_missing_bake_is_an_error() {
