@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid idle action-bar background writes
+
+Updated [[ui-system]] for `a00e88aa`: equal flash backgrounds no longer dirty UI state. Ten scoped tests and independent verification pass; no native CPU claim.
+
 ## [2026-09-09] systems | Avoid unchanged target-circle transform writes
 
 Updated [[target-circle-rendering]] for `3ebbd348`: target-circle translation and scale still evaluate every update, but an unchanged complete transform no longer becomes changed. Stationary transform and target-movement behavior have one behavioral RED/GREEN proof; no CPU or rotation-specific claim.

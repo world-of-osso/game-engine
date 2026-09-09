@@ -24,6 +24,10 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
 
+## Action-bar flash updates
+
+`a00e88aa` compares desired slot backgrounds through immutable access before mutating `UiState` or the registry. Expired/idle flashes no longer dirty unchanged slots; keypress flashes, expiry, and replacement-slot initialization still update. Ten scoped tests and independent verification pass; CPU savings are unmeasured.
+
 ## Minimap coordinate updates
 
 `55c8df35` compares rounded coordinate text through immutable UI/registry access before writing. Movement within the same displayed coordinates leaves `UiState` change detection and registry dirty state untouched; boundary crossings and replacement frames still update. Thirty-seven scoped minimap tests pass; CPU savings are unmeasured.
