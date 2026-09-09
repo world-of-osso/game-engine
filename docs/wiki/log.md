@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Suppress weather particles with graphics effects
+
+Updated [graphics effect configuration](../specs/graphics-effects.md), [particle system](../particle-system.md), and [[rendering-pipeline]] for `b0e1f2bf`. `particleEffectsEnabled: false` now suppresses weather particles while retaining weather state, fog, and lighting. Six targeted weather tests pass. No CPU claim.
+
 ## [2026-09-09] systems | Persist independent graphics effect configuration
 
 Updated [[rendering-pipeline]], [particle system](../particle-system.md), and [graphics effect configuration](../specs/graphics-effects.md) for `7f86f086`, `24d97a50`, `7b499bb2`, and `cab4207b`. `options_settings.ron` now persists all five controls; invalid SSAO plus MSAA fails explicitly. Disabled particles omit Hanabi and deferred emitters at startup. Proof: persistence6, camera13, particle23. No CPU or native-visual claim.
