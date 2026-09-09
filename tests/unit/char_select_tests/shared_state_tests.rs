@@ -30,7 +30,9 @@ impl Fixture {
     fn sync(&mut self, with_post_setup: bool) {
         let ui = with_post_setup.then(|| CharSelectUi::resolve(&self.registry));
         let mut state = SystemState::<Option<ResMut<CharSelectScreenWrap>>>::new(&mut self.world);
-        let mut screen = state.get_mut(&mut self.world);
+        let mut screen = state
+            .get_mut(&mut self.world)
+            .expect("valid screen resource access");
         sync_screen_state(
             &mut screen,
             &mut self.registry,
