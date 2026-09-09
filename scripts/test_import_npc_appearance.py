@@ -3,6 +3,8 @@
 import importlib.util
 import contextlib
 import io
+import gc
+import warnings
 import json
 import sqlite3
 import struct
@@ -93,6 +95,26 @@ class ImportTests(unittest.TestCase):
         self.m = load_importer()
         self.assertIsNotNone(self.m, "NPC importer not implemented")
 
+    def test_database_helpers_close_connections_without_resource_warnings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "closed.sqlite"
+            with warnings.catch_warnings(record=True) as observed:
+                warnings.simplefilter("always", ResourceWarning)
+                self.m.write_database(path, ([], [], [], [(42, 0)]))
+                self.assertEqual(
+                    self.m.read_sqlite(path, "SELECT display_id FROM display_coverage"),
+                    [(42,)],
+                )
+                gc.collect()
+            self.assertEqual(
+                [
+                    str(item.message)
+                    for item in observed
+                    if item.category is ResourceWarning
+                ],
+                [],
+            )
+
     def test_inline_palette_common_signed_and_copy(self):
         rows = self.m.read_wdc5(fixture(copies=[(19, 18)]), "extra")
         self.assertEqual(
@@ -160,13 +182,14 @@ class ImportTests(unittest.TestCase):
                 [(13035, 1, 0, 2, 502), (13036, 1, 0, 2, 501), (130617, 4, 1, 3, 504)],
                 [(13035, 100), (13035, 101), (13036, 100), (13036, 101), (130617, 102)],
                 [(99, 1, 1), (13035, 3, 2), (130617, 4, 1)],
+                [(99, 0), (13035, 1), (13036, 1), (130617, 1)],
             ),
         )
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "appearance.sqlite"
             self.m.write_database(out, result)
             first = out.read_bytes()
-            with sqlite3.connect(out) as conn:
+            with contextlib.closing(sqlite3.connect(out)) as conn, conn:
                 self.assertEqual(
                     conn.execute(
                         "select * from appearances order by display_id"
@@ -185,6 +208,12 @@ class ImportTests(unittest.TestCase):
                     ).fetchall(),
                     result[2],
                 )
+                self.assertEqual(
+                    conn.execute(
+                        "select * from display_coverage order by display_id"
+                    ).fetchall(),
+                    result[3],
+                )
             out.unlink()
             self.m.write_database(out, result)
             self.assertEqual(out.read_bytes(), first)
@@ -202,7 +231,7 @@ class ImportTests(unittest.TestCase):
             ]:
                 (root / filename).write_bytes(data)
             (root / "CreatureDisplayInfo.csv").write_text(
-                "ID,ExtendedDisplayInfoID\n17,17\n18,0\n"
+                "ID,ExtendedDisplayInfoID\n17,17\n18,0\n19,0\n"
             )
             (root / "community-listfile.csv").write_text(
                 "100;character/human/male/humanmale_hd.m2\n"
@@ -210,7 +239,10 @@ class ImportTests(unittest.TestCase):
             (root / "TextureFileData.csv").write_text(
                 "FileDataID,UsageType,MaterialResourcesID\n500,0,31\n501,0,32\n"
             )
-            with sqlite3.connect(root / "models.sqlite") as conn:
+            with (
+                contextlib.closing(sqlite3.connect(root / "models.sqlite")) as conn,
+                conn,
+            ):
                 conn.execute(
                     "create table creature_displays (display_id integer, model_fdid integer)"
                 )
@@ -222,6 +254,10 @@ class ImportTests(unittest.TestCase):
                 str(root),
                 "--model-cache",
                 str(root / "models.sqlite"),
+                "--display-id",
+                "17",
+                "--display-id",
+                "18",
                 "--output",
                 str(root / "result.sqlite"),
             ]
@@ -230,9 +266,13 @@ class ImportTests(unittest.TestCase):
                 self.assertEqual(self.m.main(args), 0)
             report = json.loads(output.getvalue())
             self.assertEqual(
-                report["counts"], {"appearances": 1, "choices": 1, "geosets": 2}
+                report["counts"],
+                {"appearances": 1, "choices": 1, "geosets": 2, "display_coverage": 2},
             )
-            with sqlite3.connect(root / "result.sqlite") as conn:
+            with (
+                contextlib.closing(sqlite3.connect(root / "result.sqlite")) as conn,
+                conn,
+            ):
                 self.assertEqual(
                     conn.execute("select * from appearances").fetchall(),
                     [(17, 1, 0, 2, 501)],
@@ -240,7 +280,21 @@ class ImportTests(unittest.TestCase):
                 self.assertEqual(
                     conn.execute("select * from choices").fetchall(), [(17, 9)]
                 )
-            with sqlite3.connect(root / "outfits.sqlite") as conn:
+                self.assertEqual(
+                    conn.execute(
+                        "select * from display_coverage order by display_id"
+                    ).fetchall(),
+                    [(17, 1), (18, 0)],
+                )
+                self.assertIsNone(
+                    conn.execute(
+                        "select requires_appearance from display_coverage where display_id=19"
+                    ).fetchone()
+                )
+            with (
+                contextlib.closing(sqlite3.connect(root / "outfits.sqlite")) as conn,
+                conn,
+            ):
                 conn.execute(
                     "create table material_to_texture (material_resource_id integer, texture_fdid integer)"
                 )

@@ -2,6 +2,7 @@
 """Import authored NPC appearance data from local fixed-record WDC5 tables."""
 
 import argparse
+import contextlib
 import csv
 import json
 import sqlite3
@@ -260,7 +261,15 @@ def join_appearances(displays, extras, options, geosets, model_paths, textures):
         if key in overrides and overrides[key] != value:
             raise ValueError(f"conflicting geoset values for {key}")
         overrides[key] = value
-    return appearances, choices, [(d, i, v) for (d, i), v in sorted(overrides.items())]
+    coverage = [
+        (display, int(extra_id != 0)) for display, extra_id in sorted(displays.items())
+    ]
+    return (
+        appearances,
+        choices,
+        [(d, i, v) for (d, i), v in sorted(overrides.items())],
+        coverage,
+    )
 
 
 def write_database(path, rows):
@@ -272,8 +281,12 @@ def write_database(path, rows):
     with path.open("xb"):
         pass
     try:
-        with sqlite3.connect(path) as conn:
+        with contextlib.closing(sqlite3.connect(path)) as conn, conn:
             conn.executescript("""
+                CREATE TABLE display_coverage (
+                    display_id INTEGER PRIMARY KEY,
+                    requires_appearance INTEGER NOT NULL CHECK (requires_appearance IN (0, 1))
+                );
                 CREATE TABLE appearances (display_id INTEGER PRIMARY KEY, race INTEGER NOT NULL,
                     sex INTEGER NOT NULL, class INTEGER NOT NULL, baked_texture_fdid INTEGER NOT NULL);
                 CREATE TABLE choices (display_id INTEGER NOT NULL, choice_id INTEGER NOT NULL,
@@ -284,6 +297,7 @@ def write_database(path, rows):
             conn.executemany("INSERT INTO appearances VALUES (?, ?, ?, ?, ?)", rows[0])
             conn.executemany("INSERT INTO choices VALUES (?, ?)", rows[1])
             conn.executemany("INSERT INTO geosets VALUES (?, ?, ?)", rows[2])
+            conn.executemany("INSERT INTO display_coverage VALUES (?, ?)", rows[3])
     except Exception:
         path.unlink()
         raise
@@ -295,7 +309,9 @@ def read_csv(path):
 
 
 def read_sqlite(path, query):
-    with sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True) as conn:
+    with contextlib.closing(
+        sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
+    ) as conn:
         return conn.execute(query).fetchall()
 
 
@@ -391,7 +407,12 @@ def import_files(args):
     return {
         "output": str(args.output.resolve()),
         "decoded_records": {kind: len(records) for kind, records in decoded.items()},
-        "counts": dict(zip(("appearances", "choices", "geosets"), map(len, rows))),
+        "counts": dict(
+            zip(
+                ("appearances", "choices", "geosets", "display_coverage"),
+                map(len, rows),
+            )
+        ),
         "fixtures": {
             str(display): {
                 "extra_id": displays[display],
