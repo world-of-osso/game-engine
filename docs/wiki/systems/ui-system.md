@@ -24,6 +24,10 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
 
+## Minimap coordinate updates
+
+`55c8df35` compares rounded coordinate text through immutable UI/registry access before writing. Movement within the same displayed coordinates leaves `UiState` change detection and registry dirty state untouched; boundary crossings and replacement frames still update. Thirty-seven scoped minimap tests pass; CPU savings are unmeasured.
+
 ## Nameplates
 
 Target-first nameplate design: current target gets full plate (name, health, cast), nearby combatants get compact plates, non-hostile/distant actors are hidden or faded. Three display states: hidden, compact, full. State driven by targeting, hostility, recent damage, and distance. See [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md).

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged minimap coordinate text
+
+Updated [[ui-system]] for `55c8df35`: compare rounded coordinates before dirtying UI state. Thirty-seven scoped tests and independent delta verification pass; no native CPU claim.
+
 ## [2026-09-09] systems | Avoid unchanged UI billboard rotations
 
 Updated [[ui-system]] for `56f82791`: nameplates, quest indicators, and health bars still derive their camera-facing rotations each update, but only mutate rotation when it changed. Position and scale remain untouched. Proof: six focused GREEN tests after four behavioral RED failures. No CPU claim.
