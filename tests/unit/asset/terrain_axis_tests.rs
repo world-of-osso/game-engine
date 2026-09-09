@@ -86,6 +86,35 @@ fn terrain_axis_authored_samples_and_borders() {
 }
 
 #[test]
+fn terrain_axis_water_offsets_match_authored_grid() {
+    let layer = adt::WaterLayer {
+        liquid_type: 0,
+        liquid_object: 3,
+        min_height: 7.0,
+        max_height: 7.0,
+        x_offset: 5,
+        y_offset: 2,
+        width: 1,
+        height: 1,
+        exists: [1, 0, 0, 0, 0, 0, 0, 0],
+        vertex_heights: vec![7.0; 4],
+        vertex_uvs: vec![],
+        vertex_depths: vec![],
+    };
+    let mesh = adt::build_water_mesh([-200.0, 100.0, 0.0], &layer);
+    let p = positions(&mesh);
+    assert_position(
+        p[0],
+        [100.0 - 2.0 * UNIT_SIZE, 7.0, 200.0 + 5.0 * UNIT_SIZE],
+    );
+    let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
+    for triangle in indices.chunks_exact(3) {
+        let [a, b, c] = [p[triangle[0]], p[triangle[1]], p[triangle[2]]].map(Vec3::from);
+        assert!((b - a).cross(c - a).y > 0.0);
+    }
+}
+
+#[test]
 fn terrain_axis_mesh_winding_points_up() {
     let terrain = adt::load_adt(&asymmetric_tile()).unwrap();
     for chunk in &terrain.chunks {
@@ -100,10 +129,16 @@ fn terrain_axis_mesh_winding_points_up() {
 
 #[test]
 fn terrain_axis_loaded_heights_preserve_authored_samples() {
-    let bytes = asymmetric_tile();
-    let raw = adt::load_adt_raw(&bytes).unwrap();
-    let terrain = adt::load_adt(&bytes).unwrap();
-    for (a, b) in raw.height_grids.iter().zip(&terrain.height_grids) {
-        assert_eq!(a.heights, b.heights);
+    let terrain = adt::load_adt(&asymmetric_tile()).unwrap();
+    for grid in &terrain.height_grids {
+        for row in 0..=16 {
+            let inner = row % 2 != 0;
+            for col in 0..if inner { 8 } else { 9 } {
+                let r = grid.index_y as f32 * 8.0 + row as f32 * 0.5;
+                let c = grid.index_x as f32 * 8.0 + col as f32 + if inner { 0.5 } else { 0.0 };
+                let expected = 10.0 * r + c + if inner { 3.0 } else { 0.0 };
+                assert_eq!(grid.heights[vertex_index(row, col)], expected);
+            }
+        }
     }
 }

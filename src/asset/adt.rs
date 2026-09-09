@@ -287,8 +287,8 @@ fn emit_water_quad(
         let c = abs_col + dc;
         let wz = water_height(layer, row + dr, col + dc);
         let depth = water_depth(layer, row + dr, col + dc);
-        let wx = chunk_pos[1] - c as f32 * WATER_STEP;
-        let wy = chunk_pos[0] - r as f32 * WATER_STEP;
+        let wx = chunk_pos[1] - r as f32 * WATER_STEP;
+        let wy = chunk_pos[0] - c as f32 * WATER_STEP;
         buffers.positions.push(wow_to_bevy(wx, wy, wz));
         buffers.normals.push([0.0, 1.0, 0.0]);
         buffers.uvs.push([c as f32 / 8.0, r as f32 / 8.0]);
@@ -317,11 +317,11 @@ fn append_water_quad(
     emit_water_quad(chunk_pos, layer, row, col, buffers);
     indices.extend_from_slice(&[
         base_idx,
-        base_idx + 1,
-        base_idx + 2,
         base_idx + 2,
         base_idx + 1,
+        base_idx + 2,
         base_idx + 3,
+        base_idx + 1,
     ]);
 }
 

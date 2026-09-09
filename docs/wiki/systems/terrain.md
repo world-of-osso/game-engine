@@ -27,7 +27,7 @@ This was derived by visual validation against Adventurer's Rest campsite props. 
 
 ## Authored Height Grid Axes
 
-MCVT rows advance toward negative Bevy X; columns advance toward positive Bevy Z. Mesh positions and the four-triangle CPU sampler use that same basis, with upward triangle winding. The former transposed basis put part of Northshire's `stormwindgypsywagon01.m2` (FDID198288, placement69265) inside an incorrectly reconstructed hill. The wagon's authored transform is unchanged. Incorrect border averaging was removed: it combined unrelated edge samples and altered authored heights. Asymmetric four-chunk regressions cover positions, height preservation, shared borders, winding, and center-vertex sampling. Runtime visual confirmation remains pending.
+MCVT rows advance toward negative Bevy X; columns advance toward positive Bevy Z. Mesh positions and the four-triangle CPU sampler use that same basis, with upward triangle winding. The former transposed basis put part of Northshire's `stormwindgypsywagon01.m2` (FDID198288, placement69265) inside an incorrectly reconstructed hill. The wagon's authored transform is unchanged. Incorrect border averaging was removed: it combined unrelated edge samples and altered authored heights. Asymmetric four-chunk regressions cover positions, height preservation, shared borders, winding, and center-vertex sampling. Water-layer offsets, mesh winding, and water-height queries use the same corrected grid axes; asymmetric offset tests cover mesh/query agreement. Runtime visual confirmation remains pending.
 
 ## Doodad Collision
 

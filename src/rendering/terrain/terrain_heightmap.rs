@@ -187,8 +187,8 @@ fn sample_water_layer_height(layer: &WaterLayerSurface, bx: f32, bz: f32) -> Opt
     }
     let wow_x = bx;
     let wow_y = -bz;
-    let abs_col_f = (layer.chunk_origin_wow_x - wow_x) / WATER_STEP;
-    let abs_row_f = (layer.chunk_origin_wow_y - wow_y) / WATER_STEP;
+    let abs_col_f = (layer.chunk_origin_wow_y - wow_y) / WATER_STEP;
+    let abs_row_f = (layer.chunk_origin_wow_x - wow_x) / WATER_STEP;
     let x_min = f32::from(layer.x_offset);
     let y_min = f32::from(layer.y_offset);
     let x_max = x_min + f32::from(layer.width);
@@ -407,6 +407,28 @@ mod tests {
             water,
             water_error: None,
         }
+    }
+
+    #[test]
+    fn terrain_axis_water_sampler_uses_authored_offsets() {
+        let layer = WaterLayerSurface {
+            chunk_origin_wow_x: 100.0,
+            chunk_origin_wow_y: -200.0,
+            min_height: 7.0,
+            x_offset: 5,
+            y_offset: 2,
+            width: 1,
+            height: 1,
+            exists: [1, 0, 0, 0, 0, 0, 0, 0],
+            vertex_heights: vec![7.0; 4],
+        };
+        let actual =
+            sample_water_layer_height(&layer, 100.0 - 2.5 * WATER_STEP, 200.0 + 5.5 * WATER_STEP);
+        assert_eq!(actual, Some(7.0));
+        assert_eq!(
+            sample_water_layer_height(&layer, 100.0 - 5.5 * WATER_STEP, 200.0 + 2.5 * WATER_STEP),
+            None
+        );
     }
 
     #[test]
