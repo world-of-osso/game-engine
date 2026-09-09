@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Compose final nameplate color once
+
+Updated [[ui-system]] for `6637a6d2`: one RGB-plus-distance-alpha writer replaces unordered base-color/fade writes. Seventeen focused tests and independent delta verification pass; no native CPU claim.
+
 ## [2026-09-09] systems | Avoid unchanged health-bar, camera, and model-light writes
 
 Updated [[ui-system]], [[rendering-pipeline]], and [[animation]] for `275bd84c`, `536966e8`, and `c3e28125`. Health-bar, camera-effect, and animated-light systems retain evaluation and real updates but avoid mutating equal component or material values. Focused GREEN: health-bar11, camera48, model-light2. No whole-engine CPU claim.
