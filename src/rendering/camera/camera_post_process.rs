@@ -18,6 +18,10 @@ const MIN_RENDER_SCALE: f32 = 0.5;
 const MAX_RENDER_SCALE: f32 = 1.0;
 const DEFAULT_CAS_SHARPENING: f32 = 0.6;
 
+#[cfg(test)]
+#[path = "../../../tests/unit/camera_post_process_writes_tests.rs"]
+mod unchanged_write_tests;
+
 #[derive(Resource)]
 pub(crate) struct MsaaDisabled;
 
