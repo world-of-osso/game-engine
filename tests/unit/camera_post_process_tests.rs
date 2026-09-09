@@ -75,6 +75,9 @@ fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bund
 
     app.insert_resource(MsaaDisabled);
     app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Taa;
+    app.world_mut()
+        .resource_mut::<GraphicsOptions>()
+        .ssao_enabled = true;
     app.update();
     let world_camera = app.world().entity(world_entity);
     assert_eq!(world_camera.get::<Msaa>(), Some(&Msaa::Off));
@@ -96,6 +99,9 @@ fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bund
     assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
 
     app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Msaa4x;
+    app.world_mut()
+        .resource_mut::<GraphicsOptions>()
+        .ssao_enabled = false;
     app.update();
     assert_eq!(app.world().get::<Msaa>(world_entity), Some(&Msaa::Sample4));
     assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Sample4));
@@ -130,6 +136,8 @@ fn spawn_wow_camera_uses_particle_glow_tonemapping() {
 fn graphics_options_build_additive_particle_bloom() {
     let bloom = camera_post_process::additive_particle_glow_bloom(&GraphicsOptions {
         particle_density: 100,
+        particle_effects_enabled: true,
+        ssao_enabled: true,
         render_scale: 1.0,
         ui_scale: 1.0,
         vsync_enabled: true,
@@ -154,6 +162,8 @@ fn disabled_graphics_bloom_returns_none() {
     assert!(
         camera_post_process::additive_particle_glow_bloom(&GraphicsOptions {
             particle_density: 100,
+            particle_effects_enabled: true,
+            ssao_enabled: true,
             render_scale: 1.0,
             ui_scale: 1.0,
             vsync_enabled: true,
@@ -207,6 +217,9 @@ fn sync_camera_graphics_post_process_keeps_ssao_compatible_with_anti_aliasing() 
     assert!(camera.get::<ScreenSpaceAmbientOcclusion>().is_none());
 
     app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = AntiAliasMode::Taa;
+    app.world_mut()
+        .resource_mut::<GraphicsOptions>()
+        .ssao_enabled = true;
     app.update();
 
     let camera = app.world().entity(camera_entity);
@@ -215,9 +228,80 @@ fn sync_camera_graphics_post_process_keeps_ssao_compatible_with_anti_aliasing() 
     assert!(camera.get::<ScreenSpaceAmbientOcclusion>().is_some());
 }
 
+fn graphics_effects_test_app() -> (App, Entity) {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(GraphicsOptions {
+        anti_alias: AntiAliasMode::None,
+        ..default()
+    });
+    app.add_systems(
+        Update,
+        camera_post_process::sync_camera_graphics_post_process,
+    );
+    let camera = spawn_wow_camera(&mut app.world_mut().commands());
+    (app, camera)
+}
+
+#[test]
+fn graphics_config_camera_effects_are_independent() {
+    let (mut app, entity) = graphics_effects_test_app();
+    for (blur, glow, contact) in [
+        (false, false, false),
+        (true, false, false),
+        (false, true, false),
+        (false, false, true),
+        (true, true, true),
+        (false, false, false),
+    ] {
+        let mut graphics = app.world_mut().resource_mut::<GraphicsOptions>();
+        graphics.depth_of_field = blur;
+        graphics.bloom_enabled = glow;
+        graphics.ssao_enabled = contact;
+        app.update();
+        let camera = app.world().entity(entity);
+        assert_eq!(camera.contains::<DepthOfField>(), blur);
+        assert_eq!(camera.contains::<Bloom>(), glow);
+        assert_eq!(camera.contains::<ScreenSpaceAmbientOcclusion>(), contact);
+        assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
+        assert!(!camera.contains::<TemporalAntiAliasing>());
+        assert!(camera.contains::<Camera3d>());
+    }
+}
+
+#[test]
+fn graphics_config_aa_does_not_enable_contact_shading() {
+    let (mut app, entity) = graphics_effects_test_app();
+    for mode in [
+        AntiAliasMode::None,
+        AntiAliasMode::Taa,
+        AntiAliasMode::Msaa4x,
+        AntiAliasMode::None,
+    ] {
+        app.world_mut().resource_mut::<GraphicsOptions>().anti_alias = mode;
+        app.update();
+        let camera = app.world().entity(entity);
+        let expected_msaa = if mode == AntiAliasMode::Msaa4x {
+            Msaa::Sample4
+        } else {
+            Msaa::Off
+        };
+        assert_eq!(camera.get::<Msaa>(), Some(&expected_msaa));
+        assert_eq!(
+            camera.contains::<TemporalAntiAliasing>(),
+            mode == AntiAliasMode::Taa
+        );
+        assert!(!camera.contains::<ScreenSpaceAmbientOcclusion>());
+        assert!(!camera.contains::<Bloom>());
+        assert!(!camera.contains::<DepthOfField>());
+    }
+}
+
 fn camera_post_process_stage_graphics_options() -> GraphicsOptions {
     GraphicsOptions {
         particle_density: 100,
+        particle_effects_enabled: true,
+        ssao_enabled: true,
         render_scale: 0.75,
         ui_scale: 1.0,
         vsync_enabled: true,
