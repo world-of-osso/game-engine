@@ -1,10 +1,7 @@
 use super::register_gpu_culling_probe;
 use bevy::app::TaskPoolPlugin;
 use bevy::camera::primitives::{Aabb, Frustum};
-use bevy::camera::visibility::{
-    VisibleEntities, check_visibility_cpu_culling, check_visibility_gpu_culling,
-    visibility_propagate_system,
-};
+use bevy::camera::visibility::{VisibilityPlugin, VisibleEntities};
 use bevy::math::primitives::ViewFrustum;
 use bevy::mesh::skinning::SkinnedMesh;
 use bevy::prelude::*;
@@ -13,17 +10,13 @@ use std::time::Duration;
 
 fn visibility_app() -> App {
     let mut app = App::new();
-    app.add_plugins(TaskPoolPlugin::default());
+    app.add_plugins((
+        TaskPoolPlugin::default(),
+        AssetPlugin::default(),
+        bevy::mesh::MeshPlugin,
+        VisibilityPlugin,
+    ));
     app.init_resource::<Time<Real>>();
-    app.add_systems(
-        PostUpdate,
-        (
-            visibility_propagate_system,
-            check_visibility_cpu_culling,
-            check_visibility_gpu_culling,
-        )
-            .chain(),
-    );
     app.world_mut().spawn((
         Camera::default(),
         VisibleEntities::default(),
