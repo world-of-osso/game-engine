@@ -29,7 +29,7 @@ WoW file format specifications as used by the engine.
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
 - [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks
-- [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables (Light, ItemDisplayInfo, HelmetGeosetData, etc.)
+- [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer
 
 ## Design
 

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] formats | Add bounded NPC authored appearance importer
+
+Updated [[db2-format]] with local WDC5 layouts, material/model resolution, isolated CLI usage, and proposed SQLite output contract. Synthetic tests cover decoding, joins, deterministic output, and explicit failures. Production promotion and renderer acceptance remain outside this importer.
+
 ## [2026-09-09] systems | Align startup observation with server pre-entry visibility fix
 
 Updated [[networking]] for server commit `34e7551`. The exact no-UI InWorld command now reaches login success at app 1.896s and InWorld at 6.57s within ten seconds; server verification records 25 focused tests plus fmt/check. Screenshot CLI lacked `LD_LIBRARY_PATH`, so original NPC appearance/cart visual proof remains open.

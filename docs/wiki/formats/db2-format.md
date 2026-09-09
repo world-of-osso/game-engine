@@ -69,7 +69,40 @@ Example chain for Human Male HD face texture: ChrModelID=1 → Option 10 (Face) 
 
 Item-driven textures (worn equipment) come from `ItemDisplayInfo.ModelMaterialResourcesID_*` → `TextureFileData` → FDID. This chain is distinct from the M2 TXID chunk textures. Auto-extraction is not fully reliable for all paths; manual `casc-local` extraction may be needed.
 
+## NPC authored appearance import
+
+`python3 scripts/import_npc_appearance.py` uses stdlib only and reads existing local files; it does not extract assets or alter the renderer. [Importer contract](../../specs/npc-appearance-importer.md).
+
+```sh
+python3 scripts/import_npc_appearance.py \
+  --db2-dir /syncthing/Sync/Projects/world-of-osso/game-engine/data/diagnostics/northshire-appearance-placement \
+  --data-dir /syncthing/Sync/Projects/world-of-osso/game-engine/data \
+  --model-cache /syncthing/Sync/Projects/world-of-osso/game-engine/data/cache/creature_display.sqlite \
+  --output /syncthing/Sync/Projects/world-of-osso/game-engine/data/diagnostics/northshire-appearance-placement/npc-appearance-fixtures.sqlite \
+  --display-id 13035 --display-id 13036 --display-id 130617
+```
+
+Omit `--display-id` to import every CSV display. All three DB2s are fully decoded even for a selected output subset. The output must not exist. Production destination, when main approves promotion, is shared-data `cache/npc_appearance.sqlite`; no default output or automatic promotion exists. JSON stdout reports decoded/output counts and requested fixture rows (default report IDs: 13035, 13036, 130617).
+
+Supported fixed-record layouts from local `/home/osso/Repos/wowless/vendor/dbdefs/definitions/`:
+
+| File | Layout | Fields / relation |
+|---|---|---|
+| `1264997.db2` / CreatureDisplayInfoExtra | `4D9FE25C` | Inline ID, race, sex, class, flags, SD bake material, HD bake material |
+| `3692043.db2` / CreatureDisplayInfoOption | `2F331C33` | Noninline ID; option, choice; relation to Extra |
+| `1720141.db2` / CreatureDisplayInfoGeosetData | `5E539080` | Noninline ID; geoset index/value; relation to display |
+
+Integer storage 0 (direct), 1 (bitpacked), 2 (common default/ID override), 3 (palette), and 5 (signed bitpacked) are supported. Copies inherit record bytes and relationships; inline IDs and common overrides use the destination ID. Sparse records, array palettes, unknown layouts/storage, missing relations, and absent/all-zero encrypted section payloads fail explicitly. A nonzero TACT key hash alone does not imply missing data: already decrypted section payloads are decoded normally.
+
+`CreatureDisplayInfo.csv.ExtendedDisplayInfoID` links to Extra. The existing `creature_displays` cache supplies the actual model FDID; exact local listfile lookup supplies its path. An `_hd.m2` filename selects HD bake, other `.m2` paths select SD. Missing paths never infer resolution from race or alternate models. TextureFileData uses `UsageType=0`; unresolved or conflicting selected material mappings fail. `--outfit-cache PATH` explicitly uses its read-only `material_to_texture(material_resource_id, texture_fdid)` table instead of CSV.
+
+Displays without Extra retain no appearance/choice row; authored geosets remain independently display-keyed. Child references outside the selected CSV displays do not fabricate parents. Runtime interpretation remains main's responsibility.
+
+Targeted tests: `python3 -m unittest discover -s scripts -p test_import_npc_appearance.py`.
+
 ## Sources
+
+- [NPC importer](../../../scripts/import_npc_appearance.py) and [behavioral fixtures](../../../scripts/test_import_npc_appearance.py)
 
 - [docs/casc-db2-keys.md](../casc-db2-keys.md) — WoWDBDefs vs TACTKeys distinction, practical extraction model
 - [docs/wiki/systems/asset-pipeline.md](../systems/asset-pipeline.md) — CASC resolver/cache model and direct byte access
