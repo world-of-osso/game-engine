@@ -2,6 +2,12 @@
 
 Character rendering assembles WoW M2 character models with dynamic geoset visibility and composited textures. The pipeline resolves which submeshes are shown (driven by customization choices and equipment), composites body/face/hair textures into a single atlas, and handles HD skeleton loading for modern character models.
 
+## Replicated equipped item appearances
+
+`equipment_appearance.rs` resolves visible entries with explicit display IDs directly. Item-only entries use `OutfitData::resolve_item_display_id` to join the existing cached item-modified-appearance and item-appearance tables. Hidden entries retain slot ownership without rendering; explicit displays take precedence over item IDs. Missing item mappings emit an error with item and slot context.
+
+`tests/unit/equipment_item_tests.rs` compares textures, geosets, and attached models for actual starter items 25, 38, 39, 40, and 2362 against their catalog displays. This covers client resolution, not native rendering or combat stats.
+
 ## Character Models and HD Skeletons
 
 Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD models (`humanmale_hd.m2`) store bones externally in a `.skel` file (referenced via the SKID chunk). The `.skel` file contains SKS1 (sequences + global sequences) and SKB1 (216 bones + animation tracks). `load_skel_data()` handles both paths transparently.

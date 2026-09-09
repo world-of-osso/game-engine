@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] character | Resolve replicated physical item appearances
+
+Item-only equipment entries now resolve through the existing outfit catalog instead of returning without rendering. Hidden and explicit-display precedence remain unchanged. Actual five-item starter regression fails before the fix and passes afterward; see [character rendering](systems/character-rendering.md#replicated-equipped-item-appearances). Native integration remains pending.
+
 ## [2026-09-09] ui | Project world nameplates through the 2D overlay camera
 
 Corrected the `Text2d`/3D camera render-path mismatch in [[ui-system]]. Linked ownership preserves despawn cleanup without world-transform parenting. Six CPU projection/DPI/visibility/fade/lifecycle tests and a real-observer headless GPU RED/GREEN test pass; quest M2 billboarding remains world-space. Native integration remains pending.

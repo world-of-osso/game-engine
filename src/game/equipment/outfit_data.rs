@@ -110,6 +110,20 @@ impl OutfitData {
         self.resolve_display_infos(data, display_ids)
     }
 
+    pub fn resolve_item_display_id(&self, item_id: u32) -> Result<u32, String> {
+        let data = self.loaded().ok_or("outfit data unavailable")?;
+        let conn = crate::cache_sqlite::open_read_only(&data.cache_path)?;
+        conn.query_row(
+            "SELECT iam.display_info_id
+             FROM item_modified_appearance_map ima
+             JOIN item_appearance_map iam ON iam.appearance_id = ima.appearance_id
+             WHERE ima.item_id = ?1",
+            [item_id],
+            |row| row.get(0),
+        )
+        .map_err(|err| format!("resolve item {item_id} display: {err}"))
+    }
+
     pub fn resolve_display_info(&self, display_info_id: u32) -> OutfitResult {
         let Some(data) = self.loaded() else {
             return OutfitResult::default();

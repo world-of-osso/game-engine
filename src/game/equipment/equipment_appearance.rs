@@ -7,6 +7,10 @@ use crate::asset::asset_cache;
 use crate::equipment::{Equipment, EquipmentSlot};
 use game_engine::outfit_data::{OutfitData, OutfitResult};
 
+#[cfg(test)]
+#[path = "../../../tests/unit/equipment_item_tests.rs"]
+mod item_tests;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeModelAppearance {
     pub slot: EquipmentSlot,
@@ -103,8 +107,16 @@ fn apply_equipment_entry(
     if entry.hidden {
         return;
     }
-    let Some(display_info_id) = entry.display_info_id else {
-        return;
+    let display_info_id = match (entry.display_info_id, entry.item_id) {
+        (Some(display_id), _) => display_id,
+        (None, Some(item_id)) => match outfit_data.resolve_item_display_id(item_id) {
+            Ok(display_id) => display_id,
+            Err(error) => {
+                bevy::log::error!("Equipment {:?}: {error}", entry.slot);
+                return;
+            }
+        },
+        (None, None) => return,
     };
     apply_visible_equipment_entry(
         resolved,
