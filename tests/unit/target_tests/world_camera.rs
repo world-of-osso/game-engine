@@ -1,5 +1,4 @@
 use super::*;
-use crate::camera::WowCamera;
 use bevy::camera::CameraPlugin;
 use bevy::ecs::system::RunSystemOnce;
 
@@ -39,7 +38,6 @@ fn configure_cursor_and_cameras(app: &mut App) {
     window.set_cursor_position(Some(Vec2::new(400.0, 300.0)));
     app.world_mut().spawn((
         Camera3d::default(),
-        WowCamera::default(),
         Transform::from_xyz(0.0, 0.0, 10.0).looking_at(Vec3::ZERO, Vec3::Y),
     ));
     app.world_mut()
@@ -81,7 +79,7 @@ fn initialize_picking_viewport(app: &mut App) {
     );
     let (camera, transform) = app
         .world_mut()
-        .query_filtered::<(&Camera, &GlobalTransform), With<WowCamera>>()
+        .query_filtered::<(&Camera, &GlobalTransform), With<Camera3d>>()
         .single(app.world())
         .unwrap();
     assert!(

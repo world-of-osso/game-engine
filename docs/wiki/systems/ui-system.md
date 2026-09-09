@@ -56,7 +56,7 @@ Target-first nameplate design: current target gets full plate (name, health, cas
 
 ## World NPC Picking
 
-Commit `cb2d169f` makes left-click targeting and right-click interaction cast through the `WowCamera`, not an unfiltered camera query. The UI/FPS camera remains present alongside the world camera, including `--no-ui`; requiring a single camera across both silently prevented picking. The final focused proof passes two real mesh-raycast tests with the UI camera, initialized world projection, and an NPC child mesh. `--no-ui` intentionally suppresses health bars, as user-confirmed; world selection does not depend on showing them. Existing UI hit-testing policy is unchanged. Native click verification remains pending.
+Left-click targeting and right-click interaction use the 3D camera, not an unfiltered camera query. The initial `cb2d169f` controller-specific filter was broadened to `Camera3d` so selection-debug cameras without `WowCamera` remain supported. The UI/FPS camera remains present alongside the world camera, including `--no-ui`; requiring a single camera across both silently prevented picking. The final focused proof passes two real mesh-raycast tests with the UI camera, initialized world projection, and an NPC child mesh. `--no-ui` intentionally suppresses health bars, as user-confirmed; world selection does not depend on showing them. Existing UI hit-testing policy is unchanged. Native click verification remains pending.
 
 ## Unit Frames
 
