@@ -8,6 +8,7 @@ mod cast_attack;
 mod core;
 mod emote;
 mod lod;
+mod model_lights;
 mod movement;
 
 pub(super) fn single_key_vec3_track(value: [f32; 3]) -> AnimTrack<[f32; 3]> {
