@@ -6,6 +6,9 @@ use crate::skybox_m2_material::SkyboxM2Material;
 use bevy::mesh::{Mesh, PrimitiveTopology};
 use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial};
 
+#[path = "m2_spawn_material_tests/foliage_gpu.rs"]
+mod foliage_gpu;
+
 const SHADER_SINGLE_TEXTURE: u16 = M2_SHADER_MODULATE;
 const SHADER_MOD2X: u16 = 0x4014;
 const SHADER_THREE_STAGE: u16 = 0x8012;

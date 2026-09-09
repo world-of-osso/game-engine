@@ -311,7 +311,16 @@ pub(super) fn m2_material(
     } else {
         Some(bevy::render::render_resource::Face::Back)
     };
-    let alpha_mode = m2_effect_material::alpha_mode_for_blend(batch.blend_mode);
+    // Alpha-to-coverage writes solid-card depth in Bevy's MSAA prepass.
+    // Masking keeps authored cutouts identical in the depth and color passes.
+    let alpha_mode = if batch.blend_mode == 1 {
+        AlphaMode::Mask(m2_effect_material::alpha_test_threshold_for_blend(
+            batch.blend_mode,
+            batch.transparency,
+        ))
+    } else {
+        m2_effect_material::alpha_mode_for_blend(batch.blend_mode)
+    };
     StandardMaterial {
         base_color_texture: texture,
         base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
