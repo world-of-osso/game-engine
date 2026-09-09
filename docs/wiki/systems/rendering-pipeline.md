@@ -7,7 +7,15 @@ The engine renders WoW assets using Bevy 0.19: M2 character and doodad models, A
 M2 models are parsed by `src/asset/m2_format/` (pure, no Bevy) and assembled into Bevy meshes in `src/asset/m2.rs`. Each skin batch becomes a separate `Mesh3d` + `MeshMaterial3d<StandardMaterial>`. Material properties come from the M2 material table (flags + blend mode per batch).
 
 **Blend modes** map as:
-- 0 → Opaque, 1 → Mask(0.878), 2/3/7 → Blend, 4-6 → Additive, unknown → Additive (safe default)
+- 0 → Opaque, 1 → Mask(authored threshold), 2/3/7 → Blend, 4-6 → Additive, unknown → Additive (safe default)
+
+### Alpha-tested foliage depth coverage
+
+Commit `59018936` changed single-texture M2 blend mode 1 from Bevy `AlphaToCoverage` to `Mask(authored threshold)`. With MSAA 4× plus depth and normal prepasses, AlphaToCoverage allowed alpha-zero card texels to write foreground depth; the color pass then left those texels black, hiding geometry behind foliage. `Mask` applies the same authored cutoff in the prepass and color pass.
+
+The GPU regression uses an alpha-zero foliage-card texel in front of a green background under the world-camera sampling/prepass configuration. Before the change it read `[0, 0, 0, 255]`; after it reads `[0, 254, 0, 255]`. It preserves the opaque red texel. `f39cf99b` made the fixture sample exact texels rather than interpolated coordinates.
+
+This proves the foliage-card depth defect only. Camera-motion flicker in the reported world recording remains unproven and must not be attributed to this material correction without separate reproduction.
 
 See [[character-rendering]] for character-specific mesh assembly.
 
@@ -90,6 +98,10 @@ The complete WMVx blend mode reference:
 
 ## Sources
 
+- [M2 spawn material](../../../src/rendering/model/m2_spawn_material.rs) — authored blend-mode-1 alpha masking
+- [foliage GPU regression](../../../src/rendering/model/m2_spawn_material_tests/foliage_gpu.rs) — alpha-zero foreground / green-background depth-prepass proof
+- `game-engine` commits `59018936` and `f39cf99b` — foliage masking correction and exact-texel fixture
+- `data/diagnostics/world-objects-20260909/foliage-red-nearest.log` and `foliage-green-nearest.log` — RED/GREEN GPU pixels and targeted test output
 - [game-engine app setup](../../src/app_setup.rs) — strict-Empty gizmo plugin filtering and screenshot/default retention
 - [game-engine main](../../src/main.rs) — stage-aware gizmo policy wiring
 - `game-engine` commit `1503cd1c` — disable Bevy gizmo plugins only for explicit Empty

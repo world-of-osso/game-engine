@@ -1,13 +1,13 @@
 # Wiki Index
 
 Knowledge base for the game-engine project. 41 pages across 5 categories.
-Last updated: 2026-09-07.
+Last updated: 2026-09-09.
 
 ## Systems
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; successful startup is build-backed and uncapped runtime Green remains pending
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, authored alpha-tested foliage depth coverage, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; camera-motion flicker remains unproven
 - [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, blend times, HD skeleton loading, NPC distance/visibility sampling LOD
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
