@@ -29,6 +29,10 @@ fn test_app() -> App {
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
+            .set(AssetPlugin {
+                file_path: format!("{}/assets", env!("CARGO_MANIFEST_DIR")),
+                ..default()
+            })
             .set(WindowPlugin {
                 primary_window: None,
                 exit_condition: bevy::window::ExitCondition::DontExit,
