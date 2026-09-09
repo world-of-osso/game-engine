@@ -322,7 +322,9 @@ pub(super) fn update_target_circle(
         &model_info_q,
     );
     for (mut circle_tf, scale_factor) in circle_q.iter_mut() {
-        circle_tf.translation = tf.translation + Vec3::Y * 0.05;
-        circle_tf.scale = Vec3::splat((circle_size * scale_factor.0).max(0.01));
+        let mut desired = *circle_tf;
+        desired.translation = tf.translation + Vec3::Y * 0.05;
+        desired.scale = Vec3::splat((circle_size * scale_factor.0).max(0.01));
+        circle_tf.set_if_neq(desired);
     }
 }
