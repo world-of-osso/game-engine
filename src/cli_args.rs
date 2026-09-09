@@ -3,9 +3,9 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use crate::game_state;
 use crate::InWorldSceneStage;
 use crate::ScreenshotRequest;
-use crate::game_state;
 use game_engine::game_state_enum::ScreenArg;
 use serde::{Deserialize, Serialize};
 
@@ -315,7 +315,7 @@ pub fn print_help() {
     println!("  --skybox-verify     Strip skyboxdebug helper visuals and procedural fallback");
     println!("  --login-dev-admin   Connect to dev server as admin/admin");
     println!("  --world-builder     Enable the in-world scene diagnostic sidebar (F9 toggles)");
-    println!("  --no-ui             Disable UI processing, rendering, text, and FPS overlay");
+    println!("  --no-ui             Disable UI except numeric FPS; hide frame-time graph");
     println!("  --disable-m2-effect-uv-updates  Disable M2 effect UV animation updates");
     println!(
         "  --no-terrain-objects  Skip streamed ADT doodad/WMO loading and spawning (diagnostic)"

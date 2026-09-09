@@ -4,9 +4,13 @@
 
 Updated [[movement-performance]] for `802b5014`. `WOO_PERF_GPU_CULLING_AFTER_SECS` is a one-shot diagnostic for a native attribution snapshot, not a supported interface or production setting; it has no CPU/visual result and must be removed after measurement.
 
+## [2026-09-09] systems | Keep FPS visible in no-UI diagnostic
+
+Updated [[ui-system]] and [InWorld scene isolation](../specs/inworld-scene-isolation.md) for `c299491b`. Opt-in `--no-ui` forces numeric FPS visibility despite saved HUD/menu writes, keeps the frame-time graph hidden, and continues to disable toolkit and world-space HUD visuals.
+
 ## [2026-09-09] systems | Add full UI-off diagnostic
 
-Updated [[ui-system]] and [InWorld scene isolation](../specs/inworld-scene-isolation.md) for `a60cbc38918ec27c730a2166fb8312223501fb6b`. Opt-in `--no-ui` disables toolkit processing, rendering, text, and the FPS overlay; UI plugins/resources and 3D rendering remain. Defaults and existing pre-`Ui` diagnostics are unchanged.
+Updated [[ui-system]] and [InWorld scene isolation](../specs/inworld-scene-isolation.md) for `a60cbc38918ec27c730a2166fb8312223501fb6b`. Opt-in `--no-ui` disables toolkit processing, rendering, text, and world-space HUD visuals; UI plugins/resources and 3D rendering remain. Defaults and existing pre-`Ui` diagnostics are unchanged.
 
 ## [2026-09-09] investigations | Record temporary application opt1 CPU evidence
 
