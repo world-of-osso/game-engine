@@ -54,6 +54,10 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 Target-first nameplate design: current target gets full plate (name, health, cast), nearby combatants get compact plates, non-hostile/distant actors are hidden or faded. Three display states: hidden, compact, full. State driven by targeting, hostility, recent damage, and distance. See [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md).
 
+## World NPC Picking
+
+Left-click targeting and right-click interaction cast through the `WowCamera`, not an unfiltered camera query. The UI/FPS camera remains present alongside the world camera, including `--no-ui`; requiring a single camera across both silently prevented picking. Real mesh-raycast tests include the UI camera, initialized world projection, and an NPC child mesh. `--no-ui` still suppresses health bars; world selection does not depend on showing them. Existing UI hit-testing policy is unchanged.
+
 ## Unit Frames
 
 PlayerFrame (232×100) and TargetFrame (232×100) mirror WoW's XML structure. PlayerFrame anchored at `x=268 y=850`; TargetFrame at `x=1100 y=850`. Both use real replicated ECS data: `LocalPlayer` + `Health`/`Mana` components; target via `CurrentTarget(Entity)`. Font: `FRIZQT__.TTF` 10px (`GameFontNormalSmall`). See [inworld-unit-frames-reference.md](../../inworld-unit-frames-reference.md).
