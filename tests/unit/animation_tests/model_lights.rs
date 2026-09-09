@@ -61,7 +61,7 @@ fn light_app(light: M2Light) -> (App, Entity, Entity) {
                 anim_owner: owner,
             },
             PointLight {
-                shadows_enabled: true,
+                shadow_maps_enabled: true,
                 shadow_depth_bias: 0.123,
                 shadow_normal_bias: 0.456,
                 ..default()
@@ -84,7 +84,7 @@ fn assert_light(app: &App, entity: Entity, color: Color, intensity: f32, range: 
     assert_eq!(light.intensity, intensity);
     assert_eq!(light.range, range);
     assert_eq!(light.radius, radius);
-    assert!(light.shadows_enabled);
+    assert!(light.shadow_maps_enabled);
     assert_eq!(light.shadow_depth_bias, 0.123);
     assert_eq!(light.shadow_normal_bias, 0.456);
 }
