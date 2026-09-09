@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged UI billboard rotations
+
+Updated [[ui-system]] for `56f82791`: nameplates, quest indicators, and health bars still derive their camera-facing rotations each update, but only mutate rotation when it changed. Position and scale remain untouched. Proof: six focused GREEN tests after four behavioral RED failures. No CPU claim.
+
 ## [2026-09-09] systems | Compose final nameplate color once
 
 Updated [[ui-system]] for `6637a6d2`: one RGB-plus-distance-alpha writer replaces unordered base-color/fade writes. Seventeen focused tests and independent delta verification pass; no native CPU claim.
