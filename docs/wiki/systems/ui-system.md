@@ -22,7 +22,7 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Layout invalidation
 
-`ui-toolkit` `0fdcf3f` makes an empty `rect_dirty` set a no-op: layout does not collect frames, resolve rectangles, or dirty render state. Layout work begins only when an actual geometry boundary explicitly calls `FrameRegistry::mark_rect_dirty`.
+`ui-toolkit` `0fdcf3f` makes an empty `rect_dirty` set a no-op: layout does not collect frames, resolve rectangles, or dirty render state. Layout work begins only when an actual geometry boundary explicitly calls `FrameRegistry::mark_rect_dirty`. Toolkit `a8c846b` also checks this before the caller mutably accesses `UiState`, avoiding false resource-change notifications on clean layout calls. Two behavioral regressions and independent toolkit/engine checks pass; this does not imply other UI systems are idle.
 
 Insertion/removal, screen resize, anchor changes, dimension/flex attributes, flex-child changes, text/EditBox auto-sizing, resolved named anchors, and owned-addon resize propagate through children, anchor dependents, and flex parents. `get_mut` remains render-dirty only; arbitrary raw geometry mutation is not made implicitly layout-dirty. Explicit unanchored cached rectangles retain their existing behavior.
 
