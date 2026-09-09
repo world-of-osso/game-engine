@@ -657,10 +657,21 @@ fn update_coord_text(
 ) {
     let Ok(tf) = player_q.single() else { return };
     let Some(frames) = frames else { return };
-    if let Some(frame) = ui.registry.get_mut(frames.coords) {
-        if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
-            fs.text = format!("{:.0}, {:.0}", tf.translation.x, tf.translation.z);
-        }
+    let text = format!("{:.0}, {:.0}", tf.translation.x, tf.translation.z);
+    let Some(WidgetData::FontString(current)) = ui
+        .registry
+        .get(frames.coords)
+        .and_then(|frame| frame.widget_data.as_ref())
+    else {
+        return;
+    };
+    if current.text == text {
+        return;
+    }
+    if let Some(frame) = ui.registry.get_mut(frames.coords)
+        && let Some(WidgetData::FontString(fs)) = &mut frame.widget_data
+    {
+        fs.text = text;
     }
 }
 
