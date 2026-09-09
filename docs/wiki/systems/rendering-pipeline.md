@@ -51,6 +51,8 @@ Blur maps to `DepthOfField`, glow maps to `Bloom`, anti-aliasing selects `None`,
 
 Persistence has six focused behavioral tests at `c4376e6e`; camera lifecycle has 13 focused passing tests in `data/diagnostics/graphics-config-switches/camera-green-corrected.log`. Commit `7b499bb2` omits `ParticlePlugin`/Hanabi when `particleEffectsEnabled` is false and prevents deferred emitter texture loading/spawning; `cab4207b` has 23 targeted particle tests. Commit `b0e1f2bf` also suppresses weather particle effects without requiring Hanabi assets while preserving weather state, fog, and lighting; six targeted weather tests pass. It is a startup setting: editing the file requires restart. No CLI flags or graphics UI controls were added. This records behavior, not CPU or native-visual proof.
 
+Commit `536966e8` retains per-update graphics-effect reconciliation but compares desired camera state before mutating existing `Bloom`, contrast-adaptive sharpening, or render-resolution components. Unchanged graphics settings and target size therefore do not emit component changes; all Bloom fields, all sharpening fields, effect removal, resize, and render-scale changes remain covered by 48 focused camera tests. No CPU claim follows from change detection alone.
+
 ## Particles
 
 GPU particles run via `bevy_hanabi` 0.19. Each live particle is a separate Bevy entity with `Mesh3d` (unit quad) + `StandardMaterial`. The emitter (`ParticleEmitterComp`) accumulates emission and resolves bone position per frame. Color, opacity, and scale use 3-point FakeAnimBlock interpolation. Texture tiles are static (chosen at spawn, not animated).

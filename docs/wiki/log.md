@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged health-bar, camera, and model-light writes
+
+Updated [[ui-system]], [[rendering-pipeline]], and [[animation]] for `275bd84c`, `536966e8`, and `c3e28125`. Health-bar, camera-effect, and animated-light systems retain evaluation and real updates but avoid mutating equal component or material values. Focused GREEN: health-bar11, camera48, model-light2. No whole-engine CPU claim.
+
 ## [2026-09-09] systems | Avoid unchanged nameplate and skybox material writes
 
 Updated [[ui-system]] and [[skybox]] for `0357727b` and `e0aa5809`. Nameplate color and authored skybox UV/transparency evaluation remain current, but unchanged output no longer marks components or assets modified. Proof: three nameplate and 21 skybox focused tests after genuine RED cases. No whole-engine CPU claim.

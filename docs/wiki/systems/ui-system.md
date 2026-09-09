@@ -55,6 +55,8 @@ Commits `1a8c6d58`, `cd47743e`, `9a6b6679`, `ae222f0e`, `e9b81652`, and `fc99128
 
 Engine commit `6edcdc91` similarly runs nameplate and quest-indicator HUD visibility synchronization every `Update`, but uses `Visibility::set_if_neq` so components already at the requested state are not marked changed. Commit `0357727b` applies the same rule to nameplate text color: it still evaluates the current kind and colorblind mode every update, but `TextColor::set_if_neq` avoids emitting a component change when the computed color matches. Three focused behavioral tests cover stable player/NPC colors, colorblind or kind changes, and newly added nameplates. Focused tests also cover unchanged components and HUD show/hide toggles on each update.
 
+Commit `275bd84c` applies equivalent comparisons to world health bars: unchanged health preserves the foreground transform and material color, while unchanged HUD visibility preserves `Visibility`. Health and HUD changes still update immediately. Eleven focused health-bar tests pass; this is mutation-boundary proof, not a whole-engine CPU claim.
+
 ## Keybindings
 
 Configurable bindings cover in-world gameplay: movement (forward/backward/strafe/jump/run/autorun), camera (turn/pitch/zoom), targeting, action bar slots 1–12, audio mute. Fixed (non-bindable) inputs: LMB+RMB chord, login/charselect/menu screen keys, debug controls. See [keybindings-scope.md](../../keybindings-scope.md).
