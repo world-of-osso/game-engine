@@ -6,9 +6,7 @@ use crate::asset::asset_cache;
 use crate::client_options::{
     DEFAULT_NAMEPLATE_DISTANCE, GraphicsOptions, HudOptions, HudVisibilityToggles,
 };
-use crate::game::inworld_scene_stage::{
-    InWorldSceneStage, configured_inworld_scene_stage, inworld_scene_stage_allows_ui,
-};
+use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
@@ -70,8 +68,9 @@ fn spawn_player_nameplate(
     mut commands: Commands,
     query: Query<&NetPlayer>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
 ) {
-    if !configured_inworld_scene_stage(scene_stage).includes(InWorldSceneStage::Ui) {
+    if !inworld_scene_stage_allows_ui(scene_stage, ui_disabled) {
         return;
     }
     let entity = trigger.entity;
@@ -95,8 +94,9 @@ fn spawn_npc_nameplate(
     mut commands: Commands,
     query: Query<&Npc>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
 ) {
-    if !configured_inworld_scene_stage(scene_stage).includes(InWorldSceneStage::Ui) {
+    if !inworld_scene_stage_allows_ui(scene_stage, ui_disabled) {
         return;
     }
     let entity = trigger.entity;
@@ -463,6 +463,40 @@ mod tests {
                 }
                 previous = expected;
             }
+        }
+    }
+
+    #[test]
+    fn no_ui_nameplate_observers_do_not_spawn_children() {
+        for disabled in [false, true] {
+            let mut app = App::new();
+            if disabled {
+                app.insert_resource(crate::client_options::UiDisabled);
+            }
+            app.add_observer(spawn_player_nameplate);
+            app.add_observer(spawn_npc_nameplate);
+            let player = app
+                .world_mut()
+                .spawn(NetPlayer {
+                    name: "Theron".into(),
+                    race: 1,
+                    class: 2,
+                    appearance: default(),
+                })
+                .id();
+            let npc = app.world_mut().spawn(Npc { template_id: 1642 }).id();
+            app.update();
+            let expected = usize::from(!disabled);
+            for parent in [player, npc] {
+                assert_eq!(
+                    app.world()
+                        .get::<Children>(parent)
+                        .map_or(0, |children| children.len()),
+                    expected
+                );
+            }
+            let mut nameplates = app.world_mut().query_filtered::<Entity, With<Nameplate>>();
+            assert_eq!(nameplates.iter(app.world()).count(), expected * 2);
         }
     }
 

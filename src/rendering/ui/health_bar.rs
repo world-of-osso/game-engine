@@ -2,9 +2,7 @@ use bevy::prelude::*;
 use shared::components::Health;
 
 use crate::client_options::HudVisibilityToggles;
-use crate::game::inworld_scene_stage::{
-    InWorldSceneStage, configured_inworld_scene_stage, inworld_scene_stage_allows_ui,
-};
+use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
 
 pub struct HealthBarPlugin;
@@ -74,11 +72,11 @@ fn spawn_health_bars(
     mut commands: Commands,
     query: Query<&Health>,
     scene_stage: Option<Res<InWorldSceneStage>>,
+    ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let scene_stage = configured_inworld_scene_stage(scene_stage);
-    if !scene_stage.includes(InWorldSceneStage::Ui) {
+    if !inworld_scene_stage_allows_ui(scene_stage, ui_disabled) {
         return;
     }
 
@@ -262,6 +260,35 @@ mod tests {
             app.world().get::<Visibility>(entity),
             Some(&Visibility::Hidden)
         );
+    }
+
+    #[test]
+    fn no_ui_health_observer_does_not_allocate_bar_assets() {
+        for disabled in [false, true] {
+            let mut app = health_bar_test_app(crate::InWorldSceneStage::Ui);
+            if disabled {
+                app.insert_resource(crate::client_options::UiDisabled);
+            }
+            let parent = app.world_mut().spawn(Transform::default()).id();
+            app.world_mut().entity_mut(parent).insert(Health {
+                current: 75.0,
+                max: 100.0,
+            });
+            app.update();
+            let expected = usize::from(!disabled);
+            assert_eq!(health_bar_count(&mut app), expected);
+            assert_eq!(app.world().resource::<Assets<Mesh>>().len(), expected * 2);
+            assert_eq!(
+                app.world().resource::<Assets<StandardMaterial>>().len(),
+                expected * 2
+            );
+            assert_eq!(
+                app.world()
+                    .get::<Children>(parent)
+                    .map_or(0, |children| children.len()),
+                expected
+            );
+        }
     }
 
     #[test]
