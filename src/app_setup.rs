@@ -300,12 +300,12 @@ fn graphics_config_particles_disabled_omits_effect_runtime() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.init_resource::<Assets<Mesh>>();
     app.insert_resource(client_options::GraphicsOptions {
         particle_effects_enabled: false,
         ..default()
     });
     register_particle_plugin(&mut app);
-    app.update();
     assert!(
         !app.world()
             .contains_resource::<Assets<bevy_hanabi::EffectAsset>>()
