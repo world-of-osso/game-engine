@@ -13,10 +13,9 @@ fn particles_disabled_preserves_weather_without_hanabi_assets() {
         ..default()
     });
     app.init_resource::<CurrentZone>();
-    app.insert_resource(AdtManager {
-        map_name: "northrend".into(),
-        ..default()
-    });
+    let mut terrain = AdtManager::default();
+    terrain.map_name = "northrend".into();
+    app.insert_resource(terrain);
     app.add_plugins(WeatherPlugin);
     app.world_mut()
         .spawn((WowCamera::default(), Transform::default()));
