@@ -249,6 +249,98 @@ fn sync_health_bar_visibility(
 mod tests {
     use super::*;
 
+    #[derive(Resource, Default)]
+    struct HealthBarChanges {
+        transforms: usize,
+        visibility: usize,
+    }
+
+    fn observe_health_bar_changes(
+        transforms: Query<(), (With<HealthBarForeground>, Changed<Transform>)>,
+        visibility: Query<(), (With<HealthBar>, Changed<Visibility>)>,
+        mut changes: ResMut<HealthBarChanges>,
+    ) {
+        changes.transforms = transforms.iter().count();
+        changes.visibility = visibility.iter().count();
+    }
+
+    fn take_material_changes(app: &mut App) -> usize {
+        app.world_mut()
+            .resource_mut::<bevy::ecs::message::Messages<bevy::asset::AssetEvent<StandardMaterial>>>()
+            .drain()
+            .filter(|event| matches!(event, bevy::asset::AssetEvent::Modified { .. }))
+            .count()
+    }
+
+    #[test]
+    fn health_bar_unchanged_writes_preserve_health_updates() {
+        use bevy::asset::AssetApp;
+        let mut app = App::new();
+        app.add_plugins((bevy::app::TaskPoolPlugin::default(), AssetPlugin::default()));
+        app.init_asset::<StandardMaterial>();
+        app.init_resource::<HealthBarChanges>();
+        app.add_systems(Update, (update_health_bars, sync_health_bar_visibility));
+        app.add_systems(PostUpdate, observe_health_bar_changes);
+        let material = app
+            .world_mut()
+            .resource_mut::<Assets<StandardMaterial>>()
+            .add(StandardMaterial::default());
+        let foreground = app
+            .world_mut()
+            .spawn((
+                HealthBarForeground,
+                Transform::default(),
+                MeshMaterial3d(material.clone()),
+            ))
+            .id();
+        let bar = app
+            .world_mut()
+            .spawn((HealthBar, Visibility::Inherited))
+            .add_child(foreground)
+            .id();
+        let unit = app
+            .world_mut()
+            .spawn(Health {
+                current: 100.0,
+                max: 100.0,
+            })
+            .add_child(bar)
+            .id();
+        app.update();
+        take_material_changes(&mut app);
+        app.update();
+        assert_eq!(app.world().resource::<HealthBarChanges>().transforms, 0);
+        assert_eq!(app.world().resource::<HealthBarChanges>().visibility, 0);
+        assert_eq!(take_material_changes(&mut app), 0);
+        app.world_mut().get_mut::<Health>(unit).unwrap().current = 25.0;
+        app.update();
+        assert_eq!(app.world().resource::<HealthBarChanges>().transforms, 1);
+        assert_eq!(take_material_changes(&mut app), 1);
+        assert_eq!(
+            app.world().get::<Transform>(foreground),
+            Some(&foreground_transform(0.25))
+        );
+        assert_eq!(
+            app.world()
+                .resource::<Assets<StandardMaterial>>()
+                .get(&material)
+                .unwrap()
+                .base_color,
+            health_bar_color(25.0, 100.0)
+        );
+        app.insert_resource(crate::client_options::UiDisabled);
+        app.update();
+        assert_eq!(
+            app.world().get::<Visibility>(bar),
+            Some(&Visibility::Hidden)
+        );
+        assert_eq!(app.world().resource::<HealthBarChanges>().visibility, 1);
+        app.update();
+        assert_eq!(app.world().resource::<HealthBarChanges>().transforms, 0);
+        assert_eq!(app.world().resource::<HealthBarChanges>().visibility, 0);
+        assert_eq!(take_material_changes(&mut app), 0);
+    }
+
     #[test]
     fn no_ui_hides_health_bars() {
         let mut app = App::new();
