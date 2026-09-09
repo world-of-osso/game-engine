@@ -75,17 +75,33 @@ pub(super) fn sync_login_status(
     let Some(res) = screen_res else { return };
     let inner = &mut res.0;
     let connecting = status.0 == STATUS_CONNECTING;
-    inner
+    if inner
         .shared
-        .insert::<SharedStatusText>(SharedStatusText(status.0.clone()));
-    inner
+        .get::<SharedStatusText>()
+        .is_none_or(|value| value.0 != status.0)
+    {
+        inner.shared.insert(SharedStatusText(status.0.clone()));
+    }
+    if inner
         .shared
-        .insert::<SharedConnecting>(SharedConnecting(connecting));
-    inner
+        .get::<SharedConnecting>()
+        .is_none_or(|value| value.0 != connecting)
+    {
+        inner.shared.insert(SharedConnecting(connecting));
+    }
+    if inner
         .shared
-        .insert::<SharedRealmText>(SharedRealmText(realm_text));
-    inner
+        .get::<SharedRealmText>()
+        .is_none_or(|value| value.0 != realm_text)
+    {
+        inner.shared.insert(SharedRealmText(realm_text));
+    }
+    if inner
         .shared
-        .insert::<SharedRealmSelectable>(SharedRealmSelectable(realm_selectable));
+        .get::<SharedRealmSelectable>()
+        .is_none_or(|value| value.0 != realm_selectable)
+    {
+        inner.shared.insert(SharedRealmSelectable(realm_selectable));
+    }
     inner.screen.sync(&inner.shared, reg);
 }
