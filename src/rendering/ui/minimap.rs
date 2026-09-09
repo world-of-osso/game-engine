@@ -653,7 +653,7 @@ fn update_zone_name(
 fn update_coord_text(
     player_q: Query<Ref<Transform>, With<crate::camera::Player>>,
     mut ui: ResMut<UiState>,
-    frames: Option<Res<MinimapFrames>>,
+    frames: Option<Ref<MinimapFrames>>,
     mut last: Local<Option<(u64, String)>>,
 ) {
     let Ok(tf) = player_q.single() else { return };
@@ -661,6 +661,7 @@ fn update_coord_text(
     if let Some((last_frame, _)) = &*last
         && *last_frame == frames.coords
         && !tf.is_changed()
+        && !frames.is_changed()
     {
         return;
     }
