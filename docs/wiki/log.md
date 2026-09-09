@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-09] formats | Correct MCVT terrain axes and preserve authored heights
+
+Updated [[adt-format]], [[terrain]], and the terrain index summary for game-engine `ac9cd925`; reconciled the matching game-server sampler in `2cfe233`. MCVT rows map to negative Bevy X and columns to positive Bevy Z; the client mesh/sampler and server sampler now use authored four-triangle center fans. Removed erroneous seam averaging and corrected mesh winding. Focused proof: engine 4 tests and server 19 tests GREEN. Water follow-up and runtime cart visual confirmation remain open.
+
+
 ## [2026-09-09] formats | Add bounded NPC authored appearance importer
 
 Updated [[db2-format]] with local WDC5 layouts, material/model resolution, isolated CLI usage, and proposed SQLite output contract. Synthetic tests cover decoding, joins, deterministic output, and explicit failures. Production promotion and renderer acceptance remain outside this importer.

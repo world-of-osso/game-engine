@@ -27,11 +27,13 @@ MCNK header records the chunk's world-space origin. The 33×33 grid spans one ch
 
 ## Coordinate System
 
-ADT coordinates are WoW world-space (Y-up, right-handed). The engine maps these to Bevy's left-handed Y-up space. Chunk origins from the MCNK header match the derived `(tile_x, tile_y)` math closely — chunk-origin parsing is not a significant source of error.
+ADT coordinates are WoW world-space (Y-up, right-handed). The engine maps them to Bevy `(X, Y, -Z)`. MCNK stores world X at header offset `0x68`, world Y at `0x6c`, and base height at `0x70`.
+
+MCVT rows advance toward negative Bevy X; columns advance toward positive Bevy Z. The renderer, client heightmap, and [server terrain sampler](../../../game-server/docs/wiki/systems/networking.md#terrain-height-sampling) use this basis. The former row/column transpose reconstructed hills incorrectly while leaving authored doodad transforms unchanged.
 
 ## Heightmap Topology
 
-The 33×33 grid is a diamond-tessellated mesh: outer ring vertices (17 per row) interleave with inner detail vertices (16 per row). Discontinuities along shared chunk edges cause visible seams when adjacent chunks have large height differences — observed in mountain ridge areas.
+The 145-value grid is a diamond-tessellated 9×9 outer / 8×8 inner layout. Each outer cell is four triangles meeting at its authored inner center vertex. Mesh winding points upward after coordinate conversion. Shared MCNK edges are authored data and are no longer averaged by a parser seam pass; averaging had combined wrong edge samples and altered terrain heights.
 
 ## Terrain Normals
 
@@ -53,7 +55,9 @@ For character-select scenes, the primary tile must be loaded first; sorting the 
 
 ## Sources
 
-- [docs/adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile selection bug, MCNK peak data, normal inconsistency
+- [docs/adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile selection bug and mountain visual revalidation context
+- `src/asset/adt_format/adt.rs`, `src/asset/adt.rs`, `src/rendering/terrain/terrain_heightmap.rs` — client parser, mesh, and sampler
+- `../../../game-server/crates/server/src/terrain_height.rs` — matching server sampler
 - [docs/world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — MDDF/MODF rotation mapping derivation
 - AGENTS.md (ADT Terrain section + `asset/adt_format/`) — split file structure, parser modules
 
