@@ -25,7 +25,6 @@ impl Plugin for NameplatePlugin {
                 sync_nameplate_visibility,
                 sync_nameplate_colors,
                 billboard_nameplates,
-                fade_nameplates_by_distance,
                 sync_quest_indicators,
             )
                 .run_if(in_state(GameState::InWorld))
@@ -156,11 +155,23 @@ fn sync_nameplate_visibility(
 
 fn sync_nameplate_colors(
     graphics_options: Option<Res<GraphicsOptions>>,
-    mut query: Query<(&NameplateKind, &mut TextColor), With<Nameplate>>,
+    camera_query: Query<&GlobalTransform, With<Camera3d>>,
+    hud_options: Option<Res<HudOptions>>,
+    mut query: Query<(&NameplateKind, Option<&GlobalTransform>, &mut TextColor), With<Nameplate>>,
 ) {
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    for (kind, mut color) in &mut query {
-        color.set_if_neq(TextColor(nameplate_text_color(*kind, colorblind_mode)));
+    let camera_position = camera_query.single().ok().map(GlobalTransform::translation);
+    let fade_far = hud_options
+        .as_deref()
+        .map_or(DEFAULT_NAMEPLATE_DISTANCE, |hud| hud.nameplate_distance);
+    for (kind, transform, mut color) in &mut query {
+        let mut desired = nameplate_text_color(*kind, colorblind_mode);
+        // Without one camera (or a world transform), retain the base-color behavior.
+        if let (Some(camera_position), Some(transform)) = (camera_position, transform) {
+            let distance = camera_position.distance(transform.translation());
+            desired = desired.with_alpha(nameplate_alpha(distance, fade_far));
+        }
+        color.set_if_neq(TextColor(desired));
     }
 }
 
@@ -199,26 +210,6 @@ pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
         0.0
     } else {
         1.0 - (distance - fade_near) / (fade_far - fade_near)
-    }
-}
-
-/// Fade nameplate alpha based on distance to camera.
-fn fade_nameplates_by_distance(
-    camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    hud_options: Option<Res<HudOptions>>,
-    mut plate_query: Query<(&GlobalTransform, &mut TextColor), With<Nameplate>>,
-) {
-    let Ok(camera_global) = camera_query.single() else {
-        return;
-    };
-    let camera_pos = camera_global.translation();
-    let fade_far = hud_options
-        .as_deref()
-        .map_or(DEFAULT_NAMEPLATE_DISTANCE, |hud| hud.nameplate_distance);
-    for (global_tf, mut text_color) in plate_query.iter_mut() {
-        let dist = camera_pos.distance(global_tf.translation());
-        let alpha = nameplate_alpha(dist, fade_far);
-        text_color.0 = text_color.0.with_alpha(alpha);
     }
 }
 
@@ -369,7 +360,7 @@ mod tests {
         let mut app = App::new();
         app.init_resource::<GraphicsOptions>();
         app.init_resource::<ColorChanges>();
-        app.add_systems(Update, (sync_nameplate_colors, fade_nameplates_by_distance));
+        app.add_systems(Update, sync_nameplate_colors);
         app.add_systems(PostUpdate, observe_color_changes);
         app
     }
