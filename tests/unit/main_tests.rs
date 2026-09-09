@@ -1,5 +1,62 @@
 use super::*;
 
+#[test]
+fn no_ui_flag_is_opt_in_and_not_an_asset_path() {
+    assert!(!parse_cli_flags(&args(&[])).no_ui);
+    let input = args(&["--no-ui"]);
+    assert!(parse_cli_flags(&input).no_ui);
+    assert!(parse_asset_path_from_args(&input).is_none());
+}
+
+#[test]
+fn no_ui_disables_startup_gates_and_fps_for_all_scene_stages() {
+    use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
+
+    for stage in [
+        None,
+        Some(InWorldSceneStage::Empty),
+        Some(InWorldSceneStage::Character),
+        Some(InWorldSceneStage::Skybox),
+        Some(InWorldSceneStage::Terrain),
+        Some(InWorldSceneStage::Npcs),
+        Some(InWorldSceneStage::Lighting),
+        Some(InWorldSceneStage::Particles),
+        Some(InWorldSceneStage::Ui),
+        Some(InWorldSceneStage::NoNpcsUi),
+    ] {
+        let mut app = App::new();
+        app.insert_resource(UiProcessingEnabled::default());
+        app.insert_resource(UiRenderEnabled::default());
+        app.insert_resource(UiTextRenderEnabled::default());
+        app.insert_resource(FpsOverlayConfig::default());
+        if let Some(stage) = stage {
+            app.insert_resource(stage);
+        }
+        apply_inworld_scene_stage_ui_gates(&mut app, parse_cli_flags(&args(&["--no-ui"])).no_ui);
+        assert!(!app.world().resource::<UiProcessingEnabled>().0);
+        assert!(!app.world().resource::<UiRenderEnabled>().0);
+        assert!(!app.world().resource::<UiTextRenderEnabled>().0);
+        assert!(!app.world().resource::<FpsOverlayConfig>().enabled);
+    }
+}
+
+#[test]
+fn no_ui_help_is_advertised() {
+    const CHILD: &str = "GAME_ENGINE_TEST_HELP_CHILD";
+    if std::env::var_os(CHILD).is_some() {
+        assert!(handle_simple_flags(&args(&["--help"])));
+        return;
+    }
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "tests::no_ui_help_is_advertised", "--nocapture"])
+        .env(CHILD, "1")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("--no-ui"), "{stdout}");
+}
+
 fn args(items: &[&str]) -> Vec<String> {
     items.iter().map(|item| item.to_string()).collect()
 }
@@ -72,7 +129,7 @@ fn no_npcs_ui_scene_stage_preserves_full_scene_except_npcs_and_game_ui() {
 
     let mut app = App::new();
     app.insert_resource(stage);
-    apply_inworld_scene_stage_ui_gates(&mut app);
+    apply_inworld_scene_stage_ui_gates(&mut app, false);
 
     use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
     assert!(!app.world().resource::<UiProcessingEnabled>().0);
@@ -276,7 +333,7 @@ fn every_pre_ui_stage_disables_ui_processing_and_rendering() {
     ] {
         let mut app = App::new();
         app.insert_resource(stage);
-        apply_inworld_scene_stage_ui_gates(&mut app);
+        apply_inworld_scene_stage_ui_gates(&mut app, false);
 
         assert!(!app.world().resource::<UiProcessingEnabled>().0);
         assert!(!app.world().resource::<UiRenderEnabled>().0);
@@ -297,7 +354,7 @@ fn ui_and_unconfigured_stages_preserve_enabled_ui_defaults() {
         app.insert_resource(UiRenderEnabled::default());
         app.insert_resource(UiTextRenderEnabled::default());
 
-        apply_inworld_scene_stage_ui_gates(&mut app);
+        apply_inworld_scene_stage_ui_gates(&mut app, false);
 
         assert!(app.world().resource::<UiProcessingEnabled>().0);
         assert!(app.world().resource::<UiRenderEnabled>().0);
@@ -320,7 +377,7 @@ fn pre_ui_processing_gate_keeps_fps_overlay_active() {
         },
     });
     app.insert_resource(InWorldSceneStage::Empty);
-    apply_inworld_scene_stage_ui_gates(&mut app);
+    apply_inworld_scene_stage_ui_gates(&mut app, false);
 
     let overlay = app.world().resource::<FpsOverlayConfig>();
     assert!(overlay.enabled);
@@ -346,7 +403,7 @@ fn character_stage_preserves_fps_overlay_graph() {
     app.add_plugins(FpsOverlayPlugin::default());
     app.insert_resource(InWorldSceneStage::Character);
 
-    apply_inworld_scene_stage_ui_gates(&mut app);
+    apply_inworld_scene_stage_ui_gates(&mut app, false);
 
     let overlay = app.world().resource::<FpsOverlayConfig>();
     assert!(overlay.enabled);

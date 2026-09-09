@@ -140,6 +140,7 @@ fn main() {
         cli.dump_ui_tree,
         cli.dump_scene,
         cli.world_builder,
+        cli.no_ui,
         cli.screenshot,
         cli.initial_state,
     );
@@ -183,6 +184,7 @@ struct CliFlags {
     dump_ui_tree: bool,
     dump_scene: bool,
     world_builder: bool,
+    no_ui: bool,
     load_scene: Option<PathBuf>,
     screenshot: Option<ScreenshotRequest>,
     initial_state: Option<game_state::GameState>,
@@ -220,6 +222,7 @@ fn parse_cli_flags(args: &[String]) -> CliFlags {
         dump_ui_tree: args.iter().any(|a| a == "--dump-ui-tree"),
         dump_scene: args.iter().any(|a| a == "--dump-scene"),
         world_builder: args.iter().any(|a| a == "--world-builder"),
+        no_ui: has_flag(args, "--no-ui"),
         load_scene,
         screenshot: parse_screenshot_args(args),
         initial_state,
@@ -405,6 +408,7 @@ fn run_app(
     dump_ui_tree: bool,
     dump_scene: bool,
     world_builder_enabled: bool,
+    no_ui: bool,
     screenshot: Option<ScreenshotRequest>,
     initial_state: Option<game_state::GameState>,
 ) {
@@ -422,7 +426,7 @@ fn run_app(
         enable_gizmos,
         app_setup::pipelining_enabled(args),
     );
-    apply_inworld_scene_stage_ui_gates(&mut app);
+    apply_inworld_scene_stage_ui_gates(&mut app, no_ui);
     configure_app_plugins(&mut app, enable_sound, &mut parsed);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
@@ -443,14 +447,17 @@ fn insert_inworld_scene_stage_resource(app: &mut App, args: &[String]) {
     }
 }
 
-fn apply_inworld_scene_stage_ui_gates(app: &mut App) {
+fn apply_inworld_scene_stage_ui_gates(app: &mut App, no_ui: bool) {
     let scene_stage = game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
     if scene_stage == InWorldSceneStage::Empty
         && let Some(mut overlay) = app.world_mut().get_resource_mut::<FpsOverlayConfig>()
     {
         overlay.frame_time_graph_config.enabled = false;
     }
-    if scene_stage.includes(InWorldSceneStage::Ui) {
+    if no_ui {
+        app.world_mut().resource_mut::<FpsOverlayConfig>().enabled = false;
+    }
+    if !no_ui && scene_stage.includes(InWorldSceneStage::Ui) {
         return;
     }
     app.insert_resource(game_engine::ui::plugin::UiProcessingEnabled(false));
