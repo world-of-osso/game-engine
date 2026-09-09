@@ -29,19 +29,9 @@ fn graphics_config_particles_control_spawn_and_texture_loading() {
         let mut emitter = sample_emitter();
         emitter.texture_fdid = Some(u32::MAX);
         app.world_mut()
-            .run_system_once(
-                move |mut commands: bevy::prelude::Commands,
-                      mut images: bevy::prelude::ResMut<Assets<Image>>| {
-                    spawn_emitters(
-                        &mut commands,
-                        &mut images,
-                        &[emitter.clone()],
-                        &[],
-                        None,
-                        parent,
-                    );
-                },
-            )
+            .run_system_once(move |mut commands: bevy::prelude::Commands| {
+                spawn_emitters(&mut commands, &[emitter.clone()], &[], None, parent);
+            })
             .expect("spawn system should run");
         app.world_mut().flush();
         let expected = usize::from(enabled);
@@ -228,12 +218,9 @@ fn model_particle_emitters_skip_hanabi_quad_spawn_path() {
     let emitters = vec![emitter];
 
     app.world_mut()
-        .run_system_once(
-            move |mut commands: bevy::prelude::Commands,
-                  mut images: bevy::prelude::ResMut<Assets<Image>>| {
-                spawn_emitters(&mut commands, &mut images, &emitters, &[], None, parent);
-            },
-        )
+        .run_system_once(move |mut commands: bevy::prelude::Commands| {
+            spawn_emitters(&mut commands, &emitters, &[], None, parent);
+        })
         .expect("spawn system should run");
     app.world_mut().flush();
 

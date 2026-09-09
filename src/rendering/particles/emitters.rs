@@ -262,7 +262,6 @@ pub(crate) fn trigger_pending_particle_bursts(
 
 pub fn spawn_emitters(
     commands: &mut Commands,
-    _images: &mut Assets<Image>,
     emitters: &[M2ParticleEmitter],
     bones: &[M2Bone],
     bone_entities: Option<&[Entity]>,

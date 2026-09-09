@@ -165,7 +165,6 @@ fn spawn_anim_joints_and_emitters(
         attach_bone_pivots_and_player(ctx.commands, bones, sequences, skinning, model_entity);
     spawn_particle_emitters(
         ctx.commands,
-        ctx.assets.images,
         particle_emitters,
         bones,
         skinning,
@@ -211,7 +210,6 @@ fn attach_anim_equipment(
 
 fn spawn_particle_emitters(
     commands: &mut Commands,
-    images: &mut Assets<Image>,
     particle_emitters: &[M2ParticleEmitter],
     bones: &[M2Bone],
     skinning: &m2_spawn::SkinningResult,
@@ -221,14 +219,7 @@ fn spawn_particle_emitters(
         return;
     }
     let bone_slice = skinning.as_ref().map(|(_, joints)| joints.as_slice());
-    particle::spawn_emitters(
-        commands,
-        images,
-        particle_emitters,
-        bones,
-        bone_slice,
-        model_entity,
-    );
+    particle::spawn_emitters(commands, particle_emitters, bones, bone_slice, model_entity);
 }
 
 fn load_m2_model(

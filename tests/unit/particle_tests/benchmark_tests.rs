@@ -53,12 +53,9 @@ fn bench_particle_heavy_scene_headless() {
         let emitters = emitters.clone();
         let bones = bones.clone();
         app.world_mut()
-            .run_system_once(
-                move |mut commands: bevy::prelude::Commands,
-                      mut images: bevy::prelude::ResMut<Assets<Image>>| {
-                    spawn_emitters(&mut commands, &mut images, &emitters, &bones, None, parent);
-                },
-            )
+            .run_system_once(move |mut commands: bevy::prelude::Commands| {
+                spawn_emitters(&mut commands, &emitters, &bones, None, parent);
+            })
             .expect("spawn system should run");
         app.world_mut().flush();
     }
