@@ -287,10 +287,38 @@ fn m2_effect_material_plugin_is_enabled(stage: Option<InWorldSceneStage>) -> boo
         .includes(InWorldSceneStage::Character)
 }
 
+fn register_particle_plugin(app: &mut App) {
+    let stage = app.world().get_resource::<InWorldSceneStage>().copied();
+    if particle_plugin_is_enabled(stage) {
+        app.add_plugins(particle::ParticlePlugin);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn graphics_config_particles_disabled_omits_effect_runtime() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.insert_resource(client_options::GraphicsOptions {
+        particle_effects_enabled: false,
+        ..default()
+    });
+    register_particle_plugin(&mut app);
+    app.update();
+    assert!(
+        !app.world()
+            .contains_resource::<Assets<bevy_hanabi::EffectAsset>>()
+    );
+    assert!(
+        !app.world()
+            .contains_resource::<particle::DynamicParticleWind>()
+    );
+}
+
 fn register_render_plugins(app: &mut App) {
     let stage = app.world().get_resource::<InWorldSceneStage>().copied();
     let m2_effect_material_plugin_enabled = m2_effect_material_plugin_is_enabled(stage);
-    let particle_plugin_enabled = particle_plugin_is_enabled(stage);
 
     let empty = stage == Some(InWorldSceneStage::Empty);
     if empty {
@@ -311,9 +339,7 @@ fn register_render_plugins(app: &mut App) {
             .add_plugins(water_material::WaterMaterialPlugin);
     }
     app.add_plugins(sky::SkyPlugin);
-    if particle_plugin_enabled {
-        app.add_plugins(particle::ParticlePlugin);
-    }
+    register_particle_plugin(app);
     app.add_plugins(weather::WeatherPlugin).add_systems(
         Update,
         terrain_objects::sync_wmo_sidn_emissive

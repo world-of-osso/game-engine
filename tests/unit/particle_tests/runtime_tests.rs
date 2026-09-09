@@ -14,6 +14,59 @@ fn model_particle_test_app() -> App {
 }
 
 #[test]
+fn graphics_config_particles_control_spawn_and_texture_loading() {
+    for enabled in [false, true] {
+        let mut app = model_particle_test_app();
+        app.insert_resource(GraphicsOptions {
+            particle_effects_enabled: enabled,
+            ..Default::default()
+        });
+        let transform = Transform::from_xyz(2.0, 3.0, 4.0);
+        let parent = app
+            .world_mut()
+            .spawn((transform, GlobalTransform::default()))
+            .id();
+        let mut emitter = sample_emitter();
+        emitter.texture_fdid = Some(u32::MAX);
+        app.world_mut()
+            .run_system_once(
+                move |mut commands: bevy::prelude::Commands,
+                      mut images: bevy::prelude::ResMut<Assets<Image>>| {
+                    spawn_emitters(
+                        &mut commands,
+                        &mut images,
+                        &[emitter.clone()],
+                        &[],
+                        None,
+                        parent,
+                    );
+                },
+            )
+            .expect("spawn system should run");
+        app.world_mut().flush();
+        let expected = usize::from(enabled);
+        assert_eq!(app.world().resource::<Assets<Image>>().len(), expected);
+        assert_eq!(
+            app.world_mut()
+                .query::<&ParticleEmitterComp>()
+                .iter(app.world())
+                .count(),
+            expected
+        );
+        assert_eq!(app.world().get::<Transform>(parent), Some(&transform));
+        if enabled {
+            let mut query = app
+                .world_mut()
+                .query::<(&ParticleEmitterComp, &bevy::prelude::ChildOf)>();
+            let (emitter, child_of) = query.single(app.world()).expect("one emitter");
+            assert_eq!(child_of.parent(), parent);
+            assert_eq!(emitter.spawn_mode, ParticleSpawnMode::Continuous);
+            assert!(emitter.pending_texture.is_some());
+        }
+    }
+}
+
+#[test]
 fn world_space_emitters_skip_bone_parent_transform() {
     let mut emitter = sample_emitter();
     emitter.flags = PARTICLE_FLAG_WORLD_SPACE;
