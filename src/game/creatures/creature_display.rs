@@ -8,6 +8,8 @@ use bevy::prelude::*;
 mod cache;
 #[path = "creature_named_model_cache.rs"]
 mod named_cache;
+#[path = "npc_appearance.rs"]
+pub(crate) mod npc_appearance;
 
 const NAMED_MODEL_CACHE_PATH: &str = "cache/named-model-lookups.sqlite";
 
