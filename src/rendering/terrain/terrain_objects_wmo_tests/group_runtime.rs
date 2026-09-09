@@ -88,7 +88,7 @@ fn collect_group_doodads_filters_to_default_and_selected_set_refs() {
             .collect::<Vec<_>>(),
         vec![100, 102, 103]
     );
-    assert_eq!(doodads[0].transform.translation, Vec3::new(-1.0, 3.0, 2.0));
+    assert_eq!(doodads[0].transform.translation, Vec3::new(1.0, 3.0, -2.0));
     assert_eq!(doodads[1].transform.scale, Vec3::splat(0.5));
     assert_eq!(doodads[2].transform.scale, Vec3::splat(2.0));
 }
@@ -247,8 +247,8 @@ fn group_bbox_marks_antiportal_groups_from_authored_name_offsets() {
     let bbox = group_bbox(&root, 0, &group_header);
 
     assert!(bbox.is_antiportal);
-    assert_eq!(bbox.bbox_min, Vec3::new(-4.0, 3.0, 2.0));
-    assert_eq!(bbox.bbox_max, Vec3::new(-1.0, 6.0, 5.0));
+    assert_eq!(bbox.bbox_min, Vec3::new(1.0, 3.0, -5.0));
+    assert_eq!(bbox.bbox_max, Vec3::new(4.0, 6.0, -2.0));
 }
 
 #[test]
@@ -293,6 +293,6 @@ fn spawn_wmo_group_fog_preserves_authored_fog_fields() {
         }
     );
     let transform = app.world().get::<Transform>(entity).expect("fog transform");
-    assert_eq!(transform.translation, Vec3::new(-10.0, 30.0, 20.0));
+    assert_eq!(transform.translation, Vec3::new(10.0, 30.0, -20.0));
     assert_eq!(transform.scale, Vec3::splat(12.0));
 }

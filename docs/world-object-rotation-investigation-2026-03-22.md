@@ -1,7 +1,9 @@
 # World Object Rotation Investigation
 
 Date: 2026-03-22
-Updated: 2026-03-23
+Updated: 2026-09-09
+
+September correction: the shared placement yaw remains, but WMO-local conversion is now `[x, z, -y]`. The former local sign pair added an extra180° rotation. See [WMO placement](wiki/formats/wmo-format.md#world-placement) for authored-bounds proof; the visual trials below are historical, not authority for the old local basis.
 
 ## Summary
 

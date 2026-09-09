@@ -44,9 +44,9 @@ fn build_wmo_liquid_mesh_skips_empty_tiles_and_uses_vertex_heights() {
     };
     assert_eq!(positions.len(), 4);
     assert_eq!(colors.len(), 4);
-    assert_eq!(positions[0], [-10.0, 29.0, 20.0]);
-    assert_eq!(positions[1], [-(10.0 + WMO_LIQUID_TILE_SIZE), 30.0, 20.0]);
-    assert_eq!(positions[2], [-10.0, 32.0, 20.0 + WMO_LIQUID_TILE_SIZE]);
+    assert_eq!(positions[0], [10.0, 29.0, -20.0]);
+    assert_eq!(positions[1], [10.0 + WMO_LIQUID_TILE_SIZE, 30.0, -20.0]);
+    assert_eq!(positions[2], [10.0, 32.0, -(20.0 + WMO_LIQUID_TILE_SIZE)]);
     assert_eq!(colors[0], [1.0, 1.0, 1.0, 1.0]);
     assert_eq!(mesh.indices().unwrap().len(), 6);
 }

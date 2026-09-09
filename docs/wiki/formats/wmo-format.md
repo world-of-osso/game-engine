@@ -17,6 +17,8 @@ Modern WMOs carry a `GFID` chunk in the root with FDIDs for all group files, and
 
 WMOs are placed in the world via MODF records in ADT `_obj0` files. Each MODF record contains position, rotation, and a reference FDID. The same rotation mapping as MDDF doodads applies: stored `[X, Y, Z]` → engine `[Z, Y-180, -X]` in YZX order.
 
+WMO-local vertices, bounds, portals, lights, liquids, and embedded doodad positions use `[x, z, -y]` before placement. The former `[-x, z, y]` conversion added an extra180° rotation. For all seven Northshire MODF placements, converting the source MOHD bounds now matches authored world extents within0.002units; Northshire Abbey previously missed by21.75units, exposing its terrain cutout beside the building. The regression checks actual Abbey header/placement coordinates, not a per-building offset.
+
 ## Parser Location
 
 Pure parser (no Bevy dependencies): `src/asset/wmo_format/`

@@ -5,6 +5,52 @@ use bevy::ecs::system::RunSystemOnce;
 mod authored_collision;
 
 #[test]
+fn northshire_wmo_geometry_matches_authored_modf_bounds() {
+    // Northshire Abbey MOHD bounds and MODF placement, from local FDIDs107074/778028.
+    let local_min = [-35.92571, -53.505512, 0.037038594];
+    let local_max = [55.56492, 37.862537, 89.11153];
+    let placement = adt_obj::WmoPlacement {
+        name_id: 107074,
+        unique_id: 10286,
+        position: [17244.963, 80.06732, 25963.666],
+        rotation: [0.0, 158.5, 0.0],
+        extents_min: [0.0; 3],
+        extents_max: [0.0; 3],
+        flags: 8,
+        doodad_set: 0,
+        name_set: 0,
+        scale: 1.0,
+        fdid: Some(107074),
+        path: None,
+    };
+    let convert = |[x, y, z]: [f32; 3]| {
+        Vec3::from(crate::asset::wmo_format::parser::wmo_local_to_bevy(x, y, z))
+    };
+    let transform = wmo_transform(&placement, 32, 48);
+    let mut actual_min = Vec3::splat(f32::INFINITY);
+    let mut actual_max = Vec3::splat(f32::NEG_INFINITY);
+    for x in [local_min[0], local_max[0]] {
+        for y in [local_min[1], local_max[1]] {
+            for z in [local_min[2], local_max[2]] {
+                let world = transform.transform_point(convert([x, y, z]));
+                actual_min = actual_min.min(world);
+                actual_max = actual_max.max(world);
+            }
+        }
+    }
+    let expected_min = Vec3::new(-8950.034, 80.10436, 129.9017);
+    let expected_max = Vec3::new(-8831.423, 169.17885, 248.44466);
+    assert!(
+        actual_min.abs_diff_eq(expected_min, 0.01),
+        "{actual_min:?} != {expected_min:?}"
+    );
+    assert!(
+        actual_max.abs_diff_eq(expected_max, 0.01),
+        "{actual_max:?} != {expected_max:?}"
+    );
+}
+
+#[test]
 fn placement_rotation_matches_current_model_rotation_formula() {
     let rot = [17.0, 123.0, -31.0];
     let actual = placement_rotation(rot);

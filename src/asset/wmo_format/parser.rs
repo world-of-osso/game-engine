@@ -11,7 +11,7 @@ mod parser_types;
 pub use parser_types::*;
 
 pub fn wmo_local_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
-    [-x, z, y]
+    [x, z, -y]
 }
 
 fn parse_binrw_entries<T>(data: &[u8], entry_size: usize, label: &str) -> Result<Vec<T>, String>
