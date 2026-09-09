@@ -16,6 +16,100 @@ use bevy::render::render_resource::{
     FragmentState, MultisampleState, PrimitiveState, TextureFormat, VertexState,
 };
 
+fn skybox_write_test_app() -> bevy::prelude::App {
+    use bevy::asset::AssetApp;
+    use bevy::prelude::*;
+    let mut app = App::new();
+    app.add_plugins((bevy::app::TaskPoolPlugin::default(), AssetPlugin::default()));
+    app.init_asset::<SkyboxM2Material>();
+    app.insert_resource(Time::<()>::default());
+    app.insert_resource(super::SkyboxTimeOverrideMs(0));
+    app.add_systems(Update, super::update_skybox_uvs);
+    app
+}
+
+fn take_skybox_modifications(
+    app: &mut bevy::prelude::App,
+) -> Vec<bevy::asset::AssetId<SkyboxM2Material>> {
+    use bevy::asset::AssetEvent;
+    app.world_mut()
+        .resource_mut::<bevy::ecs::message::Messages<AssetEvent<SkyboxM2Material>>>()
+        .drain()
+        .filter_map(|event| match event {
+            AssetEvent::Modified { id } => Some(id),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn skybox_unchanged_writes_do_not_notify_static_materials() {
+    let mut app = skybox_write_test_app();
+    let material = skybox_m2_material(None, None, None, None, None, &test_batch(), 0, &[]);
+    let handle = app
+        .world_mut()
+        .resource_mut::<Assets<SkyboxM2Material>>()
+        .add(material);
+    app.update();
+    take_skybox_modifications(&mut app);
+    for time in [0, 50, 100] {
+        app.world_mut()
+            .resource_mut::<super::SkyboxTimeOverrideMs>()
+            .0 = time;
+        app.update();
+        assert!(take_skybox_modifications(&mut app).is_empty());
+        let material = app
+            .world()
+            .resource::<Assets<SkyboxM2Material>>()
+            .get(&handle)
+            .unwrap();
+        assert_eq!(material.settings.uv_offset_1, Vec2::ZERO);
+        assert_eq!(material.settings.uv_offset_2, Vec2::ZERO);
+        assert_eq!(material.settings.transparency, 1.0);
+    }
+}
+
+#[test]
+fn skybox_unchanged_writes_preserve_animated_values_and_events() {
+    let mut app = skybox_write_test_app();
+    let mut material = skybox_m2_material(None, None, None, None, None, &test_batch(), 0, &[]);
+    material.texture_anim_1 = Some(test_anim_track(
+        -1,
+        vec![(vec![0, 100], vec![[0.0; 3], [1.0, 0.0, 0.0]])],
+    ));
+    material.texture_anim_2 = Some(test_anim_track(
+        -1,
+        vec![(vec![0, 100], vec![[0.0; 3], [0.0, 2.0, 0.0]])],
+    ));
+    material.transparency_anim = Some(test_i16_anim_track(
+        -1,
+        vec![(vec![0, 100], vec![32767, 0])],
+    ));
+    let handle = app
+        .world_mut()
+        .resource_mut::<Assets<SkyboxM2Material>>()
+        .add(material);
+    app.update();
+    take_skybox_modifications(&mut app);
+    app.update();
+    assert!(take_skybox_modifications(&mut app).is_empty());
+    app.world_mut()
+        .resource_mut::<super::SkyboxTimeOverrideMs>()
+        .0 = 100;
+    app.update();
+    assert_eq!(take_skybox_modifications(&mut app), vec![handle.id()]);
+    let material = app
+        .world()
+        .resource::<Assets<SkyboxM2Material>>()
+        .get(&handle)
+        .unwrap();
+    assert_eq!(material.settings.uv_offset_1, Vec2::new(1.0, 0.0));
+    assert_eq!(material.settings.uv_offset_2, Vec2::new(0.0, 2.0));
+    assert_eq!(material.settings.transparency, 0.0);
+    app.update();
+    assert!(take_skybox_modifications(&mut app).is_empty());
+}
+
 const SKYBOX_SHADER_SOURCE: &str = include_str!("../../../assets/shaders/m2_skybox.wgsl");
 const SHADER_SINGLE_TEXTURE: u16 = 0x0010;
 const SHADER_RUNTIME_COMBINE_FLAG: u16 = 1 << 14;
