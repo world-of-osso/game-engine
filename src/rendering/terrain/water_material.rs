@@ -100,6 +100,10 @@ impl Material for WaterMaterial {
     }
 }
 
+#[cfg(test)]
+#[path = "water_material_clock_tests.rs"]
+mod clock_tests;
+
 pub struct WaterMaterialPlugin;
 
 impl Plugin for WaterMaterialPlugin {
