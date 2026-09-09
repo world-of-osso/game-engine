@@ -24,13 +24,17 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
 
+## Development hot reload
+
+`ui-toolkit` `808117a` moves queued attribute hot-reload patches out of `Screen::sync()` into `UiPlugin` polling once per real-time second in debug builds. Normal shared-state rebuilds, anchor resolution, and auto-sizing stay immediate. Reload is attribute-only for existing named frames; structural reload remains unsupported. A queued edit can take up to one second to appear; no CPU or native UI claim is made.
+
 ## Character-creation shared-state updates
 
-`14f4a691` compares the complete character-creation view model before inserting it into `SharedContext`, including focus, labels, and swatches. `screen.sync()` remains unconditional for fresh/replaced screens and hot reload. Three focused tests cover settled and changed output; CPU savings are unmeasured.
+`14f4a691` compares the complete character-creation view model before inserting it into `SharedContext`, including focus, labels, and swatches. `screen.sync()` remains unconditional for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests cover settled and changed output; CPU savings are unmeasured.
 
 ## Login shared-state updates
 
-`70f14c2a` checks the four login shared values before reinserting them, so unchanged status, connection, realm text, and realm-selectability do not advance dependency generations. `screen.sync()` remains every update for fresh/replaced screens and hot reload. Three focused tests and a development compiler check pass; CPU savings are unmeasured.
+`70f14c2a` checks the four login shared values before reinserting them, so unchanged status, connection, realm text, and realm-selectability do not advance dependency generations. `screen.sync()` remains every update for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests and a development compiler check pass; CPU savings are unmeasured.
 
 ## Action-bar flash updates
 
@@ -42,7 +46,7 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Minimap coordinate updates
 
-`55c8df35` compares rounded coordinate text through immutable UI/registry access before writing. Movement within the same displayed coordinates leaves `UiState` change detection and registry dirty state untouched; boundary crossings and replacement frames still update. Thirty-seven scoped minimap tests pass; CPU savings are unmeasured.
+`b0f4a006` caches exact raw X/Z coordinate inputs and the formatted string. Static positions skip formatting; replacement frames and external text edits reuse the cached text for correction. The displayed rounding, including signed zero and ties, is unchanged. Seven scoped tests pass; CPU savings are unmeasured.
 
 ## Nameplates
 

@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-09] systems | Poll UI attribute hot reload once per second
+
+Updated [[ui-system]] for ui-toolkit `808117a`: debug hot-reload patches poll once per real-time second outside `Screen::sync()`. Normal state/layout updates remain immediate; only existing named-frame attributes reload.
+
+## [2026-09-09] systems | Cache minimap coordinate formatting by raw position
+
+Updated [[ui-system]] for `b0f4a006`: raw X/Z changes drive formatting while cached text repairs replacement frames and external edits. Seven scoped tests pass; no native CPU claim.
+
 ## [2026-09-09] formats | Correct MCVT terrain axes and preserve authored heights
 
 Updated [[adt-format]], [[terrain]], and the terrain index summary for game-engine `ac9cd925`; reconciled the matching game-server sampler in `2cfe233`. MCVT rows map to negative Bevy X and columns to positive Bevy Z; the client mesh/sampler and server sampler now use authored four-triangle center fans. Removed erroneous seam averaging and corrected mesh winding. Focused proof: engine 4 tests and server 19 tests GREEN. Water follow-up and runtime cart visual confirmation remain open.
