@@ -49,7 +49,9 @@ Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForSta
 
 ## Runtime scheduling
 
-Commits `1a8c6d58`, `cd47743e`, `9a6b6679`, `ae222f0e`, `e9b81652`, and `fc99128b` remove the combined clean UI frame path: screen sync and pointer hit-testing require relevant changes; automation requires queued work; addon application runs after load/reload; watcher handling sleeps through clean frames; cooldown display advancement runs at `NetworkTick` only while active. Rendering, active interaction, and active presentation remain render-frame-driven. This is not a CPU/FPS-improvement claim; controlled measurement and user observation remain required.
+Commits `1a8c6d58`, `cd47743e`, `9a6b6679`, `ae222f0e`, `e9b81652`, and `fc99128b` remove the combined clean UI frame path: screen sync and pointer hit-testing require relevant changes; automation requires queued work; addon application runs after load/reload; watcher handling sleeps through clean frames; cooldown display advancement runs at `NetworkTick` only while active. Rendering, active interaction, and active presentation remain render-frame-driven.
+
+`ui-toolkit` `0f5d81c` keeps that per-frame visual synchronization but avoids replacing an existing `Transform` or `Sprite` when its computed value is identical, for ordinary and nine-slice backdrop quads. It compares all sprite fields written by the sync path; genuine layout, color, texture, clipping, and default-value updates still write immediately. It does not use `render_dirty` as a skip gate and does not change rendering cadence. Tests through `3eb9aa7` cover unchanged ordinary/backdrop values and changed geometry/color/texture/default behavior. CPU gain remains unproven; native comparable measurement is required.
 
 ## Keybindings
 
