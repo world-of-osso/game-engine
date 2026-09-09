@@ -189,7 +189,9 @@ fn billboard_nameplates(
         if dir.length_squared() > 0.001 {
             let look = Transform::from_translation(transform.translation)
                 .looking_to(Dir3::new(dir).unwrap_or(Dir3::Z), Dir3::Y);
-            transform.rotation = look.rotation;
+            if transform.rotation != look.rotation {
+                transform.rotation = look.rotation;
+            }
         }
     }
 }

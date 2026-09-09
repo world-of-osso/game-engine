@@ -230,7 +230,11 @@ fn billboard_health_bars(
     for mut transform in bar_query.iter_mut() {
         let dir = camera_pos - transform.translation;
         if dir.length_squared() > 0.001 {
-            transform.look_to(Dir3::new(dir).unwrap_or(Dir3::Z), Dir3::Y);
+            let mut desired = *transform;
+            desired.look_to(Dir3::new(dir).unwrap_or(Dir3::Z), Dir3::Y);
+            if transform.rotation != desired.rotation {
+                transform.rotation = desired.rotation;
+            }
         }
     }
 }
