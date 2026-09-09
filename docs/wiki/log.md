@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] investigation | Floating Arena Tournament NPCs
+
+Linked the [server-owned event membership investigation](../../../game-server/docs/wiki/systems/world-data.md#event-dependent-creature-spawns) from the index. Exact Northshire GUID96194/96198/96204 belonged to inactive event31; corrected server import/selection, not client coordinates or rendering. Server commits1963dfb/d9784a8/c73a33f,8behavioral tests and independent fmt/check/data proof. Local data/runtime updated; post-fix client view confirmation remains pending.
+
 ## [2026-09-09] systems | Suppress weather particles with graphics effects
 
 Updated [graphics effect configuration](../specs/graphics-effects.md), [particle system](../particle-system.md), and [[rendering-pipeline]] for `b0e1f2bf`. `particleEffectsEnabled: false` now suppresses weather particles while retaining weather state, fog, and lighting. Six targeted weather tests pass. No CPU claim.

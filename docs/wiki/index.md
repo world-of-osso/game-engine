@@ -47,6 +47,8 @@ Architecture decisions and feature designs.
 
 Root cause analyses and debug findings.
 
+- [Inactive event-only NPCs](../../../game-server/docs/wiki/systems/world-data.md#event-dependent-creature-spawns) — Northshire floating Arena Tournament NPCs traced to omitted server event membership, not client height/skin transforms
+
 - [terrain-tile-ordering](investigations/terrain-tile-ordering.md) — Wrong ADT tile loaded as primary in warband scene
 - [object-rotation-transforms](investigations/object-rotation-transforms.md) — MDDF/MODF Euler angle order: YZX per Noggit3
 - [lightyear-replication-timeout](investigations/lightyear-replication-timeout.md) — Server panic at SingleSender, not network issue
