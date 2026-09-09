@@ -1,34 +1,24 @@
 # Collision System
 
-Collision is split across three geometry layers — terrain heightmap, WMO (world map objects), and M2 (doodads/props) — each with its own floor-height and wall-collision implementation. The `CameraController` orchestrates all three each frame.
+Current player collision has terrain vertical support plus horizontal WMO/M2 blocking. WMO and M2 floor-height support are not implemented; do not infer it from rendered geometry or camera collision.
 
 ## Geometry Layers
 
 | Layer | Floor method | Wall method |
 |-------|-------------|-------------|
-| **Terrain** | Bilinear heightmap interpolation | — |
-| **WMO** | Downward ray through collision triangles | Swept + closest-point push against cylinder |
-| **M2** | Authored collision-triangle ray test | Authored collision-triangle ray test after AABB broadphase |
+| **Terrain** | `TerrainHeightmap::height_at` | Slope validation |
+| **WMO** | Not implemented | Horizontal mesh ray from player height |
+| **M2** | Not implemented | Horizontal authored-triangle ray after AABB broadphase |
 
 ## Player Movement Pipeline (per frame)
 
 1. Apply input → candidate position
-2. Sweep collision — sub-step wall checks (WMO + M2) prevent tunneling
-3. Ground resolution — multi-source floor height with priority logic
-4. Camera orbit — collision-clipped distance from pivot
-5. Void fall detection — auto-unstuck after prolonged freefall
-
-## Sweep Collision (Anti-Tunneling)
-
-Movement is split into sub-steps: `stepSize = insideWMO ? 0.20f : 0.35f`, capped at 8 steps. Each step runs WMO wall check first (allows upward Z for ramps), then M2 wall check (XY-only push). Pushback accumulates across steps.
+2. Clamp horizontal movement against WMO and authored M2 collision meshes
+3. Resolve grounded state, gravity, and snap from terrain height only
 
 ## WMO Collision
 
-Player modeled as a horizontal cylinder (`radius = 0.45–0.50f`, `height = 2.0f`, `maxStep = 1.0f`).
-
-**Wall response**: swept test detects plane crossing (tunneling prevention); closest-point push handles penetration. Both reject floor-like surfaces (`|normal.z| >= 0.35`) and short stair risers.
-
-**Interior tracking**: portal-ref neighbor traversal keeps the active group current without a full scan each frame. Interior WMO reduces step size and adjusts floor preference.
+A horizontal ray begins `0.6` units above the current player position, filters to WMO collision meshes, and clamps movement before a hit with a `0.05` margin. It does not query WMO triangles for vertical support, portal containment, or an interior floor.
 
 ## M2 Collision
 
@@ -38,7 +28,7 @@ A model with no authored collision indices has no solid doodad collider. Render/
 
 ## Ground Resolution Priority
 
-Combined in `CameraController` with slope rejection: terrain (`min walkable normal = 0.70`) + WMO (`0.45`, allows ramps) + M2. Seam stability: downward floor step is capped per frame. 5-point footprint sampling on both WMO and M2 catches narrow planks and bridges. Results are cached until the player moves.
+`update_grounded` and `apply_gravity_and_ground_snap` read `TerrainHeightmap` only. Missing terrain freezes vertical velocity; loaded terrain supplies the sole ground height. Neither WMO nor M2 collision triangles currently support the player vertically. The corrected WMO placement basis does not establish the reported free-fall cause; exact transformed floor geometry and bounded native validation remain pending.
 
 ## Camera Collision
 
@@ -46,16 +36,11 @@ WMO and M2 raycasts from pivot toward camera; minimum hit distance sets orbit le
 
 Collision uses `RayCastVisibility::Visible`, not Bevy's `VisibleInView` default. A wall clipped behind the camera after collision is no longer in that camera's frustum but still has inherited visibility and must continue blocking recovery. Hierarchically hidden walls remain excluded, so hidden scene geometry does not create invisible camera collision. Commit `7d1d8a86` adds a regression with actual transform propagation, visibility propagation, and frustum updates: the old policy recovers through the view-culled wall; the corrected policy remains clipped, then recovers after the parent becomes hidden. Original-video pixel equivalence during camera motion remains unproven.
 
-## Spatial Acceleration
-
-Both renderers use: world AABB broadphase per instance → per-group bounds → per-mesh spatial grid (triangles filtered by XY range and Z bounds). Triangle Z bounds enable fast vertical rejection before ray tests.
-
 ## Sources
 
-- [wowee-collision.md](../../wowee-collision.md) — WoWee source analysis with file/line references
-- `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — implementation and 45 scoped tests
-- `../../../data/diagnostics/world-objects-20260909/camera-red.log` and `camera-green.log` — actual transform/visibility/frustum regression RED/GREEN output
-- `game-engine` commit `7d1d8a86` — camera collision independent of view culling
+- `src/collision.rs` — current terrain grounding and horizontal WMO/M2 collision implementation
+- `../../data/diagnostics/npc-motion-20260909/wmo-basis-proof.json` — placement proof that does not establish floor support
+- [wowee-collision.md](../../wowee-collision.md) — broader collision reference
 
 ## See Also
 

@@ -41,7 +41,7 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 | Jump → JumpEnd | 80ms (on ground contact) |
 | JumpEnd → Stand/Walk | 150ms |
 
-Running landings (`JumpLandRun`, ID187) remain in the jump state machine until their clip completes, then crossfade into Run. The jump-entry guard uses the same complete animation-ID set as dispatch; excluding ID187 previously restarted JumpStart on the next landing frame. A production-system regression advances Start → Jump → unfinished/completed JumpLandRun → Run, checking that landing never restarts and the movement crossfade remains at least150ms.
+Running landings (`JumpLandRun`, ID187) remain in the jump state machine until their clip completes, then crossfade into Run. Commit `3f331032` makes the jump-entry guard *exclude* ID187: treating an unfinished running landing as an active jump restarted JumpStart on the next frame. A production-system regression advances Start → Jump → unfinished/completed JumpLandRun → Run, checking that landing never restarts and the movement crossfade remains at least150ms; its final focused run passed 20 tests. Native player-motion verification remains pending.
 | Walk ↔ Shuffle | 150ms |
 | Walk ↔ WalkBackwards | 200ms |
 
@@ -60,7 +60,7 @@ Three skeleton templates share animation sets: Humanoid (~25 bones), Digitigrade
 
 ## NPC Animation LOD
 
-Replicated NPCs use the full animated M2 attachment path with their exact display skin FDIDs. `NpcVisualRoot` retains display scale and rotates M2's +X forward axis by -π/2 into the network's logical +Z forward axis. Its `NpcModel` child owns `M2AnimPlayer`/`M2AnimData`; joints and meshes remain under the existing grounded model root. No player marker or default torch is added. Actual sheep (display 503) and HumanMaleHD (display 3167) fixtures advance bone transforms through Bevy playback. HumanMaleHD's local skeleton contains 216 bones and 422 sequences; Stand index 0 lasts 2667 ms and has 127 varying translation/rotation tracks. No NPC replicated `MovementState` producer currently exists, so this attachment enables default idle rather than inventing movement animation input.
+Replicated NPCs use the full animated M2 attachment path with their exact display skin FDIDs. Server commit `02a4487` loads `creature.orientation` and replicates its authored spawn heading as logical `Rotation.y = orientation + π/2`; `NpcVisualRoot` retains display scale and rotates M2's +X forward axis by -π/2. This covers authored idle orientation only, not arbitrary runtime AI heading. Its `NpcModel` child owns `M2AnimPlayer`/`M2AnimData`; joints and meshes remain under the existing grounded model root. No player marker or default torch is added. Actual sheep (display 503) and HumanMaleHD (display 3167) fixtures advance bone transforms through Bevy playback. HumanMaleHD's local skeleton contains 216 bones and 422 sequences; Stand index 0 lasts 2667 ms and has 127 varying translation/rotation tracks. No NPC replicated `MovementState` producer currently exists, so this attachment enables default idle rather than inventing walking/locomotion input. Native facing/idle/LOD verification remains pending.
 
 Replicated NPC models carry an `AnimationLod` chosen each frame in `Update` before `sync_m2_animation_players`, from the model's `GlobalTransform` distance to the `WowCamera` and whether any descendant mesh had `ViewVisibility` set in the previous frame: on screen and within 30 yd samples every frame, 30–60 yd samples every other frame (staggered by entity index), beyond 60 yd or off screen is frozen. On a skipped frame the owner's Bevy `AnimationPlayer` stays stopped, so `animate_targets` evaluates no clips and writes no joints, and the subtree is not dirtied for transform propagation. The `M2AnimPlayer` clock and crossfades still advance, so a resumed NPC shows the correct pose immediately. Only models parented to an `NpcVisualRoot` are affected; the player model, doodads, and debug scenes always sample. Spec: [npc-animation-lod](../../specs/npc-animation-lod.md).
 
@@ -83,6 +83,7 @@ Sequence-local constant TRS tracks fold to the existing fixed raw-pose curve whe
 - AGENTS.md — Animation section, blend_time rules, ANIM_* location
 - `src/rendering/model/animation/bevy_curves.rs` and `bevy_player.rs` — runtime implementation and deferred teardown
 - `data/diagnostics/event-driven-updates-20260907/bevy-animation/native-offline/explicit-m2debug/` — native model motion evidence
+- `../../data/diagnostics/npc-motion-20260909/{npc-animation-green,npc-lod-green,npc-existing-lod-green,landing-run-green-final}.txt` — current focused NPC idle/LOD and landing proof
 - [character-generation.md](../character-generation.md) — glTF animation pipeline, template skeletons, crossfade table
 
 ## See Also

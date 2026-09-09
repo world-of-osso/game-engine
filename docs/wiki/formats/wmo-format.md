@@ -17,7 +17,7 @@ Modern WMOs carry a `GFID` chunk in the root with FDIDs for all group files, and
 
 WMOs are placed in the world via MODF records in ADT `_obj0` files. Each MODF record contains position, rotation, and a reference FDID. The same rotation mapping as MDDF doodads applies: stored `[X, Y, Z]` → engine `[Z, Y-180, -X]` in YZX order.
 
-WMO-local vertices, bounds, portals, lights, liquids, and embedded doodad positions use `[x, z, -y]` before placement. The former `[-x, z, y]` conversion added an extra180° rotation. For all seven Northshire MODF placements, converting the source MOHD bounds now matches authored world extents within0.002units; Northshire Abbey previously missed by21.75units, exposing its terrain cutout beside the building. The regression checks actual Abbey header/placement coordinates, not a per-building offset.
+Commit `965f6f9e` makes WMO-local vertices, bounds, portals, lights, liquids, and embedded doodad positions use `[x, z, -y]` before placement. The former `[-x, z, y]` conversion added an extra180° rotation. All seven Northshire MOHD→MODF bounds match within0.002units after correction. Northshire Abbey is FDID107074 (not bridge FDID108121); its former maximum mismatch was21.75units. The regression checks actual Abbey header/placement coordinates, not a per-building offset. This proves placement basis only: WMO floor support, the reported free-fall, and native hole/visibility verification remain open.
 
 ## Parser Location
 
@@ -30,6 +30,7 @@ The WMO parser is less complete than the M2 or ADT parsers. Rendering of WMO int
 - AGENTS.md (`asset/wmo_format/` entry) — module structure
 - [docs/world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — MODF rotation mapping, verified against campsite WMOs
 - [docs/casc-architecture.md](../casc-architecture.md) — GFID/MODI FDID chunk description
+- `../../data/diagnostics/npc-motion-20260909/wmo-basis-proof.json` — seven corrected MOHD→MODF extent comparisons
 
 ## See Also
 

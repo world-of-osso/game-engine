@@ -56,7 +56,7 @@ Target-first nameplate design: current target gets full plate (name, health, cas
 
 ## World NPC Picking
 
-Left-click targeting and right-click interaction cast through the `WowCamera`, not an unfiltered camera query. The UI/FPS camera remains present alongside the world camera, including `--no-ui`; requiring a single camera across both silently prevented picking. Real mesh-raycast tests include the UI camera, initialized world projection, and an NPC child mesh. `--no-ui` still suppresses health bars; world selection does not depend on showing them. Existing UI hit-testing policy is unchanged.
+Commit `cb2d169f` makes left-click targeting and right-click interaction cast through the `WowCamera`, not an unfiltered camera query. The UI/FPS camera remains present alongside the world camera, including `--no-ui`; requiring a single camera across both silently prevented picking. The final focused proof passes two real mesh-raycast tests with the UI camera, initialized world projection, and an NPC child mesh. `--no-ui` intentionally suppresses health bars, as user-confirmed; world selection does not depend on showing them. Existing UI hit-testing policy is unchanged. Native click verification remains pending.
 
 ## Unit Frames
 
@@ -117,6 +117,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 ## Sources
 
+- `../../data/diagnostics/npc-motion-20260909/target-camera-final.txt` — focused world-camera selection proof
 - [ui-addon-architecture.md](../../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
 - [login-ui-porting.md](../../login-ui-porting.md) — nine-slice editboxes, anchor layout, y-offset convention
 - [hotreload-frame-stability.md](../../hotreload-frame-stability.md) — template key bug, fix approach

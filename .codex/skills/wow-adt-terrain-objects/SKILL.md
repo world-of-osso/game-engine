@@ -38,7 +38,7 @@ Use this skill for terrain-object work that is too detailed for `AGENTS.md`: ADT
 ## Format facts to remember
 
 - ADT top-level chunks use reversed 4CC tags in this parser path, for example `REVM`, `RDHM`, `KNCM`, `TVCM`, `RNCM`
-- MCNK position in root ADT is stored as `[Y, X, Z]`, not `[X, Y, Z]`
+- Raw MCNK offsets `0x68/0x6c/0x70` are WoW X/Y/Z; parsed `McnkData.pos` stores `[Y, X, Z]`.
 - MCVT contains 145 floats: 9x9 outer plus 8x8 inner grid heights relative to chunk `Z`
 - Terrain expands in negative `X/Y` from the chunk corner in this coordinate mapping
 - Split files are:
@@ -56,7 +56,7 @@ Use this skill for terrain-object work that is too detailed for `AGENTS.md`: ADT
 
 - MDDF/MODF stored world position is treated as `[X, Z, Y]` in this repo’s parsing layer
 - Doodads and WMOs do not share exactly the same transform path; check the dedicated conversion helpers before “simplifying” them
-- WMO local coordinates are converted with the repo’s `wmo_local_to_bevy()` mapping; keep that aligned with placement tests
+- WMO-local conversion is `[x, z, -y]`; do not add a second 180° turn. Validate transformed MOHD bounds against authored MODF extents.
 - Before changing rotation/swizzle logic, read `docs/world-object-rotation-investigation-2026-03-22.md`
 
 ## Working method

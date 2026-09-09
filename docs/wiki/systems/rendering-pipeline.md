@@ -21,9 +21,9 @@ See [[character-rendering]] for character-specific mesh assembly.
 
 ## M2 effect fog specialization
 
-`assets/shaders/m2_effect.wgsl` compiles `m2_fog_color` only under `DISTANCE_FOG`, matching Bevy's conditional fog binding. Previously the no-fog pipeline referenced a nonexistent binding. The fog-enabled path also supplies fragment coordinates to Bevy 0.19's five-argument `apply_fog` API. Binding paths and authored blend-mode fog colors are unchanged.
+Commit `fbda0693` compiles `m2_fog_color` only under `DISTANCE_FOG`, matching Bevy's conditional fog binding. Previously the no-fog pipeline referenced a nonexistent binding. The fog-enabled path also supplies fragment coordinates to Bevy 0.19's five-argument `apply_fog` API. Binding paths and authored blend-mode fog colors are unchanged.
 
-The dedicated headless GPU test in `src/rendering/model/m2_effect_fog_gpu_tests.rs` renders the actual material through cameras with and without `DistanceFog`. It reproduced the missing binding, then the stale four-argument call, before both variants rendered `[255, 0, 0, 255]`. Its unlit pixel fixture proves pipeline composition/render readiness, not fog-color blending equivalence. Run with `cargo test --features dev --bin game-engine m2_effect_shader_renders_with_distance_fog -- --ignored --test-threads=1 --nocapture`.
+The dedicated headless GPU test in `src/rendering/model/m2_effect_fog_gpu_tests.rs` renders the actual material through cameras with and without `DistanceFog`. It reproduced the missing binding, then the stale four-argument call, before both variants rendered `[255, 0, 0, 255]`. Its unlit pixel fixture proves pipeline composition/render readiness, not fog-color blending equivalence or native client behavior. Run with `cargo test --features dev --bin game-engine m2_effect_shader_renders_with_distance_fog -- --ignored --test-threads=1 --nocapture`.
 
 ## M2 Effect Material Empty boundary
 

@@ -7,11 +7,11 @@ Last updated: 2026-09-09.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; original-video pixel equivalence remains unproven
-- [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, blend times, HD skeleton loading, NPC distance/visibility sampling LOD
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
+- [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, landing completion, HD skeleton loading, replicated NPC authored-idle orientation and distance/visibility sampling LOD
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
-- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
+- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, world-camera NPC selection independent of `--no-ui` health-bar suppression, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, tile ordering, object placement rotation, doodad collision
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
@@ -28,7 +28,7 @@ WoW file format specifications as used by the engine.
 - [adt-format](formats/adt-format.md) — Split files, MCNK MCVT row/column axes and center-fan topology, texture layers, MDDF/MODF placement
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
-- [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks
+- [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks, corrected local-to-world placement basis
 - [db2-format](formats/db2-format.md) — DB2 tables, WoWDBDefs schemas, key tables, local-only authored NPC appearance importer
 
 ## Design
@@ -38,7 +38,7 @@ Architecture decisions and feature designs.
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [nameplate-design](design/nameplate-design.md) — Target-first display, three states, information hierarchy, distance fade
-- [collision-system](design/collision-system.md) — current authored-M2 triangle collision plus terrain/WMO/camera design, including collision visibility semantics
+- [collision-system](design/collision-system.md) — current terrain vertical support and horizontal WMO/M2 collision; WMO/M2 floor support remains absent
 
 ## Investigations
 
