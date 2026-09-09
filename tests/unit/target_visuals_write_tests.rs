@@ -35,7 +35,7 @@ fn stationary_target_circle_does_not_change_transform() {
     app.update();
     assert_eq!(app.world().resource::<TargetCircleChanges>().0, 1);
     app.update();
-    assert_eq!(app.world().resource::<TargetCircleChanges>().0, 1);
+    assert_eq!(app.world().resource::<TargetCircleChanges>().0, 0);
     app.world_mut()
         .get_mut::<Transform>(target)
         .unwrap()
