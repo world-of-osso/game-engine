@@ -243,11 +243,12 @@ def join_appearances(displays, extras, options, geosets, model_paths, textures):
         values = extras[extra_id][0]
         _, race, sex, klass, flags, sd, hd = values
         material = select_material(values, model_paths[display])
-        if material <= 0 or textures.get(material, 0) <= 0:
+        if material != 0 and (material < 0 or textures.get(material, 0) <= 0):
             raise ValueError(
                 f"display {display}: unresolved material {material} for {model_paths[display]}"
             )
-        appearances.append((display, race, sex, klass, textures[material]))
+        baked_texture = 0 if material == 0 else textures[material]
+        appearances.append((display, race, sex, klass, baked_texture))
         choices.extend(
             (display, choice) for choice in sorted(choices_by_extra.get(extra_id, ()))
         )
@@ -372,7 +373,9 @@ def import_files(args):
     materials = set()
     for display, extra in displays.items():
         if extra in decoded["extra"] and display in models:
-            materials.add(select_material(decoded["extra"][extra][0], models[display]))
+            material = select_material(decoded["extra"][extra][0], models[display])
+            if material != 0:
+                materials.add(material)
     textures = load_textures(
         args.data_dir / "TextureFileData.csv", args.outfit_cache, materials
     )

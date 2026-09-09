@@ -266,6 +266,38 @@ class ImportTests(unittest.TestCase):
             self.assertIn("ambiguous material", errors.getvalue())
             self.assertFalse((root / "failed.sqlite").exists())
 
+    def test_zero_selected_hd_material_preserves_absence_without_sd_fallback(self):
+        rows = self.m.join_appearances(
+            {7: 17},
+            {17: ((17, 1, 0, 2, 0, 31, 0), None)},
+            {},
+            {},
+            {7: "character/human/male/humanmale_hd.m2"},
+            {31: 501},
+        )
+        self.assertEqual(rows[0], [(7, 1, 0, 2, 0)])
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "appearance.sqlite"
+            self.m.write_database(out, rows)
+            with contextlib.closing(sqlite3.connect(out)) as conn:
+                self.assertEqual(
+                    conn.execute(
+                        "SELECT baked_texture_fdid FROM appearances WHERE display_id = 7"
+                    ).fetchone(),
+                    (0,),
+                )
+
+    def test_nonzero_selected_hd_material_still_requires_texture_mapping(self):
+        with self.assertRaisesRegex(ValueError, "display 7: unresolved material 32"):
+            self.m.join_appearances(
+                {7: 17},
+                {17: ((17, 1, 0, 2, 0, 31, 32), None)},
+                {},
+                {},
+                {7: "character/human/male/humanmale_hd.m2"},
+                {31: 501},
+            )
+
     def test_missing_extra_model_material_fail(self):
         extra = {17: ((17, 1, 0, 2, 0, 31, 32), None)}
         for extras, paths, textures, error in [

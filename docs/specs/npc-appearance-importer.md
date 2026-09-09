@@ -6,7 +6,7 @@ Local-only Python stdlib importer in `scripts/import_npc_appearance.py`. Produce
 
 - [x] Decode the three supported WDC5 layouts, inline/noninline IDs, integer storage, relationships, and copy records; reject unsupported layouts/storage and missing encrypted payloads.
 - [x] Join Extra customization choices to display IDs; retain display-specific geoset overrides independently of Extra. Displays without Extra receive no appearance or choice row.
-- [x] Select HD or SD baked material from the actual model-cache FDID's listfile path; resolve materials from local TextureFileData or explicit outfit SQLite. Missing/ambiguous mappings fail, never guess.
+- [x] Select HD or SD baked material from the actual model-cache FDID's listfile path. A selected material of `0` writes `baked_texture_fdid = 0`, meaning no authored bake; never substitute the other material. Resolve nonzero materials from local TextureFileData or explicit outfit SQLite; missing/ambiguous mappings fail, never guess.
 - [x] Write deterministic `appearances(display_id PRIMARY KEY, race, sex, class, baked_texture_fdid)`, `choices(display_id, choice_id)`, and `geosets(display_id, geoset_index, geoset_value)` tables. Composite primary keys prohibit duplicate choices/geoset indices.
 - [x] Require an explicit new output path, refuse replacement, and report failures without producing an incomplete database.
 
