@@ -25,6 +25,14 @@ This was derived by visual validation against Adventurer's Rest campsite props. 
 
 **Tests**: `placement_rotation_matches_current_model_rotation_formula` and `placement_rotation_zero_matches_current_yaw_correction` in `terrain_objects.rs` lock in the current formula.
 
+## Empty Water Layers
+
+MH2O `WaterLayer` dimensions describe its grid bounds, not guaranteed drawable area: every quad can still be absent in its `exists` bitset. Before `d11948b1`, those layers reached `spawn_water()` as empty Bevy meshes. The local Bevy 0.19 allocator skips their zero-byte allocation but attempts their upload, producing the misleading `slab_allocator` unallocated-key error.
+
+`build_water_mesh()` now returns `None` when no existing quad generated positions; `spawn_water()` skips that result. Layers with one or more existing quads still create the same water mesh. This prevents empty water assets rather than filtering Bevy diagnostics.
+
+A probe at `8fd12e79` observed 47 zero-vertex meshes and 94 allocator errors (two per mesh), consistent with this path. It did not identify every asset by type, so native post-fix proof that this correction removes the runtime spam remains pending. Bevy tracked the same empty-mesh allocator defect in [issue #24874](https://github.com/bevyengine/bevy/issues/24874); [PR #24960](https://github.com/bevyengine/bevy/pull/24960) skips the empty copy and emits a warning upstream.
+
 ## Doodad Collision
 
 Doodad solidity uses authored M2 collision triangles, not render/visual bounds. The M2 parser reads collision bounds, u16 triangle indices, and vertices; placements share the parsed geometry. A world-space AABB narrows candidates, then a backface-inclusive triangle ray test decides a hit through the placement affine transform. Starting inside the broadphase box is not a collision by itself.
@@ -45,6 +53,8 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 - [wowee-collision.md](../wowee-collision.md) — broader collision reference
 - `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — authored doodad collision implementation and scoped proof
 - AGENTS.md — ADT split files section
+- `../../src/asset/adt.rs` and `../../src/rendering/terrain/terrain_spawn.rs` — water mesh construction/spawn boundary
+- [Bevy issue #24874](https://github.com/bevyengine/bevy/issues/24874) and [PR #24960](https://github.com/bevyengine/bevy/pull/24960) — empty-mesh allocator behavior
 
 ## See Also
 

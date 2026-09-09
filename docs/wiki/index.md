@@ -13,7 +13,7 @@ Engine subsystems and how they work.
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, nine-slice, widgets, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, nameplates, unit frames, JS automation, keybindings, World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
-- [terrain](systems/terrain.md) — ADT loading, split files, tile ordering, object placement rotation, authored doodad collision
+- [terrain](systems/terrain.md) — ADT loading, MH2O empty-layer filtering, split files, tile ordering, object placement rotation, authored doodad collision
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, geosets, texture compositing, helmet hiding, target circles
 - [skybox](systems/skybox.md) — authored lookup chain and independent InWorld camera environment-light initialization
@@ -25,7 +25,7 @@ Engine subsystems and how they work.
 WoW file format specifications as used by the engine.
 
 - [m2-format](formats/m2-format.md) — MD21 chunks, bones, animations, geosets, skin files, particles, texture types
-- [adt-format](formats/adt-format.md) — Split files (root/_tex0/_obj0), MCNK heightmaps, texture layers, MDDF/MODF placement
+- [adt-format](formats/adt-format.md) — Split files, MCNK heightmaps, MH2O water layers, texture layers, MDDF/MODF placement
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
 - [wmo-format](formats/wmo-format.md) — World Map Objects, root + group files, GFID/MODI chunks
@@ -42,7 +42,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [movement-performance](investigations/movement-performance.md) — Current exact-name timed callback-removal interface and historical CPU-isolation evidence: upload removals showed no bulk reduction; disabling pipelined rendering lowered CPU with an FPS trade-off. Includes repaired MSAA glyph corruption, firmware-limit evidence, and unresolved original tile hitch.
+- [movement-performance](investigations/movement-performance.md) — Current exact-name timed callback-removal interface, historical CPU-isolation evidence, and invalid visual smoke; empty water-layer meshes are one confirmed allocator-error producer, with native post-fix proof pending.
 - [empty-window-baseline](investigations/empty-window-baseline.md) — Native/core/reactive blank-renderer stages remain low-cost; continuous blank rendering reaches 216.31478% process CPU before project services. Independent runtime audit passes the bounded attribution.
 
 Root cause analyses and debug findings.
