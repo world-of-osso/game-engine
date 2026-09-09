@@ -1,5 +1,4 @@
 use super::*;
-use bevy::{camera::visibility::NoCpuCulling, mesh::skinning::SkinnedMesh};
 use std::io::Write;
 
 pub(crate) fn gizmos_enabled_for_app(app: &App) -> bool {
@@ -55,57 +54,6 @@ fn apply_pipelining_policy(
 #[cfg(test)]
 #[path = "../tests/unit/pipeline_isolation_tests.rs"]
 mod pipeline_isolation_tests;
-
-#[cfg(test)]
-#[path = "../tests/unit/gpu_culling_probe_tests.rs"]
-mod gpu_culling_probe_tests;
-
-const GPU_CULLING_PROBE_ENV: &str = "WOO_PERF_GPU_CULLING_AFTER_SECS";
-
-// Temporary native diagnostic; remove after snapshot and measurement.
-fn register_gpu_culling_probe(
-    app: &mut App,
-    value: Result<String, std::env::VarError>,
-) -> Result<(), String> {
-    let value = match value {
-        Ok(value) => value,
-        Err(std::env::VarError::NotPresent) => return Ok(()),
-        Err(error) => return Err(format!("{GPU_CULLING_PROBE_ENV}: {error}")),
-    };
-    let seconds = value
-        .parse::<f64>()
-        .map_err(|error| format!("{GPU_CULLING_PROBE_ENV}: invalid seconds {value:?}: {error}"))?;
-    let deadline = Duration::try_from_secs_f64(seconds)
-        .map_err(|error| format!("{GPU_CULLING_PROBE_ENV}: invalid duration {value:?}: {error}"))?;
-    let mut applied = false;
-    app.add_systems(
-        Update,
-        apply_gpu_culling_probe.run_if(move |time: Res<Time<Real>>| {
-            if applied || time.elapsed() < deadline {
-                return false;
-            }
-            applied = true;
-            true
-        }),
-    );
-    Ok(())
-}
-
-fn apply_gpu_culling_probe(
-    mut commands: Commands,
-    time: Res<Time<Real>>,
-    meshes: Query<Entity, (With<Mesh3d>, Without<SkinnedMesh>)>,
-) {
-    let mut count = 0;
-    for entity in &meshes {
-        commands.entity(entity).insert(NoCpuCulling);
-        count += 1;
-    }
-    info!(
-        "gpu_culling_probe elapsed={:?} eligible_count={count}",
-        time.elapsed()
-    );
-}
 
 pub(crate) fn run_screenshot_regression_app(
     args: &[String],
@@ -528,8 +476,6 @@ fn insert_startup_login_resources(app: &mut App, startup_login: Option<(String, 
 }
 
 pub(crate) fn configure_app_plugins(app: &mut App, enable_sound: bool, parsed: &mut ParsedArgs) {
-    register_gpu_culling_probe(app, std::env::var(GPU_CULLING_PROBE_ENV))
-        .unwrap_or_else(|error| panic!("{error}"));
     #[cfg(debug_assertions)]
     game_engine::ui::screen::init_global_hot_reload(vec![std::path::PathBuf::from(
         "src/ui/screens",
