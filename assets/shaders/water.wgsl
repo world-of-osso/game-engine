@@ -1,7 +1,7 @@
 // Water shader: dual scrolling normal maps, fresnel, specular highlight.
 
 #import bevy_pbr::{
-    mesh_view_bindings::view,
+    mesh_view_bindings::{view, globals},
     forward_io::VertexOutput,
 }
 
@@ -12,7 +12,6 @@ struct WaterSettings {
     normal_scale: f32,
     fresnel_power: f32,
     specular_strength: f32,
-    time: f32,
     sky_color: vec4<f32>,
 }
 
@@ -22,7 +21,8 @@ struct WaterSettings {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let time = settings.time;
+    // Shared virtual clock: follows pause/speed and wraps every hour by default.
+    let time = globals.time;
 
     // Scroll UVs in two directions at different scales
     let uv1 = in.uv * 4.0 + settings.scroll_speed_1 * time;

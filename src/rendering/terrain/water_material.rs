@@ -26,7 +26,6 @@ pub struct WaterSettings {
     pub normal_scale: f32,
     pub fresnel_power: f32,
     pub specular_strength: f32,
-    pub time: f32,
     pub sky_color: Vec4,
     /// Vertex displacement wave amplitude (0 = flat).
     pub wave_amplitude: f32,
@@ -47,7 +46,6 @@ impl Default for WaterSettings {
             normal_scale: 0.15,
             fresnel_power: 3.0,
             specular_strength: 1.5,
-            time: 0.0,
             sky_color: Vec4::new(0.6, 0.75, 0.9, 1.0),
             wave_amplitude: 0.15,
             wave_frequency: 2.0,
@@ -104,19 +102,13 @@ impl Material for WaterMaterial {
 #[path = "water_material_clock_tests.rs"]
 mod clock_tests;
 
+/// Water animation uses Bevy's shared virtual shader clock. Its default one-hour
+/// wrap preserves pause/speed behavior, but restarts UV phase at the wrap boundary.
 pub struct WaterMaterialPlugin;
 
 impl Plugin for WaterMaterialPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(MaterialPlugin::<WaterMaterial>::default())
-            .add_systems(Update, update_water_time);
-    }
-}
-
-fn update_water_time(time: Res<Time>, mut water_materials: ResMut<Assets<WaterMaterial>>) {
-    let t = time.elapsed_secs();
-    for (_id, mat) in water_materials.iter_mut() {
-        mat.settings.time = t;
+        app.add_plugins(MaterialPlugin::<WaterMaterial>::default());
     }
 }
 

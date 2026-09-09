@@ -12,7 +12,6 @@ fn settings_fixture() -> WaterSettings {
         normal_scale: 0.625,
         fresnel_power: 2.5,
         specular_strength: 1.25,
-        time: 0.0,
         sky_color: Vec4::new(0.9, 0.8, 0.7, 0.6),
         wave_amplitude: 0.2,
         wave_frequency: 1.75,
