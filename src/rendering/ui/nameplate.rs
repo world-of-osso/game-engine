@@ -160,7 +160,7 @@ fn sync_nameplate_colors(
 ) {
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
     for (kind, mut color) in &mut query {
-        color.0 = nameplate_text_color(*kind, colorblind_mode);
+        color.set_if_neq(TextColor(nameplate_text_color(*kind, colorblind_mode)));
     }
 }
 
