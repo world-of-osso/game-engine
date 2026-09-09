@@ -128,6 +128,10 @@ pub enum AntiAliasMode {
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GraphicsOptions {
+    #[serde(default = "default_particle_effects_enabled")]
+    pub particle_effects_enabled: bool,
+    #[serde(default)]
+    pub ssao_enabled: bool,
     pub particle_density: u8,
     pub render_scale: f32,
     pub ui_scale: f32,
@@ -144,6 +148,8 @@ pub struct GraphicsOptions {
 impl Default for GraphicsOptions {
     fn default() -> Self {
         Self {
+            particle_effects_enabled: default_particle_effects_enabled(),
+            ssao_enabled: false,
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
             ui_scale: default_ui_scale(),
@@ -162,6 +168,8 @@ impl Default for GraphicsOptions {
 impl GraphicsOptions {
     fn from_file(file: &GraphicsOptionsFile) -> Self {
         Self {
+            particle_effects_enabled: file.particle_effects_enabled,
+            ssao_enabled: file.ssao_enabled,
             particle_density: file.particle_density.clamp(10, 100),
             render_scale: file.render_scale.clamp(0.5, 1.0),
             ui_scale: file.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
@@ -173,9 +181,19 @@ impl GraphicsOptions {
             colorblind_mode: file.colorblind_mode,
             bloom_enabled: file.bloom_enabled,
             bloom_intensity: file.bloom_intensity.clamp(0.0, 1.0),
-            depth_of_field: false,
-            anti_alias: AntiAliasMode::default(),
+            depth_of_field: file.depth_of_field,
+            anti_alias: file.anti_alias,
         }
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.ssao_enabled && self.anti_alias == AntiAliasMode::Msaa4x {
+            return Err(
+                "SSAO (ssaoEnabled) cannot be enabled with antiAlias: Msaa4x; use None or Taa, or set ssaoEnabled: false"
+                    .to_string(),
+            );
+        }
+        Ok(())
     }
 
     pub fn particle_density_multiplier(&self) -> f32 {
@@ -308,6 +326,10 @@ const fn default_frame_rate_limit() -> u16 {
 
 const fn default_colorblind_mode() -> bool {
     false
+}
+
+const fn default_particle_effects_enabled() -> bool {
+    true
 }
 
 const fn default_bloom_enabled() -> bool {

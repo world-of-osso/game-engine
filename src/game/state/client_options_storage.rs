@@ -95,6 +95,17 @@ pub(super) struct CameraOptionsFile {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct GraphicsOptionsFile {
+    #[serde(
+        default = "default_particle_effects_enabled",
+        rename = "particleEffectsEnabled"
+    )]
+    pub(super) particle_effects_enabled: bool,
+    #[serde(default, rename = "ssaoEnabled")]
+    pub(super) ssao_enabled: bool,
+    #[serde(default, rename = "depthOfField")]
+    pub(super) depth_of_field: bool,
+    #[serde(default, rename = "antiAlias")]
+    pub(super) anti_alias: AntiAliasMode,
     #[serde(default = "default_particle_density", rename = "particleDensity")]
     pub(super) particle_density: u8,
     #[serde(default = "default_render_scale", rename = "renderScale")]
@@ -121,6 +132,10 @@ pub(super) struct GraphicsOptionsFile {
 impl Default for GraphicsOptionsFile {
     fn default() -> Self {
         Self {
+            particle_effects_enabled: default_particle_effects_enabled(),
+            ssao_enabled: false,
+            depth_of_field: false,
+            anti_alias: AntiAliasMode::default(),
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),
             ui_scale: default_ui_scale(),
@@ -271,6 +286,10 @@ fn build_camera_options_file(camera: &CameraOptions) -> CameraOptionsFile {
 
 fn build_graphics_options_file(graphics: &GraphicsOptions) -> GraphicsOptionsFile {
     GraphicsOptionsFile {
+        particle_effects_enabled: graphics.particle_effects_enabled,
+        ssao_enabled: graphics.ssao_enabled,
+        depth_of_field: graphics.depth_of_field,
+        anti_alias: graphics.anti_alias,
         particle_density: graphics.particle_density.clamp(10, 100),
         render_scale: graphics.render_scale.clamp(0.5, 1.0),
         ui_scale: graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
@@ -306,6 +325,7 @@ pub(super) fn save_options_file_to_path(
     path: &Path,
     file: &ClientOptionsFile,
 ) -> Result<(), String> {
+    GraphicsOptions::from_file(&file.graphics).validate()?;
     let pretty = ron::ser::PrettyConfig::new();
     let serialized = ron::ser::to_string_pretty(file, pretty)
         .map_err(|err| format!("failed to serialize client options: {err}"))?;
@@ -406,8 +426,13 @@ pub(super) fn load_options_file_from_path(path: &Path) -> ClientOptionsFile {
     }
 
     info!("Loading client options from {}", path.display());
-    let Ok(raw) = fs::read_to_string(path) else {
-        return ClientOptionsFile::default();
-    };
-    ron::de::from_str::<ClientOptionsFile>(&raw).unwrap_or_default()
+    let raw = fs::read_to_string(path).unwrap_or_else(|error| {
+        panic!("failed to read client options {}: {error}", path.display())
+    });
+    let file: ClientOptionsFile = ron::de::from_str(&raw)
+        .unwrap_or_else(|error| panic!("invalid client options {}: {error}", path.display()));
+    GraphicsOptions::from_file(&file.graphics)
+        .validate()
+        .unwrap_or_else(|error| panic!("invalid client options {}: {error}", path.display()));
+    file
 }

@@ -145,6 +145,7 @@ fn options_file_serializes_particle_density_with_cvar_name() {
             colorblind_mode: false,
             bloom_enabled: false,
             bloom_intensity: 0.12,
+            ..GraphicsOptionsFile::default()
         },
         ..ClientOptionsFile::default()
     };
@@ -177,14 +178,11 @@ fn assert_graphics_effect_controls(
     graphics: &GraphicsOptions,
     (particles, blur, glow, aa, ssao): (bool, bool, bool, AntiAliasMode, bool),
 ) {
-    // GraphicsOptions already supports serialization; inspect new runtime values
-    // without requiring new fields to exist before this regression can compile.
-    let values = serde_json::to_value(graphics).unwrap();
-    assert_eq!(values["particle_effects_enabled"], particles);
+    assert_eq!(graphics.particle_effects_enabled, particles);
     assert_eq!(graphics.depth_of_field, blur);
     assert_eq!(graphics.bloom_enabled, glow);
     assert_eq!(graphics.anti_alias, aa);
-    assert_eq!(values["ssao_enabled"], ssao);
+    assert_eq!(graphics.ssao_enabled, ssao);
 }
 
 #[test]
@@ -435,6 +433,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
             colorblind_mode: true,
             bloom_enabled: true,
             bloom_intensity: 0.2,
+            ..GraphicsOptionsFile::default()
         },
         hud: HudOptionsFile {
             show_minimap: false,
