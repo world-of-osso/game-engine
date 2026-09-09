@@ -468,6 +468,156 @@ fn slot_action(index: usize) -> InputAction {
 mod tests {
     use super::*;
 
+    #[derive(Resource, Default)]
+    struct FlashUiChanged(bool);
+
+    fn observe_flash_ui(ui: Res<UiState>, mut changed: ResMut<FlashUiChanged>) {
+        changed.0 = ui.is_changed();
+    }
+
+    fn flash_test_app() -> App {
+        let mut app = App::new();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let bars = create_action_bars(&mut registry);
+        app.insert_resource(UiState {
+            registry,
+            event_bus: game_engine::ui::event::EventBus::new(),
+            focused_frame: None,
+        });
+        app.insert_resource(bars);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.init_resource::<InputBindings>();
+        app.init_resource::<Time>();
+        app.init_resource::<FlashUiChanged>();
+        app.add_systems(Update, update_action_bar_slot_flash);
+        app.add_systems(PostUpdate, observe_flash_ui);
+        app.update();
+        app
+    }
+
+    fn flash_frame(app: &mut App, seconds: f32) {
+        app.world_mut()
+            .resource_mut::<UiState>()
+            .registry
+            .render_dirty
+            .clear();
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(seconds));
+        app.world_mut().clear_trackers();
+        app.update();
+    }
+
+    #[test]
+    fn action_bar_idle_background_does_not_dirty_ui() {
+        let mut app = flash_test_app();
+        for _ in 0..3 {
+            flash_frame(&mut app, 0.016);
+            assert!(
+                app.world()
+                    .resource::<UiState>()
+                    .registry
+                    .render_dirty
+                    .is_empty()
+            );
+            assert!(!app.world().resource::<FlashUiChanged>().0);
+        }
+    }
+
+    #[test]
+    fn action_bar_idle_background_preserves_flash_start_and_expiry() {
+        let mut app = flash_test_app();
+        let slot = app.world().resource::<ActionBarsUi>().main_slots[0];
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::Digit1);
+        flash_frame(&mut app, 0.01);
+        let ui = app.world().resource::<UiState>();
+        assert_eq!(
+            ui.registry.get(slot).unwrap().background_color,
+            Some(SLOT_FLASH_BG)
+        );
+        assert_eq!(ui.registry.render_dirty.len(), 1);
+        assert!(ui.registry.render_dirty.contains(&slot));
+        assert!(app.world().resource::<FlashUiChanged>().0);
+        assert!((app.world().resource::<ActionBarsUi>().flashes[0] - 0.11).abs() < 0.00001);
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear();
+        flash_frame(&mut app, 0.01);
+        assert!(
+            app.world()
+                .resource::<UiState>()
+                .registry
+                .render_dirty
+                .is_empty()
+        );
+        assert!(!app.world().resource::<FlashUiChanged>().0);
+        flash_frame(&mut app, 0.2);
+        let ui = app.world().resource::<UiState>();
+        assert_eq!(
+            ui.registry.get(slot).unwrap().background_color,
+            Some(SLOT_BG)
+        );
+        assert_eq!(ui.registry.render_dirty.len(), 1);
+        assert!(ui.registry.render_dirty.contains(&slot));
+        assert!(app.world().resource::<FlashUiChanged>().0);
+        assert_eq!(app.world().resource::<ActionBarsUi>().flashes[0], 0.0);
+        flash_frame(&mut app, 0.016);
+        assert!(
+            app.world()
+                .resource::<UiState>()
+                .registry
+                .render_dirty
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn action_bar_idle_background_initializes_replacement_slot() {
+        let mut app = flash_test_app();
+        let slot = app
+            .world_mut()
+            .resource_mut::<UiState>()
+            .registry
+            .create_frame("ReplacementActionSlot", None);
+        app.world_mut().resource_mut::<ActionBarsUi>().main_slots[0] = slot;
+        flash_frame(&mut app, 0.016);
+        let ui = app.world().resource::<UiState>();
+        assert_eq!(
+            ui.registry.get(slot).unwrap().background_color,
+            Some(SLOT_BG)
+        );
+        assert_eq!(ui.registry.render_dirty.len(), 1);
+        assert!(ui.registry.render_dirty.contains(&slot));
+        flash_frame(&mut app, 0.016);
+        assert!(
+            app.world()
+                .resource::<UiState>()
+                .registry
+                .render_dirty
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn action_bar_idle_background_setter_skips_equal_colors() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let bars = create_action_bars(&mut registry);
+        let slot = bars.main_slots[0];
+        set_bg(&mut registry, slot, SLOT_BG);
+        registry.render_dirty.clear();
+        set_bg(&mut registry, slot, SLOT_BG);
+        assert!(registry.render_dirty.is_empty());
+        set_bg(&mut registry, slot, SLOT_FLASH_BG);
+        assert_eq!(
+            registry.get(slot).unwrap().background_color,
+            Some(SLOT_FLASH_BG)
+        );
+        assert!(registry.render_dirty.contains(&slot));
+    }
+
     fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
         let id = reg.get_by_name(name).expect(name);
         let frame = reg.get(id).expect("frame");
