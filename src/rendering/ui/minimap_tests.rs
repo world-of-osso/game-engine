@@ -6,6 +6,121 @@ use crate::minimap_render::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+#[derive(Resource, Default)]
+struct CoordinateUiChanged(bool);
+
+fn observe_coordinate_ui_change(ui: Res<UiState>, mut changed: ResMut<CoordinateUiChanged>) {
+    changed.0 = ui.is_changed();
+}
+
+fn coordinate_test_app() -> (App, Entity) {
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let frames = build_minimap_screen(&mut registry);
+    let mut app = App::new();
+    app.insert_resource(UiState {
+        registry,
+        event_bus: ui_toolkit::event::EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(frames);
+    app.init_resource::<CoordinateUiChanged>();
+    app.add_systems(Update, update_coord_text);
+    app.add_systems(PostUpdate, observe_coordinate_ui_change);
+    let player = app
+        .world_mut()
+        .spawn((crate::camera::Player, Transform::from_xyz(12.1, 0.0, -7.1)))
+        .id();
+    (app, player)
+}
+
+fn assert_coordinate_frame(app: &mut App, expected: &str, changed: bool) {
+    app.world_mut()
+        .resource_mut::<UiState>()
+        .bypass_change_detection()
+        .registry
+        .render_dirty
+        .clear();
+    app.update();
+    let coords = app.world().resource::<MinimapFrames>().coords;
+    let ui = app.world().resource::<UiState>();
+    let Some(WidgetData::FontString(font)) = &ui.registry.get(coords).unwrap().widget_data else {
+        panic!("coordinate frame is not a font string");
+    };
+    assert_eq!(font.text, expected);
+    assert_eq!(
+        ui.registry.render_dirty.contains(&coords),
+        changed,
+        "coordinate render dirtiness"
+    );
+    assert_eq!(
+        app.world().resource::<CoordinateUiChanged>().0,
+        changed,
+        "UiState change detection"
+    );
+}
+
+#[test]
+fn minimap_coordinates_skip_unchanged_rounded_text() {
+    let (mut app, player) = coordinate_test_app();
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    app.world_mut()
+        .get_mut::<Transform>(player)
+        .unwrap()
+        .translation = Vec3::new(12.4, 5.0, -7.4);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    app.world_mut()
+        .get_mut::<Transform>(player)
+        .unwrap()
+        .translation = Vec3::new(12.6, 5.0, -7.6);
+    assert_coordinate_frame(&mut app, "13, -8", true);
+    assert_coordinate_frame(&mut app, "13, -8", false);
+}
+
+#[test]
+fn minimap_coordinates_update_replacement_frame_at_same_position() {
+    let (mut app, _) = coordinate_test_app();
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    let old_coords = app.world().resource::<MinimapFrames>().coords;
+    let new_coords = {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        let widget = ui.registry.get(old_coords).unwrap().widget_data.clone();
+        let id = ui.registry.create_frame("ReplacementCoords", None);
+        let frame = ui.registry.get_mut(id).unwrap();
+        frame.widget_data = widget;
+        let Some(WidgetData::FontString(font)) = &mut frame.widget_data else {
+            unreachable!()
+        };
+        font.text = "new frame".to_owned();
+        id
+    };
+    app.world_mut().resource_mut::<MinimapFrames>().coords = new_coords;
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+}
+
+#[test]
+fn minimap_coordinates_preserve_text_without_player_or_frames() {
+    let (mut app, player) = coordinate_test_app();
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    app.world_mut().despawn(player);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    app.world_mut()
+        .spawn((crate::camera::Player, Transform::from_xyz(99.0, 0.0, 88.0)));
+    let frames = app.world_mut().remove_resource::<MinimapFrames>().unwrap();
+    app.update();
+    assert!(!app.world().resource::<CoordinateUiChanged>().0);
+    assert!(
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .render_dirty
+            .is_empty()
+    );
+    app.insert_resource(frames);
+    assert_coordinate_frame(&mut app, "99, 88", true);
+}
+
 #[test]
 fn minimap_screen_builds_expected_hud_frames() {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
