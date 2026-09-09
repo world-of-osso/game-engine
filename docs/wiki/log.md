@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] investigations | Record temporary application opt1 CPU evidence
+
+Updated [[compile-latency]] and [[movement-performance]]. A temporary application-only opt1 build retained dynamic dependencies and runtime policy; one matched 20-second InWorld pair observed **253.179033% → 227.135068%** CPU. The reverse pair has clock confounding, initial 1m53s build is not edit-latency evidence, and default configuration/adoption remain pending.
+
 ## [2026-09-09] systems | Avoid unchanged nameplate visibility writes
 
 Updated [[ui-system]] for `6edcdc91`. Nameplate and quest-indicator visibility still synchronizes from HUD toggles every `Update`; matching `Visibility` components are no longer marked changed. Focused tests cover unchanged components and HUD show/hide updates. No performance benefit is claimed.

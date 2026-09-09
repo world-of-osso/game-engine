@@ -18,6 +18,12 @@ A subsequent equivalent edit with crate-local `-Ztime-passes` took 4.187155 s wa
 
 Independent verification at `17238f90` passed `cargo fmt --check`, `cargo check --bin game-engine --features dev`, and CLI `--help`. ELF `NEEDED` explicitly includes `libbevy_dylib`. The existing `binrw 0.15.1` future-incompatibility notice remains. Proof lives under the artifact directory's `verification/`; later unrelated Rust edits invalidate their overlapping check scope.
 
+## Temporary application optimization experiment
+
+At `609c8268`, a temporary `profile.dev.package."game-engine".opt-level=1` override rebuilt only the application crate; dependencies and shared Bevy/std libraries remained byte-identical. It does not change committed configuration, runtime features, debug assertions, overflow checks, cadence, or focus policy.
+
+A normal animated InWorld ABBA observation recorded a matched first pair of **253.179033% → 227.135068%** process CPU over 20 seconds, with 119 remotes and sampled all-core clocks **2393.592040 → 2393.916174 MHz**. The reverse pair also favored opt1 but clocks differed materially. This is bounded native evidence, not a general result or adoption decision. Renderer errors matched across runs; animation/pixel equivalence is unproven. The initial opt1 build took 1m53s and is not warmed edit-build latency. Default `target/debug` was restored and hash-verified.
+
 ## History
 
 `5590b52f` (March 9, 2026) added the direct optional dependency for faster links. `f49f7ab5` later gated IPC for Windows compatibility but retained `dev = ["bevy_dylib"]`; no repository evidence says Windows disabled Bevy dynamic linking.
@@ -32,7 +38,8 @@ Use the dynamic-link development commands documented in [AGENTS.md](../../../AGE
 - [AGENTS.md](../../../AGENTS.md) — development commands and dylib runtime condition.
 - Local Bevy 0.19 source, `/home/osso/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy-0.19.0/src/lib.rs` — `dynamic_linking` imports `bevy_dylib`.
 - `data/diagnostics/compile-latency-20260907/` — ignored timing artifacts.
-- `5590b52f`, `f49f7ab5`, `8fca26b9`, `50991d70` — repository history and fixes.
+- `data/diagnostics/cpu-goal-resumed/background-cpu/opt1-codegen/` — temporary opt1 build and native observations.
+- `5590b52f`, `f49f7ab5`, `8fca26b9`, `50991d70`, `609c8268` — repository history and fixes.
 
 ## See Also
 
