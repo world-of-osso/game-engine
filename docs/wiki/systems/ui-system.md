@@ -53,6 +53,8 @@ Commits `1a8c6d58`, `cd47743e`, `9a6b6679`, `ae222f0e`, `e9b81652`, and `fc99128
 
 `ui-toolkit` `0f5d81c` keeps that per-frame visual synchronization but avoids replacing an existing `Transform` or `Sprite` when its computed value is identical, for ordinary and nine-slice backdrop quads. It compares all sprite fields written by the sync path; genuine layout, color, texture, clipping, and default-value updates still write immediately. It does not use `render_dirty` as a skip gate and does not change rendering cadence. Tests through `3eb9aa7` cover unchanged ordinary/backdrop values and changed geometry/color/texture/default behavior. CPU gain remains unproven; native comparable measurement is required.
 
+Engine commit `6edcdc91` similarly runs nameplate and quest-indicator HUD visibility synchronization every `Update`, but uses `Visibility::set_if_neq` so components already at the requested state are not marked changed. Focused tests cover unchanged components and HUD show/hide toggles on each update.
+
 ## Keybindings
 
 Configurable bindings cover in-world gameplay: movement (forward/backward/strafe/jump/run/autorun), camera (turn/pitch/zoom), targeting, action bar slots 1–12, audio mute. Fixed (non-bindable) inputs: LMB+RMB chord, login/charselect/menu screen keys, debug controls. See [keybindings-scope.md](../../keybindings-scope.md).
@@ -90,6 +92,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
 - [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
 - [ui-toolkit processing gate](../../../../ui-toolkit/src/plugin.rs) — registry/layout/input/render schedule boundary
+- [nameplate visibility synchronization](../../../src/rendering/ui/nameplate.rs) — per-Update HUD visibility writes and change detection
 - `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — machine-side connected empty-stage relaunch proof
 
 ## See Also

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged nameplate visibility writes
+
+Updated [[ui-system]] for `6edcdc91`. Nameplate and quest-indicator visibility still synchronizes from HUD toggles every `Update`; matching `Visibility` components are no longer marked changed. Focused tests cover unchanged components and HUD show/hide updates. No performance benefit is claimed.
+
 ## [2026-09-09] systems | Avoid unchanged UI quad component writes
 
 Updated [[ui-system]] for `ui-toolkit` `0f5d81c` through `3eb9aa7`: ordinary and backdrop UI quads retain per-frame synchronization, but identical computed `Transform` and `Sprite` values are no longer reinserted. Real geometry, color, texture, clipping, and default-value changes still synchronize; `render_dirty` and rendering cadence are unchanged. CPU improvement remains unproven.
