@@ -123,6 +123,8 @@ fn char_create_shared_mode_appearance_error_and_focus_changes_propagate() {
     assert_eq!(fixture.generation(), previous + 1);
     assert_eq!(fixture.shared().face, 2);
     assert_eq!(fixture.shared().hair_style, 3);
+    assert_eq!(fixture.text("AppVal_face"), "3");
+    assert_eq!(fixture.text("AppVal_hair_style"), "4");
     assert!(fixture.shared().name_input_focused);
     assert_eq!(fixture.text(ERROR_TEXT.0), "Name unavailable");
     fixture.assert_settled(true);
@@ -150,12 +152,12 @@ fn char_create_shared_compares_labels_swatches_and_name() {
     for change in changes {
         let mut previous_state = build_ui_state(&fixture.state, &fixture.db);
         change(&mut previous_state);
-        fixture
-            .world
-            .resource_mut::<CharCreateScreenWrap>()
-            .0
-            .shared
-            .insert(previous_state);
+        {
+            let mut screen = fixture.world.resource_mut::<CharCreateScreenWrap>();
+            let inner = &mut screen.0;
+            inner.shared.insert(previous_state);
+            inner.screen.sync(&inner.shared, &mut fixture.registry);
+        }
         let previous = fixture.generation();
         fixture.sync(false);
         assert_eq!(fixture.generation(), previous + 1);
@@ -165,6 +167,11 @@ fn char_create_shared_compares_labels_swatches_and_name() {
         assert!(fixture.shared().facial_style_label.is_empty());
         assert!(fixture.shared().skin_color_swatches.is_empty());
         assert!(fixture.shared().hair_color_swatches.is_empty());
+        assert_eq!(fixture.text("AppVal_face"), "1");
+        assert_eq!(fixture.text("AppVal_hair_style"), "1");
+        assert_eq!(fixture.text("AppVal_facial"), "1");
+        assert_eq!(fixture.text("AppVal_skin"), "1");
+        assert_eq!(fixture.text("AppVal_hair_color"), "1");
         fixture.assert_settled(false);
     }
 }
