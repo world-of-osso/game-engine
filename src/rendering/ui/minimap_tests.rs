@@ -88,6 +88,17 @@ fn replace_coordinate_text(app: &mut App, text: &str) {
 }
 
 #[test]
+fn minimap_coordinates_reuse_formatted_storage_for_identical_input() {
+    let mut cache = None;
+    let position = Vec2::new(12.1, -7.1);
+    let first = coordinate_text(&mut cache, position);
+    assert_eq!(first, "12, -7");
+    let buffer = first.as_ptr();
+    assert_eq!(coordinate_text(&mut cache, position).as_ptr(), buffer);
+    assert_eq!(coordinate_text(&mut cache, Vec2::new(12.6, -7.6)), "13, -8");
+}
+
+#[test]
 fn minimap_coordinates_repair_external_text_without_position_change() {
     let (mut app, _) = coordinate_test_app();
     assert_coordinate_frame(&mut app, "12, -7", true);

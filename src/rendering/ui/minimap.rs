@@ -649,6 +649,11 @@ fn update_zone_name(
     }
 }
 
+fn coordinate_text(cache: &mut Option<(Vec2, String)>, position: Vec2) -> &str {
+    *cache = Some((position, format!("{:.0}, {:.0}", position.x, position.y)));
+    &cache.as_ref().expect("coordinate text initialized").1
+}
+
 /// Update coordinate text with the player's current position.
 fn update_coord_text(
     player_q: Query<Ref<Transform>, With<crate::camera::Player>>,
