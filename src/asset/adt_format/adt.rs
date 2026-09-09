@@ -352,7 +352,6 @@ impl<'a> Iterator for ChunkIter<'a> {
 
 mod lod_chunks;
 mod parsing;
-mod seam;
 
 use lod_chunks::collect_lod_chunks;
 use parsing::{
@@ -360,7 +359,6 @@ use parsing::{
     parse_lod_object_visibility, parse_mcnk, parse_mfbo, parse_mlhd, parse_mlll, parse_mlnd,
     parse_mlvh, parse_mver, parse_u16_block,
 };
-use seam::{center_surface_position, stitch_chunk_edges};
 
 #[cfg(test)]
 fn parse_mccv(payload: &[u8]) -> Result<[[f32; 4]; MCVT_COUNT], String> {
@@ -398,11 +396,11 @@ pub(crate) fn vertex_position_from_origin(
     let r = (grid_row / 2) as f32;
     let c = col as f32;
     let (bx, bz) = if grid_row.is_multiple_of(2) {
-        (origin_x - c * UNIT_SIZE, origin_z + r * UNIT_SIZE)
+        (origin_x - r * UNIT_SIZE, origin_z + c * UNIT_SIZE)
     } else {
         (
-            origin_x - c * UNIT_SIZE - HALF_UNIT,
-            origin_z + r * UNIT_SIZE + HALF_UNIT,
+            origin_x - r * UNIT_SIZE - HALF_UNIT,
+            origin_z + c * UNIT_SIZE + HALF_UNIT,
         )
     };
     [bx, base_y + heights[idx], bz]
@@ -445,7 +443,7 @@ fn build_height_grids(
 }
 
 pub(crate) fn load_adt_parsed(data: &[u8]) -> Result<ParsedAdtData, String> {
-    load_adt_inner(data, true, None)
+    load_adt_inner(data, None)
 }
 
 pub(crate) fn load_adt_for_tile_parsed(
@@ -453,30 +451,39 @@ pub(crate) fn load_adt_for_tile_parsed(
     tile_y: u32,
     tile_x: u32,
 ) -> Result<ParsedAdtData, String> {
-    load_adt_inner(data, true, Some((tile_y, tile_x)))
+    load_adt_inner(data, Some((tile_y, tile_x)))
 }
 
 #[cfg(test)]
 pub(crate) fn load_adt_raw(data: &[u8]) -> Result<ParsedAdtData, String> {
-    load_adt_inner(data, false, None)
+    load_adt_parsed(data)
 }
 
-fn load_adt_inner(
-    data: &[u8],
-    stitch: bool,
-    tile_coords: Option<(u32, u32)>,
-) -> Result<ParsedAdtData, String> {
+fn center_surface_position(chunks: &[McnkData], tile_coords: Option<(u32, u32)>) -> [f32; 3] {
+    let center_chunk = chunks
+        .iter()
+        .find(|c| c.index_x == 8 && c.index_y == 8)
+        .unwrap_or(&chunks[chunks.len() / 2]);
+    let (origin_x, origin_z) = chunk_origin_bevy(center_chunk, tile_coords);
+    vertex_position_from_origin(
+        9,
+        4,
+        origin_x,
+        origin_z,
+        center_chunk.pos[2],
+        &center_chunk.heights,
+    )
+}
+
+fn load_adt_inner(data: &[u8], tile_coords: Option<(u32, u32)>) -> Result<ParsedAdtData, String> {
     let root_chunks = collect_adt_chunks(data)?;
     let blend_mesh = parse_blend_mesh_data(&root_chunks)?;
     let flight_bounds = root_chunks.mfbo.map(parse_mfbo).transpose()?;
-    let mut parsed: Vec<McnkData> = root_chunks
+    let parsed: Vec<McnkData> = root_chunks
         .mcnks
         .into_iter()
         .map(parse_mcnk)
         .collect::<Result<Vec<_>, String>>()?;
-    if stitch {
-        stitch_chunk_edges(&mut parsed);
-    }
     let center_surface = center_surface_position(&parsed, tile_coords);
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed, tile_coords);

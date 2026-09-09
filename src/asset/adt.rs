@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../tests/unit/asset/terrain_axis_tests.rs"]
+mod terrain_axis_tests;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
 
@@ -142,10 +146,10 @@ fn build_mcnk_indices(holes_low_res: u16, holes_high_res: Option<u64>) -> Vec<u3
             let bl = vertex_index(qr * 2 + 2, qc) as u32;
             let br = vertex_index(qr * 2 + 2, qc + 1) as u32;
             let center = vertex_index(qr * 2 + 1, qc) as u32;
-            indices.extend_from_slice(&[tl, tr, center]);
-            indices.extend_from_slice(&[tr, br, center]);
-            indices.extend_from_slice(&[br, bl, center]);
-            indices.extend_from_slice(&[bl, tl, center]);
+            indices.extend_from_slice(&[tl, center, tr]);
+            indices.extend_from_slice(&[tr, center, br]);
+            indices.extend_from_slice(&[br, center, bl]);
+            indices.extend_from_slice(&[bl, center, tl]);
         }
     }
     indices

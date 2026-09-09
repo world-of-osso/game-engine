@@ -339,12 +339,12 @@ pub(crate) fn sample_chunk_height(g: &ChunkHeightGrid, bx: f32, bz: f32) -> Opti
     if !(0.0..CHUNK_SIZE).contains(&local_x) || !(0.0..CHUNK_SIZE).contains(&local_z) {
         return None;
     }
-    let col = (local_x / UNIT_SIZE).floor() as usize;
-    let row = (local_z / UNIT_SIZE).floor() as usize;
+    let col = (local_z / UNIT_SIZE).floor() as usize;
+    let row = (local_x / UNIT_SIZE).floor() as usize;
     let col = col.min(7);
     let row = row.min(7);
-    let frac_x = (local_x - col as f32 * UNIT_SIZE) / UNIT_SIZE;
-    let frac_z = (local_z - row as f32 * UNIT_SIZE) / UNIT_SIZE;
+    let frac_x = (local_z - col as f32 * UNIT_SIZE) / UNIT_SIZE;
+    let frac_z = (local_x - row as f32 * UNIT_SIZE) / UNIT_SIZE;
     Some(interpolate_quad_height(g, row, col, frac_x, frac_z))
 }
 
@@ -406,6 +406,36 @@ mod tests {
             chunk_positions: vec![[0.0, 0.0, 0.0]; 256],
             water,
             water_error: None,
+        }
+    }
+
+    #[test]
+    fn terrain_axis_samples_authored_rows_columns_and_center_vertices() {
+        let mut heights = [0.0; 145];
+        for row in 0..=8 {
+            for col in 0..=8 {
+                heights[vertex_index(row * 2, col)] = 10.0 * row as f32 + col as f32;
+            }
+            if row < 8 {
+                for col in 0..8 {
+                    heights[vertex_index(row * 2 + 1, col)] =
+                        10.0 * (row as f32 + 0.5) + col as f32 + 0.5 + 3.0;
+                }
+            }
+        }
+        let grid = ChunkHeightGrid {
+            index_x: 0,
+            index_y: 0,
+            origin_x: 100.0,
+            origin_z: 200.0,
+            base_y: 50.0,
+            heights,
+        };
+        for (row, col, expected) in [(2.0, 5.0, 75.0), (2.5, 5.5, 83.5)] {
+            let actual =
+                sample_chunk_height(&grid, 100.0 - row * UNIT_SIZE, 200.0 + col * UNIT_SIZE)
+                    .unwrap();
+            assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
         }
     }
 

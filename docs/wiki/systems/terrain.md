@@ -25,6 +25,10 @@ This was derived by visual validation against Adventurer's Rest campsite props. 
 
 **Tests**: `placement_rotation_matches_current_model_rotation_formula` and `placement_rotation_zero_matches_current_yaw_correction` in `terrain_objects.rs` lock in the current formula.
 
+## Authored Height Grid Axes
+
+MCVT rows advance toward negative Bevy X; columns advance toward positive Bevy Z. Mesh positions and the four-triangle CPU sampler use that same basis, with upward triangle winding. The former transposed basis put part of Northshire's `stormwindgypsywagon01.m2` (FDID198288, placement69265) inside an incorrectly reconstructed hill. The wagon's authored transform is unchanged. Incorrect border averaging was removed: it combined unrelated edge samples and altered authored heights. Asymmetric four-chunk regressions cover positions, height preservation, shared borders, winding, and center-vertex sampling. Runtime visual confirmation remains pending.
+
 ## Doodad Collision
 
 Doodad solidity uses authored M2 collision triangles, not render/visual bounds. The M2 parser reads collision bounds, u16 triangle indices, and vertices; placements share the parsed geometry. A world-space AABB narrows candidates, then a backface-inclusive triangle ray test decides a hit through the placement affine transform. Starting inside the broadphase box is not a collision by itself.
@@ -35,7 +39,7 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 
 ## Known Issues
 
-- **Mountain ridge topology**: even with the correct tile loaded, Adventurer's Rest mountain chunks show slab-like silhouettes. Highest vertices cluster on south/east chunk edges (camera-facing side), and height discontinuities exist along some shared edges between adjacent ridge chunks. Suspected chunk-local ADT mesh reconstruction issue in `src/asset/adt.rs`.
+- **Mountain ridge topology**: the earlier slab-like silhouettes and discontinuous chunk edges were observed before the height-grid axis correction above. Adventurer's Rest requires visual revalidation; no mountain-specific completion claim is made.
 - **Terrain normals**: stored MCNR normals in the mountain area are inconsistent with geometric face normals; normal decoding may still be wrong.
 
 ## Sources
