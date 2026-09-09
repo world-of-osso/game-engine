@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] investigation | Bound Northshire NPC motion and terrain claims
+
+Added [[npc-motion-validation]] at engine revision `9404235d` and linked animation/UI evidence. The record credits authored facing and 422 observed idle bone changes; 20 landing tests and a 20.33-unit grounded endpoint walk; fog-off/on GPU compilation; two `Camera3d` picking tests preserving `--no-ui` health-bar policy; all-seven WMO bounds; radius-one retention; local-CASC roots/companions; and the initial nine-loaded, zero-failed native state. Cold capture observed two roots and companions, with one tile fully spawned before 30 seconds; the third was not observed and is not called a failure. No locomotion producer, WMO vertical-floor, full cold-ring, or performance claim.
+
 ## [2026-09-09] systems | Reconcile Northshire NPC motion, picking, fog, and WMO basis
 
 Audited commits `02a4487`, `cb2d169f`/`a6b2f6fd`, `fbda0693`, `195ab94a`, `3f331032`, and `965f6f9e` against `data/diagnostics/npc-motion-20260909`. Updated [[animation]], [[ui-system]], [[rendering-pipeline]], [[wmo-format]], and [[collision-system]]. Static authored NPC heading, actual HumanMaleHD/sheep idle playback, nested-mesh LOD, world-camera selection, fog-on/off GPU compilation, running-landing completion, and all seven corrected MOHD→MODF bounds have focused proof. NPC locomotion-state production, arbitrary AI heading, WMO/M2 vertical support, and native/final integration checks remain open. `--no-ui` health-bar suppression remains expected.

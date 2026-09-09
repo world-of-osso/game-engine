@@ -140,3 +140,4 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [[rendering-pipeline]] — UI renders on top of 3D scene
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending
 - [[world-builder]] — diagnostic sidebar built on Screen, SharedContext, and FrameRegistry
+- [[npc-motion-validation]] — revision-pinned world-picking and `--no-ui` policy evidence

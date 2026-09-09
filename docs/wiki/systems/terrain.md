@@ -6,7 +6,7 @@ ADT terrain is loaded from split WoW map tiles. The engine renders heightmap mes
 
 Official tile requests resolve their listfile FDID and call the existing `AssetResolver::ensure_cached` at `shared_data_path("terrain/<fdid>.adt")`. Missing disk files trigger local CASC extraction rather than a permanent streaming failure. Declared `_tex0` and `_obj*` companions use the same cache mechanism; an absent optional listfile entry returns `None`, while extraction errors include the WoW path, FDID, and destination. Existing explicitly named local sidecars remain supported. Official streaming no longer prefers a potentially stale named tile over the canonical FDID cache or searches alternate checkout caches.
 
-`terrain_tile::resolver_tests` uses temporary filesystem caches to prove root/companion extraction, byte-preserving reuse, named-sidecar behavior, and lookup/extraction errors. Real uncached tile50 acceptance remains with the parent native-validation pass.
+`terrain_tile::resolver_tests` uses temporary filesystem caches to prove root/companion extraction, byte-preserving reuse, named-sidecar behavior, and lookup/extraction errors. Bounded native cold-edge capture extracted two roots and their declared companions from local CASC; one tile fully spawned before the 30-second cap. A third tile was not observed before the cap, not classified as an extraction failure. See [[npc-motion-validation]].
 
 ## ADT Split Files
 
@@ -22,6 +22,8 @@ The engine loads all three. Finding companion files uses the community listfile 
 ## Streaming Neighborhood
 
 The default load radius is one tile: retain a 3×3 neighborhood around the player's current tile. A zero radius previously unloaded adjacent terrain and its heightmap while approaching a tile edge, leaving visible void beyond the single retained tile. This is separate from WMO placement alignment. The streaming regression uses real loaded entities and heightmaps, keeps other requested tiles pending, and crosses the 32,48→32,49 boundary: both nearby tiles remain while a distant tile is removed. Bootstrap queues all nine tiles; existing pending-load limits and retries are unchanged.
+
+The initial native stream reported a radius-one neighborhood with nine loaded tiles, nine heightmap tiles, and zero failed tiles; the observed `streaming-fixed.webp` view lacks the prior nearby tile-edge void. This does not prove every region or a complete cold ring.
 
 ## World Object Placement (MDDF/MODF)
 
@@ -63,6 +65,7 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 - [wowee-collision.md](../wowee-collision.md) — broader collision reference
 - `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — authored doodad collision implementation and scoped proof
 - AGENTS.md — ADT split files section
+- `../../data/diagnostics/npc-motion-20260909/{streaming-fixed-terrain,cold-edge-run}.txt` — bounded native neighborhood and cold extraction evidence
 
 ## See Also
 
@@ -70,3 +73,4 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 - [[asset-pipeline]] — CASC extraction for ADT and companion files
 - [[character-rendering]] — character models spawned from ADT doodad placement
 - [[collision-system]] — broader collision design and remaining layers
+- [[npc-motion-validation]] — bounded stream, WMO-basis, and grounded-walk evidence
