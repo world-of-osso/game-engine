@@ -61,9 +61,6 @@ fn load_model_attachment_data(
     path: &Path,
     chunks: &M2Chunks<'_>,
 ) -> (Vec<m2_attach::M2Attachment>, Vec<i16>) {
-    if !path.starts_with("data/models") {
-        return load_attachment_data(chunks);
-    }
     if let Some(skel_fdid) = chunks.skid {
         let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
         let skel_path = path.with_file_name(format!("{stem}.skel"));
@@ -75,6 +72,31 @@ fn load_model_attachment_data(
         }
     }
     load_attachment_data(chunks)
+}
+
+#[cfg(test)]
+mod attachment_path_tests {
+    use super::*;
+
+    #[test]
+    fn human_hd_absolute_and_relative_paths_load_same_skeleton_attachments() {
+        let relative = Path::new("data/models/humanmale_hd.m2");
+        let absolute = relative.canonicalize().unwrap();
+        let data = std::fs::read(relative).unwrap();
+        let chunks = parse_chunks(&data).unwrap();
+        let (expected, expected_lookup) = load_model_attachment_data(relative, &chunks);
+        let (actual, actual_lookup) = load_model_attachment_data(&absolute, &chunks);
+        assert_eq!(expected.len(), 45);
+        assert_eq!(expected_lookup.len(), 75);
+        assert_eq!(actual_lookup, expected_lookup);
+        let records = |items: Vec<m2_attach::M2Attachment>| {
+            items
+                .into_iter()
+                .map(|a| (a.id, a.bone, a.position))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(records(actual), records(expected));
+    }
 }
 
 fn load_model_particles(md20: &[u8], txid: &[u32]) -> Vec<m2_particle::M2ParticleEmitter> {

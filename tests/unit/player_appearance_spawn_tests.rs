@@ -114,6 +114,7 @@ fn loading_player_spawn_retains_equipment_after_entering_world() {
             .contains_key(&crate::equipment::EquipmentSlot::OffHand),
         "spawn must retain the replicated shield after model construction"
     );
+    assert_starter_weapon_attachments(app.world_mut(), owner);
     let dressed = body_texture_pixels(app.world_mut());
     assert!(
         !dressed.is_empty(),
@@ -139,6 +140,29 @@ fn loading_player_spawn_retains_equipment_after_entering_world() {
         dressed,
         "starter clothing must change actual body pixels"
     );
+}
+
+fn assert_starter_weapon_attachments(world: &mut World, owner: Entity) {
+    let joints = world
+        .get::<M2AnimData>(owner)
+        .unwrap()
+        .joint_entities
+        .clone();
+    let mut query = world.query::<(&crate::equipment::EquipmentItem, &ChildOf, &Children)>();
+    for (slot, bone) in [
+        (crate::equipment::EquipmentSlot::MainHand, 201),
+        (crate::equipment::EquipmentSlot::OffHand, 206),
+    ] {
+        let items: Vec<_> = query
+            .iter(world)
+            .filter(|(item, parent, _)| item._slot == slot && parent.parent() == joints[bone])
+            .collect();
+        assert_eq!(items.len(), 1, "{slot:?} must attach to authored hand bone");
+        assert!(
+            !items[0].2.is_empty(),
+            "{slot:?} must contain rendered model children"
+        );
+    }
 }
 
 fn body_texture_pixels(world: &mut World) -> std::collections::HashMap<Entity, Vec<u8>> {

@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] character | Load skeleton attachments for absolute model paths
+
+Removed the relative-path gate on SKID attachment loading. Real HumanHD path-equivalence and replicated-player sword/shield bone-parent regressions both fail before and pass after the correction. See [character rendering](systems/character-rendering.md#replicated-player-construction-boundary); no native validation in this slice.
+
 ## [2026-09-09] ui | Make clean layout state a no-op
 
 Updated [[ui-system]] and [UI layout invalidation spec](../specs/ui-layout-invalidation.md) for ui-toolkit `0fdcf3f` and game-engine `86bbc945`. Empty `rect_dirty` now performs no layout or render-dirty work; insertion/removal, resize, anchors, flex, auto-sizing, and owned-addon geometry changes explicitly propagate. `get_mut` remains render-dirty only and explicit unanchored cached rectangles are unchanged. Proof: 14 focused plus 41 existing toolkit tests (55), and 7 GREEN engine addon tests. No CPU/native claim; coordinated engine integration check remains pending.
