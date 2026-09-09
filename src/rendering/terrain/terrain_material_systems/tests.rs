@@ -17,6 +17,27 @@ const FIRST_ENVIRONMENT: Handle<Image> = uuid_handle!("00000000-0000-0000-0000-0
 const SECOND_ENVIRONMENT: Handle<Image> = uuid_handle!("00000000-0000-0000-0000-000000000002");
 
 #[test]
+fn shared_clock_does_not_modify_terrain_material_assets() {
+    let mut app = environment_test_app();
+    app.insert_resource(Time::<()>::default());
+    app.add_systems(Update, update_terrain_animation_time);
+    let handle = add_environment_material(&mut app, FIRST_ENVIRONMENT.clone());
+    app.update();
+    take_modified_materials(&mut app);
+    for seconds in [1, 3599, 1] {
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_secs(seconds));
+        app.update();
+        assert!(
+            take_modified_materials(&mut app).is_empty(),
+            "clock advancement must not dirty terrain assets"
+        );
+        assert_environment(&app, &handle, &FIRST_ENVIRONMENT);
+    }
+}
+
+#[test]
 fn terrain_material_freeze_stops_updates_at_deadline() {
     let (mut app, material) = terrain_material_test_app(Some(Duration::from_secs(2)));
 
