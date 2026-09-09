@@ -55,6 +55,17 @@ fn apply_pipelining_policy(
 #[path = "../tests/unit/pipeline_isolation_tests.rs"]
 mod pipeline_isolation_tests;
 
+#[cfg(test)]
+#[path = "../tests/unit/gpu_culling_probe_tests.rs"]
+mod gpu_culling_probe_tests;
+
+fn register_gpu_culling_probe(
+    _app: &mut App,
+    _value: Result<String, std::env::VarError>,
+) -> Result<(), String> {
+    Ok(())
+}
+
 pub(crate) fn run_screenshot_regression_app(
     args: &[String],
     screenshot: Option<ScreenshotRequest>,
