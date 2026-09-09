@@ -168,7 +168,7 @@ impl Default for AdtManager {
             tile_doodad_entities: HashMap::new(),
             tile_rx: Mutex::new(tile_rx),
             tile_tx,
-            load_radius: 0,
+            load_radius: 1,
             load_objects: true,
             load_water: true,
             render_textures: true,

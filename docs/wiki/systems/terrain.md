@@ -13,6 +13,10 @@ The engine loads all three. Finding companion files uses the community listfile 
 
 **Critical tile ordering bug (fixed)**: `ensure_warband_terrain_tiles()` was sorting the tile list alphabetically, which reordered `[primary=(31,37), supplemental=(31,36)]` to `(31,36), (31,37)`. The scene loader took `next()` and loaded the supplemental tile as primary, never loading the mountain tile `2703_31_37.adt`. Fix: preserve primary-first ordering and append only distinct supplemental tiles. See [adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md).
 
+## Streaming Neighborhood
+
+The default load radius is one tile: retain a 3×3 neighborhood around the player's current tile. A zero radius previously unloaded adjacent terrain and its heightmap while approaching a tile edge, leaving visible void beyond the single retained tile. This is separate from WMO placement alignment. The streaming regression uses real loaded entities and heightmaps, keeps other requested tiles pending, and crosses the 32,48→32,49 boundary: both nearby tiles remain while a distant tile is removed. Bootstrap queues all nine tiles; existing pending-load limits and retries are unchanged.
+
 ## World Object Placement (MDDF/MODF)
 
 WoW ADT stores object rotations as `[X, Y, Z]` Euler angles. These are converted to Bevy using `placement_rotation()` in `src/terrain_objects.rs`:

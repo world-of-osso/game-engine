@@ -170,8 +170,95 @@ fn bootstrap_terrain_streaming_uses_local_player_tile_when_server_did_not_seed_i
     let adt_manager = app.world().resource::<AdtManager>();
     assert_eq!(adt_manager.map_name, "azeroth");
     assert_eq!(adt_manager.initial_tile, (32, 48));
-    assert_eq!(adt_manager.server_requested.len(), 1);
-    assert!(adt_manager.server_requested.contains(&(32, 48)));
+    assert_eq!(adt_manager.server_requested.len(), 9);
+    for tile_y in 31..=33 {
+        for tile_x in 47..=49 {
+            assert!(adt_manager.server_requested.contains(&(tile_y, tile_x)));
+        }
+    }
+}
+
+#[test]
+fn streaming_retains_adjacent_geometry_and_ground_when_crossing_tile_edge() {
+    use bevy::ecs::system::RunSystemOnce;
+
+    let mut app = App::new();
+    app.init_resource::<AdtManager>();
+    app.init_resource::<TerrainHeightmap>();
+    let center_root = app.world_mut().spawn_empty().id();
+    let neighbor_root = app.world_mut().spawn_empty().id();
+    let distant_root = app.world_mut().spawn_empty().id();
+    let player = app
+        .world_mut()
+        .spawn((
+            crate::camera::Player,
+            Transform::from_xyz(-9049.0, 72.0, 197.5),
+        ))
+        .id();
+    let tile_size = adt::CHUNK_SIZE * 16.0;
+    let edge_x = 32.0 * tile_size - 49.0 * tile_size;
+    {
+        let mut heightmap = app.world_mut().resource_mut::<TerrainHeightmap>();
+        heightmap.insert_tile(
+            32,
+            48,
+            &empty_adt(vec![flat_grid(
+                5,
+                15,
+                edge_x + adt::CHUNK_SIZE,
+                5.0 * adt::CHUNK_SIZE,
+                72.0,
+            )]),
+        );
+        heightmap.insert_tile(
+            32,
+            49,
+            &empty_adt(vec![flat_grid(5, 0, edge_x, 5.0 * adt::CHUNK_SIZE, 72.0)]),
+        );
+        heightmap.insert_tile(32, 45, &empty_adt(Vec::new()));
+    }
+    {
+        let mut manager = app.world_mut().resource_mut::<AdtManager>();
+        manager.map_name = "azeroth".into();
+        manager.initial_tile = (32, 48);
+        manager.loaded.extend([
+            ((32, 48), center_root),
+            ((32, 49), neighbor_root),
+            ((32, 45), distant_root),
+        ]);
+        // Other desired tiles are already in flight; the real streaming system must not
+        // start filesystem work in this lifecycle fixture.
+        for center_x in [48, 49] {
+            manager
+                .pending
+                .extend(compute_desired_tiles(32, center_x, 1));
+        }
+    }
+    for x in [-9049.0, edge_x + 0.5, edge_x - 0.5, edge_x - 12.0] {
+        app.world_mut()
+            .get_mut::<Transform>(player)
+            .unwrap()
+            .translation
+            .x = x;
+        app.world_mut()
+            .run_system_once(adt_streaming_system)
+            .unwrap();
+        let manager = app.world().resource::<AdtManager>();
+        assert_eq!(manager.loaded.get(&(32, 48)), Some(&center_root));
+        assert_eq!(manager.loaded.get(&(32, 49)), Some(&neighbor_root));
+        assert!(app.world().get_entity(center_root).is_ok());
+        assert!(app.world().get_entity(neighbor_root).is_ok());
+        let heightmap = app.world().resource::<TerrainHeightmap>();
+        assert_eq!(heightmap.height_at(edge_x + 0.5, 197.5), Some(72.0));
+        assert_eq!(heightmap.height_at(edge_x - 0.5, 197.5), Some(72.0));
+    }
+    assert!(app.world().get_entity(distant_root).is_err());
+    assert!(
+        app.world()
+            .resource::<TerrainHeightmap>()
+            .tile_chunks(32, 45)
+            .is_none()
+    );
 }
 
 #[test]
