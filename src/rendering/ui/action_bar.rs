@@ -509,6 +509,7 @@ mod tests {
     fn flash_frame(app: &mut App, seconds: f32) {
         app.world_mut()
             .resource_mut::<UiState>()
+            .bypass_change_detection()
             .registry
             .render_dirty
             .clear();
