@@ -271,6 +271,18 @@ fn sync_depth_of_field(
     }
 }
 
+fn bloom_matches(existing: &Bloom, desired: &Bloom) -> bool {
+    existing.intensity == desired.intensity
+        && existing.low_frequency_boost == desired.low_frequency_boost
+        && existing.low_frequency_boost_curvature == desired.low_frequency_boost_curvature
+        && existing.high_pass_frequency == desired.high_pass_frequency
+        && existing.prefilter.threshold == desired.prefilter.threshold
+        && existing.prefilter.threshold_softness == desired.prefilter.threshold_softness
+        && existing.composite_mode == desired.composite_mode
+        && existing.max_mip_dimension == desired.max_mip_dimension
+        && existing.scale == desired.scale
+}
+
 fn sync_bloom(
     commands: &mut Commands,
     entity: Entity,
@@ -278,7 +290,11 @@ fn sync_bloom(
     bloom: Option<Mut<Bloom>>,
 ) {
     match (desired, bloom) {
-        (Some(target), Some(mut existing)) => *existing = target,
+        (Some(target), Some(mut existing)) => {
+            if !bloom_matches(&existing, &target) {
+                *existing = target;
+            }
+        }
         (Some(target), None) => {
             commands.entity(entity).insert(target);
         }
@@ -296,7 +312,11 @@ fn sync_resolution(
     resolution_override: Option<Mut<MainPassResolutionOverride>>,
 ) {
     match (desired_resolution, resolution_override) {
-        (Some(target), Some(mut existing)) => existing.0 = target,
+        (Some(target), Some(mut existing)) => {
+            if existing.0 != target {
+                existing.0 = target;
+            }
+        }
         (Some(target), None) => {
             commands
                 .entity(entity)
@@ -319,9 +339,14 @@ fn sync_sharpening(
 ) {
     match (cas_enabled, cas) {
         (true, Some(mut existing)) => {
-            existing.enabled = true;
-            existing.sharpening_strength = DEFAULT_CAS_SHARPENING;
-            existing.denoise = false;
+            if !existing.enabled
+                || existing.sharpening_strength != DEFAULT_CAS_SHARPENING
+                || existing.denoise
+            {
+                existing.enabled = true;
+                existing.sharpening_strength = DEFAULT_CAS_SHARPENING;
+                existing.denoise = false;
+            }
         }
         (true, None) => {
             commands.entity(entity).insert(ContrastAdaptiveSharpening {
