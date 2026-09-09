@@ -18,7 +18,8 @@ fn particles_disabled_preserves_weather_without_hanabi_assets() {
         ..default()
     });
     app.add_plugins(WeatherPlugin);
-    app.world_mut().spawn((WowCamera, Transform::default()));
+    app.world_mut()
+        .spawn((WowCamera::default(), Transform::default()));
 
     app.update();
     assert!(!app.world().contains_resource::<Assets<EffectAsset>>());
