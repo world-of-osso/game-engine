@@ -261,7 +261,10 @@ mod tests {
         #[derive(Resource, Default)]
         struct Changes(Vec<Entity>);
 
-        fn observe(query: Query<Entity, Changed<Transform>>, mut changes: ResMut<Changes>) {
+        fn observe(
+            query: Query<Entity, (Changed<Transform>, With<HealthBar>)>,
+            mut changes: ResMut<Changes>,
+        ) {
             changes.0 = query.iter().collect();
         }
 
