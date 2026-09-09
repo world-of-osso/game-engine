@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use crate::animation::M2AnimData;
 use bevy::ecs::system::{RunSystemOnce, SystemParam};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
