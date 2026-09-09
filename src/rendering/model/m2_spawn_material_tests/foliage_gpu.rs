@@ -68,10 +68,9 @@ fn foliage_cutouts_do_not_occlude_background_in_depth_prepass() {
     ));
     // Left half is fully transparent; right half is opaque red. Both must retain
     // the same geometry/depth ordering, exposing discarded-fragment depth writes.
-    let texture = app
-        .world_mut()
-        .resource_mut::<Assets<Image>>()
-        .add(crate::rgba_image(vec![255, 0, 0, 0, 255, 0, 0, 255], 2, 1));
+    let mut image = crate::rgba_image(vec![255, 0, 0, 0, 255, 0, 0, 255], 2, 1);
+    image.sampler = bevy::image::ImageSampler::nearest();
+    let texture = app.world_mut().resource_mut::<Assets<Image>>().add(image);
     let batch = foliage_batch();
     let foreground = app
         .world_mut()
