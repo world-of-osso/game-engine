@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged character-creation shared state
+
+Updated [[ui-system]] for `14f4a691`: complete character-creation state is reinserted only when it changes, while screen synchronization remains available. Three focused tests pass; no CPU claim.
+
 ## [2026-09-09] systems | Avoid equal character-select shared-state inserts
 
 Updated [[ui-system]] for `1262fc58`: character selection, campsite, and delete-confirmation state reinsert only on change while screen synchronization and focus flow remain intact. Three focused tests pass; no CPU claim.

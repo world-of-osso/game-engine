@@ -24,6 +24,10 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
 
+## Character-creation shared-state updates
+
+`14f4a691` compares the complete character-creation view model before inserting it into `SharedContext`, including focus, labels, and swatches. `screen.sync()` remains unconditional for fresh/replaced screens and hot reload. Three focused tests cover settled and changed output; CPU savings are unmeasured.
+
 ## Login shared-state updates
 
 `70f14c2a` checks the four login shared values before reinserting them, so unchanged status, connection, realm text, and realm-selectability do not advance dependency generations. `screen.sync()` remains every update for fresh/replaced screens and hot reload. Three focused tests and a development compiler check pass; CPU savings are unmeasured.
