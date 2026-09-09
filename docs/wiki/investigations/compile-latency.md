@@ -22,7 +22,7 @@ Independent verification at `17238f90` passed `cargo fmt --check`, `cargo check 
 
 At `609c8268`, a temporary `profile.dev.package."game-engine".opt-level=1` override rebuilt only the application crate; dependencies and shared Bevy/std libraries remained byte-identical. It does not change committed configuration, runtime features, debug assertions, overflow checks, cadence, or focus policy.
 
-A normal animated InWorld ABBA observation recorded a matched first pair of **253.179033% → 227.135068%** process CPU over 20 seconds, with 119 remotes and sampled all-core clocks **2393.592040 → 2393.916174 MHz**. The reverse pair also favored opt1 but clocks differed materially. This is bounded native evidence, not a general result or adoption decision. Renderer errors matched across runs; animation/pixel equivalence is unproven. The initial opt1 build took 1m53s and is not warmed edit-build latency. Default `target/debug` was restored and hash-verified.
+A normal animated InWorld ABBA observation recorded a matched first pair of **253.179033% → 227.135068%** process CPU over 20 seconds, with 119 remotes and sampled all-core clocks **2393.592040 → 2393.916174 MHz**. The reverse pair also favored opt1 but clocks differed materially. This is bounded native evidence, not a general result or adoption decision. Renderer errors matched across runs; animation/pixel equivalence is unproven. The initial opt1 build took 1m53s and is not warmed edit-build latency. Default `target/debug` was restored and hash-verified. User retained application opt-level 0 for debugging and Bevy opt-level 2; neither optimization-level change was adopted.
 
 ## History
 
