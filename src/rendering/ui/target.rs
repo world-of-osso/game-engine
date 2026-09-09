@@ -266,7 +266,7 @@ pub(crate) fn classify_world_object_model(model: &str) -> Option<WorldObjectInte
 fn click_to_target(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    cameras: Query<(&Camera, &GlobalTransform)>,
+    cameras: Query<(&Camera, &GlobalTransform), With<crate::camera::WowCamera>>,
     mut ray_cast: MeshRayCast,
     parent_query: Query<&ChildOf>,
     remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
@@ -475,7 +475,7 @@ const INTERACT_RANGE: f32 = 5.0;
 fn right_click_interact(
     mouse: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    cameras: Query<(&Camera, &GlobalTransform)>,
+    cameras: Query<(&Camera, &GlobalTransform), With<crate::camera::WowCamera>>,
     mut ray_cast: MeshRayCast,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
@@ -599,7 +599,7 @@ fn interact_with_current_npc_target(
 
 fn interaction_target_at_cursor(
     cursor: Vec2,
-    cameras: &Query<(&Camera, &GlobalTransform)>,
+    cameras: &Query<(&Camera, &GlobalTransform), With<crate::camera::WowCamera>>,
     ray_cast: &mut MeshRayCast,
     parent_query: &Query<&ChildOf>,
     npc_q: &Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
