@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
+use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, RayCastVisibility};
 use bevy::prelude::*;
 
 use crate::sky::SkyDome;
@@ -107,7 +107,10 @@ fn compute_effective_distance(
 
     let ray = Ray3d::new(eye_target, Dir3::new(ray_dir).unwrap());
     let filter = |entity: Entity| !excluded.contains(&entity);
-    let settings = MeshRayCastSettings::default().with_filter(&filter);
+    // A collided wall can leave the camera frustum without ceasing to block it.
+    let settings = MeshRayCastSettings::default()
+        .with_visibility(RayCastVisibility::Visible)
+        .with_filter(&filter);
     let hits = ray_cast.cast_ray(ray, &settings);
     let closest_hit = hits.first().map(|(_, hit)| hit.distance);
     let adjusted = collision_adjusted_distance(terrain_distance, closest_hit);
@@ -333,6 +336,90 @@ mod tests {
                 .unwrap()
                 .translation
                 .abs_diff_eq(Vec3::new(1.0, EYE_HEIGHT, 12.0), 0.0001,)
+        );
+    }
+
+    #[test]
+    fn camera_collision_survives_wall_leaving_view_and_honors_hidden_parent() {
+        use bevy::camera::visibility::{VisibilityPlugin, VisibilitySystems, update_frusta};
+
+        let mut app = App::new();
+        app.add_plugins((
+            bevy::app::TaskPoolPlugin::default(),
+            AssetPlugin::default(),
+            bevy::mesh::MeshPlugin,
+            TransformPlugin,
+            VisibilityPlugin,
+        ))
+        .init_resource::<Time>()
+        .add_systems(
+            PostUpdate,
+            update_frusta.in_set(VisibilitySystems::UpdateFrusta),
+        );
+        let eye = Vec3::Y * EYE_HEIGHT;
+        app.world_mut().spawn((Player, Transform::default()));
+        let camera = app
+            .world_mut()
+            .spawn((
+                Camera3d::default(),
+                WowCamera {
+                    pitch: 0.0,
+                    distance: 10.0,
+                    target_distance: 10.0,
+                    ..default()
+                },
+                Transform::from_translation(eye + Vec3::Z * 10.0).looking_at(eye, Vec3::Y),
+            ))
+            .id();
+        let parent = app
+            .world_mut()
+            .spawn((Transform::default(), Visibility::Inherited))
+            .id();
+        let mesh = app
+            .world_mut()
+            .resource_mut::<Assets<Mesh>>()
+            .add(Cuboid::new(2.0, 4.0, 1.0));
+        let wall = app
+            .world_mut()
+            .spawn((
+                Mesh3d(mesh),
+                Transform::from_translation(eye + Vec3::Z * 5.0),
+                ChildOf(parent),
+            ))
+            .id();
+
+        // Let real transform propagation and frustum culling establish the first view.
+        advance_follow(&mut app, 0.1);
+        assert!(app.world().get::<ViewVisibility>(wall).unwrap().get());
+        app.add_systems(Update, camera_follow);
+        advance_follow(&mut app, 0.1);
+        let collision_pose = *app.world().get::<Transform>(camera).unwrap();
+        assert!((collision_pose.translation.z - 4.2).abs() < 0.0001);
+        assert!(
+            !app.world().get::<ViewVisibility>(wall).unwrap().get(),
+            "the wall is now behind the collision-adjusted camera"
+        );
+        assert!(app.world().get::<InheritedVisibility>(wall).unwrap().get());
+
+        for _ in 0..3 {
+            advance_follow(&mut app, 0.1);
+            assert!(
+                app.world()
+                    .get::<Transform>(camera)
+                    .unwrap()
+                    .translation
+                    .abs_diff_eq(collision_pose.translation, 0.0001),
+                "view culling must not let the camera recover through the wall"
+            );
+        }
+
+        *app.world_mut().get_mut::<Visibility>(parent).unwrap() = Visibility::Hidden;
+        advance_follow(&mut app, 0.1);
+        assert!(!app.world().get::<InheritedVisibility>(wall).unwrap().get());
+        advance_follow(&mut app, 0.1);
+        assert!(
+            (app.world().get::<Transform>(camera).unwrap().translation.z - 7.1).abs() < 0.0001,
+            "a hierarchically hidden wall must permit normal collision recovery"
         );
     }
 
