@@ -2,7 +2,7 @@
 
 ## [2026-09-09] systems | Align startup observation with server pre-entry visibility fix
 
-Updated [[networking]] for server commit `34e7551`. The prior three-second synchronous NPC parser stack was caused by premature pre-selection replication; server `ClientVisibility` now hides existing and new interest targets until entry. Real UDP proof covers auth, zero pre-entry NPCs, nearby delivery, and movement replacement. Client post-fix startup and visual proof remain open.
+Updated [[networking]] for server commit `34e7551`. The exact no-UI InWorld command now reaches login success at app 1.896s and InWorld at 6.57s within ten seconds; server verification records 25 focused tests plus fmt/check. Screenshot CLI lacked `LD_LIBRARY_PATH`, so original NPC appearance/cart visual proof remains open.
 
 ## [2026-09-09] systems | Record bounded InWorld startup dispatch observation
 
