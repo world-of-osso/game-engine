@@ -164,6 +164,164 @@ fn options_file_serializes_particle_density_with_cvar_name() {
     assert!(serialized.contains("bloomIntensity:0.12"));
 }
 
+fn load_graphics_config_fixture(name: &str, contents: &str) -> (PathBuf, ClientOptionsFile) {
+    let directory = unique_test_dir(name);
+    fs::create_dir_all(&directory).unwrap();
+    let path = directory.join(OPTIONS_FILE_NAME);
+    fs::write(&path, contents).unwrap();
+    let file = storage::load_options_file_from_path(&path);
+    (path, file)
+}
+
+fn assert_graphics_effect_controls(
+    graphics: &GraphicsOptions,
+    (particles, blur, glow, aa, ssao): (bool, bool, bool, AntiAliasMode, bool),
+) {
+    // GraphicsOptions already supports serialization; inspect new runtime values
+    // without requiring new fields to exist before this regression can compile.
+    let values = serde_json::to_value(graphics).unwrap();
+    assert_eq!(values["particle_effects_enabled"], particles);
+    assert_eq!(graphics.depth_of_field, blur);
+    assert_eq!(graphics.bloom_enabled, glow);
+    assert_eq!(graphics.anti_alias, aa);
+    assert_eq!(values["ssao_enabled"], ssao);
+}
+
+#[test]
+fn graphics_config_effects_round_trip_preserves_unrelated_options() {
+    let (path, loaded) = load_graphics_config_fixture(
+        "graphics-controls-roundtrip",
+        r#"(
+            accepted_eula: true,
+            preferredRealm: Prod,
+            graphics: (
+                particleEffectsEnabled: false, particleDensity: 62,
+                depthOfField: true, bloomEnabled: true, bloomIntensity: 0.25,
+                antiAlias: Taa, ssaoEnabled: true,
+                renderScale: 0.75, uiScale: 1.25, vsyncEnabled: false,
+                frameRateLimitEnabled: true, frameRateLimit: 120,
+                colorblindMode: true,
+            ),
+            modal_offset: Some([13.0, -9.0]),
+        )"#,
+    );
+    let graphics = GraphicsOptions::from_file(&loaded.graphics);
+    assert_graphics_effect_controls(&graphics, (false, true, true, AntiAliasMode::Taa, true));
+    let mut bindings = loaded.bindings.clone();
+    bindings.assign(
+        InputAction::TargetNearest,
+        InputBinding::Keyboard(KeyCode::F5),
+    );
+    let saved = storage::build_options_file_from_existing(
+        &loaded,
+        Some(&loaded.sound.to_runtime()),
+        &CameraOptions::from_file(&loaded.camera),
+        &graphics,
+        &HudOptions::from_file(&loaded.hud),
+        &bindings,
+        [13.0, -9.0],
+    );
+    storage::save_options_file_to_path(&path, &saved).unwrap();
+    let restored = storage::load_options_file_from_path(&path);
+    assert_eq!(GraphicsOptions::from_file(&restored.graphics), graphics);
+    assert_eq!(restored.graphics.particle_density, 62);
+    assert_eq!(restored.graphics.render_scale, 0.75);
+    assert_eq!(restored.graphics.ui_scale, 1.25);
+    assert!(!restored.graphics.vsync_enabled);
+    assert!(restored.graphics.frame_rate_limit_enabled);
+    assert_eq!(restored.graphics.frame_rate_limit, 120);
+    assert!(restored.graphics.colorblind_mode);
+    assert_eq!(restored.graphics.bloom_intensity, 0.25);
+    assert!(restored.accepted_eula);
+    assert_eq!(restored.preferred_realm, RealmPreset::Prod);
+    assert_eq!(restored.modal_offset, Some([13.0, -9.0]));
+    assert_eq!(restored.bindings, bindings);
+}
+
+#[test]
+fn graphics_config_missing_controls_preserve_effective_defaults() {
+    let (_, file) = load_graphics_config_fixture(
+        "graphics-controls-missing",
+        "(graphics: (particleDensity: 42,))",
+    );
+    let graphics = GraphicsOptions::from_file(&file.graphics);
+    assert_graphics_effect_controls(
+        &graphics,
+        (true, false, false, AntiAliasMode::Msaa4x, false),
+    );
+    assert_eq!(graphics.particle_density, 42);
+    assert_graphics_effect_controls(
+        &GraphicsOptions::default(),
+        (true, false, false, AntiAliasMode::Msaa4x, false),
+    );
+}
+
+#[test]
+fn graphics_config_controls_load_independently() {
+    let cases = [
+        (false, false, false, AntiAliasMode::None, false),
+        (true, false, false, AntiAliasMode::None, false),
+        (false, true, false, AntiAliasMode::None, false),
+        (false, false, true, AntiAliasMode::None, false),
+        (false, false, false, AntiAliasMode::Taa, false),
+        (false, false, false, AntiAliasMode::None, true),
+        (false, false, false, AntiAliasMode::Msaa4x, false),
+    ];
+    for (particles, blur, glow, aa, ssao) in cases {
+        let contents = format!(
+            "(graphics:(particleEffectsEnabled:{particles},depthOfField:{blur},bloomEnabled:{glow},antiAlias:{aa:?},ssaoEnabled:{ssao},))"
+        );
+        let (_, file) = load_graphics_config_fixture("graphics-independent", &contents);
+        assert_graphics_effect_controls(
+            &GraphicsOptions::from_file(&file.graphics),
+            (particles, blur, glow, aa, ssao),
+        );
+    }
+}
+
+fn graphics_config_load_error(contents: &str) -> String {
+    let failure =
+        std::panic::catch_unwind(|| load_graphics_config_fixture("graphics-invalid", contents))
+            .expect_err("invalid existing graphics config must fail instead of loading defaults");
+    if let Some(message) = failure.downcast_ref::<String>() {
+        return message.clone();
+    }
+    failure
+        .downcast_ref::<&str>()
+        .expect("panic message")
+        .to_string()
+}
+
+#[test]
+fn graphics_config_invalid_aa_enum_fails_visibly() {
+    let message = graphics_config_load_error("(graphics:(antiAlias:Smaa,))");
+    assert!(message.contains("Smaa"), "{message}");
+    assert!(message.contains("Msaa4x"), "{message}");
+    assert!(message.contains("Taa"), "{message}");
+}
+
+#[test]
+fn graphics_config_unsupported_ssao_msaa_fails_on_load() {
+    let message = graphics_config_load_error("(graphics:(antiAlias:Msaa4x,ssaoEnabled:true,))");
+    for required in ["SSAO", "Msaa4x", "None", "Taa"] {
+        assert!(message.contains(required), "{message}");
+    }
+}
+
+#[test]
+fn graphics_config_unsupported_ssao_msaa_save_preserves_existing_file() {
+    let (path, _) = load_graphics_config_fixture("graphics-invalid-save", "()");
+    let before = fs::read(&path).unwrap();
+    let invalid: ClientOptionsFile =
+        ron::de::from_str("(graphics:(antiAlias:Msaa4x,ssaoEnabled:true,))").unwrap();
+    let error = storage::save_options_file_to_path(&path, &invalid)
+        .expect_err("unsupported SSAO/MSAA combination must not be saved");
+    for required in ["SSAO", "Msaa4x", "None", "Taa"] {
+        assert!(error.contains(required), "{error}");
+    }
+    assert_eq!(fs::read(&path).unwrap(), before);
+}
+
 #[test]
 fn camera_defaults_include_mouse_sensitivity() {
     let defaults = CameraOptions::default();
