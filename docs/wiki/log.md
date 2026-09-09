@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] investigations | Fix empty mesh uploads
+
+Updated [[movement-performance]] for `ebcee198`: skip GPU uploads for meshes that received no allocation. Real GPU empty/populated lifecycle regression passes; native `4ea941c3` InWorld capture has zero allocator errors. Patch provenance lives in [vendor/README.md](../../vendor/README.md#empty-mesh-uploads).
+
 ## [2026-09-09] investigations | Record temporary GPU-culling probe
 
 Updated [[movement-performance]] for `802b5014`. `WOO_PERF_GPU_CULLING_AFTER_SECS` is a one-shot diagnostic for a native attribution snapshot, not a supported interface or production setting; it has no CPU/visual result and must be removed after measurement.

@@ -86,6 +86,14 @@ After the event-driven networking/equipment groundwork, an unfocused, empty-stag
 
 A separate full-world client logged in, entered InWorld, and completed routed Who and friends responses. Its visual smoke is invalid: it emitted repeated `bevy_render::slab_allocator` unallocated-key errors and produced a white/dark screenshot. The identical slab error appears in the pre-eventification `data/diagnostics/movement-perf-20260905/connected-warm2/client.log:149`; no causal link to equipment events is established. Test clients were stopped. Render-independent networking remains an open design investigation: current 60 Hz application dispatch shares the main ECS thread, while Lightyear transport remains frame-driven.
 
+## Empty mesh allocator errors (2026-09-09)
+
+The renderer probe at `8fd12e79` observed 47 extracted meshes with zero vertex/index bytes and 94 unallocated-key errors. Bevy 0.19 skipped allocating these empty meshes but attempted both uploads. This matches upstream issue #24874; it does not establish a freed-memory access. An empty-water importer trial still produced 110 errors in InWorld and was withdrawn rather than attributed as the source of all empty meshes.
+
+`ebcee198` backports allocation/upload consistency without changing genuine missing-key diagnostics. Patch provenance, regression, and retirement conditions live in [vendor/README.md](../../../vendor/README.md#empty-mesh-uploads). The real GPU regression first captured eight errors, then passed empty/populated and valid → empty → valid transitions with vertex/index readback.
+
+Native `4ea941c3` with `--no-ui --screen inworld` reached InWorld, retained 3D geometry, and exited successfully with zero allocator errors. Evidence: `data/diagnostics/no-ui-20260909/inworld-no-ui-fixed.webp`; revision-scoped commands and logs are listed in `data/diagnostics/no-ui-20260909/proof-ledger.md`. This is rendering correctness evidence, not a CPU comparison or validation of unrelated visual artifacts.
+
 ## Update-rate metric provenance (2026-09-07)
 
 Full-game IPC `performance.fps` reads the smoothed `FrameTimeDiagnosticsPlugin::FPS` diagnostic (`src/ipc/mod.rs::build_performance_snapshot`). Bevy computes that diagnostic as `1.0 / Time<Real>::delta_secs_f64()` during app updates. The overlay displays the same diagnostic. Blank-renderer telemetry instead divides counted app updates by its elapsed logging interval. Both describe **app-update cadence**, not surface presentations; smoothing and aggregation differ.

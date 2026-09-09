@@ -75,7 +75,7 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 
 - [x] Accept opt-in `--no-ui`: disable toolkit processing, quad rendering, and text rendering for every InWorld diagnostic stage while retaining a visible numeric FPS counter and hiding its frame-time graph.
 - [x] Keep UI plugins and resources registered so non-UI systems can retain their dependencies; preserve 3D rendering. Without the flag, defaults and existing pre-`Ui` diagnostic-stage behavior remain unchanged.
-- [x] Install a non-persistent `UiDisabled` startup resource. It forces numeric FPS visibility despite later saved-HUD/menu writes, keeps the graph hidden, and hides world-space nameplates, health bars, quest indicators, and target markers/circles; it does not stop their dependent plugins or data systems.
+- [x] Install a non-persistent `UiDisabled` startup resource. It forces numeric FPS visibility despite later saved-HUD/menu writes, keeps the graph hidden, and hides the clock, world-space nameplates, health bars, quest indicators, and target markers/circles. UI-only builders and updates remain disabled; game networking, world simulation, and plugin resources remain available.
 
 ### Frame-time-graph control
 
