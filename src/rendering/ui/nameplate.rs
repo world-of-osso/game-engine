@@ -144,11 +144,11 @@ fn sync_nameplate_visibility(
 ) {
     let visible = hud_visibility.is_none_or(|toggles| toggles.show_nameplates);
     for mut visibility in &mut query {
-        *visibility = if visible {
+        visibility.set_if_neq(if visible {
             Visibility::Inherited
         } else {
             Visibility::Hidden
-        };
+        });
     }
 }
 
@@ -352,6 +352,102 @@ fn despawn_quest_indicator_model(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Resource, Default)]
+    struct VisibilityChanges(Vec<Entity>);
+
+    fn observe_visibility_changes(
+        query: Query<Entity, Changed<Visibility>>,
+        mut changes: ResMut<VisibilityChanges>,
+    ) {
+        changes.0 = query.iter().collect();
+    }
+
+    fn spawn_visibility_pair(app: &mut App, visibility: Visibility) -> [Entity; 2] {
+        [
+            app.world_mut().spawn((Nameplate, visibility)).id(),
+            app.world_mut()
+                .spawn((QuestIndicatorModel, visibility))
+                .id(),
+        ]
+    }
+
+    fn assert_visibility_frame(
+        app: &mut App,
+        entities: &[Entity],
+        expected: Visibility,
+        changed: &[Entity],
+    ) {
+        app.update();
+        for &entity in entities {
+            assert_eq!(app.world().get::<Visibility>(entity), Some(&expected));
+        }
+        let observed = &app.world().resource::<VisibilityChanges>().0;
+        assert_eq!(
+            observed.len(),
+            changed.len(),
+            "unexpected visibility changes"
+        );
+        for entity in changed {
+            assert!(observed.contains(entity), "missing change for {entity:?}");
+        }
+    }
+
+    #[test]
+    fn nameplate_visibility_changes_only_when_needed() {
+        for initial_toggle in [None, Some(true), Some(false)] {
+            let mut app = App::new();
+            app.init_resource::<VisibilityChanges>();
+            app.add_systems(Update, sync_nameplate_visibility);
+            app.add_systems(PostUpdate, observe_visibility_changes);
+            if let Some(show_nameplates) = initial_toggle {
+                app.insert_resource(HudVisibilityToggles {
+                    show_nameplates,
+                    ..default()
+                });
+            }
+            let initial_visibility = if initial_toggle == Some(false) {
+                Visibility::Hidden
+            } else {
+                Visibility::Inherited
+            };
+            let mut entities = spawn_visibility_pair(&mut app, Visibility::Visible).to_vec();
+            let initial_entities = entities.clone();
+            assert_visibility_frame(&mut app, &entities, initial_visibility, &initial_entities);
+            for _ in 0..2 {
+                assert_visibility_frame(&mut app, &entities, initial_visibility, &[]);
+            }
+
+            // New mismatched entities must be corrected even with unchanged HUD input.
+            let added = spawn_visibility_pair(&mut app, Visibility::Visible);
+            entities.extend(added);
+            assert_visibility_frame(&mut app, &entities, initial_visibility, &added);
+            assert_visibility_frame(&mut app, &entities, initial_visibility, &[]);
+
+            let mut previous = initial_visibility;
+            for show_nameplates in [false, true] {
+                app.insert_resource(HudVisibilityToggles {
+                    show_nameplates,
+                    ..default()
+                });
+                let expected = if show_nameplates {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+                let changed = if expected == previous {
+                    &[][..]
+                } else {
+                    &entities
+                };
+                assert_visibility_frame(&mut app, &entities, expected, changed);
+                for _ in 0..2 {
+                    assert_visibility_frame(&mut app, &entities, expected, &[]);
+                }
+                previous = expected;
+            }
+        }
+    }
 
     #[test]
     fn no_npcs_ui_skips_replicated_npc_nameplate_creation() {
