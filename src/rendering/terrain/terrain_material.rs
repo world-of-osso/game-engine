@@ -11,9 +11,7 @@ use std::f32::consts::FRAC_PI_4;
 
 use crate::asset::adt;
 use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sampler};
-use terrain_material_systems::{
-    sync_terrain_environment_map, terrain_material_updates_enabled, update_terrain_animation_time,
-};
+use terrain_material_systems::{sync_terrain_environment_map, terrain_material_updates_enabled};
 
 mod terrain_material_systems;
 
@@ -24,7 +22,7 @@ mod terrain_material_systems;
 #[derive(bevy::render::render_resource::ShaderType, Clone)]
 pub struct TerrainMaterialSettings {
     /// x = layer_count (1-4), y = global_height_blend_strength,
-    /// z = texture_repeat, w = animation_time
+    /// z = texture_repeat, w = unused
     pub config: Vec4,
     /// x = perceptual_roughness, y = reflectance
     pub surface: Vec4,
@@ -118,8 +116,7 @@ impl Plugin for TerrainMaterialPlugin {
         app.add_plugins(MaterialPlugin::<TerrainMaterial>::default())
             .add_systems(
                 Update,
-                (update_terrain_animation_time, sync_terrain_environment_map)
-                    .run_if(terrain_material_updates_enabled),
+                sync_terrain_environment_map.run_if(terrain_material_updates_enabled),
             );
     }
 }

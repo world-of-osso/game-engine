@@ -8,10 +8,7 @@ use bevy::prelude::*;
 use crate::sky::SkyEnvMapHandle;
 
 use super::super::TerrainMaterialFreezeAfter;
-use super::{
-    TerrainMaterial, sync_terrain_environment_map, terrain_material_updates_enabled,
-    update_terrain_animation_time,
-};
+use super::{TerrainMaterial, sync_terrain_environment_map, terrain_material_updates_enabled};
 
 const FIRST_ENVIRONMENT: Handle<Image> = uuid_handle!("00000000-0000-0000-0000-000000000001");
 const SECOND_ENVIRONMENT: Handle<Image> = uuid_handle!("00000000-0000-0000-0000-000000000002");
@@ -20,7 +17,6 @@ const SECOND_ENVIRONMENT: Handle<Image> = uuid_handle!("00000000-0000-0000-0000-
 fn shared_clock_does_not_modify_terrain_material_assets() {
     let mut app = environment_test_app();
     app.insert_resource(Time::<()>::default());
-    app.add_systems(Update, update_terrain_animation_time);
     let handle = add_environment_material(&mut app, FIRST_ENVIRONMENT.clone());
     app.update();
     take_modified_materials(&mut app);
@@ -43,13 +39,13 @@ fn terrain_material_freeze_stops_updates_at_deadline() {
 
     advance_time(&mut app, Duration::from_secs(1));
     app.update();
-    assert_material_updated(&app, &material, 1.0, FIRST_ENVIRONMENT.clone());
+    assert_material_updated(&app, &material, 0.0, FIRST_ENVIRONMENT.clone());
 
     app.world_mut()
         .insert_resource(SkyEnvMapHandle(SECOND_ENVIRONMENT.clone()));
     advance_time(&mut app, Duration::from_secs(1));
     app.update();
-    assert_material_updated(&app, &material, 1.0, FIRST_ENVIRONMENT.clone());
+    assert_material_updated(&app, &material, 0.0, FIRST_ENVIRONMENT.clone());
 }
 
 #[test]
@@ -58,13 +54,13 @@ fn terrain_material_freeze_is_opt_in() {
 
     advance_time(&mut app, Duration::from_secs(1));
     app.update();
-    assert_material_updated(&app, &material, 1.0, FIRST_ENVIRONMENT.clone());
+    assert_material_updated(&app, &material, 0.0, FIRST_ENVIRONMENT.clone());
 
     app.world_mut()
         .insert_resource(SkyEnvMapHandle(SECOND_ENVIRONMENT.clone()));
     advance_time(&mut app, Duration::from_secs(1));
     app.update();
-    assert_material_updated(&app, &material, 2.0, SECOND_ENVIRONMENT.clone());
+    assert_material_updated(&app, &material, 0.0, SECOND_ENVIRONMENT.clone());
 }
 
 fn terrain_material_test_app(freeze_after: Option<Duration>) -> (App, Handle<TerrainMaterial>) {
@@ -78,8 +74,7 @@ fn terrain_material_test_app(freeze_after: Option<Duration>) -> (App, Handle<Ter
     }
     app.add_systems(
         Update,
-        (update_terrain_animation_time, sync_terrain_environment_map)
-            .run_if(terrain_material_updates_enabled),
+        sync_terrain_environment_map.run_if(terrain_material_updates_enabled),
     );
 
     let material = app

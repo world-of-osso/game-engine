@@ -31,16 +31,6 @@ pub(super) fn terrain_material_updates_enabled(
 #[cfg(test)]
 mod tests;
 
-pub(super) fn update_terrain_animation_time(
-    time: Res<Time>,
-    mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
-) {
-    let animation_time = time.elapsed_secs();
-    for (_id, material) in terrain_materials.iter_mut() {
-        material.settings.config.w = animation_time;
-    }
-}
-
 pub(super) fn sync_terrain_environment_map(
     env_handle: Option<Res<SkyEnvMapHandle>>,
     mut terrain_materials: ResMut<Assets<TerrainMaterial>>,

@@ -4,7 +4,7 @@
 
 #import bevy_pbr::{
     forward_io::VertexOutput,
-    mesh_view_bindings::view,
+    mesh_view_bindings::{view, globals},
     pbr_functions,
     pbr_types,
 }
@@ -23,7 +23,7 @@ struct TerrainSettings {
 }
 
 // settings.config.x = layer_count (1-4), settings.config.y = global height blend strength
-// settings.config.z = texture repeat, settings.config.w = animation time
+// settings.config.z = texture repeat, settings.config.w = unused
 // settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
 // settings.layer_params_N.z = MCMT terrain material id, settings.layer_params_N.w = overbright multiplier
@@ -134,7 +134,7 @@ fn layer_params(idx: u32) -> vec4<f32> {
 }
 
 fn animated_layer_uv(idx: u32, uv: vec2<f32>) -> vec2<f32> {
-    return uv + layer_animation_params(idx).xy * settings.config.w;
+    return uv + layer_animation_params(idx).xy * globals.time;
 }
 
 fn apply_layer_overbright(idx: u32, color: vec4<f32>) -> vec4<f32> {
