@@ -265,9 +265,22 @@ fn update_skybox_uvs(
         .as_deref()
         .map(|override_ms| override_ms.0)
         .unwrap_or_else(|| (time.elapsed_secs_f64() * 1000.0) as u32);
-    for (_id, material) in materials.iter_mut() {
-        let (uv_offset_1, uv_offset_2) = evaluate_skybox_uv_offsets(material, time_ms);
-        material.settings.transparency = evaluate_skybox_transparency(material, time_ms);
+    let changed: Vec<_> = materials
+        .iter()
+        .filter_map(|(id, material)| {
+            let (uv_offset_1, uv_offset_2) = evaluate_skybox_uv_offsets(material, time_ms);
+            let transparency = evaluate_skybox_transparency(material, time_ms);
+            (material.settings.transparency != transparency
+                || material.settings.uv_offset_1 != uv_offset_1
+                || material.settings.uv_offset_2 != uv_offset_2)
+                .then_some((id, transparency, uv_offset_1, uv_offset_2))
+        })
+        .collect();
+    for (id, transparency, uv_offset_1, uv_offset_2) in changed {
+        let mut material = materials
+            .get_mut(id)
+            .expect("skybox material collected from the same asset storage");
+        material.settings.transparency = transparency;
         material.settings.uv_offset_1 = uv_offset_1;
         material.settings.uv_offset_2 = uv_offset_2;
     }
