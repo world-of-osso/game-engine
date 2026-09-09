@@ -44,7 +44,7 @@ Focused proof records historical main-thread network **8/8**, migrated API **55/
 
 Startup authentication is queued directly to the worker at connection creation (`0dd32b35`); it does not wait behind main-thread replica/model construction. `aa3b81ea` prepares senders before incoming responses, while connection callbacks remain afterward to preserve forced-notice ordering. Real local-server regressions prove authentication with main callbacks stalled, then login → selection → EnterWorld on the first main receive pass. Native `b9374d82` reached InWorld even with the main connection callback delayed about 91 seconds. Responses, token persistence, UI transitions, and ECS changes remain main-owned.
 
-**Bounded startup observation (2026-09-09)**: in local `cargo rd --bin game-engine -- --no-ui --screen inworld`, the server logged login at `16:17:38.393`; the client queued startup auth at `16:17:38.166`, about 0.23 seconds earlier. At exactly three seconds, the captured main thread was synchronously executing `insert_npc_transform` → `spawn_replicated_npc` → uncached `load_m2_cached` → `parse_bone_animations`. `apply_network_updates` runs before `run_network_ticks` in `First`, so this observer can block the first main-world auth dispatch. The first 10-second timeout did not dispatch auth. This records one startup boundary only: the historical 18-second delay was a different invocation, and no fix or complete Elwynn send-count claim follows.
+**Bounded startup observation (2026-09-09)**: before server commit `34e7551`, local `cargo rd --bin game-engine -- --no-ui --screen inworld` captured the main thread at three seconds in `insert_npc_transform` → `spawn_replicated_npc` → uncached `load_m2_cached` → `parse_bone_animations`; `apply_network_updates` precedes `run_network_ticks` in `First`, so premature NPC replication blocked the first main-world auth dispatch. The server now hides existing and newly spawned `NetworkVisibility` targets for every `ClientVisibility` connection until character selection grants nearby targets. Its real UDP regression proves auth completes with zero pre-entry NPCs, then nearby-only and movement-driven replication. The client still performs synchronous M2 parsing whenever NPCs are delivered; no post-server-fix client startup or visual-runtime proof exists yet, and the historical 18-second delay was a different invocation.
 
 1. **Register**: client sends `RegisterRequest { username, password }`. Server hashes with argon2, stores in redb `PASSWORDS` table, returns session token.
 2. **Login (password)**: client sends `LoginRequest { token: None, username, password }`. Server verifies argon2 hash, returns token.
@@ -134,7 +134,9 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [client NPC networking source](../../../src/game/networking/npc.rs) — event-driven visibility policy systems
 - [client player networking source](../../../src/game/networking/player.rs) — semantic alive-state updates
 - [client Who runtime source](../../../src/who.rs) — Who query/send/receive/reset behavior
-- [server networking source](../../../../game-server/crates/server/src/networking.rs) — movement and gravity mutation boundaries
+- [server networking source](../../../../game-server/crates/server/src/networking.rs) — entry-time nearby visibility grant
+- [server interest source](../../../../game-server/crates/server/src/interest.rs) — pre-entry target hiding for `ClientVisibility`
+- `game-server` commit `34e7551` — real UDP pre-entry/auth/nearby/movement regression
 - `game-engine` commit `e745d35e` — event-driven NPC visibility
 - `/tmp/claude/game-engine-perf/pre-ui-empty-508891a6-live.json` — connected empty-stage relaunch proof
 

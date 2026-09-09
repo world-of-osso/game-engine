@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Align startup observation with server pre-entry visibility fix
+
+Updated [[networking]] for server commit `34e7551`. The prior three-second synchronous NPC parser stack was caused by premature pre-selection replication; server `ClientVisibility` now hides existing and new interest targets until entry. Real UDP proof covers auth, zero pre-entry NPCs, nearby delivery, and movement replacement. Client post-fix startup and visual proof remain open.
+
 ## [2026-09-09] systems | Record bounded InWorld startup dispatch observation
 
 Updated [[networking]] from `data/diagnostics/northshire-appearance-placement/startup-stacks.txt`: at three seconds, synchronous NPC M2 parsing occupied the main thread before the first main-world network tick. The first 10-second timeout did not dispatch auth. This is one local `--no-ui --screen inworld` observation, not a fix or a conclusion about the historical 18-second delay or all Elwynn sends.
