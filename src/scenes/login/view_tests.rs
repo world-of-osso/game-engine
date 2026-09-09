@@ -57,7 +57,10 @@ impl Fixture {
         else {
             panic!("connect must be a button")
         };
-        assert_eq!(button.enabled, !connecting);
+        assert_eq!(
+            button.state == ui_toolkit::widgets::button::ButtonState::Disabled,
+            connecting
+        );
     }
 }
 
