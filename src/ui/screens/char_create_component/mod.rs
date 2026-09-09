@@ -128,6 +128,7 @@ pub enum CharCreateMode {
     Customize,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct CharCreateUiState {
     pub mode: CharCreateMode,
     pub selected_race: u8,

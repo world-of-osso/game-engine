@@ -314,7 +314,9 @@ fn sync_screen_state(
     let inner = &mut res.0;
     let mut new_state = build_ui_state(state, cust_db);
     new_state.name_input_focused = name_input_focused;
-    inner.shared.insert(new_state);
+    if inner.shared.get::<CharCreateUiState>() != Some(&new_state) {
+        inner.shared.insert(new_state);
+    }
     inner.screen.sync(&inner.shared, reg);
 }
 
