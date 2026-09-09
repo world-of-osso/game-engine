@@ -58,6 +58,10 @@ An eight-second user-space CPU capture of `71535eed` recorded **1,642 samples, z
 
 Source confirms separate skin palettes per M2 render batch despite shared joints/inverse-bindpose handles, but this profile does not establish that duplication as the dominant remaining cost. Five bounded audits found no other demonstrated substantial next fix. No renderer-allocation redesign or profiler infrastructure work started. Direct leaf evidence remains usable for narrow source inspection; recovered parent chains alone do not justify changes. Existing span capture is fixed to10–15seconds after startup, before settled InWorld in these runs. CPU objective remains open. Artifacts: `data/diagnostics/cpu-goal-resumed/current-attribution/`.
 
+### Temporary GPU-culling probe
+
+`802b5014` adds an opt-in native diagnostic only: `WOO_PERF_GPU_CULLING_AFTER_SECS` inserts existing `NoCpuCulling` once, at a real-time deadline, on then-existing non-skinned `Mesh3d` entities. It has no default effect, no public CLI, and excludes skinned meshes plus 2D/text/UI. Behavioral tests verify the deadline, CPU-culling change, hierarchy behavior, exclusions, and invalid input. It must be removed after the snapshot/measurement; no CPU or visual-equivalence result exists. Proof: `data/diagnostics/cpu-goal-resumed/background-cpu/gpu-culling-probe/`.
+
 ### Billboard final-transform invalidation follow-up
 
 `f55d3ede` reproduced settled billboard false change notifications with actual Bevy evaluation before the billboard pass. Both sampled and unsampled fixtures emitted three notifications. Sampled bones first wrote raw/pivot-corrected transforms, then billboard rotation overwrote them; merely guarding the latter writer could not fix both paths.
