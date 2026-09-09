@@ -17,6 +17,56 @@ use game_engine::culling::{Wmo, WmoGroup};
 mod inworld_ibl;
 
 #[test]
+fn no_ui_clock_visibility_respects_startup_override_and_scene_stage() {
+    use crate::client_options::UiDisabled;
+    use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
+
+    for stage in [
+        None,
+        Some(InWorldSceneStage::Ui),
+        Some(InWorldSceneStage::Empty),
+    ] {
+        for disabled in [false, true] {
+            let mut app = App::new();
+            app.add_plugins(bevy::state::app::StatesPlugin);
+            app.init_state::<GameState>();
+            if let Some(stage) = stage {
+                app.insert_resource(stage);
+            }
+            if disabled {
+                app.insert_resource(UiDisabled);
+            }
+            app.add_systems(Startup, spawn_time_display);
+            app.add_systems(
+                OnEnter(GameState::InWorld),
+                show_time_display.run_if(inworld_scene_stage_allows_ui),
+            );
+            app.add_systems(OnExit(GameState::InWorld), hide_time_display);
+            app.update();
+            app.world_mut()
+                .resource_mut::<NextState<GameState>>()
+                .set(GameState::InWorld);
+            app.update();
+
+            let expected = if !disabled && stage != Some(InWorldSceneStage::Empty) {
+                Visibility::Visible
+            } else {
+                Visibility::Hidden
+            };
+            let world = app.world_mut();
+            let mut clock = world.query_filtered::<(&Text, &Visibility), With<TimeDisplay>>();
+            let clocks: Vec<_> = clock.iter(world).collect();
+            assert_eq!(clocks.len(), 1);
+            assert_eq!(clocks[0].0.0, "12:00");
+            assert_eq!(
+                *clocks[0].1, expected,
+                "stage={stage:?}, disabled={disabled}"
+            );
+        }
+    }
+}
+
+#[test]
 fn water_skybox_isolation_removes_dome_without_removing_camera_or_light() {
     for disabled in [false, true] {
         let mut app = App::new();

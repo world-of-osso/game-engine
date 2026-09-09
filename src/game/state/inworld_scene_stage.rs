@@ -97,8 +97,11 @@ pub(crate) fn inworld_scene_stage_allows_particles(stage: Option<Res<InWorldScen
     inworld_scene_stage_includes(stage, InWorldSceneStage::Particles)
 }
 
-pub(crate) fn inworld_scene_stage_allows_ui(stage: Option<Res<InWorldSceneStage>>) -> bool {
-    inworld_scene_stage_includes(stage, InWorldSceneStage::Ui)
+pub(crate) fn inworld_scene_stage_allows_ui(
+    stage: Option<Res<InWorldSceneStage>>,
+    disabled: Option<Res<crate::client_options::UiDisabled>>,
+) -> bool {
+    disabled.is_none() && inworld_scene_stage_includes(stage, InWorldSceneStage::Ui)
 }
 
 pub(crate) fn configured_inworld_scene_stage_for_app(app: &App) -> InWorldSceneStage {
@@ -114,6 +117,27 @@ mod tests {
 
     fn increment_counter(mut counter: ResMut<Counter>) {
         counter.0 += 1;
+    }
+
+    #[test]
+    fn no_ui_guard_skips_ui_without_stopping_character_updates() {
+        let mut app = App::new();
+        app.insert_resource(crate::client_options::UiDisabled)
+            .init_resource::<Counter>()
+            .add_systems(
+                Update,
+                (
+                    increment_counter.run_if(inworld_scene_stage_allows_ui),
+                    increment_counter.run_if(inworld_scene_stage_allows_character),
+                ),
+            );
+
+        app.update();
+        assert_eq!(app.world().resource::<Counter>().0, 1);
+        app.world_mut()
+            .remove_resource::<crate::client_options::UiDisabled>();
+        app.update();
+        assert_eq!(app.world().resource::<Counter>().0, 3);
     }
 
     #[test]
