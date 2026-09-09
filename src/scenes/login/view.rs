@@ -1,5 +1,9 @@
 use super::*;
 
+#[cfg(test)]
+#[path = "view_tests.rs"]
+mod tests;
+
 pub(super) fn build_login_screen(
     status: &LoginStatus,
     realm_text: String,
