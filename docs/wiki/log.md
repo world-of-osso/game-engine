@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Record bounded InWorld startup dispatch observation
+
+Updated [[networking]] from `data/diagnostics/northshire-appearance-placement/startup-stacks.txt`: at three seconds, synchronous NPC M2 parsing occupied the main thread before the first main-world network tick. The first 10-second timeout did not dispatch auth. This is one local `--no-ui --screen inworld` observation, not a fix or a conclusion about the historical 18-second delay or all Elwynn sends.
+
 ## [2026-09-09] systems | Avoid unchanged character-creation shared state
 
 Updated [[ui-system]] for `14f4a691`: complete character-creation state is reinserted only when it changes, while screen synchronization remains available. Three focused tests pass; no CPU claim.

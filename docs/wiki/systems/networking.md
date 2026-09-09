@@ -44,6 +44,8 @@ Focused proof records historical main-thread network **8/8**, migrated API **55/
 
 Startup authentication is queued directly to the worker at connection creation (`0dd32b35`); it does not wait behind main-thread replica/model construction. `aa3b81ea` prepares senders before incoming responses, while connection callbacks remain afterward to preserve forced-notice ordering. Real local-server regressions prove authentication with main callbacks stalled, then login → selection → EnterWorld on the first main receive pass. Native `b9374d82` reached InWorld even with the main connection callback delayed about 91 seconds. Responses, token persistence, UI transitions, and ECS changes remain main-owned.
 
+**Bounded startup observation (2026-09-09)**: in local `cargo rd --bin game-engine -- --no-ui --screen inworld`, the server logged login at `16:17:38.393`; the client queued startup auth at `16:17:38.166`, about 0.23 seconds earlier. At exactly three seconds, the captured main thread was synchronously executing `insert_npc_transform` → `spawn_replicated_npc` → uncached `load_m2_cached` → `parse_bone_animations`. `apply_network_updates` runs before `run_network_ticks` in `First`, so this observer can block the first main-world auth dispatch. The first 10-second timeout did not dispatch auth. This records one startup boundary only: the historical 18-second delay was a different invocation, and no fix or complete Elwynn send-count claim follows.
+
 1. **Register**: client sends `RegisterRequest { username, password }`. Server hashes with argon2, stores in redb `PASSWORDS` table, returns session token.
 2. **Login (password)**: client sends `LoginRequest { token: None, username, password }`. Server verifies argon2 hash, returns token.
 3. **Login (cached token)**: client sends `LoginRequest { token: Some(cached), username, password: "" }`. Server validates token directly.
@@ -118,7 +120,8 @@ Server sends `LoadTerrain { tile_x, tile_y }` messages as player moves. Client `
 - [remote-login-debug-2026-03-06.md](../../remote-login-debug-2026-03-06.md) — remote login failure, lightyear replication panic
 - [authentication.md](../../authentication.md) — auth flow, token storage, argon2, redb tables
 - [replicated-unit-noops](../investigations/replicated-unit-noops.md) — empty-stage NOOP evidence and suppression commits
-- [application network tick source](../../../src/network_tick.rs) — legacy main-thread logical cadence
+- [application network tick source](../../../src/network_tick.rs) — `First` ordering: drain worker updates before logical network ticks
+- `../../../data/diagnostics/northshire-appearance-placement/startup-stacks.txt` — September 9, 2026 three-second local InWorld main-thread capture
 - [application network dispatcher](../../../src/network_events.rs) — typed owned inbox/outbox registration and worker relays
 - [network runtime foundations](../../../src/network_runtime/mod.rs) — worker, adapters, replication mirror, and per-connection lifecycle bridge
 - [client networking source](../../../src/game/networking/mod.rs) — starts the worker connection and retains main-world interpolation/application lifecycle
