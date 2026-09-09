@@ -163,6 +163,7 @@ fn resize_owned_frame(
     if let Some(frame) = registry.get_mut(frame_id) {
         frame.width = Dimension::Fixed(width);
         frame.height = Dimension::Fixed(height);
+        registry.mark_rect_dirty(frame_id);
     }
 }
 
