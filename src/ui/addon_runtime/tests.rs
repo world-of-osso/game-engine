@@ -256,6 +256,76 @@ fn apply_addon_creates_owned_frames_and_updates_text() {
 }
 
 #[test]
+fn addon_resize_invalidates_anchored_layout_and_followers() {
+    let operations = js::run_js_addon_to_operations(
+        r#"
+            addon.createFrame("SizedPanel", "ParentRoot");
+            addon.setSize("SizedPanel", 100, 40);
+            addon.setPoint("SizedPanel", "TOPLEFT", "ParentRoot", "TOPLEFT", 10, -20);
+            addon.createFrame("Follower", "ParentRoot");
+            addon.setSize("Follower", 20, 10);
+            addon.setPoint("Follower", "TOPLEFT", "SizedPanel", "TOPRIGHT", 5, 0);
+        "#,
+    )
+    .expect("setup script should parse");
+    let mut addon = LoadedAddon {
+        name: "resize-layout".to_string(),
+        owned_frames: collect_owned_frames(&operations),
+        operations,
+    };
+    let mut registry = make_registry_with_root();
+    apply::apply_addon(&addon, &mut registry);
+    ui_toolkit::layout::recompute_layouts(&mut registry);
+    let panel = registry.get_by_name("SizedPanel").unwrap();
+    let follower = registry.get_by_name("Follower").unwrap();
+    let original = registry.get(panel).unwrap().layout_rect.clone().unwrap();
+    assert_eq!(
+        (original.x, original.y, original.width, original.height),
+        (10.0, 20.0, 100.0, 40.0)
+    );
+    assert_eq!(
+        registry
+            .get(follower)
+            .unwrap()
+            .layout_rect
+            .as_ref()
+            .unwrap()
+            .x,
+        115.0
+    );
+
+    addon.operations = js::run_js_addon_to_operations(
+        r#"
+            addon.setSize("SizedPanel", 160, 70);
+            addon.setSize("ParentRoot", 999, 999);
+        "#,
+    )
+    .expect("resize script should parse");
+    apply::apply_addon(&addon, &mut registry);
+    // Keep another frame dirty so a full-layout fallback cannot hide missing invalidation.
+    registry.create_frame("UnrelatedDirtyFrame", None);
+    ui_toolkit::layout::recompute_layouts(&mut registry);
+
+    let resized = registry.get(panel).unwrap().layout_rect.as_ref().unwrap();
+    assert_eq!((resized.x, resized.y), (original.x, original.y));
+    assert_eq!((resized.width, resized.height), (160.0, 70.0));
+    let following = registry
+        .get(follower)
+        .unwrap()
+        .layout_rect
+        .as_ref()
+        .unwrap();
+    assert_eq!((following.x, following.y), (175.0, 20.0));
+    let root = registry
+        .get(registry.get_by_name("ParentRoot").unwrap())
+        .unwrap();
+    assert_eq!(
+        (root.width, root.height),
+        (Dimension::Fixed(400.0), Dimension::Fixed(200.0))
+    );
+}
+
+#[test]
 fn reload_path_replaces_owned_frames() {
     let dir = std::env::temp_dir().join(format!("codex_addon_reload_{}_{}", std::process::id(), 1));
     std::fs::create_dir_all(&dir).unwrap();
