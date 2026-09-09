@@ -24,6 +24,10 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
 
+## Login shared-state updates
+
+`70f14c2a` checks the four login shared values before reinserting them, so unchanged status, connection, realm text, and realm-selectability do not advance dependency generations. `screen.sync()` remains every update for fresh/replaced screens and hot reload. Three focused tests and a development compiler check pass; CPU savings are unmeasured.
+
 ## Action-bar flash updates
 
 `a00e88aa` compares desired slot backgrounds through immutable access before mutating `UiState` or the registry. Expired/idle flashes no longer dirty unchanged slots; keypress flashes, expiry, and replacement-slot initialization still update. Ten scoped tests and independent verification pass; CPU savings are unmeasured.

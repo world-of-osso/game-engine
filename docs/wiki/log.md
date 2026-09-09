@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Avoid unchanged login shared-state insertions
+
+Updated [[ui-system]] for `70f14c2a`: unchanged login screen values preserve dependency generations while screen synchronization remains available. Three scoped tests, compiler check, and focused formatting pass; no native CPU claim.
+
 ## [2026-09-09] systems | Skip discarded minimap tracking collection
 
 Updated [[ui-system]] for `d319f9cf`: collect tracking points only when the existing redraw guard permits drawing. Thirty-eight scoped tests pass before and after; independent delta verification passes. No changed redraw policy or CPU claim.
