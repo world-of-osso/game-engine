@@ -23,6 +23,7 @@ mod campsite_tests;
 mod click_tests;
 mod interaction_tests;
 mod layout_tests;
+mod shared_state_tests;
 
 pub(super) fn test_registry() -> FrameRegistry {
     FrameRegistry::new(1920.0, 1080.0)
