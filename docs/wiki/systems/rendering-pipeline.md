@@ -84,6 +84,7 @@ The complete WMVx blend mode reference:
 
 - **Bloom + PointLight = black screen** (Bevy 0.18): the real trigger is enabling bloom in a scene that also contains a `PointLight`. The older text/skinned-mesh explanation was a false correlation from the original reproduction. See [pointlight-skinned-mesh-bug-2026-04-04](../pointlight-skinned-mesh-bug-2026-04-04.md).
 - **Torch halo**: `blend_mode > 7` values previously fell back to Opaque (wrong); now fall back to Additive. See [torch-halo-investigation-2026-03-30](../torch-halo-investigation-2026-03-30.md).
+- **Camera collision/view culling (fixed)**: camera collision raycasts previously used Bevy's `VisibleInView` default. Once a collision-clipped wall left the camera frustum, the next raycast ignored it and the camera recovered through the still-visible-in-hierarchy wall. Commit `7d1d8a86` uses `RayCastVisibility::Visible`: hierarchy-hidden walls no longer collide, but view-culled walls remain collision blockers. The real TransformPlugin + VisibilityPlugin + frustum-update regression failed before the change and passes with all nine camera-follow tests. The original recording's pixel-equivalent camera-motion sequence remains unproven.
 - **Particle bone staleness**: particle emitters don't follow fast-moving animated bones well.
 - **Procedural cloud regeneration (fixed)**: before `b2b07e5b`, one 512×1024 six-octave cloud texture regenerated synchronously every five seconds, consuming about 60% of sampled CPU in simplex functions. Runtime regeneration is now removed and the hotspot disappeared from later profiler samples; FPS attribution from the earlier comparison is invalid because a separate Wayland/Vulkan presentation stall was present.
 - **Wayland/Vulkan presentation stall (fixed)**: VSync-enabled FIFO presentation blocked `Queue::present` for approximately 0.96–0.97 seconds on the affected surface. Commit `89f58874` selects Mailbox for VSync-enabled mode; corrected fully visible unfocused evidence reached 28.35–29.32 FPS with approximately 38.7 ms CLI request latency.
@@ -100,7 +101,8 @@ The complete WMVx blend mode reference:
 
 - [M2 spawn material](../../../src/rendering/model/m2_spawn_material.rs) — authored blend-mode-1 alpha masking
 - [foliage GPU regression](../../../src/rendering/model/m2_spawn_material_tests/foliage_gpu.rs) — alpha-zero foreground / green-background depth-prepass proof
-- `game-engine` commits `59018936` and `f39cf99b` — foliage masking correction and exact-texel fixture
+- [camera follow](../../../src/rendering/camera/camera_follow.rs) — collision ray visibility policy and real transform/visibility/frustum ordering regression
+- `game-engine` commits `59018936`, `f39cf99b`, and `7d1d8a86` — foliage masking correction, exact-texel fixture, and camera collision visibility correction
 - `data/diagnostics/world-objects-20260909/foliage-red-nearest.log` and `foliage-green-nearest.log` — RED/GREEN GPU pixels and targeted test output
 - [game-engine app setup](../../src/app_setup.rs) — strict-Empty gizmo plugin filtering and screenshot/default retention
 - [game-engine main](../../src/main.rs) — stage-aware gizmo policy wiring
@@ -128,3 +130,4 @@ The complete WMVx blend mode reference:
 - [[skybox]] — skybox M2 model rendering, light lookup chain
 - [[procedural-cloud-regeneration]] — cloud texture generation and current UI/render performance evidence
 - [[animation]] — M2 bone animation, crossfade system
+- [[collision-system]] — player and camera collision geometry and policy

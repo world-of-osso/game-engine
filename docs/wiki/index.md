@@ -7,7 +7,7 @@ Last updated: 2026-09-09.
 
 Engine subsystems and how they work.
 
-- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, authored alpha-tested foliage depth coverage, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; camera-motion flicker remains unproven
+- [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; original-video pixel equivalence remains unproven
 - [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, blend times, HD skeleton loading, NPC distance/visibility sampling LOD
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
@@ -38,7 +38,7 @@ Architecture decisions and feature designs.
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [nameplate-design](design/nameplate-design.md) — Target-first display, three states, information hierarchy, distance fade
-- [collision-system](design/collision-system.md) — current authored-M2 triangle collision plus broader terrain/WMO/camera design
+- [collision-system](design/collision-system.md) — current authored-M2 triangle collision plus terrain/WMO/camera design, including collision visibility semantics
 
 ## Investigations
 

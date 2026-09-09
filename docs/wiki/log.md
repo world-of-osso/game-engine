@@ -16,6 +16,10 @@ Updated [[ui-system]] and [InWorld scene isolation](../specs/inworld-scene-isola
 
 Updated [[compile-latency]] and [[movement-performance]]. A temporary application-only opt1 build retained dynamic dependencies and runtime policy; one matched 20-second InWorld pair observed **253.179033% → 227.135068%** CPU. The reverse pair has clock confounding, initial 1m53s build is not edit-latency evidence, and default configuration/adoption remain pending.
 
+## [2026-09-09] systems | Keep camera collision independent of view culling
+
+Updated [[rendering-pipeline]] and [[collision-system]] for `7d1d8a86`. Camera collision raycasts now honor hierarchy visibility without excluding walls merely because collision places them behind the camera frustum. The real transform/visibility/frustum ordering regression RED recovers through the wall; GREEN retains collision and still permits recovery when the wall's parent is hidden. Original-video camera-motion pixel equivalence remains unproven.
+
 ## [2026-09-09] systems | Fix foliage-card depth coverage
 
 Updated [[rendering-pipeline]] for `59018936` and `f39cf99b`. Single-texture M2 blend mode 1 now uses the authored alpha mask rather than alpha-to-coverage. Under 4× MSAA with depth/normal prepasses, the GPU regression changed an alpha-zero foreground sample from black (`[0, 0, 0, 255]`) to its green background (`[0, 254, 0, 255]`), retaining its opaque red sample. Camera-motion flicker from the reported world recording remains unproven.

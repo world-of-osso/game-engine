@@ -44,6 +44,8 @@ Combined in `CameraController` with slope rejection: terrain (`min walkable norm
 
 WMO and M2 raycasts from pivot toward camera; minimum hit distance sets orbit length with `CAM_RADIUS = 0.3f` pull-in. Terrain floor clamp prevents clipping below ground. Smooth interpolation via `1 - exp(-speed * dt)`.
 
+Collision uses `RayCastVisibility::Visible`, not Bevy's `VisibleInView` default. A wall clipped behind the camera after collision is no longer in that camera's frustum but still has inherited visibility and must continue blocking recovery. Hierarchically hidden walls remain excluded, so hidden scene geometry does not create invisible camera collision. Commit `7d1d8a86` adds a regression with actual transform propagation, visibility propagation, and frustum updates: the old policy recovers through the view-culled wall; the corrected policy remains clipped, then recovers after the parent becomes hidden. Original-video pixel equivalence during camera motion remains unproven.
+
 ## Spatial Acceleration
 
 Both renderers use: world AABB broadphase per instance → per-group bounds → per-mesh spatial grid (triangles filtered by XY range and Z bounds). Triangle Z bounds enable fast vertical rejection before ray tests.
@@ -52,9 +54,12 @@ Both renderers use: world AABB broadphase per instance → per-group bounds → 
 
 - [wowee-collision.md](../../wowee-collision.md) — WoWee source analysis with file/line references
 - `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — implementation and 45 scoped tests
+- `../../../data/diagnostics/world-objects-20260909/camera-red.log` and `camera-green.log` — actual transform/visibility/frustum regression RED/GREEN output
+- `game-engine` commit `7d1d8a86` — camera collision independent of view culling
 
 ## See Also
 
 - [[character-generation]] — characters are the moving entities that drive collision queries
 - [[open-source-wow-clients]] — WoWee is the reference client analyzed here
 - [[terrain]] — ADT object placement and doodad collision
+- [[rendering-pipeline]] — rendered foliage depth coverage and camera collision rendering context
