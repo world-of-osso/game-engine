@@ -20,7 +20,7 @@ Parses M2 particle emitters from MD20 header at offset 0x128. Cata+ layout, 476-
 
 **Stage registration:** Commit `beead231` registers the particle/Hanabi plugin only from cumulative `Particles` onward. `Empty` through `Lighting` do not register Hanabi or its render graph; `Particles`, `Ui`, and unconfigured normal runs retain the plugin. This is separate from the emitter systems' stage run condition and removes the render-side plugin work in strict Empty.
 
-**Configured effects switch:** `particleEffectsEnabled` is persisted in `~/.config/world-of-osso/options_settings.ron` by `7f86f086`, defaulting to `true` for backward compatibility. Its runtime registration/emitter-off implementation is pending; it must not be documented as disabling Hanabi or existing effects until that work lands.
+**Configured effects switch:** `particleEffectsEnabled` is persisted in `~/.config/world-of-osso/options_settings.ron`, defaulting to `true` for backward compatibility. At startup, `false` omits `ParticlePlugin`/Hanabi and deferred M2 emitter creation before texture loading; animation and non-particle world systems remain active. Existing config edits require restart. No CLI flag or graphics UI control was added. This is behavior coverage, not a CPU or native-visual result.
 
 **Entity model:** One Bevy entity per live particle, each with `Mesh3d` (unit quad), `MeshMaterial3d<StandardMaterial>`, `Transform`, and `Particle` component.
 

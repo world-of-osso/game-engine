@@ -49,7 +49,7 @@ Readiness held one client/server with healthy IPC/admin ping, approximately **10
 
 Blur maps to `DepthOfField`, glow maps to `Bloom`, anti-aliasing selects `None`, `Msaa4x`, or `Taa`, and contact shading maps to `ScreenSpaceAmbientOcclusion`. Commit `24d97a50` makes SSAO independent of AA when valid: AA never enables SSAO. Bevy rejects SSAO with MSAA, so `ssaoEnabled: true` plus `antiAlias: Msaa4x` fails configuration validation with direction to select `None` or `Taa`, or disable SSAO; neither setting is silently replaced.
 
-Persistence has six focused behavioral tests at `c4376e6e`; camera lifecycle has 13 focused passing tests in `data/diagnostics/graphics-config-switches/camera-green-corrected.log`. Particle-effects registration and emitter suppression remain pending, so `particleEffectsEnabled` is persisted but not yet a complete runtime-off control.
+Persistence has six focused behavioral tests at `c4376e6e`; camera lifecycle has 13 focused passing tests in `data/diagnostics/graphics-config-switches/camera-green-corrected.log`. Commit `7b499bb2` omits `ParticlePlugin`/Hanabi when `particleEffectsEnabled` is false and prevents deferred emitter texture loading/spawning; `cab4207b` has 23 targeted particle tests. It is a startup setting: editing the file requires restart. No CLI flags or graphics UI controls were added. This records behavior, not CPU or native-visual proof.
 
 ## Particles
 

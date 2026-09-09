@@ -2,7 +2,7 @@
 
 ## [2026-09-09] systems | Persist independent graphics effect configuration
 
-Updated [[rendering-pipeline]] and [graphics effect configuration](../specs/graphics-effects.md) for `7f86f086` / `24d97a50`. `options_settings.ron` now persists particle-effects intent, depth of field, bloom, AA mode, and SSAO defaults; invalid SSAO plus MSAA fails explicitly. Persistence and camera-component proofs are recorded separately. Particle runtime suppression remains pending.
+Updated [[rendering-pipeline]], [particle system](../particle-system.md), and [graphics effect configuration](../specs/graphics-effects.md) for `7f86f086`, `24d97a50`, `7b499bb2`, and `cab4207b`. `options_settings.ron` now persists all five controls; invalid SSAO plus MSAA fails explicitly. Disabled particles omit Hanabi and deferred emitters at startup. Proof: persistence6, camera13, particle23. No CPU or native-visual claim.
 
 ## [2026-09-09] systems | Gate no-UI observer creation
 

@@ -8,9 +8,9 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 - [x] Missing new fields preserve current default output: particles enabled, depth of field and bloom disabled, MSAA4x selected, contact shading disabled.
 - [x] Reject enabled SSAO combined with MSAA4x with an actionable configuration error; do not silently change either setting.
 - [x] Load configuration at startup; do not introduce another configuration file or CLI flags.
-- [ ] Disabled particles omit emitter/simulation and Hanabi processing/render registration, without disabling character animation or other scene systems.
-- [ ] Disabled blur, glow, AA, and contact shading remove their corresponding camera effects. Changing one control must not enable another.
-- [ ] Preserve unrelated saved options and normal scene-stage isolation.
+- [x] Disabled particles omit emitter/simulation and Hanabi processing/render registration, without disabling character animation or other scene systems.
+- [x] Disabled blur, glow, AA, and contact shading remove their corresponding camera effects. Changing one control must not enable another.
+- [x] Preserve unrelated saved options and normal scene-stage isolation.
 
 ## How it works
 
@@ -29,12 +29,13 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 
 - `src/game/state/client_options_tests.rs`
 - `tests/unit/camera_post_process_tests.rs`
-- Particle startup/spawn behavioral tests added with implementation.
+- `src/rendering/particles/tests.rs` — startup registration and deferred emitter behavior.
 
 ## Known gaps (current cycle)
 
 - [x] Persistence and validation: six focused behavioral tests pass at `c4376e6e`.
-- [ ] Camera and particle effect-off coverage pending integration.
+- [x] Camera lifecycle: 13 focused behavioral tests pass at `24d97a50`.
+- [x] Particle startup/spawn gating: 23 targeted tests pass at `cab4207b`.
 
 ## Out of scope
 
