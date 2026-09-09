@@ -1,4 +1,12 @@
-# Local Bevy CPU-work patches
+# Local Bevy patches
+
+## Empty mesh uploads
+
+`bevy_render/` copies crates.io `bevy_render` 0.19.0 from the local registry, preserving its MIT/Apache licenses and package features. Registry metadata and the standalone lockfile are excluded. Workspace membership enables a real GPU allocator regression; the explicit dev-profile override preserves dependency optimization level 2.
+
+The mesh allocator skips allocation for zero-byte vertex buffers but previously copied those meshes anyway, producing unallocated-key errors for vertex and index data. The copy loop now skips exactly the same empty meshes. Genuine missing-key diagnostics remain unchanged. This backports the empty-mesh correction described by Bevy issue #24874 and PR #24960; remove the override when the selected upstream release contains the fix and passes the regression.
+
+`empty_mesh_upload_and_valid_empty_valid_lifecycle` uses a real GPU device, mixes empty and populated meshes, checks valid → empty → valid allocation lifetime, reads back vertex/index bytes, and rejects captured allocator errors. No importer filtering or version bump is included.
 
 ## Skin palettes
 
@@ -8,7 +16,7 @@ Prototype purpose: share identical ordered-joint/inverse-bindpose palettes acros
 
 ## Transform queue
 
-`bevy_transform/` is the unmodified crates.io `bevy_transform` 0.19.0 source at import, retaining its licenses. Its explicit dev-profile override retains optimization level2: the dependency wildcard excludes workspace members. The earlier import omitted this override; Cargo artifact metadata confirmed level0 before correction. `Cargo.toml` patches that exact package locally and includes it as a workspace member so its real contention/transform tests use the root build profile and target cache. Other than the PBR prototype above, other Bevy crates remain registry dependencies.
+`bevy_transform/` is the unmodified crates.io `bevy_transform` 0.19.0 source at import, retaining its licenses. Its explicit dev-profile override retains optimization level2: the dependency wildcard excludes workspace members. The earlier import omitted this override; Cargo artifact metadata confirmed level0 before correction. `Cargo.toml` patches that exact package locally and includes it as a workspace member so its real contention/transform tests use the root build profile and target cache. Only the crates listed here are locally patched.
 
 Purpose: stop the actual empty-queue/active-worker spin. The current full-client sample attributes 19.46% of samples to transform-worker polling; 90.05% of that symbol lands on its lock-retry branch. Evidence: `data/diagnostics/cpu-goal-resumed/current-baseline/transform-hot-instructions-correct-symbol.log`.
 

@@ -5,7 +5,7 @@ edition = "2024"
 rust-version = "1.95"
 
 [workspace]
-members = ["vendor/bevy_transform", "vendor/bevy_pbr"]
+members = ["vendor/bevy_transform", "vendor/bevy_pbr", "vendor/bevy_render"]
 
 [dependencies]
 bevy = { version = "0.19", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
@@ -64,10 +64,11 @@ criterion = "0.5"
 name = "parser_benches"
 harness = false
 
-# Local CPU-work patches; provenance and retirement conditions in vendor/README.md.
+# Local Bevy patches; provenance and retirement conditions in vendor/README.md.
 [patch.crates-io]
 bevy_transform = { path = "vendor/bevy_transform" }
 bevy_pbr = { path = "vendor/bevy_pbr" }
+bevy_render = { path = "vendor/bevy_render" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
@@ -92,4 +93,7 @@ opt-level = 2
 opt-level = 2
 
 [profile.dev.package.bevy_transform]
+opt-level = 2
+
+[profile.dev.package.bevy_render]
 opt-level = 2
