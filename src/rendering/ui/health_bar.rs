@@ -202,12 +202,18 @@ fn update_foreground(
 ) {
     for bar_child in bar_children.iter() {
         if let Ok(mut fg_transform) = fg_query.get_mut(bar_child) {
-            *fg_transform = foreground_transform(pct);
+            fg_transform.set_if_neq(foreground_transform(pct));
         }
+        let color = health_bar_color(health.current, health.max);
         if let Ok(mat_handle) = mat_query.get(bar_child)
-            && let Some(mut mat) = materials.get_mut(&mat_handle.0)
+            && materials
+                .get(&mat_handle.0)
+                .is_some_and(|mat| mat.base_color != color)
         {
-            mat.base_color = health_bar_color(health.current, health.max);
+            materials
+                .get_mut(&mat_handle.0)
+                .expect("health bar material read from the same asset storage")
+                .base_color = color;
         }
     }
 }
@@ -237,11 +243,11 @@ fn sync_health_bar_visibility(
     let visible =
         ui_disabled.is_none() && hud_visibility.is_none_or(|toggles| toggles.show_health_bars);
     for mut visibility in &mut query {
-        *visibility = if visible {
+        visibility.set_if_neq(if visible {
             Visibility::Inherited
         } else {
             Visibility::Hidden
-        };
+        });
     }
 }
 
