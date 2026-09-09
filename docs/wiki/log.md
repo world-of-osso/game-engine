@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Skip discarded minimap tracking collection
+
+Updated [[ui-system]] for `d319f9cf`: collect tracking points only when the existing redraw guard permits drawing. Thirty-eight scoped tests pass before and after; independent delta verification passes. No changed redraw policy or CPU claim.
+
 ## [2026-09-09] systems | Avoid idle action-bar background writes
 
 Updated [[ui-system]] for `a00e88aa`: equal flash backgrounds no longer dirty UI state. Ten scoped tests and independent verification pass; no native CPU claim.

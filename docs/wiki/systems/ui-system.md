@@ -28,6 +28,10 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 `a00e88aa` compares desired slot backgrounds through immutable access before mutating `UiState` or the registry. Expired/idle flashes no longer dirty unchanged slots; keypress flashes, expiry, and replacement-slot initialization still update. Ten scoped tests and independent verification pass; CPU savings are unmeasured.
 
+## Minimap tracking collection
+
+`d319f9cf` collects tracking icons only after the existing grid/pixel redraw check. Frames that will not redraw no longer scan tracking entities or allocate the discarded point list. Redraws still use current tracking inputs; redraw policy and stationary-icon refresh behavior are unchanged. Thirty-eight scoped tests pass before and after this semantics-preserving reorder; no CPU claim.
+
 ## Minimap coordinate updates
 
 `55c8df35` compares rounded coordinate text through immutable UI/registry access before writing. Movement within the same displayed coordinates leaves `UiState` change detection and registry dirty state untouched; boundary crossings and replacement frames still update. Thirty-seven scoped minimap tests pass; CPU savings are unmeasured.
