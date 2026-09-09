@@ -5,6 +5,14 @@ use bevy::ecs::system::RunSystemOnce;
 
 fn picking_app() -> (App, Entity) {
     let mut app = App::new();
+    register_picking_plugins(&mut app);
+    configure_cursor_and_cameras(&mut app);
+    let npc = spawn_pickable_npc(&mut app);
+    initialize_picking_viewport(&mut app);
+    (app, npc)
+}
+
+fn register_picking_plugins(app: &mut App) {
     app.add_plugins((
         MinimalPlugins,
         bevy::asset::AssetPlugin::default(),
@@ -19,6 +27,9 @@ fn picking_app() -> (App, Entity) {
     app.init_resource::<ButtonInput<MouseButton>>()
         .init_resource::<CurrentTarget>()
         .insert_resource(crate::client_options::UiDisabled);
+}
+
+fn configure_cursor_and_cameras(app: &mut App) {
     let mut window = app
         .world_mut()
         .query_filtered::<&mut Window, With<PrimaryWindow>>()
@@ -34,6 +45,9 @@ fn picking_app() -> (App, Entity) {
     app.world_mut()
         .run_system_once(ui_toolkit::render::setup_ui_camera)
         .unwrap();
+}
+
+fn spawn_pickable_npc(app: &mut App) -> Entity {
     let mesh = app
         .world_mut()
         .resource_mut::<Assets<Mesh>>()
@@ -53,6 +67,10 @@ fn picking_app() -> (App, Entity) {
         Visibility::Visible,
         ChildOf(npc),
     ));
+    npc
+}
+
+fn initialize_picking_viewport(app: &mut App) {
     app.finish();
     app.cleanup();
     app.update();
@@ -71,7 +89,6 @@ fn picking_app() -> (App, Entity) {
             .viewport_to_world(transform, Vec2::new(400.0, 300.0))
             .is_ok()
     );
-    (app, npc)
 }
 
 #[test]

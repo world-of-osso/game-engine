@@ -10,15 +10,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 fn spawn_camera(app: &mut App, fog_enabled: bool, order: isize) -> Handle<Image> {
-    let target = app
-        .world_mut()
-        .resource_mut::<Assets<Image>>()
-        .add(Image::new_target_texture(
-            32,
-            32,
-            TextureFormat::Rgba8UnormSrgb,
-            None,
-        ));
+    let target = create_camera_target(app);
     let mut camera = app.world_mut().spawn((
         Camera3d::default(),
         Camera {
@@ -32,55 +24,81 @@ fn spawn_camera(app: &mut App, fog_enabled: bool, order: isize) -> Handle<Image>
         Tonemapping::None,
     ));
     if fog_enabled {
-        camera.insert(DistanceFog {
-            color: Color::srgb(0.0, 0.0, 1.0),
-            falloff: FogFalloff::Linear {
-                start: 0.0,
-                end: 10.0,
-            },
-            ..default()
-        });
+        camera.insert(camera_fog());
     }
     target
 }
 
+fn create_camera_target(app: &mut App) -> Handle<Image> {
+    app.world_mut()
+        .resource_mut::<Assets<Image>>()
+        .add(Image::new_target_texture(
+            32,
+            32,
+            TextureFormat::Rgba8UnormSrgb,
+            None,
+        ))
+}
+
+fn camera_fog() -> DistanceFog {
+    DistanceFog {
+        color: Color::srgb(0.0, 0.0, 1.0),
+        falloff: FogFalloff::Linear {
+            start: 0.0,
+            end: 10.0,
+        },
+        ..default()
+    }
+}
+
 fn spawn_effect_quad(app: &mut App) {
+    let material = create_effect_material(app);
+    let mesh = create_effect_mesh(app);
+    app.world_mut()
+        .spawn((Mesh3d(mesh), MeshMaterial3d(material), Transform::default()));
+}
+
+fn create_effect_material(app: &mut App) -> Handle<M2EffectMaterial> {
     let texture = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
         .add(crate::rgba_image(vec![255, 0, 0, 255], 1, 1));
-    let material = app
-        .world_mut()
+    app.world_mut()
         .resource_mut::<Assets<M2EffectMaterial>>()
         .add(M2EffectMaterial {
-            settings: M2EffectSettings {
-                transparency: 1.0,
-                alpha_test: 0.0,
-                shader_id: 0x0010,
-                blend_mode: 0,
-                uv_mode_1: 0,
-                uv_mode_2: 0,
-                // Unlit output makes pixel readiness independent of lighting, while the
-                // real fragment shader must still compile every referenced function.
-                render_flags: 1,
-                uv_offset_1: Vec2::ZERO,
-                uv_offset_2: Vec2::ZERO,
-            },
+            settings: unlit_effect_settings(),
             base_texture: texture.clone(),
             second_texture: texture,
             blend_mode: 0,
             two_sided: false,
             texture_anim_1: None,
             texture_anim_2: None,
-        });
+        })
+}
+
+fn unlit_effect_settings() -> M2EffectSettings {
+    M2EffectSettings {
+        transparency: 1.0,
+        alpha_test: 0.0,
+        shader_id: 0x0010,
+        blend_mode: 0,
+        uv_mode_1: 0,
+        uv_mode_2: 0,
+        // Unlit output makes pixel readiness independent of lighting, while the
+        // real fragment shader must still compile every referenced function.
+        render_flags: 1,
+        uv_offset_1: Vec2::ZERO,
+        uv_offset_2: Vec2::ZERO,
+    }
+}
+
+fn create_effect_mesh(app: &mut App) -> Handle<Mesh> {
     let mut mesh = Mesh::from(Rectangle::new(4.0, 4.0));
     mesh.insert_attribute(
         Mesh::ATTRIBUTE_UV_1,
         vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
     );
-    let mesh = app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh);
-    app.world_mut()
-        .spawn((Mesh3d(mesh), MeshMaterial3d(material), Transform::default()));
+    app.world_mut().resource_mut::<Assets<Mesh>>().add(mesh)
 }
 
 fn assert_no_pipeline_errors(app: &App) {
