@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] networking | Preserve authoritative NPC names in client snapshots
+
+Documented shared `Npc.name` (`c8a06c0`), server SQLite-template propagation (`fc46567`), and engine cloned snapshot delivery (`79a252be`) in [[networking]]. UTF-8 SQLite/spawn and worker/main snapshot fixtures cover data boundaries. This is not renderer or visible-nameplate proof.
+
 ## [2026-09-09] animation | Select authored loop variants by weight
 
 Replaced temporal `next_animation` interpretation with `variation_next` candidate lists and signed frequency weights. Actual wolf indices2/9/10/11 receive30445/1092/1170/60 of32767 deterministic rolls; terminal selection returns to the base family. Per-entity random streams, non-looping completion, invalid metadata, elapsed overflow and crossfade regressions pass in107focused animation tests. Replay bounds are retained but nonzero replay scheduling and native validation remain uncredited. See [loop-variation spec](../specs/m2-loop-variations.md) and [[animation]].
