@@ -79,10 +79,10 @@ python3 scripts/import_npc_appearance.py \
   --data-dir /syncthing/Sync/Projects/world-of-osso/game-engine/data \
   --model-cache /syncthing/Sync/Projects/world-of-osso/game-engine/data/cache/creature_display.sqlite \
   --output /syncthing/Sync/Projects/world-of-osso/game-engine/data/diagnostics/northshire-appearance-placement/npc-appearance-fixtures.sqlite \
-  --display-id 13035 --display-id 13036 --display-id 130617
+  --display-id 19177 --display-id 19178 --display-id 3167
 ```
 
-Omit `--display-id` to import every CSV display. All three DB2s are fully decoded even for a selected output subset. The output must not exist. Production destination, when main approves promotion, is shared-data `cache/npc_appearance.sqlite`; no default output or automatic promotion exists. JSON stdout reports decoded/output counts and requested fixture rows (default report IDs: 13035, 13036, 130617).
+Omit `--display-id` to import every CSV display. All three DB2s are fully decoded even for a selected output subset. The output must not exist. Production destination, when main approves promotion, is shared-data `cache/npc_appearance.sqlite`; no default output or automatic promotion exists. JSON stdout reports decoded/output counts and requested fixture rows (default display IDs: 19177, 19178, 3167).
 
 Supported fixed-record layouts from local `/home/osso/Repos/wowless/vendor/dbdefs/definitions/`:
 
@@ -94,9 +94,9 @@ Supported fixed-record layouts from local `/home/osso/Repos/wowless/vendor/dbdef
 
 Integer storage 0 (direct), 1 (bitpacked), 2 (common default/ID override), 3 (palette), and 5 (signed bitpacked) are supported. Copies inherit record bytes and relationships; inline IDs and common overrides use the destination ID. Sparse records, array palettes, unknown layouts/storage, missing relations, and absent/all-zero encrypted section payloads fail explicitly. A nonzero TACT key hash alone does not imply missing data: already decrypted section payloads are decoded normally.
 
-`CreatureDisplayInfo.csv.ExtendedDisplayInfoID` links to Extra. The existing `creature_displays` cache supplies the actual model FDID; exact local listfile lookup supplies its path. An `_hd.m2` filename selects HD bake, other `.m2` paths select SD. Missing paths never infer resolution from race or alternate models. TextureFileData uses `UsageType=0`; unresolved or conflicting selected material mappings fail. `--outfit-cache PATH` explicitly uses its read-only `material_to_texture(material_resource_id, texture_fdid)` table instead of CSV.
+`CreatureDisplayInfo.csv.ExtendedDisplayInfoID` links to Extra. The existing `creature_displays` cache supplies the actual model FDID; exact local listfile lookup supplies its path. An `_hd.m2` filename selects HD bake, other `.m2` paths select SD. Missing paths never infer resolution from race or alternate models. An authored zero material produces `baked_texture_fdid=0`, meaning composition without a baked body; it never substitutes the other SD/HD material. TextureFileData uses `UsageType=0`; unresolved or conflicting nonzero selected material mappings fail. `--outfit-cache PATH` explicitly uses its read-only `material_to_texture(material_resource_id, texture_fdid)` table instead of CSV.
 
-Displays without Extra retain no appearance/choice row; authored geosets remain independently display-keyed. Child references outside the selected CSV displays do not fabricate parents. Runtime interpretation remains main's responsibility.
+Every selected display has a `display_coverage` row. `requires_appearance` is `1` when its CSV Extra ID is nonzero, otherwise `0`. Ordinary creatures retain no appearance/choice row; authored geosets remain independently display-keyed. Child references outside the selected CSV displays do not fabricate parents. The public `game_engine::creature_display::npc_appearance` reader distinguishes covered ordinary creatures from missing required profiles and displays outside cache coverage. Rebuild older caches to supply coverage; missing tables are errors.
 
 Targeted tests: `python3 -m unittest discover -s scripts -p test_import_npc_appearance.py`.
 

@@ -422,7 +422,7 @@ def import_files(args):
                 "geosets": [row[1:] for row in rows[2] if row[0] == display],
             }
             for display in sorted(
-                set(args.display_id or [13035, 13036, 130617]) & displays.keys()
+                set(args.display_id or [19177, 19178, 3167]) & displays.keys()
             )
         },
     }
