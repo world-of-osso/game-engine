@@ -77,6 +77,7 @@ fn alpha_mode_flags(blend_mode: u32) -> u32 {
     }
 }
 
+#ifdef DISTANCE_FOG
 fn m2_fog_color(blend_mode: u32) -> vec3<f32> {
     switch blend_mode {
         case 4u: {
@@ -93,8 +94,9 @@ fn m2_fog_color(blend_mode: u32) -> vec3<f32> {
         }
     }
 }
+#endif
 
-fn apply_m2_distance_fog(color: vec4<f32>, world_position: vec4<f32>) -> vec4<f32> {
+fn apply_m2_distance_fog(color: vec4<f32>, world_position: vec4<f32>, frag_coord_xy: vec2<f32>) -> vec4<f32> {
 #ifdef DISTANCE_FOG
     if (settings.render_flags & 0x2u) != 0u {
         return color;
@@ -107,6 +109,7 @@ fn apply_m2_distance_fog(color: vec4<f32>, world_position: vec4<f32>) -> vec4<f3
         color,
         world_position.xyz,
         view_bindings::view.world_position.xyz,
+        frag_coord_xy,
     );
 #else
     return color;
@@ -144,6 +147,6 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     );
 
     var lit = pbr_functions::apply_pbr_lighting(pbr_input);
-    lit = apply_m2_distance_fog(lit, in.world_position);
+    lit = apply_m2_distance_fog(lit, in.world_position, in.position.xy);
     return pbr_functions::main_pass_post_lighting_processing(pbr_input, lit);
 }

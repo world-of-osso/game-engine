@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] rendering | Compile M2 effect fog variants
+
+Updated [[rendering-pipeline]] with the conditional fog-binding and Bevy `apply_fog` argument fixes. Actual-material headless GPU regression reproduces both shader errors and renders fog-off/fog-on variants after correction; no native client or unrelated motion changes included.
+
 ## [2026-09-09] systems | Render authored Northshire NPC appearances
 
 Updated [[character-rendering]] and [NPC importer spec](../specs/npc-appearance-importer.md) for game-engine `846a92e7`. Local WDC5-derived coverage supplies every source-present required profile in the current Northshire population; runtime applies declared baked/composited textures, full choice IDs, and display geosets with per-NPC materials. Focused compilation and renderer tests pass. A user-authorized 30-second capture shows clothed, differing background NPCs; the bare foreground model is local unequipped Theron. Full-catalog metadata remains blocked by unavailable local `TextureFileData` material444164 and is not credited.

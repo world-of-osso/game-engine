@@ -156,6 +156,10 @@ pub(crate) fn alpha_test_threshold_for_blend(blend_mode: u16, transparency: f32)
 }
 
 #[cfg(test)]
+#[path = "m2_effect_fog_gpu_tests.rs"]
+mod fog_gpu_tests;
+
+#[cfg(test)]
 mod tests {
     use super::{
         M2EffectMaterial, M2EffectSettings, M2EffectUvUpdatesEnabled, alpha_mode_for_blend,
