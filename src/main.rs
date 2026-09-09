@@ -457,7 +457,7 @@ fn apply_inworld_scene_stage_ui_gates(app: &mut App, no_ui: bool) {
     if no_ui {
         app.insert_resource(client_options::UiDisabled);
         let mut fps = app.world_mut().resource_mut::<FpsOverlayConfig>();
-        fps.enabled = false;
+        fps.enabled = true;
         fps.frame_time_graph_config.enabled = false;
     }
     if !no_ui && scene_stage.includes(InWorldSceneStage::Ui) {

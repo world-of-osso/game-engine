@@ -5,17 +5,17 @@ use game_engine::status::InspectStatusSnapshot;
 use game_engine::ui::{event::EventBus, plugin::UiState};
 
 #[test]
-fn no_ui_prevents_options_from_reenabling_overlay_and_marker() {
+fn no_ui_preserves_numeric_fps_and_keeps_marker_hidden_after_options() {
     let mut world = World::new();
     world.insert_resource(client_options::UiDisabled);
     world.insert_resource(FpsOverlayConfig::default());
     let marker = world
         .spawn((crate::target::TargetMarker, Visibility::Visible))
         .id();
-    apply_fps_overlay_snapshot(&mut world, true);
+    apply_fps_overlay_snapshot(&mut world, false);
     apply_target_marker_visibility(&mut world, true);
     let fps = world.resource::<FpsOverlayConfig>();
-    assert!(!fps.enabled);
+    assert!(fps.enabled);
     assert!(!fps.frame_time_graph_config.enabled);
     assert_eq!(world.get::<Visibility>(marker), Some(&Visibility::Hidden));
 }

@@ -13,12 +13,18 @@ fn unique_test_dir(name: &str) -> PathBuf {
 }
 
 #[test]
-fn no_ui_survives_loaded_settings_and_hud_updates() {
+fn no_ui_keeps_numeric_fps_visible_across_loaded_settings_and_hud_updates() {
     let mut app = App::new();
     app.insert_resource(UiDisabled);
     app.insert_resource(FpsOverlayConfig::default());
     app.insert_resource(LoadedClientOptions {
-        file: ClientOptionsFile::default(),
+        file: ClientOptionsFile {
+            hud: HudOptionsFile {
+                show_fps_overlay: false,
+                ..default()
+            },
+            ..default()
+        },
         applied: false,
     });
     app.insert_resource(HudOptions::default());
@@ -35,7 +41,7 @@ fn no_ui_survives_loaded_settings_and_hud_updates() {
             .show_fps_overlay = show;
         app.update();
         let fps = app.world().resource::<FpsOverlayConfig>();
-        assert!(!fps.enabled);
+        assert!(fps.enabled);
         assert!(!fps.frame_time_graph_config.enabled);
     }
 }

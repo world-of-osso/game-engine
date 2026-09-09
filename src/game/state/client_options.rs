@@ -408,9 +408,9 @@ fn apply_loaded_client_options(
     if let Some(fps) = fps.as_mut() {
         apply_fps_overlay_visibility(
             fps.as_mut(),
-            loaded.file.hud.show_fps_overlay && ui_disabled.is_none(),
+            loaded.file.hud.show_fps_overlay || ui_disabled.is_some(),
             scene_stage.as_deref().copied(),
-            graph_disabled.is_some(),
+            graph_disabled.is_some() || ui_disabled.is_some(),
         );
     }
     loaded.applied = true;
@@ -434,9 +434,9 @@ fn sync_hud_visibility_toggles(
     if let Some(fps) = fps.as_mut() {
         apply_fps_overlay_visibility(
             fps.as_mut(),
-            next.show_fps_overlay && ui_disabled.is_none(),
+            next.show_fps_overlay || ui_disabled.is_some(),
             scene_stage.as_deref().copied(),
-            graph_disabled.is_some(),
+            graph_disabled.is_some() || ui_disabled.is_some(),
         );
     }
 }

@@ -9,7 +9,7 @@ fn no_ui_flag_is_opt_in_and_not_an_asset_path() {
 }
 
 #[test]
-fn no_ui_disables_startup_gates_and_fps_for_all_scene_stages() {
+fn no_ui_disables_startup_gates_but_preserves_fps_for_all_scene_stages() {
     use game_engine::ui::plugin::{UiProcessingEnabled, UiRenderEnabled, UiTextRenderEnabled};
 
     for stage in [
@@ -36,7 +36,7 @@ fn no_ui_disables_startup_gates_and_fps_for_all_scene_stages() {
         assert!(!app.world().resource::<UiProcessingEnabled>().0);
         assert!(!app.world().resource::<UiRenderEnabled>().0);
         assert!(!app.world().resource::<UiTextRenderEnabled>().0);
-        assert!(!app.world().resource::<FpsOverlayConfig>().enabled);
+        assert!(app.world().resource::<FpsOverlayConfig>().enabled);
     }
 }
 

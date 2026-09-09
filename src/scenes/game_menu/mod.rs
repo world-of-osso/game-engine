@@ -333,11 +333,13 @@ fn apply_snapshot_to_world(world: &mut World, snapshot: &ApplySnapshot) {
 }
 
 fn apply_fps_overlay_snapshot(world: &mut World, visible: bool) {
-    let visible = visible && !world.contains_resource::<client_options::UiDisabled>();
+    let ui_disabled = world.contains_resource::<client_options::UiDisabled>();
+    let visible = visible || ui_disabled;
     let scene_stage = world
         .get_resource::<crate::game::inworld_scene_stage::InWorldSceneStage>()
         .copied();
-    let graph_disabled = world.contains_resource::<client_options::FrameTimeGraphDisabled>();
+    let graph_disabled =
+        world.contains_resource::<client_options::FrameTimeGraphDisabled>() || ui_disabled;
     if let Some(mut fps) = world.get_resource_mut::<FpsOverlayConfig>() {
         client_options::apply_fps_overlay_visibility(
             &mut fps,
