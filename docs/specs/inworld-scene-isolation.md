@@ -71,6 +71,11 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [x] Accept opt-in `--no-directional-shadows` for the InWorld world-environment directional light. Set only `DirectionalLight.shadow_maps_enabled` false; retain the light entity, illuminance, transform, ambient light, cascade configuration, shadow-map resource, camera effects, and normal lighting.
 - [x] Preserve enabled directional shadows without the option. Do not affect standalone or other scene setup paths.
 
+### UI-off control
+
+- [x] Accept opt-in `--no-ui`: disable toolkit processing, quad rendering, text rendering, and the standalone FPS overlay for every InWorld diagnostic stage.
+- [x] Keep UI plugins and resources registered so non-UI systems can retain their dependencies; preserve 3D rendering. Without the flag, defaults and existing pre-`Ui` diagnostic-stage behavior, including its FPS-overlay policy, remain unchanged.
+
 ### Frame-time-graph control
 
 - [x] Accept opt-in `--no-frame-time-graph`: keep numeric FPS visibility under the existing HUD preference, but hide the frame-time graph and stop its per-frame shader-buffer updates.

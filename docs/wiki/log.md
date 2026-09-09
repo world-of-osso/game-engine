@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Add full UI-off diagnostic
+
+Updated [[ui-system]] and [InWorld scene isolation](../specs/inworld-scene-isolation.md) for `a60cbc38918ec27c730a2166fb8312223501fb6b`. Opt-in `--no-ui` disables toolkit processing, rendering, text, and the FPS overlay; UI plugins/resources and 3D rendering remain. Defaults and existing pre-`Ui` diagnostics are unchanged.
+
 ## [2026-09-09] investigations | Record temporary application opt1 CPU evidence
 
 Updated [[compile-latency]] and [[movement-performance]]. A temporary application-only opt1 build retained dynamic dependencies and runtime policy; one matched 20-second InWorld pair observed **253.179033% → 227.135068%** CPU. The reverse pair has clock confounding, initial 1m53s build is not edit-latency evidence, and default configuration/adoption remain pending.
