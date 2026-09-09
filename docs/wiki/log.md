@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Share screen auto-size traversal
+
+Updated [[ui-system]] for ui-toolkit `a118e8c`: collect a screen’s frame IDs once and reuse them across FontString and EditBox sizing. Four characterization tests pass before and after; no cache, change-driven behavior, RED, or CPU claim.
+
 ## [2026-09-09] systems | Poll UI attribute hot reload once per second
 
 Updated [[ui-system]] for ui-toolkit `808117a`: debug hot-reload patches poll once per real-time second outside `Screen::sync()`. Normal state/layout updates remain immediate; only existing named-frame attributes reload.

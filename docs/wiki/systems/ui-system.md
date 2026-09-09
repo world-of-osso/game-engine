@@ -28,6 +28,8 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 `ui-toolkit` `808117a` moves queued attribute hot-reload patches out of `Screen::sync()` into `UiPlugin` polling once per real-time second in debug builds. Normal shared-state rebuilds, anchor resolution, and auto-sizing stay immediate. Reload is attribute-only for existing named frames; structural reload remains unsupported. A queued edit can take up to one second to appear; no CPU or native UI claim is made.
 
+`ui-toolkit` `a118e8c` collects each screen subtree’s frame IDs once per `Screen::sync()` and reuses them for FontString and EditBox auto-sizing. It adds no cache or change-driven policy. Four characterization tests pass before and after the reorder; no RED or CPU claim.
+
 ## Character-creation shared-state updates
 
 `14f4a691` compares the complete character-creation view model before inserting it into `SharedContext`, including focus, labels, and swatches. `screen.sync()` remains unconditional for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests cover settled and changed output; CPU savings are unmeasured.
