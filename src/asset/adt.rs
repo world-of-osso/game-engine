@@ -344,11 +344,8 @@ fn build_water_geometry(chunk_pos: [f32; 3], layer: &WaterLayer) -> WaterGeometr
     )
 }
 
-pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Option<Mesh> {
+pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Mesh {
     let (positions, normals, uvs, colors, indices) = build_water_geometry(chunk_pos, layer);
-    if positions.is_empty() {
-        return None;
-    }
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::default(),
@@ -358,7 +355,7 @@ pub fn build_water_mesh(chunk_pos: [f32; 3], layer: &WaterLayer) -> Option<Mesh>
     mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
     mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
     mesh.insert_indices(Indices::U32(indices));
-    Some(mesh)
+    mesh
 }
 
 pub fn load_adt(data: &[u8]) -> Result<AdtData, String> {
@@ -564,26 +561,6 @@ mod tests {
     }
 
     #[test]
-    fn water_mesh_skips_layers_without_existing_quads() {
-        let layer = WaterLayer {
-            liquid_type: 0,
-            liquid_object: 0,
-            min_height: 0.0,
-            max_height: 0.0,
-            x_offset: 0,
-            y_offset: 0,
-            width: 1,
-            height: 1,
-            exists: [0; 8],
-            vertex_heights: Vec::new(),
-            vertex_uvs: Vec::new(),
-            vertex_depths: Vec::new(),
-        };
-
-        assert!(build_water_mesh([0.0, 0.0, 0.0], &layer).is_none());
-    }
-
-    #[test]
     fn water_mesh_emits_normalized_depth_in_vertex_color_alpha() {
         let layer = WaterLayer {
             liquid_type: 0,
@@ -600,7 +577,7 @@ mod tests {
             vertex_depths: vec![0, 64, 128, 255],
         };
 
-        let mesh = build_water_mesh([0.0, 0.0, 0.0], &layer).expect("water quad should build");
+        let mesh = build_water_mesh([0.0, 0.0, 0.0], &layer);
         let Some(VertexAttributeValues::Float32x4(colors)) = mesh.attribute(Mesh::ATTRIBUTE_COLOR)
         else {
             panic!("expected water mesh vertex colors");
