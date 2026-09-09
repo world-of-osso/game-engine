@@ -4,10 +4,10 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 
 ## What it must do
 
-- [ ] Persist `particleEffectsEnabled`, `depthOfField`, existing `bloomEnabled`, `antiAlias` (`None`, `Msaa4x`, `Taa`), and `ssaoEnabled` independently; retain particle density and bloom intensity.
-- [ ] Missing new fields preserve current default output: particles enabled, depth of field and bloom disabled, MSAA4x selected, contact shading disabled.
-- [ ] Reject enabled SSAO combined with MSAA4x with an actionable configuration error; do not silently change either setting.
-- [ ] Load configuration at startup; do not introduce another configuration file or CLI flags.
+- [x] Persist `particleEffectsEnabled`, `depthOfField`, existing `bloomEnabled`, `antiAlias` (`None`, `Msaa4x`, `Taa`), and `ssaoEnabled` independently; retain particle density and bloom intensity.
+- [x] Missing new fields preserve current default output: particles enabled, depth of field and bloom disabled, MSAA4x selected, contact shading disabled.
+- [x] Reject enabled SSAO combined with MSAA4x with an actionable configuration error; do not silently change either setting.
+- [x] Load configuration at startup; do not introduce another configuration file or CLI flags.
 - [ ] Disabled particles omit emitter/simulation and Hanabi processing/render registration, without disabling character animation or other scene systems.
 - [ ] Disabled blur, glow, AA, and contact shading remove their corresponding camera effects. Changing one control must not enable another.
 - [ ] Preserve unrelated saved options and normal scene-stage isolation.
@@ -33,7 +33,8 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 
 ## Known gaps (current cycle)
 
-- [ ] Persistence, validation and effect-off coverage pending implementation.
+- [x] Persistence and validation: six focused behavioral tests pass at `c4376e6e`.
+- [ ] Camera and particle effect-off coverage pending integration.
 
 ## Out of scope
 
