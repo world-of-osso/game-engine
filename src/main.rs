@@ -44,6 +44,7 @@ mod empty_window;
 mod game;
 mod little_endian;
 mod logout;
+mod mesh_allocator_probe;
 mod mesh_asset_stats;
 mod model_path_resolver;
 mod pathing;
@@ -428,6 +429,7 @@ fn run_app(
     );
     apply_inworld_scene_stage_ui_gates(&mut app, no_ui);
     configure_app_plugins(&mut app, enable_sound, &mut parsed);
+    mesh_allocator_probe::register_mesh_allocator_probe(&mut app);
     dump_systems::configure_dump_systems(&mut app, dump_tree, dump_ui_tree, dump_scene, screenshot);
     insert_startup_resources(&mut app, args, parsed.startup_actions);
     add_optional_world_builder_plugin(&mut app, world_builder_enabled);
