@@ -488,16 +488,23 @@ fn sync_model_lights(
             .map(|player| (player.current_seq_idx, player.time_ms as u32))
             .unwrap_or((0, 0));
         let authored = m2_light::evaluate_light(&runtime.light, seq_idx, time_ms);
-        point_light.color =
-            Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]);
-        point_light.intensity = authored.intensity;
-        point_light.range = authored.attenuation_end;
-        point_light.radius = authored.attenuation_start.min(authored.attenuation_end);
-        *visibility = if authored.visible {
+        let color = Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]);
+        let radius = authored.attenuation_start.min(authored.attenuation_end);
+        if point_light.color != color
+            || point_light.intensity != authored.intensity
+            || point_light.range != authored.attenuation_end
+            || point_light.radius != radius
+        {
+            point_light.color = color;
+            point_light.intensity = authored.intensity;
+            point_light.range = authored.attenuation_end;
+            point_light.radius = radius;
+        }
+        visibility.set_if_neq(if authored.visible {
             Visibility::Inherited
         } else {
             Visibility::Hidden
-        };
+        });
     }
 }
 
