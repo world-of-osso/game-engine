@@ -14,8 +14,26 @@ pub fn query_authored_npc_appearance(
     connection: &Connection,
     display_id: u32,
 ) -> Result<Option<AuthoredNpcAppearance>, String> {
-    query_appearance(connection, display_id)
-        .map_err(|error| format!("query authored NPC appearance for display {display_id}: {error}"))
+    let context =
+        |error| format!("query authored NPC appearance for display {display_id}: {error}");
+    let required = connection
+        .query_row(
+            "SELECT requires_appearance FROM display_coverage WHERE display_id = ?1",
+            [display_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .optional()
+        .map_err(context)?
+        .ok_or_else(|| {
+            format!("NPC display {display_id} is outside imported appearance coverage")
+        })?;
+    if !required {
+        return Ok(None);
+    }
+    let appearance = query_appearance(connection, display_id).map_err(context)?;
+    appearance
+        .map(Some)
+        .ok_or_else(|| format!("NPC display {display_id} has no required appearance profile"))
 }
 
 pub fn load_authored_npc_appearance(
@@ -87,7 +105,11 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         connection
             .execute_batch(
-                "CREATE TABLE appearances (
+                "CREATE TABLE display_coverage (
+                display_id INTEGER PRIMARY KEY, requires_appearance INTEGER NOT NULL
+            );
+            INSERT INTO display_coverage VALUES (19177, 1), (19178, 1), (99, 0), (42, 1);
+            CREATE TABLE appearances (
                 display_id INTEGER PRIMARY KEY, race INTEGER, sex INTEGER,
                 class INTEGER, baked_texture_fdid INTEGER
             );
@@ -132,11 +154,22 @@ mod tests {
     }
 
     #[test]
-    fn missing_display_is_none() {
-        assert_eq!(
-            query_authored_npc_appearance(&fixture(), 999).unwrap(),
-            None
-        );
+    fn ordinary_display_in_coverage_has_no_appearance() {
+        assert_eq!(query_authored_npc_appearance(&fixture(), 99).unwrap(), None);
+    }
+
+    #[test]
+    fn required_display_without_profile_is_an_error() {
+        let error = query_authored_npc_appearance(&fixture(), 42).unwrap_err();
+        assert!(error.contains("42"), "{error}");
+        assert!(error.contains("required appearance"), "{error}");
+    }
+
+    #[test]
+    fn display_outside_coverage_is_an_error() {
+        let error = query_authored_npc_appearance(&fixture(), 999).unwrap_err();
+        assert!(error.contains("999"), "{error}");
+        assert!(error.contains("coverage"), "{error}");
     }
 
     #[test]
@@ -158,7 +191,7 @@ mod tests {
         let connection = Connection::open_in_memory().unwrap();
         let error = query_authored_npc_appearance(&connection, 19177).unwrap_err();
         assert!(error.contains("19177"), "{error}");
-        for table in ["choices", "geosets"] {
+        for table in ["display_coverage", "choices", "geosets"] {
             let connection = fixture();
             connection
                 .execute_batch(&format!("DROP TABLE {table};"))
