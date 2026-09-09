@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-09] systems | Render authored Northshire NPC appearances
+
+Updated [[character-rendering]] and [NPC importer spec](../specs/npc-appearance-importer.md) for game-engine `846a92e7`. Local WDC5-derived coverage supplies every source-present required profile in the current Northshire population; runtime applies declared baked/composited textures, full choice IDs, and display geosets with per-NPC materials. Focused compilation and renderer tests pass. A user-authorized 30-second capture shows clothed, differing background NPCs; the bare foreground model is local unequipped Theron. Full-catalog metadata remains blocked by unavailable local `TextureFileData` material444164 and is not credited.
+
+## [2026-09-09] formats | Validate corrected Northshire wagon terrain
+
+Updated [[terrain]] for `ac9cd925`/`36f5a4d5` and matching server sampler `2cfe233`. The local capture shows `stormwindgypsywagon01.m2` clear of the hillside after authored MCVT axes, water axes, and center-fan sampling were corrected. Its MDDF placement is unchanged; the existing terrain clamp now resolves a lower runtime Y from corrected ground geometry.
+
 ## [2026-09-09] systems | Share screen auto-size traversal
 
 Updated [[ui-system]] for ui-toolkit `a118e8c`: collect a screen’s frame IDs once and reuse them across FontString and EditBox sizing. Four characterization tests pass before and after; no cache, change-driven behavior, RED, or CPU claim.
