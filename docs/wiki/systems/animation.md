@@ -40,6 +40,8 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 | JumpStart → Jump | automatic (clip end) |
 | Jump → JumpEnd | 80ms (on ground contact) |
 | JumpEnd → Stand/Walk | 150ms |
+
+Running landings (`JumpLandRun`, ID187) remain in the jump state machine until their clip completes, then crossfade into Run. The jump-entry guard uses the same complete animation-ID set as dispatch; excluding ID187 previously restarted JumpStart on the next landing frame. A production-system regression advances Start → Jump → unfinished/completed JumpLandRun → Run, checking that landing never restarts and the movement crossfade remains at least150ms.
 | Walk ↔ Shuffle | 150ms |
 | Walk ↔ WalkBackwards | 200ms |
 

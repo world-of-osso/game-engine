@@ -328,7 +328,7 @@ pub(crate) fn switch_jump(
     sequences: &[M2AnimSequence],
 ) {
     match current_id {
-        Some(id) if id != ANIM_JUMP_START && id != ANIM_JUMP && id != ANIM_JUMP_END => {
+        Some(id) if !is_jump_anim(id) => {
             if let Some(idx) = find_seq_idx(sequences, ANIM_JUMP_START) {
                 start_transition(player, idx, JUMP_BLEND_MS);
                 player.looping = false;

@@ -1,6 +1,69 @@
 use super::*;
 
 #[test]
+fn running_landing_finishes_without_restarting_jump() {
+    use std::time::Duration;
+
+    let mut app = App::new();
+    app.init_resource::<Time>();
+    app.add_systems(Update, (tick_animation, switch_animation).chain());
+    let entity = app
+        .world_mut()
+        .spawn((
+            M2AnimPlayer {
+                current_seq_idx: 0,
+                time_ms: 0.0,
+                looping: false,
+                transition: None,
+            },
+            M2AnimData {
+                bones: vec![],
+                spherical_billboards: vec![],
+                sequences: vec![
+                    sequence(ANIM_JUMP_START, 100),
+                    sequence(ANIM_JUMP, 400),
+                    sequence(ANIM_JUMP_LAND_RUN, 250),
+                    sequence(ANIM_RUN, 1000),
+                ],
+                bone_tracks: vec![],
+                joint_entities: vec![],
+            },
+            MovementState {
+                direction: MoveDirection::Forward,
+                running: true,
+                jumping: false,
+                autorun: false,
+                swimming: false,
+            },
+        ))
+        .id();
+
+    for (elapsed_ms, expected_id, expected_looping) in [
+        (100, ANIM_JUMP, true),
+        (0, ANIM_JUMP_LAND_RUN, false),
+        (100, ANIM_JUMP_LAND_RUN, false),
+        (149, ANIM_JUMP_LAND_RUN, false),
+        (1, ANIM_RUN, true),
+        (16, ANIM_RUN, true),
+    ] {
+        app.world_mut()
+            .resource_mut::<Time>()
+            .advance_by(Duration::from_millis(elapsed_ms));
+        app.update();
+        let player = app.world().get::<M2AnimPlayer>(entity).unwrap();
+        let data = app.world().get::<M2AnimData>(entity).unwrap();
+        assert_eq!(
+            data.sequences[player.current_seq_idx].id, expected_id,
+            "unexpected sequence after advancing {elapsed_ms}ms"
+        );
+        assert_eq!(player.looping, expected_looping);
+        if expected_id == ANIM_RUN {
+            assert!(player.transition.as_ref().unwrap().blend_duration_ms >= 150.0);
+        }
+    }
+}
+
+#[test]
 fn switch_jump_uses_land_run_when_moving_forward() {
     let mut player = M2AnimPlayer {
         current_seq_idx: 1,
