@@ -249,6 +249,29 @@ fn rendered_pixels(image: Image) -> Vec<u8> {
     pixels
 }
 
+fn submit_surface_captures(
+    app: &mut App,
+    targets: &[Handle<Image>; 2],
+    pending: &mut [bool; 2],
+    captured: &[Option<Vec<u8>>; 2],
+    sender: &mpsc::Sender<(usize, Image)>,
+) {
+    for (index, target) in targets.iter().enumerate() {
+        if pending[index] || captured[index].is_some() {
+            continue;
+        }
+        let sender = sender.clone();
+        app.world_mut()
+            .spawn(Screenshot::image(target.clone()))
+            .observe(move |capture: On<ScreenshotCaptured>| {
+                sender
+                    .send((index, capture.image.clone()))
+                    .expect("capture receiver exists");
+            });
+        pending[index] = true;
+    }
+}
+
 fn capture_surfaces(
     app: &mut App,
     targets: &[Handle<Image>; 2],
@@ -273,20 +296,7 @@ fn capture_surfaces(
                 "time changed water asset"
             );
         }
-        for (index, target) in targets.iter().enumerate() {
-            if pending[index] || captured[index].is_some() {
-                continue;
-            }
-            let sender = sender.clone();
-            app.world_mut()
-                .spawn(Screenshot::image(target.clone()))
-                .observe(move |capture: On<ScreenshotCaptured>| {
-                    sender
-                        .send((index, capture.image.clone()))
-                        .expect("capture receiver exists");
-                });
-            pending[index] = true;
-        }
+        submit_surface_captures(app, targets, &mut pending, &captured, &sender);
         for (index, image) in receiver.try_iter() {
             pending[index] = false;
             let pixels = rendered_pixels(image);
