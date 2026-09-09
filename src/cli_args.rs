@@ -321,7 +321,7 @@ pub fn print_help() {
         "  --no-terrain-objects  Skip streamed ADT doodad/WMO loading and spawning (diagnostic)"
     );
     println!(
-        "  --freeze-terrain-materials-after <SECONDS>  Freeze terrain time/environment updates after startup elapsed time (diagnostic)"
+        "  --freeze-terrain-materials-after <SECONDS>  Freeze terrain environment-map synchronization after startup elapsed time (diagnostic)"
     );
     println!("  --no-terrain-water  Skip streamed ADT water surfaces (diagnostic)");
     println!(
