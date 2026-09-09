@@ -106,6 +106,9 @@ pub(super) fn sync_camera_graphics_post_process(
     mut commands: Commands,
     mut cameras: Query<CameraPostProcessQuery, With<Camera3d>>,
 ) {
+    graphics
+        .validate()
+        .unwrap_or_else(|error| panic!("{error}"));
     let desired_bloom = additive_particle_glow_bloom(&graphics);
     let wow_camera_render_bundle_enabled =
         configured_inworld_scene_stage(scene_stage).includes(InWorldSceneStage::Lighting);
@@ -199,11 +202,10 @@ fn sync_camera_anti_aliasing_and_ssao(
         graphics.anti_alias
     };
     sync_anti_alias(commands, camera.entity, anti_alias, camera.msaa, camera.taa);
-    // Keep the configured SSAO policy: disabling MSAA must not implicitly enable SSAO.
     sync_ssao_compatibility(
         commands,
         camera.entity,
-        graphics.anti_alias,
+        graphics.ssao_enabled,
         camera.has_ssao,
         camera.is_wow_camera,
     );
@@ -336,17 +338,17 @@ fn sync_sharpening(
 fn sync_ssao_compatibility(
     commands: &mut Commands,
     entity: Entity,
-    mode: AntiAliasMode,
+    enabled: bool,
     has_ssao: bool,
     is_wow_camera: bool,
 ) {
-    match mode {
-        AntiAliasMode::Msaa4x if has_ssao => {
+    match (enabled, has_ssao) {
+        (false, true) => {
             commands
                 .entity(entity)
                 .remove::<ScreenSpaceAmbientOcclusion>();
         }
-        AntiAliasMode::None | AntiAliasMode::Taa if is_wow_camera && !has_ssao => {
+        (true, false) if is_wow_camera => {
             commands
                 .entity(entity)
                 .insert(ScreenSpaceAmbientOcclusion::default());
