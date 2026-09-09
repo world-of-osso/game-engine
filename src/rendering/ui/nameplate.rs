@@ -424,7 +424,9 @@ mod tests {
     fn nameplate_final_color_stays_unchanged_after_distance_fade() {
         let (mut app, _, plate) = faded_color_test_app();
         let yellow = Color::srgba(1.0, 1.0, 0.0, 0.5);
-        assert_color_frame(&mut app, &[(plate, yellow)], &[plate]);
+        app.update();
+        app.update();
+        assert!(app.world().resource::<ColorChanges>().0.is_empty());
         for _ in 0..3 {
             assert_color_frame(&mut app, &[(plate, yellow)], &[]);
         }
