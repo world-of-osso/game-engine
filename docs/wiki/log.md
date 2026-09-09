@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] systems | Persist independent graphics effect configuration
+
+Updated [[rendering-pipeline]] and [graphics effect configuration](../specs/graphics-effects.md) for `7f86f086` / `24d97a50`. `options_settings.ron` now persists particle-effects intent, depth of field, bloom, AA mode, and SSAO defaults; invalid SSAO plus MSAA fails explicitly. Persistence and camera-component proofs are recorded separately. Particle runtime suppression remains pending.
+
 ## [2026-09-09] systems | Gate no-UI observer creation
 
 Updated [[ui-system]] for `711ade3c`: the shared UI gate hides the clock and prevents health-bar/player-nameplate/NPC-nameplate observers from creating UI assets/entities under `--no-ui`.

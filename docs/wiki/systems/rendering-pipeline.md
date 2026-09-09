@@ -43,6 +43,14 @@ Rebuilt candidate PID `2846177` (SHA `84f6ecc9590979a2fba498b8206549d33ebff7fdc2
 
 Readiness held one client/server with healthy IPC/admin ping, approximately **10.09 FPS**, zero displayed NPCs/cameras/terrain, no panic/device-loss/OOM, and no Character advancement. One startup `Received despawn for an entity that does not exist` warning was recorded without blocking readiness.
 
+## Graphics effect configuration
+
+`~/.config/world-of-osso/options_settings.ron` persists graphics effects through its `graphics` section; legacy `data/ui/options_settings.ron` remains a load fallback. Commit `7f86f086` persists `particleEffectsEnabled` (default `true`), `depthOfField` (default `false`), existing `bloomEnabled` (default `false`), `antiAlias` (default `Msaa4x`), and `ssaoEnabled` (default `false`). Missing fields retain those defaults, so old configuration files remain valid. Editing the file takes effect at startup; this change adds neither live file watching nor CLI effect flags.
+
+Blur maps to `DepthOfField`, glow maps to `Bloom`, anti-aliasing selects `None`, `Msaa4x`, or `Taa`, and contact shading maps to `ScreenSpaceAmbientOcclusion`. Commit `24d97a50` makes SSAO independent of AA when valid: AA never enables SSAO. Bevy rejects SSAO with MSAA, so `ssaoEnabled: true` plus `antiAlias: Msaa4x` fails configuration validation with direction to select `None` or `Taa`, or disable SSAO; neither setting is silently replaced.
+
+Persistence has six focused behavioral tests at `c4376e6e`; camera lifecycle has 13 focused passing tests in `data/diagnostics/graphics-config-switches/camera-green-corrected.log`. Particle-effects registration and emitter suppression remain pending, so `particleEffectsEnabled` is persisted but not yet a complete runtime-off control.
+
 ## Particles
 
 GPU particles run via `bevy_hanabi` 0.19. Each live particle is a separate Bevy entity with `Mesh3d` (unit quad) + `StandardMaterial`. The emitter (`ParticleEmitterComp`) accumulates emission and resolves bone position per frame. Color, opacity, and scale use 3-point FakeAnimBlock interpolation. Texture tiles are static (chosen at spawn, not animated).
