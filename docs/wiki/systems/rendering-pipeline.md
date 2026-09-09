@@ -37,7 +37,7 @@ Final PID `2390217` matched `e7f98704`, stayed connected with one link/player, r
 
 ## Terrain
 
-ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split files are loaded in three parts: root `.adt` (heights/normals), `_tex0.adt` (texture layers), `_obj0.adt` (doodads/WMOs). See [[terrain]] for details.
+ADT terrain uses a custom WGSL shader (`assets/shaders/terrain.wgsl`). Split files are loaded in three parts: root `.adt` (heights/normals), `_tex0.adt` (texture layers), `_obj0.adt` (doodads/WMOs). Terrain and water UV scrolling read the shared Bevy shader clock rather than mutating each material each frame; its one-hour wrap restarts UV phase. A bounded Vulkan fixture proves both actual shader paths change pixels without material invalidation, but does not establish full-client equivalence or a CPU gain. See [[terrain]] and [shared material clock spec](../../specs/shared-material-clock.md) for details.
 
 ## Gizmo Registration
 

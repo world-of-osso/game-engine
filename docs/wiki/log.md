@@ -628,3 +628,7 @@ Updated `investigations/authored-skybox-black-output.md` with a detailed trace f
 ## [2026-05-01] update | Document direct DB2 CASC access
 
 Updated [[db2-format]] and [[asset-pipeline]] to record that DB2 bytes can be read directly from CASC via `AssetResolver::resolve_bytes`, with `ensure_db2_path` as a cache/debug path. Added `Frostshake/WDBx` as external verifier/export tooling rather than a runtime dependency.
+
+## [2026-09-09] systems | Share terrain and water animation clock
+
+Updated [[terrain]] and [[rendering-pipeline]] for `6ea29dba`, `1b5efc68`, and `e5a76829`/`8c2a89d8`: shader UV animation now reads Bevy shared virtual time instead of modifying terrain/water materials each frame. Focused asset-event tests prove clock-only advancement does not invalidate materials; a bounded Vulkan fixture completed in 0.71 seconds, changed terrain/water pixels from time 0 to 1, and observed no material `Modified` events. The shared clock wraps after one hour, so UV phase restarts; no full-client equivalence or CPU claim is made.
