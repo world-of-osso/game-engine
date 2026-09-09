@@ -6,6 +6,182 @@ fn load_test_db() -> CustomizationDb {
     CustomizationDb::load(Path::new("data"))
 }
 
+fn full_choice_lookup_fixture() -> RawData {
+    let options = vec![
+        RawOption {
+            id: 10,
+            name: "Hair Style".into(),
+            chr_model_id: 1,
+        },
+        RawOption {
+            id: 20,
+            name: "Face Shape".into(),
+            chr_model_id: 1,
+        },
+        RawOption {
+            id: 30,
+            name: "Eyebrows".into(),
+            chr_model_id: 1,
+        },
+        RawOption {
+            id: 40,
+            name: "Piercings".into(),
+            chr_model_id: 1,
+        },
+        RawOption {
+            id: 50,
+            name: "Eyebrows".into(),
+            chr_model_id: 3,
+        },
+    ];
+    let choices = [
+        (500, 10, "Hair second", 2),
+        (501, 10, "Hair first", 1),
+        (70_001, 20, "Face shape", 0),
+        (70_002, 30, "Eyebrows", 0),
+        (70_003, 40, "Piercing", 0),
+        (90_000, 50, "Orc eyebrows", 0),
+    ]
+    .into_iter()
+    .map(|(id, option_id, name, order_index)| RawChoice {
+        id,
+        option_id,
+        name: name.into(),
+        requirement_id: 19,
+        order_index,
+    })
+    .collect();
+    RawData {
+        chr_models: vec![],
+        options,
+        choices,
+        elements: vec![
+            RawElement {
+                choice_id: 70_001,
+                related_choice_id: 0,
+                geoset_id: 1,
+                material_id: 1,
+            },
+            RawElement {
+                choice_id: 70_001,
+                related_choice_id: 70_002,
+                geoset_id: 2,
+                material_id: 2,
+            },
+            RawElement {
+                choice_id: 501,
+                related_choice_id: 0,
+                geoset_id: 3,
+                material_id: 0,
+            },
+        ],
+        materials: HashMap::from([
+            (
+                1,
+                RawMaterial {
+                    texture_target_id: 6,
+                    material_resources_id: 101,
+                },
+            ),
+            (
+                2,
+                RawMaterial {
+                    texture_target_id: 19,
+                    material_resources_id: 102,
+                },
+            ),
+        ]),
+        geosets: HashMap::from([
+            (
+                1,
+                RawGeoset {
+                    geoset_type: 32,
+                    geoset_id: 2,
+                },
+            ),
+            (
+                2,
+                RawGeoset {
+                    geoset_type: 34,
+                    geoset_id: 4,
+                },
+            ),
+            (
+                3,
+                RawGeoset {
+                    geoset_type: 0,
+                    geoset_id: 7,
+                },
+            ),
+        ]),
+        hair_geosets: HashMap::from([((1, 0, 7), true)]),
+        texture_fdids: HashMap::from([(101, 1_020_001), (102, 1_020_002)]),
+    }
+}
+
+#[test]
+fn full_choice_lookup_resolves_unrecognized_options_and_related_elements() {
+    let db = CustomizationDb::from_raw(&full_choice_lookup_fixture());
+    for id in [70_001, 70_002, 70_003] {
+        assert_eq!(db.choice_by_id(1, 0, id).map(|choice| choice.id), Some(id));
+    }
+    let choice = db.choice_by_id(1, 0, 70_001).unwrap();
+    assert_eq!(choice.display_name, "Face shape");
+    assert_eq!(choice.requirement_id, 19);
+    assert_eq!(choice.materials, vec![(6, 1_020_001)]);
+    assert_eq!(choice.geosets, vec![(32, 2)]);
+    let related_materials: Vec<_> = choice
+        .related_materials
+        .iter()
+        .map(|m| (m.related_choice_id, m.target_id, m.fdid))
+        .collect();
+    assert_eq!(related_materials, vec![(70_002, 19, 1_020_002)]);
+    let related_geosets: Vec<_> = choice
+        .related_geosets
+        .iter()
+        .map(|g| (g.related_choice_id, g.geoset_type, g.geoset_id))
+        .collect();
+    assert_eq!(related_geosets, vec![(70_002, 34, 4)]);
+    assert!(!choice.shows_scalp);
+}
+
+#[test]
+fn full_choice_lookup_is_scoped_to_race_and_sex() {
+    let db = CustomizationDb::from_raw(&full_choice_lookup_fixture());
+    assert!(db.choice_by_id(2, 0, 70_001).is_none());
+    assert!(db.choice_by_id(1, 1, 70_001).is_none());
+    assert!(db.choice_by_id(0, 0, 70_001).is_none());
+    assert!(db.choice_by_id(1, 0, 999_999).is_none());
+    assert_eq!(
+        db.choice_by_id(2, 0, 90_000).map(|choice| choice.id),
+        Some(90_000)
+    );
+    assert!(db.choice_by_id(1, 2, 90_000).is_none());
+}
+
+#[test]
+fn full_choice_lookup_preserves_ui_choices_and_hair_scalp_semantics() {
+    let db = CustomizationDb::from_raw(&full_choice_lookup_fixture());
+    let options = db.options_for(1, 0).unwrap();
+    assert_eq!(options.len(), 1);
+    assert_eq!(options[0].option_type, OptionType::HairStyle);
+    assert_eq!(db.choice_count(1, 0, OptionType::HairStyle), 2);
+    assert_eq!(
+        options[0]
+            .choices
+            .iter()
+            .map(|choice| choice.id)
+            .collect::<Vec<_>>(),
+        vec![501, 500]
+    );
+    assert_eq!(
+        db.get_choice(1, 0, OptionType::HairStyle, 0).unwrap().id,
+        501
+    );
+    assert!(db.choice_by_id(1, 0, 501).unwrap().shows_scalp);
+    assert!(!db.choice_by_id(1, 0, 500).unwrap().shows_scalp);
+}
+
 #[test]
 fn chr_model_id_human() {
     assert_eq!(race_sex_to_chr_model_id(1, 0), Some(1));

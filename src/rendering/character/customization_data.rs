@@ -1,7 +1,8 @@
 //! Character customization data from ChrCustomization* DB2 CSVs.
 //!
 //! Parses the CSV chain at startup to build a lookup structure:
-//! (race, sex) -> ChrModelID -> options -> choices -> materials + geosets.
+//! (race, sex) -> ChrModelID -> full choice IDs -> materials + geosets.
+//! Player UI options remain a recognized-label subset of the resolved choices.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -141,6 +142,7 @@ pub struct CustomizationOption {
 #[derive(Resource, Default, Debug)]
 pub struct CustomizationDb {
     options_by_model: HashMap<u32, Vec<CustomizationOption>>,
+    choices_by_model: HashMap<u32, HashMap<u32, CustomizationChoice>>,
     pub layout_by_model: HashMap<u32, u32>,
     presentation_by_model: HashMap<u32, ModelPresentation>,
     hair_scalp_fallback_by_model: HashMap<u32, u16>,
@@ -180,6 +182,10 @@ impl CustomizationDb {
 
     fn try_load(data_dir: &Path) -> Result<Self, String> {
         let raw = RawData::parse(data_dir)?;
+        Ok(Self::from_raw(&raw))
+    }
+
+    fn from_raw(raw: &RawData) -> Self {
         let mut db = CustomizationDb::default();
         for cm in &raw.chr_models {
             db.layout_by_model.insert(cm.id, cm.layout_id);
@@ -192,14 +198,23 @@ impl CustomizationDb {
             );
         }
         db.hair_scalp_fallback_by_model = build_hair_scalp_fallbacks(&raw.hair_geosets);
-        let indexed = IndexedData::build(&raw);
+        let indexed = IndexedData::build(raw);
         for (model_id, opts) in &indexed.opts_by_model {
-            db.options_by_model.insert(
-                *model_id,
-                build_model_options(*model_id, opts, &indexed, &raw),
-            );
+            let choices = build_model_choices(*model_id, opts, &indexed, raw);
+            db.options_by_model
+                .insert(*model_id, build_model_options(opts, &indexed, &choices));
+            db.choices_by_model.insert(*model_id, choices);
         }
-        Ok(db)
+        db
+    }
+
+    /// Resolve authored full IDs, including options that the player UI does not expose.
+    pub fn choice_by_id(&self, race: u8, sex: u8, choice_id: u32) -> Option<&CustomizationChoice> {
+        if sex > 1 {
+            return None;
+        }
+        let model_id = race_sex_to_chr_model_id(race, sex)?;
+        self.choices_by_model.get(&model_id)?.get(&choice_id)
     }
 
     pub fn options_for(&self, race: u8, sex: u8) -> Option<&[CustomizationOption]> {
@@ -363,26 +378,46 @@ impl<'a> IndexedData<'a> {
     }
 }
 
-fn build_model_options(
+fn build_model_choices(
     model_id: u32,
     opts: &[&RawOption],
     indexed: &IndexedData<'_>,
     raw: &RawData,
+) -> HashMap<u32, CustomizationChoice> {
+    opts.iter()
+        .flat_map(|opt| {
+            resolve_option_choices(
+                model_id,
+                OptionType::from_name(&opt.name),
+                opt.id,
+                indexed,
+                raw,
+            )
+        })
+        .map(|choice| (choice.id, choice))
+        .collect()
+}
+
+fn build_model_options(
+    opts: &[&RawOption],
+    indexed: &IndexedData<'_>,
+    choices: &HashMap<u32, CustomizationChoice>,
 ) -> Vec<CustomizationOption> {
     opts.iter()
         .filter_map(|opt| {
             let opt_type = OptionType::from_name(&opt.name)?;
-            let sample_swatch = matches!(opt_type, OptionType::SkinColor | OptionType::HairColor);
+            let mut ordered = indexed
+                .choices_by_option
+                .get(&opt.id)
+                .cloned()
+                .unwrap_or_default();
+            ordered.sort_by_key(|choice| choice.order_index);
             Some(CustomizationOption {
                 option_type: opt_type,
-                choices: resolve_option_choices(
-                    model_id,
-                    opt_type,
-                    opt.id,
-                    indexed,
-                    raw,
-                    sample_swatch,
-                ),
+                choices: ordered
+                    .iter()
+                    .map(|choice| choices[&choice.id].clone())
+                    .collect(),
             })
         })
         .collect()
@@ -390,51 +425,49 @@ fn build_model_options(
 
 fn resolve_option_choices(
     model_id: u32,
-    opt_type: OptionType,
+    opt_type: Option<OptionType>,
     option_id: u32,
     indexed: &IndexedData<'_>,
     raw: &RawData,
-    sample_swatch: bool,
 ) -> Vec<CustomizationChoice> {
+    let sample_swatch = matches!(
+        opt_type,
+        Some(OptionType::SkinColor | OptionType::HairColor)
+    );
     let Some(raw_choices) = indexed.choices_by_option.get(&option_id) else {
         return Vec::new();
     };
-    let mut sorted: Vec<_> = raw_choices
+    raw_choices
         .iter()
         .map(|ch| {
             let (materials, related_materials, geosets, related_geosets) =
                 resolve_choice_elements(ch.id, indexed, raw);
             let shows_scalp =
                 choice_shows_scalp(opt_type, model_id, &geosets, &related_geosets, raw);
-            (
-                ch.order_index,
-                CustomizationChoice {
-                    id: ch.id,
-                    display_name: ch.name.clone(),
-                    requirement_id: ch.requirement_id,
-                    materials,
-                    related_materials,
-                    geosets,
-                    related_geosets,
-                    shows_scalp,
-                    sample_swatch,
-                    swatch_color_cache: Arc::new(OnceLock::new()),
-                },
-            )
+            CustomizationChoice {
+                id: ch.id,
+                display_name: ch.name.clone(),
+                requirement_id: ch.requirement_id,
+                materials,
+                related_materials,
+                geosets,
+                related_geosets,
+                shows_scalp,
+                sample_swatch,
+                swatch_color_cache: Arc::new(OnceLock::new()),
+            }
         })
-        .collect();
-    sorted.sort_by_key(|(idx, _)| *idx);
-    sorted.into_iter().map(|(_, c)| c).collect()
+        .collect()
 }
 
 fn choice_shows_scalp(
-    opt_type: OptionType,
+    opt_type: Option<OptionType>,
     model_id: u32,
     geosets: &[(u16, u16)],
     related_geosets: &[ChoiceGeoset],
     raw: &RawData,
 ) -> bool {
-    opt_type == OptionType::HairStyle
+    opt_type == Some(OptionType::HairStyle)
         && geosets
             .iter()
             .copied()
