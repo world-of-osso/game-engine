@@ -12,7 +12,7 @@ Character rendering assembles WoW M2 character models with dynamic geoset visibi
 
 Player appearance waits for `ResolvedModelAssetInfo`, published after the complete M2 mesh, animation, and default equipment command sequence. `Children` first appeared when only the visual root existed; applying then recorded the full snapshot as deduplicated before body meshes existed, and later model initialization overwrote its equipment. Waiting for final model metadata fixes that ordering without periodic reconciliation or an InWorld-state delay. `OutfitData` loads lazily; its log after player spawn does not mean the resource was unavailable.
 
-`tests/unit/player_appearance_spawn_tests.rs` registers real observers before spawning Theron during Loading, delivers five starter items before player identity, then enters InWorld. Desired sword/shield slots survive; body pixels match a fully constructed reapplication, change when clothing is removed, and remain unchanged on duplicate notification. The rendered-weapon regression also requires sword/shield model children parented to HumanHD bones 201/206. Absolute replicated model paths previously bypassed SKID attachment loading because of a relative `data/models` prefix guard. Removing that guard makes skeleton lookup independent of path spelling; real HumanHD relative/absolute fixtures produce identical 45 attachment records and 75 lookup entries. Native validation remains separate.
+`tests/unit/player_appearance_spawn_tests.rs` registers real observers before spawning Theron during Loading, delivers five starter items before player identity, then enters InWorld. Desired sword/shield slots survive; body pixels match a fully constructed reapplication, change when clothing is removed, and remain unchanged on duplicate notification. The rendered-weapon regression also requires sword/shield model children parented to HumanHD bones 201/206. Absolute replicated model paths previously bypassed SKID attachment loading because of a relative `data/models` prefix guard. Removing that guard makes skeleton lookup independent of path spelling; real HumanHD relative/absolute fixtures produce identical 45 attachment records and 75 lookup entries. Final bounded native capture shows Theron's shirt, pants, and boots. The rear camera does not independently distinguish the sword or shield; the real Loading→InWorld regression proves their model roots attach to HumanHD bones 201 and 206. Theron's five physical records (GUIDs 10–14) persisted across a server restart. This does not add combat/stat support.
 
 ## Character Models and HD Skeletons
 
@@ -88,6 +88,7 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - [helmet-geoset-extra-field-investigation-2026-03-28.md](../helmet-geoset-extra-field-investigation-2026-03-28.md) — extra DB2 field observation
 - [helmet-hair-hiding-investigation-2026-03-28.md](../helmet-hair-hiding-investigation-2026-03-28.md) — helmet hair hiding mechanisms
 - [target-circle-styles-2026-03-30.md](../target-circle-styles-2026-03-30.md) — selection circle styles, BLP blend mode detection
+- `../../../data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` — bounded physical-equipment persistence and render evidence
 
 ## See Also
 

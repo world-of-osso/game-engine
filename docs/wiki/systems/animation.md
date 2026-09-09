@@ -32,7 +32,7 @@ Bone indices in vertex data are global skeleton indices. The skin file's bone lo
 
 Wolf FDID126487 has46 inline sequences. Stand indices2/9/10/11 carry weights30445/1092/1170/60 (total32767), and all four replay ranges arezero. Exhaustive deterministic rolls reproduce those exact counts. Per-entity SplitMix64 streams with rejection sampling avoid synchronized/global RNG state; tests inject rolls directly. Large elapsed updates consume each crossed boundary and preserve remaining time and crossfade progress; a120-second update matches partitioned updates. Multi-variant catch-up requiring4096or more shortest-duration boundaries is rejected before changing playback, rather than silently discarding time. Single-clip wrapping remains constant-time.
 
-Replay bounds are parsed and retained, but nonzero replay scheduling is not implemented or claimed. Alias behavior is unchanged; alias links are not treated as variation links. This correction does not add NPC locomotion-state generation. Native wolf behavior remains pending parent validation; parser/runtime proof lives under `data/diagnostics/wolf-nameplate-equipment-20260909/`.
+Replay bounds are parsed and retained, but nonzero replay scheduling is not implemented or claimed. Alias behavior is unchanged; alias links are not treated as variation links. This correction does not add NPC locomotion-state generation. A bounded native capture confirms surrounding named-wolf integration only; exact weighted behavior and terminal recovery remain regression-test evidence, not a measured long-run howl distribution. Parser/runtime proof lives under `data/diagnostics/wolf-nameplate-equipment-20260909/`.
 
 ## Crossfading Rules
 

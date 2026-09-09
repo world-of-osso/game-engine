@@ -18,6 +18,12 @@ Bounded validation at engine revision `9404235d`, verified 2026-09-09. This reco
 - WMO local conversion removes the extra 180° basis error; all seven authored WMO/MODF bounds comparisons pass.
 - Terrain keeps the radius-one 3×3 neighborhood and resolves official ADT roots plus declared companions through the local CASC cache.
 
+## Final wolf/equipment follow-up
+
+`data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` records a later bounded integration at engine `9d22c7fb`. Native UI capture shows a named Diseased Timber Wolf through the overlay path and Theron's shirt, pants, and boots. Theron's five physical items persisted across a server restart: GUIDs 10–14 for sword, shirt, pants, boots, and shield. The rear camera cannot independently distinguish the sword or shield; their attachment proof is the real Loading→InWorld regression, which parents their model roots to HumanHD bones 201 and 206. The prior cause was an absolute-path guard that skipped existing SKA1 skeleton attachments, not missing HumanHD assets.
+
+The native capture does not establish long-run wolf variation frequencies. Exact authored weighted selection and terminal recovery remain test evidence. Both earlier and final captures contain the same HUD rectangles; no toolkit regression or HUD-health causal claim follows from this evidence.
+
 ## Boundaries
 
 NPC walking/running remains unproven because no replicated NPC `MovementState` producer exists. WMO collision still has no vertical floor support. The cold capture does not prove every tile in a cold ring completes within the cap. The deferred `resolve_*` naming note reflects cache-writing I/O and is maintainability-only, not a functional failure. Later shared-checkout shader-clock changes are outside this revision and this evidence.
@@ -29,6 +35,7 @@ NPC walking/running remains unproven because no replicated NPC `MovementState` p
 - `../../../data/diagnostics/npc-motion-20260909/native-motion-proof.json` — bone-motion and grounded-walk samples
 - `../../../data/diagnostics/npc-motion-20260909/streaming-fixed-terrain.txt` — initial nine-tile streaming state
 - `../../../data/diagnostics/npc-motion-20260909/cold-edge-run.txt` — bounded cold local-CASC capture
+- `../../../data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` — later bounded nameplate, equipment, and weighted-animation evidence
 
 ## See Also
 

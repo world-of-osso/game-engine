@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] investigation | Final bounded wolf nameplate and starter-equipment evidence
+
+Updated [[npc-motion-validation]], [[ui-system]], [[character-rendering]], and [[animation]] from `data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md`. Native capture shows a named Diseased Timber Wolf and Theron's shirt, pants, and boots; physical sword, shirt, pants, boots, and shield records (GUIDs10–14) survived a server restart. The rear capture does not distinguish sword/shield, so their HumanHD bones201/206 attachment proof remains the real spawn regression. Exact weighted wolf selection remains test evidence; the capture does not measure long-run howl distribution. Corrected the stale missing-asset diagnosis: an absolute-path gate skipped existing SKA1 attachments. Both captures contain the same HUD rectangles; no toolkit regression or HUD-health cause is claimed.
+
 ## [2026-09-09] character | Load skeleton attachments for absolute model paths
 
 Removed the relative-path gate on SKID attachment loading. Real HumanHD path-equivalence and replicated-player sword/shield bone-parent regressions both fail before and pass after the correction. See [character rendering](systems/character-rendering.md#replicated-player-construction-boundary); no native validation in this slice.

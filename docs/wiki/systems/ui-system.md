@@ -64,7 +64,7 @@ Name text is an unparented `Text2d` overlay on the existing `UiCamera` layer. `C
 
 `NameplateOwner` is a linked ownership relationship, separate from transform parenting, so actor despawn removes its overlay label. NPCs use authoritative `Npc.name`; players use their name. Font sizes remain20/24 logical pixels, distance fade uses the owner world anchor, and hidden owners, off-screen/behind-camera anchors, UI stage, `--no-ui`, and HUD toggles determine one final visibility write. Position/global pose and final color update only when changed. Quest indicator M2s stay in their original world-space billboard path.
 
-Six CPU tests cover camera/actor movement, DPI1/2, visibility, fade, ownership cleanup and unchanged writes. A headless GPU fixture using the real NPC observer and both cameras reproduces zero glyph pixels before the fix and renders yellow glyphs at the projected anchor afterward. Native scene validation remains with integration. Target-first full/compact combat framing is a separate [design proposal](../../nameplate-research-2026-03-27.md), not implemented by this text projection correction.
+Six CPU tests cover camera/actor movement, DPI1/2, visibility, fade, ownership cleanup and unchanged writes. A headless GPU fixture using the real NPC observer and both cameras reproduces zero glyph pixels before the fix and renders yellow glyphs at the projected anchor afterward. A bounded native capture shows a named Diseased Timber Wolf; it does not establish long-run wolf animation frequencies. Target-first full/compact combat framing is a separate [design proposal](../../nameplate-research-2026-03-27.md), not implemented by this text projection correction.
 
 ## World NPC Picking
 
