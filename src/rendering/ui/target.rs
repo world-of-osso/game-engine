@@ -701,3 +701,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../../tests/unit/target_portal_tests.rs"]
 mod portal_tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/target_visuals_write_tests.rs"]
+mod target_visuals_write_tests;
