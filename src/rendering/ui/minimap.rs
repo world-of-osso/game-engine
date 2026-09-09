@@ -650,27 +650,25 @@ fn update_zone_name(
 }
 
 fn coordinate_text(cache: &mut Option<(Vec2, String)>, position: Vec2) -> &str {
-    *cache = Some((position, format!("{:.0}, {:.0}", position.x, position.y)));
+    let unchanged = cache.as_ref().is_some_and(|(previous, _)| {
+        previous.x.to_bits() == position.x.to_bits() && previous.y.to_bits() == position.y.to_bits()
+    });
+    if !unchanged {
+        *cache = Some((position, format!("{:.0}, {:.0}", position.x, position.y)));
+    }
     &cache.as_ref().expect("coordinate text initialized").1
 }
 
 /// Update coordinate text with the player's current position.
 fn update_coord_text(
-    player_q: Query<Ref<Transform>, With<crate::camera::Player>>,
+    player_q: Query<&Transform, With<crate::camera::Player>>,
     mut ui: ResMut<UiState>,
     frames: Option<Res<MinimapFrames>>,
-    mut last: Local<Option<(u64, String)>>,
+    mut last: Local<Option<(Vec2, String)>>,
 ) {
     let Ok(tf) = player_q.single() else { return };
     let Some(frames) = frames else { return };
-    if let Some((last_frame, _)) = &*last
-        && *last_frame == frames.coords
-        && !tf.is_changed()
-        && !frames.is_changed()
-    {
-        return;
-    }
-    let text = format!("{:.0}, {:.0}", tf.translation.x, tf.translation.z);
+    let text = coordinate_text(&mut last, Vec2::new(tf.translation.x, tf.translation.z));
     let Some(WidgetData::FontString(current)) = ui
         .registry
         .get(frames.coords)
@@ -684,8 +682,7 @@ fn update_coord_text(
     if let Some(frame) = ui.registry.get_mut(frames.coords)
         && let Some(WidgetData::FontString(fs)) = &mut frame.widget_data
     {
-        fs.text = text.clone();
-        *last = Some((frames.coords, text));
+        fs.text = text.to_owned();
     }
 }
 

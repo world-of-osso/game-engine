@@ -109,6 +109,30 @@ fn minimap_coordinates_repair_external_text_without_position_change() {
 }
 
 #[test]
+fn minimap_coordinates_handle_initially_matching_text_and_unrelated_transform_changes() {
+    let (mut app, player) = coordinate_test_app();
+    replace_coordinate_text(&mut app, "12, -7");
+    app.update();
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    {
+        let mut transform = app.world_mut().get_mut::<Transform>(player).unwrap();
+        transform.rotation = Quat::from_rotation_y(1.0);
+        transform.scale = Vec3::splat(2.0);
+        transform.translation.y = 123.0;
+    }
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    replace_coordinate_text(&mut app, "damaged");
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    let extra = app
+        .world_mut()
+        .spawn((crate::camera::Player, Transform::default()))
+        .id();
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    app.world_mut().despawn(extra);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+}
+
+#[test]
 fn minimap_coordinates_preserve_signed_zero_and_rounding() {
     let (mut app, player) = coordinate_test_app();
     for (x, z, expected) in [
