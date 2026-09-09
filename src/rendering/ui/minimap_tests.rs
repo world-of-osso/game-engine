@@ -77,6 +77,44 @@ fn minimap_coordinates_skip_unchanged_rounded_text() {
     assert_coordinate_frame(&mut app, "13, -8", false);
 }
 
+fn replace_coordinate_text(app: &mut App, text: &str) {
+    let coords = app.world().resource::<MinimapFrames>().coords;
+    let mut ui = app.world_mut().resource_mut::<UiState>();
+    let frame = ui.registry.get_mut(coords).unwrap();
+    let Some(WidgetData::FontString(font)) = &mut frame.widget_data else {
+        panic!("coordinate frame is not a font string");
+    };
+    font.text = text.to_owned();
+}
+
+#[test]
+fn minimap_coordinates_repair_external_text_without_position_change() {
+    let (mut app, _) = coordinate_test_app();
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+    replace_coordinate_text(&mut app, "external change");
+    assert_coordinate_frame(&mut app, "12, -7", true);
+    assert_coordinate_frame(&mut app, "12, -7", false);
+}
+
+#[test]
+fn minimap_coordinates_preserve_signed_zero_and_rounding() {
+    let (mut app, player) = coordinate_test_app();
+    for (x, z, expected) in [
+        (-0.0, 0.0, "-0, 0"),
+        (0.0, -0.0, "0, -0"),
+        (2.5, -2.5, "2, -2"),
+        (3.5, -3.5, "4, -4"),
+    ] {
+        app.world_mut()
+            .get_mut::<Transform>(player)
+            .unwrap()
+            .translation = Vec3::new(x, 0.0, z);
+        assert_coordinate_frame(&mut app, expected, true);
+        assert_coordinate_frame(&mut app, expected, false);
+    }
+}
+
 #[test]
 fn minimap_coordinates_update_replacement_frame_at_same_position() {
     let (mut app, _) = coordinate_test_app();
