@@ -105,7 +105,7 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 
 - [x] Cloud noise retains fractional spatial detail for high-bit seeds and repeats continuously across both texture axes, without changing texture dimensions or density controls.
 - [x] Cloud sampling remains continuous across the spherical longitude boundary; secondary longitude frequency is whole-cycle and wrapping occurs in the repeat sampler after layer scaling.
-- [ ] Cloud density controls visible coverage: zero is clear, the loaded mid-density produces both cloud and clear regions, and full density increases coverage. Correct cloud opacity without changing sky colors, exposure, or seamless noise generation.
+- [x] Cloud density controls visible coverage: zero is clear, the loaded mid-density produces both cloud and clear regions, and full density increases coverage. Correct cloud opacity without changing sky colors, exposure, or seamless noise generation.
 
 Native standalone proof, regression counts, and remaining integration qualifications: [procedural sky visibility](../wiki/investigations/procedural-sky-dome-visibility.md).
 

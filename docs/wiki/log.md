@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Verify visible cloud opacity
+
+`a55e0f5b` centers cloud opacity around the unchanged density threshold instead of stretching the blend to an unreachable texture extreme. Generated-texture GPU coverage now includes visible clouds and clear patches at density0.5; clear/full extremes and recalibrated seam test pass. Standalone screenshot confirms soft cloud contrast without changing exposure or sky colors. Independent check passes; unchanged vendor formatting failures remain. See [[procedural-sky-dome-visibility]] and local `data/diagnostics/cloud-visibility/verification.md`.
+
 ## [2026-09-10] rendering | Restore visible mid-density procedural clouds
 
 `a55e0f5b` corrects a rejected RON-only diagnosis: runtime uses the richer LightData 12/noon CSV cache at density 0.5 and threshold 0.62. Periodic noise rarely reached that threshold, making clouds nearly transparent. The final shader preserves original density thresholds and centers its soft edge around the threshold. GPU RED had no mid-density bright pixels; GREEN reports 22.12% bright and 60.16% dark pixels, while clear/full preserve 100% dark/bright. Native capture remains pending. See [[procedural-sky-dome-visibility]].
