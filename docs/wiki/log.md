@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] design | Shared plugin frame ordering approved for documentation
+
+Added [[ui-frame-order]] and its [contract](../specs/ui-frame-order.md). User selected unchanged standalone setup and accepted named plugin scheduling sets: public systems keep fresh local preparation; private plugin variants share one per-render preparation and common rendering bodies. Function-relative plugin ordering must migrate to named sets. Implementation and feature tests remain pending; no code, builds, native runs, or CPU claims.
+
 ## [2026-09-10] ui | Keep world health bars fixed across zoom
 
 Updated [[ui-system]] and [[nameplate-design]] for engine `7b316396`: actor-parented world bars remain depth-tested while a screen-aligned, projected-tangent scale targets 80×8 logical pixels across zoom, viewport, DPI, and FOV changes. Text was already UI-pixel sized; the projected bar edge retains its 4-pixel label gap. Proof: 18 focused health-bar tests, two gap tests, and two GPU tests—including 5/10/20-distance zoom frames with fixed glyph dimensions. No new full native game run, CPU, or whole-nameplate redesign claim.
@@ -10,7 +14,7 @@ Updated [[ui-system]] for ui-toolkit `1050abb`: the existing total strata/level/
 
 ## [2026-09-10] ui | Borrow unchanged main text during reconciliation
 
-Updated [[ui-system]] for ui-toolkit `66e6d35`: crate-local text properties borrow fontstring, button, and plain EditBox source strings; password masks remain owned with their byte-length asterisk semantics. `Text2d` takes ownership only for spawn or actual content repair. Five cases characterize Unicode, password transitions, external repair, and settled writes before the refactor; source behavior remains pending final artifact audit. No allocation benchmark, CPU, or native claim.
+Updated [[ui-system]] for ui-toolkit `66e6d35`: crate-local text properties borrow fontstring, button, and plain EditBox source strings; password masks remain owned with their byte-length asterisk semantics. `Text2d` takes ownership only for spawn or actual content repair. The same five Unicode/password/repair/settled cases pass before and after; toolkit checks and shared engine test compilation are verified in the [final artifact audit](../../data/diagnostics/unchanged-writes-20260909/text-borrow/verification/final-integration-report.md). No allocation benchmark, CPU, or native claim.
 
 ## [2026-09-10] ui | Face world health bars and align overlay names
 

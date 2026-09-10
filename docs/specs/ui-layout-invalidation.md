@@ -34,7 +34,7 @@ The shared `ui-toolkit` resolves frame geometry only when layout inputs are dirt
 
 ## Known gaps (current cycle)
 
-- [ ] Coordinated engine integration check remains pending with the other main session.
+No remaining integration gate for this correction. The [final artifact audit](../../data/diagnostics/ui-layout-dirty-20260909/verification/final-integration-report.md) records engine compilation at `9d22c7fb` with toolkit `0fdcf3f`, retaining supplied-command provenance limits.
 
 ## Out of scope
 

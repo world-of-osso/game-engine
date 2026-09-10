@@ -198,6 +198,8 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 ## See Also
 
+- [[ui-frame-order]] — approved design only: shared plugin preparation with unchanged standalone setup and named scheduling sets
+
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending

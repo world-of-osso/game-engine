@@ -1,6 +1,6 @@
 # Wiki Index
 
-Knowledge base for the game-engine project. 41 pages across 5 categories.
+Knowledge base for the game-engine project, organized across five categories.
 Last updated: 2026-09-10.
 
 ## Systems
@@ -37,6 +37,7 @@ Architecture decisions and feature designs.
 
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
+- [ui-frame-order](design/ui-frame-order.md) — approved, unimplemented shared plugin ordering design; standalone setup preserved, named plugin scheduling sets required
 - [nameplate-design](design/nameplate-design.md) — Target-first display, three states, information hierarchy, distance fade
 - [collision-system](design/collision-system.md) — current terrain vertical support and horizontal WMO/M2 collision; WMO/M2 floor support remains absent
 
