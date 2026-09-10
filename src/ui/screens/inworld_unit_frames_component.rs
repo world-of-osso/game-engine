@@ -114,15 +114,15 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
     rsx! {
         r#frame {
             name: "PlayerFrame",
-            width: FRAME_W,
-            height: FRAME_H,
+            width: PLAYER_FRAME_W,
+            height: PLAYER_FRAME_H,
             strata: FrameStrata::Dialog,
             hidden: {!visible},
                 anchor {
                     point: AnchorPoint::BottomLeft,
                     relative_point: AnchorPoint::BottomLeft,
                     x: {PLAYER_FRAME_CONFIG.frame_x},
-                    y: {FRAME_BOTTOM_Y},
+                    y: {PLAYER_FRAME_BOTTOM_Y},
                 }
             {unit_frame_shell("Player", state, true)}
         }

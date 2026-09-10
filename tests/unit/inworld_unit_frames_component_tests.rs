@@ -30,8 +30,8 @@ fn unit_frames_match_wow_screen_rects() {
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x,
             y: 850.0,
-            width: FRAME_W,
-            height: FRAME_H,
+            width: 297.0,
+            height: 106.5,
         }
     );
     assert_eq!(
@@ -53,7 +53,7 @@ fn player_frame_key_geometry_matches_wow_spec() {
         rect_by_name(&reg, "PlayerPortrait"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.portrait.x,
-            y: 869.0,
+            y: 864.25,
             width: PLAYER_FRAME_CONFIG.portrait.width,
             height: PLAYER_FRAME_CONFIG.portrait.height,
         }
@@ -62,7 +62,7 @@ fn player_frame_key_geometry_matches_wow_spec() {
         rect_by_name(&reg, "PlayerName"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.name.x,
-            y: 877.0,
+            y: 870.25,
             width: PLAYER_FRAME_CONFIG.name.width,
             height: 12.0,
         }
@@ -71,7 +71,7 @@ fn player_frame_key_geometry_matches_wow_spec() {
         rect_by_name(&reg, "PlayerHealthBar"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.health_bar.x,
-            y: 890.0,
+            y: 880.0,
             width: PLAYER_FRAME_CONFIG.health_bar.width,
             height: BAR_H,
         }
@@ -80,7 +80,7 @@ fn player_frame_key_geometry_matches_wow_spec() {
         rect_by_name(&reg, "PlayerManaBar"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.mana_bar.x,
-            y: 911.0,
+            y: 895.75,
             width: PLAYER_FRAME_CONFIG.mana_bar.width,
             height: MANA_H,
         }

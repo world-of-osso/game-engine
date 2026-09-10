@@ -47,6 +47,9 @@ pub(super) struct FrameConfig {
 
 pub(super) const FRAME_W: f32 = 232.0;
 pub(super) const FRAME_H: f32 = 100.0;
+pub(super) const PLAYER_FRAME_W: f32 = 297.0;
+pub(super) const PLAYER_FRAME_H: f32 = 106.5;
+pub(super) const PLAYER_FRAME_BOTTOM_Y: f32 = 130.0;
 pub(super) const FRAME_BOTTOM_Y: f32 = 130.0;
 pub(super) const BAR_H: f32 = 20.0;
 pub(super) const MANA_H: f32 = 10.0;
@@ -72,22 +75,22 @@ pub(super) const READY_CHECK_H: f32 = 40.0;
 pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
     frame_x: 268.0,
     shell: ShellConfig {
-        width: 396.0,
-        height: 142.0,
+        width: 297.0,
+        height: 106.5,
         texture: "data/ui/unitframes/player-frame-shell.ktx2",
         anchor_x: "0",
         anchor_y: "-2",
     },
     portrait: PortraitConfig {
-        x: 24.0,
-        y: 19.0,
-        width: 60.0,
-        height: 60.0,
+        x: 18.0,
+        y: 14.25,
+        width: 45.0,
+        height: 45.0,
     },
     name: TextConfig {
-        x: 88.0,
-        y: 27.0,
-        width: 96.0,
+        x: 66.0,
+        y: 20.25,
+        width: 72.0,
     },
     level: TextConfig {
         x: -24.5,
@@ -95,15 +98,15 @@ pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
         width: 24.0,
     },
     health_bar: BarConfig {
-        x: 85.0,
-        y: 40.0,
-        width: 124.0,
+        x: 63.75,
+        y: 30.0,
+        width: 93.0,
         text_x: 0.0,
     },
     mana_bar: BarConfig {
-        x: 85.0,
-        y: 61.0,
-        width: 124.0,
+        x: 63.75,
+        y: 45.75,
+        width: 93.0,
         text_x: 0.0,
     },
 };
