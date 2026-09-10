@@ -142,12 +142,12 @@ fn handle_wait_for_frame(
     time: &Time,
     name: String,
     timeout_secs: f32,
-    ui: &UiState,
+    frame_exists: bool,
     queue: &mut UiAutomationQueue,
     runner: &mut UiAutomationRunner,
 ) {
     runner.completed = false;
-    if ui.registry.get_by_name(&name).is_some() {
+    if frame_exists {
         queue.pop();
         runner.waiting = None;
         return;
@@ -173,6 +173,7 @@ fn handle_wait_for_frame(
 fn process_automation_waits(
     time: Res<Time>,
     ui: Res<UiState>,
+    native_names: Query<&Name, With<crate::ui::native::NativeUiElement>>,
     state: Res<State<GameState>>,
     mut queue: ResMut<UiAutomationQueue>,
     mut runner: ResMut<UiAutomationRunner>,
@@ -187,7 +188,16 @@ fn process_automation_waits(
             handle_wait_for_state(&time, target, timeout_secs, &state, &mut queue, &mut runner);
         }
         UiAutomationAction::WaitForFrame(name, timeout_secs) => {
-            handle_wait_for_frame(&time, name, timeout_secs, &ui, &mut queue, &mut runner);
+            let frame_exists = ui.registry.get_by_name(&name).is_some()
+                || native_names.iter().any(|native| native.as_str() == name);
+            handle_wait_for_frame(
+                &time,
+                name,
+                timeout_secs,
+                frame_exists,
+                &mut queue,
+                &mut runner,
+            );
         }
         _ => {}
     }
@@ -274,6 +284,124 @@ mod tests {
         });
         app.init_state::<GameState>();
         app
+    }
+
+    #[test]
+    fn native_frame_wait_completes_when_named_entity_appears() {
+        let mut app = make_automation_app();
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::WaitForFrame("NativeLogin".into(), 1.0));
+        app.update();
+        assert!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .waiting
+                .is_some()
+        );
+
+        app.world_mut().spawn((
+            crate::ui::native::NativeUiElement,
+            Name::new("NativeLogin"),
+            Node::default(),
+        ));
+        app.update();
+
+        assert!(app.world().resource::<UiAutomationQueue>().is_empty());
+        let runner = app.world().resource::<UiAutomationRunner>();
+        assert!(runner.waiting.is_none());
+        assert!(runner.last_error.is_none());
+        app.update();
+        assert!(app.world().resource::<UiAutomationRunner>().completed);
+    }
+
+    #[test]
+    fn native_frame_wait_ignores_unmarked_and_despawned_entities() {
+        let mut app = make_automation_app();
+        app.world_mut()
+            .spawn((Name::new("NativeLogin"), Node::default()));
+        let native = app
+            .world_mut()
+            .spawn((
+                crate::ui::native::NativeUiElement,
+                Name::new("NativeLogin"),
+                Node::default(),
+            ))
+            .id();
+        app.world_mut().despawn(native);
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::WaitForFrame("NativeLogin".into(), 1.0));
+        app.update();
+
+        assert!(!app.world().resource::<UiAutomationQueue>().is_empty());
+        assert!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .waiting
+                .is_some()
+        );
+        assert!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .last_error
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn legacy_frame_wait_still_resolves_with_native_entities_present() {
+        let mut app = make_automation_app();
+        app.world_mut().spawn((
+            crate::ui::native::NativeUiElement,
+            Name::new("NativeLogin"),
+            Node::default(),
+        ));
+        app.world_mut()
+            .resource_mut::<UiState>()
+            .registry
+            .create_frame("LegacyMenu", None);
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::WaitForFrame("LegacyMenu".into(), 1.0));
+        app.update();
+
+        assert!(app.world().resource::<UiAutomationQueue>().is_empty());
+        assert!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .last_error
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn native_frame_wait_uses_exact_names_and_existing_timeout_boundary() {
+        let mut app = make_automation_app();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_millis(100),
+        ));
+        app.world_mut().spawn((
+            crate::ui::native::NativeUiElement,
+            Name::new("NativeLogin"),
+            Node::default(),
+        ));
+        app.world_mut()
+            .resource_mut::<UiAutomationQueue>()
+            .push(UiAutomationAction::WaitForFrame("nativelogin".into(), 0.1));
+        app.update();
+        app.update();
+        assert!(!app.world().resource::<UiAutomationQueue>().is_empty());
+        app.update();
+
+        assert!(app.world().resource::<UiAutomationQueue>().is_empty());
+        assert_eq!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .last_error
+                .as_deref(),
+            Some("timed out waiting for frame 'nativelogin' after 0.10s"),
+        );
     }
 
     #[test]
