@@ -103,8 +103,8 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [x] Face procedural dome triangles inward so the interior camera sees them with normal backface culling. Initialize newly spawned dome colors even when game time is unchanged.
 - [x] The standalone `--screen skyboxdebug` uses the same sky-color update systems, initializing and refreshing its dome colors without requiring an in-world client.
 
-- [ ] Cloud noise retains fractional spatial detail for high-bit seeds and repeats continuously across both texture axes, without changing texture dimensions or density controls.
-- [ ] Cloud sampling remains continuous across the spherical longitude boundary; secondary longitude frequency is whole-cycle and wrapping occurs in the repeat sampler after layer scaling.
+- [x] Cloud noise retains fractional spatial detail for high-bit seeds and repeats continuously across both texture axes, without changing texture dimensions or density controls.
+- [x] Cloud sampling remains continuous across the spherical longitude boundary; secondary longitude frequency is whole-cycle and wrapping occurs in the repeat sampler after layer scaling.
 
 Native standalone proof, regression counts, and remaining integration qualifications: [procedural sky visibility](../wiki/investigations/procedural-sky-dome-visibility.md).
 

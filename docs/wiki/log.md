@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Verify cloud tiling correction
+
+At `077599df`, seven generator cases, the real-shader longitude seam regression, and cloud-scroll preservation pass. GPU seam contrast drops from 28 to 3 levels across the fixture's finite angle; standalone capture shows the rectangular blocks absent in the captured area. Build/check pass; 104 unchanged vendor files remain format failures. Evidence and framing limits: [[procedural-sky-dome-visibility]].
+
 ## [2026-09-10] rendering | Remove procedural cloud tiling seams
 
 `389e0185` replaces nonperiodic float-offset cloud noise with periodic integer-hashed gradient fBm. The former high-bit ridge seed converted to 45–61M float coordinates, whose ULP 4 collapsed nearby samples into blocks; repeat sampling then exposed nonmatching image edges. `077599df` keeps spherical primary UVs unwrapped until sampling and uses integer 2.0 secondary longitude repeats, eliminating its pre-scale-`fract` seam. RED observes three texture failures and a 28-level actual-GPU longitude discontinuity; GREEN/native proof remains pending. See [[procedural-sky-dome-visibility]].
