@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Keep world health bars fixed across zoom
+
+Updated [[ui-system]] and [[nameplate-design]] for engine `7b316396`: actor-parented world bars remain depth-tested while a screen-aligned, projected-tangent scale targets 80×8 logical pixels across zoom, viewport, DPI, and FOV changes. Text was already UI-pixel sized; the projected bar edge retains its 4-pixel label gap. Focused zoom/GPU proof is pending; no native, CPU, or whole-nameplate redesign claim.
+
 ## [2026-09-10] ui | Avoid stable-sort scratch work in frame ordering
 
 Updated [[ui-system]] for ui-toolkit `1050abb`: the existing total strata/level/raise/ID comparator now uses unstable sorting, and visible-frame effective size is computed once. Same three cases pass before/after; toolkit checks and bounded engine compilation pass with recorded concurrent-engine provenance limits. No shared order cache, allocator measurement, CPU, or native claim.

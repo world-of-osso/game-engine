@@ -23,7 +23,7 @@ Full-health bars on non-target units hide after a short timeout.
 
 - Plates fade with distance using alpha reduction before hard removal
 - Plates hide when occluded by world geometry
-- Scale reduces at range before alpha fade (avoids pop)
+- Name and health-bar dimensions remain fixed in logical screen pixels across zoom; distance fade/hide manages range clutter
 
 ## Clutter Rules
 
