@@ -67,6 +67,7 @@ Root cause analyses and debug findings.
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 - [login-camera-startup-order](investigations/login-camera-startup-order.md) — initial Login transition precedes toolkit camera startup; PostStartup correction is fixture-tested and bounded capture remains open
 - [login-native-tint](investigations/login-native-tint.md) — opaque native login blocks came from tinting transparent node backgrounds; RED/GREEN fixture proof, corrected render still open
+- [login-native-image-stretch](investigations/login-native-image-stretch.md) — Bevy default aspect fit detached native login pieces; stretch correction awaits rendered proof
 
 ## Reference
 

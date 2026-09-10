@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Stretch native login artwork to node bounds
+
+Engine `bf4e259f` sets `NodeImageMode::Stretch` in the native image helper after `runtime/tint-login/view.webp` showed detached pieces from Bevy's default aspect fit. The existing 62 focused cases remain, but no enum-shape test was added for this rendering correction. Rendered login proof remains pending; menu rendering remains unresolved. Details: [[login-native-image-stretch]].
+
 ## [2026-09-10] ui | Fix native login tinting of transparent nodes
 
 Engine `f3ae396c` stops native login presentation sync from tinting `ImageNode` and `Text` entities through `BackgroundColor`; their transparent `Node` backgrounds had become opaque blocks. The new real-component regression failed before the correction, then all seven presentation cases passed. With the three verified startup-camera cases, focused proof totals 62 distinct cases. `runtime/menu-final/menu.webp` is pre-fix evidence only; corrected rendered login/menu appearance, physical input and authentication remain open. Details: [[login-native-tint]].
