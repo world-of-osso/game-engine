@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Verify local native login authentication
+
+At engine `337e8a15`, `runtime/live-auth/prefilled/` verifies the local dev-login path using the native `ConnectButton` and isolated `admin/admin` prefill: credential request, Login success with two characters, CharSelect readiness, UI-tree dump, and `AppExit::Success`. The enclosing nine-second timeout exits `-9` during shutdown, so this is not clean-exit proof. An earlier `alice` attempt timed out before submission and remains non-passing evidence. This verifies only the tested local authentication path; physical input and exact baseline-pixel parity remain open.
+
 ## [2026-09-10] ui | Verify rendered standalone native login
 
 At `bf4e259f`, `runtime/settled-retry/view-12.webp` and `view-30.webp` show the rendered standalone login after 12 and 30 seconds; the isolated client ran 31.470 seconds and was terminated. `runtime/stretch/view.webp` shows the toolkit game-menu overlay. `runtime/stretch/tree.stdout` contains typed `adminvisual-proof` and 23 password asterisks; the raw dummy password is absent. Exact baseline-pixel parity, physical input, and real authentication remain open. Details: [[login-native-image-stretch]].

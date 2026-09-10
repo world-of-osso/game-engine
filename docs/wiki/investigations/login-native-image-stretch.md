@@ -12,7 +12,7 @@ Native `ImageNode` uses Bevy's default automatic aspect-fit behavior. Login artw
 
 Engine `bf4e259f` sets `image_mode: NodeImageMode::Stretch` when native login images are spawned. The correction applies to the existing image helper, covering background, logo, Blizzard logo, borders and button pieces without introducing another render path.
 
-The existing 62 focused tests remain revision-scoped evidence from before this rendering correction; no enum-shape test was added. Rendered login and menu proof remains pending.
+The existing 62 focused tests remain revision-scoped evidence from before this rendering correction; no enum-shape test was added. `runtime/settled-retry/view-12.webp` and `view-30.webp` show the corrected standalone login, and `runtime/stretch/view.webp` shows the corrected native artwork below the toolkit game-menu overlay. Exact baseline-pixel parity remains open.
 
 ## Sources
 
