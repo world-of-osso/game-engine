@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid unchanged button-input mutations
+
+Updated [[ui-system]] for ui-toolkit `e25eecc`: hit testing and hover differences remain immutable until a visible button actually changes; press/release enters its mutable path only on left-button edges. Disabled hover and state, pushed-button reset, and real transitions retain their behavior. Five RED/GREEN integration cases plus the adapted unit test and independent toolkit/engine checks pass. No CPU/native claim.
+
 ## [2026-09-10] ui | Avoid false clean render-state mutations
 
 Updated [[ui-system]] for ui-toolkit `f041c0e`: quad and tiled reconciliation check `render_dirty` immutably before clearing it. Empty sets no longer falsely mutate `UiState`; nonempty sets still drain at the existing points and reconciliation remains unchanged. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU/native claim.

@@ -56,6 +56,10 @@ Toolkit `2b3c1f3` applies the shared quad comparison to retained tiled sprites. 
 
 Toolkit `f041c0e` checks `render_dirty` immutably before quad or tiled reconciliation clears it. Empty sets no longer falsely mutate `UiState`; nonempty sets drain at the existing points, after the existing reconciliation work. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU or native claim.
 
+## Button input reconciliation
+
+Toolkit `e25eecc` first collects visible buttons whose `hovered` value differs from the current hit-test result, then mutates only those frames. Press/release handling remains ordered after hover processing and now enters its mutable path only on a left-button edge; disabled and already-correct states remain untouched. Hit testing, disabled hover behavior, pushed-button release reset, and actual hover transitions are unchanged. Five integration cases plus the adapted unit case pass after the five-case RED; independent toolkit/engine checks pass. No CPU or native claim.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
