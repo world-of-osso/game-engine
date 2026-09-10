@@ -51,9 +51,9 @@ Readiness held one client/server with healthy IPC/admin ping, approximately **10
 
 ## Live in-world camera direction
 
-`game-engine-cli camera set --pitch-degrees 60` points the active in-world view 60° upward. `--yaw-degrees D` is optional, either axis may be set independently, and both values use degrees. Pitch accepts −88° through +88° inclusive; omitted axes retain their current value. The command rejects no-axis requests, non-finite values, out-of-range pitch, non-InWorld use, and worlds without exactly one active `WowCamera`.
+`game-engine-cli camera set --pitch-degrees 60` controls the active in-world view in degrees. `--yaw-degrees D` is optional; either axis may be set independently, and pitch accepts −88° through +88° inclusive. Omitted axes retain their current value. The command rejects no-axis requests, non-finite values, out-of-range pitch, non-InWorld use, and worlds without exactly one active `WowCamera`.
 
-It changes the normal input-owned camera angles, not player facing, zoom, or collision. Input remains active afterward. This is a diagnostic/view-control surface; it does not correct authored skybox rendering. The observed upward in-world capture remains a uniform dark navy, consistent with [[authored-skybox-black-output]].
+At `4e1de84d`, live commands for pitch `60°`, yaw/pitch `180°/45°`, `90°/20°`, and `270°/88°` each returned the requested angles and changed the rendered view. A mixed `270°` yaw plus `NaN` pitch returned `camera angles must be finite` with exit 1. The normal camera follow consumes these angles; independent live proof for player-facing preservation, input after IPC control, and collision-constrained pitch remains open. This is a diagnostic/view-control surface, not an authored-skybox fix: the user-positioned upward capture remains uniform dark navy, consistent with [[authored-skybox-black-output]].
 
 ## Graphics effect configuration
 

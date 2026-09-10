@@ -2,7 +2,7 @@
 
 ## [2026-09-10] rendering | Add live in-world camera direction control
 
-Documented `game-engine-cli camera set --pitch-degrees 60` and optional `--yaw-degrees`: angles are degrees, pitch bounds are −88° through +88°, omitted axes persist, and the command requires InWorld with exactly one active `WowCamera`. It changes view angles only; it does not fix authored skybox rendering. The upward in-world observation remains uniform dark navy; see [[authored-skybox-black-output]].
+`f1e377e3`/`fa7d5bee`/`4e1de84d` add `game-engine-cli camera set --pitch-degrees 60` with optional `--yaw-degrees`: values are degrees, pitch bounds are −88° through +88°, omitted axes persist, and the command requires InWorld with exactly one active `WowCamera`. At `4e1de84d`, the dev-built live client accepted four requested directions and visibly changed view; a mixed valid yaw plus `NaN` pitch was rejected. Two library IPC tests, four binary camera behavior tests, and three CLI tests pass. Player-facing/input/collision live behavior remains open. It does not fix authored skybox rendering: the user-positioned upward capture remains uniform dark navy; see [[authored-skybox-black-output]].
 
 ## [2026-09-10] ui | Share plugin frame ordering with standalone compatibility
 
