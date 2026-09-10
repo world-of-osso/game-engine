@@ -177,11 +177,14 @@ fn bar_block_names(name: &str) -> BarBlockNames {
 }
 
 fn bar_block_fill(fill_name: DynName, fill_width: f32, height: f32, fill_color: &str) -> Element {
+    // Zero frame width means auto-size in the toolkit; an empty fill must not draw.
+    let hide_fill = fill_width <= 0.0;
     rsx! {
         r#frame {
             name: {fill_name},
             width: fill_width,
             height,
+            hidden: hide_fill,
             background_color: fill_color,
             anchor {
                 point: AnchorPoint::TopLeft,

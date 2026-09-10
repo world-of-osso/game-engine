@@ -119,7 +119,7 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = sample_unit_frames_context();
     let mut screen = Screen::new(inworld_unit_frames_screen);
-    for percent in [100.0, 50.0, 0.0] {
+    for percent in [100.0, 50.0, 0.0, 100.0] {
         let mut state = shared.get::<InWorldUnitFramesState>().unwrap().clone();
         state.player.health_fill_width =
             fill_width(PLAYER_HEALTH_BAR_W, Some(percent), Some(100.0));
@@ -129,7 +129,17 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
         recompute_layouts(&mut reg);
         for name in ["PlayerHealthBar", "PlayerManaBar"] {
             let bar = rect_by_name(&reg, name);
-            let fill = rect_by_name(&reg, &format!("{name}Fill"));
+            let fill_name = format!("{name}Fill");
+            let fill_frame = reg.get(reg.get_by_name(&fill_name).unwrap()).unwrap();
+            assert_eq!(
+                fill_frame.visible,
+                percent > 0.0,
+                "zero health must not draw an auto-sized fill"
+            );
+            if percent == 0.0 {
+                continue;
+            }
+            let fill = rect_by_name(&reg, &fill_name);
             assert_eq!((fill.x, fill.y), (bar.x, bar.y));
             assert_eq!(fill.width, 183.0 * percent / 100.0);
             assert_eq!(fill.height, bar.height);

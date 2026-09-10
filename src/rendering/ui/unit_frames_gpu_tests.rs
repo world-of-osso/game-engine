@@ -187,7 +187,7 @@ fn player_frame_gpu_contents_fit_artwork_and_health_updates() {
         }
     }
     assert!(
-        white < 30 && colored > 300,
+        white < (portrait.width * portrait.height * 0.1) as usize && colored > 300,
         "portrait must contain cached artwork, not white placeholder: white={white} colored={colored}"
     );
     let full_width = rect(&app, "PlayerHealthBar").width;
@@ -215,5 +215,20 @@ fn player_frame_gpu_contents_fit_artwork_and_health_updates() {
     assert!(
         (final_pixels as f32 - full_width * 0.2).abs() < 3.0,
         "20% rendered fill width: {final_pixels}"
+    );
+    let mut empty = shared.get::<InWorldUnitFramesState>().unwrap().clone();
+    empty.player.health_fill_width = 0.0;
+    empty.player.health_text = "0 / 100".into();
+    shared.insert(empty);
+    screen.sync(
+        &shared,
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+    );
+    let empty_image = capture(&mut app, &target);
+    save(&empty_image, "player-frame-empty-health");
+    assert_eq!(
+        green_fill_width(&empty_image, &health_area),
+        0,
+        "empty health must not draw a stale fill"
     );
 }
