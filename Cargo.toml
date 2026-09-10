@@ -29,7 +29,7 @@ bevy_replicon = { version = "0.41.1", default-features = false, features = ["cli
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
 ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
-osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver-bevy-ui-login", default-features = false, optional = true }
+osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver", default-features = false, optional = true }
 ab_glyph = "0.2"
 # Reuse Bevy's shaping engine to position login carets at actual text boundaries.
 parley = { version = "0.9", default-features = false, features = ["std"] }
@@ -73,13 +73,13 @@ bevy_pbr = { path = "vendor/bevy_pbr" }
 bevy_render = { path = "vendor/bevy_render" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
-shared = { path = "../shared-protocol-bevy-ui-login" }
+shared = { path = "../shared-protocol" }
 
 [patch."https://github.com/world-of-osso/ui-toolkit.git"]
-ui-toolkit = { path = "../ui-toolkit-bevy-ui-login" }
+ui-toolkit = { path = "../ui-toolkit" }
 
 [patch."ssh://git@github.com/world-of-osso/ui-toolkit-macros.git"]
-ui-toolkit-macros = { path = "../ui-toolkit-macros-bevy-ui-login" }
+ui-toolkit-macros = { path = "../ui-toolkit-macros" }
 
 [profile.dev]
 debug = 1
