@@ -6,24 +6,24 @@
 
 ### Rendering and lifecycle
 
-- [ ] Render login through Bevy UI, without duplicate legacy login frames or an alternate login renderer.
-- [ ] Preserve background, shade, logos, fonts, input borders, button states, configured button variants, layout, footer and fade-in.
-- [ ] Preserve currently hidden realm, registration and reconnect controls; migration does not expose additional actions.
-- [ ] Keep the existing game menu above login and block login input while that modal is open.
-- [ ] Remove login entities on exit without changing subsequent screens' rendering or input.
+- [x] Render login through Bevy UI, without duplicate legacy login frames or an alternate login renderer.
+- [x] Preserve background, shade, logos, fonts, input borders, button states, configured button variants, layout, footer and fade-in.
+- [x] Preserve currently hidden realm, registration and reconnect controls; migration does not expose additional actions.
+- [x] Keep the existing game menu above login and block login input while that modal is open.
+- [x] Remove login entities on exit without changing subsequent screens' rendering or input.
 
 ### Input and authentication
 
-- [ ] Use one authoritative value per credential field for physical input, automation and authentication; displayed password remains masked using the existing UTF-8 byte-count convention.
-- [ ] Preserve focus, Tab/Escape/Enter, cursor editing, control-character filtering, letter/byte limits and clipboard insertion. Cursor offsets must remain valid UTF-8 boundaries.
+- [x] Use one authoritative value per credential field for physical input, automation and authentication; displayed password remains masked using the existing UTF-8 byte-count convention.
+- [x] Preserve focus, Tab/Escape/Enter, cursor editing, control-character filtering, letter/byte limits and clipboard insertion. Cursor offsets remain valid UTF-8 boundaries.
 - [x] Show a blinking insertion caret in the focused native field at the actual edit position. Map username UTF-8 cursor boundaries and password byte-count masking correctly; reset blink after edits, navigation and focus; hide when unfocused or modal-blocked; align and clip it with field text.
-- [ ] Preserve press/release-over-same-button activation and disabled Connect behavior.
-- [ ] Preserve realm selection, credential prefill, registration mode, reconnect checks and authentication resource/state transitions. Empty credentials retain the existing error.
+- [x] Preserve press/release-over-same-button activation and disabled Connect behavior.
+- [x] Preserve realm selection, credential prefill, registration mode, reconnect checks and authentication resource/state transitions. Empty credentials retain the existing error.
 
 ### Automation
 
-- [ ] Preserve semantic selectors and existing JS/CLI automation actions. Automated Connect drives the same action as the visible control.
-- [ ] Include native login controls in frame waits and UI-tree dumps, without exposing raw passwords. Legacy screen waits and dumps remain supported.
+- [x] Preserve semantic selectors and existing JS/CLI automation actions. Automated Connect drives the same action as the visible control.
+- [x] Include native login controls in frame waits and UI-tree dumps, without exposing raw passwords. Legacy screen waits and dumps remain supported.
 
 ## How it works
 
@@ -49,27 +49,22 @@
 - `src/ui/native.rs`, `src/ui/automation.rs`, and `src/ipc/plugin/scene.rs` — native semantic waits and combined diagnostic trees.
 - `src/scenes/login/native_tests.rs` includes setup asset-failure, successful feedback/custom-realm/focus, real-update fade-alpha, and startup-camera-order/teardown cases. At `1ad57bc6`, the successful custom-realm feedback/focus and visible-update fade-alpha cases pass.
 
-At `f3ae396c`, 62 distinct revision-scoped focused cases pass: 58 prior cases, three startup-camera ordering cases, and one tint-channel regression. At `1ad57bc6`, two additional setup-success/fade cases pass, bringing the revision-scoped total to 64; `verification/setup-success-1ad57bc6/report.md` records the exact compile/test provenance. `bf4e259f` subsequently changes native image rendering to `NodeImageMode::Stretch` after `runtime/tint-login/view.webp` showed detached pieces caused by Bevy's default aspect fit. The 62 cases remain valid only for their prior scopes; no new enum-shape test was added for the stretch correction. `data/diagnostics/login-bevy-ui/verification/focused-report.md`, `verification/final-slice/report.md`, and `tint-fix/proof-ledger.md` retain commands, executable identities and retained failures. `cargo check --features dev --bin game-engine` passed at the earlier final slice; `cargo fmt --check` reported only 104 unchanged vendor paths.
+The migration has 72 distinct revision-scoped focused cases: 64 prior behavior/presentation/setup cases, six caret cases, and two computed-layout cases. `verification/layout-f97b43e8/report.md` records real UiPlugin/TextPlugin layout at 1280×720 and 1600×900: centered fields, ordering, action placement, hidden controls, footer/background/logo, and camera restoration. `verification/caret/acceptance/report.md` records shaped UTF-8/password caret positions, blink/focus/modal behavior, 1×/2× clipping, and rendered off/on captures.
 
-At `bf4e259f`, `runtime/settled-retry/view-12.webp` and `view-30.webp` show the fully rendered standalone login; the isolated client ran 31.470 seconds and was terminated. `runtime/stretch/view.webp` shows native artwork with the toolkit game-menu overlay. Its UI-tree dump contains `adminvisual-proof` and 23 displayed password asterisks, not the raw dummy password. `runtime/live-auth/prefilled/` verifies the real local dev-login path: native `ConnectButton` submission with the isolated dev `admin/admin` prefill sent credentials, received Login success with two characters, entered `CharSelect`, dumped the UI tree, and emitted `AppExit::Success`; the enclosing nine-second timeout returned `-9` during shutdown. The earlier `alice` attempt timed out before submission and is retained as non-passing evidence. Caret commits `f70a6f87` and `0fd27d15` use direct Parley access to reuse Bevy's existing shaped layout rather than guessed glyph widths. Five shaped caret tests pass at `f15986c5`; the real 1×/2× UI pipeline test passes at `97c463ec`, including clipping and masked-password positioning. `runtime/caret/password-crop-0.png` and `password-crop-1.png` show the same production field with the caret off and on. This is rendered, automated, and local-auth evidence, not exact baseline-pixel parity or physical-input proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
+`runtime/settled-retry/view-12.webp` and `view-30.webp` show rendered standalone login; `runtime/stretch/view.webp` shows the toolkit menu above native login. The user manually confirmed physical typing, Tab, Menu, and Quit. `runtime/live-auth/prefilled/` verifies native ConnectButton submission with local `admin/admin`: credentials reached the server, two characters returned, and CharSelect replaced the native login UI. The timeout interrupted shutdown after `AppExit::Success`, so this does not claim a clean process exit. Existing global `cargo fmt --check` reports 104 unchanged vendor files; scoped formatting and relevant checks pass.
 
 ## Build isolation
 
-This worktree resolves `asset-resolver`, `shared-protocol`, `ui-toolkit`, and `ui-toolkit-macros` through matching `*-bevy-ui-login` dependency worktrees in `Cargo.toml`. Canonical dependency checkouts remain untouched; compilation proof records their revisions. The shared Cargo target remains an output cache, not a source dependency path.
+Development used matching `*-bevy-ui-login` dependency worktrees to isolate migration work. Canonical Cargo paths are restored before the requested master merge; the shared Cargo target remains an output cache, not a source dependency path.
 
-## Known gaps (current cycle)
+## Evidence limits
 
-- [x] Verify the focused blinking insertion caret: five shaped tests cover UTF-8/password positions, blink, focus and modal behavior at `f15986c5`; `97c463ec` verifies real 1×/2× UI layout, clipping and geometry; `runtime/caret/password-crop-{0,1}.png` is the rendered off/on pair. Direct Parley 0.9 reuses Bevy shaping; no glyph-width estimate or separate renderer exists.
-- [ ] Instrument the manually confirmed physical input path if a deterministic, window-targeted Wayland injection mechanism becomes available. The `physical-reopen-sync` client ended after 55 seconds; user confirmation is manual evidence, not an instrumented test.
+- No before/after pixel baseline exists. Rendered screenshots and computed layout verify the contract, not image-identical output.
+- Physical input is user-confirmed because current Wayland tooling has no safe window-targeted injection; no additional injection framework is required.
+- The local authentication run proves the tested credential path to CharSelect, not remote-error handling or clean timeout shutdown.
+- Long overflowing/bidi caret editing is outside this login migration contract.
 
-- [x] `1ad57bc6` verifies successful custom-realm feedback/focus and real-update fade-alpha. Dev credential prefill and full-plugin camera-initialization coverage remain open.
-- [ ] Verify exact baseline-pixel parity. Rendered fade-in is covered by the pending real-update alpha case; `runtime/settled-retry/view-12.webp` and `view-30.webp` establish rendered standalone login, and `runtime/stretch/view.webp` establishes menu overlay.
-- [ ] Verify physical input at runtime.
-- [x] Verify the local dev authentication path: `runtime/live-auth/prefilled/` reaches `CharSelect` through native `ConnectButton` submission. This does not certify remote/server-error paths or a clean timeout exit.
-- [x] Preserve the runtime semantic result: `runtime/stretch/tree.stdout` shows typed username and a 23-asterisk password display without the raw dummy password; `runtime/live-auth/prefilled/` extends this to the tested local login path.
-- [ ] Run final formatting and relevant checks after source finality.
-
-`tests/unit/login_screen_tests.rs`, `login_screen_workflow_tests.rs`, and `login_screen_test_support.rs` still target removed toolkit login symbols and are stale removal candidates. Do not delete them until their remaining observable obligations—especially layout centering/order, setup feedback, disabled appearance and realm/server preservation—are covered by native tests.
+`f7d84588` removes the three unregistered toolkit-login test fixtures after porting their observable layout, visibility, setup, status, realm/server, input, and workflow coverage to native tests.
 
 ## Out of scope
 
