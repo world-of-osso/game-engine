@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] ui | Combine visibility and alpha descendant propagation
+
+Updated [[ui-system]] for ui-toolkit `ff2acd0`: `set_hidden` now traverses each descendant once, calculating visibility before effective alpha. Conditional writes and stale derived-state repair remain unchanged; `set_alpha` retains alpha-only propagation. The `ecbd655` characterization brings registry coverage to 28 GREEN cases after the prior 6 RED cases. No CPU/native claim.
+
 ## [2026-09-09] ui | Avoid unchanged visibility and alpha invalidation
 
 Updated [[ui-system]] for ui-toolkit `2dec7fe`: same-value `set_hidden`/`set_alpha` calls no longer dirty unchanged frames or subtrees. Actual stored or derived visibility/alpha changes still dirty affected frames; descendant propagation still recurses to repair derived values after parent changes. Registry proof: 6 RED and 27 GREEN cases. No CPU/native claim.

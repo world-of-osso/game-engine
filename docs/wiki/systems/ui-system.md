@@ -30,7 +30,7 @@ Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plug
 
 ## Visibility and alpha invalidation
 
-`ui-toolkit` `2dec7fe` leaves a frame and its subtree out of `render_dirty` when `set_hidden` or `set_alpha` receives values that leave the frame's stored and derived visibility/alpha unchanged. Actual hidden/alpha/effective-value changes still dirty their changed frames. Visibility and alpha propagation still always recurses through descendants, so derived descendant values repair after parent changes even if an intermediate frame's own value is unchanged. Registry proof: 6 RED cases and 27 GREEN cases. No CPU or native claim.
+`ui-toolkit` `2dec7fe` leaves a frame and its subtree out of `render_dirty` when `set_hidden` or `set_alpha` receives values that leave the frame's stored and derived visibility/alpha unchanged. Actual hidden/alpha/effective-value changes still dirty their changed frames. `ff2acd0` makes `set_hidden` walk descendants once, calculating visibility then effective alpha at each node; conditional writes and stale-derived-value repair remain intact. `set_alpha` keeps its existing alpha-only propagation. Registry proof: 6 RED cases, then 28 GREEN cases after the `ecbd655` refactor characterization. No CPU or native claim.
 
 ## Widget Types
 
@@ -147,6 +147,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
 - [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
 - [ui-toolkit processing gate](../../../../ui-toolkit/src/plugin.rs) — registry/layout/input/render schedule boundary
+- [visibility and alpha propagation](../../../../ui-toolkit/src/registry.rs) — conditional derived-state repair and single-pass `set_hidden` traversal
 - [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — invalidation contract and scope
 - `../../data/diagnostics/ui-layout-dirty-20260909/verification/toolkit-report.md` — 14 focused toolkit regressions and mutation audit
 - `../../data/diagnostics/ui-layout-dirty-20260909/engine-addon/green.log` — 7 addon integration tests
