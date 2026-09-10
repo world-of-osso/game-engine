@@ -6,7 +6,13 @@ Skybox rendering combines a procedural dome for explicit LightParams rows with n
 
 InWorld resolves the local clear `LightParamsID` from `Light.csv`. It spawns the existing camera-child procedural `SkyDome` only when the decoded local `LightParams` row explicitly has raw `LightSkyboxID = 0`. It does not treat missing DB2 data, an unknown row, or a failed authored model load as permission to fall back; those remain diagnosable failures.
 
-The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restored the existing dome lifecycle. Commit `58d4b12a` then corrected its interior visibility: Back culling requires inward triangle winding. It also updates newly added dome materials when settled `GameTime` would otherwise skip color propagation. Targeted GREEN and dev-build evidence exist; an unobstructed InWorld visual capture remains pending.
+The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restored the existing dome lifecycle. Commit `58d4b12a` then corrected its interior visibility: Back culling requires inward triangle winding. It also updates newly added dome materials when settled `GameTime` would otherwise skip color propagation.
+
+## Procedural cloud continuity
+
+`389e0185` removes precision-block artifacts and repeat-edge seams from the generated cloud map. The prior generator mixed high-bit seeds into floating coordinate offsets around 45–61 million; at that magnitude `f32` spacing is 4, collapsing nearby lattice samples. It also generated a nonperiodic image while the sampler repeated it. The replacement uses periodic integer-hashed gradient fBm, preserving dimensions, frequency controls, density shaping, and deterministic seeded variation.
+
+`077599df` corrects the shader-side longitude wrap: the primary spherical coordinate remains unwrapped until repeat sampling, and the second layer uses an integer longitude frequency of 2.0 rather than fractional 1.9 after a pre-scale `fract`. This prevents a seam at the spherical longitude boundary. RED observed a 28-level GPU discontinuity; corrected rendered proof remains pending.
 
 ## InWorld environment lighting
 

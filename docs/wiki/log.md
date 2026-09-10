@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Remove procedural cloud tiling seams
+
+`389e0185` replaces nonperiodic float-offset cloud noise with periodic integer-hashed gradient fBm. The former high-bit ridge seed converted to 45–61M float coordinates, whose ULP 4 collapsed nearby samples into blocks; repeat sampling then exposed nonmatching image edges. `077599df` keeps spherical primary UVs unwrapped until sampling and uses integer 2.0 secondary longitude repeats, eliminating its pre-scale-`fract` seam. RED observes three texture failures and a 28-level actual-GPU longitude discontinuity; GREEN/native proof remains pending. See [[procedural-sky-dome-visibility]].
+
 ## [2026-09-10] rendering | Verify procedural sky in standalone screen
 
 At `83cf11ec`, the dedicated `--screen skyboxdebug --light-skybox-id 0` capture shows procedural clouds and a horizon gradient through the shared InWorld dome/material/color path. Concrete Azeroth selection/lifecycle tests and independent verification total 59 distinct passing cases; dev check passes, with unchanged vendor-format failures. No user character/camera changes were needed for this proof. Exact in-world after-view and unrelated authored-M2 artifacts remain explicitly qualified in [[procedural-sky-dome-visibility]].

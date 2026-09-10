@@ -12,15 +12,20 @@ At the live Azeroth clear-light position, `LightParamsID 12` explicitly selects 
 
 `update_sky_colors` skipped work when `GameTime` had not advanced. A dome added after that first settled update therefore retained `SkyUniforms::default()` instead of receiving current `LightData` colors.
 
+The later cloud grid came from two independent procedural-texture defects. Ridge noise converted a high-bit seed into `f32` coordinate offsets around 45–61 million, where ULP 4 quantized neighboring source samples into rectangular blocks. The generated image was nonperiodic despite repeat sampling, so its opposite edges jumped at each wrap. The shader also applied `fract` before its fractional `1.9` secondary longitude scale, creating a spherical seam.
+
 ## Correction
 
 Commit `58d4b12a` reverses the dome triangle winding for interior rendering. It also treats newly added sky-material handles as update candidates even when game time is unchanged, so late-created domes receive the settled sky colors.
 
-The shared dome correction applies to InWorld and the standalone skybox-debug screen. `83cf11ec` also enables that screen's shared color/environment updates. Authored M2 combiner behavior is unchanged.
+The shared dome correction applies to InWorld and the standalone skybox-debug screen. `83cf11ec` also enables that screen's shared color/environment updates.
+
+`389e0185` replaces the procedural texture generator with periodic integer-hashed gradient fBm. Seed variation stays in integer hashing; unchanged image size, frequencies, density shaping, and repeat sampler now compose without edge jumps. `077599df` retains primary spherical UVs unwrapped until sampling and changes the secondary longitude frequency to integer `2.0`, so repeat sampling has no discontinuity at the longitude wrap. Authored M2 combiner behavior is unchanged.
 
 ## Proof Status
 
-- RED/GREEN and independent reports are retained locally under `data/diagnostics/inworld-sky/`. At `83cf11ec`, 59 distinct relevant tests pass, including seven new regressions; dev build/check pass. Global formatting still reports 104 unchanged vendor files.
+- Earlier RED/GREEN and independent reports are retained locally under `data/diagnostics/inworld-sky/`. At `83cf11ec`, 59 distinct relevant tests pass, including seven new regressions; dev build/check pass. Global formatting still reports 104 unchanged vendor files.
+- Cloud-tiling RED records three texture failures and a GPU longitude-wrap discontinuity of 28 color levels (`139` versus `111`). GREEN and native seam-free proof remain pending at this checkpoint.
 - Native `--screen skyboxdebug --light-skybox-id 0` renders visible procedural clouds and a horizon gradient in `standalone-procedural.webp`. ID 0 deliberately selects no authored model in this diagnostic; the tree contains `sky_dome`, the debug camera, and reference ground. It uses the same mesh, material, and LightParams12 color updates as InWorld.
 - The Light.csv/LightParams selection and InWorld lifecycle are separately covered by the concrete Azeroth regression. A corrected same-view native InWorld screenshot was not captured: the user requested standalone-screen verification instead of further character/camera changes.
 - Default debug mode also loads the unrelated `costalislandskybox.m2`; captures `standalone-screen.webp` and `standalone-authored.webp` retain authored artifacts and are not evidence that all M2 skyboxes are correct.
@@ -28,6 +33,8 @@ The shared dome correction applies to InWorld and the standalone skybox-debug sc
 ## Sources
 
 - `src/rendering/skybox/mod.rs` — dome mesh indices, Back culling, and material-update invalidation.
+- `src/rendering/skybox/cloud_texture.rs` — periodic seeded cloud generation.
+- `assets/shaders/sky.wgsl` — spherical cloud UV sampling.
 - `src/rendering/skybox/tests/inworld_procedural.rs` — winding and late-dome color regressions.
 - [[skybox]] — explicit procedural-vs-authored InWorld selection.
 
