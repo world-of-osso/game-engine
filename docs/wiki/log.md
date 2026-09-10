@@ -2,7 +2,7 @@
 
 ## [2026-09-10] ui | Keep world health bars fixed across zoom
 
-Updated [[ui-system]] and [[nameplate-design]] for engine `7b316396`: actor-parented world bars remain depth-tested while a screen-aligned, projected-tangent scale targets 80×8 logical pixels across zoom, viewport, DPI, and FOV changes. Text was already UI-pixel sized; the projected bar edge retains its 4-pixel label gap. Focused zoom/GPU proof is pending; no native, CPU, or whole-nameplate redesign claim.
+Updated [[ui-system]] and [[nameplate-design]] for engine `7b316396`: actor-parented world bars remain depth-tested while a screen-aligned, projected-tangent scale targets 80×8 logical pixels across zoom, viewport, DPI, and FOV changes. Text was already UI-pixel sized; the projected bar edge retains its 4-pixel label gap. Proof: 18 focused health-bar tests, two gap tests, and two GPU tests—including 5/10/20-distance zoom frames with fixed glyph dimensions. No new full native game run, CPU, or whole-nameplate redesign claim.
 
 ## [2026-09-10] ui | Avoid stable-sort scratch work in frame ordering
 
