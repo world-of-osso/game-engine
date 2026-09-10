@@ -195,6 +195,11 @@ enum Cmd {
         #[command(subcommand)]
         command: MapCmd,
     },
+    /// Set the live in-world camera direction
+    Camera {
+        #[command(subcommand)]
+        command: CameraCmd,
+    },
     /// Bounded scripted player movement
     Movement {
         #[command(subcommand)]
@@ -684,6 +689,25 @@ pub(crate) enum WaypointCmd {
         y: f32,
     },
     Clear,
+}
+
+#[derive(Subcommand)]
+pub(crate) enum CameraCmd {
+    /// Set one or both camera angles in degrees
+    Set {
+        #[arg(
+            long,
+            allow_hyphen_values = true,
+            required_unless_present = "pitch_degrees"
+        )]
+        yaw_degrees: Option<f32>,
+        #[arg(
+            long,
+            allow_hyphen_values = true,
+            required_unless_present = "yaw_degrees"
+        )]
+        pitch_degrees: Option<f32>,
+    },
 }
 
 #[derive(Subcommand)]

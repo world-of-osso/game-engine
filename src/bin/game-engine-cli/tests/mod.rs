@@ -21,6 +21,7 @@ use crate::command_dispatch::{
 use crate::requests::*;
 use crate::*;
 
+mod camera;
 mod export_character;
 mod request_actions;
 mod request_status_and_basic;

@@ -8,10 +8,10 @@ use shared::protocol::{
 };
 
 use crate::{
-    AuctionCmd, BarberCmd, CalendarCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd, DuelCmd,
-    EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, GuildCmd, IgnoreCmd, InspectCmd, InventoryCmd,
-    ItemCmd, LfgCmd, MailCmd, MapCmd, MovementCmd, PresenceCmd, ProfessionCmd, PvpCmd, QuestCmd,
-    ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
+    AuctionCmd, BarberCmd, CalendarCmd, CameraCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd,
+    DuelCmd, EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, GuildCmd, IgnoreCmd, InspectCmd,
+    InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, MovementCmd, PresenceCmd, ProfessionCmd,
+    PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -356,6 +356,18 @@ pub fn map_request(command: MapCmd) -> Result<Request, String> {
         },
     };
     Ok(request)
+}
+
+pub fn camera_request(command: CameraCmd) -> Request {
+    match command {
+        CameraCmd::Set {
+            yaw_degrees,
+            pitch_degrees,
+        } => Request::SetCameraDirection {
+            yaw_degrees,
+            pitch_degrees,
+        },
+    }
 }
 
 pub fn movement_request(command: MovementCmd) -> Result<Request, String> {

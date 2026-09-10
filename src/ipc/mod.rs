@@ -291,6 +291,10 @@ pub enum Request {
         heading_degrees: Option<f32>,
     },
     ScriptedMovementStop,
+    SetCameraDirection {
+        yaw_degrees: Option<f32>,
+        pitch_degrees: Option<f32>,
+    },
     DumpScene {
         filter: Option<String>,
     },
