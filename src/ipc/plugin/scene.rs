@@ -130,7 +130,10 @@ mod tests {
             respond,
         };
         let mut state: SystemState<SceneParams> = SystemState::new(world);
-        assert!(dispatch_scene_request(&command, &mut state.get_mut(world)));
+        assert!(dispatch_scene_request(
+            &command,
+            &mut state.get_mut(world).expect("scene query parameters"),
+        ));
         match receive.try_recv().expect("dump request returns a response") {
             Response::Tree(tree) => tree,
             response => panic!("expected UI tree, received {response:?}"),

@@ -179,7 +179,7 @@ mod tests {
 
     fn dump(world: &mut World, filter: Option<&str>) -> String {
         let mut state: SystemState<Query<NativeUiQueryData>> = SystemState::new(world);
-        build_native_ui_tree(&state.get(world), filter)
+        build_native_ui_tree(&state.get(world).expect("native query parameters"), filter)
     }
 
     #[test]
@@ -280,12 +280,16 @@ mod tests {
         let legacy = crate::dump::build_ui_tree(&registry, None);
         let mut state: SystemState<Query<NativeUiQueryData>> = SystemState::new(&mut world);
         assert_eq!(
-            crate::dump::build_ui_tree_with_native(&registry, &state.get(&world), None),
+            crate::dump::build_ui_tree_with_native(
+                &registry,
+                &state.get(&world).expect("native query parameters"),
+                None,
+            ),
             legacy
         );
 
         world.spawn((NativeUiElement, Name::new("NativeLogin")));
-        let nodes = state.get(&world);
+        let nodes = state.get(&world).expect("native query parameters");
         assert_eq!(
             crate::dump::build_ui_tree_with_native(&registry, &nodes, None),
             format!("{legacy}\nNativeLogin [Native]")
