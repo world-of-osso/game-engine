@@ -31,6 +31,8 @@ game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827a
 ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
 osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver-bevy-ui-login", default-features = false, optional = true }
 ab_glyph = "0.2"
+# Reuse Bevy's shaping engine to position login carets at actual text boundaries.
+parley = { version = "0.9", default-features = false, features = ["std"] }
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
 ktx2-rw = "0.2.4"
