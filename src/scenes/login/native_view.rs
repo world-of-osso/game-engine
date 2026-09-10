@@ -605,11 +605,9 @@ pub(super) fn sync_login_view(world: &mut World, view: &LoginView, state: LoginV
     for (entity, color) in colors {
         if let Some(mut image) = world.get_mut::<ImageNode>(entity) {
             image.color = color;
-        }
-        if let Some(mut text) = world.get_mut::<TextColor>(entity) {
+        } else if let Some(mut text) = world.get_mut::<TextColor>(entity) {
             text.0 = color;
-        }
-        if let Some(mut background) = world.get_mut::<BackgroundColor>(entity) {
+        } else if let Some(mut background) = world.get_mut::<BackgroundColor>(entity) {
             background.0 = color;
         }
     }

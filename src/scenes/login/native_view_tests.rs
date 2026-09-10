@@ -276,6 +276,74 @@ fn fade_scales_image_text_and_translucent_background_without_compounding() {
 }
 
 #[test]
+fn image_and_text_tints_preserve_transparent_node_backgrounds() {
+    let mut fixture = Fixture::new();
+    let image = fixture
+        .world
+        .spawn((
+            Node::default(),
+            ImageNode::default(),
+            InputBorder {
+                field: LoginFieldId::Username,
+                center: false,
+            },
+        ))
+        .id();
+    let text = fixture
+        .world
+        .spawn((Node::default(), Text::new("Login"), LoginTint(GOLD)))
+        .id();
+    fixture
+        .world
+        .entity_mut(fixture.shade)
+        .insert(Node::default());
+    for entity in [image, text] {
+        assert_eq!(
+            fixture.world.get::<BackgroundColor>(entity).unwrap().0,
+            Color::NONE
+        );
+    }
+    for (focus, fade, tint) in [
+        (
+            Some(LoginFieldId::Username),
+            1.0,
+            Color::srgb(1.0, 0.78, 0.0),
+        ),
+        (Some(LoginFieldId::Password), 0.5, Color::WHITE),
+        (None, 0.0, Color::WHITE),
+        (
+            Some(LoginFieldId::Username),
+            1.0,
+            Color::srgb(1.0, 0.78, 0.0),
+        ),
+    ] {
+        fixture.sync("", focus, fade, false, false);
+        assert_eq!(
+            fixture.world.get::<ImageNode>(image).unwrap().color,
+            tint.with_alpha(fade)
+        );
+        assert_eq!(
+            fixture.world.get::<TextColor>(text).unwrap().0,
+            GOLD.with_alpha(fade)
+        );
+        for entity in [image, text] {
+            assert_eq!(
+                fixture.world.get::<BackgroundColor>(entity).unwrap().0,
+                Color::NONE
+            );
+        }
+        assert_eq!(
+            fixture
+                .world
+                .get::<BackgroundColor>(fixture.shade)
+                .unwrap()
+                .0,
+            Color::srgba(0.0, 0.0, 0.0, 0.22 * fade)
+        );
+    }
+}
+
+#[test]
 fn button_artwork_and_label_follow_hover_press_disabled_and_recovery() {
     let mut fixture = Fixture::new();
     for (status, pressed, hovered, index, color) in [
