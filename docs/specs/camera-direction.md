@@ -34,8 +34,8 @@ Observed at `4e1de84d`: the dev build of both binaries completed; the live InWor
 ## Known gaps (current cycle)
 
 - [ ] Player-facing preservation, normal input after IPC control, and collision-constrained live pitch are not independently proven.
-- [ ] Full camera-filter suite has one unrelated char-select test failure caused by missing `MessageSenders<SelectCharacter>::connection`; baseline classification remains pending.
-- [ ] `cargo fmt --check` reports existing vendor formatting failures. Scoped dev `cargo check` passed; do not represent the tree as fully format-clean.
+- [ ] Full camera-filter suite has one preexisting char-select test failure caused by missing `MessageSenders<SelectCharacter>::connection`, reproduced on the hash-verified `4a6f62cd` baseline.
+- [ ] `cargo fmt --check` reports 104 unchanged vendor files; changed feature files are clean. Nine new tests and scoped dev `cargo check` passed at `4e1de84d`; do not represent the tree as fully format-clean.
 
 ## Out of scope
 
