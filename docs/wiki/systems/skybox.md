@@ -6,7 +6,7 @@ Skybox rendering combines a procedural dome for explicit LightParams rows with n
 
 InWorld resolves the local clear `LightParamsID` from `Light.csv`. It spawns the existing camera-child procedural `SkyDome` only when the decoded local `LightParams` row explicitly has raw `LightSkyboxID = 0`. It does not treat missing DB2 data, an unknown row, or a failed authored model load as permission to fall back; those remain diagnosable failures.
 
-The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restored the existing dome lifecycle. Commit `58d4b12a` then corrected its interior visibility: Back culling requires inward triangle winding. It also updates newly added dome materials when settled `GameTime` would otherwise skip color propagation. GREEN, build, and native visual proof for this correction remain pending.
+The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restored the existing dome lifecycle. Commit `58d4b12a` then corrected its interior visibility: Back culling requires inward triangle winding. It also updates newly added dome materials when settled `GameTime` would otherwise skip color propagation. Targeted GREEN and dev-build evidence exist; an unobstructed InWorld visual capture remains pending.
 
 ## InWorld environment lighting
 
@@ -34,6 +34,12 @@ Relevant code: `src/warband_scene.rs`, `src/light_lookup.rs`, `src/asset/casc_re
 resolver now treats the `LightParamsID_*` columns as authored circumstances and
 uses `LightParamsID_0` (clear, above-water) by default instead of scanning for
 the first slot that happens to resolve a `LightSkyboxID`.
+
+## Standalone skybox-debug color updates
+
+`SkyboxDebug` also spawns the procedural baseline dome when its selected authored-skybox flags allow it. Before `83cf11ec`, shared sky-color and environment updates ran only for InWorld and CharSelect, leaving that standalone dome at default-white uniforms. `SkyboxDebug` now participates in the same update predicate, so its existing dome initializes from `LightKeyframes` and refreshes when game time changes.
+
+The registered-system regression covers initial color propagation and a later time refresh. It does not prove rendered pixels; standalone visual capture remains pending. This screen still does not select Azeroth's procedural-only `LightParams 12` path: that lookup is exercised only by InWorld.
 
 ## LightSkybox Flags
 

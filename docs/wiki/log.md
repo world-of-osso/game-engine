@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Initialize standalone skybox-debug dome colors
+
+`83cf11ec` adds `SkyboxDebug` to the shared sky-color/environment update predicate. The screen already spawned a procedural baseline dome when its selected authored-skybox flags permit it, but its material stayed default white because updates applied only to InWorld and CharSelect. The new registered-system regression proves initial `LightKeyframes` colors and a later game-time refresh. This does not exercise Azeroth's procedural-only `LightParams 12` selection and does not yet claim a rendered standalone screenshot. See [[skybox]].
+
 ## [2026-09-10] rendering | Correct restored procedural dome visibility
 
 `58d4b12a` follows `21feec27`: the native Azeroth `sky_dome` existed but rendered navy because its triangles faced outward while `SkyMaterial` culls Back faces for interior viewing. It reverses the winding. The same revision makes `update_sky_colors` update newly added material handles when settled game time has not changed, preventing default-white late domes. RED covers both boundaries; GREEN, build, and native visual proof remain pending. This does not alter authored M2 rendering; see [[procedural-sky-dome-visibility]] and [[authored-skybox-black-output]].
