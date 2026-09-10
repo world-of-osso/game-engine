@@ -1,6 +1,6 @@
 # UI System
 
-The UI system is built on Dioxus with a custom Bevy renderer. Screens are declared with the `rsx!` macro, data flows through `SharedContext` with generation-based dirty tracking, and the frame registry stores all named UI elements. The design mirrors WoW's frame model (anchors, strata, draw layers) in pure Rust.
+Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` drives generation-based updates and the frame registry stores named elements. The login screen is the first native Bevy UI screen; it uses ECS entities while other screens retain the toolkit frame model (anchors, strata, draw layers).
 
 ## Core Primitives
 
@@ -98,9 +98,15 @@ Toolkit `02a3049` prepares one ordered ID list/index map for the six plugin cons
 
 `14f4a691` compares the complete character-creation view model before inserting it into `SharedContext`, including focus, labels, and swatches. `screen.sync()` remains unconditional for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests cover settled and changed output; CPU savings are unmeasured.
 
-## Login shared-state updates
+## Native Bevy login
 
-`70f14c2a` checks the four login shared values before reinserting them, so unchanged status, connection, realm text, and realm-selectability do not advance dependency generations. `screen.sync()` remains every update for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests and a development compiler check pass; CPU savings are unmeasured.
+Engine commits `a112398f`, `968e6a6e`, `a044bc99`, and `a07de528` replace the live login's toolkit frames with a native Bevy entity tree. `LoginForm` is the single credential authority for physical input, automation and authentication; password presentation remains asterisk-per-UTF-8-byte while the raw field value reaches authentication. The form preserves filtering, limits, editing, focus, clipboard, and prefill behavior in the native lifecycle.
+
+The native login camera renders at order 1. During Login, the existing toolkit camera is raised from order 1 to order 2 and its original order is recorded/restored on exit, keeping the legacy game menu above native login. The native root explicitly targets its camera; the camera has no world render layers. Other screens and the global toolkit camera retain their existing backend and configuration after cleanup.
+
+`NativeUiElement` marks semantic native entities. Automation frame waits resolve both frame-registry names and marked native names; UI-tree dump paths include marked native hierarchy, visible displayed text and computed bounds without exposing the raw password. Hidden `RealmButton` remains hidden visually but preserves its existing semantic automation action. This is implementation state only: no whole-integration compile, behavioral test, rendered comparison, runtime login, or rollout proof exists yet.
+
+The prior toolkit-only login shared-state optimization `70f14c2a` remains historical; its former `Screen`/`SharedContext` login path was removed with this migration.
 
 ## Action-bar flash updates
 
@@ -145,7 +151,7 @@ LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- \
   --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js
 ```
 
-Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForState(name, secs)`, `ui.waitForFrame(name, secs)`, `ui.dumpTree()`, `ui.dumpUiTree()`, `env.NAME`.
+Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForState(name, secs)`, `ui.waitForFrame(name, secs)`, `ui.dumpTree()`, `ui.dumpUiTree()`, `env.NAME`. `waitForFrame` and `dumpUiTree` resolve legacy frame-registry controls plus marked native controls; dumps show displayed masked password text, not credential values.
 
 ## Runtime scheduling
 
@@ -189,7 +195,11 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 - `../../data/diagnostics/npc-motion-20260909/target-camera-final.txt` — focused world-camera selection proof
 - [ui-addon-architecture.md](../../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
-- [login-ui-porting.md](../../login-ui-porting.md) — nine-slice editboxes, anchor layout, y-offset convention
+- [login-ui-porting.md](../../login-ui-porting.md) — legacy nine-slice editboxes, anchor layout, y-offset convention
+- [login Bevy UI spec](../../specs/login-bevy-ui.md) — native-login contract and open proof gaps
+- [native login lifecycle](../../../src/scenes/login/native.rs) — native form, input, action and camera coexistence
+- [native login view](../../../src/scenes/login/native_view.rs) — native entity hierarchy and artwork synchronization
+- [native semantic UI](../../../src/ui/native.rs) — marker and diagnostic tree formatting
 - [hotreload-frame-stability.md](../../hotreload-frame-stability.md) — template key bug, fix approach
 - [ui-automation-debugging.md](../../ui-automation-debugging.md) — JS automation API, debug scripts
 - [editbox-focus-texture-swap-2026-04-06.md](../../editbox-focus-texture-swap-2026-04-06.md) — focus visual problem, core nine-slice gap issue
@@ -211,7 +221,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 ## See Also
 
 - [[ui-frame-order]] — implemented shared plugin preparation, unchanged standalone setup, named scheduling sets and verification boundaries
-
+- [login Bevy UI spec](../../specs/login-bevy-ui.md) — native-login contract and open proof gaps
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending

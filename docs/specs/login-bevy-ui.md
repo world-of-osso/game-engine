@@ -1,6 +1,6 @@
 # Bevy UI login
 
-Migrate `src/scenes/login/` from toolkit frames to Bevy UI entities, preserving login behavior and appearance. Other screens remain on their existing backend. See [UI system](../wiki/systems/ui-system.md).
+`src/scenes/login/` now constructs its login view with Bevy UI entities rather than toolkit login frames; other screens remain on the toolkit backend. This migration still requires compile, behavioral, rendered, and runtime proof. See [UI system](../wiki/systems/ui-system.md).
 
 ## What it must do
 
@@ -31,26 +31,27 @@ Migrate `src/scenes/login/` from toolkit frames to Bevy UI entities, preserving 
 ## Implementation inventory
 
 - `src/scenes/login/` — login lifecycle, form input, visuals and authentication dispatch.
-- `src/scenes/login/form.rs` — standalone credential-field model: UTF-8-safe edits, limits and password display; not yet registered or connected to the running login screen.
-- `src/ui/screens/login_component.rs` — existing declarative login layout and semantic names; migration reference.
-- `src/ui/automation.rs` — shared automation queue and waits.
-- `src/dump_systems.rs`, `src/dump.rs` — diagnostic tree requests and formatting.
+- `src/scenes/login/form.rs` — authoritative credential fields, UTF-8-safe edits, limits and masked presentation.
+- `src/scenes/login/native.rs` — native login lifecycle, input, automation actions and authentication dispatch.
+- `src/scenes/login/native_view.rs` — native entities, artwork and presentation synchronization.
+- `src/ui/native.rs` — semantic native-UI marker and diagnostic formatter.
+- `src/ui/automation.rs` — shared automation queue and legacy/native semantic waits.
+- `src/dump_systems.rs`, `src/dump.rs`, `src/ipc/plugin/scene.rs` — combined legacy/native diagnostic tree requests and formatting.
 
 ## Tests asserting this spec
 
-- `tests/unit/login_screen_tests.rs` — existing login behavior characterization.
-- `tests/unit/login_screen_workflow_tests.rs` — existing automation/authentication workflows.
-- `src/scenes/login/view_tests.rs` — existing login status/render synchronization characterization.
+- `tests/unit/login_screen_tests.rs` — pre-migration login behavior characterization.
+- `tests/unit/login_screen_workflow_tests.rs` — pre-migration automation/authentication workflows.
 - `src/scenes/login/form.rs` — standalone model tests for filtering, limits, editing, password display and independent fields.
+- `src/scenes/login/native_tests.rs` — native lifecycle, input, action and automation coverage.
 
-The standalone form model is covered independently, but the live login still uses toolkit edit boxes. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until integration proof exists.
+The native integration has not been compiled or tested as a whole. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until integration proof exists.
 
 ## Known gaps (current cycle)
 
-- [ ] Register the standalone form model as the running login's single authority; replace toolkit field reads and mutations.
-- [ ] Implement native login rendering.
-- [ ] Adapt semantic automation and diagnostics.
-- [ ] Verify modal layering, visual preservation and authentication behavior after migration.
+- [ ] Compile and exercise the native login replacement against the preserved behavioral contract.
+- [ ] Verify native artwork/layout, modal layering and fade through rendered proof.
+- [ ] Verify an actual authentication flow and automation/dump compatibility at runtime.
 
 ## Out of scope
 

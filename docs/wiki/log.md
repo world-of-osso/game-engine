@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Record native Bevy login integration pending proof
+
+Updated [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md) for engine commits `a112398f`, `968e6a6e`, `a044bc99`, and `a07de528`. Login now has a native ECS form/view path, a camera-order coexistence boundary with the legacy game menu, and marked native semantic controls in waits and UI-tree diagnostics; all other screens remain toolkit-backed. The hidden realm action remains automatable. This checkpoint has no integration compile/test, rendered comparison, runtime authentication, or deployment proof.
+
 ## [2026-09-10] ui | Share plugin frame ordering with standalone compatibility
 
 Implemented [[ui-frame-order]] at toolkit `02a3049`, tests through `3e61227`: one explicit preparation and six prepared variants delegate to the same bodies as standalone public systems. `UiRenderSet::Prepare` spans window/layout/button preparation and the final render-gated order producer; named-set same-pass geometry and standalone stale-resource independence pass. Independent verification records 39 tests, toolkit formatting/check/readability and bounded engine compilation. Computational sharing/common-body structure are source-audited, not helper-call tests. Bevy UI migration has not started; no CPU/native claim.
