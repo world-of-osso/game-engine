@@ -313,7 +313,7 @@ fn update_sky_dome_material(
     let sun_direction = (sun_rotation(minutes) * Vec3::NEG_Z).normalize_or_zero();
     let cloud_scroll = Vec2::new(minutes * 0.00012, minutes * 0.00004);
     for mat_handle in sky_dome_q.iter() {
-        if let Some(mut mat) = sky_materials.get_mut(mat_handle) {
+        if let Some(mut mat) = sky_materials.get_mut(&mat_handle.0) {
             mat.uniforms.sky_top = color_to_vec4(colors.sky_top);
             mat.uniforms.sky_middle = color_to_vec4(colors.sky_middle);
             mat.uniforms.sky_band1 = color_to_vec4(colors.sky_band1);
