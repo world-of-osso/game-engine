@@ -58,7 +58,7 @@ Toolkit `f041c0e` checks `render_dirty` immutably before quad or tiled reconcili
 
 ## Three-slice, border, and highlight sprite reconciliation
 
-Toolkit `598ded9` routes retained three-slice parts, backdrop borders, CSS borders, and direct button-highlight overlay entities through the existing full-field `Transform`/`Sprite` comparison helper. Unchanged values are not reinserted; full reconciliation, real visual updates, externally altered or missing-component repair, and stale-entity lifecycle remain unchanged. The highlight evidence exercises its direct synchronization system, not default plugin reachability. Twelve tests have RED coverage; independent GREEN verification is pending. No CPU or native claim.
+Toolkit `598ded9` routes retained three-slice parts, backdrop borders, CSS borders, and direct button-highlight overlay entities through the existing full-field `Transform`/`Sprite` comparison helper. Unchanged values are not reinserted; full reconciliation, real visual updates, externally altered or missing-component repair, and stale-entity lifecycle remain unchanged. The suite first recorded 4 failing settled-write cases and 8 passing preservation cases; all 12 current cases pass independently. The highlight evidence exercises its direct synchronization system, not default plugin reachability. No CPU or native claim.
 
 ## Button input reconciliation
 
