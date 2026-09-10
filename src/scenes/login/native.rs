@@ -35,6 +35,7 @@ pub(super) fn register(app: &mut App) {
         .init_resource::<LoginClipboard>()
         .add_systems(OnEnter(GameState::Login), setup)
         .add_systems(OnExit(GameState::Login), cleanup)
+        .add_systems(PostStartup, raise_startup_ui_cameras)
         .add_systems(Update, update.run_if(in_state(GameState::Login)));
 }
 
@@ -93,6 +94,26 @@ fn setup(
         }
     }
     commands.insert_resource(selection);
+}
+
+// Initial OnEnter runs before Startup creates the toolkit camera.
+fn raise_startup_ui_cameras(
+    session: Option<ResMut<LoginSession>>,
+    mut cameras: Query<(Entity, &mut Camera), With<UiCamera>>,
+) {
+    let Some(mut session) = session else {
+        return;
+    };
+    for (entity, mut camera) in &mut cameras {
+        if !session
+            .camera_orders
+            .iter()
+            .any(|(saved, _)| *saved == entity)
+        {
+            session.camera_orders.push((entity, camera.order));
+        }
+        camera.order = 2;
+    }
 }
 
 fn cleanup(world: &mut World) {

@@ -3,6 +3,99 @@ use bevy::ecs::system::RunSystemOnce;
 use std::sync::Arc;
 
 #[test]
+fn initial_login_startup_places_toolkit_camera_above_native_and_restores_order() {
+    let mut app = App::new();
+    app.add_plugins(bevy::state::app::StatesPlugin)
+        .insert_state(GameState::Login)
+        .add_systems(
+            OnEnter(GameState::Login),
+            |mut commands: Commands, cameras: Query<&Camera, With<UiCamera>>| {
+                assert!(cameras.is_empty(), "login enters before toolkit Startup");
+                commands.insert_resource(LoginSession::default());
+                commands.spawn((
+                    Name::new("NativeLoginCamera"),
+                    Camera {
+                        order: 1,
+                        ..default()
+                    },
+                ));
+            },
+        )
+        .add_systems(Startup, ui_toolkit::render::setup_ui_camera)
+        .add_systems(PostStartup, raise_startup_ui_cameras);
+    let (mut resources, _) = fixture();
+    app.insert_resource(resources.remove_resource::<UiState>().unwrap());
+    let unrelated = app
+        .world_mut()
+        .spawn(Camera {
+            order: 7,
+            ..default()
+        })
+        .id();
+
+    app.update();
+
+    let world = app.world_mut();
+    let (toolkit, camera) = world
+        .query_filtered::<(Entity, &Camera), With<UiCamera>>()
+        .single(world)
+        .unwrap();
+    assert_eq!(camera.order, 2);
+    let native_order = world
+        .query::<(&Name, &Camera)>()
+        .iter(world)
+        .find(|(name, _)| name.as_str() == "NativeLoginCamera")
+        .unwrap()
+        .1
+        .order;
+    assert_eq!(native_order, 1);
+    assert_eq!(world.get::<Camera>(unrelated).unwrap().order, 7);
+
+    cleanup(world);
+
+    assert_eq!(world.get::<Camera>(toolkit).unwrap().order, 1);
+    assert_eq!(world.get::<Camera>(unrelated).unwrap().order, 7);
+}
+
+#[test]
+fn startup_camera_correction_preserves_previously_saved_order() {
+    let (mut world, mut session) = fixture();
+    let camera = world
+        .spawn((
+            UiCamera,
+            Camera {
+                order: 2,
+                ..default()
+            },
+        ))
+        .id();
+    session.camera_orders.push((camera, 7));
+    world.insert_resource(session);
+
+    world.run_system_once(raise_startup_ui_cameras).unwrap();
+    world.run_system_once(raise_startup_ui_cameras).unwrap();
+    assert_eq!(world.get::<Camera>(camera).unwrap().order, 2);
+    cleanup(&mut world);
+    assert_eq!(world.get::<Camera>(camera).unwrap().order, 7);
+}
+
+#[test]
+fn startup_without_login_leaves_toolkit_camera_order_unchanged() {
+    let mut world = World::new();
+    let camera = world
+        .spawn((
+            UiCamera,
+            Camera {
+                order: 1,
+                ..default()
+            },
+        ))
+        .id();
+    world.run_system_once(raise_startup_ui_cameras).unwrap();
+    assert_eq!(world.get::<Camera>(camera).unwrap().order, 1);
+}
+
+#[test]
 fn setup_asset_failure_consumes_feedback_without_partial_view_or_camera_changes() {
     let mut world = World::new();
     world.init_resource::<Assets<Font>>();
