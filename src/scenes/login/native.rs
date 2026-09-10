@@ -36,7 +36,13 @@ pub(super) fn register(app: &mut App) {
         .add_systems(OnEnter(GameState::Login), setup)
         .add_systems(OnExit(GameState::Login), cleanup)
         .add_systems(PostStartup, raise_startup_ui_cameras)
-        .add_systems(Update, update.run_if(in_state(GameState::Login)));
+        .add_systems(Update, update.run_if(in_state(GameState::Login)))
+        .add_systems(
+            PostUpdate,
+            super::native_caret::sync_login_carets
+                .after(bevy::ui::UiSystems::PostLayout)
+                .run_if(in_state(GameState::Login)),
+        );
 }
 
 fn setup(

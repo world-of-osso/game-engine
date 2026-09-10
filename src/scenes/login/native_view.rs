@@ -417,6 +417,7 @@ fn spawn_field(
         INPUT_GOLD,
         Justify::Left,
     );
+    super::native_caret::spawn_login_caret(commands, text, clip, field);
     (input, text)
 }
 

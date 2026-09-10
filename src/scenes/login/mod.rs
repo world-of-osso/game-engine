@@ -8,6 +8,7 @@ use crate::networking;
 mod form;
 pub mod helpers;
 mod native;
+mod native_caret;
 mod native_view;
 
 const FADE_IN_DURATION: f32 = 0.75;
