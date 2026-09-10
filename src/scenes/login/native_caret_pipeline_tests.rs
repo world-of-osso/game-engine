@@ -20,6 +20,11 @@ fn caret_pipeline_fixture(scale: f32) -> CaretPipelineFixture {
         MinimalPlugins,
         AssetPlugin::default(),
         ImagePlugin::default(),
+        bevy::window::WindowPlugin {
+            primary_window: None,
+            exit_condition: bevy::window::ExitCondition::DontExit,
+            ..default()
+        },
         bevy::input::InputPlugin,
         bevy::transform::TransformPlugin,
         CameraPlugin,
