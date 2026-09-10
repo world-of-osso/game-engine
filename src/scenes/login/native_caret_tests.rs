@@ -12,10 +12,11 @@ fn shaped_world(raw: &str, field: LoginFieldId, scale: f32) -> (World, Entity, E
     let mut fonts = Assets::<Font>::default();
     let handle = fonts.add(Font::from_bytes(bevy::text::DEFAULT_FONT_DATA.to_vec()));
     let font = TextFont {
-        font: bevy::text::FontSource::Handle(handle),
+        font: bevy::text::FontSource::Handle(handle.clone()),
         font_size: FontSize::Px(20.0),
         ..default()
     };
+    let mut font_cx = FontCx::default();
     let mut computed = ComputedTextBlock::default();
     TextPipeline::default()
         .update_buffer(
@@ -34,7 +35,7 @@ fn shaped_world(raw: &str, field: LoginFieldId, scale: f32) -> (World, Entity, E
             TextBounds::UNBOUNDED,
             scale,
             &mut computed,
-            &mut FontCx::default(),
+            &mut font_cx,
             &mut LayoutCx::default(),
             Vec2::new(1280.0, 720.0),
             16.0,
@@ -95,7 +96,18 @@ fn shaped_unicode_caret_tracks_start_middle_end_at_both_scales() {
             .cursor_position = 3;
         sync_login_carets(&mut world);
         let middle = left(&world, caret);
-        assert!(middle > 100.0 && middle < 100.0 + width);
+        let layout = world.get::<ComputedTextBlock>(text).unwrap().buffer();
+        let clusters: Vec<_> = layout
+            .lines()
+            .flat_map(|line| line.runs())
+            .flat_map(|run| run.clusters())
+            .map(|cluster| (cluster.text_range(), cluster.advance()))
+            .collect();
+        assert!(
+            middle > 100.0 && middle < 100.0 + width,
+            "scale={scale}, middle={middle}, width={width}, cursor={:?}, clusters={clusters:?}",
+            Cursor::from_byte_index(layout, 3, Affinity::Downstream),
+        );
         assert!((world.get::<ComputedNode>(caret).unwrap().size.x / scale - 2.0).abs() < 0.01);
     }
 }
