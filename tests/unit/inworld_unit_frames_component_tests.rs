@@ -53,7 +53,7 @@ fn player_frame_key_geometry_matches_artwork_apertures() {
         rect_by_name(&reg, "PlayerPortrait"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.portrait.x,
-            y: 857.0,
+            y: 853.25,
             width: PLAYER_FRAME_CONFIG.portrait.width,
             height: PLAYER_FRAME_CONFIG.portrait.height,
         }
@@ -71,18 +71,18 @@ fn player_frame_key_geometry_matches_artwork_apertures() {
         rect_by_name(&reg, "PlayerHealthBar"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.health_bar.x,
-            y: 884.75,
-            width: 183.0,
-            height: 25.5,
+            y: 882.5,
+            width: 186.75,
+            height: 30.0,
         }
     );
     assert_eq!(
         rect_by_name(&reg, "PlayerManaBar"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.mana_bar.x,
-            y: 916.25,
-            width: 183.0,
-            height: 10.5,
+            y: 914.0,
+            width: 186.75,
+            height: 15.0,
         }
     );
 }
@@ -93,10 +93,23 @@ fn player_contents_fit_the_scaled_artwork_openings() {
     let shell = rect_by_name(&reg, "PlayerFrameTexture");
     assert_eq!(shell, rect_by_name(&reg, "PlayerFrame"));
     assert_eq!((shell.width, shell.height), (297.0, 106.5));
+    for (name, (x, y, width, height)) in [
+        ("PlayerPortrait", (18.0, 13.0, 111.0, 113.0)),
+        ("PlayerHealthBar", (135.0, 52.0, 249.0, 40.0)),
+        ("PlayerManaBar", (135.0, 94.0, 249.0, 20.0)),
+    ] {
+        assert_eq!(
+            rect_by_name(&reg, name),
+            LayoutRect {
+                x: shell.x + x * 0.75,
+                y: shell.y + y * 0.75,
+                width: width * 0.75,
+                height: height * 0.75,
+            },
+            "{name} must reach every edge of the connected artwork aperture"
+        );
+    }
     for (name, opening) in [
-        ("PlayerPortrait", (16.0, 18.0, 100.0, 100.0)),
-        ("PlayerHealthBar", (132.0, 53.0, 248.0, 38.0)),
-        ("PlayerManaBar", (132.0, 96.0, 248.0, 16.0)),
         ("PlayerName", (134.0, 28.0, 190.0, 24.0)),
         ("PlayerLevelText", (348.0, 28.0, 36.0, 24.0)),
     ] {
@@ -141,11 +154,24 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
             }
             let fill = rect_by_name(&reg, &fill_name);
             assert_eq!((fill.x, fill.y), (bar.x, bar.y));
-            assert_eq!(fill.width, 183.0 * percent / 100.0);
+            assert_eq!(fill.width, 186.75 * percent / 100.0);
             assert_eq!(fill.height, bar.height);
             assert!(fill.x + fill.width <= bar.x + bar.width);
         }
     }
+}
+
+#[test]
+fn target_resting_label_keeps_original_offset_and_hidden_state() {
+    let reg = unit_frames_registry();
+    let target = rect_by_name(&reg, "TargetFrame");
+    let label = rect_by_name(&reg, "TargetRestingLabel");
+    assert_eq!(label.x, target.x + 85.0);
+    assert!(
+        !reg.get(reg.get_by_name("TargetRestingLabel").unwrap())
+            .unwrap()
+            .visible
+    );
 }
 
 #[test]

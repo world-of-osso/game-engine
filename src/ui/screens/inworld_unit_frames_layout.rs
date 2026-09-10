@@ -28,6 +28,7 @@ pub(super) struct BarConfig {
     pub width: f32,
     pub height: f32,
     pub text_x: f32,
+    pub mask_texture: Option<&'static str>,
 }
 
 pub(super) struct MarkerConfig {
@@ -53,6 +54,7 @@ pub(super) const PLAYER_FRAME_SCALE: f32 = 0.75;
 pub(super) const PLAYER_FRAME_W: f32 = 396.0 * PLAYER_FRAME_SCALE;
 pub(super) const PLAYER_FRAME_H: f32 = 142.0 * PLAYER_FRAME_SCALE;
 pub(super) const FRAME_BOTTOM_Y: f32 = 130.0;
+pub(super) const TARGET_RESTING_LABEL_X: f32 = 85.0;
 pub(super) const BAR_H: f32 = 20.0;
 pub(super) const MANA_H: f32 = 10.0;
 pub(super) const PORTRAIT_BG: &str = "0.02,0.02,0.02,0.92";
@@ -85,10 +87,10 @@ pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
     },
     // Coordinates follow the openings in the 396x142 artwork, not Blizzard's XML frame.
     portrait: PortraitConfig {
-        x: 16.0 * PLAYER_FRAME_SCALE,
-        y: 18.0 * PLAYER_FRAME_SCALE,
-        width: 100.0 * PLAYER_FRAME_SCALE,
-        height: 100.0 * PLAYER_FRAME_SCALE,
+        x: 18.0 * PLAYER_FRAME_SCALE,
+        y: 13.0 * PLAYER_FRAME_SCALE,
+        width: 111.0 * PLAYER_FRAME_SCALE,
+        height: 113.0 * PLAYER_FRAME_SCALE,
         background_color: "0.0,0.0,0.0,0.0",
     },
     name: TextConfig {
@@ -102,18 +104,20 @@ pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
         width: 24.0 * PLAYER_FRAME_SCALE,
     },
     health_bar: BarConfig {
-        x: 134.0 * PLAYER_FRAME_SCALE,
-        y: 55.0 * PLAYER_FRAME_SCALE,
-        width: 244.0 * PLAYER_FRAME_SCALE,
-        height: 34.0 * PLAYER_FRAME_SCALE,
+        x: 135.0 * PLAYER_FRAME_SCALE,
+        y: 52.0 * PLAYER_FRAME_SCALE,
+        width: 249.0 * PLAYER_FRAME_SCALE,
+        height: 40.0 * PLAYER_FRAME_SCALE,
         text_x: 0.0,
+        mask_texture: Some("data/ui/unitframes/player-health-aperture-v1.png"),
     },
     mana_bar: BarConfig {
-        x: 134.0 * PLAYER_FRAME_SCALE,
-        y: 97.0 * PLAYER_FRAME_SCALE,
-        width: 244.0 * PLAYER_FRAME_SCALE,
-        height: 14.0 * PLAYER_FRAME_SCALE,
+        x: 135.0 * PLAYER_FRAME_SCALE,
+        y: 94.0 * PLAYER_FRAME_SCALE,
+        width: 249.0 * PLAYER_FRAME_SCALE,
+        height: 20.0 * PLAYER_FRAME_SCALE,
         text_x: 0.0,
+        mask_texture: Some("data/ui/unitframes/player-mana-aperture-v1.png"),
     },
 };
 
@@ -149,6 +153,7 @@ pub(super) const TARGET_FRAME_CONFIG: FrameConfig = FrameConfig {
         width: 126.0,
         height: BAR_H,
         text_x: 0.0,
+        mask_texture: None,
     },
     mana_bar: BarConfig {
         x: 22.0,
@@ -156,6 +161,7 @@ pub(super) const TARGET_FRAME_CONFIG: FrameConfig = FrameConfig {
         width: 134.0,
         height: MANA_H,
         text_x: -4.0,
+        mask_texture: None,
     },
 };
 

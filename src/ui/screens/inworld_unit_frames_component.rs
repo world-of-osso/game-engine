@@ -191,7 +191,7 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
             r#frame {
                 name: names.container,
                 stretch: true,
-                {unit_frame_shell_background(&names, state, frame)}
+                {unit_frame_shell_background(&names, state, frame, player_side)}
             {unit_frame_shell_labels(&names, state, frame, player_side)}
             {unit_frame_shell_bars(prefix, state, &visuals, frame)}
             {player_secondary_resource_row(prefix, state)}
@@ -496,6 +496,11 @@ fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
 fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
     let hidden = state.resting_text.is_empty();
     let bottom_offset = if prefix == "Player" { 1.0 } else { 6.0 };
+    let x = if prefix == "Player" {
+        PLAYER_FRAME_CONFIG.health_bar.x
+    } else {
+        TARGET_RESTING_LABEL_X
+    };
     rsx! {
         fontstring {
             name: {dyn_name(format!("{prefix}RestingLabel"))},
@@ -512,7 +517,7 @@ fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
             anchor {
                 point: AnchorPoint::BottomLeft,
                 relative_point: AnchorPoint::BottomLeft,
-                x: {PLAYER_FRAME_CONFIG.health_bar.x},
+                x,
                 y: {bottom_offset},
             }
         }

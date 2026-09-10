@@ -19,6 +19,7 @@ pub(super) struct BarBlockSpec<'a> {
     pub(super) value_text: &'a str,
     pub(super) text_x: f32,
     pub(super) hidden: bool,
+    pub(super) mask_texture: Option<&'a str>,
 }
 
 pub(super) struct UnitFrameBarSpec<'a> {
@@ -160,6 +161,7 @@ pub(super) fn unit_frame_bar(spec: UnitFrameBarSpec<'_>) -> Element {
         value_text: spec.value_text,
         text_x: spec.layout.text_x,
         hidden: spec.hidden,
+        mask_texture: spec.layout.mask_texture,
     })
 }
 
@@ -242,10 +244,49 @@ fn bar_block_parts(
     edge_name: DynName,
     text_name: DynName,
 ) -> Element {
+    if let Some(mask) = spec.mask_texture {
+        return masked_bar_parts(spec, mask, fill_name, text_name);
+    }
     rsx! {
         {bar_block_fill(fill_name, spec.fill_width, spec.height, spec.fill_color)}
         {bar_block_edge(edge_name, spec.width)}
         {bar_block_text(text_name, spec.width, spec.height, spec.value_text, spec.text_x)}
+    }
+}
+
+fn masked_bar_parts(spec: &BarBlockSpec<'_>, mask: &str, fill: DynName, text: DynName) -> Element {
+    let background = dyn_name(format!("{}Background", spec.name));
+    let fraction = (spec.fill_width / spec.width).clamp(0.0, 1.0);
+    rsx! {
+        {masked_bar_texture(background, spec, mask, spec.bg_color, 1.0)}
+        {masked_bar_texture(fill, spec, mask, spec.fill_color, fraction)}
+        {bar_block_text(text, spec.width, spec.height, spec.value_text, spec.text_x)}
+    }
+}
+
+fn masked_bar_texture(
+    name: DynName,
+    spec: &BarBlockSpec<'_>,
+    mask: &str,
+    color: &str,
+    fraction: f32,
+) -> Element {
+    let hidden = fraction <= 0.0;
+    let coordinates = format!("0,{fraction},0,1");
+    rsx! {
+        texture {
+            name,
+            width: {spec.width * fraction},
+            height: spec.height,
+            hidden,
+            texture_file: mask,
+            vertex_color: color,
+            tex_coords: coordinates,
+            anchor {
+                point: AnchorPoint::TopLeft,
+                relative_point: AnchorPoint::TopLeft,
+            }
+        }
     }
 }
 
@@ -302,12 +343,17 @@ fn bar_block(spec: BarBlockSpec<'_>) -> Element {
         edge_name,
     } = bar_block_names(&spec.name);
     let content = bar_block_parts(&spec, fill_name, edge_name, text_name);
+    let background = if spec.mask_texture.is_some() {
+        "0,0,0,0"
+    } else {
+        spec.bg_color
+    };
     let shell = bar_block_shell_spec(
         spec.x,
         spec.y,
         spec.width,
         spec.height,
-        spec.bg_color,
+        background,
         spec.hidden,
     );
     bar_block_shell(frame_name, shell, content)
