@@ -29,7 +29,7 @@ fn unit_frames_match_wow_screen_rects() {
         rect_by_name(&reg, "PlayerFrame"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x,
-            y: 850.0,
+            y: 843.5,
             width: 297.0,
             height: 106.5,
         }
@@ -46,14 +46,14 @@ fn unit_frames_match_wow_screen_rects() {
 }
 
 #[test]
-fn player_frame_key_geometry_matches_wow_spec() {
+fn player_frame_key_geometry_matches_artwork_apertures() {
     let reg = unit_frames_registry();
 
     assert_eq!(
         rect_by_name(&reg, "PlayerPortrait"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.portrait.x,
-            y: 864.25,
+            y: 857.0,
             width: PLAYER_FRAME_CONFIG.portrait.width,
             height: PLAYER_FRAME_CONFIG.portrait.height,
         }
@@ -62,7 +62,7 @@ fn player_frame_key_geometry_matches_wow_spec() {
         rect_by_name(&reg, "PlayerName"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.name.x,
-            y: 870.25,
+            y: 866.75,
             width: PLAYER_FRAME_CONFIG.name.width,
             height: 12.0,
         }
@@ -71,19 +71,99 @@ fn player_frame_key_geometry_matches_wow_spec() {
         rect_by_name(&reg, "PlayerHealthBar"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.health_bar.x,
-            y: 880.0,
-            width: PLAYER_FRAME_CONFIG.health_bar.width,
-            height: BAR_H,
+            y: 884.75,
+            width: 183.0,
+            height: 25.5,
         }
     );
     assert_eq!(
         rect_by_name(&reg, "PlayerManaBar"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.mana_bar.x,
-            y: 895.75,
-            width: PLAYER_FRAME_CONFIG.mana_bar.width,
-            height: MANA_H,
+            y: 916.25,
+            width: 183.0,
+            height: 10.5,
         }
+    );
+}
+
+#[test]
+fn player_contents_fit_the_scaled_artwork_openings() {
+    let reg = unit_frames_registry();
+    let shell = rect_by_name(&reg, "PlayerFrameTexture");
+    assert_eq!(shell, rect_by_name(&reg, "PlayerFrame"));
+    assert_eq!((shell.width, shell.height), (297.0, 106.5));
+    for (name, opening) in [
+        ("PlayerPortrait", (16.0, 18.0, 100.0, 100.0)),
+        ("PlayerHealthBar", (132.0, 53.0, 248.0, 38.0)),
+        ("PlayerManaBar", (132.0, 96.0, 248.0, 16.0)),
+        ("PlayerName", (134.0, 28.0, 190.0, 24.0)),
+        ("PlayerLevelText", (348.0, 28.0, 36.0, 24.0)),
+    ] {
+        let rect = rect_by_name(&reg, name);
+        let (x, y, width, height) = opening;
+        let left = shell.x + x * 0.75;
+        let top = shell.y + y * 0.75;
+        assert!(
+            rect.x >= left
+                && rect.y >= top
+                && rect.x + rect.width <= left + width * 0.75
+                && rect.y + rect.height <= top + height * 0.75,
+            "{name} {rect:?} must fit artwork opening {opening:?} at 75% scale"
+        );
+    }
+}
+
+#[test]
+fn player_health_and_mana_updates_stay_inside_resized_bars() {
+    let mut reg = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = sample_unit_frames_context();
+    let mut screen = Screen::new(inworld_unit_frames_screen);
+    for percent in [100.0, 50.0, 0.0] {
+        let mut state = shared.get::<InWorldUnitFramesState>().unwrap().clone();
+        state.player.health_fill_width =
+            fill_width(PLAYER_HEALTH_BAR_W, Some(percent), Some(100.0));
+        state.player.mana_fill_width = fill_width(PLAYER_HEALTH_BAR_W, Some(percent), Some(100.0));
+        shared.insert(state);
+        screen.sync(&shared, &mut reg);
+        recompute_layouts(&mut reg);
+        for name in ["PlayerHealthBar", "PlayerManaBar"] {
+            let bar = rect_by_name(&reg, name);
+            let fill = rect_by_name(&reg, &format!("{name}Fill"));
+            assert_eq!((fill.x, fill.y), (bar.x, bar.y));
+            assert_eq!(fill.width, 183.0 * percent / 100.0);
+            assert_eq!(fill.height, bar.height);
+            assert!(fill.x + fill.width <= bar.x + bar.width);
+        }
+    }
+}
+
+#[test]
+fn player_status_widgets_fit_without_covering_resources() {
+    let reg = unit_frames_registry();
+    let portrait = rect_by_name(&reg, "PlayerPortrait");
+    for name in ["PlayerCombatIcon", "PlayerRestingIcon"] {
+        let rect = rect_by_name(&reg, name);
+        assert!(
+            rect.x >= portrait.x
+                && rect.y >= portrait.y
+                && rect.x + rect.width <= portrait.x + portrait.width
+                && rect.y + rect.height <= portrait.y + portrait.height
+        );
+    }
+    let mana = rect_by_name(&reg, "PlayerManaBar");
+    let row = rect_by_name(&reg, "PlayerSecondaryResourceRow");
+    let resting = rect_by_name(&reg, "PlayerRestingLabel");
+    let frame = rect_by_name(&reg, "PlayerFrame");
+    assert!(row.y >= mana.y + mana.height);
+    assert!(resting.y >= row.y + row.height);
+    assert!(resting.y + resting.height <= frame.y + frame.height);
+    let player_portrait = reg.get(reg.get_by_name("PlayerPortrait").unwrap()).unwrap();
+    assert_eq!(player_portrait.background_color, Some([0.0, 0.0, 0.0, 0.0]));
+    let target_portrait = reg.get(reg.get_by_name("TargetPortrait").unwrap()).unwrap();
+    assert_eq!(
+        target_portrait.background_color,
+        Some([0.02, 0.02, 0.02, 0.92])
     );
 }
 
@@ -165,7 +245,7 @@ fn explicit_size_icon_placeholders_match_wow_spec() {
         rect_by_name(&reg, "PlayerRoleIcon"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_ROLE.x,
-            y: 877.0,
+            y: 870.5,
             width: PLAYER_ROLE.width,
             height: PLAYER_ROLE.height,
         }
@@ -174,7 +254,7 @@ fn explicit_size_icon_placeholders_match_wow_spec() {
         rect_by_name(&reg, "PlayerPrestigePortrait"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_PRESTIGE.x,
-            y: 888.0,
+            y: 881.5,
             width: PLAYER_PRESTIGE.width,
             height: PLAYER_PRESTIGE.height,
         }

@@ -28,7 +28,7 @@ pub use inworld_unit_frames_state::{
     missing_target_name,
 };
 
-const SECONDARY_RESOURCE_ROW_Y: f32 = 74.0;
+const SECONDARY_RESOURCE_ROW_Y: f32 = 85.5;
 const SECONDARY_RESOURCE_ROW_H: f32 = 8.0;
 const SECONDARY_RESOURCE_GAP: f32 = 2.0;
 pub const UNKNOWN_PORTRAIT_TEXTURE_FILE: &str =
@@ -122,7 +122,7 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
                     point: AnchorPoint::BottomLeft,
                     relative_point: AnchorPoint::BottomLeft,
                     x: {PLAYER_FRAME_CONFIG.frame_x},
-                    y: {PLAYER_FRAME_BOTTOM_Y},
+                    y: {FRAME_BOTTOM_Y},
                 }
             {unit_frame_shell("Player", state, true)}
         }
@@ -285,7 +285,7 @@ fn unit_frame_shell_bars(
                 prefix,
                 label: "HealthBar",
                 layout: &frame.health_bar,
-                height: BAR_H,
+                height: frame.health_bar.height,
                 bg_color: visuals.health_bg,
                 fill_color: visuals.health_fill,
                 fill_width: state.health_fill_width,
@@ -298,7 +298,7 @@ fn unit_frame_shell_bars(
                 prefix,
                 label: "ManaBar",
                 layout: &frame.mana_bar,
-                height: MANA_H,
+                height: frame.mana_bar.height,
                 bg_color: MANA_BG,
                 fill_color: MANA_FILL,
                 fill_width: state.mana_fill_width,
@@ -457,10 +457,11 @@ fn combat_icon(prefix: &str, state: &UnitFrameState) -> Element {
             shadow_offset: "1,-1",
             justify_h: "CENTER",
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PLAYER_CORNER.x + 17.0},
-                y: {-PLAYER_CORNER.y - 4.0},
+                point: AnchorPoint::Center,
+                relative_to: PLAYER_PORTRAIT_FRAME,
+                relative_point: AnchorPoint::Bottom,
+                x: {15.0},
+                y: {15.0},
             }
         }
     }
@@ -482,10 +483,11 @@ fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
             shadow_offset: "1,-1",
             justify_h: "CENTER",
             anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PLAYER_CORNER.x + 2.0},
-                y: {-PLAYER_CORNER.y - 4.0},
+                point: AnchorPoint::Center,
+                relative_to: PLAYER_PORTRAIT_FRAME,
+                relative_point: AnchorPoint::Bottom,
+                x: {-9.0},
+                y: {15.0},
             }
         }
     }
@@ -493,6 +495,7 @@ fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
 
 fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
     let hidden = state.resting_text.is_empty();
+    let bottom_offset = if prefix == "Player" { 1.0 } else { 6.0 };
     rsx! {
         fontstring {
             name: {dyn_name(format!("{prefix}RestingLabel"))},
@@ -510,7 +513,7 @@ fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
                 point: AnchorPoint::BottomLeft,
                 relative_point: AnchorPoint::BottomLeft,
                 x: {PLAYER_FRAME_CONFIG.health_bar.x},
-                y: {6.0},
+                y: {bottom_offset},
             }
         }
     }

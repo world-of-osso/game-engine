@@ -13,6 +13,7 @@ pub(super) struct PortraitConfig {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    pub background_color: &'static str,
 }
 
 pub(super) struct TextConfig {
@@ -25,6 +26,7 @@ pub(super) struct BarConfig {
     pub x: f32,
     pub y: f32,
     pub width: f32,
+    pub height: f32,
     pub text_x: f32,
 }
 
@@ -47,9 +49,9 @@ pub(super) struct FrameConfig {
 
 pub(super) const FRAME_W: f32 = 232.0;
 pub(super) const FRAME_H: f32 = 100.0;
-pub(super) const PLAYER_FRAME_W: f32 = 297.0;
-pub(super) const PLAYER_FRAME_H: f32 = 106.5;
-pub(super) const PLAYER_FRAME_BOTTOM_Y: f32 = 130.0;
+pub(super) const PLAYER_FRAME_SCALE: f32 = 0.75;
+pub(super) const PLAYER_FRAME_W: f32 = 396.0 * PLAYER_FRAME_SCALE;
+pub(super) const PLAYER_FRAME_H: f32 = 142.0 * PLAYER_FRAME_SCALE;
 pub(super) const FRAME_BOTTOM_Y: f32 = 130.0;
 pub(super) const BAR_H: f32 = 20.0;
 pub(super) const MANA_H: f32 = 10.0;
@@ -75,38 +77,42 @@ pub(super) const READY_CHECK_H: f32 = 40.0;
 pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
     frame_x: 268.0,
     shell: ShellConfig {
-        width: 297.0,
-        height: 106.5,
+        width: PLAYER_FRAME_W,
+        height: PLAYER_FRAME_H,
         texture: "data/ui/unitframes/player-frame-shell.ktx2",
         anchor_x: "0",
-        anchor_y: "-2",
+        anchor_y: "0",
     },
+    // Coordinates follow the openings in the 396x142 artwork, not Blizzard's XML frame.
     portrait: PortraitConfig {
-        x: 18.0,
-        y: 14.25,
-        width: 45.0,
-        height: 45.0,
+        x: 16.0 * PLAYER_FRAME_SCALE,
+        y: 18.0 * PLAYER_FRAME_SCALE,
+        width: 100.0 * PLAYER_FRAME_SCALE,
+        height: 100.0 * PLAYER_FRAME_SCALE,
+        background_color: "0.0,0.0,0.0,0.0",
     },
     name: TextConfig {
-        x: 66.0,
-        y: 20.25,
-        width: 72.0,
+        x: 134.0 * PLAYER_FRAME_SCALE,
+        y: 31.0 * PLAYER_FRAME_SCALE,
+        width: 190.0 * PLAYER_FRAME_SCALE,
     },
     level: TextConfig {
-        x: -24.5,
-        y: 28.0,
-        width: 24.0,
+        x: -22.0 * PLAYER_FRAME_SCALE,
+        y: 31.0 * PLAYER_FRAME_SCALE,
+        width: 24.0 * PLAYER_FRAME_SCALE,
     },
     health_bar: BarConfig {
-        x: 63.75,
-        y: 30.0,
-        width: 93.0,
+        x: 134.0 * PLAYER_FRAME_SCALE,
+        y: 55.0 * PLAYER_FRAME_SCALE,
+        width: 244.0 * PLAYER_FRAME_SCALE,
+        height: 34.0 * PLAYER_FRAME_SCALE,
         text_x: 0.0,
     },
     mana_bar: BarConfig {
-        x: 63.75,
-        y: 45.75,
-        width: 93.0,
+        x: 134.0 * PLAYER_FRAME_SCALE,
+        y: 97.0 * PLAYER_FRAME_SCALE,
+        width: 244.0 * PLAYER_FRAME_SCALE,
+        height: 14.0 * PLAYER_FRAME_SCALE,
         text_x: 0.0,
     },
 };
@@ -125,6 +131,7 @@ pub(super) const TARGET_FRAME_CONFIG: FrameConfig = FrameConfig {
         y: 19.0,
         width: 58.0,
         height: 58.0,
+        background_color: PORTRAIT_BG,
     },
     name: TextConfig {
         x: 51.0,
@@ -140,12 +147,14 @@ pub(super) const TARGET_FRAME_CONFIG: FrameConfig = FrameConfig {
         x: 22.0,
         y: 28.0,
         width: 126.0,
+        height: BAR_H,
         text_x: 0.0,
     },
     mana_bar: BarConfig {
         x: 22.0,
         y: 39.0,
         width: 134.0,
+        height: MANA_H,
         text_x: -4.0,
     },
 };

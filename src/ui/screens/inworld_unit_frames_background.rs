@@ -3,7 +3,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::AnchorPoint;
 
-use super::{DynName, FrameConfig, PORTRAIT_BG, UnitFrameNames, UnitFrameState, dyn_name};
+use super::{DynName, FrameConfig, UnitFrameNames, UnitFrameState, dyn_name};
 
 pub(super) fn unit_frame_shell_background(
     names: &UnitFrameNames,
@@ -27,7 +27,7 @@ pub(super) fn unit_frame_shell_background(
             name: {names.portrait.clone()},
             width: frame.portrait.width,
             height: frame.portrait.height,
-            background_color: PORTRAIT_BG,
+            background_color: frame.portrait.background_color,
             anchor {
                 point: AnchorPoint::TopLeft,
                 relative_point: AnchorPoint::TopLeft,
