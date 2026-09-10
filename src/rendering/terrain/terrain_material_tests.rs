@@ -8,6 +8,47 @@ use bevy::asset::Assets;
 use bevy::image::Image;
 use bevy::math::{Vec2, Vec4};
 
+#[test]
+fn height_texture_zero_slots_stay_absent_even_when_zero_blp_exists() {
+    let root = game_engine::test_harness::temp_test_dir("height-texture-zero");
+    let terrain_dir = root.join("terrain");
+    let texture_dir = root.join("textures");
+    std::fs::create_dir_all(&terrain_dir).unwrap();
+    std::fs::create_dir_all(&texture_dir).unwrap();
+    let source = game_engine::paths::shared_data_path("textures/186769.blp");
+    std::fs::copy(&source, texture_dir.join("0.blp")).unwrap();
+    let zero_is_valid = crate::asset::blp::load_blp_gpu_image(&texture_dir.join("0.blp")).is_ok();
+    assert!(
+        zero_is_valid,
+        "fixture must be a readable texture, not a missing-file false positive"
+    );
+    let data = adt::AdtTexData {
+        texture_amplifier: None,
+        texture_fdids: vec![],
+        height_texture_fdids: vec![0, 186769, 0],
+        texture_flags: vec![],
+        texture_params: vec![],
+        chunk_layers: vec![],
+    };
+    let path = terrain_dir.join("tile.adt");
+    let decoded = super::decode_height_images(&data, &path);
+    let mut images = Assets::<Image>::default();
+    let loaded = super::load_height_images(&mut images, &data, &path);
+    std::fs::remove_dir_all(&root).unwrap();
+    assert_eq!(decoded.len(), 3);
+    assert_eq!(loaded.len(), 3);
+    assert!(
+        decoded[0].is_none() && decoded[2].is_none(),
+        "zero IDs must not decode a file"
+    );
+    assert!(
+        loaded[0].is_none() && loaded[2].is_none(),
+        "zero IDs must not allocate image assets"
+    );
+    assert!(decoded[1].is_some() && loaded[1].is_some());
+    assert_eq!(images.len(), 1);
+}
+
 const TEST_TEXTURE_PARAM_FLAG_0: u32 = 0x10;
 const TEST_TEXTURE_PARAM_FLAG_1: u32 = 0x20;
 const TEST_ROTATING_TEXTURE_FLAGS: u32 = 0x40 | 0x19;
