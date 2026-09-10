@@ -75,6 +75,7 @@ pub fn dump_scene_and_exit(
 
 pub fn dump_ui_tree_and_exit(
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
+    native_nodes: Query<game_engine::ui::native::NativeUiQueryData<'_>>,
     mut spellbook_runtime: Option<
         NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
     >,
@@ -84,13 +85,18 @@ pub fn dump_ui_tree_and_exit(
         rt.sync(&mut ui_state.registry);
     }
     crate::action_bar::ensure_action_bars(&mut ui_state.registry);
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
+    let tree =
+        game_engine::dump::build_ui_tree_with_native(&ui_state.registry, &native_nodes, None);
     println!("{tree}");
     exit.write(AppExit::Success);
 }
 
-pub fn headless_dump_ui_tree_immediate(ui_state: ResMut<game_engine::ui::plugin::UiState>) {
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
+pub fn headless_dump_ui_tree_immediate(
+    ui_state: ResMut<game_engine::ui::plugin::UiState>,
+    native_nodes: Query<game_engine::ui::native::NativeUiQueryData<'_>>,
+) {
+    let tree =
+        game_engine::dump::build_ui_tree_with_native(&ui_state.registry, &native_nodes, None);
     println!("{tree}");
     std::process::exit(0);
 }
@@ -114,6 +120,7 @@ pub fn handle_automation_dump_tree_request(
 pub fn handle_automation_dump_ui_tree_request(
     request: Option<Res<game_engine::ui::automation::UiAutomationDumpUiTreeRequest>>,
     mut ui_state: ResMut<game_engine::ui::plugin::UiState>,
+    native_nodes: Query<game_engine::ui::native::NativeUiQueryData<'_>>,
     mut spellbook_runtime: Option<
         NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>,
     >,
@@ -128,7 +135,8 @@ pub fn handle_automation_dump_ui_tree_request(
         rt.sync(&mut ui_state.registry);
     }
     crate::action_bar::ensure_action_bars(&mut ui_state.registry);
-    let tree = game_engine::dump::build_ui_tree(&ui_state.registry, None);
+    let tree =
+        game_engine::dump::build_ui_tree_with_native(&ui_state.registry, &native_nodes, None);
     println!("{tree}");
     exit.write(AppExit::Success);
 }

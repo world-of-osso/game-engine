@@ -256,6 +256,7 @@ pub(crate) struct DispatchContext<'a> {
 struct SceneParams<'w, 's> {
     commands: Commands<'w, 's>,
     tree_query: TreeQuery<'w, 's>,
+    native_ui_query: Query<'w, 's, crate::ui::native::NativeUiQueryData<'static>>,
     parent_query: Query<'w, 's, &'static ChildOf>,
     global_transform_query: Query<'w, 's, &'static GlobalTransform>,
     aabb_query: Query<'w, 's, (Entity, &'static Aabb, &'static GlobalTransform)>,
