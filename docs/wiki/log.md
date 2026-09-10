@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid false clean render-state mutations
+
+Updated [[ui-system]] for ui-toolkit `f041c0e`: quad and tiled reconciliation check `render_dirty` immutably before clearing it. Empty sets no longer falsely mutate `UiState`; nonempty sets still drain at the existing points and reconciliation remains unchanged. GREEN verification pending. No CPU/native claim.
+
 ## [2026-09-10] ui | Avoid unchanged tiled sprite writes
 
-Updated [[ui-system]] for ui-toolkit `2b3c1f3`: retained tiled sprites reuse the shared quad comparison, so unchanged `Transform` and `Sprite` values are not reinserted. Discovery, real updates, external/missing-component repair, stale cleanup, and registry dirty clearing are unchanged. RED exists; GREEN verification remains pending. No CPU/native claim.
+Updated [[ui-system]] for ui-toolkit `2b3c1f3`: retained tiled sprites reuse the shared quad comparison, so unchanged `Transform` and `Sprite` values are not reinserted. Discovery, real updates, external/missing-component repair, stale cleanup, and registry dirty clearing are unchanged. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU/native claim.
 
 ## [2026-09-10] ui | Avoid unchanged nine-slice sprite writes
 
