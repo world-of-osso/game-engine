@@ -4,7 +4,7 @@ use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use bevy::sprite::Anchor;
 use bevy::transform::TransformSystems;
-use shared::components::{Npc, Player as NetPlayer};
+use shared::components::{Health, Npc, Player as NetPlayer};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
 use crate::asset::asset_cache;
@@ -229,6 +229,7 @@ struct NameplateScene<'w, 's> {
             &'static GlobalTransform,
             &'static InheritedVisibility,
             Option<&'static Children>,
+            Has<Health>,
         ),
         Without<Nameplate>,
     >,
@@ -299,7 +300,7 @@ fn project_owner(
     show_health_bars: bool,
     scene: &NameplateScene,
 ) -> Option<ProjectedPlate> {
-    let (owner_global, inherited, children) = scene.owners.get(owner).ok()?;
+    let (owner_global, inherited, children, has_health) = scene.owners.get(owner).ok()?;
     if !inherited.get() {
         return None;
     }
@@ -317,7 +318,9 @@ fn project_owner(
         .into_iter()
         .flatten()
         .filter_map(|child| scene.bars.get(*child).ok())
-        .find(|(_, visibility)| show_health_bars && **visibility != Visibility::Hidden);
+        .find(|(_, visibility)| {
+            has_health && show_health_bars && **visibility != Visibility::Hidden
+        });
     let (viewport, text_anchor) = match bar {
         Some((global, _)) => (
             project_bar_top(world_camera, world_transform, global)? - Vec2::Y * NAME_BAR_GAP,

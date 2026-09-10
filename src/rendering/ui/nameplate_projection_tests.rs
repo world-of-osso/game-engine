@@ -71,7 +71,7 @@ pub(super) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     (app, camera)
 }
 
-fn wolf(app: &mut App) -> (Entity, Entity) {
+pub(super) fn wolf(app: &mut App) -> (Entity, Entity) {
     let owner = app
         .world_mut()
         .spawn((

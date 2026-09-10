@@ -46,6 +46,34 @@ fn assert_compact_gap(app: &mut App, camera: Entity, bar: Entity, label: Entity)
 }
 
 #[test]
+fn removing_health_restores_name_only_even_when_old_bar_still_exists() {
+    let (mut app, _) = tests::app_with_cameras(1.0);
+    let (owner, label) = tests::wolf(&mut app);
+    app.world_mut().entity_mut(owner).insert(Health {
+        current: 100.0,
+        max: 100.0,
+    });
+    tests::settle(&mut app);
+    assert_eq!(
+        app.world().get::<Anchor>(label),
+        Some(&Anchor::BOTTOM_CENTER)
+    );
+    app.world_mut().entity_mut(owner).remove::<Health>();
+    app.update();
+    assert!(tests::visible(&app, label));
+    assert_eq!(app.world().get::<Anchor>(label), Some(&Anchor::CENTER));
+    assert!(
+        app.world()
+            .get::<Transform>(label)
+            .unwrap()
+            .translation
+            .truncate()
+            .length()
+            < 0.001
+    );
+}
+
+#[test]
 fn player_and_npc_name_bottom_tracks_bar_top_at_multiple_transforms_cameras_and_dpi() {
     for dpi in [1.0, 2.0] {
         for player in [false, true] {
