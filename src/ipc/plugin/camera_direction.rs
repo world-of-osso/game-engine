@@ -33,7 +33,8 @@ mod tests {
 
     fn request(world: &mut World, in_world: bool) -> Result<String, String> {
         let mut state = SystemState::<Query<(&Camera, &mut WowCamera)>>::new(world);
-        set_camera_direction(in_world, &mut state.get_mut(world), Some(90.0), Some(60.0))
+        let mut cameras = state.get_mut(world).unwrap();
+        set_camera_direction(in_world, &mut cameras, Some(90.0), Some(60.0))
     }
 
     #[test]
