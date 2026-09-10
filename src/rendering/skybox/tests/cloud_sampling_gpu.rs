@@ -62,7 +62,7 @@ fn spawn_periodic_test_sky(app: &mut App) {
     let mut pixels = Vec::new();
     for x in 0..256 {
         let phase = (x as f32 + 0.5) / 256.0 * std::f32::consts::TAU;
-        let value = ((0.45 + 0.3 * phase.sin()) * 255.0).round() as u8;
+        let value = ((0.45 + 0.1 * phase.sin()) * 255.0).round() as u8;
         pixels.extend_from_slice(&[value, value, value, 255]);
     }
     let mut image = crate::rgba_image(pixels, 256, 1);
@@ -73,7 +73,11 @@ fn spawn_periodic_test_sky(app: &mut App) {
         .world_mut()
         .resource_mut::<Assets<SkyMaterial>>()
         .add(SkyMaterial {
-            uniforms: cloud_test_uniforms(),
+            uniforms: SkyUniforms {
+                // Keep this seam fixture on the soft opacity edge, not saturated overcast.
+                cloud_params: Vec4::new(0.65, 0.0, 0.0, 0.0),
+                ..cloud_test_uniforms()
+            },
             cloud_texture: texture,
         });
     let mesh = app
