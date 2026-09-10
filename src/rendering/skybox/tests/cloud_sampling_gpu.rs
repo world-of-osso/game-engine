@@ -3,11 +3,13 @@ use super::*;
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::material::descriptor::PipelineDescriptor;
 use bevy::render::RenderApp;
 use bevy::render::render_asset::RenderAssets;
-use bevy::render::render_resource::TextureFormat;
+use bevy::render::render_resource::{CachedPipelineState, PipelineCache, TextureFormat};
 use bevy::render::texture::GpuImage;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
+use bevy::shader::{Shader, ShaderCacheError};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -262,12 +264,42 @@ fn measure_cloud_coverage(image: Image) -> Option<CloudCoverage> {
     Some(coverage)
 }
 
+fn density_sky_pipeline_ready(app: &App, shader: &Handle<Shader>) -> bool {
+    let cache = app.sub_app(RenderApp).world().resource::<PipelineCache>();
+    for pipeline in cache.pipelines() {
+        let PipelineDescriptor::RenderPipelineDescriptor(descriptor) = &pipeline.descriptor else {
+            continue;
+        };
+        if !descriptor
+            .fragment
+            .as_ref()
+            .is_some_and(|fragment| fragment.shader == *shader)
+        {
+            continue;
+        }
+        match &pipeline.state {
+            CachedPipelineState::Ok(_) => return true,
+            CachedPipelineState::Err(
+                ShaderCacheError::ShaderNotLoaded(_)
+                | ShaderCacheError::ShaderImportNotYetAvailable,
+            ) => {}
+            CachedPipelineState::Err(error) => panic!("density sky pipeline failed: {error:?}"),
+            _ => {}
+        }
+    }
+    false
+}
+
 #[test]
 #[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
 fn generated_clouds_have_visible_density_control() {
     let deadline = Instant::now() + Duration::from_secs(10);
     let mut app = render_app();
     let (targets, texture) = spawn_generated_density_sky(&mut app);
+    let shader = app
+        .world()
+        .resource::<AssetServer>()
+        .load("shaders/sky.wgsl");
     let (sender, receiver) = mpsc::channel();
     let mut pending = [false; 3];
     let mut coverage: [Option<CloudCoverage>; 3] = std::array::from_fn(|_| None);
@@ -279,7 +311,7 @@ fn generated_clouds_have_visible_density_control() {
             .resource::<RenderAssets<GpuImage>>()
             .get(&texture)
             .is_some();
-        if !texture_ready {
+        if !texture_ready || !density_sky_pipeline_ready(&app, &shader) {
             continue;
         }
         for (index, target) in targets.iter().enumerate() {
