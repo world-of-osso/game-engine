@@ -2,6 +2,151 @@ use super::*;
 use bevy::ecs::system::RunSystemOnce;
 use std::sync::Arc;
 
+struct SetupBlpLoader;
+
+impl ui_toolkit::render_texture::BlpLoader for SetupBlpLoader {
+    fn load_blp_to_image(&self, path: &std::path::Path) -> Result<Image, String> {
+        game_engine::asset::blp::load_blp_to_image(path)
+    }
+
+    fn load_blp_gpu_image(&self, path: &std::path::Path) -> Result<Image, String> {
+        game_engine::asset::blp::load_blp_gpu_image(path)
+    }
+
+    fn ensure_texture(&self, fdid: u32) -> Option<std::path::PathBuf> {
+        panic!("login setup fixture unexpectedly requested FDID {fdid}");
+    }
+}
+
+fn require_setup_assets() {
+    use ui_toolkit::widgets::font_string::GameFont;
+
+    let mut paths = vec![
+        "data/glues/common/world-of-osso-background.ktx2".to_owned(),
+        "data/glues/common/world-of-osso-logo.ktx2".to_owned(),
+        "data/glues/mainmenu/Glues-BlizzardLogo.blp".to_owned(),
+        GameFont::FrizQuadrata.path().to_owned(),
+        GameFont::ArialNarrow.path().to_owned(),
+    ];
+    for part in ["TL", "T", "TR", "L", "M", "R", "BL", "B", "BR"] {
+        paths.push(format!(
+            "data/ui/login-input/Common-Input-Border-{part}.blp"
+        ));
+    }
+    for state in ["normal", "pressed", "highlight", "disabled"] {
+        paths.push(format!(
+            "data/ui/login-button-generated-regular-{state}.ktx2"
+        ));
+    }
+    let variant = match std::env::var("LOGIN_BUTTON_VARIANT").ok().as_deref() {
+        Some("regular") => Some("output/imagegen/button-dark-bronze-regular.ktx2"),
+        Some("knotwork") => Some("output/imagegen/button-carved-bronze-knotwork.ktx2"),
+        Some("walnut") => Some("output/imagegen/button-walnut-bronze-framed.ktx2"),
+        _ => None,
+    };
+    if let Some(path) = variant {
+        paths.push(path.to_owned());
+    }
+    for path in paths {
+        assert!(
+            std::path::Path::new(&path).is_file(),
+            "native setup test requires existing local asset {path}; run from the engine worktree"
+        );
+    }
+}
+
+fn setup_success_world() -> World {
+    require_setup_assets();
+    let (mut world, _) = fixture();
+    let controls: Vec<_> = world
+        .query_filtered::<Entity, With<LoginControl>>()
+        .iter(&world)
+        .collect();
+    for entity in controls {
+        world.despawn(entity);
+    }
+    world.init_resource::<Assets<Image>>();
+    world.init_resource::<Assets<Font>>();
+    world.init_resource::<ui_toolkit::font_registry::FontRegistry>();
+    world.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
+        SetupBlpLoader,
+    )));
+    world.insert_resource(networking::AuthUiFeedback(Some("Session expired".into())));
+    let addr = "192.0.2.17:5000".parse().unwrap();
+    let hostname = "setup-preservation.invalid:5000";
+    world.insert_resource(LoginRealmSelection::from_server(
+        Some(addr),
+        Some(hostname),
+        true,
+    ));
+    world.insert_resource(networking::ServerAddr(addr));
+    world.insert_resource(networking::ServerHostname(hostname.into()));
+    world
+        .run_system_once(setup)
+        .expect("native setup system runs");
+    assert!(
+        world.contains_resource::<LoginView>() && world.contains_resource::<LoginSession>(),
+        "native setup failed: {}",
+        world.resource::<LoginStatus>().0
+    );
+    world
+}
+
+#[test]
+fn successful_native_setup_retains_feedback_and_custom_realm_without_prefill() {
+    let mut world = setup_success_world();
+    assert_eq!(world.resource::<networking::AuthUiFeedback>().0, None);
+    assert_eq!(world.resource::<LoginStatus>().0, "Session expired");
+    let addr = "192.0.2.17:5000".parse().unwrap();
+    let hostname = "setup-preservation.invalid:5000";
+    assert_eq!(world.resource::<networking::ServerAddr>().0, addr);
+    assert_eq!(world.resource::<networking::ServerHostname>().0, hostname);
+    assert_eq!(
+        world.resource::<LoginRealmSelection>(),
+        &LoginRealmSelection::from_server(Some(addr), Some(hostname), true)
+    );
+    let session = world.resource::<LoginSession>();
+    assert_eq!(session.focus, Some(LoginFieldId::Username));
+    assert!(session.form.username.text.is_empty());
+    assert!(session.form.password.text.is_empty());
+    let view = world.resource::<LoginView>().clone();
+    update(&mut world);
+    assert_eq!(
+        world.get::<Text>(view.status_text).unwrap().0,
+        "Session expired"
+    );
+    assert!(world.get::<Text>(view.username_text).unwrap().0.is_empty());
+    assert!(world.get::<Text>(view.password_text).unwrap().0.is_empty());
+}
+
+#[test]
+fn native_update_advances_visible_fade_and_clamps_without_compounding() {
+    let mut world = setup_success_world();
+    let status = world.resource::<LoginView>().status_text;
+    let background = world
+        .query::<(Entity, &Name)>()
+        .iter(&world)
+        .find(|(_, name)| name.as_str() == "LoginBackground")
+        .expect("setup creates background")
+        .0;
+    for (delta, expected) in [(0.0, 0.1 / 0.75), (0.2, 0.4), (1.0, 1.0), (0.2, 1.0)] {
+        world
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_secs_f32(delta));
+        update(&mut world);
+        let text_alpha = world.get::<TextColor>(status).unwrap().0.alpha();
+        let image_alpha = world.get::<ImageNode>(background).unwrap().color.alpha();
+        assert!(
+            (text_alpha - expected).abs() < 0.0001,
+            "text alpha {text_alpha}, expected {expected}"
+        );
+        assert!(
+            (image_alpha - expected).abs() < 0.0001,
+            "image alpha {image_alpha}, expected {expected}"
+        );
+    }
+}
+
 #[test]
 fn initial_login_startup_places_toolkit_camera_above_native_and_restores_order() {
     let mut app = App::new();
