@@ -155,6 +155,33 @@ fn inworld_ibl_respects_scene_state_and_lighting_stage() {
     }
 }
 
+#[test]
+fn skyboxdebug_registered_sky_updates_initialize_and_refresh_dome_colors() {
+    let mut app = lighting_app();
+    app.insert_resource(State::new(GameState::SkyboxDebug));
+    let handle = app
+        .world_mut()
+        .resource_mut::<Assets<SkyMaterial>>()
+        .add(SkyMaterial {
+            uniforms: SkyUniforms::default(),
+            cloud_texture: Handle::default(),
+        });
+    app.world_mut()
+        .spawn((SkyDome, MeshMaterial3d(handle.clone())));
+    for minutes in [1440.0, 720.0] {
+        app.world_mut().resource_mut::<GameTime>().minutes = minutes;
+        app.update();
+        let world = app.world();
+        let colors = interpolate_colors(&world.resource::<LightKeyframes>().0, minutes);
+        let material = world
+            .resource::<Assets<SkyMaterial>>()
+            .get(&handle)
+            .unwrap();
+        assert_eq!(material.uniforms.sky_top, color_to_vec4(colors.sky_top));
+        assert_eq!(material.uniforms.sky_band2, color_to_vec4(colors.sky_band2));
+    }
+}
+
 fn lighting_app() -> App {
     let mut app = App::new();
     app.insert_resource(State::new(GameState::InWorld));

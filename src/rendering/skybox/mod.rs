@@ -642,7 +642,10 @@ fn remove_disabled_sky_domes(
 }
 
 fn sky_scene_active(state: Res<State<GameState>>) -> bool {
-    matches!(state.get(), GameState::InWorld | GameState::CharSelect)
+    matches!(
+        state.get(),
+        GameState::InWorld | GameState::CharSelect | GameState::SkyboxDebug
+    )
 }
 
 fn register_inworld_systems(app: &mut App) {
