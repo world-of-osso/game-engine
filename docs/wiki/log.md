@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid unchanged tiled sprite writes
+
+Updated [[ui-system]] for ui-toolkit `2b3c1f3`: retained tiled sprites reuse the shared quad comparison, so unchanged `Transform` and `Sprite` values are not reinserted. Discovery, real updates, external/missing-component repair, stale cleanup, and registry dirty clearing are unchanged. RED exists; GREEN verification remains pending. No CPU/native claim.
+
 ## [2026-09-10] ui | Avoid unchanged nine-slice sprite writes
 
-Updated [[ui-system]] for ui-toolkit `67413da`: retained nine-slice part entities reuse the shared quad comparison, so settled `Transform` and `Sprite` values are not reinserted. Geometry, color, image and UV updates, external/missing-component repair, spawning and stale removal retain full reconciliation. RED exists; GREEN verification remains pending. No CPU/native claim.
+Updated [[ui-system]] for ui-toolkit `67413da`: retained nine-slice part entities reuse the shared quad comparison, so settled `Transform` and `Sprite` values are not reinserted. Geometry, color, image and UV updates, external/missing-component repair, spawning and stale removal retain full reconciliation. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU/native claim.
 
 ## [2026-09-10] ui | Avoid unchanged button nine-slice invalidation
 

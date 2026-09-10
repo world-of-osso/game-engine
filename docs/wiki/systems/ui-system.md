@@ -46,7 +46,11 @@ Toolkit `eebcf28` builds a complete desired `NineSlice` from immutable button st
 
 ## Nine-slice sprite reconciliation
 
-Toolkit `67413da` reuses the shared quad visual comparison when reconciling existing nine-slice part entities. Unchanged `Transform` and `Sprite` values are not reinserted; real geometry, color, image, and UV changes still apply. Full traversal, externally altered or missing component repair, spawning, and stale-part removal remain unchanged. RED evidence is recorded; GREEN verification remains pending. No CPU or native claim.
+Toolkit `67413da` reuses the shared quad visual comparison when reconciling existing nine-slice part entities. Unchanged `Transform` and `Sprite` values are not reinserted; real geometry, color, image, and UV changes still apply. Full traversal, externally altered or missing component repair, spawning, and stale-part removal remain unchanged. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU or native claim.
+
+## Tiled sprite reconciliation
+
+Toolkit `2b3c1f3` applies the shared quad comparison to retained tiled sprites. Unchanged `Transform` and `Sprite` values are not reinserted; tile discovery, real updates, external or missing-component repair, stale-tile cleanup, and registry dirty clearing remain unchanged. RED evidence is recorded; GREEN verification remains pending. No CPU or native claim.
 
 ## Widget Types
 
