@@ -34,7 +34,9 @@
 - `src/scenes/login/` — login lifecycle, form input, visuals and authentication dispatch.
 - `src/scenes/login/form.rs` — authoritative credential fields, UTF-8-safe edits, limits and masked presentation.
 - `src/scenes/login/native.rs` — native login lifecycle, input, automation actions and authentication dispatch.
-- `src/scenes/login/native_view.rs` — native entities, artwork, presentation synchronization and pending insertion-caret presentation.
+- `src/scenes/login/native_view.rs` — native entities, artwork, presentation synchronization and insertion-caret presentation.
+- `src/scenes/login/native_caret.rs` — shaped-text cursor geometry and blink visibility.
+- `src/scenes/login/native_caret_tests.rs` — cursor geometry, password masking, focus/modal hiding and blink tests.
 - `src/ui/native.rs` — semantic native-UI marker and diagnostic formatter.
 - `src/ui/automation.rs` — shared automation queue and legacy/native semantic waits.
 - `src/dump_systems.rs`, `src/dump.rs`, `src/ipc/plugin/scene.rs` — combined legacy/native diagnostic tree requests and formatting.
@@ -57,7 +59,7 @@ This worktree resolves `asset-resolver`, `shared-protocol`, `ui-toolkit`, and `u
 
 ## Known gaps (current cycle)
 
-- [ ] Implement and prove the focused blinking insertion caret. Planned measurement uses the Bevy shaped text layout through direct `parley` 0.9, avoiding guessed glyph widths and a separate renderer.
+- [ ] Complete integration proof for the focused blinking insertion caret. Implementation commits `d0622b69` through `f70a6f87` use Bevy's shaped text layout through direct `parley` 0.9, avoiding guessed glyph widths and a separate renderer. Build-only evidence at `ed14b3d7` is not behavioral or rendered proof.
 - [ ] Instrument the manually confirmed physical input path if a deterministic, window-targeted Wayland injection mechanism becomes available. The `physical-reopen-sync` client ended after 55 seconds; user confirmation is manual evidence, not an instrumented test.
 
 - [x] `1ad57bc6` verifies successful custom-realm feedback/focus and real-update fade-alpha. Dev credential prefill and full-plugin camera-initialization coverage remain open.
