@@ -22,7 +22,11 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Player-frame artwork fit
 
-The player HUD keeps its gold/silver `396×142` shell artwork but lays contents in that artwork’s measured openings, scaled uniformly to a `297×106.5` frame. It does not reuse the historical `232×100` WoW XML coordinates: portrait, labels, and resource bars previously overflowed the custom asset. The player portrait resolves the selected class icon through the local listfile/CASC cache and uses a circular-alpha PNG, preventing a missing absolute icon path from becoming the renderer’s white fallback quad. Target-frame portrait behavior is unchanged. Aperture containment coverage exists; resource-width and rendered verification remain pending while the zero-width fill case is repaired.
+The player HUD preserves its unmodified gold/silver `396×142` shell at `297×106.5`. Historical `232×100` XML coordinates do not apply to this custom artwork. Its actual connected openings are portrait `(18,13,111×113)`, health `(135,52,249×40)`, and mana `(135,94,249×20)`, uniformly scaled 75%.
+
+The engine derives alpha masks from those openings: class icons are cover-resized into the portrait keyhole mask, while player bar background and left-cropped fills use the health/mana masks. The shell overlays the fills to retain its painted edges. Player portrait selection resolves through local listfile/CASC instead of an invalid absolute icon path, avoiding the renderer's white fallback quad. The target frame retains its existing geometry; its resting anchor remains unchanged.
+
+Engine exact-bounds/state tests and rendered GPU frames pass at `038b1ecf`; current toolkit crop proof is still pending a fixture-only correction, so this is not final cross-repository acceptance.
 
 ## Layout invalidation
 

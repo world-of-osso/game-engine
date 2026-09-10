@@ -12,6 +12,10 @@ User authorized implementation before the planned Bevy UI migration. Toolkit `75
 
 Added [[ui-frame-order]] and its [contract](../specs/ui-frame-order.md). User selected unchanged standalone setup and accepted named plugin scheduling sets: public systems keep fresh local preparation; private plugin variants share one per-render preparation and common rendering bodies. Function-relative plugin ordering must migrate to named sets. Implementation and feature tests remain pending; no code, builds, native runs, or CPU claims.
 
+## [2026-09-10] ui | Derive player-frame content masks from its artwork
+
+`038b1ecf` replaces rejected circular/inset player-frame fitting with masks derived from the unchanged `396×142` gold/silver shell's connected portrait, health, and mana openings. The player shell remains uniformly reduced to `297×106.5`; portrait and masked resource content fill those openings, while the art overlays fills to preserve its painted edge treatment. Missing absolute class-icon paths resolve through local listfile/CASC cache instead of drawing a white fallback quad. Exact-bounds/state and rendered GPU evidence pass; toolkit normalized texture-coordinate crop support at `af1683e` still has a fixture-only proof correction pending, so cross-repository acceptance remains open. Target geometry remains separate.
+
 ## [2026-09-10] ui | Keep world health bars fixed across zoom
 
 Updated [[ui-system]] and [[nameplate-design]] for engine `7b316396`: actor-parented world bars remain depth-tested while a screen-aligned, projected-tangent scale targets 80×8 logical pixels across zoom, viewport, DPI, and FOV changes. Text was already UI-pixel sized; the projected bar edge retains its 4-pixel label gap. Proof: 18 focused health-bar tests, two gap tests, and two GPU tests—including 5/10/20-distance zoom frames with fixed glyph dimensions. No new full native game run, CPU, or whole-nameplate redesign claim.

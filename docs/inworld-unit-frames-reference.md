@@ -50,14 +50,13 @@ The source XML uses a logical `232 x 100` frame: portrait `(24, -19)` at `60 x 6
 
 ### Current player-shell geometry
 
-`player-frame-shell.png` is custom `396 x 142` artwork, not a `232 x 100` XML frame. Player contents therefore use its measured openings, uniformly scaled to 75% for a `297 x 106.5` HUD frame:
+`player-frame-shell.png` is unmodified custom `396 x 142` artwork, not a `232 x 100` XML frame. Its colored paint encloses connected transparent openings. Player content uses those exact native bounds, scaled 75% into a `297 x 106.5` HUD frame:
 
-- portrait native `(16, 18, 100 x 100)`; gold aperture center `(66, 68)`, radius about `50`
-- name native `(134, 31)`, width `190`; level near `(350, 31)`
-- health native `(134, 55, 244 x 34)`
-- mana native `(134, 97, 244 x 14)`
+- portrait `(18, 13, 111 x 113)`; keyhole-shaped gold opening, including its square lower-right
+- health `(135, 52, 249 x 40)`
+- mana `(135, 94, 249 x 20)`
 
-The gold/silver shell remains unmodified. Player class icons are resolved through the local listfile/CASC cache and written as circular-alpha PNGs under `data/ui/unitframes/portraits/`; target portrait behavior remains separate.
+The renderer derives white-alpha masks from the shell, cover-resizes the cached class icon into the portrait mask, and renders player resource background/fill through the bar masks. Player art overlays fills to retain painted shadows and edges. `tex_coords` crops the fill mask from the left as health changes; it does not squeeze a full mask into a shorter quad. Target portrait and target-bar geometry remain separate.
 
 ## Target Frame Tree
 
