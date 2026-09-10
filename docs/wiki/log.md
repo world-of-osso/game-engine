@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Restore visible mid-density procedural clouds
+
+`a55e0f5b` corrects a rejected RON-only diagnosis: runtime uses the richer LightData 12/noon CSV cache at density 0.5 and threshold 0.62. Periodic noise rarely reached that threshold, making clouds nearly transparent. The final shader preserves original density thresholds and centers its soft edge around the threshold. GPU RED had no mid-density bright pixels; GREEN reports 22.12% bright and 60.16% dark pixels, while clear/full preserve 100% dark/bright. Native capture remains pending. See [[procedural-sky-dome-visibility]].
+
 ## [2026-09-10] rendering | Verify cloud tiling correction
 
 At `077599df`, seven generator cases, the real-shader longitude seam regression, and cloud-scroll preservation pass. GPU seam contrast drops from 28 to 3 levels across the fixture's finite angle; standalone capture shows the rectangular blocks absent in the captured area. Build/check pass; 104 unchanged vendor files remain format failures. Evidence and framing limits: [[procedural-sky-dome-visibility]].
