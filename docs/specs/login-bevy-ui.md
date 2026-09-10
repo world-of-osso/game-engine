@@ -40,20 +40,22 @@
 
 ## Tests asserting this spec
 
-- `tests/unit/login_screen_tests.rs` — pre-migration login behavior characterization.
-- `tests/unit/login_screen_workflow_tests.rs` — pre-migration automation/authentication workflows.
-- `src/scenes/login/form.rs` — standalone model tests for filtering, limits, editing, password display and independent fields.
-- `src/scenes/login/native_tests.rs` — native lifecycle, input, action and automation coverage.
+- `src/scenes/login/form.rs` — filtering, limits, editing, password display and independent fields.
+- `src/scenes/login/native_tests.rs` — lifecycle, input, actions and authentication dispatch.
+- `src/scenes/login/native_view_tests.rs` — status, masking, focus/fade and button-state presentation.
+- `src/ui/native.rs`, `src/ui/automation.rs`, and `src/ipc/plugin/scene.rs` — native semantic waits and combined diagnostic trees.
+- `src/scenes/login/native_tests.rs` also contains one unexecuted `8e11fd51` setup asset-failure preservation case.
 
-At `700f12cf`, the dev-feature `game-engine` test binary compiled cleanly after the `TextFont` API correction in `native_view.rs`. Its emitted executable ran 35 selected login cases: 11 form, 23 native lifecycle/input/authentication, and one helper; all passed. This is focused behavioral proof, not a complete plugin/runtime integration or renderer proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
+At `ae941bac`, revision-scoped compiler-emitted binaries passed 57 distinct focused cases: 35 bin login cases, 16 library automation/native/IPC cases, and 6 presentation cases. `data/diagnostics/login-bevy-ui/verification/focused-report.md` records commands, emitted executable identities, retained failures and a combined 0.527190-second listing/test duration. This is focused fixture proof, not whole-plugin setup-success, renderer, runtime, or server-authentication proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
 
 ## Known gaps (current cycle)
 
-- [ ] Complete whole-library/plugin compilation and exercise the native login replacement beyond the 35 focused behavioral cases.
+- [ ] Execute the `8e11fd51` setup asset-failure case and cover successful plugin setup/prefill/realm/camera initialization.
 - [ ] Verify native artwork/layout, modal layering and fade through rendered proof.
 - [ ] Verify an actual authentication flow and automation/dump compatibility at runtime.
+- [ ] Run final formatting and relevant checks after source finality.
 
-Focused evidence: `data/diagnostics/login-bevy-ui/verification/attempt-2/` records the clean dev-bin compile (70.120 seconds) and 35 selected tests (0.120 seconds including listing). A library no-run compile was started after this capture; no completed result is documented here.
+`tests/unit/login_screen_tests.rs`, `login_screen_workflow_tests.rs`, and `login_screen_test_support.rs` still target removed toolkit login symbols and are stale removal candidates. Do not delete them until their remaining observable obligations—especially layout centering/order, setup feedback, disabled appearance and realm/server preservation—are covered by native tests.
 
 ## Out of scope
 

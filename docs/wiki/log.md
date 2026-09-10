@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-10] ui | Record native login compile correction and focused behavioral proof
+## [2026-09-10] ui | Record native login focused proof and remaining gates
 
-At engine `700f12cf`, the dev-feature game-engine test binary compiled after the native `TextFont` API correction: `FontSource::Handle` and pixel `FontSize`. The compiler-emitted executable passed 35 selected cases—11 form, 23 native lifecycle/input/authentication, and one helper—in 0.120 seconds including test listing. Evidence: `data/diagnostics/login-bevy-ui/verification/attempt-2/`. This excludes whole-library completion, rendered comparison, runtime login/authentication, and rollout proof; those remain open in [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md).
+At engine `ae941bac`, revision-scoped compiler-emitted binaries passed 57 distinct focused cases: 35 bin login, 16 library automation/native/IPC, and 6 presentation. Evidence, exact commands, executable identities and retained failed attempts: `data/diagnostics/login-bevy-ui/verification/focused-report.md`. `8e11fd51` adds one setup asset-failure preservation test but it is unexecuted. Successful setup, rendered layout/menu compositing, runtime authentication, final formatting/checks and rollout remain open in [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md).
 
 ## [2026-09-10] ui | Record native Bevy login integration pending proof
 

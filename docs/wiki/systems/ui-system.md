@@ -106,7 +106,7 @@ The native login camera renders at order 1. During Login, the existing toolkit c
 
 `NativeUiElement` marks semantic native entities. Automation frame waits resolve both frame-registry names and marked native names; UI-tree dump paths include marked native hierarchy, visible displayed text and computed bounds without exposing the raw password. Hidden `RealmButton` remains hidden visually but preserves its existing semantic automation action.
 
-At engine `700f12cf`, the dev-feature game-engine test binary compiled cleanly after adapting native `TextFont` construction to Bevy's `FontSource` and pixel `FontSize` types. The compiler-emitted executable passed 35 focused cases: 11 form, 23 native lifecycle/input/authentication, and one helper. This establishes only bounded behavioral coverage; library compilation had been started but had no saved completion result at this checkpoint. No rendered comparison, runtime login, authentication-server, or rollout proof exists.
+At engine `ae941bac`, revision-scoped compiler-emitted binaries passed 57 distinct focused cases: 35 bin login cases, 16 library automation/native/IPC cases, and 6 presentation cases. The presentation scope covers status replacement, masked password display, focus/fade, button states and hidden controls. Evidence records commands, executable identities and retained failed attempts in `data/diagnostics/login-bevy-ui/verification/focused-report.md`. `8e11fd51` adds an unexecuted setup asset-failure case. Whole-plugin setup success, actual layout, rendered menu compositing, runtime login and authentication-server proof remain open.
 
 The prior toolkit-only login shared-state optimization `70f14c2a` remains historical; its former `Screen`/`SharedContext` login path was removed with this migration.
 
@@ -199,7 +199,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [ui-addon-architecture.md](../../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
 - [login-ui-porting.md](../../login-ui-porting.md) — legacy nine-slice editboxes, anchor layout, y-offset convention
 - [login Bevy UI spec](../../specs/login-bevy-ui.md) — native-login contract and open proof gaps
-- `../../data/diagnostics/login-bevy-ui/verification/attempt-2/` — `700f12cf` dev-bin compile and 35 focused test results
+- `../../data/diagnostics/login-bevy-ui/verification/focused-report.md` — revision-scoped 57-case focused proof and retained limitations
 - [native login lifecycle](../../../src/scenes/login/native.rs) — native form, input, action and camera coexistence
 - [native login view](../../../src/scenes/login/native_view.rs) — native entity hierarchy and artwork synchronization
 - [native semantic UI](../../../src/ui/native.rs) — marker and diagnostic tree formatting
