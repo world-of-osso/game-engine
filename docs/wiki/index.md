@@ -37,7 +37,7 @@ Architecture decisions and feature designs.
 
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
-- [ui-frame-order](design/ui-frame-order.md) — approved, unimplemented shared plugin ordering design; standalone setup preserved, named plugin scheduling sets required
+- [ui-frame-order](design/ui-frame-order.md) — implemented shared plugin ordering; standalone setup preserved, named scheduling sets and revision-scoped verification
 - [nameplate-design](design/nameplate-design.md) — Target-first display, three states, information hierarchy, distance fade
 - [collision-system](design/collision-system.md) — current terrain vertical support and horizontal WMO/M2 collision; WMO/M2 floor support remains absent
 

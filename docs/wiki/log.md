@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Share plugin frame ordering with standalone compatibility
+
+Implemented [[ui-frame-order]] at toolkit `02a3049`, tests through `3e61227`: one explicit preparation and six prepared variants delegate to the same bodies as standalone public systems. `UiRenderSet::Prepare` spans window/layout/button preparation and the final render-gated order producer; named-set same-pass geometry and standalone stale-resource independence pass. Independent verification records 39 tests, toolkit formatting/check/readability and bounded engine compilation. Computational sharing/common-body structure are source-audited, not helper-call tests. Bevy UI migration has not started; no CPU/native claim.
+
 ## [2026-09-10] ui | Shared frame-order implementation started
 
 User authorized implementation before the planned Bevy UI migration. Toolkit `752305f` declares `UiRenderSet::{Prepare, Quads, Text, Shadows, Outlines, NineSlices, ThreeSlices}`; no systems use the sets yet and shared preparation/wrappers remain pending. Standalone setup and all rendering behavior remain unchanged at this checkpoint.

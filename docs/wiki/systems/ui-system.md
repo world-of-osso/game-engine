@@ -76,6 +76,10 @@ Toolkit `924ca23` checks primary-window dimensions against `UiState.registry` th
 
 Toolkit `1050abb` keeps the existing total order—strata, frame level, raise order, then unique frame ID—but uses unstable sorting because no two distinct frames compare equal. The visible-frame filter now computes effective size once after its existing visibility check. Returned order and membership remain unchanged; this does not add a shared per-update ordering cache or alter public synchronization APIs. The same three cases pass before and after (one new mixed-key/membership characterization and two existing z-order cases); toolkit format/check/readability and bounded engine compilation pass. The sort itself avoids scratch allocation, while frame/output collection and six independent renderer sorts remain. See [verification](../../../data/diagnostics/unchanged-writes-20260909/frame-order/verification/report.md) for the concurrent engine-source provenance limit. No allocator-count, CPU, or native claim.
 
+## Shared plugin frame ordering
+
+Toolkit `02a3049` prepares one ordered ID list/index map for the six plugin consumers; public standalone systems still prepare fresh local order and share the same rendering bodies. Named `UiRenderSet` stages replace function-relative ordering against the plugin variants. `Prepare` includes window/layout/button preparation before the render-gated snapshot producer. See [[ui-frame-order]] for the contract, 39-test verification, source-audited work bound, and compatibility limits. This does not start Bevy UI migration or establish CPU savings.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
@@ -202,7 +206,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 ## See Also
 
-- [[ui-frame-order]] — approved design only: shared plugin preparation with unchanged standalone setup and named scheduling sets
+- [[ui-frame-order]] — implemented shared plugin preparation, unchanged standalone setup, named scheduling sets and verification boundaries
 
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene

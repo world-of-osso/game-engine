@@ -1,16 +1,16 @@
 # Shared UI frame ordering
 
-Approved design, implementation in progress. On 2026-09-10 the user selected **“Preserve standalone setup”**, then **“Accept and document design”** for named plugin scheduling sets. The user later requested implementation; toolkit `752305f` declares the public `UiRenderSet` API, while preparation and consumers remain pending. The [feature contract](../../specs/ui-frame-order.md) records unverified requirements; [UI systems](../systems/ui-system.md) describes current behavior.
+Implemented at toolkit `02a3049`, independently verified with tests through `3e61227`. The user required unchanged standalone setup, accepted named plugin scheduling sets, then authorized implementation before discussing Bevy UI migration. The [feature contract](../../specs/ui-frame-order.md) distinguishes behavioral test coverage from structural source-audit proof; [UI systems](../systems/ui-system.md) describes related rendering behavior.
 
-## Current repeated work
+## Previous repeated work
 
 At toolkit `1050abb`, with processing, rendering and text enabled, six systems independently build the same sorted ID list: quads, main text, shadows, outlines, nine-slices and three-slices. Four build index maps; two build z maps. All use visible positive-size membership and the same strata/frame-level/raise-order/ID comparator. Layout runs before these consumers; existing internal render systems do not change ordering inputs.
 
-This is source evidence of repeated work, not measured CPU cost. The local unstable-sort correction remains useful; it does not consolidate these calls.
+This was source evidence of repeated work, not measured CPU cost. Shared plugin preparation now replaces those six independent builds; standalone calls intentionally remain independent. The local unstable-sort correction is retained.
 
-## Approved structure
+## Implemented structure
 
-Introduce one private prepared-order resource with an ordered `Vec<u64>` and `HashMap<u64, usize>`. Preparation runs after layout and button nine-slice derivation, inside the enabled render pipeline. It rebuilds on every enabled render update. Resource storage may persist, but its contents are never reused across enabled render updates without rebuilding; no mutation-generation or cross-frame invalidation system is needed.
+Private `render::UiFrameOrder` holds `ids: Vec<u64>` and `indices: HashMap<u64, usize>`. `prepare_ui_frame_order` builds both using the existing sorted-ID helper. Preparation runs after layout and button nine-slice derivation, inside the enabled render pipeline. It rebuilds on every enabled render update. Resource storage may persist, but its contents are never reused across enabled render updates without rebuilding; no mutation-generation or cross-frame invalidation system is needed.
 
 Each affected renderer has two entry points delegating to one rendering body:
 
@@ -23,11 +23,11 @@ Public systems do not detect the presence of preparation resources or switch mod
 
 The common bodies retain discovery, texture resolution, component comparisons, missing-component repair and stale-entity removal. Slice consumers derive z from the shared index using their existing arithmetic rather than building separate maps. Existing missing-ID behavior must not be normalized as an incidental refactor.
 
-Expected structural cost: six thin private system wrappers, extraction of six common rendering bodies, one preparation system/resource, and changed plugin registration. Public signatures/setup stay unchanged; renderer logic must not be duplicated.
+Six prepared system wrappers and six public standalone entry points delegate to common renderer bodies. `UiPlugin` registers the prepared variants; public signatures/setup remain unchanged. Explicit resource/query adapter plumbing is repeated, not rendering logic.
 
 ## Scheduling contract
 
-Toolkit `752305f` declares public `plugin::UiRenderSet::{Prepare, Quads, Text, Shadows, Outlines, NineSlices, ThreeSlices}`. They are not yet assigned to systems; their behavioral contract remains unverified.
+Public `plugin::UiRenderSet::{Prepare, Quads, Text, Shadows, Outlines, NineSlices, ThreeSlices}` is wired into `UiPlugin`. `Prepare` includes window synchronization, layout, button derivation and the final order producer. Thus `.before(UiRenderSet::Prepare)` runs before layout as well as sorting; same-update geometry updates are tested. Renderer-specific sets target the prepared variants, for example `.after(UiRenderSet::Text)`.
 
 The plugin sequence remains:
 
@@ -36,7 +36,7 @@ window synchronization → layout → button slice derivation
 → order preparation → existing renderer sequence → button input
 ```
 
-Preparation and prepared consumers share the rendering gate. Processing-disabled updates skip the pipeline. Text-disabled updates skip main text, shadows and outlines, while non-text rendering still uses current preparation. Re-enabling rendering rebuilds order before any consumer runs.
+The order producer and prepared consumers share the rendering gate. Earlier members of `Prepare` retain their processing-only gates: disabling rendering does not disable window/layout/button synchronization. Processing-disabled updates skip the pipeline. Text-disabled updates skip main text, shadows and outlines, while non-text rendering still uses current preparation. Re-enabling rendering rebuilds order before any consumer runs.
 
 External systems changing visibility, effective dimensions, membership, strata, frame level or raise order must run before preparation to affect that pass. Ordering-affecting writes between preparation and its consumers are outside this contract. Mutations after the render phase are observed on the next preparation. Sets provide ordering points, not automatic invalidation or an atomic render transaction.
 
@@ -55,24 +55,24 @@ Bevy disallows assigning arbitrary systems to another function's implicit system
 - **Registry generation cache:** public frame fields and mutation access require a broader invalidation contract than once-per-render preparation needs.
 - **One giant rendering system:** combines all queries/assets/locals and requires more invasive orchestration than thin wrappers.
 
-## Acceptance strategy
+## Verification
 
-The spec remains unchecked until implementation and evidence exist. Behavioral tests must cover:
+The [independent report](../../../data/diagnostics/unchanged-writes-20260910/shared-frame-order/verification/report.md) records 39 passing tests across seven focused targets within a cumulative 10-second execution budget, toolkit formatting/check/readability, and bounded engine compilation integration. Six shared-order cases cover the following boundaries alongside existing renderer and actual-plugin tests:
 
 - Actual-plugin rendered order and membership across insertion/removal, layout/resize, visibility, strata, level and raise changes.
 - Existing standalone calls without preparation, and calls after registry changes in a world containing prepared data.
 - Processing/render/text toggles and the first re-enabled update, with original input-last hover timing retained.
 - Named-set scheduling before preparation and after rendering, plus existing visual/component repair and lifecycle cases.
 
-Use source-path audit to establish one preparation and no renderer-local recomputation in the plugin path. Do not substitute source-substring assertions or internal helper-call counts for behavioral tests. Native benchmarks and CPU-gain claims are not part of this approval.
+One preparation/map and common-body delegation are established by source-path audit, not internal helper-call or source-substring tests. These structural requirements are identified separately in the spec rather than labeled automated assertions. Existing outline entities still have creation-only updates; changed-order tests exercise newly created outlines, not a new retained-outline reconciliation feature. Engine evidence records 11 passing tests, one ignored GPU case and existing diagnostics; supplied build-provenance limits are retained. No native benchmark, whole-engine-suite or CPU-gain claim.
 
 ## Sources
 
-- [Feature contract](../../specs/ui-frame-order.md) — approved requirements and pending implementation.
+- [Feature contract](../../specs/ui-frame-order.md) — implemented requirements and proof distinctions.
 - [Plugin schedule](../../../../ui-toolkit/src/plugin.rs) — current ordering and enable gates.
 - [Frame-order helper and quad renderer](../../../../ui-toolkit/src/render.rs) — current membership/comparator and local map.
 - [Main text](../../../../ui-toolkit/src/render_text.rs), [shadow/outline text](../../../../ui-toolkit/src/render_text_fx.rs) — text consumers.
-- [Nine-slices](../../../../ui-toolkit/src/render_nine_slice.rs), [three-slices](../../../../ui-toolkit/src/render_three_slice.rs) — z-map consumers.
+- [Nine-slices](../../../../ui-toolkit/src/render_nine_slice.rs), [three-slices](../../../../ui-toolkit/src/render_three_slice.rs) — shared-index consumers.
 
 ## See Also
 
