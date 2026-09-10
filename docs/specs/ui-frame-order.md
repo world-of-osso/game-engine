@@ -1,6 +1,6 @@
 # Shared UI frame ordering
 
-Approved design; not implemented. Consolidate ordering preparation in `ui-toolkit`'s `UiPlugin` render pipeline while preserving standalone renderer setup. Current code independently sorts in six render systems. Architecture and compatibility rationale: [shared ordering design](../wiki/design/ui-frame-order.md).
+Approved design; implementation started September 10, 2026. Consolidate ordering preparation in `ui-toolkit`'s `UiPlugin` render pipeline while preserving standalone renderer setup. Current code independently sorts in six render systems. Architecture and compatibility rationale: [shared ordering design](../wiki/design/ui-frame-order.md).
 
 ## What it must do
 
@@ -27,7 +27,7 @@ Approved design; not implemented. Consolidate ordering preparation in `ui-toolki
 
 ## Implementation inventory
 
-Current files; prepared variants, resource and scheduling sets do not exist yet:
+Current files. `plugin::UiRenderSet::{Prepare, Quads, Text, Shadows, Outlines, NineSlices, ThreeSlices}` exists at toolkit `752305f`, but no set is wired and the resource/prepared variants remain pending:
 
 - `../ui-toolkit/src/plugin.rs` — current chained schedule and enable flags.
 - `../ui-toolkit/src/render.rs` — ordering helper and quad rendering.
@@ -44,7 +44,7 @@ No tests yet assert shared preparation or the new scheduling contract. Existing 
 
 ## Known gaps (current cycle)
 
-- [ ] Implementation requires a separate user instruction; current approval covers design documentation only.
+- [x] User authorized implementation; `UiRenderSet` enum declaration landed at toolkit `752305f`. Its scheduling behavior remains unverified.
 - [ ] Add prepared path, shared bodies and scheduling sets without changing standalone setup.
 - [ ] Verify actual-plugin and standalone outputs, enable/re-enable transitions, external ordering-field updates and scheduling boundaries.
 

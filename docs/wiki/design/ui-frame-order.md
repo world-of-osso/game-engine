@@ -1,6 +1,6 @@
 # Shared UI frame ordering
 
-Approved design, not implemented. On 2026-09-10 the user selected **“Preserve standalone setup”**, then **“Accept and document design”** for named plugin scheduling sets. Implementation remains a separate step. The [feature contract](../../specs/ui-frame-order.md) records unverified requirements; [UI systems](../systems/ui-system.md) describes current behavior.
+Approved design, implementation in progress. On 2026-09-10 the user selected **“Preserve standalone setup”**, then **“Accept and document design”** for named plugin scheduling sets. The user later requested implementation; toolkit `752305f` declares the public `UiRenderSet` API, while preparation and consumers remain pending. The [feature contract](../../specs/ui-frame-order.md) records unverified requirements; [UI systems](../systems/ui-system.md) describes current behavior.
 
 ## Current repeated work
 
@@ -27,7 +27,7 @@ Expected structural cost: six thin private system wrappers, extraction of six co
 
 ## Scheduling contract
 
-Expose named public sets for preparation and each affected plugin renderer stage. Exact Rust names remain an implementation detail to settle before coding; this document does not claim those symbols exist.
+Toolkit `752305f` declares public `plugin::UiRenderSet::{Prepare, Quads, Text, Shadows, Outlines, NineSlices, ThreeSlices}`. They are not yet assigned to systems; their behavioral contract remains unverified.
 
 The plugin sequence remains:
 

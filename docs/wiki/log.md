@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Shared frame-order implementation started
+
+User authorized implementation before the planned Bevy UI migration. Toolkit `752305f` declares `UiRenderSet::{Prepare, Quads, Text, Shadows, Outlines, NineSlices, ThreeSlices}`; no systems use the sets yet and shared preparation/wrappers remain pending. Standalone setup and all rendering behavior remain unchanged at this checkpoint.
+
 ## [2026-09-10] design | Shared plugin frame ordering approved for documentation
 
 Added [[ui-frame-order]] and its [contract](../specs/ui-frame-order.md). User selected unchanged standalone setup and accepted named plugin scheduling sets: public systems keep fresh local preparation; private plugin variants share one per-render preparation and common rendering bodies. Function-relative plugin ordering must migrate to named sets. Implementation and feature tests remain pending; no code, builds, native runs, or CPU claims.
