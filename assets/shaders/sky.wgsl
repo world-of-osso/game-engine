@@ -70,9 +70,11 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     .r;
     let cloud_shape = mix(cloud_a, cloud_b, 0.35);
     let density = clamp(sky.cloud_params.x, 0.0, 1.0);
-    let threshold = mix(0.92, 0.32, density);
+    // Sweep the cloud edge across the full texture range: clear at 0,
+    // mixed coverage at 0.5, overcast at 1. The edge stays soft.
+    let threshold = mix(1.1, -0.1, density);
     let horizon_mask = smoothstep(0.02, 0.18, elev) * (1.0 - smoothstep(0.82, 0.98, elev));
-    let cloud_mask = smoothstep(threshold, 1.0, cloud_shape) * horizon_mask;
+    let cloud_mask = smoothstep(threshold - 0.1, threshold + 0.1, cloud_shape) * horizon_mask;
 
     let sun_dir = normalize(sky.sun_direction.xyz);
     let sun_alignment = max(dot(dir, sun_dir), 0.0);
