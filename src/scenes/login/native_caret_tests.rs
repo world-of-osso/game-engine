@@ -10,7 +10,7 @@ fn shaped_world(raw: &str, field: LoginFieldId, scale: f32) -> (World, Entity, E
     world.insert_resource(session);
     world.insert_resource(Time::<()>::default());
     let mut fonts = Assets::<Font>::default();
-    let handle = fonts.add(Font::try_from_bytes(bevy::text::DEFAULT_FONT_DATA.to_vec()).unwrap());
+    let handle = fonts.add(Font::from_bytes(bevy::text::DEFAULT_FONT_DATA.to_vec()));
     let font = TextFont {
         font: bevy::text::FontSource::Handle(handle),
         font_size: FontSize::Px(20.0),

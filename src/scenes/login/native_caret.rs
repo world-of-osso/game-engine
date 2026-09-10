@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use bevy::math::Affine2;
 use bevy::prelude::*;
 use bevy::text::ComputedTextBlock;
-use parley::editing::{Affinity, Cursor};
+use parley::{Affinity, editing::Cursor};
 
 use super::form::LoginFieldId;
 use super::native::LoginSession;
