@@ -336,8 +336,8 @@ fn spawn_text(
             NativeUiElement,
             Text::new(value),
             TextFont {
-                font: font.clone(),
-                font_size: size,
+                font: bevy::text::FontSource::Handle(font.clone()),
+                font_size: FontSize::Px(size),
                 ..default()
             },
             TextColor(color),
