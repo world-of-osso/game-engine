@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Record initial login camera startup collision
+
+At `65fd860b`, 58 revision-scoped focused tests and `cargo check --features dev --bin game-engine` pass; `cargo fmt --check` reports 104 unchanged vendor paths. An isolated 8-second login process exposed two order-1 cameras and IPC capture wrote no WebP before timeout. `675f1a7d` adds PostStartup toolkit-camera alignment because initial Login transition precedes toolkit Startup; its regression remains unexecuted. Details: [[login-camera-startup-order]]. Rendered/menu/authentication proof remains open.
+
 ## [2026-09-10] ui | Record native login focused proof and remaining gates
 
 At engine `ae941bac`, revision-scoped compiler-emitted binaries passed 57 distinct focused cases: 35 bin login, 16 library automation/native/IPC, and 6 presentation. Evidence, exact commands, executable identities and retained failed attempts: `data/diagnostics/login-bevy-ui/verification/focused-report.md`. `8e11fd51` adds one setup asset-failure preservation test but it is unexecuted. Successful setup, rendered layout/menu compositing, runtime authentication, final formatting/checks and rollout remain open in [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md).

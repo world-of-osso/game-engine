@@ -44,14 +44,15 @@
 - `src/scenes/login/native_tests.rs` — lifecycle, input, actions and authentication dispatch.
 - `src/scenes/login/native_view_tests.rs` — status, masking, focus/fade and button-state presentation.
 - `src/ui/native.rs`, `src/ui/automation.rs`, and `src/ipc/plugin/scene.rs` — native semantic waits and combined diagnostic trees.
-- `src/scenes/login/native_tests.rs` also contains one unexecuted `8e11fd51` setup asset-failure preservation case.
+- `src/scenes/login/native_tests.rs` includes the `65fd860b`-verified setup asset-failure preservation case and unexecuted `675f1a7d` initial-startup camera-order/teardown regression.
 
-At `ae941bac`, revision-scoped compiler-emitted binaries passed 57 distinct focused cases: 35 bin login cases, 16 library automation/native/IPC cases, and 6 presentation cases. `data/diagnostics/login-bevy-ui/verification/focused-report.md` records commands, emitted executable identities, retained failures and a combined 0.527190-second listing/test duration. This is focused fixture proof, not whole-plugin setup-success, renderer, runtime, or server-authentication proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
+At `65fd860b`, revision-scoped compiler-emitted binaries passed 58 distinct focused cases: the prior 57 plus the setup asset-failure case. `data/diagnostics/login-bevy-ui/verification/focused-report.md` and `verification/final-slice/report.md` record commands, emitted executable identities, retained failures and cumulative 0.557921302-second test execution. `cargo check --features dev --bin game-engine` passed; `cargo fmt --check` failed only on 104 unchanged vendor paths. This is fixture/compile proof, not whole-plugin setup-success, renderer, runtime, or server-authentication proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
 
 ## Known gaps (current cycle)
 
-- [ ] Execute the `8e11fd51` setup asset-failure case and cover successful plugin setup/prefill/realm/camera initialization.
-- [ ] Verify native artwork/layout, modal layering and fade through rendered proof.
+- [ ] Execute the `675f1a7d` initial-startup camera-order/teardown regression and cover successful plugin setup/prefill/realm/camera initialization.
+- [ ] Verify native artwork/layout, modal layering, fade and corrected camera ordering through rendered proof.
+- [ ] Retry bounded exact-PID IPC screenshot capture only after the camera-order regression passes; the isolated 8-second `65fd860b` capture produced no WebP before timeout.
 - [ ] Verify an actual authentication flow and automation/dump compatibility at runtime.
 - [ ] Run final formatting and relevant checks after source finality.
 

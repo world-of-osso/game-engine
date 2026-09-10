@@ -102,7 +102,7 @@ Toolkit `02a3049` prepares one ordered ID list/index map for the six plugin cons
 
 Engine commits `a112398f`, `968e6a6e`, `a044bc99`, and `a07de528` replace the live login's toolkit frames with a native Bevy entity tree. `LoginForm` is the single credential authority for physical input, automation and authentication; password presentation remains asterisk-per-UTF-8-byte while the raw field value reaches authentication. The form preserves filtering, limits, editing, focus, clipboard, and prefill behavior in the native lifecycle.
 
-The native login camera renders at order 1. During Login, the existing toolkit camera is raised from order 1 to order 2 and its original order is recorded/restored on exit, keeping the legacy game menu above native login. The native root explicitly targets its camera; the camera has no world render layers. Other screens and the global toolkit camera retain their existing backend and configuration after cleanup.
+The native login camera renders at order 1. During Login, the existing toolkit camera is raised to order 2 and its original order is recorded/restored on exit, keeping the legacy game menu above native login. Initial state transition precedes toolkit `Startup`, so `675f1a7d` additionally performs this alignment in `PostStartup` after the toolkit camera exists; it avoids the reproduced initial order-1 ambiguity. Its regression is unexecuted, and rendered menu compositing remains unproven. See [[login-camera-startup-order]]. The native root explicitly targets its camera; the camera has no world render layers. Other screens and the global toolkit camera retain their existing backend and configuration after cleanup.
 
 `NativeUiElement` marks semantic native entities. Automation frame waits resolve both frame-registry names and marked native names; UI-tree dump paths include marked native hierarchy, visible displayed text and computed bounds without exposing the raw password. Hidden `RealmButton` remains hidden visually but preserves its existing semantic automation action.
 
@@ -200,6 +200,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [login-ui-porting.md](../../login-ui-porting.md) — legacy nine-slice editboxes, anchor layout, y-offset convention
 - [login Bevy UI spec](../../specs/login-bevy-ui.md) — native-login contract and open proof gaps
 - `../../data/diagnostics/login-bevy-ui/verification/focused-report.md` — revision-scoped 57-case focused proof and retained limitations
+- [[login-camera-startup-order]] — initial startup ordering failure, fix and failed bounded capture
 - [native login lifecycle](../../../src/scenes/login/native.rs) — native form, input, action and camera coexistence
 - [native login view](../../../src/scenes/login/native_view.rs) — native entity hierarchy and artwork synchronization
 - [native semantic UI](../../../src/ui/native.rs) — marker and diagnostic tree formatting
