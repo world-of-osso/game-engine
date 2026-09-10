@@ -64,6 +64,10 @@ Toolkit `598ded9` routes retained three-slice parts, backdrop borders, CSS borde
 
 Toolkit `e25eecc` first collects visible buttons whose `hovered` value differs from the current hit-test result, then mutates only those frames. Press/release handling remains ordered after hover processing and now enters its mutable path only on a left-button edge; disabled and already-correct states remain untouched. Hit testing, disabled hover behavior, pushed-button release reset, and actual hover transitions are unchanged. Five integration cases plus the adapted unit case pass after the five-case RED; independent toolkit/engine checks pass. No CPU or native claim.
 
+## Primary-window synchronization
+
+Toolkit `924ca23` checks primary-window dimensions against `UiState.registry` through immutable access before entering its mutable resize path. It retains the existing `> 0.5` tolerance, public startup helper, initial sizing, and `mark_all_rects_dirty()` resize invalidation. The actual `UiPlugin` characterization first found that settled rendering and dirty sets were clean while `UiState` still changed because `sync_screen_size` unconditionally borrowed the registry mutably. Its hover, layout-repair, and real-resize cases pass before this correction; final GREEN verification remains pending. No CPU or native claim.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.

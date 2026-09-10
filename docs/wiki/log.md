@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid unchanged primary-window UI mutations
+
+Updated [[ui-system]] for ui-toolkit `924ca23`: `sync_screen_size` compares primary-window dimensions before mutable registry access, retaining the `> 0.5` tolerance, startup helper, and real-resize invalidation. Actual UiPlugin characterization found the settled resource tick while rendering and dirty sets were already clean; hover, layout repair, and resize characterization pass before this correction. Final GREEN verification remains pending. No CPU/native claim.
+
 ## [2026-09-10] ui | Avoid unchanged three-slice, border, and highlight sprite writes
 
 Updated [[ui-system]] for ui-toolkit `598ded9`: retained three-slice, backdrop-border, CSS-border, and direct button-highlight sprites reuse existing Transform/Sprite comparison. Reconciliation, repair, and lifecycle remain unchanged; highlight proof is direct-system only. The suite first had 4 settled-write failures and 8 passing preservation cases; all 12 current cases pass independently. No CPU/native claim.
