@@ -50,6 +50,10 @@ At `f3ae396c`, 62 distinct revision-scoped focused cases pass: 58 prior cases, t
 
 At `bf4e259f`, `runtime/settled-retry/view-12.webp` and `view-30.webp` show the fully rendered standalone login; the isolated client ran 31.470 seconds and was terminated. `runtime/stretch/view.webp` shows native artwork with the toolkit game-menu overlay. Its UI-tree dump contains `adminvisual-proof` and 23 displayed password asterisks, not the raw dummy password. This is rendered and automated semantic evidence, not exact baseline-pixel parity, physical input, or real authentication proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
 
+## Build isolation
+
+This worktree resolves `asset-resolver`, `shared-protocol`, `ui-toolkit`, and `ui-toolkit-macros` through matching `*-bevy-ui-login` dependency worktrees in `Cargo.toml`. Canonical dependency checkouts remain untouched; compilation proof records their revisions. The shared Cargo target remains an output cache, not a source dependency path.
+
 ## Known gaps (current cycle)
 
 - [ ] Cover successful plugin setup/prefill/realm/camera initialization.
