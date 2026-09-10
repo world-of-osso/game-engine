@@ -4,7 +4,7 @@ use bevy::ecs::system::RunSystemOnce;
 use bevy::window::{PrimaryWindow, WindowResolution};
 
 #[derive(Resource, Default)]
-struct PlateChanges(Vec<Entity>);
+pub(super) struct PlateChanges(pub(super) Vec<Entity>);
 
 fn observe_changes(
     plates: Query<
@@ -16,6 +16,7 @@ fn observe_changes(
                 Changed<GlobalTransform>,
                 Changed<TextColor>,
                 Changed<Visibility>,
+                Changed<Anchor>,
             )>,
         ),
     >,
@@ -24,7 +25,7 @@ fn observe_changes(
     changes.0 = plates.iter().collect();
 }
 
-fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
+pub(super) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     let mut app = App::new();
     app.add_plugins((
         MinimalPlugins,
@@ -46,7 +47,7 @@ fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     app.init_resource::<HudOptions>();
     app.init_resource::<GraphicsOptions>();
     app.init_resource::<PlateChanges>();
-    app.add_plugins(NameplatePlugin);
+    app.add_plugins((NameplatePlugin, crate::health_bar::HealthBarPlugin));
     app.add_systems(PostUpdate, bevy::render::camera::camera_system);
     app.add_systems(Last, observe_changes);
     app.world_mut()
@@ -92,13 +93,13 @@ fn wolf(app: &mut App) -> (Entity, Entity) {
     (owner, label)
 }
 
-fn settle(app: &mut App) {
+pub(super) fn settle(app: &mut App) {
     for _ in 0..3 {
         app.update();
     }
 }
 
-fn visible(app: &App, plate: Entity) -> bool {
+pub(super) fn visible(app: &App, plate: Entity) -> bool {
     app.world().get::<Visibility>(plate) == Some(&Visibility::Visible)
 }
 

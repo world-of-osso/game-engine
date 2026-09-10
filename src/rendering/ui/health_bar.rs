@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::transform::{TransformSystems, helper::TransformHelper};
 use shared::components::Health;
 
 use crate::client_options::HudVisibilityToggles;
@@ -12,11 +13,14 @@ impl Plugin for HealthBarPlugin {
         app.add_observer(spawn_health_bars);
         app.add_systems(
             Update,
-            (
-                sync_health_bar_visibility,
-                update_health_bars,
-                billboard_health_bars,
-            )
+            (sync_health_bar_visibility, update_health_bars)
+                .run_if(in_state(GameState::InWorld))
+                .run_if(inworld_scene_stage_allows_ui),
+        );
+        app.add_systems(
+            PostUpdate,
+            billboard_health_bars
+                .before(TransformSystems::Propagate)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
@@ -25,14 +29,14 @@ impl Plugin for HealthBarPlugin {
 
 /// Marker for the health bar root entity (parent of background + foreground).
 #[derive(Component)]
-struct HealthBar;
+pub(crate) struct HealthBar;
 
 /// Marker for the foreground (colored) bar quad.
 #[derive(Component)]
 struct HealthBarForeground;
 
-const BAR_WIDTH: f32 = 1.0;
-const BAR_HEIGHT: f32 = 0.1;
+pub(crate) const BAR_WIDTH: f32 = 1.0;
+pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
 
 /// Compute the health bar color based on current/max HP.
@@ -220,23 +224,55 @@ fn update_foreground(
 
 /// Rotate health bars to always face the camera (billboard effect).
 fn billboard_health_bars(
-    camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    mut bar_query: Query<&mut Transform, With<HealthBar>>,
+    camera_query: Query<Entity, With<Camera3d>>,
+    bars: Query<(Entity, Option<&ChildOf>), With<HealthBar>>,
+    mut transforms: ParamSet<(TransformHelper, Query<&mut Transform, With<HealthBar>>)>,
 ) {
-    let Ok(camera_global) = camera_query.single() else {
+    let Ok(camera) = camera_query.single() else {
         return;
     };
-    let camera_pos = camera_global.translation();
-    for mut transform in bar_query.iter_mut() {
-        let dir = camera_pos - transform.translation;
-        if dir.length_squared() > 0.001 {
-            let mut desired = *transform;
-            desired.look_to(Dir3::new(dir).unwrap_or(Dir3::Z), Dir3::Y);
-            if transform.rotation != desired.rotation {
-                transform.rotation = desired.rotation;
+    let camera_global = match transforms.p0().compute_global_transform(camera) {
+        Ok(global) => global,
+        Err(error) => {
+            warn!("Cannot compute healthbar camera transform: {error}");
+            return;
+        }
+    };
+    for (entity, parent) in &bars {
+        let parent_global = parent
+            .map(|parent| transforms.p0().compute_global_transform(parent.parent()))
+            .transpose();
+        let parent_global = match parent_global {
+            Ok(global) => global.unwrap_or(GlobalTransform::IDENTITY),
+            Err(error) => {
+                warn!("Cannot compute healthbar parent transform: {error}");
+                continue;
             }
+        };
+        let mut query = transforms.p1();
+        let Ok(mut local) = query.get_mut(entity) else {
+            continue;
+        };
+        if let Some(rotation) =
+            health_bar_rotation(&parent_global, &local, camera_global.translation())
+            && local.rotation != rotation
+        {
+            local.rotation = rotation;
         }
     }
+}
+
+fn health_bar_rotation(parent: &GlobalTransform, local: &Transform, camera: Vec3) -> Option<Quat> {
+    let direction = camera - parent.transform_point(local.translation);
+    if direction.length_squared() <= 0.001 {
+        return None;
+    }
+    // Normals transform by inverse transpose; invert that mapping to aim the
+    // mesh's +Z face in world space even under a nonuniformly scaled actor.
+    let basis = parent.affine().matrix3;
+    let normal = Vec3::from(basis.transpose() * direction);
+    let up = Vec3::from(basis.inverse() * Vec3::Y);
+    Some(Transform::IDENTITY.looking_to(-normal, up).rotation)
 }
 
 fn sync_health_bar_visibility(
@@ -254,6 +290,10 @@ fn sync_health_bar_visibility(
         });
     }
 }
+
+#[cfg(test)]
+#[path = "health_bar_facing_tests.rs"]
+mod facing_tests;
 
 #[cfg(test)]
 mod tests {
@@ -274,9 +314,13 @@ mod tests {
 
         fn fixture() -> (App, Vec<Entity>, Transform) {
             let mut app = App::new();
+            app.add_plugins((MinimalPlugins, bevy::transform::TransformPlugin));
             app.init_resource::<Changes>();
-            app.add_systems(Update, billboard_health_bars);
-            app.add_systems(PostUpdate, observe);
+            app.add_systems(
+                PostUpdate,
+                billboard_health_bars.before(TransformSystems::Propagate),
+            );
+            app.add_systems(Last, observe);
             let pose = Transform::from_xyz(1.0, 2.0, 3.0)
                 .with_rotation(Quat::from_rotation_z(0.3))
                 .with_scale(Vec3::new(2.0, 3.0, 4.0));
@@ -288,7 +332,7 @@ mod tests {
             for &entity in entities {
                 let pose = app.world().get::<Transform>(entity).unwrap();
                 let direction = (camera - pose.translation).normalize();
-                assert!((pose.rotation * Vec3::NEG_Z).distance(direction) < 0.00001);
+                assert!((pose.rotation * Vec3::Z).distance(direction) < 0.00001);
             }
         }
 
@@ -301,10 +345,8 @@ mod tests {
         fn stationary_billboards_do_not_mark_transforms_changed() {
             let (mut app, entities, original) = fixture();
             let position = Vec3::new(8.0, 5.0, 9.0);
-            app.world_mut().spawn((
-                Camera3d::default(),
-                GlobalTransform::from_translation(position),
-            ));
+            app.world_mut()
+                .spawn((Camera3d::default(), Transform::from_translation(position)));
             app.update();
             assert_facing(&app, &entities, position);
             for _ in 0..3 {
@@ -324,13 +366,15 @@ mod tests {
                 .world_mut()
                 .spawn((
                     Camera3d::default(),
-                    GlobalTransform::from_translation(Vec3::new(8.0, 5.0, 9.0)),
+                    Transform::from_translation(Vec3::new(8.0, 5.0, 9.0)),
                 ))
                 .id();
             app.update();
             let position = Vec3::new(-5.0, 7.0, 4.0);
-            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
-                GlobalTransform::from_translation(position);
+            app.world_mut()
+                .get_mut::<Transform>(camera)
+                .unwrap()
+                .translation = position;
             app.update();
             assert_facing(&app, &entities, position);
             assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
@@ -362,17 +406,21 @@ mod tests {
                 .world_mut()
                 .spawn((
                     Camera3d::default(),
-                    GlobalTransform::from_translation(original.translation),
+                    Transform::from_translation(original.translation),
                 ))
                 .id();
             assert_no_changes(&mut app);
-            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
-                GlobalTransform::from_translation(original.translation + Vec3::X * 0.01);
-            assert_no_changes(&mut app);
-            *app.world_mut().get_mut::<GlobalTransform>(camera).unwrap() =
-                GlobalTransform::from_translation(Vec3::new(9.0, 8.0, 7.0));
             app.world_mut()
-                .spawn((Camera3d::default(), GlobalTransform::IDENTITY));
+                .get_mut::<Transform>(camera)
+                .unwrap()
+                .translation = original.translation + Vec3::X * 0.01;
+            assert_no_changes(&mut app);
+            app.world_mut()
+                .get_mut::<Transform>(camera)
+                .unwrap()
+                .translation = Vec3::new(9.0, 8.0, 7.0);
+            app.world_mut()
+                .spawn((Camera3d::default(), Transform::IDENTITY));
             assert_no_changes(&mut app);
             for entity in entities {
                 assert_eq!(app.world().get::<Transform>(entity), Some(&original));
