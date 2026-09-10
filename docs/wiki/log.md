@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Fix native login tinting of transparent nodes
+
+Engine `f3ae396c` stops native login presentation sync from tinting `ImageNode` and `Text` entities through `BackgroundColor`; their transparent `Node` backgrounds had become opaque blocks. The new real-component regression failed before the correction, then all seven presentation cases passed. With the three verified startup-camera cases, focused proof totals 62 distinct cases. `runtime/menu-final/menu.webp` is pre-fix evidence only; corrected rendered login/menu appearance, physical input and authentication remain open. Details: [[login-native-tint]].
+
 ## [2026-09-10] ui | Record initial login camera startup collision
 
 At `65fd860b`, 58 revision-scoped focused tests and `cargo check --features dev --bin game-engine` pass; `cargo fmt --check` reports 104 unchanged vendor paths. An isolated 8-second login process exposed two order-1 cameras and IPC capture wrote no WebP before timeout. `675f1a7d` adds PostStartup toolkit-camera alignment because initial Login transition precedes toolkit Startup; its regression remains unexecuted. Details: [[login-camera-startup-order]]. Rendered/menu/authentication proof remains open.

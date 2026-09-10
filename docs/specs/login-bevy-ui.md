@@ -44,16 +44,16 @@
 - `src/scenes/login/native_tests.rs` — lifecycle, input, actions and authentication dispatch.
 - `src/scenes/login/native_view_tests.rs` — status, masking, focus/fade and button-state presentation.
 - `src/ui/native.rs`, `src/ui/automation.rs`, and `src/ipc/plugin/scene.rs` — native semantic waits and combined diagnostic trees.
-- `src/scenes/login/native_tests.rs` includes the `65fd860b`-verified setup asset-failure preservation case and unexecuted `675f1a7d` initial-startup camera-order/teardown regression.
+- `src/scenes/login/native_tests.rs` includes the setup asset-failure case and three startup-camera-order/teardown regressions.
 
-At `65fd860b`, revision-scoped compiler-emitted binaries passed 58 distinct focused cases: the prior 57 plus the setup asset-failure case. `data/diagnostics/login-bevy-ui/verification/focused-report.md` and `verification/final-slice/report.md` record commands, emitted executable identities, retained failures and cumulative 0.557921302-second test execution. `cargo check --features dev --bin game-engine` passed; `cargo fmt --check` failed only on 104 unchanged vendor paths. This is fixture/compile proof, not whole-plugin setup-success, renderer, runtime, or server-authentication proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
+At `f3ae396c`, 62 distinct revision-scoped focused cases pass: 58 prior cases, three startup-camera ordering cases, and one new tint-channel regression. The tint regression failed before the fix, then all seven native-view presentation cases passed in 0.053176801 seconds. `data/diagnostics/login-bevy-ui/verification/focused-report.md`, `verification/final-slice/report.md`, and `tint-fix/proof-ledger.md` retain commands, executable identities and retained failures. `cargo check --features dev --bin game-engine` passed at the earlier final slice; `cargo fmt --check` reported only 104 unchanged vendor paths. This is fixture/compile proof, not whole-plugin setup-success, corrected renderer, runtime, or server-authentication proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
 
 ## Known gaps (current cycle)
 
-- [ ] Execute the `675f1a7d` initial-startup camera-order/teardown regression and cover successful plugin setup/prefill/realm/camera initialization.
-- [ ] Verify native artwork/layout, modal layering, fade and corrected camera ordering through rendered proof.
-- [ ] Retry bounded exact-PID IPC screenshot capture only after the camera-order regression passes; the isolated 8-second `65fd860b` capture produced no WebP before timeout.
-- [ ] Verify an actual authentication flow and automation/dump compatibility at runtime.
+- [ ] Cover successful plugin setup/prefill/realm/camera initialization.
+- [ ] Verify native artwork/layout, modal layering, fade, corrected camera ordering and corrected tint through rendered proof. The pre-fix `runtime/menu-final/menu.webp` contains opaque blocks and is not a green visual result.
+- [ ] Retry bounded exact-PID IPC screenshot capture after the tint correction; the isolated 8-second `65fd860b` capture produced no WebP before timeout.
+- [ ] Verify physical input, menu appearance, actual authentication, and automation/dump compatibility at runtime.
 - [ ] Run final formatting and relevant checks after source finality.
 
 `tests/unit/login_screen_tests.rs`, `login_screen_workflow_tests.rs`, and `login_screen_test_support.rs` still target removed toolkit login symbols and are stale removal candidates. Do not delete them until their remaining observable obligations—especially layout centering/order, setup feedback, disabled appearance and realm/server preservation—are covered by native tests.
