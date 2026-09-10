@@ -17,6 +17,8 @@ Each tile is three files:
 
 The engine loads all three. Finding companion files uses the community listfile (path-based sibling lookup).
 
+`MHID` entries are optional height-texture FDIDs. A zero entry denotes an absent height texture, not BLP FDID 0: terrain material loading and CPU decoding preserve that slot as `None` without resolving a cache path or logging an asset failure. Nonzero missing IDs still use the existing asset-failure diagnostic. `height_texture_zero_slots_stay_absent_even_when_zero_blp_exists` proves the sentinel stays absent even if a readable `0.blp` fixture exists, while preserving a neighboring nonzero slot.
+
 **Critical tile ordering bug (fixed)**: `ensure_warband_terrain_tiles()` was sorting the tile list alphabetically, which reordered `[primary=(31,37), supplemental=(31,36)]` to `(31,36), (31,37)`. The scene loader took `next()` and loaded the supplemental tile as primary, never loading the mountain tile `2703_31_37.adt`. Fix: preserve primary-first ordering and append only distinct supplemental tiles. See [adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md).
 
 ## Streaming Neighborhood
