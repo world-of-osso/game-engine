@@ -1,5 +1,9 @@
 //! Native login presentation. Lifecycle, input and authentication belong to the caller.
 
+#[cfg(test)]
+#[path = "native_view_tests.rs"]
+mod tests;
+
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 use game_engine::ui::native::NativeUiElement;
