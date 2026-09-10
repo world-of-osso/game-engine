@@ -29,7 +29,7 @@ bevy_replicon = { version = "0.41.1", default-features = false, features = ["cli
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-api = { git = "https://github.com/world-of-osso/game-api.git", rev = "3827ad6" }
 ui-toolkit = { git = "https://github.com/world-of-osso/ui-toolkit.git", rev = "3f301b3" }
-osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver", default-features = false, optional = true }
+osso_asset_resolver = { package = "asset-resolver", path = "../asset-resolver-bevy-ui-login", default-features = false, optional = true }
 ab_glyph = "0.2"
 quick-js = "0.4"
 image = { version = "0.25", default-features = false, features = ["png"] }
@@ -71,13 +71,13 @@ bevy_pbr = { path = "vendor/bevy_pbr" }
 bevy_render = { path = "vendor/bevy_render" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
-shared = { path = "../shared-protocol" }
+shared = { path = "../shared-protocol-bevy-ui-login" }
 
 [patch."https://github.com/world-of-osso/ui-toolkit.git"]
-ui-toolkit = { path = "../ui-toolkit" }
+ui-toolkit = { path = "../ui-toolkit-bevy-ui-login" }
 
 [patch."ssh://git@github.com/world-of-osso/ui-toolkit-macros.git"]
-ui-toolkit-macros = { path = "../ui-toolkit-macros" }
+ui-toolkit-macros = { path = "../ui-toolkit-macros-bevy-ui-login" }
 
 [profile.dev]
 debug = 1
