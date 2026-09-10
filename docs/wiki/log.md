@@ -2,7 +2,7 @@
 
 ## [2026-09-10] ui | Face world health bars and align overlay names
 
-Updated [[ui-system]], [[character-rendering]], and [[npc-motion-validation]] for `b7efbad5`, `5e5b2574`, and `045d82d9`. Health bars retain their world-mesh depth path while their +Z normal faces the camera under transformed parents; overlay names sit 4 logical pixels above projected bar edges and return to their centered name-only anchor when bars disappear. Twenty-four focused UI tests and the live HumanHD sword/shield attachment regression pass. Native visual proof and independent verification remain pending.
+Updated [[ui-system]], [[character-rendering]], and [[npc-motion-validation]] for `b7efbad5`, `5e5b2574`, `045d82d9`, and test-only GPU proof `4475ce04`. Health bars retain their world-mesh depth path while their +Z normal faces the camera under transformed parents; overlay names sit 4 logical pixels above projected bar edges and return to their centered name-only anchor when bars disappear. Twenty-four focused UI tests, a live HumanHD sword/shield regression, and one Health-before-Npc GPU test pass. Independent dev-bin check and scoped formatting pass; whole-tree formatting retains 104 unchanged vendor differences. A one-time approved 59.173-second native run captured names, compact spacing, camera-facing bars, and corrected equipment placement; actor yaw, not camera angle, changed between capture filenames.
 
 
 ## [2026-09-10] ui | Borrow shadow text before owned rendering
