@@ -14,6 +14,10 @@ use super::native::LoginSession;
 #[path = "native_caret_tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "native_caret_pipeline_tests.rs"]
+mod pipeline_tests;
+
 const CARET_WIDTH: f32 = 2.0;
 const BLINK_INTERVAL: f64 = 0.5;
 
