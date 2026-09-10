@@ -231,4 +231,20 @@ fn player_frame_gpu_contents_fit_artwork_and_health_updates() {
         0,
         "empty health must not draw a stale fill"
     );
+    let mut full = shared.get::<InWorldUnitFramesState>().unwrap().clone();
+    full.player.health_fill_width = full_width;
+    full.player.mana_fill_width = rect(&app, "PlayerManaBar").width;
+    full.player.health_text = "100 / 100".into();
+    full.player.mana_text = "60 / 60".into();
+    shared.insert(full);
+    screen.sync(
+        &shared,
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+    );
+    let full_image = capture(&mut app, &target);
+    save(&full_image, "player-frame-full");
+    assert!(
+        (green_fill_width(&full_image, &health_area) as f32 - full_width).abs() < 3.0,
+        "full health must reach the artwork opening's right edge"
+    );
 }

@@ -433,13 +433,12 @@ mod tests {
         let image = image::open(&path)
             .expect("load prepared portrait")
             .to_rgba8();
-        assert!(image.width() > 0 && image.height() > 0);
-        for (x, y) in [
-            (0, 0),
-            (image.width() - 1, 0),
-            (0, image.height() - 1),
-            (image.width() - 1, image.height() - 1),
-        ] {
+        assert_eq!(
+            (image.width(), image.height()),
+            (111, 113),
+            "use the actual artwork aperture, not a smaller circle"
+        );
+        for (x, y) in [(0, 0), (image.width() - 1, 0), (0, image.height() - 1)] {
             assert_eq!(
                 image.get_pixel(x, y)[3],
                 0,
@@ -447,6 +446,10 @@ mod tests {
             );
         }
         assert!(image.get_pixel(image.width() / 2, image.height() / 2)[3] > 0);
+        assert!(
+            image.get_pixel(image.width() * 9 / 10, image.height() * 9 / 10)[3] > 0,
+            "portrait must fill the artwork's square lower-right opening"
+        );
     }
     use bevy::window::PrimaryWindow;
     use game_engine::buff_data::{self, DebuffType, UnitAuraState, textures};
@@ -501,7 +504,7 @@ mod tests {
             ..CharacterStatsSnapshot::default()
         };
         let state = build_player_state(Some(&stats), (None, None, None, None, None, None));
-        assert!(state.portrait_texture_file.ends_with("-circle-v1.png"));
+        assert!(state.portrait_texture_file.ends_with("-aperture-v1.png"));
     }
 
     #[test]
