@@ -32,6 +32,10 @@ Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plug
 
 `ui-toolkit` `2dec7fe` leaves a frame and its subtree out of `render_dirty` when `set_hidden` or `set_alpha` receives values that leave the frame's stored and derived visibility/alpha unchanged. Actual hidden/alpha/effective-value changes still dirty their changed frames. `ff2acd0` makes `set_hidden` walk descendants once, calculating visibility then effective alpha at each node; conditional writes and stale-derived-value repair remain intact. `set_alpha` keeps its existing alpha-only propagation. Registry proof: 6 RED cases, then 28 GREEN cases after the `ecbd655` refactor characterization. No CPU or native claim.
 
+## Text render reconciliation
+
+Toolkit `c8fa209` retains full `sync_ui_text` reconciliation but compares the renderer-owned `Text2d`, layout, bounds, font face/size, color, transform, and anchor values before mutating their Bevy components. It preserves unowned `TextFont` fields and inserts a missing `Anchor` for externally altered entities. RED evidence exists; GREEN verification is pending. No CPU or native claim.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.

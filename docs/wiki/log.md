@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] ui | Avoid unchanged text-render component mutations
+
+Updated [[ui-system]] for ui-toolkit `c8fa209`: full text reconciliation remains, but owned values are compared before `Text2d`, layout, bounds, font face/size, color, transform, or anchor mutation. Unowned `TextFont` fields survive and a missing anchor is restored. RED exists; GREEN verification remains pending. No CPU/native claim.
+
 ## [2026-09-09] ui | Combine visibility and alpha descendant propagation
 
 Updated [[ui-system]] for ui-toolkit `ff2acd0`: `set_hidden` now traverses each descendant once, calculating visibility before effective alpha. Conditional writes and stale derived-state repair remain unchanged; `set_alpha` retains alpha-only propagation. The `ecbd655` characterization brings registry coverage to 28 GREEN cases after the prior 6 RED cases. No CPU/native claim.
