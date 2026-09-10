@@ -28,7 +28,7 @@ Measured image output:
   - `field[1]` decodes as flags.
   - `field[2]` decodes as the authored skybox FDID.
   - `LightSkyboxID 653` carries the blend bits that keep procedural sky and fog visible in default debug mode.
-- The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`. This does not describe ordinary Azeroth InWorld sky: that live path selected `LightParamsID 12 → raw LightSkyboxID 0` and required the procedural dome restored in `21feec27`.
+- The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`. This does not describe ordinary Azeroth InWorld sky: that live path selected `LightParamsID 12 → raw LightSkyboxID 0`. The independent procedural-dome lifecycle restoration required a later visibility correction in `58d4b12a`; see [[procedural-sky-dome-visibility]].
 
 ## Fixed
 

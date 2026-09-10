@@ -6,7 +6,7 @@ Skybox rendering combines a procedural dome for explicit LightParams rows with n
 
 InWorld resolves the local clear `LightParamsID` from `Light.csv`. It spawns the existing camera-child procedural `SkyDome` only when the decoded local `LightParams` row explicitly has raw `LightSkyboxID = 0`. It does not treat missing DB2 data, an unknown row, or a failed authored model load as permission to fall back; those remain diagnosable failures.
 
-The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restores the existing dome for this explicit case, follows the active camera, and removes it on `--no-skybox` or InWorld exit.
+The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restored the existing dome lifecycle. Commit `58d4b12a` then corrected its interior visibility: Back culling requires inward triangle winding. It also updates newly added dome materials when settled `GameTime` would otherwise skip color propagation. GREEN, build, and native visual proof for this correction remain pending.
 
 ## InWorld environment lighting
 
@@ -132,3 +132,4 @@ Known example: scene 1 should now use this fallback instead of treating the glob
 - [[rendering-pipeline]] — SkyboxM2Material render flags
 - [[asset-pipeline]] — CASC extraction, DB2 decryption
 - [[authored-skybox-black-output]] — current authored skybox render failure
+- [[procedural-sky-dome-visibility]] — procedural-dome winding and late-material color root cause
