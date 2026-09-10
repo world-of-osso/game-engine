@@ -2,7 +2,7 @@
 
 ## [2026-09-10] ui | Avoid unchanged primary-window UI mutations
 
-Updated [[ui-system]] for ui-toolkit `924ca23`: `sync_screen_size` compares primary-window dimensions before mutable registry access, retaining the `> 0.5` tolerance, startup helper, and real-resize invalidation. Actual UiPlugin characterization found the settled resource tick while rendering and dirty sets were already clean; hover, layout repair, and resize characterization pass before this correction. Final GREEN verification remains pending. No CPU/native claim.
+Updated [[ui-system]] for ui-toolkit `924ca23`: actual UiPlugin verification has 5 passing cases plus toolkit format/check/readability for settled state, hover visuals, geometry repair, and thresholded resize behavior. Compiler stdout/stderr and exit for the one test compile were not retained, so the successful saved executable has weaker compile provenance; standalone library checking is saved. Engine integration remains pending. No CPU/native claim.
 
 ## [2026-09-10] ui | Avoid unchanged three-slice, border, and highlight sprite writes
 
@@ -58,7 +58,7 @@ Removed the relative-path gate on SKID attachment loading. Real HumanHD path-equ
 
 ## [2026-09-09] ui | Make clean layout state a no-op
 
-Updated [[ui-system]] and [UI layout invalidation spec](../specs/ui-layout-invalidation.md) for ui-toolkit `0fdcf3f` and game-engine `86bbc945`. Empty `rect_dirty` now performs no layout or render-dirty work; insertion/removal, resize, anchors, flex, auto-sizing, and owned-addon geometry changes explicitly propagate. `get_mut` remains render-dirty only and explicit unanchored cached rectangles are unchanged. Proof: 14 focused plus 41 existing toolkit tests (55), and 7 GREEN engine addon tests. No CPU/native claim; coordinated engine integration check remains pending.
+Updated [[ui-system]] and [UI layout invalidation spec](../specs/ui-layout-invalidation.md) for ui-toolkit `0fdcf3f` and game-engine `86bbc945`. Empty `rect_dirty` now performs no layout or render-dirty work; insertion/removal, resize, anchors, flex, auto-sizing, and owned-addon geometry changes explicitly propagate. `get_mut` remains render-dirty only and explicit unanchored cached rectangles are unchanged. Proof: 14 focused plus 41 existing toolkit tests (55), 7 GREEN engine addon tests, and the coordinated engine gate closed at `9d22c7fb` for 62 distinct scoped tests. The saved engine output has no standalone command/exit record. No CPU/native claim.
 
 ## [2026-09-09] character | Resolve replicated physical item appearances
 

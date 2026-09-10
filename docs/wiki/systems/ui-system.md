@@ -26,7 +26,7 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 Insertion/removal, screen resize, anchor changes, dimension/flex attributes, flex-child changes, text/EditBox auto-sizing, resolved named anchors, and owned-addon resize propagate through children, anchor dependents, and flex parents. `get_mut` remains render-dirty only; arbitrary raw geometry mutation is not made implicitly layout-dirty. Explicit unanchored cached rectangles retain their existing behavior.
 
-Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plugin tests (55 total). Engine addon integration has 7 GREEN tests at `86bbc945`; the coordinated engine integration check remains pending. No CPU or native claim.
+Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plugin tests (55 total). Engine addon integration has 7 GREEN tests at `86bbc945`; the coordinated engine gate closed at `9d22c7fb`, bringing the bounded correction to 62 distinct scoped tests. The artifact audit retains that the saved engine output lacks its own command/exit record. No CPU or native claim.
 
 ## Visibility and alpha invalidation
 
@@ -66,7 +66,7 @@ Toolkit `e25eecc` first collects visible buttons whose `hovered` value differs f
 
 ## Primary-window synchronization
 
-Toolkit `924ca23` checks primary-window dimensions against `UiState.registry` through immutable access before entering its mutable resize path. It retains the existing `> 0.5` tolerance, public startup helper, initial sizing, and `mark_all_rects_dirty()` resize invalidation. The actual `UiPlugin` characterization first found that settled rendering and dirty sets were clean while `UiState` still changed because `sync_screen_size` unconditionally borrowed the registry mutably. Its hover, layout-repair, and real-resize cases pass before this correction; final GREEN verification remains pending. No CPU or native claim.
+Toolkit `924ca23` checks primary-window dimensions against `UiState.registry` through immutable access before entering its mutable resize path. It retains the existing `> 0.5` tolerance, public startup helper, initial sizing, and `mark_all_rects_dirty()` resize invalidation. Actual `UiPlugin` verification records 5 passing cases plus toolkit format/check/readability: settled resource and visual state; input-last hover visuals; geometry repair; <=0.5-pixel resize preservation; and >0.5-pixel resize updates. The test executable provenance is weaker because compiler stdout/stderr and exit from its one compile invocation were not retained; the saved executable ran successfully, and standalone library checking passed. Engine integration remains pending. No CPU or native claim.
 
 ## Widget Types
 
