@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid unchanged three-slice, border, and highlight sprite writes
+
+Updated [[ui-system]] for ui-toolkit `598ded9`: retained three-slice, backdrop-border, CSS-border, and direct button-highlight sprites reuse existing Transform/Sprite comparison. Reconciliation, repair, and lifecycle remain unchanged; highlight proof is direct-system only. Twelve RED cases recorded; GREEN pending. No CPU/native claim.
+
 ## [2026-09-10] ui | Avoid unchanged button-input mutations
 
 Updated [[ui-system]] for ui-toolkit `e25eecc`: hit testing and hover differences remain immutable until a visible button actually changes; press/release enters its mutable path only on left-button edges. Disabled hover and state, pushed-button reset, and real transitions retain their behavior. Five RED/GREEN integration cases plus the adapted unit test and independent toolkit/engine checks pass. No CPU/native claim.

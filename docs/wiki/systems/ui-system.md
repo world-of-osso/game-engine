@@ -56,6 +56,10 @@ Toolkit `2b3c1f3` applies the shared quad comparison to retained tiled sprites. 
 
 Toolkit `f041c0e` checks `render_dirty` immutably before quad or tiled reconciliation clears it. Empty sets no longer falsely mutate `UiState`; nonempty sets drain at the existing points, after the existing reconciliation work. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU or native claim.
 
+## Three-slice, border, and highlight sprite reconciliation
+
+Toolkit `598ded9` routes retained three-slice parts, backdrop borders, CSS borders, and direct button-highlight overlay entities through the existing full-field `Transform`/`Sprite` comparison helper. Unchanged values are not reinserted; full reconciliation, real visual updates, externally altered or missing-component repair, and stale-entity lifecycle remain unchanged. The highlight evidence exercises its direct synchronization system, not default plugin reachability. Twelve tests have RED coverage; independent GREEN verification is pending. No CPU or native claim.
+
 ## Button input reconciliation
 
 Toolkit `e25eecc` first collects visible buttons whose `hovered` value differs from the current hit-test result, then mutates only those frames. Press/release handling remains ordered after hover processing and now enters its mutable path only on a left-button edge; disabled and already-correct states remain untouched. Hit testing, disabled hover behavior, pushed-button release reset, and actual hover transitions are unchanged. Five integration cases plus the adapted unit case pass after the five-case RED; independent toolkit/engine checks pass. No CPU or native claim.
