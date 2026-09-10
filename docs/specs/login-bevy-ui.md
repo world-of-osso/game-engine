@@ -44,7 +44,7 @@
 - `src/scenes/login/native_tests.rs` — lifecycle, input, actions and authentication dispatch.
 - `src/scenes/login/native_view_tests.rs` — status, masking, focus/fade and button-state presentation.
 - `src/ui/native.rs`, `src/ui/automation.rs`, and `src/ipc/plugin/scene.rs` — native semantic waits and combined diagnostic trees.
-- `src/scenes/login/native_tests.rs` includes the setup asset-failure case and three startup-camera-order/teardown regressions.
+- `src/scenes/login/native_tests.rs` includes setup asset-failure, successful feedback/custom-realm/focus, real-update fade-alpha, and startup-camera-order/teardown cases. The successful-setup and fade cases from `1ad57bc6` are pending verifier execution.
 
 At `f3ae396c`, 62 distinct revision-scoped focused cases pass: 58 prior cases, three startup-camera ordering cases, and one tint-channel regression. `bf4e259f` subsequently changes native image rendering to `NodeImageMode::Stretch` after `runtime/tint-login/view.webp` showed detached pieces caused by Bevy's default aspect fit. The 62 cases remain valid only for their prior scopes; no new enum-shape test was added for the stretch correction. `data/diagnostics/login-bevy-ui/verification/focused-report.md`, `verification/final-slice/report.md`, and `tint-fix/proof-ledger.md` retain commands, executable identities and retained failures. `cargo check --features dev --bin game-engine` passed at the earlier final slice; `cargo fmt --check` reported only 104 unchanged vendor paths.
 
@@ -56,8 +56,8 @@ This worktree resolves `asset-resolver`, `shared-protocol`, `ui-toolkit`, and `u
 
 ## Known gaps (current cycle)
 
-- [ ] Cover successful plugin setup/prefill/realm/camera initialization.
-- [ ] Verify fade and exact baseline-pixel parity. `runtime/settled-retry/view-12.webp` and `view-30.webp` establish rendered standalone login; `runtime/stretch/view.webp` establishes menu overlay.
+- [ ] Execute `1ad57bc6` successful-setup feedback/custom-realm/focus and real-update fade-alpha cases. Successful credential prefill and full camera-initialization coverage remain open.
+- [ ] Verify exact baseline-pixel parity. Rendered fade-in is covered by the pending real-update alpha case; `runtime/settled-retry/view-12.webp` and `view-30.webp` establish rendered standalone login, and `runtime/stretch/view.webp` establishes menu overlay.
 - [ ] Verify physical input and real authentication at runtime.
 - [ ] Preserve the runtime semantic result: `runtime/stretch/tree.stdout` shows typed username and a 23-asterisk password display without the raw dummy password; expand this to live automation proof only if a new runtime window is authorized.
 - [ ] Run final formatting and relevant checks after source finality.
