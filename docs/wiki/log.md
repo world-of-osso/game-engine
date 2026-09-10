@@ -1,12 +1,16 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Verify procedural sky in standalone screen
+
+At `83cf11ec`, the dedicated `--screen skyboxdebug --light-skybox-id 0` capture shows procedural clouds and a horizon gradient through the shared InWorld dome/material/color path. Concrete Azeroth selection/lifecycle tests and independent verification total 59 distinct passing cases; dev check passes, with unchanged vendor-format failures. No user character/camera changes were needed for this proof. Exact in-world after-view and unrelated authored-M2 artifacts remain explicitly qualified in [[procedural-sky-dome-visibility]].
+
 ## [2026-09-10] rendering | Initialize standalone skybox-debug dome colors
 
-`83cf11ec` adds `SkyboxDebug` to the shared sky-color/environment update predicate. The screen already spawned a procedural baseline dome when its selected authored-skybox flags permit it, but its material stayed default white because updates applied only to InWorld and CharSelect. The new registered-system regression proves initial `LightKeyframes` colors and a later game-time refresh. This does not exercise Azeroth's procedural-only `LightParams 12` selection and does not yet claim a rendered standalone screenshot. See [[skybox]].
+`83cf11ec` adds `SkyboxDebug` to the shared sky-color/environment update predicate. The screen already spawned a procedural baseline dome when its selected authored-skybox flags permit it, but its material stayed default white because updates applied only to InWorld and CharSelect. The new registered-system regression proves initial `LightKeyframes` colors and a later game-time refresh. Subsequent standalone rendered proof and its selection/integration limits are recorded in [[procedural-sky-dome-visibility]]. See [[skybox]].
 
 ## [2026-09-10] rendering | Correct restored procedural dome visibility
 
-`58d4b12a` follows `21feec27`: the native Azeroth `sky_dome` existed but rendered navy because its triangles faced outward while `SkyMaterial` culls Back faces for interior viewing. It reverses the winding. The same revision makes `update_sky_colors` update newly added material handles when settled game time has not changed, preventing default-white late domes. RED covers both boundaries; GREEN, build, and native visual proof remain pending. This does not alter authored M2 rendering; see [[procedural-sky-dome-visibility]] and [[authored-skybox-black-output]].
+`58d4b12a` follows `21feec27`: the native Azeroth `sky_dome` existed but rendered navy because its triangles faced outward while `SkyMaterial` culls Back faces for interior viewing. It reverses the winding. The same revision makes `update_sky_colors` update newly added material handles when settled game time has not changed, preventing default-white late domes. RED/GREEN covers both boundaries; subsequent build and standalone visible proof are recorded in [[procedural-sky-dome-visibility]]. This does not alter authored M2 rendering; see [[procedural-sky-dome-visibility]] and [[authored-skybox-black-output]].
 
 ## [2026-09-10] rendering | Restore ordinary InWorld procedural sky
 

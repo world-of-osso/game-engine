@@ -16,12 +16,14 @@ At the live Azeroth clear-light position, `LightParamsID 12` explicitly selects 
 
 Commit `58d4b12a` reverses the dome triangle winding for interior rendering. It also treats newly added sky-material handles as update candidates even when game time is unchanged, so late-created domes receive the settled sky colors.
 
-This correction is limited to the procedural raw-zero InWorld path. It does not change authored M2 selection or the unresolved authored-cloud combiner behavior.
+The shared dome correction applies to InWorld and the standalone skybox-debug screen. `83cf11ec` also enables that screen's shared color/environment updates. Authored M2 combiner behavior is unchanged.
 
 ## Proof Status
 
-- RED: `/tmp/inworld-sky-winding-red.log` records the outward-winding and late-uniform failures.
-- GREEN, build, and native visual proof remain pending at this documentation checkpoint.
+- RED/GREEN and independent reports are retained locally under `data/diagnostics/inworld-sky/`. At `83cf11ec`, 59 distinct relevant tests pass, including seven new regressions; dev build/check pass. Global formatting still reports 104 unchanged vendor files.
+- Native `--screen skyboxdebug --light-skybox-id 0` renders visible procedural clouds and a horizon gradient in `standalone-procedural.webp`. ID 0 deliberately selects no authored model in this diagnostic; the tree contains `sky_dome`, the debug camera, and reference ground. It uses the same mesh, material, and LightParams12 color updates as InWorld.
+- The Light.csv/LightParams selection and InWorld lifecycle are separately covered by the concrete Azeroth regression. A corrected same-view native InWorld screenshot was not captured: the user requested standalone-screen verification instead of further character/camera changes.
+- Default debug mode also loads the unrelated `costalislandskybox.m2`; captures `standalone-screen.webp` and `standalone-authored.webp` retain authored artifacts and are not evidence that all M2 skyboxes are correct.
 
 ## Sources
 
