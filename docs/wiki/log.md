@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Record native login compile correction and focused behavioral proof
+
+At engine `700f12cf`, the dev-feature game-engine test binary compiled after the native `TextFont` API correction: `FontSource::Handle` and pixel `FontSize`. The compiler-emitted executable passed 35 selected cases—11 form, 23 native lifecycle/input/authentication, and one helper—in 0.120 seconds including test listing. Evidence: `data/diagnostics/login-bevy-ui/verification/attempt-2/`. This excludes whole-library completion, rendered comparison, runtime login/authentication, and rollout proof; those remain open in [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md).
+
 ## [2026-09-10] ui | Record native Bevy login integration pending proof
 
 Updated [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md) for engine commits `a112398f`, `968e6a6e`, `a044bc99`, and `a07de528`. Login now has a native ECS form/view path, a camera-order coexistence boundary with the legacy game menu, and marked native semantic controls in waits and UI-tree diagnostics; all other screens remain toolkit-backed. The hidden realm action remains automatable. This checkpoint has no integration compile/test, rendered comparison, runtime authentication, or deployment proof.

@@ -45,13 +45,15 @@
 - `src/scenes/login/form.rs` — standalone model tests for filtering, limits, editing, password display and independent fields.
 - `src/scenes/login/native_tests.rs` — native lifecycle, input, action and automation coverage.
 
-The native integration has not been compiled or tested as a whole. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until integration proof exists.
+At `700f12cf`, the dev-feature `game-engine` test binary compiled cleanly after the `TextFont` API correction in `native_view.rs`. Its emitted executable ran 35 selected login cases: 11 form, 23 native lifecycle/input/authentication, and one helper; all passed. This is focused behavioral proof, not a complete plugin/runtime integration or renderer proof. Existing CPU characterization does not certify the replacement renderer. Checkboxes remain open until their full contract proof exists.
 
 ## Known gaps (current cycle)
 
-- [ ] Compile and exercise the native login replacement against the preserved behavioral contract.
+- [ ] Complete whole-library/plugin compilation and exercise the native login replacement beyond the 35 focused behavioral cases.
 - [ ] Verify native artwork/layout, modal layering and fade through rendered proof.
 - [ ] Verify an actual authentication flow and automation/dump compatibility at runtime.
+
+Focused evidence: `data/diagnostics/login-bevy-ui/verification/attempt-2/` records the clean dev-bin compile (70.120 seconds) and 35 selected tests (0.120 seconds including listing). A library no-run compile was started after this capture; no completed result is documented here.
 
 ## Out of scope
 
