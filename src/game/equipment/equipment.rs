@@ -1,8 +1,9 @@
 //! Equipment rendering: attach item M2 models to character bone attachment points.
 //!
 //! WoW attachment lookup IDs (from wowdev.wiki/M2#Attachments):
-//!   0  = HandRight (main hand weapon)
-//!   1  = HandLeft (off-hand weapon/shield)
+//!   0  = LeftWrist (shield)
+//!   1  = RightPalm (main hand weapon)
+//!   2  = LeftPalm (off-hand weapon)
 //!   26 = SheathedMainHand (back/hip sheathed)
 
 mod transforms;
@@ -115,8 +116,8 @@ fn slot_attachment_id(slot: EquipmentSlot) -> u32 {
         EquipmentSlot::Waist => 53, // Belt buckle
         EquipmentSlot::Legs => unreachable!("legs runtime models anchor on the character root"),
         EquipmentSlot::Feet => unreachable!("feet runtime models anchor on the character root"),
-        EquipmentSlot::MainHand => 0, // HandRight
-        EquipmentSlot::OffHand => 1,  // HandLeft
+        EquipmentSlot::MainHand => 1, // RightPalm
+        EquipmentSlot::OffHand => 2,  // LeftPalm
     }
 }
 
@@ -524,7 +525,7 @@ fn resolve_equipment_parent(
         ));
     }
 
-    let att_id = slot_attachment_id(slot);
+    let att_id = model_attachment_id(slot, m2_path);
     let Some(&(bone_idx, base_offset)) = ctx.attach_points.points.get(&att_id) else {
         warn_once(
             ctx.warned,
@@ -546,8 +547,20 @@ fn resolve_equipment_parent(
         );
         return None;
     };
-    let _ = m2_path;
     Some((joint, base_offset))
+}
+
+fn model_attachment_id(slot: EquipmentSlot, path: &Path) -> u32 {
+    // Runtime item paths retain their authored listfile category.
+    let is_shield = path
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|category| category.to_str())
+        .is_some_and(|category| category.eq_ignore_ascii_case("shield"));
+    if slot == EquipmentSlot::OffHand && is_shield {
+        return 0; // LeftWrist
+    }
+    slot_attachment_id(slot)
 }
 
 fn validate_equipment_model_path(

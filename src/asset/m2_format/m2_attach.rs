@@ -27,7 +27,7 @@ const ATTACHMENT_LOOKUP_ENTRY_SIZE: usize = 2;
 /// An attachment point on an M2 model (e.g., hand, back, shoulder).
 #[derive(Debug, Clone)]
 pub struct M2Attachment {
-    /// Attachment lookup ID (0=HandRight, 1=HandLeft, etc.).
+    /// Attachment lookup ID (0=LeftWrist, 1=RightPalm, 2=LeftPalm, etc.).
     pub id: u32,
     /// Index of the bone this attachment is parented to.
     pub bone: u16,

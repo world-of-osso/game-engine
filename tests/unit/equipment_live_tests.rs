@@ -17,6 +17,9 @@ use crate::m2_scene;
 #[path = "equipment_live_tests/skin_palette_census.rs"]
 mod skin_palette_census;
 
+#[path = "equipment_live_tests/hand_attachments.rs"]
+mod hand_attachments;
+
 #[test]
 fn live_human_male_helm_wraps_head_and_binds_texture() {
     let Some((spawned, helm_path, mut app)) = setup_live_helm_test_app() else {
