@@ -58,14 +58,14 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = sample_gradient(elev);
 
     let uv = vec2(
-        fract(atan2(dir.z, dir.x) / (2.0 * PI) + 0.5 + sky.cloud_params.y),
-        fract(0.5 - asin(dir.y) / PI + sky.cloud_params.z),
+        atan2(dir.z, dir.x) / (2.0 * PI) + 0.5 + sky.cloud_params.y,
+        0.5 - asin(dir.y) / PI + sky.cloud_params.z,
     );
     let cloud_a = textureSample(cloud_texture, cloud_sampler, uv).r;
     let cloud_b = textureSample(
         cloud_texture,
         cloud_sampler,
-        fract(uv * vec2(1.9, 1.35) + vec2(0.17, 0.29)),
+        uv * vec2(2.0, 1.35) + vec2(0.17, 0.29),
     )
     .r;
     let cloud_shape = mix(cloud_a, cloud_b, 0.35);

@@ -103,6 +103,9 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [x] Face procedural dome triangles inward so the interior camera sees them with normal backface culling. Initialize newly spawned dome colors even when game time is unchanged.
 - [x] The standalone `--screen skyboxdebug` uses the same sky-color update systems, initializing and refreshing its dome colors without requiring an in-world client.
 
+- [ ] Cloud noise retains fractional spatial detail for high-bit seeds and repeats continuously across both texture axes, without changing texture dimensions or density controls.
+- [ ] Cloud sampling remains continuous across the spherical longitude boundary; secondary longitude frequency is whole-cycle and wrapping occurs in the repeat sampler after layer scaling.
+
 Native standalone proof, regression counts, and remaining integration qualifications: [procedural sky visibility](../wiki/investigations/procedural-sky-dome-visibility.md).
 
 ### Water and skybox diagnostics
@@ -174,6 +177,8 @@ Exposure, shadows, and existing fog update behavior are outside this initializat
 - `src/rendering/skybox/tests/inworld_ibl.rs` — current-color cubemap initialization, late activation/idempotence, disabled visuals, override preservation, and state/stage guards.
 - `src/rendering/skybox/tests/inworld_procedural.rs` — ordinary Azeroth dome creation, camera centering/movement, idempotence, exit and visual-disable behavior.
 - `src/rendering/lighting/light_lookup_tests.rs` — explicit-zero procedural selection at the live Azeroth position, missing-row and authored-row rejection.
+- `src/rendering/skybox/cloud_texture.rs` tests — periodic density, high-bit seed precision and generated pixel-edge continuity.
+- `src/rendering/skybox/tests/cloud_sampling_gpu.rs` — actual shader pixel agreement across the spherical longitude boundary.
 
 ## Known gaps (current cycle)
 

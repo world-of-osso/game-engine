@@ -16,6 +16,9 @@ use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
 };
 
+#[cfg(test)]
+#[path = "tests/cloud_sampling_gpu.rs"]
+mod cloud_sampling_gpu_tests;
 #[path = "cloud_texture.rs"]
 pub mod cloud_texture;
 mod inworld_skybox;
