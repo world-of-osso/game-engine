@@ -1,6 +1,12 @@
 # Skybox
 
-Skybox rendering uses authored WoW sky M2 models resolved through a DB2 lookup chain. The `SkyboxM2Material` render path disables depth writes, depth comparison, and shadow/prepass participation.
+Skybox rendering combines a procedural dome for explicit LightParams rows with no authored skybox and authored WoW M2 models for rows that select one. The `SkyboxM2Material` render path disables depth writes, depth comparison, and shadow/prepass participation.
+
+## InWorld procedural sky selection
+
+InWorld resolves the local clear `LightParamsID` from `Light.csv`. It spawns the existing camera-child procedural `SkyDome` only when the decoded local `LightParams` row explicitly has raw `LightSkyboxID = 0`. It does not treat missing DB2 data, an unknown row, or a failed authored model load as permission to fall back; those remain diagnosable failures.
+
+The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restores the existing dome for this explicit case, follows the active camera, and removes it on `--no-skybox` or InWorld exit.
 
 ## InWorld environment lighting
 
@@ -82,7 +88,7 @@ cargo run --bin game-engine -- --screen skyboxdebug --skybox-fdid 5412968
 
 ## Known Issue
 
-`skyboxdebug` currently resolves authored skyboxes correctly but still renders an effectively black frame, including the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` override. See [[authored-skybox-black-output]].
+`skyboxdebug` currently resolves authored skyboxes correctly but still renders an effectively black frame, including the known-good `LightSkyboxID 653 -> 11xp_cloudsky01.m2` override. This is separate from the corrected ordinary InWorld procedural-dome omission. See [[authored-skybox-black-output]].
 
 ## Material animation updates
 
@@ -109,8 +115,10 @@ Known example: scene 1 should now use this fallback instead of treating the glob
 
 ## Sources
 
-- `src/rendering/skybox/mod.rs` — independent camera IBL initialization and existing cubemap setup.
-- `src/rendering/skybox/skybox_m2_material.rs` — authored UV/transparency evaluation and conditional material mutation.
+- `src/rendering/skybox/inworld_skybox.rs` — explicit procedural-vs-authored InWorld selection and camera-child dome lifecycle.
+- `src/rendering/lighting/light_lookup.rs` — raw `LightSkyboxID = 0` predicate from decoded LightParams.
+- `src/rendering/skybox/mod.rs` — existing dome construction, sky color updates, and independent camera IBL initialization.
+- `src/rendering/skybox/skybox_m2_material.rs — authored UV/transparency evaluation and conditional material mutation.
 - `src/rendering/skybox/skybox_m2_material_tests.rs` — static/animated asset-event regression coverage.
 - `src/rendering/skybox/tests/inworld_ibl.rs` — registered-system initialization and preservation fixtures.
 

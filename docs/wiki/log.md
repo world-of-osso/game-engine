@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Restore ordinary InWorld procedural sky
+
+`21feec27` corrects the live Azeroth sky boundary: at Bevy `[-8977.593, 81.04212, 179.76495]`, map-0 Light row 1 selects clear `LightParamsID 12`; local DB2 decoding gives raw `LightSkyboxID 0`. That explicitly requests the procedural dome, not an authored M2. `ec826ee7` had removed its normal InWorld spawn on April 12, 2026, leaving the dark-navy clear color. The restored lifecycle spawns the existing camera-child dome only for explicit raw-zero rows, follows the active camera, and removes it when visuals disable or InWorld exits. Missing data and authored resolution failures do not fall back. Forced authored `skyboxdebug` black output remains unresolved; current `0x8012`/`0x8016` WGSL branches exist, but their reference-pixel combiner semantics remain unproven. See [[skybox]] and [[authored-skybox-black-output]].
+
 ## [2026-09-10] rendering | Add live in-world camera direction control
 
 `f1e377e3`/`fa7d5bee`/`4e1de84d` add `game-engine-cli camera set --pitch-degrees 60` with optional `--yaw-degrees`: values are degrees, pitch bounds are −88° through +88°, omitted axes persist, and the command requires InWorld with exactly one active `WowCamera`. At `4e1de84d`, the dev-built live client accepted four requested directions and visibly changed view; a mixed valid yaw plus `NaN` pitch was rejected. Two library IPC tests, four binary camera behavior tests, and three CLI tests pass. Player-facing/input/collision live behavior remains open. It does not fix authored skybox rendering: the user-positioned upward capture remains uniform dark navy; see [[authored-skybox-black-output]].

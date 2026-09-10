@@ -28,7 +28,7 @@ Measured image output:
   - `field[1]` decodes as flags.
   - `field[2]` decodes as the authored skybox FDID.
   - `LightSkyboxID 653` carries the blend bits that keep procedural sky and fog visible in default debug mode.
-- The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`.
+- The remaining failure is downstream of lookup, in the authored skybox render path shared by `skyboxdebug`. This does not describe ordinary Azeroth InWorld sky: that live path selected `LightParamsID 12 → raw LightSkyboxID 0` and required the procedural dome restored in `21feec27`.
 
 ## Fixed
 
@@ -79,9 +79,9 @@ Current UV mode routing contract:
 
 ### WGSL combine semantics (`assets/shaders/m2_skybox.wgsl`)
 
-Current shader combine implementation includes explicit cases for legacy/older modes (`0x4014`, `0x0010`, `0x0011`, `0x4016`, `0x8015`, `0x8001`, `0x8002`, `0x8003`), but **does not** define explicit combine logic for `0x8012` or `0x8016`.
+Current shader combine implementation has explicit `0x8012` and `0x8016` branches and consumes optional third/fourth stages. `0x8012` combines `texture1 * mix(texture2, texture3, texture3.a)`; `0x8016` uses the same pattern with the fourth-stage alpha mask when present. The older claim that those branches or bindings were absent is stale.
 
-The fragment path currently combines only `texture1` + `texture2`; `third_texture` and `fourth_texture` are bound but not consumed in combine logic. This is the traced gap that explains why modern multi-stage authored batches still fail to reproduce reference-client visuals.
+The unresolved authored gap is pixel correctness: the current formulas have CPU stage/UV coverage but no reference-client GPU proof that their operation order and alpha source reproduce WoW's combiner semantics. This remains independent of the fixed ordinary InWorld dome omission.
 
 ## Sources
 
