@@ -1,5 +1,56 @@
 use super::*;
+use bevy::ecs::system::RunSystemOnce;
 use std::sync::Arc;
+
+#[test]
+fn setup_asset_failure_consumes_feedback_without_partial_view_or_camera_changes() {
+    let mut world = World::new();
+    world.init_resource::<Assets<Font>>();
+    world.init_resource::<ui_toolkit::font_registry::FontRegistry>();
+    world.insert_resource(LoginStatus("Previous status".into()));
+    world.insert_resource(networking::AuthUiFeedback(Some("Session expired".into())));
+    let addr = "192.0.2.17:5000".parse().unwrap();
+    let hostname = "setup-preservation.invalid:5000";
+    let selection = LoginRealmSelection::from_server(Some(addr), Some(hostname), true);
+    world.insert_resource(selection.clone());
+    world.insert_resource(networking::ServerAddr(addr));
+    world.insert_resource(networking::ServerHostname(hostname.into()));
+    let camera = world
+        .spawn((
+            UiCamera,
+            Camera {
+                order: 7,
+                ..default()
+            },
+        ))
+        .id();
+    let unrelated = world.spawn(Name::new("OtherScreen")).id();
+
+    world
+        .run_system_once(setup)
+        .expect("setup parameters are available");
+
+    assert_eq!(world.resource::<networking::AuthUiFeedback>().0, None);
+    let status = &world.resource::<LoginStatus>().0;
+    assert!(
+        status.contains("Unable to load native login texture"),
+        "{status}"
+    );
+    assert!(status.contains("Common-Input-Border-TL.blp"), "{status}");
+    assert!(!world.contains_resource::<LoginView>());
+    assert!(!world.contains_resource::<LoginSession>());
+    assert!(
+        !world
+            .query::<&Name>()
+            .iter(&world)
+            .any(|name| { matches!(name.as_str(), "NativeLoginCamera" | "LoginRoot") })
+    );
+    assert_eq!(world.get::<Camera>(camera).unwrap().order, 7);
+    assert!(world.get_entity(unrelated).is_ok());
+    assert_eq!(world.resource::<LoginRealmSelection>(), &selection);
+    assert_eq!(world.resource::<networking::ServerAddr>().0, addr);
+    assert_eq!(world.resource::<networking::ServerHostname>().0, hostname);
+}
 
 fn fixture() -> (World, LoginSession) {
     let mut world = World::new();
