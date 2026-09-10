@@ -100,6 +100,76 @@ fn inworld_procedural_sky_spawns_at_camera_once_and_tracks_movement() {
 }
 
 #[test]
+fn inworld_procedural_sky_initializes_colors_after_time_has_settled() {
+    let (mut app, camera) = sky_app(false);
+    app.init_resource::<Assets<crate::water_material::WaterMaterial>>()
+        .insert_resource(crate::sky::GameTime::default())
+        .insert_resource(crate::sky::LightKeyframes(crate::sky::load_light_data(
+            "data/LightData.ron",
+            12,
+        )))
+        .add_systems(
+            Update,
+            crate::sky::update_sky_colors.after(sync_inworld_authored_skybox),
+        );
+    app.update();
+    app.world_mut().get_mut::<Camera>(camera).unwrap().is_active = true;
+    app.update();
+    let dome = dome_entities(app.world_mut())[0];
+    let handle = &app
+        .world()
+        .get::<MeshMaterial3d<SkyMaterial>>(dome)
+        .unwrap()
+        .0;
+    let material = app
+        .world()
+        .resource::<Assets<SkyMaterial>>()
+        .get(handle)
+        .unwrap();
+    let expected = crate::sky::interpolate_colors(
+        &app.world().resource::<crate::sky::LightKeyframes>().0,
+        1440.0,
+    );
+    assert_eq!(
+        material.uniforms.sky_top,
+        crate::sky::color_to_vec4(expected.sky_top)
+    );
+    assert_ne!(
+        material.uniforms.sky_top,
+        Vec4::ONE,
+        "late dome must not retain white default uniforms"
+    );
+}
+
+#[test]
+fn inworld_procedural_sky_triangles_face_the_camera_inside_the_dome() {
+    let mesh = crate::sky::build_sky_dome_mesh(900.0, 32);
+    let positions = mesh
+        .attribute(Mesh::ATTRIBUTE_POSITION)
+        .unwrap()
+        .as_float3()
+        .unwrap();
+    let indices: Vec<_> = mesh.indices().unwrap().iter().collect();
+    let mut visible_triangles = 0;
+    for triangle in indices.chunks_exact(3) {
+        let a = Vec3::from_array(positions[triangle[0]]);
+        let b = Vec3::from_array(positions[triangle[1]]);
+        let c = Vec3::from_array(positions[triangle[2]]);
+        let face_normal = (b - a).cross(c - a);
+        if face_normal.length_squared() < 1.0 {
+            continue;
+        }
+        let direction_to_camera = -(a + b + c) / 3.0;
+        assert!(
+            face_normal.dot(direction_to_camera) > 0.0,
+            "sky triangle faces away from its interior camera and is backface-culled"
+        );
+        visible_triangles += 1;
+    }
+    assert!(visible_triangles > 0);
+}
+
+#[test]
 fn inworld_procedural_sky_waits_for_active_camera_and_respects_disable() {
     let (mut app, camera) = sky_app(false);
     app.update();

@@ -99,6 +99,7 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [ ] When the selected clear LightParams row explicitly has `LightSkyboxID = 0`, render the existing procedural sky dome at the active world camera. Missing rows or failed authored assets must not select procedural sky.
 - [ ] Keep one camera-centered dome across frames and camera movement; remove it on InWorld exit, when authored/WMO sky is selected, or when skybox visuals are disabled.
 - [ ] Preserve existing authored-M2 rendering for nonzero skybox IDs. This correction does not change modern M2 texture-combiner semantics.
+- [ ] Face procedural dome triangles inward so the interior camera sees them with normal backface culling. Initialize newly spawned dome colors even when game time is unchanged.
 
 ### Water and skybox diagnostics
 

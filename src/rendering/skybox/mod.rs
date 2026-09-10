@@ -106,7 +106,7 @@ fn build_dome_indices(lon_segments: u32, lat_segments: u32) -> Vec<u32> {
         for lon in 0..lon_segments {
             let a = lat * (lon_segments + 1) + lon;
             let b = a + lon_segments + 1;
-            indices.extend_from_slice(&[a, a + 1, b, b, a + 1, b + 1]);
+            indices.extend_from_slice(&[a, b, a + 1, b, b + 1, a + 1]);
         }
     }
     indices
@@ -272,7 +272,7 @@ fn color_to_vec4(c: Color) -> Vec4 {
 
 #[derive(SystemParam)]
 struct SkyVisualParams<'w, 's> {
-    sky_dome_q: Query<'w, 's, &'static MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
+    sky_dome_q: Query<'w, 's, Ref<'static, MeshMaterial3d<SkyMaterial>>, With<SkyDome>>,
     sky_materials: ResMut<'w, Assets<SkyMaterial>>,
     dir_lights: Query<'w, 's, &'static mut DirectionalLight>,
     ambient_q: Query<'w, 's, &'static mut AmbientLight>,
@@ -285,7 +285,11 @@ fn update_sky_colors(
     mut visuals: SkyVisualParams,
     mut last_minutes: Local<f32>,
 ) {
-    if (game_time.minutes - *last_minutes).abs() < 0.01 {
+    let has_new_dome = visuals
+        .sky_dome_q
+        .iter()
+        .any(|material| material.is_added());
+    if (game_time.minutes - *last_minutes).abs() < 0.01 && !has_new_dome {
         return;
     }
     *last_minutes = game_time.minutes;
@@ -301,7 +305,7 @@ fn update_sky_colors(
 }
 
 fn update_sky_dome_material(
-    sky_dome_q: &Query<&MeshMaterial3d<SkyMaterial>, With<SkyDome>>,
+    sky_dome_q: &Query<Ref<MeshMaterial3d<SkyMaterial>>, With<SkyDome>>,
     sky_materials: &mut Assets<SkyMaterial>,
     colors: &SkyColorSet,
     minutes: f32,
