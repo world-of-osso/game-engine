@@ -26,7 +26,7 @@ The player HUD preserves its unmodified gold/silver `396×142` shell at `297×10
 
 The engine derives alpha masks from those openings: class icons are cover-resized into the portrait keyhole mask, while player bar background and left-cropped fills use the health/mana masks. The shell overlays the fills to retain its painted edges. Player portrait selection resolves through local listfile/CASC instead of an invalid absolute icon path, avoiding the renderer's white fallback quad. The target frame retains its existing geometry; its resting anchor remains unchanged.
 
-Engine exact-bounds/state tests and rendered GPU frames pass at `038b1ecf`; current toolkit crop proof is still pending a fixture-only correction, so this is not final cross-repository acceptance.
+Engine `038b1ecf` passes 16 layout tests, 12 state/artwork tests, and one rendered GPU test covering full, partial, and empty bars. Toolkit `675b213` passes three crop/default/atlas tests; its fixture uses the same top-left anchoring as runtime bars. Proof and captures: `data/diagnostics/player-frame-fit-20260910/`.
 
 ## Layout invalidation
 
