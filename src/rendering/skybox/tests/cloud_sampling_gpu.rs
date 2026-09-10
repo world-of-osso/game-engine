@@ -1,8 +1,12 @@
 //! Render the actual sky shader across the spherical longitude wrap.
 use super::*;
 use bevy::camera::RenderTarget;
+use bevy::camera::visibility::RenderLayers;
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::render::RenderApp;
+use bevy::render::render_asset::RenderAssets;
 use bevy::render::render_resource::TextureFormat;
+use bevy::render::texture::GpuImage;
 use bevy::render::view::screenshot::{Screenshot, ScreenshotCaptured};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
@@ -149,5 +153,184 @@ fn cloud_sampling_wraps_longitude_without_seam() {
     assert!(
         left[0].abs_diff(right[0]) <= 4,
         "opposite sides of longitude wrap must agree, got {left:?} vs {right:?}"
+    );
+}
+
+const DENSITY_IMAGE_SIZE: u32 = 160;
+
+fn spawn_generated_density_sky(app: &mut App) -> ([Handle<Image>; 3], Handle<Image>) {
+    let image = super::cloud_texture::generate_procedural_cloud_image(0);
+    let texture = app.world_mut().resource_mut::<Assets<Image>>().add(image);
+    let mesh = app
+        .world_mut()
+        .resource_mut::<Assets<Mesh>>()
+        .add(build_sky_dome_mesh(900.0, 32));
+    let densities = [0.0, 0.5, 1.0];
+    let targets = std::array::from_fn(|index| {
+        spawn_density_case(app, &texture, &mesh, densities[index], index)
+    });
+    (targets, texture)
+}
+
+fn spawn_density_case(
+    app: &mut App,
+    texture: &Handle<Image>,
+    mesh: &Handle<Mesh>,
+    density: f32,
+    index: usize,
+) -> Handle<Image> {
+    let mut uniforms = cloud_test_uniforms();
+    uniforms.cloud_params.x = density;
+    let material = app
+        .world_mut()
+        .resource_mut::<Assets<SkyMaterial>>()
+        .add(SkyMaterial {
+            uniforms,
+            cloud_texture: texture.clone(),
+        });
+    app.world_mut().spawn((
+        Mesh3d(mesh.clone()),
+        MeshMaterial3d(material),
+        Transform::default(),
+        RenderLayers::layer(index),
+    ));
+    spawn_density_camera(app, index)
+}
+
+fn spawn_density_camera(app: &mut App, index: usize) -> Handle<Image> {
+    let target = app
+        .world_mut()
+        .resource_mut::<Assets<Image>>()
+        .add(Image::new_target_texture(
+            DENSITY_IMAGE_SIZE,
+            DENSITY_IMAGE_SIZE,
+            TextureFormat::Rgba8UnormSrgb,
+            None,
+        ));
+    app.world_mut().spawn((
+        Camera3d::default(),
+        Camera {
+            order: index as isize,
+            clear_color: Color::srgb(1.0, 0.0, 1.0).into(),
+            ..default()
+        },
+        Projection::Perspective(PerspectiveProjection {
+            fov: std::f32::consts::FRAC_PI_2,
+            ..default()
+        }),
+        RenderTarget::Image(target.clone().into()),
+        Transform::default().looking_at(Vec3::new(0.0, 0.5, -0.8660254), Vec3::Y),
+        RenderLayers::layer(index),
+        Msaa::Off,
+        Tonemapping::None,
+    ));
+    target
+}
+
+#[derive(Debug)]
+struct CloudCoverage {
+    bright: usize,
+    dark: usize,
+    total: usize,
+    maximum: u8,
+}
+
+fn measure_cloud_coverage(image: Image) -> Option<CloudCoverage> {
+    let rgba = image
+        .try_into_dynamic()
+        .expect("readable density capture")
+        .to_rgba8();
+    let mut coverage = CloudCoverage {
+        bright: 0,
+        dark: 0,
+        total: 0,
+        maximum: 0,
+    };
+    // Central rays remain roughly 16–44 degrees above the horizon, below the pole mask.
+    for y in 60..100 {
+        for x in 40..120 {
+            let pixel = rgba.get_pixel(x, y).0;
+            if pixel[0].abs_diff(pixel[1]) > 1 || pixel[1].abs_diff(pixel[2]) > 1 {
+                return None; // Magenta clear pixels mean the sky draw is not ready.
+            }
+            coverage.bright += usize::from(pixel[0] > 100);
+            coverage.dark += usize::from(pixel[0] < 30);
+            coverage.total += 1;
+            coverage.maximum = coverage.maximum.max(pixel[0]);
+        }
+    }
+    Some(coverage)
+}
+
+#[test]
+#[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
+fn generated_clouds_have_visible_density_control() {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut app = render_app();
+    let (targets, texture) = spawn_generated_density_sky(&mut app);
+    let (sender, receiver) = mpsc::channel();
+    let mut pending = [false; 3];
+    let mut coverage: [Option<CloudCoverage>; 3] = std::array::from_fn(|_| None);
+    while Instant::now() < deadline && coverage.iter().any(Option::is_none) {
+        app.update();
+        let texture_ready = app
+            .sub_app(RenderApp)
+            .world()
+            .resource::<RenderAssets<GpuImage>>()
+            .get(&texture)
+            .is_some();
+        if !texture_ready {
+            continue;
+        }
+        for (index, target) in targets.iter().enumerate() {
+            if pending[index] || coverage[index].is_some() {
+                continue;
+            }
+            let sender = sender.clone();
+            app.world_mut()
+                .spawn(Screenshot::image(target.clone()))
+                .observe(move |capture: On<ScreenshotCaptured>| {
+                    sender
+                        .send((index, capture.image.clone()))
+                        .expect("test receiver exists");
+                });
+            pending[index] = true;
+        }
+        for (index, image) in receiver.try_iter() {
+            pending[index] = false;
+            coverage[index] = measure_cloud_coverage(image);
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let [Some(clear), Some(middle), Some(full)] = coverage else {
+        panic!("generated cloud density captures not ready within 10s: {coverage:?}");
+    };
+    for (density, sample) in [(0.0, &clear), (0.5, &middle), (1.0, &full)] {
+        println!(
+            "density={density}: bright={}/{} ({:.2}%), dark={}/{} ({:.2}%), max={}",
+            sample.bright,
+            sample.total,
+            100.0 * sample.bright as f32 / sample.total as f32,
+            sample.dark,
+            sample.total,
+            100.0 * sample.dark as f32 / sample.total as f32,
+            sample.maximum
+        );
+    }
+    assert!(
+        clear.maximum <= 1,
+        "zero density must render black: {clear:?}"
+    );
+    assert!(
+        middle.bright * 10 >= middle.total,
+        "density 0.5 must show at least 10% bright cloud pixels (>100 sRGB): {middle:?}"
+    );
+    assert!(
+        middle.dark * 10 >= middle.total,
+        "density 0.5 must retain at least 10% dark clear pixels (<30 sRGB): {middle:?}"
+    );
+    assert!(
+        full.bright >= middle.bright + middle.total / 5,
+        "density 1 must add at least 20 percentage points of cloud coverage: middle={middle:?}, full={full:?}"
     );
 }
