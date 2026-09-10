@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Verify native login art with menu overlay
+
+At `8843495b`, `runtime/stretch/view.webp` shows stretched native login art with the toolkit game-menu overlay. `runtime/stretch/tree.stdout` contains typed `adminvisual-proof` and 23 password asterisks; the raw dummy password is absent. The authorized runtime window consumed 56.583326 of 60 seconds and all launched processes ended. `runtime/final-login/view.webp` is black, so plain-login parity, physical input, and real authentication remain open. Details: [[login-native-image-stretch]].
+
 ## [2026-09-10] ui | Stretch native login artwork to node bounds
 
 Engine `bf4e259f` sets `NodeImageMode::Stretch` in the native image helper after `runtime/tint-login/view.webp` showed detached pieces from Bevy's default aspect fit. The existing 62 focused cases remain, but no enum-shape test was added for this rendering correction. Rendered login proof remains pending; menu rendering remains unresolved. Details: [[login-native-image-stretch]].
