@@ -16,6 +16,7 @@
 
 - [ ] Use one authoritative value per credential field for physical input, automation and authentication; displayed password remains masked using the existing UTF-8 byte-count convention.
 - [ ] Preserve focus, Tab/Escape/Enter, cursor editing, control-character filtering, letter/byte limits and clipboard insertion. Cursor offsets must remain valid UTF-8 boundaries.
+- [ ] Show a blinking insertion caret in the focused native field at the actual edit position. Map username UTF-8 cursor boundaries and password byte-count masking correctly; reset blink after edits, navigation and focus; hide when unfocused or modal-blocked; align and clip it with field text.
 - [ ] Preserve press/release-over-same-button activation and disabled Connect behavior.
 - [ ] Preserve realm selection, credential prefill, registration mode, reconnect checks and authentication resource/state transitions. Empty credentials retain the existing error.
 
@@ -33,7 +34,7 @@
 - `src/scenes/login/` — login lifecycle, form input, visuals and authentication dispatch.
 - `src/scenes/login/form.rs` — authoritative credential fields, UTF-8-safe edits, limits and masked presentation.
 - `src/scenes/login/native.rs` — native login lifecycle, input, automation actions and authentication dispatch.
-- `src/scenes/login/native_view.rs` — native entities, artwork and presentation synchronization.
+- `src/scenes/login/native_view.rs` — native entities, artwork, presentation synchronization and pending insertion-caret presentation.
 - `src/ui/native.rs` — semantic native-UI marker and diagnostic formatter.
 - `src/ui/automation.rs` — shared automation queue and legacy/native semantic waits.
 - `src/dump_systems.rs`, `src/dump.rs`, `src/ipc/plugin/scene.rs` — combined legacy/native diagnostic tree requests and formatting.
@@ -55,6 +56,9 @@ At `bf4e259f`, `runtime/settled-retry/view-12.webp` and `view-30.webp` show the 
 This worktree resolves `asset-resolver`, `shared-protocol`, `ui-toolkit`, and `ui-toolkit-macros` through matching `*-bevy-ui-login` dependency worktrees in `Cargo.toml`. Canonical dependency checkouts remain untouched; compilation proof records their revisions. The shared Cargo target remains an output cache, not a source dependency path.
 
 ## Known gaps (current cycle)
+
+- [ ] Implement and prove the focused blinking insertion caret. Planned measurement uses the Bevy shaped text layout through direct `parley` 0.9, avoiding guessed glyph widths and a separate renderer.
+- [ ] Instrument the manually confirmed physical input path if a deterministic, window-targeted Wayland injection mechanism becomes available. The `physical-reopen-sync` client ended after 55 seconds; user confirmation is manual evidence, not an instrumented test.
 
 - [x] `1ad57bc6` verifies successful custom-realm feedback/focus and real-update fade-alpha. Dev credential prefill and full-plugin camera-initialization coverage remain open.
 - [ ] Verify exact baseline-pixel parity. Rendered fade-in is covered by the pending real-update alpha case; `runtime/settled-retry/view-12.webp` and `view-30.webp` establish rendered standalone login, and `runtime/stretch/view.webp` establishes menu overlay.
