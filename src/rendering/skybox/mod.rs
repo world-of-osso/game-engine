@@ -195,7 +195,7 @@ pub(crate) fn spawn_sky_dome_entity(
             Visibility::default(),
         ))
         .id();
-    commands.entity(dome).set_parent_in_place(camera_entity);
+    commands.entity(camera_entity).add_child(dome);
     dome
 }
 
@@ -681,6 +681,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
     .add_systems(
         Update,
         update_sky_colors
+            .after(sync_inworld_authored_skybox)
             .after(advance_game_time)
             .run_if(sky_active)
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),

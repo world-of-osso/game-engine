@@ -95,6 +95,12 @@ pub fn resolve_local_skybox_light_params_id(map_id: u32, wow_position: [f32; 3])
     })
 }
 
+pub fn light_params_use_procedural_sky(light_params_id: u32) -> bool {
+    cached_light_params_skybox_ids()
+        .iter()
+        .any(|&(id, skybox_id)| id == light_params_id && skybox_id == 0)
+}
+
 pub fn resolve_light_skybox_id(light_params_id: u32) -> Option<u32> {
     cached_light_params_skybox_ids()
         .iter()

@@ -11,6 +11,21 @@ use super::{
 };
 
 #[test]
+fn inworld_procedural_sky_uses_explicit_zero_skybox_at_live_azeroth_position() {
+    let position = [-8977.593, -179.76495, 81.04212];
+    let params = resolve_local_clear_light_params_id(0, position).expect("Azeroth clear params");
+    assert_eq!(params, 12);
+    assert!(super::light_params_use_procedural_sky(params));
+}
+
+#[test]
+fn inworld_procedural_sky_rejects_missing_and_authored_light_params() {
+    assert!(!super::light_params_use_procedural_sky(u32::MAX));
+    assert_eq!(resolve_light_skybox_id(5615), Some(653));
+    assert!(!super::light_params_use_procedural_sky(5615));
+}
+
+#[test]
 fn authored_light_lookup_matches_ohnahran_scene() {
     let scene = crate::scenes::char_select::warband::WarbandScenes::load()
         .scenes

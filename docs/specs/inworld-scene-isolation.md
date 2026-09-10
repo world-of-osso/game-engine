@@ -94,6 +94,12 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 - [x] Skip terrain image registration and custom terrain-material creation on this path. Background terrain/texture parsing remains unchanged; this is not an asset-loading benchmark.
 - [x] Record that this also bypasses the custom multilayer terrain shader and its per-frame material updates. Results must not be attributed to texture sampling alone. Default textured behavior remains unchanged.
 
+### InWorld procedural sky
+
+- [ ] When the selected clear LightParams row explicitly has `LightSkyboxID = 0`, render the existing procedural sky dome at the active world camera. Missing rows or failed authored assets must not select procedural sky.
+- [ ] Keep one camera-centered dome across frames and camera movement; remove it on InWorld exit, when authored/WMO sky is selected, or when skybox visuals are disabled.
+- [ ] Preserve existing authored-M2 rendering for nonzero skybox IDs. This correction does not change modern M2 texture-combiner semantics.
+
 ### Water and skybox diagnostics
 
 - [x] Accept opt-in `--no-terrain-water`: omit streamed ADT water surfaces and water-height registration while preserving terrain geometry/textures. Combine with `--no-terrain-objects` to exclude WMO liquids too.
@@ -161,6 +167,8 @@ Exposure, shadows, and existing fog update behavior are outside this initializat
 - `src/system_isolation/args.rs` tests — argument validation, retired flags, duplicate targets, and ordering.
 
 - `src/rendering/skybox/tests/inworld_ibl.rs` — current-color cubemap initialization, late activation/idempotence, disabled visuals, override preservation, and state/stage guards.
+- `src/rendering/skybox/tests/inworld_procedural.rs` — ordinary Azeroth dome creation, camera centering/movement, idempotence, exit and visual-disable behavior.
+- `src/rendering/lighting/light_lookup_tests.rs` — explicit-zero procedural selection at the live Azeroth position, missing-row and authored-row rejection.
 
 ## Known gaps (current cycle)
 

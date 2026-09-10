@@ -27,7 +27,14 @@ pub(super) struct InWorldSkybox {
     pub elapsed: f32,
 }
 
+#[derive(Component)]
+pub(super) struct InWorldSkyDome;
+
 const INWORLD_SKYBOX_CROSSFADE_SECONDS: f32 = 0.6;
+
+#[cfg(test)]
+#[path = "tests/inworld_procedural.rs"]
+mod procedural_tests;
 
 pub(super) fn bevy_to_wow_position(pos: Vec3) -> [f32; 3] {
     [pos.x, -pos.z, pos.y]
@@ -189,12 +196,15 @@ pub(super) struct InWorldSkyboxParams<'w, 's> {
     materials: ResMut<'w, Assets<StandardMaterial>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
+    sky_materials: ResMut<'w, Assets<super::SkyMaterial>>,
+    cloud_maps: Res<'w, super::cloud_texture::ProceduralCloudMaps>,
+    dome_q: Query<'w, 's, (Entity, &'static ChildOf), With<InWorldSkyDome>>,
     images: ResMut<'w, Assets<Image>>,
     inverse_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
     adt_manager: Res<'w, AdtManager>,
     player_q: Query<'w, 's, &'static Transform, (With<crate::camera::Player>, With<LocalPlayer>)>,
-    camera_q: Query<'w, 's, (&'static Camera, &'static Transform), With<Camera3d>>,
+    camera_q: Query<'w, 's, (Entity, &'static Camera, &'static Transform), With<Camera3d>>,
     skybox_q: Query<'w, 's, (Entity, &'static InWorldSkybox)>,
     wmo_q: Query<
         'w,
@@ -211,10 +221,16 @@ pub(super) struct InWorldSkyboxParams<'w, 's> {
 }
 
 pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
-    let Some(camera_translation) = active_camera_translation(&params.camera_q) else {
+    let Some((camera_entity, _, camera_transform)) = params
+        .camera_q
+        .iter()
+        .find(|(_, camera, _)| camera.is_active)
+    else {
         return;
     };
-    let desired_path = resolve_desired_inworld_skybox_path(&params, camera_translation);
+    let camera_translation = camera_transform.translation;
+    let (desired_path, procedural) = resolve_desired_inworld_skybox(&params, camera_translation);
+    sync_inworld_sky_dome(&mut params, camera_entity, procedural);
     let has_existing_skybox = params.skybox_q.iter().next().is_some();
 
     if keep_active_inworld_skybox(&mut params, desired_path.as_deref()) {
@@ -234,16 +250,49 @@ pub(super) fn sync_inworld_authored_skybox(mut params: InWorldSkyboxParams) {
     );
 }
 
-fn resolve_desired_inworld_skybox_path(
+fn resolve_desired_inworld_skybox(
     params: &InWorldSkyboxParams,
     camera_translation: Vec3,
-) -> Option<std::path::PathBuf> {
+) -> (Option<PathBuf>, bool) {
+    if let Some(wow_path) =
+        active_wmo_local_skybox_wow_path(camera_translation, &params.wmo_q, &params.wmo_group_q)
+    {
+        return (ensure_skybox_wow_path(&wow_path), false);
+    }
     let anchor_pos = resolve_inworld_camera_anchor(&params.player_q, camera_translation);
     let map_id = resolve_inworld_map_id(&params.adt_manager, &params.current_zone);
-    active_wmo_local_skybox_wow_path(camera_translation, &params.wmo_q, &params.wmo_group_q)
-        .as_deref()
-        .and_then(ensure_skybox_wow_path)
-        .or_else(|| resolve_inworld_skybox_path(map_id, anchor_pos))
+    let procedural = crate::light_lookup::resolve_local_clear_light_params_id(
+        map_id,
+        bevy_to_wow_position(anchor_pos),
+    )
+    .is_some_and(crate::light_lookup::light_params_use_procedural_sky);
+    (resolve_inworld_skybox_path(map_id, anchor_pos), procedural)
+}
+
+fn sync_inworld_sky_dome(
+    params: &mut InWorldSkyboxParams,
+    camera_entity: Entity,
+    procedural: bool,
+) {
+    let mut has_dome = false;
+    for (entity, parent) in &params.dome_q {
+        if procedural && parent.parent() == camera_entity {
+            has_dome = true;
+        } else {
+            params.commands.entity(entity).despawn();
+        }
+    }
+    if !procedural || has_dome {
+        return;
+    }
+    let dome = super::spawn_sky_dome_entity(
+        &mut params.commands,
+        &mut params.meshes,
+        &mut params.sky_materials,
+        camera_entity,
+        params.cloud_maps.active_handle(),
+    );
+    params.commands.entity(dome).insert(InWorldSkyDome);
 }
 
 fn keep_active_inworld_skybox(
@@ -373,7 +422,7 @@ pub(super) fn update_inworld_skybox_transition(
 
 pub(super) fn teardown_inworld_skybox(
     mut commands: Commands,
-    skybox_q: Query<Entity, With<InWorldSkybox>>,
+    skybox_q: Query<Entity, Or<(With<InWorldSkybox>, With<InWorldSkyDome>)>>,
 ) {
     for entity in &skybox_q {
         commands.entity(entity).despawn();
