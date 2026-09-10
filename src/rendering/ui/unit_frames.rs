@@ -18,6 +18,9 @@ use game_engine::ui::screens::inworld_unit_frames_component::{
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
+#[path = "player_portrait.rs"]
+mod player_portrait;
+
 type UnitComponents<'a> = (
     Option<&'a NetPlayer>,
     Option<&'a NetHealth>,
@@ -324,7 +327,7 @@ fn portrait_texture_for_player(
     let class_id = player
         .map(|player| player.class)
         .or_else(|| character_stats.and_then(|stats| stats.class));
-    portrait_texture_for_class(class_id)
+    player_portrait::load_player_portrait(class_id)
 }
 
 fn portrait_texture_for_target(player: Option<&NetPlayer>) -> String {
@@ -407,8 +410,44 @@ fn resting_text(stats: &CharacterStatsSnapshot) -> String {
 }
 
 #[cfg(test)]
+#[path = "unit_frames_gpu_tests.rs"]
+mod gpu_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn player_portrait_loads_cached_artwork_with_transparent_corners() {
+        let player = NetPlayer {
+            name: "Theron".into(),
+            race: 1,
+            class: 1,
+            appearance: default(),
+        };
+        let path = portrait_texture_for_player(Some(&player), None);
+        assert!(
+            std::path::Path::new(&path).is_file(),
+            "player portrait must resolve to a real cached image: {path}"
+        );
+        let image = image::open(&path)
+            .expect("load prepared portrait")
+            .to_rgba8();
+        assert!(image.width() > 0 && image.height() > 0);
+        for (x, y) in [
+            (0, 0),
+            (image.width() - 1, 0),
+            (0, image.height() - 1),
+            (image.width() - 1, image.height() - 1),
+        ] {
+            assert_eq!(
+                image.get_pixel(x, y)[3],
+                0,
+                "portrait corners must fit inside the gold aperture"
+            );
+        }
+        assert!(image.get_pixel(image.width() / 2, image.height() / 2)[3] > 0);
+    }
     use bevy::window::PrimaryWindow;
     use game_engine::buff_data::{self, DebuffType, UnitAuraState, textures};
     use game_engine::targeting::CurrentTarget;
@@ -462,11 +501,7 @@ mod tests {
             ..CharacterStatsSnapshot::default()
         };
         let state = build_player_state(Some(&stats), (None, None, None, None, None, None));
-        assert!(
-            state
-                .portrait_texture_file
-                .ends_with("ClassIcon_Paladin.blp")
-        );
+        assert!(state.portrait_texture_file.ends_with("-circle-v1.png"));
     }
 
     #[test]
