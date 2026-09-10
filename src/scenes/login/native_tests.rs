@@ -2,6 +2,9 @@ use super::*;
 use bevy::ecs::system::RunSystemOnce;
 use std::sync::Arc;
 
+#[path = "native_layout_tests.rs"]
+mod layout;
+
 struct SetupBlpLoader;
 
 impl ui_toolkit::render_texture::BlpLoader for SetupBlpLoader {
@@ -56,8 +59,13 @@ fn require_setup_assets() {
 }
 
 fn setup_success_world() -> World {
-    require_setup_assets();
     let (mut world, _) = fixture();
+    setup_success_in_world(&mut world);
+    world
+}
+
+fn setup_success_in_world(world: &mut World) {
+    require_setup_assets();
     let controls: Vec<_> = world
         .query_filtered::<Entity, With<LoginControl>>()
         .iter(&world)
@@ -89,7 +97,6 @@ fn setup_success_world() -> World {
         "native setup failed: {}",
         world.resource::<LoginStatus>().0
     );
-    world
 }
 
 #[test]
@@ -292,6 +299,11 @@ fn setup_asset_failure_consumes_feedback_without_partial_view_or_camera_changes(
 
 fn fixture() -> (World, LoginSession) {
     let mut world = World::new();
+    initialize_fixture(&mut world);
+    (world, LoginSession::default())
+}
+
+fn initialize_fixture(world: &mut World) {
     world.insert_resource(LoginStatus::default());
     world.insert_resource(networking::LoginMode::Login);
     world.insert_resource(networking::AuthToken(None));
@@ -310,21 +322,20 @@ fn fixture() -> (World, LoginSession) {
         focused_frame: None,
     });
     spawn_control(
-        &mut world,
+        world,
         "UsernameInput",
         LoginControl::Field(LoginFieldId::Username),
     );
     spawn_control(
-        &mut world,
+        world,
         "PasswordInput",
         LoginControl::Field(LoginFieldId::Password),
     );
     spawn_control(
-        &mut world,
+        world,
         "ConnectButton",
         LoginControl::Action(LoginAction::Connect),
     );
-    (world, LoginSession::default())
 }
 
 fn spawn_control(world: &mut World, name: &str, control: LoginControl) -> Entity {
