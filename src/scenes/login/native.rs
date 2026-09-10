@@ -166,7 +166,7 @@ fn process_pointer(world: &mut World, session: &mut LoginSession) {
     if down {
         session.pressed = None;
         match hit {
-            Some((_, LoginControl::Field(field))) => session.focus = Some(field),
+            Some((_, LoginControl::Field(field))) => focus_field(session, field),
             Some((entity, LoginControl::Action(action))) if action_enabled(world, action) => {
                 session.pressed = Some(entity)
             }
@@ -182,6 +182,11 @@ fn process_pointer(world: &mut World, session: &mut LoginSession) {
             dispatch_action(world, session, action);
         }
     }
+}
+
+fn focus_field(session: &mut LoginSession, field: LoginFieldId) {
+    session.form.field_mut(field).end();
+    session.focus = Some(field);
 }
 
 fn action_enabled(world: &World, action: LoginAction) -> bool {
@@ -285,11 +290,8 @@ pub(super) fn automate(
                 return Err(format!("login frame not found: {name}"));
             };
             match control {
-                LoginControl::Field(field) => session.focus = Some(field),
-                LoginControl::Action(action) if action_enabled(world, action) => {
-                    dispatch_action(world, session, action)
-                }
-                LoginControl::Action(_) => return Err(format!("login frame is disabled: {name}")),
+                LoginControl::Field(field) => focus_field(session, field),
+                LoginControl::Action(action) => dispatch_action(world, session, action),
             }
         }
         UiAutomationAction::TypeText(text) => {
