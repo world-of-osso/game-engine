@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid unchanged button nine-slice invalidation
+
+Updated [[ui-system]] for ui-toolkit `eebcf28`: each button builds its complete derived nine-slice through immutable registry access, then compares it before `get_mut`. `NineSlice` and `TextureSource` equality includes all derived arrays, colors, texture variants/handles, per-part textures, and UV rectangles. Settled buttons skip render invalidation; state, hover, resize and external derived-state repair retain full reconciliation. RED exists; GREEN verification remains pending. No CPU/native claim.
+
 ## [2026-09-10] ui | Avoid unchanged shadow text component mutations
 
-Updated [[ui-system]] for ui-toolkit `3c8a5f5`: existing shadows compare all seven renderer-owned components before mutation, reuse main-text layout/bounds/font helpers, retain full reconciliation and external repair, and preserve unowned font fields. Shadow alpha semantics and outline synchronization are unchanged. RED exists; GREEN verification remains pending. No CPU/native claim.
+Updated [[ui-system]] for ui-toolkit `3e6951d`: existing shadows compare all seven renderer-owned components before mutation, reuse main-text layout/bounds/font helpers, retain full reconciliation and external repair, and preserve unowned font fields. Shadow alpha semantics and outline synchronization are unchanged. Three RED/GREEN cases and independent toolkit/engine checks pass. No CPU/native claim.
 
 ## [2026-09-09] ui | Avoid unchanged text-render component mutations
 
