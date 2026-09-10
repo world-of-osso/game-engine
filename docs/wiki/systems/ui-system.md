@@ -42,7 +42,11 @@ Toolkit `3e6951d` applies the same compare-before-write policy to existing shado
 
 ## Button nine-slice reconciliation
 
-Toolkit `eebcf28` builds a complete desired `NineSlice` from immutable button state, then compares it before obtaining mutable registry access. `NineSlice` and `TextureSource` derive `PartialEq`, so equality includes texture variants, handles, edge arrays, colors, per-part textures, and UV rectangles. Settled buttons no longer enter `render_dirty`; state, hover, resize, and externally altered derived slice fields still reconcile through the existing full traversal. RED evidence is recorded; GREEN verification remains pending. No CPU or native claim.
+Toolkit `eebcf28` builds a complete desired `NineSlice` from immutable button state, then compares it before obtaining mutable registry access. `NineSlice` and `TextureSource` derive `PartialEq`, so equality includes texture variants, handles, edge arrays, colors, per-part textures, and UV rectangles. Settled buttons no longer enter `render_dirty`; state, hover, resize, and externally altered derived slice fields still reconcile through the existing full traversal. Three corrected RED/GREEN cases and independent toolkit/engine checks pass. No CPU or native claim.
+
+## Nine-slice sprite reconciliation
+
+Toolkit `67413da` reuses the shared quad visual comparison when reconciling existing nine-slice part entities. Unchanged `Transform` and `Sprite` values are not reinserted; real geometry, color, image, and UV changes still apply. Full traversal, externally altered or missing component repair, spawning, and stale-part removal remain unchanged. RED evidence is recorded; GREEN verification remains pending. No CPU or native claim.
 
 ## Widget Types
 
