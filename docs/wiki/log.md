@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-10] ui | Face world health bars and align overlay names
+
+Updated [[ui-system]], [[character-rendering]], and [[npc-motion-validation]] for `b7efbad5`, `5e5b2574`, and `045d82d9`. Health bars retain their world-mesh depth path while their +Z normal faces the camera under transformed parents; overlay names sit 4 logical pixels above projected bar edges and return to their centered name-only anchor when bars disappear. Twenty-four focused UI tests and the live HumanHD sword/shield attachment regression pass. Native visual proof and independent verification remain pending.
+
+
 ## [2026-09-10] ui | Borrow shadow text before owned rendering
 
 Updated [[ui-system]] for ui-toolkit `6802940`: private shadow properties borrow source text during reconciliation and allocate only for spawn or changed `Text2d` ownership. Content, alpha, font, geometry, traversal, and prior component-write behavior remain unchanged. Existing three-case shadow proof is characterization; final verifier and shared engine build remain pending. No allocation benchmark, CPU, or native claim.
@@ -721,4 +726,4 @@ Updated [[terrain]] and [[rendering-pipeline]] for `6ea29dba`, `1b5efc68`, and `
 
 ## [2026-09-10] character | Correct starter weapon attachment semantics
 
-Updated [[character-rendering]] and [[npc-motion-validation]] for engine `496a057b`. Local WMVx reference code identifies right palm 1, left palm 2, and shield left wrist 0; HumanMaleHD maps them to bones 206, 211, and 201. The prior 201/206 root-parent proof did not prove the correct semantic mount points. The new live sword/shield test is RED against the former mapping; GREEN and replacement native visual proof remain pending. No item-local rotation correction is claimed.
+Updated [[character-rendering]] and [[npc-motion-validation]] for engine `496a057b`. Local WMVx reference code identifies right palm 1, left palm 2, and shield left wrist 0; HumanMaleHD maps them to bones 206, 211, and 201. The prior 201/206 root-parent proof did not prove the correct semantic mount points. The new live sword/shield test was RED against the former mapping and passes at `5e5b2574`; replacement native visual proof remains pending. No item-local rotation correction is claimed.

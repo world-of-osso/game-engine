@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project. 41 pages across 5 categories.
-Last updated: 2026-09-09.
+Last updated: 2026-09-10.
 
 ## Systems
 
