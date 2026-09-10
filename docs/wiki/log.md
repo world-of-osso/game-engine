@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid stable-sort scratch work in frame ordering
+
+Updated [[ui-system]] for ui-toolkit `1050abb`: the existing total strata/level/raise/ID comparator now uses unstable sorting, and visible-frame effective size is computed once. Exact order and membership are characterized by three passing cases; final verification remains pending. No shared order cache, allocator measurement, CPU, or native claim.
+
 ## [2026-09-10] ui | Borrow unchanged main text during reconciliation
 
 Updated [[ui-system]] for ui-toolkit `66e6d35`: crate-local text properties borrow fontstring, button, and plain EditBox source strings; password masks remain owned with their byte-length asterisk semantics. `Text2d` takes ownership only for spawn or actual content repair. Five cases characterize Unicode, password transitions, external repair, and settled writes before the refactor; source behavior remains pending final artifact audit. No allocation benchmark, CPU, or native claim.

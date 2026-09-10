@@ -68,6 +68,10 @@ Toolkit `e25eecc` first collects visible buttons whose `hovered` value differs f
 
 Toolkit `924ca23` checks primary-window dimensions against `UiState.registry` through immutable access before entering its mutable resize path. It retains the existing `> 0.5` tolerance, public startup helper, initial sizing, and `mark_all_rects_dirty()` resize invalidation. Actual `UiPlugin` verification records 5 passing cases plus toolkit format/check/readability: settled resource and visual state; input-last hover visuals; geometry repair; <=0.5-pixel resize preservation; and >0.5-pixel resize updates. The test executable provenance is weaker because compiler stdout/stderr and exit from its one compile invocation were not retained; the saved executable ran successfully, and standalone library checking passed. Bounded engine compilation integration is closed by a shared dev-feature test build that compiled and launched with this unchanged toolkit revision; its intentionally failing equipment assertion exited 101, so it is not an engine test/check pass. See [final integration audit](../../../data/diagnostics/unchanged-writes-20260909/ui-plugin-integration/verification/final-integration-report.md) for provenance limits. No CPU or native claim.
 
+## Frame-order helper
+
+Toolkit `1050abb` keeps the existing total order—strata, frame level, raise order, then unique frame ID—but uses unstable sorting because no two distinct frames compare equal. The visible-frame filter now computes effective size once after its existing visibility check. Returned order and membership remain unchanged; this does not add a shared per-update ordering cache or alter public synchronization APIs. Three before-characterization cases pass; independent final verification is pending. No allocator-count, CPU, or native claim.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.
