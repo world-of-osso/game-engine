@@ -1,19 +1,8 @@
 use super::*;
-use bevy::transform::TransformPlugin;
 
 fn scene() -> (App, Entity, Entity, Entity) {
-    let mut app = App::new();
-    app.add_plugins((
-        MinimalPlugins,
-        bevy::state::app::StatesPlugin,
-        TransformPlugin,
-    ));
-    app.init_state::<GameState>();
-    app.insert_resource(State::new(GameState::InWorld));
-    app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    let mut app = zoom_tests::projection_app(1.0, 800, 600);
     app.init_resource::<HudVisibilityToggles>();
-    app.add_plugins(HealthBarPlugin);
     let actor = app
         .world_mut()
         .spawn((
@@ -37,17 +26,19 @@ fn scene() -> (App, Entity, Entity, Entity) {
 
 fn assert_front_faces_camera(app: &App, bar: Entity, camera: Entity) {
     let pose = app.world().get::<GlobalTransform>(bar).unwrap();
-    let camera = app
+    let camera_back = app
         .world()
         .get::<GlobalTransform>(camera)
         .unwrap()
-        .translation();
+        .compute_transform()
+        .rotation
+        * Vec3::Z;
     let affine = pose.affine();
     let x = affine.transform_vector3(Vec3::X);
     let y = affine.transform_vector3(Vec3::Y);
     let front = x.cross(y).normalize();
     assert!(
-        front.dot((camera - pose.translation()).normalize()) > 0.99999,
+        front.dot(camera_back) > 0.99999,
         "actual world mesh +Z front {front:?} must face camera"
     );
     for child in app.world().get::<Children>(bar).unwrap().iter() {
@@ -73,7 +64,11 @@ fn parented_bar_faces_camera_after_actor_and_camera_motion_in_same_frame() {
     app.world_mut()
         .get_mut::<Transform>(camera)
         .unwrap()
-        .translation = Vec3::new(92.0, 16.0, -35.0);
+        .translation = Vec3::new(92.0, 16.0, -18.0);
+    app.world_mut()
+        .get_mut::<Transform>(camera)
+        .unwrap()
+        .rotation = Quat::from_rotation_y(-0.3);
     app.update();
     assert_front_faces_camera(&app, bar, camera);
     let expected_center = app

@@ -1,3 +1,4 @@
+use bevy::camera::CameraUpdateSystems;
 use bevy::prelude::*;
 use bevy::transform::{TransformSystems, helper::TransformHelper};
 use shared::components::Health;
@@ -20,6 +21,7 @@ impl Plugin for HealthBarPlugin {
         app.add_systems(
             PostUpdate,
             billboard_health_bars
+                .after(CameraUpdateSystems)
                 .before(TransformSystems::Propagate)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
@@ -38,6 +40,7 @@ struct HealthBarForeground;
 pub(crate) const BAR_WIDTH: f32 = 1.0;
 pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
+const BAR_PIXEL_SIZE: Vec2 = Vec2::new(80.0, 8.0);
 
 /// Compute the health bar color based on current/max HP.
 pub fn health_bar_color(current: f32, max: f32) -> Color {
@@ -224,14 +227,14 @@ fn update_foreground(
 
 /// Rotate health bars to always face the camera (billboard effect).
 fn billboard_health_bars(
-    camera_query: Query<Entity, With<Camera3d>>,
+    camera_query: Query<(Entity, &Camera), With<Camera3d>>,
     bars: Query<(Entity, Option<&ChildOf>), With<HealthBar>>,
     mut transforms: ParamSet<(TransformHelper, Query<&mut Transform, With<HealthBar>>)>,
 ) {
-    let Ok(camera) = camera_query.single() else {
+    let Ok((camera_entity, camera)) = camera_query.single() else {
         return;
     };
-    let camera_global = match transforms.p0().compute_global_transform(camera) {
+    let camera_global = match transforms.p0().compute_global_transform(camera_entity) {
         Ok(global) => global,
         Err(error) => {
             warn!("Cannot compute healthbar camera transform: {error}");
@@ -253,26 +256,54 @@ fn billboard_health_bars(
         let Ok(mut local) = query.get_mut(entity) else {
             continue;
         };
-        if let Some(rotation) =
-            health_bar_rotation(&parent_global, &local, camera_global.translation())
-            && local.rotation != rotation
-        {
-            local.rotation = rotation;
+        if let Some(pose) = health_bar_screen_pose(&parent_global, &local, camera, &camera_global) {
+            local.set_if_neq(pose);
         }
     }
 }
 
-fn health_bar_rotation(parent: &GlobalTransform, local: &Transform, camera: Vec3) -> Option<Quat> {
-    let direction = camera - parent.transform_point(local.translation);
-    if direction.length_squared() <= 0.001 {
+fn health_bar_screen_pose(
+    parent: &GlobalTransform,
+    local: &Transform,
+    camera: &Camera,
+    camera_global: &GlobalTransform,
+) -> Option<Transform> {
+    let rotation = screen_aligned_local_rotation(parent, camera_global)?;
+    let center = parent.transform_point(local.translation);
+    let project = |point| camera.world_to_viewport(camera_global, point).ok();
+    let origin = project(center)?;
+    let basis = parent.affine().matrix3;
+    let horizontal = project(center + Vec3::from(basis * (rotation * Vec3::X)))? - origin;
+    let vertical = project(center + Vec3::from(basis * (rotation * Vec3::Y)))? - origin;
+    // Both tangents lie in the screen plane, so projection is linear. Account
+    // for the vertical edge's horizontal shear under nonuniform parent scale.
+    let scale_y = BAR_PIXEL_SIZE.y / (vertical.y.abs() * BAR_HEIGHT);
+    let width_from_y = vertical.x.abs() * BAR_HEIGHT * scale_y;
+    let scale_x = (BAR_PIXEL_SIZE.x - width_from_y) / (horizontal.x.abs() * BAR_WIDTH);
+    let scale = Vec3::new(scale_x, scale_y, local.scale.z);
+    if !scale.is_finite() || scale_x <= 0.0 || scale_y <= 0.0 {
         return None;
     }
-    // Normals transform by inverse transpose; invert that mapping to aim the
-    // mesh's +Z face in world space even under a nonuniformly scaled actor.
-    let basis = parent.affine().matrix3;
-    let normal = Vec3::from(basis.transpose() * direction);
-    let up = Vec3::from(basis.inverse() * Vec3::Y);
-    Some(Transform::IDENTITY.looking_to(-normal, up).rotation)
+    Some(Transform {
+        rotation,
+        scale,
+        ..*local
+    })
+}
+
+fn screen_aligned_local_rotation(
+    parent: &GlobalTransform,
+    camera: &GlobalTransform,
+) -> Option<Quat> {
+    let camera_rotation = camera.compute_transform().rotation;
+    let transpose = parent.affine().matrix3.transpose();
+    let normal = Vec3::from(transpose * (camera_rotation * Vec3::Z)).try_normalize()?;
+    let up_constraint = Vec3::from(transpose * (camera_rotation * Vec3::Y));
+    let horizontal = up_constraint.cross(normal).try_normalize()?;
+    let vertical = normal.cross(horizontal);
+    Some(Quat::from_mat3(&Mat3::from_cols(
+        horizontal, vertical, normal,
+    )))
 }
 
 fn sync_health_bar_visibility(
@@ -290,6 +321,10 @@ fn sync_health_bar_visibility(
         });
     }
 }
+
+#[cfg(test)]
+#[path = "health_bar_zoom_tests.rs"]
+mod zoom_tests;
 
 #[cfg(test)]
 #[path = "health_bar_facing_tests.rs"]
@@ -313,13 +348,8 @@ mod tests {
         }
 
         fn fixture() -> (App, Vec<Entity>, Transform) {
-            let mut app = App::new();
-            app.add_plugins((MinimalPlugins, bevy::transform::TransformPlugin));
+            let mut app = zoom_tests::projection_app(1.0, 800, 600);
             app.init_resource::<Changes>();
-            app.add_systems(
-                PostUpdate,
-                billboard_health_bars.before(TransformSystems::Propagate),
-            );
             app.add_systems(Last, observe);
             let pose = Transform::from_xyz(1.0, 2.0, 3.0)
                 .with_rotation(Quat::from_rotation_z(0.3))
@@ -328,11 +358,10 @@ mod tests {
             (app, entities, pose)
         }
 
-        fn assert_facing(app: &App, entities: &[Entity], camera: Vec3) {
+        fn assert_facing(app: &App, entities: &[Entity]) {
             for &entity in entities {
                 let pose = app.world().get::<Transform>(entity).unwrap();
-                let direction = (camera - pose.translation).normalize();
-                assert!((pose.rotation * Vec3::Z).distance(direction) < 0.00001);
+                assert!((pose.rotation * Vec3::Z).distance(Vec3::Z) < 0.00001);
             }
         }
 
@@ -348,20 +377,20 @@ mod tests {
             app.world_mut()
                 .spawn((Camera3d::default(), Transform::from_translation(position)));
             app.update();
-            assert_facing(&app, &entities, position);
+            assert_facing(&app, &entities);
             for _ in 0..3 {
                 assert_no_changes(&mut app);
             }
             for entity in entities {
                 let pose = app.world().get::<Transform>(entity).unwrap();
                 assert_eq!(pose.translation, original.translation);
-                assert_eq!(pose.scale, original.scale);
+                assert_eq!(pose.scale.z, original.scale.z);
             }
         }
 
         #[test]
-        fn movement_updates_rotation_without_changing_position_or_scale() {
-            let (mut app, entities, original) = fixture();
+        fn movement_updates_screen_size_without_changing_anchor() {
+            let (mut app, entities, _) = fixture();
             let camera = app
                 .world_mut()
                 .spawn((
@@ -376,7 +405,7 @@ mod tests {
                 .unwrap()
                 .translation = position;
             app.update();
-            assert_facing(&app, &entities, position);
+            assert_facing(&app, &entities);
             assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
             assert_no_changes(&mut app);
             for &entity in &entities {
@@ -387,12 +416,12 @@ mod tests {
                     .translation = Vec3::new(3.0, 1.0, -2.0);
             }
             app.update();
-            assert_facing(&app, &entities, position);
+            assert_facing(&app, &entities);
             assert_eq!(app.world().resource::<Changes>().0.len(), entities.len());
             for entity in entities {
                 let pose = app.world().get::<Transform>(entity).unwrap();
                 assert_eq!(pose.translation, Vec3::new(3.0, 1.0, -2.0));
-                assert_eq!(pose.scale, original.scale);
+                assert_eq!(pose.scale.z, 4.0);
             }
             assert_no_changes(&mut app);
         }
