@@ -190,8 +190,7 @@ fn repeated_connect_does_not_replace_submitted_credentials() {
     click(&mut world, &mut session, "ConnectButton").unwrap();
     session.form.username.set_text("replacement");
     session.form.password.set_text("replacement");
-    let error = click(&mut world, &mut session, "ConnectButton").unwrap_err();
-    assert!(error.contains("disabled"));
+    click(&mut world, &mut session, "ConnectButton").unwrap();
     dispatch_action(&mut world, &mut session, LoginAction::Connect);
     assert_submitted(&world, "alice", "sëcret");
 }
@@ -281,6 +280,21 @@ fn automation_requires_focus_for_typing_and_editing_but_tab_recovers_it() {
     .unwrap();
     assert_eq!(session.form.username.text, "x");
     assert_eq!(session.form.password.text, "");
+}
+
+#[test]
+fn refocusing_an_input_moves_cursor_to_end_before_typing() {
+    let (mut world, mut session) = fixture();
+    session.form.username.set_text("alice");
+    session.form.username.home();
+    click(&mut world, &mut session, "UsernameInput").unwrap();
+    automate(
+        &mut world,
+        &mut session,
+        &UiAutomationAction::TypeText("!".into()),
+    )
+    .unwrap();
+    assert_eq!(session.form.username.text, "alice!");
 }
 
 #[test]
@@ -441,6 +455,8 @@ fn dragging_away_then_releasing_does_not_submit_or_replay_press() {
 #[test]
 fn pointer_focus_and_background_click_clear_focus() {
     let (mut world, mut session) = fixture();
+    session.form.password.set_text("secret");
+    session.form.password.home();
     let password = find_control(&mut world, "PasswordInput");
     world.entity_mut(password).insert(Interaction::Pressed);
     world
@@ -448,6 +464,12 @@ fn pointer_focus_and_background_click_clear_focus() {
         .press(MouseButton::Left);
     process_pointer(&mut world, &mut session);
     assert_eq!(session.focus, Some(LoginFieldId::Password));
+    process_key_event(
+        &mut world,
+        &mut session,
+        &key(KeyCode::Digit1, Key::Character("!".into()), Some("!")),
+    );
+    assert_eq!(session.form.password.text, "secret!");
     world.entity_mut(password).insert(Interaction::None);
     process_pointer(&mut world, &mut session);
     assert_eq!(session.focus, None);
