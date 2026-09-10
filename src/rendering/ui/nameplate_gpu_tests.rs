@@ -90,6 +90,8 @@ struct ColoredPixels {
     count: usize,
     top: usize,
     bottom: usize,
+    left: usize,
+    right: usize,
 }
 
 fn colored_pixels(image: &Image, matches: impl Fn(&[u8]) -> bool) -> Option<ColoredPixels> {
@@ -106,14 +108,19 @@ fn colored_pixels(image: &Image, matches: impl Fn(&[u8]) -> bool) -> Option<Colo
             continue;
         }
         let y = index / width;
+        let x = index % width;
         let bounds = bounds.get_or_insert(ColoredPixels {
             count: 0,
             top: y,
             bottom: y,
+            left: x,
+            right: x,
         });
         bounds.count += 1;
         bounds.top = bounds.top.min(y);
         bounds.bottom = bounds.bottom.max(y);
+        bounds.left = bounds.left.min(x);
+        bounds.right = bounds.right.max(x);
     }
     bounds
 }
@@ -192,6 +199,94 @@ fn nameplate_gpu_health_before_npc_renders_name_above_health_bar() {
     panic!(
         "expected yellow name above green health bar with compact gap: name={name:?}, bar={bar:?}; image={HEALTH_NAME_FAILURE_IMAGE}"
     );
+}
+
+#[test]
+#[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
+fn nameplate_gpu_zoom_preserves_bar_and_text_pixel_dimensions() {
+    let mut app = configured_render_app(|app| {
+        app.add_plugins(crate::health_bar::HealthBarPlugin);
+    });
+    let target = render_cameras(&mut app);
+    app.world_mut().spawn((
+        Transform::from_xyz(-9000.0, 0.0, 0.0),
+        Visibility::Visible,
+        shared::components::Health {
+            current: 100.0,
+            max: 100.0,
+        },
+        Npc {
+            template_id: 299,
+            name: "Wolf".into(),
+        },
+    ));
+    let camera = app
+        .world_mut()
+        .query_filtered::<Entity, With<Camera3d>>()
+        .single(app.world())
+        .unwrap();
+    let mut name_size = None;
+    for distance in [5.0, 10.0, 20.0] {
+        app.world_mut()
+            .get_mut::<Transform>(camera)
+            .unwrap()
+            .translation
+            .z = distance;
+        for _ in 0..5 {
+            app.update();
+        }
+        let image = capture_zoom_frame(&mut app, &target);
+        let bar = colored_pixels(&image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80)
+            .expect("green health bar pixels");
+        let name = colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80)
+            .expect("yellow name pixels");
+        let bar_size = (bar.right - bar.left + 1, bar.bottom - bar.top + 1);
+        assert!(
+            bar_size.0.abs_diff(80) <= 1 && bar_size.1.abs_diff(8) <= 1,
+            "zoom distance {distance}: expected 80x8px bar, got {bar_size:?}"
+        );
+        let current_name_size = (name.right - name.left + 1, name.bottom - name.top + 1);
+        if let Some(expected) = name_size {
+            assert_eq!(current_name_size, expected);
+        }
+        name_size = Some(current_name_size);
+        assert!(
+            compact_health_name_pixels(&image),
+            "compact visible name/bar gap at distance {distance}"
+        );
+    }
+}
+
+fn capture_zoom_frame(app: &mut App, target: &Handle<Image>) -> Image {
+    let (sender, receiver) = mpsc::channel();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut pending = false;
+    while Instant::now() < deadline {
+        app.update();
+        if !pending {
+            let sender = sender.clone();
+            app.world_mut()
+                .spawn(Screenshot::image(target.clone()))
+                .observe(move |capture: On<ScreenshotCaptured>| {
+                    sender
+                        .send(capture.image.clone())
+                        .expect("zoom capture receiver alive");
+                });
+            pending = true;
+        }
+        if let Ok(image) = receiver.try_recv() {
+            pending = false;
+            let has_bar =
+                colored_pixels(&image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80).is_some();
+            let has_name =
+                colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80).is_some();
+            if has_bar && has_name {
+                return image;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    panic!("GPU zoom capture timed out");
 }
 
 fn yellow_glyph_pixels(image: &Image) -> usize {
