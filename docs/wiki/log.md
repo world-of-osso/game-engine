@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-10] ui | Avoid unchanged shadow text component mutations
+
+Updated [[ui-system]] for ui-toolkit `3c8a5f5`: existing shadows compare all seven renderer-owned components before mutation, reuse main-text layout/bounds/font helpers, retain full reconciliation and external repair, and preserve unowned font fields. Shadow alpha semantics and outline synchronization are unchanged. RED exists; GREEN verification remains pending. No CPU/native claim.
+
 ## [2026-09-09] ui | Avoid unchanged text-render component mutations
 
-Updated [[ui-system]] for ui-toolkit `c8fa209`: full text reconciliation remains, but owned values are compared before `Text2d`, layout, bounds, font face/size, color, transform, or anchor mutation. Unowned `TextFont` fields survive and a missing anchor is restored. RED exists; GREEN verification remains pending. No CPU/native claim.
+Updated [[ui-system]] for ui-toolkit `c8fa209`/`c3a518a`: full text reconciliation remains, but owned values are compared before `Text2d`, layout, bounds, font face/size, color, transform, or anchor mutation. Unowned `TextFont` fields survive and a missing anchor is restored. Three RED/GREEN behavioral cases plus independent toolkit/engine checks pass. No CPU/native claim.
 
 ## [2026-09-09] ui | Combine visibility and alpha descendant propagation
 

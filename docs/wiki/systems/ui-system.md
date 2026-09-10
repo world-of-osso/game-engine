@@ -34,7 +34,11 @@ Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plug
 
 ## Text render reconciliation
 
-Toolkit `c8fa209` retains full `sync_ui_text` reconciliation but compares the renderer-owned `Text2d`, layout, bounds, font face/size, color, transform, and anchor values before mutating their Bevy components. It preserves unowned `TextFont` fields and inserts a missing `Anchor` for externally altered entities. RED evidence exists; GREEN verification is pending. No CPU or native claim.
+Toolkit `c8fa209`/`c3a518a` retains full `sync_ui_text` reconciliation but compares the renderer-owned `Text2d`, layout, bounds, font face/size, color, transform, and anchor values before mutating their Bevy components. It preserves unowned `TextFont` fields and inserts a missing `Anchor` for externally altered entities. Three RED/GREEN behavioral cases and independent toolkit/engine checks pass. No CPU or native claim.
+
+## Shadow text render reconciliation
+
+Toolkit `3c8a5f5` applies the same compare-before-write policy to existing shadow entities: `Text2d`, layout, bounds, font face/size, color, anchor, and transform update only when their renderer-owned values differ. It reuses the main-text layout/bounds/font helpers, preserves unowned `TextFont` fields, retains full reconciliation and external repair, and does not alter existing shadow alpha semantics. Outline synchronization is unchanged. RED evidence is recorded; GREEN verification remains pending. No CPU or native claim.
 
 ## Widget Types
 
