@@ -44,14 +44,20 @@ PlayerFrame
       PrestigePortrait
 ```
 
-Key geometry from the XML:
+### Historical XML geometry
 
-- `PlayerFrame` size: `232 x 100`
-- portrait anchor: top-left at `(24, -19)` with size `60 x 60`
-- player name anchor: top-left at `(88, -27)`
-- level anchor: top-right at `(-24.5, -28)`
-- health container anchor: top-left at `(85, -40)` with size `124 x 20`
-- mana bar lives directly below the health bar region
+The source XML uses a logical `232 x 100` frame: portrait `(24, -19)` at `60 x 60`, name `(88, -27)`, level `(-24.5, -28)`, and health `(85, -40)` at `124 x 20`.
+
+### Current player-shell geometry
+
+`player-frame-shell.png` is custom `396 x 142` artwork, not a `232 x 100` XML frame. Player contents therefore use its measured openings, uniformly scaled to 75% for a `297 x 106.5` HUD frame:
+
+- portrait native `(16, 18, 100 x 100)`; gold aperture center `(66, 68)`, radius about `50`
+- name native `(134, 31)`, width `190`; level near `(350, 31)`
+- health native `(134, 55, 244 x 34)`
+- mana native `(134, 97, 244 x 14)`
+
+The gold/silver shell remains unmodified. Player class icons are resolved through the local listfile/CASC cache and written as circular-alpha PNGs under `data/ui/unitframes/portraits/`; target portrait behavior remains separate.
 
 ## Target Frame Tree
 
@@ -125,4 +131,4 @@ This pass is using replicated ECS data, not mock UI data:
 - player: `LocalPlayer` plus `shared::components::{Player, Health, Mana}`
 - target: `CurrentTarget(Entity)` plus the target entity's replicated components
 
-If the visuals drift later, update this file before changing the RSX tree again.
+If the visuals drift later, measure the shell openings before changing the RSX tree; do not reuse the historical XML coordinates for the custom player artwork.

@@ -20,6 +20,10 @@ Frames use anchor-based positioning: 9 anchor points (TOPLEFT..BOTTOMRIGHT), rel
 
 Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are set after the first `screen.sync()` because rsx! attrs don't cover all frame properties.
 
+## Player-frame artwork fit
+
+The player HUD keeps its gold/silver `396×142` shell artwork but lays contents in that artwork’s measured openings, scaled uniformly to a `297×106.5` frame. It does not reuse the historical `232×100` WoW XML coordinates: portrait, labels, and resource bars previously overflowed the custom asset. The player portrait resolves the selected class icon through the local listfile/CASC cache and uses a circular-alpha PNG, preventing a missing absolute icon path from becoming the renderer’s white fallback quad. Target-frame portrait behavior is unchanged. Aperture containment coverage exists; resource-width and rendered verification remain pending while the zero-width fill case is repaired.
+
 ## Layout invalidation
 
 `ui-toolkit` `0fdcf3f` makes an empty `rect_dirty` set a no-op: layout does not collect frames, resolve rectangles, or dirty render state. Layout work begins only when an actual geometry boundary explicitly calls `FrameRegistry::mark_rect_dirty`. Toolkit `a8c846b` also checks this before the caller mutably accesses `UiState`, avoiding false resource-change notifications on clean layout calls. Two behavioral regressions and independent toolkit/engine checks pass; this does not imply other UI systems are idle.
