@@ -28,6 +28,10 @@ Insertion/removal, screen resize, anchor changes, dimension/flex attributes, fle
 
 Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plugin tests (55 total). Engine addon integration has 7 GREEN tests at `86bbc945`; the coordinated engine integration check remains pending. No CPU or native claim.
 
+## Visibility and alpha invalidation
+
+`ui-toolkit` `2dec7fe` leaves a frame and its subtree out of `render_dirty` when `set_hidden` or `set_alpha` receives values that leave the frame's stored and derived visibility/alpha unchanged. Actual hidden/alpha/effective-value changes still dirty their changed frames. Visibility and alpha propagation still always recurses through descendants, so derived descendant values repair after parent changes even if an intermediate frame's own value is unchanged. Registry proof: 6 RED cases and 27 GREEN cases. No CPU or native claim.
+
 ## Widget Types
 
 19 widget types matching wow-ui-sim: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap. See [ui-addon-architecture.md](../../ui-addon-architecture.md) for the full capability matrix.

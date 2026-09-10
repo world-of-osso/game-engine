@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-09] ui | Avoid unchanged visibility and alpha invalidation
+
+Updated [[ui-system]] for ui-toolkit `2dec7fe`: same-value `set_hidden`/`set_alpha` calls no longer dirty unchanged frames or subtrees. Actual stored or derived visibility/alpha changes still dirty affected frames; descendant propagation still recurses to repair derived values after parent changes. Registry proof: 6 RED and 27 GREEN cases. No CPU/native claim.
+
 ## [2026-09-09] systems | Avoid false UI resource changes during clean layout calls
 
 Updated [[ui-system]] for toolkit `a8c846b`: check layout dirtiness before mutable resource access. Two behavioral RED/GREEN tests and independent integration checks pass; no CPU claim.
