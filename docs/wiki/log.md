@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-10] ui | Avoid unchanged primary-window UI mutations
+## [2026-09-10] ui | Verify primary-window UI integration boundary
 
-Updated [[ui-system]] for ui-toolkit `924ca23`: actual UiPlugin verification has 5 passing cases plus toolkit format/check/readability for settled state, hover visuals, geometry repair, and thresholded resize behavior. Compiler stdout/stderr and exit for the one test compile were not retained, so the successful saved executable has weaker compile provenance; standalone library checking is saved. Engine integration remains pending. No CPU/native claim.
+Updated [[ui-system]] and [[movement-performance]] for ui-toolkit `924ca23`: actual UiPlugin verification has 5 passing cases plus toolkit format/check/readability for settled state, hover visuals, geometry repair, and thresholded resize behavior. The one test compile has weaker retained provenance. Shared dev-feature engine compilation closed the bounded integration gate, but its intentionally failing equipment assertion exited 101; this is not an engine test/check pass or screenshot-fix completion. No CPU/native claim.
 
 ## [2026-09-10] ui | Avoid unchanged three-slice, border, and highlight sprite writes
 
