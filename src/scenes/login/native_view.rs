@@ -289,6 +289,7 @@ fn spawn_image(
         ImageNode {
             image: loaded.handle.clone(),
             rect: loaded.rect,
+            image_mode: NodeImageMode::Stretch,
             ..default()
         },
         LoginTint(Color::WHITE),

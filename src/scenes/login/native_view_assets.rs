@@ -145,6 +145,7 @@ impl LoginViewAssets<'_, '_> {
                     pieces.push(ImageNode {
                         image: loaded.handle.clone(),
                         rect: Some(Rect::new(xs[column], ys[row], xs[column + 1], ys[row + 1])),
+                        image_mode: NodeImageMode::Stretch,
                         ..default()
                     });
                 }
