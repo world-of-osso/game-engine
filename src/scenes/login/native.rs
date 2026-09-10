@@ -1,4 +1,8 @@
 //! Login lifecycle and input shared by the native controls and automation.
+#[cfg(test)]
+#[path = "native_tests.rs"]
+mod tests;
+
 use bevy::ecs::message::MessageCursor;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::{Key, KeyboardInput};
