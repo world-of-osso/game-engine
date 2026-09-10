@@ -1,4 +1,7 @@
 //! Pixel proof for the real replicated-NPC observer and projected UI text.
+
+const HEALTH_NAME_FAILURE_IMAGE: &str =
+    "data/diagnostics/equipment-nameplate-alignment-20260909/health-name-gpu-failure.png";
 use super::*;
 use bevy::camera::RenderTarget;
 use bevy::ecs::system::RunSystemOnce;
@@ -8,6 +11,10 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 fn render_app() -> App {
+    configured_render_app(|_| {})
+}
+
+fn configured_render_app(configure: impl FnOnce(&mut App)) -> App {
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -24,12 +31,26 @@ fn render_app() -> App {
     app.insert_resource(State::new(GameState::InWorld));
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.add_plugins(NameplatePlugin);
+    configure(&mut app);
     app.finish();
     app.cleanup();
     app
 }
 
 fn cameras_and_wolf(app: &mut App) -> Handle<Image> {
+    let target = render_cameras(app);
+    app.world_mut().spawn((
+        Npc {
+            template_id: 299,
+            name: "Diseased Young Wolf".into(),
+        },
+        Transform::from_xyz(-9000.0, 0.0, 0.0),
+        Visibility::Visible,
+    ));
+    target
+}
+
+fn render_cameras(app: &mut App) -> Handle<Image> {
     let target = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
@@ -61,15 +82,116 @@ fn cameras_and_wolf(app: &mut App) -> Handle<Image> {
     app.world_mut()
         .entity_mut(overlay)
         .insert((RenderTarget::Image(target.clone().into()), Msaa::Off));
-    app.world_mut().spawn((
-        Npc {
-            template_id: 299,
-            name: "Diseased Young Wolf".into(),
-        },
-        Transform::from_xyz(-9000.0, 0.0, 0.0),
-        Visibility::Visible,
-    ));
     target
+}
+
+#[derive(Debug)]
+struct ColoredPixels {
+    count: usize,
+    top: usize,
+    bottom: usize,
+}
+
+fn colored_pixels(image: &Image, matches: impl Fn(&[u8]) -> bool) -> Option<ColoredPixels> {
+    let width = image.width() as usize;
+    let mut bounds = None;
+    for (index, pixel) in image
+        .data
+        .as_ref()
+        .expect("captured pixels")
+        .chunks_exact(4)
+        .enumerate()
+    {
+        if !matches(pixel) {
+            continue;
+        }
+        let y = index / width;
+        let bounds = bounds.get_or_insert(ColoredPixels {
+            count: 0,
+            top: y,
+            bottom: y,
+        });
+        bounds.count += 1;
+        bounds.top = bounds.top.min(y);
+        bounds.bottom = bounds.bottom.max(y);
+    }
+    bounds
+}
+
+fn compact_health_name_pixels(image: &Image) -> bool {
+    let name = colored_pixels(image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80);
+    let bar = colored_pixels(image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80);
+    match (name, bar) {
+        (Some(name), Some(bar)) => {
+            // Glyph ink may stop above the text-layout bottom (font descender padding).
+            let gap = bar.top.checked_sub(name.bottom + 1);
+            name.count > 100 && bar.count > 10 && gap.is_some_and(|gap| (1..=16).contains(&gap))
+        }
+        _ => false,
+    }
+}
+
+#[test]
+#[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
+fn nameplate_gpu_health_before_npc_renders_name_above_health_bar() {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let mut app = configured_render_app(|app| {
+        app.add_plugins(crate::health_bar::HealthBarPlugin);
+    });
+    let target = render_cameras(&mut app);
+    let owner = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(-9000.0, 0.0, 0.0),
+            Visibility::Visible,
+            shared::components::Health {
+                current: 100.0,
+                max: 100.0,
+            },
+        ))
+        .id();
+    app.world_mut().entity_mut(owner).insert(Npc {
+        template_id: 299,
+        name: "Diseased Young Wolf".into(),
+    });
+    let (sender, receiver) = mpsc::channel();
+    let mut pending = false;
+    let mut last_image = None;
+    while Instant::now() < deadline {
+        app.update();
+        if !pending {
+            let sender = sender.clone();
+            app.world_mut()
+                .spawn(Screenshot::image(target.clone()))
+                .observe(move |capture: On<ScreenshotCaptured>| {
+                    sender
+                        .send(capture.image.clone())
+                        .expect("pixel receiver alive");
+                });
+            pending = true;
+        }
+        if let Ok(image) = receiver.try_recv() {
+            pending = false;
+            if compact_health_name_pixels(&image) {
+                return;
+            }
+            last_image = Some(image);
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    let image = last_image.expect("GPU must return a frame within the fixture deadline");
+    let name = colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80);
+    let bar = colored_pixels(&image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80);
+    let path = std::path::Path::new(HEALTH_NAME_FAILURE_IMAGE);
+    std::fs::create_dir_all(path.parent().unwrap()).expect("create diagnostic directory");
+    image
+        .try_into_dynamic()
+        .expect("RGBA screenshot")
+        .save(path)
+        .expect("save failure image");
+    panic!(
+        "expected yellow name above green health bar with compact gap: name={name:?}, bar={bar:?}; image={HEALTH_NAME_FAILURE_IMAGE}"
+    );
 }
 
 fn yellow_glyph_pixels(image: &Image) -> usize {
