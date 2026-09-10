@@ -100,8 +100,11 @@ fn shaped_unicode_caret_tracks_start_middle_end_at_both_scales() {
         let clusters: Vec<_> = layout
             .lines()
             .flat_map(|line| line.runs())
-            .flat_map(|run| run.clusters())
-            .map(|cluster| (cluster.text_range(), cluster.advance()))
+            .flat_map(|run| {
+                run.clusters()
+                    .map(|cluster| (cluster.text_range(), cluster.advance()))
+                    .collect::<Vec<_>>()
+            })
             .collect();
         assert!(
             middle > 100.0 && middle < 100.0 + width,
