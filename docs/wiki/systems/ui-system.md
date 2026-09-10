@@ -50,7 +50,11 @@ Toolkit `67413da` reuses the shared quad visual comparison when reconciling exis
 
 ## Tiled sprite reconciliation
 
-Toolkit `2b3c1f3` applies the shared quad comparison to retained tiled sprites. Unchanged `Transform` and `Sprite` values are not reinserted; tile discovery, real updates, external or missing-component repair, stale-tile cleanup, and registry dirty clearing remain unchanged. Four RED/GREEN cases and independent toolkit/engine checks pass. Toolkit `f041c0e` also checks `render_dirty` immutably before clearing it in quad and tiled reconciliation: empty sets no longer falsely mutate `UiState`; nonempty sets still drain at the existing points. No CPU or native claim.
+Toolkit `2b3c1f3` applies the shared quad comparison to retained tiled sprites. Unchanged `Transform` and `Sprite` values are not reinserted; tile discovery, real updates, external or missing-component repair, stale-tile cleanup, and registry dirty clearing remain unchanged. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU or native claim.
+
+## Render-dirty clearing
+
+Toolkit `f041c0e` checks `render_dirty` immutably before quad or tiled reconciliation clears it. Empty sets no longer falsely mutate `UiState`; nonempty sets drain at the existing points, after the existing reconciliation work. Four RED/GREEN cases and independent toolkit/engine checks pass. No CPU or native claim.
 
 ## Widget Types
 
