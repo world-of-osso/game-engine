@@ -2,7 +2,7 @@
 
 ## [2026-09-10] ui | Avoid stable-sort scratch work in frame ordering
 
-Updated [[ui-system]] for ui-toolkit `1050abb`: the existing total strata/level/raise/ID comparator now uses unstable sorting, and visible-frame effective size is computed once. Exact order and membership are characterized by three passing cases; final verification remains pending. No shared order cache, allocator measurement, CPU, or native claim.
+Updated [[ui-system]] for ui-toolkit `1050abb`: the existing total strata/level/raise/ID comparator now uses unstable sorting, and visible-frame effective size is computed once. Same three cases pass before/after; toolkit checks and bounded engine compilation pass with recorded concurrent-engine provenance limits. No shared order cache, allocator measurement, CPU, or native claim.
 
 ## [2026-09-10] ui | Borrow unchanged main text during reconciliation
 

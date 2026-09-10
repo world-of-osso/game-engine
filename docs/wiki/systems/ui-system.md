@@ -70,7 +70,7 @@ Toolkit `924ca23` checks primary-window dimensions against `UiState.registry` th
 
 ## Frame-order helper
 
-Toolkit `1050abb` keeps the existing total order—strata, frame level, raise order, then unique frame ID—but uses unstable sorting because no two distinct frames compare equal. The visible-frame filter now computes effective size once after its existing visibility check. Returned order and membership remain unchanged; this does not add a shared per-update ordering cache or alter public synchronization APIs. Three before-characterization cases pass; independent final verification is pending. No allocator-count, CPU, or native claim.
+Toolkit `1050abb` keeps the existing total order—strata, frame level, raise order, then unique frame ID—but uses unstable sorting because no two distinct frames compare equal. The visible-frame filter now computes effective size once after its existing visibility check. Returned order and membership remain unchanged; this does not add a shared per-update ordering cache or alter public synchronization APIs. The same three cases pass before and after (one new mixed-key/membership characterization and two existing z-order cases); toolkit format/check/readability and bounded engine compilation pass. The sort itself avoids scratch allocation, while frame/output collection and six independent renderer sorts remain. See [verification](../../../data/diagnostics/unchanged-writes-20260909/frame-order/verification/report.md) for the concurrent engine-source provenance limit. No allocator-count, CPU, or native claim.
 
 ## Widget Types
 
