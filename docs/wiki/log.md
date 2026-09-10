@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] rendering | Add live in-world camera direction control
+
+Documented `game-engine-cli camera set --pitch-degrees 60` and optional `--yaw-degrees`: angles are degrees, pitch bounds are −88° through +88°, omitted axes persist, and the command requires InWorld with exactly one active `WowCamera`. It changes view angles only; it does not fix authored skybox rendering. The upward in-world observation remains uniform dark navy; see [[authored-skybox-black-output]].
+
 ## [2026-09-10] ui | Share plugin frame ordering with standalone compatibility
 
 Implemented [[ui-frame-order]] at toolkit `02a3049`, tests through `3e61227`: one explicit preparation and six prepared variants delegate to the same bodies as standalone public systems. `UiRenderSet::Prepare` spans window/layout/button preparation and the final render-gated order producer; named-set same-pass geometry and standalone stale-resource independence pass. Independent verification records 39 tests, toolkit formatting/check/readability and bounded engine compilation. Computational sharing/common-body structure are source-audited, not helper-call tests. Bevy UI migration has not started; no CPU/native claim.

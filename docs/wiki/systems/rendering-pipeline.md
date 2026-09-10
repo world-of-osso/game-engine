@@ -49,6 +49,12 @@ Rebuilt candidate PID `2846177` (SHA `84f6ecc9590979a2fba498b8206549d33ebff7fdc2
 
 Readiness held one client/server with healthy IPC/admin ping, approximately **10.09 FPS**, zero displayed NPCs/cameras/terrain, no panic/device-loss/OOM, and no Character advancement. One startup `Received despawn for an entity that does not exist` warning was recorded without blocking readiness.
 
+## Live in-world camera direction
+
+`game-engine-cli camera set --pitch-degrees 60` points the active in-world view 60° upward. `--yaw-degrees D` is optional, either axis may be set independently, and both values use degrees. Pitch accepts −88° through +88° inclusive; omitted axes retain their current value. The command rejects no-axis requests, non-finite values, out-of-range pitch, non-InWorld use, and worlds without exactly one active `WowCamera`.
+
+It changes the normal input-owned camera angles, not player facing, zoom, or collision. Input remains active afterward. This is a diagnostic/view-control surface; it does not correct authored skybox rendering. The observed upward in-world capture remains a uniform dark navy, consistent with [[authored-skybox-black-output]].
+
 ## Graphics effect configuration
 
 `~/.config/world-of-osso/options_settings.ron` persists graphics effects through its `graphics` section; legacy `data/ui/options_settings.ron` remains a load fallback. Commit `7f86f086` persists `particleEffectsEnabled` (default `true`), `depthOfField` (default `false`), existing `bloomEnabled` (default `false`), `antiAlias` (default `Msaa4x`), and `ssaoEnabled` (default `false`). Missing fields retain those defaults, so old configuration files remain valid. Editing the file takes effect at startup; this change adds neither live file watching nor CLI effect flags.
