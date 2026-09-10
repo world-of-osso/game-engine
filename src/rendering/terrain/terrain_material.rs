@@ -232,6 +232,9 @@ pub fn load_height_images(
         .height_texture_fdids
         .iter()
         .map(|&fdid| {
+            if fdid == 0 {
+                return None;
+            }
             let blp_path = crate::asset::asset_cache::texture(fdid)
                 .unwrap_or_else(|| tex_dir.join(format!("{fdid}.blp")));
             load_blp_as_terrain_image(images, &blp_path, fdid)
@@ -314,6 +317,9 @@ pub fn decode_height_images(
         .height_texture_fdids
         .iter()
         .map(|&fdid| {
+            if fdid == 0 {
+                return None;
+            }
             let blp_path = crate::asset::asset_cache::texture(fdid)
                 .unwrap_or_else(|| tex_dir.join(format!("{fdid}.blp")));
             decode_blp_terrain_image(&blp_path, fdid)
