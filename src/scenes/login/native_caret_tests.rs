@@ -1,7 +1,22 @@
 use super::*;
+use bevy::ecs::system::RunSystemOnce;
 use bevy::text::{FontCx, LayoutCx, LetterSpacing, LineHeight, TextBounds, TextPipeline};
 
 fn shaped_world(raw: &str, field: LoginFieldId, scale: f32) -> (World, Entity, Entity) {
+    shaped_world_with_font(
+        raw,
+        field,
+        scale,
+        Font::from_bytes(bevy::text::DEFAULT_FONT_DATA.to_vec()),
+    )
+}
+
+fn shaped_world_with_font(
+    raw: &str,
+    field: LoginFieldId,
+    scale: f32,
+    font_asset: Font,
+) -> (World, Entity, Entity) {
     let mut world = World::new();
     let mut session = LoginSession::default();
     session.form.field_mut(field).set_text(raw);
@@ -10,13 +25,19 @@ fn shaped_world(raw: &str, field: LoginFieldId, scale: f32) -> (World, Entity, E
     world.insert_resource(session);
     world.insert_resource(Time::<()>::default());
     let mut fonts = Assets::<Font>::default();
-    let handle = fonts.add(Font::from_bytes(bevy::text::DEFAULT_FONT_DATA.to_vec()));
+    let handle = fonts.add(font_asset);
+    world.insert_resource(fonts);
+    world.init_resource::<FontCx>();
+    world
+        .run_system_once(bevy::text::load_font_assets_into_font_collection)
+        .expect("register fixture fonts through Bevy's production system");
+    let fonts = world.remove_resource::<Assets<Font>>().unwrap();
+    let mut font_cx = world.remove_resource::<FontCx>().unwrap();
     let font = TextFont {
-        font: bevy::text::FontSource::Handle(handle.clone()),
+        font: bevy::text::FontSource::Handle(handle),
         font_size: FontSize::Px(20.0),
         ..default()
     };
-    let mut font_cx = FontCx::default();
     let mut computed = ComputedTextBlock::default();
     TextPipeline::default()
         .update_buffer(
@@ -76,14 +97,31 @@ fn left(world: &World, caret: Entity) -> f32 {
 
 #[test]
 fn shaped_unicode_caret_tracks_start_middle_end_at_both_scales() {
+    assert_unicode_caret_positions(bevy::text::DEFAULT_FONT_DATA, "bundled Fira Mono");
+}
+
+#[test]
+fn production_font_unicode_caret_tracks_start_middle_end_at_both_scales() {
+    let path = ui_toolkit::widgets::font_string::GameFont::ArialNarrow.path();
+    let bytes = std::fs::read(path).expect("production login Arial Narrow font is available");
+    assert_unicode_caret_positions(&bytes, "production Arial Narrow");
+}
+
+fn assert_unicode_caret_positions(font_bytes: &[u8], font_name: &str) {
     for scale in [1.0, 2.0] {
-        let (mut world, text, caret) = shaped_world("aéz", LoginFieldId::Username, scale);
+        let (mut world, text, caret) = shaped_world_with_font(
+            "aéz",
+            LoginFieldId::Username,
+            scale,
+            Font::from_bytes(font_bytes.to_vec()),
+        );
         let width = world
             .get::<ComputedTextBlock>(text)
             .unwrap()
             .buffer()
             .width()
             / scale;
+        assert!(width > 0.0, "{font_name} produced an empty shaped layout");
         sync_login_carets(&mut world);
         assert!((left(&world, caret) - (100.0 + width)).abs() < 0.01);
         world.resource_mut::<LoginSession>().form.username.home();
@@ -106,9 +144,12 @@ fn shaped_unicode_caret_tracks_start_middle_end_at_both_scales() {
                     .collect::<Vec<_>>()
             })
             .collect();
+        eprintln!(
+            "{font_name}: scale={scale}, middle={middle}, width={width}, clusters={clusters:?}"
+        );
         assert!(
             middle > 100.0 && middle < 100.0 + width,
-            "scale={scale}, middle={middle}, width={width}, cursor={:?}, clusters={clusters:?}",
+            "{font_name}: scale={scale}, middle={middle}, width={width}, cursor={:?}, clusters={clusters:?}",
             Cursor::from_byte_index(layout, 3, Affinity::Downstream),
         );
         assert!((world.get::<ComputedNode>(caret).unwrap().size.x / scale - 2.0).abs() < 0.01);
