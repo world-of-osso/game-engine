@@ -20,7 +20,9 @@ Bounded validation at engine revision `9404235d`, verified 2026-09-09. This reco
 
 ## Final wolf/equipment follow-up
 
-`data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` records a later bounded integration at engine `9d22c7fb`. Native UI capture shows a named Diseased Timber Wolf through the overlay path and Theron's shirt, pants, and boots. Theron's five physical items persisted across a server restart: GUIDs 10–14 for sword, shirt, pants, boots, and shield. The rear camera cannot independently distinguish the sword or shield; their attachment proof is the real Loading→InWorld regression, which parents their model roots to HumanHD bones 201 and 206. The prior cause was an absolute-path guard that skipped existing SKA1 skeleton attachments, not missing HumanHD assets.
+`data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` records a later bounded integration at engine `9d22c7fb`. Native UI capture shows a named Diseased Timber Wolf through the overlay path and Theron's shirt, pants, and boots. Theron's five physical items persisted across a server restart: GUIDs 10–14 for sword, shirt, pants, boots, and shield. The rear camera cannot independently distinguish the sword or shield.
+
+The prior Loading→InWorld regression only proved that roots parented to HumanHD attachment bones; it did not establish their semantic hand placement. Local WMVx reference semantics are right palm 1 (HumanMaleHD bone 206), left palm 2 (bone 211), and shield left wrist 0 (bone 201). Commit `496a057b` corrects the engine's former main-hand 0/off-hand 1 mapping. Its live sword/shield test failed against the old mapping; post-change GREEN and new visual evidence remain pending. The earlier absolute-path guard diagnosis still applies to SKA1 attachment loading, not this semantic mapping correction.
 
 The native capture does not establish long-run wolf variation frequencies. Exact authored weighted selection and terminal recovery remain test evidence. Both earlier and final captures contain the same HUD rectangles; no toolkit regression or HUD-health causal claim follows from this evidence.
 
@@ -36,6 +38,8 @@ NPC walking/running remains unproven because no replicated NPC `MovementState` p
 - `../../../data/diagnostics/npc-motion-20260909/streaming-fixed-terrain.txt` — initial nine-tile streaming state
 - `../../../data/diagnostics/npc-motion-20260909/cold-edge-run.txt` — bounded cold local-CASC capture
 - `../../../data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` — later bounded nameplate, equipment, and weighted-animation evidence
+- `src/game/equipment/equipment.rs` — corrected attachment selection at `496a057b`
+- `/home/osso/Repos/WMVx/src/core/game/GameConstants.h` and `/home/osso/Repos/WMVx/src/core/modeling/AttachmentCustomization.cpp` — local reference attachment semantics
 
 ## See Also
 

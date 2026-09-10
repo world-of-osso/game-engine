@@ -12,7 +12,13 @@ Character rendering assembles WoW M2 character models with dynamic geoset visibi
 
 Player appearance waits for `ResolvedModelAssetInfo`, published after the complete M2 mesh, animation, and default equipment command sequence. `Children` first appeared when only the visual root existed; applying then recorded the full snapshot as deduplicated before body meshes existed, and later model initialization overwrote its equipment. Waiting for final model metadata fixes that ordering without periodic reconciliation or an InWorld-state delay. `OutfitData` loads lazily; its log after player spawn does not mean the resource was unavailable.
 
-`tests/unit/player_appearance_spawn_tests.rs` registers real observers before spawning Theron during Loading, delivers five starter items before player identity, then enters InWorld. Desired sword/shield slots survive; body pixels match a fully constructed reapplication, change when clothing is removed, and remain unchanged on duplicate notification. The rendered-weapon regression also requires sword/shield model children parented to HumanHD bones 201/206. Absolute replicated model paths previously bypassed SKID attachment loading because of a relative `data/models` prefix guard. Removing that guard makes skeleton lookup independent of path spelling; real HumanHD relative/absolute fixtures produce identical 45 attachment records and 75 lookup entries. Final bounded native capture shows Theron's shirt, pants, and boots. The rear camera does not independently distinguish the sword or shield; the real Loading→InWorld regression proves their model roots attach to HumanHD bones 201 and 206. Theron's five physical records (GUIDs 10–14) persisted across a server restart. This does not add combat/stat support.
+`tests/unit/player_appearance_spawn_tests.rs` registers real observers before spawning Theron during Loading, delivers five starter items before player identity, then enters InWorld. Desired sword/shield slots survive; body pixels match a fully constructed reapplication, change when clothing is removed, and remain unchanged on duplicate notification. Absolute replicated model paths previously bypassed SKID attachment loading because of a relative `data/models` prefix guard. Removing that guard makes skeleton lookup independent of path spelling; real HumanHD relative/absolute fixtures produce identical 45 attachment records and 75 lookup entries.
+
+### Hand and shield attachment semantics
+
+WoW attachment IDs are semantic mount points, not generic main/off-hand slots: right-palm weapon = 1, left-palm weapon = 2, shield = left wrist 0. HumanMaleHD maps those IDs to bones 206, 211, and 201 respectively. Earlier root-parent assertions for bones 201/206 proved that attachment data loaded, but did not prove correct hand semantics; they are superseded by this mapping. Commit `496a057b` resolves main-hand models through 1, ordinary off-hand models through 2, and canonical `item/objectcomponents/shield/` models through 0. The new live HumanHD sword/shield fixture was RED against the old mapping; GREEN evidence is pending. No item-local rotation correction is claimed.
+
+Final bounded native capture shows Theron's shirt, pants, and boots. The rear camera does not independently distinguish the sword or shield. Theron's five physical records (GUIDs 10–14) persisted across a server restart. This does not add combat/stat support.
 
 ## Character Models and HD Skeletons
 
@@ -89,6 +95,8 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - [helmet-hair-hiding-investigation-2026-03-28.md](../helmet-hair-hiding-investigation-2026-03-28.md) — helmet hair hiding mechanisms
 - [target-circle-styles-2026-03-30.md](../target-circle-styles-2026-03-30.md) — selection circle styles, BLP blend mode detection
 - `../../../data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` — bounded physical-equipment persistence and render evidence
+- `src/game/equipment/equipment.rs` — runtime attachment selection at `496a057b`
+- `/home/osso/Repos/WMVx/src/core/game/GameConstants.h` and `/home/osso/Repos/WMVx/src/core/modeling/AttachmentCustomization.cpp` — local reference attachment semantics
 
 ## See Also
 
