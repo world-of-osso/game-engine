@@ -38,7 +38,7 @@ Toolkit `c8fa209`/`c3a518a` retains full `sync_ui_text` reconciliation but compa
 
 ## Shadow text render reconciliation
 
-Toolkit `3e6951d` applies the same compare-before-write policy to existing shadow entities: `Text2d`, layout, bounds, font face/size, color, anchor, and transform update only when their renderer-owned values differ. It reuses the main-text layout/bounds/font helpers, preserves unowned `TextFont` fields, retains full reconciliation and external repair, and does not alter existing shadow alpha semantics. Outline synchronization is unchanged. Three RED/GREEN behavioral cases and independent toolkit/engine checks pass. No CPU or native claim.
+Toolkit `3e6951d` applies the same compare-before-write policy to existing shadow entities: `Text2d`, layout, bounds, font face/size, color, anchor, and transform update only when their renderer-owned values differ. It reuses the main-text layout/bounds/font helpers, preserves unowned `TextFont` fields, retains full reconciliation and external repair, and does not alter existing shadow alpha semantics. Outline synchronization is unchanged. Toolkit `6802940` additionally borrows the shadow source text in its private properties, allocating only when spawning or replacing owned `Text2d` content. The refactor preserves contents, alpha, font, geometry, and traversal; existing three-case behavior proof applies, with final verification pending. No allocation benchmark, CPU, or native claim.
 
 ## Button nine-slice reconciliation
 

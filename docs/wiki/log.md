@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Borrow shadow text before owned rendering
+
+Updated [[ui-system]] for ui-toolkit `6802940`: private shadow properties borrow source text during reconciliation and allocate only for spawn or changed `Text2d` ownership. Content, alpha, font, geometry, traversal, and prior component-write behavior remain unchanged. Existing three-case shadow proof is characterization; final verifier and shared engine build remain pending. No allocation benchmark, CPU, or native claim.
+
 ## [2026-09-10] ui | Verify primary-window UI integration boundary
 
 Updated [[ui-system]] and [[movement-performance]] for ui-toolkit `924ca23`: actual UiPlugin verification has 5 passing cases plus toolkit format/check/readability for settled state, hover visuals, geometry repair, and thresholded resize behavior. The one test compile has weaker retained provenance. Shared dev-feature engine compilation closed the bounded integration gate, but its intentionally failing equipment assertion exited 101; this is not an engine test/check pass or screenshot-fix completion. No CPU/native claim.
