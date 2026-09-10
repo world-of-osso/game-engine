@@ -252,6 +252,33 @@ mod tests {
     }
 
     #[test]
+    fn camera_direction_changes_rendered_view_and_persists() {
+        let (mut app, player, camera) = follow_app();
+        app.world_mut()
+            .get_mut::<Transform>(player)
+            .unwrap()
+            .translation
+            .y = 100.0;
+        app.world_mut()
+            .get_mut::<WowCamera>(camera)
+            .unwrap()
+            .set_direction_degrees(Some(90.0), Some(60.0))
+            .unwrap();
+        let expected = Quat::from_euler(
+            EulerRot::YXZ,
+            90.0_f32.to_radians(),
+            60.0_f32.to_radians(),
+            0.0,
+        ) * Vec3::NEG_Z;
+        for _ in 0..3 {
+            advance_follow(&mut app, 0.1);
+            let transform = app.world().get::<Transform>(camera).unwrap();
+            assert!(transform.forward().as_vec3().abs_diff_eq(expected, 1e-5));
+            assert!(transform.forward().y > 0.8, "positive pitch looks upward");
+        }
+    }
+
+    #[test]
     fn camera_follow_settled_pose_does_not_notify_transform_changes() {
         let (mut app, _, camera) = follow_app();
         let settled = *app.world().get::<Transform>(camera).unwrap();

@@ -6,6 +6,49 @@ use crate::terrain_tile::bevy_to_tile_coords;
 
 const TEST_WATER_STEP: f32 = adt::CHUNK_SIZE / 8.0;
 
+#[test]
+fn camera_direction_updates_only_requested_angles() {
+    let mut camera = WowCamera::default();
+    let pitch = camera.pitch;
+    camera.set_direction_degrees(Some(-90.0), None).unwrap();
+    assert!((camera.yaw + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+    assert_eq!(camera.pitch, pitch);
+    camera.set_direction_degrees(None, Some(60.0)).unwrap();
+    assert!((camera.pitch - std::f32::consts::FRAC_PI_3).abs() < 1e-6);
+    assert!((camera.yaw + std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+    assert_eq!(camera.distance, 15.0);
+    assert_eq!(camera.target_distance, 15.0);
+}
+
+#[test]
+fn camera_direction_rejects_invalid_requests_without_partial_updates() {
+    for (yaw, pitch) in [
+        (None, None),
+        (Some(f32::NAN), None),
+        (Some(f32::INFINITY), None),
+        (Some(90.0), Some(f32::NEG_INFINITY)),
+        (Some(90.0), Some(89.0)),
+        (Some(90.0), Some(-89.0)),
+    ] {
+        let mut camera = WowCamera::default();
+        assert!(camera.set_direction_degrees(yaw, pitch).is_err());
+        assert_eq!(camera.yaw, 0.0);
+        assert_eq!(camera.pitch, -0.3);
+    }
+}
+
+#[test]
+fn camera_direction_accepts_pitch_limits() {
+    let mut camera = WowCamera::default();
+    for pitch in [-88.0_f32, 88.0] {
+        camera
+            .set_direction_degrees(Some(360.0), Some(pitch))
+            .unwrap();
+        assert!((camera.pitch - pitch.to_radians()).abs() < 1e-6);
+        assert!((camera.yaw - std::f32::consts::TAU).abs() < 1e-6);
+    }
+}
+
 fn flat_grid(origin_x: f32, origin_z: f32, height: f32) -> adt::ChunkHeightGrid {
     adt::ChunkHeightGrid {
         index_x: 0,

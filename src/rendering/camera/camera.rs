@@ -119,37 +119,7 @@ impl Default for CharacterFacing {
     }
 }
 
-#[derive(Component)]
-pub struct WowCamera {
-    pub pitch: f32,
-    pub yaw: f32,
-    pub distance: f32,
-    pub target_distance: f32,
-    pub min_distance: f32,
-    pub max_distance: f32,
-    /// How fast the camera follows the player position (lerp speed).
-    pub follow_speed: f32,
-    /// How fast the camera zooms toward target_distance (lerp speed).
-    pub zoom_speed: f32,
-    /// Whether the camera is currently pulled in due to collision.
-    pub collided: bool,
-}
-
-impl Default for WowCamera {
-    fn default() -> Self {
-        Self {
-            pitch: -0.3,
-            yaw: 0.0,
-            distance: 15.0,
-            target_distance: 15.0,
-            min_distance: 2.0,
-            max_distance: 40.0,
-            follow_speed: 10.0,
-            zoom_speed: 8.0,
-            collided: false,
-        }
-    }
-}
+pub use game_engine::camera_control::WowCamera;
 
 pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
     commands
@@ -178,7 +148,8 @@ pub(super) const COLLISION_OFFSET: f32 = 0.3;
 pub(super) const EYE_HEIGHT: f32 = 1.8;
 /// Speed at which camera recovers (lerps back out) after collision clears.
 pub(super) const COLLISION_RECOVERY_SPEED: f32 = 5.0;
-const PITCH_LIMIT: f32 = 88.0_f32 * std::f32::consts::PI / 180.0;
+const PITCH_LIMIT: f32 =
+    game_engine::camera_control::PITCH_LIMIT_DEGREES * std::f32::consts::PI / 180.0;
 const LANDING_EPSILON: f32 = 0.05;
 const SWIM_DEPTH_THRESHOLD: f32 = 1.25;
 

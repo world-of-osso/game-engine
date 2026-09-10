@@ -1,5 +1,7 @@
 //! Bevy plugin that integrates the IPC server with the render pipeline.
 
+#[path = "plugin/camera_direction.rs"]
+mod camera_direction;
 #[path = "plugin/combat.rs"]
 mod plugin_combat;
 #[path = "plugin/scene.rs"]
@@ -314,6 +316,14 @@ struct IpcSenderParams<'w, 's> {
     group_uninvite_senders: MessageSenders<'w, 's, GroupUninviteIntent>,
     equipment_control: ResMut<'w, EquipmentControlQueue>,
     scripted_movement: ResMut<'w, ScriptedMovement>,
+    cameras: Query<
+        'w,
+        's,
+        (
+            &'static Camera,
+            &'static mut game_engine::camera_control::WowCamera,
+        ),
+    >,
     game_state: Res<'w, State<crate::game_state_enum::GameState>>,
     connected_query: Query<'w, 's, Entity, With<Connected>>,
 }
@@ -632,6 +642,22 @@ fn dispatch_map_and_equipment_request(
     sender_params: &mut IpcSenderParams,
 ) {
     match cmd.request {
+        Request::SetCameraDirection {
+            yaw_degrees,
+            pitch_degrees,
+        } => {
+            let result = camera_direction::set_camera_direction(
+                *sender_params.game_state.get() == crate::game_state_enum::GameState::InWorld,
+                &mut sender_params.cameras,
+                yaw_degrees,
+                pitch_degrees,
+            );
+            let response = match result {
+                Ok(text) => Response::Text(text),
+                Err(error) => Response::Error(error),
+            };
+            let _ = cmd.respond.send(response);
+        }
         Request::MapPosition => respond_with_map_position(cmd, ctx.map_status),
         Request::MapTarget => respond_with_map_target(cmd, ctx, tree_query),
         Request::MapWaypointAdd { x, y } => handle_waypoint_add(cmd, ctx.map_status, x, y),
