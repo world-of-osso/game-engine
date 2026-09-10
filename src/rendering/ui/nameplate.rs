@@ -254,6 +254,7 @@ fn project_nameplates(
     let enabled = inworld_scene_stage_allows_ui(options.stage, options.disabled)
         && options
             .toggles
+            .as_ref()
             .is_none_or(|toggles| toggles.show_nameplates);
     let fade_far = options
         .hud
@@ -315,7 +316,7 @@ fn project_owner(
     let bar = children
         .into_iter()
         .flatten()
-        .filter_map(|child| scene.bars.get(child).ok())
+        .filter_map(|child| scene.bars.get(*child).ok())
         .find(|(_, visibility)| show_health_bars && **visibility != Visibility::Hidden);
     let (viewport, text_anchor) = match bar {
         Some((global, _)) => (
