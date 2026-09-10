@@ -1,4 +1,5 @@
 use super::*;
+use crate::animation::M2AnimData;
 use bevy_replicon::shared::replicon_tick::RepliconTick;
 use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
 
