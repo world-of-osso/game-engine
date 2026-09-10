@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-10] ui | Borrow unchanged main text during reconciliation
+
+Updated [[ui-system]] for ui-toolkit `66e6d35`: crate-local text properties borrow fontstring, button, and plain EditBox source strings; password masks remain owned with their byte-length asterisk semantics. `Text2d` takes ownership only for spawn or actual content repair. Five cases characterize Unicode, password transitions, external repair, and settled writes before the refactor; source behavior remains pending final artifact audit. No allocation benchmark, CPU, or native claim.
+
 ## [2026-09-10] ui | Face world health bars and align overlay names
 
 Updated [[ui-system]], [[character-rendering]], and [[npc-motion-validation]] for `b7efbad5`, `5e5b2574`, `045d82d9`, and test-only GPU proof `4475ce04`. Health bars retain their world-mesh depth path while their +Z normal faces the camera under transformed parents; overlay names sit 4 logical pixels above projected bar edges and return to their centered name-only anchor when bars disappear. Twenty-four focused UI tests, a live HumanHD sword/shield regression, and one Health-before-Npc GPU test pass. Independent dev-bin check and scoped formatting pass; whole-tree formatting retains 104 unchanged vendor differences. A one-time approved 59.173-second native run captured names, compact spacing, camera-facing bars, and corrected equipment placement; actor yaw, not camera angle, changed between capture filenames.
@@ -7,7 +11,7 @@ Updated [[ui-system]], [[character-rendering]], and [[npc-motion-validation]] fo
 
 ## [2026-09-10] ui | Borrow shadow text before owned rendering
 
-Updated [[ui-system]] for ui-toolkit `6802940`: private shadow properties borrow source text during reconciliation and allocate only for spawn or changed `Text2d` ownership. Content, alpha, font, geometry, traversal, and prior component-write behavior remain unchanged. Existing three-case shadow proof is characterization; final verifier and shared engine build remain pending. No allocation benchmark, CPU, or native claim.
+Updated [[ui-system]] for ui-toolkit `6802940`: private shadow properties borrow source text during reconciliation and allocate only for spawn or changed `Text2d` ownership. Content, alpha, font, geometry, traversal, and prior component-write behavior remain unchanged. The same three cases pass before and after; toolkit checks and shared engine dev-build integration pass with recorded provenance limits. No allocation benchmark, CPU, or native claim.
 
 ## [2026-09-10] ui | Verify primary-window UI integration boundary
 
