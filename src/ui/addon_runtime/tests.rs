@@ -524,7 +524,8 @@ fn js_layout_target_changes_native_parent_without_changing_logical_ownership() {
     }
     let mut addon = script_addon(
         r#"
-        addon.createFrame("ScreenSibling");
+        addon.createFrame("ScreenSibling", "ParentRoot");
+        addon.setAnchor("ScreenSibling", "screen");
         addon.setSize("ScreenSibling", 40, 20);
         addon.createFrame("TargetPanel", "ParentRoot");
         addon.setSize("TargetPanel", 60, 30);
