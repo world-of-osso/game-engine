@@ -1,18 +1,8 @@
 use bevy::log::warn;
-use ui_toolkit::anchor::Anchor;
 use ui_toolkit::frame::{Dimension, WidgetData, WidgetType};
 use ui_toolkit::widgets::font_string::FontStringData;
 
 use super::{AddonOperation, LoadedAddon};
-
-struct AnchorUpdate<'a> {
-    name: &'a str,
-    point: ui_toolkit::anchor::AnchorPoint,
-    relative_to: Option<&'a str>,
-    relative_point: ui_toolkit::anchor::AnchorPoint,
-    x: f32,
-    y: f32,
-}
 
 pub(super) fn remove_owned_frames(
     registry: &mut ui_toolkit::registry::FrameRegistry,
@@ -87,26 +77,25 @@ fn apply_layout_operation(
             resize_owned_frame(addon, registry, name, *width, *height);
             true
         }
-        AddonOperation::SetPoint {
+        AddonOperation::SetPos { name, x, y } => {
+            update_owned_layout(addon, registry, name, "setPos", |registry, id| {
+                registry.set_pos(id, *x, *y)
+            });
+            true
+        }
+        AddonOperation::SetPosType {
             name,
-            point,
-            relative_to,
-            relative_point,
-            x,
-            y,
+            position_type,
         } => {
-            anchor_owned_frame(
-                addon,
-                registry,
-                AnchorUpdate {
-                    name,
-                    point: *point,
-                    relative_to: relative_to.as_deref(),
-                    relative_point: *relative_point,
-                    x: *x,
-                    y: *y,
-                },
-            );
+            update_owned_layout(addon, registry, name, "setPosType", |registry, id| {
+                registry.set_pos_type(id, *position_type)
+            });
+            true
+        }
+        AddonOperation::SetAnchor { name, target } => {
+            update_owned_layout(addon, registry, name, "setAnchor", |registry, id| {
+                registry.set_anchor(id, *target)
+            });
             true
         }
         _ => false,
@@ -132,7 +121,9 @@ fn apply_visual_operation(
         AddonOperation::CreateFrame { .. }
         | AddonOperation::CreateFontString { .. }
         | AddonOperation::SetSize { .. }
-        | AddonOperation::SetPoint { .. } => {}
+        | AddonOperation::SetPos { .. }
+        | AddonOperation::SetPosType { .. }
+        | AddonOperation::SetAnchor { .. } => {}
     }
 }
 
@@ -167,27 +158,22 @@ fn resize_owned_frame(
     }
 }
 
-fn anchor_owned_frame(
+fn update_owned_layout(
     addon: &LoadedAddon,
     registry: &mut ui_toolkit::registry::FrameRegistry,
-    update: AnchorUpdate<'_>,
+    name: &str,
+    operation: &str,
+    update: impl FnOnce(&mut ui_toolkit::registry::FrameRegistry, u64) -> Result<(), &'static str>,
 ) {
-    let Some(frame_id) = owned_frame_id(addon, registry, update.name) else {
+    let Some(frame_id) = owned_frame_id(addon, registry, name) else {
         return;
     };
-    let relative_to = update
-        .relative_to
-        .and_then(|frame_name| registry.get_by_name(frame_name));
-    let _ = registry.set_point(
-        frame_id,
-        Anchor {
-            point: update.point,
-            relative_to,
-            relative_point: update.relative_point,
-            x_offset: update.x,
-            y_offset: update.y,
-        },
-    );
+    if let Err(error) = update(registry, frame_id) {
+        warn!(
+            "addon '{}' {operation} failed for frame '{name}': {error}",
+            addon.name
+        );
+    }
 }
 
 fn update_owned_text(

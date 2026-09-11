@@ -524,6 +524,8 @@ fn js_layout_target_changes_native_parent_without_changing_logical_ownership() {
     }
     let mut addon = script_addon(
         r#"
+        addon.createFrame("ScreenSibling");
+        addon.setSize("ScreenSibling", 40, 20);
         addon.createFrame("TargetPanel", "ParentRoot");
         addon.setSize("TargetPanel", 60, 30);
         addon.setPosType("TargetPanel", "absolute");
@@ -559,6 +561,24 @@ fn js_layout_target_changes_native_parent_without_changing_logical_ownership() {
     assert_eq!(frame.position_type, PositionType::Absolute);
     assert_eq!(frame.anchor, AnchorTarget::Screen);
 
+    addon.operations =
+        js::run_js_addon_to_operations("addon.setPosType('TargetPanel', 'relative');").unwrap();
+    project_addon(&mut app, &addon);
+    assert_native_rect(app.world(), entity, [55.0, 25.0, 60.0, 30.0]);
+    assert_eq!(
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .get(id)
+            .unwrap()
+            .parent_id,
+        Some(root)
+    );
+    addon.operations =
+        js::run_js_addon_to_operations("addon.setPosType('TargetPanel', 'absolute');").unwrap();
+    project_addon(&mut app, &addon);
+    assert_native_rect(app.world(), entity, [15.0, 25.0, 60.0, 30.0]);
+
     addon.operations = js::run_js_addon_to_operations("addon.setAnchor('TargetPanel');").unwrap();
     project_addon(&mut app, &addon);
     assert_eq!(projected_frame(app.world_mut(), id), entity);
@@ -567,6 +587,9 @@ fn js_layout_target_changes_native_parent_without_changing_logical_ownership() {
         app.world().get::<ChildOf>(entity).unwrap().parent(),
         root_entity
     );
+    addon.operations =
+        js::run_js_addon_to_operations("addon.setAnchor('TargetPanel', 'screen');").unwrap();
+    project_addon(&mut app, &addon);
     apply::remove_owned_frames(
         &mut app.world_mut().resource_mut::<UiState>().registry,
         &addon.owned_frames,
