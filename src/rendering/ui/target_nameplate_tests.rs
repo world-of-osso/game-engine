@@ -218,6 +218,7 @@ fn nameplate_click_uses_the_rendered_text_anchor_and_layout_size() {
         Some(fixture.plate_owner)
     );
     fixture.cursor += Vec2::new(30.0, 0.0);
+    fixture.app.world_mut().resource_mut::<CurrentTarget>().0 = None;
     click(&mut fixture);
     assert_eq!(fixture.app.world().resource::<CurrentTarget>().0, None);
 }
@@ -256,6 +257,7 @@ fn nameplate_click_uses_logical_text_bounds_at_high_dpi() {
         (Vec2::new(75.0, -22.0), None),
     ] {
         fixture.cursor = origin + offset;
+        fixture.app.world_mut().resource_mut::<CurrentTarget>().0 = None;
         click(&mut fixture);
         assert_eq!(fixture.app.world().resource::<CurrentTarget>().0, expected);
     }

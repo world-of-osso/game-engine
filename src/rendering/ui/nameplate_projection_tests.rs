@@ -48,7 +48,6 @@ fn assert_plate_visibility(app: &App, visuals: &[Entity], shown: bool) {
 #[test]
 fn nameplate_late_local_identity_hides_all_parts_and_removal_restores_remote_plate() {
     let (mut app, _) = app_with_cameras(1.0);
-    app.add_plugins(crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin);
     let (owner, visuals) = spawn_casting_player(&mut app, "Local");
     let (_, remote_visuals) = spawn_casting_player(&mut app, "Remote");
     assert_plate_visibility(&app, &visuals, true);
@@ -69,7 +68,6 @@ fn nameplate_late_local_identity_hides_all_parts_and_removal_restores_remote_pla
 #[test]
 fn nameplate_parts_share_body_distance_boundary_and_non_compounding_fade() {
     let (mut app, camera) = app_with_cameras(1.0);
-    app.add_plugins(crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin);
     let (owner, visuals) = spawn_casting_player(&mut app, "Remote");
     // Nonuniform owner scale makes body anchor differ from the name-only anchor.
     app.world_mut().get_mut::<Transform>(owner).unwrap().scale.y = 2.0;
@@ -157,7 +155,11 @@ pub(super) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     });
     app.init_resource::<GraphicsOptions>();
     app.init_resource::<PlateChanges>();
-    app.add_plugins((NameplatePlugin, crate::health_bar::HealthBarPlugin));
+    app.add_plugins((
+        NameplatePlugin,
+        crate::health_bar::HealthBarPlugin,
+        crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin,
+    ));
     let fixture = app
         .world_mut()
         .resource_scope(|world, mut images: Mut<Assets<Image>>| {

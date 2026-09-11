@@ -28,6 +28,9 @@ fn preview_casts_pause_resume_and_loop_without_losing_entities() {
     assert_eq!(app.world().get::<CastState>(unit).unwrap().elapsed, elapsed);
     app.world_mut()
         .resource_mut::<ButtonInput<KeyCode>>()
+        .release(KeyCode::Space);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
         .clear();
     app.update();
     assert_eq!(app.world().get::<CastState>(unit).unwrap().elapsed, elapsed);
