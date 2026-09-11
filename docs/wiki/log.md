@@ -1,13 +1,5 @@
 # Wiki Log
 
-## [2026-09-11] ui | Verify native RSX loading migration
-
-At engine `4875c9d9`, 21 focused loading cases pass for readiness, layout, presentation mutation, startup camera correction, teardown, and debug-layout parsing. Scoped formatting, readability, dev check, and renderer build pass. Native and baseline captures retain the cathedral artwork, bar layout, and legacy status-behind-shell occlusion; sampled progress differs by one point because capture timings differ. Renderer SHA-256: `770b91d51fecfa8a0d1915af46477e916f6cd1c35598f84724856f2dac559e8f`. See [[ui-system]] and [loading contract](../specs/loading-bevy-ui.md).
-
-## [2026-09-11] ui | Replace loading renderer with native RSX
-
-At `7a4b8eb3`, `5f978988`, and `a5f17dfa`, the loading lifecycle now creates a native Bevy view authored through `rsx! { @native(...) }`. It retains existing readiness/progress authority, fixed artwork, names, debug layout overrides, and camera ordering while removing the loading `Screen`/`SharedContext`/`FrameRegistry` renderer. Baseline CPU and rendered artifacts are retained; native verification remains pending. See [[ui-system]] and [loading contract](../specs/loading-bevy-ui.md).
-
 ## [2026-09-10] rendering | Verify visible cloud opacity
 
 `a55e0f5b` centers cloud opacity around the unchanged density threshold instead of stretching the blend to an unreachable texture extreme. Generated-texture GPU coverage now includes visible clouds and clear patches at density0.5; clear/full extremes and recalibrated seam test pass. Standalone screenshot confirms soft cloud contrast without changing exposure or sky colors. Independent check passes; unchanged vendor formatting failures remain. See [[procedural-sky-dome-visibility]] and local `data/diagnostics/cloud-visibility/verification.md`.
@@ -43,34 +35,6 @@ At `83cf11ec`, the dedicated `--screen skyboxdebug --light-skybox-id 0` capture 
 ## [2026-09-10] rendering | Add live in-world camera direction control
 
 `f1e377e3`/`fa7d5bee`/`4e1de84d` add `game-engine-cli camera set --pitch-degrees 60` with optional `--yaw-degrees`: values are degrees, pitch bounds are −88° through +88°, omitted axes persist, and the command requires InWorld with exactly one active `WowCamera`. At `4e1de84d`, the dev-built live client accepted four requested directions and visibly changed view; a mixed valid yaw plus `NaN` pitch was rejected. Two library IPC tests, four binary camera behavior tests, and three CLI tests pass. Player-facing/input/collision live behavior remains open. It does not fix authored skybox rendering: the user-positioned upward capture remains uniform dark navy; see [[authored-skybox-black-output]].
-
-## [2026-09-10] ui | Verify local native login authentication
-
-At engine `337e8a15`, `runtime/live-auth/prefilled/` verifies the local dev-login path using the native `ConnectButton` and isolated `admin/admin` prefill: credential request, Login success with two characters, CharSelect readiness, UI-tree dump, and `AppExit::Success`. The enclosing nine-second timeout exits `-9` during shutdown, so this is not clean-exit proof. An earlier `alice` attempt timed out before submission and remains non-passing evidence. This verifies only the tested local authentication path; physical input and exact baseline-pixel parity remain open.
-
-## [2026-09-10] ui | Verify rendered standalone native login
-
-At `bf4e259f`, `runtime/settled-retry/view-12.webp` and `view-30.webp` show the rendered standalone login after 12 and 30 seconds; the isolated client ran 31.470 seconds and was terminated. `runtime/stretch/view.webp` shows the toolkit game-menu overlay. `runtime/stretch/tree.stdout` contains typed `adminvisual-proof` and 23 password asterisks; the raw dummy password is absent. Exact baseline-pixel parity, physical input, and real authentication remain open. Details: [[login-native-image-stretch]].
-
-## [2026-09-10] ui | Stretch native login artwork to node bounds
-
-Engine `bf4e259f` sets `NodeImageMode::Stretch` in the native image helper after `runtime/tint-login/view.webp` showed detached pieces from Bevy's default aspect fit. The existing 62 focused cases remain, but no enum-shape test was added for this rendering correction. Details: [[login-native-image-stretch]].
-
-## [2026-09-10] ui | Fix native login tinting of transparent nodes
-
-Engine `f3ae396c` stops native login presentation sync from tinting `ImageNode` and `Text` entities through `BackgroundColor`; their transparent `Node` backgrounds had become opaque blocks. The new real-component regression failed before the correction, then all seven presentation cases passed. With the three verified startup-camera cases, focused proof totals 62 distinct cases. `runtime/menu-final/menu.webp` is pre-fix evidence only; corrected rendered login/menu appearance, physical input and authentication remain open. Details: [[login-native-tint]].
-
-## [2026-09-10] ui | Record initial login camera startup collision
-
-At `65fd860b`, 58 revision-scoped focused tests and `cargo check --features dev --bin game-engine` pass; `cargo fmt --check` reports 104 unchanged vendor paths. An isolated 8-second login process exposed two order-1 cameras and IPC capture wrote no WebP before timeout. `675f1a7d` adds PostStartup toolkit-camera alignment because initial Login transition precedes toolkit Startup; its regression remains unexecuted. Details: [[login-camera-startup-order]]. Rendered/menu/authentication proof remains open.
-
-## [2026-09-10] ui | Record native login focused proof and remaining gates
-
-At engine `ae941bac`, revision-scoped compiler-emitted binaries passed 57 distinct focused cases: 35 bin login, 16 library automation/native/IPC, and 6 presentation. Evidence, exact commands, executable identities and retained failed attempts: `data/diagnostics/login-bevy-ui/verification/focused-report.md`. `8e11fd51` adds one setup asset-failure preservation test but it is unexecuted. Successful setup, rendered layout/menu compositing, runtime authentication, final formatting/checks and rollout remain open in [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md).
-
-## [2026-09-10] ui | Record native Bevy login integration pending proof
-
-Updated [[ui-system]] and the [login Bevy UI contract](../specs/login-bevy-ui.md) for engine commits `a112398f`, `968e6a6e`, `a044bc99`, and `a07de528`. Login now has a native ECS form/view path, a camera-order coexistence boundary with the legacy game menu, and marked native semantic controls in waits and UI-tree diagnostics; all other screens remain toolkit-backed. The hidden realm action remains automatable. This checkpoint has no integration compile/test, rendered comparison, runtime authentication, or deployment proof.
 
 ## [2026-09-10] ui | Share plugin frame ordering with standalone compatibility
 

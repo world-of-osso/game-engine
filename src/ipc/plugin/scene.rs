@@ -47,11 +47,7 @@ fn reply_scene_tree_dump(cmd: &Command, scene: &SceneParams, filter: Option<&str
 }
 
 fn reply_scene_ui_tree_dump(cmd: &Command, scene: &SceneParams, filter: Option<&str>) {
-    let tree = crate::dump::build_ui_tree_with_native(
-        &scene.ui_state.registry,
-        &scene.native_ui_query,
-        filter,
-    );
+    let tree = crate::dump::build_ui_tree(&scene.ui_state.registry, filter);
     let _ = cmd.respond.send(Response::Tree(tree));
 }
 
@@ -111,63 +107,5 @@ fn encode_screenshot(img: &bevy::image::Image) -> Response {
     match crate::screenshot::encode_webp(img, crate::screenshot::DEFAULT_WEBP_QUALITY) {
         Ok(webp_data) => Response::Screenshot(webp_data),
         Err(err) => Response::Error(err),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ui::native::NativeUiElement;
-    use crate::ui::plugin::UiState;
-    use bevy::ecs::system::SystemState;
-
-    fn request_ui_dump(world: &mut World, filter: Option<&str>) -> String {
-        let (respond, receive) = std::sync::mpsc::channel();
-        let command = Command {
-            request: Request::DumpUiTree {
-                filter: filter.map(str::to_owned),
-            },
-            respond,
-        };
-        let mut state: SystemState<SceneParams> = SystemState::new(world);
-        assert!(dispatch_scene_request(
-            &command,
-            &mut state.get_mut(world).expect("scene query parameters"),
-        ));
-        match receive.try_recv().expect("dump request returns a response") {
-            Response::Tree(tree) => tree,
-            response => panic!("expected UI tree, received {response:?}"),
-        }
-    }
-
-    #[test]
-    fn native_ui_dump_request_includes_live_entities_and_preserves_legacy_filter() {
-        let mut world = World::new();
-        world.init_resource::<Assets<Mesh>>();
-        world.init_resource::<bevy::diagnostic::DiagnosticsStore>();
-        let mut registry = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
-        registry.create_frame("LegacyMenu", None);
-        let legacy = crate::dump::build_ui_tree(&registry, Some("legacymenu"));
-        world.insert_resource(UiState {
-            registry,
-            event_bus: crate::ui::event::EventBus::new(),
-            focused_frame: None,
-        });
-        let root = world
-            .spawn((NativeUiElement, Name::new("NativeLogin")))
-            .id();
-        world.spawn((
-            NativeUiElement,
-            Name::new("Status"),
-            Text::new("Ready"),
-            ChildOf(root),
-        ));
-
-        let tree = request_ui_dump(&mut world, None);
-        assert!(tree.starts_with(&legacy));
-        assert!(tree.contains("NativeLogin [Native]\n  Status [Native]"));
-        assert!(tree.contains("text=\"Ready\""));
-        assert_eq!(request_ui_dump(&mut world, Some("legacymenu")), legacy);
-        assert!(!request_ui_dump(&mut world, Some("nativelogin")).contains("LegacyMenu"));
     }
 }
