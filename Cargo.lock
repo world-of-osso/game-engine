@@ -3970,7 +3970,6 @@ dependencies = [
  "libc",
  "lightyear",
  "notify",
- "parley",
  "peercred-ipc",
  "quick-js",
  "raw-window-handle",

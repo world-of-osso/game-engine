@@ -132,21 +132,6 @@ pub fn build_ui_tree(registry: &FrameRegistry, filter: Option<&str>) -> String {
     lines.join("\n")
 }
 
-/// Append native semantic entities without changing legacy formatting or filtering.
-pub fn build_ui_tree_with_native(
-    registry: &FrameRegistry,
-    native_nodes: &Query<crate::ui::native::NativeUiQueryData<'_>>,
-    filter: Option<&str>,
-) -> String {
-    let mut tree = build_ui_tree(registry, filter);
-    let native = crate::ui::native::build_native_ui_tree(native_nodes, filter);
-    if !tree.is_empty() && !native.is_empty() {
-        tree.push('\n');
-    }
-    tree.push_str(&native);
-    tree
-}
-
 fn emit_ui_frame(
     frame: &Frame,
     depth: usize,
