@@ -25,7 +25,7 @@ Authored M2 skyboxes are backgrounds, regardless of their mesh size or position 
 
 ## Known gaps (current cycle)
 
-- [ ] Complete final native acceptance audit. GPU regression is GREEN; gray terrain coverage is explained in the linked wiki.
+No open depth-ordering gap. GPU and native acceptance passed. Gray fogged terrain is explained in the linked wiki; its appearance is outside this correction.
 
 ## Out of scope
 
