@@ -20,7 +20,10 @@ Native desktop investigation, 2026-09-11:
 
 - MSVC failed compiling bundled `libquickjs-sys 0.9.0` C sources (including `JSValue` casts). Do not select MSVC with the current QuickJS dependency.
 - The isolated QuickJS dependency compiled successfully with the GNU target in 36.08 seconds on the desktop's existing GNU toolchain.
-- Full native GNU engine build and launch remain unverified until the current build completes.
+- Native GNU development build passed; actual engine `--help` launch passed through the PowerShell script. Bevy DLL loading is exercised by that launch.
+- Setting `GAME_ENGINE_MAX_MEM_GB=1` produced the expected explicit rejection and exit code 2.
+- Interactive GUI/game-world behavior remains unverified. A bounded SSH empty-window probe stayed alive but exposed no main window handle; its owned process was stopped.
+- The no-IPC build reports 107 library warnings, one engine-binary unused import, and a shared-protocol unused import. These were not suppressed.
 
 `build.rs` supplies QuickJS's omitted GNU `winpthread` link dependency after native archives. Remove this directive when the QuickJS dependency itself declares and correctly orders that runtime link.
 
