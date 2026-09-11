@@ -1,6 +1,6 @@
 # UI System
 
-Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` drives generation-based updates and the frame registry stores named elements. The login screen is the first native Bevy UI screen; it uses ECS entities while other screens retain the toolkit frame model (anchors, strata, draw layers).
+The UI system is built on Dioxus with a custom Bevy renderer. Screens are declared with the `rsx!` macro, data flows through `SharedContext` with generation-based dirty tracking, and the frame registry stores all named UI elements. The design mirrors WoW's frame model (anchors, strata, draw layers) in pure Rust.
 
 ## Core Primitives
 
@@ -98,21 +98,9 @@ Toolkit `02a3049` prepares one ordered ID list/index map for the six plugin cons
 
 `14f4a691` compares the complete character-creation view model before inserting it into `SharedContext`, including focus, labels, and swatches. `screen.sync()` remains unconditional for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests cover settled and changed output; CPU savings are unmeasured.
 
-## Native Bevy login
+## Login shared-state updates
 
-Engine commits `a112398f`, `968e6a6e`, `a044bc99`, and `a07de528` replace the live login's toolkit frames with a native Bevy entity tree. `LoginForm` is the single credential authority for physical input, automation and authentication; password presentation remains asterisk-per-UTF-8-byte while the raw field value reaches authentication. The form preserves filtering, limits, editing, focus, clipboard, and prefill behavior in the native lifecycle.
-
-The native login camera renders at order 1. During Login, the existing toolkit camera is raised to order 2 and its original order is recorded/restored on exit, keeping the legacy game menu above native login. Initial state transition precedes toolkit `Startup`, so `675f1a7d` additionally performs this alignment in `PostStartup` after the toolkit camera exists; three startup-order/teardown regressions pass. `f3ae396c` fixes native tint synchronization: image, text and background tint channels are exclusive, preserving a `Node`'s transparent default background. `bf4e259f` sets `NodeImageMode::Stretch` in the shared native-image helper after the local Bevy default aspect fit produced detached pieces in `runtime/tint-login/view.webp`; no enum-shape test was added. `runtime/stretch/view.webp` shows native stretched art with the toolkit game-menu overlay, while `runtime/stretch/tree.stdout` shows `adminvisual-proof` and 23 password asterisks without raw dummy-password disclosure. At `bf4e259f`, `runtime/settled-retry/view-12.webp` and `view-30.webp` show the rendered standalone login after 12 and 30 seconds. This does not establish exact baseline-pixel parity. See [[login-camera-startup-order]], [[login-native-tint]] and [[login-native-image-stretch]]. The native root explicitly targets its camera; the camera has no world render layers. Other screens and the global toolkit camera retain their existing backend and configuration after cleanup.
-
-`NativeUiElement` marks semantic native entities. Automation frame waits resolve both frame-registry names and marked native names; UI-tree dump paths include marked native hierarchy, visible displayed text and computed bounds without exposing the raw password. Hidden `RealmButton` remains hidden visually but preserves its existing semantic automation action.
-
-The focused native field has a clipped blinking caret. `f70a6f87`/`0fd27d15` use Parley 0.9, already used beneath Bevy text, to read shaped cursor geometry instead of estimating glyph widths. Five shaped tests at `f15986c5` cover UTF-8 and byte-masked password positions, blink reset, focus and modal hiding. `97c463ec` runs the caret through the complete 1×/2× Bevy UI pipeline and proves geometry plus inherited clipping. `data/diagnostics/login-bevy-ui/runtime/caret/password-crop-0.png` and `password-crop-1.png` capture the same production password field with the caret off and on.
-
-The migration has 72 distinct revision-scoped focused cases: 64 behavior/presentation/setup cases, six caret cases, and two real UiPlugin/TextPlugin computed-layout cases at 1280×720 and 1600×900. Those layout cases cover field/button/status order and centering, action placement, hidden controls, footer/background/logo, and camera restoration. The user manually confirmed physical typing, Tab, Menu, and Quit because no installed Wayland tool can safely inject input into one window. `runtime/live-auth/prefilled/` proves native ConnectButton submission through the tested local dev credential path to CharSelect with two returned characters; timeout interrupted shutdown after AppExit::Success, so clean exit is not claimed. Rendered standalone and menu-overlay captures establish the migration appearance, but no before/after pixel baseline exists.
-
-Development used isolated dependency worktrees; canonical Cargo paths were restored before the requested master merge. `f7d84588` removes the superseded unregistered toolkit-login fixtures after their observable coverage moved to native tests.
-
-The prior toolkit-only login shared-state optimization `70f14c2a` remains historical; its former `Screen`/`SharedContext` login path was removed with this migration.
+`70f14c2a` checks the four login shared values before reinserting them, so unchanged status, connection, realm text, and realm-selectability do not advance dependency generations. `screen.sync()` remains every update for fresh/replaced screens and normal layout updates; hot-reload polling is now separate. Three focused tests and a development compiler check pass; CPU savings are unmeasured.
 
 ## Action-bar flash updates
 
@@ -157,7 +145,7 @@ LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- \
   --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js
 ```
 
-Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForState(name, secs)`, `ui.waitForFrame(name, secs)`, `ui.dumpTree()`, `ui.dumpUiTree()`, `env.NAME`. `waitForFrame` and `dumpUiTree` resolve legacy frame-registry controls plus marked native controls; dumps show displayed masked password text, not credential values.
+Available API: `ui.click(name)`, `ui.type(text)`, `ui.key(name)`, `ui.waitForState(name, secs)`, `ui.waitForFrame(name, secs)`, `ui.dumpTree()`, `ui.dumpUiTree()`, `env.NAME`.
 
 ## Runtime scheduling
 
@@ -201,16 +189,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 - `../../data/diagnostics/npc-motion-20260909/target-camera-final.txt` — focused world-camera selection proof
 - [ui-addon-architecture.md](../../ui-addon-architecture.md) — widget types, layout system, addon WASM design, wow-ui-sim parity
-- [login-ui-porting.md](../../login-ui-porting.md) — legacy nine-slice editboxes, anchor layout, y-offset convention
-- [login Bevy UI spec](../../specs/login-bevy-ui.md) — native-login contract and open proof gaps
-- `../../data/diagnostics/login-bevy-ui/verification/focused-report.md` — initial revision-scoped 57-case focused proof and retained limitations
-- `../../data/diagnostics/login-bevy-ui/tint-fix/proof-ledger.md` — RED/GREEN native tint-channel proof
-- [[login-camera-startup-order]] — initial startup ordering failure, correction and failed bounded capture
-- [[login-native-tint]] — opaque-background symptom, tint-channel root cause and unrendered correction
-- [[login-native-image-stretch]] — Bevy default aspect-fit detached native image pieces; stretch correction awaits rendered proof
-- [native login lifecycle](../../../src/scenes/login/native.rs) — native form, input, action and camera coexistence
-- [native login view](../../../src/scenes/login/native_view.rs) — native entity hierarchy and artwork synchronization
-- [native semantic UI](../../../src/ui/native.rs) — marker and diagnostic tree formatting
+- [login-ui-porting.md](../../login-ui-porting.md) — nine-slice editboxes, anchor layout, y-offset convention
 - [hotreload-frame-stability.md](../../hotreload-frame-stability.md) — template key bug, fix approach
 - [ui-automation-debugging.md](../../ui-automation-debugging.md) — JS automation API, debug scripts
 - [editbox-focus-texture-swap-2026-04-06.md](../../editbox-focus-texture-swap-2026-04-06.md) — focus visual problem, core nine-slice gap issue
@@ -232,7 +211,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 ## See Also
 
 - [[ui-frame-order]] — implemented shared plugin preparation, unchanged standalone setup, named scheduling sets and verification boundaries
-- [login Bevy UI spec](../../specs/login-bevy-ui.md) — native-login contract and open proof gaps
+
 - [[networking]] — login auth flow feeds into UI state transitions
 - [[rendering-pipeline]] — UI renders on top of 3D scene
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending

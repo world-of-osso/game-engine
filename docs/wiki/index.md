@@ -11,7 +11,7 @@ Engine subsystems and how they work.
 - [animation](systems/animation.md) — Bevy-backed M2 bone playback, raw-TRS pivot semantics, crossfade rules, landing completion, HD skeleton loading, replicated NPC authored-idle orientation and distance/visibility sampling LOD
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
-- [ui-system](systems/ui-system.md) — toolkit rsx!/Screen/SharedContext screens plus native Bevy login entities, semantic automation/dumps, anchor layout, conditional visibility/alpha and quad invalidation, nameplates, in-world stage gates, unit frames, keybindings, World Builder sidebar; native-login proof remains open
+- [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, anchor layout, conditional visibility/alpha and quad invalidation, nine-slice, widgets, world-camera NPC selection independent of `--no-ui` health-bar suppression, zoom-invariant world nameplate bars, in-world stage gates, toolkit processing boundary, empty-stage relaunch proof, unit frames, JS automation, keybindings, World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, tile ordering, object placement rotation, doodad collision
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution, TACT keys
@@ -66,9 +66,6 @@ Root cause analyses and debug findings.
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
-- [login-camera-startup-order](investigations/login-camera-startup-order.md) — initial Login transition precedes toolkit camera startup; PostStartup correction is fixture-tested and bounded capture remains open
-- [login-native-tint](investigations/login-native-tint.md) — opaque native login blocks came from tinting transparent node backgrounds; RED/GREEN fixture proof, corrected render still open
-- [login-native-image-stretch](investigations/login-native-image-stretch.md) — Bevy default aspect fit detached native login pieces; stretch correction awaits rendered proof
 
 ## Reference
 
