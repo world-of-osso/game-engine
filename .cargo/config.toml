@@ -9,6 +9,3 @@ rustflags = ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=
 [alias]
 bd = "build --features dev"
 rd = "run --features dev"
-# Bundled QuickJS requires GNU on Windows; Unix socket IPC stays disabled.
-bw = "!powershell -NoProfile -File scripts/windows-dev.ps1 build"
-rw = "!powershell -NoProfile -File scripts/windows-dev.ps1 run"
