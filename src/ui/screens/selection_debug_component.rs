@@ -562,6 +562,7 @@ fn selection_debug_header() -> Element {
             TITLE_LABEL,
             420.0,
             "Selection Debug",
+            -18.0,
         )}
         {helper_text()}
     }

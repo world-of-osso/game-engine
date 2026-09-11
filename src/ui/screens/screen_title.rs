@@ -5,7 +5,13 @@ use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 
 /// A title attached to the top of its enclosing RSX parent.
-pub fn framed_title(frame: FrameName, label: FrameName, width: f32, text: &str) -> Element {
+pub fn framed_title(
+    frame: FrameName,
+    label: FrameName,
+    width: f32,
+    text: &str,
+    top: f32,
+) -> Element {
     rsx! {
         panel {
             name: frame,
@@ -15,7 +21,7 @@ pub fn framed_title(frame: FrameName, label: FrameName, width: f32, text: &str) 
             frame_level: 10.0,
             pos_type: "absolute",
             left: "50%",
-            top: -18.0,
+            top: {top},
             translate_x: "-50%",
             fontstring {
                 name: label,

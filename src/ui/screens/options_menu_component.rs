@@ -262,7 +262,13 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
 }
 
 fn title() -> Element {
-    framed_title(OPTIONS_TITLE_FRAME, OPTIONS_TITLE_LABEL, 300.0, "Game Menu")
+    framed_title(
+        OPTIONS_TITLE_FRAME,
+        OPTIONS_TITLE_LABEL,
+        300.0,
+        "Game Menu",
+        -18.0,
+    )
 }
 
 fn build_tabs(model: &OptionsViewModel) -> Element {
