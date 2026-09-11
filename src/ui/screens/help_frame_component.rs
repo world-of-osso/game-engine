@@ -564,15 +564,12 @@ mod tests {
 
     // --- Additional coord validation ---
 
-    fn article_layout_registry() -> FrameRegistry {
-        let mut reg = article_registry();
-        compute_layout(&mut reg);
-        reg
-    }
-
     #[test]
     fn coord_article_list_position() {
-        let reg = article_layout_registry();
+        let mut reg = article_registry();
+        let panel = reg.get_by_name("HelpArticleList").unwrap();
+        reg.set_hidden(panel, false);
+        compute_layout(&mut reg);
         let frame_x = (1920.0 - FRAME_W) / 2.0;
         let frame_y = (1080.0 - FRAME_H) / 2.0;
         let r = rect(&reg, "HelpArticleList");
@@ -588,7 +585,10 @@ mod tests {
 
     #[test]
     fn coord_ticket_submit_button() {
-        let reg = article_layout_registry();
+        let mut reg = article_registry();
+        let panel = reg.get_by_name("HelpTicketForm").unwrap();
+        reg.set_hidden(panel, false);
+        compute_layout(&mut reg);
         let r = rect(&reg, "HelpTicketSubmitButton");
         assert!((r.width - TICKET_BTN_W).abs() < 1.0);
         assert!((r.height - TICKET_BTN_H).abs() < 1.0);

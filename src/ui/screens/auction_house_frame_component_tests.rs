@@ -378,7 +378,10 @@ fn coord_browse_results_panel() {
 
 #[test]
 fn coord_sell_item_slot() {
-    let reg = layout_registry();
+    let mut reg = build_registry();
+    let tab = reg.get_by_name("AuctionHouseSellTab").unwrap();
+    reg.set_hidden(tab, false);
+    compute_layout(&mut reg);
     let r = rect(&reg, "AuctionHouseSellItemSlot");
     assert!((r.width - SELL_ITEM_SLOT_SIZE).abs() < 1.0);
     assert!((r.height - SELL_ITEM_SLOT_SIZE).abs() < 1.0);
@@ -386,7 +389,10 @@ fn coord_sell_item_slot() {
 
 #[test]
 fn coord_sell_post_button() {
-    let reg = layout_registry();
+    let mut reg = build_registry();
+    let tab = reg.get_by_name("AuctionHouseSellTab").unwrap();
+    reg.set_hidden(tab, false);
+    compute_layout(&mut reg);
     let r = rect(&reg, "AuctionHouseSellPostButton");
     assert!((r.width - SELL_BUTTON_W).abs() < 1.0);
     assert!((r.height - SELL_BUTTON_H).abs() < 1.0);

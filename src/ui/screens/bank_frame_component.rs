@@ -511,7 +511,10 @@ mod tests {
 
     #[test]
     fn coord_reagent_first_slot() {
-        let reg = layout_registry();
+        let mut reg = build_registry();
+        let tab = reg.get_by_name("ReagentBankTab").unwrap();
+        reg.set_hidden(tab, false);
+        compute_layout(&mut reg);
         let tab_x = FRAME_X + INSET;
         let tab_y = FRAME_Y + REAGENT_GRID_TOP;
         let r = rect(&reg, "ReagentBankSlot0");
@@ -530,7 +533,10 @@ mod tests {
 
     #[test]
     fn coord_purchase_button_dimensions() {
-        let reg = layout_registry();
+        let mut reg = build_registry();
+        let tab = reg.get_by_name("ReagentBankTab").unwrap();
+        reg.set_hidden(tab, false);
+        compute_layout(&mut reg);
         let r = rect(&reg, "ReagentBankPurchaseButton");
         assert!((r.width - PURCHASE_BTN_W).abs() < 1.0);
         assert!((r.height - PURCHASE_BTN_H).abs() < 1.0);

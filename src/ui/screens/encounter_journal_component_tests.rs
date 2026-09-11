@@ -314,6 +314,8 @@ fn coord_loot_tab_filters() {
     let mut shared = SharedContext::new();
     shared.insert(make_loot_state());
     Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
+    let tab = reg.get_by_name("EJLootTab").unwrap();
+    reg.set_hidden(tab, false);
     compute_layout(&mut reg);
 
     let slot_f = rect(&reg, "EJLootSlotFilter");
