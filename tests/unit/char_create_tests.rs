@@ -365,8 +365,6 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
 
 #[test]
 fn clicking_race_button_changes_race_through_full_app_update() {
-    use bevy::app::App;
-    use bevy::input::ButtonInput;
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
     use bevy::window::PrimaryWindow;
@@ -374,24 +372,19 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     use game_engine::ui::automation::UiAutomationPlugin;
     use game_engine::ui::plugin::UiState;
 
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+    let mut app = native_layout_support::layout_app(1920.0, 1080.0);
     app.add_plugins(StatesPlugin);
-    app.add_plugins(bevy::asset::AssetPlugin::default());
-    app.add_plugins(bevy::text::TextPlugin::default());
     app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(UiAutomationPlugin);
-    app.insert_resource(ButtonInput::<MouseButton>::default());
-    app.add_plugins(ui_toolkit::plugin::UiPlugin);
     app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
-    app.add_message::<bevy::input::keyboard::KeyboardInput>();
     app.insert_resource(CustomizationDb::load(std::path::Path::new("data")));
     app.insert_state(crate::game_state::GameState::CharCreate);
 
     let window_entity = app
         .world_mut()
-        .spawn((Window::default(), PrimaryWindow))
-        .id();
+        .query_filtered::<Entity, With<PrimaryWindow>>()
+        .single(app.world())
+        .unwrap();
     app.update();
     app.update();
 
