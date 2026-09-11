@@ -16,16 +16,16 @@ use crate::health_bar::{BAR_HEIGHT, HealthBar};
 
 use crate::rendering::nameplate_art::{
     BAR_PIXEL_WIDTH, CAST_BACKGROUND_RECT, CAST_FILL_RECT, CAST_FONT_SIZE, CAST_INDICATOR_RECT,
-    CAST_PIP_RECT, NameplateArt, NameplateArtCache,
+    CAST_PIP_RECT, NAMEPLATE_SCALE, NameplateArt, NameplateArtCache,
 };
 
 const CAST_WIDTH: f32 = BAR_PIXEL_WIDTH;
-const CAST_THICK_HEIGHT: f32 = 20.0;
-const CAST_THIN_HEIGHT: f32 = 12.0;
-const LABEL_INSET: f32 = 8.0;
-const INDICATOR_HORIZONTAL_MARGIN: f32 = 20.0;
-const INDICATOR_VERTICAL_MARGIN: f32 = 3.0;
-const HEALTH_CAST_GAP: f32 = 4.0;
+const CAST_THICK_HEIGHT: f32 = 20.0 * NAMEPLATE_SCALE;
+const CAST_THIN_HEIGHT: f32 = 12.0 * NAMEPLATE_SCALE;
+const LABEL_INSET: f32 = 8.0 * NAMEPLATE_SCALE;
+const INDICATOR_HORIZONTAL_MARGIN: f32 = 20.0 * NAMEPLATE_SCALE;
+const INDICATOR_VERTICAL_MARGIN: f32 = 3.0 * NAMEPLATE_SCALE;
+const HEALTH_CAST_GAP: f32 = 4.0 * NAMEPLATE_SCALE;
 
 fn cast_height(thick: bool) -> f32 {
     if thick {
@@ -108,12 +108,13 @@ fn spawn_cast_sprites(commands: &mut Commands, owner: Entity, art: &NameplateArt
         if matches!(part, Part::Border) {
             sprite.image_mode = SpriteImageMode::Sliced(TextureSlicer {
                 border: BorderRect {
-                    min_inset: Vec2::new(32.0, 8.0),
-                    max_inset: Vec2::new(32.0, 8.0),
+                    // Horizontal three-slice: preserve end flames, stretch their height.
+                    min_inset: Vec2::new(32.0, 0.0),
+                    max_inset: Vec2::new(32.0, 0.0),
                 },
                 center_scale_mode: SliceScaleMode::Stretch,
                 sides_scale_mode: SliceScaleMode::Stretch,
-                max_corner_scale: 1.0,
+                max_corner_scale: NAMEPLATE_SCALE,
             });
         }
         commands.spawn((
@@ -140,7 +141,7 @@ fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>) 
         },
         TextColor(Color::WHITE),
         Text2dShadow {
-            offset: Vec2::new(1.0, -1.0),
+            offset: Vec2::new(NAMEPLATE_SCALE, -NAMEPLATE_SCALE),
             color: Color::BLACK.with_alpha(0.85),
         },
         RenderLayers::layer(UI_RENDER_LAYER),
@@ -196,7 +197,7 @@ fn part_layout(part: Part, thick: bool, fraction: f32) -> (Vec2, Vec2, f32) {
         ),
         Part::Spark => (
             Vec2::new(-half_width + CAST_WIDTH * fraction, 0.0),
-            Vec2::new(4.0, height + 2.0),
+            Vec2::new(4.0 * NAMEPLATE_SCALE, height + 2.0 * NAMEPLATE_SCALE),
             2.25,
         ),
         Part::Label => (
@@ -461,13 +462,40 @@ mod tests {
             .query::<(&TextFont, &TextColor, &Text2dShadow)>()
             .single(app.world())
             .unwrap();
-        assert_eq!(font.font_size, FontSize::Px(20.0));
+        assert_eq!(font.font_size, FontSize::Px(10.0));
         let bevy::text::FontSource::Handle(handle) = &font.font else {
             panic!("cast label must use its loaded reference font");
         };
         assert!(app.world().resource::<Assets<Font>>().get(handle).is_some());
         assert_eq!(color.0, Color::WHITE);
-        assert_eq!(shadow.offset, Vec2::new(1.0, -1.0));
+        assert_eq!(shadow.offset, Vec2::new(0.5, -0.5));
+        let (_, border) = app
+            .world_mut()
+            .query::<(&Part, &Sprite)>()
+            .iter(app.world())
+            .find(|(part, _)| matches!(part, Part::Border))
+            .unwrap();
+        let SpriteImageMode::Sliced(slicer) = &border.image_mode else {
+            panic!("cast frame must preserve its authored end caps");
+        };
+        for height in [9.0, 13.0] {
+            let slices = slicer.compute_slices(CAST_INDICATOR_RECT, Some(Vec2::new(212.0, height)));
+            let visible: Vec<_> = slices
+                .iter()
+                .filter(|slice| slice.draw_size.min_element() > 0.0)
+                .collect();
+            let left = visible
+                .iter()
+                .find(|slice| slice.texture_rect.min == CAST_INDICATOR_RECT.min)
+                .unwrap();
+            assert_eq!(left.texture_rect.size(), Vec2::new(32.0, 16.0));
+            assert_eq!(left.draw_size, Vec2::new(16.0, height));
+            assert_eq!(left.offset.x - left.draw_size.x / 2.0, -106.0);
+            assert_eq!(
+                visible.iter().map(|slice| slice.draw_size.x).sum::<f32>(),
+                212.0
+            );
+        }
         app.world_mut().entity_mut(owner).remove::<CastState>();
         app.update();
         assert_eq!(
@@ -504,19 +532,19 @@ mod tests {
     fn thickness_keeps_fill_left_aligned_and_places_label() {
         for thick in [false, true] {
             let (offset, size, _) = part_layout(Part::Fill, thick, 0.25);
-            assert_eq!(offset.x - size.x / 2.0, -192.0);
-            assert_eq!(size, Vec2::new(96.0, if thick { 20.0 } else { 12.0 }));
+            assert_eq!(offset.x - size.x / 2.0, -96.0);
+            assert_eq!(size, Vec2::new(48.0, if thick { 10.0 } else { 6.0 }));
             let (border_offset, border_size, _) = part_layout(Part::Border, thick, 0.25);
             assert_eq!(border_offset, Vec2::ZERO);
             assert_eq!(
                 border_size,
-                Vec2::new(424.0, if thick { 26.0 } else { 18.0 })
+                Vec2::new(212.0, if thick { 13.0 } else { 9.0 })
             );
             let (pip, pip_size, _) = part_layout(Part::Spark, thick, 0.25);
-            assert_eq!(pip.x, -96.0);
-            assert_eq!(pip_size.x, 4.0);
+            assert_eq!(pip.x, -48.0);
+            assert_eq!(pip_size, Vec2::new(2.0, if thick { 11.0 } else { 7.0 }));
             let (label, _, _) = part_layout(Part::Label, thick, 0.25);
-            assert_eq!(label, Vec2::new(-184.0, if thick { 0.0 } else { 16.0 }));
+            assert_eq!(label, Vec2::new(-92.0, if thick { 0.0 } else { 8.0 }));
         }
     }
 }

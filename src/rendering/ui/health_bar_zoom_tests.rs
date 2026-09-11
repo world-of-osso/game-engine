@@ -134,20 +134,23 @@ fn rectangle_projected_width_survives_parent_shear_in_both_directions() {
 #[test]
 fn thickness_changes_projected_height_without_changing_width() {
     let (mut app, _, bar, camera) = zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
-    for thickness in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
+    for (thickness, expected) in [
+        (NameplateBarThickness::Thin, Vec2::new(192.0, 10.0)),
+        (NameplateBarThickness::Thick, Vec2::new(192.0, 20.0)),
+    ] {
         app.world_mut()
             .resource_mut::<HudOptions>()
             .nameplate_health_thickness = thickness;
         app.update();
         let global = *app.world().get::<GlobalTransform>(bar).unwrap();
         let size = projected_quad_size(&app, bar, camera, global);
-        assert!(size.abs_diff_eq(health_bar_pixel_size(thickness), 0.05));
+        assert!(size.abs_diff_eq(expected, 0.05));
     }
 }
 
 #[test]
-fn world_healthbar_quad_stays_reference_width_by_twenty_logical_pixels_across_zoom() {
-    let target = Vec2::new(384.0, 20.0);
+fn world_healthbar_quad_stays_half_reference_size_across_zoom() {
+    let target = Vec2::new(192.0, 10.0);
     let mut failures = Vec::new();
     for (dpi, width, height, fov_degrees) in [
         (1.0, 800, 600, 45.0_f32),
@@ -175,7 +178,7 @@ fn world_healthbar_quad_stays_reference_width_by_twenty_logical_pixels_across_zo
     }
     assert!(
         failures.is_empty(),
-        "projected world-healthbar dimensions must remain384x20logicalpx: {failures:?}"
+        "projected world-healthbar dimensions must remain192x10logicalpx: {failures:?}"
     );
 }
 
@@ -202,7 +205,7 @@ fn world_healthbar_responds_to_fov_viewport_and_dpi_changes_in_same_frame() {
         *app.world().get::<GlobalTransform>(bar).unwrap(),
     );
     assert!(
-        size.abs_diff_eq(Vec2::new(384.0, 20.0), 0.05),
+        size.abs_diff_eq(Vec2::new(192.0, 10.0), 0.05),
         "same-frame viewport/FOV size: {size:?}"
     );
     let tick = app

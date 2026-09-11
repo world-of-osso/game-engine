@@ -26,8 +26,8 @@ fn overlay_health_updates_keep_left_edge_and_hide_with_owner() {
     app.update();
     let after = app.world().get::<Transform>(fill).unwrap();
     let sprite = app.world().get::<Sprite>(fill).unwrap();
-    assert_eq!(sprite.custom_size, Some(Vec2::new(96.0, 20.0)));
-    assert!((after.translation.x - 48.0 - left).abs() < 0.01);
+    assert_eq!(sprite.custom_size, Some(Vec2::new(48.0, 10.0)));
+    assert!((after.translation.x - 24.0 - left).abs() < 0.01);
     assert_eq!(sprite.color, Color::srgb(1.0, 0.2, 0.2));
     let tick = app
         .world()

@@ -3,9 +3,10 @@ use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::text::Font;
 
-pub(crate) const BAR_PIXEL_WIDTH: f32 = 384.0;
-pub(crate) const NAME_FONT_SIZE: f32 = 26.0;
-pub(crate) const CAST_FONT_SIZE: f32 = 20.0;
+pub(crate) const NAMEPLATE_SCALE: f32 = 0.5;
+pub(crate) const BAR_PIXEL_WIDTH: f32 = 384.0 * NAMEPLATE_SCALE;
+pub(crate) const NAME_FONT_SIZE: f32 = 26.0 * NAMEPLATE_SCALE;
+pub(crate) const CAST_FONT_SIZE: f32 = 20.0 * NAMEPLATE_SCALE;
 pub(crate) const HEALTH_FILL_RECT: Rect = Rect::new(89.0, 22.0, 213.0, 32.0);
 pub(crate) const HEALTH_BACKGROUND_RECT: Rect = Rect::new(89.0, 1.0, 221.0, 20.0);
 pub(crate) const CAST_FILL_RECT: Rect = Rect::new(268.0, 124.0, 477.0, 135.0);
