@@ -1,19 +1,17 @@
 use bevy::prelude::*;
-
-use game_engine::ui::frame::Dimension;
-use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
-use game_engine::ui::registry::FrameRegistry;
-use game_engine::ui::screen::Screen;
+use game_engine::ui::plugin::UiState;
 use game_engine::ui::screens::loading_component::{
-    LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, debug_loading_layout_from_source,
-    loading_screen,
+    LoadingScreenLayout, LoadingScreenState, debug_loading_layout_from_source,
 };
-use game_engine::ui_resource;
+use ui_toolkit::render::UiCamera;
 
 use crate::game_state::{GameState, InitialGameState, evaluate_world_loading};
 use crate::networking::{CurrentZone, LocalPlayer};
 use crate::terrain::AdtManager;
 use crate::zone_names::zone_id_to_name;
+
+mod native_view;
+use native_view::{LoadingView, LoadingViewAssets, spawn_loading_view, sync_loading_view};
 
 const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
 const DEFAULT_TIP_TEXT: &str =
@@ -21,31 +19,14 @@ const DEFAULT_TIP_TEXT: &str =
 const LOADING_BAR_FILL_RATE_PERCENT_PER_SEC: f32 = 6.0;
 const PREVIEW_MODE_HOLD_PERCENT: f32 = 100.0;
 
-ui_resource! {
-    LoadingUi {
-        root: LOADING_ROOT,
-        bar_fill: "LoadingBarFill",
-        status_text: "LoadingStatusText",
-        progress_text: "LoadingProgressText",
-    }
-}
-
-struct LoadingScreenRes {
-    screen: Screen,
-    shared: ui_toolkit::screen::SharedContext,
-}
-
-unsafe impl Send for LoadingScreenRes {}
-unsafe impl Sync for LoadingScreenRes {}
-
 #[derive(Resource)]
-struct LoadingScreenWrap(LoadingScreenRes);
+struct LoadingSnapshot {
+    state: LoadingScreenState,
+    layout: LoadingScreenLayout,
+}
 
-#[derive(Resource, Clone, PartialEq, Eq)]
-struct LoadingUiState(LoadingScreenState);
-
-#[derive(Resource, Clone, PartialEq)]
-struct LoadingLayoutState(LoadingScreenLayout);
+#[derive(Resource, Default)]
+struct LoadingCameraOrders(Vec<(Entity, isize)>);
 
 #[derive(Resource)]
 struct LoadingProgressAnimation {
@@ -58,26 +39,26 @@ pub struct LoadingScreenPlugin;
 
 impl Plugin for LoadingScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Loading), build_loading_ui);
-        app.add_systems(OnExit(GameState::Loading), teardown_loading_ui);
-        app.add_systems(
-            Update,
-            (loading_sync_root_size, loading_update_visuals).run_if(in_state(GameState::Loading)),
-        );
+        app.add_systems(OnEnter(GameState::Loading), build_loading_ui)
+            .add_systems(OnExit(GameState::Loading), teardown_loading_ui)
+            .add_systems(PostStartup, raise_startup_ui_cameras)
+            .add_systems(
+                Update,
+                loading_update_visuals.run_if(in_state(GameState::Loading)),
+            );
     }
 }
 
 fn build_loading_ui(
-    mut ui: ResMut<UiState>,
     mut commands: Commands,
-    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mut assets: LoadingViewAssets,
     current_zone: Res<CurrentZone>,
     local_player_q: Query<(), With<LocalPlayer>>,
     adt_manager: Res<AdtManager>,
     initial_state: Option<Res<InitialGameState>>,
+    mut cameras: Query<(Entity, &mut Camera), With<UiCamera>>,
 ) {
-    sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let mut progress_animation = LoadingProgressAnimation {
+    let mut progress = LoadingProgressAnimation {
         displayed_percent: 0.0,
         elapsed_secs: 0.0,
         preview_mode: initial_state
@@ -88,98 +69,88 @@ fn build_loading_ui(
         current_zone.zone_id,
         !local_player_q.is_empty(),
         &adt_manager,
-        &mut progress_animation,
+        &mut progress,
         0.0,
     );
     let layout = debug_loading_layout_from_source();
-    let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert(state.clone());
-    shared.insert(layout.clone());
-    let mut screen = Screen::new(loading_screen);
-    screen.sync(&shared, &mut ui.registry);
-
-    let loading_ui = LoadingUi::resolve(&ui.registry);
-    apply_post_setup(&mut ui.registry, loading_ui.root);
-
-    commands.insert_resource(LoadingUiState(state));
-    commands.insert_resource(LoadingLayoutState(layout));
-    commands.insert_resource(progress_animation);
-    commands.insert_resource(LoadingScreenWrap(LoadingScreenRes { screen, shared }));
-    commands.insert_resource(loading_ui);
-}
-
-fn teardown_loading_ui(
-    mut ui: ResMut<UiState>,
-    mut commands: Commands,
-    mut screen: Option<ResMut<LoadingScreenWrap>>,
-) {
-    if let Some(res) = screen.as_mut() {
-        res.0.screen.teardown(&mut ui.registry);
+    let view = match spawn_loading_view(&mut commands, &mut assets, &state, &layout, 1) {
+        Ok(view) => view,
+        Err(error) => {
+            error!("Cannot construct native loading screen: {error}");
+            return;
+        }
+    };
+    let mut orders = LoadingCameraOrders::default();
+    for (entity, mut camera) in &mut cameras {
+        orders.0.push((entity, camera.order));
+        camera.order = 2;
     }
-    commands.remove_resource::<LoadingScreenWrap>();
-    commands.remove_resource::<LoadingUi>();
-    commands.remove_resource::<LoadingUiState>();
-    commands.remove_resource::<LoadingLayoutState>();
-    commands.remove_resource::<LoadingProgressAnimation>();
-    ui.focused_frame = None;
+    commands.insert_resource(orders);
+    commands.insert_resource(LoadingSnapshot { state, layout });
+    commands.insert_resource(progress);
+    commands.insert_resource(view);
 }
 
-fn loading_sync_root_size(
-    mut ui: ResMut<UiState>,
-    loading_ui: Option<Res<LoadingUi>>,
-    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+// Initial state entry precedes the toolkit camera's Startup system.
+fn raise_startup_ui_cameras(
+    orders: Option<ResMut<LoadingCameraOrders>>,
+    mut cameras: Query<(Entity, &mut Camera), With<UiCamera>>,
 ) {
-    let Some(loading_ui) = loading_ui else {
+    let Some(mut orders) = orders else {
         return;
     };
-    sync_registry_to_primary_window(&mut ui.registry, &windows);
-    apply_post_setup(&mut ui.registry, loading_ui.root);
+    for (entity, mut camera) in &mut cameras {
+        if !orders.0.iter().any(|(saved, _)| *saved == entity) {
+            orders.0.push((entity, camera.order));
+        }
+        camera.order = 2;
+    }
 }
 
-fn loading_update_visuals(
-    mut ui: ResMut<UiState>,
-    mut screen_wrap: Option<ResMut<LoadingScreenWrap>>,
-    mut last_state: Option<ResMut<LoadingUiState>>,
-    mut last_layout: Option<ResMut<LoadingLayoutState>>,
-    mut progress_animation: Option<ResMut<LoadingProgressAnimation>>,
-    current_zone: Res<CurrentZone>,
-    local_player_q: Query<(), With<LocalPlayer>>,
-    adt_manager: Res<AdtManager>,
-    time: Res<Time>,
-) {
-    let (
-        Some(mut screen_wrap),
-        Some(mut last_state),
-        Some(mut last_layout),
-        Some(mut progress_animation),
-    ) = (
-        screen_wrap.take(),
-        last_state.take(),
-        last_layout.take(),
-        progress_animation.take(),
-    )
-    else {
+fn teardown_loading_ui(world: &mut World) {
+    if let Some(view) = world.remove_resource::<LoadingView>() {
+        world.despawn(view.root);
+        world.despawn(view.camera);
+    }
+    if let Some(orders) = world.remove_resource::<LoadingCameraOrders>() {
+        for (entity, order) in orders.0 {
+            if let Some(mut camera) = world.get_mut::<Camera>(entity) {
+                camera.order = order;
+            }
+        }
+    }
+    world.remove_resource::<LoadingSnapshot>();
+    world.remove_resource::<LoadingProgressAnimation>();
+    if let Some(mut ui) = world.get_resource_mut::<UiState>() {
+        ui.focused_frame = None;
+    }
+}
+
+fn loading_update_visuals(world: &mut World) {
+    let Some(view) = world.get_resource::<LoadingView>().cloned() else {
         return;
     };
-
-    let state = build_loading_state(
-        current_zone.zone_id,
-        !local_player_q.is_empty(),
-        &adt_manager,
-        &mut progress_animation,
-        time.delta_secs(),
-    );
+    let zone_id = world.resource::<CurrentZone>().zone_id;
+    let local_player_ready = !world
+        .query_filtered::<(), With<LocalPlayer>>()
+        .is_empty(world);
+    let delta = world.resource::<Time>().delta_secs();
+    let state = world.resource_scope(|world, mut progress: Mut<LoadingProgressAnimation>| {
+        build_loading_state(
+            zone_id,
+            local_player_ready,
+            world.resource::<AdtManager>(),
+            &mut progress,
+            delta,
+        )
+    });
     let layout = debug_loading_layout_from_source();
-    if last_state.0 == state && last_layout.0 == layout {
+    let previous = world.resource::<LoadingSnapshot>();
+    if previous.state == state && previous.layout == layout {
         return;
     }
-
-    last_state.0 = state.clone();
-    last_layout.0 = layout.clone();
-    let res = &mut screen_wrap.0;
-    res.shared.insert(state);
-    res.shared.insert(layout.clone());
-    res.screen.sync(&res.shared, &mut ui.registry);
+    sync_loading_view(world, &view, &state, &layout);
+    *world.resource_mut::<LoadingSnapshot>() = LoadingSnapshot { state, layout };
 }
 
 fn build_loading_state(
@@ -201,7 +172,6 @@ fn build_loading_state(
         target_progress_percent(&readiness, progress_animation),
         delta_secs,
     );
-
     LoadingScreenState {
         status_text: readiness.status_text.to_string(),
         zone_text,
@@ -232,121 +202,13 @@ fn advance_displayed_progress(current: f32, target: f32, delta_secs: f32) -> f32
     if current >= target {
         return target;
     }
-
     let step = delta_secs * LOADING_BAR_FILL_RATE_PERCENT_PER_SEC;
     (current + step).min(target)
-}
-
-fn apply_post_setup(reg: &mut FrameRegistry, root_id: u64) {
-    let width = reg.screen_width;
-    let height = reg.screen_height;
-    if let Some(root) = reg.get_mut(root_id) {
-        root.width = Dimension::Fixed(width);
-        root.height = Dimension::Fixed(height);
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use game_engine::ui::layout::recompute_layouts;
-
-    fn sample_loading_state(progress_percent: u8) -> LoadingScreenState {
-        LoadingScreenState {
-            status_text: "Loading terrain...".to_string(),
-            zone_text: "Entering Elwynn Forest".to_string(),
-            tip_text: DEFAULT_TIP_TEXT.to_string(),
-            progress_percent,
-        }
-    }
-
-    #[test]
-    fn loading_screen_builds_expected_frames() {
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(sample_loading_state(86));
-        shared.insert(LoadingScreenLayout::default());
-
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = Screen::new(loading_screen);
-        screen.sync(&shared, &mut reg);
-
-        assert!(reg.get_by_name("LoadingRoot").is_some());
-        assert!(reg.get_by_name("LoadingBarFill").is_some());
-        assert!(reg.get_by_name("LoadingStatusText").is_some());
-    }
-
-    #[test]
-    fn loading_bar_fill_clip_uses_configured_fill_offset() {
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(sample_loading_state(50));
-        let layout = LoadingScreenLayout::default();
-        shared.insert(layout.clone());
-
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = Screen::new(loading_screen);
-        screen.sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
-
-        let bar_bg = reg
-            .get_by_name("LoadingBarBackground")
-            .and_then(|id| reg.get(id))
-            .and_then(|frame| frame.layout_rect.as_ref())
-            .expect("LoadingBarBackground rect");
-        let bar_clip = reg
-            .get_by_name("LoadingBarFillClip")
-            .and_then(|id| reg.get(id))
-            .and_then(|frame| frame.layout_rect.as_ref())
-            .expect("LoadingBarFillClip rect");
-
-        assert_eq!(bar_clip.x, bar_bg.x + layout.bar_fill_start_x);
-        assert_eq!(bar_clip.width, layout.bar_fill_max_width);
-    }
-
-    #[test]
-    fn loading_bar_fill_width_scales_with_progress_percent() {
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(sample_loading_state(50));
-        let layout = LoadingScreenLayout::default();
-        shared.insert(layout.clone());
-
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = Screen::new(loading_screen);
-        screen.sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
-
-        let fill = reg
-            .get_by_name("LoadingBarFill")
-            .and_then(|id| reg.get(id))
-            .and_then(|frame| frame.layout_rect.as_ref())
-            .expect("LoadingBarFill rect");
-
-        assert_eq!(fill.width, layout.bar_fill_max_width * 0.5);
-        assert_eq!(fill.height, layout.bar_fill_height);
-    }
-
-    #[test]
-    fn loading_progress_text_shows_current_percent() {
-        let mut shared = ui_toolkit::screen::SharedContext::new();
-        shared.insert(sample_loading_state(86));
-        shared.insert(LoadingScreenLayout::default());
-
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut screen = Screen::new(loading_screen);
-        screen.sync(&shared, &mut reg);
-
-        let progress = reg
-            .get_by_name("LoadingProgressText")
-            .and_then(|id| reg.get(id))
-            .expect("LoadingProgressText frame");
-
-        let Some(game_engine::ui::frame::WidgetData::FontString(text)) =
-            progress.widget_data.as_ref()
-        else {
-            panic!("LoadingProgressText should be a FontString");
-        };
-
-        assert_eq!(text.text, "86%");
-    }
 
     #[test]
     fn preview_mode_progress_fills_slowly_over_time() {
