@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::transform::{TransformSystems, helper::TransformHelper};
 use shared::components::Health;
 
-use crate::client_options::HudVisibilityToggles;
+use crate::client_options::{HudOptions, HudVisibilityToggles, NameplateBarThickness};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
 
@@ -40,37 +40,20 @@ struct HealthBarForeground;
 pub(crate) const BAR_WIDTH: f32 = 1.0;
 pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
-const BAR_PIXEL_SIZE: Vec2 = Vec2::new(80.0, 8.0);
 
-/// Compute the health bar color based on current/max HP.
-pub fn health_bar_color(current: f32, max: f32) -> Color {
-    let pct = if max > 0.0 {
-        (current / max).clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
-    let (r, g, b) = health_pct_to_rgb(pct);
-    Color::srgb(r, g, b)
+pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
+    Vec2::new(
+        80.0,
+        match thickness {
+            NameplateBarThickness::Thin => 8.0,
+            NameplateBarThickness::Thick => 20.0,
+        },
+    )
 }
 
-fn health_pct_to_rgb(pct: f32) -> (f32, f32, f32) {
-    if pct >= 0.6 {
-        // Green to yellow: 100% -> 60%
-        let t = (pct - 0.6) / 0.4; // 1.0 at 100%, 0.0 at 60%
-        let r = lerp(0.8, 0.0, t);
-        (r, 0.8, 0.0)
-    } else if pct >= 0.3 {
-        // Yellow to red: 60% -> 30%
-        let t = (pct - 0.3) / 0.3; // 1.0 at 60%, 0.0 at 30%
-        let g = lerp(0.0, 0.8, t);
-        (0.8, g, 0.0)
-    } else {
-        (0.8, 0.0, 0.0)
-    }
-}
-
-fn lerp(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
+/// Reference nameplates retain their red fill as health decreases.
+pub fn health_bar_color(_current: f32, _max: f32) -> Color {
+    Color::srgb(0.8, 0.0, 0.0)
 }
 
 /// Observer: when Health is added to an entity with Transform, spawn a health bar child.
@@ -115,9 +98,33 @@ fn health_pct(health: &Health) -> f32 {
 
 fn create_bar_meshes(meshes: &mut Assets<Mesh>) -> (Handle<Mesh>, Handle<Mesh>) {
     let half = Vec2::new(BAR_WIDTH / 2.0, BAR_HEIGHT / 2.0);
-    let bg = meshes.add(Plane3d::new(Vec3::Z, half));
+    let bg = meshes.add(chamfered_bar_mesh());
     let fg = meshes.add(Plane3d::new(Vec3::Z, half));
     (bg, fg)
+}
+
+fn chamfered_bar_mesh() -> Mesh {
+    use bevy::asset::RenderAssetUsages;
+    use bevy::mesh::{Indices, PrimitiveTopology};
+    let x = BAR_WIDTH / 2.0;
+    let y = BAR_HEIGHT / 2.0;
+    let bevel = 0.025;
+    let vertices = vec![
+        [-x + bevel, -y, 0.0],
+        [x - bevel, -y, 0.0],
+        [x, 0.0, 0.0],
+        [x - bevel, y, 0.0],
+        [-x + bevel, y, 0.0],
+        [-x, 0.0, 0.0],
+    ];
+    Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    )
+    .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, vertices)
+    .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, vec![[0.0, 0.0, 1.0]; 6])
+    .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, vec![[0.0, 0.0]; 6])
+    .with_inserted_indices(Indices::U32(vec![0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5]))
 }
 
 fn create_bar_materials(
@@ -125,7 +132,7 @@ fn create_bar_materials(
     health: &Health,
 ) -> (Handle<StandardMaterial>, Handle<StandardMaterial>) {
     let bg = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.2, 0.2, 0.2),
+        base_color: Color::srgb(0.55, 0.55, 0.55),
         unlit: true,
         ..default()
     });
@@ -169,8 +176,9 @@ fn spawn_bar_entity(
 
 /// Build the foreground bar transform: scale X by pct, shift left to keep left-aligned.
 fn foreground_transform(pct: f32) -> Transform {
-    let offset_x = -BAR_WIDTH * (1.0 - pct) / 2.0;
-    Transform::from_xyz(offset_x, 0.0, 0.0).with_scale(Vec3::new(pct, 1.0, 1.0))
+    let inner_width = 0.92;
+    let offset_x = -BAR_WIDTH * inner_width * (1.0 - pct) / 2.0;
+    Transform::from_xyz(offset_x, 0.0, 0.0).with_scale(Vec3::new(pct * inner_width, 0.75, 1.0))
 }
 
 /// Update health bar foreground width and color when Health changes.
@@ -227,6 +235,7 @@ fn update_foreground(
 
 /// Rotate health bars to always face the camera (billboard effect).
 fn billboard_health_bars(
+    hud: Option<Res<HudOptions>>,
     camera_query: Query<(Entity, &Camera), With<Camera3d>>,
     bars: Query<(Entity, Option<&ChildOf>), With<HealthBar>>,
     mut transforms: ParamSet<(TransformHelper, Query<&mut Transform, With<HealthBar>>)>,
@@ -256,7 +265,15 @@ fn billboard_health_bars(
         let Ok(mut local) = query.get_mut(entity) else {
             continue;
         };
-        if let Some(pose) = health_bar_screen_pose(&parent_global, &local, camera, &camera_global) {
+        if let Some(pose) = health_bar_screen_pose(
+            &parent_global,
+            &local,
+            camera,
+            &camera_global,
+            health_bar_pixel_size(hud.as_ref().map_or(NameplateBarThickness::Thick, |hud| {
+                hud.nameplate_health_thickness
+            })),
+        ) {
             local.set_if_neq(pose);
         }
     }
@@ -267,6 +284,7 @@ fn health_bar_screen_pose(
     local: &Transform,
     camera: &Camera,
     camera_global: &GlobalTransform,
+    pixel_size: Vec2,
 ) -> Option<Transform> {
     let rotation = screen_aligned_local_rotation(parent, camera_global)?;
     let center = parent.transform_point(local.translation);
@@ -277,9 +295,9 @@ fn health_bar_screen_pose(
     let vertical = project(center + Vec3::from(basis * (rotation * Vec3::Y)))? - origin;
     // Both tangents lie in the screen plane, so projection is linear. Account
     // for the vertical edge's horizontal shear under nonuniform parent scale.
-    let scale_y = BAR_PIXEL_SIZE.y / (vertical.y.abs() * BAR_HEIGHT);
+    let scale_y = pixel_size.y / (vertical.y.abs() * BAR_HEIGHT);
     let width_from_y = vertical.x.abs() * BAR_HEIGHT * scale_y;
-    let scale_x = (BAR_PIXEL_SIZE.x - width_from_y) / (horizontal.x.abs() * BAR_WIDTH);
+    let scale_x = (pixel_size.x - width_from_y) / (horizontal.x.abs() * BAR_WIDTH);
     let scale = Vec3::new(scale_x, scale_y, local.scale.z);
     if !scale.is_finite() || scale_x <= 0.0 || scale_y <= 0.0 {
         return None;
@@ -631,11 +649,10 @@ mod tests {
     }
 
     #[test]
-    fn test_health_color_full_hp() {
-        let c = health_bar_color(100.0, 100.0).to_srgba();
-        assert!(c.red.abs() < 1e-4, "red should be ~0, got {}", c.red);
-        assert!((c.green - 0.8).abs() < 1e-4);
-        assert!(c.blue.abs() < 1e-4);
+    fn nameplate_default_health_fill_stays_red_at_every_health_level() {
+        for current in [100.0, 75.0, 50.0, 20.0, 0.0] {
+            assert_eq!(health_bar_color(current, 100.0), Color::srgb(0.8, 0.0, 0.0));
+        }
     }
 
     #[test]
@@ -647,25 +664,20 @@ mod tests {
     #[test]
     fn test_health_color_mid_hp() {
         let color = health_bar_color(50.0, 100.0);
-        // 50% is in the 60-30% range: t = (0.5 - 0.3) / 0.3 = 0.667
-        let expected_g = 0.0 + (0.8 - 0.0) * ((50.0 / 100.0 - 0.3) / 0.3);
-        let c = color.to_srgba();
-        assert!((c.red - 0.8).abs() < 1e-4);
-        assert!((c.green - expected_g).abs() < 1e-4);
-        assert!((c.blue - 0.0).abs() < 1e-4);
+        assert_eq!(color, Color::srgb(0.8, 0.0, 0.0));
     }
 
     #[test]
     fn test_bar_width_scales_with_health() {
         let transform = foreground_transform(0.5);
-        assert!((transform.scale.x - 0.5).abs() < 1e-6);
-        assert!((transform.translation.x - (-0.25)).abs() < 1e-6);
+        assert!((transform.scale.x - 0.46).abs() < 1e-6);
+        assert!((transform.translation.x - (-0.23)).abs() < 1e-6);
     }
 
     #[test]
     fn test_health_color_at_60_boundary() {
         let color = health_bar_color(60.0, 100.0);
-        assert_eq!(color, Color::srgb(0.8, 0.8, 0.0));
+        assert_eq!(color, Color::srgb(0.8, 0.0, 0.0));
     }
 
     #[test]
