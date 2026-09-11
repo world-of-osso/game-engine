@@ -2,6 +2,7 @@
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
+use bevy::sprite::Anchor;
 use bevy::transform::TransformSystems;
 use shared::casting::{CastState, CastType};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
@@ -38,19 +39,54 @@ enum Part {
     Border,
     Background,
     Fill,
+    Spark,
     Label,
 }
 
-fn spawn_cast_bar(event: On<Add, CastState>, mut commands: Commands) {
+fn spawn_cast_bar(
+    event: On<Add, CastState>,
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    mut textures: Local<Option<(Handle<Image>, Handle<Image>)>>,
+) {
+    if textures.is_none() {
+        let load = |fdid| {
+            let path = crate::asset::asset_cache::texture(fdid)
+                .ok_or_else(|| format!("Castbar texture {fdid} unavailable in local CASC"))?;
+            crate::asset::blp::load_blp_to_image(&path)
+        };
+        match (load(4505182), load(130877)) {
+            (Ok(fill), Ok(spark)) => *textures = Some((images.add(fill), images.add(spark))),
+            (fill, spark) => {
+                error!(
+                    "Cannot load castbar artwork: fill={:?}, spark={:?}",
+                    fill.err(),
+                    spark.err()
+                );
+                return;
+            }
+        }
+    }
+    let (fill, spark) = textures.as_ref().expect("cast textures loaded above");
     for (part, color) in [
         (Part::Border, Color::srgb(0.5, 0.42, 0.22)),
         (Part::Background, Color::srgb(0.08, 0.065, 0.035)),
         (Part::Fill, Color::srgb(1.0, 0.72, 0.12)),
+        (Part::Spark, Color::srgb(1.0, 0.82, 0.35)),
     ] {
+        let mut sprite = Sprite::from_color(color, Vec2::ONE);
+        match part {
+            Part::Fill => {
+                sprite.image = fill.clone();
+                sprite.rect = Some(Rect::new(213.0, 1.0, 428.0, 18.0));
+            }
+            Part::Spark => sprite.image = spark.clone(),
+            _ => {}
+        }
         commands.spawn((
             CastBarOwner(event.entity),
             part,
-            Sprite::from_color(color, Vec2::ONE),
+            sprite,
             RenderLayers::layer(UI_RENDER_LAYER),
             Transform::default(),
             Visibility::Hidden,
@@ -60,6 +96,7 @@ fn spawn_cast_bar(event: On<Add, CastState>, mut commands: Commands) {
         CastBarOwner(event.entity),
         Part::Label,
         Text2d::default(),
+        Anchor::CENTER_LEFT,
         TextFont {
             font_size: FontSize::Px(12.0),
             ..default()
@@ -99,17 +136,22 @@ fn cast_fraction(cast: &CastState) -> Option<f32> {
 }
 
 fn part_layout(part: Part, thick: bool, fraction: f32) -> (Vec2, Vec2, f32) {
-    let height = if thick { 20.0 } else { 8.0 };
+    let height = if thick { 14.0 } else { 6.0 };
     match part {
-        Part::Border => (Vec2::ZERO, Vec2::new(82.0, height + 2.0), 2.0),
-        Part::Background => (Vec2::ZERO, Vec2::new(80.0, height), 2.1),
+        Part::Border => (Vec2::ZERO, Vec2::new(192.0, height + 2.0), 2.0),
+        Part::Background => (Vec2::ZERO, Vec2::new(190.0, height), 2.1),
         Part::Fill => (
-            Vec2::new(-40.0 * (1.0 - fraction), 0.0),
-            Vec2::new(80.0 * fraction, height),
+            Vec2::new(-95.0 * (1.0 - fraction), 0.0),
+            Vec2::new(190.0 * fraction, height),
             2.2,
         ),
+        Part::Spark => (
+            Vec2::new(-95.0 + 190.0 * fraction, 0.0),
+            Vec2::new(8.0, height + 8.0),
+            2.25,
+        ),
         Part::Label => (
-            Vec2::new(0.0, if thick { 0.0 } else { height / 2.0 + 8.0 }),
+            Vec2::new(-91.0, if thick { 0.0 } else { height / 2.0 + 8.0 }),
             Vec2::ONE,
             2.3,
         ),
@@ -251,7 +293,7 @@ fn project_part<'a>(
     if distance >= limit || !camera.logical_viewport_rect()?.contains(bottom) {
         return None;
     }
-    let height = if thick { 20.0 } else { 8.0 };
+    let height = if thick { 14.0 } else { 6.0 };
     let (offset, size, z) = part_layout(part, thick, fraction);
     let point = bottom + Vec2::Y * (4.0 + height / 2.0) + offset;
     let position = overlay.viewport_to_world_2d(overlay_pose, point).ok()?;
@@ -279,6 +321,7 @@ mod tests {
     #[test]
     fn cast_parts_follow_component_lifetime() {
         let mut app = App::new();
+        app.init_resource::<Assets<Image>>();
         app.add_observer(spawn_cast_bar)
             .add_observer(remove_cast_bar);
         let owner = app
@@ -286,7 +329,7 @@ mod tests {
             .spawn(CastState::normal(133, 0, 3.0, true))
             .id();
         app.update();
-        assert_eq!(app.world().get::<CastBarParts>(owner).unwrap().0.len(), 4);
+        assert_eq!(app.world().get::<CastBarParts>(owner).unwrap().0.len(), 5);
         app.world_mut().entity_mut(owner).remove::<CastState>();
         app.update();
         assert_eq!(
@@ -300,7 +343,7 @@ mod tests {
             .entity_mut(owner)
             .insert(CastState::normal(116, 0, 2.0, true));
         app.update();
-        assert_eq!(app.world().get::<CastBarParts>(owner).unwrap().0.len(), 4);
+        assert_eq!(app.world().get::<CastBarParts>(owner).unwrap().0.len(), 5);
         app.world_mut().despawn(owner);
         app.update();
         assert_eq!(
@@ -315,10 +358,10 @@ mod tests {
     fn thickness_keeps_fill_left_aligned_and_places_label() {
         for thick in [false, true] {
             let (offset, size, _) = part_layout(Part::Fill, thick, 0.25);
-            assert_eq!(offset.x - size.x / 2.0, -40.0);
-            assert_eq!(size.y, if thick { 20.0 } else { 8.0 });
+            assert_eq!(offset.x - size.x / 2.0, -95.0);
+            assert_eq!(size.y, if thick { 14.0 } else { 6.0 });
             let (label, _, _) = part_layout(Part::Label, thick, 0.25);
-            assert_eq!(label.y, if thick { 0.0 } else { 12.0 });
+            assert_eq!(label, Vec2::new(-91.0, if thick { 0.0 } else { 11.0 }));
         }
     }
 }
