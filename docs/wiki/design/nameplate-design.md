@@ -1,8 +1,15 @@
 # Nameplate Design
 
-Nameplates use a target-first system with three display states driven by targeting, hostility, recent damage, and distance. The current target gets full detail; nearby combatants get compact bars; background actors are hidden or faded.
+This page records the intended target-first nameplate design. Current implementation is earlier: projected names and health bars obey existing visibility/distance settings; independent health/spellbar thickness choices and replicated cast presentation are being integrated. The target, hostility, combat, and occlusion state machine below is not implemented.
 
-## Display States
+## Current implementation boundary
+
+- `HudOptions` persists independent `Thin`/`Thick` choices for health and spell bars. The explicit user defaults are Thick health and Thin spellbar.
+- `shared::casting::CastState` is replicated from the server and mirrored from the client worker to the render world, including additions, elapsed progress changes, and removal.
+- Server cast presentation accepts player cast intents, validates available spell data, exposes timed cast state, and removes it on stop, movement cancellation, or expiry. It does not apply spell effects or supply NPC casts.
+- Reference-matched health/spell bar rendering and focused current-revision engine proof remain in progress. Do not infer the planned display states below from these data-path changes.
+
+## Intended display states
 
 | State | When | Content |
 |-------|------|---------|
@@ -49,9 +56,13 @@ Cast bars and elite/quest markers come after the base system validates.
 
 ## Sources
 
-- [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — design rules, open-source references, prototype scope
+- [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — intended design rules, references, prototype scope
+- [`src/game/state/client_options.rs`](../../../src/game/state/client_options.rs) — persisted health/spellbar thickness values
+- [`src/network_runtime/replication.rs`](../../../src/network_runtime/replication.rs) — worker-to-render-world cast snapshots
+- [`../../../game-server/crates/server/src/cast_presentation.rs`](../../../../game-server/crates/server/src/cast_presentation.rs) — authoritative player cast presentation lifecycle
 
 ## See Also
 
 - [[ui-addon-system]] — nameplates are rendered through the engine UI layer
 - [[character-generation]] — nameplate anchors to the character entity above it
+- [[networking]] — replicated entity boundary for cast state

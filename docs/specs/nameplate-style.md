@@ -1,6 +1,6 @@
 # Nameplate style
 
-Overhead health and spell bars match the supplied WoW reference. Rendering lives in `src/rendering/ui/`; [nameplate design](../wiki/design/nameplate-design.md) records context.
+This spec defines the requested WoW-reference overhead health and spell bars. Rendering lives in `src/rendering/ui/`; [nameplate design](../wiki/design/nameplate-design.md) distinguishes implemented data paths from its separate target-first design.
 
 ## What it must do
 
@@ -23,12 +23,14 @@ Overhead health and spell bars match the supplied WoW reference. Rendering lives
 - `src/rendering/ui/health_bar.rs` — health geometry, material, screen sizing.
 - `src/rendering/ui/nameplate.rs` — projected owner names.
 - `src/network_runtime/replication.rs` — cast snapshots across worker/main worlds.
+- `../game-server/crates/server/src/cast_presentation.rs` — validated player cast-state lifecycle; no spell effect execution or NPC cast source.
 
 ## Tests asserting this spec
 
-- `src/network_runtime/replication.rs` — cast start/progress/removal snapshot test.
-- `src/rendering/ui/health_bar.rs` — default health color.
-- `src/rendering/ui/health_bar_zoom_tests.rs` — projected dimensions.
+- `src/network_runtime/replication.rs` — written cast start/progress/removal snapshot test; current passing engine command evidence is pending.
+- `src/game/state/client_options_tests.rs` and `src/scenes/game_menu/options_tests.rs` — persisted selector defaults and draft/apply behavior; current passing engine command evidence is pending.
+- `../game-server/crates/server/src/cast_presentation_tests.rs` — start/progress/expiry, cancellation, validation; targeted server proof passed.
+- `src/rendering/ui/health_bar.rs` and `src/rendering/ui/health_bar_zoom_tests.rs` — health color/dimensions, with current-revision style proof pending.
 
 ## Known gaps (current cycle)
 
