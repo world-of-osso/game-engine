@@ -225,7 +225,7 @@ fn nameplate_gpu_zoom_preserves_bar_and_text_pixel_dimensions() {
         },
         Npc {
             template_id: 299,
-            name: "Wolf".into(),
+            name: "Zolramus Sorcerer".into(),
         },
     ));
     let camera = app
@@ -250,8 +250,8 @@ fn nameplate_gpu_zoom_preserves_bar_and_text_pixel_dimensions() {
             .expect("white name pixels");
         let bar_size = (bar.right - bar.left + 1, bar.bottom - bar.top + 1);
         assert!(
-            bar_size.0.abs_diff(382) <= 1 && bar_size.1.abs_diff(18) <= 1,
-            "zoom distance {distance}: expected 382x18px red interior, got {bar_size:?}"
+            bar_size.0.abs_diff(191) <= 1 && bar_size.1.abs_diff(9) <= 1,
+            "zoom distance {distance}: expected half-size red interior, got {bar_size:?}"
         );
         let current_name_size = (name.right - name.left + 1, name.bottom - name.top + 1);
         if let Some(expected) = name_size {
@@ -305,7 +305,7 @@ fn nameplate_gpu_reference_thickness_combinations() {
     let mut app = configured_render_app(|app| {
         app.add_plugins((crate::health_bar::HealthBarPlugin, NameplateCastBarPlugin));
     });
-    let target = render_cameras_sized(&mut app, 979, 364);
+    let target = render_cameras_sized(&mut app, 489, 182);
     app.update();
     let mut cast = CastState::normal(133, 0, 4.0, true);
     cast.spell_name = "Necrotic Bolt".into();
@@ -364,7 +364,7 @@ fn nameplate_gpu_reference_thickness_combinations() {
             .query_filtered::<(&Camera, &GlobalTransform), With<Camera3d>>()
             .single(app.world())
             .unwrap();
-        let ray = camera.0.viewport_to_world(camera.1, center).unwrap();
+        let ray = camera.0.viewport_to_world(camera.1, center * 0.5).unwrap();
         let anchor = ray.origin + ray.direction * (-ray.origin.z / ray.direction.z);
         app.world_mut()
             .get_mut::<Transform>(owner)
