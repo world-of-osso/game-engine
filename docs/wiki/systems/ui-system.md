@@ -24,9 +24,9 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Registry-native migration status
 
-Bounded runtime evidence is recorded under `data/diagnostics/native-layout-api/`: `native-login-settled/` captured the rendered registry-backed login screen and its populated registry dump; `native-caret/` captured a focused username edit box after UTF-8 input (`adminé`, byte cursor `7`) across four timed screenshots. This evidence was built from engine `5e576431` and toolkit `821c2a0`, not the later fixture/refactor commits.
+Bounded runtime evidence is recorded under `data/diagnostics/native-layout-api/final-*`: loading, menu opening, local authentication to character select, UTF-8 username editing (`adminé`, byte cursor `7`), and sampled caret blinking. `final-native/report.md` found two visual regressions: a 16px menu-title/panel gap and loading labels sharing lower draw order with the bar/fill. Commits `25016091` and `4415f5fc` respectively restore the title's two-pixel overlap with its panel and keep the zone/tip labels over artwork plus status/progress labels over the bar/fill. Follow-up runtime verification is pending.
 
-At toolkit `821c2a0`, targeted proof covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases. Engine addon and migrated-screen verification remains incomplete. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. Do not treat this as final acceptance.
+At toolkit `bc901a6`, targeted proof covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases; engine bounded integration covers 887 cases. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. Do not treat this as final acceptance.
 
 ## Player-frame artwork fit
 
