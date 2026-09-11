@@ -111,6 +111,46 @@ fn load_skin(bytes: &[u8], images: &mut Assets<Image>) -> Result<Handle<Image>, 
     Ok(images.add(image))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reference_frames_leave_live_values_and_labels_uncovered() {
+        let cases: &[(&[u8], [u32; 4])] = &[
+            (
+                include_bytes!("nameplate_skins/health-thick.png"),
+                [8, 6, 384, 43],
+            ),
+            (
+                include_bytes!("nameplate_skins/health-thin.png"),
+                [8, 6, 384, 25],
+            ),
+            (
+                include_bytes!("nameplate_skins/cast-thin.png"),
+                [28, 6, 400, 17],
+            ),
+            (
+                include_bytes!("nameplate_skins/cast-thick.png"),
+                [29, 7, 401, 25],
+            ),
+        ];
+        let mut images = Assets::<Image>::default();
+        for (bytes, [left, top, right, bottom]) in cases {
+            let handle = load_skin(bytes, &mut images).unwrap();
+            let image = images.get(&handle).unwrap();
+            let pixels = image.data.as_ref().unwrap();
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            for y in *top..*bottom {
+                for x in *left..*right {
+                    let alpha = pixels[((y * image.width() + x) * 4 + 3) as usize];
+                    assert_eq!(alpha, 0, "frame covers live content at {x},{y}");
+                }
+            }
+        }
+    }
+}
+
 fn load_atlas(fdid: u32, images: &mut Assets<Image>) -> Result<Handle<Image>, String> {
     let path = crate::asset::asset_cache::texture(fdid)
         .ok_or_else(|| format!("Nameplate atlas {fdid} unavailable in local CASC"))?;
