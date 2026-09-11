@@ -12,6 +12,20 @@ use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_al
 use crate::game_state::GameState;
 use crate::health_bar::{BAR_HEIGHT, HealthBar};
 
+const CAST_WIDTH: f32 = 190.0;
+const CAST_THICK_HEIGHT: f32 = 14.0;
+const CAST_THIN_HEIGHT: f32 = 6.0;
+const LABEL_INSET: f32 = 4.0;
+const HEALTH_CAST_GAP: f32 = 4.0;
+
+fn cast_height(thick: bool) -> f32 {
+    if thick {
+        CAST_THICK_HEIGHT
+    } else {
+        CAST_THIN_HEIGHT
+    }
+}
+
 pub struct NameplateCastBarPlugin;
 impl Plugin for NameplateCastBarPlugin {
     fn build(&self, app: &mut App) {
@@ -48,26 +62,46 @@ fn spawn_cast_bar(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     mut textures: Local<Option<(Handle<Image>, Handle<Image>)>>,
+    stage: Option<Res<InWorldSceneStage>>,
+    disabled: Option<Res<UiDisabled>>,
 ) {
+    if !inworld_scene_stage_allows_ui(stage, disabled) {
+        return;
+    }
     if textures.is_none() {
-        let load = |fdid| {
-            let path = crate::asset::asset_cache::texture(fdid)
-                .ok_or_else(|| format!("Castbar texture {fdid} unavailable in local CASC"))?;
-            crate::asset::blp::load_blp_to_image(&path)
-        };
-        match (load(4505182), load(130877)) {
-            (Ok(fill), Ok(spark)) => *textures = Some((images.add(fill), images.add(spark))),
-            (fill, spark) => {
-                error!(
-                    "Cannot load castbar artwork: fill={:?}, spark={:?}",
-                    fill.err(),
-                    spark.err()
-                );
+        match load_cast_textures(&mut images) {
+            Ok(loaded) => *textures = Some(loaded),
+            Err(error) => {
+                error!("Cannot load castbar artwork: {error}");
                 return;
             }
         }
     }
     let (fill, spark) = textures.as_ref().expect("cast textures loaded above");
+    spawn_cast_sprites(&mut commands, event.entity, fill, spark);
+    spawn_cast_label(&mut commands, event.entity);
+}
+
+fn load_cast_textures(
+    images: &mut Assets<Image>,
+) -> Result<(Handle<Image>, Handle<Image>), String> {
+    let load = |fdid| {
+        let path = crate::asset::asset_cache::texture(fdid)
+            .ok_or_else(|| format!("Castbar texture {fdid} unavailable in local CASC"))?;
+        crate::asset::blp::load_blp_to_image(&path)
+            .map_err(|error| format!("Castbar texture {fdid}: {error}"))
+    };
+    let fill = load(4505182)?;
+    let spark = load(130877)?;
+    Ok((images.add(fill), images.add(spark)))
+}
+
+fn spawn_cast_sprites(
+    commands: &mut Commands,
+    owner: Entity,
+    fill: &Handle<Image>,
+    spark: &Handle<Image>,
+) {
     for (part, color) in [
         (Part::Border, Color::srgb(0.5, 0.42, 0.22)),
         (Part::Background, Color::srgb(0.08, 0.065, 0.035)),
@@ -85,7 +119,7 @@ fn spawn_cast_bar(
             _ => {}
         }
         commands.spawn((
-            CastBarOwner(event.entity),
+            CastBarOwner(owner),
             part,
             sprite,
             RenderLayers::layer(UI_RENDER_LAYER),
@@ -93,8 +127,11 @@ fn spawn_cast_bar(
             Visibility::Hidden,
         ));
     }
+}
+
+fn spawn_cast_label(commands: &mut Commands, owner: Entity) {
     commands.spawn((
-        CastBarOwner(event.entity),
+        CastBarOwner(owner),
         Part::Label,
         Text2d::default(),
         Anchor::CENTER_LEFT,
@@ -137,22 +174,26 @@ fn cast_fraction(cast: &CastState) -> Option<f32> {
 }
 
 fn part_layout(part: Part, thick: bool, fraction: f32) -> (Vec2, Vec2, f32) {
-    let height = if thick { 14.0 } else { 6.0 };
+    let height = cast_height(thick);
+    let half_width = CAST_WIDTH / 2.0;
     match part {
-        Part::Border => (Vec2::ZERO, Vec2::new(192.0, height + 2.0), 2.0),
-        Part::Background => (Vec2::ZERO, Vec2::new(190.0, height), 2.1),
+        Part::Border => (Vec2::ZERO, Vec2::new(CAST_WIDTH + 2.0, height + 2.0), 2.0),
+        Part::Background => (Vec2::ZERO, Vec2::new(CAST_WIDTH, height), 2.1),
         Part::Fill => (
-            Vec2::new(-95.0 * (1.0 - fraction), 0.0),
-            Vec2::new(190.0 * fraction, height),
+            Vec2::new(-half_width * (1.0 - fraction), 0.0),
+            Vec2::new(CAST_WIDTH * fraction, height),
             2.2,
         ),
         Part::Spark => (
-            Vec2::new(-95.0 + 190.0 * fraction, 0.0),
+            Vec2::new(-half_width + CAST_WIDTH * fraction, 0.0),
             Vec2::new(8.0, height + 8.0),
             2.25,
         ),
         Part::Label => (
-            Vec2::new(-91.0, if thick { 0.0 } else { height / 2.0 + 8.0 }),
+            Vec2::new(
+                -half_width + LABEL_INSET,
+                if thick { 0.0 } else { height / 2.0 + 8.0 },
+            ),
             Vec2::ONE,
             2.3,
         ),
@@ -238,40 +279,40 @@ fn project_cast_bars(scene: CastScene, mut parts: Parts) {
             let pose = Transform::from_translation(position);
             transform.set_if_neq(pose);
             global.set_if_neq(GlobalTransform::from(pose));
-            if let Some(mut sprite) = sprite {
-                if sprite.custom_size != Some(size) {
-                    sprite.custom_size = Some(size);
-                }
-                if sprite.color.alpha() != alpha {
-                    sprite.color.set_alpha(alpha);
-                }
-            }
-            if let Some(mut text) = text
-                && text.0 != name
-            {
-                text.0 = name.to_owned();
-            }
-            if let Some(mut color) = text_color {
-                color.set_if_neq(TextColor(Color::WHITE.with_alpha(alpha)));
-            }
+            update_cast_content(sprite, text, text_color, size, name, alpha);
         }
     }
 }
 
-fn project_part<'a>(
-    scene: &'a CastScene,
-    owner: Entity,
-    part: Part,
-    thick: bool,
-) -> Option<(Vec3, Vec2, &'a str, f32)> {
-    let (cast, children, inherited) = scene.owners.get(owner).ok()?;
-    if !inherited.get() {
-        return None;
+fn update_cast_content(
+    sprite: Option<Mut<Sprite>>,
+    text: Option<Mut<Text2d>>,
+    text_color: Option<Mut<TextColor>>,
+    size: Vec2,
+    name: &str,
+    alpha: f32,
+) {
+    if let Some(mut sprite) = sprite {
+        if sprite.custom_size != Some(size) {
+            sprite.custom_size = Some(size);
+        }
+        if sprite.color.alpha() != alpha {
+            sprite.color.set_alpha(alpha);
+        }
     }
-    let fraction = cast_fraction(cast)?;
+    if let Some(mut text) = text
+        && text.0 != name
+    {
+        text.0 = name.to_owned();
+    }
+    if let Some(mut color) = text_color {
+        color.set_if_neq(TextColor(Color::WHITE.with_alpha(alpha)));
+    }
+}
+
+fn project_health_bottom(scene: &CastScene, children: &Children) -> Option<(Vec2, f32)> {
     let (camera, camera_pose) = scene.world_camera.single().ok()?;
-    let (overlay, overlay_pose) = scene.overlay_camera.single().ok()?;
-    if !camera.is_active || !overlay.is_active {
+    if !camera.is_active {
         return None;
     }
     let (bar, _) = children
@@ -288,27 +329,73 @@ fn project_part<'a>(
     let limit = scene
         .hud
         .as_ref()
-        .map_or(crate::client_options::DEFAULT_NAMEPLATE_DISTANCE, |h| {
-            h.nameplate_distance
+        .map_or(crate::client_options::DEFAULT_NAMEPLATE_DISTANCE, |hud| {
+            hud.nameplate_distance
         });
     if distance >= limit || !camera.logical_viewport_rect()?.contains(bottom) {
         return None;
     }
-    let height = if thick { 14.0 } else { 6.0 };
+    Some((bottom, crate::nameplate::nameplate_alpha(distance, limit)))
+}
+
+fn project_part<'a>(
+    scene: &'a CastScene,
+    owner: Entity,
+    part: Part,
+    thick: bool,
+) -> Option<(Vec3, Vec2, &'a str, f32)> {
+    let (cast, children, inherited) = scene.owners.get(owner).ok()?;
+    if !inherited.get() {
+        return None;
+    }
+    let fraction = cast_fraction(cast)?;
+    let (overlay, overlay_pose) = scene.overlay_camera.single().ok()?;
+    if !overlay.is_active {
+        return None;
+    }
+    let (bottom, alpha) = project_health_bottom(scene, children)?;
+    let height = cast_height(thick);
     let (offset, size, z) = part_layout(part, thick, fraction);
-    let point = bottom + Vec2::Y * (4.0 + height / 2.0) + offset;
+    let point = bottom + Vec2::Y * (HEALTH_CAST_GAP + height / 2.0) + offset;
     let position = overlay.viewport_to_world_2d(overlay_pose, point).ok()?;
-    Some((
-        position.extend(z),
-        size,
-        cast.spell_name.as_str(),
-        crate::nameplate::nameplate_alpha(distance, limit),
-    ))
+    Some((position.extend(z), size, cast.spell_name.as_str(), alpha))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn disabled_or_non_ui_stage_casts_create_no_visuals_without_assets() {
+        for (stage, disabled) in [
+            (InWorldSceneStage::Ui, true),
+            (InWorldSceneStage::Empty, false),
+            (InWorldSceneStage::Particles, false),
+            (InWorldSceneStage::NoNpcsUi, false),
+        ] {
+            let mut app = App::new();
+            app.init_resource::<Assets<Image>>();
+            app.insert_resource(stage);
+            if disabled {
+                app.insert_resource(UiDisabled);
+            }
+            app.add_observer(spawn_cast_bar);
+            let owner = app
+                .world_mut()
+                .spawn(CastState::normal(133, 0, 3.0, true))
+                .id();
+            app.update();
+            assert!(app.world().get::<CastBarParts>(owner).is_none());
+            assert_eq!(
+                app.world_mut()
+                    .query::<&CastBarOwner>()
+                    .iter(app.world())
+                    .count(),
+                0
+            );
+            assert!(app.world().resource::<Assets<Image>>().is_empty());
+        }
+    }
+
     #[test]
     fn cast_progress_fills_and_channels_drain() {
         let mut cast = CastState::normal(133, 0, 4.0, true);
