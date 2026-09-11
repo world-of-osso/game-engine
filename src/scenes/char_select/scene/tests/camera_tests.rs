@@ -53,7 +53,10 @@ fn char_select_fog_preserves_nearby_trees_and_fades_distant_terrain() {
     };
 
     assert!(end > start, "fog must have a nonzero fade interval");
-    let visibility_at = |distance: f32| 1.0 - ((distance - start) / (end - start)).clamp(0.0, 1.0);
+    let maximum_opacity = fog.color.to_srgba().alpha;
+    let visibility_at = |distance: f32| {
+        1.0 - maximum_opacity * ((distance - start) / (end - start)).clamp(0.0, 1.0)
+    };
 
     assert_eq!(
         visibility_at(45.0),
@@ -65,10 +68,10 @@ fn char_select_fog_preserves_nearby_trees_and_fades_distant_terrain() {
         distant_visibility > 0.0 && distant_visibility < 1.0,
         "distant terrain must fade gradually, got visibility={distant_visibility}"
     );
-    assert_eq!(
-        visibility_at(400.0),
-        0.0,
-        "terrain beyond the fog range must be fully faded"
+    let far_visibility = visibility_at(400.0);
+    assert!(
+        (0.5..1.0).contains(&far_visibility),
+        "distant scenery must retain detail through the haze, got visibility={far_visibility}"
     );
 }
 
