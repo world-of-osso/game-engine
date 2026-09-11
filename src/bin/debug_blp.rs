@@ -1,6 +1,6 @@
 use std::path::Path;
 
-const BORDER_BASE: &str = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
+const BORDER_BASE: &str = "data/ui/Common-Input-Border-";
 const NINE_SLICE_PARTS: [&str; 9] = ["TL", "T", "TR", "L", "M", "R", "BL", "B", "BR"];
 const SCALE: u32 = 8;
 const PART_SIZE: u32 = 8;

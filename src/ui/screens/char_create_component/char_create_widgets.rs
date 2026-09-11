@@ -280,7 +280,7 @@ pub(super) fn class_button(
 // --- Name input + create button ---
 
 fn input_border_textures(center_texture: &str) -> [String; 9] {
-    let base = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
+    let base = "data/ui/Common-Input-Border-";
     [
         format!("{base}TL.blp"),
         format!("{base}T.blp"),
@@ -319,8 +319,7 @@ fn focused_name_editbox() -> Element {
 }
 
 fn unfocused_name_editbox() -> Element {
-    let textures =
-        input_border_textures("/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-M.blp");
+    let textures = input_border_textures("data/ui/Common-Input-Border-M.blp");
     rsx! {
         editbox {
             name: CREATE_NAME_INPUT,

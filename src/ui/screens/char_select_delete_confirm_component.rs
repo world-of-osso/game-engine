@@ -23,15 +23,15 @@ const DELETE_DIALOG_OVERLAY: &str = "0.0,0.0,0.0,0.65";
 const DELETE_HELPER: FontColor = FontColor::new(0.96, 0.92, 0.8, 1.0);
 const DELETE_WARNING: FontColor = FontColor::new(0.93, 0.4, 0.35, 1.0);
 const INPUT_BORDER_TEXTURES: [&str; 9] = [
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-TL.blp",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-T.blp",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-TR.blp",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-L.blp",
+    "data/ui/Common-Input-Border-TL.blp",
+    "data/ui/Common-Input-Border-T.blp",
+    "data/ui/Common-Input-Border-TR.blp",
+    "data/ui/Common-Input-Border-L.blp",
     "data/textures/editbox-white-fill.ktx2",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-R.blp",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-BL.blp",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-B.blp",
-    "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-BR.blp",
+    "data/ui/Common-Input-Border-R.blp",
+    "data/ui/Common-Input-Border-BL.blp",
+    "data/ui/Common-Input-Border-B.blp",
+    "data/ui/Common-Input-Border-BR.blp",
 ];
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
