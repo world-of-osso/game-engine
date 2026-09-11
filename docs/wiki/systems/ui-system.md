@@ -1,6 +1,6 @@
 # UI System
 
-Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` drives generation-based updates and the frame registry stores named elements. Login is the first native Bevy UI screen. Its native layout is authored with the direct native `rsx!` mode added at macro `35c1ddc` and engine `81f13187`, pending verification; other screens retain the toolkit frame model (anchors, strata, draw layers).
+Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` drives generation-based updates and the frame registry stores named elements. Login is the first native Bevy UI screen. Its native layout uses the direct native `rsx!` mode verified at macro `9ef0c96` and engine `8c937128`; other screens retain the toolkit frame model (anchors, strata, draw layers).
 
 ## Core Primitives
 
@@ -16,7 +16,7 @@ Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` d
 
 `rsx! { @native(commands, parent) { node { ... } } => result }` directly emits Bevy `Node` entities and `ChildOf` relationships. It bypasses `Screen`, `SharedContext`, `FrameRegistry`, toolkit anchors, and `WidgetDef` entirely.
 
-`id:` exposes spawned entities lexically; `name:` is an ordinary string expression rather than a legacy `FrameName`; `layout:` supplies a `Node` base; `components:` adds typed Bevy components. Rust statement blocks remain available for native helpers such as fields, nine-slice buttons, and carets. The current subset exists only to restore login authoring without reintroducing the toolkit renderer or a parallel UI tree.
+`id:` exposes spawned entities lexically; `name:` is an ordinary string expression rather than a legacy `FrameName`; `layout:` supplies a `Node` base; `components:` adds typed Bevy components. Rust statement blocks remain available for native helpers such as fields, nine-slice buttons, and carets. The current subset exists only to restore login authoring without reintroducing the toolkit renderer or a parallel UI tree. Parser tests, direct Bevy entity tests, computed login-layout tests, unchanged legacy-RSX tests, and a bounded native screenshot/tree capture verify the login subset.
 
 ## Frame Hierarchy and Layout
 

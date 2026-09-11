@@ -1,6 +1,6 @@
 # Bevy UI login
 
-`src/scenes/login/` renders through Bevy UI entities while its layout hierarchy is authored with native `rsx!`; other screens remain on the toolkit backend. The native-RSX restoration at macro `35c1ddc` and engine `81f13187` is pending verification. See [UI system](../wiki/systems/ui-system.md).
+`src/scenes/login/` renders through Bevy UI entities while its layout hierarchy is authored with native `rsx!`; other screens remain on the toolkit backend. Native RSX is verified through macro `9ef0c96` and engine `8c937128`. See [UI system](../wiki/systems/ui-system.md).
 
 ## What it must do
 
@@ -52,7 +52,7 @@
 - `components:` inserts typed Bevy components alongside the node.
 - Rust statement blocks may call existing native helpers for fields, nine-slices, buttons, and carets without introducing a second UI tree.
 
-The initial native mode intentionally covers only the direct Bevy construction required by login. Its compile, behavioral, and rendered-equivalence tests remain pending verification.
+The initial native mode intentionally covers only the direct Bevy construction required by login. Macro syntax, direct entity construction, computed layout, legacy RSX compatibility, and a bounded native screenshot/tree capture pass; the legacy backend remains unchanged.
 
 ## Tests asserting this spec
 
