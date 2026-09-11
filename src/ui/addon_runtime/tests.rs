@@ -142,12 +142,14 @@ fn js_addon_reuses_engine_frames_and_updates_native_bevy_output() {
         r#"
         addon.createFrame("EnginePanel", "ParentRoot");
         addon.setSize("EnginePanel", 200, 60);
-        addon.setPoint("EnginePanel", "TOPLEFT", "ParentRoot", "TOPLEFT", 10, -20);
+        addon.setPosType("EnginePanel", "absolute");
+        addon.setPos("EnginePanel", 10, 20);
         addon.setBackgroundColor("EnginePanel", 0.1, 0.2, 0.3, 0.8);
         addon.setAlpha("EnginePanel", 0.5);
         addon.createFontString("EngineLabel", "EnginePanel", "Initial");
         addon.setSize("EngineLabel", 80, 20);
-        addon.setPoint("EngineLabel", "CENTER", "EnginePanel", "CENTER", 0, 0);
+        addon.setPosType("EngineLabel", "absolute");
+        addon.setPos("EngineLabel", 60, 20);
         addon.setText("EngineLabel", "Updated");
         addon.setFontColor("EngineLabel", 0.9, 0.7, 0.2, 0.8);
         addon.setAlpha("EngineLabel", 0.5);
@@ -198,7 +200,7 @@ fn js_addon_reuses_engine_frames_and_updates_native_bevy_output() {
     assert_eq!(projected_frame(app.world_mut(), label), label_entity);
     assert_eq!(projected_text(app.world(), label_entity), text);
     assert_native_rect(app.world(), panel_entity, [10.0, 20.0, 300.0, 100.0]);
-    assert_native_rect(app.world(), label_entity, [120.0, 60.0, 80.0, 20.0]);
+    assert_native_rect(app.world(), label_entity, [70.0, 40.0, 80.0, 20.0]);
     assert_eq!(app.world().get::<Text>(text).unwrap().0, "Resized");
     let registry = &app.world().resource::<UiState>().registry;
     assert_eq!(
@@ -247,7 +249,8 @@ fn js_addon_reload_and_unload_remove_registry_and_native_subtrees() {
             r#"
         addon.createFrame("ReloadNativePanel", "ParentRoot");
         addon.setSize("ReloadNativePanel", 200, 60);
-        addon.setPoint("ReloadNativePanel", "TOPLEFT", "ParentRoot", "TOPLEFT", 5, -10);
+        addon.setPosType("ReloadNativePanel", "absolute");
+        addon.setPos("ReloadNativePanel", 5, 10);
         addon.createFontString("ReloadNativeLabel", "ReloadNativePanel", "{value}");
         addon.setSize("ReloadNativeLabel", 100, 20);
     "#
@@ -469,11 +472,158 @@ fn addon_apply_runs_only_after_load_or_reload_and_respects_ui_enabled() {
 }
 
 #[test]
+fn js_layout_api_rejects_bad_arity_types_targets_and_nonfinite_positions() {
+    for script in [
+        "addon.setPos('Panel', 1);",
+        "addon.setPos('Panel', 1, 2, 3);",
+        "addon.setPos('Panel', '1', 2);",
+        "addon.setPos('Panel', null, 2);",
+        "addon.setPos('Panel', NaN, 2);",
+        "addon.setPos('Panel', 1, Infinity);",
+        "addon.setPos('Panel', -Infinity, 2);",
+        "addon.setPos('Panel', 1e100, 2);",
+        "addon.setPosType('Panel');",
+        "addon.setPosType('Panel', 'absolute', 'extra');",
+        "addon.setPosType('Panel', 'fixed');",
+        "addon.setPosType('Panel', null);",
+        "addon.setAnchor();",
+        "addon.setAnchor('Panel', 'parent', 'extra');",
+        "addon.setAnchor('Panel', 'Sibling');",
+        "addon.setAnchor('Panel', null);",
+        "addon.setPoint('Panel', 'TOPLEFT', 'ParentRoot', 'TOPLEFT', 0, 0);",
+    ] {
+        assert!(
+            js::run_js_addon_to_operations(script).is_err(),
+            "invalid layout operation was accepted: {script}"
+        );
+    }
+    assert_eq!(
+        js::run_js_addon_to_operations("addon.setAnchor('Panel', undefined);").unwrap(),
+        vec![AddonOperation::SetAnchor {
+            name: "Panel".into(),
+            target: AnchorTarget::Parent,
+        }]
+    );
+}
+
+#[test]
+fn js_layout_target_changes_native_parent_without_changing_logical_ownership() {
+    let mut app = native_addon_app();
+    let root = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("ParentRoot")
+        .unwrap();
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        ui.registry
+            .set_pos_type(root, PositionType::Absolute)
+            .unwrap();
+        ui.registry.set_pos(root, 100.0, 80.0).unwrap();
+    }
+    let mut addon = script_addon(
+        r#"
+        addon.createFrame("TargetPanel", "ParentRoot");
+        addon.setSize("TargetPanel", 60, 30);
+        addon.setPosType("TargetPanel", "absolute");
+        addon.setPos("TargetPanel", 15, 25);
+    "#,
+    );
+    project_addon(&mut app, &addon);
+    let id = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("TargetPanel")
+        .unwrap();
+    let entity = projected_frame(app.world_mut(), id);
+    let root_entity = projected_frame(app.world_mut(), root);
+    assert_native_rect(app.world(), entity, [115.0, 105.0, 60.0, 30.0]);
+    assert_eq!(
+        app.world().get::<ChildOf>(entity).unwrap().parent(),
+        root_entity
+    );
+
+    addon.operations =
+        js::run_js_addon_to_operations("addon.setAnchor('TargetPanel', 'screen');").unwrap();
+    project_addon(&mut app, &addon);
+    assert_eq!(projected_frame(app.world_mut(), id), entity);
+    assert_native_rect(app.world(), entity, [15.0, 25.0, 60.0, 30.0]);
+    assert_ne!(
+        app.world().get::<ChildOf>(entity).unwrap().parent(),
+        root_entity
+    );
+    let frame = app.world().resource::<UiState>().registry.get(id).unwrap();
+    assert_eq!(frame.parent_id, Some(root));
+    assert_eq!(frame.position_type, PositionType::Absolute);
+    assert_eq!(frame.anchor, AnchorTarget::Screen);
+
+    addon.operations = js::run_js_addon_to_operations("addon.setAnchor('TargetPanel');").unwrap();
+    project_addon(&mut app, &addon);
+    assert_eq!(projected_frame(app.world_mut(), id), entity);
+    assert_native_rect(app.world(), entity, [115.0, 105.0, 60.0, 30.0]);
+    assert_eq!(
+        app.world().get::<ChildOf>(entity).unwrap().parent(),
+        root_entity
+    );
+    apply::remove_owned_frames(
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+        &addon.owned_frames,
+    );
+    app.update();
+    app.update();
+    assert!(app.world().get_entity(entity).is_err());
+    assert!(app.world().get_entity(root_entity).is_ok());
+}
+
+#[test]
+fn js_relative_positions_offset_layout_flow_while_absolute_positions_leave_it() {
+    let mut app = native_addon_app();
+    let mut addon = script_addon(
+        r#"
+        addon.createFrame("FirstFlowChild", "ParentRoot");
+        addon.setSize("FirstFlowChild", 100, 20);
+        addon.createFrame("SecondFlowChild", "ParentRoot");
+        addon.setSize("SecondFlowChild", 50, 20);
+        addon.setPosType("SecondFlowChild", "relative");
+        addon.setPos("SecondFlowChild", 12, 8);
+    "#,
+    );
+    project_addon(&mut app, &addon);
+    let second = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("SecondFlowChild")
+        .unwrap();
+    let entity = projected_frame(app.world_mut(), second);
+    assert_native_rect(app.world(), entity, [112.0, 8.0, 50.0, 20.0]);
+    addon.operations =
+        js::run_js_addon_to_operations("addon.setPosType('SecondFlowChild', 'absolute');").unwrap();
+    project_addon(&mut app, &addon);
+    assert_eq!(projected_frame(app.world_mut(), second), entity);
+    assert_native_rect(app.world(), entity, [12.0, 8.0, 50.0, 20.0]);
+    let frame = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get(second)
+        .unwrap();
+    assert_eq!(frame.position.left, px(12));
+    assert_eq!(frame.position.top, px(8));
+    assert_eq!(frame.anchor, AnchorTarget::Parent);
+}
+
+#[test]
 fn js_addon_script_emits_expected_operations() {
     let script = r#"
         addon.createFrame("MyPanel", "ParentRoot");
         addon.setSize("MyPanel", 240, 64);
-        addon.setPoint("MyPanel", "TOP", "ParentRoot", "BOTTOM", 12, -6);
+        addon.setPos("MyPanel", 12, 6);
+        addon.setPosType("MyPanel", "absolute");
+        addon.setAnchor("MyPanel", "screen");
+        addon.setAnchor("MyPanel");
         addon.setBackgroundColor("MyPanel", 0.1, 0.2, 0.3, 0.9);
         addon.createFontString("MyLabel", "MyPanel", "Hello");
         addon.setText("MyLabel", "Updated");
@@ -493,13 +643,22 @@ fn js_addon_script_emits_expected_operations() {
                 width: 240.0,
                 height: 64.0,
             },
-            AddonOperation::SetPoint {
+            AddonOperation::SetPos {
                 name: "MyPanel".to_string(),
-                point: AnchorPoint::Top,
-                relative_to: Some("ParentRoot".to_string()),
-                relative_point: AnchorPoint::Bottom,
                 x: 12.0,
-                y: -6.0,
+                y: 6.0,
+            },
+            AddonOperation::SetPosType {
+                name: "MyPanel".to_string(),
+                position_type: PositionType::Absolute,
+            },
+            AddonOperation::SetAnchor {
+                name: "MyPanel".to_string(),
+                target: AnchorTarget::Screen,
+            },
+            AddonOperation::SetAnchor {
+                name: "MyPanel".to_string(),
+                target: AnchorTarget::Parent,
             },
             AddonOperation::SetBackgroundColor {
                 name: "MyPanel".to_string(),
@@ -530,7 +689,7 @@ fn apply_addon_creates_owned_frames_and_updates_text() {
             addon.setSize("MyPanel", 300, 80);
             addon.setBackgroundColor("MyPanel", 0.05, 0.1, 0.15, 0.8);
             addon.createFontString("MyLabel", "MyPanel", "Ready");
-            addon.setPoint("MyLabel", "CENTER", "MyPanel", "CENTER", 0, 0);
+            addon.setPos("MyLabel", 0, 0);
             addon.setText("MyLabel", "Loaded");
         "#,
     )
@@ -554,15 +713,14 @@ fn apply_addon_creates_owned_frames_and_updates_text() {
 }
 
 #[test]
-fn addon_resize_invalidates_anchored_layout_and_followers() {
+fn addon_position_updates_preserve_target_mode_and_logical_parent() {
     let operations = js::run_js_addon_to_operations(
         r#"
             addon.createFrame("SizedPanel", "ParentRoot");
             addon.setSize("SizedPanel", 100, 40);
-            addon.setPoint("SizedPanel", "TOPLEFT", "ParentRoot", "TOPLEFT", 10, -20);
-            addon.createFrame("Follower", "ParentRoot");
-            addon.setSize("Follower", 20, 10);
-            addon.setPoint("Follower", "TOPLEFT", "SizedPanel", "TOPRIGHT", 5, 0);
+            addon.setPosType("SizedPanel", "absolute");
+            addon.setAnchor("SizedPanel", "screen");
+            addon.setPos("SizedPanel", 10, 20);
         "#,
     )
     .expect("setup script should parse");
@@ -573,47 +731,33 @@ fn addon_resize_invalidates_anchored_layout_and_followers() {
     };
     let mut registry = make_registry_with_root();
     apply::apply_addon(&addon, &mut registry);
-    ui_toolkit::layout::recompute_layouts(&mut registry);
     let panel = registry.get_by_name("SizedPanel").unwrap();
-    let follower = registry.get_by_name("Follower").unwrap();
-    let original = registry.get(panel).unwrap().layout_rect.clone().unwrap();
-    assert_eq!(
-        (original.x, original.y, original.width, original.height),
-        (10.0, 20.0, 100.0, 40.0)
-    );
-    assert_eq!(
-        registry
-            .get(follower)
-            .unwrap()
-            .layout_rect
-            .as_ref()
-            .unwrap()
-            .x,
-        115.0
-    );
+    let parent = registry.get_by_name("ParentRoot").unwrap();
+    {
+        let frame = registry.get_mut(panel).unwrap();
+        frame.position.right = px(5);
+        frame.position.bottom = px(7);
+    }
 
     addon.operations = js::run_js_addon_to_operations(
         r#"
             addon.setSize("SizedPanel", 160, 70);
+            addon.setPos("SizedPanel", -12, 23);
             addon.setSize("ParentRoot", 999, 999);
         "#,
     )
     .expect("resize script should parse");
     apply::apply_addon(&addon, &mut registry);
-    // Keep another frame dirty so a full-layout fallback cannot hide missing invalidation.
-    registry.create_frame("UnrelatedDirtyFrame", None);
-    ui_toolkit::layout::recompute_layouts(&mut registry);
-
-    let resized = registry.get(panel).unwrap().layout_rect.as_ref().unwrap();
-    assert_eq!((resized.x, resized.y), (original.x, original.y));
-    assert_eq!((resized.width, resized.height), (160.0, 70.0));
-    let following = registry
-        .get(follower)
-        .unwrap()
-        .layout_rect
-        .as_ref()
-        .unwrap();
-    assert_eq!((following.x, following.y), (175.0, 20.0));
+    let frame = registry.get(panel).unwrap();
+    assert_eq!(frame.position.left, px(-12));
+    assert_eq!(frame.position.top, px(23));
+    assert_eq!(frame.position.right, Val::Auto);
+    assert_eq!(frame.position.bottom, Val::Auto);
+    assert_eq!(frame.position_type, PositionType::Absolute);
+    assert_eq!(frame.anchor, AnchorTarget::Screen);
+    assert_eq!(frame.parent_id, Some(parent));
+    assert_eq!(frame.width, Dimension::Fixed(160.0));
+    assert_eq!(frame.height, Dimension::Fixed(70.0));
     let root = registry
         .get(registry.get_by_name("ParentRoot").unwrap())
         .unwrap();
