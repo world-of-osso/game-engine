@@ -1,4 +1,10 @@
-# Local Bevy patches
+# Local dependency patches
+
+## KTX MinGW environment prefix
+
+`ktx2-rw/` copies crates.io `ktx2-rw` 0.2.4 (upstream commit `1dfa70d893ab7a393b5c3754a5e15c3a6d182453`) from the local Cargo registry. Package manifests, README, sources, build script, and manifest-declared examples are retained; registry metadata and the standalone lockfile are excluded. The published package declares `MIT OR Apache-2.0` and contains no separate license files; its license declaration, authorship, and source notices are preserved.
+
+The sole build-script patch adds `lib/gcc/<triple>/<version>` search directories beneath an environment-supplied MinGW prefix. On the Windows desktop, `MINGW_PREFIX/lib` alone omitted WinLibs' `libgcc_eh.a` in `lib/gcc/x86_64-w64-mingw32/16.1.0`. No compiler selection, RUSTFLAGS, or upstream alternate paths are changed. Retire this override when upstream discovers these directories for environment prefixes and the native GNU Windows engine links successfully. Native Windows linking is the verification boundary; no source-shape tests are added.
 
 ## Empty mesh uploads
 

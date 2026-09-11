@@ -70,6 +70,7 @@ harness = false
 
 # Local Bevy patches; provenance and retirement conditions in vendor/README.md.
 [patch.crates-io]
+ktx2-rw = { path = "vendor/ktx2-rw" }
 bevy_transform = { path = "vendor/bevy_transform" }
 bevy_pbr = { path = "vendor/bevy_pbr" }
 bevy_render = { path = "vendor/bevy_render" }
