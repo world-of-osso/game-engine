@@ -20,6 +20,32 @@ fn parse_mcvt(payload: &[u8]) -> Result<[f32; MCVT_COUNT], String> {
     Ok(heights)
 }
 
+#[cfg(test)]
+mod normal_tests {
+    use super::*;
+
+    #[test]
+    fn mcnr_flat_ground_normal_faces_up() {
+        let payload = [0_u8, 0, 127].repeat(MCVT_COUNT);
+        let normals = parse_mcnr(&payload).unwrap();
+        assert_eq!(normals, [[0.0, 1.0, 0.0]; MCVT_COUNT]);
+    }
+
+    #[test]
+    fn mcnr_adventurers_rest_slope_matches_geometry() {
+        // MCNR bytes and MCVT-derived face normal from terrain tile 2703_31_37.
+        let payload = [(-16_i8) as u8, 3, 125].repeat(MCVT_COUNT);
+        let normals = parse_mcnr(&payload).unwrap();
+        let geometric_normal = [-0.11974868, 0.992213, -0.034257512];
+        let alignment: f32 = normals[0]
+            .iter()
+            .zip(geometric_normal)
+            .map(|(decoded, geometric)| decoded * geometric)
+            .sum();
+        assert!(alignment > 0.99, "normal/geometry alignment: {alignment}");
+    }
+}
+
 fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
     if payload.len() < MCVT_COUNT * 3 {
         return Err(format!(
