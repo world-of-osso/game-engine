@@ -118,7 +118,8 @@ fn assert_native_rect(world: &World, entity: Entity, expected: [f32; 4]) {
     for (actual, expected) in actual.into_iter().zip(expected) {
         assert!(
             (actual - expected).abs() < 0.1,
-            "bounds {actual}, expected {expected}"
+            "bounds {actual}, expected {expected}; node={:?}; transform={transform:?}",
+            world.get::<Node>(entity)
         );
     }
 }
