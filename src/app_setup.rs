@@ -173,7 +173,7 @@ fn register_bevy_plugins(
     });
 }
 
-const EXIT_DIAGNOSTICS_PATH: &str = "/tmp/game-engine-exit-diagnostics.log";
+const EXIT_DIAGNOSTICS_FILENAME: &str = "game-engine-exit-diagnostics.log";
 
 #[derive(Resource)]
 struct ExitDiagnosticsGuard;
@@ -201,7 +201,7 @@ fn write_exit_diagnostic(message: &str) {
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(EXIT_DIAGNOSTICS_PATH)
+        .open(std::env::temp_dir().join(EXIT_DIAGNOSTICS_FILENAME))
         .expect("failed to open exit diagnostics log");
     writeln!(
         file,
