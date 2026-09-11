@@ -7,6 +7,7 @@ use super::*;
 #[test]
 fn clicking_non_selected_character_switches_model_and_highlights_card() {
     let mut app = App::new();
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(StatesPlugin);
     app.add_plugins(UiAutomationPlugin);
@@ -227,6 +228,7 @@ fn clicking_non_selected_character_switches_model_and_highlights_card() {
 #[test]
 fn char_select_ui_click_handling_does_not_block_orbit_camera() {
     let mut app = App::new();
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(StatesPlugin);
     app.add_plugins(UiAutomationPlugin);
