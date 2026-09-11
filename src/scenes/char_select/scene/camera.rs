@@ -37,8 +37,9 @@ const ORBIT_PITCH_LIMIT: f32 = 0.15;
 const SOLO_CHARACTER_CAMERA_DISTANCE: f32 = 6.5;
 const SOLO_CHARACTER_MAX_FOV_DEGREES: f32 = 55.0;
 pub(super) const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
-const CHAR_SELECT_FOG_START_DISTANCE_MULTIPLIER: f32 = 2.0;
-const CHAR_SELECT_FOG_END_DISTANCE_MULTIPLIER: f32 = 5.0;
+// Keep the nearby campsite clear; fog uses world distance, not portrait framing.
+const CHAR_SELECT_FOG_START_DISTANCE: f32 = 75.0;
+const CHAR_SELECT_FOG_END_DISTANCE: f32 = 300.0;
 const CHAR_SELECT_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
 const CHAR_SELECT_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
 const CHAR_SELECT_FOG_LIGHT_COLOR: Color = Color::srgb(0.35, 0.38, 0.42);
@@ -65,14 +66,15 @@ impl<'a> CameraTarget<'a> {
     }
 }
 
-pub(super) fn char_select_fog(camera_distance: f32) -> DistanceFog {
-    let start = camera_distance * CHAR_SELECT_FOG_START_DISTANCE_MULTIPLIER;
-    let end = camera_distance * CHAR_SELECT_FOG_END_DISTANCE_MULTIPLIER;
+pub(super) fn char_select_fog() -> DistanceFog {
     DistanceFog {
         color: CHAR_SELECT_FOG_COLOR,
         directional_light_color: CHAR_SELECT_FOG_LIGHT_COLOR,
         directional_light_exponent: 8.0,
-        falloff: FogFalloff::Linear { start, end },
+        falloff: FogFalloff::Linear {
+            start: CHAR_SELECT_FOG_START_DISTANCE,
+            end: CHAR_SELECT_FOG_END_DISTANCE,
+        },
     }
 }
 
@@ -170,7 +172,7 @@ pub(super) fn spawn_char_select_camera(
 ) -> Entity {
     let (eye, focus, fov) = camera_params(scene, placement, presentation);
     let eye = clamp_char_select_eye(eye, heightmap);
-    let fog = char_select_fog(eye.distance(focus));
+    let fog = char_select_fog();
     commands
         .spawn((
             Name::new("CharSelectCamera"),
