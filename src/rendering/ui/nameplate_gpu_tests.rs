@@ -309,15 +309,15 @@ fn nameplate_gpu_reference_thickness_combinations() {
     app.update();
     let mut cast = CastState::normal(133, 0, 4.0, true);
     cast.spell_name = "Necrotic Bolt".into();
-    cast.elapsed = 1.6;
+    cast.elapsed = 4.0 * 173.0 / 376.0;
     let owner = app
         .world_mut()
         .spawn((
             Transform::from_xyz(-9000.0, 0.0, 0.0),
             Visibility::Visible,
             shared::components::Health {
-                current: 76.3,
-                max: 100.0,
+                current: 287.0,
+                max: 376.0,
             },
             Npc {
                 template_id: 299,

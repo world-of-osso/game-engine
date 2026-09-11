@@ -20,7 +20,7 @@ use crate::rendering::nameplate_art::{
 const CAST_WIDTH: f32 = BAR_PIXEL_WIDTH;
 const CAST_THICK_HEIGHT: f32 = 20.0 * NAMEPLATE_SCALE;
 const CAST_THIN_HEIGHT: f32 = 12.0 * NAMEPLATE_SCALE;
-const LABEL_INSET: f32 = 8.0 * NAMEPLATE_SCALE;
+const LABEL_INSET: f32 = 10.0 * NAMEPLATE_SCALE;
 const HEALTH_CAST_GAP: f32 = 4.0 * NAMEPLATE_SCALE;
 
 fn cast_height(thick: bool) -> f32 {
@@ -539,7 +539,7 @@ mod tests {
                 }
             );
             let (label, _, _) = part_layout(Part::Label, thick, 0.25);
-            assert_eq!(label, Vec2::new(-90.0, if thick { 0.0 } else { 10.0 }));
+            assert_eq!(label, Vec2::new(-89.0, if thick { 0.0 } else { 10.0 }));
         }
     }
 }

@@ -6,6 +6,7 @@ Coordinates are half-open, unscaled screenshot pixels. Runtime owns all resizing
 and dynamic value clipping; these images contain no health/cast values or labels.
 """
 
+from collections import deque
 import hashlib
 import json
 from pathlib import Path
@@ -19,12 +20,13 @@ BACKGROUND = (24, 21, 20)
 # The frame bands exclude all text and status fill. Endcaps remain outside the
 # inner rectangle; no text-bearing center pixels are copied into frame skins.
 FRAMES = {
-    "health-thick": ((50, 48, 446, 96), (58, 54, 434, 91)),
+    "health-thick": ((50, 48, 446, 96), (58, 54, 434, 92)),
     "health-thin": ((521, 67, 917, 97), (529, 73, 905, 92)),
     "cast-thin": ((32, 92, 464, 114), (60, 98, 432, 109)),
     "cast-thick": ((32, 289, 466, 318), (61, 296, 433, 314)),
 }
-FILL = (529, 73, 816, 93)
+FILL = (529, 73, 816, 92)
+THICK_FILL = (58, 54, 345, 92)
 
 
 def linear(channel):
@@ -49,11 +51,11 @@ def unmatte(pixel):
 
     Darker pixels are represented as black shadows with their own alpha, not
     baked brown background. Mixed/chromatic pixels use a bounded RGB solution.
-    Pixels within six sRGB levels of the matte are discarded as background noise.
+    Pixels within three sRGB levels of the matte are discarded as background noise.
     Recovering original RGBA from a single composite is underdetermined; this is
     a reproducible reconstruction, not a claim to recover original source art.
     """
-    if max(abs(p - b) for p, b in zip(pixel, BACKGROUND)) <= 6:
+    if max(abs(p - b) for p, b in zip(pixel, BACKGROUND)) <= 3:
         return (0, 0, 0, 0)
     observed = tuple(linear(p) for p in pixel)
     matte = tuple(linear(b) for b in BACKGROUND)
@@ -88,36 +90,49 @@ def extract_frame(source, crop, interior, name):
                     if name == "cast-thick" and 61 <= x < 240 and 294 <= y < 296
                     else x
                 )
-                skin.putpixel(
-                    (x - crop[0], y - crop[1]), unmatte(source.getpixel((sample_x, y)))
-                )
-    # Keep only connected frame/shadow components, removing isolated matte noise.
-    pixels = skin.load()
-    visited = set()
-    for y in range(skin.height):
-        for x in range(skin.width):
-            if (x, y) in visited or pixels[x, y][3] == 0:
-                continue
-            component = []
-            pending = [(x, y)]
-            visited.add((x, y))
-            while pending:
-                point = pending.pop()
-                component.append(point)
-                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                    nx, ny = point[0] + dx, point[1] + dy
-                    if (
-                        0 <= nx < skin.width
-                        and 0 <= ny < skin.height
-                        and (nx, ny) not in visited
-                        and pixels[nx, ny][3]
-                    ):
-                        visited.add((nx, ny))
-                        pending.append((nx, ny))
-            if len(component) < 8:
-                for point in component:
-                    pixels[point] = (0, 0, 0, 0)
+                pixel = source.getpixel((sample_x, y))
+                if (
+                    name.startswith("health")
+                    and pixel[0] > 70
+                    and pixel[0] > 1.6 * max(pixel[1:])
+                ):
+                    continue
+                skin.putpixel((x - crop[0], y - crop[1]), unmatte(pixel))
+    bleed_transparent_rgb(skin)
     return skin
+
+
+def bleed_transparent_rgb(skin):
+    """Avoid dark fringes when straight-alpha textures are linearly filtered."""
+    pixels = skin.load()
+    visited = {
+        (x, y) for y in range(skin.height) for x in range(skin.width) if pixels[x, y][3]
+    }
+    pending = deque(sorted(visited))
+    while pending:
+        x, y = pending.popleft()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if (
+                0 <= nx < skin.width
+                and 0 <= ny < skin.height
+                and (nx, ny) not in visited
+            ):
+                pixels[nx, ny] = (*pixels[x, y][:3], 0)
+                visited.add((nx, ny))
+                pending.append((nx, ny))
+
+
+def extract_thick_fill(source):
+    fill = source.crop(THICK_FILL).convert("RGBA")
+    # Reconstruct only the label-covered region from clean rows above/below it.
+    for x in range(6, 242):
+        upper = tuple(linear(c) for c in fill.getpixel((x, 7))[:3])
+        lower = tuple(linear(c) for c in fill.getpixel((x, 34))[:3])
+        for y in range(8, 34):
+            fraction = (y - 7) / 27
+            color = tuple(srgb(a + (b - a) * fraction) for a, b in zip(upper, lower))
+            fill.putpixel((x, y), (*color, 255))
+    return fill
 
 
 def main():
@@ -131,7 +146,7 @@ def main():
         "source_size": list(source.size),
         "coordinates": "half-open, unscaled reference pixels",
         "matte_srgb": list(BACKGROUND),
-        "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=6 sRGB matte noise removed; components <8 pixels removed",
+        "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=3 sRGB matte noise removed; transparent RGB edge bleed",
         "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. Health bottom rows overlapping cast glow are removed. Thick cast rail x61:240/y294:296 is reconstructed from clean x350 to remove glyph fringes. GPU comparison required.",
         "frames": {},
     }
@@ -154,6 +169,12 @@ def main():
     # portion is included; runtime maps its full width onto the current value.
     fill = source.crop(FILL).convert("RGBA")
     fill.save(OUTPUT / "health-fill.png")
+    extract_thick_fill(source).save(OUTPUT / "health-fill-thick.png")
+    metadata["thick_fill"] = {
+        "crop": THICK_FILL,
+        "reconstructed_label_rectangle": (6, 8, 242, 34),
+        "clean_rows": (7, 34),
+    }
     metadata["fill"] = {
         "crop": FILL,
         "size": fill.size,
