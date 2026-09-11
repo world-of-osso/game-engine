@@ -14,7 +14,9 @@ The gray area in the character-selection depth diagnostic is not proof of missin
 
 `dfc34aa4` replaces portrait-camera-relative fog with world-space falloff from 75 to 300 units. Previously the 6.5-unit solo camera made fog fully opaque at 32.5 units, inside the nearby tree area. These new distances are explicit presentation tuning, not decoded Blizzard fog data. Camera framing no longer changes the fog range; global sky updates still exclude character-selection cameras.
 
-The [visibility contract](../../specs/character-selection-visibility.md) verifies clear nearby trees, partial distant fading, and retained fog ownership. Thirty-three focused cases and checks pass. A controlled fog-disabled capture reveals opaque cliff/terrain behind the campsite: reducing fog does not reveal clouds through that geometry. Skybox depth ordering remains intact. Evidence: `data/diagnostics/charselect-fog-20260911/`.
+Following the user's WoW reference, `d3ddc0c5` caps fog color mixing at 50% and uses a blue-green haze color. Bevy's existing fog RGB blend retains distant surface detail; geometry opacity and depth are unchanged. The terrain-to-sky fade proposal was not implemented, and diagnostic camera changes were restored.
+
+The [visibility contract](../../specs/character-selection-visibility.md) verifies clear nearby trees, partial distant fading with retained detail, and retained fog ownership. Thirty-three focused cases and checks pass. The bounded `opacity-native` reference audit confirms improved distant readability and haze direction without claiming pixel-perfect WoW lighting/assets or cloud restoration. A controlled fog-disabled capture reveals opaque cliff/terrain behind the campsite: reducing fog does not reveal clouds through that geometry. Skybox depth ordering remains intact. Evidence: `data/diagnostics/charselect-fog-20260911/`.
 
 ## InWorld procedural sky selection
 
