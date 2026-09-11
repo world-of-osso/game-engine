@@ -2,6 +2,10 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+#[cfg(test)]
+#[path = "menu_character_layout_test_support.rs"]
+mod layout_test_support;
+
 pub const BAR_W: f32 = 195.0;
 pub const BAR_H: f32 = 20.0;
 const BORDER_W: f32 = BAR_W + 8.0;
@@ -166,10 +170,11 @@ fn timer_text(timer: &str) -> Element {
 
 #[cfg(test)]
 mod tests {
+    use super::layout_test_support::compute_layout;
     use super::*;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::frame::Dimension;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -194,7 +199,7 @@ mod tests {
 
     fn layout_reg(progress: f32) -> FrameRegistry {
         let mut reg = build_registry(progress);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 
@@ -250,6 +255,7 @@ mod tests {
         let r = rect(&reg, "CastingBarFrame");
         let expected_x = (1920.0 - BORDER_W) / 2.0;
         assert!((r.x - expected_x).abs() < 1.0);
+        assert!((r.y + r.height - (1080.0 - 150.0)).abs() < 1.0);
         assert!((r.width - BORDER_W).abs() < 1.0);
         assert!((r.height - BORDER_H).abs() < 1.0);
     }
@@ -286,6 +292,24 @@ mod tests {
             spark.x
         );
         assert!((spark.width - SPARK_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn bar_children_follow_their_resized_parent() {
+        let mut reg = build_registry(0.5);
+        let background = reg.get_by_name("CastingBarBackground").unwrap();
+        let frame = reg.get_mut(background).unwrap();
+        frame.width = Dimension::Fixed(255.0);
+        frame.height = Dimension::Fixed(30.0);
+        compute_layout(&mut reg);
+        let bg = rect(&reg, "CastingBarBackground");
+        let fill = rect(&reg, "CastingBarFill");
+        let timer = rect(&reg, "CastingBarTimer");
+        let spell = rect(&reg, "CastingBarSpellName");
+        assert!((fill.x - bg.x).abs() < 1.0);
+        assert!((fill.y + fill.height / 2.0 - bg.y - bg.height / 2.0).abs() < 1.0);
+        assert!((timer.x + timer.width - bg.x - bg.width + 2.0).abs() < 1.0);
+        assert!((spell.x + spell.width / 2.0 - bg.x - bg.width / 2.0).abs() < 1.0);
     }
 
     // --- Text content tests ---

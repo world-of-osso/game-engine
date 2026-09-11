@@ -3,7 +3,9 @@ use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
 use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::TargetAuraIconState;
-use ui_toolkit::layout::recompute_layouts;
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod layout_test_support;
+use layout_test_support::compute_layout;
 use ui_toolkit::screen::Screen;
 use ui_toolkit::widgets::font_string::{GameFont, Outline};
 
@@ -139,7 +141,7 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
         state.player.mana_fill_width = fill_width(PLAYER_HEALTH_BAR_W, Some(percent), Some(100.0));
         shared.insert(state);
         screen.sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         for name in ["PlayerHealthBar", "PlayerManaBar"] {
             let bar = rect_by_name(&reg, name);
             let fill_name = format!("{name}Fill");
@@ -163,15 +165,14 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
 
 #[test]
 fn target_resting_label_keeps_original_offset_and_hidden_state() {
-    let reg = unit_frames_registry();
+    let mut reg = unit_frames_registry();
+    let label_id = reg.get_by_name("TargetRestingLabel").unwrap();
+    assert!(!reg.get(label_id).unwrap().visible);
+    reg.set_hidden(label_id, false);
+    compute_layout(&mut reg);
     let target = rect_by_name(&reg, "TargetFrame");
     let label = rect_by_name(&reg, "TargetRestingLabel");
     assert_eq!(label.x, target.x + 85.0);
-    assert!(
-        !reg.get(reg.get_by_name("TargetRestingLabel").unwrap())
-            .unwrap()
-            .visible
-    );
 }
 
 #[test]
@@ -274,8 +275,19 @@ fn unit_frame_text_uses_wow_font_styles() {
 }
 
 #[test]
-fn explicit_size_icon_placeholders_match_wow_spec() {
-    let reg = unit_frames_registry();
+fn explicit_size_icon_placeholders_match_wow_spec_when_shown() {
+    let mut reg = unit_frames_registry();
+    for name in [
+        "PlayerRoleIcon",
+        "PlayerPrestigePortrait",
+        "TargetRaidTargetIcon",
+        "TargetPetBattleIcon",
+    ] {
+        let id = reg.get_by_name(name).unwrap();
+        assert!(reg.get(id).unwrap().hidden, "{name} starts hidden");
+        reg.set_hidden(id, false);
+    }
+    compute_layout(&mut reg);
 
     assert_eq!(
         rect_by_name(&reg, "PlayerRoleIcon"),
@@ -562,7 +574,7 @@ fn sample_unit_frames_context() -> SharedContext {
 
 fn sync_unit_frames_registry(shared: &SharedContext, reg: &mut FrameRegistry) {
     Screen::new(inworld_unit_frames_screen).sync(shared, reg);
-    recompute_layouts(reg);
+    compute_layout(reg);
 }
 
 fn rect_by_name(reg: &FrameRegistry, name: &str) -> LayoutRect {

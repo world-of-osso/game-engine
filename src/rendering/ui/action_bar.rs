@@ -15,6 +15,10 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use game_engine::ui::anchor::AnchorTarget;
 
+#[cfg(test)]
+#[path = "../../ui/screens/menu_character_layout_test_support.rs"]
+mod layout_test_support;
+
 const SLOT_COUNT: usize = 12;
 const SLOT_W: f32 = 45.0;
 const SLOT_H: f32 = 45.0;
@@ -711,6 +715,7 @@ mod tests {
     fn main_action_bar_matches_expected_size_and_position() {
         let mut registry = FrameRegistry::new(1600.0, 1200.0);
         let bars = create_action_bars(&mut registry);
+        layout_test_support::compute_layout(&mut registry);
         let root = registry
             .get(bars.roots[0])
             .and_then(|frame| frame.layout_rect.clone())
