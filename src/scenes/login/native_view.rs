@@ -1,6 +1,9 @@
 //! Native login presentation. Lifecycle, input and authentication belong to the caller.
 
 #[cfg(test)]
+#[path = "native_rsx_tests.rs"]
+mod rsx_tests;
+#[cfg(test)]
 #[path = "native_view_tests.rs"]
 mod tests;
 
@@ -86,163 +89,81 @@ pub(super) fn spawn_login_view(
             RenderLayers::none(),
         ))
         .id();
-    let root = commands
-        .spawn((
-            Name::new("LoginRoot"),
-            NativeUiElement,
-            Node {
+    Ok(ui_toolkit::rsx! {
+        @native(commands, None) {
+            node {
+                id: root,
+                name: "LoginRoot",
                 width: percent(100),
                 height: percent(100),
-                ..default()
-            },
-            UiTargetCamera(camera),
-        ))
-        .id();
-    spawn_background(commands, root, &art);
-    spawn_image(
-        commands,
-        root,
-        "LoginGameLogo",
-        positioned(3.0, -7.0, 384.0, 256.0),
-        &art.logo,
-    );
-    let form = spawn_node(
-        commands,
-        root,
-        "LoginInputContainer",
-        Node {
-            position_type: PositionType::Absolute,
-            left: percent(50),
-            top: percent(50),
-            margin: UiRect {
-                left: px(-160),
-                top: px(-167),
-                ..default()
-            },
-            width: px(320),
-            height: px(200),
-            ..default()
-        },
-    );
-    let (username_input, username_text) =
-        spawn_field(commands, form, &art, LoginFieldId::Username, 0.0);
-    let (password_input, password_text) =
-        spawn_field(commands, form, &art, LoginFieldId::Password, 72.0);
-    let realm_button = spawn_button(
-        commands,
-        form,
-        "RealmButton",
-        "",
-        LoginAction::CycleRealm,
-        Node {
-            display: Display::None,
-            ..positioned(160.0, 114.0, 0.0, 0.0)
-        },
-        12.0,
-        &art.friz,
-        &art.secondary,
-    );
-    let connect_button = spawn_button(
-        commands,
-        form,
-        "ConnectButton",
-        "Login",
-        LoginAction::Connect,
-        positioned(35.0, 134.0, 250.0, 66.0),
-        16.0,
-        &art.friz,
-        &art.primary,
-    );
-    let status_text = spawn_text(
-        commands,
-        form,
-        "LoginStatus",
-        "",
-        positioned(0.0, 250.0, 320.0, 24.0),
-        &art.friz,
-        13.0,
-        Color::srgb(0.9, 0.5, 0.5),
-        Justify::Center,
-    );
-    let actions = spawn_node(
-        commands,
-        root,
-        "ActionButtons",
-        Node {
-            position_type: PositionType::Absolute,
-            right: px(24),
-            bottom: px(56),
-            width: px(200),
-            height: px(140),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::FlexEnd,
-            align_items: AlignItems::Center,
-            row_gap: px(10),
-            ..default()
-        },
-    );
-    let create_account_button = spawn_button(
-        commands,
-        actions,
-        "CreateAccountButton",
-        "Create Account",
-        LoginAction::CreateAccount,
-        Node {
-            display: Display::None,
-            width: px(200),
-            height: px(32),
-            ..default()
-        },
-        12.0,
-        &art.friz,
-        &art.secondary,
-    );
-    let menu_button = spawn_button(
-        commands,
-        actions,
-        "MenuButton",
-        "Menu",
-        LoginAction::Menu,
-        Node {
-            width: px(200),
-            height: px(32),
-            flex_shrink: 0.0,
-            ..default()
-        },
-        12.0,
-        &art.friz,
-        &art.secondary,
-    );
-    let exit_button = spawn_button(
-        commands,
-        actions,
-        "ExitButton",
-        "Quit",
-        LoginAction::Exit,
-        Node {
-            width: px(200),
-            height: px(32),
-            flex_shrink: 0.0,
-            ..default()
-        },
-        12.0,
-        &art.friz,
-        &art.secondary,
-    );
-    spawn_footer(commands, root, &art);
-    Ok(LoginView {
-        root,
-        camera,
-        username_input,
-        password_input,
-        username_text,
-        password_text,
-        connect_button,
-        realm_button,
-        create_account_button,
-        menu_button,
-        exit_button,
-        status_text,
+                components: (NativeUiElement, UiTargetCamera(camera)),
+                {
+                    spawn_background(commands, root, &art);
+                    spawn_image(commands, root, "LoginGameLogo",
+                        positioned(3.0, -7.0, 384.0, 256.0), &art.logo);
+                }
+                node {
+                    id: form,
+                    name: "LoginInputContainer",
+                    position_type: PositionType::Absolute,
+                    left: percent(50),
+                    top: percent(50),
+                    margin: UiRect { left: px(-160), top: px(-167), ..default() },
+                    width: px(320),
+                    height: px(200),
+                    components: NativeUiElement,
+                    {
+                        let (username_input, username_text) =
+                            spawn_field(commands, form, &art, LoginFieldId::Username, 0.0);
+                        let (password_input, password_text) =
+                            spawn_field(commands, form, &art, LoginFieldId::Password, 72.0);
+                        let realm_button = spawn_button(commands, form, "RealmButton", "",
+                            LoginAction::CycleRealm,
+                            Node { display: Display::None, ..positioned(160.0, 114.0, 0.0, 0.0) },
+                            12.0, &art.friz, &art.secondary);
+                        let connect_button = spawn_button(commands, form, "ConnectButton", "Login",
+                            LoginAction::Connect, positioned(35.0, 134.0, 250.0, 66.0),
+                            16.0, &art.friz, &art.primary);
+                        let status_text = spawn_text(commands, form, "LoginStatus", "",
+                            positioned(0.0, 250.0, 320.0, 24.0), &art.friz, 13.0,
+                            Color::srgb(0.9, 0.5, 0.5), Justify::Center);
+                    }
+                }
+                node {
+                    id: actions,
+                    name: "ActionButtons",
+                    position_type: PositionType::Absolute,
+                    right: px(24),
+                    bottom: px(56),
+                    width: px(200),
+                    height: px(140),
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::FlexEnd,
+                    align_items: AlignItems::Center,
+                    row_gap: px(10),
+                    components: NativeUiElement,
+                    {
+                        let create_account_button = spawn_button(commands, actions,
+                            "CreateAccountButton", "Create Account", LoginAction::CreateAccount,
+                            Node { display: Display::None, width: px(200), height: px(32), ..default() },
+                            12.0, &art.friz, &art.secondary);
+                        let menu_button = spawn_button(commands, actions, "MenuButton", "Menu",
+                            LoginAction::Menu,
+                            Node { width: px(200), height: px(32), flex_shrink: 0.0, ..default() },
+                            12.0, &art.friz, &art.secondary);
+                        let exit_button = spawn_button(commands, actions, "ExitButton", "Quit",
+                            LoginAction::Exit,
+                            Node { width: px(200), height: px(32), flex_shrink: 0.0, ..default() },
+                            12.0, &art.friz, &art.secondary);
+                    }
+                }
+                { spawn_footer(commands, root, &art); }
+            }
+        } => LoginView {
+            root, camera, username_input, password_input, username_text, password_text,
+            connect_button, realm_button, create_account_button, menu_button, exit_button,
+            status_text,
+        }
     })
 }
 
@@ -266,17 +187,6 @@ fn fill() -> Node {
     }
 }
 
-fn spawn_node(commands: &mut Commands, parent: Entity, name: &str, node: Node) -> Entity {
-    commands
-        .spawn((
-            Name::new(name.to_owned()),
-            NativeUiElement,
-            node,
-            ChildOf(parent),
-        ))
-        .id()
-}
-
 fn spawn_image(
     commands: &mut Commands,
     parent: Entity,
@@ -284,30 +194,40 @@ fn spawn_image(
     node: Node,
     loaded: &LoadedTexture,
 ) -> Entity {
-    let entity = spawn_node(commands, parent, name, node);
-    commands.entity(entity).insert((
-        ImageNode {
-            image: loaded.handle.clone(),
-            rect: loaded.rect,
-            image_mode: NodeImageMode::Stretch,
-            ..default()
-        },
-        LoginTint(Color::WHITE),
-    ));
-    entity
+    ui_toolkit::rsx! {
+        @native(commands, Some(parent)) {
+            node {
+                id: image,
+                name: name.to_owned(),
+                layout: node,
+                components: (
+                    NativeUiElement,
+                    ImageNode {
+                        image: loaded.handle.clone(), rect: loaded.rect,
+                        image_mode: NodeImageMode::Stretch, ..default()
+                    },
+                    LoginTint(Color::WHITE),
+                ),
+            }
+        } => image
+    }
 }
 
 fn spawn_background(commands: &mut Commands, root: Entity, art: &LoginArtwork) {
-    let black = spawn_node(commands, root, "BlackLoginBackground", fill());
-    commands
-        .entity(black)
-        .insert((BackgroundColor(Color::BLACK), LoginTint(Color::BLACK)));
-    spawn_image(commands, root, "LoginBackground", fill(), &art.background);
-    let shade = spawn_node(commands, root, "LoginBackgroundShade", fill());
-    let color = Color::srgba(0.0, 0.0, 0.0, 0.22);
-    commands
-        .entity(shade)
-        .insert((BackgroundColor(color), LoginTint(color)));
+    let shade = Color::srgba(0.0, 0.0, 0.0, 0.22);
+    ui_toolkit::rsx! {
+        @native(commands, Some(root)) {
+            node {
+                name: "BlackLoginBackground", layout: fill(),
+                components: (NativeUiElement, BackgroundColor(Color::BLACK), LoginTint(Color::BLACK)),
+            }
+            { spawn_image(commands, root, "LoginBackground", fill(), &art.background); }
+            node {
+                name: "LoginBackgroundShade", layout: fill(),
+                components: (NativeUiElement, BackgroundColor(shade), LoginTint(shade)),
+            }
+        } => ()
+    }
 }
 
 fn spawn_text(
@@ -321,40 +241,35 @@ fn spawn_text(
     color: Color,
     justify: Justify,
 ) -> Entity {
-    let container = spawn_node(
-        commands,
-        parent,
-        &format!("{name}Bounds"),
-        Node {
-            align_items: AlignItems::Center,
-            justify_content: match justify {
-                Justify::Left => JustifyContent::FlexStart,
-                Justify::Right => JustifyContent::FlexEnd,
-                _ => JustifyContent::Center,
-            },
-            ..node
-        },
-    );
-    commands
-        .spawn((
-            Name::new(name.to_owned()),
-            NativeUiElement,
-            Text::new(value),
-            TextFont {
-                font: bevy::text::FontSource::Handle(font.clone()),
-                font_size: FontSize::Px(size),
-                ..default()
-            },
-            TextColor(color),
-            TextLayout::new(justify, bevy::text::LineBreak::NoWrap),
-            LoginTint(color),
-            Node {
-                flex_shrink: 0.0,
-                ..default()
-            },
-            ChildOf(container),
-        ))
-        .id()
+    ui_toolkit::rsx! {
+        @native(commands, Some(parent)) {
+            node {
+                name: format!("{name}Bounds"),
+                layout: node,
+                align_items: AlignItems::Center,
+                justify_content: match justify {
+                    Justify::Left => JustifyContent::FlexStart,
+                    Justify::Right => JustifyContent::FlexEnd,
+                    _ => JustifyContent::Center,
+                },
+                components: NativeUiElement,
+                node {
+                    id: text,
+                    name: name.to_owned(),
+                    flex_shrink: 0.0,
+                    components: (
+                        NativeUiElement, Text::new(value),
+                        TextFont {
+                            font: bevy::text::FontSource::Handle(font.clone()),
+                            font_size: FontSize::Px(size), ..default()
+                        },
+                        TextColor(color), TextLayout::new(justify, bevy::text::LineBreak::NoWrap),
+                        LoginTint(color),
+                    ),
+                }
+            }
+        } => text
+    }
 }
 
 fn spawn_field(
@@ -368,57 +283,41 @@ fn spawn_field(
         LoginFieldId::Username => ("UsernameInput", "Username"),
         LoginFieldId::Password => ("PasswordInput", "Password"),
     };
-    let input = spawn_node(commands, parent, name, positioned(0.0, top, 320.0, 42.0));
-    commands
-        .entity(input)
-        .insert((Button, LoginControl::Field(field)));
-    let pieces = slice_positions(320.0, 42.0, [8.0; 4]);
-    for (index, (node, texture)) in pieces.into_iter().zip(&art.input).enumerate() {
-        let piece = spawn_image(
-            commands,
-            input,
-            &format!("{name}Border{index}"),
-            node,
-            texture,
-        );
-        commands.entity(piece).insert(InputBorder {
-            field,
-            center: index == 4,
-        });
+    ui_toolkit::rsx! {
+        @native(commands, Some(parent)) {
+            node {
+                id: input,
+                name: name.to_owned(),
+                layout: positioned(0.0, top, 320.0, 42.0),
+                components: (NativeUiElement, Button, LoginControl::Field(field)),
+                {
+                    for (index, (node, texture)) in slice_positions(320.0, 42.0, [8.0; 4])
+                        .into_iter().zip(&art.input).enumerate()
+                    {
+                        let piece = spawn_image(commands, input, &format!("{name}Border{index}"), node, texture);
+                        commands.entity(piece).insert(InputBorder { field, center: index == 4 });
+                    }
+                }
+                node {
+                    id: clip,
+                    name: format!("{name}Clip"),
+                    layout: positioned(12.0, 5.0, 300.0, 29.0),
+                    overflow: Overflow::clip(),
+                    components: NativeUiElement,
+                    {
+                        let text = spawn_text(commands, clip, &format!("{name}Text"), "",
+                            fill(), &art.arial, 20.0, INPUT_GOLD, Justify::Left);
+                        super::native_caret::spawn_login_caret(commands, text, clip, field);
+                    }
+                }
+            }
+            {
+                spawn_text(commands, parent, &format!("{name}Label"), label,
+                    positioned(0.0, top - 22.0, 320.0, 18.0), &art.friz, 18.0,
+                    GOLD, Justify::Center);
+            }
+        } => (input, text)
     }
-    spawn_text(
-        commands,
-        parent,
-        &format!("{name}Label"),
-        label,
-        positioned(0.0, top - 22.0, 320.0, 18.0),
-        &art.friz,
-        18.0,
-        GOLD,
-        Justify::Center,
-    );
-    let clip = spawn_node(
-        commands,
-        input,
-        &format!("{name}Clip"),
-        Node {
-            overflow: Overflow::clip(),
-            ..positioned(12.0, 5.0, 300.0, 29.0)
-        },
-    );
-    let text = spawn_text(
-        commands,
-        clip,
-        &format!("{name}Text"),
-        "",
-        fill(),
-        &art.arial,
-        20.0,
-        INPUT_GOLD,
-        Justify::Left,
-    );
-    super::native_caret::spawn_login_caret(commands, text, clip, field);
-    (input, text)
 }
 
 fn slice_positions(width: f32, height: f32, edges: [f32; 4]) -> Vec<Node> {
@@ -458,10 +357,14 @@ fn spawn_button(
         Val::Px(value) => value,
         _ => 0.0,
     };
-    let button = spawn_node(commands, parent, name, node);
-    commands
-        .entity(button)
-        .insert((Button, LoginControl::Action(action)));
+    let button = ui_toolkit::rsx! {
+        @native(commands, Some(parent)) {
+            node {
+                id: button, name: name.to_owned(), layout: node,
+                components: (NativeUiElement, Button, LoginControl::Action(action)),
+            }
+        } => button
+    };
     let mut pieces = Vec::with_capacity(9);
     // Zero-size hidden realm remains an action target, not a negative-size sliced image.
     if width > 0.0 && height > 0.0 {
@@ -469,10 +372,14 @@ fn spawn_button(
             .into_iter()
             .enumerate()
         {
-            let piece = spawn_node(commands, button, &format!("{name}Slice{index}"), node);
-            commands
-                .entity(piece)
-                .insert((artwork.states[0][index].clone(), LoginTint(Color::WHITE)));
+            let piece = ui_toolkit::rsx! {
+                @native(commands, Some(button)) {
+                    node {
+                        id: piece, name: format!("{name}Slice{index}"), layout: node,
+                        components: (NativeUiElement, artwork.states[0][index].clone(), LoginTint(Color::WHITE)),
+                    }
+                } => piece
+            };
             pieces.push(piece);
         }
     }
