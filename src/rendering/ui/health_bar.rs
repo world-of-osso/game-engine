@@ -111,6 +111,7 @@ fn spawn_health_bars(
     for part in [HealthBarPart::Background, HealthBarPart::Fill] {
         commands.spawn((
             HealthBarVisualOwner(root),
+            crate::rendering::nameplate_picking::NameplateHitTarget(event.entity),
             part,
             Sprite::from_image(health_part_image(part, NameplateBarThickness::Thick, &art).clone()),
             RenderLayers::layer(UI_RENDER_LAYER),
