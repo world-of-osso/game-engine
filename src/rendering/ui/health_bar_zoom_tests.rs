@@ -109,8 +109,8 @@ fn thickness_changes_projected_height_without_changing_width() {
 }
 
 #[test]
-fn world_healthbar_quad_stays_eighty_by_eight_logical_pixels_across_zoom() {
-    let target = Vec2::new(80.0, 8.0);
+fn world_healthbar_quad_stays_one_ninety_by_ten_logical_pixels_across_zoom() {
+    let target = Vec2::new(190.0, 10.0);
     let mut failures = Vec::new();
     for (dpi, width, height, fov_degrees) in [
         (1.0, 800, 600, 45.0_f32),
@@ -138,7 +138,7 @@ fn world_healthbar_quad_stays_eighty_by_eight_logical_pixels_across_zoom() {
     }
     assert!(
         failures.is_empty(),
-        "projected world-healthbar dimensions must remain80x8logicalpx: {failures:?}"
+        "projected world-healthbar dimensions must remain190x10logicalpx: {failures:?}"
     );
 }
 
@@ -165,7 +165,7 @@ fn world_healthbar_responds_to_fov_viewport_and_dpi_changes_in_same_frame() {
         *app.world().get::<GlobalTransform>(bar).unwrap(),
     );
     assert!(
-        size.abs_diff_eq(Vec2::new(80.0, 8.0), 0.05),
+        size.abs_diff_eq(Vec2::new(190.0, 10.0), 0.05),
         "same-frame viewport/FOV size: {size:?}"
     );
     let tick = app

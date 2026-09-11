@@ -79,8 +79,8 @@ struct QuestIndicatorModel;
 
 const PLAYER_NAMEPLATE_Y: f32 = 3.0;
 const NPC_NAMEPLATE_Y: f32 = 2.5;
-const PLAYER_FONT_SIZE: f32 = 24.0;
-const NPC_FONT_SIZE: f32 = 20.0;
+const PLAYER_FONT_SIZE: f32 = 13.0;
+const NPC_FONT_SIZE: f32 = 13.0;
 const NPC_NAME_COLOR: Color = Color::srgb(1.0, 0.82, 0.0);
 const NAME_BAR_GAP: f32 = 4.0;
 /// Y offset for quest indicator M2 above the NPC origin.
@@ -340,12 +340,13 @@ fn project_owner(
         Some((global, _)) if thick_health => (
             world_camera
                 .world_to_viewport(world_transform, global.translation())
-                .ok()?,
-            Anchor::CENTER,
+                .ok()?
+                - Vec2::X * 91.0,
+            Anchor::CENTER_LEFT,
         ),
         Some((global, _)) => (
             project_bar_top(world_camera, world_transform, global)? - Vec2::Y * NAME_BAR_GAP,
-            Anchor::BOTTOM_CENTER,
+            Anchor::BOTTOM_LEFT,
         ),
         None => (
             world_camera
@@ -373,7 +374,6 @@ fn project_bar_top(
     bar: &GlobalTransform,
 ) -> Option<Vec2> {
     let mut left = f32::INFINITY;
-    let mut right = f32::NEG_INFINITY;
     let mut top = f32::INFINITY;
     for x in [-BAR_WIDTH / 2.0, BAR_WIDTH / 2.0] {
         for y in [-BAR_HEIGHT / 2.0, BAR_HEIGHT / 2.0] {
@@ -381,11 +381,10 @@ fn project_bar_top(
                 .world_to_viewport(camera_global, bar.transform_point(Vec3::new(x, y, 0.0)))
                 .ok()?;
             left = left.min(point.x);
-            right = right.max(point.x);
             top = top.min(point.y);
         }
     }
-    Some(Vec2::new((left + right) / 2.0, top))
+    Some(Vec2::new(left + 4.0, top))
 }
 
 /// Rotate nameplates to always face the camera (billboard effect).

@@ -43,9 +43,9 @@ const BAR_Y_OFFSET: f32 = 2.5;
 
 pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
     Vec2::new(
-        80.0,
+        190.0,
         match thickness {
-            NameplateBarThickness::Thin => 8.0,
+            NameplateBarThickness::Thin => 10.0,
             NameplateBarThickness::Thick => 20.0,
         },
     )
@@ -77,12 +77,18 @@ fn spawn_health_bars(
     let pct = health_pct(health);
     let (bg_mesh, fg_mesh) = create_bar_meshes(&mut meshes);
     let (bg_material, fg_material) = create_bar_materials(&mut materials, health);
+    let empty_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.055, 0.055, 0.055),
+        unlit: true,
+        ..default()
+    });
     let bar_root = spawn_bar_entity(
         &mut commands,
         bg_mesh,
         fg_mesh,
         bg_material,
         fg_material,
+        empty_material,
         pct,
     );
     commands.entity(entity).add_child(bar_root);
@@ -150,6 +156,7 @@ fn spawn_bar_entity(
     fg_mesh: Handle<Mesh>,
     bg_material: Handle<StandardMaterial>,
     fg_material: Handle<StandardMaterial>,
+    empty_material: Handle<StandardMaterial>,
     pct: f32,
 ) -> Entity {
     commands
@@ -165,6 +172,14 @@ fn spawn_bar_entity(
                 Transform::from_xyz(0.0, 0.0, -0.001),
             ));
             parent.spawn((
+                Mesh3d(fg_mesh.clone()),
+                MeshMaterial3d(empty_material),
+                Transform {
+                    translation: Vec3::new(0.0, 0.0, -0.0005),
+                    ..foreground_transform(1.0)
+                },
+            ));
+            parent.spawn((
                 HealthBarForeground,
                 Mesh3d(fg_mesh),
                 MeshMaterial3d(fg_material),
@@ -176,7 +191,7 @@ fn spawn_bar_entity(
 
 /// Build the foreground bar transform: scale X by pct, shift left to keep left-aligned.
 fn foreground_transform(pct: f32) -> Transform {
-    let inner_width = 0.92;
+    let inner_width = 186.0 / 190.0;
     let offset_x = -BAR_WIDTH * inner_width * (1.0 - pct) / 2.0;
     Transform::from_xyz(offset_x, 0.0, 0.0).with_scale(Vec3::new(pct * inner_width, 0.75, 1.0))
 }
@@ -662,6 +677,24 @@ mod tests {
     }
 
     #[test]
+    fn partially_empty_health_has_dark_interior_below_fill() {
+        let mut app = health_bar_test_app(crate::InWorldSceneStage::Ui);
+        spawn_test_health_entity(&mut app);
+        app.update();
+        let dark = app
+            .world()
+            .resource::<Assets<StandardMaterial>>()
+            .iter()
+            .filter(|(_, material)| material.base_color == Color::srgb(0.055, 0.055, 0.055))
+            .count();
+        assert_eq!(dark, 1);
+        let half = foreground_transform(0.5);
+        let full = foreground_transform(1.0);
+        assert_eq!(half.scale.x, full.scale.x / 2.0);
+        assert!((half.translation.x - half.scale.x / 2.0 + full.scale.x / 2.0).abs() < 1e-6);
+    }
+
+    #[test]
     fn test_health_color_mid_hp() {
         let color = health_bar_color(50.0, 100.0);
         assert_eq!(color, Color::srgb(0.8, 0.0, 0.0));
@@ -670,8 +703,8 @@ mod tests {
     #[test]
     fn test_bar_width_scales_with_health() {
         let transform = foreground_transform(0.5);
-        assert!((transform.scale.x - 0.46).abs() < 1e-6);
-        assert!((transform.translation.x - (-0.23)).abs() < 1e-6);
+        assert!((transform.scale.x - 93.0 / 190.0).abs() < 1e-6);
+        assert!((transform.translation.x + 46.5 / 190.0).abs() < 1e-6);
     }
 
     #[test]

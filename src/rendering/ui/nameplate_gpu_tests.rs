@@ -27,6 +27,10 @@ fn configured_render_app(configure: impl FnOnce(&mut App)) -> App {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
+    app.insert_resource(HudOptions {
+        nameplate_health_thickness: NameplateBarThickness::Thin,
+        ..default()
+    });
     app.init_state::<GameState>();
     app.insert_resource(State::new(GameState::InWorld));
     app.init_resource::<Assets<M2EffectMaterial>>();
@@ -127,7 +131,7 @@ fn colored_pixels(image: &Image, matches: impl Fn(&[u8]) -> bool) -> Option<Colo
 
 fn compact_health_name_pixels(image: &Image) -> bool {
     let name = colored_pixels(image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80);
-    let bar = colored_pixels(image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80);
+    let bar = colored_pixels(image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60);
     match (name, bar) {
         (Some(name), Some(bar)) => {
             // Glyph ink may stop above the text-layout bottom (font descender padding).
@@ -188,7 +192,7 @@ fn nameplate_gpu_health_before_npc_renders_name_above_health_bar() {
     }
     let image = last_image.expect("GPU must return a frame within the fixture deadline");
     let name = colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80);
-    let bar = colored_pixels(&image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80);
+    let bar = colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60);
     let path = std::path::Path::new(HEALTH_NAME_FAILURE_IMAGE);
     std::fs::create_dir_all(path.parent().unwrap()).expect("create diagnostic directory");
     image
@@ -197,7 +201,7 @@ fn nameplate_gpu_health_before_npc_renders_name_above_health_bar() {
         .save(path)
         .expect("save failure image");
     panic!(
-        "expected yellow name above green health bar with compact gap: name={name:?}, bar={bar:?}; image={HEALTH_NAME_FAILURE_IMAGE}"
+        "expected yellow name above red health bar with compact gap: name={name:?}, bar={bar:?}; image={HEALTH_NAME_FAILURE_IMAGE}"
     );
 }
 
@@ -236,14 +240,14 @@ fn nameplate_gpu_zoom_preserves_bar_and_text_pixel_dimensions() {
             app.update();
         }
         let image = capture_zoom_frame(&mut app, &target);
-        let bar = colored_pixels(&image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80)
-            .expect("green health bar pixels");
+        let bar = colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60)
+            .expect("red health bar pixels");
         let name = colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80)
             .expect("yellow name pixels");
         let bar_size = (bar.right - bar.left + 1, bar.bottom - bar.top + 1);
         assert!(
-            bar_size.0.abs_diff(80) <= 1 && bar_size.1.abs_diff(8) <= 1,
-            "zoom distance {distance}: expected 80x8px bar, got {bar_size:?}"
+            bar_size.0.abs_diff(186) <= 1 && bar_size.1.abs_diff(7) <= 1,
+            "zoom distance {distance}: expected 186x7px red inset, got {bar_size:?}"
         );
         let current_name_size = (name.right - name.left + 1, name.bottom - name.top + 1);
         if let Some(expected) = name_size {
@@ -277,7 +281,7 @@ fn capture_zoom_frame(app: &mut App, target: &Handle<Image>) -> Image {
         if let Ok(image) = receiver.try_recv() {
             pending = false;
             let has_bar =
-                colored_pixels(&image, |p| p[0] < 80 && p[1] > 100 && p[2] < 80).is_some();
+                colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60).is_some();
             let has_name =
                 colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80).is_some();
             if has_bar && has_name {
