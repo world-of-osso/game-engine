@@ -35,15 +35,15 @@ fn assert_compact_gap(app: &mut App, camera: Entity, bar: Entity, label: Entity)
             .translation(),
     );
     assert!(
-        (top - label_point.y - 4.0).abs() < 0.02,
-        "bar top {top}, name bottom {}: expected 4 logical pixels",
+        (top - label_point.y - 2.0).abs() < 0.02,
+        "bar top {top}, name bottom {}: expected 2 logical pixels",
         label_point.y
     );
     let left = corners
         .into_iter()
         .map(|point| projected_point(app, camera, bar_pose.transform_point(point)).x)
         .fold(f32::INFINITY, f32::min);
-    assert!((label_point.x - left - 4.0).abs() < 0.02);
+    assert!((label_point.x - left - 2.0).abs() < 0.02);
     assert_eq!(
         app.world().get::<bevy::sprite::Anchor>(label),
         Some(&bevy::sprite::Anchor::BOTTOM_LEFT)
@@ -85,7 +85,7 @@ fn thick_health_embeds_name_and_thin_health_restores_above_bar() {
             .unwrap()
             .translation(),
     );
-    assert!((center - Vec2::X * 184.0).abs_diff_eq(name, 0.02));
+    assert!((center - Vec2::X * 92.0).abs_diff_eq(name, 0.02));
     app.world_mut()
         .resource_mut::<HudOptions>()
         .nameplate_health_thickness = NameplateBarThickness::Thin;

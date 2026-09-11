@@ -14,7 +14,7 @@ use crate::client_options::{HudOptions, HudVisibilityToggles};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
 use crate::rendering::nameplate_art::{
-    BAR_PIXEL_WIDTH, HEALTH_BACKGROUND_RECT, HEALTH_FILL_RECT, NameplateArtCache,
+    BAR_PIXEL_WIDTH, HEALTH_BACKGROUND_RECT, HEALTH_FILL_RECT, NAMEPLATE_SCALE, NameplateArtCache,
 };
 
 pub struct HealthBarPlugin;
@@ -65,15 +65,15 @@ enum HealthBarPart {
 pub(crate) const BAR_WIDTH: f32 = 1.0;
 pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
-const BACKGROUND_EXTRA_SIZE: Vec2 = Vec2::new(8.0, 9.0);
-const BACKGROUND_OFFSET: Vec2 = Vec2::new(2.0, 1.5);
+const BACKGROUND_EXTRA_SIZE: Vec2 = Vec2::new(8.0 * NAMEPLATE_SCALE, 9.0 * NAMEPLATE_SCALE);
+const BACKGROUND_OFFSET: Vec2 = Vec2::new(2.0 * NAMEPLATE_SCALE, 1.5 * NAMEPLATE_SCALE);
 
 pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
     Vec2::new(
         BAR_PIXEL_WIDTH,
         match thickness {
-            NameplateBarThickness::Thin => 20.0,
-            NameplateBarThickness::Thick => 40.0,
+            NameplateBarThickness::Thin => 20.0 * NAMEPLATE_SCALE,
+            NameplateBarThickness::Thick => 40.0 * NAMEPLATE_SCALE,
         },
     )
 }
@@ -135,7 +135,9 @@ fn health_sprite(part: HealthBarPart, image: Handle<Image>) -> Sprite {
                 min_inset: Vec2::new(121.0, 7.0),
                 max_inset: Vec2::new(10.0, 11.0),
             },
-            SliceScaleMode::Tile { stretch_value: 1.0 },
+            // The center is one texel and each side repeats a one-texel strip.
+            // Stretching those constant axes preserves the art without thousands of tiles.
+            SliceScaleMode::Stretch,
         ),
         HealthBarPart::Fill => (
             HEALTH_FILL_RECT,
@@ -155,7 +157,7 @@ fn health_sprite(part: HealthBarPart, image: Handle<Image>) -> Sprite {
             border,
             center_scale_mode: mode,
             sides_scale_mode: mode,
-            max_corner_scale: 1.0,
+            max_corner_scale: NAMEPLATE_SCALE,
         }),
         ..default()
     }
