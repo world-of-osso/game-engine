@@ -1,6 +1,6 @@
 # UI System
 
-Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` drives generation-based updates and the frame registry stores named elements. The login screen is the first native Bevy UI screen; it uses ECS entities while other screens retain the toolkit frame model (anchors, strata, draw layers).
+Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` drives generation-based updates and the frame registry stores named elements. Login is the first native Bevy UI screen. Its native layout is authored with the direct native `rsx!` mode added at macro `35c1ddc` and engine `81f13187`, pending verification; other screens retain the toolkit frame model (anchors, strata, draw layers).
 
 ## Core Primitives
 
@@ -10,7 +10,13 @@ Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` d
 
 **FrameRegistry**: stores all frames by name. Named with `FrameName` (has `.0`) or `DynName(String)` for dynamic names.
 
-**Pre-compute negations**: `!bool_expr` doesn't work inside `rsx!` — do `let hide = !visible;` before the macro.
+**Pre-compute negations**: `!bool_expr` doesn't work inside legacy `rsx!` — do `let hide = !visible;` before the macro.
+
+## Native RSX
+
+`rsx! { @native(commands, parent) { node { ... } } => result }` directly emits Bevy `Node` entities and `ChildOf` relationships. It bypasses `Screen`, `SharedContext`, `FrameRegistry`, toolkit anchors, and `WidgetDef` entirely.
+
+`id:` exposes spawned entities lexically; `name:` is an ordinary string expression rather than a legacy `FrameName`; `layout:` supplies a `Node` base; `components:` adds typed Bevy components. Rust statement blocks remain available for native helpers such as fields, nine-slice buttons, and carets. The current subset exists only to restore login authoring without reintroducing the toolkit renderer or a parallel UI tree.
 
 ## Frame Hierarchy and Layout
 
