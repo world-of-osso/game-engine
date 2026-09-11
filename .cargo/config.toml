@@ -10,5 +10,5 @@ rustflags = ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=
 bd = "build --features dev"
 rd = "run --features dev"
 # Bundled QuickJS requires GNU on Windows; Unix socket IPC stays disabled.
-bw = "build --target x86_64-pc-windows-gnu --bin game-engine --no-default-features --features casc,dev"
-rw = "run --target x86_64-pc-windows-gnu --bin game-engine --no-default-features --features casc,dev"
+bw = "!powershell -NoProfile -File scripts/windows-dev.ps1 build"
+rw = "!powershell -NoProfile -File scripts/windows-dev.ps1 run"
