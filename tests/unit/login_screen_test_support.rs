@@ -10,7 +10,7 @@ use game_engine::ui::screens::login_component::{SharedStatusText, login_screen};
 use ui_toolkit::layout::LayoutRect;
 #[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
 mod layout_support;
-use layout_support::compute_layout as recompute_layouts;
+pub(super) use layout_support::compute_layout as recompute_layouts;
 
 use crate::game_state::GameState;
 use crate::networking;
