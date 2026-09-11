@@ -1,152 +1,84 @@
 use super::*;
 
-fn scene() -> (App, Entity, Entity, Entity) {
-    let mut app = zoom_tests::projection_app(1.0, 800, 600);
-    app.init_resource::<HudVisibilityToggles>();
-    let actor = app
-        .world_mut()
-        .spawn((
-            Transform::from_xyz(100.0, 7.0, -30.0)
-                .with_rotation(Quat::from_euler(EulerRot::YXZ, 1.3, 0.2, -0.1))
-                .with_scale(Vec3::new(0.7, 1.2, 0.9)),
-            Visibility::Visible,
-            Health {
-                current: 75.0,
-                max: 100.0,
-            },
-        ))
-        .id();
-    let bar = app.world().get::<Children>(actor).unwrap()[0];
-    let camera = app
-        .world_mut()
-        .spawn((Camera3d::default(), Transform::from_xyz(108.0, 12.0, -18.0)))
-        .id();
-    (app, actor, bar, camera)
-}
-
-fn assert_front_faces_camera(app: &App, bar: Entity, camera: Entity) {
-    let pose = app.world().get::<GlobalTransform>(bar).unwrap();
-    let camera_back = app
-        .world()
-        .get::<GlobalTransform>(camera)
-        .unwrap()
-        .compute_transform()
-        .rotation
-        * Vec3::Z;
-    let affine = pose.affine();
-    let x = affine.transform_vector3(Vec3::X);
-    let y = affine.transform_vector3(Vec3::Y);
-    let front = x.cross(y).normalize();
-    assert!(
-        front.dot(camera_back) > 0.99999,
-        "actual world mesh +Z front {front:?} must face camera"
-    );
-    for child in app.world().get::<Children>(bar).unwrap().iter() {
-        let local = app.world().get::<Transform>(child).unwrap();
-        let actual = app.world().get::<GlobalTransform>(child).unwrap();
-        assert!(
-            actual
-                .affine()
-                .abs_diff_eq((*pose * *local).affine(), 0.0001)
-        );
-    }
-}
-
 #[test]
-fn parented_bar_faces_camera_after_actor_and_camera_motion_in_same_frame() {
-    let (mut app, actor, bar, camera) = scene();
+fn overlay_health_updates_keep_left_edge_and_hide_with_owner() {
+    let (mut app, actor, bar, _) = zoom_tests::zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
     app.update();
-    assert_front_faces_camera(&app, bar, camera);
-    app.world_mut()
-        .get_mut::<Transform>(actor)
-        .unwrap()
-        .rotation = Quat::from_rotation_y(-0.8);
-    app.world_mut()
-        .get_mut::<Transform>(camera)
-        .unwrap()
-        .translation = Vec3::new(92.0, 16.0, -18.0);
-    app.world_mut()
-        .get_mut::<Transform>(camera)
-        .unwrap()
-        .rotation = Quat::from_rotation_y(-0.3);
     app.update();
-    assert_front_faces_camera(&app, bar, camera);
-    let expected_center = app
+    let fill = app
         .world()
-        .get::<GlobalTransform>(actor)
+        .get::<HealthBarVisuals>(bar)
         .unwrap()
-        .transform_point(Vec3::new(0.0, 2.5, 0.0));
-    assert!(
-        app.world()
-            .get::<GlobalTransform>(bar)
-            .unwrap()
-            .translation()
-            .distance(expected_center)
-            < 0.0001
-    );
-}
-
-#[test]
-fn parented_billboard_preserves_fill_visibility_and_settled_local_transform_ticks() {
-    let (mut app, actor, bar, camera) = scene();
+        .0
+        .iter()
+        .copied()
+        .find(|e| app.world().get::<HealthBarPart>(*e) == Some(&HealthBarPart::Fill))
+        .unwrap();
+    let before = *app.world().get::<Transform>(fill).unwrap();
+    let size = app
+        .world()
+        .get::<Sprite>(fill)
+        .unwrap()
+        .custom_size
+        .unwrap();
+    let left = before.translation.x - size.x / 2.0;
+    app.world_mut().get_mut::<Health>(actor).unwrap().current = 25.0;
     app.update();
-    app.update();
+    let after = app.world().get::<Transform>(fill).unwrap();
+    let sprite = app.world().get::<Sprite>(fill).unwrap();
+    assert_eq!(sprite.custom_size, Some(Vec2::new(96.0, 20.0)));
+    assert!((after.translation.x - 48.0 - left).abs() < 0.01);
+    assert_eq!(sprite.color, Color::srgb(1.0, 0.2, 0.2));
     let tick = app
         .world()
-        .entity(bar)
+        .entity(fill)
         .get_ref::<Transform>()
         .unwrap()
         .last_changed();
     app.update();
     assert_eq!(
         app.world()
-            .entity(bar)
+            .entity(fill)
             .get_ref::<Transform>()
             .unwrap()
             .last_changed(),
         tick
     );
-    assert_front_faces_camera(&app, bar, camera);
-    app.world_mut().get_mut::<Health>(actor).unwrap().current = 25.0;
-    app.update();
-    let foreground = app
-        .world()
-        .get::<Children>(bar)
-        .unwrap()
-        .iter()
-        .find(|&e| app.world().get::<HealthBarForeground>(e).is_some())
-        .unwrap();
-    assert_eq!(
-        app.world().get::<Transform>(foreground),
-        Some(&foreground_transform(0.25))
-    );
-    let material = &app
-        .world()
-        .get::<MeshMaterial3d<StandardMaterial>>(foreground)
-        .unwrap()
-        .0;
-    assert_eq!(
-        app.world()
-            .resource::<Assets<StandardMaterial>>()
-            .get(material)
-            .unwrap()
-            .base_color,
-        health_bar_color(25.0, 100.0)
-    );
     app.world_mut()
-        .resource_mut::<HudVisibilityToggles>()
-        .show_health_bars = false;
+        .get_mut::<Visibility>(actor)
+        .unwrap()
+        .set_if_neq(Visibility::Hidden);
     app.update();
     assert_eq!(
-        app.world().get::<Visibility>(bar),
+        app.world().get::<Visibility>(fill),
         Some(&Visibility::Hidden)
     );
-    app.world_mut()
-        .resource_mut::<HudVisibilityToggles>()
-        .show_health_bars = true;
+    app.world_mut().despawn(actor);
     app.update();
-    assert_eq!(
-        app.world().get::<Visibility>(bar),
-        Some(&Visibility::Inherited)
-    );
+    assert!(app.world().get_entity(fill).is_err());
+}
+
+#[test]
+fn no_ui_and_missing_health_hide_existing_overlay() {
+    let (mut app, actor, bar, _) = zoom_tests::zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
+    app.update();
+    let visuals = app.world().get::<HealthBarVisuals>(bar).unwrap().0.clone();
+    app.insert_resource(crate::client_options::UiDisabled);
+    app.update();
+    for entity in &visuals {
+        assert_eq!(
+            app.world().get::<Visibility>(*entity),
+            Some(&Visibility::Hidden)
+        );
+    }
+    app.world_mut()
+        .remove_resource::<crate::client_options::UiDisabled>();
+    app.world_mut().entity_mut(actor).remove::<Health>();
+    app.update();
+    for entity in &visuals {
+        assert_eq!(
+            app.world().get::<Visibility>(*entity),
+            Some(&Visibility::Hidden)
+        );
+    }
 }
