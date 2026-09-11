@@ -162,12 +162,29 @@ pub struct CameraOptionsView {
     pub max_distance: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum NameplateBarThickness {
+    Thin,
+    Thick,
+}
+
+impl NameplateBarThickness {
+    pub const fn toggled(self) -> Self {
+        match self {
+            Self::Thin => Self::Thick,
+            Self::Thick => Self::Thin,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct HudOptionsView {
     pub show_minimap: bool,
     pub show_action_bars: bool,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
+    pub nameplate_health_thickness: NameplateBarThickness,
+    pub nameplate_spellbar_thickness: NameplateBarThickness,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,

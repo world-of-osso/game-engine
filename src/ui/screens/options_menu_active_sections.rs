@@ -167,6 +167,16 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
                 NAMEPLATE_DISTANCE_MIN,
                 NAMEPLATE_DISTANCE_MAX,
             ),
+            thickness_row(
+                "nameplate_health_thickness",
+                "Nameplate Health Thickness",
+                hud.nameplate_health_thickness,
+            ),
+            thickness_row(
+                "nameplate_spellbar_thickness",
+                "Nameplate Spellbar Thickness",
+                hud.nameplate_spellbar_thickness,
+            ),
             toggle_row("show_health_bars", "Show Health Bars", hud.show_health_bars),
             toggle_row(
                 "show_target_marker",
@@ -506,7 +516,28 @@ fn row_label(name: &str, text: &str) -> Element {
     }
 }
 
+fn thickness_row(
+    key: &str,
+    label: &str,
+    thickness: super::options_menu_component::NameplateBarThickness,
+) -> Element {
+    let thick = thickness == super::options_menu_component::NameplateBarThickness::Thick;
+    rsx! {
+        r#frame {
+            name: {DynName(format!("ThicknessRow{key}"))},
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 44.0,
+            {row_label(&format!("ThicknessLabel{key}"), label)}
+            {segmented_choice(key, thick, "Thin", "Thick")}
+        }
+    }
+}
+
 fn segmented_toggle(key: &str, enabled: bool) -> Element {
+    segmented_choice(key, enabled, "Off", "On")
+}
+
+fn segmented_choice(key: &str, enabled: bool, left_label: &str, right_label: &str) -> Element {
     let action = toggle_action(key);
     let name = format!("ToggleSwitch{key}");
     toggle_widget(ToggleWidget {
@@ -515,8 +546,8 @@ fn segmented_toggle(key: &str, enabled: bool) -> Element {
         right_selected: enabled,
         width: OPTIONS_TOGGLE_W,
         height: OPTIONS_TOGGLE_H,
-        left_label: "Off",
-        right_label: "On",
+        left_label,
+        right_label,
         background_color: OPTIONS_TOGGLE_BG,
         active_color: OPTIONS_TOGGLE_FILL,
         border: OPTIONS_TOGGLE_BORDER,

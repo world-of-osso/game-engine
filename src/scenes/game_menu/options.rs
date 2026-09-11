@@ -106,6 +106,8 @@ pub struct HudDraft {
     pub show_action_bars: bool,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
+    pub nameplate_health_thickness: crate::client_options::NameplateBarThickness,
+    pub nameplate_spellbar_thickness: crate::client_options::NameplateBarThickness,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub show_fps_overlay: bool,
@@ -174,6 +176,8 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
         show_action_bars: hud.show_action_bars,
         show_nameplates: hud.show_nameplates,
         nameplate_distance: hud.nameplate_distance,
+        nameplate_health_thickness: hud.nameplate_health_thickness,
+        nameplate_spellbar_thickness: hud.nameplate_spellbar_thickness,
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         show_fps_overlay: hud.show_fps_overlay,
@@ -225,6 +229,8 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_action_bars: h.show_action_bars,
         show_nameplates: h.show_nameplates,
         nameplate_distance: h.nameplate_distance,
+        nameplate_health_thickness: h.nameplate_health_thickness,
+        nameplate_spellbar_thickness: h.nameplate_spellbar_thickness,
         show_health_bars: h.show_health_bars,
         show_target_marker: h.show_target_marker,
         show_fps_overlay: h.show_fps_overlay,
@@ -583,6 +589,12 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
 
 fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
     match key {
+        "nameplate_health_thickness" => {
+            hud.nameplate_health_thickness = hud.nameplate_health_thickness.toggled()
+        }
+        "nameplate_spellbar_thickness" => {
+            hud.nameplate_spellbar_thickness = hud.nameplate_spellbar_thickness.toggled()
+        }
         "show_minimap" => hud.show_minimap = !hud.show_minimap,
         "show_action_bars" => hud.show_action_bars = !hud.show_action_bars,
         "show_nameplates" => hud.show_nameplates = !hud.show_nameplates,
@@ -673,6 +685,8 @@ pub fn apply_hud_snapshot(h: &mut HudOptions, d: &HudDraft) {
     h.show_minimap = d.show_minimap;
     h.show_action_bars = d.show_action_bars;
     h.show_nameplates = d.show_nameplates;
+    h.nameplate_health_thickness = d.nameplate_health_thickness;
+    h.nameplate_spellbar_thickness = d.nameplate_spellbar_thickness;
     h.nameplate_distance = d
         .nameplate_distance
         .clamp(

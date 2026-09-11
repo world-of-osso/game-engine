@@ -2,6 +2,28 @@ use super::*;
 use game_engine::input_bindings::{InputAction, InputBinding};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[test]
+fn nameplate_thickness_defaults_are_persisted() {
+    let value = serde_json::to_value(HudOptionsFile::default()).unwrap();
+    assert_eq!(value["nameplateHealthThickness"], "Thick");
+    assert_eq!(value["nameplateSpellbarThickness"], "Thin");
+}
+
+#[test]
+fn nameplate_thickness_missing_fields_use_independent_defaults() {
+    let mut value = serde_json::to_value(HudOptionsFile::default()).unwrap();
+    let fields = value.as_object_mut().unwrap();
+    fields.remove("nameplateHealthThickness");
+    fields.remove("nameplateSpellbarThickness");
+    let file: HudOptionsFile = serde_json::from_value(value).unwrap();
+    let hud = HudOptions::from_file(&file);
+    assert_eq!(hud.nameplate_health_thickness, NameplateBarThickness::Thick);
+    assert_eq!(
+        hud.nameplate_spellbar_thickness,
+        NameplateBarThickness::Thin
+    );
+}
+
 fn unique_test_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -73,6 +95,8 @@ fn hud_visibility_toggles_follow_hud_options() {
         show_action_bars: true,
         show_nameplates: false,
         nameplate_distance: default_nameplate_distance(),
+        nameplate_health_thickness: NameplateBarThickness::Thick,
+        nameplate_spellbar_thickness: NameplateBarThickness::Thin,
         show_health_bars: false,
         show_target_marker: true,
         show_fps_overlay: false,
@@ -440,6 +464,8 @@ fn save_options_file_to_path_persists_and_loads_back() {
             show_action_bars: true,
             show_nameplates: false,
             nameplate_distance: 60.0,
+            nameplate_health_thickness: NameplateBarThickness::Thin,
+            nameplate_spellbar_thickness: NameplateBarThickness::Thick,
             show_health_bars: true,
             show_target_marker: false,
             show_fps_overlay: false,
@@ -467,6 +493,14 @@ fn save_options_file_to_path_persists_and_loads_back() {
     assert_eq!(loaded.graphics.frame_rate_limit, 165);
     assert!(loaded.graphics.colorblind_mode);
     assert!(!loaded.hud.show_minimap);
+    assert_eq!(
+        loaded.hud.nameplate_health_thickness,
+        NameplateBarThickness::Thin
+    );
+    assert_eq!(
+        loaded.hud.nameplate_spellbar_thickness,
+        NameplateBarThickness::Thick
+    );
     assert!((loaded.hud.nameplate_distance - 60.0).abs() < 0.0001);
     assert!((loaded.hud.chat_font_size - 13.0).abs() < 0.0001);
     assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));

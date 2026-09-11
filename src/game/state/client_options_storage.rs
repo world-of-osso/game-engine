@@ -172,6 +172,16 @@ pub(super) struct HudOptionsFile {
     pub(super) show_nameplates: bool,
     #[serde(default = "default_nameplate_distance", rename = "nameplateDistance")]
     pub(super) nameplate_distance: f32,
+    #[serde(
+        default = "default_nameplate_health_thickness",
+        rename = "nameplateHealthThickness"
+    )]
+    pub(super) nameplate_health_thickness: NameplateBarThickness,
+    #[serde(
+        default = "default_nameplate_spellbar_thickness",
+        rename = "nameplateSpellbarThickness"
+    )]
+    pub(super) nameplate_spellbar_thickness: NameplateBarThickness,
     pub(super) show_health_bars: bool,
     pub(super) show_target_marker: bool,
     pub(super) show_fps_overlay: bool,
@@ -187,6 +197,8 @@ impl Default for HudOptionsFile {
             show_action_bars: defaults.show_action_bars,
             show_nameplates: defaults.show_nameplates,
             nameplate_distance: defaults.nameplate_distance,
+            nameplate_health_thickness: defaults.nameplate_health_thickness,
+            nameplate_spellbar_thickness: defaults.nameplate_spellbar_thickness,
             show_health_bars: defaults.show_health_bars,
             show_target_marker: defaults.show_target_marker,
             show_fps_overlay: defaults.show_fps_overlay,
@@ -312,6 +324,8 @@ fn build_hud_options_file(hud: &HudOptions) -> HudOptionsFile {
         nameplate_distance: hud
             .nameplate_distance
             .clamp(MIN_NAMEPLATE_DISTANCE, MAX_NAMEPLATE_DISTANCE),
+        nameplate_health_thickness: hud.nameplate_health_thickness,
+        nameplate_spellbar_thickness: hud.nameplate_spellbar_thickness,
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         show_fps_overlay: hud.show_fps_overlay,

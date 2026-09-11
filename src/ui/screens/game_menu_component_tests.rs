@@ -76,6 +76,10 @@ fn hud_view() -> HudOptionsView {
         show_action_bars: true,
         show_nameplates: true,
         nameplate_distance: 40.0,
+        nameplate_health_thickness:
+            crate::ui::screens::options_menu_component::NameplateBarThickness::Thick,
+        nameplate_spellbar_thickness:
+            crate::ui::screens::options_menu_component::NameplateBarThickness::Thin,
         show_health_bars: true,
         show_target_marker: true,
         show_fps_overlay: true,

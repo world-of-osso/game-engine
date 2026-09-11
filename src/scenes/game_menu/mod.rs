@@ -387,6 +387,8 @@ fn snapshot_hud_options(snapshot: &ApplySnapshot) -> HudOptions {
         show_action_bars: snapshot.hud.show_action_bars,
         show_nameplates: snapshot.hud.show_nameplates,
         nameplate_distance: snapshot.hud.nameplate_distance,
+        nameplate_health_thickness: snapshot.hud.nameplate_health_thickness,
+        nameplate_spellbar_thickness: snapshot.hud.nameplate_spellbar_thickness,
         show_health_bars: snapshot.hud.show_health_bars,
         show_target_marker: snapshot.hud.show_target_marker,
         show_fps_overlay: snapshot.hud.show_fps_overlay,
