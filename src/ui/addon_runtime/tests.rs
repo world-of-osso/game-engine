@@ -20,6 +20,304 @@ fn font_text(registry: &ui_toolkit::registry::FrameRegistry, name: &str) -> Opti
     Some(data.text.clone())
 }
 
+fn native_addon_app() -> App {
+    use bevy::asset::AssetApp;
+
+    let mut app = App::new();
+    app.add_plugins((
+        MinimalPlugins,
+        bevy::asset::AssetPlugin::default(),
+        bevy::image::ImagePlugin::default(),
+        bevy::mesh::MeshPlugin,
+        bevy::window::WindowPlugin {
+            primary_window: Some(Window {
+                resolution: (800, 600).into(),
+                ..default()
+            }),
+            exit_condition: bevy::window::ExitCondition::DontExit,
+            ..default()
+        },
+        bevy::input::InputPlugin,
+        bevy::transform::TransformPlugin,
+        bevy::camera::CameraPlugin,
+        bevy::text::TextPlugin,
+        bevy::picking::DefaultPickingPlugins,
+        bevy::ui::UiPlugin,
+        ui_toolkit::plugin::UiPlugin,
+    ));
+    app.init_asset::<TextureAtlasLayout>();
+    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+        std::time::Duration::from_millis(16),
+    ));
+    app.world_mut().resource_mut::<UiState>().registry = make_registry_with_root();
+    app.finish();
+    app.cleanup();
+    app
+}
+
+fn script_addon(script: &str) -> LoadedAddon {
+    let operations = js::run_js_addon_to_operations(script).expect("valid fixture addon");
+    LoadedAddon {
+        name: "native-contract".into(),
+        owned_frames: collect_owned_frames(&operations),
+        operations,
+    }
+}
+
+fn project_addon(app: &mut App, addon: &LoadedAddon) {
+    apply::apply_addon(
+        addon,
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+    );
+    app.update();
+    app.update();
+}
+
+fn projected_frame(world: &mut World, id: u64) -> Entity {
+    let entities: Vec<_> = world
+        .query::<(Entity, &ui_toolkit::native_render::RegistryNode)>()
+        .iter(world)
+        .filter_map(|(entity, frame)| (frame.0 == id).then_some(entity))
+        .collect();
+    assert_eq!(
+        entities.len(),
+        1,
+        "one native projection for registry frame {id}"
+    );
+    entities[0]
+}
+
+fn native_descendants(world: &World, root: Entity) -> Vec<Entity> {
+    let mut pending = vec![root];
+    let mut descendants = Vec::new();
+    while let Some(entity) = pending.pop() {
+        if let Some(children) = world.get::<Children>(entity) {
+            pending.extend(children.iter());
+        }
+        descendants.push(entity);
+    }
+    descendants
+}
+
+fn projected_text(world: &World, frame: Entity) -> Entity {
+    let texts: Vec<_> = native_descendants(world, frame)
+        .into_iter()
+        .filter(|entity| world.get::<Text>(*entity).is_some())
+        .collect();
+    assert_eq!(texts.len(), 1, "fixture fontstring has one displayed text");
+    texts[0]
+}
+
+fn assert_native_rect(world: &World, entity: Entity, expected: [f32; 4]) {
+    let node = world
+        .get::<ComputedNode>(entity)
+        .expect("native layout computed");
+    let transform = world.get::<UiGlobalTransform>(entity).unwrap();
+    let origin = bevy::math::Affine2::from(transform).translation - node.size / 2.0;
+    let actual = [origin.x, origin.y, node.size.x, node.size.y];
+    for (actual, expected) in actual.into_iter().zip(expected) {
+        assert!(
+            (actual - expected).abs() < 0.1,
+            "bounds {actual}, expected {expected}"
+        );
+    }
+}
+
+#[test]
+fn js_addon_reuses_engine_frames_and_updates_native_bevy_output() {
+    let mut app = native_addon_app();
+    let (panel, label) = {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        let root = ui.registry.get_by_name("ParentRoot").unwrap();
+        let panel = ui.registry.create_frame("EnginePanel", Some(root));
+        let label = ui.registry.create_frame("EngineLabel", Some(panel));
+        let frame = ui.registry.get_mut(label).unwrap();
+        frame.widget_type = ui_toolkit::frame::WidgetType::FontString;
+        frame.widget_data = Some(WidgetData::FontString(
+            ui_toolkit::widgets::font_string::FontStringData::default(),
+        ));
+        (panel, label)
+    };
+    let mut addon = script_addon(
+        r#"
+        addon.createFrame("EnginePanel", "ParentRoot");
+        addon.setSize("EnginePanel", 200, 60);
+        addon.setPoint("EnginePanel", "TOPLEFT", "ParentRoot", "TOPLEFT", 10, -20);
+        addon.setBackgroundColor("EnginePanel", 0.1, 0.2, 0.3, 0.8);
+        addon.setAlpha("EnginePanel", 0.5);
+        addon.createFontString("EngineLabel", "EnginePanel", "Initial");
+        addon.setSize("EngineLabel", 80, 20);
+        addon.setPoint("EngineLabel", "CENTER", "EnginePanel", "CENTER", 0, 0);
+        addon.setText("EngineLabel", "Updated");
+        addon.setFontColor("EngineLabel", 0.9, 0.7, 0.2, 0.8);
+        addon.setAlpha("EngineLabel", 0.5);
+    "#,
+    );
+    project_addon(&mut app, &addon);
+    let registry = &app.world().resource::<UiState>().registry;
+    assert_eq!(registry.get_by_name("EnginePanel"), Some(panel));
+    assert_eq!(registry.get_by_name("EngineLabel"), Some(label));
+    assert_eq!(
+        font_text(registry, "EngineLabel").as_deref(),
+        Some("Updated")
+    );
+    let panel_entity = projected_frame(app.world_mut(), panel);
+    let label_entity = projected_frame(app.world_mut(), label);
+    assert_native_rect(app.world(), panel_entity, [10.0, 20.0, 200.0, 60.0]);
+    assert_native_rect(app.world(), label_entity, [70.0, 40.0, 80.0, 20.0]);
+    assert_eq!(
+        app.world().get::<ChildOf>(label_entity).unwrap().parent(),
+        panel_entity
+    );
+    let text = projected_text(app.world(), label_entity);
+    assert_eq!(app.world().get::<Text>(text).unwrap().0, "Updated");
+    assert_eq!(
+        app.world().get::<TextColor>(text).unwrap().0,
+        Color::srgba(0.9, 0.7, 0.2, 0.4)
+    );
+    let images: Vec<_> = app
+        .world()
+        .get::<Children>(panel_entity)
+        .unwrap()
+        .iter()
+        .filter_map(|entity| app.world().get::<ImageNode>(entity))
+        .collect();
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0].color, Color::srgba(0.1, 0.2, 0.3, 0.4));
+
+    addon.operations = js::run_js_addon_to_operations(
+        r#"
+        addon.setSize("EnginePanel", 300, 100);
+        addon.setText("EngineLabel", "Resized");
+        addon.setSize("ParentRoot", 999, 999);
+    "#,
+    )
+    .unwrap();
+    project_addon(&mut app, &addon);
+    assert_eq!(projected_frame(app.world_mut(), panel), panel_entity);
+    assert_eq!(projected_frame(app.world_mut(), label), label_entity);
+    assert_eq!(projected_text(app.world(), label_entity), text);
+    assert_native_rect(app.world(), panel_entity, [10.0, 20.0, 300.0, 100.0]);
+    assert_native_rect(app.world(), label_entity, [120.0, 60.0, 80.0, 20.0]);
+    assert_eq!(app.world().get::<Text>(text).unwrap().0, "Resized");
+    let registry = &app.world().resource::<UiState>().registry;
+    assert_eq!(
+        registry
+            .get(registry.get_by_name("ParentRoot").unwrap())
+            .unwrap()
+            .width,
+        Dimension::Fixed(400.0),
+        "undeclared parent mutation remains rejected"
+    );
+
+    addon.operations = js::run_js_addon_to_operations("addon.hide('EnginePanel');").unwrap();
+    project_addon(&mut app, &addon);
+    assert!(
+        !app.world()
+            .resource::<UiState>()
+            .registry
+            .get(panel)
+            .unwrap()
+            .visible
+    );
+    assert_eq!(
+        app.world().get::<ComputedNode>(panel_entity).unwrap().size,
+        Vec2::ZERO
+    );
+    addon.operations = js::run_js_addon_to_operations("addon.show('EnginePanel');").unwrap();
+    project_addon(&mut app, &addon);
+    assert_eq!(projected_frame(app.world_mut(), panel), panel_entity);
+    assert_native_rect(app.world(), panel_entity, [10.0, 20.0, 300.0, 100.0]);
+    let text = projected_text(app.world(), label_entity);
+    assert_eq!(app.world().get::<Text>(text).unwrap().0, "Resized");
+}
+
+#[test]
+fn js_addon_reload_and_unload_remove_registry_and_native_subtrees() {
+    let mut app = native_addon_app();
+    let dir = std::env::temp_dir().join(format!(
+        "native_addon_reload_{}_{:?}",
+        std::process::id(),
+        std::thread::current().id()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("native.js");
+    let script = |value: &str| {
+        format!(
+            r#"
+        addon.createFrame("ReloadNativePanel", "ParentRoot");
+        addon.setSize("ReloadNativePanel", 200, 60);
+        addon.setPoint("ReloadNativePanel", "TOPLEFT", "ParentRoot", "TOPLEFT", 5, -10);
+        addon.createFontString("ReloadNativeLabel", "ReloadNativePanel", "{value}");
+        addon.setSize("ReloadNativeLabel", 100, 20);
+    "#
+        )
+    };
+    std::fs::write(&path, script("Before")).unwrap();
+    let mut runtime = AddonRuntime {
+        addon_dir: dir.clone(),
+        addons: HashMap::new(),
+    };
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        runtime.reload_path(path.clone(), &mut ui.registry);
+        runtime.apply(&mut ui.registry);
+    }
+    app.update();
+    app.update();
+    let old_id = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("ReloadNativePanel")
+        .unwrap();
+    let old_entity = projected_frame(app.world_mut(), old_id);
+    let removed_entities = native_descendants(app.world(), old_entity);
+    std::fs::write(&path, script("After")).unwrap();
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        runtime.reload_path(path.clone(), &mut ui.registry);
+        runtime.apply(&mut ui.registry);
+    }
+    app.update();
+    app.update();
+    for entity in removed_entities {
+        assert!(
+            app.world().get_entity(entity).is_err(),
+            "old addon entity survived reload"
+        );
+    }
+    let registry = &app.world().resource::<UiState>().registry;
+    assert!(registry.get(old_id).is_none());
+    let label_id = registry.get_by_name("ReloadNativeLabel").unwrap();
+    let panel_id = registry.get_by_name("ReloadNativePanel").unwrap();
+    let label_entity = projected_frame(app.world_mut(), label_id);
+    let text = projected_text(app.world(), label_entity);
+    assert_eq!(app.world().get::<Text>(text).unwrap().0, "After");
+    let panel_entity = projected_frame(app.world_mut(), panel_id);
+    let removed_entities = native_descendants(app.world(), panel_entity);
+    runtime.unload_path(
+        &path,
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+    );
+    app.update();
+    app.update();
+    for entity in removed_entities {
+        assert!(
+            app.world().get_entity(entity).is_err(),
+            "addon entity survived unload"
+        );
+    }
+    let registry = &app.world().resource::<UiState>().registry;
+    assert!(registry.get_by_name("ReloadNativePanel").is_none());
+    assert!(registry.get_by_name("ReloadNativeLabel").is_none());
+    let root = registry
+        .get_by_name("ParentRoot")
+        .expect("engine root survives unload");
+    projected_frame(app.world_mut(), root);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 fn run_addon_update(app: &mut App) {
     app.world_mut().run_schedule(Update);
     app.world_mut().clear_trackers();
