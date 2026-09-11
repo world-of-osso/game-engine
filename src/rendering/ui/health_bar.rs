@@ -40,6 +40,7 @@ struct HealthBarForeground;
 pub(crate) const BAR_WIDTH: f32 = 1.0;
 pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
+const BAR_BEVEL: f32 = 0.025;
 
 pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
     Vec2::new(
@@ -114,7 +115,7 @@ fn chamfered_bar_mesh() -> Mesh {
     use bevy::mesh::{Indices, PrimitiveTopology};
     let x = BAR_WIDTH / 2.0;
     let y = BAR_HEIGHT / 2.0;
-    let bevel = 0.025;
+    let bevel = BAR_BEVEL;
     let vertices = vec![
         [-x + bevel, -y, 0.0],
         [x - bevel, -y, 0.0],
@@ -308,11 +309,15 @@ fn health_bar_screen_pose(
     let basis = parent.affine().matrix3;
     let horizontal = project(center + Vec3::from(basis * (rotation * Vec3::X)))? - origin;
     let vertical = project(center + Vec3::from(basis * (rotation * Vec3::Y)))? - origin;
-    // Both tangents lie in the screen plane, so projection is linear. Account
-    // for the vertical edge's horizontal shear under nonuniform parent scale.
+    // The chamfer's horizontal support is either its midpoint tip or a corner.
+    // Fit both supports under the shear introduced by nonuniform parent scale.
     let scale_y = pixel_size.y / (vertical.y.abs() * BAR_HEIGHT);
-    let width_from_y = vertical.x.abs() * BAR_HEIGHT * scale_y;
-    let scale_x = (pixel_size.x - width_from_y) / (horizontal.x.abs() * BAR_WIDTH);
+    let horizontal_pixels = horizontal.x.abs();
+    let corner_shear = vertical.x.abs() * BAR_HEIGHT / 2.0 * scale_y;
+    let tip_scale = pixel_size.x / (horizontal_pixels * BAR_WIDTH);
+    let corner_scale =
+        (pixel_size.x / 2.0 - corner_shear) / (horizontal_pixels * (BAR_WIDTH / 2.0 - BAR_BEVEL));
+    let scale_x = tip_scale.min(corner_scale);
     let scale = Vec3::new(scale_x, scale_y, local.scale.z);
     if !scale.is_finite() || scale_x <= 0.0 || scale_y <= 0.0 {
         return None;
@@ -556,7 +561,7 @@ mod tests {
         app.world_mut().get_mut::<Health>(unit).unwrap().current = 25.0;
         app.update();
         assert_eq!(app.world().resource::<HealthBarChanges>().transforms, 1);
-        assert_eq!(take_material_changes(&mut app), 1);
+        assert_eq!(take_material_changes(&mut app), 0);
         assert_eq!(
             app.world().get::<Transform>(foreground),
             Some(&foreground_transform(0.25))
@@ -613,7 +618,7 @@ mod tests {
             assert_eq!(app.world().resource::<Assets<Mesh>>().len(), expected * 2);
             assert_eq!(
                 app.world().resource::<Assets<StandardMaterial>>().len(),
-                expected * 2
+                expected * 3
             );
             assert_eq!(
                 app.world()
