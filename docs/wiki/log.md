@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-11] ui/networking | Verify reference-style nameplates and cast presentation
+
+At engine `2695e5ff`, health bars are 190×20 logical pixels Thick and 190×10 Thin; spellbars are 190×14/190×6. Thick labels are left-inset; thin health labels sit above their bars and thin spell labels below. Defaults persist as Thick health/Thin spellbar. Health uses fixed red fill; spellbars use an authored gold casting-bar crop and spark. Health/cast frames are procedural reference-style geometry, not exact atlas replacements. Focused engine verification records 44 distinct passing cases, including four inspected GPU captures for all thickness combinations. Server cast-presentation proof records five targeted passes; a connected wire-level replication test remains absent. The default dev feature and GNU Windows workflow are documented, but the native GNU engine build remains unverified. See [[nameplate-design]], [[networking]], [nameplate spec](../specs/nameplate-style.md), and [Windows development](../windows-development.md).
+
+
 ## [2026-09-11] ui/networking | Start reference nameplate settings and cast presentation path
 
 Engine `957d068c` makes dynamic Bevy linking the ordinary development default; distribution builds explicitly omit default features and retain `ipc,casc`. Engine `2a0ed210` persists independent nameplate health/spellbar thickness settings with the explicit user defaults Thick health and Thin spellbar. Shared-protocol `d3b0736`, server `211d86a`/`3ba4085`, and engine `6a713af1` provide a bounded player cast-presentation path: validated cast intent attaches named replicated state, then stop/movement/expiry remove it and the worker mirror carries it to render entities. Server targeted tests pass; engine snapshot/style tests are written or in progress without current passing command evidence. No spell effects, NPC cast source, reference-render match, or target-first clutter state machine is claimed. See [[nameplate-design]] and [[networking]].
