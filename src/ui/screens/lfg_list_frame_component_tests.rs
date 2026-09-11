@@ -1,5 +1,6 @@
 use super::*;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -20,7 +21,7 @@ fn build_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = build_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -201,7 +202,7 @@ fn coord_group_header() {
     let mut shared = SharedContext::new();
     shared.insert(make_group_state());
     Screen::new(lfg_list_frame_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
 
     let content = rect(&reg, "LFGContentArea");
     let header = rect(&reg, "LFGGroupHeader");
@@ -216,7 +217,7 @@ fn coord_apply_button() {
     let mut shared = SharedContext::new();
     shared.insert(make_group_state());
     Screen::new(lfg_list_frame_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
 
     let r = rect(&reg, "LFGApplyButton");
     assert!((r.width - APPLY_BTN_W).abs() < 1.0);

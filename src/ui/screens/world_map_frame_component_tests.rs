@@ -1,6 +1,7 @@
 use super::*;
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
 use ui_toolkit::frame::WidgetData;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -61,7 +62,7 @@ fn build_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = build_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -417,7 +418,7 @@ fn coord_tooltip_width() {
     state.hovered_pin = Some(0);
     shared.insert(state);
     Screen::new(world_map_frame_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     let r = rect(&reg, "WorldMapPinTooltip");
     assert!((r.width - TOOLTIP_W).abs() < 1.0);
 }

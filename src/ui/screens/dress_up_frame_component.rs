@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -92,12 +91,9 @@ pub fn dress_up_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "450",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 450.0,
+            top: 80.0,
             {title_bar()}
             {model_preview()}
             {item_slot_row(&state.slots)}
@@ -116,12 +112,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -134,12 +128,9 @@ fn model_preview() -> Element {
             width: {preview_w},
             height: {PREVIEW_H},
             background_color: PREVIEW_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PREVIEW_INSET},
-                y: {-HEADER_H},
-            }
+            pos_type: "absolute",
+            left: {PREVIEW_INSET},
+            top: {-(-HEADER_H)},
         }
     }
 }
@@ -167,12 +158,9 @@ fn item_slot(idx: usize, slot: &DressUpSlot, x: f32, y: f32) -> Element {
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: label_name,
                 width: {SLOT_SIZE + SLOT_GAP},
@@ -181,12 +169,10 @@ fn item_slot(idx: usize, slot: &DressUpSlot, x: f32, y: f32) -> Element {
                 font_size: 6.0,
                 font_color: SLOT_LABEL_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::Bottom,
-                    relative_point: AnchorPoint::Bottom,
-                    x: "0",
-                    y: "10",
-                }
+                pos_type: "absolute",
+                left: "50%",
+                translate_x: "-50%",
+                bottom: 10.0,
             }
         }
     }
@@ -214,12 +200,9 @@ fn dress_up_button(label: &str, x: f32, y: f32) -> Element {
             width: {BUTTON_W},
             height: {BUTTON_H},
             background_color: BUTTON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: txt_name,
                 width: {BUTTON_W},
@@ -228,7 +211,9 @@ fn dress_up_button(label: &str, x: f32, y: f32) -> Element {
                 font_size: 10.0,
                 font_color: BUTTON_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -237,8 +222,9 @@ fn dress_up_button(label: &str, x: f32, y: f32) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -259,7 +245,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

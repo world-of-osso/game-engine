@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -94,12 +93,11 @@ pub fn help_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {category_buttons()}
             {content_area()}
@@ -120,12 +118,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -151,12 +147,9 @@ fn category_button(idx: usize, label: &str, x: f32, y: f32) -> Element {
             width: {BUTTON_W},
             height: {BUTTON_H},
             background_color: BUTTON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: txt_name,
                 width: {BUTTON_W},
@@ -165,10 +158,9 @@ fn category_button(idx: usize, label: &str, x: f32, y: f32) -> Element {
                 font_size: 12.0,
                 font_color: BUTTON_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -185,12 +177,9 @@ fn content_area() -> Element {
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
         }
     }
 }
@@ -212,12 +201,9 @@ fn article_list_panel(articles: &[ArticleEntry]) -> Element {
             width: {panel_w},
             height: {panel_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(panel_y)},
             {rows}
         }
     }
@@ -238,12 +224,9 @@ fn article_row(idx: usize, article: &ArticleEntry, w: f32) -> Element {
             width: {w - 2.0 * ARTICLE_INSET},
             height: {ARTICLE_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ARTICLE_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {ARTICLE_INSET},
+            top: {-(y)},
             {article_row_label(label_id, &article.title, w - 4.0 * ARTICLE_INSET, color)}
         }
     }
@@ -259,7 +242,9 @@ fn article_row_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -277,12 +262,9 @@ fn article_detail_panel(detail: &ArticleDetail) -> Element {
             width: {panel_w},
             height: {panel_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(panel_y)},
             {detail_title_label(&detail.title, inner_w)}
             {detail_body_label(&detail.body, inner_w, body_h)}
         }
@@ -299,7 +281,9 @@ fn detail_title_label(text: &str, w: f32) -> Element {
             font_size: 13.0,
             font_color: DETAIL_TITLE_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {DETAIL_BODY_INSET}, y: {-DETAIL_BODY_INSET} }
+            pos_type: "absolute",
+            left: {DETAIL_BODY_INSET},
+            top: {-(-DETAIL_BODY_INSET)},
         }
     }
 }
@@ -314,7 +298,9 @@ fn detail_body_label(text: &str, w: f32, h: f32) -> Element {
             font_size: 10.0,
             font_color: DETAIL_BODY_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {DETAIL_BODY_INSET}, y: {-(DETAIL_BODY_INSET + DETAIL_TITLE_H)} }
+            pos_type: "absolute",
+            left: {DETAIL_BODY_INSET},
+            top: {-(-(DETAIL_BODY_INSET + DETAIL_TITLE_H))},
         }
     }
 }
@@ -334,12 +320,9 @@ fn ticket_form_panel(_ticket: &TicketFormState) -> Element {
             width: {panel_w},
             height: {panel_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(panel_y)},
             {ticket_field_label("HelpTicketCategoryLabel", "Category:", -ARTICLE_INSET)}
             {ticket_field_input("HelpTicketCategoryInput", input_w, TICKET_INPUT_H, input_x, -ARTICLE_INSET)}
             {ticket_field_label("HelpTicketDescLabel", "Description:", row2_y)}
@@ -359,7 +342,9 @@ fn ticket_field_label(name: &str, text: &str, y: f32) -> Element {
             font_size: 10.0,
             font_color: TICKET_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {ARTICLE_INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {ARTICLE_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -371,7 +356,9 @@ fn ticket_field_input(name: &str, w: f32, h: f32, x: f32, y: f32) -> Element {
             width: {w},
             height: {h},
             background_color: TICKET_INPUT_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -383,7 +370,9 @@ fn ticket_submit_button(x: f32, y: f32) -> Element {
             width: {TICKET_BTN_W},
             height: {TICKET_BTN_H},
             background_color: TICKET_BTN_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: "HelpTicketSubmitButtonText",
                 width: {TICKET_BTN_W},
@@ -392,7 +381,9 @@ fn ticket_submit_button(x: f32, y: f32) -> Element {
                 font_size: 10.0,
                 font_color: TICKET_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -401,8 +392,9 @@ fn ticket_submit_button(x: f32, y: f32) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -419,7 +411,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 
@@ -572,15 +564,12 @@ mod tests {
 
     // --- Additional coord validation ---
 
-    fn article_layout_registry() -> FrameRegistry {
-        let mut reg = article_registry();
-        recompute_layouts(&mut reg);
-        reg
-    }
-
     #[test]
     fn coord_article_list_position() {
-        let reg = article_layout_registry();
+        let mut reg = article_registry();
+        let panel = reg.get_by_name("HelpArticleList").unwrap();
+        reg.set_hidden(panel, false);
+        compute_layout(&mut reg);
         let frame_x = (1920.0 - FRAME_W) / 2.0;
         let frame_y = (1080.0 - FRAME_H) / 2.0;
         let r = rect(&reg, "HelpArticleList");
@@ -596,7 +585,10 @@ mod tests {
 
     #[test]
     fn coord_ticket_submit_button() {
-        let reg = article_layout_registry();
+        let mut reg = article_registry();
+        let panel = reg.get_by_name("HelpTicketForm").unwrap();
+        reg.set_hidden(panel, false);
+        compute_layout(&mut reg);
         let r = rect(&reg, "HelpTicketSubmitButton");
         assert!((r.width - TICKET_BTN_W).abs() < 1.0);
         assert!((r.height - TICKET_BTN_H).abs() < 1.0);

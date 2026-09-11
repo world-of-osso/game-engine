@@ -1,15 +1,16 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 
+/// A title attached to the top of its enclosing RSX parent.
 pub fn framed_title(
     frame: FrameName,
     label: FrameName,
-    relative_to: FrameName,
     width: f32,
     text: &str,
+    top: f32,
 ) -> Element {
     rsx! {
         panel {
@@ -18,12 +19,10 @@ pub fn framed_title(
             height: 36.0,
             strata: FrameStrata::Fullscreen,
             frame_level: 10.0,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to,
-                relative_point: AnchorPoint::Top,
-                y: "18",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: {top},
+            translate_x: "-50%",
             fontstring {
                 name: label,
                 text: {text},
@@ -34,11 +33,11 @@ pub fn framed_title(
                 justify_h: "CENTER",
                 frame_level: 100.0,
                 draw_layer: "OVERLAY",
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: frame,
-                    relative_point: AnchorPoint::Center,
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                translate_x: "-50%",
+                translate_y: "-50%",
             }
         }
     }

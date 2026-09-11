@@ -7,7 +7,7 @@ use super::options_menu_active_sections;
 use super::options_menu_sections;
 use super::screen_title::framed_title;
 use crate::input_bindings::{BindingSection, InputAction};
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
@@ -247,8 +247,6 @@ pub fn keybinding_clear_action(action: InputAction) -> String {
 }
 
 pub fn options_view(model: &OptionsViewModel) -> Element {
-    let x = model.position[0].to_string();
-    let y = model.position[1].to_string();
     rsx! {
         panel {
             name: OPTIONS_ROOT,
@@ -256,21 +254,21 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
             height: {OPTIONS_H},
             strata: FrameStrata::Dialog,
             frame_level: 0.0,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+            margin_left: {model.position[0]},
+            margin_top: {-model.position[1]},
             r#frame {
                 name: OPTIONS_DRAG_HANDLE,
                 width: {OPTIONS_W},
                 height: {OPTIONS_HEADER_H},
                 mouse_enabled: true,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: "0%",
+                top: "0%",
             }
             {title()}
             {build_tabs(model)}
@@ -284,9 +282,9 @@ fn title() -> Element {
     framed_title(
         OPTIONS_TITLE_FRAME,
         OPTIONS_TITLE_LABEL,
-        OPTIONS_ROOT,
         300.0,
         "Game Menu",
+        -18.0,
     )
 }
 
@@ -301,13 +299,11 @@ fn build_tabs(model: &OptionsViewModel) -> Element {
             style: "inner_plain",
             width: {OPTIONS_TAB_W},
             height: {OPTIONS_CONTENT_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_DRAG_HANDLE,
-                relative_point: AnchorPoint::BottomLeft,
-                x: "18",
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {18},
+            margin_top: {OPTIONS_HEADER_H + 18.0},
             {tab_stack(buttons)}
         }
     }
@@ -322,13 +318,11 @@ fn tab_stack(buttons: Element) -> Element {
             layout: "flex-column",
             align: "center",
             gap: 8.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_TAB_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-12",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {8},
+            margin_top: {12.0},
             {buttons}
         }
     }
@@ -377,11 +371,11 @@ fn tab_label(name: &str, label: &str, color: FontColor) -> Element {
             font_size: 14.0,
             font_color: color,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-                x: "18",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "50%",
+            translate_y: "-50%",
+            margin_left: {18},
         }
     }
 }
@@ -393,11 +387,12 @@ fn tab_divider(name: &str) -> Element {
             width: {TAB_ROW_W - 22.0},
             height: 1.0,
             background_color: TAB_DIVIDER_COLOR,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "1",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_top: {-1.0},
         }
     }
 }
@@ -409,11 +404,11 @@ fn tab_accent(name: &str) -> Element {
             width: 3.0,
             height: {TAB_ACCENT_H},
             background_color: TAB_ACCENT_COLOR,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-                x: "8",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "50%",
+            translate_y: "-50%",
+            margin_left: {8},
         }
     }
 }
@@ -425,13 +420,11 @@ fn build_content(model: &OptionsViewModel) -> Element {
             style: "inner_plain",
             width: {OPTIONS_CONTENT_W},
             height: {OPTIONS_CONTENT_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_DRAG_HANDLE,
-                relative_point: AnchorPoint::BottomLeft,
-                x: "236",
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {236},
+            margin_top: {OPTIONS_HEADER_H + 18.0},
             {content_header(model.category)}
             {content_body(model)}
         }
@@ -448,13 +441,11 @@ fn content_header(category: OptionsCategory) -> Element {
             font_size: 22.0,
             color: "0.96,0.84,0.56,1.0",
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_CONTENT_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "15",
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {15},
+            margin_top: {18.0},
         }
     }
 }
@@ -481,8 +472,6 @@ fn category_body(model: &OptionsViewModel) -> Element {
 }
 
 fn content_body(model: &OptionsViewModel) -> Element {
-    let x = OPTIONS_CONTENT_INSET_X.to_string();
-    let y = (-OPTIONS_CONTENT_INSET_TOP).to_string();
     rsx! {
         r#frame {
             name: OPTIONS_CONTENT_INNER,
@@ -490,13 +479,11 @@ fn content_body(model: &OptionsViewModel) -> Element {
             height: {OPTIONS_CONTENT_H - OPTIONS_CONTENT_INSET_TOP - 18.0},
             layout: "flex-column",
             gap: 12.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: OPTIONS_CONTENT_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {OPTIONS_CONTENT_INSET_X},
+            margin_top: {OPTIONS_CONTENT_INSET_TOP},
             {category_body(model)}
         }
     }
@@ -507,19 +494,19 @@ fn build_footer() -> Element {
     rsx! {
         r#frame {
             name: OPTIONS_FOOTER,
-            width: 0.0,
-            height: 0.0,
+            width: "auto",
+            height: "auto",
             layout: "flex-row",
             justify: "start",
             align: "center",
             gap: 12.0,
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_to: OPTIONS_ROOT,
-                relative_point: AnchorPoint::BottomRight,
-                x: {(-OPTIONS_FOOTER_RIGHT_INSET).to_string()},
-                y: "20",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "100%",
+            translate_x: "-100%",
+            translate_y: "-100%",
+            margin_left: {(-OPTIONS_FOOTER_RIGHT_INSET).to_string()},
+            margin_top: {-20.0},
             {footer_buttons}
         }
     }

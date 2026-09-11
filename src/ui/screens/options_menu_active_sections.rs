@@ -7,8 +7,6 @@ use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::slider::{SliderWidget, slider_widget};
 use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
-use crate::ui::anchor::AnchorPoint;
-
 use super::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
     SoundOptionsView, keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
@@ -224,7 +222,7 @@ fn content_stack(children: Element) -> Element {
     rsx! {
         r#frame {
             width: {OPTIONS_CONTENT_W - 30.0},
-            height: 0.0,
+            height: "auto",
             layout: "flex-column",
             gap: 14.0,
             {children}
@@ -511,7 +509,10 @@ fn row_label(name: &str, text: &str) -> Element {
             font_size: 16.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left }
+            pos_type: "absolute",
+            left: 0.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -567,11 +568,10 @@ fn slider_value_text(key: &str, text: &str) -> Element {
             font_size: 15.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x: "-8",
-            }
+            pos_type: "absolute",
+            right: 8.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }

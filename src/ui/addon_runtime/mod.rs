@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, Weak};
 
 use bevy::log::{info, warn};
 use bevy::prelude::*;
-use ui_toolkit::anchor::AnchorPoint;
+use ui_toolkit::anchor::AnchorTarget;
 use ui_toolkit::plugin::{UiProcessingEnabled, UiState};
 
 use crate::ui::addon_watcher::{scan_addon_dir, start_addon_watcher};
@@ -34,13 +34,18 @@ enum AddonOperation {
         width: f32,
         height: f32,
     },
-    SetPoint {
+    SetPos {
         name: String,
-        point: AnchorPoint,
-        relative_to: Option<String>,
-        relative_point: AnchorPoint,
         x: f32,
         y: f32,
+    },
+    SetPosType {
+        name: String,
+        position_type: PositionType,
+    },
+    SetAnchor {
+        name: String,
+        target: AnchorTarget,
     },
     SetText {
         name: String,

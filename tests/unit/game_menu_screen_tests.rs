@@ -111,6 +111,7 @@ fn escape_opens_game_menu_inworld() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
+    app.init_resource::<ui_toolkit::native_render::caret::UiCaretBlocked>();
     app.add_plugins(GameMenuScreenPlugin);
     app.insert_state(GameState::InWorld);
     app.insert_resource(ButtonInput::<KeyCode>::default());

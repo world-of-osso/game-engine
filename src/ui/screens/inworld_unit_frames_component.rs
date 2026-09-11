@@ -3,7 +3,6 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 #[path = "inworld_unit_frames_aura.rs"]
 mod inworld_unit_frames_aura;
@@ -21,7 +20,7 @@ use inworld_unit_frames_layout::*;
 pub use inworld_unit_frames_layout::{PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W};
 use inworld_unit_frames_parts::{
     UnitFrameBarSpec, anchored_marker, anchored_top_marker, anchored_topright_marker,
-    centered_marker, portrait_centered_marker, sized_marker, unit_frame_bar,
+    centered_marker, marker_group, portrait_edge_marker, sized_marker, unit_frame_bar,
 };
 pub use inworld_unit_frames_state::{
     default_player_frame_state, fallback_target_frame_state, fill_width, format_value_text,
@@ -82,7 +81,11 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: "InWorldUnitFramesRoot",
-            stretch: true,
+            width: "fill",
+            height: "fill",
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
             {player_frame(&state.player, state.show_player_frame)}
@@ -99,12 +102,9 @@ fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
             width: FRAME_W,
             height: FRAME_H,
             hidden: hide_target,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                x: {TARGET_FRAME_CONFIG.frame_x},
-                y: {FRAME_BOTTOM_Y},
-            }
+            pos_type: "absolute",
+            pos_x: TARGET_FRAME_CONFIG.frame_x,
+            bottom: FRAME_BOTTOM_Y,
             {target.map(target_frame_contents).unwrap_or_default()}
         }
     }
@@ -118,12 +118,9 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
             height: PLAYER_FRAME_H,
             strata: FrameStrata::Dialog,
             hidden: {!visible},
-                anchor {
-                    point: AnchorPoint::BottomLeft,
-                    relative_point: AnchorPoint::BottomLeft,
-                    x: {PLAYER_FRAME_CONFIG.frame_x},
-                    y: {FRAME_BOTTOM_Y},
-                }
+            pos_type: "absolute",
+            pos_x: PLAYER_FRAME_CONFIG.frame_x,
+            bottom: FRAME_BOTTOM_Y,
             {unit_frame_shell("Player", state, true)}
         }
     }
@@ -190,7 +187,11 @@ fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> 
     rsx! {
             r#frame {
                 name: names.container,
-                stretch: true,
+                width: "fill",
+                height: "fill",
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 0.0,
                 {unit_frame_shell_background(&names, state, frame, player_side)}
             {unit_frame_shell_labels(&names, state, frame, player_side)}
             {unit_frame_shell_bars(prefix, state, &visuals, frame)}
@@ -229,12 +230,9 @@ fn unit_frame_name_label(
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {frame.name.x},
-                y: {-frame.name.y},
-            }
+            pos_type: "absolute",
+            pos_x: frame.name.x,
+            pos_y: frame.name.y,
         }
     }
 }
@@ -246,10 +244,15 @@ fn unit_frame_level_label(
     player_side: bool,
 ) -> Element {
     let justify_h = if player_side { "RIGHT" } else { "CENTER" };
-    let point = if player_side {
-        AnchorPoint::TopRight
+    let left = if player_side {
+        "auto".to_string()
     } else {
-        AnchorPoint::TopLeft
+        frame.level.x.to_string()
+    };
+    let right = if player_side {
+        (-frame.level.x).to_string()
+    } else {
+        "auto".to_string()
     };
     rsx! {
         fontstring {
@@ -263,12 +266,10 @@ fn unit_frame_level_label(
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h,
-            anchor {
-                point,
-                relative_point: point,
-                x: {frame.level.x},
-                y: {-frame.level.y},
-            }
+            pos_type: "absolute",
+            left,
+            right,
+            pos_y: frame.level.y,
         }
     }
 }
@@ -328,12 +329,9 @@ fn player_secondary_resource_row(prefix: &str, state: &UnitFrameState) -> Elemen
             name: {dyn_name(format!("{prefix}SecondaryResourceRow"))},
             width: row_width,
             height: SECONDARY_RESOURCE_ROW_H,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PLAYER_FRAME_CONFIG.health_bar.x},
-                y: {-SECONDARY_RESOURCE_ROW_Y},
-            }
+            pos_type: "absolute",
+            pos_x: PLAYER_FRAME_CONFIG.health_bar.x,
+            pos_y: SECONDARY_RESOURCE_ROW_Y,
             {pips}
         }
     }
@@ -353,12 +351,9 @@ fn secondary_resource_pip(
             width: pip_w,
             height: SECONDARY_RESOURCE_ROW_H,
             background_color: {secondary_resource_color(resource, filled)},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: 0.0,
         }
     }
 }
@@ -433,8 +428,7 @@ fn player_portrait_overlay_icons(prefix: &str, state: &UnitFrameState) -> Elemen
             PLAYER_CORNER.y,
         ),
         anchored_top_marker(format!("{prefix}PVPIcon"), PLAYER_PVP.x, PLAYER_PVP.y),
-        combat_icon(prefix, state),
-        resting_icon(prefix, state),
+        player_portrait_marker_group(prefix, state),
     ]
     .into_iter()
     .flatten()
@@ -456,13 +450,12 @@ fn combat_icon(prefix: &str, state: &UnitFrameState) -> Element {
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: PLAYER_PORTRAIT_FRAME,
-                relative_point: AnchorPoint::Bottom,
-                x: {15.0},
-                y: {15.0},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            bottom: 15.0,
+            margin_left: 15.0,
+            translate_x: "-50%",
+            translate_y: "50%",
         }
     }
 }
@@ -482,13 +475,12 @@ fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: PLAYER_PORTRAIT_FRAME,
-                relative_point: AnchorPoint::Bottom,
-                x: {-9.0},
-                y: {15.0},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            bottom: 15.0,
+            margin_left: -9.0,
+            translate_x: "-50%",
+            translate_y: "50%",
         }
     }
 }
@@ -514,41 +506,57 @@ fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                x,
-                y: {bottom_offset},
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            bottom: bottom_offset,
         }
     }
 }
 
+fn player_portrait_marker_group(prefix: &str, state: &UnitFrameState) -> Element {
+    let portrait = &PLAYER_FRAME_CONFIG.portrait;
+    let children = rsx! {
+        {combat_icon(prefix, state)}
+        {resting_icon(prefix, state)}
+        {centered_marker(format!("{prefix}ReadyCheck"), READY_CHECK_W, READY_CHECK_H)}
+    };
+    marker_group(
+        format!("{prefix}PortraitMarkers"),
+        portrait.x,
+        portrait.y,
+        portrait.width,
+        portrait.height,
+        children,
+    )
+}
+
 fn player_right_badge_icons(prefix: &str) -> Element {
-    [
-        sized_marker(
-            format!("{prefix}PrestigePortrait"),
-            PLAYER_PRESTIGE.x,
-            PLAYER_PRESTIGE.y,
-            PLAYER_PRESTIGE.width,
-            PLAYER_PRESTIGE.height,
-        ),
-        centered_marker(
-            format!("{prefix}PrestigeBadge"),
-            PLAYER_PRESTIGE_PORTRAIT_FRAME,
-            PLAYER_PRESTIGE_BADGE_W,
-            PLAYER_PRESTIGE_BADGE_H,
-        ),
-        centered_marker(
-            format!("{prefix}ReadyCheck"),
-            PLAYER_PORTRAIT_FRAME,
-            READY_CHECK_W,
-            READY_CHECK_H,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    prestige_marker_group(
+        prefix,
+        &PLAYER_PRESTIGE,
+        PLAYER_PRESTIGE_BADGE_W,
+        PLAYER_PRESTIGE_BADGE_H,
+    )
+}
+
+fn prestige_marker_group(
+    prefix: &str,
+    layout: &MarkerConfig,
+    badge_width: f32,
+    badge_height: f32,
+) -> Element {
+    let children = rsx! {
+        {sized_marker(format!("{prefix}PrestigePortrait"), 0.0, 0.0, layout.width, layout.height)}
+        {centered_marker(format!("{prefix}PrestigeBadge"), badge_width, badge_height)}
+    };
+    marker_group(
+        format!("{prefix}PrestigeMarkers"),
+        layout.x,
+        layout.y,
+        layout.width,
+        layout.height,
+        children,
+    )
 }
 
 fn target_contextual_icons(prefix: &str) -> Element {
@@ -591,33 +599,17 @@ fn target_left_status_icons(prefix: &str) -> Element {
 }
 
 fn target_portrait_overlay_icons(prefix: &str) -> Element {
-    [
-        portrait_centered_marker(
-            format!("{prefix}RaidTargetIcon"),
-            TARGET_PORTRAIT_FRAME,
-            AnchorPoint::Top,
-            TARGET_RAID_ICON.width,
-            TARGET_RAID_ICON.height,
-        ),
-        portrait_centered_marker(
-            format!("{prefix}BossIcon"),
-            TARGET_PORTRAIT_FRAME,
-            AnchorPoint::Bottom,
-            0.0,
-            0.0,
-        ),
-        portrait_centered_marker(
-            format!("{prefix}QuestIcon"),
-            TARGET_PORTRAIT_FRAME,
-            AnchorPoint::Bottom,
-            0.0,
-            0.0,
-        ),
-        anchored_top_marker(format!("{prefix}PvpIcon"), FRAME_W - 26.0, PLAYER_PVP.y),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    let portrait = &TARGET_FRAME_CONFIG.portrait;
+    let children = rsx! {
+        {portrait_edge_marker(format!("{prefix}RaidTargetIcon"), true, TARGET_RAID_ICON.width, TARGET_RAID_ICON.height)}
+        {portrait_edge_marker(format!("{prefix}BossIcon"), false, 0.0, 0.0)}
+        {portrait_edge_marker(format!("{prefix}QuestIcon"), false, 0.0, 0.0)}
+    };
+    rsx! {
+        {marker_group(format!("{prefix}PortraitMarkers"), portrait.x, portrait.y,
+            portrait.width, portrait.height, children)}
+        {anchored_top_marker(format!("{prefix}PvpIcon"), FRAME_W - 26.0, PLAYER_PVP.y)}
+    }
 }
 
 fn target_right_badge_icons(prefix: &str) -> Element {
@@ -632,12 +624,11 @@ fn target_right_badge_icons(prefix: &str) -> Element {
 
 fn target_right_prestige_icons(prefix: &str) -> Element {
     [
-        sized_marker(
-            format!("{prefix}PrestigePortrait"),
-            TARGET_PRESTIGE.x,
-            TARGET_PRESTIGE.y,
-            TARGET_PRESTIGE.width,
-            TARGET_PRESTIGE.height,
+        prestige_marker_group(
+            prefix,
+            &TARGET_PRESTIGE,
+            TARGET_PRESTIGE_BADGE_W,
+            TARGET_PRESTIGE_BADGE_H,
         ),
         sized_marker(
             format!("{prefix}PetBattleIcon"),
@@ -645,12 +636,6 @@ fn target_right_prestige_icons(prefix: &str) -> Element {
             TARGET_PET_BATTLE.y,
             TARGET_PET_BATTLE.width,
             TARGET_PET_BATTLE.height,
-        ),
-        centered_marker(
-            format!("{prefix}PrestigeBadge"),
-            TARGET_PRESTIGE_PORTRAIT_FRAME,
-            TARGET_PRESTIGE_BADGE_W,
-            TARGET_PRESTIGE_BADGE_H,
         ),
     ]
     .into_iter()

@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../ui/screens/menu_character_layout_test_support.rs"]
+mod native_layout_support;
+
 use std::collections::HashMap;
 
 use bevy::prelude::*;
@@ -564,9 +568,9 @@ fn clamp_menu_position(
 
 #[cfg(test)]
 mod tests {
+    use super::native_layout_support::compute_layout as recompute_layouts;
     use super::*;
     use game_engine::ui::registry::FrameRegistry;
-    use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::screen::{Screen, SharedContext};
 
     fn player(name: &str, subgroup: u8) -> GroupMemberEntry {

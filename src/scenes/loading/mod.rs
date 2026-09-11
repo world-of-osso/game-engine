@@ -1,8 +1,6 @@
 use bevy::prelude::*;
 
-use game_engine::ui::frame::Dimension;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
-use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::loading_component::{
     LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, debug_loading_layout_from_source,
@@ -14,6 +12,10 @@ use crate::game_state::{GameState, InitialGameState, evaluate_world_loading};
 use crate::networking::{CurrentZone, LocalPlayer};
 use crate::terrain::AdtManager;
 use crate::zone_names::zone_id_to_name;
+
+#[cfg(test)]
+#[path = "../../ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
 
 const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
 const DEFAULT_TIP_TEXT: &str =
@@ -62,7 +64,7 @@ impl Plugin for LoadingScreenPlugin {
         app.add_systems(OnExit(GameState::Loading), teardown_loading_ui);
         app.add_systems(
             Update,
-            (loading_sync_root_size, loading_update_visuals).run_if(in_state(GameState::Loading)),
+            loading_update_visuals.run_if(in_state(GameState::Loading)),
         );
     }
 }
@@ -99,7 +101,6 @@ fn build_loading_ui(
     screen.sync(&shared, &mut ui.registry);
 
     let loading_ui = LoadingUi::resolve(&ui.registry);
-    apply_post_setup(&mut ui.registry, loading_ui.root);
 
     commands.insert_resource(LoadingUiState(state));
     commands.insert_resource(LoadingLayoutState(layout));
@@ -122,18 +123,6 @@ fn teardown_loading_ui(
     commands.remove_resource::<LoadingLayoutState>();
     commands.remove_resource::<LoadingProgressAnimation>();
     ui.focused_frame = None;
-}
-
-fn loading_sync_root_size(
-    mut ui: ResMut<UiState>,
-    loading_ui: Option<Res<LoadingUi>>,
-    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-) {
-    let Some(loading_ui) = loading_ui else {
-        return;
-    };
-    sync_registry_to_primary_window(&mut ui.registry, &windows);
-    apply_post_setup(&mut ui.registry, loading_ui.root);
 }
 
 fn loading_update_visuals(
@@ -237,19 +226,11 @@ fn advance_displayed_progress(current: f32, target: f32, delta_secs: f32) -> f32
     (current + step).min(target)
 }
 
-fn apply_post_setup(reg: &mut FrameRegistry, root_id: u64) {
-    let width = reg.screen_width;
-    let height = reg.screen_height;
-    if let Some(root) = reg.get_mut(root_id) {
-        root.width = Dimension::Fixed(width);
-        root.height = Dimension::Fixed(height);
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use super::layout_support::compute_layout as recompute_layouts;
     use super::*;
-    use game_engine::ui::layout::recompute_layouts;
+    use game_engine::ui::registry::FrameRegistry;
 
     fn sample_loading_state(progress_percent: u8) -> LoadingScreenState {
         LoadingScreenState {

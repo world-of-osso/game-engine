@@ -2,7 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
 use crate::ui::strata::FrameStrata;
@@ -89,7 +89,7 @@ fn slot_label(index: usize) -> &'static str {
     }
 }
 
-fn slot_hotkey(button_name: &DynName, hotkey_name: DynName, text: &str) -> Element {
+fn slot_hotkey(hotkey_name: DynName, text: &str) -> Element {
     rsx! {
         fontstring {
             name: hotkey_name,
@@ -100,18 +100,14 @@ fn slot_hotkey(button_name: &DynName, hotkey_name: DynName, text: &str) -> Eleme
             font_size: 12.0,
             font_color: SLOT_HOTKEY,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_to: button_name.0.as_str(),
-                relative_point: AnchorPoint::TopRight,
-                x: "-5",
-                y: "-5",
-            }
+            pos_type: "absolute",
+            right: 5.0,
+            pos_y: 5.0,
         }
     }
 }
 
-fn slot_count(button_name: &DynName, count_name: DynName) -> Element {
+fn slot_count(count_name: DynName) -> Element {
     rsx! {
         fontstring {
             name: count_name,
@@ -122,13 +118,9 @@ fn slot_count(button_name: &DynName, count_name: DynName) -> Element {
             font_size: 14.0,
             font_color: SLOT_COUNT_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_to: button_name.0.as_str(),
-                relative_point: AnchorPoint::BottomRight,
-                x: "-5",
-                y: "5",
-            }
+            pos_type: "absolute",
+            right: 5.0,
+            bottom: 5.0,
         }
     }
 }
@@ -141,10 +133,9 @@ fn slot_frame_texture(texture_name: DynName, atlas: &str, hidden: bool, size: f3
             height: SLOT_H,
             texture_atlas: atlas,
             hidden,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
         }
     }
 }
@@ -180,13 +171,14 @@ fn slot_button_widget(
             button_atlas_pressed: pressed_atlas,
             button_atlas_highlight: HIGHLIGHT_BUTTON_ATLAS,
             button_atlas_disabled: frame_atlas,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
             {slot_button_layers(&button_name, frame_atlas)}
-            {slot_hotkey(&button_name, hotkey_name, hotkey_text)}
-            {slot_count(&button_name, count_name)}
+            {slot_hotkey(hotkey_name, hotkey_text)}
+            {slot_count(count_name)}
         }
     }
 }
@@ -423,12 +415,9 @@ fn bag_bar() -> Element {
             name: "BagsBar",
             width: {total_w},
             height: {bar_h},
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-4",
-                y: "8",
-            }
+            pos_type: "absolute",
+            right: 4.0,
+            bottom: 8.0,
             {backpack}
             {bags}
             {money_display()}
@@ -447,12 +436,9 @@ fn money_display() -> Element {
             font_size: 11.0,
             font_color: MONEY_TEXT_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "0",
-                y: {-(BAG_SLOT_SIZE + 4.0)},
-            }
+            pos_type: "absolute",
+            right: 0.0,
+            pos_y: {BAG_SLOT_SIZE + 4.0},
         }
     }
 }
@@ -470,12 +456,9 @@ fn bag_slot(name: &str, index: usize) -> Element {
             font_size: 8.0,
             background_color: BAG_SLOT_BG,
             onclick: {action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: 0.0,
         }
     }
 }
@@ -487,13 +470,18 @@ fn minimap_header() -> Element {
             width: 175.0,
             height: 16.0,
             background_color: MINIMAP_HEADER_BG,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "15",
-                y: "-4",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            margin_left: 15.0,
+            pos_y: 4.0,
+            translate_x: "-50%",
+            {minimap_zone_name()}
         }
+    }
+}
+
+fn minimap_zone_name() -> Element {
+    rsx! {
         fontstring {
             name: MINIMAP_ZONE_NAME,
             width: 135.0,
@@ -503,12 +491,10 @@ fn minimap_header() -> Element {
             font_color: MINIMAP_ZONE_COLOR,
             justify_h: "LEFT",
             hidden: true,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: FrameName("MinimapHeader"),
-                relative_point: AnchorPoint::Left,
-                x: "6",
-            }
+            pos_type: "absolute",
+            pos_x: 6.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -520,25 +506,34 @@ fn minimap_display() -> Element {
             width: 215.0,
             height: 226.0,
             background_color: MINIMAP_CLUSTER_SHADE,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "10",
-                y: "-30",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            margin_left: 10.0,
+            pos_y: 30.0,
+            translate_x: "-50%",
         }
-        texture {
-            name: MINIMAP_DISPLAY,
+        r#frame {
+            name: "MinimapMapArea",
             width: MINIMAP_DISPLAY_SIZE,
             height: MINIMAP_DISPLAY_SIZE,
-            strata: FrameStrata::High,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "10",
-                y: "-42",
+            pos_type: "absolute",
+            left: "50%",
+            margin_left: 10.0,
+            pos_y: 42.0,
+            translate_x: "-50%",
+            texture {
+                name: MINIMAP_DISPLAY,
+                width: MINIMAP_DISPLAY_SIZE,
+                height: MINIMAP_DISPLAY_SIZE,
+                strata: FrameStrata::High,
+                hidden: true,
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 0.0,
             }
+            {minimap_border()}
+            {minimap_overlay()}
+            {minimap_buttons()}
         }
     }
 }
@@ -552,11 +547,11 @@ fn minimap_border() -> Element {
             strata: FrameStrata::High,
             frame_level: 10.0,
             hidden: true,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: MINIMAP_DISPLAY,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -570,11 +565,11 @@ fn minimap_overlay() -> Element {
             strata: FrameStrata::High,
             frame_level: 11.0,
             hidden: true,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: MINIMAP_DISPLAY,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
         fontstring {
             name: MINIMAP_COORDS,
@@ -585,12 +580,10 @@ fn minimap_overlay() -> Element {
             font_color: MINIMAP_COORDS_COLOR,
             justify_h: "RIGHT",
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_to: MINIMAP_DISPLAY,
-                relative_point: AnchorPoint::BottomRight,
-                y: "-6",
-            }
+            pos_type: "absolute",
+            right: 0.0,
+            top: "100%",
+            margin_top: 6.0,
         }
     }
 }
@@ -603,17 +596,11 @@ fn minimap_cluster() -> Element {
             height: 242.0,
             strata: FrameStrata::High,
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-12",
-                y: "-8",
-            }
+            pos_type: "absolute",
+            right: 12.0,
+            pos_y: 8.0,
             {minimap_header()}
             {minimap_display()}
-            {minimap_border()}
-            {minimap_overlay()}
-            {minimap_buttons()}
         }
     }
 }
@@ -630,13 +617,13 @@ macro_rules! minimap_btn_frame {
                 background_color: MINIMAP_HEADER_BG,
                 strata: FrameStrata::High,
                 frame_level: 12.0,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::Center,
-                    x: {$x_off},
-                    y: {$y_off},
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                margin_left: {$x_off},
+                margin_top: {-$y_off},
+                translate_x: "-50%",
+                translate_y: "-50%",
                 {minimap_btn_label($txt_name, $text)}
             }
         }
@@ -651,13 +638,13 @@ macro_rules! minimap_btn_frame {
                 strata: FrameStrata::High,
                 frame_level: 12.0,
                 onclick: $action,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_to: MINIMAP_DISPLAY,
-                    relative_point: AnchorPoint::Center,
-                    x: {$x_off},
-                    y: {$y_off},
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                margin_left: {$x_off},
+                margin_top: {-$y_off},
+                translate_x: "-50%",
+                translate_y: "-50%",
                 {minimap_btn_label($txt_name, $text)}
             }
         }
@@ -704,7 +691,9 @@ fn minimap_btn_label(name: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: MINIMAP_ZONE_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
         }
     }
 }

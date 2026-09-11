@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -125,12 +124,9 @@ pub fn mail_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "350",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 350.0,
+            top: 80.0,
             {title_bar()}
             {tab_row(&state.tabs)}
             {inbox_list(&state.inbox)}
@@ -149,12 +145,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -186,12 +180,9 @@ fn tab_button(i: usize, tab: &MailTab, tab_w: f32, x: f32, y: f32) -> Element {
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {mail_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -207,7 +198,9 @@ fn mail_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -234,12 +227,9 @@ fn inbox_list(inbox: &[InboxEntry]) -> Element {
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {rows}
         }
     }
@@ -256,12 +246,9 @@ fn inbox_row(idx: usize, entry: &InboxEntry, parent_w: f32) -> Element {
             name: row_id,
             width: {row_w},
             height: {INBOX_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INBOX_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {INBOX_INSET},
+            top: {-(y)},
             {inbox_icon(DynName(format!("MailInbox{idx}Icon")))}
             {inbox_subject(DynName(format!("MailInbox{idx}Subject")), &entry.subject, text_w, text_x)}
             {inbox_sender(DynName(format!("MailInbox{idx}Sender")), &entry.sender, text_w, text_x)}
@@ -276,7 +263,9 @@ fn inbox_icon(id: DynName) -> Element {
             width: {INBOX_ICON_SIZE},
             height: {INBOX_ICON_SIZE},
             background_color: INBOX_ICON_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {-((INBOX_ROW_H - INBOX_ICON_SIZE) / 2.0)} }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(-((INBOX_ROW_H - INBOX_ICON_SIZE) / 2.0))},
         }
     }
 }
@@ -291,7 +280,9 @@ fn inbox_subject(id: DynName, text: &str, w: f32, x: f32) -> Element {
             font_size: 10.0,
             font_color: SUBJECT_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-2" }
+            pos_type: "absolute",
+            left: {x},
+            top: 2.0,
         }
     }
 }
@@ -306,7 +297,9 @@ fn inbox_sender(id: DynName, text: &str, w: f32, x: f32) -> Element {
             font_size: 8.0,
             font_color: SENDER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-18" }
+            pos_type: "absolute",
+            left: {x},
+            top: 18.0,
         }
     }
 }
@@ -342,12 +335,9 @@ fn send_tab(_send: &SendMailState) -> Element {
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {send_input_row("MailSendTo", "To:", 0, input_w)}
             {send_input_row("MailSendSubject", "Subject:", 1, input_w)}
             {send_body_area(input_w)}
@@ -371,24 +361,18 @@ fn send_input_row(prefix: &str, label: &str, row: usize, input_w: f32) -> Elemen
             font_size: 10.0,
             font_color: SEND_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SEND_INSET},
+            top: {-(y)},
         }
         r#frame {
             name: input_name,
             width: {input_w},
             height: {SEND_INPUT_H},
             background_color: SEND_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEND_INSET + SEND_LABEL_W + SEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SEND_INSET + SEND_LABEL_W + SEND_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -404,24 +388,18 @@ fn send_body_area(input_w: f32) -> Element {
             font_size: 10.0,
             font_color: SEND_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SEND_INSET},
+            top: {-(y)},
         }
         r#frame {
             name: "MailSendBodyInput",
             width: {input_w},
             height: {SEND_BODY_H},
             background_color: SEND_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEND_INSET + SEND_LABEL_W + SEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SEND_INSET + SEND_LABEL_W + SEND_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -446,12 +424,9 @@ fn attachment_slot(index: usize, x_start: f32, base_y: f32) -> Element {
             width: {ATTACH_SLOT_SIZE},
             height: {ATTACH_SLOT_SIZE},
             background_color: ATTACH_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -463,7 +438,9 @@ fn money_input_field(name: &str, x: f32, y: f32) -> Element {
             width: {MONEY_INPUT_W},
             height: {SEND_INPUT_H},
             background_color: SEND_INPUT_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -480,7 +457,9 @@ fn send_money_row(_input_w: f32) -> Element {
             font_size: 10.0,
             font_color: SEND_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {SEND_INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {SEND_INSET},
+            top: {-(y)},
         }
         {money_input_field("MailSendGoldInput", x_start, y)}
         {money_input_field("MailSendSilverInput", x_start + MONEY_INPUT_W + MONEY_GAP, y)}
@@ -498,7 +477,9 @@ fn send_btn_label() -> Element {
             font_size: 10.0,
             font_color: SEND_BTN_TEXT,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -511,12 +492,9 @@ fn send_button() -> Element {
             width: {SEND_BTN_W},
             height: {SEND_BTN_H},
             background_color: SEND_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {send_button_y()},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(send_button_y())},
             {send_btn_label()}
         }
     }

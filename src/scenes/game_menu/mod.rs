@@ -61,6 +61,10 @@ impl Plugin for GameMenuScreenPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InWorldEscapeStack>();
         app.add_systems(
+            PostUpdate,
+            sync_caret_blocking.before(ui_toolkit::native_render::caret::sync_carets),
+        );
+        app.add_systems(
             OnEnter(GameState::GameMenu),
             open_menu_overlay.run_if(inworld_scene_stage_allows_ui),
         );
@@ -85,6 +89,13 @@ impl Plugin for GameMenuScreenPlugin {
                 .run_if(inworld_scene_stage_allows_ui),
         );
     }
+}
+
+fn sync_caret_blocking(
+    modal: Option<Res<UiModalOpen>>,
+    mut blocked: ResMut<ui_toolkit::native_render::caret::UiCaretBlocked>,
+) {
+    blocked.0 = modal.is_some();
 }
 
 pub fn open_game_menu(ui: &mut UiState, commands: &mut Commands, game_state: GameState) {

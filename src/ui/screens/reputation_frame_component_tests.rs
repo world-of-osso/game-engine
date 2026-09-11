@@ -1,5 +1,6 @@
 use super::*;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -66,7 +67,7 @@ fn build_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = build_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -482,7 +483,7 @@ fn coord_tooltip_dimensions() {
         hovered_faction: Some((0, 0)),
     });
     Screen::new(reputation_frame_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     let r = rect(&reg, "RepTooltip");
     assert!((r.width - TOOLTIP_W).abs() < 1.0);
     // No paragon → 2 lines + header + insets

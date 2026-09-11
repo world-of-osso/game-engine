@@ -3,7 +3,6 @@
 use bevy::ecs::query::QueryData;
 use bevy::prelude::*;
 
-use crate::ui::anchor::anchor_position;
 use crate::ui::frame::{Frame, WidgetData};
 use crate::ui::registry::FrameRegistry;
 use crate::ui::widgets::texture::TextureSource;
@@ -148,7 +147,7 @@ fn emit_ui_frame(
     if emit_self {
         let indent = "  ".repeat(depth);
         lines.push(format!("{indent}{main_line}"));
-        emit_anchor_lines(frame, registry, &indent, lines);
+        emit_position_lines(frame, &indent, lines);
         emit_texture_lines(frame, &indent, lines);
     }
     for &child_id in &frame.children {
@@ -221,7 +220,12 @@ fn format_widget_extra(f: &Frame) -> String {
             format!(" text=\"{text}\" font=\"{font}\" size={:.0}", fs.font_size)
         }
         Some(WidgetData::EditBox(eb)) => {
-            let text = truncate(&eb.text, 30);
+            let displayed = if eb.password {
+                "*".repeat(eb.text.len())
+            } else {
+                eb.text.clone()
+            };
+            let text = truncate(&displayed, 30);
             let pw = if eb.password { " password" } else { "" };
             format!(" text=\"{text}\" cursor={}{pw}", eb.cursor_position)
         }
@@ -241,37 +245,11 @@ fn format_widget_extra(f: &Frame) -> String {
     }
 }
 
-fn emit_anchor_lines(f: &Frame, registry: &FrameRegistry, indent: &str, lines: &mut Vec<String>) {
-    for anchor in &f.anchors {
-        let (rel_name, rel_rect) = anchor
-            .relative_to
-            .and_then(|id| registry.get(id))
-            .map(|rf| {
-                (
-                    rf.name.as_deref().unwrap_or("(anon)"),
-                    rf.layout_rect
-                        .clone()
-                        .unwrap_or_else(|| registry.screen_rect()),
-                )
-            })
-            .unwrap_or_else(|| ("screen", registry.screen_rect()));
-        let (ax, ay) = anchor_position(
-            anchor.relative_point,
-            rel_rect.x,
-            rel_rect.y,
-            rel_rect.width,
-            rel_rect.height,
-        );
-        lines.push(format!(
-            "{indent}  [anchor] {} -> {rel_name}:{} offset({:.0},{:.0}) -> ({:.0},{:.0})",
-            anchor.point.as_str(),
-            anchor.relative_point.as_str(),
-            anchor.x_offset,
-            anchor.y_offset,
-            ax + anchor.x_offset,
-            ay - anchor.y_offset,
-        ));
-    }
+fn emit_position_lines(f: &Frame, indent: &str, lines: &mut Vec<String>) {
+    lines.push(format!(
+        "{indent}  [position] {:?} anchor={:?} insets={:?} translation={:?} margin={:?}",
+        f.position_type, f.anchor, f.position, f.translation, f.margin,
+    ));
 }
 
 fn emit_texture_lines(f: &Frame, indent: &str, lines: &mut Vec<String>) {

@@ -5,7 +5,6 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::raid_party_data::{GroupRole, health_fraction as unit_health_fraction};
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -182,12 +181,9 @@ pub fn party_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Medium,
             hidden: hide,
             background_color: "0.0,0.0,0.0,0.0",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ANCHOR_X},
-                y: {-ANCHOR_Y},
-            }
+            pos_type: "absolute",
+            left: {ANCHOR_X},
+            top: {-(-ANCHOR_Y)},
             {member_frames}
         }
     }
@@ -205,12 +201,9 @@ fn party_unit_frame(idx: usize, member: &PartyMemberState, y: f32) -> Element {
             height: {UNIT_H},
             mouse_enabled: true,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {role_icon(idx, &member.role)}
             {member_name(idx, &member.name)}
             {health_bar(idx, health_fill_w, member)}
@@ -231,12 +224,9 @@ fn role_icon(idx: usize, role: &PartyRole) -> Element {
             width: {ROLE_ICON_SIZE},
             height: {ROLE_ICON_SIZE},
             background_color: ROLE_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ROLE_ICON_INSET},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {ROLE_ICON_INSET},
+            top: -0.0,
             fontstring {
                 name: label_id,
                 width: {ROLE_ICON_SIZE},
@@ -245,7 +235,9 @@ fn role_icon(idx: usize, role: &PartyRole) -> Element {
                 font_size: 9.0,
                 font_color: {role.color()},
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -262,12 +254,9 @@ fn member_name(idx: usize, name: &str) -> Element {
             font_size: 10.0,
             font_color: NAME_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {NAME_INSET_X},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {NAME_INSET_X},
+            top: -0.0,
         }
     }
 }
@@ -279,7 +268,9 @@ fn health_fill(id: DynName, w: f32) -> Element {
             width: {w},
             height: {BAR_H},
             background_color: HEALTH_FILL,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -294,7 +285,9 @@ fn health_text_overlay(id: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: HEALTH_TEXT_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -308,12 +301,9 @@ fn health_bar(idx: usize, fill_w: f32, member: &PartyMemberState) -> Element {
             width: {BAR_W},
             height: {BAR_H},
             background_color: HEALTH_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {BAR_INSET},
-                y: {-BAR_Y},
-            }
+            pos_type: "absolute",
+            left: {BAR_INSET},
+            top: {-(-BAR_Y)},
             {health_fill(DynName(format!("PartyMember{idx}HealthFill")), fill_w)}
             {health_text_overlay(DynName(format!("PartyMember{idx}HealthText")), &health_text)}
         }
@@ -338,12 +328,9 @@ fn debuff_icon(idx: usize, debuff_idx: usize) -> Element {
             width: {DEBUFF_ICON_SIZE},
             height: {DEBUFF_ICON_SIZE},
             background_color: DEBUFF_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-DEBUFF_Y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-DEBUFF_Y)},
         }
     }
 }
@@ -365,12 +352,9 @@ fn incoming_heals_overlay(idx: usize, member: &PartyMemberState) -> Element {
             height: {BAR_H},
             hidden: hide,
             background_color: INCOMING_HEAL_COLOR,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {heal_x},
-                y: {-BAR_Y},
-            }
+            pos_type: "absolute",
+            left: {heal_x},
+            top: {-(-BAR_Y)},
         }
     }
 }
@@ -388,12 +372,9 @@ fn ready_check_icon(idx: usize, state: ReadyCheckState) -> Element {
             height: {READY_CHECK_SIZE},
             hidden: is_none,
             background_color: ROLE_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-2",
-                y: "0",
-            }
+            pos_type: "absolute",
+            right: 2.0,
+            top: -0.0,
             fontstring {
                 name: label_id,
                 width: {READY_CHECK_SIZE},
@@ -402,7 +383,9 @@ fn ready_check_icon(idx: usize, state: ReadyCheckState) -> Element {
                 font_size: 10.0,
                 font_color: {state.color()},
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -419,12 +402,9 @@ fn range_fade_overlay(idx: usize, in_range: bool) -> Element {
             height: {UNIT_H},
             hidden: in_range,
             background_color: RANGE_FADE_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }

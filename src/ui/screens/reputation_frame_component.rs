@@ -7,7 +7,6 @@ use ui_toolkit::widget_def::Element;
 use crate::reputation_data::Standing as ReputationStanding;
 use crate::reputation_data::clamped_progress_fraction;
 use crate::reputation_data::standing_progress_fraction;
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -191,12 +190,11 @@ pub fn reputation_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {faction_list(&state.categories)}
             {tooltip}
@@ -214,12 +212,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -248,12 +244,9 @@ fn faction_list(categories: &[FactionCategory]) -> Element {
             width: {LIST_W},
             height: {list_h},
             background_color: LIST_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-CONTENT_TOP},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-CONTENT_TOP)},
             {rows}
         }
     }
@@ -295,12 +288,9 @@ fn category_header(idx: usize, name: &str, collapsed: bool, y: f32) -> Element {
             width: {LIST_W - 4.0},
             height: {CAT_HEADER_H},
             background_color: CAT_HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "2",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 2.0,
+            top: {-(-y)},
             {cat_collapse_icon(DynName(format!("RepCat{idx}Icon")), icon_text)}
             {cat_header_label(DynName(format!("RepCat{idx}Label")), name)}
         }
@@ -317,7 +307,9 @@ fn cat_collapse_icon(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: COLLAPSE_ICON_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -332,7 +324,9 @@ fn cat_header_label(id: DynName, text: &str) -> Element {
             font_size: 11.0,
             font_color: CAT_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "20", y: "0" }
+            pos_type: "absolute",
+            left: 20.0,
+            top: -0.0,
         }
     }
 }
@@ -344,12 +338,9 @@ fn faction_row(cat_idx: usize, fac_idx: usize, faction: &FactionEntry, y: f32) -
             name: row_id,
             width: {LIST_W - 4.0},
             height: {FACTION_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "2",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 2.0,
+            top: {-(-y)},
             {faction_name_label(cat_idx, fac_idx, faction.name.as_str())}
             {reputation_bar(cat_idx, fac_idx, faction)}
             {paragon_indicator(cat_idx, fac_idx, faction.paragon.as_ref())}
@@ -368,12 +359,9 @@ fn faction_name_label(cat_idx: usize, fac_idx: usize, name: &str) -> Element {
             font_size: 10.0,
             font_color: FACTION_NAME_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FACTION_INDENT},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {FACTION_INDENT},
+            top: -0.0,
         }
     }
 }
@@ -385,7 +373,9 @@ fn rep_bar_fill(id: DynName, w: f32, color: &str) -> Element {
             width: {w},
             height: {BAR_H},
             background_color: color,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -400,7 +390,9 @@ fn rep_bar_text(id: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: BAR_TEXT_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -415,7 +407,9 @@ fn rep_standing_label(id: DynName, standing: Standing) -> Element {
             font_size: 9.0,
             font_color: {standing.bar_color()},
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
+            pos_type: "absolute",
+            right: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -431,12 +425,9 @@ fn reputation_bar(cat_idx: usize, fac_idx: usize, faction: &FactionEntry) -> Ele
             width: {BAR_W},
             height: {BAR_H},
             background_color: BAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {BAR_X},
-                y: {-bar_y},
-            }
+            pos_type: "absolute",
+            left: {BAR_X},
+            top: {-(-bar_y)},
             {rep_bar_fill(DynName(format!("RepBar{cat_idx}_{fac_idx}Fill")), fill_w, faction.standing.bar_color())}
             {rep_bar_text(DynName(format!("RepBar{cat_idx}_{fac_idx}Text")), &progress)}
         }
@@ -459,12 +450,9 @@ fn paragon_indicator(cat_idx: usize, fac_idx: usize, paragon: Option<&ParagonPro
             height: {PARAGON_ICON_SIZE},
             hidden: hide,
             background_color: PARAGON_ICON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PARAGON_ICON_X},
-                y: {-(FACTION_ROW_H - PARAGON_ICON_SIZE) / 2.0},
-            }
+            pos_type: "absolute",
+            left: {PARAGON_ICON_X},
+            top: {-(-(FACTION_ROW_H - PARAGON_ICON_SIZE) / 2.0)},
             fontstring {
                 name: label_id,
                 width: {PARAGON_ICON_SIZE},
@@ -473,7 +461,9 @@ fn paragon_indicator(cat_idx: usize, fac_idx: usize, paragon: Option<&ParagonPro
                 font_size: 10.0,
                 font_color: PARAGON_ICON_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -500,12 +490,10 @@ fn build_tooltip(state: &ReputationFrameState) -> Element {
             height: {tooltip_h},
             hidden: hide,
             background_color: TOOLTIP_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopLeft,
-                x: "4",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 4.0,
+            translate_x: "-100%",
+            top: -0.0,
             {tooltip_border()}
             {content}
         }
@@ -519,12 +507,9 @@ fn tooltip_border() -> Element {
             width: {TOOLTIP_W},
             height: "1",
             background_color: TOOLTIP_BORDER,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -546,7 +531,9 @@ fn rep_tooltip_line(
             font_size: font_size,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {TOOLTIP_INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {TOOLTIP_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -577,7 +564,9 @@ fn tooltip_content(faction: &FactionEntry) -> (Element, f32) {
             font_size: 10.0,
             font_color: TOOLTIP_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {TOOLTIP_INSET}, y: {-paragon_y} }
+            pos_type: "absolute",
+            left: {TOOLTIP_INSET},
+            top: {-(-paragon_y)},
         }
     };
     (elems, h)

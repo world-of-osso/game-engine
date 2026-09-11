@@ -4,7 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_hud_component::{action_bar_screen, minimap_screen};
 use crate::ui::strata::FrameStrata;
 
@@ -117,13 +117,9 @@ fn button(name: FrameName, text: &str, action: InWorldSelectionDebugAction, x: f
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_to: INWORLD_SELECTION_DEBUG_ROOT,
-                relative_point: AnchorPoint::BottomLeft,
-                x: {x.to_string()},
-                y: "18",
-            }
+            pos_type: "absolute",
+            left: {x},
+            bottom: 18.0,
         }
     }
 }
@@ -145,7 +141,9 @@ fn row_label(index: usize, text: &str) -> Element {
             text: {text},
             font_size: 18.0,
             color: TEXT_GOLD,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-12" }
+            pos_type: "absolute",
+            left: 14.0,
+            top: 12.0,
         }
     }
 }
@@ -159,7 +157,9 @@ fn row_category(index: usize, text: &str) -> Element {
             text: {text},
             font_size: 12.0,
             color: TEXT_SUBTITLE,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-38" }
+            pos_type: "absolute",
+            left: 14.0,
+            top: 38.0,
         }
     }
 }
@@ -178,7 +178,10 @@ fn row(index: usize, entry: &InWorldSelectionDebugEntry, selected: bool) -> Elem
                 width: 332.0, height: 4.0,
                 hidden: {not_selected},
                 background_color: ROW_ACCENT,
-                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+                pos_type: "absolute",
+                left: "50%",
+                translate_x: "-50%",
+                top: -0.0,
             }
             {row_label(index, &entry.label)}
             {row_category(index, &entry.category)}
@@ -193,7 +196,10 @@ fn panel_header(name: DynName, title: &str, subtitle: &str) -> Element {
             width: 360.0,
             height: 2.0,
             background_color: PANEL_BORDER,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
         fontstring {
             name: {DynName(format!("{}Title", name.0))},
@@ -202,7 +208,9 @@ fn panel_header(name: DynName, title: &str, subtitle: &str) -> Element {
             text: {title},
             font_size: 18.0,
             color: TEXT_GOLD,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-14" }
+            pos_type: "absolute",
+            left: 14.0,
+            top: 14.0,
         }
         fontstring {
             name: {DynName(format!("{}Helper", name.0))},
@@ -211,7 +219,9 @@ fn panel_header(name: DynName, title: &str, subtitle: &str) -> Element {
             text: {subtitle},
             font_size: 12.0,
             color: TEXT_MUTED,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-38" }
+            pos_type: "absolute",
+            left: 14.0,
+            top: 38.0,
         }
     }
 }
@@ -223,12 +233,9 @@ fn candidate_panel(state: &InWorldSelectionDebugState) -> Element {
             width: 360.0,
             height: 360.0,
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: INWORLD_SELECTION_DEBUG_ROOT,
-                relative_point: AnchorPoint::TopLeft,
-                x: "22", y: "-22",
-            }
+            pos_type: "absolute",
+            left: 22.0,
+            top: 22.0,
             {panel_header(
                 DynName("InWorldSelectionDebugList".into()),
                 "In-World Selection Cases",
@@ -240,7 +247,9 @@ fn candidate_panel(state: &InWorldSelectionDebugState) -> Element {
                 height: 272.0,
                 layout: "flex-col",
                 gap: 8.0,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: "-82" }
+                pos_type: "absolute",
+                left: 14.0,
+                top: 82.0,
                 {selection_rows(&state.entries, state.selected_index)}
             }
         }
@@ -271,7 +280,10 @@ fn circle_style_label(name: DynName, label: &str, active: bool) -> Element {
             text: {label},
             font_size: 14.0,
             color: if active { TEXT_GOLD } else { TEXT_SUBTITLE },
-            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "10" }
+            pos_type: "absolute",
+            left: 10.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -289,12 +301,9 @@ fn circle_style_panel(state: &InWorldSelectionDebugState) -> Element {
             width: 228.0,
             height: 400.0,
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_to: INWORLD_SELECTION_DEBUG_ROOT,
-                relative_point: AnchorPoint::TopRight,
-                x: "-22", y: "-22",
-            }
+            pos_type: "absolute",
+            right: 22.0,
+            top: 22.0,
             {panel_header(
                 DynName("CircleStyle".into()),
                 "Circle Style",
@@ -306,7 +315,9 @@ fn circle_style_panel(state: &InWorldSelectionDebugState) -> Element {
                 height: 340.0,
                 layout: "flex-col",
                 gap: 4.0,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: "-82" }
+                pos_type: "absolute",
+                left: 10.0,
+                top: 82.0,
                 {rows}
             }
         }

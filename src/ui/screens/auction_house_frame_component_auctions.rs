@@ -37,12 +37,9 @@ pub(super) fn auctions_tab_content(listings: &[AuctionListingRow]) -> Element {
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {header}
             {rows}
         }
@@ -65,12 +62,9 @@ fn listing_header(panel_w: f32) -> Element {
             width: {panel_w},
             height: {LISTING_HEADER_H},
             background_color: HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {AUCTION_INSET},
-                y: {-AUCTION_INSET},
-            }
+            pos_type: "absolute",
+            left: {AUCTION_INSET},
+            top: {-(-AUCTION_INSET)},
             {cols}
         }
     }
@@ -87,12 +81,9 @@ fn listing_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
             font_size: 9.0,
             font_color: HEADER_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -114,12 +105,9 @@ fn listing_row(idx: usize, row: &AuctionListingRow, panel_w: f32) -> Element {
             width: {panel_w},
             height: {LISTING_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {AUCTION_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {AUCTION_INSET},
+            top: {-(y)},
             {cells}
             {cancel}
         }
@@ -161,12 +149,9 @@ fn listing_cancel_button(idx: usize, panel_w: f32) -> Element {
             width: {CANCEL_BUTTON_W},
             height: {CANCEL_BUTTON_H},
             background_color: CANCEL_BUTTON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
             fontstring {
                 name: txt_id,
                 width: {CANCEL_BUTTON_W},
@@ -175,10 +160,9 @@ fn listing_cancel_button(idx: usize, panel_w: f32) -> Element {
                 font_size: 9.0,
                 font_color: CANCEL_BUTTON_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }

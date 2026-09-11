@@ -4,7 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
@@ -17,24 +17,18 @@ pub const TRASH_BUTTON_ROOT: FrameName = FrameName("TrashButtonRoot");
 pub const TRASH_BUTTON: FrameName = FrameName("TrashButton");
 pub const TRASH_BUTTON_ICON: FrameName = FrameName("TrashButtonIcon");
 
-pub struct ButtonAnchor {
-    pub point: AnchorPoint,
-    pub relative_to: Option<FrameName>,
-    pub relative_point: AnchorPoint,
-    pub x: f32,
-    pub y: f32,
+/// Distances inward from the enclosing parent's right and bottom edges.
+pub struct ButtonPosition {
+    pub right: f32,
+    pub bottom: f32,
 }
 
 pub fn trash_icon_button(
     name: FrameName,
     icon_name: FrameName,
     onclick: impl Display,
-    anchor: ButtonAnchor,
+    position: ButtonPosition,
 ) -> Element {
-    let icon = trash_icon_texture(name, icon_name);
-    let relative_to = anchor
-        .relative_to
-        .map_or_else(|| "$parent".to_string(), |frame| frame.to_string());
     rsx! {
         button {
             name,
@@ -47,19 +41,15 @@ pub fn trash_icon_button(
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: anchor.point,
-                relative_to: {relative_to},
-                relative_point: anchor.relative_point,
-                x: {anchor.x.to_string()},
-                y: {anchor.y.to_string()},
-            }
-            {icon}
+            pos_type: "absolute",
+            right: position.right,
+            bottom: position.bottom,
+            {trash_icon_texture(icon_name)}
         }
     }
 }
 
-fn trash_icon_texture(button_name: FrameName, icon_name: FrameName) -> Element {
+fn trash_icon_texture(icon_name: FrameName) -> Element {
     rsx! {
         texture {
             name: icon_name,
@@ -67,11 +57,11 @@ fn trash_icon_texture(button_name: FrameName, icon_name: FrameName) -> Element {
             height: 24.0,
             frame_level: 100.0,
             texture_file: DELETE_ICON_FILE,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: button_name,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -83,19 +73,16 @@ pub fn trash_button_screen(_shared: &SharedContext) -> Element {
             stretch: true,
             background_color: "0.02,0.02,0.03,1.0",
             strata: FrameStrata::Background,
-            {
-                trash_icon_button(
-                    TRASH_BUTTON,
-                    TRASH_BUTTON_ICON,
-                    "noop",
-                    ButtonAnchor {
-                        point: AnchorPoint::Center,
-                        relative_to: None,
-                        relative_point: AnchorPoint::Center,
-                        x: 0.0,
-                        y: 0.0,
-                    },
-                )
+            r#frame {
+                name: "TrashButtonMount",
+                width: 46.0,
+                height: 42.0,
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                translate_x: "-50%",
+                translate_y: "-50%",
+                {trash_icon_button(TRASH_BUTTON, TRASH_BUTTON_ICON, "noop", ButtonPosition { right: 0.0, bottom: 0.0 })}
             }
         }
     }
@@ -104,105 +91,74 @@ pub fn trash_button_screen(_shared: &SharedContext) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::Screen;
 
-    const ANCHOR_TARGET: FrameName = FrameName("TrashAnchorTarget");
-
-    #[derive(Clone)]
-    struct TrashButtonTestState {
-        with_relative_anchor: bool,
-    }
-
-    fn test_screen(ctx: &SharedContext) -> Element {
-        let state = ctx
-            .get::<TrashButtonTestState>()
-            .expect("TrashButtonTestState must be in SharedContext");
-        let target: Element = if state.with_relative_anchor {
-            rsx! {
-                r#frame {
-                    name: ANCHOR_TARGET,
-                    width: 64.0,
-                    height: 32.0,
-                    anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                }
-            }
-        } else {
-            Vec::new()
-        };
-        let anchor = ButtonAnchor {
-            point: AnchorPoint::BottomRight,
-            relative_to: if state.with_relative_anchor {
-                Some(ANCHOR_TARGET)
-            } else {
-                None
-            },
-            relative_point: AnchorPoint::BottomRight,
-            x: -18.0,
-            y: 64.0,
-        };
+    fn nested_button(_ctx: &SharedContext) -> Element {
         rsx! {
             r#frame {
                 name: TRASH_BUTTON_ROOT,
                 width: 300.0,
                 height: 200.0,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
-                {target}
-                {trash_icon_button(TRASH_BUTTON, TRASH_BUTTON_ICON, "trash", anchor)}
+                r#frame {
+                    name: "TrashButtonParent",
+                    width: 200.0,
+                    height: 120.0,
+                    {trash_icon_button(TRASH_BUTTON, TRASH_BUTTON_ICON, "trash", ButtonPosition { right: 18.0, bottom: 64.0 })}
+                }
             }
         }
     }
 
-    fn build_registry(with_relative_anchor: bool) -> FrameRegistry {
+    #[test]
+    fn trash_button_and_icon_follow_actual_nested_parent() {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(TrashButtonTestState {
-            with_relative_anchor,
-        });
-        Screen::new(test_screen).sync(&shared, &mut registry);
-        registry
-    }
-
-    #[test]
-    fn trash_button_anchor_without_relative_to_uses_screen_space_anchor() {
-        let registry = build_registry(false);
-        let root_id = registry
-            .get_by_name(TRASH_BUTTON_ROOT.0)
-            .expect("TrashButtonRoot frame");
-
-        let button = registry
-            .get(
-                registry
-                    .get_by_name(TRASH_BUTTON.0)
-                    .expect("TrashButton frame"),
-            )
-            .expect("TrashButton data");
-        assert_eq!(button.anchors.len(), 1);
-        assert_eq!(button.anchors[0].relative_to, Some(root_id));
-    }
-
-    #[test]
-    fn trash_button_anchor_with_relative_to_points_at_target_and_icon_points_to_button() {
-        let registry = build_registry(true);
-
-        let target_id = registry
-            .get_by_name(ANCHOR_TARGET.0)
-            .expect("TrashAnchorTarget frame");
-        let button_id = registry
-            .get_by_name(TRASH_BUTTON.0)
-            .expect("TrashButton frame");
-        let button = registry.get(button_id).expect("TrashButton data");
-        assert_eq!(button.anchors.len(), 1);
-        assert_eq!(button.anchors[0].relative_to, Some(target_id));
-
+        Screen::new(nested_button).sync(&SharedContext::new(), &mut registry);
+        compute_layout(&mut registry);
+        let parent = registry.get_by_name("TrashButtonParent").unwrap();
+        let button_id = registry.get_by_name(TRASH_BUTTON.0).unwrap();
+        let button = registry.get(button_id).unwrap();
+        assert_eq!(button.parent_id, Some(parent));
+        assert_eq!(button.onclick.as_deref(), Some("trash"));
+        let parent_rect = registry.get(parent).unwrap().layout_rect.as_ref().unwrap();
+        let button_rect = button.layout_rect.as_ref().unwrap();
+        assert!(
+            (parent_rect.x + parent_rect.width - button_rect.x - button_rect.width - 18.0).abs()
+                < 0.51
+        );
+        assert!(
+            (parent_rect.y + parent_rect.height - button_rect.y - button_rect.height - 64.0).abs()
+                < 0.51
+        );
         let icon = registry
-            .get(
-                registry
-                    .get_by_name(TRASH_BUTTON_ICON.0)
-                    .expect("TrashButtonIcon frame"),
-            )
-            .expect("TrashButtonIcon data");
-        assert_eq!(icon.anchors.len(), 1);
-        assert_eq!(icon.anchors[0].relative_to, Some(button_id));
+            .get(registry.get_by_name(TRASH_BUTTON_ICON.0).unwrap())
+            .unwrap();
+        assert_eq!(icon.parent_id, Some(button_id));
+        let icon_rect = icon.layout_rect.as_ref().unwrap();
+        assert!(
+            (icon_rect.x + icon_rect.width / 2.0 - button_rect.x - button_rect.width / 2.0).abs()
+                < 0.51
+        );
+        assert!(
+            (icon_rect.y + icon_rect.height / 2.0 - button_rect.y - button_rect.height / 2.0).abs()
+                < 0.51
+        );
+    }
+
+    #[test]
+    fn standalone_trash_button_preserves_noop_action_and_centered_mount() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(trash_button_screen).sync(&SharedContext::new(), &mut registry);
+        compute_layout(&mut registry);
+        let mount = registry.get_by_name("TrashButtonMount").unwrap();
+        let button = registry
+            .get(registry.get_by_name(TRASH_BUTTON.0).unwrap())
+            .unwrap();
+        assert_eq!(button.parent_id, Some(mount));
+        assert_eq!(button.onclick.as_deref(), Some("noop"));
+        let rect = button.layout_rect.as_ref().unwrap();
+        assert!((rect.x + rect.width / 2.0 - 960.0).abs() < 0.51);
+        assert!((rect.y + rect.height / 2.0 - 540.0).abs() < 0.51);
     }
 }

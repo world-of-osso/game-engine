@@ -2,7 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 
 use super::campsite_component::{
@@ -29,16 +29,21 @@ pub fn campsite_popup_screen(ctx: &SharedContext) -> Element {
                 name: CAMPSITE_POPUP_MOUNT,
                 width: CAMPSITE_PANEL_WIDTH,
                 height: mount_height,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                    y: "29",
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                translate_x: "-50%",
+                translate_y: "-50%",
+                margin_top: {-29.0},
                 {campsite_panel(campsite)}
             }
         }
     }
 }
+
+#[cfg(test)]
+#[path = "menu_character_layout_test_support.rs"]
+mod layout_support;
 
 #[cfg(test)]
 mod tests {
@@ -64,6 +69,7 @@ mod tests {
         });
         Screen::new(campsite_popup_screen).sync(&shared, &mut reg);
 
+        layout_support::compute_layout(&mut reg);
         assert!(reg.get_by_name("CampsitePopupRoot").is_some());
         let mount_id = reg
             .get_by_name("CampsitePopupMount")
@@ -71,15 +77,14 @@ mod tests {
         let panel_id = reg.get_by_name("CampsitePanel").expect("CampsitePanel");
         let panel = reg.get(panel_id).expect("panel frame");
         assert!(!panel.hidden);
-        assert_eq!(panel.anchors.len(), 1);
-        assert_eq!(panel.anchors[0].point, crate::ui::anchor::AnchorPoint::Top);
-        assert_eq!(
-            panel.anchors[0].relative_point,
-            crate::ui::anchor::AnchorPoint::Top
+        assert_eq!(panel.parent_id, Some(mount_id));
+        let panel_rect = panel.layout_rect.as_ref().expect("native panel bounds");
+        let mount_rect = reg.get(mount_id).unwrap().layout_rect.as_ref().unwrap();
+        assert!((panel_rect.y - mount_rect.y - 58.0).abs() < 1.0);
+        assert!(
+            (panel_rect.x + panel_rect.width * 0.5 - mount_rect.x - mount_rect.width * 0.5).abs()
+                < 1.0
         );
-        assert_eq!(panel.anchors[0].relative_to, Some(mount_id));
-        assert_eq!(panel.anchors[0].x_offset, 0.0);
-        assert_eq!(panel.anchors[0].y_offset, -58.0);
         assert_eq!(panel.resolved_width(), 470.0);
     }
 }

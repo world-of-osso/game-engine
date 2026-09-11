@@ -1,8 +1,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
-
 use super::{
     BAR_EDGE, BarConfig, DynName, STATUS_BAR_FONT, STATUS_BAR_FONT_SIZE, VALUE_TEXT, dyn_name,
 };
@@ -61,12 +59,10 @@ pub(super) fn anchored_top_marker(name: String, x: f32, y: f32) -> Element {
             width: 0.0,
             height: 0.0,
             hidden: true,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+            translate_x: "-50%",
         }
     }
 }
@@ -78,12 +74,10 @@ pub(super) fn anchored_topright_marker(name: String, x: f32, y: f32) -> Element 
             width: 0.0,
             height: 0.0,
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+            translate_x: "-100%",
         }
     }
 }
@@ -95,55 +89,68 @@ pub(super) fn sized_marker(name: String, x: f32, y: f32, width: f32, height: f32
             width,
             height,
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
         }
     }
 }
 
-pub(super) fn centered_marker(
+pub(super) fn marker_group(
     name: String,
-    relative_to: FrameName,
+    x: f32,
+    y: f32,
     width: f32,
     height: f32,
+    children: Element,
 ) -> Element {
     rsx! {
         r#frame {
             name: dyn_name(name),
             width,
             height,
-            hidden: true,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+            {children}
         }
     }
 }
 
-pub(super) fn portrait_centered_marker(
-    name: String,
-    relative_to: FrameName,
-    relative_point: AnchorPoint,
-    width: f32,
-    height: f32,
-) -> Element {
+pub(super) fn centered_marker(name: String, width: f32, height: f32) -> Element {
     rsx! {
         r#frame {
             name: dyn_name(name),
             width,
             height,
             hidden: true,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to,
-                relative_point,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+        }
+    }
+}
+
+pub(super) fn portrait_edge_marker(
+    name: String,
+    top_edge: bool,
+    width: f32,
+    height: f32,
+) -> Element {
+    let top = if top_edge { "0%" } else { "100%" };
+    rsx! {
+        r#frame {
+            name: dyn_name(name),
+            width,
+            height,
+            hidden: true,
+            pos_type: "absolute",
+            left: "50%",
+            top,
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -179,7 +186,7 @@ fn bar_block_names(name: &str) -> BarBlockNames {
 }
 
 fn bar_block_fill(fill_name: DynName, fill_width: f32, height: f32, fill_color: &str) -> Element {
-    // Zero frame width means auto-size in the toolkit; an empty fill must not draw.
+    // Explicit zero width stays empty; hide the fill until it has content.
     let hide_fill = fill_width <= 0.0;
     rsx! {
         r#frame {
@@ -188,10 +195,9 @@ fn bar_block_fill(fill_name: DynName, fill_width: f32, height: f32, fill_color: 
             height,
             hidden: hide_fill,
             background_color: fill_color,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
         }
     }
 }
@@ -203,10 +209,9 @@ fn bar_block_edge(edge_name: DynName, width: f32) -> Element {
             width,
             height: 1.0,
             background_color: BAR_EDGE,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
         }
     }
 }
@@ -229,11 +234,12 @@ fn bar_block_text(
             font_color: VALUE_TEXT,
             outline: "OUTLINE",
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: {text_x},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            margin_left: text_x,
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -282,10 +288,9 @@ fn masked_bar_texture(
             texture_file: mask,
             vertex_color: color,
             tex_coords: coordinates,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
         }
     }
 }
@@ -306,12 +311,9 @@ fn bar_block_shell(frame_name: DynName, spec: BarBlockShellSpec<'_>, content: El
             height,
             background_color: bg_color,
             hidden,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: {-y},
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
             {content}
         }
     }

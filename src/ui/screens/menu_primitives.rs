@@ -3,7 +3,6 @@ use std::fmt;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 const MENU_BG: &str = "0.03,0.03,0.03,0.96";
@@ -97,7 +96,9 @@ fn dropdown_button_frame_clickable(
 ) -> Element {
     rsx! { r#frame {
         name: frame_name, width: {props.width}, height: {props.height}, background_color: props.background_color, onclick,
-        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {props.x}, y: {props.y} }
+        pos_type: "absolute",
+        left: {props.x},
+        top: {-(props.y)},
         {content}
     } }
 }
@@ -109,7 +110,9 @@ fn dropdown_button_frame_plain(
 ) -> Element {
     rsx! { r#frame {
         name: frame_name, width: {props.width}, height: {props.height}, background_color: props.background_color,
-        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {props.x}, y: {props.y} }
+        pos_type: "absolute",
+        left: {props.x},
+        top: {-(props.y)},
         {content}
     } }
 }
@@ -133,12 +136,9 @@ fn dropdown_label(name: DynName, props: DropdownButton<'_>) -> Element {
             font_size: 10.0,
             font_color: props.text_color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {DROPDOWN_TEXT_INSET},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {DROPDOWN_TEXT_INSET},
+            top: -0.0,
         }
     }
 }
@@ -153,12 +153,9 @@ fn dropdown_arrow(name: DynName, props: DropdownButton<'_>) -> Element {
             font_size: 9.0,
             font_color: props.arrow_color,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: {-DROPDOWN_ARROW_RIGHT},
-                y: "0",
-            }
+            pos_type: "absolute",
+            right: {-(-DROPDOWN_ARROW_RIGHT)},
+            top: -0.0,
         }
     }
 }
@@ -176,12 +173,9 @@ pub fn context_menu(props: ContextMenu<'_>) -> Element {
             strata: FrameStrata::Dialog,
             frame_level: 60.0,
             background_color: MENU_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {props.x},
-                y: {-props.y},
-            }
+            pos_type: "absolute",
+            left: {props.x},
+            top: {-(-props.y)},
             {contents}
         }
     }
@@ -212,12 +206,9 @@ fn context_menu_title(props: ContextMenu<'_>) -> Element {
             font_size: 10.0,
             font_color: MENU_TITLE,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {MENU_TITLE_INSET},
-                y: {-MENU_TITLE_TOP},
-            }
+            pos_type: "absolute",
+            left: {MENU_TITLE_INSET},
+            top: {-(-MENU_TITLE_TOP)},
         }
     }
 }
@@ -230,12 +221,9 @@ fn context_menu_divider(props: ContextMenu<'_>) -> Element {
             width: {props.width - 2.0 * MENU_TITLE_INSET},
             height: 1.0,
             background_color: MENU_DIVIDER,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {MENU_TITLE_INSET},
-                y: {-MENU_DIVIDER_Y},
-            }
+            pos_type: "absolute",
+            left: {MENU_TITLE_INSET},
+            top: {-(-MENU_DIVIDER_Y)},
         }
     }
 }
@@ -267,12 +255,11 @@ fn menu_border(spec: BorderSpec<'_>) -> Element {
             width: {spec.width},
             height: {spec.height},
             background_color: MENU_BORDER,
-            anchor {
-                point: spec.point,
-                relative_point: spec.relative_point,
-                x: {spec.x},
-                y: {spec.y},
-            }
+            pos_type: "absolute",
+            left: spec.left,
+            right: spec.right,
+            top: spec.top,
+            bottom: spec.bottom,
         }
     }
 }
@@ -282,10 +269,10 @@ struct BorderSpec<'a> {
     suffix: &'a str,
     width: f32,
     height: f32,
-    point: AnchorPoint,
-    relative_point: AnchorPoint,
-    x: f32,
-    y: f32,
+    left: &'static str,
+    right: &'static str,
+    top: &'static str,
+    bottom: &'static str,
 }
 
 impl<'a> BorderSpec<'a> {
@@ -295,10 +282,10 @@ impl<'a> BorderSpec<'a> {
             suffix: "Top",
             width,
             height: 1.0,
-            point: AnchorPoint::TopLeft,
-            relative_point: AnchorPoint::TopLeft,
-            x: 0.0,
-            y: 0.0,
+            left: "0",
+            right: "auto",
+            top: "0",
+            bottom: "auto",
         }
     }
 
@@ -308,10 +295,10 @@ impl<'a> BorderSpec<'a> {
             suffix: "Bottom",
             width,
             height: 1.0,
-            point: AnchorPoint::BottomLeft,
-            relative_point: AnchorPoint::BottomLeft,
-            x: 0.0,
-            y: 0.0,
+            left: "0",
+            right: "auto",
+            top: "auto",
+            bottom: "0",
         }
     }
 
@@ -321,10 +308,10 @@ impl<'a> BorderSpec<'a> {
             suffix: "Left",
             width: 1.0,
             height,
-            point: AnchorPoint::TopLeft,
-            relative_point: AnchorPoint::TopLeft,
-            x: 0.0,
-            y: 0.0,
+            left: "0",
+            right: "auto",
+            top: "0",
+            bottom: "auto",
         }
     }
 
@@ -334,10 +321,10 @@ impl<'a> BorderSpec<'a> {
             suffix: "Right",
             width: 1.0,
             height,
-            point: AnchorPoint::TopRight,
-            relative_point: AnchorPoint::TopRight,
-            x: 0.0,
-            y: 0.0,
+            left: "auto",
+            right: "0",
+            top: "0",
+            bottom: "auto",
         }
     }
 }
@@ -352,12 +339,9 @@ fn context_menu_button(index: usize, width: f32, item: &ContextMenuItem<'_>) -> 
             text: item.label,
             font_size: 10.0,
             onclick: item.action,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {MENU_BUTTON_X},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {MENU_BUTTON_X},
+            top: {-(y)},
         }
     }
 }
@@ -372,8 +356,8 @@ fn context_menu_height(item_count: usize) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use ui_toolkit::frame::WidgetType;
-    use ui_toolkit::layout::recompute_layouts;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -399,7 +383,7 @@ mod tests {
             onclick,
         };
         Screen::new(move |_ctx| dropdown_button(dropdown)).sync(&shared, &mut registry);
-        recompute_layouts(&mut registry);
+        compute_layout(&mut registry);
         registry
     }
 

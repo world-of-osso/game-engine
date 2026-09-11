@@ -2,7 +2,9 @@
 
 use super::*;
 use crate::ui::frame::{Dimension, WidgetData};
-use crate::ui::layout::{recompute_layouts, resolve_frame_layout};
+#[path = "../menu_character_layout_test_support.rs"]
+mod layout_support;
+use layout_support::compute_layout as recompute_layouts;
 
 fn rect_for_name(
     reg: &crate::ui::registry::FrameRegistry,
@@ -13,7 +15,6 @@ fn rect_for_name(
         .unwrap_or_else(|| panic!("{name} frame should exist"));
     reg.get(id)
         .and_then(|frame| frame.layout_rect.clone())
-        .or_else(|| resolve_frame_layout(reg, id))
         .unwrap_or_else(|| panic!("{name} should have a layout rect"))
 }
 
@@ -597,10 +598,15 @@ fn race_and_class_labels_keep_shared_tile_style_with_expected_offsets() {
     assert_eq!(race_font.font_size, 8.0);
     assert_eq!(class_font.font_size, 8.0);
 
-    assert_eq!(race_label.anchors.len(), 1);
-    assert_eq!(class_label.anchors.len(), 1);
-    assert_eq!(race_label.anchors[0].y_offset, 4.0);
-    assert_eq!(class_label.anchors[0].y_offset, 2.0);
+    for (label, inset) in [(race_label, 4.0), (class_label, 2.0)] {
+        let parent = reg.get(label.parent_id.unwrap()).unwrap();
+        let label_rect = label.layout_rect.as_ref().unwrap();
+        let parent_rect = parent.layout_rect.as_ref().unwrap();
+        assert!(
+            (parent_rect.y + parent_rect.height - label_rect.y - label_rect.height - inset).abs()
+                < 1.0
+        );
+    }
 }
 
 #[test]

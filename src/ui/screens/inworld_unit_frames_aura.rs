@@ -1,8 +1,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
-
 use super::{
     DynName, TARGET_FRAME_CONFIG, TARGET_MANA_BAR_W, TargetAuraIconState, UNIT_NAME_FONT, dyn_name,
 };
@@ -35,12 +33,9 @@ pub(super) fn target_aura_row(prefix: &str, icons: &[TargetAuraIconState], y: f3
             width: {TARGET_AURA_ROW_WIDTH},
             height: {TARGET_AURA_ICON_SIZE},
             hidden: {hidden}
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TARGET_FRAME_CONFIG.health_bar.x},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {TARGET_FRAME_CONFIG.health_bar.x},
+            top: {-(-y)},
             {content}
         }
     }
@@ -56,12 +51,9 @@ fn target_aura_icon(prefix: &str, index: usize, icon: &TargetAuraIconState) -> E
             width: {TARGET_AURA_ICON_SIZE},
             height: {TARGET_AURA_ICON_SIZE},
             background_color: {icon.border_color.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
             {target_aura_inset(&names, icon)}
             {target_aura_timer(&names, icon)}
             {target_aura_stack(&names, stack_text.as_str())}
@@ -94,21 +86,17 @@ fn target_aura_inset(names: &TargetAuraNames, icon: &TargetAuraIconState) -> Ele
             width: {TARGET_AURA_ICON_SIZE - 2.0},
             height: {TARGET_AURA_ICON_SIZE - 2.0},
             background_color: {TARGET_AURA_DEFAULT_BORDER},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "1",
-                y: "-1",
-            }
+            pos_type: "absolute",
+            left: 1.0,
+            top: 1.0,
             texture {
                 name: {names.texture.clone()},
                 width: {TARGET_AURA_ICON_SIZE - 2.0},
                 height: {TARGET_AURA_ICON_SIZE - 2.0},
                 texture_fdid: {icon.icon_fdid},
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -127,12 +115,10 @@ fn target_aura_timer(names: &TargetAuraNames, icon: &TargetAuraIconState) -> Ele
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                x: "0",
-                y: "9",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 9.0,
         }
     }
 }
@@ -150,12 +136,9 @@ fn target_aura_stack(names: &TargetAuraNames, stack_text: &str) -> Element {
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-1",
-                y: "1",
-            }
+            pos_type: "absolute",
+            right: 1.0,
+            bottom: 1.0,
         }
     }
 }

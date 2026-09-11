@@ -88,7 +88,10 @@ fn login_form_is_horizontally_centered_with_inputs_near_screen_midpoint() {
 
 #[test]
 fn login_form_preserves_expected_vertical_ordering() {
-    let (reg, login) = build_login_registry_with_real_layout();
+    let (mut reg, login) = build_login_registry_with_real_layout();
+    reg.set_hidden(login.realm_button, false);
+    reg.set_hidden(login.create_account_button, false);
+    recompute_layouts(&mut reg);
     let username = layout_rect(&reg, login.username_input);
     let password = layout_rect(&reg, login.password_input);
     let realm = layout_rect(&reg, login.realm_button);
@@ -140,7 +143,9 @@ fn exit_button_is_anchored_in_the_bottom_right_quadrant() {
 
 #[test]
 fn realm_selector_is_positioned_between_password_and_connect_button() {
-    let (reg, login) = build_login_registry_with_real_layout();
+    let (mut reg, login) = build_login_registry_with_real_layout();
+    reg.set_hidden(login.realm_button, false);
+    recompute_layouts(&mut reg);
     let password = layout_rect(&reg, login.password_input);
     let realm = layout_rect(&reg, login.realm_button);
     let connect = layout_rect(&reg, login.connect_button);
