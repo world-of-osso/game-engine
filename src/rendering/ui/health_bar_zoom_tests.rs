@@ -95,6 +95,30 @@ fn projected_quad_size(
 }
 
 #[test]
+fn chamfer_projected_width_survives_parent_shear_in_both_directions() {
+    let (mut app, actor, bar, camera) = zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
+    for roll in [-0.8, -0.15, 0.0, 0.15, 0.8] {
+        app.world_mut()
+            .get_mut::<Transform>(actor)
+            .unwrap()
+            .rotation = Quat::from_euler(EulerRot::YXZ, 0.6, 0.0, roll);
+        for thickness in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
+            app.world_mut()
+                .resource_mut::<HudOptions>()
+                .nameplate_health_thickness = thickness;
+            app.update();
+            let global = *app.world().get::<GlobalTransform>(bar).unwrap();
+            let size = projected_quad_size(&app, bar, camera, global);
+            let expected = health_bar_pixel_size(thickness);
+            assert!(
+                size.abs_diff_eq(expected, 0.05),
+                "roll={roll}, thickness={thickness:?}: expected {expected:?}, got {size:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn thickness_changes_projected_height_without_changing_width() {
     let (mut app, _, bar, camera) = zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
     for thickness in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
