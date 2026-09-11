@@ -20,8 +20,10 @@ At engine `7a4b8eb3`, `5f978988`, and `a5f17dfa`, loading uses a native Bevy vie
 
 ## Evidence
 
-- Before migration: eight loading tests passed using the existing compiler-emitted executable; no rebuild. Baseline screenshot/tree and exact provenance are retained locally under `data/diagnostics/loading-bevy-ui/baseline/`.
-- Native implementation and updated preservation tests require verification. Compare computed layout and a rendered preview against the baseline; CPU tests alone do not establish visual equivalence.
+- Before migration: eight loading tests passed using the existing compiler-emitted executable. Baseline screenshot/tree and exact provenance are retained under `data/diagnostics/loading-bevy-ui/baseline/`.
+- At engine `4875c9d9`, 21 focused cases pass: 18 binary readiness/native-layout/lifecycle/progress cases and three library debug-layout override cases. Scoped formatting, readability, `cargo check`, and renderer build pass; the existing `binrw 0.15.1` future-compatibility notice remains.
+- `native/view.webp` and `baseline/render/view.webp` show the same cathedral art, bar layout, and intended status occlusion. The sampled percentages differ by timing (`19%` native versus `20%` baseline); this is not pixel-equivalence or performance proof.
+- Native capture used renderer SHA-256 `770b91d51fecfa8a0d1915af46477e916f6cd1c35598f84724856f2dac559e8f`, ran 5.319847 seconds, and terminated cleanly from the harness. Complete command/provenance records are under `data/diagnostics/loading-bevy-ui/verification/attempt2/` and `native/`.
 
 ## Scope
 
