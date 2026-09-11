@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-11] rendering | Confirm character-select grass patch is a regression workaround
+
+Same-binary 30-second character-select captures against canonical and retained-worktree data both show the bright `CampsiteGroundPatch` over dark but loaded ADT terrain. Both runs loaded 256 chunks, 13 ground textures, and the skybox, disproving a missing-worktree-assets-only explanation. `ee3742b6` added the 42×42 StandardMaterial grass plane; `bbaa3e51` removed it explicitly as a bright island; `d335cd0c` re-added it. The exact TerrainMaterial/environment cause remains unproven, so no rendering change was made. See [[charselect-ground-patch-dark-terrain]].
+
+
 ## [2026-09-11] ui/networking | Calibrate authored nameplates for reference pixel matching
 
 Engine `3160bd2f`, `8934e738`, `0e7041f6`, and `f8cbaab7` move nameplates toward the supplied reference: the shared cache uses health atlas `6704514`, cast fill `4505182`, and important-cast frame `7241122`; health rendering is UI-overlay sprites rather than world-space PBR; names/cast labels are white Friz at 26px/20px. Current calibration is 384px health at 40px Thick / 20px Thin and cast at 20px Thick / 12px Thin. It is working calibration only, not pixel-match proof. The required GPU fixture alignment and verification remain pending; allowed variance is glyph rasterization only. Thick/Thin defaults and cast lifecycle/settings semantics remain unchanged. Windows work is excluded. See [[nameplate-design]], [[networking]], and [nameplate spec](../specs/nameplate-style.md).
