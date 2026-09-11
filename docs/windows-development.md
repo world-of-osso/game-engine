@@ -1,6 +1,6 @@
 # Native Windows development
 
-Ordinary Cargo builds enable the `dev` feature for Bevy dynamic linking. On Windows, use `cargo bw` to build and `cargo rw -- [args]` to run: they select the normal development profile, CASC, and `x86_64-pc-windows-gnu`; Unix socket IPC is excluded explicitly.
+Ordinary Cargo builds enable the `dev` feature for Bevy dynamic linking. On Windows, use `./scripts/windows-dev.ps1 build` to build and `./scripts/windows-dev.ps1 run -- [args]` to run. The script selects the normal development profile, CASC, and `x86_64-pc-windows-gnu`; Unix socket IPC is excluded explicitly.
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@ Ordinary Cargo builds enable the `dev` feature for Bevy dynamic linking. On Wind
 - A GNU Windows C/C++ toolchain (`gcc`, `g++`, `ar`) and CMake on PATH.
 - Sibling repositories referenced by the manifest: asset-resolver, shared-protocol, ui-toolkit, ui-toolkit-macros.
 
-The aliases invoke `scripts/windows-dev.ps1`, which discovers the GNU compiler on PATH and sets process-local `MINGW_PREFIX` for ktx2-rw's library lookup. This supports nonstandard toolchain locations without machine-wide environment changes.
+`scripts/windows-dev.ps1` discovers the GNU compiler on PATH and sets process-local `MINGW_PREFIX` for ktx2-rw's library lookup. This supports nonstandard toolchain locations without machine-wide environment changes.
 
 Run through Cargo so the development DLL search paths are configured. Distribution builds omit `dev` explicitly: `cargo build --release --target x86_64-pc-windows-gnu --no-default-features --features casc --bin game-engine`.
 
