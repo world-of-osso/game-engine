@@ -4,7 +4,7 @@ Discussion from 2026-02-28. This document describes the game-engine UI and addon
 
 ## Context
 
-The engine needs a native UI system with relational anchors, reusable widgets, game input, hot reload, and a scripting surface that addon authors can use without coupling scripts to Bevy ECS internals.
+The engine needs a native UI system with reusable widgets, game input, hot reload, and a scripting surface that addon authors can use without coupling scripts to Bevy ECS internals. The layout contract is the [registry-backed Bevy UI spec](specs/registry-bevy-ui.md).
 
 Addons are JavaScript files loaded by the engine's embedded JavaScript runtime. They create and modify UI through the engine's addon API. There is no Lua runtime, XML/TOC loader, or WoW API compatibility target.
 
@@ -12,9 +12,9 @@ Addons are JavaScript files loaded by the engine's embedded JavaScript runtime. 
 
 The UI renderer owns layout, drawing, input, and widget behavior. The current UI stack uses Bevy rendering with the project's UI toolkit and frame registry. The renderer must support:
 
-- Anchor-based positioning relative to named frames
-- Explicit and content-based sizing
-- Parent-child hierarchy
+- Parent or screen-root layout placement
+- Native insets, margins, translation, explicit/auto/fill sizing, and flex layout
+- Logical parent-child hierarchy independent of the selected layout parent
 - Visibility, opacity, z-order, and draw layers
 - Text, textures, colors, borders, and nine-slice images
 - Three-slice controls such as horizontally stretched buttons
@@ -32,7 +32,9 @@ Current API surface includes:
 ```javascript
 const panel = addon.createFrame("Panel");
 addon.setSize("Panel", 320, 180);
-addon.setPoint("Panel", "CENTER", null, "CENTER", 0, 0);
+addon.setPosType("Panel", "absolute");
+addon.setAnchor("Panel", "screen");
+addon.setPos("Panel", 24, 24);
 addon.setBackgroundColor("Panel", 0.08, 0.08, 0.1, 0.95);
 addon.show("Panel");
 
@@ -45,7 +47,9 @@ Supported operations currently include:
 - `createFrame(name, parent)`
 - `createFontString(name, parent, text)`
 - `setSize(name, width, height)`
-- `setPoint(name, point, relativeTo, relativePoint, x, y)`
+- `setPos(name, x, y)`
+- `setPosType(name, "relative" | "absolute")`
+- `setAnchor(name, "parent" | "screen")` (`parent` is the default)
 - `setText(name, text)`
 - `show(name)` and `hide(name)`
 - `setAlpha(name, alpha)`
@@ -69,10 +73,9 @@ The UI system should provide the primitives needed by the game and its addons:
 
 ### Layout
 
-- Anchors between any named frames
-- Nine standard anchor points
-- Explicit width and height
-- Parent-relative and absolute positioning
+See the [registry-backed Bevy UI spec](specs/registry-bevy-ui.md) for the API contract. Addons use parent-relative or absolute placement with `parent` or `screen` layout parents; arbitrary cross-frame anchors and `setPoint` are not supported. Logical ownership, visibility, alpha, and unload/removal behavior stay registry-controlled when layout uses `screen`.
+
+- Native insets, margins, translation, size, and flex properties
 - Per-frame scale and opacity
 - Visibility propagation
 - Z-order and draw-layer ordering
