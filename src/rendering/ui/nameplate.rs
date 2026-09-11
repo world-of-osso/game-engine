@@ -182,7 +182,7 @@ fn spawn_nameplate_entity(
             Text2d::new(text),
             TextFont {
                 font_size: FontSize::Px(font_size),
-                font,
+                font: font.into(),
                 ..default()
             },
             TextColor(color),

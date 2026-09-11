@@ -2,7 +2,9 @@
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::sprite::{Anchor, BorderRect, SliceScaleMode, SpriteImageMode, TextureSlicer};
+use bevy::sprite::{
+    Anchor, BorderRect, SliceScaleMode, SpriteImageMode, Text2dShadow, TextureSlicer,
+};
 use bevy::transform::TransformSystems;
 use shared::casting::{CastState, CastType};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
@@ -132,7 +134,7 @@ fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>) 
         Text2d::default(),
         Anchor::CENTER_LEFT,
         TextFont {
-            font,
+            font: font.into(),
             font_size: FontSize::Px(CAST_FONT_SIZE),
             ..default()
         },

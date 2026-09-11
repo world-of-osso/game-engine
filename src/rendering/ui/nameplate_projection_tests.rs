@@ -243,7 +243,10 @@ fn npc_name_uses_white_reference_text_and_small_black_shadow() {
     settle(&mut app);
     let font = app.world().get::<TextFont>(label).unwrap();
     assert_eq!(font.font_size, FontSize::Px(26.0));
-    assert_ne!(font.font, Handle::<Font>::default());
+    assert_ne!(
+        font.font,
+        bevy::text::FontSource::from(Handle::<Font>::default())
+    );
     assert_eq!(app.world().get::<TextColor>(label).unwrap().0, Color::WHITE);
     let shadow = app.world().get::<Text2dShadow>(label).unwrap();
     assert_eq!(shadow.offset, Vec2::new(1.0, -1.0));
@@ -281,7 +284,10 @@ fn disabled_startup_does_not_create_labels_and_player_uses_its_name_and_font() {
         if !disabled {
             assert_eq!(plates[0].1.0, "Theron");
             assert_eq!(plates[0].2.font_size, FontSize::Px(26.0));
-            assert_ne!(plates[0].2.font, Handle::<Font>::default());
+            assert_ne!(
+                plates[0].2.font,
+                bevy::text::FontSource::from(Handle::<Font>::default())
+            );
         }
     }
 }
