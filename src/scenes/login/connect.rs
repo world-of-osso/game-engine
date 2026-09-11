@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use game_engine::ui::automation::UiAutomationAction;
-use game_engine::ui::layout::recompute_layouts;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::login_component::LoginAction;
@@ -247,7 +246,6 @@ fn resolve_clicked_login_frame(
     focus: &mut LoginFocus,
     frame_name: &str,
 ) -> Result<(u64, Option<String>), String> {
-    recompute_layouts(&mut ui.registry);
     let frame_id = ui
         .registry
         .get_by_name(frame_name)

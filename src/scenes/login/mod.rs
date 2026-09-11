@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::sync::Arc;
 
 use game_engine::ui::automation::{UiAutomationQueue, UiAutomationRunner};
-use game_engine::ui::frame::{Dimension, NineSlice, WidgetData};
+use game_engine::ui::frame::{NineSlice, WidgetData};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use ui_toolkit::screen::Screen;
@@ -274,7 +274,6 @@ impl Plugin for LoginScreenPlugin {
         app.add_systems(
             Update,
             (
-                login_sync_root_size,
                 login_mouse_input,
                 login_keyboard_input,
                 login_run_automation,
@@ -373,24 +372,6 @@ fn hit_active_frame(ui: &UiState, frame_id: u64, mx: f32, my: f32) -> bool {
         .get(frame_id)
         .is_some_and(|frame| frame.visible && !frame.hidden)
         && hit_frame(ui, frame_id, mx, my)
-}
-
-fn login_sync_root_size(mut ui: ResMut<UiState>, login_ui: Option<Res<LoginUi>>) {
-    let Some(login) = login_ui.as_ref() else {
-        return;
-    };
-    let sw = ui.registry.screen_width;
-    let sh = ui.registry.screen_height;
-    if let Some(root) = ui.registry.get_mut(login.root)
-        && ((root.width.value() - sw).abs() > 0.5 || (root.height.value() - sh).abs() > 0.5)
-    {
-        root.width = Dimension::Fixed(sw);
-        root.height = Dimension::Fixed(sh);
-        if let Some(rect) = &mut root.layout_rect {
-            rect.width = sw;
-            rect.height = sh;
-        }
-    }
 }
 
 fn login_run_automation(

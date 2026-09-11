@@ -203,8 +203,6 @@ pub(super) const PLAYER_PRESTIGE: MarkerConfig = MarkerConfig {
 };
 pub(super) const PLAYER_PRESTIGE_BADGE_W: f32 = 30.0;
 pub(super) const PLAYER_PRESTIGE_BADGE_H: f32 = 30.0;
-pub(super) const PLAYER_PRESTIGE_PORTRAIT_FRAME: FrameName = FrameName("PlayerPrestigePortrait");
-pub(super) const PLAYER_PORTRAIT_FRAME: FrameName = FrameName("PlayerPortrait");
 
 pub(super) const TARGET_REPUTATION: MarkerConfig = MarkerConfig {
     x: 157.0,
@@ -250,8 +248,6 @@ pub(super) const TARGET_THREAT: MarkerConfig = MarkerConfig {
     width: 49.0,
     height: 18.0,
 };
-pub(super) const TARGET_PRESTIGE_PORTRAIT_FRAME: FrameName = FrameName("TargetPrestigePortrait");
-pub(super) const TARGET_PORTRAIT_FRAME: FrameName = FrameName("TargetPortrait");
 
 pub const PLAYER_HEALTH_BAR_W: f32 = PLAYER_FRAME_CONFIG.health_bar.width;
 pub const TARGET_HEALTH_BAR_W: f32 = TARGET_FRAME_CONFIG.health_bar.width;

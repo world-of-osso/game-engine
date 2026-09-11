@@ -1,10 +1,10 @@
 use crate::ui::frame::{Dimension, WidgetData, WidgetType};
-use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
 use crate::ui::spellbook_data::{SpellbookSpell, SpellbookTab};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontStringData, JustifyH, JustifyV};
 use crate::ui::widgets::texture::{TextureData, TextureSource};
+use bevy::ui::{PositionType, Val};
 
 pub struct FrameBuilder<'a> {
     pub registry: &'a mut FrameRegistry,
@@ -29,7 +29,6 @@ impl<'a> FrameBuilder<'a> {
         rect: [f32; 4],
     ) -> u64 {
         let id = self.registry.create_frame(name, Some(parent_id));
-        let (abs_x, abs_y) = parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
         let strata = parent_strata(self.registry, parent_id);
         if let Some(frame) = self.registry.get_mut(id) {
             frame.widget_type = WidgetType::Frame;
@@ -39,12 +38,9 @@ impl<'a> FrameBuilder<'a> {
             frame.strata = strata;
             frame.raise_order = *self.next_raise_order;
             frame.mouse_enabled = true;
-            frame.layout_rect = Some(LayoutRect {
-                x: abs_x,
-                y: abs_y,
-                width: rect[2],
-                height: rect[3],
-            });
+            frame.position_type = PositionType::Absolute;
+            frame.position.left = Val::Px(rect[0]);
+            frame.position.top = Val::Px(rect[1]);
         }
         *self.next_raise_order += 1;
         self.generated_frame_ids.push(id);
@@ -53,20 +49,15 @@ impl<'a> FrameBuilder<'a> {
 
     pub fn create_label(&mut self, name: &str, parent_id: u64, spec: LabelSpec<'_>) -> u64 {
         let id = self.registry.create_frame(name, Some(parent_id));
-        let (abs_x, abs_y) =
-            parent_space_to_screen(self.registry, parent_id, spec.rect[0], spec.rect[1]);
         let strata = parent_strata(self.registry, parent_id);
         if let Some(frame) = self.registry.get_mut(id) {
             frame.widget_type = WidgetType::FontString;
             frame.width = Dimension::Fixed(spec.rect[2]);
             frame.height = Dimension::Fixed(spec.rect[3]);
             frame.strata = strata;
-            frame.layout_rect = Some(LayoutRect {
-                x: abs_x,
-                y: abs_y,
-                width: spec.rect[2],
-                height: spec.rect[3],
-            });
+            frame.position_type = PositionType::Absolute;
+            frame.position.left = Val::Px(spec.rect[0]);
+            frame.position.top = Val::Px(spec.rect[1]);
             frame.raise_order = *self.next_raise_order;
             frame.widget_data = Some(WidgetData::FontString(FontStringData {
                 text: spec.text.to_string(),
@@ -90,19 +81,15 @@ impl<'a> FrameBuilder<'a> {
         rect: [f32; 4],
     ) -> u64 {
         let id = self.registry.create_frame(name, Some(parent_id));
-        let (abs_x, abs_y) = parent_space_to_screen(self.registry, parent_id, rect[0], rect[1]);
         let strata = parent_strata(self.registry, parent_id);
         if let Some(frame) = self.registry.get_mut(id) {
             frame.widget_type = WidgetType::Texture;
             frame.width = Dimension::Fixed(rect[2]);
             frame.height = Dimension::Fixed(rect[3]);
             frame.strata = strata;
-            frame.layout_rect = Some(LayoutRect {
-                x: abs_x,
-                y: abs_y,
-                width: rect[2],
-                height: rect[3],
-            });
+            frame.position_type = PositionType::Absolute;
+            frame.position.left = Val::Px(rect[0]);
+            frame.position.top = Val::Px(rect[1]);
             frame.raise_order = *self.next_raise_order;
             if spell.icon_file_data_id > 0 {
                 frame.widget_data = Some(WidgetData::Texture(TextureData {
@@ -467,21 +454,6 @@ pub fn spell_row_color(index: usize, is_hover: bool, is_pressed: bool) -> [f32; 
     } else {
         [0.13, 0.10, 0.07, 0.88]
     }
-}
-
-fn parent_space_to_screen(
-    registry: &FrameRegistry,
-    parent_id: u64,
-    local_x: f32,
-    local_y: f32,
-) -> (f32, f32) {
-    let Some(parent) = registry.get(parent_id) else {
-        return (local_x, local_y);
-    };
-    let Some(rect) = &parent.layout_rect else {
-        return (local_x, local_y);
-    };
-    (rect.x + local_x, rect.y + local_y)
 }
 
 fn parent_strata(registry: &FrameRegistry, parent_id: u64) -> FrameStrata {

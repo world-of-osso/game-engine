@@ -288,6 +288,8 @@ fn initialize_widget(
     let frame = registry.get_mut(frame_id)?;
     frame.widget_type = widget_type;
     if widget_type == WidgetType::FontString {
+        frame.width = Dimension::Auto;
+        frame.height = Dimension::Auto;
         frame.widget_data = Some(WidgetData::FontString(FontStringData::default()));
     }
     Some(())
