@@ -20,11 +20,6 @@ pub(super) fn build_login_screen(
 }
 
 pub(crate) fn apply_post_setup(reg: &mut FrameRegistry, login: &LoginUi) {
-    let (sw, sh) = (reg.screen_width, reg.screen_height);
-    if let Some(frame) = reg.get_mut(login.root) {
-        frame.width = Dimension::Fixed(sw);
-        frame.height = Dimension::Fixed(sh);
-    }
     set_editbox_backdrop(reg, login.username_input);
     set_editbox_backdrop(reg, login.password_input);
     set_login_primary_button_textures(reg, login.connect_button);

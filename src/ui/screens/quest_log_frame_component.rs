@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -146,12 +145,11 @@ pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {quest_list(&state.quests)}
             {detail_panel(selected)}
@@ -171,12 +169,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -229,12 +225,9 @@ fn quest_list(quests: &[QuestLogEntry]) -> Element {
             width: {LIST_W},
             height: {list_h},
             background_color: LIST_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {list_y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(list_y)},
             {rows}
         }
     }
@@ -261,12 +254,9 @@ fn zone_header(group_idx: usize, zone: &str, y: f32) -> Element {
             width: {LIST_W - 4.0},
             height: {ZONE_HEADER_H},
             background_color: ZONE_HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "2",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 2.0,
+            top: {-(-y)},
             fontstring {
                 name: label_id,
                 width: {LIST_W - 12.0},
@@ -275,12 +265,9 @@ fn zone_header(group_idx: usize, zone: &str, y: f32) -> Element {
                 font_size: 11.0,
                 font_color: ZONE_HEADER_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -311,12 +298,9 @@ fn quest_row(group_idx: usize, quest_idx: usize, quest: &QuestLogEntry, y: f32) 
             width: {LIST_W - 4.0},
             height: {QUEST_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "2",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 2.0,
+            top: {-(-y)},
             {quest_level_label(DynName(format!("QuestLogRow{group_idx}_{quest_idx}Level")), &level_text)}
             {quest_title_label(DynName(format!("QuestLogRow{group_idx}_{quest_idx}Label")), &quest.title, color)}
         }
@@ -333,7 +317,9 @@ fn quest_level_label(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: LEVEL_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -348,7 +334,9 @@ fn quest_title_label(id: DynName, text: &str, color: &str) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "34", y: "0" }
+            pos_type: "absolute",
+            left: 34.0,
+            top: -0.0,
         }
     }
 }
@@ -370,12 +358,9 @@ fn detail_panel(selected: Option<&QuestLogEntry>) -> Element {
             width: {detail_w},
             height: {detail_h},
             background_color: DETAIL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {detail_x},
-                y: {detail_y},
-            }
+            pos_type: "absolute",
+            left: {detail_x},
+            top: {-(detail_y)},
             {content}
         }
     }
@@ -391,12 +376,11 @@ fn empty_detail(w: f32) -> Element {
             font_size: 11.0,
             font_color: LEVEL_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -430,12 +414,9 @@ fn detail_title(quest: &QuestLogEntry, w: f32, y: f32) -> Element {
             font_size: 14.0,
             font_color: DETAIL_TITLE_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: {-(-y)},
         }
     }
 }
@@ -450,12 +431,9 @@ fn detail_description(description: &str, w: f32, y: f32) -> Element {
             font_size: 11.0,
             font_color: DETAIL_DESC_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: {-(-y)},
         }
     }
 }
@@ -482,12 +460,9 @@ fn detail_objectives(objectives: &[QuestLogObjective], w: f32, y: f32) -> Elemen
             font_size: 12.0,
             font_color: DETAIL_TITLE_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: {-header_y},
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: {-(-header_y)},
         }
         {rows}
     }
@@ -510,12 +485,9 @@ fn objective_row(idx: usize, obj: &QuestLogObjective, w: f32, y: f32) -> Element
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "16",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 16.0,
+            top: {-(-y)},
         }
     }
 }
@@ -532,7 +504,9 @@ fn rewards_header_label(w: f32) -> Element {
             font_size: 12.0,
             font_color: REWARD_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -550,12 +524,9 @@ fn reward_items_row(rewards: &[QuestRewardItem], w: f32, y: f32) -> Element {
             width: {w},
             height: {REWARD_LABEL_H + REWARD_ICON_SIZE + 4.0},
             hidden: hide_rewards,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: {-(-y)},
             {rewards_header_label(w)}
             {items}
         }
@@ -575,12 +546,9 @@ fn reward_item_slot(idx: usize, reward: &QuestRewardItem) -> Element {
             name: slot_id,
             width: {REWARD_SLOT_W + REWARD_NAME_W},
             height: {REWARD_ICON_SIZE},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-REWARD_LABEL_H},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-REWARD_LABEL_H)},
             {reward_slot_icon(DynName(format!("QuestLogReward{idx}Icon")))}
             {reward_slot_name(DynName(format!("QuestLogReward{idx}Name")), &label)}
         }
@@ -594,7 +562,9 @@ fn reward_slot_icon(id: DynName) -> Element {
             width: {REWARD_ICON_SIZE},
             height: {REWARD_ICON_SIZE},
             background_color: REWARD_ICON_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -609,7 +579,9 @@ fn reward_slot_name(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: REWARD_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {REWARD_SLOT_W}, y: "0" }
+            pos_type: "absolute",
+            left: {REWARD_SLOT_W},
+            top: -0.0,
         }
     }
 }
@@ -625,12 +597,9 @@ fn quest_action_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f
             width: {ACTION_BTN_W},
             height: {ACTION_BTN_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {ACTION_BTN_W},
@@ -639,7 +608,9 @@ fn quest_action_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f
                 font_size: 11.0,
                 font_color: color,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }

@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -112,12 +111,11 @@ pub fn pvp_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {tab_row(&state.tabs)}
             {currency_display(&state.honor, &state.conquest)}
@@ -137,12 +135,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -174,12 +170,9 @@ fn pvp_tab_button(i: usize, tab: &PVPTab, w: f32, x: f32) -> Element {
             width: {w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {pvp_tab_label(label_id, &tab.name, w, color)}
         }
     }
@@ -195,7 +188,9 @@ fn pvp_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -218,7 +213,9 @@ fn currency_pair(
             font_size: 10.0,
             font_color: CURRENCY_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
         fontstring {
             name: DynName(value_name.into()),
@@ -228,7 +225,9 @@ fn currency_pair(
             font_size: 10.0,
             font_color: CURRENCY_VALUE_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x + label_w + 4.0}, y: {y} }
+            pos_type: "absolute",
+            left: {x + label_w + 4.0},
+            top: {-(y)},
         }
     }
 }
@@ -256,12 +255,9 @@ fn bracket_list(brackets: &[BracketEntry]) -> Element {
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {rows}
         }
     }
@@ -278,12 +274,9 @@ fn bracket_row(idx: usize, bracket: &BracketEntry, parent_w: f32) -> Element {
             width: {row_w},
             height: {BRACKET_ROW_H},
             background_color: BRACKET_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {BRACKET_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {BRACKET_INSET},
+            top: {-(y)},
             {bracket_name(DynName(format!("PVPBracket{idx}Name")), &bracket.name, row_w)}
             {bracket_rating(DynName(format!("PVPBracket{idx}Rating")), &bracket.rating, row_w)}
             {bracket_stats(DynName(format!("PVPBracket{idx}Stats")), &stats_text, row_w)}
@@ -301,7 +294,9 @@ fn bracket_name(id: DynName, text: &str, row_w: f32) -> Element {
             font_size: 12.0,
             font_color: BRACKET_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-4" }
+            pos_type: "absolute",
+            left: 8.0,
+            top: 4.0,
         }
     }
 }
@@ -316,7 +311,9 @@ fn bracket_rating(id: DynName, text: &str, row_w: f32) -> Element {
             font_size: 14.0,
             font_color: BRACKET_RATING_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-8", y: "-4" }
+            pos_type: "absolute",
+            right: 8.0,
+            top: 4.0,
         }
     }
 }
@@ -331,7 +328,9 @@ fn bracket_stats(id: DynName, text: &str, row_w: f32) -> Element {
             font_size: 9.0,
             font_color: BRACKET_STATS_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "8", y: "-26" }
+            pos_type: "absolute",
+            left: 8.0,
+            top: 26.0,
         }
     }
 }
@@ -359,12 +358,9 @@ fn pvp_action_button(
             width: {w},
             height: {h},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {w},
@@ -373,7 +369,9 @@ fn pvp_action_button(
                 font_size: 11.0,
                 font_color: color,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -403,8 +401,9 @@ fn queue_and_wargame_buttons() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -421,7 +420,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

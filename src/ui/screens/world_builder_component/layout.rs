@@ -24,20 +24,12 @@ fn sidebar(state: &WorldBuilderViewState) -> Element {
         r#frame {
             name: "WorldBuilderSidebar",
             width: SIDEBAR_WIDTH,
-            height: 0.0,
+            height: "auto",
             background_color: SIDEBAR_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "0",
-                y: "0",
-            }
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            right: 0.0,
+            top: 0.0,
+            bottom: 0.0,
             {header(state)}
             {filter_box(state)}
             {entity_list(state)}
@@ -60,7 +52,9 @@ fn header(state: &WorldBuilderViewState) -> Element {
             width: {SIDEBAR_WIDTH - PANEL_INSET * 2.0},
             height: HEADER_HEIGHT,
             background_color: PANEL_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PANEL_INSET}, y: {-PANEL_INSET} }
+            pos_type: "absolute",
+            left: {PANEL_INSET},
+            top: {-(-PANEL_INSET)},
             {header_title()}
             {header_counts(&count_text)}
             {header_toggle_hint()}
@@ -79,7 +73,9 @@ fn header_title() -> Element {
             text: "World Builder",
             font_size: 18.0,
             font_color: GOLD,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: "-8" }
+            pos_type: "absolute",
+            left: 12.0,
+            top: 8.0,
         }
     }
 }
@@ -93,7 +89,9 @@ fn header_counts(count_text: &str) -> Element {
             text: {count_text},
             font_size: 11.0,
             font_color: TEXT,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: "-34" }
+            pos_type: "absolute",
+            left: 12.0,
+            top: 34.0,
         }
     }
 }
@@ -108,7 +106,9 @@ fn header_toggle_hint() -> Element {
             font_size: 10.0,
             font_color: MUTED,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-116", y: "-14" }
+            pos_type: "absolute",
+            right: 116.0,
+            top: 14.0,
         }
     }
 }
@@ -175,7 +175,9 @@ fn header_button(name: FrameName, label: &str, action: WorldBuilderAction, x: f3
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: {-x}, y: "-40" }
+            pos_type: "absolute",
+            right: {-(-x)},
+            top: 40.0,
         }
     }
 }
@@ -199,7 +201,9 @@ fn workflow_button(
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-54" }
+            pos_type: "absolute",
+            left: {x},
+            top: 54.0,
         }
     }
 }
@@ -220,7 +224,9 @@ fn filter_box(state: &WorldBuilderViewState) -> Element {
                 bg_color: PANEL_INNER_BG,
                 border_color: BORDER,
             }
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PANEL_INSET}, y: "-102" }
+            pos_type: "absolute",
+            left: {PANEL_INSET},
+            top: 102.0,
         }
     }
 }

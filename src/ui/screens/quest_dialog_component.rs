@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -127,12 +126,11 @@ pub fn quest_dialog_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {dialog_title(&state.quest_title)}
             {npc_portrait(&state.npc_name)}
             {quest_text_area(&state.quest_text)}
@@ -154,12 +152,10 @@ fn dialog_title(quest_title: &str) -> Element {
             font_size: 14.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -174,12 +170,9 @@ fn npc_portrait(npc_name: &str) -> Element {
             width: {PORTRAIT_SIZE},
             height: {PORTRAIT_SIZE},
             background_color: PORTRAIT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PORTRAIT_INSET},
-                y: {portrait_y},
-            }
+            pos_type: "absolute",
+            left: {PORTRAIT_INSET},
+            top: {-(portrait_y)},
         }
         fontstring {
             name: "QuestDialogNPCName",
@@ -189,12 +182,9 @@ fn npc_portrait(npc_name: &str) -> Element {
             font_size: 12.0,
             font_color: NPC_NAME_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PORTRAIT_INSET + PORTRAIT_SIZE + 8.0},
-                y: {portrait_y},
-            }
+            pos_type: "absolute",
+            left: {PORTRAIT_INSET + PORTRAIT_SIZE + 8.0},
+            top: {-(portrait_y)},
         }
     }
 }
@@ -209,12 +199,9 @@ fn quest_text_area(quest_text: &str) -> Element {
             width: {text_w},
             height: {TEXT_AREA_H},
             background_color: TEXT_AREA_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {TEXT_INSET},
-                y: {-TEXT_TOP},
-            }
+            pos_type: "absolute",
+            left: {TEXT_INSET},
+            top: {-(-TEXT_TOP)},
             fontstring {
                 name: "QuestDialogText",
                 width: {text_w - 8.0},
@@ -223,12 +210,9 @@ fn quest_text_area(quest_text: &str) -> Element {
                 font_size: 11.0,
                 font_color: QUEST_TEXT_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "-4",
-                }
+                pos_type: "absolute",
+                left: 4.0,
+                top: 4.0,
             }
         }
     }
@@ -246,7 +230,9 @@ fn reqs_header_label(w: f32) -> Element {
             font_size: 12.0,
             font_color: REQ_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -269,12 +255,9 @@ fn requirement_items(items: &[RequiredItem]) -> Element {
             width: {req_w},
             height: {REQ_HEADER_H + items.len() as f32 * (REQ_ROW_H + REQ_GAP) + REQ_GAP},
             hidden: hide_reqs,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-req_top},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-req_top)},
             {reqs_header_label(req_w)}
             {rows}
         }
@@ -289,12 +272,9 @@ fn requirement_row(idx: usize, item: &RequiredItem, y: f32) -> Element {
             name: row_id,
             width: {REQ_ICON_SIZE + 8.0 + REQ_NAME_W + 60.0},
             height: {REQ_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "4",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 4.0,
+            top: {-(-y)},
             {req_icon(DynName(format!("QuestDialogReq{idx}Icon")))}
             {req_name_label(DynName(format!("QuestDialogReq{idx}Name")), &item.name)}
             {req_count_label(DynName(format!("QuestDialogReq{idx}Count")), &count_text)}
@@ -309,7 +289,9 @@ fn req_icon(id: DynName) -> Element {
             width: {REQ_ICON_SIZE},
             height: {REQ_ICON_SIZE},
             background_color: REQ_ICON_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "-2" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: 2.0,
         }
     }
 }
@@ -324,7 +306,9 @@ fn req_name_label(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: REQ_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {REQ_ICON_SIZE + 8.0}, y: "0" }
+            pos_type: "absolute",
+            left: {REQ_ICON_SIZE + 8.0},
+            top: -0.0,
         }
     }
 }
@@ -339,7 +323,9 @@ fn req_count_label(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: REQ_COUNT_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {REQ_ICON_SIZE + 8.0 + REQ_NAME_W}, y: "0" }
+            pos_type: "absolute",
+            left: {REQ_ICON_SIZE + 8.0 + REQ_NAME_W},
+            top: -0.0,
         }
     }
 }
@@ -355,12 +341,9 @@ fn dialog_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) ->
             width: {BTN_W},
             height: {BTN_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {BTN_W},
@@ -369,7 +352,9 @@ fn dialog_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) ->
                 font_size: 11.0,
                 font_color: color,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -407,8 +392,9 @@ fn dialog_buttons(mode: &QuestDialogMode) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -465,7 +451,7 @@ mod tests {
 
     fn layout_offer_registry() -> FrameRegistry {
         let mut reg = build_offer_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 
@@ -663,7 +649,7 @@ mod tests {
         let mut shared = SharedContext::new();
         shared.insert(turnin_state());
         Screen::new(quest_dialog_screen).sync(&shared, &mut reg);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
 
         let frame_r = rect(&reg, "QuestDialogFrame");
         let reqs_r = rect(&reg, "QuestDialogReqs");

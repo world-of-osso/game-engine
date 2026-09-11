@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -123,12 +122,9 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 20.0,
+            top: 80.0,
             {character_title_bar()}
             {character_center_info(state)}
             {left_slot_column(&state.left_slots)}
@@ -149,12 +145,10 @@ fn character_title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -172,12 +166,9 @@ fn character_center_info(state: &CharacterFrameState) -> Element {
             name: "CharacterFrameInfo",
             width: {center_w},
             height: 60.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {center_x},
-                y: {-(HEADER_H + SLOT_GAP)},
-            }
+            pos_type: "absolute",
+            left: {center_x},
+            top: {-(-(HEADER_H + SLOT_GAP))},
             {center_name_label(&state.character_name, center_w)}
             {center_level_class_label(&level_class, center_w)}
         }
@@ -194,7 +185,10 @@ fn center_name_label(name: &str, w: f32) -> Element {
             font_size: 14.0,
             font_color: INFO_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -209,7 +203,10 @@ fn center_level_class_label(text: &str, w: f32) -> Element {
             font_size: 11.0,
             font_color: SLOT_LABEL_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "-20" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: 20.0,
         }
     }
 }
@@ -223,12 +220,9 @@ fn equipment_slot(slot_id: DynName, slot: &EquipmentSlotState, x: f32, y: f32) -
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {slot_name_label(label_id, &slot.slot_name)}
             {slot_item_label(item_id, &slot.item_name)}
         }
@@ -245,7 +239,10 @@ fn slot_name_label(id: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: SLOT_LABEL_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "-2" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: 2.0,
         }
     }
 }
@@ -260,7 +257,10 @@ fn slot_item_label(id: DynName, text: &str) -> Element {
             font_size: 7.0,
             font_color: ITEM_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, x: "0", y: "2" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 2.0,
         }
     }
 }
@@ -316,12 +316,9 @@ fn stats_area(state: &CharacterFrameState) -> Element {
             name: "CharacterFrameStats",
             width: {FRAME_W - 2.0 * COLUMN_INSET},
             height: {STATS_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {COLUMN_INSET},
-                y: {stats_y},
-            }
+            pos_type: "absolute",
+            left: {COLUMN_INSET},
+            top: {-(stats_y)},
             {stat_row("CharacterStatHealth", "Health:", &state.health, 0.0)}
             {stat_row("CharacterStatMana", "Mana:", &state.mana, 18.0)}
             {stat_row("CharacterStatSpeed", "Speed:", &state.speed, 36.0)}
@@ -333,8 +330,8 @@ fn stat_row(id: &str, label: &str, value: &str, y_offset: f32) -> Element {
     let stat_w = FRAME_W - 2.0 * COLUMN_INSET;
     let half = stat_w / 2.0;
     rsx! {
-        {stat_label(DynName(format!("{id}Label")), label, half, y_offset, STAT_LABEL_COLOR, "LEFT", AnchorPoint::TopLeft)}
-        {stat_label(DynName(format!("{id}Value")), value, half, y_offset, STAT_VALUE_COLOR, "RIGHT", AnchorPoint::TopRight)}
+        {stat_label(DynName(format!("{id}Label")), label, half, y_offset, STAT_LABEL_COLOR, "LEFT", 0.0)}
+        {stat_label(DynName(format!("{id}Value")), value, half, y_offset, STAT_VALUE_COLOR, "RIGHT", half)}
     }
 }
 
@@ -345,7 +342,7 @@ fn stat_label(
     y_offset: f32,
     color: &str,
     justify: &str,
-    anchor_pt: AnchorPoint,
+    x: f32,
 ) -> Element {
     rsx! {
         fontstring {
@@ -356,7 +353,9 @@ fn stat_label(
             font_size: 10.0,
             font_color: color,
             justify_h: justify,
-            anchor { point: anchor_pt, relative_point: anchor_pt, x: "0", y: {-y_offset} }
+            pos_type: "absolute",
+            left: x,
+            top: y_offset,
         }
     }
 }

@@ -7,7 +7,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
@@ -218,12 +218,11 @@ fn race_grid(selected_race: u8) -> Element {
     let horde = race_buttons_for_faction(Faction::Horde, selected_race);
     rsx! {
         r#frame { name: "RaceGrid", width: 320.0, height: 500.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {20},
+            margin_top: {80.0},
             {faction_column("Alliance", "Alliance", "5", alliance)}
             {faction_column("Horde", "Horde", "165", horde)}
         }
@@ -245,12 +244,12 @@ fn class_grid(state: &CharCreateUiState) -> Element {
             height: 500.0,
             layout: "flex-row-wrap",
             gap: 6.0,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-20",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "0%",
+            translate_x: "-100%",
+            margin_left: {-20},
+            margin_top: {80.0},
             fontstring {
                 name: "ClassLabel",
                 width: 160.0,
@@ -353,12 +352,11 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
             height: 500.0,
             layout: "flex-col",
             gap: 8.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {20},
+            margin_top: {80.0},
             fontstring {
                 name: "CustomizeLabel",
                 width: 280.0,
@@ -377,11 +375,12 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
 fn name_and_create(state: &CharCreateUiState) -> Element {
     rsx! {
         r#frame { name: "NamePanel", width: 400.0, height: 120.0,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "140",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_top: {-140.0},
             {name_input_field(state.name_input_focused)}
             {error_label(state.error_text.as_deref())}
             {create_confirm_button()}
@@ -412,11 +411,11 @@ fn title_area(state: &CharCreateUiState) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 24.0,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-30",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {30.0},
         }
     }
 }

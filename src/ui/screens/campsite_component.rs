@@ -4,7 +4,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
@@ -19,9 +18,9 @@ const MENU_BAR_WIDTH: f32 = 470.0;
 const MENU_BAR_HEIGHT: f32 = 44.0;
 const MENU_ITEM_HEIGHT: f32 = 44.0;
 const MENU_CAMPSITES_WIDTH: f32 = 113.0;
-const MENU_ITEM_Y: &str = "-1";
+const MENU_ITEM_Y: f32 = -1.0;
 const MENU_DIVIDER_HEIGHT: f32 = 22.0;
-const MENU_DIVIDER_Y: &str = "-10";
+const MENU_DIVIDER_Y: f32 = -10.0;
 const MENU_CAMPSITES_X: &str = "357";
 const MENU_TAB_X: &str = "173";
 const MENU_TAB_WIDTH: f32 = 92.0;
@@ -65,12 +64,9 @@ fn menu_divider(name: &'static str, x: &str) -> Element {
             width: 1.0,
             height: MENU_DIVIDER_HEIGHT,
             background_color: "0.95,0.72,0.12,0.55",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: MENU_DIVIDER_Y,
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(MENU_DIVIDER_Y)},
         }
     }
 }
@@ -83,11 +79,10 @@ fn menu_item_underline(name_id: &str, width: f32) -> Element {
             width: underline_width,
             height: 2.0,
             background_color: "1.0,0.78,0.10,0.95",
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "2",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 2.0,
         }
     }
 }
@@ -103,10 +98,11 @@ fn menu_item_label(name_id: &str, text: &str, width: f32, color: FontColor) -> E
             font_size: 14.0,
             font_color: color,
             justify_h: JustifyH::Center,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -118,12 +114,9 @@ fn disabled_menu_item(name: &str, text: &str, width: f32, x: &str) -> Element {
             name: dyn_name(name_id.clone()),
             width,
             height: MENU_ITEM_HEIGHT,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x,
-                y: MENU_ITEM_Y,
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(MENU_ITEM_Y)},
             {menu_item_label(&name_id, text, width, COLOR_DISABLED)}
         }
     }
@@ -137,12 +130,9 @@ fn menu_tab_item() -> Element {
             width: MENU_TAB_WIDTH,
             height: MENU_ITEM_HEIGHT,
             onclick: CharSelectAction::Menu,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: MENU_TAB_X,
-                y: MENU_ITEM_Y,
-            }
+            pos_type: "absolute",
+            left: {MENU_TAB_X},
+            top: {-(MENU_ITEM_Y)},
             {menu_item_label("CampsiteMenuTab", "MENU", MENU_TAB_WIDTH, COLOR_SUBTITLE)}
         }
     }
@@ -161,12 +151,9 @@ fn campsite_menu_item(selected: bool) -> Element {
             width: MENU_CAMPSITES_WIDTH,
             height: MENU_ITEM_HEIGHT,
             onclick: CharSelectAction::CampsiteToggle,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: MENU_CAMPSITES_X,
-                y: MENU_ITEM_Y,
-            }
+            pos_type: "absolute",
+            left: {MENU_CAMPSITES_X},
+            top: {-(MENU_ITEM_Y)},
             {menu_item_label("CampsiteTab", "CAMPSITES", MENU_CAMPSITES_WIDTH, label_color)}
             {underline}
         }
@@ -180,17 +167,20 @@ fn menu_bar_chrome() -> Element {
             width: "fill",
             height: 12.0,
             background_color: "0.18,0.14,0.08,0.20",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
         r#frame {
             name: "CampsiteMenuBarBottomGlow",
             width: "fill",
             height: 3.0,
             background_color: "0.96,0.74,0.11,0.92",
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 0.0,
         }
     }
 }
@@ -218,7 +208,10 @@ pub fn campsite_tab(selected: bool) -> Element {
             strata: FrameStrata::Dialog,
             background_color: "0.05,0.04,0.03,0.72",
             border: "1px solid 0.22,0.17,0.05,0.55",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
             {menu_bar_chrome()}
             {disabled_items_and_dividers()}
             {menu}
@@ -235,11 +228,10 @@ fn card_backdrop(id: u32, preview_image: Option<&str>) -> Element {
                 width: CARD_PREVIEW_WIDTH,
                 height: CARD_PREVIEW_HEIGHT,
                 texture_file: preview_image,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    y: "-4",
-                }
+                pos_type: "absolute",
+                left: "50%",
+                translate_x: "-50%",
+                top: 4.0,
             }
         }
     } else {
@@ -249,10 +241,11 @@ fn card_backdrop(id: u32, preview_image: Option<&str>) -> Element {
                 width: CARD_PREVIEW_WIDTH,
                 height: 80.0,
                 texture_atlas: CARD_BACKDROP_ATLAS,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
+                pos_type: "absolute",
+                left: "50%",
+                translate_x: "-50%",
+                top: "50%",
+                translate_y: "-50%",
             }
         }
     }
@@ -266,11 +259,10 @@ fn card_label_bar(id: u32) -> Element {
             height: CARD_LABEL_HEIGHT,
             background_color: "0.05,0.04,0.03,0.88",
             border: "1px solid 0.36,0.28,0.08,0.75",
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "4",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 4.0,
         }
     }
 }
@@ -291,11 +283,10 @@ fn card_label(id: u32, name: &str, is_selected: bool) -> Element {
             font_size: 14.0,
             font_color: color,
             justify_h: JustifyH::Center,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "6",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 6.0,
         }
     }
 }
@@ -327,13 +318,7 @@ fn campsite_card(id: u32, name: &str, preview_image: Option<&str>, is_selected: 
 }
 
 pub fn campsite_panel(state: &CampsiteState) -> Element {
-    campsite_panel_with_anchor(
-        state,
-        AnchorPoint::Top,
-        AnchorPoint::Top,
-        "-58",
-        PANEL_WIDTH,
-    )
+    campsite_panel_at_top(state, 58.0, PANEL_WIDTH)
 }
 
 fn build_campsite_cards(state: &CampsiteState) -> Element {
@@ -351,13 +336,7 @@ fn build_campsite_cards(state: &CampsiteState) -> Element {
         .collect()
 }
 
-fn campsite_panel_with_anchor(
-    state: &CampsiteState,
-    point: AnchorPoint,
-    relative_point: AnchorPoint,
-    y: &'static str,
-    width: f32,
-) -> Element {
+fn campsite_panel_at_top(state: &CampsiteState, top: f32, width: f32) -> Element {
     let hide = !state.panel_visible;
     let cards = build_campsite_cards(state);
     let height = campsite_panel_height(state.scenes.len());
@@ -374,7 +353,10 @@ fn campsite_panel_with_anchor(
             justify: "center",
             gap: PANEL_GAP,
             padding: PANEL_PADDING,
-            anchor { point, relative_point, y }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top,
             {cards}
         }
     }

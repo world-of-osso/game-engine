@@ -2,7 +2,9 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
+#[cfg(test)]
+#[path = "menu_character_layout_test_support.rs"]
+mod layout_test_support;
 
 pub const BAR_W: f32 = 195.0;
 pub const BAR_H: f32 = 20.0;
@@ -60,17 +62,11 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
             height: {BORDER_H},
             background_color: BORDER_BG,
             hidden: hide,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                x: "0",
-                y: "150",
-            }
-            {bar_background()}
-            {fill_bar(fill_w, fill_color)}
-            {spark(spark_x)}
-            {spell_name_text(&state.spell_name)}
-            {timer_text(&state.timer_text)}
+            pos_type: "absolute",
+            left: "50%",
+            bottom: 150.0,
+            translate_x: "-50%",
+            {bar_background(fill_w, fill_color, spark_x, &state.spell_name, &state.timer_text)}
         }
     }
 }
@@ -85,17 +81,22 @@ fn bar_fill_color(is_channel: bool, is_interruptible: bool) -> &'static str {
     }
 }
 
-fn bar_background() -> Element {
+fn bar_background(fill_w: f32, color: &str, spark_x: f32, name: &str, timer: &str) -> Element {
     rsx! {
         r#frame {
             name: "CastingBarBackground",
             width: {BAR_W},
             height: {BAR_H},
             background_color: BAR_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+            {fill_bar(fill_w, color)}
+            {spark(spark_x)}
+            {spell_name_text(name)}
+            {timer_text(timer)}
         }
     }
 }
@@ -107,11 +108,10 @@ fn fill_bar(fill_w: f32, color: &str) -> Element {
             width: {fill_w},
             height: {BAR_H},
             background_color: color,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: "CastingBarBackground",
-                relative_point: AnchorPoint::Left,
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -123,13 +123,10 @@ fn spark(x: f32) -> Element {
             width: {SPARK_W},
             height: {BAR_H + 6.0},
             background_color: SPARK_COLOR,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: "CastingBarBackground",
-                relative_point: AnchorPoint::Left,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            pos_x: x,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -144,11 +141,11 @@ fn spell_name_text(name: &str) -> Element {
             font_size: 10.0,
             font_color: SPELL_NAME_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: "CastingBarBackground",
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -163,23 +160,21 @@ fn timer_text(timer: &str) -> Element {
             font_size: 9.0,
             font_color: TIMER_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_to: "CastingBarBackground",
-                relative_point: AnchorPoint::Right,
-                x: "-2",
-                y: "0",
-            }
+            pos_type: "absolute",
+            right: 2.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::layout_test_support::compute_layout;
     use super::*;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::frame::Dimension;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -204,7 +199,7 @@ mod tests {
 
     fn layout_reg(progress: f32) -> FrameRegistry {
         let mut reg = build_registry(progress);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 
@@ -260,6 +255,7 @@ mod tests {
         let r = rect(&reg, "CastingBarFrame");
         let expected_x = (1920.0 - BORDER_W) / 2.0;
         assert!((r.x - expected_x).abs() < 1.0);
+        assert!((r.y + r.height - (1080.0 - 150.0)).abs() < 1.0);
         assert!((r.width - BORDER_W).abs() < 1.0);
         assert!((r.height - BORDER_H).abs() < 1.0);
     }
@@ -296,6 +292,24 @@ mod tests {
             spark.x
         );
         assert!((spark.width - SPARK_W).abs() < 1.0);
+    }
+
+    #[test]
+    fn bar_children_follow_their_resized_parent() {
+        let mut reg = build_registry(0.5);
+        let background = reg.get_by_name("CastingBarBackground").unwrap();
+        let frame = reg.get_mut(background).unwrap();
+        frame.width = Dimension::Fixed(255.0);
+        frame.height = Dimension::Fixed(30.0);
+        compute_layout(&mut reg);
+        let bg = rect(&reg, "CastingBarBackground");
+        let fill = rect(&reg, "CastingBarFill");
+        let timer = rect(&reg, "CastingBarTimer");
+        let spell = rect(&reg, "CastingBarSpellName");
+        assert!((fill.x - bg.x).abs() < 1.0);
+        assert!((fill.y + fill.height / 2.0 - bg.y - bg.height / 2.0).abs() < 1.0);
+        assert!((timer.x + timer.width - bg.x - bg.width + 2.0).abs() < 1.0);
+        assert!((spell.x + spell.width / 2.0 - bg.x - bg.width / 2.0).abs() < 1.0);
     }
 
     // --- Text content tests ---

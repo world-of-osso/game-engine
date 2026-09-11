@@ -5,7 +5,6 @@ use ui_toolkit::screen::Screen;
 use ui_toolkit::widget_def::WidgetChild;
 
 use crate::ui::input::find_frame_at;
-use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
 use crate::ui::spellbook_data::{SPELLBOOK_TABS, SpellbookSpell};
 use crate::ui::spellbook_frames::{
@@ -507,12 +506,11 @@ fn game_ui_root(_ctx: &ui_toolkit::screen::SharedContext) -> Vec<WidgetChild> {
 
 fn position_root_frame(registry: &mut FrameRegistry, root_id: u64) {
     if let Some(root) = registry.get_mut(root_id) {
-        root.layout_rect = Some(LayoutRect {
-            x: 80.0,
-            y: 120.0,
-            width: SPELLBOOK_ROOT_SIZE.0,
-            height: SPELLBOOK_ROOT_SIZE.1,
-        });
+        root.position_type = bevy::ui::PositionType::Absolute;
+        root.position.left = bevy::ui::Val::Px(80.0);
+        root.position.top = bevy::ui::Val::Px(120.0);
+        root.width = crate::ui::frame::Dimension::Fixed(SPELLBOOK_ROOT_SIZE.0);
+        root.height = crate::ui::frame::Dimension::Fixed(SPELLBOOK_ROOT_SIZE.1);
     }
 }
 

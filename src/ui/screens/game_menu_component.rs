@@ -3,7 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use super::screen_title::framed_title;
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::screens::options_menu_component::{OptionsViewModel, options_view};
 use crate::ui::strata::FrameStrata;
 
@@ -54,7 +54,7 @@ pub struct GameMenuViewModel {
 }
 
 fn panel_title(text: &str) -> Element {
-    framed_title(TITLE_FRAME, TITLE_LABEL, MENU_MOUNT, PANEL_W, text)
+    framed_title(TITLE_FRAME, TITLE_LABEL, PANEL_W, text, 0.0)
 }
 
 fn menu_button(name: &str, text: &str, action: &str) -> Element {
@@ -109,23 +109,21 @@ fn menu_buttons(logged_in: bool) -> Element {
 }
 
 fn menu_panel(logged_in: bool) -> Element {
-    let y = (-(TITLE_H - TITLE_PANEL_OVERLAP)).to_string();
     rsx! {
         panel {
             name: MENU_PANEL,
             width: PANEL_W,
-            height: 0.0,
+            height: "auto",
             strata: FrameStrata::Fullscreen,
             layout: "flex-column",
             align: "center",
             padding: PANEL_PADDING,
             gap: PANEL_GAP,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: MENU_MOUNT,
-                relative_point: AnchorPoint::Top,
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {TITLE_H - TITLE_PANEL_OVERLAP},
             {menu_buttons(logged_in)}
         }
     }
@@ -159,10 +157,11 @@ fn main_menu_view(logged_in: bool) -> Element {
                 name: MENU_MOUNT,
                 width: PANEL_W,
                 height: {menu_mount_height(logged_in)},
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                translate_x: "-50%",
+                translate_y: "-50%",
                 {menu_panel(logged_in)}
                 {panel_title("Game Menu")}
             }

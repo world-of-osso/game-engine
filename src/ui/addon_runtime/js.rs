@@ -1,11 +1,10 @@
 use std::cell::RefCell;
 
+use bevy::ui::PositionType;
 use quick_js::{Arguments, Context, JsValue};
-use ui_toolkit::anchor::AnchorPoint;
+use ui_toolkit::anchor::AnchorTarget;
 
 use super::AddonOperation;
-
-type SetPointArgs = (String, AnchorPoint, Option<String>, AnchorPoint, f32, f32);
 
 const PRELUDE: &str = r#"
 globalThis.addon = {
@@ -19,24 +18,9 @@ globalThis.addon = {
     ),
   setSize: (name, width, height) =>
     __addonSetSize(String(name), Number(width), Number(height)),
-  setPoint: (
-    name,
-    point,
-    relativeTo = null,
-    relativePoint = null,
-    x = 0,
-    y = 0,
-  ) =>
-    __addonSetPoint(
-      String(name),
-      String(point).toUpperCase(),
-      relativeTo == null ? "" : String(relativeTo),
-      relativePoint == null
-        ? String(point).toUpperCase()
-        : String(relativePoint).toUpperCase(),
-      Number(x),
-      Number(y),
-    ),
+  setPos: (...args) => __addonSetPos(...args),
+  setPosType: (...args) => __addonSetPosType(...args),
+  setAnchor: (...args) => __addonSetAnchor(...args),
   setText: (name, text) => __addonSetText(String(name), String(text)),
   show: (name) => __addonShow(String(name)),
   hide: (name) => __addonHide(String(name)),
@@ -112,7 +96,7 @@ fn register_create_callbacks(ctx: &Context) -> Result<(), String> {
 
 fn register_layout_callbacks(ctx: &Context) -> Result<(), String> {
     register_set_size_callback(ctx)?;
-    register_set_point_callback(ctx)?;
+    register_position_callbacks(ctx)?;
     register_set_text_callback(ctx)?;
     Ok(())
 }
@@ -133,23 +117,34 @@ fn register_set_size_callback(ctx: &Context) -> Result<(), String> {
     .map_err(|err| format!("failed to register setSize callback: {err}"))
 }
 
-fn register_set_point_callback(ctx: &Context) -> Result<(), String> {
+fn register_position_callbacks(ctx: &Context) -> Result<(), String> {
+    ctx.add_callback("__addonSetPos", |args: Arguments| -> Result<bool, String> {
+        let (name, x, y) = parse_set_pos_args(args)?;
+        push_operation(AddonOperation::SetPos { name, x, y });
+        Ok(true)
+    })
+    .map_err(|err| format!("failed to register setPos callback: {err}"))?;
     ctx.add_callback(
-        "__addonSetPoint",
+        "__addonSetPosType",
         |args: Arguments| -> Result<bool, String> {
-            let (name, point, relative_to, relative_point, x, y) = parse_set_point_args(args)?;
-            push_operation(AddonOperation::SetPoint {
+            let (name, position_type) = parse_set_pos_type_args(args)?;
+            push_operation(AddonOperation::SetPosType {
                 name,
-                point,
-                relative_to,
-                relative_point,
-                x,
-                y,
+                position_type,
             });
             Ok(true)
         },
     )
-    .map_err(|err| format!("failed to register setPoint callback: {err}"))
+    .map_err(|err| format!("failed to register setPosType callback: {err}"))?;
+    ctx.add_callback(
+        "__addonSetAnchor",
+        |args: Arguments| -> Result<bool, String> {
+            let (name, target) = parse_set_anchor_args(args)?;
+            push_operation(AddonOperation::SetAnchor { name, target });
+            Ok(true)
+        },
+    )
+    .map_err(|err| format!("failed to register setAnchor callback: {err}"))
 }
 
 fn register_set_text_callback(ctx: &Context) -> Result<(), String> {
@@ -222,27 +217,77 @@ fn optional_name(value: String) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
-fn parse_anchor_point(value: &str) -> Result<AnchorPoint, String> {
-    AnchorPoint::from_str(value).ok_or_else(|| format!("unknown anchor point '{value}'"))
+fn position_arguments(
+    args: Arguments,
+    label: &str,
+    count: usize,
+) -> Result<std::vec::IntoIter<JsValue>, String> {
+    let values = args.into_vec();
+    if values.len() != count {
+        return Err(format!(
+            "{label} expects {count} arguments, got {}",
+            values.len()
+        ));
+    }
+    Ok(values.into_iter())
 }
 
-fn parse_set_point_args(args: Arguments) -> Result<SetPointArgs, String> {
+fn parse_set_pos_args(args: Arguments) -> Result<(String, f32, f32), String> {
+    let mut values = position_arguments(args, "setPos", 3)?;
+    let name = parse_js_string(values.next(), "setPos name")?;
+    let x = parse_finite_position(values.next(), "setPos x")?;
+    let y = parse_finite_position(values.next(), "setPos y")?;
+    Ok((name, x, y))
+}
+
+fn parse_finite_position(value: Option<JsValue>, label: &str) -> Result<f32, String> {
+    let value = parse_js_number(value, label)?;
+    if !value.is_finite() {
+        return Err(format!("{label} must be finite and representable as f32"));
+    }
+    Ok(value)
+}
+
+fn parse_set_pos_type_args(args: Arguments) -> Result<(String, PositionType), String> {
+    let mut values = position_arguments(args, "setPosType", 2)?;
+    let name = parse_js_string(values.next(), "setPosType name")?;
+    let value = parse_js_string(values.next(), "setPosType type")?;
+    let position_type = match value.as_str() {
+        "relative" => PositionType::Relative,
+        "absolute" => PositionType::Absolute,
+        _ => {
+            return Err(format!(
+                "setPosType type must be 'relative' or 'absolute', got '{value}'"
+            ));
+        }
+    };
+    Ok((name, position_type))
+}
+
+fn parse_set_anchor_args(args: Arguments) -> Result<(String, AnchorTarget), String> {
     let values = args.into_vec();
-    if values.len() != 6 {
+    if !(1..=2).contains(&values.len()) {
         return Err(format!(
-            "setPoint expects 6 arguments, got {}",
+            "setAnchor expects 1 or 2 arguments, got {}",
             values.len()
         ));
     }
     let mut values = values.into_iter();
-    let name = parse_js_string(values.next(), "setPoint name")?;
-    let point = parse_anchor_point(&parse_js_string(values.next(), "setPoint point")?)?;
-    let relative_to = optional_name(parse_js_string(values.next(), "setPoint relativeTo")?);
-    let relative_point =
-        parse_anchor_point(&parse_js_string(values.next(), "setPoint relativePoint")?)?;
-    let x = parse_js_number(values.next(), "setPoint x")?;
-    let y = parse_js_number(values.next(), "setPoint y")?;
-    Ok((name, point, relative_to, relative_point, x, y))
+    let name = parse_js_string(values.next(), "setAnchor name")?;
+    let target = match values.next() {
+        None | Some(JsValue::Undefined) => AnchorTarget::Parent,
+        Some(JsValue::String(value)) => match value.as_str() {
+            "parent" => AnchorTarget::Parent,
+            "screen" => AnchorTarget::Screen,
+            _ => {
+                return Err(format!(
+                    "setAnchor target must be 'parent' or 'screen', got '{value}'"
+                ));
+            }
+        },
+        _ => return Err("setAnchor target must be 'parent' or 'screen'".into()),
+    };
+    Ok((name, target))
 }
 
 fn parse_set_size_args(args: Arguments) -> Result<(String, f32, f32), String> {

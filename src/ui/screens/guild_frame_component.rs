@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 pub const ACTION_GUILD_TOGGLE: &str = "guild_toggle";
@@ -139,12 +138,9 @@ pub fn guild_frame_screen(ctx: &SharedContext) -> Element {
             hidden: hide,
             strata: FrameStrata::Dialog,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "180",
-                y: "-90",
-            }
+            pos_type: "absolute",
+            left: 180.0,
+            top: 90.0,
             {title_bar(&title)}
             {tab_row(&state.tabs)}
             {status_line(&state.status_text)}
@@ -164,7 +160,10 @@ fn title_bar(title: &str) -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -191,12 +190,9 @@ fn guild_tab_frame(index: usize, tab: &GuildTab, tab_w: f32, x: f32) -> Element 
             height: {TAB_H},
             background_color: bg,
             onclick: {tab.action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-(HEADER_H + TAB_GAP)},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-(HEADER_H + TAB_GAP))},
             {guild_tab_label(index, &tab.name, tab_w, color)}
         }
     }
@@ -220,7 +216,9 @@ fn guild_tab_label(index: usize, name: &str, tab_w: f32, color: &str) -> Element
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -235,12 +233,9 @@ fn status_line(text: &str) -> Element {
             font_size: 10.0,
             font_color: SUBTLE,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-(HEADER_H + TAB_GAP + TAB_H + 4.0)},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-(HEADER_H + TAB_GAP + TAB_H + 4.0))},
         }
     }
 }
@@ -257,12 +252,9 @@ fn roster_panel(state: &GuildFrameState) -> Element {
             height: {panel_h},
             hidden,
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(panel_y)},
             {roster_header(row_w)}
             {roster_rows(&state.members, row_w)}
         }
@@ -287,7 +279,9 @@ fn roster_header(row_w: f32) -> Element {
             width: {row_w},
             height: {ROW_H},
             background_color: HEADER_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
             {cells}
         }
     }
@@ -312,12 +306,9 @@ fn roster_header_cell(index: usize, label: &str, width: f32, x: f32) -> Element 
             font_size: 9.0,
             font_color: HEADER_TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -355,12 +346,9 @@ fn roster_row(index: usize, row: &GuildMemberRow, row_w: f32) -> Element {
             width: {row_w},
             height: {ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {top},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(top)},
             {cells}
         }
     }
@@ -387,12 +375,9 @@ fn roster_row_cell(index: usize, col: usize, value: &str, width: f32, x: f32) ->
             font_size: 9.0,
             font_color: TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -411,12 +396,9 @@ fn info_panel(state: &GuildFrameState) -> Element {
             height: {panel_h},
             hidden,
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(panel_y)},
             {info_panel_sections(panel_w, panel_h, motd, info_text)}
         }
     }
@@ -483,7 +465,9 @@ fn info_panel_section(
             font_size: 11.0,
             font_color: TITLE_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {label_y} }
+            pos_type: "absolute",
+            left: 4.0,
+            top: {-(label_y)},
         }
         fontstring {
             name: text_name,
@@ -493,7 +477,9 @@ fn info_panel_section(
             font_size: 10.0,
             font_color: TEXT,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {body_y} }
+            pos_type: "absolute",
+            left: 4.0,
+            top: {-(body_y)},
         }
     }
 }

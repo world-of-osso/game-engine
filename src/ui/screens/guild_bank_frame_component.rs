@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -112,12 +111,9 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "80",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 80.0,
+            top: 80.0,
             {title_bar()}
             {tab_buttons_row(&state.tabs)}
             {slot_grid()}
@@ -139,12 +135,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -169,12 +163,9 @@ fn tab_button(i: usize, tab: &GuildBankTab, x: f32) -> Element {
             width: {TAB_BTN_SIZE},
             height: {TAB_BTN_SIZE},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-HEADER_H},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-HEADER_H)},
         }
     }
 }
@@ -199,12 +190,9 @@ fn guild_slot(index: usize, x: f32, y: f32) -> Element {
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -236,12 +224,9 @@ fn guild_bank_tab(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32
             width: 80.0,
             height: {LOG_TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: label_id,
                 width: 80.0,
@@ -250,7 +235,9 @@ fn guild_bank_tab(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32
                 font_size: 10.0,
                 font_color: color,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -267,12 +254,9 @@ fn money_row(guild_money: &str) -> Element {
             font_size: 10.0,
             font_color: MONEY_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {GRID_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {GRID_INSET},
+            top: {-(y)},
         }
         fontstring {
             name: "GuildBankMoneyValue",
@@ -282,12 +266,9 @@ fn money_row(guild_money: &str) -> Element {
             font_size: 10.0,
             font_color: MONEY_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {GRID_INSET + MONEY_LABEL_W + 4.0},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {GRID_INSET + MONEY_LABEL_W + 4.0},
+            top: {-(y)},
         }
     }
 }
@@ -301,12 +282,9 @@ fn guild_bank_button(name: &str, label: &str, x: f32, y: f32) -> Element {
             width: {BTN_W},
             height: {BTN_H},
             background_color: BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {BTN_W},
@@ -315,7 +293,9 @@ fn guild_bank_button(name: &str, label: &str, x: f32, y: f32) -> Element {
                 font_size: 10.0,
                 font_color: BTN_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -341,7 +321,9 @@ fn log_entry_row(idx: usize, text: &str, w: f32) -> Element {
             font_size: 9.0,
             font_color: LOG_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {y} }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
         }
     }
 }
@@ -363,12 +345,9 @@ fn transaction_log(transactions: &[TransactionEntry], visible: bool) -> Element 
             width: {log_w},
             height: 200.0,
             hidden: hide,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {LOG_INSET},
-                y: {log_y},
-            }
+            pos_type: "absolute",
+            left: {LOG_INSET},
+            top: {-(log_y)},
             {rows}
         }
     }
@@ -377,8 +356,9 @@ fn transaction_log(transactions: &[TransactionEntry], visible: bool) -> Element 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -399,7 +379,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

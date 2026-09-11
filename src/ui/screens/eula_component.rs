@@ -4,7 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
@@ -63,10 +63,11 @@ fn legal_panel(state: &EulaScreenState) -> Element {
             strata: FrameStrata::Dialog,
             background_color: "0.03,0.02,0.02,0.96",
             border: "1.0,0.82,0.0,0.35",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
             {title_block()}
             {body_block()}
             {status_block(state)}
@@ -85,11 +86,11 @@ fn title_block() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 24.0,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-28",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {28.0},
         }
         fontstring {
             name: "EulaSubtitle",
@@ -99,12 +100,11 @@ fn title_block() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 12.0,
             font_color: COLOR_SUBTLE,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: FrameName("EulaTitle"),
-                relative_point: AnchorPoint::Bottom,
-                y: "-8",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {64.0},
         }
     }
 }
@@ -119,12 +119,11 @@ fn body_block() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 15.0,
             font_color: COLOR_BODY,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: FrameName("EulaSubtitle"),
-                relative_point: AnchorPoint::Bottom,
-                y: "-24",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {106.0},
         }
     }
 }
@@ -139,12 +138,13 @@ fn status_block(state: &EulaScreenState) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 13.0,
             font_color: COLOR_WARNING,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: FrameName("EulaAcceptButton"),
-                relative_point: AnchorPoint::Top,
-                y: "18",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_left: {118.0},
+            margin_top: {-86.0},
         }
     }
 }
@@ -162,12 +162,13 @@ fn action_button(name: FrameName, text: &str, action: EulaAction, x: f32) -> Ele
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                x: {x},
-                y: "28",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_left: {x},
+            margin_top: {-28.0},
         }
     }
 }

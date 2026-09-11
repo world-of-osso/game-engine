@@ -1,8 +1,13 @@
+#[cfg(test)]
+#[path = "../../../../ui/screens/menu_character_layout_test_support.rs"]
+mod native_layout_support;
+
 use super::*;
 
 #[test]
 fn clicking_non_selected_character_switches_model_and_highlights_card() {
     let mut app = App::new();
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(StatesPlugin);
     app.add_plugins(UiAutomationPlugin);
@@ -47,7 +52,7 @@ fn clicking_non_selected_character_switches_model_and_highlights_card() {
         .run_system_once(
             |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
                 ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
-                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+                native_layout_support::compute_layout(&mut ui.registry);
             },
         )
         .expect("char-select UI layout should resolve");
@@ -223,6 +228,7 @@ fn clicking_non_selected_character_switches_model_and_highlights_card() {
 #[test]
 fn char_select_ui_click_handling_does_not_block_orbit_camera() {
     let mut app = App::new();
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(StatesPlugin);
     app.add_plugins(UiAutomationPlugin);
@@ -250,7 +256,7 @@ fn char_select_ui_click_handling_does_not_block_orbit_camera() {
         .run_system_once(
             |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
                 ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
-                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+                native_layout_support::compute_layout(&mut ui.registry);
             },
         )
         .expect("char-select UI layout should resolve");

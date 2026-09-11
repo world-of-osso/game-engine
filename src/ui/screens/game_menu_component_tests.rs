@@ -2,14 +2,15 @@ use std::sync::{Mutex, OnceLock};
 
 use super::*;
 use crate::input_bindings::{BindingSection, InputAction, InputBinding};
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::frame::{WidgetData, WidgetType};
 use crate::ui::registry::FrameRegistry;
 use crate::ui::screens::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
     OptionsCategory, SoundOptionsView,
 };
-use ui_toolkit::layout::recompute_layouts;
+#[path = "menu_character_layout_test_support.rs"]
+mod layout_support;
+use layout_support::compute_layout as recompute_layouts;
 use ui_toolkit::screen::Screen;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widgets::font_string::{GameFont, Outline};
@@ -193,15 +194,20 @@ fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
     shared.insert(model(GameMenuView::MainMenu));
     Screen::new(game_menu_screen).sync(&shared, &mut reg);
 
+    recompute_layouts(&mut reg);
     let mount_id = reg.get_by_name(MENU_MOUNT.0).expect("GameMenuMount");
     let title_id = reg.get_by_name(TITLE_FRAME.0).expect("GameMenuTitleFrame");
     let panel_id = reg.get_by_name(MENU_PANEL.0).expect("GameMenuPanel");
     let title = reg.get(title_id).expect("title frame");
     let panel = reg.get(panel_id).expect("panel frame");
 
-    assert_eq!(title.anchors[0].relative_to, Some(mount_id));
-    assert_eq!(panel.anchors[0].relative_to, Some(mount_id));
-    assert_eq!(panel.anchors[0].point, AnchorPoint::Top);
+    assert_eq!(title.parent_id, Some(mount_id));
+    assert_eq!(panel.parent_id, Some(mount_id));
+    let title_rect = title.layout_rect.as_ref().unwrap();
+    let panel_rect = panel.layout_rect.as_ref().unwrap();
+    let mount_rect = reg.get(mount_id).unwrap().layout_rect.as_ref().unwrap();
+    assert!((title_rect.y - mount_rect.y).abs() < 1.0);
+    assert!((panel_rect.y - mount_rect.y - (TITLE_H - TITLE_PANEL_OVERLAP)).abs() < 1.0);
 }
 
 #[test]
@@ -217,12 +223,9 @@ fn options_panel_root_is_screen_centered_with_zero_offset() {
     let game_menu_root = reg.get_by_name(GAME_MENU_ROOT.0).expect("GameMenuRoot");
     let root_id = reg.get_by_name("OptionsRoot").expect("OptionsRoot");
     let root = reg.get(root_id).expect("options root");
-    let anchor = &root.anchors[0];
     let rect = root.layout_rect.as_ref().expect("options root rect");
 
-    assert_eq!(anchor.point, AnchorPoint::Center);
-    assert_eq!(anchor.relative_to, Some(game_menu_root));
-    assert_eq!(anchor.relative_point, AnchorPoint::Center);
+    assert_eq!(root.parent_id, Some(game_menu_root));
     assert_eq!(rect.x, (1920.0 - rect.width) * 0.5);
     assert_eq!(rect.y, (1080.0 - rect.height) * 0.5);
 }

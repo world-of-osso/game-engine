@@ -3,7 +3,6 @@
 //! Run: cargo run --example ui_demo
 
 use bevy::prelude::*;
-use game_engine::ui::anchor::{Anchor, AnchorPoint};
 use game_engine::ui::frame::Dimension;
 use game_engine::ui::plugin::{UiPlugin, UiState};
 use game_engine::ui::strata::FrameStrata;
@@ -57,13 +56,9 @@ fn setup_health_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
         f.width = Dimension::Fixed(300.0);
         f.height = Dimension::Fixed(30.0);
         f.background_color = Some([0.2, 0.0, 0.0, 0.8]);
-        f.anchors.push(Anchor {
-            point: AnchorPoint::TopLeft,
-            relative_to: None,
-            relative_point: AnchorPoint::TopLeft,
-            x_offset: 20.0,
-            y_offset: -20.0,
-        });
+        f.position_type = PositionType::Absolute;
+        f.position.left = Val::Px(20.0);
+        f.position.top = Val::Px(20.0);
     }
 
     // Health bar fill (green, fills 75% of background)
@@ -72,13 +67,9 @@ fn setup_health_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
         f.width = Dimension::Fixed(225.0); // 75% of 300
         f.height = Dimension::Fixed(30.0);
         f.background_color = Some([0.0, 0.8, 0.0, 1.0]);
-        f.anchors.push(Anchor {
-            point: AnchorPoint::Left,
-            relative_to: None,
-            relative_point: AnchorPoint::Left,
-            x_offset: 0.0,
-            y_offset: 0.0,
-        });
+        f.position_type = PositionType::Absolute;
+        f.position.left = Val::Px(0.0);
+        f.position.top = Val::Px(0.0);
     }
 }
 
@@ -89,13 +80,10 @@ fn setup_tooltip(reg: &mut game_engine::ui::registry::FrameRegistry) {
         f.height = Dimension::Fixed(80.0);
         f.strata = FrameStrata::Tooltip;
         f.background_color = Some([0.1, 0.1, 0.1, 0.9]);
-        f.anchors.push(Anchor {
-            point: AnchorPoint::Center,
-            relative_to: None,
-            relative_point: AnchorPoint::Center,
-            x_offset: 0.0,
-            y_offset: 0.0,
-        });
+        f.position_type = PositionType::Absolute;
+        f.position.left = Val::Percent(50.0);
+        f.position.top = Val::Percent(50.0);
+        f.translation = Val2::percent(-50.0, -50.0);
     }
 }
 
@@ -105,12 +93,9 @@ fn setup_action_bar(reg: &mut game_engine::ui::registry::FrameRegistry) {
         f.width = Dimension::Fixed(500.0);
         f.height = Dimension::Fixed(50.0);
         f.background_color = Some([0.15, 0.15, 0.15, 0.85]);
-        f.anchors.push(Anchor {
-            point: AnchorPoint::Bottom,
-            relative_to: None,
-            relative_point: AnchorPoint::Bottom,
-            x_offset: 0.0,
-            y_offset: -10.0,
-        });
+        f.position_type = PositionType::Absolute;
+        f.position.left = Val::Percent(50.0);
+        f.position.bottom = Val::Px(-10.0);
+        f.translation = Val2::percent(-50.0, 0.0);
     }
 }

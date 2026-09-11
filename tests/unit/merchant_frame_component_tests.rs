@@ -1,5 +1,8 @@
 use game_engine::ui::screens::merchant_frame_component::*;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
+use layout_support::compute_layout as recompute_layouts;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 

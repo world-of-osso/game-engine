@@ -1,48 +1,28 @@
 # UI & Addon System
 
-The engine UI is built on Dioxus (Rust, no FFI boundary), rendering to Bevy via a custom host renderer. Addons are WASM binaries loaded by `wasmtime`, communicating with the engine through an explicit `game-api` crate boundary.
+## Authority
 
-## UI Framework: Dioxus → Bevy
+`FrameRegistry` is the UI authority. It owns frames, parentage, authored properties, resolved layout, visibility/effective alpha, focus, hit testing, text editing, and addon ownership. `rsx!`/`Screen` remain registry authors through `screen.sync(&shared, registry)`.
 
-Dioxus provides React-style component authoring in pure Rust — hooks, signals, diffing — with no JS runtime and no serialization overhead. The custom renderer maps Dioxus elements to engine primitives:
+The native Bevy renderer is a one-way runtime projection: registry state produces `Node`, `ImageNode`, and `Text` entities. Bevy layout and arbitrary ECS component changes never write authored properties back into the registry. Raw Bevy input continues through registry hit testing, focus, edit-box updates, and event dispatch.
 
-- **Anchor-based layout**: `SetPoint` with 9 anchor points, relative-to any named frame
-- **Frame strata**: 9 levels (WORLD → TOOLTIP) for z-ordering; 5 draw layers within each frame
-- **Scaling and alpha**: effective values are the product of all ancestor scales/alphas
-- **Visibility**: `Show`/`Hide` propagates through ancestors
+## Addons
 
-Reused from `wow-ui-sim`: anchor constraint solver, quad batcher, strata/draw-layer sort, nine-slice, tiling, atlas resolution, BLP loading, font metrics. Replaced: mlua/Lua → Dioxus; XML templates → RSX; FrameHandle userdata → Bevy ECS entities.
+The implemented addon backend is QuickJS, not the earlier planned WASM/wasmtime design. Addon JavaScript calls the engine frame API, which mutates owned registry frames. It does not author native entities directly.
 
-## Widget Types
+`createFrame` follows existing ownership logic: same-name, same-type reuse is permitted through `collect_owned`/`ensure_owned`. Rendering migration does not add an engine-frame access restriction.
 
-19 widget types covering the full WoW UI surface: Frame, Button, CheckButton, Texture, FontString, Line, EditBox, ScrollFrame, Slider, StatusBar, Cooldown, Model/PlayerModel/ModelScene, ColorSelect, MessageFrame, SimpleHTML, GameTooltip, Minimap.
+Addon reload and teardown remove owned registry state; the native projection removes the corresponding derived entities.
 
-## Addon System: WASM Sandboxing
+## Edit boxes
 
-Addons compile to `.wasm` (primary: Rust via `wasm32-wasip1`; secondary: JS via javy). The engine loads them with `wasmtime`:
+Caret output is derived from `EditBoxData.text`, its byte cursor, `blink_speed`, and `UiState.focused_frame`. No login-specific form or native caret state is authoritative. Password display retains its existing byte-based masking behavior; cursor movement and deletion preserve UTF-8 scalar boundaries.
 
-- **Memory isolation**: addon can only touch its own linear memory
-- **No filesystem/network** unless explicitly granted
-- **CPU fuel metering**: prevents infinite loops from freezing the game
-- **Per-addon memory caps**
+## Migration status
 
-The `game-api` crate is a standalone dependency so addon authors never pull in the engine. It declares extern host functions matching `linker.func_wrap` registrations on the engine side.
+The native-only login/loading bypass was rolled back first: engine `84003225`, retained worktree `8662621e`. The active registry-native projector is toolkit `460e5e1`/`67b5287`; UTF-8 cursor correction is `99632eb`; engine integration is `b4badaf9`. Verification remains in progress. Earlier native-only screen proof does not certify this architecture.
 
-## Hot Reload
+## See also
 
-Dev loop: edit → `cargo build` (~1–5s) → engine `notify` watcher detects `.wasm` change → drops old instance, loads new, calls `on_load()` (~1ms reload).
-
-Dev-mode shortcut: embed QuickJS and load raw `.js` files directly — no compile step, same API, same sandbox rules. Ship `.wasm` for distribution.
-
-## Not Replicated from wow-ui-sim
-
-XML template/TOC loading, Lua 5.1 environment, taint/security system, forbidden frame proxies, and WoW-specific `C_*` APIs are intentionally excluded — WASM sandboxing replaces all isolation needs.
-
-## Sources
-
-- [ui-addon-architecture.md](../../ui-addon-architecture.md) — full widget list, script handlers, rendering details, wow-ui-sim reuse inventory
-
-## See Also
-
-- [[nameplate-design]] — nameplates are in-world UI rendered through this system
-- [[open-source-wow-clients]] — wow-ui-sim is the direct reference implementation
+- [UI system](../systems/ui-system.md)
+- [Registry-backed native Bevy UI](../../specs/registry-bevy-ui.md)

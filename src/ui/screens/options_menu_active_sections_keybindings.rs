@@ -149,11 +149,12 @@ fn keybinding_section_tab_label(
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                y: {visuals.text_y},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            margin_top: {-(visuals.text_y)},
+            translate_y: "-50%",
         }
     }
 }
@@ -191,11 +192,10 @@ fn keybinding_value(row: &KeybindingRowView) -> Element {
             font_size: 14.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x: "-176",
-            }
+            pos_type: "absolute",
+            right: 176.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -216,7 +216,10 @@ fn keybinding_clear_button(row: &KeybindingRowView) -> Element {
                 button_atlas_pressed: "defaultbutton-nineslice-pressed",
                 button_atlas_highlight: "defaultbutton-nineslice-highlight",
                 button_atlas_disabled: "defaultbutton-nineslice-disabled",
-                anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-84" }
+                pos_type: "absolute",
+                right: 84.0,
+                top: "50%",
+                translate_y: "-50%",
             }
         }
     } else {
@@ -232,7 +235,10 @@ fn keybinding_clear_button(row: &KeybindingRowView) -> Element {
                 button_atlas_pressed: "defaultbutton-nineslice-pressed",
                 button_atlas_highlight: "defaultbutton-nineslice-highlight",
                 button_atlas_disabled: "defaultbutton-nineslice-disabled",
-                anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: "-84" }
+                pos_type: "absolute",
+                right: 84.0,
+                top: "50%",
+                translate_y: "-50%",
             }
         }
     }
@@ -252,7 +258,10 @@ fn keybinding_rebind_button(row: &KeybindingRowView) -> Element {
             button_atlas_pressed: "defaultbutton-nineslice-pressed",
             button_atlas_highlight: "defaultbutton-nineslice-highlight",
             button_atlas_disabled: "defaultbutton-nineslice-disabled",
-            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right }
+            pos_type: "absolute",
+            right: -0.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }

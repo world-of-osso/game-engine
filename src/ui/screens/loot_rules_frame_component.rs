@@ -5,7 +5,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 const FRAME_W: f32 = 420.0;
@@ -71,12 +70,9 @@ pub fn loot_rules_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "780",
-                y: "-120",
-            }
+            pos_type: "absolute",
+            left: 780.0,
+            top: 120.0,
             {header()}
             {summary_text(&state.group_summary)}
             {section_label("LootRulesMethodLabel", "Distribution Method", INSET, -(HEADER_H + 42.0))}
@@ -97,12 +93,10 @@ fn header() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
         button {
             name: "LootRulesClose",
@@ -111,12 +105,9 @@ fn header() -> Element {
             text: "X",
             font_size: 11.0,
             onclick: ACTION_CLOSE,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-8",
-                y: "-6",
-            }
+            pos_type: "absolute",
+            right: 8.0,
+            top: 6.0,
         }
     }
 }
@@ -131,12 +122,9 @@ fn summary_text(text: &str) -> Element {
             font_size: 11.0,
             font_color: BODY_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-(HEADER_H + 16.0)},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-(HEADER_H + 16.0))},
         }
     }
 }
@@ -151,12 +139,9 @@ fn section_label(name: &str, text: &str, x: f32, y: f32) -> Element {
             font_size: 11.0,
             font_color: LABEL_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -231,12 +216,9 @@ where
                     height: {BUTTON_H},
                     background_color: bg,
                     onclick: {action.as_str()},
-                    anchor {
-                        point: AnchorPoint::TopLeft,
-                        relative_point: AnchorPoint::TopLeft,
-                        x: {x},
-                        y: {y},
-                    }
+                    pos_type: "absolute",
+                    left: {x},
+                    top: {-(y)},
                     fontstring {
                         name: label_name,
                         width: {BUTTON_W},
@@ -245,7 +227,9 @@ where
                         font_size: 10.0,
                         font_color: text_color,
                         justify_h: "CENTER",
-                        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                        pos_type: "absolute",
+                        left: 0.0,
+                        top: -0.0,
                     }
                 }
             }
@@ -257,12 +241,9 @@ where
             width: {FRAME_W - 2.0 * INSET},
             height: {panel_h},
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {start_y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(start_y)},
             {buttons}
         }
     }

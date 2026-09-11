@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
@@ -175,12 +174,11 @@ pub fn encounter_journal_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {sidebar_tabs(&state.tabs)}
             {instance_list(&state.instances)}
@@ -200,12 +198,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -235,12 +231,9 @@ fn sidebar_tab(i: usize, tab: &EJTab, tab_w: f32, y: f32) -> Element {
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SIDEBAR_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SIDEBAR_INSET},
+            top: {-(y)},
             {ej_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -256,7 +249,9 @@ fn ej_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -277,12 +272,9 @@ fn instance_list(instances: &[InstanceEntry]) -> Element {
             width: {SIDEBAR_W},
             height: {list_h},
             background_color: SIDEBAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SIDEBAR_INSET},
-                y: {list_y},
-            }
+            pos_type: "absolute",
+            left: {SIDEBAR_INSET},
+            top: {-(list_y)},
             {rows}
         }
     }
@@ -303,12 +295,9 @@ fn instance_row(idx: usize, inst: &InstanceEntry) -> Element {
             width: {SIDEBAR_W},
             height: {INSTANCE_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {instance_row_label(label_id, &inst.name, color)}
         }
     }
@@ -324,7 +313,9 @@ fn instance_row_label(id: DynName, text: &str, color: &str) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -340,12 +331,9 @@ fn boss_content(bosses: &[BossEntry], selected_name: &str, abilities: &[BossAbil
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {content_x},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {content_x},
+            top: {-(content_y)},
             {boss_list_panel(bosses, content_h)}
             {boss_detail_panel(selected_name, abilities, content_w, content_h)}
         }
@@ -364,12 +352,9 @@ fn boss_list_panel(bosses: &[BossEntry], parent_h: f32) -> Element {
             name: "EJBossList",
             width: {BOSS_LIST_W},
             height: {parent_h - 2.0 * BOSS_LIST_INSET},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {BOSS_LIST_INSET},
-                y: {-BOSS_LIST_INSET},
-            }
+            pos_type: "absolute",
+            left: {BOSS_LIST_INSET},
+            top: {-(-BOSS_LIST_INSET)},
             {rows}
         }
     }
@@ -390,12 +375,9 @@ fn boss_row(idx: usize, boss: &BossEntry) -> Element {
             width: {BOSS_LIST_W},
             height: {BOSS_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {boss_row_label(label_id, &boss.name, color)}
         }
     }
@@ -411,7 +393,9 @@ fn boss_row_label(id: DynName, text: &str, color: &str) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -431,12 +415,9 @@ fn boss_detail_panel(
             name: "EJBossDetail",
             width: {detail_w},
             height: {detail_h},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {detail_x},
-                y: {-DETAIL_INSET},
-            }
+            pos_type: "absolute",
+            left: {detail_x},
+            top: {-(-DETAIL_INSET)},
             {boss_detail_name(boss_name, detail_w)}
             {ability_rows}
         }
@@ -453,7 +434,9 @@ fn boss_detail_name(name: &str, w: f32) -> Element {
             font_size: 14.0,
             font_color: BOSS_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -478,12 +461,9 @@ fn ability_row(idx: usize, ability: &BossAbility, parent_w: f32) -> Element {
             name: row_id,
             width: {parent_w},
             height: {ABILITY_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {ability_icon(icon_id)}
             {ability_name_label(DynName(format!("EJAbility{idx}Name")), &ability.name, text_w, text_x)}
             {ability_desc_label(DynName(format!("EJAbility{idx}Desc")), &ability.description, text_w, text_x)}
@@ -498,7 +478,9 @@ fn ability_icon(id: DynName) -> Element {
             width: {ABILITY_ICON_SIZE},
             height: {ABILITY_ICON_SIZE},
             background_color: ABILITY_ICON_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -513,7 +495,9 @@ fn ability_name_label(id: DynName, text: &str, w: f32, x: f32) -> Element {
             font_size: 11.0,
             font_color: ABILITY_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "0" }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -528,7 +512,9 @@ fn ability_desc_label(id: DynName, text: &str, w: f32, x: f32) -> Element {
             font_size: 9.0,
             font_color: ABILITY_DESC_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "-16" }
+            pos_type: "absolute",
+            left: {x},
+            top: 16.0,
         }
     }
 }
@@ -546,12 +532,9 @@ fn loot_tab(items: &[LootItem], slot_filter: &str, class_filter: &str) -> Elemen
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {content_x},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {content_x},
+            top: {-(content_y)},
             {loot_filter_row(slot_filter, class_filter)}
             {loot_header(content_w)}
             {loot_rows(items, content_w)}
@@ -604,12 +587,9 @@ fn loot_header(parent_w: f32) -> Element {
             width: {header_w},
             height: {LOOT_HEADER_H},
             background_color: LOOT_HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {LOOT_INSET},
-                y: {header_y},
-            }
+            pos_type: "absolute",
+            left: {LOOT_INSET},
+            top: {-(header_y)},
             {cols}
         }
     }
@@ -626,12 +606,9 @@ fn loot_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
             font_size: 9.0,
             font_color: LOOT_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -661,12 +638,9 @@ fn loot_row(idx: usize, item: &LootItem, row_w: f32, top: f32) -> Element {
             width: {row_w},
             height: {LOOT_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {LOOT_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {LOOT_INSET},
+            top: {-(y)},
             {loot_icon(DynName(format!("EJLoot{idx}Icon")))}
             {loot_cell(DynName(format!("EJLoot{idx}Name")), &item.name, loot_col_w(row_w, 1), loot_col_x(row_w, 1), 10.0, LOOT_NAME_COLOR)}
             {loot_cell(DynName(format!("EJLoot{idx}Slot")), &item.slot, loot_col_w(row_w, 2), loot_col_x(row_w, 2), 9.0, LOOT_SLOT_COLOR)}
@@ -682,7 +656,9 @@ fn loot_icon(id: DynName) -> Element {
             width: {LOOT_ICON_SIZE},
             height: {LOOT_ICON_SIZE},
             background_color: LOOT_ICON_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "2", y: "-2" }
+            pos_type: "absolute",
+            left: 2.0,
+            top: 2.0,
         }
     }
 }
@@ -697,7 +673,9 @@ fn loot_cell(id: DynName, text: &str, w: f32, x: f32, font_size: f32, color: &st
             font_size: font_size,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: "0" }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }

@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod native_layout_support;
+
 use super::*;
 use std::path::Path;
 
@@ -234,7 +238,7 @@ fn clicking_race_button_changes_selected_race() {
         .run_system_once(
             |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
                 ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
-                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+                native_layout_support::compute_layout(&mut ui.registry);
             },
         )
         .expect("layout recompute should run");
@@ -361,8 +365,6 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
 
 #[test]
 fn clicking_race_button_changes_race_through_full_app_update() {
-    use bevy::app::App;
-    use bevy::input::ButtonInput;
     use bevy::prelude::*;
     use bevy::state::app::StatesPlugin;
     use bevy::window::PrimaryWindow;
@@ -370,24 +372,21 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     use game_engine::ui::automation::UiAutomationPlugin;
     use game_engine::ui::plugin::UiState;
 
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
+    let mut app = native_layout_support::layout_app(1920.0, 1080.0);
     app.add_plugins(StatesPlugin);
-    app.add_plugins(bevy::asset::AssetPlugin::default());
-    app.add_plugins(bevy::text::TextPlugin::default());
     app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(UiAutomationPlugin);
-    app.insert_resource(ButtonInput::<MouseButton>::default());
-    app.add_plugins(ui_toolkit::plugin::UiPlugin);
     app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
-    app.add_message::<bevy::input::keyboard::KeyboardInput>();
     app.insert_resource(CustomizationDb::load(std::path::Path::new("data")));
     app.insert_state(crate::game_state::GameState::CharCreate);
+    app.finish();
+    app.cleanup();
 
     let window_entity = app
         .world_mut()
-        .spawn((Window::default(), PrimaryWindow))
-        .id();
+        .query_filtered::<Entity, With<PrimaryWindow>>()
+        .single(app.world())
+        .unwrap();
     app.update();
     app.update();
 
@@ -417,8 +416,11 @@ fn clicking_race_button_changes_race_through_full_app_update() {
         .unwrap()
         .set_cursor_position(Some(race_2_center));
     app.world_mut()
-        .resource_mut::<ButtonInput<MouseButton>>()
-        .press(MouseButton::Left);
+        .write_message(bevy::input::mouse::MouseButtonInput {
+            button: MouseButton::Left,
+            state: bevy::input::ButtonState::Pressed,
+            window: window_entity,
+        });
 
     // Run through the full scheduler (all systems including UiPlugin)
     app.update();

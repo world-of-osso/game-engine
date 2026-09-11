@@ -7,7 +7,10 @@ use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::login_component::{SharedStatusText, login_screen};
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
+pub(super) use layout_support::compute_layout as recompute_layouts;
 
 use crate::game_state::GameState;
 use crate::networking;
@@ -266,18 +269,14 @@ pub(super) fn count_login_status_frames(app: &App) -> usize {
 }
 
 pub(super) fn make_login_app_with_plugins() -> App {
-    let mut app = App::new();
-    app.add_plugins(MinimalPlugins);
-    app.insert_resource(Assets::<bevy::text::Font>::default());
-    app.add_plugins(game_engine::ui::plugin::UiPlugin);
+    let mut app = layout_support::layout_app(1280.0, 720.0);
     app.init_resource::<LoginStatus>();
     app.init_resource::<LoginFocus>();
     app.insert_resource(networking::AuthUiFeedback::default());
     app.insert_resource(networking::LoginMode::Login);
     app.insert_resource(networking::AuthToken(None));
-    let mut window = Window::default();
-    window.resolution.set(1280.0, 720.0);
-    app.world_mut().spawn((window, bevy::window::PrimaryWindow));
+    app.finish();
+    app.cleanup();
     app
 }
 
@@ -290,17 +289,12 @@ pub(super) fn run_login_visuals_cycle(app: &mut App, status_text: &str) {
 }
 
 pub(super) fn collect_main_text_entities(app: &mut App, status_text_id: u64) -> Vec<String> {
-    let mut q = app.world_mut().query::<(
-        &game_engine::ui::render::UiText,
-        &Text2d,
-        Option<&game_engine::ui::render_text_fx::UiTextShadow>,
-        Option<&game_engine::ui::render_text_fx::UiTextOutline>,
-    )>();
+    let mut q = app
+        .world_mut()
+        .query::<(&ui_toolkit::native_render::RegistryText, &Text)>();
     q.iter(app.world())
-        .filter(|(ui_text, _, shadow, outline)| {
-            ui_text.0 == status_text_id && shadow.is_none() && outline.is_none()
-        })
-        .map(|(_, text, _, _)| format!("{text:?}"))
+        .filter(|(ui_text, _)| ui_text.frame_id == status_text_id && ui_text.key == 0)
+        .map(|(_, text)| text.0.clone())
         .collect()
 }
 
