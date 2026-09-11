@@ -311,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn terrain_background_spawns_campsite_ground_patch_at_focus() {
+    fn terrain_background_uses_adt_floor_without_grass_overlay() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
         app.init_resource::<Assets<StandardMaterial>>();
@@ -378,19 +378,27 @@ mod tests {
             props => panic!("expected terrain background node, got {props:?}"),
         }
 
-        let mut query = app
+        let terrain_count = app
             .world_mut()
-            .query::<(&Name, &Transform, &CharSelectScene)>();
-        let Some((_, transform, _)) = query
+            .query::<(&Mesh3d, &MeshMaterial3d<TerrainMaterial>)>()
             .iter(app.world())
-            .find(|(name, _, _)| name.as_str() == "CampsiteGroundPatch")
-        else {
-            panic!("expected campsite ground patch to be spawned");
-        };
+            .count();
+        assert!(terrain_count > 0, "the ADT floor must remain rendered");
         assert!(
-            (transform.translation.x - focus.x).abs() < 0.01
-                && (transform.translation.z - focus.z).abs() < 0.01,
-            "ground patch should be centered on the selected character focus"
+            app.world()
+                .resource::<TerrainHeightmap>()
+                .height_at(focus.x, focus.z)
+                .is_some(),
+            "the ADT floor must cover the selected character focus"
+        );
+        let overlay_count = app
+            .world_mut()
+            .query_filtered::<(&Mesh3d, &MeshMaterial3d<StandardMaterial>), With<CharSelectScene>>()
+            .iter(app.world())
+            .count();
+        assert_eq!(
+            overlay_count, 0,
+            "terrain-backed scenes must not add a separate grass floor"
         );
     }
 }
