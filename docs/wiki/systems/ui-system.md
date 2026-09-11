@@ -12,6 +12,8 @@ The UI system is built on Dioxus with a custom Bevy renderer. Screens are declar
 
 **Pre-compute negations**: `!bool_expr` doesn't work inside `rsx!` — do `let hide = !visible;` before the macro.
 
+**Portable fonts and borders**: `FontRegistry::with_directory("data/fonts")` gives the engine an explicit authoritative font directory before `UiPlugin`; it does not fall through to the toolkit default if a configured font is absent. Engine data supplies Friz Quadrata (FDID 615960) and Arial Narrow (FDID 615958). Login and character input borders resolve from `data/ui/Common-Input-Border-*.blp` (FDIDs 374201–374209), with generated login-button KTX2 assets also in `data/ui/`. Native Windows compilation covers these paths; rendering output is intentionally unclaimed after visual testing was stopped on September 11, 2026. See [Windows development](../../windows-development.md).
+
 ## Frame Hierarchy and Layout
 
 Frames use anchor-based positioning: 9 anchor points (TOPLEFT..BOTTOMRIGHT), relative to any named frame. Strata has 9 levels (WORLD through TOOLTIP); within a stratum, frames use frame levels. Each frame has 5 draw layers (BACKGROUND, BORDER, ARTWORK, OVERLAY, HIGHLIGHT).
