@@ -133,9 +133,11 @@ fn loading_update_visuals(world: &mut World) {
         return;
     };
     let zone_id = world.resource::<CurrentZone>().zone_id;
-    let local_player_ready = !world
+    let local_player_ready = world
         .query_filtered::<(), With<LocalPlayer>>()
-        .is_empty(world);
+        .iter(world)
+        .next()
+        .is_some();
     let delta = world.resource::<Time>().delta_secs();
     let state = world.resource_scope(|world, mut progress: Mut<LoadingProgressAnimation>| {
         build_loading_state(
