@@ -1,16 +1,20 @@
 # Nameplate Design
 
-This page records the intended target-first nameplate design. Current work pixel-matches the supplied reference while preserving existing visibility/distance settings, independent health/spellbar thickness choices, and replicated cast presentation. The target, hostility, combat, and occlusion state machine below is not implemented.
+This page records the intended target-first nameplate design and the current source-level behavior. The approved half-scale reference calibration, independent thickness choices, visibility/distance policy, owner selection, and replicated cast presentation are separate from the unimplemented target, hostility, combat, and occlusion state machine.
 
 ## Current implementation boundary
 
 - `HudOptions` persists independent `Thin`/`Thick` choices. The explicit defaults are Thick health and Thin spellbar.
+- A `LocalPlayer` owner is excluded during projection, so its name, health, and cast parts remain absent even if local identity is assigned after those visual entities were created. Removing the marker permits the remote plate to project again.
+- Name, health, and cast parts use the health-body anchor for the configured `HudOptions.nameplate_distance` fade/hide boundary. The setting, not a claimed retail-native cap, defines current behavior.
+- Plate visuals carry their actor owner for screen-space picking. After reconnect/modal and registry-frame input checks, a visible non-local plate selects that owner before the normal world-mesh raycast.
+- `--screen nameplatedebug` and `--screen nameplate-debug` enter an offline preview using plain owners and the shared renderers. It loops normal casts and channels; Space pauses/resumes progress, and a plate click selects its preview owner.
 - `NAMEPLATE_SCALE = 0.5`: effective health width is 188px from a 376px raw interior; health heights are 20px Thick / 10px Thin and cast heights are 10px Thick / 6px Thin. Frame bitmap outer bounds vary. It is not pixel verified.
 - Health uses UI-overlay sprites, not world-space PBR. The shared art cache loads frame PNGs derived from the supplied reference, with transparent interiors for live bar content; it loads a glyph-free health gradient crop and authored `4505182` cast fill/background. No generic pip is rendered because none appears in the reference.
 - Non-glyph pixels must pixel-match `data/diagnostics/nameplate-style/reference.png`: frames, fill, geometry, colors, endpoints, gaps, and placement. Glyph rasterization may differ only; names use white Friz at 13px and cast labels use white Friz at 10px.
 - `shared::casting::CastState` is replicated from the server and mirrored from the client worker to the render world, including additions, elapsed progress changes, and removal. Normal casts fill; channels drain.
 - Server cast presentation accepts player cast intents, validates available spell data, exposes timed cast state, and removes it on stop, movement cancellation, or expiry. It does not apply spell effects or supply NPC casts.
-- Pixel-match verification is pending: the GPU fixture must produce aligned half-size captures for all four thickness combinations and mask only glyph regions. Frame alpha reconstruction from the composited reference is ambiguous despite reproducible linear unmatting, so no perfect-match claim is valid before GPU comparison. Connected server-to-client replication remains unproven. Do not infer the planned display states below from this implementation.
+- Pixel-match verification is pending: the GPU fixture must produce aligned half-size captures for all four thickness combinations and mask only glyph regions. Frame alpha reconstruction from the composited reference is ambiguous despite reproducible linear unmatting, so no perfect-match claim is valid before GPU comparison. Connected server-to-client replication remains unproven. The local-owner, distance, selection, and preview code is documented from source through `f3dab635`; no current-cycle test execution or rendered runtime verification is claimed. Do not infer the planned display states below from this implementation.
 
 ## Intended display states
 
@@ -65,7 +69,11 @@ Cast bars and elite/quest markers come after the base system validates.
 - [`debug/make_nameplate_skins.py`](../../../debug/make_nameplate_skins.py) — reproducible frame extraction, linear unmatting, and provenance
 - [`debug/compare_nameplates.py`](../../../debug/compare_nameplates.py) — half-size reference/GPU diagnostic comparison
 - [`src/rendering/ui/health_bar.rs`](../../../src/rendering/ui/health_bar.rs) — UI-overlay health sprites
-- [`src/rendering/ui/nameplate_cast_bar.rs`](../../../src/rendering/ui/nameplate_cast_bar.rs) — authored cast presentation and visibility gates
+- [`src/rendering/ui/nameplate_cast_bar.rs`](../../../src/rendering/ui/nameplate_cast_bar.rs) — authored cast presentation, local-owner exclusion, and shared-distance gates
+- [`src/rendering/ui/nameplate_picking.rs`](../../../src/rendering/ui/nameplate_picking.rs) — screen-space owner hit testing for projected plate parts
+- [`src/rendering/ui/target.rs`](../../../src/rendering/ui/target.rs) — registry-first click routing before mesh raycasting
+- [`src/scenes/nameplate_debug.rs`](../../../src/scenes/nameplate_debug.rs) — offline looping normal/channel preview and Space pause
+- [nameplate debug spec](../../specs/nameplate-debug.md) — offline preview contract and open verification
 - [`src/network_runtime/replication.rs`](../../../src/network_runtime/replication.rs) — worker-to-render-world cast snapshots
 - [`../../../game-server/crates/server/src/cast_presentation.rs`](../../../../game-server/crates/server/src/cast_presentation.rs) — authoritative player cast presentation lifecycle
 
@@ -74,3 +82,4 @@ Cast bars and elite/quest markers come after the base system validates.
 - [[ui-addon-system]] — nameplates are rendered through the engine UI layer
 - [[character-generation]] — nameplate anchors to the character entity above it
 - [[networking]] — replicated entity boundary for cast state
+- [nameplate spec](../../specs/nameplate-style.md) — current nameplate contract and open verification
