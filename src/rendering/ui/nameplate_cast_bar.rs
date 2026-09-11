@@ -2,7 +2,7 @@
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
+use bevy::sprite::{Anchor, BorderRect, SliceScaleMode, SpriteImageMode, TextureSlicer};
 use bevy::transform::TransformSystems;
 use shared::casting::{CastState, CastType};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
@@ -12,10 +12,17 @@ use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_al
 use crate::game_state::GameState;
 use crate::health_bar::{BAR_HEIGHT, HealthBar};
 
-const CAST_WIDTH: f32 = 190.0;
-const CAST_THICK_HEIGHT: f32 = 14.0;
-const CAST_THIN_HEIGHT: f32 = 6.0;
-const LABEL_INSET: f32 = 4.0;
+use crate::rendering::nameplate_art::{
+    BAR_PIXEL_WIDTH, CAST_BACKGROUND_RECT, CAST_FILL_RECT, CAST_FONT_SIZE, CAST_INDICATOR_RECT,
+    CAST_PIP_RECT, NameplateArt, NameplateArtCache,
+};
+
+const CAST_WIDTH: f32 = BAR_PIXEL_WIDTH;
+const CAST_THICK_HEIGHT: f32 = 20.0;
+const CAST_THIN_HEIGHT: f32 = 12.0;
+const LABEL_INSET: f32 = 8.0;
+const INDICATOR_HORIZONTAL_MARGIN: f32 = 20.0;
+const INDICATOR_VERTICAL_MARGIN: f32 = 3.0;
 const HEALTH_CAST_GAP: f32 = 4.0;
 
 fn cast_height(thick: bool) -> f32 {
@@ -29,7 +36,10 @@ fn cast_height(thick: bool) -> f32 {
 pub struct NameplateCastBarPlugin;
 impl Plugin for NameplateCastBarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_observer(spawn_cast_bar)
+        app.init_resource::<Assets<Image>>()
+            .init_resource::<Assets<Font>>()
+            .init_resource::<NameplateArtCache>()
+            .add_observer(spawn_cast_bar)
             .add_observer(remove_cast_bar);
         app.add_systems(
             PostUpdate,
@@ -61,62 +71,48 @@ fn spawn_cast_bar(
     event: On<Add, CastState>,
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    mut textures: Local<Option<(Handle<Image>, Handle<Image>)>>,
+    mut fonts: ResMut<Assets<Font>>,
+    mut cache: ResMut<NameplateArtCache>,
     stage: Option<Res<InWorldSceneStage>>,
     disabled: Option<Res<UiDisabled>>,
 ) {
     if !inworld_scene_stage_allows_ui(stage, disabled) {
         return;
     }
-    if textures.is_none() {
-        match load_cast_textures(&mut images) {
-            Ok(loaded) => *textures = Some(loaded),
-            Err(error) => {
-                error!("Cannot load castbar artwork: {error}");
-                return;
-            }
+    let art = match cache.load(&mut images, &mut fonts) {
+        Ok(art) => art,
+        Err(error) => {
+            error!("Cannot load castbar artwork: {error}");
+            return;
         }
-    }
-    let (fill, spark) = textures.as_ref().expect("cast textures loaded above");
-    spawn_cast_sprites(&mut commands, event.entity, fill, spark);
-    spawn_cast_label(&mut commands, event.entity);
-}
-
-fn load_cast_textures(
-    images: &mut Assets<Image>,
-) -> Result<(Handle<Image>, Handle<Image>), String> {
-    let load = |fdid| {
-        let path = crate::asset::asset_cache::texture(fdid)
-            .ok_or_else(|| format!("Castbar texture {fdid} unavailable in local CASC"))?;
-        crate::asset::blp::load_blp_to_image(&path)
-            .map_err(|error| format!("Castbar texture {fdid}: {error}"))
     };
-    let fill = load(4505182)?;
-    let spark = load(130877)?;
-    Ok((images.add(fill), images.add(spark)))
+    spawn_cast_sprites(&mut commands, event.entity, &art);
+    spawn_cast_label(&mut commands, event.entity, art.font);
 }
 
-fn spawn_cast_sprites(
-    commands: &mut Commands,
-    owner: Entity,
-    fill: &Handle<Image>,
-    spark: &Handle<Image>,
-) {
-    for (part, color) in [
-        (Part::Border, Color::srgb(0.5, 0.42, 0.22)),
-        (Part::Background, Color::srgb(0.08, 0.065, 0.035)),
-        (Part::Fill, Color::WHITE),
-        (Part::Spark, Color::srgb(1.0, 0.82, 0.35)),
+fn spawn_cast_sprites(commands: &mut Commands, owner: Entity, art: &NameplateArt) {
+    for (part, image, rect) in [
+        (Part::Border, &art.indicator, CAST_INDICATOR_RECT),
+        (Part::Background, &art.casting, CAST_BACKGROUND_RECT),
+        (Part::Fill, &art.casting, CAST_FILL_RECT),
+        (Part::Spark, &art.casting, CAST_PIP_RECT),
     ] {
-        let mut sprite = Sprite::from_color(color, Vec2::ONE);
-        match part {
-            Part::Fill => {
-                sprite.image = fill.clone();
-                // ui-castingbar-filling-standard; retain the authored gold.
-                sprite.rect = Some(Rect::new(268.0, 124.0, 477.0, 135.0));
-            }
-            Part::Spark => sprite.image = spark.clone(),
-            _ => {}
+        let mut sprite = Sprite {
+            image: image.clone(),
+            rect: Some(rect),
+            custom_size: Some(Vec2::ONE),
+            ..default()
+        };
+        if matches!(part, Part::Border) {
+            sprite.image_mode = SpriteImageMode::Sliced(TextureSlicer {
+                border: BorderRect {
+                    min_inset: Vec2::new(32.0, 8.0),
+                    max_inset: Vec2::new(32.0, 8.0),
+                },
+                center_scale_mode: SliceScaleMode::Stretch,
+                sides_scale_mode: SliceScaleMode::Stretch,
+                max_corner_scale: 1.0,
+            });
         }
         commands.spawn((
             CastBarOwner(owner),
@@ -129,17 +125,22 @@ fn spawn_cast_sprites(
     }
 }
 
-fn spawn_cast_label(commands: &mut Commands, owner: Entity) {
+fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>) {
     commands.spawn((
         CastBarOwner(owner),
         Part::Label,
         Text2d::default(),
         Anchor::CENTER_LEFT,
         TextFont {
-            font_size: FontSize::Px(12.0),
+            font,
+            font_size: FontSize::Px(CAST_FONT_SIZE),
             ..default()
         },
         TextColor(Color::WHITE),
+        Text2dShadow {
+            offset: Vec2::new(1.0, -1.0),
+            color: Color::BLACK.with_alpha(0.85),
+        },
         RenderLayers::layer(UI_RENDER_LAYER),
         Transform::default(),
         Visibility::Hidden,
@@ -177,7 +178,14 @@ fn part_layout(part: Part, thick: bool, fraction: f32) -> (Vec2, Vec2, f32) {
     let height = cast_height(thick);
     let half_width = CAST_WIDTH / 2.0;
     match part {
-        Part::Border => (Vec2::ZERO, Vec2::new(CAST_WIDTH + 2.0, height + 2.0), 2.0),
+        Part::Border => (
+            Vec2::ZERO,
+            Vec2::new(
+                CAST_WIDTH + 2.0 * INDICATOR_HORIZONTAL_MARGIN,
+                height + 2.0 * INDICATOR_VERTICAL_MARGIN,
+            ),
+            2.24,
+        ),
         Part::Background => (Vec2::ZERO, Vec2::new(CAST_WIDTH, height), 2.1),
         Part::Fill => (
             Vec2::new(-half_width * (1.0 - fraction), 0.0),
@@ -186,13 +194,17 @@ fn part_layout(part: Part, thick: bool, fraction: f32) -> (Vec2, Vec2, f32) {
         ),
         Part::Spark => (
             Vec2::new(-half_width + CAST_WIDTH * fraction, 0.0),
-            Vec2::new(8.0, height + 8.0),
+            Vec2::new(4.0, height + 2.0),
             2.25,
         ),
         Part::Label => (
             Vec2::new(
                 -half_width + LABEL_INSET,
-                if thick { 0.0 } else { height / 2.0 + 8.0 },
+                if thick {
+                    0.0
+                } else {
+                    height / 2.0 + CAST_FONT_SIZE / 2.0
+                },
             ),
             Vec2::ONE,
             2.3,
@@ -279,7 +291,7 @@ fn project_cast_bars(scene: CastScene, mut parts: Parts) {
             let pose = Transform::from_translation(position);
             transform.set_if_neq(pose);
             global.set_if_neq(GlobalTransform::from(pose));
-            update_cast_content(sprite, text, text_color, size, name, alpha);
+            update_cast_content(sprite, text, text_color, *part, size, name, alpha);
         }
     }
 }
@@ -288,11 +300,18 @@ fn update_cast_content(
     sprite: Option<Mut<Sprite>>,
     text: Option<Mut<Text2d>>,
     text_color: Option<Mut<TextColor>>,
+    part: Part,
     size: Vec2,
     name: &str,
     alpha: f32,
 ) {
     if let Some(mut sprite) = sprite {
+        if matches!(part, Part::Fill) {
+            let rect = cast_fill_crop(size.x / CAST_WIDTH);
+            if sprite.rect != Some(rect) {
+                sprite.rect = Some(rect);
+            }
+        }
         if sprite.custom_size != Some(size) {
             sprite.custom_size = Some(size);
         }
@@ -307,6 +326,16 @@ fn update_cast_content(
     }
     if let Some(mut color) = text_color {
         color.set_if_neq(TextColor(Color::WHITE.with_alpha(alpha)));
+    }
+}
+
+fn cast_fill_crop(fraction: f32) -> Rect {
+    Rect {
+        max: Vec2::new(
+            CAST_FILL_RECT.min.x + CAST_FILL_RECT.width() * fraction,
+            CAST_FILL_RECT.max.y,
+        ),
+        ..CAST_FILL_RECT
     }
 }
 
@@ -374,6 +403,8 @@ mod tests {
         ] {
             let mut app = App::new();
             app.init_resource::<Assets<Image>>();
+            app.init_resource::<Assets<Font>>();
+            app.init_resource::<NameplateArtCache>();
             app.insert_resource(stage);
             if disabled {
                 app.insert_resource(UiDisabled);
@@ -409,7 +440,12 @@ mod tests {
     #[test]
     fn cast_parts_follow_component_lifetime() {
         let mut app = App::new();
-        app.init_resource::<Assets<Image>>();
+        let mut images = Assets::<Image>::default();
+        let mut fonts = Assets::<Font>::default();
+        let cache = NameplateArtCache::fixture(&mut images, &mut fonts);
+        app.insert_resource(images);
+        app.insert_resource(fonts);
+        app.insert_resource(cache);
         app.add_observer(spawn_cast_bar)
             .add_observer(remove_cast_bar);
         let owner = app
@@ -418,6 +454,20 @@ mod tests {
             .id();
         app.update();
         assert_eq!(app.world().get::<CastBarParts>(owner).unwrap().0.len(), 5);
+        let (font, color, shadow) = app
+            .world_mut()
+            .query::<(&TextFont, &TextColor, &Text2dShadow)>()
+            .single(app.world())
+            .unwrap();
+        assert_eq!(font.font_size, FontSize::Px(20.0));
+        assert!(
+            app.world()
+                .resource::<Assets<Font>>()
+                .get(&font.font)
+                .is_some()
+        );
+        assert_eq!(color.0, Color::WHITE);
+        assert_eq!(shadow.offset, Vec2::new(1.0, -1.0));
         app.world_mut().entity_mut(owner).remove::<CastState>();
         app.update();
         assert_eq!(
@@ -443,13 +493,30 @@ mod tests {
         );
     }
     #[test]
+    fn cast_fill_progress_crops_authored_texture_without_compressing_it() {
+        assert_eq!(cast_fill_crop(0.0).width(), 0.0);
+        assert_eq!(cast_fill_crop(0.4).min, CAST_FILL_RECT.min);
+        assert!((cast_fill_crop(0.4).width() - 83.6).abs() < 0.0001);
+        assert_eq!(cast_fill_crop(1.0), CAST_FILL_RECT);
+    }
+
+    #[test]
     fn thickness_keeps_fill_left_aligned_and_places_label() {
         for thick in [false, true] {
             let (offset, size, _) = part_layout(Part::Fill, thick, 0.25);
-            assert_eq!(offset.x - size.x / 2.0, -95.0);
-            assert_eq!(size.y, if thick { 14.0 } else { 6.0 });
+            assert_eq!(offset.x - size.x / 2.0, -192.0);
+            assert_eq!(size, Vec2::new(96.0, if thick { 20.0 } else { 12.0 }));
+            let (border_offset, border_size, _) = part_layout(Part::Border, thick, 0.25);
+            assert_eq!(border_offset, Vec2::ZERO);
+            assert_eq!(
+                border_size,
+                Vec2::new(424.0, if thick { 26.0 } else { 18.0 })
+            );
+            let (pip, pip_size, _) = part_layout(Part::Spark, thick, 0.25);
+            assert_eq!(pip.x, -96.0);
+            assert_eq!(pip_size.x, 4.0);
             let (label, _, _) = part_layout(Part::Label, thick, 0.25);
-            assert_eq!(label, Vec2::new(-91.0, if thick { 0.0 } else { 11.0 }));
+            assert_eq!(label, Vec2::new(-184.0, if thick { 0.0 } else { 16.0 }));
         }
     }
 }
