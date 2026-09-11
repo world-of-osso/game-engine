@@ -24,7 +24,9 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Registry-native migration status
 
-The source compiles. Toolkit coverage is 42 targeted GREEN tests (37 + 5); engine addon and screen tests remain in progress. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. No full acceptance or rendered-runtime claim is made.
+Bounded runtime evidence is recorded under `data/diagnostics/native-layout-api/`: `native-login-settled/` captured the rendered registry-backed login screen and its populated registry dump; `native-caret/` captured a focused username edit box after UTF-8 input (`adminé`, byte cursor `7`) across four timed screenshots. This evidence was built from engine `5e576431` and toolkit `821c2a0`, not the later fixture/refactor commits.
+
+At toolkit `821c2a0`, targeted proof covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases. Engine addon and migrated-screen verification remains incomplete. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. Do not treat this as final acceptance.
 
 ## Player-frame artwork fit
 
