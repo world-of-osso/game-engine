@@ -7,9 +7,10 @@ Ordinary Cargo builds enable the `dev` feature for Bevy dynamic linking. On Wind
 - Rust meeting `Cargo.toml`'s minimum version.
 - `rustup target add x86_64-pc-windows-gnu`.
 - A GNU Windows C/C++ toolchain (`gcc`, `g++`, `ar`) and CMake on PATH.
+- LLVM in its standard Program Files location (`winget install --exact --id LLVM.LLVM`), required by KTX bindgen.
 - Sibling repositories referenced by the manifest: asset-resolver, shared-protocol, ui-toolkit, ui-toolkit-macros.
 
-`scripts/windows-dev.ps1` discovers the GNU compiler on PATH and sets process-local `MINGW_PREFIX` for ktx2-rw's library lookup. This supports nonstandard toolchain locations without machine-wide environment changes.
+`scripts/windows-dev.ps1` discovers the GNU compiler on PATH and sets process-local `MINGW_PREFIX` for ktx2-rw's library lookup. It also supplies LLVM's resource directory and the GNU sysroot to bindgen. This supports nonstandard GNU toolchain locations without machine-wide environment changes.
 
 Run through Cargo so the development DLL search paths are configured. Distribution builds omit `dev` explicitly: `cargo build --release --target x86_64-pc-windows-gnu --no-default-features --features casc --bin game-engine`.
 
