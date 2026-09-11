@@ -16,7 +16,11 @@ Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` d
 
 `rsx! { @native(commands, parent) { node { ... } } => result }` directly emits Bevy `Node` entities and `ChildOf` relationships. It bypasses `Screen`, `SharedContext`, `FrameRegistry`, toolkit anchors, and `WidgetDef` entirely.
 
-`id:` exposes spawned entities lexically; `name:` is an ordinary string expression rather than a legacy `FrameName`; `layout:` supplies a `Node` base; `components:` adds typed Bevy components. Rust statement blocks remain available for native helpers such as fields, nine-slice buttons, and carets. The current subset exists only to restore login authoring without reintroducing the toolkit renderer or a parallel UI tree. Parser tests, direct Bevy entity tests, computed login-layout tests, unchanged legacy-RSX tests, and a bounded native screenshot/tree capture verify the login subset.
+`id:` exposes spawned entities lexically; `name:` is an ordinary string expression rather than a legacy `FrameName`; `layout:` supplies a `Node` base; `components:` adds typed Bevy components. Rust statement blocks remain available for native helpers such as fields, nine-slice buttons, and carets. The current subset restores direct native authoring without reintroducing the toolkit renderer or a parallel UI tree. Parser tests, direct Bevy entity tests, computed login-layout tests, unchanged legacy-RSX tests, and a bounded native screenshot/tree capture verify the login subset.
+
+## Native loading screen
+
+At engine `7a4b8eb3`, `5f978988`, and `a5f17dfa`, loading also uses the native RSX path. Its `LoadingView` owns native entities and a camera; the existing loading lifecycle still owns readiness, preview progress, zone/status text, and transition boundaries. The old `Screen`/`SharedContext`/`FrameRegistry` loading renderer is removed. Fixed artwork, semantic names, debug layout overrides, three-piece bar shell, and six-percent-per-second displayed progress are retained. Verification remains pending; the baseline is local under `data/diagnostics/loading-bevy-ui/baseline/`.
 
 ## Frame Hierarchy and Layout
 
