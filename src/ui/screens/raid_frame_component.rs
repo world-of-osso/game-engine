@@ -5,7 +5,6 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::raid_party_data::health_fraction as unit_health_fraction;
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -141,12 +140,9 @@ pub fn raid_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Medium,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ANCHOR_X},
-                y: {-ANCHOR_Y},
-            }
+            pos_type: "absolute",
+            left: {ANCHOR_X},
+            top: {-(-ANCHOR_Y)},
             {columns}
         }
     }
@@ -174,12 +170,9 @@ fn group_column(group_idx: usize, group: Option<&RaidGroup>) -> Element {
             font_size: 9.0,
             font_color: GROUP_LABEL_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {col_x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {col_x},
+            top: -0.0,
         }
         {cells}
     }
@@ -203,7 +196,9 @@ fn raid_cell_fill(id: DynName, w: f32, color: &str) -> Element {
             width: {w},
             height: {FILL_H},
             background_color: color,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {FILL_INSET}, y: {-FILL_INSET} }
+            pos_type: "absolute",
+            left: {FILL_INSET},
+            top: {-(-FILL_INSET)},
         }
     }
 }
@@ -218,7 +213,9 @@ fn raid_cell_name(id: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: NAME_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "2", y: "-2" }
+            pos_type: "absolute",
+            left: 2.0,
+            top: 2.0,
         }
     }
 }
@@ -246,12 +243,9 @@ fn filled_cell(
             height: {CELL_H},
             mouse_enabled: true,
             background_color: CELL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-y)},
             {raid_cell_fill(DynName(format!("RaidCell{gi}_{mi}Fill")), fill_w, fill_color)}
             {raid_cell_name(DynName(format!("RaidCell{gi}_{mi}Name")), &member.name)}
             {raid_incoming_heal(gi, mi, member, bar_inner_w)}
@@ -268,12 +262,9 @@ fn empty_cell(cell_id: DynName, x: f32, y: f32) -> Element {
             width: {CELL_W},
             height: {CELL_H},
             background_color: EMPTY_CELL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-y)},
         }
     }
 }
@@ -293,12 +284,9 @@ fn raid_incoming_heal(gi: usize, mi: usize, member: &RaidMember, bar_w: f32) -> 
             height: {FILL_H},
             hidden: hide,
             background_color: INCOMING_HEAL_COLOR,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {heal_x},
-                y: {-FILL_INSET},
-            }
+            pos_type: "absolute",
+            left: {heal_x},
+            top: {-(-FILL_INSET)},
         }
     }
 }
@@ -316,12 +304,9 @@ fn raid_ready_check(gi: usize, mi: usize, state: RaidReadyCheck) -> Element {
             font_size: 8.0,
             font_color: {state.color()},
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-1",
-                y: "0",
-            }
+            pos_type: "absolute",
+            right: 1.0,
+            top: -0.0,
         }
     }
 }
@@ -335,12 +320,9 @@ fn raid_range_fade(gi: usize, mi: usize, in_range: bool) -> Element {
             height: {CELL_H},
             hidden: in_range,
             background_color: RANGE_FADE_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }

@@ -2,8 +2,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
-
 pub const FRAME_W: f32 = 200.0;
 pub const FRAME_H: f32 = 100.0;
 const ICON_SIZE: f32 = 48.0;
@@ -64,12 +62,12 @@ pub fn loss_of_control_screen(ctx: &SharedContext) -> Element {
             width: {FRAME_W},
             height: {FRAME_H},
             hidden: hide,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "60",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            margin_top: -60.0,
+            translate_y: "-50%",
             {loc_icon()}
             {loc_ability_name(&state.ability_name)}
             {loc_countdown_bar(BAR_W * state.progress(), &state.duration_text())}
@@ -84,7 +82,10 @@ fn loc_icon() -> Element {
             width: {ICON_SIZE},
             height: {ICON_SIZE},
             background_color: ICON_BG,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -99,7 +100,10 @@ fn loc_ability_name(name: &str) -> Element {
             font_size: 12.0,
             font_color: NAME_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: {-(ICON_SIZE + BAR_GAP)} }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: {-(-(ICON_SIZE + BAR_GAP))},
         }
     }
 }
@@ -112,13 +116,18 @@ fn loc_countdown_bar(fill_w: f32, duration_text: &str) -> Element {
             width: {BAR_W},
             height: {BAR_H},
             background_color: BAR_BG,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: {bar_y} }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: {-(bar_y)},
             r#frame {
                 name: "LossOfControlBarFill",
                 width: {fill_w},
                 height: {BAR_H},
                 background_color: BAR_FILL,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
             fontstring {
                 name: "LossOfControlDuration",
@@ -128,7 +137,9 @@ fn loc_countdown_bar(fill_w: f32, duration_text: &str) -> Element {
                 font_size: 9.0,
                 font_color: DURATION_COLOR,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -137,9 +148,10 @@ fn loc_countdown_bar(fill_w: f32, duration_text: &str) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::frame::Dimension;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -163,7 +175,7 @@ mod tests {
 
     fn layout_reg(remaining: f32, total: f32) -> FrameRegistry {
         let mut reg = build_registry(remaining, total);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

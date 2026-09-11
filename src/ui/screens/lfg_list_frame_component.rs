@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
@@ -129,12 +128,11 @@ pub fn lfg_list_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {role_checkboxes(state)}
             {activity_dropdown(&state.activity)}
@@ -154,12 +152,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -195,12 +191,9 @@ fn role_check_box(id: DynName, text_id: DynName, check: &str, x: f32) -> Element
             width: {ROLE_CHECK_SIZE},
             height: {ROLE_CHECK_SIZE},
             background_color: CHECK_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-ROLE_ROW_Y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-ROLE_ROW_Y)},
             fontstring {
                 name: text_id,
                 width: {ROLE_CHECK_SIZE},
@@ -209,7 +202,9 @@ fn role_check_box(id: DynName, text_id: DynName, check: &str, x: f32) -> Element
                 font_size: 14.0,
                 font_color: CHECK_ON,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -225,7 +220,9 @@ fn role_check_label(id: DynName, text: &str, x: f32) -> Element {
             font_size: 10.0,
             font_color: ROLE_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-ROLE_ROW_Y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-ROLE_ROW_Y)},
         }
     }
 }
@@ -266,12 +263,9 @@ fn group_list_panel(groups: &[GroupListEntry]) -> Element {
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {group_header(list_w)}
             {rows}
             {apply_button(btn_y)}
@@ -286,12 +280,9 @@ fn apply_button(y: f32) -> Element {
             width: {APPLY_BTN_W},
             height: {APPLY_BTN_H},
             background_color: APPLY_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: {-GROUP_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            right: {-(-GROUP_INSET)},
+            top: {-(y)},
             fontstring {
                 name: "LFGApplyButtonText",
                 width: {APPLY_BTN_W},
@@ -300,7 +291,9 @@ fn apply_button(y: f32) -> Element {
                 font_size: 10.0,
                 font_color: APPLY_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -317,7 +310,9 @@ fn group_header_cell(i: usize, name: &str, list_w: f32) -> Element {
             font_size: 9.0,
             font_color: GROUP_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {group_col_x(list_w, i)}, y: "0" }
+            pos_type: "absolute",
+            left: {group_col_x(list_w, i)},
+            top: -0.0,
         }
     }
 }
@@ -334,12 +329,9 @@ fn group_header(list_w: f32) -> Element {
             width: {list_w},
             height: {GROUP_HEADER_H},
             background_color: GROUP_HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {GROUP_INSET},
-                y: {-GROUP_INSET},
-            }
+            pos_type: "absolute",
+            left: {GROUP_INSET},
+            top: {-(-GROUP_INSET)},
             {cols}
         }
     }
@@ -356,7 +348,9 @@ fn group_row_cell(row: usize, col: usize, text: &str, list_w: f32) -> Element {
             font_size: 9.0,
             font_color: GROUP_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {group_col_x(list_w, col)}, y: "0" }
+            pos_type: "absolute",
+            left: {group_col_x(list_w, col)},
+            top: -0.0,
         }
     }
 }
@@ -381,12 +375,9 @@ fn group_row(idx: usize, group: &GroupListEntry, list_w: f32) -> Element {
             width: {list_w},
             height: {GROUP_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {GROUP_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {GROUP_INSET},
+            top: {-(y)},
             {cells}
         }
     }
@@ -416,12 +407,9 @@ fn create_group_form(form: &CreateGroupForm) -> Element {
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {-CONTENT_TOP},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(-CONTENT_TOP)},
             {form_row("LFGFormTitle", "Title:", &form.title, 0)}
             {form_row("LFGFormDesc", "Description:", &form.description, 1)}
             {form_row("LFGFormILevel", "Item Level:", &form.item_level, 2)}
@@ -444,24 +432,18 @@ fn form_row(prefix: &str, label: &str, _value: &str, row: usize) -> Element {
             font_size: 10.0,
             font_color: FORM_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FORM_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {FORM_INSET},
+            top: {-(y)},
         }
         r#frame {
             name: input_name,
             width: {FORM_INPUT_W},
             height: {FORM_INPUT_H},
             background_color: FORM_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FORM_INSET + FORM_LABEL_W + 4.0},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {FORM_INSET + FORM_LABEL_W + 4.0},
+            top: {-(y)},
         }
     }
 }
@@ -482,7 +464,9 @@ fn form_check_box(text: &str, x: f32, y: f32) -> Element {
             width: {ROLE_CHECK_SIZE},
             height: {ROLE_CHECK_SIZE},
             background_color: CHECK_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: "LFGFormVoiceCheckText",
                 width: {ROLE_CHECK_SIZE},
@@ -491,7 +475,9 @@ fn form_check_box(text: &str, x: f32, y: f32) -> Element {
                 font_size: 14.0,
                 font_color: CHECK_ON,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -507,7 +493,9 @@ fn form_check_label(x: f32, y: f32) -> Element {
             font_size: 10.0,
             font_color: FORM_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -520,12 +508,9 @@ fn form_submit_button() -> Element {
             width: {FORM_BTN_W},
             height: {FORM_BTN_H},
             background_color: FORM_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FORM_INSET + FORM_LABEL_W + 4.0},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {FORM_INSET + FORM_LABEL_W + 4.0},
+            top: {-(y)},
             fontstring {
                 name: "LFGFormSubmitButtonText",
                 width: {FORM_BTN_W},
@@ -534,10 +519,9 @@ fn form_submit_button() -> Element {
                 font_size: 10.0,
                 font_color: FORM_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }

@@ -1,5 +1,6 @@
 use super::*;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -34,7 +35,7 @@ fn build_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = build_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -280,7 +281,7 @@ fn boss_layout_registry() -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(make_boss_state());
     Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -313,7 +314,7 @@ fn coord_loot_tab_filters() {
     let mut shared = SharedContext::new();
     shared.insert(make_loot_state());
     Screen::new(encounter_journal_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
 
     let slot_f = rect(&reg, "EJLootSlotFilter");
     let class_f = rect(&reg, "EJLootClassFilter");

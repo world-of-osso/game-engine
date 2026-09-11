@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
@@ -186,12 +185,9 @@ pub fn world_map_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Fullscreen,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
             {header_bar(&state.zone_name, &coords)}
             {dropdown_nav(&state.continent_name, &state.zone_name)}
             {map_canvas(state.map_texture_fdid)}
@@ -218,7 +214,9 @@ fn header_zone_label(text: &str) -> Element {
             font_size: 16.0,
             font_color: ZONE_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {HEADER_INSET}, y: "0" }
+            pos_type: "absolute",
+            left: {HEADER_INSET},
+            top: -0.0,
         }
     }
 }
@@ -233,7 +231,9 @@ fn header_coord_label(text: &str) -> Element {
             font_size: 11.0,
             font_color: COORD_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: {-(CLOSE_BTN_SIZE + CLOSE_BTN_INSET + 8.0)}, y: {-(HEADER_H - COORD_H) / 2.0} }
+            pos_type: "absolute",
+            right: {-(-(CLOSE_BTN_SIZE + CLOSE_BTN_INSET + 8.0))},
+            top: {-(-(HEADER_H - COORD_H) / 2.0)},
         }
     }
 }
@@ -245,12 +245,9 @@ fn header_bar(zone_name: &str, coord_text: &str) -> Element {
             width: {FRAME_W},
             height: {HEADER_H},
             background_color: HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
             {header_zone_label(zone_name)}
             {header_coord_label(coord_text)}
         }
@@ -269,10 +266,9 @@ fn map_canvas_texture(texture_fdid: u32) -> Element {
             width: {CANVAS_W},
             height: {CANVAS_H},
             texture_fdid: {texture_fdid},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -284,12 +280,9 @@ fn map_canvas(texture_fdid: u32) -> Element {
             width: {CANVAS_W},
             height: {CANVAS_H},
             background_color: CANVAS_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CANVAS_INSET},
-                y: {-CANVAS_TOP},
-            }
+            pos_type: "absolute",
+            left: {CANVAS_INSET},
+            top: {-(-CANVAS_TOP)},
             {map_canvas_texture(texture_fdid)}
         }
     }
@@ -344,12 +337,9 @@ fn zone_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
             width: {w},
             height: {h},
             background_color: ZONE_OVERLAY_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-y)},
             fontstring {
                 name: label_id,
                 width: {w},
@@ -358,7 +348,9 @@ fn zone_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
                 font_size: 10.0,
                 font_color: ZONE_OVERLAY_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -386,12 +378,9 @@ fn fog_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
             width: {w},
             height: {h},
             background_color: FOG_OVERLAY_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-y)},
             fontstring {
                 name: label_id,
                 width: {w},
@@ -400,7 +389,9 @@ fn fog_overlay_frame(i: usize, ov: &ZoneOverlay) -> Element {
                 font_size: 12.0,
                 font_color: FOG_OVERLAY_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -470,7 +461,9 @@ fn map_pin_backdrop_clickable(
 ) -> Element {
     rsx! { r#frame {
         name: id, width: {PIN_SIZE}, height: {PIN_SIZE}, background_color, onclick: {onclick},
-        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-y} }
+        pos_type: "absolute",
+        left: {x},
+        top: {-(-y)},
         {content}
     } }
 }
@@ -484,7 +477,9 @@ fn map_pin_backdrop_plain(
 ) -> Element {
     rsx! { r#frame {
         name: id, width: {PIN_SIZE}, height: {PIN_SIZE}, background_color,
-        anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-y} }
+        pos_type: "absolute",
+        left: {x},
+        top: {-(-y)},
         {content}
     } }
 }
@@ -499,7 +494,9 @@ fn map_pin_symbol(label_id: DynName, pin: &MapPin) -> Element {
             font_size: 10.0,
             font_color: "1.0,1.0,1.0,1.0",
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -521,7 +518,9 @@ fn fp_dot(id: DynName, cx: f32, cy: f32) -> Element {
             width: {FP_DOT_SIZE},
             height: {FP_DOT_SIZE},
             background_color: FP_DOT_COLOR,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {cx - FP_DOT_SIZE / 2.0}, y: {-(cy - FP_DOT_SIZE / 2.0)} }
+            pos_type: "absolute",
+            left: {cx - FP_DOT_SIZE / 2.0},
+            top: {-(-(cy - FP_DOT_SIZE / 2.0))},
         }
     }
 }
@@ -541,7 +540,9 @@ fn fp_segment(i: usize, seg: &FlightPathSegment) -> Element {
             width: {line_w},
             height: {line_h},
             background_color: FP_LINE_COLOR,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {line_x}, y: {-line_y} }
+            pos_type: "absolute",
+            left: {line_x},
+            top: {-(-line_y)},
         }
         {fp_dot(DynName(format!("WorldMapFP{i}Dot1")), x1, y1)}
         {fp_dot(DynName(format!("WorldMapFP{i}Dot2")), x2, y2)}
@@ -569,7 +570,9 @@ fn legend_title() -> Element {
             font_size: 10.0,
             font_color: LEGEND_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {LEGEND_INSET}, y: {-LEGEND_INSET} }
+            pos_type: "absolute",
+            left: {LEGEND_INSET},
+            top: {-(-LEGEND_INSET)},
         }
     }
 }
@@ -597,12 +600,9 @@ fn map_legend() -> Element {
             width: {LEGEND_W},
             height: {legend_h},
             background_color: LEGEND_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {legend_x},
-                y: {-legend_y},
-            }
+            pos_type: "absolute",
+            left: {legend_x},
+            top: {-(-legend_y)},
             {legend_title()}
             {rows}
         }
@@ -619,12 +619,9 @@ fn legend_row(idx: usize, pin_type: MapPinType, label: &str) -> Element {
             width: {LEGEND_ICON_SIZE},
             height: {LEGEND_ICON_SIZE},
             background_color: {pin_type.color()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {LEGEND_INSET},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {LEGEND_INSET},
+            top: {-(-y)},
         }
         fontstring {
             name: text_id,
@@ -634,12 +631,9 @@ fn legend_row(idx: usize, pin_type: MapPinType, label: &str) -> Element {
             font_size: 9.0,
             font_color: LEGEND_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {LEGEND_INSET + LEGEND_ICON_SIZE + LEGEND_INSET},
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: {LEGEND_INSET + LEGEND_ICON_SIZE + LEGEND_INSET},
+            top: {-(-y)},
         }
     }
 }
@@ -656,7 +650,9 @@ fn pin_tooltip_line(name: &str, text: &str, font_size: f32, color: &str, y: f32)
             font_size: font_size,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {TOOLTIP_INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {TOOLTIP_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -678,12 +674,9 @@ fn pin_tooltip(pins: &[MapPin], hovered: Option<usize>) -> Element {
             height: {tooltip_h},
             hidden: hide,
             background_color: TOOLTIP_BG,
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: {-CANVAS_INSET - 8.0},
-                y: {CANVAS_INSET + 8.0},
-            }
+            pos_type: "absolute",
+            right: {-(-CANVAS_INSET - 8.0)},
+            bottom: {CANVAS_INSET + 8.0},
             {pin_tooltip_line("WorldMapPinTooltipTitle", title, 11.0, TOOLTIP_TITLE_COLOR, -TOOLTIP_INSET)}
             {pin_tooltip_line("WorldMapPinTooltipType", subtitle, 9.0, TOOLTIP_TEXT_COLOR, -(TOOLTIP_INSET + TOOLTIP_LINE_H))}
         }
@@ -700,12 +693,9 @@ fn close_button() -> Element {
             height: {CLOSE_BTN_SIZE},
             onclick: ACTION_WORLD_MAP_CLOSE,
             background_color: CLOSE_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: {-CLOSE_BTN_INSET},
-                y: {-(HEADER_H - CLOSE_BTN_SIZE) / 2.0},
-            }
+            pos_type: "absolute",
+            right: {-(-CLOSE_BTN_INSET)},
+            top: {-(-(HEADER_H - CLOSE_BTN_SIZE) / 2.0)},
             fontstring {
                 name: "WorldMapCloseBtnText",
                 width: {CLOSE_BTN_SIZE},
@@ -714,7 +704,9 @@ fn close_button() -> Element {
                 font_size: 12.0,
                 font_color: CLOSE_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }

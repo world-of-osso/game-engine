@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -180,12 +179,9 @@ pub fn communities_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "200",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 200.0,
+            top: 80.0,
             {title_bar()}
             {community_sidebar(&state.communities)}
             {tab_row(&state.tabs)}
@@ -205,12 +201,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -230,12 +224,9 @@ fn community_sidebar(communities: &[CommunityEntry]) -> Element {
             width: {SIDEBAR_W},
             height: {sidebar_h},
             background_color: SIDEBAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SIDEBAR_INSET},
-                y: {sidebar_y},
-            }
+            pos_type: "absolute",
+            left: {SIDEBAR_INSET},
+            top: {-(sidebar_y)},
             {rows}
         }
     }
@@ -256,12 +247,9 @@ fn community_row(idx: usize, entry: &CommunityEntry) -> Element {
             width: {SIDEBAR_W},
             height: {COMMUNITY_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {community_row_label(label_id, &entry.name, color)}
         }
     }
@@ -277,7 +265,9 @@ fn community_row_label(id: DynName, text: &str, color: &str) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -311,12 +301,9 @@ fn tab_button(i: usize, tab: &CommunityTab, tab_w: f32, x: f32, y: f32) -> Eleme
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {communities_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -332,7 +319,9 @@ fn communities_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Elemen
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -353,12 +342,9 @@ fn chat_tab_content(
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {content_x},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {content_x},
+            top: {-(content_y)},
             {chat_channel_tabs(channels, content_w, chat_font_size)}
             {chat_message_list(messages, content_w, content_h, chat_font_size)}
             {chat_input_box(content_w, content_h, chat_font_size)}
@@ -383,12 +369,9 @@ fn chat_channel_tabs(channels: &[ChatChannelTab], parent_w: f32, chat_font_size:
             name: "CommunitiesChatChannelTabs",
             width: {available_w},
             height: {CHAT_CHANNEL_TAB_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CHAT_CHANNEL_TAB_INSET},
-                y: {-CHAT_CHANNEL_TAB_INSET},
-            }
+            pos_type: "absolute",
+            left: {CHAT_CHANNEL_TAB_INSET},
+            top: {-(-CHAT_CHANNEL_TAB_INSET)},
             {tabs}
         }
     }
@@ -401,12 +384,9 @@ fn chat_channel_tab(channel: &ChatChannelTab, tab_w: f32, x: f32, chat_font_size
             width: {tab_w},
             height: {CHAT_CHANNEL_TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
             {chat_channel_tab_label(channel.name.as_str(), tab_w, color, chat_font_size)}
         }
     }
@@ -429,12 +409,9 @@ fn chat_channel_tab_label(text: &str, tab_w: f32, color: &str, chat_font_size: f
             font_size: {chat_font_size},
             font_color: color,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CHAT_CHANNEL_TAB_INSET},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {CHAT_CHANNEL_TAB_INSET},
+            top: -0.0,
         }
     }
 }
@@ -464,12 +441,9 @@ fn chat_message_list(
             name: "CommunitiesChatMessageList",
             width: {list_w},
             height: {list_h},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INPUT_INSET},
-                y: {list_y},
-            }
+            pos_type: "absolute",
+            left: {INPUT_INSET},
+            top: {-(list_y)},
             {rows}
         }
     }
@@ -504,7 +478,9 @@ fn chat_line(
             font_size: {chat_font_size},
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -518,12 +494,9 @@ fn chat_input_box(parent_w: f32, parent_h: f32, chat_font_size: f32) -> Element 
             width: {input_w},
             height: {INPUT_H},
             background_color: INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INPUT_INSET},
-                y: {input_y},
-            }
+            pos_type: "absolute",
+            left: {INPUT_INSET},
+            top: {-(input_y)},
             fontstring {
                 name: "CommunitiesChatInputText",
                 width: {input_w - 8.0},
@@ -532,12 +505,9 @@ fn chat_input_box(parent_w: f32, parent_h: f32, chat_font_size: f32) -> Element 
                 font_size: {chat_font_size},
                 font_color: INPUT_TEXT_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -556,12 +526,9 @@ fn roster_tab_content(members: &[RosterMember]) -> Element {
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {content_x},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {content_x},
+            top: {-(content_y)},
             {roster_search_bar(content_w)}
             {roster_header(content_w)}
             {roster_rows(members, content_w)}
@@ -577,12 +544,9 @@ fn roster_search_bar(parent_w: f32) -> Element {
             width: {bar_w},
             height: {ROSTER_SEARCH_H},
             background_color: ROSTER_SEARCH_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ROSTER_SEARCH_INSET},
-                y: {-ROSTER_SEARCH_INSET},
-            }
+            pos_type: "absolute",
+            left: {ROSTER_SEARCH_INSET},
+            top: {-(-ROSTER_SEARCH_INSET)},
             fontstring {
                 name: "CommunitiesRosterSearchText",
                 width: {bar_w - 8.0},
@@ -591,12 +555,9 @@ fn roster_search_bar(parent_w: f32) -> Element {
                 font_size: 10.0,
                 font_color: ROSTER_SEARCH_TEXT,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -620,12 +581,9 @@ fn roster_header(parent_w: f32) -> Element {
             width: {header_w},
             height: {ROSTER_HEADER_H},
             background_color: ROSTER_HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ROSTER_SEARCH_INSET},
-                y: {header_y},
-            }
+            pos_type: "absolute",
+            left: {ROSTER_SEARCH_INSET},
+            top: {-(header_y)},
             {cols}
         }
     }
@@ -642,12 +600,9 @@ fn roster_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
             font_size: 9.0,
             font_color: ROSTER_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -678,12 +633,9 @@ fn roster_row(idx: usize, member: &RosterMember, row_w: f32, top: f32) -> Elemen
             width: {row_w},
             height: {ROSTER_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ROSTER_SEARCH_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {ROSTER_SEARCH_INSET},
+            top: {-(y)},
             {cells}
         }
     }
@@ -712,12 +664,9 @@ fn roster_row_cell(idx: usize, col: usize, text: &str, row_w: f32) -> Element {
             font_size: 9.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }

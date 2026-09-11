@@ -1,8 +1,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
-
 use super::{DynName, FrameConfig, UnitFrameNames, UnitFrameState, dyn_name};
 
 pub(super) fn unit_frame_shell_background(
@@ -18,12 +16,9 @@ pub(super) fn unit_frame_shell_background(
             width: frame.portrait.width,
             height: frame.portrait.height,
             background_color: frame.portrait.background_color,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {frame.portrait.x},
-                y: {-frame.portrait.y},
-            }
+            pos_type: "absolute",
+            left: {frame.portrait.x},
+            top: {-(-frame.portrait.y)},
             {unit_frame_portrait_texture(names, state, frame)}
         }
     }
@@ -52,12 +47,13 @@ fn unit_frame_artwork_texture(names: &UnitFrameNames, frame: &FrameConfig) -> El
             width: frame.shell.width,
             height: frame.shell.height,
             texture_file: frame.shell.texture,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: frame.shell.anchor_x,
-                y: frame.shell.anchor_y,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            margin_left: {frame.shell.anchor_x},
+            translate_x: "-50%",
+            top: "50%",
+            margin_top: {-(frame.shell.anchor_y)},
+            translate_y: "-50%",
         }
     }
 }
@@ -75,10 +71,9 @@ fn unit_frame_portrait_texture(
             height: frame.portrait.height,
             texture_file: {state.portrait_texture_file.as_str()},
             hidden: {hide_portrait}
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }

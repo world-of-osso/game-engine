@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 use crate::ui::strata::FrameStrata;
 
@@ -192,12 +191,9 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "100",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 100.0,
+            top: 80.0,
             {title_bar()}
             {tab_row(&state.tabs)}
             {browse_tab_content(&state.browse_categories, &state.browse_results)}
@@ -217,12 +213,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -254,12 +248,9 @@ fn tab_button(i: usize, tab: &AuctionTab, tab_w: f32, x: f32, y: f32) -> Element
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {auction_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -275,7 +266,9 @@ fn auction_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -290,12 +283,9 @@ fn browse_tab_content(categories: &[BrowseCategory], results: &[BrowseResultRow]
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {browse_search_bar(content_w)}
             {browse_category_sidebar(categories)}
             {browse_results_panel(results, content_w)}
@@ -311,12 +301,9 @@ fn browse_search_bar(parent_w: f32) -> Element {
             width: {bar_w},
             height: {SEARCH_BAR_H},
             background_color: SEARCH_BAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEARCH_BAR_INSET},
-                y: {-SEARCH_BAR_INSET},
-            }
+            pos_type: "absolute",
+            left: {SEARCH_BAR_INSET},
+            top: {-(-SEARCH_BAR_INSET)},
             fontstring {
                 name: "AuctionHouseBrowseSearchText",
                 width: {bar_w - 8.0},
@@ -325,12 +312,9 @@ fn browse_search_bar(parent_w: f32) -> Element {
                 font_size: 10.0,
                 font_color: SEARCH_BAR_TEXT,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -357,12 +341,9 @@ fn browse_category_sidebar(categories: &[BrowseCategory]) -> Element {
             width: {SIDEBAR_W},
             height: {sidebar_h},
             background_color: SIDEBAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SEARCH_BAR_INSET},
-                y: {top_y},
-            }
+            pos_type: "absolute",
+            left: {SEARCH_BAR_INSET},
+            top: {-(top_y)},
             {rows}
         }
     }
@@ -383,12 +364,9 @@ fn browse_category_row(idx: usize, cat: &BrowseCategory) -> Element {
             width: {SIDEBAR_W},
             height: {CAT_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {browse_cat_label(label_id, &cat.name, color)}
         }
     }
@@ -404,7 +382,9 @@ fn browse_cat_label(id: DynName, text: &str, color: &str) -> Element {
             font_size: 9.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -432,12 +412,9 @@ fn browse_results_panel(results: &[BrowseResultRow], parent_w: f32) -> Element {
             name: "AuctionHouseBrowseResults",
             width: {panel_w},
             height: {panel_h},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {panel_x},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {panel_x},
+            top: {-(panel_y)},
             {header}
             {rows}
         }
@@ -460,10 +437,9 @@ fn results_header(panel_w: f32) -> Element {
             width: {panel_w},
             height: {RESULTS_HEADER_H},
             background_color: HEADER_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
             {cols}
         }
     }
@@ -480,12 +456,9 @@ fn results_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
             font_size: 9.0,
             font_color: HEADER_TEXT_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -505,12 +478,9 @@ fn result_row(idx: usize, row: &BrowseResultRow, panel_w: f32) -> Element {
             width: {panel_w},
             height: {RESULT_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {cells}
         }
     }
@@ -548,12 +518,9 @@ fn result_cell(name: DynName, text: &str, x: f32, w: f32, color: &str) -> Elemen
             font_size: 9.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }

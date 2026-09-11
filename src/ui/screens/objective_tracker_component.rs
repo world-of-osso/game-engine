@@ -4,8 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
-
 struct DynName(String);
 
 impl fmt::Display for DynName {
@@ -134,12 +132,9 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
             name: "ObjectiveTrackerFrame",
             width: {TRACKER_W},
             height: {y_cursor.max(20.0)},
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-10",
-                y: "-260",
-            }
+            pos_type: "absolute",
+            right: 10.0,
+            top: 260.0,
             {quest_elements}
             {bonus_elements}
             {timer_elements}
@@ -159,12 +154,9 @@ fn quest_header(qi: usize, quest: &TrackedQuest, y: f32) -> Element {
             font_size: 12.0,
             font_color: HEADER_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
         }
     }
 }
@@ -190,7 +182,9 @@ fn obj_checkbox(id: DynName, text_id: DynName, check: &str, y: f32) -> Element {
             width: {CHECKBOX_SIZE},
             height: {CHECKBOX_SIZE},
             background_color: CHECKBOX_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {CHECKBOX_SIZE},
@@ -199,7 +193,9 @@ fn obj_checkbox(id: DynName, text_id: DynName, check: &str, y: f32) -> Element {
                 font_size: 10.0,
                 font_color: CHECKBOX_CHECK,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -215,7 +211,9 @@ fn obj_text_label(id: DynName, text: &str, color: &str, x: f32, y: f32) -> Eleme
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -230,7 +228,9 @@ fn bonus_name_label(id: DynName, text: &str, y: f32) -> Element {
             font_size: 10.0,
             font_color: OBJECTIVE_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
         }
     }
 }
@@ -249,13 +249,17 @@ fn bonus_progress_bar(
             width: {PROGRESS_BAR_W},
             height: {PROGRESS_BAR_H},
             background_color: PROGRESS_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
             r#frame {
                 name: fill_id,
                 width: {fill_w},
                 height: {PROGRESS_BAR_H},
                 background_color: PROGRESS_FILL,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
             fontstring {
                 name: text_id,
@@ -265,7 +269,9 @@ fn bonus_progress_bar(
                 font_size: 8.0,
                 font_color: PROGRESS_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -331,21 +337,9 @@ fn timer_row(i: usize, timer: &TimerBlock, y: f32) -> Element {
 }
 
 fn timer_text(id: DynName, text: &str, y: f32, kind: TimerTextKind) -> Element {
-    let (width, justify_h, point, relative_point, x) = match kind {
-        TimerTextKind::Label => (
-            TRACKER_W * 0.6,
-            "LEFT",
-            AnchorPoint::TopLeft,
-            AnchorPoint::TopLeft,
-            INSET,
-        ),
-        TimerTextKind::Time => (
-            TRACKER_W * 0.35,
-            "RIGHT",
-            AnchorPoint::TopRight,
-            AnchorPoint::TopRight,
-            -INSET,
-        ),
+    let (width, justify_h, x) = match kind {
+        TimerTextKind::Label => (TRACKER_W * 0.6, "LEFT", INSET),
+        TimerTextKind::Time => (TRACKER_W * 0.35, "RIGHT", TRACKER_W * 0.65 - INSET),
     };
     rsx! {
         fontstring {
@@ -356,7 +350,9 @@ fn timer_text(id: DynName, text: &str, y: f32, kind: TimerTextKind) -> Element {
             font_size: 10.0,
             font_color: TIMER_COLOR,
             justify_h,
-            anchor { point, relative_point, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: x,
+            top: {-y},
         }
     }
 }
@@ -377,7 +373,9 @@ fn scenario_step_label(i: usize, step: &ScenarioStep, y: f32) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
         }
     }
 }
@@ -407,7 +405,9 @@ fn scenario_section(name: &str, steps: &[ScenarioStep], y: &mut f32) -> Element 
             font_size: 12.0,
             font_color: SCENARIO_HEADER_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {INSET}, y: {header_y} }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(header_y)},
         }
         {step_elements}
     }
@@ -416,8 +416,9 @@ fn scenario_section(name: &str, steps: &[ScenarioStep], y: &mut f32) -> Element 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -461,7 +462,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

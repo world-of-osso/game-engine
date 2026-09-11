@@ -1,6 +1,7 @@
 use super::*;
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
 use crate::ui::screens::screen_test_helpers::fontstring_text;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -54,7 +55,7 @@ fn build_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = build_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -252,7 +253,7 @@ fn coord_bank_perm_header() {
     let mut shared = SharedContext::new();
     shared.insert(make_bank_perm_state());
     Screen::new(guild_control_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
 
     let header = rect(&reg, "GuildControlBankPermHeaderTab");
     assert!((header.height - BANK_TAB_ROW_H).abs() < 1.0);

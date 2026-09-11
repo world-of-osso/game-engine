@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -101,12 +100,11 @@ pub fn trade_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {trade_panel("TradePlayer", &state.player, INSET, true)}
             {trade_panel("TradeOther", &state.other, INSET + PANEL_W + PANEL_GAP, false)}
@@ -125,12 +123,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -147,7 +143,9 @@ fn trade_panel_label(id: DynName, text: &str) -> Element {
             font_size: 11.0,
             font_color: PANEL_LABEL_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -168,12 +166,9 @@ fn trade_panel(prefix: &str, panel: &TradePlayerPanel, x: f32, show_input: bool)
             width: {PANEL_W},
             height: {panel_h},
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-CONTENT_TOP},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-CONTENT_TOP)},
             {trade_panel_label(DynName(format!("{prefix}Label")), &panel.name)}
             {slots}
             {money_row(prefix, panel.money, money_y, show_input)}
@@ -189,12 +184,9 @@ fn trade_slot(prefix: &str, idx: usize, _slot: Option<&TradeSlot>, y: f32) -> El
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "4",
-                y: {-y},
-            }
+            pos_type: "absolute",
+            left: 4.0,
+            top: {-(-y)},
         }
     }
 }
@@ -209,7 +201,9 @@ fn money_label(id: DynName, y: f32) -> Element {
             font_size: 10.0,
             font_color: MONEY_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {y} }
+            pos_type: "absolute",
+            left: 4.0,
+            top: {-(y)},
         }
     }
 }
@@ -221,7 +215,9 @@ fn money_value(id: DynName, text_id: DynName, text: &str, bg: &str, y: f32) -> E
             width: {MONEY_INPUT_W},
             height: {MONEY_ROW_H},
             background_color: bg,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {MONEY_LABEL_W + 8.0}, y: {y} }
+            pos_type: "absolute",
+            left: {MONEY_LABEL_W + 8.0},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {MONEY_INPUT_W},
@@ -230,7 +226,9 @@ fn money_value(id: DynName, text_id: DynName, text: &str, bg: &str, y: f32) -> E
                 font_size: 10.0,
                 font_color: MONEY_INPUT_COLOR,
                 justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -274,12 +272,9 @@ fn trade_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> 
             width: {BTN_W},
             height: {BTN_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {BTN_W},
@@ -288,7 +283,9 @@ fn trade_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> 
                 font_size: 11.0,
                 font_color: color,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -313,8 +310,9 @@ fn action_buttons(player_state: &TradeAcceptState, other_state: &TradeAcceptStat
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -361,7 +359,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

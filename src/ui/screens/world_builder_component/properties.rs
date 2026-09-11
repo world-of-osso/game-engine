@@ -11,7 +11,9 @@ pub(super) fn property_panel(state: &WorldBuilderViewState) -> Element {
             width: {SIDEBAR_WIDTH - PANEL_INSET * 2.0},
             height: PROPERTY_PANEL_HEIGHT,
             background_color: PANEL_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PANEL_INSET}, y: {-PROPERTY_PANEL_TOP} }
+            pos_type: "absolute",
+            left: {PANEL_INSET},
+            top: {-(-PROPERTY_PANEL_TOP)},
             {selected_title(selected)}
             {components_title()}
             {component_list(selected)}
@@ -30,7 +32,9 @@ fn empty_property_panel() -> Element {
             width: {SIDEBAR_WIDTH - PANEL_INSET * 2.0},
             height: PROPERTY_PANEL_HEIGHT,
             background_color: PANEL_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PANEL_INSET}, y: {-PROPERTY_PANEL_TOP} }
+            pos_type: "absolute",
+            left: {PANEL_INSET},
+            top: {-(-PROPERTY_PANEL_TOP)},
             fontstring {
                 name: "WorldBuilderNoSelection",
                 width: 620.0,
@@ -38,7 +42,9 @@ fn empty_property_panel() -> Element {
                 text: "Select an entity to inspect components and properties.",
                 font_size: 12.0,
                 font_color: MUTED,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: "-12" }
+                pos_type: "absolute",
+                left: 12.0,
+                top: 12.0,
             }
         }
     }
@@ -53,7 +59,9 @@ fn selected_title(selected: &WorldBuilderPropertyState) -> Element {
             text: {format!("Selected: {}  ({})", selected.selected_label, selected.selected_id)},
             font_size: 14.0,
             font_color: GOLD,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: "-10" }
+            pos_type: "absolute",
+            left: 12.0,
+            top: 10.0,
         }
     }
 }
@@ -67,7 +75,9 @@ fn components_title() -> Element {
             text: "Components",
             font_size: 12.0,
             font_color: STATUS,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: "-34" }
+            pos_type: "absolute",
+            left: 12.0,
+            top: 34.0,
         }
     }
 }
@@ -90,7 +100,9 @@ fn component_row(index: usize, name: &str) -> Element {
             text: {format!("• {name}")},
             font_size: 9.0,
             font_color: TEXT,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "14", y: {-(50.0 + index as f32 * 16.0)} }
+            pos_type: "absolute",
+            left: 14.0,
+            top: {-(-(50.0 + index as f32 * 16.0))},
         }
     }
 }
@@ -104,7 +116,9 @@ fn property_status(status: &str) -> Element {
             text: {status},
             font_size: 10.0,
             font_color: STATUS,
-            anchor { point: AnchorPoint::BottomLeft, relative_point: AnchorPoint::BottomLeft, x: "12", y: "10" }
+            pos_type: "absolute",
+            left: 12.0,
+            bottom: 10.0,
         }
     }
 }
@@ -118,7 +132,9 @@ fn transform_section(selected: &WorldBuilderPropertyState) -> Element {
             width: PROPERTY_EDITOR_WIDTH,
             height: 244.0,
             background_color: PANEL_INNER_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PROPERTY_EDITOR_X}, y: "-38" }
+            pos_type: "absolute",
+            left: {PROPERTY_EDITOR_X},
+            top: 38.0,
             fontstring {
                 name: "WorldBuilderTransformTitle",
                 width: 240.0,
@@ -126,7 +142,9 @@ fn transform_section(selected: &WorldBuilderPropertyState) -> Element {
                 text: "Transform",
                 font_size: 12.0,
                 font_color: STATUS,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: "-10" }
+                pos_type: "absolute",
+                left: 10.0,
+                top: 10.0,
             }
             {transform_rows}
             {property_button(WORLD_BUILDER_APPLY_TRANSFORM, "Apply Transform", WorldBuilderAction::ApplyTransform(selected.selected_id), 10.0, 212.0, 140.0)}
@@ -186,7 +204,9 @@ fn vector_edit_group(label: &str, names: [String; 3], values: &[String; 3], y: f
             text: label,
             font_size: 10.0,
             font_color: MUTED,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: {-y} }
+            pos_type: "absolute",
+            left: 10.0,
+            top: {-(-y)},
         }
         {fields}
     }
@@ -201,7 +221,9 @@ fn vector_edit_field(axis: &str, name: &str, value: &str, x: f32, y: f32) -> Ele
             text: axis,
             font_size: 10.0,
             font_color: MUTED,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-y)},
         }
         editbox {
             name: {DynName(name.to_string())},
@@ -217,7 +239,9 @@ fn vector_edit_field(axis: &str, name: &str, value: &str, x: f32, y: f32) -> Ele
                 bg_color: PANEL_BG,
                 border_color: BORDER,
             }
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x + 18.0}, y: {-y} }
+            pos_type: "absolute",
+            left: {x + 18.0},
+            top: {-(-y)},
         }
     }
 }
@@ -231,7 +255,9 @@ fn numeric_edit_row(label: &str, name: &str, value: &str, y: f32) -> Element {
             text: label,
             font_size: 10.0,
             font_color: MUTED,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: {-y} }
+            pos_type: "absolute",
+            left: 10.0,
+            top: {-(-y)},
         }
         editbox {
             name: {DynName(name.to_string())},
@@ -247,7 +273,9 @@ fn numeric_edit_row(label: &str, name: &str, value: &str, y: f32) -> Element {
                 bg_color: PANEL_BG,
                 border_color: BORDER,
             }
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {LABEL_WIDTH + 4.0}, y: {-y} }
+            pos_type: "absolute",
+            left: {LABEL_WIDTH + 4.0},
+            top: {-(-y)},
         }
     }
 }
@@ -267,7 +295,9 @@ fn point_light_section(selected: &WorldBuilderPropertyState) -> Element {
             width: PROPERTY_EDITOR_WIDTH,
             height: 154.0,
             background_color: PANEL_INNER_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PROPERTY_EDITOR_X}, y: "-290" }
+            pos_type: "absolute",
+            left: {PROPERTY_EDITOR_X},
+            top: 290.0,
             fontstring {
                 name: "WorldBuilderPointLightTitle",
                 width: 260.0,
@@ -275,7 +305,9 @@ fn point_light_section(selected: &WorldBuilderPropertyState) -> Element {
                 text: "PointLight",
                 font_size: 12.0,
                 font_color: STATUS,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: "-10" }
+                pos_type: "absolute",
+                left: 10.0,
+                top: 10.0,
             }
             {numeric_edit_row("Intensity", &world_builder_point_light_edit_name(selected.selected_id, 0), &light.intensity, 38.0)}
             {numeric_edit_row("Range", &world_builder_point_light_edit_name(selected.selected_id, 1), &light.range, 72.0)}
@@ -300,7 +332,9 @@ fn directional_light_section(selected: &WorldBuilderPropertyState) -> Element {
             width: PROPERTY_EDITOR_WIDTH,
             height: 110.0,
             background_color: PANEL_INNER_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PROPERTY_EDITOR_X}, y: "-450" }
+            pos_type: "absolute",
+            left: {PROPERTY_EDITOR_X},
+            top: 450.0,
             fontstring {
                 name: "WorldBuilderDirectionalLightTitle",
                 width: 260.0,
@@ -308,7 +342,9 @@ fn directional_light_section(selected: &WorldBuilderPropertyState) -> Element {
                 text: "DirectionalLight",
                 font_size: 12.0,
                 font_color: STATUS,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "10", y: "-10" }
+                pos_type: "absolute",
+                left: 10.0,
+                top: 10.0,
             }
             {numeric_edit_row("Illuminance", &world_builder_directional_light_edit_name(selected.selected_id), &light.illuminance, 38.0)}
             {property_button(WORLD_BUILDER_DIRECTIONAL_LIGHT_SHADOWS, shadows, WorldBuilderAction::ToggleDirectionalLightShadows(selected.selected_id), 10.0, 78.0, 120.0)}
@@ -337,7 +373,9 @@ fn property_button(
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {-y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-y)},
         }
     }
 }

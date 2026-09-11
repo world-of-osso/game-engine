@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -85,12 +84,11 @@ pub fn barber_shop_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {model_preview()}
             {option_rows(&state.options)}
@@ -110,12 +108,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -128,12 +124,9 @@ fn model_preview() -> Element {
             width: {preview_w},
             height: {PREVIEW_H},
             background_color: PREVIEW_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {PREVIEW_INSET},
-                y: {-HEADER_H},
-            }
+            pos_type: "absolute",
+            left: {PREVIEW_INSET},
+            top: {-(-HEADER_H)},
         }
     }
 }
@@ -161,12 +154,9 @@ fn option_row(idx: usize, opt: &CustomizationOption) -> Element {
             name: row_id,
             width: {FRAME_W - 2.0 * OPTION_INSET},
             height: {OPTION_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {OPTION_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {OPTION_INSET},
+            top: {-(y)},
             {option_label(label_id, &opt.label)}
             {arrow_button(left_id, "<", arrow_x - OPTION_INSET)}
             {option_value_display(idx, &opt.value, value_x - OPTION_INSET)}
@@ -185,7 +175,9 @@ fn option_label(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -199,12 +191,9 @@ fn option_value_display(idx: usize, value: &str, x: f32) -> Element {
             width: {OPTION_VALUE_W},
             height: {OPTION_ROW_H},
             background_color: VALUE_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
             fontstring {
                 name: text_id,
                 width: {OPTION_VALUE_W},
@@ -213,7 +202,9 @@ fn option_value_display(idx: usize, value: &str, x: f32) -> Element {
                 font_size: 10.0,
                 font_color: VALUE_COLOR,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -227,12 +218,9 @@ fn arrow_button(name: DynName, text: &str, x: f32) -> Element {
             width: {ARROW_BTN_SIZE},
             height: {ARROW_BTN_SIZE},
             background_color: ARROW_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
             fontstring {
                 name: text_name,
                 width: {ARROW_BTN_SIZE},
@@ -241,10 +229,9 @@ fn arrow_button(name: DynName, text: &str, x: f32) -> Element {
                 font_size: 14.0,
                 font_color: ARROW_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -261,12 +248,9 @@ fn cost_display(cost: &str) -> Element {
             font_size: 11.0,
             font_color: COST_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
         }
     }
 }
@@ -280,12 +264,9 @@ fn action_button(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32)
             width: {BUTTON_W},
             height: {BUTTON_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {BUTTON_W},
@@ -294,7 +275,9 @@ fn action_button(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32)
                 font_size: 11.0,
                 font_color: color,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -313,8 +296,9 @@ fn action_buttons() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -353,7 +337,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 
