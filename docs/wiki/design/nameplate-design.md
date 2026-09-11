@@ -4,10 +4,12 @@ This page records the intended target-first nameplate design. Current implementa
 
 ## Current implementation boundary
 
-- `HudOptions` persists independent `Thin`/`Thick` choices for health and spell bars. The explicit user defaults are Thick health and Thin spellbar.
-- `shared::casting::CastState` is replicated from the server and mirrored from the client worker to the render world, including additions, elapsed progress changes, and removal.
+- `HudOptions` persists independent `Thin`/`Thick` choices. The explicit defaults are Thick health and Thin spellbar.
+- Health bars are 190×20 logical pixels when Thick and 190×10 when Thin. Spellbars are 190×14 and 190×6. Thick labels are left-inset; thin health labels are above their bars and thin spell labels below.
+- Health fill is fixed red. Spell fill uses the authored gold casting-bar crop with an authored spark; health/cast frames remain procedural reference-style geometry rather than exact atlas replacements.
+- `shared::casting::CastState` is replicated from the server and mirrored from the client worker to the render world, including additions, elapsed progress changes, and removal. Normal casts fill; channels drain.
 - Server cast presentation accepts player cast intents, validates available spell data, exposes timed cast state, and removes it on stop, movement cancellation, or expiry. It does not apply spell effects or supply NPC casts.
-- Reference-matched health/spell bar rendering and focused current-revision engine proof remain in progress. Do not infer the planned display states below from these data-path changes.
+- Focused proof records 44 distinct passing engine cases: 40 non-GPU cases and four GPU captures for all thickness combinations. Connected server-to-client replication remains unproven. Do not infer the planned display states below from this implementation.
 
 ## Intended display states
 
@@ -58,8 +60,11 @@ Cast bars and elite/quest markers come after the base system validates.
 
 - [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — intended design rules, references, prototype scope
 - [`src/game/state/client_options.rs`](../../../src/game/state/client_options.rs) — persisted health/spellbar thickness values
+- [`src/rendering/ui/health_bar.rs`](../../../src/rendering/ui/health_bar.rs) — health geometry and fixed red fill
+- [`src/rendering/ui/nameplate_cast_bar.rs`](../../../src/rendering/ui/nameplate_cast_bar.rs) — gold cast presentation and visibility gates
 - [`src/network_runtime/replication.rs`](../../../src/network_runtime/replication.rs) — worker-to-render-world cast snapshots
 - [`../../../game-server/crates/server/src/cast_presentation.rs`](../../../../game-server/crates/server/src/cast_presentation.rs) — authoritative player cast presentation lifecycle
+- [`../../windows-development.md`](../../windows-development.md) — default dev feature and GNU Windows workflow
 
 ## See Also
 

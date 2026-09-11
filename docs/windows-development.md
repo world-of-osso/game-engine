@@ -1,6 +1,6 @@
 # Native Windows development
 
-Use `cargo bw` to build and `cargo rw -- [args]` to run. These aliases use the normal development profile, Bevy dynamic linking, CASC, and `x86_64-pc-windows-gnu`; Unix socket IPC is excluded explicitly.
+Ordinary Cargo builds enable the `dev` feature for Bevy dynamic linking. On Windows, use `cargo bw` to build and `cargo rw -- [args]` to run: they select the normal development profile, CASC, and `x86_64-pc-windows-gnu`; Unix socket IPC is excluded explicitly.
 
 ## Prerequisites
 

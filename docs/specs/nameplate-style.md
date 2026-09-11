@@ -4,11 +4,12 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 
 ## What it must do
 
-- [ ] Health defaults to red; spellbar defaults to gold, with reference-matched framing.
-- [ ] Game settings expose independent Thin/Thick selectors, persisted across launches. Defaults are Thick health and Thin spellbar (explicit user choices).
-- [ ] Thickness changes apply to existing nameplates without restarting; projected dimensions remain stable across camera zoom and DPI.
-- [ ] Active replicated casts show the caster's spell name and progress; removal/completion/cancellation hides the bar. Worker-to-main replication preserves cast additions, progress, and removal.
-- [ ] Existing UI-disabled, scene-stage, and visibility controls remain effective.
+- [x] Health defaults to red; spellbar defaults to authored gold. Both use reference-style framing, not a pixel-identical atlas replacement.
+- [x] Game settings expose independent Thin/Thick selectors, persisted across launches. Defaults are Thick health and Thin spellbar (explicit user choices).
+- [x] Health is 190×20 logical pixels when Thick and 190×10 when Thin; spellbars are 190×14 and 190×6. Existing plates update without restart and retain their logical dimensions across tested zoom/DPI.
+- [x] Thick labels are left-inset within their bars; thin health labels sit above health and thin spell labels sit below spellbars.
+- [x] Active replicated player casts show spell name and normal-fill/channel-drain progress; removal/completion/cancellation hides the bar. Worker-to-main snapshots preserve additions, elapsed progress, and removal.
+- [x] Existing UI-disabled, scene-stage, nameplate, health-bar, and distance controls remain effective.
 
 ## How it works
 
@@ -21,21 +22,25 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - `src/scenes/game_menu/options.rs` — settings draft/apply wiring.
 - `src/ui/screens/options_menu_active_sections.rs` — thickness selectors.
 - `src/rendering/ui/health_bar.rs` — health geometry, material, screen sizing.
-- `src/rendering/ui/nameplate.rs` — projected owner names.
+- `src/rendering/ui/nameplate.rs` — projected owner names and health-label placement.
+- `src/rendering/ui/nameplate_cast_bar.rs` — projected gold cast bars, spark, labels, and visibility gates.
 - `src/network_runtime/replication.rs` — cast snapshots across worker/main worlds.
+- [`windows-development.md`](../windows-development.md) — default dev feature and GNU Windows workflow; native engine proof remains pending.
 - `../game-server/crates/server/src/cast_presentation.rs` — validated player cast-state lifecycle; no spell effect execution or NPC cast source.
 
 ## Tests asserting this spec
 
-- `src/network_runtime/replication.rs` — written cast start/progress/removal snapshot test; current passing engine command evidence is pending.
-- `src/game/state/client_options_tests.rs` and `src/scenes/game_menu/options_tests.rs` — persisted selector defaults and draft/apply behavior; current passing engine command evidence is pending.
-- `../game-server/crates/server/src/cast_presentation_tests.rs` — start/progress/expiry, cancellation, validation; targeted server proof passed.
-- `src/rendering/ui/health_bar.rs` and `src/rendering/ui/health_bar_zoom_tests.rs` — health color/dimensions, with current-revision style proof pending.
+- `src/network_runtime/replication.rs` — cast start/progress/removal snapshot: 1 passing engine case.
+- `src/game/state/client_options_tests.rs` and `src/scenes/game_menu/options_tests.rs` — persisted defaults and draft/apply behavior: 9 passing engine cases.
+- `src/rendering/ui/health_bar.rs`, `health_bar_zoom_tests.rs`, `nameplate_bar_tests.rs`, and `nameplate_cast_bar.rs` — color, dimensions, placement, lifecycle, and gates: 30 passing engine cases.
+- `src/rendering/ui/nameplate_gpu_tests.rs` — four thickness-combination captures plus health/name/zoom GPU assertions: 4 passing GPU cases.
+- `../game-server/crates/server/src/cast_presentation_tests.rs` — start/progress/expiry, cancellation, validation: 5 passing targeted server cases.
 
 ## Known gaps (current cycle)
 
-- [ ] Complete style integration and rendered comparison.
-- [ ] Run focused current-revision behavioral verification.
+- [ ] Replace procedural health/cast frames with exact authored frame atlases if visual comparison requires it. Current captures were inspected; no pixel-identical claim.
+- [ ] Prove server-to-client cast replication over a connected network session.
+- [ ] Complete native Windows GNU engine build and launch proof.
 
 ## Out of scope
 

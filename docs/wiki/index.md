@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-09-10.
+Last updated: 2026-09-11.
 
 ## Systems
 
@@ -38,7 +38,7 @@ Architecture decisions and feature designs.
 - [character-generation](design/character-generation.md) — Original character creation: glTF format, template skeletons, race scaling
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [ui-frame-order](design/ui-frame-order.md) — implemented shared plugin ordering; standalone setup preserved, named scheduling sets and revision-scoped verification
-- [nameplate-design](design/nameplate-design.md) — intended target-first display policy; current thickness and replicated cast presentation boundaries explicitly separated
+- [nameplate-design](design/nameplate-design.md) — implemented 190px reference-style health/spell bars, persisted Thick/Thin choices, cast presentation boundary, and separate aspirational target-first policy
 - [collision-system](design/collision-system.md) — current terrain vertical support and horizontal WMO/M2 collision; WMO/M2 floor support remains absent
 
 ## Investigations
