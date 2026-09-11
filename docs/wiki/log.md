@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-11] ui/networking | Start reference nameplate settings and cast presentation path
+
+Engine `957d068c` makes dynamic Bevy linking the ordinary development default; distribution builds explicitly omit default features and retain `ipc,casc`. Engine `2a0ed210` persists independent nameplate health/spellbar thickness settings with the explicit user defaults Thick health and Thin spellbar. Shared-protocol `d3b0736`, server `211d86a`/`3ba4085`, and engine `6a713af1` provide a bounded player cast-presentation path: validated cast intent attaches named replicated state, then stop/movement/expiry remove it and the worker mirror carries it to render entities. Server targeted tests pass; engine snapshot/style tests are written or in progress without current passing command evidence. No spell effects, NPC cast source, reference-render match, or target-first clutter state machine is claimed. See [[nameplate-design]] and [[networking]].
+
 ## [2026-09-10] rendering | Verify visible cloud opacity
 
 `a55e0f5b` centers cloud opacity around the unchanged density threshold instead of stretching the blend to an unreachable texture extreme. Generated-texture GPU coverage now includes visible clouds and clear patches at density0.5; clear/full extremes and recalibrated seam test pass. Standalone screenshot confirms soft cloud contrast without changing exposure or sky colors. Independent check passes; unchanged vendor formatting failures remain. See [[procedural-sky-dome-visibility]] and local `data/diagnostics/cloud-visibility/verification.md`.
