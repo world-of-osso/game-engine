@@ -1,8 +1,9 @@
+use crate::rendering::nameplate_art::{BAR_PIXEL_WIDTH, NAME_FONT_SIZE, NameplateArtCache};
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
-use bevy::sprite::Anchor;
+use bevy::sprite::{Anchor, Text2dShadow};
 use bevy::transform::TransformSystems;
 use shared::components::{Health, Npc, Player as NetPlayer};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
@@ -23,6 +24,9 @@ pub struct NameplatePlugin;
 
 impl Plugin for NameplatePlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<NameplateArtCache>()
+            .init_resource::<Assets<Font>>()
+            .init_resource::<Assets<Image>>();
         app.add_observer(spawn_player_nameplate);
         app.add_observer(spawn_npc_nameplate);
         app.add_observer(despawn_quest_indicator_model);
@@ -79,9 +83,9 @@ struct QuestIndicatorModel;
 
 const PLAYER_NAMEPLATE_Y: f32 = 3.0;
 const NPC_NAMEPLATE_Y: f32 = 2.5;
-const PLAYER_FONT_SIZE: f32 = 13.0;
-const NPC_FONT_SIZE: f32 = 13.0;
-const NPC_NAME_COLOR: Color = Color::srgb(1.0, 0.82, 0.0);
+const PLAYER_FONT_SIZE: f32 = NAME_FONT_SIZE;
+const NPC_FONT_SIZE: f32 = NAME_FONT_SIZE;
+const NPC_NAME_COLOR: Color = Color::WHITE;
 const NAME_BAR_GAP: f32 = 4.0;
 /// Y offset for quest indicator M2 above the NPC origin.
 const QUEST_INDICATOR_Y: f32 = 3.5;
@@ -91,6 +95,7 @@ fn spawn_player_nameplate(
     trigger: On<Add, NetPlayer>,
     mut commands: Commands,
     query: Query<&NetPlayer>,
+    mut art: NameplateFontAssets,
     scene_stage: Option<Res<InWorldSceneStage>>,
     ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
 ) {
@@ -107,6 +112,7 @@ fn spawn_player_nameplate(
         &player.name,
         Color::WHITE,
         PLAYER_FONT_SIZE,
+        art.load_font(),
         PLAYER_NAMEPLATE_Y,
         NameplateKind::Player,
     );
@@ -117,6 +123,7 @@ fn spawn_npc_nameplate(
     trigger: On<Add, Npc>,
     mut commands: Commands,
     query: Query<&Npc>,
+    mut art: NameplateFontAssets,
     scene_stage: Option<Res<InWorldSceneStage>>,
     ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
 ) {
@@ -131,9 +138,26 @@ fn spawn_npc_nameplate(
         &npc.name,
         NPC_NAME_COLOR,
         NPC_FONT_SIZE,
+        art.load_font(),
         NPC_NAMEPLATE_Y,
         NameplateKind::Npc,
     );
+}
+
+#[derive(SystemParam)]
+struct NameplateFontAssets<'w> {
+    cache: ResMut<'w, NameplateArtCache>,
+    images: ResMut<'w, Assets<Image>>,
+    fonts: ResMut<'w, Assets<Font>>,
+}
+
+impl NameplateFontAssets<'_> {
+    fn load_font(&mut self) -> Handle<Font> {
+        self.cache
+            .load(&mut self.images, &mut self.fonts)
+            .unwrap_or_else(|error| panic!("Cannot load nameplate artwork: {error}"))
+            .font
+    }
 }
 
 /// Create overlay text; projection supplies its screen position before extraction.
@@ -143,6 +167,7 @@ fn spawn_nameplate_entity(
     text: &str,
     color: Color,
     font_size: f32,
+    font: Handle<Font>,
     y_offset: f32,
     kind: NameplateKind,
 ) -> Entity {
@@ -157,9 +182,14 @@ fn spawn_nameplate_entity(
             Text2d::new(text),
             TextFont {
                 font_size: FontSize::Px(font_size),
+                font,
                 ..default()
             },
             TextColor(color),
+            Text2dShadow {
+                offset: Vec2::new(1.0, -1.0),
+                color: Color::BLACK,
+            },
             Transform::default(),
             Visibility::Hidden,
         ))
@@ -341,7 +371,7 @@ fn project_owner(
             world_camera
                 .world_to_viewport(world_transform, global.translation())
                 .ok()?
-                - Vec2::X * 91.0,
+                - Vec2::X * (BAR_PIXEL_WIDTH / 2.0 - 8.0),
             Anchor::CENTER_LEFT,
         ),
         Some((global, _)) => (
@@ -428,6 +458,9 @@ pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
 }
 
 fn nameplate_text_color(kind: NameplateKind, colorblind_mode: bool) -> Color {
+    if !colorblind_mode {
+        return Color::WHITE;
+    }
     let rgba = match kind {
         NameplateKind::Player => {
             if colorblind_mode {
