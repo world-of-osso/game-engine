@@ -78,6 +78,8 @@ pub mod minimap;
 pub mod minimap_render;
 #[path = "ui/nameplate.rs"]
 pub mod nameplate;
+#[path = "ui/nameplate_art.rs"]
+pub(crate) mod nameplate_art;
 #[path = "ui/nameplate_cast_bar.rs"]
 pub mod nameplate_cast_bar;
 #[path = "ui/quest_sparkle.rs"]
