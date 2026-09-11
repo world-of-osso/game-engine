@@ -4,7 +4,6 @@ use game_engine::auction_house_data::Money;
 use game_engine::input_bindings::{InputAction, InputBindings};
 use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::frame::{Dimension, WidgetData};
-use game_engine::ui::layout::resolve_frame_layout;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_hud_component;
@@ -14,7 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::client_options::HudVisibilityToggles;
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
-use game_engine::ui::anchor::{Anchor, AnchorPoint};
+use game_engine::ui::anchor::AnchorTarget;
 
 const SLOT_COUNT: usize = 12;
 const SLOT_W: f32 = 45.0;
@@ -420,28 +419,17 @@ fn set_font_string_with_justify(
 }
 
 fn set_rect(reg: &mut FrameRegistry, id: u64, x: f32, y: f32, w: f32, h: f32) {
-    let relative_to = reg.get(id).and_then(|frame| frame.parent_id);
     if let Some(frame) = reg.get_mut(id) {
         frame.width = Dimension::Fixed(w);
         frame.height = Dimension::Fixed(h);
-        frame.layout_rect = None;
+        frame.translation = default();
+        frame.margin = UiRect::ZERO;
     }
-    reg.clear_all_points(id);
-    reg.set_point(
-        id,
-        Anchor {
-            point: AnchorPoint::TopLeft,
-            relative_to,
-            relative_point: AnchorPoint::TopLeft,
-            x_offset: x,
-            y_offset: -y,
-        },
-    )
-    .expect("action bar anchor");
-    let rect = resolve_frame_layout(reg, id).expect("action bar layout");
-    if let Some(frame) = reg.get_mut(id) {
-        frame.layout_rect = Some(rect);
-    }
+    reg.set_anchor(id, AnchorTarget::Parent)
+        .expect("action bar layout parent");
+    reg.set_pos_type(id, PositionType::Absolute)
+        .expect("action bar position type");
+    reg.set_pos(id, x, y).expect("action bar position");
 }
 
 fn background_needs_update(reg: &FrameRegistry, id: u64, color: [f32; 4]) -> bool {
