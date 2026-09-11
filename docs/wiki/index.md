@@ -62,7 +62,8 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` authored M2 black output remains separate from ordinary InWorld procedural sky
-- [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — bright campsite workaround plane over terrain darkened by verified MCNR normal-axis decode; production correction pending
+- [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane
+- [character-select-waterfall-loading](investigations/character-select-waterfall-loading.md) — split-file shadow validation rejects the waterfall tile; correction pending
 - [procedural-sky-dome-visibility](investigations/procedural-sky-dome-visibility.md) — restored raw-zero dome was backface-culled; late-created materials also missed settled sky colors
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
