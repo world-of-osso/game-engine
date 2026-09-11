@@ -51,7 +51,7 @@ fn set_editbox_backdrop(reg: &mut FrameRegistry, id: u64) {
 }
 
 fn common_input_border_part_textures() -> [TextureSource; 9] {
-    let base = "/home/osso/Projects/wow/Interface/COMMON/Common-Input-Border-";
+    let base = "data/ui/login-input/Common-Input-Border-";
     [
         TextureSource::File(format!("{base}TL.blp")),
         TextureSource::File(format!("{base}T.blp")),
