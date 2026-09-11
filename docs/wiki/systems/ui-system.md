@@ -24,9 +24,9 @@ Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are s
 
 ## Registry-native migration status
 
-Bounded runtime evidence is recorded under `data/diagnostics/native-layout-api/final-*`: loading, menu opening, local authentication to character select, UTF-8 username editing (`adminé`, byte cursor `7`), and sampled caret blinking. `final-native/report.md` found two visual regressions: a 16px menu-title/panel gap and loading labels sharing lower draw order with the bar/fill. Commits `25016091` and `4415f5fc` respectively restore the title's two-pixel overlap with its panel and keep the zone/tip labels over artwork plus status/progress labels over the bar/fill. Follow-up runtime verification is pending.
+At engine `552adb5a` and toolkit `791b282`, follow-up bounded native captures confirm the menu title y337–373 overlaps its panel y371–666 by two pixels and loading zone/tip labels remain above artwork while status/progress labels remain above the bar/fill. Earlier compatible captures establish local authentication to character select, UTF-8 username editing (`adminé`, byte cursor `7`), and sampled caret blinking. Evidence: `data/diagnostics/native-layout-api/{fixed-loading,fixed-menu,final-auth,final-caret}/`.
 
-At toolkit `bc901a6`, targeted proof covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases; engine bounded integration covers 887 cases. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. Do not treat this as final acceptance.
+Proof remains revision-scoped: engine `bc901a6` integration covers 887 cases; toolkit `bc901a6` covers 42 native-render cases; toolkit `821c2a0` covers 72 registry/attrs/Screen/diff/parser cases. The behavior-neutral `791b282` extraction has four focused native-render cases, check, and format proof; 36 affected engine cases cover the visual corrections. Global engine formatting still fails only on 104 vendor paths; `binrw v0.15.1` has a future-incompatibility warning. Missing character assets prevent full character-screen rendering acceptance. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. This is not full lifecycle, asset-complete, or final acceptance.
 
 ## Player-frame artwork fit
 
