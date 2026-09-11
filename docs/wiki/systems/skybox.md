@@ -1,6 +1,14 @@
 # Skybox
 
-Skybox rendering combines a procedural dome for explicit LightParams rows with no authored skybox and authored WoW M2 models for rows that select one. The `SkyboxM2Material` render path disables depth writes, depth comparison, and shadow/prepass participation.
+Skybox rendering combines a procedural dome for explicit LightParams rows with no authored skybox and authored WoW M2 models for rows that select one. The `SkyboxM2Material` render path disables depth writes and shadow/prepass participation. Authored sky fragments use far background depth while retaining scene-depth comparison.
+
+## Authored sky behind scene geometry
+
+The [authored skybox depth contract](../../specs/authored-skybox-depth.md) requires scene objects to occlude authored sky regardless of the sky mesh's finite dimensions. `42ed3cec` writes reverse-Z far depth from the sky fragment shader; texture combining, opacity, and layer ordering remain unchanged.
+
+The GPU regression reproduces the old error with sky geometry closer to the camera than opaque and masked foreground cards. After correction, red foreground and green foliage remain visible while blue sky survives in unobstructed pixels and cutout holes, for opaque and blended sky pipelines. Existing material tests cover the retained settings and ordering.
+
+The gray area in the character-selection depth diagnostic is not proof of missing sky. A terrain-only magenta override identified substantial gray coverage as opaque fogged terrain; it did not account for every gray pixel. Rendering sky behind that terrain must not paint over it. Fog-color/distance tuning is outside this depth correction. Evidence: `data/diagnostics/charselect-tree-clipping-20260911/{fix-red,fix-green,terrain-coverage-probe,verification,final-native}/`.
 
 ## InWorld procedural sky selection
 
