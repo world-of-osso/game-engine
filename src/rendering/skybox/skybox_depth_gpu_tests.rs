@@ -46,23 +46,7 @@ fn create_scene(app: &mut App, layer: usize, blend_mode: u16) -> Handle<Image> {
 
 fn sky_material(texture: Handle<Image>, blend_mode: u16) -> SkyboxM2Material {
     SkyboxM2Material {
-        settings: SkyboxM2Settings {
-            color: Vec4::ONE,
-            transparency: 1.0,
-            alpha_test: 0.0,
-            combine_mode: 0,
-            blend_mode: u32::from(blend_mode),
-            uv_mode_1: 0,
-            uv_mode_2: 0,
-            uv_mode_3: 0,
-            uv_mode_4: 0,
-            render_flags: 0,
-            has_second_texture: 0,
-            has_third_texture: 0,
-            has_fourth_texture: 0,
-            uv_offset_1: Vec2::ZERO,
-            uv_offset_2: Vec2::ZERO,
-        },
+        settings: sky_settings(blend_mode),
         base_texture: texture.clone(),
         second_texture: texture.clone(),
         third_texture: texture.clone(),
@@ -77,6 +61,26 @@ fn sky_material(texture: Handle<Image>, blend_mode: u16) -> SkyboxM2Material {
         color_opacity_anim: None,
         texture_anim_1: None,
         texture_anim_2: None,
+    }
+}
+
+fn sky_settings(blend_mode: u16) -> SkyboxM2Settings {
+    SkyboxM2Settings {
+        color: Vec4::ONE,
+        transparency: 1.0,
+        alpha_test: 0.0,
+        combine_mode: 0,
+        blend_mode: u32::from(blend_mode),
+        uv_mode_1: 0,
+        uv_mode_2: 0,
+        uv_mode_3: 0,
+        uv_mode_4: 0,
+        render_flags: 0,
+        has_second_texture: 0,
+        has_third_texture: 0,
+        has_fourth_texture: 0,
+        uv_offset_1: Vec2::ZERO,
+        uv_offset_2: Vec2::ZERO,
     }
 }
 
