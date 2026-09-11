@@ -39,4 +39,6 @@ Legacy standalone rendering helpers may remain as compatibility/test utilities a
 
 ## Current state
 
-Source compilation passes. Toolkit coverage is 42 targeted GREEN tests (37 + 5). Engine addon and screen tests remain in progress. No full acceptance or rendered-runtime claim is made.
+Native login rendering is recorded at `data/diagnostics/native-layout-api/native-login-settled/`: a bounded nine-second registry-backed client run produced a screenshot and registry dump with populated login background, logo, edit boxes, and controls. `native-caret/` records a focused `UsernameInput` after UTF-8 input (`adminé`, byte cursor `7`) plus four timed screenshot samples. Those runtime captures were built from engine `5e576431` and toolkit `821c2a0`; later fixture/refactor commits still require acceptance proof.
+
+Targeted toolkit evidence at `821c2a0` covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases. Engine addon and migrated-screen verification is still running; do not treat the bounded capture or targeted tests as final acceptance.
