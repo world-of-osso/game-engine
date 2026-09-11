@@ -202,8 +202,7 @@ fn game_menu_title_is_anchored_to_mount_not_panel_flow() {
     let title_rect = title.layout_rect.as_ref().unwrap();
     let panel_rect = panel.layout_rect.as_ref().unwrap();
     let mount_rect = reg.get(mount_id).unwrap().layout_rect.as_ref().unwrap();
-    // The shared title overlaps its parent's top edge by half its height.
-    assert!((title_rect.y - (mount_rect.y - TITLE_H / 2.0)).abs() < 1.0);
+    assert!((title_rect.y - mount_rect.y).abs() < 1.0);
     assert!((panel_rect.y - mount_rect.y - (TITLE_H - TITLE_PANEL_OVERLAP)).abs() < 1.0);
 }
 

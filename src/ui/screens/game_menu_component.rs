@@ -54,7 +54,7 @@ pub struct GameMenuViewModel {
 }
 
 fn panel_title(text: &str) -> Element {
-    framed_title(TITLE_FRAME, TITLE_LABEL, PANEL_W, text)
+    framed_title(TITLE_FRAME, TITLE_LABEL, PANEL_W, text, 0.0)
 }
 
 fn menu_button(name: &str, text: &str, action: &str) -> Element {
