@@ -1,6 +1,9 @@
 use super::*;
 use ui_toolkit::frame::Dimension;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
+#[path = "menu_character_layout_test_support.rs"]
+mod layout_test_support;
+use layout_test_support::compute_layout;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -13,7 +16,7 @@ fn action_bar_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = action_bar_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -287,6 +290,45 @@ fn minimap_builds_buttons_ring() {
         )
         .expect("calendar frame");
     assert_eq!(frame.onclick.as_deref(), Some("calendar_toggle"));
+}
+
+#[test]
+fn minimap_parent_layout_keeps_overlay_geometry_at_both_viewports() {
+    for (width, height) in [(1280.0, 720.0), (1920.0, 1080.0)] {
+        let mut reg = FrameRegistry::new(width, height);
+        Screen::new(minimap_screen).sync(&SharedContext::new(), &mut reg);
+        for name in [
+            "MinimapCluster",
+            "MinimapDisplay",
+            "MinimapBorder",
+            "MinimapArrow",
+            "MinimapZoneName",
+            "MinimapCoords",
+        ] {
+            let id = reg.get_by_name(name).expect(name);
+            reg.set_hidden(id, false);
+        }
+        compute_layout(&mut reg);
+        let cluster = rect(&reg, "MinimapCluster");
+        let map = rect(&reg, "MinimapDisplay");
+        let border = rect(&reg, "MinimapBorder");
+        let arrow = rect(&reg, "MinimapArrow");
+        let coords = rect(&reg, "MinimapCoords");
+        let zoom = rect(&reg, "MinimapZoomIn");
+        let header = rect(&reg, "MinimapHeader");
+        let zone = rect(&reg, "MinimapZoneName");
+        assert!((cluster.x + cluster.width - (width - 12.0)).abs() < 1.0);
+        assert!((cluster.y - 8.0).abs() < 1.0);
+        assert!((map.y - cluster.y - 42.0).abs() < 1.0);
+        assert!((border.x - map.x).abs() < 1.0 && (border.y - map.y).abs() < 1.0);
+        assert!((arrow.x + arrow.width / 2.0 - map.x - map.width / 2.0).abs() < 1.0);
+        assert!((arrow.y + arrow.height / 2.0 - map.y - map.height / 2.0).abs() < 1.0);
+        assert!((coords.x + coords.width - map.x - map.width).abs() < 1.0);
+        assert!((coords.y - map.y - map.height - 6.0).abs() < 1.0);
+        assert!((zoom.x + zoom.width / 2.0 - map.x - map.width / 2.0 - 90.0).abs() < 1.0);
+        assert!((zoom.y + zoom.height / 2.0 - map.y - map.height / 2.0 - 10.0).abs() < 1.0);
+        assert!((zone.x - header.x - 6.0).abs() < 1.0);
+    }
 }
 
 #[test]
