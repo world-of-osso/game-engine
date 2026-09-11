@@ -1,6 +1,7 @@
 use super::*;
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
 use ui_toolkit::frame::WidgetData;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -31,7 +32,7 @@ fn build_registry() -> FrameRegistry {
 
 fn layout_registry() -> FrameRegistry {
     let mut reg = build_registry();
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 
@@ -310,7 +311,7 @@ fn coord_chat_channel_tabs() {
         let mut s = SharedContext::new();
         s.insert(make_chat_state());
         Screen::new(communities_frame_screen).sync(&s, &mut r);
-        recompute_layouts(&mut r);
+        compute_layout(&mut r);
         r
     };
     let content_x = FRAME_X + SIDEBAR_INSET + SIDEBAR_W + CONTENT_GAP;
@@ -338,7 +339,7 @@ fn coord_chat_input_box() {
         let mut s = SharedContext::new();
         s.insert(make_chat_state());
         Screen::new(communities_frame_screen).sync(&s, &mut r);
-        recompute_layouts(&mut r);
+        compute_layout(&mut r);
         r
     };
     let r = rect(&reg, "CommunitiesChatInputBox");

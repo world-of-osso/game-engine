@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -159,12 +158,9 @@ pub fn achievement_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "370",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 370.0,
+            top: 80.0,
             {title_bar(state.total_points)}
             {tab_row(&state.tabs)}
             {category_sidebar(&state.categories)}
@@ -184,12 +180,10 @@ fn title_bar(total_points: u32) -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -221,12 +215,9 @@ fn tab_button(i: usize, tab: &AchievementTab, tab_w: f32, x: f32, y: f32) -> Ele
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -242,7 +233,9 @@ fn tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -265,12 +258,9 @@ fn category_sidebar(categories: &[AchievementCategory]) -> Element {
             width: {SIDEBAR_W},
             height: {sidebar_h},
             background_color: SIDEBAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SIDEBAR_INSET},
-                y: {sidebar_y},
-            }
+            pos_type: "absolute",
+            left: {SIDEBAR_INSET},
+            top: {-(sidebar_y)},
             {cats}
         }
     }
@@ -293,12 +283,9 @@ fn category_row(idx: usize, cat: &AchievementCategory, y: f32) -> Element {
             width: {SIDEBAR_W},
             height: {CAT_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {category_row_label(label_id, &cat.name, label_w, x_offset, color)}
         }
     }
@@ -324,12 +311,9 @@ fn category_row_label(id: DynName, text: &str, w: f32, x: f32, color: &str) -> E
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: -0.0,
         }
     }
 }
@@ -358,12 +342,9 @@ fn content_area(achievements: &[AchievementRow]) -> Element {
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {content_x},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {content_x},
+            top: {-(content_y)},
             {content_placeholder(content_w, has_rows)}
             {rows}
         }
@@ -381,7 +362,10 @@ fn content_placeholder(w: f32, has_rows: bool) -> Element {
             font_color: CONTENT_PLACEHOLDER_COLOR,
             hidden: has_rows,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "-20" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: 20.0,
         }
     }
 }
@@ -401,12 +385,9 @@ fn achievement_row(idx: usize, row: &AchievementRow, row_w: f32, y: f32) -> Elem
             width: {row_w},
             height: {ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ROW_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {ROW_INSET},
+            top: {-(y)},
             {row_icon(idx, row.icon_fdid)}
             {row_name(idx, &row.name, text_x, text_w)}
             {row_description(idx, &row.description, text_x, text_w)}
@@ -427,21 +408,17 @@ fn row_icon(idx: usize, icon_fdid: u32) -> Element {
             width: {ICON_SIZE},
             height: {ICON_SIZE},
             background_color: ICON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {ICON_INSET},
-                y: {icon_y},
-            }
+            pos_type: "absolute",
+            left: {ICON_INSET},
+            top: {-(icon_y)},
             texture {
                 name: tex_id,
                 width: {ICON_SIZE},
                 height: {ICON_SIZE},
                 texture_fdid: {icon_fdid},
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -458,12 +435,9 @@ fn row_name(idx: usize, name: &str, x: f32, w: f32) -> Element {
             font_size: 11.0,
             font_color: NAME_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "-4",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: 4.0,
         }
     }
 }
@@ -479,12 +453,9 @@ fn row_description(idx: usize, desc: &str, x: f32, w: f32) -> Element {
             font_size: 9.0,
             font_color: DESC_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: "-20",
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: 20.0,
         }
     }
 }
@@ -500,12 +471,9 @@ fn row_progress_bar(idx: usize, row: &AchievementRow, x: f32) -> Element {
             width: {PROGRESS_BAR_W},
             height: {PROGRESS_BAR_H},
             background_color: PROGRESS_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-(ROW_H - PROGRESS_BAR_H - 4.0)},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-(ROW_H - PROGRESS_BAR_H - 4.0))},
             {progress_fill(fill_id, fill_w)}
             {progress_text(text_id, &row.progress_text)}
         }
@@ -519,7 +487,9 @@ fn progress_fill(id: DynName, w: f32) -> Element {
             width: {w},
             height: {PROGRESS_BAR_H},
             background_color: PROGRESS_FILL,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -534,7 +504,9 @@ fn progress_text(id: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: PROGRESS_TEXT_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -551,12 +523,9 @@ fn row_points(idx: usize, points: u32, row_w: f32) -> Element {
             font_size: 9.0,
             font_color: POINTS_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {row_w - CHECK_SIZE - ICON_INSET},
-                y: "-4",
-            }
+            pos_type: "absolute",
+            left: {row_w - CHECK_SIZE - ICON_INSET},
+            top: 4.0,
         }
     }
 }
@@ -578,12 +547,9 @@ fn row_checkmark(idx: usize, completed: bool, row_w: f32) -> Element {
             font_size: 14.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {row_w - CHECK_SIZE - 2.0},
-                y: {-((ROW_H - CHECK_SIZE) / 2.0)},
-            }
+            pos_type: "absolute",
+            left: {row_w - CHECK_SIZE - 2.0},
+            top: {-(-((ROW_H - CHECK_SIZE) / 2.0))},
         }
     }
 }

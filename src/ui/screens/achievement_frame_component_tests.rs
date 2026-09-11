@@ -1,5 +1,6 @@
 use super::*;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -310,7 +311,7 @@ fn layout_registry() -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(make_test_state());
     Screen::new(achievement_frame_screen).sync(&shared, &mut reg);
-    recompute_layouts(&mut reg);
+    compute_layout(&mut reg);
     reg
 }
 

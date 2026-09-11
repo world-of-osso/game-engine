@@ -16,7 +16,9 @@ pub(super) fn entity_list(state: &WorldBuilderViewState) -> Element {
                 text: "No matching entities on this page.",
                 font_size: 12.0,
                 font_color: MUTED,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: "-12" }
+                pos_type: "absolute",
+                left: 12.0,
+                top: 12.0,
             }
         }
     } else {
@@ -29,7 +31,9 @@ pub(super) fn entity_list(state: &WorldBuilderViewState) -> Element {
             width: {SIDEBAR_WIDTH - PANEL_INSET * 2.0},
             height: ROW_LIST_HEIGHT,
             background_color: PANEL_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {PANEL_INSET}, y: "-148" }
+            pos_type: "absolute",
+            left: {PANEL_INSET},
+            top: 148.0,
             {rows}
             {empty}
             {page_controls(state)}
@@ -53,7 +57,9 @@ fn entity_row(row: &WorldBuilderRow, index: usize) -> Element {
             height: ROW_HEIGHT,
             background_color: row_bg,
             onclick: WorldBuilderAction::SelectEntity(row.entity_bits),
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "12", y: {row_y} }
+            pos_type: "absolute",
+            left: 12.0,
+            top: {-(row_y)},
             {entity_expand_button(row)}
             {entity_row_label(row.entity_bits, &label)}
             {entity_toggle_button(
@@ -90,7 +96,10 @@ fn entity_expand_button(row: &WorldBuilderRow) -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -104,7 +113,10 @@ fn entity_row_label(entity_bits: u64, label: &str) -> Element {
             text: {label},
             font_size: 12.0,
             font_color: TEXT,
-            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left, x: "38", y: "0" }
+            pos_type: "absolute",
+            left: 38.0,
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -128,7 +140,10 @@ fn entity_toggle_button(
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::Right, relative_point: AnchorPoint::Right, x: {x}, y: "0" }
+            pos_type: "absolute",
+            right: {-(x)},
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -162,7 +177,9 @@ fn previous_page_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::BottomLeft, relative_point: AnchorPoint::BottomLeft, x: "12", y: "10" }
+            pos_type: "absolute",
+            left: 12.0,
+            bottom: 10.0,
         }
     }
 }
@@ -177,7 +194,10 @@ fn page_label(page_text: &str) -> Element {
             font_size: 11.0,
             font_color: MUTED,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, x: "0", y: "10" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 10.0,
         }
     }
 }
@@ -195,7 +215,9 @@ fn next_page_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "-12", y: "10" }
+            pos_type: "absolute",
+            right: 12.0,
+            bottom: 10.0,
         }
     }
 }

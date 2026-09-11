@@ -4,7 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::screens::screen_title::framed_title;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
@@ -115,12 +115,10 @@ fn helper_text() -> Element {
             font_size: 15.0,
             font_color: TEXT_MUTED,
             justify_h: JustifyH::Center,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: SCREEN_MOUNT,
-                relative_point: AnchorPoint::Top,
-                y: "-44",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: 44.0,
         }
     }
 }
@@ -138,13 +136,9 @@ fn list_panel(entries: &[SelectionDebugEntry], selected_index: usize) -> Element
             width: 450.0,
             height: 470.0,
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: SCREEN_MOUNT,
-                relative_point: AnchorPoint::TopLeft,
-                x: "32",
-                y: "-86",
-            }
+            pos_type: "absolute",
+            left: 32.0,
+            top: 86.0,
             {list_panel_border()}
             {list_panel_title()}
             {list_panel_rows(rows)}
@@ -159,11 +153,10 @@ fn list_panel_border() -> Element {
             width: 450.0,
             height: 2.0,
             background_color: PANEL_BORDER,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: LIST_PANEL,
-                relative_point: AnchorPoint::Top,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -179,13 +172,9 @@ fn list_panel_title() -> Element {
             font_size: 20.0,
             font_color: TEXT_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: LIST_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 18.0,
         }
     }
 }
@@ -198,13 +187,9 @@ fn list_panel_rows(rows: Element) -> Element {
             height: 368.0,
             layout: "flex-col",
             gap: 12.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: LIST_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-56",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 56.0,
             {rows}
         }
     }
@@ -235,10 +220,10 @@ fn selection_row_selected_accent(index: usize, hide_selected: bool) -> Element {
             height: 4.0,
             hidden: hide_selected,
             background_color: ROW_ACCENT,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -254,12 +239,9 @@ fn selection_row_label(index: usize, label: &str) -> Element {
             font_size: 20.0,
             font_color: TEXT_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "16",
-                y: "-14",
-            }
+            pos_type: "absolute",
+            left: 16.0,
+            top: 14.0,
         }
     }
 }
@@ -275,12 +257,9 @@ fn selection_row_subtitle(index: usize, subtitle: &str) -> Element {
             font_size: 13.0,
             font_color: TEXT_SUBTITLE,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "16",
-                y: "-42",
-            }
+            pos_type: "absolute",
+            left: 16.0,
+            top: 42.0,
         }
     }
 }
@@ -299,23 +278,18 @@ fn detail_panel(state: &SelectionDebugState) -> Element {
             width: 580.0,
             height: 470.0,
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_to: SCREEN_MOUNT,
-                relative_point: AnchorPoint::TopRight,
-                x: "-32",
-                y: "-86",
-            }
+            pos_type: "absolute",
+            right: 32.0,
+            top: 86.0,
             r#frame {
                 name: "SelectionDebugDetailBorder",
                 width: 580.0,
                 height: 2.0,
                 background_color: PANEL_BORDER,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_to: DETAIL_PANEL,
-                    relative_point: AnchorPoint::Top,
-                }
+                pos_type: "absolute",
+                left: "50%",
+                translate_x: "-50%",
+                top: -0.0,
             }
             {detail_panel_selected_copy(selected)}
             {detail_panel_mode_copy(state)}
@@ -343,13 +317,9 @@ fn detail_panel_selected_title() -> Element {
             font_size: 20.0,
             font_color: TEXT_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 18.0,
         }
     }
 }
@@ -365,13 +335,9 @@ fn detail_panel_selected_label(label: &str) -> Element {
             font_size: 28.0,
             font_color: TEXT_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-62",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 62.0,
         }
     }
 }
@@ -387,13 +353,9 @@ fn detail_panel_selected_subtitle(subtitle: &str) -> Element {
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-96",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 96.0,
         }
     }
 }
@@ -409,13 +371,9 @@ fn detail_panel_selected_value(detail: &str) -> Element {
             font_size: 15.0,
             font_color: TEXT_MUTED,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-136",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 136.0,
         }
     }
 }
@@ -446,13 +404,9 @@ fn detail_panel_mode_title() -> Element {
             font_size: 17.0,
             font_color: TEXT_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-302",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 302.0,
         }
     }
 }
@@ -468,13 +422,9 @@ fn detail_panel_mode_value(mode: &str) -> Element {
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-330",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 330.0,
         }
     }
 }
@@ -490,13 +440,9 @@ fn detail_panel_last_action_title() -> Element {
             font_size: 17.0,
             font_color: TEXT_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-404",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 404.0,
         }
     }
 }
@@ -512,24 +458,14 @@ fn detail_panel_last_action_value(last_action: &str) -> Element {
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_to: DETAIL_PANEL,
-                relative_point: AnchorPoint::TopLeft,
-                x: "24",
-                y: "-432",
-            }
+            pos_type: "absolute",
+            left: 24.0,
+            top: 432.0,
         }
     }
 }
 
-fn action_button(
-    name: FrameName,
-    text: &str,
-    action: SelectionDebugAction,
-    relative_to: FrameName,
-    x: f32,
-) -> Element {
+fn action_button(name: FrameName, text: &str, action: SelectionDebugAction, x: f32) -> Element {
     rsx! {
         button {
             name,
@@ -542,13 +478,9 @@ fn action_button(
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_to,
-                relative_point: AnchorPoint::BottomLeft,
-                x: {x.to_string()},
-                y: "26",
-            }
+            pos_type: "absolute",
+            left: {x},
+            bottom: 26.0,
         }
     }
 }
@@ -570,12 +502,10 @@ fn status_text(state: &SelectionDebugState) -> Element {
             font_size: 14.0,
             font_color: TEXT_SUBTITLE,
             justify_h: JustifyH::Center,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: SCREEN_MOUNT,
-                relative_point: AnchorPoint::Bottom,
-                y: "78",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 78.0,
         }
     }
 }
@@ -611,10 +541,11 @@ fn selection_debug_mount(state: &SelectionDebugState, pin_label: &str) -> Elemen
             name: SCREEN_MOUNT,
             width: 1120.0,
             height: 640.0,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {selection_debug_header()}
             {list_panel(&state.entries, state.selected_index)}
             {detail_panel(state)}
@@ -629,7 +560,6 @@ fn selection_debug_header() -> Element {
         {framed_title(
             TITLE_FRAME,
             TITLE_LABEL,
-            SCREEN_MOUNT,
             420.0,
             "Selection Debug",
         )}
@@ -643,28 +573,24 @@ fn selection_debug_action_buttons(pin_label: &str) -> Element {
             PREV_BUTTON,
             "Previous",
             SelectionDebugAction::Prev,
-            SCREEN_MOUNT,
             32.0,
         )}
         {action_button(
             NEXT_BUTTON,
             "Next",
             SelectionDebugAction::Next,
-            SCREEN_MOUNT,
             216.0,
         )}
         {action_button(
             PIN_BUTTON,
             pin_label,
             SelectionDebugAction::TogglePinned,
-            SCREEN_MOUNT,
             400.0,
         )}
         {action_button(
             BACK_BUTTON,
             "Back",
             SelectionDebugAction::Back,
-            SCREEN_MOUNT,
             924.0,
         )}
     }

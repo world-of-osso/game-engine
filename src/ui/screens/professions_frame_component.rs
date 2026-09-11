@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -154,12 +153,9 @@ pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 20.0,
+            top: 80.0,
             {professions_title_bar()}
             {profession_tab_row(&state.tabs)}
             {recipe_search_bar()}
@@ -181,12 +177,10 @@ fn professions_title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -219,12 +213,9 @@ fn profession_tab_button(i: usize, tab: &ProfessionTab, w: f32, x: f32) -> Eleme
             height: {TAB_H},
             background_color: bg,
             onclick: {tab.action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {profession_tab_label(label_id, &tab.name, w, color)}
         }
     }
@@ -240,7 +231,9 @@ fn profession_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -254,12 +247,9 @@ fn recipe_search_bar() -> Element {
             width: {bar_w},
             height: {SEARCH_H},
             background_color: SEARCH_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
             fontstring {
                 name: "ProfessionsSearchText",
                 width: {bar_w - 8.0},
@@ -268,12 +258,9 @@ fn recipe_search_bar() -> Element {
                 font_size: 10.0,
                 font_color: SEARCH_TEXT_COLOR,
                 justify_h: "LEFT",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "4",
-                    y: "0",
-                }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -303,12 +290,9 @@ fn recipe_row(idx: usize, recipe: &RecipeState, y: f32) -> Element {
             height: {ROW_H},
             background_color: row_bg,
             onclick: {recipe.action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(y)},
             {recipe_name_label(idx, &recipe.name, col_w)}
             {recipe_profession_label(idx, &recipe.profession, col_w)}
             {recipe_status_label(idx, recipe, col_w)}
@@ -327,12 +311,9 @@ fn recipe_name_label(idx: usize, name: &str, col_w: f32) -> Element {
             font_size: 10.0,
             font_color: NAME_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "4",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -348,12 +329,9 @@ fn recipe_profession_label(idx: usize, profession: &str, col_w: f32) -> Element 
             font_size: 10.0,
             font_color: PROF_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {col_w},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {col_w},
+            top: -0.0,
         }
     }
 }
@@ -377,12 +355,9 @@ fn recipe_status_label(idx: usize, recipe: &RecipeState, col_w: f32) -> Element 
             font_size: 10.0,
             font_color: status_color,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {row_w - col_w - 4.0},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {row_w - col_w - 4.0},
+            top: -0.0,
         }
     }
 }
@@ -400,12 +375,9 @@ fn recipe_count_footer(count: usize) -> Element {
             font_size: 10.0,
             font_color: FOOTER_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
         }
     }
 }
@@ -423,12 +395,9 @@ fn crafting_detail_panel(detail: &CraftingDetail) -> Element {
             width: {panel_w},
             height: 160.0,
             hidden: {detail.recipe_name.is_empty()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {DETAIL_INSET},
-                y: {panel_y},
-            }
+            pos_type: "absolute",
+            left: {DETAIL_INSET},
+            top: {-(panel_y)},
             fontstring {
                 name: "CraftingDetailName",
                 width: {panel_w},
@@ -437,7 +406,9 @@ fn crafting_detail_panel(detail: &CraftingDetail) -> Element {
                 font_size: 12.0,
                 font_color: TITLE_COLOR,
                 justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
             {reagent_grid}
             {crafting_quality_bar(quality_fill_w, &detail.quality_text)}
@@ -463,7 +434,9 @@ fn crafting_reagent_slot(i: usize) -> Element {
             width: {REAGENT_SLOT_SIZE},
             height: {REAGENT_SLOT_SIZE},
             background_color: REAGENT_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -476,13 +449,17 @@ fn crafting_quality_bar(fill_w: f32, text: &str) -> Element {
             width: {QUALITY_BAR_W},
             height: {QUALITY_BAR_H},
             background_color: QUALITY_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {y} }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             r#frame {
                 name: "CraftingQualityFill",
                 width: {fill_w},
                 height: {QUALITY_BAR_H},
                 background_color: QUALITY_FILL,
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
             fontstring {
                 name: "CraftingQualityText",
@@ -492,7 +469,9 @@ fn crafting_quality_bar(fill_w: f32, text: &str) -> Element {
                 font_size: 8.0,
                 font_color: QUALITY_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -506,7 +485,9 @@ fn craft_button(x: f32, y: f32) -> Element {
             height: {CRAFT_BTN_H},
             background_color: CRAFT_BTN_BG,
             onclick: ACTION_PROFESSION_CRAFT,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: "CraftingCraftButtonText",
                 width: {CRAFT_BTN_W},
@@ -515,7 +496,9 @@ fn craft_button(x: f32, y: f32) -> Element {
                 font_size: 10.0,
                 font_color: CRAFT_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -532,14 +515,18 @@ fn crafting_quantity_and_button() -> Element {
             font_size: 10.0,
             font_color: DETAIL_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: {y} }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
         }
         r#frame {
             name: "CraftingQtyInput",
             width: {QTY_INPUT_W},
             height: {QTY_INPUT_H},
             background_color: QTY_INPUT_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: 44.0, y: {y} }
+            pos_type: "absolute",
+            left: 44.0,
+            top: {-(y)},
         }
         {craft_button(44.0 + QTY_INPUT_W + 8.0, y)}
     }
@@ -564,7 +551,9 @@ fn book_recipe_row(i: usize, recipe: &BookRecipe, w: f32) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {BOOK_INSET}, y: {y} }
+            pos_type: "absolute",
+            left: {BOOK_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -585,12 +574,9 @@ fn recipe_book_panel(recipes: &[BookRecipe]) -> Element {
             width: {panel_w},
             height: {panel_h},
             hidden: {recipes.is_empty()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-CONTENT_TOP},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-CONTENT_TOP)},
             {rows}
         }
     }

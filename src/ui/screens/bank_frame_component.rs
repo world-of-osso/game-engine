@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -96,12 +95,9 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "50",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 50.0,
+            top: 80.0,
             {title_bar()}
             {tab_row(&state.tabs)}
             {bank_slot_grid()}
@@ -121,12 +117,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -158,12 +152,9 @@ fn tab_button(i: usize, tab: &BankTab, tab_w: f32, x: f32, y: f32) -> Element {
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {bank_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -179,7 +170,9 @@ fn bank_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -205,12 +198,9 @@ fn bank_slot(index: usize, x: f32, y: f32) -> Element {
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -239,12 +229,9 @@ fn bag_row_label() -> Element {
             font_size: 10.0,
             font_color: BAG_ROW_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-(BAG_ROW_TOP - 18.0)},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-(BAG_ROW_TOP - 18.0))},
         }
     }
 }
@@ -257,12 +244,9 @@ fn bank_bag_slot(index: usize, x: f32) -> Element {
             width: {BAG_SLOT_SIZE},
             height: {BAG_SLOT_SIZE},
             background_color: BAG_SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {-BAG_ROW_TOP},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(-BAG_ROW_TOP)},
         }
     }
 }
@@ -281,12 +265,9 @@ fn reagent_bank_tab(slots_unlocked: usize) -> Element {
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(content_y)},
             {grid}
             {purchase}
         }
@@ -315,12 +296,9 @@ fn reagent_slot(index: usize, x: f32, y: f32, locked: bool) -> Element {
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -341,12 +319,9 @@ fn purchase_slot_button(slots_unlocked: usize) -> Element {
             width: {PURCHASE_BTN_W},
             height: {PURCHASE_BTN_H},
             background_color: PURCHASE_BTN_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {btn_y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(btn_y)},
             fontstring {
                 name: "ReagentBankPurchaseButtonText",
                 width: {PURCHASE_BTN_W},
@@ -355,10 +330,9 @@ fn purchase_slot_button(slots_unlocked: usize) -> Element {
                 font_size: 10.0,
                 font_color: PURCHASE_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -367,8 +341,9 @@ fn purchase_slot_button(slots_unlocked: usize) -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -389,7 +364,7 @@ mod tests {
 
     fn layout_registry() -> FrameRegistry {
         let mut reg = build_registry();
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

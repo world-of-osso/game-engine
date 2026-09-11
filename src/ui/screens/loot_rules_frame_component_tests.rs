@@ -1,7 +1,7 @@
 use super::*;
 use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
-use ui_toolkit::layout::recompute_layouts;
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn build_registry(state: LootRulesFrameState) -> FrameRegistry {
@@ -9,7 +9,7 @@ fn build_registry(state: LootRulesFrameState) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(state);
     Screen::new(loot_rules_frame_screen).sync(&shared, &mut registry);
-    recompute_layouts(&mut registry);
+    compute_layout(&mut registry);
     registry
 }
 

@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -102,12 +101,11 @@ pub fn guild_control_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: "50%",
+            translate_y: "-50%",
             {title_bar()}
             {rank_sidebar(&state.ranks)}
             {rank_name_editor(&state.rank_name)}
@@ -127,12 +125,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -152,12 +148,9 @@ fn rank_sidebar(ranks: &[GuildRank]) -> Element {
             width: {SIDEBAR_W},
             height: {sidebar_h},
             background_color: SIDEBAR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SIDEBAR_INSET},
-                y: {sidebar_y},
-            }
+            pos_type: "absolute",
+            left: {SIDEBAR_INSET},
+            top: {-(sidebar_y)},
             {rows}
         }
     }
@@ -178,12 +171,9 @@ fn rank_row(idx: usize, rank: &GuildRank) -> Element {
             width: {SIDEBAR_W},
             height: {RANK_ROW_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {rank_row_label(label_id, &rank.name, color)}
         }
     }
@@ -199,7 +189,9 @@ fn rank_row_label(id: DynName, text: &str, color: &str) -> Element {
             font_size: 10.0,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            left: 4.0,
+            top: -0.0,
         }
     }
 }
@@ -224,7 +216,9 @@ fn editor_label(name: &str, text: &str, x: f32, y: f32) -> Element {
             font_size: 10.0,
             font_color: EDITOR_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -236,12 +230,9 @@ fn editor_input(name: &str, text_name: &str, value: &str, w: f32, x: f32, y: f32
             width: {w},
             height: {EDITOR_H},
             background_color: EDITOR_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: DynName(text_name.into()),
                 width: {w - 8.0},
@@ -250,7 +241,9 @@ fn editor_input(name: &str, text_name: &str, value: &str, w: f32, x: f32, y: f32
                 font_size: 10.0,
                 font_color: EDITOR_TEXT_COLOR,
                 justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -285,12 +278,9 @@ fn perm_checkbox(id: DynName, text_id: DynName, check: &str, x: f32, y: f32) -> 
             width: {CHECKBOX_SIZE},
             height: {CHECKBOX_SIZE},
             background_color: CHECKBOX_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: text_id,
                 width: {CHECKBOX_SIZE},
@@ -299,7 +289,9 @@ fn perm_checkbox(id: DynName, text_id: DynName, check: &str, x: f32, y: f32) -> 
                 font_size: 14.0,
                 font_color: CHECKBOX_CHECK_COLOR,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -315,7 +307,9 @@ fn perm_label(id: DynName, text: &str, x: f32, y: f32) -> Element {
             font_size: 10.0,
             font_color: PERM_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -348,11 +342,21 @@ fn bank_perm_header(x: f32, y: f32) -> Element {
     let col4 = col3 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
     let col5 = col4 + BANK_TAB_CHECK_GAP + CHECKBOX_SIZE;
     rsx! {
-        fontstring { name: "GuildControlBankPermHeaderTab", width: {BANK_TAB_LABEL_W}, height: {BANK_TAB_ROW_H}, text: "Bank Tab", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "LEFT", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} } }
-        fontstring { name: "GuildControlBankPermHeaderView", width: 40.0, height: {BANK_TAB_ROW_H}, text: "View", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col2}, y: {y} } }
-        fontstring { name: "GuildControlBankPermHeaderDeposit", width: 50.0, height: {BANK_TAB_ROW_H}, text: "Deposit", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col3}, y: {y} } }
-        fontstring { name: "GuildControlBankPermHeaderWithdraw", width: 60.0, height: {BANK_TAB_ROW_H}, text: "Withdraw", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col4}, y: {y} } }
-        fontstring { name: "GuildControlBankPermHeaderLimit", width: {BANK_LIMIT_W}, height: {BANK_TAB_ROW_H}, text: "Limit", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col5}, y: {y} } }
+        fontstring { name: "GuildControlBankPermHeaderTab", width: {BANK_TAB_LABEL_W}, height: {BANK_TAB_ROW_H}, text: "Bank Tab", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "LEFT", pos_type: "absolute",
+        left: {x},
+        top: {-(y)}, }
+        fontstring { name: "GuildControlBankPermHeaderView", width: 40.0, height: {BANK_TAB_ROW_H}, text: "View", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: {col2},
+        top: {-(y)}, }
+        fontstring { name: "GuildControlBankPermHeaderDeposit", width: 50.0, height: {BANK_TAB_ROW_H}, text: "Deposit", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: {col3},
+        top: {-(y)}, }
+        fontstring { name: "GuildControlBankPermHeaderWithdraw", width: 60.0, height: {BANK_TAB_ROW_H}, text: "Withdraw", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: {col4},
+        top: {-(y)}, }
+        fontstring { name: "GuildControlBankPermHeaderLimit", width: {BANK_LIMIT_W}, height: {BANK_TAB_ROW_H}, text: "Limit", font_size: 9.0, font_color: BANK_HEADER_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: {col5},
+        top: {-(y)}, }
     }
 }
 
@@ -370,11 +374,27 @@ fn bank_tab_perm_row(idx: usize, tab: &BankTabPermission, x: f32, y: f32) -> Ele
     let dep_text = if tab.can_deposit { "\u{2713}" } else { "" };
     let wit_text = if tab.can_withdraw { "\u{2713}" } else { "" };
     rsx! {
-        fontstring { name: name_id, width: {BANK_TAB_LABEL_W}, height: {BANK_TAB_ROW_H}, text: {tab.tab_name.as_str()}, font_size: 9.0, font_color: PERM_LABEL_COLOR, justify_h: "LEFT", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {x}, y: {y} } }
-        r#frame { name: view_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col2}, y: {y} } fontstring { name: DynName(format!("GuildControlBankTab{idx}ViewText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: view_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft } } }
-        r#frame { name: dep_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col3}, y: {y} } fontstring { name: DynName(format!("GuildControlBankTab{idx}DepositText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: dep_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft } } }
-        r#frame { name: wit_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col4}, y: {y} } fontstring { name: DynName(format!("GuildControlBankTab{idx}WithdrawText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: wit_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft } } }
-        fontstring { name: limit_id, width: {BANK_LIMIT_W}, height: {BANK_TAB_ROW_H}, text: {tab.withdraw_limit.as_str()}, font_size: 9.0, font_color: PERM_LABEL_COLOR, justify_h: "CENTER", anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: {col5}, y: {y} } }
+        fontstring { name: name_id, width: {BANK_TAB_LABEL_W}, height: {BANK_TAB_ROW_H}, text: {tab.tab_name.as_str()}, font_size: 9.0, font_color: PERM_LABEL_COLOR, justify_h: "LEFT", pos_type: "absolute",
+        left: {x},
+        top: {-(y)}, }
+        r#frame { name: view_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, pos_type: "absolute",
+        left: {col2},
+        top: {-(y)}, fontstring { name: DynName(format!("GuildControlBankTab{idx}ViewText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: view_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: 0.0,
+        top: -0.0, } }
+        r#frame { name: dep_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, pos_type: "absolute",
+        left: {col3},
+        top: {-(y)}, fontstring { name: DynName(format!("GuildControlBankTab{idx}DepositText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: dep_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: 0.0,
+        top: -0.0, } }
+        r#frame { name: wit_id, width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, background_color: CHECKBOX_BG, pos_type: "absolute",
+        left: {col4},
+        top: {-(y)}, fontstring { name: DynName(format!("GuildControlBankTab{idx}WithdrawText")), width: {CHECKBOX_SIZE}, height: {CHECKBOX_SIZE}, text: wit_text, font_size: 14.0, font_color: CHECKBOX_CHECK_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: 0.0,
+        top: -0.0, } }
+        fontstring { name: limit_id, width: {BANK_LIMIT_W}, height: {BANK_TAB_ROW_H}, text: {tab.withdraw_limit.as_str()}, font_size: 9.0, font_color: PERM_LABEL_COLOR, justify_h: "CENTER", pos_type: "absolute",
+        left: {col5},
+        top: {-(y)}, }
     }
 }
 

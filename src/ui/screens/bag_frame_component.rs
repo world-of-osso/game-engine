@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -88,12 +87,9 @@ fn bag_container(bag: &BagContainerState) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x_offset},
-                y: "-100",
-            }
+            pos_type: "absolute",
+            left: {x_offset},
+            top: 100.0,
             {bag_title(title_name, &bag.title, frame_w)}
             {bag_slot_grid(bag.bag_index, &bag.slots)}
         }
@@ -110,7 +106,10 @@ fn bag_title(id: DynName, text: &str, w: f32) -> Element {
             font_size: 13.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -137,12 +136,9 @@ fn bag_slot_frame(bag_index: usize, slot_index: usize, x: f32, y: f32) -> Elemen
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
         }
     }
 }
@@ -150,7 +146,8 @@ fn bag_slot_frame(bag_index: usize, slot_index: usize, x: f32, y: f32) -> Elemen
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -179,7 +176,7 @@ mod tests {
 
     fn layout_registry(bags: Vec<BagContainerState>) -> FrameRegistry {
         let mut reg = build_registry(bags);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

@@ -4,8 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
-
 struct DynName(String);
 
 impl fmt::Display for DynName {
@@ -82,12 +80,9 @@ fn buff_grid(buffs: &[BuffIconState]) -> Element {
             name: "BuffFrame",
             width: {grid_w},
             height: {grid_h},
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-205",
-                y: "-8",
-            }
+            pos_type: "absolute",
+            right: 205.0,
+            top: 8.0,
             {icons}
         }
     }
@@ -110,12 +105,9 @@ fn debuff_grid(buffs: &[BuffIconState], debuffs: &[BuffIconState]) -> Element {
             name: "DebuffFrame",
             width: {grid_w},
             height: {grid_h},
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-205",
-                y: {-(8.0 + debuff_y_offset)},
-            }
+            pos_type: "absolute",
+            right: 205.0,
+            top: {-(-(8.0 + debuff_y_offset))},
             {icons}
         }
     }
@@ -139,12 +131,9 @@ fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
             width: {ICON_SIZE},
             height: {ICON_SIZE},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {icon_timer(DynName(format!("{prefix}Icon{index}Timer")), &buff.timer_text)}
             {icon_stacks(DynName(format!("{prefix}Icon{index}Stack")), &stack_text)}
         }
@@ -161,7 +150,10 @@ fn icon_timer(id: DynName, text: &str) -> Element {
             font_size: 8.0,
             font_color: TIMER_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Bottom, relative_point: AnchorPoint::Bottom, x: "0", y: {TIMER_H} }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: {TIMER_H},
         }
     }
 }
@@ -176,7 +168,9 @@ fn icon_stacks(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: STACK_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::BottomRight, relative_point: AnchorPoint::BottomRight, x: "-1", y: "1" }
+            pos_type: "absolute",
+            right: 1.0,
+            bottom: 1.0,
         }
     }
 }
@@ -191,7 +185,9 @@ fn tooltip_line(name: DynName, h: f32, font_size: f32, color: &str, y: f32) -> E
             font_size: font_size,
             font_color: color,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: {y} }
+            pos_type: "absolute",
+            left: 4.0,
+            top: {-(y)},
         }
     }
 }
@@ -206,10 +202,9 @@ fn buff_tooltip() -> Element {
             background_color: TOOLTIP_BG,
             strata: FrameStrata::Tooltip,
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
             {tooltip_line(DynName("BuffTooltipTitle".into()), 16.0, 11.0, TOOLTIP_TITLE_COLOR, -4.0)}
             {tooltip_line(DynName("BuffTooltipDesc".into()), 16.0, 9.0, TOOLTIP_DESC_COLOR, -22.0)}
             {tooltip_line(DynName("BuffTooltipSource".into()), 14.0, 8.0, TOOLTIP_SOURCE_COLOR, -40.0)}
@@ -220,8 +215,9 @@ fn buff_tooltip() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+    use ui_toolkit::layout::LayoutRect;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -257,7 +253,7 @@ mod tests {
 
     fn layout_reg(buff_count: usize, debuff_count: usize) -> FrameRegistry {
         let mut reg = build_registry(buff_count, debuff_count);
-        recompute_layouts(&mut reg);
+        compute_layout(&mut reg);
         reg
     }
 

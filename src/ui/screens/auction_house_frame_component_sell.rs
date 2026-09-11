@@ -10,12 +10,9 @@ pub(super) fn sell_tab_content(sell: &SellTabState) -> Element {
             width: {content_w},
             height: {content_h},
             hidden: true,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {sell_item_slot(sell)}
             {sell_price_row("AuctionHouseSellBid", "Starting Bid:", &sell.bid_price, 0)}
             {sell_price_row("AuctionHouseSellBuyout", "Buyout Price:", &sell.buyout_price, 1)}
@@ -37,12 +34,9 @@ fn sell_item_slot(sell: &SellTabState) -> Element {
             width: {SELL_ITEM_SLOT_SIZE},
             height: {SELL_ITEM_SLOT_SIZE},
             background_color: SELL_ITEM_SLOT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SELL_INSET},
-                y: {-SELL_INSET},
-            }
+            pos_type: "absolute",
+            left: {SELL_INSET},
+            top: {-(-SELL_INSET)},
         }
         fontstring {
             name: "AuctionHouseSellItemName",
@@ -52,12 +46,9 @@ fn sell_item_slot(sell: &SellTabState) -> Element {
             font_size: 11.0,
             font_color: SELL_LABEL_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SELL_INSET + SELL_ITEM_SLOT_SIZE + 8.0},
-                y: {-(SELL_INSET + 16.0)},
-            }
+            pos_type: "absolute",
+            left: {SELL_INSET + SELL_ITEM_SLOT_SIZE + 8.0},
+            top: {-(-(SELL_INSET + 16.0))},
         }
     }
 }
@@ -72,7 +63,9 @@ fn sell_row_label(id: DynName, text: &str) -> Element {
             font_size: 10.0,
             font_color: SELL_LABEL_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -84,12 +77,9 @@ fn sell_row_input(id: DynName, value_id: DynName, value: &str, input_w: f32) -> 
             width: {input_w},
             height: {SELL_INPUT_H},
             background_color: SELL_INPUT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SELL_LABEL_W},
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: {SELL_LABEL_W},
+            top: -0.0,
             fontstring {
                 name: value_id,
                 width: {input_w - 8.0},
@@ -98,7 +88,9 @@ fn sell_row_input(id: DynName, value_id: DynName, value: &str, input_w: f32) -> 
                 font_size: 10.0,
                 font_color: SELL_INPUT_TEXT,
                 justify_h: "LEFT",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+                pos_type: "absolute",
+                left: 4.0,
+                top: -0.0,
             }
         }
     }
@@ -113,12 +105,9 @@ fn sell_price_row(prefix: &str, label: &str, value: &str, row_index: usize) -> E
             name: row_name,
             width: {SELL_LABEL_W + SELL_INPUT_W},
             height: {SELL_INPUT_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SELL_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SELL_INSET},
+            top: {-(y)},
             {sell_row_label(DynName(format!("{prefix}Label")), label)}
             {sell_row_input(DynName(format!("{prefix}Input")), DynName(format!("{prefix}Value")), value, SELL_INPUT_W)}
         }
@@ -133,12 +122,9 @@ fn sell_duration_row(duration: &str) -> Element {
             name: "AuctionHouseSellDurationRow",
             width: {SELL_LABEL_W + SELL_DROPDOWN_W},
             height: {SELL_INPUT_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SELL_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SELL_INSET},
+            top: {-(y)},
             {sell_row_label(DynName("AuctionHouseSellDurationLabel".into()), "Duration:")}
             {dropdown_button(DropdownButton {
                 frame_name: "AuctionHouseSellDurationDropdown",
@@ -167,12 +153,9 @@ fn sell_post_button() -> Element {
             width: {SELL_BUTTON_W},
             height: {SELL_BUTTON_H},
             background_color: SELL_BUTTON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {SELL_INSET + SELL_LABEL_W},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {SELL_INSET + SELL_LABEL_W},
+            top: {-(y)},
             fontstring {
                 name: "AuctionHouseSellPostButtonText",
                 width: {SELL_BUTTON_W},
@@ -181,10 +164,9 @@ fn sell_post_button() -> Element {
                 font_size: 11.0,
                 font_color: SELL_BUTTON_TEXT,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }

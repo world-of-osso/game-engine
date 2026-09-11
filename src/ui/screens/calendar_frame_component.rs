@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -93,12 +92,9 @@ pub fn calendar_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "760",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 760.0,
+            top: 80.0,
             {title_bar()}
             {button_row()}
             {event_list(state)}
@@ -118,7 +114,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -169,12 +168,9 @@ fn named_button(name: &str, text: &str, action: &str, x: f32, y: f32) -> Element
             height: {BUTTON_H},
             background_color: BTN_BG,
             onclick: action,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {named_button_label(name, text)}
         }
     }
@@ -190,7 +186,9 @@ fn named_button_label(name: &str, text: &str) -> Element {
             font_size: 11.0,
             font_color: BTN_TEXT,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -216,12 +214,9 @@ fn event_list(state: &CalendarFrameState) -> Element {
             width: {FRAME_W - 2.0 * INSET},
             height: {EVENT_LIST_H},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-(HEADER_H + INSET + BUTTON_H + BUTTON_GAP)},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-(HEADER_H + INSET + BUTTON_H + BUTTON_GAP))},
             {content}
         }
     }
@@ -238,12 +233,9 @@ fn event_row(index: usize, event: &CalendarEventRow) -> Element {
             height: {EVENT_ROW_H},
             background_color: bg,
             onclick: {event.action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
             {event_row_title(index, &event.title)}
             {event_row_time(index, &event.schedule_text)}
             {event_row_counts(index, &event.counts_text)}
@@ -261,12 +253,9 @@ fn event_row_title(index: usize, title: &str) -> Element {
             font_size: 12.0,
             font_color: PRIMARY_TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-5",
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: 5.0,
         }
     }
 }
@@ -281,12 +270,9 @@ fn event_row_time(index: usize, schedule_text: &str) -> Element {
             font_size: 11.0,
             font_color: SECONDARY_TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-20",
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: 20.0,
         }
     }
 }
@@ -301,12 +287,9 @@ fn event_row_counts(index: usize, counts_text: &str) -> Element {
             font_size: 11.0,
             font_color: SECONDARY_TEXT,
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-8",
-                y: "-12",
-            }
+            pos_type: "absolute",
+            right: 8.0,
+            top: 12.0,
         }
     }
 }
@@ -325,12 +308,9 @@ fn detail_panel(state: &CalendarFrameState) -> Element {
             width: {FRAME_W - 2.0 * INSET},
             height: {FRAME_H - DETAIL_TOP - 28.0},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-DETAIL_TOP},
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            top: {-(-DETAIL_TOP)},
             {content}
         }
     }
@@ -407,12 +387,9 @@ fn detail_title(text: &str) -> Element {
             font_size: 14.0,
             font_color: TITLE_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: "-8",
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: 8.0,
         }
     }
 }
@@ -428,12 +405,9 @@ fn detail_meta_line(name: &str, text: &str, y: f32) -> Element {
             font_size: 11.0,
             font_color: SECONDARY_TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: {-(y)},
         }
     }
 }
@@ -449,12 +423,9 @@ fn signup_row(index: usize, signup: &CalendarSignupRow) -> Element {
             font_size: 11.0,
             font_color: PRIMARY_TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "8",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 8.0,
+            top: {-(y)},
         }
     }
 }
@@ -469,12 +440,10 @@ fn empty_text(text: &str) -> Option<Element> {
             font_size: 12.0,
             font_color: SECONDARY_TEXT,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "-16",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: 16.0,
         }
     })
 }
@@ -489,12 +458,9 @@ fn status_line(text: &str) -> Element {
             font_size: 11.0,
             font_color: SECONDARY_TEXT,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                x: {INSET},
-                y: "8",
-            }
+            pos_type: "absolute",
+            left: {INSET},
+            bottom: 8.0,
         }
     }
 }

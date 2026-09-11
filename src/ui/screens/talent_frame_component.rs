@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -87,12 +86,9 @@ pub fn talent_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "370",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 370.0,
+            top: 80.0,
             {talent_title_bar()}
             {spec_tab_row(&state.spec_tabs)}
             {talent_grid(&state.talents)}
@@ -112,12 +108,10 @@ fn talent_title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -149,12 +143,9 @@ fn spec_tab(i: usize, tab: &TalentSpecTab, tab_w: f32, x: f32, y: f32) -> Elemen
             width: {tab_w},
             height: {TAB_H},
             background_color: bg,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {spec_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -170,7 +161,9 @@ fn spec_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -205,12 +198,9 @@ fn talent_node(idx: usize, talent: &TalentNodeState, x: f32, y: f32) -> Element 
             height: {NODE_H},
             background_color: bg,
             onclick: {talent.action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {talent_node_name(idx, &talent.name)}
             {talent_node_points(idx, &talent.points, talent.active)}
         }
@@ -226,12 +216,9 @@ fn reset_button() -> Element {
             height: {RESET_BTN_H},
             background_color: RESET_BTN_BG,
             onclick: ACTION_TALENT_RESET,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {RESET_BTN_X},
-                y: {RESET_BTN_Y},
-            }
+            pos_type: "absolute",
+            left: {RESET_BTN_X},
+            top: {-(RESET_BTN_Y)},
             fontstring {
                 name: text_id,
                 width: {RESET_BTN_W},
@@ -240,7 +227,9 @@ fn reset_button() -> Element {
                 font_size: 10.0,
                 font_color: RESET_BTN_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }
@@ -257,12 +246,10 @@ fn talent_node_name(idx: usize, name: &str) -> Element {
             font_size: 7.0,
             font_color: NODE_NAME_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "-4",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: 4.0,
         }
     }
 }
@@ -283,12 +270,10 @@ fn talent_node_points(idx: usize, points: &str, active: bool) -> Element {
             font_size: 8.0,
             font_color: pts_color,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                x: "0",
-                y: "4",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            bottom: 4.0,
         }
     }
 }
@@ -305,12 +290,9 @@ fn points_remaining_footer(points: u16) -> Element {
             font_size: 11.0,
             font_color: FOOTER_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            top: {-(y)},
         }
     }
 }

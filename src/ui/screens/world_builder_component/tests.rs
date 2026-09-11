@@ -1,6 +1,7 @@
 use super::*;
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
 use ui_toolkit::frame::WidgetData;
-use ui_toolkit::layout::{LayoutRect, recompute_layouts};
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -181,7 +182,7 @@ fn transform_fields_are_distinct_and_inside_transform_section() {
     let mut shared = SharedContext::new();
     shared.insert(sample_state(true));
     Screen::new(world_builder_screen).sync(&shared, &mut registry);
-    recompute_layouts(&mut registry);
+    compute_layout(&mut registry);
 
     let section = frame_rect(&registry, "WorldBuilderTransformSection");
     let field_names = (0..3).flat_map(|axis| {
@@ -216,7 +217,7 @@ fn major_sections_and_controls_stay_inside_the_sidebar() {
     let mut shared = SharedContext::new();
     shared.insert(sample_state(true));
     Screen::new(world_builder_screen).sync(&shared, &mut registry);
-    recompute_layouts(&mut registry);
+    compute_layout(&mut registry);
 
     let sidebar = frame_rect(&registry, "WorldBuilderSidebar");
     let header = frame_rect(&registry, "WorldBuilderHeader");

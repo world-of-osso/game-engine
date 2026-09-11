@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -162,12 +161,9 @@ pub fn friends_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "300",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: 300.0,
+            top: 80.0,
             {title_bar()}
             {tab_row(&state.tabs)}
             {content_area(state)}
@@ -185,12 +181,10 @@ fn title_bar() -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: -0.0,
         }
     }
 }
@@ -223,12 +217,9 @@ fn tab_button(i: usize, tab: &FriendsTab, tab_w: f32, x: f32, y: f32) -> Element
             height: {TAB_H},
             background_color: bg,
             onclick: {tab.action.as_str()},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             {friends_tab_label(label_id, &tab.name, tab_w, color)}
         }
     }
@@ -244,7 +235,9 @@ fn friends_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
             font_size: 11.0,
             font_color: color,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            left: 0.0,
+            top: -0.0,
         }
     }
 }
@@ -260,12 +253,9 @@ fn content_area(state: &FriendsFrameState) -> Element {
             width: {content_w},
             height: {content_h},
             background_color: CONTENT_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {CONTENT_INSET},
-                y: {content_y},
-            }
+            pos_type: "absolute",
+            left: {CONTENT_INSET},
+            top: {-(content_y)},
             {body}
         }
     }
@@ -367,12 +357,9 @@ fn friend_row(idx: usize, friend: &FriendEntry, parent_w: f32) -> Element {
             name: row_id,
             width: {row_w},
             height: {FRIEND_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FRIEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {FRIEND_INSET},
+            top: {-(y)},
             {friend_name_label(DynName(format!("FriendRow{idx}Name")), &friend.name, row_w)}
             {friend_game_label(DynName(format!("FriendRow{idx}Game")), &friend.game, row_w)}
             {friend_status_icon(DynName(format!("FriendRow{idx}Status")), &friend.status, status_color)}
@@ -389,12 +376,9 @@ fn who_row(idx: usize, entry: &WhoEntry, parent_w: f32) -> Element {
             name: row_id,
             width: {row_w},
             height: {FRIEND_ROW_H},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FRIEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {FRIEND_INSET},
+            top: {-(y)},
             {friend_name_label(DynName(format!("WhoRow{idx}Name")), &entry.name, row_w)}
             {friend_game_label(DynName(format!("WhoRow{idx}Details")), &entry.details, row_w)}
         }
@@ -412,12 +396,9 @@ fn section_header(name: &str, text: &str, width: f32) -> Element {
             font_size: 10.0,
             font_color: FRIEND_GAME_COLOR,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FRIEND_INSET},
-                y: "-2",
-            }
+            pos_type: "absolute",
+            left: {FRIEND_INSET},
+            top: 2.0,
         }
     }
 }
@@ -434,12 +415,9 @@ fn section_footer(name: &str, text: &str, width: f32, height: f32) -> Element {
             font_size: 10.0,
             font_color: ADD_BUTTON_TEXT_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {FRIEND_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {FRIEND_INSET},
+            top: {-(y)},
         }
     }
 }
@@ -457,12 +435,10 @@ fn empty_state(name: &str, text: &str, width: f32, height: f32, visible: bool) -
             font_size: 10.0,
             font_color: EMPTY_TEXT_COLOR,
             justify_h: "CENTER",
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                x: "0",
-                y: {-(height / 2.0)},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: {-(-(height / 2.0))},
         }
     }
 }
@@ -477,7 +453,9 @@ fn friend_name_label(id: DynName, text: &str, row_w: f32) -> Element {
             font_size: 10.0,
             font_color: FRIEND_NAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "-2" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: 2.0,
         }
     }
 }
@@ -492,7 +470,9 @@ fn friend_game_label(id: DynName, text: &str, row_w: f32) -> Element {
             font_size: 8.0,
             font_color: FRIEND_GAME_COLOR,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "0", y: "-18" }
+            pos_type: "absolute",
+            left: 0.0,
+            top: 18.0,
         }
     }
 }
@@ -508,7 +488,9 @@ fn friend_status_icon(id: DynName, text: &str, color: &str) -> Element {
             font_size: 8.0,
             font_color: color,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "0", y: {status_y} }
+            pos_type: "absolute",
+            right: -0.0,
+            top: {-(status_y)},
         }
     }
 }
@@ -522,12 +504,9 @@ fn add_friend_button(parent_w: f32, parent_h: f32) -> Element {
             width: {ADD_BUTTON_W},
             height: {ADD_BUTTON_H},
             background_color: ADD_BUTTON_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {x},
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: {x},
+            top: {-(y)},
             fontstring {
                 name: "FriendsAddButtonText",
                 width: {ADD_BUTTON_W},
@@ -536,10 +515,9 @@ fn add_friend_button(parent_w: f32, parent_h: f32) -> Element {
                 font_size: 10.0,
                 font_color: ADD_BUTTON_TEXT_COLOR,
                 justify_h: "CENTER",
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                }
+                pos_type: "absolute",
+                left: 0.0,
+                top: -0.0,
             }
         }
     }

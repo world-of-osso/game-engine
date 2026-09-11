@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui::screens::menu_character_layout_test_support::compute_layout;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -34,6 +35,7 @@ fn build_registry() -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(make_state());
     Screen::new(calendar_frame_screen).sync(&shared, &mut registry);
+    compute_layout(&mut registry);
     registry
 }
 
@@ -89,14 +91,10 @@ fn calendar_buttons_keep_expected_actions_and_vertical_rows() {
         Some("calendar_signup:confirmed")
     );
 
-    let refresh_anchor = refresh
-        .anchors
-        .first()
-        .expect("CalendarRefreshButton anchor");
-    let confirm_anchor = confirm
-        .anchors
-        .first()
-        .expect("CalendarConfirmButton anchor");
-    assert!((refresh_anchor.y_offset - TOP_BUTTON_ROW_Y).abs() < f32::EPSILON);
-    assert!((confirm_anchor.y_offset - DETAIL_SIGNUP_BUTTON_ROW_Y).abs() < f32::EPSILON);
+    let top_offset = |frame: &ui_toolkit::frame::Frame| {
+        let parent = registry.get(frame.parent_id.unwrap()).unwrap();
+        frame.layout_rect.as_ref().unwrap().y - parent.layout_rect.as_ref().unwrap().y
+    };
+    assert!((top_offset(refresh) + TOP_BUTTON_ROW_Y).abs() < 0.51);
+    assert!((top_offset(confirm) + DETAIL_SIGNUP_BUTTON_ROW_Y).abs() < 0.51);
 }
