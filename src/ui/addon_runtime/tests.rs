@@ -565,6 +565,18 @@ fn js_layout_target_changes_native_parent_without_changing_logical_ownership() {
     addon.operations =
         js::run_js_addon_to_operations("addon.setPosType('TargetPanel', 'relative');").unwrap();
     project_addon(&mut app, &addon);
+    let sibling_id = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("ScreenSibling")
+        .expect("flow sibling exists");
+    let sibling = projected_frame(app.world_mut(), sibling_id);
+    assert_eq!(
+        app.world().get::<Node>(sibling).unwrap().position_type,
+        PositionType::Relative
+    );
+    assert_native_rect(app.world(), sibling, [0.0, 0.0, 40.0, 20.0]);
     assert_native_rect(app.world(), entity, [55.0, 25.0, 60.0, 30.0]);
     assert_eq!(
         app.world()
