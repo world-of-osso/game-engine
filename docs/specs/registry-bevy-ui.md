@@ -31,4 +31,4 @@ Legacy standalone rendering helpers may remain as compatibility/test utilities a
 
 ## Current state
 
-The native-only login/loading/RSX bypass was rolled back first. Canonical engine revert `84003225` exactly matches the pre-migration mainline tree, preserving unrelated work. Registry projection and caret implementation are in progress in retained isolated worktrees; no native equivalence completion is claimed yet.
+The native-only login/loading bypass was rolled back first: canonical engine revert `84003225`; retained worktree rollback `8662621e`. The active registry-native projector is toolkit `460e5e1`/`67b5287`, with UTF-8 cursor handling in `99632eb` and engine integration in `b4badaf9`. Verification remains in progress. Earlier native-only screen evidence does not certify this architecture.

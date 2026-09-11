@@ -8,17 +8,25 @@ The UI system is built on Dioxus with a custom Bevy renderer. Screens are declar
 
 **SharedContext**: insert any typed value with `shared.insert(state)`. Screens that read that type rebuild automatically.
 
-**FrameRegistry**: stores all frames by name. Named with `FrameName` (has `.0`) or `DynName(String)` for dynamic names.
+**FrameRegistry**: authoritative store for named frames, authored properties, resolved layout, focus, and input state. Named with `FrameName` (has `.0`) or `DynName(String)` for dynamic names.
+
+**Native Bevy projection**: runtime `Node`, `ImageNode`, and `Text` entities project registry state. They do not own layout or write properties back to the registry. The former `Sprite`/`Text2d` synchronization chain is inactive; no direct native-mode macro remains.
 
 **Pre-compute negations**: `!bool_expr` doesn't work inside `rsx!` — do `let hide = !visible;` before the macro.
 
 ## Frame Hierarchy and Layout
+
+`rsx!` and `Screen` remain unchanged: they author registry frames through `screen.sync(&shared, registry)`. The registry layout solver resolves rectangles, which native nodes consume. Raw Bevy input continues through registry hit testing, focus, text editing, and dispatch; arbitrary ECS mutations never feed properties back into the registry.
 
 Frames use anchor-based positioning: 9 anchor points (TOPLEFT..BOTTOMRIGHT), relative to any named frame. Strata has 9 levels (WORLD through TOOLTIP); within a stratum, frames use frame levels. Each frame has 5 draw layers (BACKGROUND, BORDER, ARTWORK, OVERLAY, HIGHLIGHT).
 
 **Y-offset sign convention**: positive `y_offset` moves UP (smaller screen Y). WoW XML y values map with the same sign.
 
 Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are set after the first `screen.sync()` because rsx! attrs don't cover all frame properties.
+
+## Registry-native migration status
+
+The direct native login/loading bypass was removed before this migration: canonical engine revert `84003225`; retained worktree rollback `8662621e`. The active projector is toolkit `460e5e1`/`67b5287`, UTF-8 cursor handling is `99632eb`, and engine integration is `b4badaf9`. Edit-box carets derive from `EditBoxData` byte cursor and `blink_speed` plus `UiState.focused_frame`; no separate login form owns caret state. Verification is pending. Prior native-only screen proof does not certify this registry-native architecture.
 
 ## Player-frame artwork fit
 
