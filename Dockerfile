@@ -23,7 +23,7 @@ WORKDIR /app
 # This repo depends on sibling workspaces via absolute paths.
 COPY . /app
 
-RUN cargo build --release --package game-engine --bin game-engine --bin game-engine-cli
+RUN cargo build --release --no-default-features --features ipc,casc --package game-engine --bin game-engine --bin game-engine-cli
 
 
 FROM ubuntu:24.04

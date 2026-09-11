@@ -6,7 +6,7 @@ REMOTE_DIR="/docker-volumes/file-server/data"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== Building game-engine (release) ==="
-cargo build --release --manifest-path "$SCRIPT_DIR/Cargo.toml"
+cargo build --release --no-default-features --features ipc,casc --manifest-path "$SCRIPT_DIR/Cargo.toml"
 
 PLATFORM="linux-x86_64"
 case "$(uname -s)-$(uname -m)" in

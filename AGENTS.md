@@ -59,8 +59,8 @@ src/
 
 ## Dev
 
-- `cargo bd --bin game-engine` / `cargo rd --bin game-engine -- [args]` — Dev builds/runs with Bevy dynamic linking; run through Cargo for shared-library paths.
-- Distributions omit `dev`, including release builds.
+- Plain Cargo build/run/test enables `dev` (Bevy dynamic linking) by default; `bd`/`rd` remain aliases. Run through Cargo for shared-library paths.
+- Distribution builds must use `cargo build --release --no-default-features --features ipc,casc` to omit `dev`; `--release` alone does not disable it.
 - `cargo run --bin game-engine -- [model.m2]` — Launch 3D scene with M2 model
 - `cargo run --bin game-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
 - `cargo run --bin game-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
