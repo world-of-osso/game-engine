@@ -124,12 +124,11 @@ fn click(fixture: &mut ClickFixture) {
         .unwrap()
         .set_cursor_position(Some(fixture.cursor));
     // The cube lies on the camera ray. This CPU fixture has no renderer.
-    fixture
+    *fixture
         .app
         .world_mut()
         .get_mut::<ViewVisibility>(fixture.mesh_owner)
-        .unwrap()
-        .set();
+        .unwrap() = ViewVisibility::VISIBLE;
     {
         let mut mouse = fixture
             .app
