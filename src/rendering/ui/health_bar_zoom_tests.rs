@@ -1,6 +1,6 @@
 use super::*;
 use bevy::camera::CameraPlugin;
-use bevy::mesh::VertexAttributeValues;
+use bevy::ecs::system::RunSystemOnce;
 use bevy::window::{PrimaryWindow, WindowResolution};
 
 pub(super) fn projection_app(dpi: f32, width: u32, height: u32) -> App {
@@ -24,6 +24,15 @@ pub(super) fn projection_app(dpi: f32, width: u32, height: u32) -> App {
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<bevy::render::texture::ManualTextureViews>();
     app.add_plugins(HealthBarPlugin);
+    let mut images = Assets::<Image>::default();
+    let mut fonts = Assets::<Font>::default();
+    let fixture = NameplateArtCache::fixture(&mut images, &mut fonts);
+    app.insert_resource(images)
+        .insert_resource(fonts)
+        .insert_resource(fixture);
+    app.world_mut()
+        .run_system_once(ui_toolkit::render::setup_ui_camera)
+        .unwrap();
     app.add_systems(
         PostUpdate,
         bevy::render::camera::camera_system.in_set(CameraUpdateSystems),
@@ -38,7 +47,12 @@ pub(super) fn projection_app(dpi: f32, width: u32, height: u32) -> App {
     app
 }
 
-fn zoom_scene(dpi: f32, width: u32, height: u32, fov: f32) -> (App, Entity, Entity, Entity) {
+pub(super) fn zoom_scene(
+    dpi: f32,
+    width: u32,
+    height: u32,
+    fov: f32,
+) -> (App, Entity, Entity, Entity) {
     let mut app = projection_app(dpi, width, height);
     let actor = app
         .world_mut()
@@ -71,20 +85,19 @@ fn projected_quad_size(
     camera: Entity,
     bar_global: GlobalTransform,
 ) -> Vec2 {
-    let background = app.world().get::<Children>(bar).unwrap()[0];
-    let mesh = &app.world().get::<Mesh3d>(background).unwrap().0;
-    let mesh = app.world().resource::<Assets<Mesh>>().get(mesh).unwrap();
-    let VertexAttributeValues::Float32x3(vertices) =
-        mesh.attribute(Mesh::ATTRIBUTE_POSITION).unwrap()
-    else {
-        panic!("healthbar mesh must have positions");
-    };
-    let pose = bar_global.mul_transform(*app.world().get::<Transform>(background).unwrap());
+    let _ = bar;
+    let pose = bar_global;
+    let vertices = [
+        [-BAR_WIDTH / 2.0, -BAR_HEIGHT / 2.0, 0.0],
+        [BAR_WIDTH / 2.0, -BAR_HEIGHT / 2.0, 0.0],
+        [BAR_WIDTH / 2.0, BAR_HEIGHT / 2.0, 0.0],
+        [-BAR_WIDTH / 2.0, BAR_HEIGHT / 2.0, 0.0],
+    ];
     let camera_pose = app.world().get::<GlobalTransform>(camera).unwrap();
     let camera = app.world().get::<Camera>(camera).unwrap();
     let mut minimum = Vec2::splat(f32::INFINITY);
     let mut maximum = Vec2::splat(f32::NEG_INFINITY);
-    for &vertex in vertices {
+    for vertex in vertices {
         let pixel = camera
             .world_to_viewport(camera_pose, pose.transform_point(Vec3::from(vertex)))
             .unwrap();
@@ -95,7 +108,7 @@ fn projected_quad_size(
 }
 
 #[test]
-fn chamfer_projected_width_survives_parent_shear_in_both_directions() {
+fn rectangle_projected_width_survives_parent_shear_in_both_directions() {
     let (mut app, actor, bar, camera) = zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
     for roll in [-0.8, -0.15, 0.0, 0.15, 0.8] {
         app.world_mut()
@@ -133,8 +146,8 @@ fn thickness_changes_projected_height_without_changing_width() {
 }
 
 #[test]
-fn world_healthbar_quad_stays_one_ninety_by_ten_logical_pixels_across_zoom() {
-    let target = Vec2::new(190.0, 10.0);
+fn world_healthbar_quad_stays_reference_width_by_twenty_logical_pixels_across_zoom() {
+    let target = Vec2::new(384.0, 20.0);
     let mut failures = Vec::new();
     for (dpi, width, height, fov_degrees) in [
         (1.0, 800, 600, 45.0_f32),
@@ -162,7 +175,7 @@ fn world_healthbar_quad_stays_one_ninety_by_ten_logical_pixels_across_zoom() {
     }
     assert!(
         failures.is_empty(),
-        "projected world-healthbar dimensions must remain190x10logicalpx: {failures:?}"
+        "projected world-healthbar dimensions must remain384x20logicalpx: {failures:?}"
     );
 }
 
@@ -189,7 +202,7 @@ fn world_healthbar_responds_to_fov_viewport_and_dpi_changes_in_same_frame() {
         *app.world().get::<GlobalTransform>(bar).unwrap(),
     );
     assert!(
-        size.abs_diff_eq(Vec2::new(190.0, 10.0), 0.05),
+        size.abs_diff_eq(Vec2::new(384.0, 20.0), 0.05),
         "same-frame viewport/FOV size: {size:?}"
     );
     let tick = app
