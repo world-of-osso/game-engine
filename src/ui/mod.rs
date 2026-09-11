@@ -130,7 +130,6 @@ pub mod automation;
 pub mod automation_script;
 pub mod game_plugin;
 pub mod js_automation;
-pub mod native;
 pub mod panel_styles;
 pub mod screens;
 pub mod spellbook_data;
