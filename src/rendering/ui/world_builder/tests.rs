@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../../ui/screens/menu_character_layout_test_support.rs"]
+mod native_layout_support;
+
 use std::collections::HashSet;
 
 use bevy::ecs::entity_disabling::Disabled;
@@ -7,7 +11,7 @@ use game_engine::ui::screens::world_builder_component::{
     WORLD_BUILDER_APPLY_TRANSFORM, WorldBuilderAction, WorldBuilderViewState,
     world_builder_row_name,
 };
-use ui_toolkit::layout::recompute_layouts;
+use native_layout_support::compute_layout as recompute_layouts;
 
 use crate::{
     asset::m2_anim::AnimTrack,
