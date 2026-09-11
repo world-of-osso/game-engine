@@ -214,7 +214,10 @@ struct CastScene<'w, 's> {
             &'static Children,
             &'static InheritedVisibility,
         ),
-        Without<CastBarOwner>,
+        (
+            Without<CastBarOwner>,
+            Without<crate::networking::LocalPlayer>,
+        ),
     >,
     bars: Query<
         'w,

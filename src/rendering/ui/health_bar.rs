@@ -182,7 +182,7 @@ struct HealthScene<'w, 's> {
         ),
         (With<HealthBar>, Without<HealthBarVisualOwner>),
     >,
-    health: Query<'w, 's, &'static Health>,
+    health: Query<'w, 's, &'static Health, Without<crate::networking::LocalPlayer>>,
     art: Res<'w, NameplateArtCache>,
     hud: Option<Res<'w, HudOptions>>,
     disabled: Option<Res<'w, crate::client_options::UiDisabled>>,
@@ -217,7 +217,7 @@ fn project_health_bars(scene: HealthScene, mut visuals: HealthVisualQuery) {
         } else {
             Visibility::Hidden
         });
-        let Some((pose, size)) = projected else {
+        let Some((pose, size, alpha)) = projected else {
             continue;
         };
         let thickness = health_thickness(scene.hud.as_deref());
@@ -228,6 +228,9 @@ fn project_health_bars(scene: HealthScene, mut visuals: HealthVisualQuery) {
         if sprite.custom_size != Some(size) {
             sprite.custom_size = Some(size);
         }
+        if sprite.color.alpha() != alpha {
+            sprite.color.set_alpha(alpha);
+        }
         transform.set_if_neq(pose);
         global.set_if_neq(GlobalTransform::from(pose));
     }
@@ -237,7 +240,7 @@ fn project_health_part(
     scene: &HealthScene,
     bar: Entity,
     part: HealthBarPart,
-) -> Option<(Transform, Vec2)> {
+) -> Option<(Transform, Vec2, f32)> {
     let (global, parent, inherited) = scene.bars.get(bar).ok()?;
     if !inherited.get() {
         return None;
@@ -246,6 +249,19 @@ fn project_health_part(
     let (camera, camera_pose) = scene.camera.single().ok()?;
     let (overlay, overlay_pose) = scene.overlay.single().ok()?;
     if !camera.is_active || !overlay.is_active {
+        return None;
+    }
+    let limit = scene
+        .hud
+        .as_ref()
+        .map_or(crate::client_options::DEFAULT_NAMEPLATE_DISTANCE, |hud| {
+            hud.nameplate_distance
+        });
+    let alpha = crate::nameplate::nameplate_alpha(
+        camera_pose.translation().distance(global.translation()),
+        limit,
+    );
+    if alpha <= 0.0 {
         return None;
     }
     let center = camera
@@ -277,7 +293,11 @@ fn project_health_part(
     let position = overlay
         .viewport_to_world_2d(overlay_pose, center + offset)
         .ok()?;
-    Some((Transform::from_translation(position.extend(z)), draw_size))
+    Some((
+        Transform::from_translation(position.extend(z)),
+        draw_size,
+        alpha,
+    ))
 }
 
 fn billboard_health_bars(
