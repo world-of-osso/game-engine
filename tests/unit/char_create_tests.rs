@@ -379,6 +379,8 @@ fn clicking_race_button_changes_race_through_full_app_update() {
     app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
     app.insert_resource(CustomizationDb::load(std::path::Path::new("data")));
     app.insert_state(crate::game_state::GameState::CharCreate);
+    app.finish();
+    app.cleanup();
 
     let window_entity = app
         .world_mut()

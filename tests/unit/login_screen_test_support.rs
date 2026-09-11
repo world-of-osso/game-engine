@@ -275,6 +275,8 @@ pub(super) fn make_login_app_with_plugins() -> App {
     app.insert_resource(networking::AuthUiFeedback::default());
     app.insert_resource(networking::LoginMode::Login);
     app.insert_resource(networking::AuthToken(None));
+    app.finish();
+    app.cleanup();
     app
 }
 
