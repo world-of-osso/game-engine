@@ -22,6 +22,7 @@ type PlateVisuals<'w, 's> = Query<
         Option<&'static Sprite>,
         Option<&'static TextLayoutInfo>,
         Option<&'static TextBounds>,
+        Option<&'static TextColor>,
     ),
 >;
 
@@ -44,7 +45,7 @@ impl NameplatePicker<'_, '_> {
             return None;
         }
         let candidates = self.visuals.iter().filter_map(
-            |(target, pose, visibility, inherited, anchor, sprite, text, bounds)| {
+            |(target, pose, visibility, inherited, anchor, sprite, text, bounds, text_color)| {
                 if *visibility == Visibility::Hidden || !inherited.get() {
                     return None;
                 }
@@ -52,7 +53,7 @@ impl NameplatePicker<'_, '_> {
                 if !owner_visibility.get() {
                     return None;
                 }
-                let size = visual_size(sprite, text, bounds)?;
+                let size = visual_size(sprite, text, bounds, text_color)?;
                 let rectangle = project_rectangle(camera, camera_pose, pose, *anchor, size)?;
                 rectangle
                     .contains(cursor)
@@ -72,11 +73,19 @@ fn visual_size(
     sprite: Option<&Sprite>,
     text: Option<&TextLayoutInfo>,
     bounds: Option<&TextBounds>,
+    text_color: Option<&TextColor>,
 ) -> Option<Vec2> {
     let size = if let Some(sprite) = sprite {
+        if sprite.color.alpha() == 0.0 {
+            return None;
+        }
         sprite.custom_size?
     } else {
+        if text_color?.0.alpha() == 0.0 {
+            return None;
+        }
         let text = text?;
+        // Text2d layout already converts size to logical units; only glyphs retain DPI scaling.
         Vec2::new(
             bounds
                 .and_then(|bounds| bounds.width)
