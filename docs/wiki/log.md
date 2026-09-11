@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-11] ui | Record reference-derived half-scale nameplate art boundary
+
+At engine `e3b65e7c`/`f574d83f` and runtime `d485bdd4`/`bd78d242`, health/cast frames are generated from the supplied reference rather than read directly from WoW frame atlases. `debug/make_nameplate_skins.py` uses reproducible linear unmatting and records source/crop/limitation data in `provenance.json`; frame interiors are transparent so runtime health/cast content remains live. The glyph-free health gradient crop supplies health fill; authored `4505182` remains cast fill/background. No generic pip appears in the reference, so none is rendered. `be3aaf9d` tests the transparent-live-interior boundary. At `NAMEPLATE_SCALE = 0.5`, the effective health width is 188px from a 376px raw interior; health is 20px/10px and cast is 10px/6px for Thick/Thin, with 13px/10px labels. Original alpha cannot be uniquely recovered from the composited screenshot; `debug/compare_nameplates.py` is diagnostic only and GPU pixel-match proof remains pending. See [[nameplate-design]] and [nameplate spec](../specs/nameplate-style.md).
+
+
 ## [2026-09-11] rendering | Verify character-select terrain normal-axis root cause
 
 Same-binary 30-second character-select captures against canonical and retained-worktree data both show the bright `CampsiteGroundPatch` over dark but loaded ADT terrain. Both runs loaded 256 chunks, 13 ground textures, and the skybox, disproving a missing-worktree-assets-only explanation. A standalone height-derived test of all 48 signed MCNR byte permutations on `2703_31_37.adt` identifies `[b0,b2,-b1]` as the supported Bevy mapping (mean geometric alignment `0.997198`), versus production `[b2,b1,-b0]` (`0.089730`). Shader probes show terrain bright before PBR lighting, dark after it, and brighter with an upward lighting normal. `CampsiteGroundPatch` remains a separate 42×42 StandardMaterial workaround: `bbaa3e51` removed it as a bright island and `d335cd0c` re-added it. No parser or shader fix has landed; add parser and rendered regressions before changing production decode. See [[charselect-ground-patch-dark-terrain]].
