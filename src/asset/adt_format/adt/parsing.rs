@@ -59,7 +59,7 @@ fn parse_mcnr(payload: &[u8]) -> Result<[[f32; 3]; MCVT_COUNT], String> {
         let nx = read_i8(payload, i * 3)? as f32 / 127.0;
         let nz = read_i8(payload, i * 3 + 1)? as f32 / 127.0;
         let ny = read_i8(payload, i * 3 + 2)? as f32 / 127.0;
-        let mut normal = [ny, nz, -nx];
+        let mut normal = [nx, ny, -nz];
         let len = (normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]).sqrt();
         if len > 0.0001 {
             normal[0] /= len;
