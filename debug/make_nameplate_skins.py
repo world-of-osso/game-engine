@@ -20,7 +20,7 @@ BACKGROUND = (24, 21, 20)
 # inner rectangle; no text-bearing center pixels are copied into frame skins.
 FRAMES = {
     "health-thick": ((50, 48, 446, 96), (58, 54, 434, 91)),
-    "health-thin": ((521, 67, 917, 97), (529, 74, 905, 92)),
+    "health-thin": ((521, 67, 917, 97), (529, 73, 905, 92)),
     "cast-thin": ((32, 92, 464, 114), (60, 98, 432, 109)),
     "cast-thick": ((32, 289, 466, 318), (61, 296, 433, 314)),
 }
@@ -72,13 +72,24 @@ def unmatte(pixel):
     return (*foreground, alpha_byte)
 
 
-def extract_frame(source, crop, interior):
+def extract_frame(source, crop, interior, name):
     skin = Image.new("RGBA", (crop[2] - crop[0], crop[3] - crop[1]))
     for y in range(crop[1], crop[3]):
         for x in range(crop[0], crop[2]):
+            # Remove the neighboring cast glow from the health crop.
+            if name == "health-thick" and y >= 94:
+                continue
+            if name == "health-thin" and y >= 95:
+                continue
             if not inside(x, y, interior):
+                # Glyph fringes touch this rail; use its clean right segment.
+                sample_x = (
+                    350
+                    if name == "cast-thick" and 61 <= x < 240 and 294 <= y < 296
+                    else x
+                )
                 skin.putpixel(
-                    (x - crop[0], y - crop[1]), unmatte(source.getpixel((x, y)))
+                    (x - crop[0], y - crop[1]), unmatte(source.getpixel((sample_x, y)))
                 )
     # Keep only connected frame/shadow components, removing isolated matte noise.
     pixels = skin.load()
@@ -121,11 +132,11 @@ def main():
         "coordinates": "half-open, unscaled reference pixels",
         "matte_srgb": list(BACKGROUND),
         "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=6 sRGB matte noise removed; components <8 pixels removed",
-        "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. GPU comparison required.",
+        "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. Health bottom rows overlapping cast glow are removed. Thick cast rail x61:240/y294:296 is reconstructed from clean x350 to remove glyph fringes. GPU comparison required.",
         "frames": {},
     }
     for name, (crop, interior) in FRAMES.items():
-        skin = extract_frame(source, crop, interior)
+        skin = extract_frame(source, crop, interior, name)
         local = (
             interior[0] - crop[0],
             interior[1] - crop[1],

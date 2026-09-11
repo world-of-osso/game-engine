@@ -12,7 +12,7 @@
     20
   ],
   "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=6 sRGB matte noise removed; components <8 pixels removed",
-  "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. GPU comparison required.",
+  "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. Health bottom rows overlapping cast glow are removed. Thick cast rail x61:240/y294:296 is reconstructed from clean x350 to remove glyph fringes. GPU comparison required.",
   "frames": {
     "health-thick": {
       "crop": [
@@ -45,7 +45,7 @@
       ],
       "transparent_interior": [
         8,
-        7,
+        6,
         384,
         25
       ]
