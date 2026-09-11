@@ -9,6 +9,6 @@ rustflags = ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=
 [alias]
 bd = "build --features dev"
 rd = "run --features dev"
-# Native Windows: Unix socket IPC is unsupported; keep CASC and dynamic linking.
-bw = "build --bin game-engine --no-default-features --features casc,dev"
-rw = "run --bin game-engine --no-default-features --features casc,dev"
+# Bundled QuickJS requires GNU on Windows; Unix socket IPC stays disabled.
+bw = "build --target x86_64-pc-windows-gnu --bin game-engine --no-default-features --features casc,dev"
+rw = "run --target x86_64-pc-windows-gnu --bin game-engine --no-default-features --features casc,dev"

@@ -1,23 +1,24 @@
 # Native Windows development
 
-Requires Rust 1.95 or newer with the MSVC toolchain and its C/C++ build tools.
+Use `cargo bw` to build and `cargo rw -- [args]` to run. These aliases use the normal development profile, Bevy dynamic linking, CASC, and `x86_64-pc-windows-gnu`; Unix socket IPC is excluded explicitly.
 
-Run from the engine checkout with sibling path dependencies available:
+## Prerequisites
 
-```text
-cargo bw
-cargo rw -- --screen login
-cargo test --bin game-engine --no-default-features --features casc,dev <test_filter>
-```
+- Rust meeting `Cargo.toml`'s minimum version.
+- `rustup target add x86_64-pc-windows-gnu`.
+- A GNU Windows C/C++ toolchain (`gcc`, `g++`, `ar`) and CMake on PATH.
+- Sibling repositories referenced by the manifest: asset-resolver, shared-protocol, ui-toolkit, ui-toolkit-macros.
 
-`bw`/`rw` use the existing dev profile and Bevy dynamic linking. They explicitly exclude Unix socket IPC; the Windows engine has no IPC transport or IPC CLI. Run through Cargo so development DLL search paths are supplied.
+Run through Cargo so the development DLL search paths are configured. Distribution builds omit `dev` explicitly: `cargo build --release --target x86_64-pc-windows-gnu --no-default-features --features casc --bin game-engine`.
 
-Linux retains its target-specific clang/mold flags and Wayland features. Build artifacts use the checkout-relative `target/` directory on both platforms. Optimization levels are unchanged.
+## Compatibility evidence
 
-For a Windows distribution build, omit dynamic linking:
+Native desktop investigation, 2026-09-11:
 
-```text
-cargo build --release --bin game-engine --no-default-features --features casc
-```
+- MSVC failed compiling bundled `libquickjs-sys 0.9.0` C sources (including `JSValue` casts). Do not select MSVC with the current QuickJS dependency.
+- The isolated QuickJS dependency compiled successfully with the GNU target in 36.08 seconds on the desktop's existing GNU toolchain.
+- Full native GNU engine build and launch remain unverified until the current build completes.
 
-Native compilation and runtime compatibility remain unverified until the Windows desktop build completes. These commands do not establish compatibility of all native dependencies.
+The dependency's [Windows support documentation](https://github.com/theduke/quickjs-rs#windows-support) specifies the GNU target. Changing JavaScript runtimes is outside this build-configuration change.
+
+Linux linker flags remain under the Linux target table. Dependency optimization levels are unchanged. Runtime game assets are separate from source compilation; a build alone does not prove game-world loading.
