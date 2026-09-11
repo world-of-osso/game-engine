@@ -5,7 +5,7 @@ Character-selection fog preserves nearby campsite scenery while fading distant t
 ## What it must do
 
 - [x] Nearby trees 45 world units from the camera remain unobscured by distance fog.
-- [ ] Terrain at 150 units fades partially; even beyond the fade range, at least half of its unfogged contribution remains visible, matching the reference's readable distant scenery.
+- [x] Terrain at 150 units fades partially; even beyond the fade range, at least half of its unfogged contribution remains visible, matching the reference's readable distant scenery.
 - [x] Fog range uses scene distance rather than the camera-to-character framing distance.
 - [x] Scene fog remains owned by character selection and is not overwritten by procedural sky updates.
 - [x] Preserve skybox-behind-geometry ordering; do not reveal clouds by painting over opaque terrain.
@@ -28,7 +28,7 @@ Character-selection fog preserves nearby campsite scenery while fading distant t
 
 ## Known gaps (current cycle)
 
-- [ ] Verify the reference-guided blue-green haze and capped opacity in native output. This is color fog over retained geometry, not terrain transparency, terrain deletion, or a camera change.
+Bounded native reference inspection confirms better retained distant detail and blue-green haze. This is color fog over retained geometry, not terrain transparency, terrain deletion, or a camera change. Exact WoW lighting/assets and cloud restoration are not claimed.
 
 ## Out of scope
 
