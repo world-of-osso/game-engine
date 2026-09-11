@@ -21,34 +21,7 @@ fn font_text(registry: &ui_toolkit::registry::FrameRegistry, name: &str) -> Opti
 }
 
 fn native_addon_app() -> App {
-    use bevy::asset::AssetApp;
-
-    let mut app = App::new();
-    app.add_plugins((
-        MinimalPlugins,
-        bevy::asset::AssetPlugin::default(),
-        bevy::image::ImagePlugin::default(),
-        bevy::mesh::MeshPlugin,
-        bevy::window::WindowPlugin {
-            primary_window: Some(Window {
-                resolution: (800, 600).into(),
-                ..default()
-            }),
-            exit_condition: bevy::window::ExitCondition::DontExit,
-            ..default()
-        },
-        bevy::input::InputPlugin,
-        bevy::transform::TransformPlugin,
-        bevy::camera::CameraPlugin,
-        bevy::text::TextPlugin,
-        bevy::picking::DefaultPickingPlugins,
-        bevy::ui::UiPlugin,
-        ui_toolkit::plugin::UiPlugin,
-    ));
-    app.init_asset::<TextureAtlasLayout>();
-    app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
-        std::time::Duration::from_millis(16),
-    ));
+    let mut app = crate::ui::screens::menu_character_layout_test_support::layout_app(800.0, 600.0);
     app.world_mut().resource_mut::<UiState>().registry = make_registry_with_root();
     app.finish();
     app.cleanup();
