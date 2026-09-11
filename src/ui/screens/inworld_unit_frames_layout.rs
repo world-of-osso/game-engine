@@ -1,11 +1,9 @@
-use crate::ui::anchor::FrameName;
-
 pub(super) struct ShellConfig {
     pub width: f32,
     pub height: f32,
     pub texture: &'static str,
     pub anchor_x: &'static str,
-    pub anchor_y: &'static str,
+    pub anchor_y: f32,
 }
 
 pub(super) struct PortraitConfig {
@@ -83,7 +81,7 @@ pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
         height: PLAYER_FRAME_H,
         texture: "data/ui/unitframes/player-frame-shell.ktx2",
         anchor_x: "0",
-        anchor_y: "0",
+        anchor_y: 0.0,
     },
     // Coordinates follow the openings in the 396x142 artwork, not Blizzard's XML frame.
     portrait: PortraitConfig {
@@ -128,7 +126,7 @@ pub(super) const TARGET_FRAME_CONFIG: FrameConfig = FrameConfig {
         height: 134.0,
         texture: "data/ui/unitframes/target-frame-shell.ktx2",
         anchor_x: "-2",
-        anchor_y: "0",
+        anchor_y: 0.0,
     },
     portrait: PortraitConfig {
         x: 148.0,
