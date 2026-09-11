@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-11] ui/networking | Verify reference-style nameplates and cast presentation
+## [2026-09-11] ui/networking | Calibrate authored nameplates for reference pixel matching
 
-At engine `2695e5ff`, health bars are 190×20 logical pixels Thick and 190×10 Thin; spellbars are 190×14/190×6. Thick labels are left-inset; thin health labels sit above their bars and thin spell labels below. Defaults persist as Thick health/Thin spellbar. Health uses fixed red fill; spellbars use an authored gold casting-bar crop and spark. Health/cast frames are procedural reference-style geometry, not exact atlas replacements. Focused engine verification records 44 distinct passing cases, including four inspected GPU captures for all thickness combinations. Server cast-presentation proof records five targeted passes; a connected wire-level replication test remains absent. The default dev feature and GNU Windows workflow are documented, but the native GNU engine build remains unverified. See [[nameplate-design]], [[networking]], [nameplate spec](../specs/nameplate-style.md), and [Windows development](../windows-development.md).
+Engine `3160bd2f`, `8934e738`, `0e7041f6`, and `f8cbaab7` move nameplates toward the supplied reference: the shared cache uses health atlas `6704514`, cast fill `4505182`, and important-cast frame `7241122`; health rendering is UI-overlay sprites rather than world-space PBR; names/cast labels are white Friz at 26px/20px. Current calibration is 384px health at 40px Thick / 20px Thin and cast at 20px Thick / 12px Thin. It is working calibration only, not pixel-match proof. The required GPU fixture alignment and verification remain pending; allowed variance is glyph rasterization only. Thick/Thin defaults and cast lifecycle/settings semantics remain unchanged. Windows work is excluded. See [[nameplate-design]], [[networking]], and [nameplate spec](../specs/nameplate-style.md).
 
 
 ## [2026-09-11] ui/networking | Start reference nameplate settings and cast presentation path

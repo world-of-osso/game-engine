@@ -1,15 +1,16 @@
 # Nameplate Design
 
-This page records the intended target-first nameplate design. Current implementation is earlier: projected names and health bars obey existing visibility/distance settings; independent health/spellbar thickness choices and replicated cast presentation are being integrated. The target, hostility, combat, and occlusion state machine below is not implemented.
+This page records the intended target-first nameplate design. Current work pixel-matches the supplied reference while preserving existing visibility/distance settings, independent health/spellbar thickness choices, and replicated cast presentation. The target, hostility, combat, and occlusion state machine below is not implemented.
 
 ## Current implementation boundary
 
 - `HudOptions` persists independent `Thin`/`Thick` choices. The explicit defaults are Thick health and Thin spellbar.
-- Health bars are 190×20 logical pixels when Thick and 190×10 when Thin. Spellbars are 190×14 and 190×6. Thick labels are left-inset; thin health labels are above their bars and thin spell labels below.
-- Health fill is fixed red. Spell fill uses the authored gold casting-bar crop with an authored spark; health/cast frames remain procedural reference-style geometry rather than exact atlas replacements.
+- Current working calibration is a 384px health bar at 40px Thick / 20px Thin and a cast bar at 20px Thick / 12px Thin. It is not pixel verified.
+- Health uses UI-overlay sprites, not world-space PBR. The shared art cache loads `6704514` for the health background/fill atlas, `4505182` for cast fill, and `7241122` for the important-cast frame.
+- Non-glyph pixels must pixel-match `data/diagnostics/nameplate-style/reference.png`: frames, fill, geometry, colors, endpoints, gaps, and placement. Glyph rasterization may differ only; names use white Friz at 26px and cast labels use white Friz at 20px.
 - `shared::casting::CastState` is replicated from the server and mirrored from the client worker to the render world, including additions, elapsed progress changes, and removal. Normal casts fill; channels drain.
 - Server cast presentation accepts player cast intents, validates available spell data, exposes timed cast state, and removes it on stop, movement cancellation, or expiry. It does not apply spell effects or supply NPC casts.
-- Focused proof records 44 distinct passing engine cases: 40 non-GPU cases and four GPU captures for all thickness combinations. Connected server-to-client replication remains unproven. Do not infer the planned display states below from this implementation.
+- Pixel-match verification is pending: the GPU fixture must produce aligned reference-sized captures for all four thickness combinations and mask only glyph regions. Connected server-to-client replication remains unproven. Do not infer the planned display states below from this implementation.
 
 ## Intended display states
 
@@ -60,11 +61,11 @@ Cast bars and elite/quest markers come after the base system validates.
 
 - [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — intended design rules, references, prototype scope
 - [`src/game/state/client_options.rs`](../../../src/game/state/client_options.rs) — persisted health/spellbar thickness values
-- [`src/rendering/ui/health_bar.rs`](../../../src/rendering/ui/health_bar.rs) — health geometry and fixed red fill
-- [`src/rendering/ui/nameplate_cast_bar.rs`](../../../src/rendering/ui/nameplate_cast_bar.rs) — gold cast presentation and visibility gates
+- [`src/rendering/ui/nameplate_art.rs`](../../../src/rendering/ui/nameplate_art.rs) — authored atlas IDs and shared art cache
+- [`src/rendering/ui/health_bar.rs`](../../../src/rendering/ui/health_bar.rs) — UI-overlay health sprites
+- [`src/rendering/ui/nameplate_cast_bar.rs`](../../../src/rendering/ui/nameplate_cast_bar.rs) — authored cast presentation and visibility gates
 - [`src/network_runtime/replication.rs`](../../../src/network_runtime/replication.rs) — worker-to-render-world cast snapshots
 - [`../../../game-server/crates/server/src/cast_presentation.rs`](../../../../game-server/crates/server/src/cast_presentation.rs) — authoritative player cast presentation lifecycle
-- [`../../windows-development.md`](../../windows-development.md) — default dev feature and GNU Windows workflow
 
 ## See Also
 
