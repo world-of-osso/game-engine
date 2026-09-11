@@ -2,7 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
@@ -108,30 +108,22 @@ pub fn loading_screen(ctx: &SharedContext) -> Element {
         .get::<LoadingScreenLayout>()
         .cloned()
         .unwrap_or_default();
-    [
-        background_frame(),
-        filler_bands(&layout),
-        artwork_frame(&layout),
-        logo_frame(&layout),
-        zone_text(state, &layout),
-        status_text(state, &layout),
-        bar_background(&layout),
-        bar_fill_clip(state.progress_percent, &layout),
-        progress_text(state.progress_percent, &layout),
-        tip_text(state, &layout),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn background_frame() -> Element {
     rsx! {
         r#frame {
             name: LOADING_ROOT,
-            stretch: true,
+            pos_type: "absolute",
+            left: 0.0, right: 0.0, top: 0.0, bottom: 0.0,
+            width: "auto", height: "auto",
             background_color: "0.0,0.0,0.0,1.0",
             strata: FrameStrata::Background,
+            {filler_bands(&layout)}
+            {artwork_frame(&layout)}
+            {logo_frame(&layout)}
+            {zone_text(state, &layout)}
+            {status_text(state, &layout)}
+            {bar_background(state, &layout)}
+            {progress_text(state.progress_percent, &layout)}
+            {tip_text(state, &layout)}
         }
     }
 }
@@ -144,12 +136,10 @@ fn filler_bands(layout: &LoadingScreenLayout) -> Element {
             height: layout.filler_height,
             texture_file: TEX_LOADING_FILLER_TOP,
             strata: FrameStrata::Background,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: FrameName("LoadingArtwork"),
-                relative_point: AnchorPoint::Top,
-                y: {layout.filler_top_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-100%",
+            margin_top: {50.0 - layout.art_height / 2.0 - layout.filler_top_y},
         }
         texture {
             name: "LoadingBottomFiller",
@@ -157,12 +147,10 @@ fn filler_bands(layout: &LoadingScreenLayout) -> Element {
             height: layout.filler_height,
             texture_file: TEX_LOADING_FILLER_BOTTOM,
             strata: FrameStrata::Background,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: FrameName("LoadingArtwork"),
-                relative_point: AnchorPoint::Bottom,
-                y: {layout.filler_bottom_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%",
+            margin_top: {50.0 + layout.art_height / 2.0 - layout.filler_bottom_y},
         }
     }
 }
@@ -175,11 +163,10 @@ fn artwork_frame(layout: &LoadingScreenLayout) -> Element {
             height: 704.0,
             background_color: "0.0,0.0,0.0,0.82",
             strata: FrameStrata::Background,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-50%",
+            margin_top: 18.0,
         }
         texture {
             name: "LoadingArtwork",
@@ -187,11 +174,10 @@ fn artwork_frame(layout: &LoadingScreenLayout) -> Element {
             height: layout.art_height,
             texture_file: TEX_LOADING_ART,
             strata: FrameStrata::Background,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                y: "-50",
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-50%",
+            margin_top: 50.0,
         }
     }
 }
@@ -204,12 +190,10 @@ fn logo_frame(layout: &LoadingScreenLayout) -> Element {
             height: 140.0,
             texture_file: TEX_GAME_LOGO,
             strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: FrameName("LoadingArtwork"),
-                relative_point: AnchorPoint::Top,
-                y: {layout.logo_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-100%",
+            margin_top: {50.0 - layout.art_height / 2.0 - layout.logo_y},
         }
     }
 }
@@ -224,12 +208,10 @@ fn zone_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Elemen
             font_size: 22.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: FrameName("LoadingBarBackground"),
-                relative_point: AnchorPoint::Top,
-                y: {layout.zone_text_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-100%",
+            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.bar_height - layout.zone_text_y},
         }
     }
 }
@@ -244,17 +226,15 @@ fn status_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Elem
             font_size: 13.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_SUBTLE,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_to: FrameName("LoadingBarBackground"),
-                relative_point: AnchorPoint::Center,
-                y: {layout.status_text_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-50%",
+            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.bar_height / 2.0 - layout.status_text_y},
         }
     }
 }
 
-fn bar_background(layout: &LoadingScreenLayout) -> Element {
+fn bar_background(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element {
     rsx! {
         r#frame {
             name: "LoadingBarBackground",
@@ -262,12 +242,11 @@ fn bar_background(layout: &LoadingScreenLayout) -> Element {
             height: layout.bar_height,
             three_slice_style: "loading_bar_shell",
             strata: FrameStrata::Medium,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to: FrameName("LoadingArtwork"),
-                relative_point: AnchorPoint::Bottom,
-                y: {layout.bar_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%", translate_y: "-100%",
+            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y},
+            {bar_fill_clip(state.progress_percent, layout)}
         }
     }
 }
@@ -282,12 +261,10 @@ fn bar_fill_clip(progress_percent: u8, layout: &LoadingScreenLayout) -> Element 
             height: layout.bar_fill_height,
             background_color: "0.0,0.0,0.0,0.0",
             strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_to: FrameName("LoadingBarBackground"),
-                relative_point: AnchorPoint::Left,
-                x: {layout.bar_fill_start_x.to_string()},
-            }
+            pos_type: "absolute",
+            pos_x: layout.bar_fill_start_x,
+            top: "50%",
+            translate_y: "-50%",
             {bar_fill_texture(fill_width, layout)}
         }
     }
@@ -301,10 +278,8 @@ fn bar_fill_texture(fill_width: f32, layout: &LoadingScreenLayout) -> Element {
             height: layout.bar_fill_height,
             texture_file: TEX_LOADING_BAR_FILL,
             strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-            }
+            pos_type: "absolute",
+            pos_x: 0.0, pos_y: 0.0,
         }
     }
 }
@@ -320,13 +295,11 @@ fn progress_text(progress_percent: u8, layout: &LoadingScreenLayout) -> Element 
             font_size: 15.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Right,
-                relative_to: FrameName("LoadingBarBackground"),
-                relative_point: AnchorPoint::Right,
-                x: {layout.progress_text_x.to_string()},
-                y: {layout.progress_text_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-100%", translate_y: "-50%",
+            margin_left: {layout.bar_width / 2.0 + layout.progress_text_x},
+            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.bar_height / 2.0 - layout.progress_text_y},
         }
     }
 }
@@ -341,12 +314,10 @@ fn tip_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element
             font_size: 14.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_TIP,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: FrameName("LoadingBarBackground"),
-                relative_point: AnchorPoint::Bottom,
-                y: {layout.tip_text_y.to_string()},
-            }
+            pos_type: "absolute",
+            left: "50%", top: "50%",
+            translate_x: "-50%",
+            margin_top: {50.0 + layout.art_height / 2.0 - layout.bar_y - layout.tip_text_y},
         }
     }
 }

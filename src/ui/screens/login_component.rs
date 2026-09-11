@@ -4,7 +4,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
@@ -84,26 +84,32 @@ fn login_background() -> Element {
     rsx! {
         r#frame {
             name: "BlackLoginBackground",
-            stretch: true,
+            pos_type: "absolute",
+            left: 0.0, right: 0.0, top: 0.0, bottom: 0.0,
+            width: "auto", height: "auto",
             background_color: "0.0,0.0,0.0,1.0",
             strata: FrameStrata::Background,
         }
         texture {
             name: "LoginBackground",
-            stretch: true,
+            pos_type: "absolute",
+            left: 0.0, right: 0.0, top: 0.0, bottom: 0.0,
+            width: "auto", height: "auto",
             texture_file: TEX_LOGIN_BACKGROUND,
             strata: FrameStrata::Background,
         }
         r#frame {
             name: "LoginBackgroundShade",
-            stretch: true,
+            pos_type: "absolute",
+            left: 0.0, right: 0.0, top: 0.0, bottom: 0.0,
+            width: "auto", height: "auto",
             background_color: "0.0,0.0,0.0,0.22",
             strata: FrameStrata::Background,
         }
     }
 }
 
-fn input_label(name: FrameName, text: &'static str, relative_to: FrameName) -> Element {
+fn input_label(name: FrameName, text: &'static str, top: f32) -> Element {
     rsx! {
         fontstring {
             name,
@@ -113,40 +119,45 @@ fn input_label(name: FrameName, text: &'static str, relative_to: FrameName) -> E
             font_size: 18.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_to,
-                relative_point: AnchorPoint::Top,
-                y: "4",
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: top,
         }
     }
 }
 
 fn login_input_labels() -> Element {
     [
-        input_label(FrameName("UsernameInputLabel"), "Username", USERNAME_INPUT),
-        input_label(FrameName("PasswordInputLabel"), "Password", PASSWORD_INPUT),
+        input_label(FrameName("UsernameInputLabel"), "Username", -22.0),
+        input_label(FrameName("PasswordInputLabel"), "Password", 50.0),
     ]
     .into_iter()
     .flatten()
     .collect()
 }
 
-fn login_inputs() -> Element {
+fn login_inputs(
+    status: &str,
+    connecting: bool,
+    realm_text: &str,
+    realm_selectable: bool,
+) -> Element {
     rsx! {
         r#frame { name: "LoginInputContainer", width: 320.0, height: 200.0,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                y: {LOGIN_FORM_CENTER_OFFSET_Y},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+            margin_top: {-LOGIN_FORM_CENTER_OFFSET_Y},
             editbox {
                 name: USERNAME_INPUT,
                 width: "fill",
                 height: 42.0,
                 font_size: 20.0,
-                anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 0.0,
             }
             editbox {
                 name: PASSWORD_INPUT,
@@ -154,14 +165,12 @@ fn login_inputs() -> Element {
                 height: 42.0,
                 font_size: 20.0,
                 password: true,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_to: USERNAME_INPUT,
-                    relative_point: AnchorPoint::Bottom,
-                    y: "-30",
-                }
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 72.0,
             }
             {login_input_labels()}
+            {login_main_buttons(false, realm_text, realm_selectable, status, connecting)}
         }
     }
 }
@@ -174,11 +183,10 @@ fn login_realm_button(_realm_text: &str, _realm_selectable: bool, _connecting: b
             height: 0.0,
             hidden: true,
             onclick: LoginAction::CycleRealm,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: PASSWORD_INPUT,
-                relative_point: AnchorPoint::Bottom,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            pos_y: 114.0,
+            translate_x: "-50%",
         }
     }
 }
@@ -192,12 +200,10 @@ fn login_reconnect_button() -> Element {
             onclick: LoginAction::Reconnect,
             text: "Reconnect",
             font_size: 16.0,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: REALM_BUTTON,
-                relative_point: AnchorPoint::Bottom,
-                y: "-20",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            pos_y: 134.0,
+            translate_x: "-50%",
         }
     }
 }
@@ -212,12 +218,10 @@ fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Eleme
             text: "Login",
             font_size: 16.0,
             disabled: connecting,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: REALM_BUTTON,
-                relative_point: AnchorPoint::Bottom,
-                y: "-20",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            pos_y: 134.0,
+            translate_x: "-50%",
         }
     };
     let status = rsx! {
@@ -228,12 +232,10 @@ fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Eleme
             text: status_text,
             font_size: 13.0,
             font_color: COLOR_ERROR,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: PASSWORD_INPUT,
-                relative_point: AnchorPoint::Bottom,
-                y: "-136",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            pos_y: 250.0,
+            translate_x: "-50%",
         }
     };
     [connect, status].into_iter().flatten().collect()
@@ -299,12 +301,9 @@ fn login_action_buttons() -> Element {
             justify: "end",
             align: "center",
             gap: 10.0,
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-24",
-                y: "56",
-            }
+            pos_type: "absolute",
+            right: 24.0,
+            bottom: 56.0,
             {action_button_items()}
         }
     }
@@ -320,12 +319,9 @@ fn login_footer_text() -> Element {
             font_size: 11.0,
             font_color: COLOR_VERSION,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                x: "10",
-                y: "8",
-            }
+            pos_type: "absolute",
+            left: 10.0,
+            bottom: 8.0,
         }
         fontstring {
             name: "DisclaimerText",
@@ -334,11 +330,10 @@ fn login_footer_text() -> Element {
             text: "© 2025 World of Osso. All rights reserved.",
             font_size: 11.0,
             font_color: COLOR_SUBTLE,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "8",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            bottom: 8.0,
+            translate_x: "-50%",
         }
     }
 }
@@ -347,16 +342,17 @@ fn login_footer_blizzard() -> Element {
     rsx! {
         fontstring {
             name: BLIZZARD_THANKS,
+            width: "auto",
+            height: "auto",
             text: "Special thanks to",
             font_size: 10.0,
             font: GameFont::FrizQuadrata,
             font_color: COLOR_SUBTLE,
             strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "130",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            bottom: 130.0,
+            translate_x: "-50%",
         }
         texture {
             name: "BlizzardLogo",
@@ -364,12 +360,10 @@ fn login_footer_blizzard() -> Element {
             height: 100.0,
             texture_file: TEX_BLIZZARD_LOGO,
             strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: BLIZZARD_THANKS,
-                relative_point: AnchorPoint::Bottom,
-                y: "2",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            bottom: 32.0,
+            translate_x: "-50%",
         }
     }
 }
@@ -389,12 +383,9 @@ fn login_game_logo() -> Element {
             width: 384.0,
             height: 256.0,
             strata: FrameStrata::High,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "3",
-                y: "7",
-            }
+            pos_type: "absolute",
+            pos_x: 3.0,
+            pos_y: -7.0,
         }
     }
 }
@@ -402,21 +393,15 @@ fn login_game_logo() -> Element {
 fn login_ui(status: &str, connecting: bool, realm_text: &str, realm_selectable: bool) -> Element {
     rsx! {
         r#frame { name: "LoginUI",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: "0",
-            }
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "0",
-                y: "0",
-            }
+            pos_type: "absolute",
+            left: 0.0,
+            right: 0.0,
+            top: 0.0,
+            bottom: 0.0,
+            width: "auto",
+            height: "auto",
             {login_game_logo()}
-            {login_inputs()}
-            {login_main_buttons(false, realm_text, realm_selectable, status, connecting)}
+            {login_inputs(status, connecting, realm_text, realm_selectable)}
             {login_action_buttons()}
             {login_footer()}
         }
@@ -439,6 +424,9 @@ pub fn login_screen(ctx: &SharedContext) -> Element {
         .unwrap_or(true);
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
+            pos_type: "absolute",
+            left: 0.0, right: 0.0, top: 0.0, bottom: 0.0,
+            width: "auto", height: "auto",
             {login_background()}
             {login_ui(status, connecting, realm_text, realm_selectable)}
         }
