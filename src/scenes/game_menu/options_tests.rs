@@ -33,6 +33,31 @@ fn default_model() -> OverlayModel {
 }
 
 #[test]
+fn nameplate_thickness_selectors_are_independent_and_apply() {
+    use crate::client_options::NameplateBarThickness::{Thick, Thin};
+    let mut model = default_model();
+    assert_eq!(model.draft_hud.nameplate_health_thickness, Thick);
+    assert_eq!(model.draft_hud.nameplate_spellbar_thickness, Thin);
+    apply_toggle("nameplate_health_thickness", &mut model);
+    assert_eq!(model.draft_hud.nameplate_health_thickness, Thin);
+    assert_eq!(model.draft_hud.nameplate_spellbar_thickness, Thin);
+    assert_eq!(model.committed_hud.nameplate_health_thickness, Thick);
+    apply_toggle("nameplate_spellbar_thickness", &mut model);
+    let snapshot = apply_snapshot(&mut model);
+    let mut hud = HudOptions::default();
+    apply_hud_snapshot(&mut hud, &snapshot.hud);
+    assert_eq!(hud.nameplate_health_thickness, Thin);
+    assert_eq!(hud.nameplate_spellbar_thickness, Thick);
+    let view = hud_to_view(&model.draft_hud);
+    assert_eq!(view.nameplate_health_thickness, Thin);
+    assert_eq!(view.nameplate_spellbar_thickness, Thick);
+    model.category = OptionsCategory::Hud;
+    reset_category_defaults(&mut model);
+    assert_eq!(model.draft_hud.nameplate_health_thickness, Thick);
+    assert_eq!(model.draft_hud.nameplate_spellbar_thickness, Thin);
+}
+
+#[test]
 fn resetting_graphics_defaults_disables_bloom() {
     let mut model = default_model();
     model.draft_graphics.bloom_enabled = true;
