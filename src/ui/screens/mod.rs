@@ -33,6 +33,8 @@ pub mod login_component;
 pub mod loot_rules_frame_component;
 pub mod loss_of_control_component;
 pub mod mail_frame_component;
+#[cfg(test)]
+pub(crate) mod menu_character_layout_test_support;
 pub mod menu_primitives;
 pub mod merchant_frame_component;
 pub mod objective_tracker_component;

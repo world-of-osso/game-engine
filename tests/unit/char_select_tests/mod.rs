@@ -17,7 +17,9 @@ pub(super) use game_engine::ui::screens::char_select_component::{
 pub(super) use game_engine::ui::strata::FrameStrata;
 pub(super) use game_engine::ui::widgets::button::ButtonState;
 pub(super) use shared::protocol::CharacterListEntry;
-pub(super) use ui_toolkit::layout::recompute_layouts;
+#[path = "../../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
+pub(super) use layout_support::compute_layout as recompute_layouts;
 
 mod campsite_tests;
 mod click_tests;
@@ -169,10 +171,25 @@ pub(super) fn assert_single_anchor(
     y_offset: f32,
 ) {
     let frame = reg.get(frame_id).expect("frame");
-    assert_eq!(frame.anchors.len(), 1);
-    assert_eq!(frame.anchors[0].point, point);
-    assert_eq!(frame.anchors[0].relative_point, relative_point);
-    assert_eq!(frame.anchors[0].relative_to, relative_to);
-    assert_eq!(frame.anchors[0].x_offset, x_offset);
-    assert_eq!(frame.anchors[0].y_offset, y_offset);
+    let actual = frame.layout_rect.as_ref().expect("native frame bounds");
+    let target = relative_to
+        .map(|id| reg.get(id).unwrap().layout_rect.clone().unwrap())
+        .unwrap_or_else(|| reg.screen_rect());
+    let actual =
+        ui_toolkit::anchor::anchor_position(point, actual.x, actual.y, actual.width, actual.height);
+    let expected = ui_toolkit::anchor::anchor_position(
+        relative_point,
+        target.x,
+        target.y,
+        target.width,
+        target.height,
+    );
+    assert!(
+        (actual.0 - expected.0 - x_offset).abs() <= 1.0,
+        "native horizontal placement {actual:?} vs {expected:?}"
+    );
+    assert!(
+        (actual.1 - expected.1 + y_offset).abs() <= 1.0,
+        "native vertical placement {actual:?} vs {expected:?}"
+    );
 }

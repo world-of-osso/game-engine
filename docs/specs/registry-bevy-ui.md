@@ -4,9 +4,17 @@
 
 - `FrameRegistry` remains the UI model shared by engine code, existing `rsx!`/`Screen` authoring and JavaScript addons. Native Bevy UI is its rendering projection, not a separate set of screen definitions.
 - Registry IDs, names, parent relationships, authored sizes/anchors/flex settings, widget state and existing mutation/error semantics remain intact. In particular, preserve current same-name `createFrame` reuse semantics; do not introduce a new ownership policy during rendering migration.
-- The existing registry layout solver owns resolved rectangles and anchor dependencies. Bevy nodes use those rectangles; computed Bevy layout must not write back into authored anchors or dimensions.
+- Bevy owns layout calculation. The registry stores native-compatible authored dimensions, positioning, margins, translation and flex properties. Remove the old arbitrary-target anchor/dependency solver; computed bounds are observational input/measurement data and must never feed back into authored dimensions or positions.
 - Bevy window/input events continue through registry hit testing, focus, text editing and event dispatch. Do not create a second text/edit-box authority or let native picking change existing hit-inset/order semantics.
 - Registry mutation must update the corresponding native entities; unchanged values must not publish component changes. Reparenting, hiding, deleting, addon reload and screen teardown must preserve logical identity and remove obsolete projected visuals.
+
+## Positioning API
+
+- `setPos(x, y)` sets left/top pixel offsets (origin top-left, X rightward, Y downward) without changing positioning mode or target. It clears opposing right/bottom insets; callers wanting opposing-edge stretch author native insets explicitly.
+- `setPosType(relative | absolute)` selects native layout participation. Default is relative; absolute removes the frame from its layout parent's flow, not from registry ownership.
+- `setAnchor(parent | screen)` selects the layout parent. Default is the logical registry parent; screen projects beneath the screen canvas. Logical parent ownership, removal, effective visibility and alpha remain registry-controlled; positioning and clipping use the selected layout parent.
+- RSX uses ordinary native-compatible positioning/inset/margin/translation attributes; legacy `anchor { point, relative_to, relative_point, ... }` and `setPoint` are removed, not emulated. Existing callers must explicitly restructure siblings or use the native parent layout.
+- Centering, stretching and flex alignment remain native layout properties, not hidden operations inside `setPos`. Fixed zero dimensions remain zero; explicit auto and fill dimensions map to native auto/percentage sizing.
 
 ## Rendering
 
@@ -24,7 +32,7 @@ Legacy standalone rendering helpers may remain as compatibility/test utilities a
 
 ## Verification
 
-- Compare registry-driven native layout, visuals, input focus, editing and lifecycle against the existing registry contract using concrete fixtures.
+- Compare registry-driven native layout, visuals, input focus, editing and lifecycle against the reduced native-layout contract using concrete fixtures. Replace tests for intentionally removed arbitrary-frame anchor semantics rather than retaining a hidden solver to satisfy them.
 - Exercise real addon operations, including creation/reuse, setters, parent visibility/alpha, anchors and reload/removal, and inspect the resulting native Bevy output.
 - Verify login/loading and representative decoration/widget families with actual layout/rendered evidence; do not substitute entity-type assertions for observable behavior.
 - Preserve exact source/dependency/binary provenance and bounded native runtime limits. Keep independent proof scoped to the revisions actually checked.
