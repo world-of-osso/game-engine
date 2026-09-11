@@ -1,0 +1,156 @@
+"""Extract text-free nameplate art from the user-supplied reference.
+
+Run: uv run --with pillow python debug/make_nameplate_skins.py
+Source is intentionally not bundled: data/diagnostics/nameplate-style/reference.png.
+Coordinates are half-open, unscaled screenshot pixels. Runtime owns all resizing
+and dynamic value clipping; these images contain no health/cast values or labels.
+"""
+
+import hashlib
+import json
+from pathlib import Path
+
+from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = ROOT / "data/diagnostics/nameplate-style/reference.png"
+OUTPUT = ROOT / "src/rendering/ui/nameplate_skins"
+BACKGROUND = (24, 21, 20)
+# The frame bands exclude all text and status fill. Endcaps remain outside the
+# inner rectangle; no text-bearing center pixels are copied into frame skins.
+FRAMES = {
+    "health-thick": ((50, 48, 446, 96), (58, 54, 434, 91)),
+    "health-thin": ((521, 67, 917, 97), (529, 74, 905, 92)),
+    "cast-thin": ((32, 92, 464, 114), (60, 98, 432, 109)),
+    "cast-thick": ((32, 289, 466, 318), (61, 296, 433, 314)),
+}
+FILL = (529, 73, 816, 93)
+
+
+def linear(channel):
+    value = channel / 255.0
+    return value / 12.92 if value <= 0.04045 else ((value + 0.055) / 1.055) ** 2.4
+
+
+def srgb(value):
+    value = max(0.0, min(1.0, value))
+    encoded = (
+        value * 12.92 if value <= 0.0031308 else 1.055 * value ** (1 / 2.4) - 0.055
+    )
+    return round(encoded * 255)
+
+
+def inside(x, y, rect):
+    return rect[0] <= x < rect[2] and rect[1] <= y < rect[3]
+
+
+def unmatte(pixel):
+    """Minimal valid alpha against a known linear-light background.
+
+    Darker pixels are represented as black shadows with their own alpha, not
+    baked brown background. Mixed/chromatic pixels use a bounded RGB solution.
+    Pixels within six sRGB levels of the matte are discarded as background noise.
+    Recovering original RGBA from a single composite is underdetermined; this is
+    a reproducible reconstruction, not a claim to recover original source art.
+    """
+    if max(abs(p - b) for p, b in zip(pixel, BACKGROUND)) <= 6:
+        return (0, 0, 0, 0)
+    observed = tuple(linear(p) for p in pixel)
+    matte = tuple(linear(b) for b in BACKGROUND)
+    if all(p <= b for p, b in zip(observed, matte)):
+        alpha = 1 - sum(observed) / sum(matte)
+        return (0, 0, 0, round(alpha * 255))
+    alpha = max(
+        (p - b) / (1 - b) if p >= b else (b - p) / b for p, b in zip(observed, matte)
+    )
+    # Quantize alpha upward so the reconstructed foreground remains in gamut.
+    alpha_byte = min(255, int(alpha * 255 + 0.999999))
+    alpha = alpha_byte / 255
+    foreground = tuple(
+        srgb((p - b * (1 - alpha)) / alpha) for p, b in zip(observed, matte)
+    )
+    return (*foreground, alpha_byte)
+
+
+def extract_frame(source, crop, interior):
+    skin = Image.new("RGBA", (crop[2] - crop[0], crop[3] - crop[1]))
+    for y in range(crop[1], crop[3]):
+        for x in range(crop[0], crop[2]):
+            if not inside(x, y, interior):
+                skin.putpixel(
+                    (x - crop[0], y - crop[1]), unmatte(source.getpixel((x, y)))
+                )
+    # Keep only connected frame/shadow components, removing isolated matte noise.
+    pixels = skin.load()
+    visited = set()
+    for y in range(skin.height):
+        for x in range(skin.width):
+            if (x, y) in visited or pixels[x, y][3] == 0:
+                continue
+            component = []
+            pending = [(x, y)]
+            visited.add((x, y))
+            while pending:
+                point = pending.pop()
+                component.append(point)
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = point[0] + dx, point[1] + dy
+                    if (
+                        0 <= nx < skin.width
+                        and 0 <= ny < skin.height
+                        and (nx, ny) not in visited
+                        and pixels[nx, ny][3]
+                    ):
+                        visited.add((nx, ny))
+                        pending.append((nx, ny))
+            if len(component) < 8:
+                for point in component:
+                    pixels[point] = (0, 0, 0, 0)
+    return skin
+
+
+def main():
+    source = Image.open(SOURCE).convert("RGB")
+    if source.size != (979, 364):
+        raise ValueError(f"Unexpected reference dimensions: {source.size}")
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+    metadata = {
+        "source": str(SOURCE.relative_to(ROOT)),
+        "source_sha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
+        "source_size": list(source.size),
+        "coordinates": "half-open, unscaled reference pixels",
+        "matte_srgb": list(BACKGROUND),
+        "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=6 sRGB matte noise removed; components <8 pixels removed",
+        "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. GPU comparison required.",
+        "frames": {},
+    }
+    for name, (crop, interior) in FRAMES.items():
+        skin = extract_frame(source, crop, interior)
+        local = (
+            interior[0] - crop[0],
+            interior[1] - crop[1],
+            interior[2] - crop[0],
+            interior[3] - crop[1],
+        )
+        assert skin.crop(local).getchannel("A").getbbox() is None, name
+        skin.save(OUTPUT / f"{name}.png")
+        metadata["frames"][name] = {
+            "crop": crop,
+            "size": skin.size,
+            "transparent_interior": local,
+        }
+    # A complete gradient sample, not a complete status bar. No empty-health
+    # portion is included; runtime maps its full width onto the current value.
+    fill = source.crop(FILL).convert("RGBA")
+    fill.save(OUTPUT / "health-fill.png")
+    metadata["fill"] = {
+        "crop": FILL,
+        "size": fill.size,
+        "role": "glyph-free colored gradient; stretch to dynamic filled width",
+    }
+    (OUTPUT / "provenance.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    print(json.dumps(metadata, indent=2))
+
+
+if __name__ == "__main__":
+    main()

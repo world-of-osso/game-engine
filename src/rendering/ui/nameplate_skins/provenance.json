@@ -1,0 +1,103 @@
+{
+  "source": "data/diagnostics/nameplate-style/reference.png",
+  "source_sha256": "92d9cdb7395b3953002b80b7afe51094f9df2a7833cd2c1fdd19dd7ffbbaee6c",
+  "source_size": [
+    979,
+    364
+  ],
+  "coordinates": "half-open, unscaled reference pixels",
+  "matte_srgb": [
+    24,
+    21,
+    20
+  ],
+  "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=6 sRGB matte noise removed; components <8 pixels removed",
+  "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. GPU comparison required.",
+  "frames": {
+    "health-thick": {
+      "crop": [
+        50,
+        48,
+        446,
+        96
+      ],
+      "size": [
+        396,
+        48
+      ],
+      "transparent_interior": [
+        8,
+        6,
+        384,
+        43
+      ]
+    },
+    "health-thin": {
+      "crop": [
+        521,
+        67,
+        917,
+        97
+      ],
+      "size": [
+        396,
+        30
+      ],
+      "transparent_interior": [
+        8,
+        7,
+        384,
+        25
+      ]
+    },
+    "cast-thin": {
+      "crop": [
+        32,
+        92,
+        464,
+        114
+      ],
+      "size": [
+        432,
+        22
+      ],
+      "transparent_interior": [
+        28,
+        6,
+        400,
+        17
+      ]
+    },
+    "cast-thick": {
+      "crop": [
+        32,
+        289,
+        466,
+        318
+      ],
+      "size": [
+        434,
+        29
+      ],
+      "transparent_interior": [
+        29,
+        7,
+        401,
+        25
+      ]
+    }
+  },
+  "fill": {
+    "crop": [
+      529,
+      73,
+      816,
+      93
+    ],
+    "size": [
+      287,
+      20
+    ],
+    "role": "glyph-free colored gradient; stretch to dynamic filled width"
+  }
+}
