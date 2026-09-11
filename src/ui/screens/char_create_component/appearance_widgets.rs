@@ -1,7 +1,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{GameFont, JustifyH};
 
@@ -58,11 +57,12 @@ fn stepper_dec_button(field: AppearanceField) -> Element {
             button_atlas_pressed: "charactercreate-customize-backbutton-down",
             button_atlas_highlight: "charactercreate-customize-backbutton",
             button_atlas_disabled: "charactercreate-customize-backbutton-disabled",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x,
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-100%",
+            translate_y: "-50%",
+            margin_left: {x},
         }
     }
 }
@@ -80,11 +80,12 @@ fn stepper_inc_button(field: AppearanceField) -> Element {
             button_atlas_pressed: "charactercreate-customize-nextbutton-down",
             button_atlas_highlight: "charactercreate-customize-nextbutton",
             button_atlas_disabled: "charactercreate-customize-nextbutton-disabled",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x,
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-100%",
+            translate_y: "-50%",
+            margin_left: {x},
         }
     }
 }
@@ -100,11 +101,11 @@ fn appearance_row_label(field: AppearanceField, label: &str) -> Element {
             font_size: 13.0,
             font_color: COLOR_SUBTITLE,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::Left,
-                relative_point: AnchorPoint::Left,
-                x: "10",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "50%",
+            translate_y: "-50%",
+            margin_left: {10},
         }
     }
 }
@@ -125,11 +126,12 @@ fn appearance_row_value(field: AppearanceField, value: u8, label: &str) -> Eleme
             font: GameFont::FrizQuadrata,
             font_size: 12.0,
             font_color: COLOR_WHITE,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Right,
-                x,
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+            margin_left: {x},
         }
     }
 }
@@ -151,10 +153,11 @@ fn swatch_color_preview(field: AppearanceField, vc: &str) -> Element {
             height: SWATCH_PREVIEW_HEIGHT,
             texture_atlas: "charactercreate-customize-palette",
             vertex_color: vc,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -167,11 +170,12 @@ fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
             width: SWATCH_PREVIEW_WIDTH,
             height: SWATCH_PREVIEW_AREA_HEIGHT,
             onclick: CharCreateAction::ToggleDropdown(field),
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Right,
-                x,
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+            margin_left: {x},
             {swatch_color_preview(field, &vc)}
         }
     }
@@ -199,10 +203,11 @@ fn dropdown_color_choice(
                 height: SWATCH_DROPDOWN_HEIGHT,
                 texture_atlas: "charactercreate-customize-palette",
                 vertex_color: vc,
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                translate_x: "-50%",
+                translate_y: "-50%",
             }
             texture {
                 name: dyn_name(format!("DropSel_{}_{i}", field.as_str())),
@@ -210,11 +215,12 @@ fn dropdown_color_choice(
                 height: SWATCH_DROPDOWN_SELECTION_HEIGHT,
                 hidden: sel_hidden,
                 texture_atlas: "charactercreate-customize-palette-selected",
-                anchor {
-                    point: AnchorPoint::Center,
-                    relative_point: AnchorPoint::Center,
-                    x: selection_x,
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "50%",
+                translate_x: "-50%",
+                translate_y: "-50%",
+                margin_left: {selection_x},
             }
         }
     }
@@ -299,24 +305,22 @@ pub(super) fn dropdown_panel(
     y_offset: f32,
 ) -> Element {
     let choices = build_dropdown_choices(field, swatches, selected_idx);
-    let y_str = format!("{y_offset}");
     rsx! {
         r#frame {
             name: dyn_name(format!("Dropdown_{}", field.as_str())),
             width: DROPDOWN_WIDTH,
-            height: 0.0,
+            height: "auto",
             strata: FrameStrata::Dialog,
             background_color: "0.05,0.05,0.05,1.0",
             border: "1px solid 0.4,0.35,0.2,0.8",
             layout: "flex-row-wrap",
             gap: DROPDOWN_GAP,
             padding: DROPDOWN_PADDING,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: y_str,
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {20},
+            margin_top: {-y_offset},
             {choices}
         }
     }

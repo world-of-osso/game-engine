@@ -1,7 +1,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 use super::{
@@ -33,11 +32,11 @@ fn race_top_widget(race_id: u8, short_name: &str, icon_file: &str, color: FontCo
                 width: 36.0,
                 height: 36.0,
                 texture_file: icon_file,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    y: "-4",
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "0%",
+                translate_x: "-50%",
+                margin_top: {4.0},
             }
         }
     } else {
@@ -50,11 +49,11 @@ fn race_top_widget(race_id: u8, short_name: &str, icon_file: &str, color: FontCo
                 font: GameFont::FrizQuadrata,
                 font_size: 16.0,
                 font_color: color,
-                anchor {
-                    point: AnchorPoint::Top,
-                    relative_point: AnchorPoint::Top,
-                    y: "-4",
-                }
+                pos_type: "absolute",
+                left: "50%",
+                top: "0%",
+                translate_x: "-50%",
+                margin_top: {4.0},
             }
         }
     }
@@ -96,11 +95,12 @@ fn tile_name_label(name_id: String, name: &str, color: FontColor, y: f32) -> Ele
             font: GameFont::FrizQuadrata,
             font_size: TILE_LABEL_FONT_SIZE,
             font_color: color,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: {y},
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_top: {-(y)},
         }
     }
 }
@@ -173,12 +173,11 @@ pub(super) fn faction_column(
             font: GameFont::FrizQuadrata,
             font_size: 16.0,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: x_offset,
-                y: "-4",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {x_offset},
+            margin_top: {4.0},
         }
         r#frame {
             name: dyn_name(format!("{col_name}Races")),
@@ -186,12 +185,11 @@ pub(super) fn faction_column(
             height: 400.0,
             layout: "flex-row-wrap",
             gap: 6.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: x_offset,
-                y: "-30",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {x_offset},
+            margin_top: {30.0},
             {races}
         }
     }
@@ -231,11 +229,11 @@ fn class_icon_widget(class_id: u8, icon: &str, alpha: &str) -> Element {
             height: 36.0,
             texture_file: icon,
             alpha,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-4",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {4.0},
         }
     }
 }
@@ -313,7 +311,11 @@ fn focused_name_editbox() -> Element {
                 border_color: "1.0,0.82,0.0,1.0",
                 textures: {textures},
             }
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-28" }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {28.0},
         }
     }
 }
@@ -336,7 +338,11 @@ fn unfocused_name_editbox() -> Element {
                 border_color: "1,1,1,1",
                 textures: {textures},
             }
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, y: "-28" }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {28.0},
         }
     }
 }
@@ -356,7 +362,10 @@ pub(super) fn name_input_field(focused: bool) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 14.0,
             font_color: COLOR_GOLD,
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
         }
         {editbox}
     }
@@ -375,11 +384,11 @@ pub(super) fn error_label(error_text: Option<&str>) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 12.0,
             font_color: FontColor::new(1.0, 0.2, 0.2, 1.0),
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-70",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {70.0},
         }
     }
 }
@@ -397,11 +406,11 @@ pub(super) fn create_confirm_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-96",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {96.0},
         }
     }
 }
@@ -421,12 +430,12 @@ pub(super) fn back_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                x: "12",
-                y: "60",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "100%",
+            translate_y: "-100%",
+            margin_left: {12},
+            margin_top: {-60.0},
         }
     }
 }
@@ -445,12 +454,13 @@ pub(super) fn next_button(hidden: bool) -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomRight,
-                relative_point: AnchorPoint::BottomRight,
-                x: "-12",
-                y: "60",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "100%",
+            translate_x: "-100%",
+            translate_y: "-100%",
+            margin_left: {-12},
+            margin_top: {-60.0},
         }
     }
 }
@@ -468,12 +478,13 @@ pub(super) fn sex_toggle_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                x: "-96",
-                y: "60",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_left: {-96},
+            margin_top: {-60.0},
         }
     }
 }
@@ -491,12 +502,13 @@ pub(super) fn randomize_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                x: "96",
-                y: "60",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_left: {96},
+            margin_top: {-60.0},
         }
     }
 }

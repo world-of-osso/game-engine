@@ -1,7 +1,7 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
@@ -64,11 +64,12 @@ pub fn delete_confirmation_modal(state: &DeleteConfirmUiState) -> Element {
             mouse_enabled: true,
             background_color: DELETE_DIALOG_BG,
             border: "1,0.82,0,0.35",
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-                y: "-14",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
+            margin_top: {14.0},
             {dialog_title()}
             {dialog_warning(state)}
             {dialog_helper()}
@@ -90,11 +91,11 @@ fn dialog_title() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 22.0,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-22",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {22.0},
         }
     }
 }
@@ -109,12 +110,11 @@ fn dialog_warning(state: &DeleteConfirmUiState) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 16.0,
             font_color: DELETE_WARNING,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: FrameName("DeleteCharacterDialogTitle"),
-                relative_point: AnchorPoint::Bottom,
-                y: "-18",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {68.0},
         }
     }
 }
@@ -129,12 +129,11 @@ fn dialog_helper() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 14.0,
             font_color: DELETE_HELPER,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: FrameName("DeleteCharacterDialogWarning"),
-                relative_point: AnchorPoint::Bottom,
-                y: "-14",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {122.0},
         }
     }
 }
@@ -158,12 +157,11 @@ fn delete_confirm_editbox(state: &DeleteConfirmUiState) -> Element {
                 border_color: "1.0,0.82,0.0,1.0",
                 textures: {INPUT_BORDER_TEXTURES.map(str::to_string)},
             }
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: DELETE_CONFIRM_DIALOG,
-                relative_point: AnchorPoint::Top,
-                y: "-154",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {154.0},
         }
     }
 }
@@ -178,12 +176,11 @@ fn dialog_countdown(state: &DeleteConfirmUiState) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 13.0,
             font_color: COLOR_SUBTITLE,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_to: DELETE_CONFIRM_INPUT,
-                relative_point: AnchorPoint::Bottom,
-                y: "-12",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {204.0},
         }
     }
 }
@@ -194,17 +191,11 @@ fn delete_confirm_button(state: &DeleteConfirmUiState) -> Element {
             DELETE_CONFIRM_BUTTON,
             "Delete Forever",
             Some(CharSelectAction::ConfirmDeleteChar),
-            AnchorPoint::BottomRight,
+            true,
             -12.0,
         )
     } else {
-        modal_button(
-            DELETE_CONFIRM_BUTTON,
-            "Delete Forever",
-            None,
-            AnchorPoint::BottomRight,
-            -12.0,
-        )
+        modal_button(DELETE_CONFIRM_BUTTON, "Delete Forever", None, true, -12.0)
     }
 }
 
@@ -213,7 +204,7 @@ fn delete_cancel_button() -> Element {
         DELETE_CANCEL_BUTTON,
         "Cancel",
         Some(CharSelectAction::CancelDeleteChar),
-        AnchorPoint::BottomLeft,
+        false,
         12.0,
     )
 }
@@ -222,9 +213,10 @@ fn modal_button(
     name: FrameName,
     text: &str,
     action: Option<CharSelectAction>,
-    point: AnchorPoint,
+    align_right: bool,
     x: f32,
 ) -> Element {
+    let translate_x = if align_right { "-100%" } else { "0%" };
     let disabled = action.is_none();
     let onclick = action.map(|action| action.to_string()).unwrap_or_default();
     rsx! {
@@ -240,13 +232,13 @@ fn modal_button(
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point,
-                relative_to: DELETE_CONFIRM_DIALOG,
-                relative_point: AnchorPoint::Bottom,
-                x: {x.to_string()},
-                y: "18",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x,
+            translate_y: "-100%",
+            margin_left: x,
+            margin_top: -18.0,
         }
     }
 }

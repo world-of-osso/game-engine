@@ -8,7 +8,7 @@ pub use super::char_select_delete_confirm_component::{
     DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT,
     DeleteConfirmUiState, delete_confirmation_modal,
 };
-use crate::ui::anchor::{AnchorPoint, FrameName};
+use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
@@ -191,12 +191,12 @@ fn cs_top_hud_left() -> Element {
             width: 212.0,
             height: 51.0,
             texture_atlas: TOP_HUD_LEFT_ATLAS,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::Top,
-                x: "-15",
-                y: "-22",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-100%",
+            margin_left: {-15},
+            margin_top: {22.0},
         }
     }
 }
@@ -208,24 +208,22 @@ fn cs_top_hud_right() -> Element {
             width: 30.0,
             height: 51.0,
             texture_atlas: TOP_HUD_MIDDLE_ATLAS,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::Top,
-                x: "-15",
-                y: "-22",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            margin_left: {-15},
+            margin_top: {22.0},
         }
         texture {
             name: "CharSelectTopHudRight",
             width: 212.0,
             height: 51.0,
             texture_atlas: TOP_HUD_RIGHT_ATLAS,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::Top,
-                x: "15",
-                y: "-22",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            margin_left: {15},
+            margin_top: {22.0},
         }
     }
 }
@@ -248,11 +246,11 @@ fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
             height: 60.0,
             texture_atlas: NAME_BG_ATLAS,
             hidden: hide_name_bg,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {80.0},
         }
         fontstring {
             name: SELECTED_NAME_TEXT,
@@ -262,11 +260,11 @@ fn cs_name_area(selected_name: &str, has_selection: bool) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 27.0,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::Top,
-                relative_point: AnchorPoint::Top,
-                y: "-90",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {90.0},
         }
     }
 }
@@ -284,10 +282,11 @@ fn card_textures(index: usize, is_selected: bool) -> Element {
             height: 89.0,
             texture_atlas: CARD_BACKDROP_ATLAS,
             vertex_color: CARD_BACKDROP_TINT,
-            anchor {
-                point: AnchorPoint::Center,
-                relative_point: AnchorPoint::Center,
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            translate_x: "-50%",
+            translate_y: "-50%",
         }
         texture {
             name: sel_name,
@@ -296,12 +295,11 @@ fn card_textures(index: usize, is_selected: bool) -> Element {
             texture_atlas: CARD_SELECTED_ATLAS,
             vertex_color: CARD_SELECTED_TINT,
             hidden: hide_selected,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "7",
-                y: "14",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {7},
+            margin_top: {-14.0},
         }
     }
 }
@@ -318,12 +316,11 @@ fn card_name_label(index: usize, name: &str) -> Element {
             font_size: 24.0,
             font_color: COLOR_GOLD,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "40",
-                y: "-16",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {40},
+            margin_top: {16.0},
         }
     }
 }
@@ -340,12 +337,11 @@ fn card_info_label(index: usize, info: &str) -> Element {
             font_size: 15.0,
             font_color: COLOR_SUBTITLE,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "40",
-                y: "-43",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {40},
+            margin_top: {43.0},
         }
     }
 }
@@ -362,12 +358,11 @@ fn card_status_label(index: usize, status: &str) -> Element {
             font_size: 14.0,
             font_color: COLOR_MUTED,
             justify_h: JustifyH::Left,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "40",
-                y: "-67",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {40},
+            margin_top: {67.0},
         }
     }
 }
@@ -410,11 +405,10 @@ fn empty_card() -> Element {
                 width: 316.0,
                 height: 95.0,
                 texture_atlas: EMPTY_CARD_ATLAS,
-                anchor {
-                    point: AnchorPoint::TopLeft,
-                    relative_point: AnchorPoint::TopLeft,
-                    x: "20",
-                }
+                pos_type: "absolute",
+                left: "0%",
+                top: "0%",
+                margin_left: {20},
             }
         }
     }
@@ -433,12 +427,11 @@ fn list_realm_header() -> Element {
             width: 281.0,
             height: 23.0,
             texture_atlas: LIST_REALM_BG_ATLAS,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "52",
-                y: "-16",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {52},
+            margin_top: {16.0},
         }
         fontstring {
             name: "CharacterListRealmLabel",
@@ -448,12 +441,11 @@ fn list_realm_header() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 20.0,
             font_color: COLOR_GOLD,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "50",
-                y: "-14",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {50},
+            margin_top: {14.0},
         }
     }
 }
@@ -468,24 +460,22 @@ fn list_helper_and_divider() -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 13.0,
             font_color: COLOR_MUTED,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-51",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {20},
+            margin_top: {51.0},
         }
         r#frame {
             name: "CharacterListDivider",
             width: 346.0,
             height: 1.0,
             background_color: "1.0,0.9,0.65,0.12",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "20",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {20},
+            margin_top: {80.0},
         }
     }
 }
@@ -508,12 +498,11 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
             height: 420.0,
             layout: "flex-col",
             gap: 10.0,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "19",
-                y: "-94",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "0%",
+            margin_left: {19},
+            margin_top: {94.0},
             {cards}
             {empty}
         }
@@ -531,14 +520,16 @@ fn cs_character_list(characters: &[CharDisplayEntry], selected: Option<usize>) -
     .collect::<Element>();
     rsx! {
         r#frame { name: CHAR_LIST_PANEL, width: 386.0, height: 520.0,
-            anchor {
-                point: AnchorPoint::TopRight,
-                relative_point: AnchorPoint::TopRight,
-                x: "-22",
-                y: "-164",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "0%",
+            translate_x: "-100%",
+            margin_left: {-22},
+            margin_top: {164.0},
             {chrome}
             {card_list(characters, selected)}
+            {create_char_button()}
+            {delete_char_button_if_selected(selected.is_some())}
         }
     }
 }
@@ -558,11 +549,12 @@ fn enter_world_button() -> Element {
             button_atlas_pressed: BIG_BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BIG_BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BIG_BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "111",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_top: {-111.0},
         }
     }
 }
@@ -580,13 +572,12 @@ fn create_char_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_to: CHAR_LIST_PANEL,
-                relative_point: AnchorPoint::BottomLeft,
-                x: "18",
-                y: "64",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "100%",
+            translate_y: "-100%",
+            margin_left: {18},
+            margin_top: {-64.0},
         }
     }
 }
@@ -596,12 +587,9 @@ fn delete_char_button() -> Element {
         DELETE_CHAR_BUTTON,
         FrameName("DeleteCharIcon"),
         CharSelectAction::DeleteChar,
-        crate::ui::screens::trash_button_component::ButtonAnchor {
-            point: AnchorPoint::BottomRight,
-            relative_to: Some(CHAR_LIST_PANEL),
-            relative_point: AnchorPoint::BottomRight,
-            x: -18.0,
-            y: 64.0,
+        crate::ui::screens::trash_button_component::ButtonPosition {
+            right: 18.0,
+            bottom: 64.0,
         },
     )
 }
@@ -619,32 +607,29 @@ fn back_button() -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::BottomLeft,
-                relative_point: AnchorPoint::BottomLeft,
-                x: "12",
-                y: "60",
-            }
+            pos_type: "absolute",
+            left: "0%",
+            top: "100%",
+            translate_y: "-100%",
+            margin_left: {12},
+            margin_top: {-60.0},
         }
     }
 }
 
-fn cs_action_buttons(has_selection: bool) -> Element {
-    let delete_button: Element = if has_selection {
+fn delete_char_button_if_selected(has_selection: bool) -> Element {
+    if has_selection {
         delete_char_button()
     } else {
         Vec::new()
-    };
+    }
+}
 
-    [
-        enter_world_button(),
-        create_char_button(),
-        delete_button,
-        back_button(),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+fn cs_action_buttons() -> Element {
+    [enter_world_button(), back_button()]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 // --- Status text ---
@@ -659,11 +644,12 @@ fn cs_status(text: &str) -> Element {
             font: GameFont::FrizQuadrata,
             font_size: 13.0,
             font_color: COLOR_SUBTITLE,
-            anchor {
-                point: AnchorPoint::Bottom,
-                relative_point: AnchorPoint::Bottom,
-                y: "188",
-            }
+            pos_type: "absolute",
+            left: "50%",
+            top: "100%",
+            translate_x: "-50%",
+            translate_y: "-100%",
+            margin_top: {-188.0},
         }
     }
 }
@@ -688,7 +674,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
             {top_hud(campsite.is_some())}
             {cs_name_area(&state.selected_name, has_selection)}
             {cs_character_list(&state.characters, state.selected_index)}
-            {cs_action_buttons(has_selection)}
+            {cs_action_buttons()}
             {cs_status(&state.status_text)}
             {campsite_ui(campsite)}
             {delete_confirmation_modal(&delete_confirm)}
