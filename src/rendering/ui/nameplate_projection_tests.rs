@@ -51,6 +51,13 @@ pub(super) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     app.init_resource::<GraphicsOptions>();
     app.init_resource::<PlateChanges>();
     app.add_plugins((NameplatePlugin, crate::health_bar::HealthBarPlugin));
+    let fixture = app
+        .world_mut()
+        .resource_scope(|world, mut images: Mut<Assets<Image>>| {
+            let mut fonts = world.resource_mut::<Assets<Font>>();
+            NameplateArtCache::fixture(&mut images, &mut fonts)
+        });
+    app.insert_resource(fixture);
     app.add_systems(PostUpdate, bevy::render::camera::camera_system);
     app.add_systems(Last, observe_changes);
     app.world_mut()
@@ -230,6 +237,20 @@ fn projected_nameplate_color_fades_from_world_anchor_and_unchanged_values_do_not
 }
 
 #[test]
+fn npc_name_uses_white_reference_text_and_small_black_shadow() {
+    let (mut app, _) = app_with_cameras(1.0);
+    let (_, label) = wolf(&mut app);
+    settle(&mut app);
+    let font = app.world().get::<TextFont>(label).unwrap();
+    assert_eq!(font.font_size, FontSize::Px(26.0));
+    assert_ne!(font.font, Handle::<Font>::default());
+    assert_eq!(app.world().get::<TextColor>(label).unwrap().0, Color::WHITE);
+    let shadow = app.world().get::<Text2dShadow>(label).unwrap();
+    assert_eq!(shadow.offset, Vec2::new(1.0, -1.0));
+    assert_eq!(shadow.color, Color::BLACK);
+}
+
+#[test]
 fn disabled_startup_does_not_create_labels_and_player_uses_its_name_and_font() {
     for disabled in [false, true] {
         let (mut app, _) = app_with_cameras(1.0);
@@ -259,7 +280,8 @@ fn disabled_startup_does_not_create_labels_and_player_uses_its_name_and_font() {
         assert_eq!(plates.len(), usize::from(!disabled));
         if !disabled {
             assert_eq!(plates[0].1.0, "Theron");
-            assert_eq!(plates[0].2.font_size, FontSize::Px(PLAYER_FONT_SIZE));
+            assert_eq!(plates[0].2.font_size, FontSize::Px(26.0));
+            assert_ne!(plates[0].2.font, Handle::<Font>::default());
         }
     }
 }
