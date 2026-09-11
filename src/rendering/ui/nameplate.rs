@@ -39,7 +39,7 @@ impl Plugin for NameplatePlugin {
                 billboard_nameplates,
                 sync_quest_indicators,
             )
-                .run_if(in_state(GameState::InWorld))
+                .run_if(nameplate_state_active)
                 .run_if(inworld_scene_stage_allows_ui),
         );
         app.add_systems(
@@ -48,9 +48,13 @@ impl Plugin for NameplatePlugin {
                 .after(TransformSystems::Propagate)
                 .after(VisibilitySystems::VisibilityPropagate)
                 .before(VisibilitySystems::CheckVisibility)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(nameplate_state_active),
         );
     }
+}
+
+pub(crate) fn nameplate_state_active(state: Res<State<GameState>>) -> bool {
+    matches!(*state.get(), GameState::InWorld | GameState::NameplateDebug)
 }
 
 /// Marker component on the text entity displaying a nameplate.
@@ -70,7 +74,7 @@ struct OwnedNameplates(Vec<Entity>);
 struct NameplateOffset(f32);
 
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
-enum NameplateKind {
+pub(crate) enum NameplateKind {
     Player,
     Npc,
 }
@@ -163,7 +167,7 @@ impl NameplateFontAssets<'_> {
 }
 
 /// Create overlay text; projection supplies its screen position before extraction.
-fn spawn_nameplate_entity(
+pub(crate) fn spawn_nameplate_entity(
     commands: &mut Commands,
     owner: Entity,
     text: &str,

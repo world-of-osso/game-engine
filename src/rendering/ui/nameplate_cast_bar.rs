@@ -9,7 +9,6 @@ use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
 use crate::client_options::{HudOptions, HudVisibilityToggles, NameplateBarThickness, UiDisabled};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
-use crate::game_state::GameState;
 use crate::health_bar::{BAR_HEIGHT, HealthBar};
 
 use crate::rendering::nameplate_art::{
@@ -45,7 +44,7 @@ impl Plugin for NameplateCastBarPlugin {
                 .after(TransformSystems::Propagate)
                 .after(VisibilitySystems::VisibilityPropagate)
                 .before(VisibilitySystems::CheckVisibility)
-                .run_if(in_state(GameState::InWorld)),
+                .run_if(crate::nameplate::nameplate_state_active),
         );
     }
 }

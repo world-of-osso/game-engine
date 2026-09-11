@@ -11,6 +11,7 @@ use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 use crate::client_options::NameplateBarThickness;
 use crate::client_options::{HudOptions, HudVisibilityToggles};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
+#[cfg(test)]
 use crate::game_state::GameState;
 use crate::rendering::nameplate_art::{
     BAR_PIXEL_WIDTH, NAMEPLATE_SCALE, NameplateArt, NameplateArtCache,
@@ -25,14 +26,14 @@ impl Plugin for HealthBarPlugin {
             .add_observer(spawn_health_bars)
             .add_systems(
                 Update,
-                sync_health_bar_visibility.run_if(in_state(GameState::InWorld)),
+                sync_health_bar_visibility.run_if(crate::nameplate::nameplate_state_active),
             )
             .add_systems(
                 PostUpdate,
                 billboard_health_bars
                     .after(CameraUpdateSystems)
                     .before(TransformSystems::Propagate)
-                    .run_if(in_state(GameState::InWorld))
+                    .run_if(crate::nameplate::nameplate_state_active)
                     .run_if(inworld_scene_stage_allows_ui),
             )
             .add_systems(
@@ -41,7 +42,7 @@ impl Plugin for HealthBarPlugin {
                     .after(TransformSystems::Propagate)
                     .after(VisibilitySystems::VisibilityPropagate)
                     .before(VisibilitySystems::CheckVisibility)
-                    .run_if(in_state(GameState::InWorld)),
+                    .run_if(crate::nameplate::nameplate_state_active),
             );
     }
 }
