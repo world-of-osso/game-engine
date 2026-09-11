@@ -8,6 +8,8 @@ pub fn compute_layout(registry: &mut FrameRegistry) {
     let width = registry.screen_width;
     let height = registry.screen_height;
     let mut app = layout_app(width, height);
+    app.finish();
+    app.cleanup();
     app.world_mut().resource_mut::<UiState>().registry =
         std::mem::replace(registry, FrameRegistry::new(width, height));
     for _ in 0..3 {
@@ -53,8 +55,6 @@ pub(super) fn layout_app(width: f32, height: f32) -> App {
             .after(bevy::camera::CameraUpdateSystems)
             .before(bevy::ui::UiSystems::Prepare),
     );
-    app.finish();
-    app.cleanup();
     app
 }
 
