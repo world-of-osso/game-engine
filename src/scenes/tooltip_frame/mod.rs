@@ -513,12 +513,10 @@ fn tooltip_frame_screen(ctx: &SharedContext) -> Element {
             strata: "TOOLTIP",
             background_color: TOOLTIP_BG,
             border: TOOLTIP_BORDER,
-            anchor {
-                point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                relative_point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                x: {state.x},
-                y: {-state.y},
-            }
+            pos_type: "absolute",
+            anchor: "screen",
+            pos_x: {state.x},
+            pos_y: {state.y},
             {title}
             {lines}
         }
@@ -536,12 +534,9 @@ fn tooltip_title(state: &TooltipFrameState) -> Element {
             font_size: 12.0,
             font_color: {rgba_string(state.title_color)},
             justify_h: "LEFT",
-            anchor {
-                point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                relative_point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {-TOOLTIP_INSET},
-            }
+            pos_type: "absolute",
+            pos_x: {TOOLTIP_INSET},
+            pos_y: {TOOLTIP_INSET},
         }
     }
 }
@@ -555,7 +550,7 @@ fn tooltip_lines(lines: &[TooltipLineState]) -> Element {
 }
 
 fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
-    let y = -(TOOLTIP_INSET + TOOLTIP_TITLE_H + index as f32 * TOOLTIP_LINE_H);
+    let y = TOOLTIP_INSET + TOOLTIP_TITLE_H + index as f32 * TOOLTIP_LINE_H;
     rsx! {
         fontstring {
             name: {DynName(format!("TooltipLine{index}Left"))},
@@ -566,12 +561,9 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
             font_size: 10.0,
             font_color: {rgba_string(line.left_color)},
             justify_h: "LEFT",
-            anchor {
-                point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                relative_point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            pos_x: {TOOLTIP_INSET},
+            pos_y: {y},
         }
         fontstring {
             name: {DynName(format!("TooltipLine{index}Right"))},
@@ -582,12 +574,9 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
             font_size: 10.0,
             font_color: {rgba_string(line.right_color)},
             justify_h: "RIGHT",
-            anchor {
-                point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                relative_point: game_engine::ui::anchor::AnchorPoint::TopLeft,
-                x: {TOOLTIP_INSET},
-                y: {y},
-            }
+            pos_type: "absolute",
+            pos_x: {TOOLTIP_INSET},
+            pos_y: {y},
         }
     }
 }

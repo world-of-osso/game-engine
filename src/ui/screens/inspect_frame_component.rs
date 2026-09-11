@@ -431,6 +431,7 @@ mod tests {
             ],
         });
         Screen::new(inspect_frame_screen).sync(&shared, &mut registry);
+        crate::ui::screens::menu_character_layout_test_support::compute_layout(&mut registry);
 
         let equipment_row0 = registry
             .get(
@@ -467,9 +468,20 @@ mod tests {
         );
         assert_ne!(talent_row0.background_color, talent_row1.background_color);
 
-        assert_eq!(equipment_row0.anchors[0].y_offset, -ROW_H);
-        assert_eq!(equipment_row1.anchors[0].y_offset, -(ROW_H * 2.0));
-        assert_eq!(talent_row0.anchors[0].y_offset, -ROW_H);
-        assert_eq!(talent_row1.anchors[0].y_offset, -(ROW_H * 2.0));
+        for (row, expected_y) in [
+            (equipment_row0, ROW_H),
+            (equipment_row1, ROW_H * 2.0),
+            (talent_row0, ROW_H),
+            (talent_row1, ROW_H * 2.0),
+        ] {
+            let rect = row.layout_rect.as_ref().unwrap();
+            let parent = registry
+                .get(row.parent_id.unwrap())
+                .unwrap()
+                .layout_rect
+                .as_ref()
+                .unwrap();
+            assert!((rect.y - parent.y - expected_y).abs() <= 1.0);
+        }
     }
 }
