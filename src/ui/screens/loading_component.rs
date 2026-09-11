@@ -202,6 +202,7 @@ fn zone_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Elemen
     rsx! {
         fontstring {
             name: "LoadingZoneText",
+            strata: FrameStrata::Medium,
             width: 560.0,
             height: 28.0,
             text: state.zone_text.clone(),
@@ -220,6 +221,7 @@ fn status_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Elem
     rsx! {
         fontstring {
             name: LOADING_STATUS_TEXT,
+            strata: FrameStrata::Dialog,
             width: 420.0,
             height: 20.0,
             text: state.status_text.clone(),
@@ -289,6 +291,7 @@ fn progress_text(progress_percent: u8, layout: &LoadingScreenLayout) -> Element 
     rsx! {
         fontstring {
             name: LOADING_PROGRESS_TEXT,
+            strata: FrameStrata::Dialog,
             width: 90.0,
             height: 18.0,
             text,
@@ -308,6 +311,7 @@ fn tip_text(state: &LoadingScreenState, layout: &LoadingScreenLayout) -> Element
     rsx! {
         fontstring {
             name: "LoadingTipText",
+            strata: FrameStrata::Medium,
             width: 980.0,
             height: 22.0,
             text: state.tip_text.clone(),
