@@ -200,7 +200,7 @@ impl Plugin for TargetPlugin {
             return;
         }
         app.add_systems(OnEnter(GameState::InWorld), reset_zone_transition_contact);
-        app.add_systems(Update, click_to_target.run_if(targeting_state_active));
+        app.add_systems(Update, click_to_target.run_if(click_targeting_state_active));
         app.add_systems(Update, tab_target.run_if(targeting_state_active));
         app.add_systems(Update, self_target.run_if(targeting_state_active));
         app.add_systems(Update, clear_target.run_if(targeting_state_active));
@@ -212,6 +212,10 @@ impl Plugin for TargetPlugin {
         app.add_systems(Update, spawn_target_circle.run_if(targeting_state_active));
         app.add_systems(Update, update_target_circle.run_if(targeting_state_active));
     }
+}
+
+fn click_targeting_state_active(state: Res<State<GameState>>) -> bool {
+    *state.get() == GameState::NameplateDebug || targeting_state_active(state)
 }
 
 fn targeting_state_active(state: Res<State<GameState>>) -> bool {
@@ -271,6 +275,7 @@ fn click_to_target(
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<Camera3d>>,
     mut ray_cast: MeshRayCast,
+    plate_picker: crate::rendering::nameplate_picking::NameplatePicker,
     parent_query: Query<&ChildOf>,
     remote_q: Query<Entity, (With<RemoteEntity>, With<Npc>, Without<Player>)>,
     visibility_q: Query<&Visibility>,
@@ -298,6 +303,13 @@ fn click_to_target(
     let Ok((camera, cam_tf)) = cameras.single() else {
         return;
     };
+    if !camera.is_active {
+        return;
+    }
+    if let Some(owner) = plate_picker.pick(cursor, cam_tf.translation()) {
+        current.0 = Some(owner);
+        return;
+    }
     let Some(ray) = camera.viewport_to_world(cam_tf, cursor).ok() else {
         return;
     };

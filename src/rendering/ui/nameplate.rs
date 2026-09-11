@@ -181,6 +181,7 @@ pub(crate) fn spawn_nameplate_entity(
         .spawn((
             Nameplate,
             NameplateOwner(owner),
+            crate::rendering::nameplate_picking::NameplateHitTarget(owner),
             NameplateOffset(y_offset),
             Name::new(format!("Nameplate: {text}")),
             RenderLayers::layer(UI_RENDER_LAYER),

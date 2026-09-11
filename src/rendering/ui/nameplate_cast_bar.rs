@@ -100,6 +100,7 @@ fn spawn_cast_sprites(commands: &mut Commands, owner: Entity, art: &NameplateArt
         };
         commands.spawn((
             CastBarOwner(owner),
+            crate::rendering::nameplate_picking::NameplateHitTarget(owner),
             part,
             sprite,
             RenderLayers::layer(UI_RENDER_LAYER),
@@ -112,6 +113,7 @@ fn spawn_cast_sprites(commands: &mut Commands, owner: Entity, art: &NameplateArt
 fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>) {
     commands.spawn((
         CastBarOwner(owner),
+        crate::rendering::nameplate_picking::NameplateHitTarget(owner),
         Part::Label,
         Text2d::default(),
         Anchor::CENTER_LEFT,
