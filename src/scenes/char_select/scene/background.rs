@@ -16,10 +16,6 @@ use crate::water_material::WaterMaterial;
 
 use super::{CharSelectScene, CharSelectSkybox};
 
-const CAMPSITE_GROUND_PATCH_SIZE: f32 = 42.0;
-const CAMPSITE_GROUND_PATCH_UV_SCALE: f32 = 9.0;
-const CAMPSITE_GROUND_PATCH_Y_OFFSET: f32 = 0.03;
-
 pub(super) struct WarbandBackgroundSpawnContext<'a, 'w, 's> {
     pub(super) commands: &'a mut Commands<'w, 's>,
     pub(super) meshes: &'a mut Assets<Mesh>,
@@ -90,43 +86,6 @@ fn build_ground_plane(meshes: &mut Assets<Mesh>, size: f32, uv_scale: f32) -> Ha
     meshes.add(mesh)
 }
 
-fn resolve_campsite_ground_translation(heightmap: &TerrainHeightmap, focus: Vec3) -> Option<Vec3> {
-    let terrain_y = heightmap.height_at(focus.x, focus.z)?;
-    Some(Vec3::new(
-        focus.x,
-        terrain_y + CAMPSITE_GROUND_PATCH_Y_OFFSET,
-        focus.z,
-    ))
-}
-
-fn spawn_campsite_ground_patch(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    heightmap: &TerrainHeightmap,
-    focus: Vec3,
-) -> Option<Entity> {
-    let translation = resolve_campsite_ground_translation(heightmap, focus)?;
-    let material = load_grass_ground_material(materials, images);
-    let mesh = build_ground_plane(
-        meshes,
-        CAMPSITE_GROUND_PATCH_SIZE,
-        CAMPSITE_GROUND_PATCH_UV_SCALE,
-    );
-    Some(
-        commands
-            .spawn((
-                Name::new("CampsiteGroundPatch"),
-                CharSelectScene,
-                Mesh3d(mesh),
-                MeshMaterial3d(material),
-                Transform::from_translation(translation),
-            ))
-            .id(),
-    )
-}
-
 pub fn find_scene_entry<'a>(
     warband: &'a Option<Res<WarbandScenes>>,
     selected: &Option<Res<SelectedWarbandScene>>,
@@ -170,7 +129,6 @@ pub fn spawn(
             .into_iter()
             .map(|(entity, model)| scene_tree::wmo_scene_node(entity, model))
             .collect();
-        spawn_focused_ground_patch(ctx, focus);
         return scene_tree::background_scene_node(
             result.root_entity,
             &format!("terrain:{}_{ty}_{tx}", s.map_name()),
@@ -180,21 +138,6 @@ pub fn spawn(
     }
     let ground = spawn_tagged_ground(ctx.commands, ctx.meshes, ctx.materials, ctx.images);
     scene_tree::background_scene_node(ground, "ground", 0, vec![])
-}
-
-fn spawn_focused_ground_patch(
-    ctx: &mut WarbandBackgroundSpawnContext<'_, '_, '_>,
-    focus: Option<Vec3>,
-) {
-    let Some(focus) = focus else { return };
-    spawn_campsite_ground_patch(
-        ctx.commands,
-        ctx.meshes,
-        ctx.materials,
-        ctx.images,
-        ctx.heightmap,
-        focus,
-    );
 }
 
 pub fn spawn_skybox(
