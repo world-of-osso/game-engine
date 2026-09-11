@@ -58,11 +58,12 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 ## Known Issues
 
 - **Mountain ridge topology**: the earlier slab-like silhouettes and discontinuous chunk edges were observed before the height-grid axis correction above. Adventurer's Rest requires visual revalidation; no mountain-specific completion claim is made.
-- **Terrain normals**: stored MCNR normals in the mountain area are inconsistent with geometric face normals; normal decoding may still be wrong.
+- **Terrain normals**: MCNR normal decoding is verified wrong for `2703_31_37.adt`: production `[b2, b1, -b0]` has mean geometric alignment `0.089730`; supported `[b0, b2, -b1]` has `0.997198`. No production correction or cross-map/render regression has landed. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## Sources
 
 - [adventurers-rest-mountain-brief.md](../adventurers-rest-mountain-brief.md) — tile ordering bug, mountain silhouette issues
+- [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md) — verified MCNR normal-axis failure and bright workaround plane
 - [world-object-rotation-investigation-2026-03-22.md](../world-object-rotation-investigation-2026-03-22.md) — placement rotation formula derivation
 - [wowee-collision.md](../wowee-collision.md) — broader collision reference
 - `../../data/diagnostics/cpu-goal-resumed/doodad-authored-collision/report.md` — authored doodad collision implementation and scoped proof
