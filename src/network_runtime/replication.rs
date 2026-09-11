@@ -8,6 +8,7 @@ use bevy_replicon::client::confirm_history::EntityReplicated;
 use bevy_replicon::prelude::RepliconTick;
 use bevy_replicon::shared::server_entity_map::ServerEntityMap;
 use lightyear::prelude::client::Remote;
+use shared::casting::CastState;
 use shared::components::{
     CombatStatus, EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
     MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, Zone,
@@ -155,6 +156,7 @@ struct EntitySnapshot {
     tick: RepliconTick,
     position: Option<Position>,
     health: Option<Health>,
+    cast: Option<CastState>,
     mana: Option<Mana>,
     gold: Option<Gold>,
     player: Option<Player>,
@@ -177,6 +179,7 @@ impl EntitySnapshot {
             tick,
             position: entity.get::<Position>().copied(),
             health: entity.get::<Health>().copied(),
+            cast: entity.get::<CastState>().cloned(),
             mana: entity.get::<Mana>().copied(),
             gold: entity.get::<Gold>().copied(),
             player: entity.get::<Player>().cloned(),
@@ -199,6 +202,7 @@ impl EntitySnapshot {
             let mut entity = world.entity_mut(main);
             apply_component(&mut entity, self.position);
             apply_component(&mut entity, self.health);
+            apply_component(&mut entity, self.cast);
             apply_component(&mut entity, self.mana);
             apply_component(&mut entity, self.gold);
             apply_component(&mut entity, self.model_display);
@@ -299,6 +303,31 @@ mod tests {
             snapshots: vec![snapshot],
         }
         .apply(world);
+    }
+
+    #[test]
+    fn cast_snapshot_preserves_start_progress_and_removal() {
+        use shared::casting::CastState;
+        let mut worker = World::new();
+        let source = source_player(&mut worker);
+        let mut cast = CastState::normal(133, 0, 3.0, true);
+        cast.spell_name = "Fireball".into();
+        worker.entity_mut(source).insert(cast.clone());
+        let mut main = main_app();
+        apply(main.world_mut(), snapshot(&worker, source, source, 1));
+        let mirror = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        assert_eq!(main.world().get::<CastState>(mirror), Some(&cast));
+        cast.elapsed = 1.5;
+        worker.entity_mut(source).insert(cast.clone());
+        apply(main.world_mut(), snapshot(&worker, source, source, 2));
+        assert_eq!(main.world().get::<CastState>(mirror), Some(&cast));
+        worker.entity_mut(source).remove::<CastState>();
+        apply(main.world_mut(), snapshot(&worker, source, source, 3));
+        assert!(main.world().get::<CastState>(mirror).is_none());
     }
 
     #[derive(Resource, Default)]
