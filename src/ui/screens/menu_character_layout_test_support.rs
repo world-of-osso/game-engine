@@ -4,7 +4,7 @@ use ui_toolkit::plugin::UiState;
 use ui_toolkit::registry::FrameRegistry;
 
 /// Exercise native layout and registry readback without a Winit window or renderer.
-pub(super) fn compute_layout(registry: &mut FrameRegistry) {
+pub fn compute_layout(registry: &mut FrameRegistry) {
     let width = registry.screen_width;
     let height = registry.screen_height;
     let mut app = layout_app(width, height);
