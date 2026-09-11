@@ -1,6 +1,6 @@
 # UI System
 
-The UI system is built on Dioxus with a custom Bevy renderer. Screens are declared with the `rsx!` macro, data flows through `SharedContext` with generation-based dirty tracking, and the frame registry stores all named UI elements. The design mirrors WoW's frame model (anchors, strata, draw layers) in pure Rust.
+The UI system uses Dioxus `rsx!` authoring, `SharedContext` generation tracking, a registry-authoritative frame model, and a native Bevy UI projection. The [registry-backed Bevy UI spec](../../specs/registry-bevy-ui.md) is the layout/API contract.
 
 ## Core Primitives
 
@@ -8,25 +8,23 @@ The UI system is built on Dioxus with a custom Bevy renderer. Screens are declar
 
 **SharedContext**: insert any typed value with `shared.insert(state)`. Screens that read that type rebuild automatically.
 
-**FrameRegistry**: authoritative store for named frames, authored properties, resolved layout, focus, and input state. Named with `FrameName` (has `.0`) or `DynName(String)` for dynamic names.
+**FrameRegistry**: authoritative store for named frames, logical ownership, authored native layout properties, focus, and input state. Bevy-computed bounds are read back only for observation. Named with `FrameName` (has `.0`) or `DynName(String)` for dynamic names.
 
-**Native Bevy projection**: runtime `Node`, `ImageNode`, and `Text` entities project registry state. They do not own layout or write properties back to the registry. The former `Sprite`/`Text2d` synchronization chain is inactive; no direct native-mode macro remains.
+**Native Bevy projection**: runtime `Node`, `ImageNode`, and `Text` entities project registry state. Bevy computes layout; native entities do not become an authored-state authority. The former `Sprite`/`Text2d` synchronization chain is inactive; no direct native-mode macro remains.
 
 **Pre-compute negations**: `!bool_expr` doesn't work inside `rsx!` — do `let hide = !visible;` before the macro.
 
 ## Frame Hierarchy and Layout
 
-`rsx!` and `Screen` remain unchanged: they author registry frames through `screen.sync(&shared, registry)`. The registry layout solver resolves rectangles, which native nodes consume. Raw Bevy input continues through registry hit testing, focus, text editing, and dispatch; arbitrary ECS mutations never feed properties back into the registry.
+`rsx!` and `Screen` author registry frames through `screen.sync(&shared, registry)`. Use `pos_type`, `pos_x`, `pos_y`, `left`, `right`, `top`, `bottom`, `translate_x`, `translate_y`, `margin_*`, `anchor: parent|screen`, and `width`/`height` `auto` or `fill`. Legacy `anchor { ... }` is rejected; arbitrary named-frame anchors, `setPoint`, and the registry layout solver do not exist. Raw Bevy input continues through registry hit testing, focus, text editing, and dispatch; arbitrary ECS mutations never feed properties back into authored registry state.
 
-Frames use anchor-based positioning: 9 anchor points (TOPLEFT..BOTTOMRIGHT), relative to any named frame. Strata has 9 levels (WORLD through TOOLTIP); within a stratum, frames use frame levels. Each frame has 5 draw layers (BACKGROUND, BORDER, ARTWORK, OVERLAY, HIGHLIGHT).
-
-**Y-offset sign convention**: positive `y_offset` moves UP (smaller screen Y). WoW XML y values map with the same sign.
+`setPos(x, y)` offsets from top-left with X right and Y down. `setPosType(relative|absolute)` and `setAnchor(parent|screen)` select native layout behavior. A `screen` layout parent does not change logical ownership, alpha, hiding, or removal. Strata and draw-layer ordering remain registry properties.
 
 Nine-slice borders (`Common-Input-Border.blp`, 128×32, `edge_size: 12.0`) are set after the first `screen.sync()` because rsx! attrs don't cover all frame properties.
 
 ## Registry-native migration status
 
-The direct native login/loading bypass was removed before this migration: canonical engine revert `84003225`; retained worktree rollback `8662621e`. The active projector is toolkit `460e5e1`/`67b5287`, UTF-8 cursor handling is `99632eb`, and engine integration is `b4badaf9`. Edit-box carets derive from `EditBoxData` byte cursor and `blink_speed` plus `UiState.focused_frame`; no separate login form owns caret state. Verification is pending. Prior native-only screen proof does not certify this registry-native architecture.
+The source compiles. Toolkit coverage is 42 targeted GREEN tests (37 + 5); engine addon and screen tests remain in progress. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. No full acceptance or rendered-runtime claim is made.
 
 ## Player-frame artwork fit
 
@@ -38,11 +36,7 @@ Engine `038b1ecf` passes 16 layout tests, 12 state/artwork tests, and one render
 
 ## Layout invalidation
 
-`ui-toolkit` `0fdcf3f` makes an empty `rect_dirty` set a no-op: layout does not collect frames, resolve rectangles, or dirty render state. Layout work begins only when an actual geometry boundary explicitly calls `FrameRegistry::mark_rect_dirty`. Toolkit `a8c846b` also checks this before the caller mutably accesses `UiState`, avoiding false resource-change notifications on clean layout calls. Two behavioral regressions and independent toolkit/engine checks pass; this does not imply other UI systems are idle.
-
-Insertion/removal, screen resize, anchor changes, dimension/flex attributes, flex-child changes, text/EditBox auto-sizing, resolved named anchors, and owned-addon resize propagate through children, anchor dependents, and flex parents. `get_mut` remains render-dirty only; arbitrary raw geometry mutation is not made implicitly layout-dirty. Explicit unanchored cached rectangles retain their existing behavior.
-
-Toolkit proof is 14 focused regressions plus 41 existing layout/screen/diff/plugin tests (55 total). Engine addon integration has 7 GREEN tests at `86bbc945`; the coordinated engine gate closed at `9d22c7fb`, bringing the bounded correction to 62 distinct scoped tests. The artifact audit retains that the saved engine output lacks its own command/exit record. No CPU or native claim.
+Registry mutations project authored native layout properties to Bevy. Bevy's layout pass computes bounds, which are read back solely for registry hit testing and measurement. Consult the [registry-backed Bevy UI spec](../../specs/registry-bevy-ui.md) for supported properties and lifecycle guarantees; this page does not preserve the removed anchor-solver behavior.
 
 ## Visibility and alpha invalidation
 

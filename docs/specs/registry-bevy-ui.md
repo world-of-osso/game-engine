@@ -3,8 +3,8 @@
 ## Authority and compatibility
 
 - `FrameRegistry` remains the UI model shared by engine code, existing `rsx!`/`Screen` authoring and JavaScript addons. Native Bevy UI is its rendering projection, not a separate set of screen definitions.
-- Registry IDs, names, parent relationships, authored sizes/anchors/flex settings, widget state and existing mutation/error semantics remain intact. In particular, preserve current same-name `createFrame` reuse semantics; do not introduce a new ownership policy during rendering migration.
-- Bevy owns layout calculation. The registry stores native-compatible authored dimensions, positioning, margins, translation and flex properties. Remove the old arbitrary-target anchor/dependency solver; computed bounds are observational input/measurement data and must never feed back into authored dimensions or positions.
+- Registry IDs, names, logical parent relationships, authored native insets, margins, translation, size and flex settings, widget state and existing mutation/error semantics remain intact. In particular, preserve current same-name `createFrame` reuse/type policy; do not introduce a new ownership policy during rendering migration.
+- Bevy owns layout calculation. The registry stores authored native properties; Bevy writes computed bounds back only for observation by input and measurement. There is no `Anchor`, `set_point`/`setPoint`, arbitrary target relationship, anchor solver, or registry-owned screen text measurement.
 - Bevy window/input events continue through registry hit testing, focus, text editing and event dispatch. Do not create a second text/edit-box authority or let native picking change existing hit-inset/order semantics.
 - Registry mutation must update the corresponding native entities; unchanged values must not publish component changes. Reparenting, hiding, deleting, addon reload and screen teardown must preserve logical identity and remove obsolete projected visuals.
 
@@ -12,9 +12,9 @@
 
 - `setPos(x, y)` sets left/top pixel offsets (origin top-left, X rightward, Y downward) without changing positioning mode or target. It clears opposing right/bottom insets; callers wanting opposing-edge stretch author native insets explicitly.
 - `setPosType(relative | absolute)` selects native layout participation. Default is relative; absolute removes the frame from its layout parent's flow, not from registry ownership.
-- `setAnchor(parent | screen)` selects the layout parent. Default is the logical registry parent; screen projects beneath the screen canvas. Logical parent ownership, removal, effective visibility and alpha remain registry-controlled; positioning and clipping use the selected layout parent.
-- RSX uses ordinary native-compatible positioning/inset/margin/translation attributes; legacy `anchor { point, relative_to, relative_point, ... }` and `setPoint` are removed, not emulated. Existing callers must explicitly restructure siblings or use the native parent layout.
-- Centering, stretching and flex alignment remain native layout properties, not hidden operations inside `setPos`. Fixed zero dimensions remain zero; explicit auto and fill dimensions map to native auto/percentage sizing.
+- `setAnchor(parent | screen)` selects the layout parent. Default is `parent`; `screen` projects beneath the screen canvas. Logical parent ownership, removal, effective visibility and alpha remain registry-controlled when the layout parent is `screen`.
+- RSX accepts `pos_type`, `pos_x`, `pos_y`, `left`, `right`, `top`, `bottom`, `translate_x`, `translate_y`, `margin_*`, `anchor: parent|screen`, and `width`/`height` values `auto` or `fill`. Legacy `anchor { ... }` is rejected by the macro and runtime; it is not emulated.
+- Centering, stretching and flex alignment remain native layout properties, not hidden operations inside `setPos`. Fixed zero dimensions remain zero; explicit `auto` and `fill` dimensions map to native auto/percentage sizing.
 
 ## Rendering
 
@@ -39,4 +39,4 @@ Legacy standalone rendering helpers may remain as compatibility/test utilities a
 
 ## Current state
 
-The native-only login/loading bypass was rolled back first: canonical engine revert `84003225`; retained worktree rollback `8662621e`. The active registry-native projector is toolkit `460e5e1`/`67b5287`, with UTF-8 cursor handling in `99632eb` and engine integration in `b4badaf9`. Verification remains in progress. Earlier native-only screen evidence does not certify this architecture.
+Source compilation passes. Toolkit coverage is 42 targeted GREEN tests (37 + 5). Engine addon and screen tests remain in progress. No full acceptance or rendered-runtime claim is made.
