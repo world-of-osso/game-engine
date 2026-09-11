@@ -163,6 +163,7 @@ type Parts<'w, 's> = Query<
         &'static mut Visibility,
         Option<&'static mut Sprite>,
         Option<&'static mut Text2d>,
+        Option<&'static mut TextColor>,
     ),
     Without<HealthBar>,
 >;
@@ -179,7 +180,9 @@ fn project_cast_bars(scene: CastScene, mut parts: Parts) {
         .hud
         .as_ref()
         .is_some_and(|h| h.nameplate_spellbar_thickness == NameplateBarThickness::Thick);
-    for (owner, part, mut transform, mut global, mut visibility, sprite, text) in &mut parts {
+    for (owner, part, mut transform, mut global, mut visibility, sprite, text, text_color) in
+        &mut parts
+    {
         let projected = enabled
             .then(|| project_part(&scene, owner.0, *part, thick))
             .flatten();
@@ -188,17 +191,25 @@ fn project_cast_bars(scene: CastScene, mut parts: Parts) {
         } else {
             Visibility::Hidden
         });
-        if let Some((position, size, name)) = projected {
+        if let Some((position, size, name, alpha)) = projected {
             let pose = Transform::from_translation(position);
             transform.set_if_neq(pose);
             global.set_if_neq(GlobalTransform::from(pose));
             if let Some(mut sprite) = sprite {
-                sprite.custom_size = Some(size);
-            }
-            if let Some(mut text) = text {
-                if text.0 != name {
-                    text.0 = name.to_owned();
+                if sprite.custom_size != Some(size) {
+                    sprite.custom_size = Some(size);
                 }
+                if sprite.color.alpha() != alpha {
+                    sprite.color.set_alpha(alpha);
+                }
+            }
+            if let Some(mut text) = text
+                && text.0 != name
+            {
+                text.0 = name.to_owned();
+            }
+            if let Some(mut color) = text_color {
+                color.set_if_neq(TextColor(Color::WHITE.with_alpha(alpha)));
             }
         }
     }
@@ -209,7 +220,7 @@ fn project_part<'a>(
     owner: Entity,
     part: Part,
     thick: bool,
-) -> Option<(Vec3, Vec2, &'a str)> {
+) -> Option<(Vec3, Vec2, &'a str, f32)> {
     let (cast, children, inherited) = scene.owners.get(owner).ok()?;
     if !inherited.get() {
         return None;
@@ -244,7 +255,12 @@ fn project_part<'a>(
     let (offset, size, z) = part_layout(part, thick, fraction);
     let point = bottom + Vec2::Y * (4.0 + height / 2.0) + offset;
     let position = overlay.viewport_to_world_2d(overlay_pose, point).ok()?;
-    Some((position.extend(z), size, cast.spell_name.as_str()))
+    Some((
+        position.extend(z),
+        size,
+        cast.spell_name.as_str(),
+        crate::nameplate::nameplate_alpha(distance, limit),
+    ))
 }
 
 #[cfg(test)]
