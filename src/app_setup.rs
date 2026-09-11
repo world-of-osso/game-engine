@@ -239,6 +239,9 @@ fn log_app_exit_messages(mut exits: MessageReader<AppExit>) {
 }
 
 fn register_ui_plugins(app: &mut App) {
+    app.insert_resource(ui_toolkit::font_registry::FontRegistry::with_directory(
+        "data/fonts",
+    ));
     app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
         .add_plugins(game_engine::collection::CollectionPlugin)
         .add_plugins(game_engine::duel::DuelPlugin)
