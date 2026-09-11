@@ -46,6 +46,49 @@ fn assert_compact_gap(app: &mut App, camera: Entity, bar: Entity, label: Entity)
 }
 
 #[test]
+fn thick_health_embeds_name_and_thin_health_restores_above_bar() {
+    let (mut app, camera) = tests::app_with_cameras(1.0);
+    let (owner, label) = tests::wolf(&mut app);
+    app.world_mut().entity_mut(owner).insert(Health {
+        current: 100.0,
+        max: 100.0,
+    });
+    app.world_mut()
+        .resource_mut::<HudOptions>()
+        .nameplate_health_thickness = NameplateBarThickness::Thick;
+    tests::settle(&mut app);
+    let bar = app.world().get::<Children>(owner).unwrap()[0];
+    assert_eq!(app.world().get::<Anchor>(label), Some(&Anchor::CENTER));
+    let center = projected_point(
+        &app,
+        camera,
+        app.world()
+            .get::<GlobalTransform>(bar)
+            .unwrap()
+            .translation(),
+    );
+    let overlay = app
+        .world_mut()
+        .query_filtered::<Entity, With<UiCamera>>()
+        .single(app.world())
+        .unwrap();
+    let name = projected_point(
+        &app,
+        overlay,
+        app.world()
+            .get::<GlobalTransform>(label)
+            .unwrap()
+            .translation(),
+    );
+    assert!(center.abs_diff_eq(name, 0.02));
+    app.world_mut()
+        .resource_mut::<HudOptions>()
+        .nameplate_health_thickness = NameplateBarThickness::Thin;
+    tests::settle(&mut app);
+    assert_compact_gap(&mut app, camera, bar, label);
+}
+
+#[test]
 fn removing_health_restores_name_only_even_when_old_bar_still_exists() {
     let (mut app, _) = tests::app_with_cameras(1.0);
     let (owner, label) = tests::wolf(&mut app);

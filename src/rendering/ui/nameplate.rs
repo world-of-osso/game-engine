@@ -10,6 +10,7 @@ use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 use crate::asset::asset_cache;
 use crate::client_options::{
     DEFAULT_NAMEPLATE_DISTANCE, GraphicsOptions, HudOptions, HudVisibilityToggles,
+    NameplateBarThickness,
 };
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
@@ -264,6 +265,10 @@ fn project_nameplates(
     let colorblind = options
         .graphics
         .is_some_and(|graphics| graphics.colorblind_mode);
+    let thick_health = options
+        .hud
+        .as_ref()
+        .is_none_or(|hud| hud.nameplate_health_thickness == NameplateBarThickness::Thick);
     let show_health_bars = options
         .toggles
         .is_none_or(|toggles| toggles.show_health_bars);
@@ -271,7 +276,16 @@ fn project_nameplates(
         &mut plates
     {
         let projected = enabled
-            .then(|| project_owner(owner.0, offset.0, fade_far, show_health_bars, &scene))
+            .then(|| {
+                project_owner(
+                    owner.0,
+                    offset.0,
+                    fade_far,
+                    show_health_bars,
+                    thick_health,
+                    &scene,
+                )
+            })
             .flatten();
         let desired_visibility = if projected.is_some() {
             Visibility::Visible
@@ -298,6 +312,7 @@ fn project_owner(
     height: f32,
     fade_far: f32,
     show_health_bars: bool,
+    thick_health: bool,
     scene: &NameplateScene,
 ) -> Option<ProjectedPlate> {
     let (owner_global, inherited, children, has_health) = scene.owners.get(owner).ok()?;
@@ -322,6 +337,12 @@ fn project_owner(
             has_health && show_health_bars && **visibility != Visibility::Hidden
         });
     let (viewport, text_anchor) = match bar {
+        Some((global, _)) if thick_health => (
+            world_camera
+                .world_to_viewport(world_transform, global.translation())
+                .ok()?,
+            Anchor::CENTER,
+        ),
         Some((global, _)) => (
             project_bar_top(world_camera, world_transform, global)? - Vec2::Y * NAME_BAR_GAP,
             Anchor::BOTTOM_CENTER,

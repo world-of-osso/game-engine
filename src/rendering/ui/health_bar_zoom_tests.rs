@@ -15,6 +15,10 @@ pub(super) fn projection_app(dpi: f32, width: u32, height: u32) -> App {
         CameraPlugin,
         bevy::transform::TransformPlugin,
     ));
+    app.insert_resource(HudOptions {
+        nameplate_health_thickness: NameplateBarThickness::Thin,
+        ..default()
+    });
     app.init_state::<GameState>();
     app.insert_resource(State::new(GameState::InWorld));
     app.init_resource::<Assets<StandardMaterial>>();
@@ -88,6 +92,20 @@ fn projected_quad_size(
         maximum = maximum.max(pixel);
     }
     maximum - minimum
+}
+
+#[test]
+fn thickness_changes_projected_height_without_changing_width() {
+    let (mut app, _, bar, camera) = zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
+    for thickness in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
+        app.world_mut()
+            .resource_mut::<HudOptions>()
+            .nameplate_health_thickness = thickness;
+        app.update();
+        let global = *app.world().get::<GlobalTransform>(bar).unwrap();
+        let size = projected_quad_size(&app, bar, camera, global);
+        assert!(size.abs_diff_eq(health_bar_pixel_size(thickness), 0.05));
+    }
 }
 
 #[test]

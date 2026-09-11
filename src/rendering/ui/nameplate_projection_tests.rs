@@ -44,7 +44,10 @@ pub(super) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
     app.init_resource::<bevy::render::texture::ManualTextureViews>();
     app.init_resource::<HudVisibilityToggles>();
-    app.init_resource::<HudOptions>();
+    app.insert_resource(HudOptions {
+        nameplate_health_thickness: NameplateBarThickness::Thin,
+        ..default()
+    });
     app.init_resource::<GraphicsOptions>();
     app.init_resource::<PlateChanges>();
     app.add_plugins((NameplatePlugin, crate::health_bar::HealthBarPlugin));
