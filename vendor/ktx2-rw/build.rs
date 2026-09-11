@@ -591,6 +591,14 @@ fn link_system_libraries(target_os: &str, target_env: &str, target: &str) {
                                 if path.exists() {
                                     println!("cargo:rustc-link-search=native={}", lib_path);
                                     emit_prefix_gcc_search_paths(path, &triple);
+                                    let target_lib =
+                                        Path::new(&toolchain_path).join(&triple).join("lib");
+                                    if target_lib.is_dir() {
+                                        println!(
+                                            "cargo:rustc-link-search=native={}",
+                                            target_lib.display()
+                                        );
+                                    }
                                     found_lib_path = true;
 
                                     // Also try architecture-specific subdirectory
