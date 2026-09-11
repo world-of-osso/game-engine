@@ -3,6 +3,7 @@
 Run: uv run --with pillow python debug/compare_nameplates.py
 This diagnostic reports mismatches; its exit status is not pixel-match acceptance.
 """
+
 from collections import Counter
 import json
 from pathlib import Path
@@ -44,9 +45,17 @@ def compare(reference, actual, region, text_regions):
         "compared_pixels": len(errors),
         "mean_max_channel_error": sum(errors) / len(errors),
         "exact_pixel_fraction": histogram[0] / len(errors),
-        "within_4_fraction": sum(n for error, n in histogram.items() if error <= 4) / len(errors),
+        "within_4_fraction": sum(n for error, n in histogram.items() if error <= 4)
+        / len(errors),
         "maximum_channel_error": max(errors),
-        "red_bounds_outside_text": [min(x for x, _ in red), min(y for _, y in red), max(x for x, _ in red), max(y for _, y in red)] if red else None,
+        "red_bounds_outside_text": [
+            min(x for x, _ in red),
+            min(y for _, y in red),
+            max(x for x, _ in red),
+            max(y for _, y in red),
+        ]
+        if red
+        else None,
     }
 
 
@@ -57,10 +66,14 @@ def main():
     for name, (region, text_regions) in CASES.items():
         actual = Image.open(ARTIFACTS / "rendered" / f"{name}.png").convert("RGB")
         if actual.size != reference.size:
-            raise ValueError(f"{name}: expected canvas {reference.size}, got {actual.size}")
+            raise ValueError(
+                f"{name}: expected canvas {reference.size}, got {actual.size}"
+            )
         report[name] = compare(reference, actual, region, text_regions)
         composed.paste(actual.crop(region), region[:2])
-        ImageChops.difference(reference.crop(region), actual.crop(region)).save(ARTIFACTS / f"diff-{name}.png")
+        ImageChops.difference(reference.crop(region), actual.crop(region)).save(
+            ARTIFACTS / f"diff-{name}.png"
+        )
     composed.save(ARTIFACTS / "rendered-comparison.png")
     side_by_side = Image.new("RGB", (reference.width * 2, reference.height))
     side_by_side.paste(reference, (0, 0))
