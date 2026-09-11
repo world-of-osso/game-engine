@@ -3,6 +3,113 @@ use bevy::camera::CameraPlugin;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::window::{PrimaryWindow, WindowResolution};
 
+fn spawn_casting_player(app: &mut App, name: &str) -> (Entity, Vec<Entity>) {
+    use shared::casting::CastState;
+    let existing: std::collections::HashSet<Entity> = app
+        .world_mut()
+        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>)>>()
+        .iter(app.world())
+        .collect();
+    let owner = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(100.0, 0.0, 0.0),
+            Visibility::Visible,
+            Health {
+                current: 75.0,
+                max: 100.0,
+            },
+            NetPlayer {
+                name: name.into(),
+                race: 1,
+                class: 1,
+                appearance: default(),
+            },
+            CastState::normal(133, 0, 3.0, true),
+        ))
+        .id();
+    settle(app);
+    let visuals = app
+        .world_mut()
+        .query_filtered::<Entity, Or<(With<Sprite>, With<Text2d>)>>()
+        .iter(app.world())
+        .filter(|entity| !existing.contains(entity))
+        .collect();
+    (owner, visuals)
+}
+
+fn assert_plate_visibility(app: &App, visuals: &[Entity], shown: bool) {
+    assert_eq!(visuals.len(), 7, "name, two health parts, four cast parts");
+    for &entity in visuals {
+        assert_eq!(visible(app, entity), shown, "visual {entity:?}");
+    }
+}
+
+#[test]
+fn nameplate_late_local_identity_hides_all_parts_and_removal_restores_remote_plate() {
+    let (mut app, _) = app_with_cameras(1.0);
+    app.add_plugins(crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin);
+    let (owner, visuals) = spawn_casting_player(&mut app, "Local");
+    let (_, remote_visuals) = spawn_casting_player(&mut app, "Remote");
+    assert_plate_visibility(&app, &visuals, true);
+    app.world_mut()
+        .entity_mut(owner)
+        .insert(crate::networking::LocalPlayer);
+    app.update();
+    assert_plate_visibility(&app, &visuals, false);
+    assert_plate_visibility(&app, &remote_visuals, true);
+    app.world_mut()
+        .entity_mut(owner)
+        .remove::<crate::networking::LocalPlayer>();
+    app.update();
+    assert_plate_visibility(&app, &visuals, true);
+    assert_plate_visibility(&app, &remote_visuals, true);
+}
+
+#[test]
+fn nameplate_parts_share_body_distance_boundary_and_non_compounding_fade() {
+    let (mut app, camera) = app_with_cameras(1.0);
+    app.add_plugins(crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin);
+    let (owner, visuals) = spawn_casting_player(&mut app, "Remote");
+    // Nonuniform owner scale makes body anchor differ from the name-only anchor.
+    app.world_mut().get_mut::<Transform>(owner).unwrap().scale.y = 2.0;
+    for limit in [40.0, 60.0] {
+        app.world_mut()
+            .resource_mut::<HudOptions>()
+            .nameplate_distance = limit;
+        for (distance, shown) in [
+            (limit - 0.125, true),
+            (limit, false),
+            (limit + 0.125, false),
+            (limit * 0.75, true),
+        ] {
+            *app.world_mut().get_mut::<Transform>(camera).unwrap() =
+                Transform::from_xyz(100.0, 5.0, distance)
+                    .looking_at(Vec3::new(100.0, 5.0, 0.0), Vec3::Y);
+            settle(&mut app);
+            assert_plate_visibility(&app, &visuals, shown);
+            if !shown {
+                continue;
+            }
+            let expected = nameplate_alpha(distance, limit);
+            for _ in 0..2 {
+                app.update();
+                for &entity in &visuals {
+                    let alpha = if let Some(sprite) = app.world().get::<Sprite>(entity) {
+                        sprite.color.alpha()
+                    } else {
+                        app.world().get::<TextColor>(entity).unwrap().0.alpha()
+                    };
+                    assert!(
+                        (alpha - expected).abs() < 0.0001,
+                        "{entity:?}: {alpha} vs {expected}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 #[derive(Resource, Default)]
 pub(super) struct PlateChanges(pub(super) Vec<Entity>);
 

@@ -264,7 +264,7 @@ struct NameplateScene<'w, 's> {
             Option<&'static Children>,
             Has<Health>,
         ),
-        Without<Nameplate>,
+        (Without<Nameplate>, Without<crate::networking::LocalPlayer>),
     >,
     bars: Query<
         'w,
@@ -357,7 +357,15 @@ fn project_owner(
         return None;
     }
     let anchor = owner_global.translation() + Vec3::Y * height;
-    let alpha = nameplate_alpha(world_transform.translation().distance(anchor), fade_far);
+    // Use the body anchor for every part, including when health visuals are toggled off.
+    let body = children
+        .as_ref()
+        .into_iter()
+        .flat_map(|children| children.iter())
+        .filter_map(|child| scene.bars.get(child).ok())
+        .find(|_| has_health)
+        .map_or(anchor, |(global, _)| global.translation());
+    let alpha = nameplate_alpha(world_transform.translation().distance(body), fade_far);
     if alpha <= 0.0 {
         return None;
     }
