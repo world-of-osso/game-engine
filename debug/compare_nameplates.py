@@ -10,6 +10,8 @@ from pathlib import Path
 
 from PIL import Image, ImageChops
 
+from make_nameplate_skins import linear, srgb
+
 ROOT = Path(__file__).resolve().parents[1]
 ARTIFACTS = ROOT / "data/diagnostics/nameplate-pixel-match"
 REFERENCE = ROOT / "data/diagnostics/nameplate-style/reference.png"
@@ -59,10 +61,27 @@ def compare(reference, actual, region, text_regions):
     }
 
 
+def linear_half_reference(source):
+    channels = []
+    for channel in source.crop((0, 0, 978, 364)).split():
+        reduced = channel.point([linear(value) for value in range(256)], "F").resize(
+            (489, 182), Image.Resampling.BOX
+        )
+        channels.append(
+            Image.frombytes(
+                "L",
+                reduced.size,
+                bytes(srgb(value) for value in reduced.get_flattened_data()),
+            )
+        )
+    return Image.merge("RGB", channels)
+
+
 def main():
     source = Image.open(REFERENCE).convert("RGB")
     # Drop the final background-only column for an exact 2:1 reduction.
     reference = source.crop((0, 0, 978, 364)).resize((489, 182), Image.Resampling.BOX)
+    linear_reference = linear_half_reference(source)
     composed = Image.new("RGB", reference.size, (24, 21, 20))
     report = {}
     for name, (region, text_regions) in CASES.items():
@@ -76,6 +95,9 @@ def main():
                 f"{name}: expected canvas {reference.size}, got {actual.size}"
             )
         report[name] = compare(reference, actual, region, text_regions)
+        report[name]["linear_light_reference"] = compare(
+            linear_reference, actual, region, text_regions
+        )
         composed.paste(actual.crop(region), region[:2])
         ImageChops.difference(reference.crop(region), actual.crop(region)).save(
             ARTIFACTS / f"diff-{name}.png"

@@ -35,8 +35,8 @@ fn assert_compact_gap(app: &mut App, camera: Entity, bar: Entity, label: Entity)
             .translation(),
     );
     assert!(
-        (top - label_point.y - 2.0).abs() < 0.02,
-        "bar top {top}, name bottom {}: expected 2 logical pixels",
+        (top - label_point.y).abs() < 0.02,
+        "bar top {top}, name bottom {}: layout boxes meet; glyph descent supplies the gap",
         label_point.y
     );
     let left = corners
@@ -85,7 +85,7 @@ fn thick_health_embeds_name_and_thin_health_restores_above_bar() {
             .unwrap()
             .translation(),
     );
-    assert!((center - Vec2::X * 90.0).abs_diff_eq(name, 0.02));
+    assert!((center - Vec2::X * 89.0).abs_diff_eq(name, 0.02));
     app.world_mut()
         .resource_mut::<HudOptions>()
         .nameplate_health_thickness = NameplateBarThickness::Thin;

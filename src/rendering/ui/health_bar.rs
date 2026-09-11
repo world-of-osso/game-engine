@@ -125,7 +125,8 @@ fn health_part_image(
     art: &NameplateArt,
 ) -> &Handle<Image> {
     match (part, thickness) {
-        (HealthBarPart::Fill, _) => &art.health_fill,
+        (HealthBarPart::Fill, NameplateBarThickness::Thick) => &art.health_fill_thick,
+        (HealthBarPart::Fill, NameplateBarThickness::Thin) => &art.health_fill_thin,
         (HealthBarPart::Background, NameplateBarThickness::Thick) => &art.health_thick,
         (HealthBarPart::Background, NameplateBarThickness::Thin) => &art.health_thin,
     }
@@ -262,9 +263,13 @@ fn project_health_part(
             if fraction <= 0.0 {
                 return None;
             }
+            let (height, y_offset) = match thickness {
+                NameplateBarThickness::Thick => (38.0, 0.0),
+                NameplateBarThickness::Thin => (19.0, 0.5),
+            };
             (
-                Vec2::new(-size.x * (1.0 - fraction) / 2.0, 0.0),
-                Vec2::new(size.x * fraction, size.y),
+                Vec2::new(-size.x * (1.0 - fraction) / 2.0, y_offset * NAMEPLATE_SCALE),
+                Vec2::new(size.x * fraction, height * NAMEPLATE_SCALE),
                 0.2,
             )
         }
@@ -436,12 +441,16 @@ mod tests {
             health_part_image(HealthBarPart::Background, NameplateBarThickness::Thin, &art),
             &art.health_thin
         );
-        for thickness in [NameplateBarThickness::Thick, NameplateBarThickness::Thin] {
-            assert_eq!(
-                health_part_image(HealthBarPart::Fill, thickness, &art),
-                &art.health_fill
-            );
-        }
+        art.health_fill_thick = images.add(Image::default());
+        art.health_fill_thin = images.add(Image::default());
+        assert_eq!(
+            health_part_image(HealthBarPart::Fill, NameplateBarThickness::Thick, &art),
+            &art.health_fill_thick
+        );
+        assert_eq!(
+            health_part_image(HealthBarPart::Fill, NameplateBarThickness::Thin, &art),
+            &art.health_fill_thin
+        );
     }
 
     #[test]

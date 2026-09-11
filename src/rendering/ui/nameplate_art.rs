@@ -12,7 +12,8 @@ pub(crate) const CAST_BACKGROUND_RECT: Rect = Rect::new(57.0, 85.0, 266.0, 96.0)
 
 #[derive(Clone)]
 pub(crate) struct NameplateArt {
-    pub health_fill: Handle<Image>,
+    pub health_fill_thin: Handle<Image>,
+    pub health_fill_thick: Handle<Image>,
     pub health_thick: Handle<Image>,
     pub health_thin: Handle<Image>,
     pub casting: Handle<Image>,
@@ -33,7 +34,12 @@ impl NameplateArtCache {
         if let Some(art) = &self.0 {
             return Ok(art.clone());
         }
-        let health_fill = load_skin(include_bytes!("nameplate_skins/health-fill.png"), images)?;
+        let health_fill_thin =
+            load_skin(include_bytes!("nameplate_skins/health-fill.png"), images)?;
+        let health_fill_thick = load_skin(
+            include_bytes!("nameplate_skins/health-fill-thick.png"),
+            images,
+        )?;
         let health_thick = load_skin(include_bytes!("nameplate_skins/health-thick.png"), images)?;
         let health_thin = load_skin(include_bytes!("nameplate_skins/health-thin.png"), images)?;
         let casting = load_atlas(4505182, images)?;
@@ -45,7 +51,8 @@ impl NameplateArtCache {
         ab_glyph::FontRef::try_from_slice(&bytes)
             .map_err(|error| format!("Nameplate font {path}: {error}"))?;
         let art = NameplateArt {
-            health_fill,
+            health_fill_thin,
+            health_fill_thick,
             health_thick,
             health_thin,
             casting,
@@ -79,7 +86,8 @@ impl NameplateArtCache {
             RenderAssetUsages::default(),
         ));
         Self(Some(NameplateArt {
-            health_fill: image.clone(),
+            health_fill_thin: image.clone(),
+            health_fill_thick: image.clone(),
             health_thick: image.clone(),
             health_thin: image.clone(),
             casting: image.clone(),
@@ -120,7 +128,7 @@ mod tests {
         let cases: &[(&[u8], [u32; 4])] = &[
             (
                 include_bytes!("nameplate_skins/health-thick.png"),
-                [8, 6, 384, 43],
+                [8, 6, 384, 44],
             ),
             (
                 include_bytes!("nameplate_skins/health-thin.png"),

@@ -88,7 +88,7 @@ const NPC_NAMEPLATE_Y: f32 = 2.5;
 const PLAYER_FONT_SIZE: f32 = NAME_FONT_SIZE;
 const NPC_FONT_SIZE: f32 = NAME_FONT_SIZE;
 const NPC_NAME_COLOR: Color = Color::WHITE;
-const NAME_BAR_GAP: f32 = 4.0 * NAMEPLATE_SCALE;
+const NAME_BAR_GAP: f32 = 0.0;
 /// Y offset for quest indicator M2 above the NPC origin.
 const QUEST_INDICATOR_Y: f32 = 3.5;
 
@@ -373,7 +373,7 @@ fn project_owner(
             world_camera
                 .world_to_viewport(world_transform, global.translation())
                 .ok()?
-                - Vec2::X * (BAR_PIXEL_WIDTH / 2.0 - 8.0 * NAMEPLATE_SCALE),
+                - Vec2::X * (BAR_PIXEL_WIDTH / 2.0 - 10.0 * NAMEPLATE_SCALE),
             Anchor::CENTER_LEFT,
         ),
         Some((global, _)) => (
