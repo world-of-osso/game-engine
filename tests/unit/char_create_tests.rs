@@ -416,8 +416,11 @@ fn clicking_race_button_changes_race_through_full_app_update() {
         .unwrap()
         .set_cursor_position(Some(race_2_center));
     app.world_mut()
-        .resource_mut::<ButtonInput<MouseButton>>()
-        .press(MouseButton::Left);
+        .write_message(bevy::input::mouse::MouseButtonInput {
+            button: MouseButton::Left,
+            state: bevy::input::ButtonState::Pressed,
+            window: window_entity,
+        });
 
     // Run through the full scheduler (all systems including UiPlugin)
     app.update();
