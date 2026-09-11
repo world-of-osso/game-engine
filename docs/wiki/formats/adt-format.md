@@ -37,7 +37,7 @@ The 145-value grid is a diamond-tessellated 9×9 outer / 8×8 inner layout. Each
 
 ## Terrain Normals
 
-MCNR raw bytes `[b0, b1, b2]` map to Bevy `[b0, b2, -b1]`. The current production parser incorrectly emits `[b2, b1, -b0]`; do not treat it as format behavior. A height-derived permutation check over `2703_31_37.adt` aligns the supported mapping at mean dot `0.997198` versus `0.089730` for the current decode. Parser and rendered regressions must land with the correction. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
+MCNR raw bytes `[b0, b1, b2]` map to Bevy `[b0, b2, -b1]`. Commit `510b44a5` corrects the former `[b2, b1, -b0]` production decode. A height-derived permutation check over `2703_31_37.adt` aligns the supported mapping at mean dot `0.997198` versus `0.089730` before the correction. Parser regressions are GREEN; rendered terrain validation remains pending. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## MDDF / MODF Placements
 
