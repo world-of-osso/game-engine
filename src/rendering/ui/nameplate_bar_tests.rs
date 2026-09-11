@@ -41,7 +41,7 @@ fn assert_compact_gap(app: &mut App, camera: Entity, bar: Entity, label: Entity)
     );
     assert_eq!(
         app.world().get::<bevy::sprite::Anchor>(label),
-        Some(&bevy::sprite::Anchor::BOTTOM_CENTER)
+        Some(&bevy::sprite::Anchor::BOTTOM_LEFT)
     );
 }
 
@@ -58,7 +58,7 @@ fn thick_health_embeds_name_and_thin_health_restores_above_bar() {
         .nameplate_health_thickness = NameplateBarThickness::Thick;
     tests::settle(&mut app);
     let bar = app.world().get::<Children>(owner).unwrap()[0];
-    assert_eq!(app.world().get::<Anchor>(label), Some(&Anchor::CENTER));
+    assert_eq!(app.world().get::<Anchor>(label), Some(&Anchor::CENTER_LEFT));
     let center = projected_point(
         &app,
         camera,
@@ -80,7 +80,7 @@ fn thick_health_embeds_name_and_thin_health_restores_above_bar() {
             .unwrap()
             .translation(),
     );
-    assert!(center.abs_diff_eq(name, 0.02));
+    assert!((center - Vec2::X * 91.0).abs_diff_eq(name, 0.02));
     app.world_mut()
         .resource_mut::<HudOptions>()
         .nameplate_health_thickness = NameplateBarThickness::Thin;
@@ -97,10 +97,7 @@ fn removing_health_restores_name_only_even_when_old_bar_still_exists() {
         max: 100.0,
     });
     tests::settle(&mut app);
-    assert_eq!(
-        app.world().get::<Anchor>(label),
-        Some(&Anchor::BOTTOM_CENTER)
-    );
+    assert_eq!(app.world().get::<Anchor>(label), Some(&Anchor::BOTTOM_LEFT));
     app.world_mut().entity_mut(owner).remove::<Health>();
     app.update();
     assert!(tests::visible(&app, label));
