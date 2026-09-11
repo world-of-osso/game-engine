@@ -4,7 +4,6 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
 use crate::ui::strata::FrameStrata;
 
 const FRAME_W: f32 = 430.0;
@@ -71,12 +70,9 @@ pub fn inspect_frame_screen(ctx: &SharedContext) -> Element {
             hidden: hide,
             strata: FrameStrata::Dialog,
             background_color: FRAME_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "830",
-                y: "-80",
-            }
+            pos_type: "absolute",
+            pos_x: 830.0,
+            pos_y: 80.0,
             {title_bar(&title)}
             {inspect_frame_summary(state)}
             {equipment_panel(&state.equipment_rows)}
@@ -113,7 +109,10 @@ fn title_bar(title: &str) -> Element {
             font_size: 16.0,
             font_color: TITLE_COLOR,
             justify_h: "CENTER",
-            anchor { point: AnchorPoint::Top, relative_point: AnchorPoint::Top, x: "0", y: "0" }
+            pos_type: "absolute",
+            left: "50%",
+            pos_y: 0.0,
+            translate_x: "-50%",
         }
     }
 }
@@ -129,12 +128,9 @@ fn summary_line(name: &str, text: &str, y_offset: f32) -> Element {
             font_size: 10.0,
             font_color: SUBTLE,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-y_offset},
-            }
+            pos_type: "absolute",
+            pos_x: INSET,
+            pos_y: y_offset,
         }
     }
 }
@@ -151,12 +147,9 @@ fn equipment_panel(rows: &[InspectEquipmentRow]) -> Element {
             width: {PANEL_W},
             height: {PANEL_H},
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET},
-                y: {-(HEADER_H + 56.0)},
-            }
+            pos_type: "absolute",
+            pos_x: INSET,
+            pos_y: {HEADER_H + 56.0},
             {panel_header("InspectEquipmentHeader", "Equipment")}
             {content}
         }
@@ -171,12 +164,9 @@ fn talent_panel(rows: &[InspectTalentRow]) -> Element {
             width: {PANEL_W},
             height: {PANEL_H},
             background_color: PANEL_BG,
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: {INSET + PANEL_W + PANEL_GAP},
-                y: {-(HEADER_H + 56.0)},
-            }
+            pos_type: "absolute",
+            pos_x: {INSET + PANEL_W + PANEL_GAP},
+            pos_y: {HEADER_H + 56.0},
             {panel_header("InspectTalentHeader", "Talents")}
             {content}
         }
@@ -204,12 +194,9 @@ fn talent_panel_empty_state() -> Element {
             font_size: 10.0,
             font_color: SUBTLE,
             justify_h: "LEFT",
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "4",
-                y: {-(ROW_H + 4.0)},
-            }
+            pos_type: "absolute",
+            pos_x: 4.0,
+            pos_y: {ROW_H + 4.0},
         }
     }
 }
@@ -222,7 +209,9 @@ fn panel_header(name: &str, text: &str) -> Element {
             width: {PANEL_W},
             height: {ROW_H},
             background_color: HEADER_BG,
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
             fontstring {
                 name: DynName(format!("{}Label", name.0)),
                 width: {PANEL_W},
@@ -231,7 +220,9 @@ fn panel_header(name: &str, text: &str) -> Element {
                 font_size: 10.0,
                 font_color: HEADER_TEXT,
                 justify_h: "CENTER",
-                anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft }
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: 0.0,
             }
         }
     }
@@ -246,19 +237,16 @@ fn row_background(index: usize) -> &'static str {
 }
 
 fn panel_row(index: usize, row_name: String, cells: Element) -> Element {
-    let y = -((index + 1) as f32 * ROW_H);
+    let y = (index + 1) as f32 * ROW_H;
     rsx! {
         r#frame {
             name: DynName(row_name),
             width: {PANEL_W},
             height: {ROW_H},
             background_color: {row_background(index)},
-            anchor {
-                point: AnchorPoint::TopLeft,
-                relative_point: AnchorPoint::TopLeft,
-                x: "0",
-                y: {y},
-            }
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: y,
             {cells}
         }
     }
@@ -284,7 +272,9 @@ fn equipment_row_cells(index: usize, row: &InspectEquipmentRow) -> Element {
             font_size: 9.0,
             font_color: HEADER_TEXT,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            pos_x: 4.0,
+            pos_y: 0.0,
         }
         fontstring {
             name: value_name,
@@ -294,7 +284,9 @@ fn equipment_row_cells(index: usize, row: &InspectEquipmentRow) -> Element {
             font_size: 9.0,
             font_color: TEXT,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "76", y: "0" }
+            pos_type: "absolute",
+            pos_x: 76.0,
+            pos_y: 0.0,
         }
     }
 }
@@ -319,7 +311,9 @@ fn talent_row_cells(index: usize, row: &InspectTalentRow) -> Element {
             font_size: 9.0,
             font_color: TEXT,
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::TopLeft, relative_point: AnchorPoint::TopLeft, x: "4", y: "0" }
+            pos_type: "absolute",
+            pos_x: 4.0,
+            pos_y: 0.0,
         }
         fontstring {
             name: points,
@@ -329,7 +323,9 @@ fn talent_row_cells(index: usize, row: &InspectTalentRow) -> Element {
             font_size: 9.0,
             font_color: TITLE_COLOR,
             justify_h: "RIGHT",
-            anchor { point: AnchorPoint::TopRight, relative_point: AnchorPoint::TopRight, x: "-4", y: "0" }
+            pos_type: "absolute",
+            right: 4.0,
+            pos_y: 0.0,
         }
     }
 }
