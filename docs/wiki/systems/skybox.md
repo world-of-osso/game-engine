@@ -10,6 +10,12 @@ The GPU regression reproduces the old error with sky geometry closer to the came
 
 The gray area in the character-selection depth diagnostic is not proof of missing sky. A terrain-only magenta override identified substantial gray coverage as opaque fogged terrain; it did not account for every gray pixel. Rendering sky behind that terrain must not paint over it. Fog-color/distance tuning is outside this depth correction. Evidence: `data/diagnostics/charselect-tree-clipping-20260911/{fix-red,fix-green,terrain-coverage-probe,verification,final-native}/`.
 
+## Character-selection fog visibility
+
+`dfc34aa4` replaces portrait-camera-relative fog with world-space falloff from 75 to 300 units. Previously the 6.5-unit solo camera made fog fully opaque at 32.5 units, inside the nearby tree area. These new distances are explicit presentation tuning, not decoded Blizzard fog data. Camera framing no longer changes the fog range; global sky updates still exclude character-selection cameras.
+
+The [visibility contract](../../specs/character-selection-visibility.md) verifies clear nearby trees, partial distant fading, and retained fog ownership. Thirty-three focused cases and checks pass. A controlled fog-disabled capture reveals opaque cliff/terrain behind the campsite: reducing fog does not reveal clouds through that geometry. Skybox depth ordering remains intact. Evidence: `data/diagnostics/charselect-fog-20260911/`.
+
 ## InWorld procedural sky selection
 
 InWorld resolves the local clear `LightParamsID` from `Light.csv`. It spawns the existing camera-child procedural `SkyDome` only when the decoded local `LightParams` row explicitly has raw `LightSkyboxID = 0`. It does not treat missing DB2 data, an unknown row, or a failed authored model load as permission to fall back; those remain diagnosable failures.
