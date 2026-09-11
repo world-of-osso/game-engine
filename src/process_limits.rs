@@ -1,3 +1,14 @@
+#[cfg(not(unix))]
+pub fn apply_resource_limits() {
+    if std::env::var_os("GAME_ENGINE_MAX_MEM_GB").is_some() {
+        eprintln!(
+            "GAME_ENGINE_MAX_MEM_GB requires Unix RLIMIT_AS; this platform does not support it"
+        );
+        std::process::exit(2);
+    }
+}
+
+#[cfg(unix)]
 pub fn apply_resource_limits() {
     let Some(max_mem_gb) = read_max_memory_gb() else {
         eprintln!("Resource limits: RLIMIT_AS disabled by default");
@@ -19,12 +30,14 @@ pub fn apply_resource_limits() {
     log_current_limit();
 }
 
+#[cfg(unix)]
 fn read_max_memory_gb() -> Option<u64> {
     std::env::var("GAME_ENGINE_MAX_MEM_GB")
         .ok()
         .and_then(|s| s.parse().ok())
 }
 
+#[cfg(unix)]
 fn log_current_limit() {
     let mut current = libc::rlimit {
         rlim_cur: 0,
