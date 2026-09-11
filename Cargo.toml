@@ -36,13 +36,17 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 ktx2-rw = "0.2.4"
 notify = "7"
 directories = "5"
-arboard = { version = "3", features = ["wayland-data-control"] }
+arboard = "3"
 raw-window-handle = "0.6"
 # Empty-window baseline: reuse winit and paint only OS-requested frames in shared memory.
 winit = { version = "0.30.13", default-features = false, features = ["rwh_06"] }
-softbuffer = { version = "0.4.8", default-features = false, features = ["wayland", "wayland-dlopen"] }
+softbuffer = { version = "0.4.8", default-features = false }
 binrw = "0.15.1"
 rusqlite = { version = "0.35", features = ["bundled"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+arboard = { version = "3", features = ["wayland-data-control"] }
+softbuffer = { version = "0.4.8", default-features = false, features = ["wayland", "wayland-dlopen"] }
 
 [[bin]]
 name = "game-engine-cli"
