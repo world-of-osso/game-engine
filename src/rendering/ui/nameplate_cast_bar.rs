@@ -71,14 +71,15 @@ fn spawn_cast_bar(
     for (part, color) in [
         (Part::Border, Color::srgb(0.5, 0.42, 0.22)),
         (Part::Background, Color::srgb(0.08, 0.065, 0.035)),
-        (Part::Fill, Color::srgb(1.0, 0.72, 0.12)),
+        (Part::Fill, Color::WHITE),
         (Part::Spark, Color::srgb(1.0, 0.82, 0.35)),
     ] {
         let mut sprite = Sprite::from_color(color, Vec2::ONE);
         match part {
             Part::Fill => {
                 sprite.image = fill.clone();
-                sprite.rect = Some(Rect::new(213.0, 1.0, 428.0, 18.0));
+                // ui-castingbar-filling-standard; retain the authored gold.
+                sprite.rect = Some(Rect::new(268.0, 124.0, 477.0, 135.0));
             }
             Part::Spark => sprite.image = spark.clone(),
             _ => {}
