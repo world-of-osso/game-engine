@@ -411,10 +411,7 @@ fn char_select_camera_retains_scene_fog_without_custom_sky_dome() {
         .cloned()
         .expect("Adventurer's Rest");
     let placement = selected_scene_placement(&warband, &scene).expect("placement");
-    let (eye, focus, _) =
-        camera_params(Some(&scene), Some(&placement), ModelPresentation::default());
-    let camera_distance = eye.distance(focus);
-    let expected_fog = char_select_fog(camera_distance);
+    let expected_fog = char_select_fog();
 
     let camera_entity = app
         .world_mut()

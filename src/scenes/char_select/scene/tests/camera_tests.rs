@@ -46,17 +46,7 @@ fn camera_params_use_tighter_single_character_framing() {
 
 #[test]
 fn char_select_fog_preserves_nearby_trees_and_fades_distant_terrain() {
-    let warband = crate::scenes::char_select::warband::WarbandScenes::load();
-    let scene = warband
-        .scenes
-        .iter()
-        .find(|scene| scene.id == 1)
-        .expect("Adventurer's Rest");
-    let placement = selected_scene_placement(&warband, scene).expect("expected placement");
-    let (eye, focus, _) =
-        camera_params(Some(scene), Some(&placement), ModelPresentation::default());
-    let camera_distance = eye.distance(focus);
-    let fog = char_select_fog(camera_distance);
+    let fog = char_select_fog();
 
     let FogFalloff::Linear { start, end } = fog.falloff else {
         panic!("char-select should use linear fog falloff");
