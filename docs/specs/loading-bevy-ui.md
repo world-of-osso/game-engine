@@ -14,6 +14,10 @@
 
 The existing steel-shell style uses fixed 25-pixel caps; `bar_cap_width` source overrides do not change it. The baseline draws status text below the shell/fill, so it can be occluded while its semantic text still updates. This migration preserves both behaviors rather than redesigning them.
 
+## Implementation
+
+At engine `7a4b8eb3`, `5f978988`, and `a5f17dfa`, loading uses a native Bevy view authored with `rsx! { @native(...) }`. It replaces the loading `Screen`, `SharedContext`, `FrameRegistry`, registry-size synchronization, and legacy renderer; readiness and progress remain in the existing loading lifecycle resources. The native view retains the legacy semantic names and camera ordering model. No loading controls or dropdowns were added.
+
 ## Evidence
 
 - Before migration: eight loading tests passed using the existing compiler-emitted executable; no rebuild. Baseline screenshot/tree and exact provenance are retained locally under `data/diagnostics/loading-bevy-ui/baseline/`.

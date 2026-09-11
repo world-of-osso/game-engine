@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-11] ui | Replace loading renderer with native RSX
+
+At `7a4b8eb3`, `5f978988`, and `a5f17dfa`, the loading lifecycle now creates a native Bevy view authored through `rsx! { @native(...) }`. It retains existing readiness/progress authority, fixed artwork, names, debug layout overrides, and camera ordering while removing the loading `Screen`/`SharedContext`/`FrameRegistry` renderer. Baseline CPU and rendered artifacts are retained; native verification remains pending. See [[ui-system]] and [loading contract](../specs/loading-bevy-ui.md).
+
 ## [2026-09-10] rendering | Verify visible cloud opacity
 
 `a55e0f5b` centers cloud opacity around the unchanged density threshold instead of stretching the blend to an unreachable texture extreme. Generated-texture GPU coverage now includes visible clouds and clear patches at density0.5; clear/full extremes and recalibrated seam test pass. Standalone screenshot confirms soft cloud contrast without changing exposure or sky colors. Independent check passes; unchanged vendor formatting failures remain. See [[procedural-sky-dome-visibility]] and local `data/diagnostics/cloud-visibility/verification.md`.
