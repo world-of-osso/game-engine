@@ -22,7 +22,7 @@ pub fn compute_layout(registry: &mut FrameRegistry) {
         .registry;
 }
 
-pub(super) fn layout_app(width: f32, height: f32) -> App {
+pub(crate) fn layout_app(width: f32, height: f32) -> App {
     let mut app = App::new();
     app.add_plugins((
         MinimalPlugins,
