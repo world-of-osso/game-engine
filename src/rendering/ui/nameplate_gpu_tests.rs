@@ -293,6 +293,87 @@ fn capture_zoom_frame(app: &mut App, target: &Handle<Image>) -> Image {
     panic!("GPU zoom capture timed out");
 }
 
+#[test]
+#[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
+fn nameplate_gpu_reference_thickness_combinations() {
+    use crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin;
+    use shared::casting::CastState;
+    let mut app = configured_render_app(|app| {
+        app.add_plugins((crate::health_bar::HealthBarPlugin, NameplateCastBarPlugin));
+    });
+    let target = render_cameras(&mut app);
+    let mut cast = CastState::normal(133, 0, 4.0, true);
+    cast.spell_name = "Fireball".into();
+    cast.elapsed = 2.5;
+    app.world_mut().spawn((
+        Transform::from_xyz(-9000.0, 0.0, 0.0),
+        Visibility::Visible,
+        shared::components::Health {
+            current: 75.0,
+            max: 100.0,
+        },
+        Npc {
+            template_id: 299,
+            name: "Diseased Young Wolf".into(),
+        },
+        cast,
+    ));
+    let directory = std::path::Path::new("data/diagnostics/nameplate-style");
+    std::fs::create_dir_all(directory).unwrap();
+    for (health, spell, label) in [
+        (
+            NameplateBarThickness::Thick,
+            NameplateBarThickness::Thin,
+            "thick-thin",
+        ),
+        (
+            NameplateBarThickness::Thick,
+            NameplateBarThickness::Thick,
+            "thick-thick",
+        ),
+        (
+            NameplateBarThickness::Thin,
+            NameplateBarThickness::Thin,
+            "thin-thin",
+        ),
+        (
+            NameplateBarThickness::Thin,
+            NameplateBarThickness::Thick,
+            "thin-thick",
+        ),
+    ] {
+        {
+            let mut hud = app.world_mut().resource_mut::<HudOptions>();
+            hud.nameplate_health_thickness = health;
+            hud.nameplate_spellbar_thickness = spell;
+        }
+        for _ in 0..8 {
+            app.update();
+        }
+        let image = capture_zoom_frame(&mut app, &target);
+        let red = colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60)
+            .expect("red health fill");
+        let width = image.width() as usize;
+        let gold_below_health = image
+            .data
+            .as_ref()
+            .unwrap()
+            .chunks_exact(4)
+            .enumerate()
+            .filter(|(i, p)| i / width > red.bottom + 2 && p[0] > 100 && p[1] > 60 && p[2] < 100)
+            .count();
+        image
+            .try_into_dynamic()
+            .unwrap()
+            .save(directory.join(format!("{label}.png")))
+            .unwrap();
+        assert!(
+            gold_below_health > 30,
+            "{label}: missing gold spellbar below health ({gold_below_health} pixels)"
+        );
+    }
+}
+
 fn yellow_glyph_pixels(image: &Image) -> usize {
     let pixels = image.data.as_ref().expect("captured pixels");
     let width = image.width() as usize;
