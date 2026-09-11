@@ -41,7 +41,8 @@ pub(super) const CHAR_SELECT_CAMERA_GROUND_CLEARANCE: f32 = 0.5;
 const CHAR_SELECT_FOG_START_DISTANCE: f32 = 75.0;
 const CHAR_SELECT_FOG_END_DISTANCE: f32 = 300.0;
 const CHAR_SELECT_CLEAR_COLOR: Color = Color::srgb(0.05, 0.06, 0.08);
-const CHAR_SELECT_FOG_COLOR: Color = Color::srgb(0.18, 0.2, 0.23);
+// Reference-guided haze preserves distant detail instead of becoming a solid wall.
+const CHAR_SELECT_FOG_COLOR: Color = Color::srgba(0.30, 0.42, 0.42, 0.5);
 const CHAR_SELECT_FOG_LIGHT_COLOR: Color = Color::srgb(0.35, 0.38, 0.42);
 const DEFAULT_CAMERA_EYE: Vec3 = Vec3::new(0.0, 1.8, 6.0);
 const DEFAULT_CAMERA_FOCUS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
