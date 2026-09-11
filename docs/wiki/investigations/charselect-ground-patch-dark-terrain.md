@@ -1,6 +1,6 @@
 # Character-Select Ground Patch and Dark Terrain
 
-The bright campsite island is an explicit 42×42 `StandardMaterial` grass plane over a much darker ADT `TerrainMaterial` scene. It reproduces with the same binary against both canonical and retained-worktree data, so it is neither a registry-UI regression nor explained solely by missing worktree assets. Commit `510b44a5` corrects the verified MCNR normal decode; rendered verification remains pending while the grass overlay is removed.
+The bright campsite island was an explicit 42×42 `StandardMaterial` grass plane over a much darker ADT `TerrainMaterial` scene. It reproduced with the same binary against both canonical and retained-worktree data, so it was neither a registry-UI regression nor explained solely by missing worktree assets. Commits `510b44a5` and `a20f6b84` correct the MCNR normal decode and remove the overlay; final rendered verification remains pending.
 
 ## Observed Runtime Boundary
 
@@ -33,7 +33,7 @@ Surrounding ADT chunks use the custom `TerrainMaterial` shader. They are not one
 
 ## Regression History
 
-`ee3742b6` introduced the patch as part of a character-select floor workaround. `bbaa3e51` removed it explicitly as a “StandardMaterial bright island on TerrainMaterial terrain.” `d335cd0c` re-added `spawn_focused_ground_patch` while addressing warnings. Commit `264f3622` adds the required behavior: a terrain-backed character scene retains ADT terrain under the campsite focus and has no separate `StandardMaterial` grass overlay. Production removal remains pending final implementation and rendering proof.
+`ee3742b6` introduced the patch as part of a character-select floor workaround. `bbaa3e51` removed it explicitly as a “StandardMaterial bright island on TerrainMaterial terrain.” `d335cd0c` re-added `spawn_focused_ground_patch` while addressing warnings. Commit `264f3622` records the required behavior: a terrain-backed character scene retains ADT terrain under the campsite focus and has no separate `StandardMaterial` grass overlay. Commit `a20f6b84` removes the overlay implementation. Final rendering proof remains pending.
 
 ## Root Cause: MCNR Axis Decode
 
@@ -43,7 +43,7 @@ A standalone verifier reconstructed all 16,384 center-vertex geometric normals f
 
 Isolated shader captures corroborate the geometry result: terrain is bright before PBR lighting, dark after lighting, and brightens when the lighting normal is forced upward. The forced normal is diagnostic only; it discards slope information and is not a valid fix.
 
-`3b816bad` recorded two parser RED cases; `510b44a5` makes both GREEN with `[b0, b2, -b1]`. No production shader change is required. Final rendered terrain proof remains pending. Do not retain the grass patch as a terrain-lighting fix: a terrain-backed campsite must use the same ADT floor under the focus, without a separate overlay.
+`3b816bad` recorded two parser RED cases; `510b44a5` makes both GREEN with `[b0, b2, -b1]`. No production shader change is required. `a20f6b84` removes the grass overlay rather than retaining it as a terrain-lighting workaround. Final rendered terrain proof remains pending: a terrain-backed campsite must use the same ADT floor under the focus, without a separate overlay.
 
 ## Sources
 

@@ -58,7 +58,7 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 ## Known Issues
 
 - **Mountain ridge topology**: the earlier slab-like silhouettes and discontinuous chunk edges were observed before the height-grid axis correction above. Adventurer's Rest requires visual revalidation; no mountain-specific completion claim is made.
-- **Terrain normals**: `510b44a5` corrects MCNR decoding from `[b2, b1, -b0]` to `[b0, b2, -b1]`. The verified `2703_31_37.adt` geometric alignment is `0.997198` for the corrected mapping versus `0.089730` before it. Parser RED/GREEN is recorded; cross-map and rendered regression proof remains pending. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
+- **Terrain normals and campsite floor**: `510b44a5` corrects MCNR decoding from `[b2, b1, -b0]` to `[b0, b2, -b1]`. The verified `2703_31_37.adt` geometric alignment is `0.997198` for the corrected mapping versus `0.089730` before it. Parser RED/GREEN is recorded. `a20f6b84` removes the separate character-select `StandardMaterial` grass overlay; its regression confirms ADT terrain and a height at the campsite focus remain while no character-select `StandardMaterial` floor exists. Cross-map and rendered regression proof remains pending. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## Sources
 
