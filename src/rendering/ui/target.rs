@@ -23,6 +23,9 @@ type RemoteTargetQuery<'w, 's> = Query<
     (With<RemoteEntity>, With<Npc>, Without<Player>),
 >;
 
+#[cfg(test)]
+#[path = "target_nameplate_tests.rs"]
+mod nameplate_click_tests;
 #[path = "target_visuals.rs"]
 mod target_visuals;
 #[path = "target_zone_transition.rs"]
