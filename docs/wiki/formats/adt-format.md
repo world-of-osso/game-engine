@@ -19,7 +19,7 @@ Each MCNK is a 33×33 vertex heightmap (inner 9×9 grid + outer ring, interleave
 | Sub-chunk | Content |
 |-----------|---------|
 | `MCVT` | 145 height values (float), relative to chunk base Z |
-| `MCNR` | 145 compressed normals (3 bytes each, stored as `x/127, z/127, y/127`) |
+| `MCNR` | 145 compressed normals (3 signed bytes each) |
 | `MCLY` | Up to 4 texture layer definitions (FDID reference, flags, alpha map offset) |
 | `MCAL` | Alpha maps for layers 1–3 (layer 0 is fully opaque base) |
 
@@ -37,7 +37,7 @@ The 145-value grid is a diamond-tessellated 9×9 outer / 8×8 inner layout. Each
 
 ## Terrain Normals
 
-MCNR normals are precomputed by the WoW client/editor. In mountain areas they can be inconsistent with the geometric face normals of the reconstructed mesh, indicating either a decoding issue or a mismatch between the stored normals and the actual vertex layout.
+MCNR raw bytes `[b0, b1, b2]` map to Bevy `[b0, b2, -b1]`. The current production parser incorrectly emits `[b2, b1, -b0]`; do not treat it as format behavior. A height-derived permutation check over `2703_31_37.adt` aligns the supported mapping at mean dot `0.997198` versus `0.089730` for the current decode. Parser and rendered regressions must land with the correction. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## MDDF / MODF Placements
 

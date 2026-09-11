@@ -1,6 +1,6 @@
 # Character-Select Ground Patch and Dark Terrain
 
-The bright campsite island is an explicit 42×42 `StandardMaterial` grass plane over a much darker ADT `TerrainMaterial` scene. It reproduces with the same binary against both canonical and retained-worktree data, so it is neither a registry-UI regression nor explained solely by missing worktree assets. The exact terrain-shader cause of the darkness remains unproven.
+The bright campsite island is an explicit 42×42 `StandardMaterial` grass plane over a much darker ADT `TerrainMaterial` scene. It reproduces with the same binary against both canonical and retained-worktree data, so it is neither a registry-UI regression nor explained solely by missing worktree assets. The dark terrain is caused by incorrectly decoded MCNR normals; no production correction has shipped.
 
 ## Observed Runtime Boundary
 
@@ -35,24 +35,24 @@ Surrounding ADT chunks use the custom `TerrainMaterial` shader. They are not one
 
 `ee3742b6` introduced the patch as part of a character-select floor workaround. `bbaa3e51` removed it explicitly as a “StandardMaterial bright island on TerrainMaterial terrain.” `d335cd0c` re-added `spawn_focused_ground_patch` while addressing warnings. The current screenshot is that known bright-island symptom.
 
-The custom terrain path cannot be declared absent: it loaded chunks and textures in both captures. Static-shadow darkening alone is not enough to explain black-looking terrain because its shader floor is `0.55`; terrain-only spawning also lifts vertex RGB to at least `0.75`. The custom shader’s manually built PBR input differs from Bevy `StandardMaterial`, but this has not been isolated as the cause.
+## Root Cause: MCNR Axis Decode
 
-## Next Diagnostic
+`parse_mcnr` currently maps raw bytes `[b0, b1, b2]` to Bevy normal `[b2, b1, -b0]`. The dominant upward component is therefore placed on Bevy X, causing PBR direct and ambient lighting to shade the terrain as if its surface normals point sideways.
 
-Before changing rendering, reproduce the canonical capture and compare one variable at a time:
+A standalone verifier reconstructed all 16,384 center-vertex geometric normals from MCVT heights in `2703_31_37.adt` and ranked all 48 signed raw-byte permutations. Current decode mean alignment is `0.089730`; the supported mapping `[b0, b2, -b1]` is `0.997198` overall and `0.995139` across 9,409 sloped centers. The next-best mapping is `0.696836`.
 
-1. Hide only `CampsiteGroundPatch` to measure the real terrain baseline.
-2. Capture terrain with its normal custom material versus a controlled `StandardMaterial` diagnostic material on the same mesh.
-3. Inspect why the nearby WMO is not displayed and whether it is required for the campsite backdrop.
+Isolated shader captures corroborate the geometry result: terrain is bright before PBR lighting, dark after lighting, and brightens when the lighting normal is forced upward. The forced normal is diagnostic only; it discards slope information and is not a valid fix.
 
-Do not retain the patch as a terrain-lighting fix. It masks the dark-terrain issue locally and creates a visibly incompatible island.
+No parser or shader change has been made. Add parser regressions from the verified asset and a rendered terrain check before replacing the decode. Do not retain the grass patch as a terrain-lighting fix: it bypasses the broken terrain normal/material path and creates a visibly incompatible island.
 
 ## Sources
 
 - [background.rs](../../../src/scenes/char_select/scene/background.rs) — patch spawning and material path
 - [scene_tree.rs](../../../src/scenes/char_select/scene_tree.rs) — warband terrain spawn
 - [terrain.rs](../../../src/rendering/terrain/terrain.rs) — terrain-only vertex-color floor
+- [parsing.rs](../../../src/asset/adt_format/adt/parsing.rs) — current MCNR decode
 - [terrain.wgsl](../../../assets/shaders/terrain.wgsl) — custom terrain shading
+- `data/diagnostics/charselect-ground-20260911/verified-root-cause.md` — geometry and shader-probe evidence
 - [authored-skybox-black-output](authored-skybox-black-output.md) — separate authored-skybox limitations
 
 ## See Also

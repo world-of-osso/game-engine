@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-11] rendering | Confirm character-select grass patch is a regression workaround
+## [2026-09-11] rendering | Verify character-select terrain normal-axis root cause
 
-Same-binary 30-second character-select captures against canonical and retained-worktree data both show the bright `CampsiteGroundPatch` over dark but loaded ADT terrain. Both runs loaded 256 chunks, 13 ground textures, and the skybox, disproving a missing-worktree-assets-only explanation. `ee3742b6` added the 42×42 StandardMaterial grass plane; `bbaa3e51` removed it explicitly as a bright island; `d335cd0c` re-added it. The exact TerrainMaterial/environment cause remains unproven, so no rendering change was made. See [[charselect-ground-patch-dark-terrain]].
+Same-binary 30-second character-select captures against canonical and retained-worktree data both show the bright `CampsiteGroundPatch` over dark but loaded ADT terrain. Both runs loaded 256 chunks, 13 ground textures, and the skybox, disproving a missing-worktree-assets-only explanation. A standalone height-derived test of all 48 signed MCNR byte permutations on `2703_31_37.adt` identifies `[b0,b2,-b1]` as the supported Bevy mapping (mean geometric alignment `0.997198`), versus production `[b2,b1,-b0]` (`0.089730`). Shader probes show terrain bright before PBR lighting, dark after it, and brighter with an upward lighting normal. `CampsiteGroundPatch` remains a separate 42×42 StandardMaterial workaround: `bbaa3e51` removed it as a bright island and `d335cd0c` re-added it. No parser or shader fix has landed; add parser and rendered regressions before changing production decode. See [[charselect-ground-patch-dark-terrain]].
 
 
 ## [2026-09-11] ui/networking | Calibrate authored nameplates for reference pixel matching
