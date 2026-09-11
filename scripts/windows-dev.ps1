@@ -15,5 +15,8 @@ if (-not (Test-Path (Join-Path $prefix 'lib'))) {
 }
 $env:MINGW_PREFIX = $prefix
 $manifest = Join-Path (Split-Path $PSScriptRoot -Parent) 'Cargo.toml'
+# Windows PowerShell 5 treats redirected native stderr as errors, including Cargo progress.
+# Keep that output visible and use Cargo's exit code as the failure boundary.
+$ErrorActionPreference = 'Continue'
 & cargo $Action --manifest-path $manifest --target x86_64-pc-windows-gnu --bin game-engine --no-default-features --features casc,dev @Arguments
 exit $LASTEXITCODE
