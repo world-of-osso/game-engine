@@ -45,7 +45,7 @@ fn camera_params_use_tighter_single_character_framing() {
 }
 
 #[test]
-fn char_select_fog_uses_scene_relative_falloff_for_single_character_view() {
+fn char_select_fog_preserves_nearby_trees_and_fades_distant_terrain() {
     let warband = crate::scenes::char_select::warband::WarbandScenes::load();
     let scene = warband
         .scenes
@@ -62,13 +62,23 @@ fn char_select_fog_uses_scene_relative_falloff_for_single_character_view() {
         panic!("char-select should use linear fog falloff");
     };
 
-    assert!(
-        (start - camera_distance * 2.0).abs() < 0.01,
-        "fog start should scale from camera distance, got start={start:.2} camera_distance={camera_distance:.2}"
+    assert!(end > start, "fog must have a nonzero fade interval");
+    let visibility_at = |distance: f32| 1.0 - ((distance - start) / (end - start)).clamp(0.0, 1.0);
+
+    assert_eq!(
+        visibility_at(45.0),
+        1.0,
+        "nearby campsite trees must remain unobscured"
     );
+    let distant_visibility = visibility_at(150.0);
     assert!(
-        (end - camera_distance * 5.0).abs() < 0.01,
-        "fog end should scale from camera distance, got end={end:.2} camera_distance={camera_distance:.2}"
+        distant_visibility > 0.0 && distant_visibility < 1.0,
+        "distant terrain must fade gradually, got visibility={distant_visibility}"
+    );
+    assert_eq!(
+        visibility_at(400.0),
+        0.0,
+        "terrain beyond the fog range must be fully faded"
     );
 }
 
