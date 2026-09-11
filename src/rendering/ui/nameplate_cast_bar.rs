@@ -462,12 +462,10 @@ mod tests {
             .single(app.world())
             .unwrap();
         assert_eq!(font.font_size, FontSize::Px(20.0));
-        assert!(
-            app.world()
-                .resource::<Assets<Font>>()
-                .get(&font.font)
-                .is_some()
-        );
+        let bevy::text::FontSource::Handle(handle) = &font.font else {
+            panic!("cast label must use its loaded reference font");
+        };
+        assert!(app.world().resource::<Assets<Font>>().get(handle).is_some());
         assert_eq!(color.0, Color::WHITE);
         assert_eq!(shadow.offset, Vec2::new(1.0, -1.0));
         app.world_mut().entity_mut(owner).remove::<CastState>();
