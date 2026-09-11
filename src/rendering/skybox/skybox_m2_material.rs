@@ -289,3 +289,7 @@ fn update_skybox_uvs(
 #[cfg(test)]
 #[path = "skybox_m2_material_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "skybox_depth_gpu_tests.rs"]
+mod depth_gpu_tests;
