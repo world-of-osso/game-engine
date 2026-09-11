@@ -1,6 +1,6 @@
 # Bevy UI login
 
-`src/scenes/login/` now constructs its login view with Bevy UI entities rather than toolkit login frames; other screens remain on the toolkit backend. This migration still requires compile, behavioral, rendered, and runtime proof. See [UI system](../wiki/systems/ui-system.md).
+`src/scenes/login/` renders through Bevy UI entities while its layout hierarchy is authored with native `rsx!`; other screens remain on the toolkit backend. The native-RSX restoration at macro `35c1ddc` and engine `81f13187` is pending verification. See [UI system](../wiki/systems/ui-system.md).
 
 ## What it must do
 
@@ -34,12 +34,25 @@
 - `src/scenes/login/` — login lifecycle, form input, visuals and authentication dispatch.
 - `src/scenes/login/form.rs` — authoritative credential fields, UTF-8-safe edits, limits and masked presentation.
 - `src/scenes/login/native.rs` — native login lifecycle, input, automation actions and authentication dispatch.
-- `src/scenes/login/native_view.rs` — native entities, artwork, presentation synchronization and insertion-caret presentation.
+- `src/scenes/login/native_view.rs` — native entities, artwork, presentation synchronization, insertion-caret presentation, and the native `rsx!` login hierarchy.
 - `src/scenes/login/native_caret.rs` — shaped-text cursor geometry and blink visibility.
 - `src/scenes/login/native_caret_tests.rs` — cursor geometry, password masking, focus/modal hiding and blink tests.
 - `src/ui/native.rs` — semantic native-UI marker and diagnostic formatter.
 - `src/ui/automation.rs` — shared automation queue and legacy/native semantic waits.
 - `src/dump_systems.rs`, `src/dump.rs`, `src/ipc/plugin/scene.rs` — combined legacy/native diagnostic tree requests and formatting.
+
+## Native RSX authoring
+
+`rsx! { @native(commands, parent) { ... } => result }` emits Bevy entities directly. It does not construct toolkit `WidgetDef`s, use `Screen`, or update `FrameRegistry`.
+
+- `node` creates a `Node`; nested nodes receive `ChildOf` from their lexical parent.
+- `id:` binds the spawned entity for sibling Rust statements and the trailing result expression.
+- `name:` accepts an ordinary `String` expression. This differs from legacy RSX `name:`, which accepts `FrameName`.
+- `layout:` supplies a `Node` base; typed node fields override it.
+- `components:` inserts typed Bevy components alongside the node.
+- Rust statement blocks may call existing native helpers for fields, nine-slices, buttons, and carets without introducing a second UI tree.
+
+The initial native mode intentionally covers only the direct Bevy construction required by login. Its compile, behavioral, and rendered-equivalence tests remain pending verification.
 
 ## Tests asserting this spec
 
