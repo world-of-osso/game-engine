@@ -290,17 +290,12 @@ pub(super) fn run_login_visuals_cycle(app: &mut App, status_text: &str) {
 }
 
 pub(super) fn collect_main_text_entities(app: &mut App, status_text_id: u64) -> Vec<String> {
-    let mut q = app.world_mut().query::<(
-        &game_engine::ui::render::UiText,
-        &Text2d,
-        Option<&game_engine::ui::render_text_fx::UiTextShadow>,
-        Option<&game_engine::ui::render_text_fx::UiTextOutline>,
-    )>();
+    let mut q = app
+        .world_mut()
+        .query::<(&ui_toolkit::native_render::RegistryText, &Text)>();
     q.iter(app.world())
-        .filter(|(ui_text, _, shadow, outline)| {
-            ui_text.0 == status_text_id && shadow.is_none() && outline.is_none()
-        })
-        .map(|(_, text, _, _)| format!("{text:?}"))
+        .filter(|(ui_text, _)| ui_text.frame_id == status_text_id && ui_text.key == 0)
+        .map(|(_, text)| text.0.clone())
         .collect()
 }
 
