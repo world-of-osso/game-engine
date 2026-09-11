@@ -4,10 +4,10 @@ Authored M2 skyboxes are backgrounds, regardless of their mesh size or position 
 
 ## What it must do
 
-- [ ] Scene geometry must occlude the skybox even when the authored sky mesh is physically closer to the camera.
-- [ ] Unobstructed pixels and transparent foliage cutouts must retain the authored sky color.
-- [ ] Opaque and blended sky materials must preserve foreground color and coverage.
-- [ ] Depth correction must not change texture combining, opacity, or sky-layer ordering.
+- [x] Scene geometry must occlude the skybox even when the authored sky mesh is physically closer to the camera.
+- [x] Unobstructed pixels and transparent foliage cutouts must retain the authored sky color.
+- [x] Opaque and blended sky materials must preserve foreground color and coverage.
+- [x] Depth correction must not change texture combining, opacity, or sky-layer ordering.
 
 ## How it works
 
@@ -25,8 +25,7 @@ Authored M2 skyboxes are backgrounds, regardless of their mesh size or position 
 
 ## Known gaps (current cycle)
 
-- [ ] Run corrected GPU regression and native character-selection acceptance.
-- [ ] Explain the gray backdrop in the prior far-depth diagnostic without hiding missing sky output.
+- [ ] Complete final native acceptance audit. GPU regression is GREEN; gray terrain coverage is explained in the linked wiki.
 
 ## Out of scope
 
