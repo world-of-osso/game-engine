@@ -22,6 +22,8 @@ Replace the active toolkit Sprite/Text2d synchronization chain with native Node/
 
 Legacy standalone rendering helpers may remain as compatibility/test utilities and reusable geometry code, but are not an active fallback backend. Texture-load errors must remain explicit; do not substitute a white texture for a failed native asset load.
 
+Menu titles attached above panels must overlap the panel by two pixels; a gap is a visual regression. Loading zone, tip, status, and percentage labels must stay legible above the artwork, bar background, and progress fill at every progress value.
+
 ## Edit-box caret
 
 - Project raw `EditBoxData.text` and its byte cursor; passwords retain one displayed asterisk per raw byte.
@@ -39,6 +41,6 @@ Legacy standalone rendering helpers may remain as compatibility/test utilities a
 
 ## Current state
 
-Native login rendering is recorded at `data/diagnostics/native-layout-api/native-login-settled/`: a bounded nine-second registry-backed client run produced a screenshot and registry dump with populated login background, logo, edit boxes, and controls. `native-caret/` records a focused `UsernameInput` after UTF-8 input (`adminé`, byte cursor `7`) plus four timed screenshot samples. Those runtime captures were built from engine `5e576431` and toolkit `821c2a0`; later fixture/refactor commits still require acceptance proof.
+Native runtime evidence is recorded at `data/diagnostics/native-layout-api/final-*`: bounded nine-second registry-backed runs captured loading, menu opening, local login to character select, UTF-8 edit input (`adminé`, byte cursor `7`), and sampled caret blinking. `final-native/report.md` found a loading-label layering discrepancy and a menu title/panel gap; commits `25016091` and `4415f5fc` correct those visual contracts, but follow-up runtime verification is pending.
 
-Targeted toolkit evidence at `821c2a0` covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases. Engine addon and migrated-screen verification is still running; do not treat the bounded capture or targeted tests as final acceptance.
+Targeted evidence at toolkit `bc901a6` covers 42 native-render cases and 72 remaining registry/attrs/Screen/diff/parser cases; engine bounded integration covers 887 cases. Later toolkit extraction `791b282` has focused native tests only. Do not treat these bounded tests or runtime captures as final acceptance.
