@@ -1,24 +1,23 @@
-//! Authored nameplate artwork; all dimensions are reference screenshot pixels.
+//! Reference-derived nameplate skins; dimensions are unscaled screenshot pixels.
 use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::text::Font;
 
 pub(crate) const NAMEPLATE_SCALE: f32 = 0.5;
-pub(crate) const BAR_PIXEL_WIDTH: f32 = 384.0 * NAMEPLATE_SCALE;
+pub(crate) const BAR_PIXEL_WIDTH: f32 = 376.0 * NAMEPLATE_SCALE;
 pub(crate) const NAME_FONT_SIZE: f32 = 26.0 * NAMEPLATE_SCALE;
 pub(crate) const CAST_FONT_SIZE: f32 = 20.0 * NAMEPLATE_SCALE;
-pub(crate) const HEALTH_FILL_RECT: Rect = Rect::new(89.0, 22.0, 213.0, 32.0);
-pub(crate) const HEALTH_BACKGROUND_RECT: Rect = Rect::new(89.0, 1.0, 221.0, 20.0);
 pub(crate) const CAST_FILL_RECT: Rect = Rect::new(268.0, 124.0, 477.0, 135.0);
 pub(crate) const CAST_BACKGROUND_RECT: Rect = Rect::new(57.0, 85.0, 266.0, 96.0);
-pub(crate) const CAST_INDICATOR_RECT: Rect = Rect::new(1.0, 63.0, 265.0, 79.0);
-pub(crate) const CAST_PIP_RECT: Rect = Rect::new(1.0, 151.0, 7.0, 181.0);
 
 #[derive(Clone)]
 pub(crate) struct NameplateArt {
-    pub health: Handle<Image>,
+    pub health_fill: Handle<Image>,
+    pub health_thick: Handle<Image>,
+    pub health_thin: Handle<Image>,
     pub casting: Handle<Image>,
-    pub indicator: Handle<Image>,
+    pub cast_thick: Handle<Image>,
+    pub cast_thin: Handle<Image>,
     pub font: Handle<Font>,
 }
 
@@ -34,22 +33,34 @@ impl NameplateArtCache {
         if let Some(art) = &self.0 {
             return Ok(art.clone());
         }
-        let health = load_atlas(6704514, images)?;
+        let health_fill = load_skin(include_bytes!("nameplate_skins/health-fill.png"), images)?;
+        let health_thick = load_skin(include_bytes!("nameplate_skins/health-thick.png"), images)?;
+        let health_thin = load_skin(include_bytes!("nameplate_skins/health-thin.png"), images)?;
         let casting = load_atlas(4505182, images)?;
-        let indicator = load_atlas(7241122, images)?;
+        let cast_thick = load_skin(include_bytes!("nameplate_skins/cast-thick.png"), images)?;
+        let cast_thin = load_skin(include_bytes!("nameplate_skins/cast-thin.png"), images)?;
         let path = "data/fonts/FRIZQT__.TTF";
         let bytes =
             std::fs::read(path).map_err(|error| format!("Nameplate font {path}: {error}"))?;
         ab_glyph::FontRef::try_from_slice(&bytes)
             .map_err(|error| format!("Nameplate font {path}: {error}"))?;
         let art = NameplateArt {
-            health,
+            health_fill,
+            health_thick,
+            health_thin,
             casting,
-            indicator,
+            cast_thick,
+            cast_thin,
             font: fonts.add(Font::from_bytes(bytes)),
         };
         self.0 = Some(art.clone());
         Ok(art)
+    }
+
+    pub fn art(&self) -> &NameplateArt {
+        self.0
+            .as_ref()
+            .expect("art loaded before nameplate visuals spawn")
     }
 
     #[cfg(test)]
@@ -68,12 +79,36 @@ impl NameplateArtCache {
             RenderAssetUsages::default(),
         ));
         Self(Some(NameplateArt {
-            health: image.clone(),
+            health_fill: image.clone(),
+            health_thick: image.clone(),
+            health_thin: image.clone(),
             casting: image.clone(),
-            indicator: image,
+            cast_thick: image.clone(),
+            cast_thin: image,
             font: fonts.add(Font::from_bytes(bevy::text::DEFAULT_FONT_DATA.to_vec())),
         }))
     }
+}
+
+fn load_skin(bytes: &[u8], images: &mut Assets<Image>) -> Result<Handle<Image>, String> {
+    use bevy::asset::RenderAssetUsages;
+    use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
+    let rgba = image::load_from_memory(bytes)
+        .map_err(|error| format!("Nameplate skin: {error}"))?
+        .to_rgba8();
+    let mut image = Image::new(
+        Extent3d {
+            width: rgba.width(),
+            height: rgba.height(),
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        rgba.into_raw(),
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::default(),
+    );
+    image.sampler = ImageSampler::linear();
+    Ok(images.add(image))
 }
 
 fn load_atlas(fdid: u32, images: &mut Assets<Image>) -> Result<Handle<Image>, String> {

@@ -250,7 +250,7 @@ fn nameplate_gpu_zoom_preserves_bar_and_text_pixel_dimensions() {
             .expect("white name pixels");
         let bar_size = (bar.right - bar.left + 1, bar.bottom - bar.top + 1);
         assert!(
-            bar_size.0.abs_diff(191) <= 1 && bar_size.1.abs_diff(9) <= 1,
+            bar_size.0.abs_diff(187) <= 1 && bar_size.1.abs_diff(9) <= 1,
             "zoom distance {distance}: expected half-size red interior, got {bar_size:?}"
         );
         let current_name_size = (name.right - name.left + 1, name.bottom - name.top + 1);
@@ -316,7 +316,7 @@ fn nameplate_gpu_reference_thickness_combinations() {
             Transform::from_xyz(-9000.0, 0.0, 0.0),
             Visibility::Visible,
             shared::components::Health {
-                current: 75.0,
+                current: 76.3,
                 max: 100.0,
             },
             Npc {
@@ -333,25 +333,25 @@ fn nameplate_gpu_reference_thickness_combinations() {
             NameplateBarThickness::Thick,
             NameplateBarThickness::Thin,
             "thick-thin",
-            Vec2::new(250.0, 73.0),
+            Vec2::new(246.0, 73.0),
         ),
         (
             NameplateBarThickness::Thick,
             NameplateBarThickness::Thick,
             "thick-thick",
-            Vec2::new(252.0, 271.0),
+            Vec2::new(248.0, 271.0),
         ),
         (
             NameplateBarThickness::Thin,
             NameplateBarThickness::Thin,
             "thin-thin",
-            Vec2::new(721.0, 82.0),
+            Vec2::new(717.0, 82.0),
         ),
         (
             NameplateBarThickness::Thin,
             NameplateBarThickness::Thick,
             "thin-thick",
-            Vec2::new(723.0, 282.0),
+            Vec2::new(719.0, 282.0),
         ),
     ] {
         {

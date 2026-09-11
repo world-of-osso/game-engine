@@ -85,7 +85,7 @@ fn thick_health_embeds_name_and_thin_health_restores_above_bar() {
             .unwrap()
             .translation(),
     );
-    assert!((center - Vec2::X * 92.0).abs_diff_eq(name, 0.02));
+    assert!((center - Vec2::X * 90.0).abs_diff_eq(name, 0.02));
     app.world_mut()
         .resource_mut::<HudOptions>()
         .nameplate_health_thickness = NameplateBarThickness::Thin;
