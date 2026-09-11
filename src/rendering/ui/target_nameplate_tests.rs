@@ -315,7 +315,7 @@ fn nameplate_click_ignores_transparent_text_parts() {
 
 #[test]
 fn nameplate_click_preserves_registry_ui_precedence() {
-    use game_engine::ui::{frame::LayoutRect, registry::FrameRegistry};
+    use game_engine::ui::{layout::LayoutRect, registry::FrameRegistry};
     let mut fixture = fixture();
     let mut registry = FrameRegistry::new(640.0, 480.0);
     let blocker = registry.create_frame("blocking-ui", None);
