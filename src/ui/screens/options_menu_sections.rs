@@ -3,8 +3,6 @@ use std::fmt;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::anchor::AnchorPoint;
-
 const OPTIONS_CONTENT_W: f32 = 716.0;
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
@@ -75,7 +73,7 @@ pub fn social_addons_body() -> Element {
             info_row(
                 "social_api",
                 "Addon API",
-                "`addon.createFrame`, `createFontString`, `setPoint`, `setSize`, `setText`, `show`, `hide`, and color helpers are live",
+                "`addon.createFrame`, `createFontString`, `setPos`, `setPosType`, `setAnchor`, `setSize`, `setText`, `show`, `hide`, and color helpers are live",
             ),
             info_row(
                 "social_compat",
@@ -143,7 +141,7 @@ fn section_stack(rows: Element) -> Element {
     rsx! {
         r#frame {
             width: {OPTIONS_CONTENT_W - 30.0},
-            height: 0.0,
+            height: "auto",
             layout: "flex-column",
             gap: 12.0,
             {rows}
@@ -161,7 +159,10 @@ fn row_label(key: &str, text: &str) -> Element {
             font_size: 16.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "LEFT",
-            anchor { point: AnchorPoint::Left, relative_point: AnchorPoint::Left }
+            pos_type: "absolute",
+            left: "0%",
+            top: "50%",
+            translate_y: "-50%",
         }
     }
 }
@@ -176,18 +177,18 @@ fn info_detail(key: &str, detail: &str) -> Element {
             font_size: 13.0,
             color: "0.72,0.72,0.72,1.0",
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x: "-8",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-100%",
+            translate_y: "-50%",
+            margin_left: {-8},
         }
     }
 }
 
 fn ghost_detail(key: &str, detail: &str) -> Element {
     let name = DynName(format!("GhostDetail{key}"));
-    let button_name = DynName(format!("GhostButton{key}"));
 
     rsx! {
         fontstring {
@@ -198,12 +199,12 @@ fn ghost_detail(key: &str, detail: &str) -> Element {
             font_size: 13.0,
             color: "0.72,0.72,0.72,1.0",
             justify_h: "RIGHT",
-            anchor {
-                point: AnchorPoint::Right,
-                relative_to: {button_name},
-                relative_point: AnchorPoint::Left,
-                x: "-8",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-100%",
+            translate_y: "-50%",
+            margin_left: {-96.0},
         }
     }
 }
@@ -221,11 +222,12 @@ fn disabled_button(key: &str) -> Element {
             button_atlas_pressed: BUTTON_ATLAS_PRESSED,
             button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
             button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            anchor {
-                point: AnchorPoint::Right,
-                relative_point: AnchorPoint::Right,
-                x: "-4",
-            }
+            pos_type: "absolute",
+            left: "100%",
+            top: "50%",
+            translate_x: "-100%",
+            translate_y: "-50%",
+            margin_left: {-4},
         }
     }
 }
