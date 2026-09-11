@@ -55,19 +55,23 @@ fn cameras_and_wolf(app: &mut App) -> Handle<Image> {
 }
 
 fn render_cameras(app: &mut App) -> Handle<Image> {
+    render_cameras_sized(app, 512, 192)
+}
+
+fn render_cameras_sized(app: &mut App, width: u32, height: u32) -> Handle<Image> {
     let target = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
         .add(Image::new_target_texture(
-            256,
-            128,
+            width,
+            height,
             TextureFormat::Rgba8UnormSrgb,
             None,
         ));
     app.world_mut().spawn((
         Camera3d::default(),
         Camera {
-            clear_color: Color::BLACK.into(),
+            clear_color: Color::srgb(24.0 / 255.0, 21.0 / 255.0, 20.0 / 255.0).into(),
             ..default()
         },
         RenderTarget::Image(target.clone().into()),
@@ -130,7 +134,7 @@ fn colored_pixels(image: &Image, matches: impl Fn(&[u8]) -> bool) -> Option<Colo
 }
 
 fn compact_health_name_pixels(image: &Image) -> bool {
-    let name = colored_pixels(image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80);
+    let name = colored_pixels(image, |p| p[0] > 220 && p[1] > 220 && p[2] > 220);
     let bar = colored_pixels(image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60);
     match (name, bar) {
         (Some(name), Some(bar)) => {
@@ -191,7 +195,7 @@ fn nameplate_gpu_health_before_npc_renders_name_above_health_bar() {
         std::thread::sleep(Duration::from_millis(5));
     }
     let image = last_image.expect("GPU must return a frame within the fixture deadline");
-    let name = colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80);
+    let name = colored_pixels(&image, |p| p[0] > 220 && p[1] > 220 && p[2] > 220);
     let bar = colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60);
     let path = std::path::Path::new(HEALTH_NAME_FAILURE_IMAGE);
     std::fs::create_dir_all(path.parent().unwrap()).expect("create diagnostic directory");
@@ -201,7 +205,7 @@ fn nameplate_gpu_health_before_npc_renders_name_above_health_bar() {
         .save(path)
         .expect("save failure image");
     panic!(
-        "expected yellow name above red health bar with compact gap: name={name:?}, bar={bar:?}; image={HEALTH_NAME_FAILURE_IMAGE}"
+        "expected white name above red health bar with compact gap: name={name:?}, bar={bar:?}; image={HEALTH_NAME_FAILURE_IMAGE}"
     );
 }
 
@@ -242,12 +246,12 @@ fn nameplate_gpu_zoom_preserves_bar_and_text_pixel_dimensions() {
         let image = capture_zoom_frame(&mut app, &target);
         let bar = colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60)
             .expect("red health bar pixels");
-        let name = colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80)
-            .expect("yellow name pixels");
+        let name = colored_pixels(&image, |p| p[0] > 220 && p[1] > 220 && p[2] > 220)
+            .expect("white name pixels");
         let bar_size = (bar.right - bar.left + 1, bar.bottom - bar.top + 1);
         assert!(
-            bar_size.0.abs_diff(186) <= 1 && bar_size.1.abs_diff(7) <= 1,
-            "zoom distance {distance}: expected 186x7px red inset, got {bar_size:?}"
+            bar_size.0.abs_diff(382) <= 1 && bar_size.1.abs_diff(18) <= 1,
+            "zoom distance {distance}: expected 382x18px red interior, got {bar_size:?}"
         );
         let current_name_size = (name.right - name.left + 1, name.bottom - name.top + 1);
         if let Some(expected) = name_size {
@@ -283,7 +287,7 @@ fn capture_zoom_frame(app: &mut App, target: &Handle<Image>) -> Image {
             let has_bar =
                 colored_pixels(&image, |p| p[0] > 100 && p[1] < 60 && p[2] < 60).is_some();
             let has_name =
-                colored_pixels(&image, |p| p[0] > 100 && p[1] > 80 && p[2] < 80).is_some();
+                colored_pixels(&image, |p| p[0] > 220 && p[1] > 220 && p[2] > 220).is_some();
             if has_bar && has_name {
                 return image;
             }
@@ -301,45 +305,53 @@ fn nameplate_gpu_reference_thickness_combinations() {
     let mut app = configured_render_app(|app| {
         app.add_plugins((crate::health_bar::HealthBarPlugin, NameplateCastBarPlugin));
     });
-    let target = render_cameras(&mut app);
+    let target = render_cameras_sized(&mut app, 979, 364);
+    app.update();
     let mut cast = CastState::normal(133, 0, 4.0, true);
-    cast.spell_name = "Fireball".into();
-    cast.elapsed = 2.5;
-    app.world_mut().spawn((
-        Transform::from_xyz(-9000.0, 0.0, 0.0),
-        Visibility::Visible,
-        shared::components::Health {
-            current: 75.0,
-            max: 100.0,
-        },
-        Npc {
-            template_id: 299,
-            name: "Diseased Young Wolf".into(),
-        },
-        cast,
-    ));
-    let directory = std::path::Path::new("data/diagnostics/nameplate-style");
+    cast.spell_name = "Necrotic Bolt".into();
+    cast.elapsed = 1.6;
+    let owner = app
+        .world_mut()
+        .spawn((
+            Transform::from_xyz(-9000.0, 0.0, 0.0),
+            Visibility::Visible,
+            shared::components::Health {
+                current: 75.0,
+                max: 100.0,
+            },
+            Npc {
+                template_id: 299,
+                name: "Zolramus Sorcerer".into(),
+            },
+            cast,
+        ))
+        .id();
+    let directory = std::path::Path::new("data/diagnostics/nameplate-pixel-match/rendered");
     std::fs::create_dir_all(directory).unwrap();
-    for (health, spell, label) in [
+    for (health, spell, label, center) in [
         (
             NameplateBarThickness::Thick,
             NameplateBarThickness::Thin,
             "thick-thin",
+            Vec2::new(250.0, 73.0),
         ),
         (
             NameplateBarThickness::Thick,
             NameplateBarThickness::Thick,
             "thick-thick",
+            Vec2::new(252.0, 271.0),
         ),
         (
             NameplateBarThickness::Thin,
             NameplateBarThickness::Thin,
             "thin-thin",
+            Vec2::new(721.0, 82.0),
         ),
         (
             NameplateBarThickness::Thin,
             NameplateBarThickness::Thick,
             "thin-thick",
+            Vec2::new(723.0, 282.0),
         ),
     ] {
         {
@@ -347,6 +359,17 @@ fn nameplate_gpu_reference_thickness_combinations() {
             hud.nameplate_health_thickness = health;
             hud.nameplate_spellbar_thickness = spell;
         }
+        let camera = app
+            .world_mut()
+            .query_filtered::<(&Camera, &GlobalTransform), With<Camera3d>>()
+            .single(app.world())
+            .unwrap();
+        let ray = camera.0.viewport_to_world(camera.1, center).unwrap();
+        let anchor = ray.origin + ray.direction * (-ray.origin.z / ray.direction.z);
+        app.world_mut()
+            .get_mut::<Transform>(owner)
+            .unwrap()
+            .translation = anchor - Vec3::Y * NPC_NAMEPLATE_Y;
         for _ in 0..8 {
             app.update();
         }
@@ -374,7 +397,7 @@ fn nameplate_gpu_reference_thickness_combinations() {
     }
 }
 
-fn yellow_glyph_pixels(image: &Image) -> usize {
+fn white_glyph_pixels(image: &Image) -> usize {
     let pixels = image.data.as_ref().expect("captured pixels");
     let width = image.width() as usize;
     pixels
@@ -383,11 +406,11 @@ fn yellow_glyph_pixels(image: &Image) -> usize {
         .filter(|(index, rgba)| {
             let x = index % width;
             let y = index / width;
-            (12..244).contains(&x)
-                && (44..84).contains(&y)
-                && rgba[0] > 100
-                && rgba[1] > 80
-                && rgba[2] < 80
+            (12..width - 12).contains(&x)
+                && (56..136).contains(&y)
+                && rgba[0] > 220
+                && rgba[1] > 220
+                && rgba[2] > 220
         })
         .count()
 }
@@ -414,7 +437,7 @@ fn nameplate_gpu_world_observer_renders_glyphs_at_projected_anchor() {
         }
         if let Ok(image) = receiver.try_recv() {
             pending = false;
-            maximum_glyph_pixels = maximum_glyph_pixels.max(yellow_glyph_pixels(&image));
+            maximum_glyph_pixels = maximum_glyph_pixels.max(white_glyph_pixels(&image));
             if maximum_glyph_pixels > 100 {
                 return;
             }
@@ -422,6 +445,6 @@ fn nameplate_gpu_world_observer_renders_glyphs_at_projected_anchor() {
         std::thread::sleep(Duration::from_millis(5));
     }
     panic!(
-        "world NPC nameplate produced only {maximum_glyph_pixels} yellow glyph pixels at its projected anchor"
+        "world NPC nameplate produced only {maximum_glyph_pixels} white glyph pixels at its projected anchor"
     );
 }
