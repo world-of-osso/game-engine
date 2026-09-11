@@ -10,6 +10,8 @@ use crate::networking::{CurrentZone, LocalPlayer};
 use crate::terrain::AdtManager;
 use crate::zone_names::zone_id_to_name;
 
+#[cfg(test)]
+mod native_integration_tests;
 mod native_view;
 use native_view::{LoadingView, LoadingViewAssets, spawn_loading_view, sync_loading_view};
 
