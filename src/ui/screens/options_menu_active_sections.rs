@@ -212,7 +212,7 @@ fn content_stack(children: Element) -> Element {
     rsx! {
         r#frame {
             width: {OPTIONS_CONTENT_W - 30.0},
-            height: 0.0,
+            height: "auto",
             layout: "flex-column",
             gap: 14.0,
             {children}
