@@ -31,9 +31,9 @@ fn unit_frames_match_wow_screen_rects() {
         rect_by_name(&reg, "PlayerFrame"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x,
-            y: 843.5,
+            y: 844.0,
             width: 297.0,
-            height: 106.5,
+            height: 106.0,
         }
     );
     assert_eq!(
@@ -54,36 +54,36 @@ fn player_frame_key_geometry_matches_artwork_apertures() {
     assert_eq!(
         rect_by_name(&reg, "PlayerPortrait"),
         LayoutRect {
-            x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.portrait.x,
-            y: 853.25,
-            width: PLAYER_FRAME_CONFIG.portrait.width,
-            height: PLAYER_FRAME_CONFIG.portrait.height,
+            x: 282.0,
+            y: 854.0,
+            width: 83.0,
+            height: 85.0,
         }
     );
     assert_eq!(
         rect_by_name(&reg, "PlayerName"),
         LayoutRect {
-            x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.name.x,
-            y: 866.75,
-            width: PLAYER_FRAME_CONFIG.name.width,
+            x: 369.0,
+            y: 867.0,
+            width: 142.0,
             height: 12.0,
         }
     );
     assert_eq!(
         rect_by_name(&reg, "PlayerHealthBar"),
         LayoutRect {
-            x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.health_bar.x,
-            y: 882.5,
-            width: 186.75,
+            x: 369.0,
+            y: 883.0,
+            width: 187.0,
             height: 30.0,
         }
     );
     assert_eq!(
         rect_by_name(&reg, "PlayerManaBar"),
         LayoutRect {
-            x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_FRAME_CONFIG.mana_bar.x,
-            y: 914.0,
-            width: 186.75,
+            x: 369.0,
+            y: 915.0,
+            width: 187.0,
             height: 15.0,
         }
     );
@@ -93,37 +93,49 @@ fn player_frame_key_geometry_matches_artwork_apertures() {
 fn player_contents_fit_the_scaled_artwork_openings() {
     let reg = unit_frames_registry();
     let shell = rect_by_name(&reg, "PlayerFrameTexture");
-    assert_eq!(shell, rect_by_name(&reg, "PlayerFrame"));
-    assert_eq!((shell.width, shell.height), (297.0, 106.5));
+    let frame = rect_by_name(&reg, "PlayerFrame");
+    // Centering an odd-width texture applies a half-pixel UiTransform after layout
+    // rounding. Child aperture layout remains relative to the frame, not that transform.
+    assert_eq!(
+        shell,
+        LayoutRect {
+            x: frame.x + 0.5,
+            ..frame
+        }
+    );
+    assert_eq!((shell.width, shell.height), (297.0, 106.0));
+    // At 1x, native layout rounds local positions and differences of absolute
+    // edges separately: portrait width = round(364.75) - round(281.5) = 83.
+    // The parent starts at y=844, so its rounded local y=10 places it at 854.
     for (name, (x, y, width, height)) in [
-        ("PlayerPortrait", (18.0, 13.0, 111.0, 113.0)),
-        ("PlayerHealthBar", (135.0, 52.0, 249.0, 40.0)),
-        ("PlayerManaBar", (135.0, 94.0, 249.0, 20.0)),
+        ("PlayerPortrait", (282.0, 854.0, 83.0, 85.0)),
+        ("PlayerHealthBar", (369.0, 883.0, 187.0, 30.0)),
+        ("PlayerManaBar", (369.0, 915.0, 187.0, 15.0)),
     ] {
         assert_eq!(
             rect_by_name(&reg, name),
             LayoutRect {
-                x: shell.x + x * 0.75,
-                y: shell.y + y * 0.75,
-                width: width * 0.75,
-                height: height * 0.75,
+                x,
+                y,
+                width,
+                height,
             },
-            "{name} must reach every edge of the connected artwork aperture"
+            "{name} must reach every edge of the pixel-snapped artwork aperture"
         );
     }
     for (name, opening) in [
-        ("PlayerName", (134.0, 28.0, 190.0, 24.0)),
-        ("PlayerLevelText", (348.0, 28.0, 36.0, 24.0)),
+        ("PlayerName", (369.0, 865.0, 142.0, 18.0)),
+        ("PlayerLevelText", (529.0, 865.0, 27.0, 18.0)),
     ] {
         let rect = rect_by_name(&reg, name);
         let (x, y, width, height) = opening;
-        let left = shell.x + x * 0.75;
-        let top = shell.y + y * 0.75;
+        let left = x;
+        let top = y;
         assert!(
             rect.x >= left
                 && rect.y >= top
-                && rect.x + rect.width <= left + width * 0.75
-                && rect.y + rect.height <= top + height * 0.75,
+                && rect.x + rect.width <= left + width
+                && rect.y + rect.height <= top + height,
             "{name} {rect:?} must fit artwork opening {opening:?} at 75% scale"
         );
     }
@@ -134,7 +146,8 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = sample_unit_frames_context();
     let mut screen = Screen::new(inworld_unit_frames_screen);
-    for percent in [100.0, 50.0, 0.0, 100.0] {
+    // Fill edges round independently: half fill is round(462.625) - round(369.25).
+    for (percent, snapped_width) in [(100.0, 187.0), (50.0, 94.0), (0.0, 0.0), (100.0, 187.0)] {
         let mut state = shared.get::<InWorldUnitFramesState>().unwrap().clone();
         state.player.health_fill_width =
             fill_width(PLAYER_HEALTH_BAR_W, Some(percent), Some(100.0));
@@ -156,7 +169,7 @@ fn player_health_and_mana_updates_stay_inside_resized_bars() {
             }
             let fill = rect_by_name(&reg, &fill_name);
             assert_eq!((fill.x, fill.y), (bar.x, bar.y));
-            assert_eq!(fill.width, 186.75 * percent / 100.0);
+            assert_eq!(fill.width, snapped_width);
             assert_eq!(fill.height, bar.height);
             assert!(fill.x + fill.width <= bar.x + bar.width);
         }
@@ -293,7 +306,7 @@ fn explicit_size_icon_placeholders_match_wow_spec_when_shown() {
         rect_by_name(&reg, "PlayerRoleIcon"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_ROLE.x,
-            y: 870.5,
+            y: 871.0,
             width: PLAYER_ROLE.width,
             height: PLAYER_ROLE.height,
         }
@@ -302,7 +315,7 @@ fn explicit_size_icon_placeholders_match_wow_spec_when_shown() {
         rect_by_name(&reg, "PlayerPrestigePortrait"),
         LayoutRect {
             x: PLAYER_FRAME_CONFIG.frame_x + PLAYER_PRESTIGE.x,
-            y: 881.5,
+            y: 882.0,
             width: PLAYER_PRESTIGE.width,
             height: PLAYER_PRESTIGE.height,
         }
