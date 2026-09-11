@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod native_layout_support;
+
 use super::*;
 use std::path::Path;
 
@@ -234,7 +238,7 @@ fn clicking_race_button_changes_selected_race() {
         .run_system_once(
             |windows: Query<&Window, With<PrimaryWindow>>, mut ui: ResMut<UiState>| {
                 ui_toolkit::plugin::sync_registry_to_primary_window(&mut ui.registry, &windows);
-                ui_toolkit::layout::recompute_layouts(&mut ui.registry);
+                native_layout_support::compute_layout(&mut ui.registry);
             },
         )
         .expect("layout recompute should run");
