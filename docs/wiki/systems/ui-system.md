@@ -20,7 +20,9 @@ Most UI screens use Dioxus `rsx!` with a custom Bevy renderer: `SharedContext` d
 
 ## Native loading screen
 
-At engine `7a4b8eb3`, `5f978988`, and `a5f17dfa`, loading also uses the native RSX path. Its `LoadingView` owns native entities and a camera; the existing loading lifecycle still owns readiness, preview progress, zone/status text, and transition boundaries. The old `Screen`/`SharedContext`/`FrameRegistry` loading renderer is removed. Fixed artwork, semantic names, debug layout overrides, three-piece bar shell, and six-percent-per-second displayed progress are retained. Verification remains pending; the baseline is local under `data/diagnostics/loading-bevy-ui/baseline/`.
+At engine `7a4b8eb3`, `5f978988`, `a5f17dfa`, and `4875c9d9`, loading uses the native RSX path. Its `LoadingView` owns native entities and a camera; the existing loading lifecycle still owns readiness, preview progress, zone/status text, and transition boundaries. The old `Screen`/`SharedContext`/`FrameRegistry` loading renderer is removed. Fixed artwork, semantic names, debug layout overrides, three-piece bar shell, and six-percent-per-second displayed progress are retained.
+
+Verification passes 21 focused cases: readiness and transition boundaries, native computed layout at two viewports, progress fill/text updates without replacement, startup camera correction, teardown, and debug override parsing. Scoped formatting, readability, dev check, and build pass. Native and legacy captures match art/layout/status occlusion; sampled progress differs by one point due to capture timing, so this is not pixel-equivalence or performance evidence. Renderer SHA-256 `770b91d51fecfa8a0d1915af46477e916f6cd1c35598f84724856f2dac559e8f`; the client stopped after 5.319847 seconds. Evidence: `data/diagnostics/loading-bevy-ui/verification/attempt2/` and `native/`.
 
 ## Frame Hierarchy and Layout
 

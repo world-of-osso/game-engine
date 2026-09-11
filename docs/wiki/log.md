@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-11] ui | Verify native RSX loading migration
+
+At engine `4875c9d9`, 21 focused loading cases pass for readiness, layout, presentation mutation, startup camera correction, teardown, and debug-layout parsing. Scoped formatting, readability, dev check, and renderer build pass. Native and baseline captures retain the cathedral artwork, bar layout, and legacy status-behind-shell occlusion; sampled progress differs by one point because capture timings differ. Renderer SHA-256: `770b91d51fecfa8a0d1915af46477e916f6cd1c35598f84724856f2dac559e8f`. See [[ui-system]] and [loading contract](../specs/loading-bevy-ui.md).
+
 ## [2026-09-11] ui | Replace loading renderer with native RSX
 
 At `7a4b8eb3`, `5f978988`, and `a5f17dfa`, the loading lifecycle now creates a native Bevy view authored through `rsx! { @native(...) }`. It retains existing readiness/progress authority, fixed artwork, names, debug layout overrides, and camera ordering while removing the loading `Screen`/`SharedContext`/`FrameRegistry` renderer. Baseline CPU and rendered artifacts are retained; native verification remains pending. See [[ui-system]] and [loading contract](../specs/loading-bevy-ui.md).
