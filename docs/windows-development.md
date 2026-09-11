@@ -24,4 +24,6 @@ Native desktop investigation, 2026-09-11:
 
 The dependency's [Windows support documentation](https://github.com/theduke/quickjs-rs#windows-support) specifies the GNU target. Changing JavaScript runtimes is outside this build-configuration change.
 
+`GAME_ENGINE_MAX_MEM_GB` uses Unix RLIMIT_AS and is unsupported on Windows; setting it there fails explicitly rather than silently dropping a requested limit.
+
 Linux linker flags remain under the Linux target table. Dependency optimization levels are unchanged. Runtime game assets are separate from source compilation; a build alone does not prove game-world loading.
