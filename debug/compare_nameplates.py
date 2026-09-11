@@ -60,10 +60,16 @@ def compare(reference, actual, region, text_regions):
 
 
 def main():
-    reference = Image.open(REFERENCE).convert("RGB")
+    source = Image.open(REFERENCE).convert("RGB")
+    # Drop the final background-only column for an exact 2:1 reduction.
+    reference = source.crop((0, 0, 978, 364)).resize((489, 182), Image.Resampling.BOX)
     composed = Image.new("RGB", reference.size, (24, 21, 20))
     report = {}
     for name, (region, text_regions) in CASES.items():
+        region = tuple(value // 2 for value in region)
+        text_regions = tuple(
+            tuple(value // 2 for value in text) for text in text_regions
+        )
         actual = Image.open(ARTIFACTS / "rendered" / f"{name}.png").convert("RGB")
         if actual.size != reference.size:
             raise ValueError(
