@@ -137,6 +137,7 @@ pub(super) fn build_test_app() -> App {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.add_plugins(UiAutomationPlugin);
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins(CharSelectPlugin);
     app.add_message::<KeyboardInput>();
     app.insert_resource(UiState {
