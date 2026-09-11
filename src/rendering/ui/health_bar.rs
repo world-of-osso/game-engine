@@ -4,7 +4,6 @@ use bevy::camera::{
 };
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use bevy::sprite::{BorderRect, SliceScaleMode, SpriteImageMode, TextureSlicer};
 use bevy::transform::{TransformSystems, helper::TransformHelper};
 use shared::components::Health;
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
@@ -14,7 +13,7 @@ use crate::client_options::{HudOptions, HudVisibilityToggles};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
 use crate::rendering::nameplate_art::{
-    BAR_PIXEL_WIDTH, HEALTH_BACKGROUND_RECT, HEALTH_FILL_RECT, NAMEPLATE_SCALE, NameplateArtCache,
+    BAR_PIXEL_WIDTH, NAMEPLATE_SCALE, NameplateArt, NameplateArtCache,
 };
 
 pub struct HealthBarPlugin;
@@ -65,8 +64,6 @@ enum HealthBarPart {
 pub(crate) const BAR_WIDTH: f32 = 1.0;
 pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
-const BACKGROUND_EXTRA_SIZE: Vec2 = Vec2::new(8.0 * NAMEPLATE_SCALE, 9.0 * NAMEPLATE_SCALE);
-const BACKGROUND_OFFSET: Vec2 = Vec2::new(2.0 * NAMEPLATE_SCALE, 1.5 * NAMEPLATE_SCALE);
 
 pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
     Vec2::new(
@@ -76,10 +73,6 @@ pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
             NameplateBarThickness::Thick => 40.0 * NAMEPLATE_SCALE,
         },
     )
-}
-
-pub fn health_bar_color(_current: f32, _max: f32) -> Color {
-    Color::srgb(1.0, 0.2, 0.2)
 }
 
 #[derive(SystemParam)]
@@ -118,7 +111,7 @@ fn spawn_health_bars(
         commands.spawn((
             HealthBarVisualOwner(root),
             part,
-            health_sprite(part, art.health.clone()),
+            Sprite::from_image(health_part_image(part, NameplateBarThickness::Thick, &art).clone()),
             RenderLayers::layer(UI_RENDER_LAYER),
             Transform::default(),
             Visibility::Hidden,
@@ -126,41 +119,30 @@ fn spawn_health_bars(
     }
 }
 
-fn health_sprite(part: HealthBarPart, image: Handle<Image>) -> Sprite {
-    let (rect, color, border, mode) = match part {
-        HealthBarPart::Background => (
-            HEALTH_BACKGROUND_RECT,
-            Color::WHITE,
-            BorderRect {
-                min_inset: Vec2::new(121.0, 7.0),
-                max_inset: Vec2::new(10.0, 11.0),
-            },
-            // The center is one texel and each side repeats a one-texel strip.
-            // Stretching those constant axes preserves the art without thousands of tiles.
-            SliceScaleMode::Stretch,
-        ),
-        HealthBarPart::Fill => (
-            HEALTH_FILL_RECT,
-            health_bar_color(1.0, 1.0),
-            BorderRect {
-                min_inset: Vec2::new(4.0, 5.0),
-                max_inset: Vec2::new(4.0, 4.0),
-            },
-            SliceScaleMode::Stretch,
-        ),
-    };
-    Sprite {
-        image,
-        rect: Some(rect),
-        color,
-        image_mode: SpriteImageMode::Sliced(TextureSlicer {
-            border,
-            center_scale_mode: mode,
-            sides_scale_mode: mode,
-            max_corner_scale: NAMEPLATE_SCALE,
-        }),
-        ..default()
+fn health_part_image(
+    part: HealthBarPart,
+    thickness: NameplateBarThickness,
+    art: &NameplateArt,
+) -> &Handle<Image> {
+    match (part, thickness) {
+        (HealthBarPart::Fill, _) => &art.health_fill,
+        (HealthBarPart::Background, NameplateBarThickness::Thick) => &art.health_thick,
+        (HealthBarPart::Background, NameplateBarThickness::Thin) => &art.health_thin,
     }
+}
+
+fn health_thickness(hud: Option<&HudOptions>) -> NameplateBarThickness {
+    hud.map_or(NameplateBarThickness::Thick, |hud| {
+        hud.nameplate_health_thickness
+    })
+}
+
+fn health_frame_layout(thickness: NameplateBarThickness) -> (Vec2, Vec2) {
+    let (offset, size) = match thickness {
+        NameplateBarThickness::Thick => (Vec2::new(2.0, -1.0), Vec2::new(396.0, 48.0)),
+        NameplateBarThickness::Thin => (Vec2::new(2.0, 0.0), Vec2::new(396.0, 30.0)),
+    };
+    (offset * NAMEPLATE_SCALE, size * NAMEPLATE_SCALE)
 }
 
 fn health_pct(health: &Health) -> f32 {
@@ -200,6 +182,7 @@ struct HealthScene<'w, 's> {
         (With<HealthBar>, Without<HealthBarVisualOwner>),
     >,
     health: Query<'w, 's, &'static Health>,
+    art: Res<'w, NameplateArtCache>,
     hud: Option<Res<'w, HudOptions>>,
     disabled: Option<Res<'w, crate::client_options::UiDisabled>>,
     stage: Option<Res<'w, InWorldSceneStage>>,
@@ -236,6 +219,11 @@ fn project_health_bars(scene: HealthScene, mut visuals: HealthVisualQuery) {
         let Some((pose, size)) = projected else {
             continue;
         };
+        let thickness = health_thickness(scene.hud.as_deref());
+        let image = health_part_image(*part, thickness, scene.art.art());
+        if sprite.image != *image {
+            sprite.image = image.clone();
+        }
         if sprite.custom_size != Some(size) {
             sprite.custom_size = Some(size);
         }
@@ -262,15 +250,13 @@ fn project_health_part(
     let center = camera
         .world_to_viewport(camera_pose, global.translation())
         .ok()?;
-    let thickness = scene
-        .hud
-        .as_ref()
-        .map_or(NameplateBarThickness::Thick, |hud| {
-            hud.nameplate_health_thickness
-        });
+    let thickness = health_thickness(scene.hud.as_deref());
     let size = health_bar_pixel_size(thickness);
     let (offset, draw_size, z) = match part {
-        HealthBarPart::Background => (BACKGROUND_OFFSET, size + BACKGROUND_EXTRA_SIZE, 0.1),
+        HealthBarPart::Background => {
+            let (offset, frame_size) = health_frame_layout(thickness);
+            (offset, frame_size, 0.3)
+        }
         HealthBarPart::Fill => {
             let fraction = health_pct(health);
             if fraction <= 0.0 {
@@ -430,7 +416,36 @@ mod tests {
         );
     }
     #[test]
-    fn health_fraction_and_authored_tint_are_independent() {
+    fn frame_selection_uses_distinct_thickness_skins() {
+        let mut images = Assets::<Image>::default();
+        let mut fonts = Assets::<Font>::default();
+        let cache = NameplateArtCache::fixture(&mut images, &mut fonts);
+        let mut art = cache.art().clone();
+        art.health_thick = images.add(Image::default());
+        art.health_thin = images.add(Image::default());
+        assert_ne!(art.health_thick, art.health_thin);
+        assert_eq!(
+            health_part_image(
+                HealthBarPart::Background,
+                NameplateBarThickness::Thick,
+                &art
+            ),
+            &art.health_thick
+        );
+        assert_eq!(
+            health_part_image(HealthBarPart::Background, NameplateBarThickness::Thin, &art),
+            &art.health_thin
+        );
+        for thickness in [NameplateBarThickness::Thick, NameplateBarThickness::Thin] {
+            assert_eq!(
+                health_part_image(HealthBarPart::Fill, thickness, &art),
+                &art.health_fill
+            );
+        }
+    }
+
+    #[test]
+    fn health_fraction_tracks_current_value() {
         for value in [0.0, 25.0, 75.0, 100.0] {
             assert_eq!(
                 health_pct(&Health {
@@ -439,7 +454,6 @@ mod tests {
                 }),
                 value / 100.0
             );
-            assert_eq!(health_bar_color(value, 100.0), Color::srgb(1.0, 0.2, 0.2));
         }
     }
 }
