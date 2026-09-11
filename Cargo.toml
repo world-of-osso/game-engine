@@ -50,7 +50,7 @@ path = "src/bin/game-engine-cli/main.rs"
 required-features = ["ipc"]
 
 [features]
-default = ["ipc", "casc"]
+default = ["ipc", "casc", "dev"]
 dev = ["bevy/dynamic_linking"]
 # Diagnostic-only per-span CPU clocks; normal builds retain no profiling layer.
 cpu-system-profile = ["bevy/trace", "dep:bevy_transform", "libc"]
