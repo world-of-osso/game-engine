@@ -110,8 +110,13 @@ fn sample_optional_stage(
     return fallback;
 }
 
+struct SkyboxFragmentOutput {
+    @location(0) color: vec4<f32>,
+    @builtin(frag_depth) depth: f32,
+};
+
 @fragment
-fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+fn fragment(in: VertexOutput) -> SkyboxFragmentOutput {
     let uv1 = selected_uv(in, material.uv_mode_1, material.uv_offset_1);
     let uv2 = selected_uv(in, material.uv_mode_2, material.uv_offset_2);
     let uv3 = selected_uv(in, material.uv_mode_3, vec2<f32>(0.0));
@@ -149,5 +154,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     if color.a < material.alpha_test {
         discard;
     }
-    return color;
+    // Authored geometry defines the sky image, not its distance from scene objects.
+    // Bevy uses reverse-Z: zero places every sky fragment behind scene geometry.
+    return SkyboxFragmentOutput(color, 0.0);
 }
