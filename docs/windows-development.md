@@ -22,6 +22,8 @@ Native desktop investigation, 2026-09-11:
 - The isolated QuickJS dependency compiled successfully with the GNU target in 36.08 seconds on the desktop's existing GNU toolchain.
 - Full native GNU engine build and launch remain unverified until the current build completes.
 
+`build.rs` supplies QuickJS's omitted GNU `winpthread` link dependency after native archives. Remove this directive when the QuickJS dependency itself declares and correctly orders that runtime link.
+
 The dependency's [Windows support documentation](https://github.com/theduke/quickjs-rs#windows-support) specifies the GNU target. Changing JavaScript runtimes is outside this build-configuration change.
 
 `GAME_ENGINE_MAX_MEM_GB` uses Unix RLIMIT_AS and is unsupported on Windows; setting it there fails explicitly rather than silently dropping a requested limit.
