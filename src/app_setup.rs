@@ -616,6 +616,9 @@ fn add_debug_scene_plugin(app: &mut App, initial_state: Option<game_state::GameS
         Some(game_state::GameState::ParticleDebug) => {
             app.add_plugins(scenes::particle_debug::ParticleDebugScenePlugin);
         }
+        Some(game_state::GameState::NameplateDebug) => {
+            app.add_plugins(scenes::nameplate_debug::NameplateDebugPlugin);
+        }
         _ => {}
     }
 }

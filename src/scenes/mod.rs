@@ -21,6 +21,7 @@ pub mod loot_rules_frame;
 pub mod m2_debug;
 pub mod mail_frame;
 pub mod merchant_frame;
+pub mod nameplate_debug;
 pub mod particle_debug;
 pub mod professions_frame;
 pub mod scene_tree;

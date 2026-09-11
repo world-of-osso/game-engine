@@ -22,10 +22,11 @@ pub enum GameState {
     TrashButton,
     Reconnecting,
     ParticleDebug,
+    NameplateDebug,
 }
 
 impl GameState {
-    pub const CLI_VALUES: [&str; 17] = [
+    pub const CLI_VALUES: [&str; 18] = [
         "login",
         "eula",
         "connecting",
@@ -43,6 +44,7 @@ impl GameState {
         "trashbutton",
         "reconnecting",
         "particledebug",
+        "nameplatedebug",
     ];
 
     pub fn is_logged_in(self) -> bool {
@@ -53,6 +55,7 @@ impl GameState {
                 | Self::Connecting
                 | Self::SelectionDebug
                 | Self::InWorldSelectionDebug
+                | Self::NameplateDebug
         )
     }
 
@@ -75,6 +78,7 @@ impl GameState {
             Self::TrashButton => "trashbutton",
             Self::Reconnecting => "reconnecting",
             Self::ParticleDebug => "particledebug",
+            Self::NameplateDebug => "nameplatedebug",
         }
     }
 }
@@ -112,10 +116,11 @@ pub enum ScreenArg {
     OptionsMenu,
     TrashButton,
     ParticleDebug,
+    NameplateDebug,
 }
 
 impl ScreenArg {
-    pub const CLI_VALUES: [&str; 17] = [
+    pub const CLI_VALUES: [&str; 18] = [
         "login",
         "eula",
         "charselect",
@@ -133,6 +138,7 @@ impl ScreenArg {
         "optionsmenu",
         "trashbutton",
         "particledebug",
+        "nameplatedebug",
     ];
 }
 
@@ -154,6 +160,7 @@ impl From<ScreenArg> for GameState {
             ScreenArg::GameMenu | ScreenArg::OptionsMenu => Self::GameMenu,
             ScreenArg::TrashButton => Self::TrashButton,
             ScreenArg::ParticleDebug => Self::ParticleDebug,
+            ScreenArg::NameplateDebug => Self::NameplateDebug,
         }
     }
 }
@@ -180,6 +187,7 @@ impl FromStr for ScreenArg {
             "optionsmenu" | "options" => Ok(Self::OptionsMenu),
             "trashbutton" => Ok(Self::TrashButton),
             "particledebug" => Ok(Self::ParticleDebug),
+            "nameplatedebug" | "nameplate-debug" => Ok(Self::NameplateDebug),
             _ => Err(format!("expected one of: {}", Self::CLI_VALUES.join(", "))),
         }
     }
