@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
-use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screen::Screen;
 use game_engine::ui::screens::loading_component::{
     LOADING_ROOT, LoadingScreenLayout, LoadingScreenState, debug_loading_layout_from_source,
@@ -13,6 +12,10 @@ use crate::game_state::{GameState, InitialGameState, evaluate_world_loading};
 use crate::networking::{CurrentZone, LocalPlayer};
 use crate::terrain::AdtManager;
 use crate::zone_names::zone_id_to_name;
+
+#[cfg(test)]
+#[path = "../../ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
 
 const DEFAULT_ZONE_TEXT: &str = "Entering Elwynn Forest";
 const DEFAULT_TIP_TEXT: &str =
@@ -225,8 +228,9 @@ fn advance_displayed_progress(current: f32, target: f32, delta_secs: f32) -> f32
 
 #[cfg(test)]
 mod tests {
+    use super::layout_support::compute_layout as recompute_layouts;
     use super::*;
-    use game_engine::ui::layout::recompute_layouts;
+    use game_engine::ui::registry::FrameRegistry;
 
     fn sample_loading_state(progress_percent: u8) -> LoadingScreenState {
         LoadingScreenState {
