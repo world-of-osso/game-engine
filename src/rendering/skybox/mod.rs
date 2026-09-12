@@ -298,7 +298,9 @@ fn update_sky_colors(
         .iter()
         .any(|material| material.is_added());
     let has_new_sun = !visuals.new_suns.is_empty();
-    if (game_time.minutes - *last_minutes).abs() < 0.01 && !has_new_dome && !has_new_sun {
+    let time_changed = (game_time.minutes - *last_minutes).abs() >= 0.01;
+    let needs_update = time_changed || has_new_dome || has_new_sun;
+    if !needs_update {
         return;
     }
     *last_minutes = game_time.minutes;
