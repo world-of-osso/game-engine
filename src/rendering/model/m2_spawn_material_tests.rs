@@ -4,7 +4,7 @@ use crate::m2_effect_material;
 use crate::m2_spawn::{BatchMaterial, ground_offset_y};
 use crate::skybox_m2_material::SkyboxM2Material;
 use bevy::mesh::{Mesh, PrimitiveTopology};
-use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial};
+use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial, Vec2};
 
 #[path = "m2_spawn_material_tests/foliage_gpu.rs"]
 mod foliage_gpu;
@@ -52,6 +52,75 @@ fn ground_offset_uses_lowest_vertex_y() {
         mesh_part_id: 0,
     };
     assert!((ground_offset_y(&[batch]) - 0.35).abs() < 0.001);
+}
+
+#[test]
+fn waterfall_uv_animation_repeats_each_authored_global_period() {
+    let path = std::path::Path::new("data/models/4661358.m2");
+    let model =
+        asset::m2::load_m2_uncached(path, &[0, 0, 0]).expect("load authored waterfall04 model");
+    assert_eq!(model.global_sequences.as_slice(), &[1000, 1333]);
+    let batch = model.batches.first().expect("waterfall04 first batch");
+    assert_eq!(batch.render_flags, 0x1010);
+    assert_eq!(batch.shader_id, SHADER_MOD2X);
+
+    let mut images = Assets::<Image>::default();
+    let mut materials = Assets::<StandardMaterial>::default();
+    let mut effect_materials = Assets::<m2_effect_material::M2EffectMaterial>::default();
+    let loaded = load_batch_material(
+        batch,
+        0,
+        &mut images,
+        &mut materials,
+        &mut effect_materials,
+        None,
+        false,
+        None,
+        None,
+        Some(&model.global_sequences),
+    );
+    let BatchMaterial::Effect(handle) = loaded else {
+        panic!("waterfall04 must expose its animated effect material");
+    };
+    let material = effect_materials
+        .get_mut(&handle)
+        .expect("waterfall material");
+    let samples = [500, 1500, 1750, 1833].map(|time_ms| {
+        m2_effect_material::update_m2_effect_material_uv(material, time_ms);
+        (material.settings.uv_offset_1, material.settings.uv_offset_2)
+    });
+    let [
+        (first_500, second_500),
+        (first_1500, second_1500),
+        (first_1750, second_1750),
+        (_, second_1833),
+    ] = samples;
+    const UV_TOLERANCE: f32 = 0.001;
+
+    assert!(
+        first_500.abs_diff_eq(Vec2::new(-0.5, 0.0), UV_TOLERANCE),
+        "first UV at 500ms: {first_500:?}"
+    );
+    assert!(
+        first_1500.abs_diff_eq(first_500, UV_TOLERANCE),
+        "1000ms UV period must repeat: 500ms={first_500:?}, 1500ms={first_1500:?}"
+    );
+    assert!(
+        first_1750.abs_diff_eq(Vec2::new(-0.75, 0.0), UV_TOLERANCE),
+        "first UV must continue moving after its first cycle: {first_1750:?}"
+    );
+    assert!(
+        second_1833.abs_diff_eq(second_500, UV_TOLERANCE),
+        "second UV must repeat after its own 1333ms period: 500ms={second_500:?}, 1833ms={second_1833:?}"
+    );
+    assert!(
+        !second_1500.abs_diff_eq(second_500, UV_TOLERANCE),
+        "second UV must not use the first UV's 1000ms period"
+    );
+    assert!(
+        !second_1750.abs_diff_eq(second_1500, UV_TOLERANCE),
+        "second UV must not freeze after 1333ms: 1500ms={second_1500:?}, 1750ms={second_1750:?}"
+    );
 }
 
 #[test]
