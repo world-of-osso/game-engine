@@ -578,6 +578,7 @@ fn animated_test_material() -> M2EffectMaterial {
         second_texture: Handle::default(),
         blend_mode: 0,
         two_sided: false,
+        global_sequences: Vec::new(),
         texture_anim_1: Some(AnimTrack {
             interpolation_type: 0,
             global_sequence: -1,

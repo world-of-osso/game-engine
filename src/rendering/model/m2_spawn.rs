@@ -81,7 +81,7 @@ pub fn spawn_m2_on_entity_filtered(
         false,
         None,
         None,
-        None,
+        Some(&model.global_sequences),
     );
     true
 }
@@ -105,7 +105,7 @@ pub fn spawn_m2_model_on_entity(
         false,
         None,
         None,
-        None,
+        Some(&model.global_sequences),
     );
     true
 }
@@ -127,7 +127,12 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
             return false;
         }
     };
-    let asset::m2::M2Model { batches, bones, .. } = model;
+    let asset::m2::M2Model {
+        batches,
+        bones,
+        global_sequences,
+        ..
+    } = model;
     let batches = batches
         .into_iter()
         .filter(|batch| filter(batch.mesh_part_id))
@@ -142,7 +147,16 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
     );
     for (i, batch) in batches.into_iter().enumerate() {
         spawn_batch_mesh(
-            commands, assets, batch, entity, &skinning, i, false, None, None, None,
+            commands,
+            assets,
+            batch,
+            entity,
+            &skinning,
+            i,
+            false,
+            None,
+            None,
+            Some(&global_sequences),
         );
     }
     true
@@ -273,7 +287,7 @@ pub fn attach_m2_batches(
     force_skybox_material: bool,
     skybox_color: Option<Color>,
     skybox_default_sequence_index: Option<usize>,
-    skybox_global_sequences: Option<&[u32]>,
+    global_sequences: Option<&[u32]>,
 ) -> SkinningResult {
     let skinning = spawn_skeleton(commands, assets.inverse_bindposes, bones, root);
     for (i, batch) in batches.into_iter().enumerate() {
@@ -287,7 +301,7 @@ pub fn attach_m2_batches(
             force_skybox_material,
             skybox_color,
             skybox_default_sequence_index,
-            skybox_global_sequences,
+            global_sequences,
         );
     }
     skinning
@@ -369,7 +383,7 @@ fn spawn_batch_mesh(
     force_skybox_material: bool,
     skybox_color: Option<Color>,
     skybox_default_sequence_index: Option<usize>,
-    skybox_global_sequences: Option<&[u32]>,
+    global_sequences: Option<&[u32]>,
 ) {
     let visible = initial_batch_visibility(batch.mesh_part_id, force_skybox_material);
     let mat = load_batch_material(
@@ -382,7 +396,7 @@ fn spawn_batch_mesh(
         force_skybox_material,
         skybox_color,
         skybox_default_sequence_index,
-        skybox_global_sequences,
+        global_sequences,
     );
     let mut context = MeshSpawnContext {
         parent: root,

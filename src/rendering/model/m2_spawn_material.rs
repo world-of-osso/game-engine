@@ -24,7 +24,7 @@ pub(super) fn load_batch_material(
     force_skybox_material: bool,
     skybox_color: Option<Color>,
     skybox_default_sequence_index: Option<usize>,
-    skybox_global_sequences: Option<&[u32]>,
+    global_sequences: Option<&[u32]>,
 ) -> BatchMaterial {
     let texture_dir = PathBuf::from("data/textures");
     if force_skybox_material {
@@ -36,7 +36,7 @@ pub(super) fn load_batch_material(
                 materials,
                 skybox_color,
                 skybox_default_sequence_index.unwrap_or(0),
-                skybox_global_sequences.unwrap_or(&[]),
+                global_sequences.unwrap_or(&[]),
             ) {
                 return BatchMaterial::Skybox(mat);
             }
@@ -48,12 +48,18 @@ pub(super) fn load_batch_material(
                 Some(PLACEHOLDER_COLORS[index % PLACEHOLDER_COLORS.len()]),
                 batch,
                 skybox_default_sequence_index.unwrap_or(0),
-                skybox_global_sequences.unwrap_or(&[]),
+                global_sequences.unwrap_or(&[]),
             )));
         }
     }
     if should_use_effect_material(batch)
-        && let Some(mat) = try_load_effect_material(batch, &texture_dir, images, effect_materials)
+        && let Some(mat) = try_load_effect_material(
+            batch,
+            &texture_dir,
+            images,
+            effect_materials,
+            global_sequences.unwrap_or(&[]),
+        )
     {
         return BatchMaterial::Effect(mat);
     }
@@ -96,6 +102,7 @@ fn try_load_effect_material(
     texture_dir: &Path,
     images: &mut Assets<Image>,
     materials: &mut Assets<M2EffectMaterial>,
+    global_sequences: &[u32],
 ) -> Option<Handle<M2EffectMaterial>> {
     let base_fdid = batch.texture_fdid?;
     let second_fdid = batch.texture_2_fdid?;
@@ -119,6 +126,7 @@ fn try_load_effect_material(
         second_texture,
         blend_mode: batch.blend_mode,
         two_sided: batch.render_flags & 0x04 != 0,
+        global_sequences: global_sequences.to_vec(),
         texture_anim_1: batch.texture_anim.clone(),
         texture_anim_2: batch.texture_anim_2.clone(),
     }))

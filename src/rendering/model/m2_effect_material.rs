@@ -31,6 +31,7 @@ pub struct M2EffectMaterial {
     pub second_texture: Handle<Image>,
     pub blend_mode: u16,
     pub two_sided: bool,
+    pub global_sequences: Vec<u32>,
     pub texture_anim_1: Option<AnimTrack<[f32; 3]>>,
     pub texture_anim_2: Option<AnimTrack<[f32; 3]>>,
 }
@@ -117,16 +118,36 @@ fn sample_m2_effect_uv_offsets(material: &M2EffectMaterial, time_ms: u32) -> (Ve
     let offset_1 = material
         .texture_anim_1
         .as_ref()
-        .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
+        .and_then(|track| sample_effect_texture_track(track, &material.global_sequences, time_ms))
         .map(|offset| Vec2::new(offset[0], offset[1]))
         .unwrap_or(Vec2::ZERO);
     let offset_2 = material
         .texture_anim_2
         .as_ref()
-        .and_then(|track| evaluate_vec3_track(track, 0, time_ms))
+        .and_then(|track| sample_effect_texture_track(track, &material.global_sequences, time_ms))
         .map(|offset| Vec2::new(offset[0], offset[1]))
         .unwrap_or(Vec2::ZERO);
     (offset_1, offset_2)
+}
+
+fn sample_effect_texture_track(
+    track: &AnimTrack<[f32; 3]>,
+    global_sequences: &[u32],
+    elapsed_ms: u32,
+) -> Option<[f32; 3]> {
+    let time_ms = if let Ok(index) = usize::try_from(track.global_sequence) {
+        let duration = *global_sequences
+            .get(index)
+            .expect("M2 texture animation references a missing global sequence");
+        if duration == 0 {
+            0
+        } else {
+            elapsed_ms % duration
+        }
+    } else {
+        elapsed_ms
+    };
+    evaluate_vec3_track(track, 0, time_ms)
 }
 
 pub fn repeat_sampler() -> ImageSampler {
@@ -355,6 +376,7 @@ mod tests {
             second_texture: Handle::default(),
             blend_mode: 0,
             two_sided: false,
+            global_sequences: Vec::new(),
             texture_anim_1: Some(test_anim_track()),
             texture_anim_2: None,
         }
