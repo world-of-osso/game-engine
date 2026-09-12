@@ -282,6 +282,7 @@ struct SkyVisualParams<'w, 's> {
     sky_dome_q: Query<'w, 's, Ref<'static, MeshMaterial3d<SkyMaterial>>, With<SkyDome>>,
     sky_materials: ResMut<'w, Assets<SkyMaterial>>,
     dir_lights: Query<'w, 's, &'static mut DirectionalLight, With<SkySun>>,
+    new_suns: Query<'w, 's, Entity, Added<SkySun>>,
     ambient_q: Query<'w, 's, &'static mut AmbientLight>,
     water_materials: ResMut<'w, Assets<crate::water_material::WaterMaterial>>,
 }
@@ -296,7 +297,8 @@ fn update_sky_colors(
         .sky_dome_q
         .iter()
         .any(|material| material.is_added());
-    if (game_time.minutes - *last_minutes).abs() < 0.01 && !has_new_dome {
+    let has_new_sun = !visuals.new_suns.is_empty();
+    if (game_time.minutes - *last_minutes).abs() < 0.01 && !has_new_dome && !has_new_sun {
         return;
     }
     *last_minutes = game_time.minutes;
@@ -384,9 +386,10 @@ fn sun_rotation(minutes: f32) -> Quat {
 fn update_sun_direction(
     game_time: Res<GameTime>,
     mut dir_lights: Query<(&mut Transform, &mut DirectionalLight), With<SkySun>>,
+    new_suns: Query<Entity, Added<SkySun>>,
     mut last_minutes: Local<f32>,
 ) {
-    if (game_time.minutes - *last_minutes).abs() < 0.01 {
+    if (game_time.minutes - *last_minutes).abs() < 0.01 && new_suns.is_empty() {
         return;
     }
     *last_minutes = game_time.minutes;
