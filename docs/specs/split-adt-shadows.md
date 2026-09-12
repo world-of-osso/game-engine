@@ -17,6 +17,8 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Interpret particle flags as raw M2 file flags, not internal runtime-property flags.
 - [x] Preserve authored packed texture stages, UV scales and signed per-particle UV motion for waterfall mist.
 - [x] Bind every required particle texture and report missing or undecodable stages instead of rendering an incomplete material.
+- [x] Parse particle-tail, twinkle, burst-multiplier, and drag fields at their authored offsets; `1028937` must retain burst `1.0` separately from drag `5.0`.
+- [x] Render raw `XY_QUAD` waterfall particles in their world XZ plane while retaining authored spin in native and library effect-builder paths.
 
 ## How it works
 
@@ -35,6 +37,9 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/rendering/model/m2_spawn_material.rs`, `m2_spawn.rs`, `m2_scene/mod.rs` — retain model timing data when creating ordinary effect materials.
 - `src/rendering/model/m2_spawn.rs` — forwards authored emitters and spawned M2 joints to `particle::spawn_emitters` when the terrain caller selects waterfall/ripple backdrops.
 - `src/rendering/terrain/terrain_objects.rs` — limits emitter restoration to `is_waterfall_backdrop_doodad` rather than activating unrelated terrain-prop emitters.
+- `src/asset/m2_format/m2_particle.rs` — parses particle-tail/twinkle/burst/drag fields at their authored tail offsets.
+- `src/rendering/particles/effect_builder_shared.rs` — selects a world-XZ-plane modifier for raw `XY_QUAD` orientation while preserving spin.
+- `src/rendering/particles/effect_builder.rs`, `src/particle_effect_builder.rs` — apply that orientation consistently in native and library paths.
 
 ## Tests asserting this spec
 
@@ -42,10 +47,12 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/rendering/terrain/terrain_spawn/tests.rs`
 - `src/rendering/model/m2_spawn_material_tests.rs` — actual waterfall model sampled across multiple global periods.
 - `src/scenes/char_select/scene/tests/supplemental_waterfall_tests.rs` — actual mist M2 terrain attachment emitter regression.
+- `src/rendering/particles/xy_quad_gpu_tests.rs` — actual raw `2904370` controlled-white-quad XY top/side visibility against ordinary billboard controls. Its RED measured `[900, 900, 900, 900]`; GREEN remains in progress on main.
 
 ## Known gaps (current cycle)
 
-- [ ] Native proof must show a readable, moving waterfall cascade plus authored mist/spray. Loading, UV, texture-track, and emitter-wiring regressions alone do not prove this.
+- [ ] Native proof must show a readable, moving waterfall cascade plus authored mist/spray. Loading, UV, texture-track, emitter-wiring, parser, and XY-orientation regressions alone do not prove this.
+- [ ] Do not infer or implement refraction material selection from the remaining appearance gap without direct Retail selection evidence; proven parser and geometry defects need no such assumption.
 
 ## Out of scope
 
