@@ -14,6 +14,45 @@ struct ParsedFixture(ParsedTile);
 struct SpawnedRoot(Option<Entity>);
 
 #[test]
+fn waterfall_tile_loads_shadow_maps_from_texture_companion() {
+    let path = PathBuf::from("data/terrain/2703_31_36.adt");
+    let terrain = load_and_parse_adt(&path).expect("waterfall split tile must load");
+    assert_eq!(terrain.chunks.len(), 256);
+    assert_eq!(
+        terrain
+            .chunks
+            .iter()
+            .filter(|chunk| chunk.shadow_map.is_some())
+            .count(),
+        227,
+        "retain every authored waterfall shadow map"
+    );
+
+    let companion = std::fs::read("data/terrain/2703_31_36_tex0.adt").unwrap();
+    let mut checked = 0;
+    for (index, (_, chunk)) in adt::ChunkIter::new(&companion)
+        .map(Result::unwrap)
+        .filter(|(tag, _)| *tag == b"KNCM")
+        .enumerate()
+    {
+        for (tag, payload) in adt::ChunkIter::new(chunk).map(Result::unwrap) {
+            if tag == b"HSCM" {
+                assert_eq!(
+                    terrain.chunks[index]
+                        .shadow_map
+                        .as_ref()
+                        .unwrap()
+                        .as_slice(),
+                    &payload[..512]
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert_eq!(checked, 227);
+}
+
+#[test]
 fn no_terrain_meshes_preserves_logical_tile_without_render_assets() {
     let mut app = terrain_spawn_test_app(parse_fixture_tile());
     app.world_mut().resource_mut::<AdtManager>().render_terrain = false;
