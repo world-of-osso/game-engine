@@ -82,11 +82,11 @@ fn waterfall_uv_animation_repeats_each_authored_global_period() {
     let BatchMaterial::Effect(handle) = loaded else {
         panic!("waterfall04 must expose its animated effect material");
     };
-    let material = effect_materials
+    let mut material = effect_materials
         .get_mut(&handle)
         .expect("waterfall material");
     let samples = [500, 1500, 1750, 1833].map(|time_ms| {
-        m2_effect_material::update_m2_effect_material_uv(material, time_ms);
+        m2_effect_material::update_m2_effect_material_uv(&mut material, time_ms);
         (material.settings.uv_offset_1, material.settings.uv_offset_2)
     });
     let [
