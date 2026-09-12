@@ -139,8 +139,7 @@ fn primary_authored_placement_preserves_ripple_heights_below_terrain() {
             .abs_diff_eq(Vec3::new(-3092.054, 448.2168, -204.4928), 0.01)
     );
     let heightmap = app.world().resource::<TerrainHeightmap>();
-    let mut mismatches = Vec::new();
-    for doodad in ripples {
+    let mismatches: Vec<_> = ripples.into_iter().filter_map(|doodad| {
         let authored = primary_authored_position(doodad);
         let actual = match_spawned_doodad_position(&positions, authored);
         let terrain_y = heightmap
@@ -151,14 +150,9 @@ fn primary_authored_placement_preserves_ripple_heights_below_terrain() {
             "fixture must exercise terrain above the authored ripple: uid={} authored={authored:?} terrain_y={terrain_y}",
             doodad.unique_id
         );
-        println!(
-            "ripple uid={} authored={authored:?} actual={actual:?} terrain_y={terrain_y}",
-            doodad.unique_id
-        );
-        if !actual.abs_diff_eq(authored, REST_BOUNDS_TOLERANCE) {
-            mismatches.push((doodad.unique_id, authored, actual, terrain_y));
-        }
-    }
+        (!actual.abs_diff_eq(authored, REST_BOUNDS_TOLERANCE))
+            .then_some((doodad.unique_id, authored, actual, terrain_y))
+    }).collect();
     assert!(
         mismatches.is_empty(),
         "waterfall/ripple parents must retain authored MDDF heights instead of being lifted to terrain: {mismatches:?}"
@@ -261,7 +255,8 @@ fn load_primary_placement_data() -> crate::asset::adt_format::adt_obj::AdtObjDat
 
 fn primary_authored_position(doodad: &crate::asset::adt_format::adt_obj::DoodadPlacement) -> Vec3 {
     // This primary MDDF uses absolute ADT coordinates, with height in component 1.
-    let center = 32.0 * crate::terrain_tile::TILE_SIZE;
+    const HALF_MAP_TILE_COUNT: f32 = 32.0;
+    let center = HALF_MAP_TILE_COUNT * crate::terrain_tile::TILE_SIZE;
     Vec3::new(
         center - doodad.position[2],
         doodad.position[1],
