@@ -32,13 +32,13 @@ The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 a
 
 `077599df` corrects the shader-side longitude wrap: the primary spherical coordinate remains unwrapped until repeat sampling, and the second layer uses an integer longitude frequency of 2.0 rather than fractional 1.9 after a pre-scale `fract`. This prevents a seam at the spherical longitude boundary. RED observed a 28-level GPU discontinuity; corrected rendered proof remains pending.
 
-## InWorld environment lighting
+## Environmental lighting ownership
 
-Authored skybox geometry does not initialize scene IBL. `initialize_inworld_camera_ibl` runs independently of skybox visuals, only in InWorld with the Lighting stage enabled. Active `WowCamera` entities lacking both `GeneratedEnvironmentMapLight` and `EnvironmentMapLight` receive the existing generated-map setup at intensity300, using current interpolated `LightKeyframes` colors. The component filters make initialization idempotent and preserve explicit environment overrides.
+Authored skybox geometry does not itself initialize scene IBL. Active `WowCamera` entities lacking both `GeneratedEnvironmentMapLight` and `EnvironmentMapLight` use the existing generated-map setup at intensity300, derived from current `LightKeyframes`; the component filters make it idempotent and preserve explicit overrides.
 
-This repairs the missing setup connection: the live world camera had no environment component or `SkyEnvMapHandle`, while global ambient was zero. It does not change global ambient, exposure, directional light, shadows, fog, or authored shader-combine behavior. The registered-system fixtures check the source cubemap/component contract; native brightness and GPU filtering still require separate observation.
+The character-selection follow-up requires the same camera-IBL ownership alongside one explicitly sky-owned environmental directional sun. Sky color/time systems must update that marker only, not every `DirectionalLight`; M2 type-1 point lights and unrelated directional lights have separate ownership. Until the implementation and regressions land, `initialize_inworld_camera_ibl` remains InWorld-only and the character-selection directional rig is the known faulty state.
 
-Contract and fixtures: [InWorld scene spec](../../specs/inworld-scene-isolation.md#inworld-environment-lighting), `src/rendering/skybox/tests/inworld_ibl.rs`.
+This does not establish an exact Retail brightness, exposure, or map-light record. See [[character-select-lighting-overwrite]] and [character-selection visibility](../../specs/character-selection-visibility.md).
 
 ## Light.csv Lookup Chain
 
