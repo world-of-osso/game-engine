@@ -4,14 +4,14 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## What it must do
 
-- [ ] Load valid split tiles whose root declares shadows stored in the texture companion.
-- [ ] Preserve shadow bytes and existing per-chunk edge-fix flags.
-- [ ] Keep standalone/monolithic shadow validation strict when no companion supplies required data.
-- [ ] Reject mismatched root/companion chunk counts and conflicting shadow payloads explicitly.
-- [ ] Load Adventurer's Rest's supplemental waterfall tile and its waterfall/ripple placements.
-- [ ] Include authored waterfall/ripple backdrops on the primary tile even beyond the nearby-prop radius; keep ordinary props radius-limited.
-- [ ] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
-- [ ] Waterfall modulation textures use the shader-encoded second UV set when modern assets omit the legacy coordinate lookup; preserve authored alpha combination.
+- [x] Load valid split tiles whose root declares shadows stored in the texture companion.
+- [x] Preserve shadow bytes and existing per-chunk edge-fix flags.
+- [x] Keep standalone/monolithic shadow validation strict when no companion supplies required data.
+- [x] Reject mismatched root/companion chunk counts and conflicting shadow payloads explicitly.
+- [x] Load Adventurer's Rest's supplemental waterfall tile and its waterfall/ripple placements.
+- [x] Include the 14 authored waterfall/ripple backdrops on the primary tile beyond the nearby-prop radius; keep ordinary props radius-limited.
+- [x] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
+- [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
 
 ## How it works
 
@@ -34,7 +34,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## Known gaps (current cycle)
 
-- [ ] Complete corrected regression, focused checks, and native waterfall verification.
+- [ ] Final production native visibility audit is running. Completed loading, UV, and focused RED/GREEN regressions do not alone prove a readable waterfall cascade.
 
 ## Out of scope
 

@@ -8,6 +8,8 @@ The [authored skybox depth contract](../../specs/authored-skybox-depth.md) requi
 
 The GPU regression reproduces the old error with sky geometry closer to the camera than opaque and masked foreground cards. After correction, red foreground and green foliage remain visible while blue sky survives in unobstructed pixels and cutout holes, for opaque and blended sky pipelines. Existing material tests cover the retained settings and ordering.
 
+`b34df4d5` adds a sky-background sort band. Authored sky layers now submit before transparent scene effects, so transparent foreground remains visible over the background without changing sky texture combination, opacity, or intra-sky ordering. RED/GREEN proof: `data/diagnostics/waterfall-missing-20260911/ordering-verification/`.
+
 The gray area in the character-selection depth diagnostic is not proof of missing sky. A terrain-only magenta override identified substantial gray coverage as opaque fogged terrain; it did not account for every gray pixel. Rendering sky behind that terrain must not paint over it. Fog-color/distance tuning is outside this depth correction. Evidence: `data/diagnostics/charselect-tree-clipping-20260911/{fix-red,fix-green,terrain-coverage-probe,verification,final-native}/`.
 
 ## Character-selection fog visibility
