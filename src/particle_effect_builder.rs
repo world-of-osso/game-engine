@@ -29,7 +29,7 @@ use setup::{EffectAssembleParts, EffectRuntimeModifiers, build_particle_effect_i
 pub(crate) use shared::{
     ExprModifiers, InitModifiers, PositionInitModifier, build_expr_modifiers, lifetime_range,
 };
-use shared::{add_optional_init_modifiers, build_color_render_modifier, orient_mode};
+use shared::{add_optional_init_modifiers, build_color_render_modifier};
 use visuals::{
     SizeVariationModifier, TwinkleSizeModifier, build_color_gradient,
     build_offset_by_spin_modifier, build_size_gradient, has_authored_size_variation,
@@ -89,7 +89,7 @@ struct BaseEffectParts {
     lifetime: SetAttributeModifier,
     vel: SetAttributeModifier,
     gravity: AccelModifier,
-    orient: OrientModifier,
+    orient: Box<dyn bevy_hanabi::RenderModifier>,
     model_scale: f32,
 }
 
@@ -105,7 +105,7 @@ struct AssembleEffectParts {
     twinkle_phase: Option<SetAttributeModifier>,
     twinkle_enabled: Option<SetAttributeModifier>,
     size_variation: Option<SetAttributeModifier>,
-    orient: OrientModifier,
+    orient: Box<dyn bevy_hanabi::RenderModifier>,
 }
 
 fn apply_effect_runtime_modifiers(
@@ -186,11 +186,7 @@ fn build_assemble_effect_parts(
         twinkle_enabled,
         size_variation,
     } = init;
-    let orient = if let Some(rotation) = orient_rotation {
-        OrientModifier::new(orient_mode(em)).with_rotation(rotation)
-    } else {
-        OrientModifier::new(orient_mode(em))
-    };
+    let orient = shared::build_particle_orientation(em, orient_rotation);
     AssembleEffectParts {
         age,
         lifetime,
@@ -272,7 +268,7 @@ fn build_base_effect(em: &M2ParticleEmitter, parts: BaseEffectParts) -> EffectAs
             gradient: build_size_gradient(em, model_scale),
             screen_space_size: false,
         })
-        .render(orient)
+        .add_render_modifier(orient)
 }
 
 fn add_position_init(mut effect: EffectAsset, pos: PositionInitModifier) -> EffectAsset {
