@@ -13,6 +13,39 @@ fn read_particle_md20(fdid: u32) -> Vec<u8> {
     bytes[8..8 + length].to_vec()
 }
 
+fn load_waterfall_visual_fields(fdid: u32) -> [f32; 7] {
+    let emitters = parse_particle_emitters(&read_particle_md20(fdid));
+    assert_eq!(emitters.len(), 1);
+    let emitter = &emitters[0];
+    [
+        emitter.tail_length,
+        emitter.twinkle_speed,
+        emitter.twinkle_percent,
+        emitter.twinkle_scale_min,
+        emitter.twinkle_scale_max,
+        emitter.burst_multiplier,
+        emitter.drag,
+    ]
+}
+
+#[test]
+fn waterfall_mist_reads_authored_tail_twinkle_burst_and_drag() {
+    assert_eq!(
+        load_waterfall_visual_fields(1028937),
+        [1.0, 18.0, 1.0, 8.0, 8.0, 1.0, 5.0],
+        "tail length, twinkle speed/percent/min/max, burst multiplier, drag",
+    );
+}
+
+#[test]
+fn waterfall_ripple_reads_authored_tail_twinkle_burst_and_drag() {
+    assert_eq!(
+        load_waterfall_visual_fields(2904370),
+        [0.1, 10.0, 1.0, 180.0, 180.0, 1.0, 0.0],
+        "tail length, twinkle speed/percent/min/max, burst multiplier, drag",
+    );
+}
+
 fn mist_emitter_offset(md20: &[u8]) -> usize {
     let count = read_u32(md20, PARTICLE_ARRAY_OFFSET).unwrap();
     assert_eq!(count, 1);
