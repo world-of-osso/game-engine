@@ -16,7 +16,9 @@ Modern waterfall batches also encode their modulation coordinate in the shader-s
 
 `ca94fe91` adds a matched no-fog GPU control: white `M2EffectMaterial` and `StandardMaterial` quads render identical center RGB `[152, 152, 152]`. This rules out a basic custom-PBR lighting mismatch in that controlled case, not an actual-waterfall or character-select exposure diagnosis.
 
-The placed-waterfall census finds nine authored mist placements that the terrain filter already selects: six `1028937` (`6fx_waterfall_mist01.m2`) and three `2904370` (`8fx_ambient_waterfall_ripple01_misty.m2`), each declaring one particle emitter. The cascade-sheet models `4661357`, `4661358`, and `4661361` declare none. Before `5206d9b4`, preloaded terrain M2 attachment forwarded only mesh batches, so these selected mist emitters were discarded. That revision forwards parsed emitters plus the attachment skeleton joints to the existing `particle::spawn_emitters` path; its existing graphics particle-effects disable gate remains authoritative. `62e36331` records the meaningful RED: the actual mist attachment expected one emitter but observed zero. GREEN and native mist/cascade acceptance were still running when this entry was written.
+The placed-waterfall census finds nine authored mist placements that the terrain filter already selects: six `1028937` (`6fx_waterfall_mist01.m2`) and three `2904370` (`8fx_ambient_waterfall_ripple01_misty.m2`), each declaring one particle emitter. The cascade-sheet models `4661357`, `4661358`, and `4661361` declare none. Before `5206d9b4`, preloaded terrain M2 attachment forwarded only mesh batches, so these selected mist emitters were discarded. `030090f3` restricts the resulting emitter restoration to the existing `is_waterfall_backdrop_doodad` selection, preserving unrelated terrain props' prior no-emitter behavior; the existing graphics particle-effects disable gate remains authoritative. `62e36331` records the meaningful RED: the actual mist attachment expected one emitter but observed zero; its focused GREEN passes.
+
+The restored waterfall path exposed two separate particle prerequisites. Actual generated-WGSL RED/GREEN in `29819999`/`b1663674` corrects random flipbook sprite assignment to Hanabi's integer sprite attribute. Both selected waterfall mist models decode raw gravity as zero; a prior `NaN` generated shader came from an unrelated newly activated prop, not their gravity. Local CASC extraction supplied missing particle texture `2904679`; automatic extraction in the particle texture loader remains a separate gap. Native cascade/mist acceptance remains unresolved.
 
 `f53bba1c` keeps character-select orbit-input diagnostics at DEBUG, avoiding INFO-log noise without removing the diagnostic.
 
@@ -33,9 +35,10 @@ Do not discard shadow flags/data, broadly expand prop loading, replace alpha com
 - `data/diagnostics/waterfall-missing-20260911/animation-verification/report.md` — 16 focused CPU tests and check evidence for timing.
 - `data/diagnostics/waterfall-missing-20260911/lit-comparison/output.txt` — matched lit-material GPU pixels.
 - `data/diagnostics/waterfall-missing-20260911/particle-census/{report.md,census.json}` — placed-waterfall emitter census.
-- `data/diagnostics/waterfall-missing-20260911/particle-red/` — actual mist-attachment RED evidence.
+- `data/diagnostics/waterfall-missing-20260911/{particle-red,particle-green,particle-verification}/` — actual mist-attachment RED/GREEN and scoped verification.
+- `data/diagnostics/waterfall-missing-20260911/particle-sprite-index/` — actual generated-WGSL sprite-index RED/GREEN evidence.
 - `src/rendering/model/m2_effect_material.rs` — per-track global-sequence texture-offset sampling.
-- `src/rendering/model/m2_spawn.rs` — terrain attachment particle-emitter forwarding.
+- `src/rendering/model/m2_spawn.rs`, `src/rendering/terrain/terrain_objects.rs` — waterfall-backdrop-only terrain emitter forwarding.
 - `src/rendering/model/m2_spawn_material.rs` — preserves global-sequence timing for ordinary effect materials.
 - `src/scenes/char_select/scene_tree.rs` — terrain-load error reporting.
 - `src/scenes/char_select/warband/mod.rs` — neighboring-tile selection.

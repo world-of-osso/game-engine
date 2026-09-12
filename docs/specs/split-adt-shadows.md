@@ -13,7 +13,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
 - [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
 - [x] Keep waterfall texture animation moving after its first cycle by sampling each track with its own authored global-sequence duration.
-- [x] Forward parsed particle emitters from preloaded terrain M2 attachments to the existing emitter path, including spawned skeleton joints and the graphics particle-effects gate.
+- [x] Forward parsed emitters only for selected waterfall/ripple backdrops, including spawned skeleton joints and the graphics particle-effects gate.
 
 ## How it works
 
@@ -30,7 +30,8 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/asset/m2_batch.rs` — resolves waterfall shader UV inputs.
 - `src/rendering/model/m2_effect_material.rs` — samples animated texture offsets using model global-sequence periods.
 - `src/rendering/model/m2_spawn_material.rs`, `m2_spawn.rs`, `m2_scene/mod.rs` — retain model timing data when creating ordinary effect materials.
-- `src/rendering/model/m2_spawn.rs` — forwards authored emitters and spawned M2 joints from preloaded terrain attachments to `particle::spawn_emitters`.
+- `src/rendering/model/m2_spawn.rs` — forwards authored emitters and spawned M2 joints to `particle::spawn_emitters` when the terrain caller selects waterfall/ripple backdrops.
+- `src/rendering/terrain/terrain_objects.rs` — limits emitter restoration to `is_waterfall_backdrop_doodad` rather than activating unrelated terrain-prop emitters.
 
 ## Tests asserting this spec
 
