@@ -260,6 +260,171 @@ fn spawn_waterfall_mist_attachment(
     (app, root, authored)
 }
 
+const ORIGIN_FIXTURE_PARENT: Vec3 = Vec3::new(10.0, 20.0, 30.0);
+const REST_BOUNDS_TOLERANCE: f32 = 0.001;
+
+#[test]
+fn selected_waterfall_attachment_preserves_authored_rest_bounds() {
+    let (authored, actual) = spawn_waterfall_origin_fixture(true);
+    let expected = (
+        authored.0 + ORIGIN_FIXTURE_PARENT,
+        authored.1 + ORIGIN_FIXTURE_PARENT,
+    );
+    assert_rest_bounds(actual, expected);
+}
+
+#[test]
+fn unselected_waterfall_attachment_retains_grounded_rest_bounds() {
+    let (authored, actual) = spawn_waterfall_origin_fixture(false);
+    let grounded_translation = ORIGIN_FIXTURE_PARENT - Vec3::Y * authored.0.y;
+    let expected = (
+        authored.0 + grounded_translation,
+        authored.1 + grounded_translation,
+    );
+    assert_rest_bounds(actual, expected);
+}
+
+fn spawn_waterfall_origin_fixture(selected_backdrop: bool) -> ((Vec3, Vec3), (Vec3, Vec3)) {
+    let model =
+        crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/4661358.m2"), &[0; 3])
+            .expect("authored waterfall04 fixture must load");
+    let authored = bound_rest_points(
+        model
+            .batches
+            .iter()
+            .flat_map(|batch| indexed_mesh_positions(&batch.mesh)),
+    );
+    const WATERFALL04_AUTHORED_MIN_Y: f32 = -29.347_208;
+    assert!(
+        (authored.0.y - WATERFALL04_AUTHORED_MIN_Y).abs() < REST_BOUNDS_TOLERANCE,
+        "fixture must extend below its authored origin: {authored:?}",
+    );
+    let mut app = render_path_test_app();
+    app.add_plugins(bevy::transform::TransformPlugin);
+    let parent = app
+        .world_mut()
+        .spawn(Transform::from_translation(ORIGIN_FIXTURE_PARENT))
+        .id();
+    attach_origin_fixture(&mut app, model, parent, selected_backdrop);
+    app.update();
+    let actual = attached_mesh_rest_bounds(&mut app);
+    (authored, actual)
+}
+
+fn attach_origin_fixture(
+    app: &mut App,
+    model: crate::asset::m2::M2Model,
+    parent: Entity,
+    selected_backdrop: bool,
+) {
+    let mut model = Some(model);
+    let attached = app
+        .world_mut()
+        .run_system_once(
+            move |mut commands: Commands, mut assets: scene_types::CharSelectRenderAssets| {
+                crate::m2_spawn::spawn_m2_model_on_entity(
+                    &mut commands,
+                    &mut crate::m2_spawn::SpawnAssets {
+                        meshes: &mut assets.meshes,
+                        materials: &mut assets.materials,
+                        effect_materials: &mut assets.effect_materials,
+                        skybox_materials: Some(&mut assets.skybox_materials),
+                        images: &mut assets.images,
+                        inverse_bindposes: &mut assets.inv_bp,
+                    },
+                    model.take().expect("origin fixture attaches once"),
+                    parent,
+                    selected_backdrop,
+                )
+            },
+        )
+        .expect("origin fixture attachment system must run");
+    assert!(attached);
+}
+
+fn indexed_mesh_positions(mesh: &Mesh) -> impl Iterator<Item = Vec3> + '_ {
+    let Some(bevy::mesh::VertexAttributeValues::Float32x3(positions)) =
+        mesh.attribute(Mesh::ATTRIBUTE_POSITION)
+    else {
+        panic!("waterfall fixture must contain float3 positions");
+    };
+    mesh.indices()
+        .expect("waterfall fixture must contain indexed geometry")
+        .iter()
+        .map(move |index| Vec3::from_array(positions[index]))
+}
+
+fn attached_mesh_rest_bounds(app: &mut App) -> (Vec3, Vec3) {
+    use bevy::mesh::skinning::SkinnedMesh;
+    let mut query = app
+        .world_mut()
+        .query::<(&Mesh3d, &GlobalTransform, Option<&SkinnedMesh>)>();
+    let world = app.world();
+    let meshes = world.resource::<Assets<Mesh>>();
+    let points = query.iter(world).flat_map(|(handle, global, skin)| {
+        let mesh = meshes.get(&handle.0).expect("attached mesh asset exists");
+        if let Some(skin) = skin {
+            assert_neutral_fixture_skin(world, mesh, global, skin);
+        }
+        indexed_mesh_positions(mesh).map(move |position| global.transform_point(position))
+    });
+    bound_rest_points(points)
+}
+
+fn assert_neutral_fixture_skin(
+    world: &World,
+    mesh: &Mesh,
+    global: &GlobalTransform,
+    skin: &bevy::mesh::skinning::SkinnedMesh,
+) {
+    let bindposes = world.resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
+    let inverse = bindposes
+        .get(&skin.inverse_bindposes)
+        .expect("fixture bind poses exist");
+    assert_eq!(skin.joints.len(), inverse.len());
+    for (joint, inverse_bind) in skin.joints.iter().zip(inverse.iter()) {
+        let joint_global = world
+            .get::<GlobalTransform>(*joint)
+            .expect("joint propagated");
+        let skin_matrix = joint_global.to_matrix() * *inverse_bind;
+        assert!(skin_matrix.abs_diff_eq(global.to_matrix(), REST_BOUNDS_TOLERANCE));
+    }
+    assert_normalized_fixture_weights(mesh);
+}
+
+fn assert_normalized_fixture_weights(mesh: &Mesh) {
+    let Some(bevy::mesh::VertexAttributeValues::Float32x4(weights)) =
+        mesh.attribute(Mesh::ATTRIBUTE_JOINT_WEIGHT)
+    else {
+        panic!("skinned waterfall fixture must contain joint weights");
+    };
+    assert!(
+        weights
+            .iter()
+            .all(|weights| { (weights.iter().sum::<f32>() - 1.0).abs() < REST_BOUNDS_TOLERANCE })
+    );
+}
+
+fn bound_rest_points(points: impl Iterator<Item = Vec3>) -> (Vec3, Vec3) {
+    let bounds = points.fold(
+        (Vec3::splat(f32::INFINITY), Vec3::splat(f32::NEG_INFINITY)),
+        |(min, max), point| (min.min(point), max.max(point)),
+    );
+    assert!(
+        bounds.0.is_finite() && bounds.1.is_finite(),
+        "fixture must render nonempty finite geometry"
+    );
+    bounds
+}
+
+fn assert_rest_bounds(actual: (Vec3, Vec3), expected: (Vec3, Vec3)) {
+    assert!(
+        actual.0.abs_diff_eq(expected.0, REST_BOUNDS_TOLERANCE)
+            && actual.1.abs_diff_eq(expected.1, REST_BOUNDS_TOLERANCE),
+        "rendered rest bounds must preserve the requested origin: actual={actual:?}, expected={expected:?}",
+    );
+}
+
 fn expected_shadow_pixels(shadow: Option<&[u8; 512]>) -> Vec<u8> {
     (0..4096)
         .flat_map(|pixel| {
