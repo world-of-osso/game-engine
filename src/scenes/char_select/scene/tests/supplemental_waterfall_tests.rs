@@ -158,7 +158,7 @@ fn primary_waterfall_backdrop_is_not_limited_to_nearby_props() {
 
 #[test]
 fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
-    let (app, root, authored) = spawn_waterfall_mist_attachment(true);
+    let (app, root, authored) = spawn_waterfall_mist_attachment(true, true);
     let mut app = app;
     let emitters: Vec<_> = app
         .world_mut()
@@ -179,7 +179,8 @@ fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
         .bone_entity
         .expect("authored mist bone must be bound");
     assert!(app.world().get::<Transform>(bone).is_some());
-    if authored.flags & 0x200 == 0 {
+    const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x200;
+    if authored.flags & PARTICLE_FLAG_WORLD_SPACE == 0 {
         assert_eq!(parent.parent(), bone, "bone-local mist follows its bone");
     }
     let mut ancestor = parent.parent();
@@ -194,7 +195,7 @@ fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
 
 #[test]
 fn waterfall_mist_attachment_respects_disabled_particle_effects() {
-    let (mut app, _, _) = spawn_waterfall_mist_attachment(false);
+    let (mut app, _, _) = spawn_waterfall_mist_attachment(false, true);
     let count = app
         .world_mut()
         .query::<&crate::particle::ParticleEmitterComp>()
@@ -203,8 +204,21 @@ fn waterfall_mist_attachment_respects_disabled_particle_effects() {
     assert_eq!(count, 0, "disabled particle effects must not spawn mist");
 }
 
+#[test]
+fn waterfall_mist_attachment_leaves_unselected_emitters_disabled() {
+    let (mut app, _, _) = spawn_waterfall_mist_attachment(true, false);
+    assert_eq!(
+        app.world_mut()
+            .query::<&crate::particle::ParticleEmitterComp>()
+            .iter(app.world())
+            .count(),
+        0,
+    );
+}
+
 fn spawn_waterfall_mist_attachment(
     particle_effects_enabled: bool,
+    spawn_particles: bool,
 ) -> (App, Entity, crate::asset::m2_particle::M2ParticleEmitter) {
     let model =
         crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/1028937.m2"), &[0; 3])
@@ -236,6 +250,7 @@ fn spawn_waterfall_mist_attachment(
                     },
                     model.take().expect("attachment runs once"),
                     root,
+                    spawn_particles,
                 )
             },
         )

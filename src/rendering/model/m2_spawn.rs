@@ -93,6 +93,7 @@ pub fn spawn_m2_model_on_entity(
     assets: &mut SpawnAssets<'_>,
     model: asset::m2::M2Model,
     entity: Entity,
+    spawn_particles: bool,
 ) -> bool {
     let grounded_root =
         ensure_grounded_model_root(commands, entity, ground_offset_y(&model.batches));
@@ -107,7 +108,7 @@ pub fn spawn_m2_model_on_entity(
         None,
         Some(&model.global_sequences),
     );
-    if !model.particle_emitters.is_empty() {
+    if spawn_particles && !model.particle_emitters.is_empty() {
         crate::particle::spawn_emitters(
             commands,
             &model.particle_emitters,
