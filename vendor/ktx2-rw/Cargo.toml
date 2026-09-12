@@ -74,7 +74,7 @@ version = "0.2"
 version = "0.25"
 
 [build-dependencies.bindgen]
-version = "0.72"
+version = "0.73.1"
 
 [build-dependencies.cmake]
 version = "0.1"
