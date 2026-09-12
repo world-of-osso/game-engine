@@ -103,44 +103,7 @@ fn supplemental_waterfall_spawns_placements_and_shadowed_terrain() {
 
 #[test]
 fn primary_waterfall_backdrop_is_not_limited_to_nearby_props() {
-    let mut app = render_path_test_app();
-    let warband = app.world().resource::<WarbandScenes>();
-    let scene = warband
-        .scenes
-        .iter()
-        .find(|scene| scene.id == 1)
-        .unwrap()
-        .clone();
-    let focus = warband
-        .solo_character_placement(&scene)
-        .unwrap()
-        .bevy_position();
-    let spawned = app
-        .world_mut()
-        .run_system_once(
-            move |mut commands: Commands,
-                  mut assets: scene_types::CharSelectRenderAssets,
-                  mut heightmap: ResMut<TerrainHeightmap>| {
-                scene_tree::spawn_warband_terrain(
-                    &mut scene_tree::WarbandTerrainSpawnContext {
-                        commands: &mut commands,
-                        meshes: &mut assets.meshes,
-                        materials: &mut assets.materials,
-                        effect_materials: &mut assets.effect_materials,
-                        terrain_materials: &mut assets.terrain_materials,
-                        water_materials: &mut assets.water_materials,
-                        images: &mut assets.images,
-                        inv_bp: &mut assets.inv_bp,
-                        heightmap: &mut heightmap,
-                    },
-                    &scene,
-                    focus,
-                )
-            },
-        )
-        .unwrap()
-        .expect("primary campsite loads");
-    app.update();
+    let (mut app, spawned, _) = spawn_primary_placement_fixture();
     let waterfall_present = app
         .world_mut()
         .query::<&Name>()
@@ -154,6 +117,179 @@ fn primary_waterfall_backdrop_is_not_limited_to_nearby_props() {
         spawned.doodad_count, 76,
         "62 nearby props plus 14 authored waterfall/ripple placements"
     );
+}
+
+#[test]
+fn primary_authored_placement_preserves_ripple_heights_below_terrain() {
+    let (mut app, _, _) = spawn_primary_placement_fixture();
+    let positions = spawned_doodad_world_positions(&mut app);
+    let objects = load_primary_placement_data();
+    let ripples: Vec<_> = objects
+        .doodads
+        .iter()
+        .filter(|doodad| doodad.fdid == Some(2904370))
+        .collect();
+    assert_eq!(ripples.len(), 3, "primary fixture has three misty ripples");
+    let lowest_ripple = ripples
+        .iter()
+        .find(|doodad| doodad.unique_id == 49340914)
+        .expect("reported MDDF ripple remains in the fixture");
+    assert!(
+        primary_authored_position(lowest_ripple)
+            .abs_diff_eq(Vec3::new(-3092.054, 448.2168, -204.4928), 0.01)
+    );
+    let heightmap = app.world().resource::<TerrainHeightmap>();
+    let mut mismatches = Vec::new();
+    for doodad in ripples {
+        let authored = primary_authored_position(doodad);
+        let actual = match_spawned_doodad_position(&positions, authored);
+        let terrain_y = heightmap
+            .height_at(authored.x, authored.z)
+            .expect("primary terrain must be registered at the ripple before object spawning");
+        assert!(
+            terrain_y > authored.y + 10.0,
+            "fixture must exercise terrain above the authored ripple: uid={} authored={authored:?} terrain_y={terrain_y}",
+            doodad.unique_id
+        );
+        println!(
+            "ripple uid={} authored={authored:?} actual={actual:?} terrain_y={terrain_y}",
+            doodad.unique_id
+        );
+        if !actual.abs_diff_eq(authored, REST_BOUNDS_TOLERANCE) {
+            mismatches.push((doodad.unique_id, authored, actual, terrain_y));
+        }
+    }
+    assert!(
+        mismatches.is_empty(),
+        "waterfall/ripple parents must retain authored MDDF heights instead of being lifted to terrain: {mismatches:?}"
+    );
+}
+
+#[test]
+fn primary_authored_placement_keeps_ordinary_props_clamped_to_terrain() {
+    let (mut app, _, focus) = spawn_primary_placement_fixture();
+    let positions = spawned_doodad_world_positions(&mut app);
+    let objects = load_primary_placement_data();
+    let heightmap = app.world().resource::<TerrainHeightmap>();
+    let cases: Vec<_> = objects
+        .doodads
+        .iter()
+        .filter_map(|doodad| {
+            let authored = primary_authored_position(doodad);
+            let terrain_y = heightmap.height_at(authored.x, authored.z)?;
+            let nearby = authored.xz().distance(focus.xz()) < 75.0;
+            let spawned = positions
+                .iter()
+                .any(|position| same_placement_xz(*position, authored));
+            (nearby && spawned && terrain_y > authored.y + 0.1).then_some((
+                doodad.unique_id,
+                authored,
+                terrain_y,
+            ))
+        })
+        .collect();
+    assert!(
+        !cases.is_empty(),
+        "fixture must include spawned nearby props authored below terrain"
+    );
+    println!("ordinary props below terrain tested: {}", cases.len());
+    for (uid, authored, terrain_y) in cases {
+        let actual = match_spawned_doodad_position(&positions, authored);
+        assert!(
+            (actual.y - terrain_y).abs() < REST_BOUNDS_TOLERANCE,
+            "ordinary prop uid={uid} must retain terrain clamping: authored={authored:?} actual={actual:?} terrain_y={terrain_y}"
+        );
+    }
+}
+
+fn spawn_primary_placement_fixture() -> (App, scene_tree::WarbandTerrainSpawnResult, Vec3) {
+    let mut app = render_path_test_app();
+    app.add_plugins(bevy::transform::TransformPlugin);
+    let (spawned, focus) = app
+        .world_mut()
+        .run_system_once(spawn_primary_placement_terrain)
+        .expect("primary scene spawn system runs");
+    app.update();
+    assert!(
+        app.world()
+            .resource::<TerrainHeightmap>()
+            .tile_chunks(31, 37)
+            .is_some()
+    );
+    (app, spawned, focus)
+}
+
+fn spawn_primary_placement_terrain(
+    mut commands: Commands,
+    mut assets: scene_types::CharSelectRenderAssets,
+    mut heightmap: ResMut<TerrainHeightmap>,
+    warband: Res<WarbandScenes>,
+) -> (scene_tree::WarbandTerrainSpawnResult, Vec3) {
+    let scene = warband
+        .scenes
+        .iter()
+        .find(|scene| scene.id == 1)
+        .expect("Adventurer's Rest exists");
+    let focus = warband
+        .solo_character_placement(scene)
+        .unwrap()
+        .bevy_position();
+    let spawned = scene_tree::spawn_warband_terrain(
+        &mut scene_tree::WarbandTerrainSpawnContext {
+            commands: &mut commands,
+            meshes: &mut assets.meshes,
+            materials: &mut assets.materials,
+            effect_materials: &mut assets.effect_materials,
+            terrain_materials: &mut assets.terrain_materials,
+            water_materials: &mut assets.water_materials,
+            images: &mut assets.images,
+            inv_bp: &mut assets.inv_bp,
+            heightmap: &mut heightmap,
+        },
+        scene,
+        focus,
+    )
+    .expect("primary campsite loads terrain before objects");
+    (spawned, focus)
+}
+
+fn load_primary_placement_data() -> crate::asset::adt_format::adt_obj::AdtObjData {
+    let data =
+        std::fs::read("data/terrain/2703_31_37_obj0.adt").expect("primary MDDF fixture exists");
+    crate::asset::adt_format::adt_obj::load_adt_obj0(&data).expect("primary MDDF fixture parses")
+}
+
+fn primary_authored_position(doodad: &crate::asset::adt_format::adt_obj::DoodadPlacement) -> Vec3 {
+    // This primary fixture stores direct world [X, Z, Y], not absolute ADT offsets.
+    Vec3::new(doodad.position[0], doodad.position[1], -doodad.position[2])
+}
+
+fn spawned_doodad_world_positions(app: &mut App) -> Vec<Vec3> {
+    app.world_mut()
+        .query_filtered::<&GlobalTransform, With<game_engine::culling::Doodad>>()
+        .iter(app.world())
+        .map(GlobalTransform::translation)
+        .collect()
+}
+
+fn same_placement_xz(actual: Vec3, authored: Vec3) -> bool {
+    actual
+        .xz()
+        .abs_diff_eq(authored.xz(), REST_BOUNDS_TOLERANCE)
+}
+
+fn match_spawned_doodad_position(positions: &[Vec3], authored: Vec3) -> Vec3 {
+    let matches: Vec<_> = positions
+        .iter()
+        .copied()
+        .filter(|position| same_placement_xz(*position, authored))
+        .collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "one spawned doodad must occupy authored XZ: {authored:?}, matches={matches:?}"
+    );
+    matches[0]
 }
 
 #[test]
