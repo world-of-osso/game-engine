@@ -1,14 +1,16 @@
 # Character-Select Waterfall Loading
 
-Verified: 2026-09-11. Diagnosis only; correction pending.
+Verified: 2026-09-11. Parsing and primary-backdrop filtering corrected; final native visibility proof pending.
 
-Adventurer's Rest loads primary terrain `2703_31_37`; its waterfall backdrop comes from supplemental tile `2703_31_36`. The supplemental root, `_tex0`, and `_obj0` files all exist locally.
+Adventurer's Rest loads primary terrain `2703_31_37` and supplemental tile `2703_31_36`. The waterfall in the campsite view belongs to the primary tile: 14 waterfall/ripple placements lie about 264–350 units from the character. The neighboring tile contains another 42 placements, over 500 units away. All supplemental root, `_tex0`, and `_obj0` files exist locally.
 
-The root contains 227 chunks with the shadow-present flag but no `HSCM` payloads. Their matching 227 shadow payloads reside in `_tex0`, as split-file data. `resolve_mcnk_shadow_map` currently requires those payloads while parsing the root alone and returns `MCNK flagged with MCSH but missing HSCM sub-chunk`. `load_adt_inner` propagates that failure for the whole tile.
+The supplemental root contains 227 chunks with the shadow-present flag but no `HSCM` payloads. Their matching 227 shadow payloads reside in `_tex0`, as split-file data. Root-only validation previously returned `MCNK flagged with MCSH but missing HSCM sub-chunk`, aborting the whole tile. `159b2b6f` supplies companion shadows before validation, retaining all maps and strict standalone validation.
 
-`scene_tree::spawn_warband_terrain_tile` converts the error to `None` with `.ok()`. The supplemental loop then skips terrain and object spawning, excluding 42 waterfall/ripple placements. This explains the primary-only runtime logs; fog and the unrelated mossy-rock WMO do not cause this omission.
+`scene_tree::spawn_warband_terrain_tile` previously swallowed that error with `.ok()`, so the supplemental loop skipped its 42 placements. `8e0495a2` reports the path and failure. This explained primary-only loading, but did not by itself restore the visible waterfall.
 
-The correction must respect split-file shadow ownership and report loading errors rather than silently skipping the backdrop. Do not treat absent root shadow payloads as corrupt data without considering the companion file, or discard valid shadow data as a workaround.
+Native inspection after the parser fix exposed the second blocker: the primary object pass applied a 75-unit prop radius to its own waterfall backdrop. `17b77d68` reuses the existing waterfall/ripple predicate to admit those authored background effects while keeping ordinary props radius-limited. The real-spawn regression changes from 62 props with no waterfall04 model to 76 placements, including that model. Camera, fog, and skybox ordering are unchanged.
+
+Do not discard shadow flags/data or broadly expand prop loading as substitutes for these corrections. Evidence includes `primary-red`, `primary-green`, `all-waterfall-placements.json`, and the supplemental 42-placement/256-mesh/227-shadow regression under the diagnostic directory.
 
 ## Evidence and sources
 
