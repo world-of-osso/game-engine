@@ -12,7 +12,12 @@ use std::time::{Duration, Instant};
 const TARGET_SIZE: u32 = 64;
 const SAMPLE_POSITIONS: [(u32, u32); 4] = [(4, 4), (16, 32), (40, 32), (50, 32)];
 
-fn create_scene(app: &mut App, layer: usize, blend_mode: u16) -> Handle<Image> {
+fn create_scene(
+    app: &mut App,
+    layer: usize,
+    blend_mode: u16,
+    foreground: AlphaMode,
+) -> Handle<Image> {
     let target = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
@@ -40,7 +45,7 @@ fn create_scene(app: &mut App, layer: usize, blend_mode: u16) -> Handle<Image> {
         Tonemapping::None,
     ));
     spawn_sky(app, layer, blend_mode);
-    spawn_foreground(app, layer);
+    spawn_foreground(app, layer, foreground);
     target
 }
 
@@ -108,7 +113,7 @@ fn spawn_sky(app: &mut App, layer: usize, blend_mode: u16) {
     ));
 }
 
-fn spawn_foreground(app: &mut App, layer: usize) {
+fn spawn_foreground(app: &mut App, layer: usize, foreground: AlphaMode) {
     spawn_card(
         app,
         layer,
@@ -116,6 +121,7 @@ fn spawn_foreground(app: &mut App, layer: usize) {
         2.0,
         StandardMaterial {
             base_color: Color::srgb(1.0, 0.0, 0.0),
+            alpha_mode: foreground,
             unlit: true,
             ..default()
         },
@@ -199,11 +205,15 @@ fn skybox_depth_preserves_foreground_and_foliage_cutouts() {
     app.finish();
     app.cleanup();
     // Separate cameras/layers exercise opaque and alpha-blended sky pipelines.
-    let targets = [create_scene(&mut app, 0, 0), create_scene(&mut app, 1, 2)];
+    let targets = [
+        create_scene(&mut app, 0, 0, AlphaMode::Opaque),
+        create_scene(&mut app, 1, 2, AlphaMode::Opaque),
+        create_scene(&mut app, 2, 2, AlphaMode::Blend),
+    ];
     let (sender, receiver) = mpsc::channel();
-    let mut pending = [false; 2];
-    let mut consecutive_matches = [0_u8; 2];
-    let mut last_pixels = [[[0_u8; 4]; 4]; 2];
+    let mut pending = [false; 3];
+    let mut consecutive_matches = [0_u8; 3];
+    let mut last_pixels = [[[0_u8; 4]; 4]; 3];
     while Instant::now() < deadline {
         app.update();
         assert_no_pipeline_errors(&app);
@@ -241,6 +251,6 @@ fn skybox_depth_preserves_foreground_and_foliage_cutouts() {
     }
     panic!(
         "skybox must preserve [blue background, red foreground, green foliage, blue cutout]; \
-         opaque/blended pixels={last_pixels:?}, consecutive matches={consecutive_matches:?}"
+         opaque/blended/transparent-foreground pixels={last_pixels:?}, consecutive matches={consecutive_matches:?}"
     );
 }
