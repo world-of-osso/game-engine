@@ -313,6 +313,15 @@ fn authored_point_light(authored: &m2_light::EvaluatedLight) -> PointLight {
     }
 }
 
+/// Lifetime ownership is independent of the bone used for transforms and visibility.
+#[derive(Component)]
+#[relationship(relationship_target = OwnedM2Lights)]
+struct M2LightOwner(Entity);
+
+#[derive(Component)]
+#[relationship_target(relationship = M2LightOwner, linked_spawn)]
+struct OwnedM2Lights(Vec<Entity>);
+
 pub fn spawn_model_point_lights(
     commands: &mut Commands,
     lights: &[m2_light::M2Light],
@@ -341,6 +350,7 @@ pub fn spawn_model_point_lights(
         commands.entity(parent).with_children(|children| {
             children.spawn((
                 Name::new(format!("M2PointLight{index}")),
+                M2LightOwner(root),
                 Transform::from_translation(pos.into()),
                 authored_point_light(&authored),
                 vis,
