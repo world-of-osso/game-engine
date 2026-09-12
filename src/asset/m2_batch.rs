@@ -380,6 +380,16 @@ mod tests {
     }
 
     #[test]
+    fn waterfall_shader_routes_modulation_to_second_uv_without_lookup_table() {
+        let flags = BatchUvFlags {
+            texture_unit_lookup: &[],
+        };
+        let mut unit = test_unit(2, 0);
+        unit.shader_id = 0x4014;
+        assert_eq!(flags.evaluate(&unit, Some(4661390)), (false, true, false));
+    }
+
+    #[test]
     fn lookup_value_two_selects_second_uv_channel() {
         assert!(lookup_uses_uv1(Some(2)));
         assert!(!lookup_uses_uv1(Some(1)));
