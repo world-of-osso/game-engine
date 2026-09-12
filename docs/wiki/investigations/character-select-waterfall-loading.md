@@ -12,7 +12,9 @@ Native inspection after the parser fix exposed the second blocker: the primary o
 
 Modern waterfall batches also encode their modulation coordinate in the shader-selected second UV set rather than the legacy coordinate lookup. `458868e9`, with named selector bits from `81417de0`, decodes that second UV source while preserving the authored alpha combine.
 
-`7b0a12eb` preserves per-track global-sequence periods for ordinary `M2EffectMaterial` instances and samples them as loops rather than clamping at their final keyframe. Waterfall model `4661358` has independent 1000 ms and 1333 ms global periods on different batches; its second texture-animation lookup of `-1` remains static. The timing oracle was corrected in `33db3799`; `29e15a64` is its genuine frozen-animation RED boundary, followed by GREEN in `7b0a12eb`. Color-space, opaque, unlit, and cull probes were diagnostic controls only; none is the production fix.
+`7b0a12eb` preserves per-track global-sequence periods for ordinary `M2EffectMaterial` instances and samples them as loops rather than clamping at their final keyframe. Waterfall model `4661358` has independent 1000 ms and 1333 ms global periods on different batches; its second texture-animation lookup of `-1` remains static. The timing oracle was corrected in `33db3799`; `29e15a64` is its genuine frozen-animation RED boundary, followed by GREEN in `7b0a12eb`. `animation-verification/report.md` records 16 focused CPU tests and `cargo check` passing for this scope. Color-space, opaque, unlit, and cull probes were diagnostic controls only; none is the production fix.
+
+`ca94fe91` adds a matched no-fog GPU control: white `M2EffectMaterial` and `StandardMaterial` quads render identical center RGB `[152, 152, 152]`. This rules out a basic custom-PBR lighting mismatch in that controlled case, not an actual-waterfall or character-select exposure diagnosis.
 
 `f53bba1c` keeps character-select orbit-input diagnostics at DEBUG, avoiding INFO-log noise without removing the diagnostic.
 
@@ -26,6 +28,8 @@ Do not discard shadow flags/data, broadly expand prop loading, replace alpha com
 - `src/asset/adt_format/adt.rs` — root parse error propagation.
 - `src/rendering/terrain/terrain_objects.rs` — primary backdrop admission.
 - `src/asset/m2_batch.rs` — shader-selected waterfall UV source.
+- `data/diagnostics/waterfall-missing-20260911/animation-verification/report.md` — 16 focused CPU tests and check evidence for timing.
+- `data/diagnostics/waterfall-missing-20260911/lit-comparison/output.txt` — matched lit-material GPU pixels.
 - `src/rendering/model/m2_effect_material.rs` — per-track global-sequence texture-offset sampling.
 - `src/rendering/model/m2_spawn_material.rs` — preserves global-sequence timing for ordinary effect materials.
 - `src/scenes/char_select/scene_tree.rs` — terrain-load error reporting.
