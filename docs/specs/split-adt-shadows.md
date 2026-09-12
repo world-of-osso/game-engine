@@ -53,7 +53,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## Known gaps (current cycle)
 
-- [ ] Native proof must show a readable, moving waterfall cascade plus authored mist/spray. Loading, UV, texture-track, emitter-wiring, parser, and XY-orientation regressions alone do not prove this.
+- User confirmed waterfall visibility on 2026-09-12 after the native fixes; this supersedes the earlier model-only absence assessment. Overall scene darkness still differs from Retail. Component regressions alone remain insufficient evidence of visual parity.
 - [ ] Do not infer or implement refraction material selection from the remaining appearance gap without direct Retail selection evidence; proven parser and geometry defects need no such assumption.
 
 ## Out of scope
