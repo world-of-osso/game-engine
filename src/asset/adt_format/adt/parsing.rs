@@ -577,13 +577,16 @@ pub(super) fn parse_lod_object_visibility(
         .collect()
 }
 
-pub(super) fn parse_mcnk(payload: &[u8]) -> Result<McnkData, String> {
+pub(super) fn parse_mcnk(
+    payload: &[u8],
+    texture_shadow: Option<[u8; MCSH_BYTES]>,
+) -> Result<McnkData, String> {
     if payload.len() < size_of::<McnkHeader>() {
         return Err(format!("MCNK payload too small: {} bytes", payload.len()));
     }
     let header: McnkHeader = parse_binrw_value(payload, 0, "MCNK header")?;
     let flags = McnkFlags::from_bits(header.flags);
-    let subchunks = parse_mcnk_subchunks(&payload[128..], flags)?;
+    let subchunks = parse_mcnk_subchunks(&payload[128..], flags, texture_shadow)?;
     Ok(build_mcnk_data(header, flags, subchunks))
 }
 
@@ -624,10 +627,47 @@ fn build_mcnk_data(
 pub(super) fn parse_mcnk_subchunks(
     sub: &[u8],
     flags: McnkFlags,
+    texture_shadow: Option<[u8; MCSH_BYTES]>,
 ) -> Result<McnkSubchunksResult, String> {
     let mut accum = empty_mcnk_subchunk_accum();
     apply_mcnk_subchunk_stream(&mut accum, sub)?;
+    if let Some(shadow) = texture_shadow {
+        if accum
+            .shadow_map
+            .is_some_and(|root_shadow| root_shadow != shadow)
+        {
+            return Err("conflicting root and texture-companion HSCM data".to_string());
+        }
+        accum.shadow_map = Some(shadow);
+    }
     finalize_mcnk_subchunks(accum, flags)
+}
+
+pub(super) fn parse_texture_shadow_maps(
+    data: &[u8],
+) -> Result<Vec<Option<[u8; MCSH_BYTES]>>, String> {
+    let mut shadows = Vec::new();
+    for chunk in ChunkIter::new(data) {
+        let (tag, payload) = chunk?;
+        if tag == b"KNCM" {
+            shadows.push(parse_texture_chunk_shadow(payload)?);
+        }
+    }
+    Ok(shadows)
+}
+
+fn parse_texture_chunk_shadow(data: &[u8]) -> Result<Option<[u8; MCSH_BYTES]>, String> {
+    let mut shadow = None;
+    for chunk in ChunkIter::new(data) {
+        let (tag, payload) = chunk?;
+        if tag == b"HSCM" {
+            if shadow.is_some() {
+                return Err("duplicate HSCM in texture companion chunk".to_string());
+            }
+            shadow = Some(parse_mcsh(payload)?);
+        }
+    }
+    Ok(shadow)
 }
 
 fn empty_mcnk_subchunk_accum() -> McnkSubchunkAccum {

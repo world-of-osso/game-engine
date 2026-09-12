@@ -372,7 +372,7 @@ fn parse_mclv(payload: &[u8]) -> Result<[[f32; 4]; MCVT_COUNT], String> {
 
 #[cfg(test)]
 fn parse_mcnk_subchunks(sub: &[u8], flags: McnkFlags) -> Result<McnkSubchunksResult, String> {
-    parsing::parse_mcnk_subchunks(sub, flags)
+    parsing::parse_mcnk_subchunks(sub, flags, None)
 }
 
 pub fn vertex_index(grid_row: usize, col: usize) -> usize {
@@ -443,20 +443,47 @@ fn build_height_grids(
 }
 
 pub(crate) fn load_adt_parsed(data: &[u8]) -> Result<ParsedAdtData, String> {
-    load_adt_inner(data, None)
+    load_adt_inner(data, None, None)
 }
 
 pub(crate) fn load_adt_for_tile_parsed(
     data: &[u8],
     tile_y: u32,
     tile_x: u32,
+    texture_data: Option<&[u8]>,
 ) -> Result<ParsedAdtData, String> {
-    load_adt_inner(data, Some((tile_y, tile_x)))
+    load_adt_inner(data, Some((tile_y, tile_x)), texture_data)
 }
 
 #[cfg(test)]
 pub(crate) fn load_adt_raw(data: &[u8]) -> Result<ParsedAdtData, String> {
     load_adt_parsed(data)
+}
+
+fn parse_root_chunks_with_texture_shadows(
+    chunks: Vec<&[u8]>,
+    texture_data: Option<&[u8]>,
+) -> Result<Vec<McnkData>, String> {
+    let shadows = texture_data
+        .map(parsing::parse_texture_shadow_maps)
+        .transpose()?;
+    if let Some(shadows) = &shadows {
+        if shadows.len() != chunks.len() {
+            return Err(format!(
+                "texture companion has {} MCNK chunks, root has {}",
+                shadows.len(),
+                chunks.len()
+            ));
+        }
+    }
+    chunks
+        .into_iter()
+        .enumerate()
+        .map(|(index, chunk)| {
+            let shadow = shadows.as_ref().and_then(|shadows| shadows[index]);
+            parse_mcnk(chunk, shadow).map_err(|error| format!("MCNK {index}: {error}"))
+        })
+        .collect()
 }
 
 fn center_surface_position(chunks: &[McnkData], tile_coords: Option<(u32, u32)>) -> [f32; 3] {
@@ -475,15 +502,15 @@ fn center_surface_position(chunks: &[McnkData], tile_coords: Option<(u32, u32)>)
     )
 }
 
-fn load_adt_inner(data: &[u8], tile_coords: Option<(u32, u32)>) -> Result<ParsedAdtData, String> {
+fn load_adt_inner(
+    data: &[u8],
+    tile_coords: Option<(u32, u32)>,
+    texture_data: Option<&[u8]>,
+) -> Result<ParsedAdtData, String> {
     let root_chunks = collect_adt_chunks(data)?;
     let blend_mesh = parse_blend_mesh_data(&root_chunks)?;
     let flight_bounds = root_chunks.mfbo.map(parse_mfbo).transpose()?;
-    let parsed: Vec<McnkData> = root_chunks
-        .mcnks
-        .into_iter()
-        .map(parse_mcnk)
-        .collect::<Result<Vec<_>, String>>()?;
+    let parsed = parse_root_chunks_with_texture_shadows(root_chunks.mcnks, texture_data)?;
     let center_surface = center_surface_position(&parsed, tile_coords);
     let chunk_positions = parsed.iter().map(|d| d.pos).collect();
     let height_grids = build_height_grids(&parsed, tile_coords);

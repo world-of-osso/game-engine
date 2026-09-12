@@ -36,7 +36,16 @@ pub(super) fn load_and_parse_adt(adt_path: &Path) -> Result<adt::AdtData, String
     let (_, tile_y, tile_x) = crate::terrain_tile::parse_tile_coords_from_path(adt_path)?;
     let data = std::fs::read(adt_path)
         .map_err(|e| format!("Failed to read {}: {e}", adt_path.display()))?;
-    let adt = adt::load_adt_for_tile(&data, tile_y, tile_x)?;
+    let texture_path = crate::terrain_tile::resolve_companion_path(adt_path, "_tex0")?;
+    let adt = match texture_path {
+        Some(path) => {
+            let texture_data = std::fs::read(&path)
+                .map_err(|error| format!("Failed to read {}: {error}", path.display()))?;
+            adt::load_adt_for_tile_with_tex0(&data, &texture_data, tile_y, tile_x)
+        }
+        None => adt::load_adt_for_tile(&data, tile_y, tile_x),
+    }
+    .map_err(|error| format!("Failed to parse {}: {error}", adt_path.display()))?;
     if let Some(err) = &adt.water_error {
         warn_mh2o_once(adt_path, err);
     }

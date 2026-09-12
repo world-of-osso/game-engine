@@ -372,7 +372,20 @@ pub fn load_adt_lod(data: &[u8]) -> Result<LodData, String> {
 
 pub fn load_adt_for_tile(data: &[u8], tile_y: u32, tile_x: u32) -> Result<AdtData, String> {
     load_adt_inner(
-        super::adt_format::adt::load_adt_for_tile_parsed(data, tile_y, tile_x)?,
+        super::adt_format::adt::load_adt_for_tile_parsed(data, tile_y, tile_x, None)?,
+        Some((tile_y, tile_x)),
+    )
+}
+
+/// Load root geometry with shadow payloads supplied by its split texture companion.
+pub fn load_adt_for_tile_with_tex0(
+    data: &[u8],
+    texture_data: &[u8],
+    tile_y: u32,
+    tile_x: u32,
+) -> Result<AdtData, String> {
+    load_adt_inner(
+        super::adt_format::adt::load_adt_for_tile_parsed(data, tile_y, tile_x, Some(texture_data))?,
         Some((tile_y, tile_x)),
     )
 }
