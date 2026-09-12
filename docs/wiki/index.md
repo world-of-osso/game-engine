@@ -63,7 +63,8 @@ Root cause analyses and debug findings.
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` authored M2 black output remains separate from ordinary InWorld procedural sky
 - [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane
-- [character-select-waterfall-loading](investigations/character-select-waterfall-loading.md) — split shadows, primary backdrop filtering, UV/timing, and terrain-attached mist emitter forwarding; visible cascade and mist acceptance remain open
+- [character-select-waterfall-loading](investigations/character-select-waterfall-loading.md) — split shadows, primary backdrop filtering, UV/timing, and terrain-attached mist emitter forwarding; waterfall visibility is accepted, while scene brightness remains separate
+- [character-select-lighting-overwrite](investigations/character-select-lighting-overwrite.md) — read-only proof that the sky update overwrites character-select directional lights; no Retail setting or fix established
 - [procedural-sky-dome-visibility](investigations/procedural-sky-dome-visibility.md) — restored raw-zero dome was backface-culled; late-created materials also missed settled sky colors
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical

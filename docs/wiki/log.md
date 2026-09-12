@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-12] rendering | Record character-select directional-light overwrite boundary
+
+A read-only headless probe records `OnEnter(CharSelect)` setup at 35,000/12,000 lux, followed by the first sky update setting both directional lights to the same cool 1,000-lux color and rotation; ambient remains brightness 150. Scene-tree output is stored setup metadata rather than live light-component state. Temporary probe-source inclusion was restored. ROI review rejects numerical image EV estimates, and local data does not establish exact Retail settings, a brightness match, or a production fix. See [[character-select-lighting-overwrite]] and [[character-select-waterfall-loading]].
+
 ## [2026-09-11] ui | Document nameplate visibility, picking, and offline preview boundary
 
 Source audit through engine `f3dab635` records projection-time exclusion of every local-owner plate part, including late `LocalPlayer` assignment; shared health-body distance fade/hide for names, health, and casts; and visible plate-owner selection before world mesh raycasting after registry UI input precedence. `HudOptions.nameplate_distance` remains the configured policy; no current retail-native cap is asserted. `--screen nameplatedebug` and `--screen nameplate-debug` route to an offline plain-owner preview with looping normal casts and channels, Space pause/resume, and plate selection. The approved half-size calibration and Thick-health/Thin-spellbar defaults remain unchanged; glow work stays deferred. This is source documentation only: no current-cycle test execution or rendered runtime proof is claimed. See [[nameplate-design]], [nameplate spec](../specs/nameplate-style.md), and [nameplate debug spec](../specs/nameplate-debug.md).
