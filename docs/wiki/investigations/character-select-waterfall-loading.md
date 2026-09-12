@@ -1,6 +1,6 @@
 # Character-Select Waterfall Loading
 
-Verified: 2026-09-12. Waterfall visibility is confirmed by the user after the loading, UV/timing, particle and placement corrections. Overall scene darkness remains different from Retail.
+Verified: 2026-09-12. Waterfall visibility is confirmed by the user after the loading, UV/timing, particle and placement corrections. Overall scene darkness remains different from Retail; [[character-select-lighting-overwrite]] records the separate, read-only source-level directional-light overwrite finding without claiming a Retail setting or fix.
 
 Adventurer's Rest loads primary terrain `2703_31_37` and supplemental tile `2703_31_36`. The waterfall in the campsite view belongs to the primary tile: 14 waterfall/ripple placements lie about 264–350 units from the character. The neighboring tile contains another 42 placements, over 500 units away. All supplemental root, `_tex0`, and `_obj0` files exist locally.
 
