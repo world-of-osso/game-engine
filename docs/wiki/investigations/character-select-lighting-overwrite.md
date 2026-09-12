@@ -16,9 +16,17 @@ The earlier probe described the faulty setup accurately but did not justify exem
 
 The M2 parser correction `5dc4386f` proves modern light records are 156 bytes: a 16-byte prefix plus seven 20-byte animation tracks. Actual cauldron `4238519` retains two type-1 lights and lanterns `5149702`/`5140152` retain four each. The cauldron has both a 3333ms model-local intensity track and a 3333ms global-sequence intensity track, so attachment code cannot sample time zero forever.
 
+## Implemented correction
+
+At `698ea9e5`, `SkySun` positively marks environmental directional lights. Character selection now creates one marked environment sun, global ambient brightness 0, and generated camera IBL at intensity300; the fabricated campfire/fill pair is gone. Sky color and time queries target only `SkySun`. A late-created sun is initialized at the current sky time even when the clock is unchanged.
+
+All attachment paths now retain type-1 M2 point lights. Local tracks either follow an explicit `M2AnimPlayer` or a standalone model-default sequence wrapped by its authored duration. Global tracks sample shared Bevy elapsed time wrapped by their own authored global duration. This prevents static attachments from inheriting an unrelated parent's animation and avoids frozen local/global cauldron intensity tracks.
+
+Focused GREEN at `698ea9e5`: 14 binary ownership/attachment/clock tests and 7 parser/evaluator tests. A bounded native character-select capture reported one environment sun, ambient brightness 0, a non-black terrain/character screenshot, and no runtime errors. Independent final fmt/check/readability verification remains pending.
+
 ## Boundaries
 
-Image ROI review rejected the candidate pairs, so numerical image-derived EV or exposure estimates are not valid. The local data does not demonstrate an exact Retail Adventurer's Rest light record or a map-inheritance path. No exact Retail setting or brightness match is claimed. Attachment retention, animated-light timing, environmental-sun ownership, and rendered validation remain pending at this record.
+Image ROI review rejected the candidate pairs, so numerical image-derived EV or exposure estimates are not valid. The local data does not demonstrate an exact Retail Adventurer's Rest light record or a map-inheritance path. No exact Retail setting, photometric conversion, or brightness match is claimed.
 
 ## Sources
 
@@ -27,6 +35,8 @@ Image ROI review rejected the candidate pairs, so numerical image-derived EV or 
 - `data/diagnostics/m2-lighting-authority-20260912/loaded-model-light-counts.json` — campsite-model light census.
 - `data/diagnostics/m2-lighting-authority-20260912/parser/report.md` — asset-backed 156-byte parser RED/GREEN and animation census.
 - `data/diagnostics/m2-lighting-root-fix-20260912/test-red/result.json` — attachment and ownership regression RED.
+- `data/diagnostics/m2-lighting-root-fix-20260912/attachment-clock-report.md` — attachment/clock RED/GREEN and runtime ownership.
+- `data/diagnostics/m2-lighting-root-fix-20260912/attachment-clock-green/` and `evaluator-green/` — focused GREEN output.
 
 ## See Also
 

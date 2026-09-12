@@ -34,9 +34,9 @@ The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 a
 
 ## Environmental lighting ownership
 
-Authored skybox geometry does not itself initialize scene IBL. Active `WowCamera` entities lacking both `GeneratedEnvironmentMapLight` and `EnvironmentMapLight` use the existing generated-map setup at intensity300, derived from current `LightKeyframes`; the component filters make it idempotent and preserve explicit overrides.
+Authored skybox geometry does not itself initialize scene IBL. Active InWorld and character-select cameras lacking both `GeneratedEnvironmentMapLight` and `EnvironmentMapLight` use the existing generated-map setup at intensity300, derived from current `LightKeyframes`; the component filters make it idempotent and preserve explicit overrides.
 
-The character-selection follow-up requires the same camera-IBL ownership alongside one explicitly sky-owned environmental directional sun. Sky color/time systems must update that marker only, not every `DirectionalLight`; M2 type-1 point lights and unrelated directional lights have separate ownership. Until the implementation and regressions land, `initialize_inworld_camera_ibl` remains InWorld-only and the character-selection directional rig is the known faulty state.
+`SkySun` marks the sole environmental directional light owned by sky color and time systems. Every environment spawn site marks its directional light explicitly; sky systems query only `With<SkySun>`, leaving unrelated directional lights and M2 type-1 point lights untouched. Character selection removes its fabricated `TerrainFillLight`/`CampfireLight` pair, uses one `SkySun`, and sets global ambient brightness to 0. Newly added suns force their current color, rotation, and illuminance initialization even when `GameTime` has not advanced.
 
 This does not establish an exact Retail brightness, exposure, or map-light record. See [[character-select-lighting-overwrite]] and [character-selection visibility](../../specs/character-selection-visibility.md).
 

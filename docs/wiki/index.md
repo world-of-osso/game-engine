@@ -24,7 +24,7 @@ Engine subsystems and how they work.
 
 WoW file format specifications as used by the engine.
 
-- [m2-format](formats/m2-format.md) — MD21 chunks, bones, animations, geosets, skin files, particles, texture types
+- [m2-format](formats/m2-format.md) — MD21 chunks, bones, animations, geosets, skin files, 156-byte modern light records, particles, texture types
 - [adt-format](formats/adt-format.md) — Split files, MCNK MCVT row/column axes and center-fan topology, texture layers, MDDF/MODF placement
 - [blp-format](formats/blp-format.md) — BLP textures, DXT1/DXT5, image-blp crate, compositing helpers
 - [casc-format](formats/casc-format.md) — Content-addressable storage, FDID lookup chain, archives, TACT encryption
@@ -64,7 +64,7 @@ Root cause analyses and debug findings.
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — `skyboxdebug` authored M2 black output remains separate from ordinary InWorld procedural sky
 - [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane
 - [character-select-waterfall-loading](investigations/character-select-waterfall-loading.md) — split shadows, primary backdrop filtering, UV/timing, and terrain-attached mist emitter forwarding; waterfall visibility is accepted, while scene brightness remains separate
-- [character-select-lighting-overwrite](investigations/character-select-lighting-overwrite.md) — sky overwrite root cause, M2 light-record evidence, and pending environmental-ownership correction; no Retail brightness match claimed
+- [character-select-lighting-overwrite](investigations/character-select-lighting-overwrite.md) — sky overwrite root cause, M2 light-record and attachment-clock correction, environmental-sun ownership; no Retail brightness match claimed
 - [procedural-sky-dome-visibility](investigations/procedural-sky-dome-visibility.md) — restored raw-zero dome was backface-culled; late-created materials also missed settled sky colors
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
