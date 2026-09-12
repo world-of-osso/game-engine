@@ -491,26 +491,11 @@ fn sync_model_lights(
     mut lights: Query<(&RuntimeM2PointLight, &mut PointLight, &mut Visibility)>,
 ) {
     let global_time_ms = time.elapsed().as_millis() as u64;
-    for (runtime, mut point_light, mut visibility) in &mut lights {
-        let (seq_idx, time_ms) = match runtime.animation.local {
-            super::m2_spawn::M2LightLocalAnimation::Player(owner) => {
-                let Ok(player) = players.get(owner) else {
-                    error!(?owner, "M2 light animation owner has no player");
-                    continue;
-                };
-                (player.current_seq_idx, player.time_ms as u32)
-            }
-            super::m2_spawn::M2LightLocalAnimation::Standalone {
-                sequence_index,
-                duration_ms,
-            } => {
-                let local_time = if duration_ms == 0 {
-                    0
-                } else {
-                    (global_time_ms % u64::from(duration_ms)) as u32
-                };
-                (sequence_index, local_time)
-            }
+    for (runtime, point_light, visibility) in &mut lights {
+        let Some((seq_idx, time_ms)) =
+            sample_model_light_time(&runtime.animation.local, &players, global_time_ms)
+        else {
+            continue;
         };
         let authored = m2_light::evaluate_light(
             &runtime.light,
@@ -519,23 +504,58 @@ fn sync_model_lights(
             global_time_ms,
             &runtime.animation.global_sequences,
         );
-        let color = Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]);
-        let radius = authored.attenuation_start.min(authored.attenuation_end);
-        if point_light.color != color
-            || point_light.intensity != authored.intensity
-            || point_light.range != authored.attenuation_end
-            || point_light.radius != radius
-        {
-            point_light.color = color;
-            point_light.intensity = authored.intensity;
-            point_light.range = authored.attenuation_end;
-            point_light.radius = radius;
+        apply_model_light(&authored, point_light, visibility);
+    }
+}
+
+fn apply_model_light(
+    authored: &m2_light::EvaluatedLight,
+    mut point_light: Mut<PointLight>,
+    mut visibility: Mut<Visibility>,
+) {
+    let color = Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]);
+    let radius = authored.attenuation_start.min(authored.attenuation_end);
+    let changed = point_light.color != color
+        || point_light.intensity != authored.intensity
+        || point_light.range != authored.attenuation_end
+        || point_light.radius != radius;
+    if changed {
+        point_light.color = color;
+        point_light.intensity = authored.intensity;
+        point_light.range = authored.attenuation_end;
+        point_light.radius = radius;
+    }
+    visibility.set_if_neq(if authored.visible {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    });
+}
+
+fn sample_model_light_time(
+    local: &super::m2_spawn::M2LightLocalAnimation,
+    players: &Query<&M2AnimPlayer>,
+    global_time_ms: u64,
+) -> Option<(usize, u32)> {
+    match *local {
+        super::m2_spawn::M2LightLocalAnimation::Player(owner) => {
+            let Ok(player) = players.get(owner) else {
+                error!(?owner, "M2 light animation owner has no player");
+                return None;
+            };
+            Some((player.current_seq_idx, player.time_ms as u32))
         }
-        visibility.set_if_neq(if authored.visible {
-            Visibility::Inherited
-        } else {
-            Visibility::Hidden
-        });
+        super::m2_spawn::M2LightLocalAnimation::Standalone {
+            sequence_index,
+            duration_ms,
+        } => {
+            let local_time = if duration_ms == 0 {
+                0
+            } else {
+                (global_time_ms % u64::from(duration_ms)) as u32
+            };
+            Some((sequence_index, local_time))
+        }
     }
 }
 
