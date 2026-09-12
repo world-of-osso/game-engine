@@ -10,6 +10,9 @@ mod emitters;
 mod emitters_model_particles;
 mod visuals;
 
+#[cfg(test)]
+mod multitexture_gpu_tests;
+
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
