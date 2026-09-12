@@ -13,6 +13,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
 - [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
 - [x] Keep waterfall texture animation moving after its first cycle by sampling each track with its own authored global-sequence duration.
+- [x] Forward parsed particle emitters from preloaded terrain M2 attachments to the existing emitter path, including spawned skeleton joints and the graphics particle-effects gate.
 
 ## How it works
 
@@ -29,16 +30,18 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/asset/m2_batch.rs` — resolves waterfall shader UV inputs.
 - `src/rendering/model/m2_effect_material.rs` — samples animated texture offsets using model global-sequence periods.
 - `src/rendering/model/m2_spawn_material.rs`, `m2_spawn.rs`, `m2_scene/mod.rs` — retain model timing data when creating ordinary effect materials.
+- `src/rendering/model/m2_spawn.rs` — forwards authored emitters and spawned M2 joints from preloaded terrain attachments to `particle::spawn_emitters`.
 
 ## Tests asserting this spec
 
 - `src/asset/adt_format/adt_tests/mcnk.rs`
 - `src/rendering/terrain/terrain_spawn/tests.rs`
 - `src/rendering/model/m2_spawn_material_tests.rs` — actual waterfall model sampled across multiple global periods.
+- `src/scenes/char_select/scene/tests/supplemental_waterfall_tests.rs` — actual mist M2 terrain attachment emitter regression.
 
 ## Known gaps (current cycle)
 
-- [ ] Native proof must show a readable, moving waterfall cascade. Loading, UV, and texture-track RED/GREEN regressions alone do not prove this.
+- [ ] Native proof must show a readable, moving waterfall cascade plus authored mist/spray. Loading, UV, texture-track, and emitter-wiring regressions alone do not prove this.
 
 ## Out of scope
 
