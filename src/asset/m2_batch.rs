@@ -89,7 +89,10 @@ impl BatchUvFlags<'_> {
         );
         let (use_uv_2_2, use_env_map_2) = if unit.texture_count > 1 {
             if self.texture_unit_lookup.is_empty() {
-                let second_uv = unit.shader_id & 0x8088 == 0 && unit.shader_id & 0x4000 != 0;
+                const STATIC_OR_ENVIRONMENT_SHADER_BITS: u16 = 0x8000 | 0x80 | 0x08;
+                const SECOND_UV_SHADER_BIT: u16 = 0x4000;
+                let second_uv = unit.shader_id & STATIC_OR_ENVIRONMENT_SHADER_BITS == 0
+                    && unit.shader_id & SECOND_UV_SHADER_BIT != 0;
                 (
                     second_uv,
                     texture_looks_like_environment_map(texture_2_fdid),
