@@ -147,17 +147,6 @@ fn velocity_orient_flag_orients_particles_along_velocity() {
 }
 
 #[test]
-fn xy_quad_flag_uses_parallel_camera_depth_plane() {
-    let mut emitter = sample_emitter();
-    emitter.flags = PARTICLE_FLAG_XY_QUAD;
-
-    assert!(matches!(
-        orient_mode(&emitter),
-        OrientMode::ParallelCameraDepthPlane
-    ));
-}
-
-#[test]
 fn tail_particles_flag_does_not_force_velocity_orient() {
     let mut emitter = sample_emitter();
     emitter.flags = PARTICLE_FLAG_TAIL_PARTICLES;

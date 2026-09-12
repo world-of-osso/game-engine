@@ -21,9 +21,7 @@ use super::visuals::{
     SizeVariationModifier, TwinkleSizeModifier, build_color_gradient,
     build_offset_by_spin_modifier, build_size_gradient, has_authored_twinkle,
 };
-use shared::{
-    add_optional_init_modifiers, build_color_render_modifier, orient_mode as shared_orient_mode,
-};
+use shared::{add_optional_init_modifiers, build_color_render_modifier};
 
 use super::{
     DYNAMIC_WIND_ACCEL_PROPERTY, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_VELOCITY_ORIENT,
@@ -60,7 +58,7 @@ pub(crate) fn flipbook_sprite_mode(em: &M2ParticleEmitter) -> Option<FlipbookSpr
 
 #[cfg(test)]
 pub(crate) fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
-    shared_orient_mode(em)
+    shared::orient_mode(em)
 }
 
 pub(crate) fn build_effect_asset_with_mode(

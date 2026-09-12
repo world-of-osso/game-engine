@@ -28,6 +28,7 @@ const STABLE_BATCHES: u8 = 3;
 #[test]
 #[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
 fn authored_xy_quad_is_visible_from_above_and_edge_on_from_the_side() {
+    const MIN_TOP_TO_SIDE_AREA_RATIO: usize = 8;
     let model =
         crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/2904370.m2"), &[0; 3])
             .expect("authored misty ripple model loads");
@@ -51,7 +52,7 @@ fn authored_xy_quad_is_visible_from_above_and_edge_on_from_the_side() {
         assert_visible_area(counts[index], index);
     }
     assert!(
-        counts[1] <= MAX_EDGE_PIXELS && counts[1] * 8 <= counts[0],
+        counts[1] <= MAX_EDGE_PIXELS && counts[1] * MIN_TOP_TO_SIDE_AREA_RATIO <= counts[0],
         "ground quad must be edge-on from a level camera, not a facing wall: {counts:?}",
     );
 }
