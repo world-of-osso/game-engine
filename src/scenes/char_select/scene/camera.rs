@@ -210,7 +210,7 @@ pub(super) fn char_select_orbit_camera(
         query.iter_mut().count(),
     );
     if should_log_orbit_input(*last_debug_state, debug_state) {
-        info!(
+        debug!(
             left_mouse_pressed = debug_state.left_mouse_pressed,
             has_mouse_motion = debug_state.has_mouse_motion,
             orbit_entity_count = debug_state.orbit_entity_count,
