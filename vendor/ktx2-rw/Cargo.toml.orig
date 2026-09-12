@@ -28,7 +28,7 @@ exclude = [
 libc = "0.2"
 
 [build-dependencies]
-bindgen = "0.72"
+bindgen = "0.73.1"
 cmake = "0.1"
 reqwest = { version = "0.12", features = ["blocking"] }
 zip = "5.1"
