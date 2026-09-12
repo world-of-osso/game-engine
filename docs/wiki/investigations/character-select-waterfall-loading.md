@@ -1,6 +1,6 @@
 # Character-Select Waterfall Loading
 
-Verified: 2026-09-12. Split shadows, primary-backdrop filtering, waterfall UV decoding, and authored waterfall texture-track looping are corrected. Native proof of a visibly moving cascade remains pending.
+Verified: 2026-09-12. Waterfall visibility is confirmed by the user after the loading, UV/timing, particle and placement corrections. Overall scene darkness remains different from Retail.
 
 Adventurer's Rest loads primary terrain `2703_31_37` and supplemental tile `2703_31_36`. The waterfall in the campsite view belongs to the primary tile: 14 waterfall/ripple placements lie about 264–350 units from the character. The neighboring tile contains another 42 placements, over 500 units away. All supplemental root, `_tex0`, and `_obj0` files exist locally.
 
@@ -40,11 +40,11 @@ Fable CLI successfully inspects the Retail reference and native image pixels whe
 
 `9c81528e` binds the three required images, preserves separate per-particle secondary UV offsets/velocities and implements two-color/three-alpha and three-color/three-alpha composition. A genuine GPU RED failed with one declared texture binding versus three supplied images; GREEN renders the analytic three-color fixture exactly at `[73, 51, 92, 255]`. This constant-texture test does not prove scrolling-atlas fidelity. `461d54a7` preserves the pre-existing first-slot name and resolves the integration readability findings. The subsystem's 77 initially passing cases plus the repaired failing case, three attachment tests and focused check/format evidence are recorded below; one benchmark remains ignored.
 
-**Native acceptance still fails, but the cyan artifacts are removed.** After `581c56be`, the direct Fable CLI comparison in `fable-consult/placement-image-findings.md` reports no floating cyan slabs, but still no recognizable vertical cascade or localized mist against the Retail reference. Its comparison explicitly loaded the image pixels. Earlier `multitexture-native-retry/acceptance.md` remains historical, pixel-only evidence of the cyan regression. The three-texture path is proven as a binding/composition capability, not as proof that ordinary cascade sheets require that material. No shader errors/panics or orbit INFO occur in the bounded captures. The preserved reference is `reference/wow-reference.png`; complete waterfall appearance remains unresolved.
+**User confirms waterfall visibility (2026-09-12).** The user's direct observation supersedes Fable's earlier claim that the cascade was absent. The remaining reported difference is overall scene darkness versus Retail; brightness matching has not been implemented. The cyan artifacts are removed, and bounded captures contain no shader errors/panics or orbit INFO. Earlier failed image assessments remain historical evidence, not the current visibility verdict. The three-texture GPU test proves its particle composition path, not material equivalence for ordinary cascade sheets. Reference: `reference/wow-reference.png`.
 
 `f53bba1c` keeps character-select orbit-input diagnostics at DEBUG, avoiding INFO-log noise without removing the diagnostic.
 
-Do not discard shadow flags/data, broadly expand prop loading, replace alpha combination, or use a shared/global animation period as substitutes for these corrections. RED/GREEN evidence is under `verification`, `primary-verification`, and `uv-verification`; moving-waterfall native proof remains pending.
+Do not discard shadow flags/data, broadly expand prop loading, replace alpha combination, or use a shared/global animation period as substitutes for these corrections. RED/GREEN evidence is under `verification`, `primary-verification`, and `uv-verification`.
 
 ## Evidence and sources
 
