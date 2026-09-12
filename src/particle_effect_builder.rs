@@ -223,7 +223,7 @@ fn build_base_effect_with_parts(
             lifetime: parts.lifetime,
             vel: parts.vel,
             gravity: parts.gravity,
-            orient: parts.orient,
+            orient: parts.orient.boxed_render_clone(),
             model_scale,
         },
     )
