@@ -11,6 +11,9 @@ use crate::m2_effect_material;
 const SKYBOX_M2_SHADER_HANDLE: Handle<Shader> =
     uuid_handle!("c47ea355-9536-4557-8f9c-65ddd5d2047b");
 const SKYBOX_PRIORITY_PLANE_BIAS_SCALE: f32 = 10_000.0;
+// Reserve a background sorting band beyond scene draw distances while retaining
+// integer precision for authored priority planes and material-layer ordering.
+const SKYBOX_BACKGROUND_SORT_BIAS: f32 = -8_000_000.0;
 
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct SkyboxM2MaterialKey {
@@ -119,7 +122,9 @@ fn skybox_alpha_mode_for_blend(blend_mode: u16) -> AlphaMode {
 }
 
 fn skybox_sort_bias(priority_plane: i8, material_layer: u16) -> f32 {
-    priority_plane as f32 * SKYBOX_PRIORITY_PLANE_BIAS_SCALE + material_layer as f32
+    SKYBOX_BACKGROUND_SORT_BIAS
+        + priority_plane as f32 * SKYBOX_PRIORITY_PLANE_BIAS_SCALE
+        + material_layer as f32
 }
 
 pub struct SkyboxM2MaterialPlugin;

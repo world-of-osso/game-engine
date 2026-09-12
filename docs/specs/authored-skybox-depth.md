@@ -7,6 +7,7 @@ Authored M2 skyboxes are backgrounds, regardless of their mesh size or position 
 - [x] Scene geometry must occlude the skybox even when the authored sky mesh is physically closer to the camera.
 - [x] Unobstructed pixels and transparent foliage cutouts must retain the authored sky color.
 - [x] Opaque and blended sky materials must preserve foreground color and coverage.
+- [ ] Transparent scene objects that do not write depth must also render over the sky; preserve authored ordering between sky layers.
 - [x] Depth correction must not change texture combining, opacity, or sky-layer ordering.
 
 ## How it works
