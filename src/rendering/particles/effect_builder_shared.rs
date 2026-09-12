@@ -239,6 +239,10 @@ fn build_accel_modifier(
     AccelModifier::new((gravity + wind).expr())
 }
 
+#[cfg(test)]
+#[path = "effect_builder_sprite_index_tests.rs"]
+mod sprite_index_tests;
+
 fn build_flipbook_sprite_index_modifiers(
     em: &M2ParticleEmitter,
     writer: &ExprWriter,
