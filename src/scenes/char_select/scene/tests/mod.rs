@@ -23,6 +23,7 @@ pub(super) use shared::protocol::CharacterListEntry;
 mod camera_tests;
 mod model_sync_tests;
 mod render_path_tests;
+mod supplemental_waterfall_tests;
 
 pub(super) fn character(character_id: u64, race: u8, sex: u8, name: &str) -> CharacterListEntry {
     CharacterListEntry {
