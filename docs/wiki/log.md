@@ -1,8 +1,8 @@
 # Wiki Log
 
-## [2026-09-12] rendering | Clarify character-select lighting ownership and M2 record boundary
+## [2026-09-12] rendering | Correct character-select lighting ownership and M2 light clocks
 
-Asset-backed parser RED/GREEN at `fdfd231f` → `5dc4386f` establishes 156-byte modern M2 light records and retains two cauldron plus four-lantern fixtures without changing photometric conversion. The campsite census records zero embedded lights across 55 loaded models, including campfire `4182539`. The earlier directional-overwrite probe remains valid, but its fake campfire/fill rig must be replaced rather than exempted: one sky-owned environmental sun and camera IBL are the intended ownership model, while M2 point lights and unrelated directionals remain separate. Attachment, clock, environment, and rendered proof remain pending; no Retail brightness match is claimed. See [[character-select-lighting-overwrite]] and [[skybox]].
+At `698ea9e5`, parser commits `fdfd231f` → `5dc4386f` establish 156-byte modern M2 light records and retain two cauldron plus four-lantern fixtures without changing photometric conversion. Attachment paths now retain type-1 lights; standalone local tracks use the authored default-sequence period, player-owned local tracks use their explicit player, and global tracks use shared elapsed time modulo their declared period. `SkySun` positively scopes sky color/time updates; character select now has one environment sun, ambient0, and camera IBL300 instead of fabricated campfire/fill lights. Late-created suns initialize at a settled clock. Focused GREEN: 14 binary and 7 library tests; native capture records a non-black terrain/character scene with one environment sun and no runtime errors. Independent final fmt/check/readability verification remains pending. No Retail brightness match is claimed. See [[character-select-lighting-overwrite]], [[skybox]], and [[m2-format]].
 
 ## [2026-09-12] rendering | Record character-select directional-light overwrite boundary
 

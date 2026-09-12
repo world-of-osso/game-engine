@@ -62,6 +62,12 @@ Blend modes follow WMVx conventions: 0=Opaque, 1=AlphaMask, 2=AlphaBlend, 3=Addi
 
 Type-6 geosets share a single composited 512×512 atlas built from DB2-traced face and hair texture FDIDs.
 
+## Lights
+
+The MD20 header light array starts at `0x108`. Current modern records are 156 bytes: a 16-byte prefix followed by seven 20-byte animation tracks at offsets `0x10`, `0x24`, `0x38`, `0x4c`, `0x60`, `0x74`, and `0x88`. Those tracks are ambient color/intensity, diffuse color/intensity, attenuation start/end, and byte visibility.
+
+`4238519` has two type-1 cauldron point lights and `5149702`/`5140152` each have four lantern point lights. Local tracks sample the owning model sequence; global tracks use their declared global-sequence period. Static M2 attachments retain their authored lights and run the model-default local sequence independently of a parent skeletal player. See [[character-select-lighting-overwrite]] for the asset-backed regression evidence.
+
 ## Particles
 
 Particle emitter data lives in the MD21 header at offset `0x128` (Cata+ layout, 476-byte stride). Each emitter references a bone index, a texture FDID (from TXID), and carries M2Track fields for emission speed, gravity, lifespan, etc. See [[particle-system]] for the renderer details and known limitations.
@@ -79,4 +85,5 @@ Particle emitter data lives in the MD21 header at offset `0x128` (Cata+ layout, 
 - [[blp-format]] — texture format loaded for M2 texture units
 - [[casc-format]] — how M2 files and their FDID references are resolved
 - [[particle-system]] — particle emitter renderer built on M2 parser output
+- [[character-select-lighting-overwrite]] — modern M2 light record and runtime ownership evidence
 - [[db2-format]] — DB2 tables used to resolve character customization texture FDIDs

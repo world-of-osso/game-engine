@@ -9,9 +9,9 @@ Character-selection fog preserves nearby campsite scenery while fading distant t
 - [x] Fog range uses scene distance rather than the camera-to-character framing distance.
 - [x] Scene fog remains owned by character selection and is not overwritten by procedural sky updates.
 - [x] Preserve skybox-behind-geometry ordering; do not reveal clouds by painting over opaque terrain.
-- [ ] Character selection uses one sky-owned environmental directional light and generated camera IBL; it does not manufacture directional campfire or terrain-fill lights.
-- [ ] Sky color/time updates affect only the explicitly sky-owned environmental sun, never unrelated directional or M2 point lights.
-- [ ] M2 attachments retain every authored type-1 point light; animated tracks use the model-local or global duration declared by the model.
+- [x] Character selection uses one sky-owned environmental directional light and generated camera IBL; it does not manufacture directional campfire or terrain-fill lights.
+- [x] Sky color/time updates affect only the explicitly sky-owned environmental sun, never unrelated directional or M2 point lights.
+- [x] M2 attachments retain every authored type-1 point light; animated tracks use the model-local or global duration declared by the model.
 
 ## How it works
 
@@ -34,7 +34,7 @@ Character-selection fog preserves nearby campsite scenery while fading distant t
 
 ## Known gaps (current cycle)
 
-Bounded native reference inspection confirms better retained distant detail and blue-green haze. This is color fog over retained geometry, not terrain transparency, terrain deletion, or a camera change. Exact WoW lighting/assets and cloud restoration are not claimed. The lighting ownership work remains unverified until the fake directional rig is removed and the authored M2 attachment paths pass their regressions.
+Bounded native reference inspection confirms better retained distant detail and blue-green haze. This is color fog over retained geometry, not terrain transparency, terrain deletion, or a camera change. At `698ea9e5`, focused ownership/attachment regressions pass and a bounded native character-select capture reports one environment sun, ambient brightness 0, a non-black terrain/character frame, and no runtime errors. Independent final fmt/check/readability verification remains pending. Exact WoW lighting/assets, photometric conversion, and brightness equivalence are not claimed.
 
 ## Out of scope
 
