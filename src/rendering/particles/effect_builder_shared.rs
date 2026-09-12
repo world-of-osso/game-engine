@@ -1,5 +1,9 @@
 use super::*;
 
+#[path = "multitexture.rs"]
+mod multitexture;
+pub(super) use multitexture::apply_particle_texture;
+
 const DEBUG_PARTICLE_WHITE_BIND_ONLY_FDID: u32 = u32::MAX - 1;
 
 pub(crate) struct ExprModifiers {
@@ -54,7 +58,12 @@ pub(crate) fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> 
     let size_variation = build_size_variation_modifier(em);
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
     let orient_rotation = build_orient_rotation_expr(em, &writer);
-    let module = finish_expr_module(writer, texture.is_some());
+    let texture_slots = if em.multi_texture.is_some() {
+        3
+    } else {
+        usize::from(texture.is_some())
+    };
+    let module = finish_expr_module(writer, texture_slots);
     ExprModifiers {
         init,
         gravity,
@@ -82,10 +91,10 @@ fn build_texture_modifier(
         })
 }
 
-fn finish_expr_module(writer: ExprWriter, needs_texture_slot: bool) -> Module {
+fn finish_expr_module(writer: ExprWriter, texture_slots: usize) -> Module {
     let mut module = writer.finish();
-    if needs_texture_slot {
-        module.add_texture_slot("color");
+    for index in 0..texture_slots {
+        module.add_texture_slot(format!("color{index}"));
     }
     module
 }

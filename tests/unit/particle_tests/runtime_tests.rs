@@ -51,7 +51,7 @@ fn graphics_config_particles_control_spawn_and_texture_loading() {
             let (emitter, child_of) = query.single(app.world()).expect("one emitter");
             assert_eq!(child_of.parent(), parent);
             assert_eq!(emitter.spawn_mode, ParticleSpawnMode::Continuous);
-            assert!(emitter.pending_texture.is_some());
+            assert!(!emitter.pending_textures.is_empty());
         }
     }
 }
@@ -128,7 +128,7 @@ fn project_particle_snaps_spawn_height_to_loaded_terrain() {
         spawn_source: ParticleSpawnSource::Standalone,
         child_emitters: Vec::new(),
         effect_parent: None,
-        pending_texture: None,
+        pending_textures: Vec::new(),
     };
 
     let delta = app
@@ -475,7 +475,7 @@ fn disabled_hanabi_emitter_is_not_registered() {
             spawn_source: ParticleSpawnSource::Standalone,
             child_emitters: Vec::new(),
             effect_parent: None,
-            pending_texture: None,
+            pending_textures: Vec::new(),
         });
 
     app.world_mut()
@@ -535,7 +535,7 @@ fn sync_dynamic_wind_properties_updates_effect_property() {
                 spawn_source: ParticleSpawnSource::Standalone,
                 child_emitters: Vec::new(),
                 effect_parent: None,
-                pending_texture: None,
+                pending_textures: Vec::new(),
             },
             EffectProperties::default()
                 .with_properties([(DYNAMIC_WIND_ACCEL_PROPERTY.to_string(), Vec3::ZERO.into())]),

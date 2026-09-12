@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use bevy::prelude::*;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy_hanabi::prelude::*;
@@ -38,20 +36,50 @@ pub(crate) fn wind_strength_at_age(age: f32, wind_time: f32) -> f32 {
 
 pub(crate) const DEBUG_PARTICLE_WHITE_TEXTURE_FDID: u32 = u32::MAX;
 
-pub(crate) fn load_emitter_texture(
+pub(crate) fn load_emitter_textures(
     em: &M2ParticleEmitter,
     images: &mut Assets<Image>,
-) -> Option<Handle<Image>> {
-    let fdid = em.texture_fdid?;
+) -> Result<Vec<Handle<Image>>, String> {
+    if let Some(texture) = &em.multi_texture {
+        return texture
+            .texture_fdids
+            .iter()
+            .enumerate()
+            .map(|(index, fdid)| {
+                let fdid = fdid.ok_or_else(|| {
+                    format!("M2 particle texture stage {index} has no FileDataID")
+                })?;
+                load_particle_texture(fdid, true, images)
+            })
+            .collect();
+    }
+    em.texture_fdid
+        .into_iter()
+        .map(|fdid| load_particle_texture(fdid, false, images))
+        .collect()
+}
+
+fn load_particle_texture(
+    fdid: u32,
+    repeat: bool,
+    images: &mut Assets<Image>,
+) -> Result<Handle<Image>, String> {
     if fdid == DEBUG_PARTICLE_WHITE_TEXTURE_FDID {
-        return Some(images.add(debug_particle_white_image()));
+        return Ok(images.add(debug_particle_white_image()));
     }
-    let path = PathBuf::from(format!("data/textures/{fdid}.blp"));
-    if !path.exists() {
-        return None;
+    let path = crate::asset::asset_cache::texture(fdid)
+        .ok_or_else(|| format!("Unable to resolve M2 particle texture FileDataID {fdid}"))?;
+    let mut image = blp::load_blp_gpu_image(&path)
+        .map_err(|error| format!("M2 particle texture {fdid} at {}: {error}", path.display()))?;
+    if repeat {
+        image.sampler =
+            bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
+                address_mode_u: bevy::image::ImageAddressMode::Repeat,
+                address_mode_v: bevy::image::ImageAddressMode::Repeat,
+                ..bevy::image::ImageSamplerDescriptor::linear()
+            });
     }
-    let image = blp::load_blp_gpu_image(&path).ok()?;
-    Some(images.add(image))
+    Ok(images.add(image))
 }
 
 fn debug_particle_white_image() -> Image {
