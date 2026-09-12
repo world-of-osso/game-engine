@@ -2,7 +2,7 @@ use super::*;
 use bevy::ecs::system::RunSystemOnce;
 use std::{path::Path, time::Duration};
 
-fn cauldron_app() -> (App, Entity) {
+fn cauldron_app(follows_player: bool) -> (App, Entity) {
     let model = crate::asset::m2::load_m2_uncached(Path::new("data/models/4238519.m2"), &[0; 3])
         .expect("cached cauldron must load");
     assert_eq!(model.sequences[0].duration, 3333);
@@ -19,7 +19,11 @@ fn cauldron_app() -> (App, Entity) {
                 &model.lights,
                 &None,
                 owner,
-                owner,
+                crate::m2_spawn::M2LightAnimation::for_model(
+                    &model.sequences,
+                    &model.global_sequences,
+                    follows_player.then_some(owner),
+                ),
             );
         })
         .unwrap();
@@ -48,7 +52,7 @@ fn advance_lights(app: &mut App, milliseconds: u64) -> Vec<f32> {
 
 #[test]
 fn m2_light_clock_static_cauldron_advances_and_repeats_authored_periods() {
-    let (mut app, _) = cauldron_app();
+    let (mut app, _) = cauldron_app(false);
     let initial = intensities(&mut app);
     let sampled = advance_lights(&mut app, 500);
     for index in 0..2 {
@@ -68,7 +72,7 @@ fn m2_light_clock_static_cauldron_advances_and_repeats_authored_periods() {
 
 #[test]
 fn m2_light_clock_global_track_is_independent_of_player_sequence_and_time() {
-    let (mut app, owner) = cauldron_app();
+    let (mut app, owner) = cauldron_app(true);
     app.world_mut().entity_mut(owner).insert(M2AnimPlayer {
         current_seq_idx: 0,
         time_ms: 0.0,

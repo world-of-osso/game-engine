@@ -120,7 +120,7 @@ fn parse_campfire_m2_lights() {
                     );
 
                     // Evaluate at default time
-                    let evaluated = evaluate_light(light, 0, 0);
+                    let evaluated = evaluate_light(light, 0, 0, 0, &m2_model.global_sequences);
                     eprintln!("    Evaluated Light (seq=0, time=0ms):");
                     eprintln!("      Visible: {}", evaluated.visible);
                     eprintln!(

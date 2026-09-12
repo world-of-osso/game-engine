@@ -100,7 +100,7 @@ fn assert_authored_light(light: &M2Light, expected: ExpectedLight) {
         evaluate_f32_track(&light.attenuation_end, 0, 0).unwrap(),
         expected.attenuation[1],
     );
-    assert!(evaluate_light(light, 0, 0).visible);
+    assert!(evaluate_light(light, 0, 0, 0, &[]).visible);
 }
 
 fn assert_close(actual: f32, expected: f32) {

@@ -70,7 +70,7 @@ fn parse_lights_reads_single_point_light() {
     assert_eq!(lights[0].light_type, M2_LIGHT_TYPE_POINT);
     assert_eq!(lights[0].bone_index, 10);
     assert_eq!(lights[0].position, [1.25, -2.0, 3.75]);
-    let evaluated = evaluate_light(&lights[0], 0, 0);
+    let evaluated = evaluate_light(&lights[0], 0, 0, 0, &[]);
     assert!(evaluated.visible);
     assert!(evaluated.intensity > 1.0);
 }
