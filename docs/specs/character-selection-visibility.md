@@ -35,7 +35,7 @@ Character-selection fog preserves nearby campsite scenery while fading distant t
 
 ## Known gaps (current cycle)
 
-Bounded native reference inspection confirms better retained distant detail and blue-green haze. This is color fog over retained geometry, not terrain transparency, terrain deletion, or a camera change. At `4fcc7437`, focused ownership/attachment/clock/lifetime regressions pass; a bounded native character-select capture at `698ea9e5` reports one environment sun, ambient brightness 0, and a non-black terrain/character frame. Its unrelated controller, malformed-MH2O, and missing-texture warnings remain recorded. Independent final fmt/check/readability verification remains pending. Exact WoW lighting/assets, photometric conversion, and brightness equivalence are not claimed.
+Bounded native reference inspection confirms better retained distant detail and blue-green haze. This is color fog over retained geometry, not terrain transparency, terrain deletion, or a camera change. At `4fcc7437`, focused ownership/attachment/clock/lifetime regressions pass; a bounded native character-select capture at `698ea9e5` reports one environment sun, ambient brightness 0, and a non-black terrain/character frame. Its unrelated controller, malformed-MH2O, and missing-texture warnings remain recorded. Independent verification confirms the fixes, 22 focused regressions, successful `cargo check`, and changed-code readability. Repository formatting still fails in 104 untouched vendor files. Exact WoW lighting/assets, photometric conversion, and brightness equivalence are not claimed.
 
 ## Out of scope
 

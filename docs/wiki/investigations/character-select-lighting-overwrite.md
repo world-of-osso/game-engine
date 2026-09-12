@@ -24,7 +24,7 @@ All attachment paths now retain type-1 M2 point lights. Local tracks either foll
 
 A point light bound to a character skeleton joint keeps that joint as its transform/visibility parent, but `M2LightOwner → OwnedM2Lights` supplies a linked lifetime relationship to the attached model root. Removing equipment therefore despawns its lights even though the character joint survives; re-equipping does not accumulate lights.
 
-Focused GREEN at `4fcc7437`: 15 binary ownership/attachment/clock/lifetime tests and 7 parser/evaluator tests. A bounded native character-select capture at `698ea9e5` reported one environment sun, ambient brightness 0, and a non-black terrain/character screenshot. Its stderr included unrelated controller, malformed-MH2O, and missing-texture warnings; no brightness equivalence is claimed. Independent final verification remains pending.
+Focused GREEN at `4fcc7437`: 15 binary ownership/attachment/clock/lifetime tests and 7 parser/evaluator tests. A bounded native character-select capture at `698ea9e5` reported one environment sun, ambient brightness 0, and a non-black terrain/character screenshot. Its stderr included unrelated controller, malformed-MH2O, and missing-texture warnings; no brightness equivalence is claimed. Independent final verification confirms all accepted fixes and changed-code readability; `cargo check` passes. `cargo fmt --check` reports only 104 unchanged vendor files (53 bevy_pbr, 51 bevy_render). Current binary build also passes; see `data/diagnostics/m2-lighting-root-fix-20260912/verification/followup-report.md`.
 
 ## Boundaries
 
