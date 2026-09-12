@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-12] rendering | Clarify character-select lighting ownership and M2 record boundary
+
+Asset-backed parser RED/GREEN at `fdfd231f` → `5dc4386f` establishes 156-byte modern M2 light records and retains two cauldron plus four-lantern fixtures without changing photometric conversion. The campsite census records zero embedded lights across 55 loaded models, including campfire `4182539`. The earlier directional-overwrite probe remains valid, but its fake campfire/fill rig must be replaced rather than exempted: one sky-owned environmental sun and camera IBL are the intended ownership model, while M2 point lights and unrelated directionals remain separate. Attachment, clock, environment, and rendered proof remain pending; no Retail brightness match is claimed. See [[character-select-lighting-overwrite]] and [[skybox]].
+
 ## [2026-09-12] rendering | Record character-select directional-light overwrite boundary
 
 A read-only headless probe records `OnEnter(CharSelect)` setup at 35,000/12,000 lux, followed by the first sky update setting both directional lights to the same cool 1,000-lux color and rotation; ambient remains brightness 150. Scene-tree output is stored setup metadata rather than live light-component state. Temporary probe-source inclusion was restored. ROI review rejects numerical image EV estimates, and local data does not establish exact Retail settings, a brightness match, or a production fix. See [[character-select-lighting-overwrite]] and [[character-select-waterfall-loading]].
