@@ -27,6 +27,16 @@ use super::{
 };
 use crate::asset::read_bytes::read_m2_array_header;
 
+/// Authored texture layers and normalized-UV motion for a multitextured emitter.
+#[derive(Debug, Clone, PartialEq)]
+pub struct M2ParticleMultiTexture {
+    pub texture_indices: [u16; 3],
+    pub texture_fdids: [Option<u32>; 3],
+    pub uv_scale_bytes: [u8; 2],
+    pub velocity_midpoints: [[f32; 2]; 2],
+    pub velocity_ranges: [[f32; 2]; 2],
+}
+
 /// Parsed M2 particle emitter.
 #[derive(Debug, Clone)]
 pub struct M2ParticleEmitter {
@@ -41,6 +51,7 @@ pub struct M2ParticleEmitter {
     pub child_emitters_model_filename: Option<String>,
     /// Resolved texture FileDataID (from TXID chunk).
     pub texture_fdid: Option<u32>,
+    pub multi_texture: Option<M2ParticleMultiTexture>,
     pub blend_type: u8,
     /// 0 = plane, 1 = sphere, 2 = spline.
     pub emitter_type: u8,
