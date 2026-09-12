@@ -380,7 +380,7 @@ fn spawn_gpu_particle_emitter(
     spawn_mode: ParticleSpawnMode,
     spawn_source: ParticleSpawnSource,
 ) -> Option<Entity> {
-    let pending_textures = resolve_emitter_textures(em, images)?;
+    let pending_textures = load_spawn_textures(em, images)?;
     Some(
         commands
             .spawn((
@@ -403,7 +403,7 @@ fn spawn_gpu_particle_emitter(
     )
 }
 
-fn resolve_emitter_textures(
+fn load_spawn_textures(
     em: &M2ParticleEmitter,
     images: &mut Assets<Image>,
 ) -> Option<Vec<Handle<Image>>> {
@@ -445,7 +445,7 @@ fn spawn_child_emitter_effect(
     parent_effect_entity: Entity,
     scale_source: Entity,
 ) {
-    let Some(pending_textures) = resolve_emitter_textures(em, images) else {
+    let Some(pending_textures) = load_spawn_textures(em, images) else {
         return;
     };
     let local_offset = emitter_spawn_offset(em, bones);

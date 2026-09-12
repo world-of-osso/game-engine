@@ -58,12 +58,7 @@ pub(crate) fn build_expr_modifiers(em: &M2ParticleEmitter, model_scale: f32) -> 
     let size_variation = build_size_variation_modifier(em);
     let alpha_mode = emitter_alpha_mode(em.blend_type, mask_cutoff);
     let orient_rotation = build_orient_rotation_expr(em, &writer);
-    let texture_slots = if em.multi_texture.is_some() {
-        3
-    } else {
-        usize::from(texture.is_some())
-    };
-    let module = finish_expr_module(writer, texture_slots);
+    let module = finish_expr_module(writer, em, texture.is_some());
     ExprModifiers {
         init,
         gravity,
@@ -91,10 +86,20 @@ fn build_texture_modifier(
         })
 }
 
-fn finish_expr_module(writer: ExprWriter, texture_slots: usize) -> Module {
+fn finish_expr_module(writer: ExprWriter, em: &M2ParticleEmitter, textured: bool) -> Module {
+    let texture_slots = if em.multi_texture.is_some() {
+        3
+    } else {
+        usize::from(textured)
+    };
     let mut module = writer.finish();
     for index in 0..texture_slots {
-        module.add_texture_slot(format!("color{index}"));
+        let name = if index == 0 {
+            "color".to_owned()
+        } else {
+            format!("color{index}")
+        };
+        module.add_texture_slot(name);
     }
     module
 }

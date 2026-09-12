@@ -29,8 +29,11 @@ pub(crate) fn apply_particle_texture(
         };
     };
     const THREE_COLOR_TEXTURES: u32 = 0x4000_0000;
+    const UV_SCALE_FIXED_POINT_UNIT: f32 = 32.0; // Unsigned 3.5 fixed point.
     let modifier = MultitextureModifier {
-        scales: texture.uv_scale_bytes.map(|value| f32::from(value) / 32.0),
+        scales: texture
+            .uv_scale_bytes
+            .map(|value| f32::from(value) / UV_SCALE_FIXED_POINT_UNIT),
         midpoints: texture.velocity_midpoints,
         ranges: texture.velocity_ranges,
         grid: [emitter.tile_cols.max(1), emitter.tile_rows.max(1)],
