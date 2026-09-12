@@ -28,7 +28,13 @@ The restored waterfall path exposed two separate particle prerequisites. Actual 
 
 `2f84b994` corrects scale-variation offsets that previously read alpha-array headers and removes the mistaken runtime-size flag condition from compressed-gravity decoding. `b0d96d84` retains all three packed texture indices and signed secondary UV velocities. Model `1028937` selects texture indices `[0, 1, 1]`, resolving to `1029067/1029068/1029068`; the missing `1029068` was extracted from local CASC. Thirty parser cases pass, including actual-asset regressions.
 
-`d9429b3e` corrects renderer consumers that applied internal `CParticleEmitter` runtime flag values directly to the raw M2 file field. The native and library builders now agree on raw world-space, bone-scale, atlas, orientation and wind semantics. Six actual-data regressions failed before the correction and pass afterward. An earlier refraction interpretation is not established: available references conflict, and no speculative refraction renderer was added.
+`d9429b3e` corrects renderer consumers that applied internal `CParticleEmitter` runtime flag values directly to the raw M2 file field. The native and library builders now agree on raw world-space, bone-scale, atlas, orientation and wind semantics. Six actual-data regressions failed before the correction and pass afterward.
+
+`cd4f48f6` corrects the particle-tail/twinkle/burst field offsets: tail `0x15c`; twinkle speed, percent, minimum, and maximum `0x160/0x164/0x168/0x16c`; burst multiplier `0x170`; drag `0x174`. Actual mist model `1028937` now parses burst multiplier `1.0` and drag `5.0` separately. The two-test RED followed by 32 scoped parser cases GREEN is recorded in `fable-parser-fix/`; its synthetic burst fixture writes the literal at `0x170`.
+
+`cda87616` maps raw `XY_QUAD` particles to a world-XZ-plane orientation modifier, retaining authored spin in both native and library effect-builder paths. This corrects geometry rather than assuming a refraction material mode. The GPU regression `ea6a6157` uses actual raw model `2904370` with a controlled white quad and ordinary billboard controls: its RED observed white-pixel areas `[900, 900, 900, 900]` for XY-top, XY-side, billboard-top, billboard-side, proving the prior XY path faced the camera. GREEN is currently running on main and is not claimed here.
+
+Fable CLI successfully inspects the Retail reference and native image pixels where Pi image display is unreliable. Its findings motivated these parser and geometry investigations, but each production conclusion above is tied to direct parser/GPU evidence. No refraction assumption is necessary for the demonstrated field-offset and orientation defects.
 
 `9c81528e` binds the three required images, preserves separate per-particle secondary UV offsets/velocities and implements two-color/three-alpha and three-color/three-alpha composition. A genuine GPU RED failed with one declared texture binding versus three supplied images; GREEN renders the analytic three-color fixture exactly at `[73, 51, 92, 255]`. This constant-texture test does not prove scrolling-atlas fidelity. `461d54a7` preserves the pre-existing first-slot name and resolves the integration readability findings. The subsystem's 77 initially passing cases plus the repaired failing case, three attachment tests and focused check/format evidence are recorded below; one benchmark remains ignored.
 
@@ -42,6 +48,8 @@ Do not discard shadow flags/data, broadly expand prop loading, replace alpha com
 
 - `data/diagnostics/waterfall-missing-20260911/particle-raw-parser/report.md` — actual field values and parser RED/GREEN.
 - `data/diagnostics/waterfall-missing-20260911/particle-raw-flags/{red2,green}/` — six raw-flag behavioral regressions.
+- `data/diagnostics/waterfall-missing-20260911/fable-parser-fix/report.md` — particle-tail/twinkle/burst offset RED/GREEN, including actual `1028937` burst/drag values.
+- `data/diagnostics/waterfall-missing-20260911/xy-quad/red/` — actual `2904370` XY-quad GPU RED; GREEN remains unclaimed while main runs it.
 - `data/diagnostics/waterfall-missing-20260911/particle-multitexture-gpu/{red,green}/` — three-texture GPU binding and pixel proof.
 - `data/diagnostics/waterfall-missing-20260911/{multitexture-verification,slot-followup-461d54a7}/` — bounded integration and repaired metadata/readability gate.
 - `data/diagnostics/waterfall-missing-20260911/multitexture-native-retry/acceptance.md` — failed native appearance acceptance; quantitative method and image-access limitation.
