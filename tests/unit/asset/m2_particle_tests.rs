@@ -230,7 +230,7 @@ fn parses_head_tail_tracks_and_burst_multiplier() {
     emitter[0x14C + 8..0x14C + 12].copy_from_slice(&(3u32).to_le_bytes());
     emitter[0x14C + 12..0x14C + 16].copy_from_slice(&(tail_offset as u32).to_le_bytes());
 
-    emitter[0x174..0x178].copy_from_slice(&(1.75_f32).to_le_bytes());
+    emitter[0x170..0x174].copy_from_slice(&(1.75_f32).to_le_bytes());
 
     let mut parsed = parse_emitter_header(&emitter, &emitter).unwrap();
     fill_visual_values(&mut parsed, &md20, &emitter);
