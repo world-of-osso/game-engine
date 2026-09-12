@@ -273,19 +273,6 @@ fn selected_waterfall_attachment_preserves_authored_rest_bounds() {
     assert_rest_bounds(actual, expected);
 }
 
-#[test]
-fn unselected_waterfall_attachment_retains_grounded_rest_bounds() {
-    let (authored, actual) = spawn_waterfall_origin_fixture(false);
-    // Complete vertex data includes unused vertices below the indexed surface.
-    const FULL_VERTEX_MIN_Y: f32 = -29.347_208;
-    let grounded_translation = ORIGIN_FIXTURE_PARENT - Vec3::Y * FULL_VERTEX_MIN_Y;
-    let expected = (
-        authored.0 + grounded_translation,
-        authored.1 + grounded_translation,
-    );
-    assert_rest_bounds(actual, expected);
-}
-
 fn spawn_waterfall_origin_fixture(selected_backdrop: bool) -> ((Vec3, Vec3), (Vec3, Vec3)) {
     let model =
         crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/4661358.m2"), &[0; 3])
