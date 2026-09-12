@@ -419,6 +419,9 @@ fn focused_placement_rotation_faces_camera_tightly() {
 }
 
 #[test]
-fn char_select_ambient_brightness_matches_scene_lighting_budget() {
-    assert_eq!(lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS, 150.0);
+fn char_select_environment_uses_ibl_instead_of_global_ambient() {
+    let mut app = App::new();
+    lighting::spawn(&mut app.world_mut().commands());
+    app.update();
+    assert_eq!(app.world().resource::<GlobalAmbientLight>().brightness, 0.0);
 }
