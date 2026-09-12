@@ -666,7 +666,9 @@ fn doodad_transform(
     tile_x: u32,
 ) -> Transform {
     let mut pos = doodad_position(d, tile_y, tile_x);
-    if let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z)) {
+    if !is_waterfall_backdrop_doodad(d)
+        && let Some(terrain_y) = heightmap.and_then(|heightmap| heightmap.height_at(pos.x, pos.z))
+    {
         pos.y = pos.y.max(terrain_y);
     }
     let rotation = placement_rotation(d.rotation);
