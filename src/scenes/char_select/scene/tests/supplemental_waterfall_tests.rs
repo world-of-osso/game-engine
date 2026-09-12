@@ -179,7 +179,7 @@ fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
         .bone_entity
         .expect("authored mist bone must be bound");
     assert!(app.world().get::<Transform>(bone).is_some());
-    const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x200;
+    const PARTICLE_FLAG_WORLD_SPACE: u32 = 0x10;
     if authored.flags & PARTICLE_FLAG_WORLD_SPACE == 0 {
         assert_eq!(parent.parent(), bone, "bone-local mist follows its bone");
     }

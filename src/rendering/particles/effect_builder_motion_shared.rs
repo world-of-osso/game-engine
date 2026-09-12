@@ -97,8 +97,7 @@ pub(crate) fn has_authored_spin(em: &M2ParticleEmitter) -> bool {
 }
 
 pub(crate) fn has_authored_wind(em: &M2ParticleEmitter) -> bool {
-    em.flags & PARTICLE_FLAG_WIND_ENABLED != 0
-        && em.flags & PARTICLE_FLAG_WIND_DYNAMIC == 0
+    em.flags & PARTICLE_FLAG_WIND_DYNAMIC == 0
         && em.wind_time > 0.0
         && em.wind_vector.iter().any(|&value| value != 0.0)
 }
@@ -171,9 +170,6 @@ pub(crate) fn build_velocity_modifier(
     if em.z_source > 0.0 {
         return build_z_source_velocity_modifier(em, writer, speed);
     }
-    if emitter_uses_sphere_invert_velocity(em) {
-        return build_sphere_invert_velocity_modifier(writer, speed);
-    }
     let yaw = writer.rand(ScalarType::Float) * writer.lit(em.horizontal_range);
     let pitch = writer.rand(ScalarType::Float) * writer.lit(em.vertical_range);
     let sin_p = pitch.clone().sin();
@@ -233,15 +229,6 @@ fn build_plane_position_expr(
     let x = writer.rand(ScalarType::Float) * half_length.clone() * writer.lit(2.0) - half_length;
     let z = writer.rand(ScalarType::Float) * half_width.clone() * writer.lit(2.0) - half_width;
     x.vec3(writer.lit(0.0), z)
-}
-
-fn build_sphere_invert_velocity_modifier(
-    writer: &ExprWriter,
-    speed: WriterExpr,
-) -> SetAttributeModifier {
-    let pos = writer.attr(Attribute::POSITION);
-    let inward = (writer.lit(Vec3::ZERO) - pos).normalized();
-    SetAttributeModifier::new(Attribute::VELOCITY, (inward * speed).expr())
 }
 
 fn build_z_source_velocity_modifier(

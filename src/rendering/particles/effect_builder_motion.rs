@@ -11,13 +11,12 @@ use crate::asset::blp;
 use crate::asset::m2::wow_to_bevy;
 use crate::asset::m2_particle::M2ParticleEmitter;
 
-use super::emitters::{emitter_uses_inherit_position, emitter_uses_sphere_invert_velocity};
+use super::emitters::emitter_uses_inherit_position;
 use super::visuals::{has_authored_size_variation, has_authored_twinkle};
 use super::{
     BLEND_ADD, BLEND_ADD_ALPHA, BLEND_ALPHA, BLEND_ALPHA_3, BLEND_ALPHA_KEY, BLEND_MOD,
     BLEND_MOD2X, BLEND_OPAQUE, INHERIT_POSITION_BACK_DELTA_PROPERTY, PARTICLE_FLAG_NEGATE_SPIN,
-    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED,
-    PARTICLE_TYPE_TRAIL,
+    PARTICLE_FLAG_SIZE_VARIATION_2D, PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_TYPE_TRAIL,
 };
 
 use super::effect_builder::PositionInitModifier;

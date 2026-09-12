@@ -22,10 +22,6 @@ pub(super) fn emitter_simulation_space(em: &M2ParticleEmitter) -> SimulationSpac
     }
 }
 
-fn emitter_uses_sphere_invert_velocity(em: &M2ParticleEmitter) -> bool {
-    em.emitter_type == 2 && em.flags & PARTICLE_FLAG_SPHERE_INVERT != 0
-}
-
 pub(super) fn emitter_uses_dynamic_wind(em: &M2ParticleEmitter) -> bool {
     em.flags & PARTICLE_FLAG_WIND_DYNAMIC != 0
 }

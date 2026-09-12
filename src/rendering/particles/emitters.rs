@@ -12,9 +12,8 @@ use super::emitters_model_particles::spawn_model_particle_emitter;
 use super::{
     DYNAMIC_WIND_ACCEL_PROPERTY, DynamicParticleWind, INHERIT_POSITION_BACK_DELTA_PROPERTY,
     PARTICLE_FLAG_BONE_SCALE, PARTICLE_FLAG_FOLLOW_POSITION, PARTICLE_FLAG_INHERIT_POSITION,
-    PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_PROJECT_PARTICLE, PARTICLE_FLAG_SPHERE_INVERT,
-    PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
-    ParticleSpawnMode, ParticleSpawnSource, PendingParticleBurst,
+    PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_PROJECT_PARTICLE, PARTICLE_FLAG_WIND_DYNAMIC,
+    PARTICLE_FLAG_WORLD_SPACE, ParticleSpawnMode, ParticleSpawnSource, PendingParticleBurst,
 };
 
 #[derive(Component)]
@@ -561,7 +560,7 @@ pub(crate) fn emitter_uses_follow_position(em: &M2ParticleEmitter) -> bool {
 }
 
 pub(crate) fn emitter_uses_dynamic_wind(em: &M2ParticleEmitter) -> bool {
-    em.flags & PARTICLE_FLAG_WIND_ENABLED != 0 && em.flags & PARTICLE_FLAG_WIND_DYNAMIC != 0
+    em.flags & PARTICLE_FLAG_WIND_DYNAMIC != 0
 }
 
 pub(crate) fn emitter_uses_inherit_position(em: &M2ParticleEmitter) -> bool {
@@ -603,8 +602,4 @@ pub(crate) fn inherit_position_back_delta_local(
         .affine()
         .inverse()
         .transform_vector3(previous_world_position - current_world_position)
-}
-
-pub(crate) fn emitter_uses_sphere_invert_velocity(em: &M2ParticleEmitter) -> bool {
-    em.emitter_type == 2 && em.flags & PARTICLE_FLAG_SPHERE_INVERT != 0
 }
