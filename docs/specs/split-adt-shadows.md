@@ -12,7 +12,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Include the 14 authored waterfall/ripple backdrops on the primary tile beyond the nearby-prop radius; keep ordinary props radius-limited.
 - [x] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
 - [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
-- [ ] Keep waterfall texture animation moving after its first cycle by sampling each track with its own authored global-sequence duration.
+- [x] Keep waterfall texture animation moving after its first cycle by sampling each track with its own authored global-sequence duration.
 
 ## How it works
 
@@ -38,7 +38,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## Known gaps (current cycle)
 
-- [ ] Final production native visibility audit is running. Completed loading, UV, and focused RED/GREEN regressions do not alone prove a readable waterfall cascade.
+- [ ] Native proof must show a readable, moving waterfall cascade. Loading, UV, and texture-track RED/GREEN regressions alone do not prove this.
 
 ## Out of scope
 
