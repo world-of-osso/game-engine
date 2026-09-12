@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "m2_light_tests/retail_records.rs"]
+mod retail_records;
+
 const SINGLE_LIGHT_FIXTURE_SIZE: usize = 0x53C;
 const SINGLE_LIGHT_BASE_OFFSET: usize = 384;
 
