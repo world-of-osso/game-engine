@@ -12,6 +12,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Include the 14 authored waterfall/ripple backdrops on the primary tile beyond the nearby-prop radius; keep ordinary props radius-limited.
 - [x] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
 - [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
+- [ ] Keep waterfall texture animation moving after its first cycle by sampling each track with its own authored global-sequence duration.
 
 ## How it works
 
@@ -26,11 +27,14 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/rendering/terrain/terrain_spawn.rs` — resolves and reads companion data.
 - `src/scenes/char_select/scene_tree.rs` — reports backdrop load failures.
 - `src/asset/m2_batch.rs` — resolves waterfall shader UV inputs.
+- `src/rendering/model/m2_effect_material.rs` — samples animated texture offsets using model global-sequence periods.
+- `src/rendering/model/m2_spawn_material.rs`, `m2_spawn.rs`, `m2_scene/mod.rs` — retain model timing data when creating ordinary effect materials.
 
 ## Tests asserting this spec
 
 - `src/asset/adt_format/adt_tests/mcnk.rs`
 - `src/rendering/terrain/terrain_spawn/tests.rs`
+- `src/rendering/model/m2_spawn_material_tests.rs` — actual waterfall model sampled across multiple global periods.
 
 ## Known gaps (current cycle)
 

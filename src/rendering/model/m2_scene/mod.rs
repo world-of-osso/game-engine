@@ -402,7 +402,7 @@ fn attach_m2_scene_visuals(
         options
             .force_skybox_material
             .then_some(default_sequence_index),
-        options.force_skybox_material.then_some(global_sequences),
+        Some(global_sequences),
     );
     M2SceneAttachedVisuals {
         visual_root,

@@ -71,6 +71,7 @@ fn create_effect_material(app: &mut App) -> Handle<M2EffectMaterial> {
             second_texture: texture,
             blend_mode: 0,
             two_sided: false,
+            global_sequences: Vec::new(),
             texture_anim_1: None,
             texture_anim_2: None,
         })
