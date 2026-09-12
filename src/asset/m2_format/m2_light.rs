@@ -5,8 +5,8 @@ use super::{read_f32, read_i16, read_u16, read_u32, read_vec3};
 use crate::asset::read_bytes::read_m2_array_header;
 
 const MD20_LIGHTS_OFFSET: usize = 0x108;
-const M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS: usize = 0x9C;
-const M2_LIGHT_ENTRY_SIZE_CATA_PLUS: usize = 0xA4;
+// Modern MD20 lights have a 16-byte prefix and seven 20-byte animation blocks.
+const M2_LIGHT_ENTRY_SIZE: usize = 0x9C;
 const LIGHT_ENTRY_TYPE_OFFSET: usize = 0x00;
 const LIGHT_ENTRY_BONE_INDEX_OFFSET: usize = 0x02;
 const LIGHT_ENTRY_POSITION_OFFSET: usize = 0x04;
@@ -111,34 +111,9 @@ fn parse_u8_track(md20: &[u8], block_offset: usize) -> Option<AnimTrack<u8>> {
     parse_anim_track(md20, block_offset, 1, |d, off| d.get(off).copied())
 }
 
-fn light_entry_stride(md20: &[u8], lights_offset: usize, count: usize) -> Option<usize> {
-    let version = read_u32(md20, super::MD20_VERSION_OFFSET).unwrap_or(0);
-    let preferred = if version >= 272 {
-        [
-            M2_LIGHT_ENTRY_SIZE_CATA_PLUS,
-            M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS,
-        ]
-    } else {
-        [
-            M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS,
-            M2_LIGHT_ENTRY_SIZE_CATA_PLUS,
-        ]
-    };
-    preferred.into_iter().find(|stride| {
-        lights_offset
-            .checked_add(count.saturating_mul(*stride))
-            .is_some_and(|size| size <= md20.len())
-    })
-}
-
-fn parse_light_entry(
-    md20: &[u8],
-    base_offset: usize,
-    index: usize,
-    stride: usize,
-) -> Option<M2Light> {
-    let base = base_offset.checked_add(index.saturating_mul(stride))?;
-    if base + M2_LIGHT_ENTRY_SIZE_WOTLK_PLUS > md20.len() {
+fn parse_light_entry(md20: &[u8], base_offset: usize, index: usize) -> Option<M2Light> {
+    let base = base_offset.checked_add(index.checked_mul(M2_LIGHT_ENTRY_SIZE)?)?;
+    if base + M2_LIGHT_ENTRY_SIZE > md20.len() {
         return None;
     }
     Some(M2Light {
@@ -161,12 +136,15 @@ pub fn parse_lights(md20: &[u8]) -> Vec<M2Light> {
     if count == 0 {
         return Vec::new();
     }
-    let Some(stride) = light_entry_stride(md20, offset, count) else {
+    let array_end = count
+        .checked_mul(M2_LIGHT_ENTRY_SIZE)
+        .and_then(|bytes| offset.checked_add(bytes));
+    if array_end.is_none_or(|end| end > md20.len()) {
         return Vec::new();
-    };
+    }
     let mut lights = Vec::with_capacity(count);
     for i in 0..count {
-        let Some(light) = parse_light_entry(md20, offset, i, stride) else {
+        let Some(light) = parse_light_entry(md20, offset, i) else {
             break;
         };
         lights.push(light);
