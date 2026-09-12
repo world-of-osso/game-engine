@@ -122,9 +122,7 @@ fn apply_effect_runtime_modifiers(
     if let Some(sprite_idx) = modifiers.flipbook_sprite_index_update {
         effect = effect.update(sprite_idx);
     }
-    if let Some(tex) = modifiers.texture {
-        effect = effect.render(tex);
-    }
+    effect = shared::apply_particle_texture(effect, em, modifiers.texture);
     if let Some(twinkle) = modifiers.twinkle {
         effect = effect.render(twinkle);
     }

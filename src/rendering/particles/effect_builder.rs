@@ -138,9 +138,7 @@ fn apply_effect_runtime_modifiers(
     if let Some(sprite_idx) = flipbook_sprite_index_update {
         effect = effect.update(sprite_idx);
     }
-    if let Some(tex) = texture {
-        effect = effect.render(tex);
-    }
+    effect = shared::apply_particle_texture(effect, em, texture);
     if let Some(twinkle) = twinkle {
         effect = effect.render(twinkle);
     }
@@ -333,11 +331,11 @@ pub(crate) fn emitter_alpha_mode(
     super::effect_builder_motion::emitter_alpha_mode(blend_type, mask_cutoff)
 }
 
-pub(crate) fn load_emitter_texture(
+pub(crate) fn load_emitter_textures(
     em: &M2ParticleEmitter,
     images: &mut Assets<Image>,
-) -> Option<Handle<Image>> {
-    super::effect_builder_motion::load_emitter_texture(em, images)
+) -> Result<Vec<Handle<Image>>, String> {
+    super::effect_builder_motion::load_emitter_textures(em, images)
 }
 
 fn build_initial_rotation_modifier(

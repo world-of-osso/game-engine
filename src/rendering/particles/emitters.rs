@@ -7,7 +7,7 @@ use crate::asset::m2::wow_to_bevy;
 use crate::asset::{m2_anim::M2Bone, m2_particle::M2ParticleEmitter};
 use crate::client_options::GraphicsOptions;
 
-use super::effect_builder::{build_effect_asset_with_mode, load_emitter_texture};
+use super::effect_builder::{build_effect_asset_with_mode, load_emitter_textures};
 use super::emitters_model_particles::spawn_model_particle_emitter;
 use super::{
     DYNAMIC_WIND_ACCEL_PROPERTY, DynamicParticleWind, INHERIT_POSITION_BACK_DELTA_PROPERTY,
@@ -30,7 +30,7 @@ pub struct ParticleEmitterComp {
     pub spawn_source: ParticleSpawnSource,
     pub child_emitters: Vec<M2ParticleEmitter>,
     pub effect_parent: Option<Entity>,
-    pub(crate) pending_texture: Option<Handle<Image>>,
+    pub(crate) pending_textures: Vec<Handle<Image>>,
 }
 
 pub(crate) type ModelParticleEmitterComp =
@@ -154,8 +154,10 @@ fn register_particle_effect_entity<'a>(
     if let Some(parent_effect) = comp.effect_parent {
         ec.insert(EffectParent::new(parent_effect));
     }
-    if let Some(tex) = comp.pending_texture.clone() {
-        ec.insert(EffectMaterial { images: vec![tex] });
+    if !comp.pending_textures.is_empty() {
+        ec.insert(EffectMaterial {
+            images: comp.pending_textures.clone(),
+        });
     }
     ec
 }
@@ -342,14 +344,16 @@ fn spawn_single_emitter(
         );
         return;
     }
-    let emitter_entity = spawn_gpu_particle_emitter(
+    let Some(emitter_entity) = spawn_gpu_particle_emitter(
         commands,
         images,
         em,
         &spawn,
         spawn_mode,
         ParticleSpawnSource::Standalone,
-    );
+    ) else {
+        return;
+    };
     spawn_child_emitter_effects(commands, images, em, emitter_entity, parent);
 }
 
@@ -375,26 +379,41 @@ fn spawn_gpu_particle_emitter(
     spawn: &EmitterSpawnContext,
     spawn_mode: ParticleSpawnMode,
     spawn_source: ParticleSpawnSource,
-) -> Entity {
-    let pending_texture = load_emitter_texture(em, images);
-    commands
-        .spawn((
-            Name::new("ParticleEmitter"),
-            ParticleEmitterComp {
-                emitter: em.clone(),
-                bone_entity: spawn.bone_entity,
-                scale_source: spawn.scale_source,
-                spawn_mode,
-                spawn_source,
-                child_emitters: load_child_particle_emitters(em),
-                effect_parent: None,
-                pending_texture,
-            },
-            Transform::from_translation(spawn.local_offset),
-            Visibility::default(),
-        ))
-        .set_parent_in_place(spawn.parent_entity)
-        .id()
+) -> Option<Entity> {
+    let pending_textures = resolve_emitter_textures(em, images)?;
+    Some(
+        commands
+            .spawn((
+                Name::new("ParticleEmitter"),
+                ParticleEmitterComp {
+                    emitter: em.clone(),
+                    bone_entity: spawn.bone_entity,
+                    scale_source: spawn.scale_source,
+                    spawn_mode,
+                    spawn_source,
+                    child_emitters: load_child_particle_emitters(em),
+                    effect_parent: None,
+                    pending_textures,
+                },
+                Transform::from_translation(spawn.local_offset),
+                Visibility::default(),
+            ))
+            .set_parent_in_place(spawn.parent_entity)
+            .id(),
+    )
+}
+
+fn resolve_emitter_textures(
+    em: &M2ParticleEmitter,
+    images: &mut Assets<Image>,
+) -> Option<Vec<Handle<Image>>> {
+    match load_emitter_textures(em, images) {
+        Ok(textures) => Some(textures),
+        Err(error) => {
+            error!("Cannot spawn authored M2 particle emitter: {error}");
+            None
+        }
+    }
 }
 
 fn spawn_child_emitter_effects(
@@ -426,7 +445,9 @@ fn spawn_child_emitter_effect(
     parent_effect_entity: Entity,
     scale_source: Entity,
 ) {
-    let pending_texture = load_emitter_texture(em, images);
+    let Some(pending_textures) = resolve_emitter_textures(em, images) else {
+        return;
+    };
     let local_offset = emitter_spawn_offset(em, bones);
     commands.spawn((
         Name::new("ChildParticleEmitter"),
@@ -438,7 +459,7 @@ fn spawn_child_emitter_effect(
             spawn_source: ParticleSpawnSource::ChildFromParentParticles,
             child_emitters: Vec::new(),
             effect_parent: Some(parent_effect_entity),
-            pending_texture,
+            pending_textures,
         },
         Transform::from_translation(local_offset),
         Visibility::default(),
