@@ -6,6 +6,8 @@
 
 The build-script patch adds `lib/gcc/<triple>/<version>` and `<triple>/lib` search directories beneath an environment-supplied MinGW prefix. On the Windows desktop, `MINGW_PREFIX/lib` alone omitted WinLibs' GCC runtime archives and the target sysroot's `libwinpthread.a`. No compiler selection, RUSTFLAGS, or upstream alternate paths are changed. Retire this override when upstream discovers these directories for environment prefixes and the native GNU Windows engine links successfully. Native Windows linking is the verification boundary; no source-shape tests are added.
 
+The vendored manifest uses bindgen 0.73.1. Bindgen 0.72 generated deprecated bitfield transmute/unsafe code under current Rust; the released update generates direct casts instead. Keep this dependency-level correction rather than post-processing `$OUT_DIR/bindings.rs` or suppressing generated warnings. Retire the local crate patch when upstream `ktx2-rw` incorporates both the MinGW search-path and modern bindgen changes.
+
 ## Empty mesh uploads
 
 `bevy_render/` copies crates.io `bevy_render` 0.19.0 from the local registry, preserving its MIT/Apache licenses and package features. Registry metadata and the standalone lockfile are excluded. Workspace membership enables a real GPU allocator regression; the explicit dev-profile override preserves dependency optimization level 2.
