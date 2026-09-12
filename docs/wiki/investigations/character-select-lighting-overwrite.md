@@ -22,7 +22,9 @@ At `698ea9e5`, `SkySun` positively marks environmental directional lights. Chara
 
 All attachment paths now retain type-1 M2 point lights. Local tracks either follow an explicit `M2AnimPlayer` or a standalone model-default sequence wrapped by its authored duration. Global tracks sample shared Bevy elapsed time wrapped by their own authored global duration. This prevents static attachments from inheriting an unrelated parent's animation and avoids frozen local/global cauldron intensity tracks.
 
-Focused GREEN at `698ea9e5`: 14 binary ownership/attachment/clock tests and 7 parser/evaluator tests. A bounded native character-select capture reported one environment sun, ambient brightness 0, a non-black terrain/character screenshot, and no runtime errors. Independent final fmt/check/readability verification remains pending.
+A point light bound to a character skeleton joint keeps that joint as its transform/visibility parent, but `M2LightOwner → OwnedM2Lights` supplies a linked lifetime relationship to the attached model root. Removing equipment therefore despawns its lights even though the character joint survives; re-equipping does not accumulate lights.
+
+Focused GREEN at `4fcc7437`: 15 binary ownership/attachment/clock/lifetime tests and 7 parser/evaluator tests. A bounded native character-select capture at `698ea9e5` reported one environment sun, ambient brightness 0, and a non-black terrain/character screenshot. Its stderr included unrelated controller, malformed-MH2O, and missing-texture warnings; no brightness equivalence is claimed. Independent final verification remains pending.
 
 ## Boundaries
 
@@ -36,6 +38,7 @@ Image ROI review rejected the candidate pairs, so numerical image-derived EV or 
 - `data/diagnostics/m2-lighting-authority-20260912/parser/report.md` — asset-backed 156-byte parser RED/GREEN and animation census.
 - `data/diagnostics/m2-lighting-root-fix-20260912/test-red/result.json` — attachment and ownership regression RED.
 - `data/diagnostics/m2-lighting-root-fix-20260912/attachment-clock-report.md` — attachment/clock RED/GREEN and runtime ownership.
+- `tests/unit/equipment_event_tests.rs` — externally joint-bound cauldron light removal and re-equip lifetime regression.
 - `data/diagnostics/m2-lighting-root-fix-20260912/attachment-clock-green/` and `evaluator-green/` — focused GREEN output.
 
 ## See Also
