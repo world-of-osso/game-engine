@@ -13,6 +13,8 @@ mod visuals;
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
 
+#[cfg(test)]
+pub(crate) use emitters::ParticleEmitterComp;
 pub use emitters::spawn_emitters;
 
 // CParticleEmitter / retail runtime particle flag values.

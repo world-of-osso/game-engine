@@ -156,6 +156,95 @@ fn primary_waterfall_backdrop_is_not_limited_to_nearby_props() {
     );
 }
 
+#[test]
+fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
+    let (app, root, authored) = spawn_waterfall_mist_attachment(true);
+    let mut app = app;
+    let emitters: Vec<_> = app
+        .world_mut()
+        .query::<(Entity, &crate::particle::ParticleEmitterComp, &ChildOf)>()
+        .iter(app.world())
+        .collect();
+    assert_eq!(
+        emitters.len(),
+        1,
+        "placed waterfall mist must retain its emitter"
+    );
+    let (_, emitter, parent) = emitters[0];
+    assert_eq!(emitter.emitter.texture_fdid, authored.texture_fdid);
+    assert_eq!(emitter.emitter.position, authored.position);
+    assert_eq!(emitter.emitter.bone_index, authored.bone_index);
+    assert_eq!(emitter.emitter.emission_rate, authored.emission_rate);
+    let bone = emitter
+        .bone_entity
+        .expect("authored mist bone must be bound");
+    assert!(app.world().get::<Transform>(bone).is_some());
+    if authored.flags & 0x200 == 0 {
+        assert_eq!(parent.parent(), bone, "bone-local mist follows its bone");
+    }
+    let mut ancestor = parent.parent();
+    while ancestor != root {
+        ancestor = app
+            .world()
+            .get::<ChildOf>(ancestor)
+            .expect("mist emitter must remain attached to its placed model")
+            .parent();
+    }
+}
+
+#[test]
+fn waterfall_mist_attachment_respects_disabled_particle_effects() {
+    let (mut app, _, _) = spawn_waterfall_mist_attachment(false);
+    let count = app
+        .world_mut()
+        .query::<&crate::particle::ParticleEmitterComp>()
+        .iter(app.world())
+        .count();
+    assert_eq!(count, 0, "disabled particle effects must not spawn mist");
+}
+
+fn spawn_waterfall_mist_attachment(
+    particle_effects_enabled: bool,
+) -> (App, Entity, crate::asset::m2_particle::M2ParticleEmitter) {
+    let model =
+        crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/1028937.m2"), &[0; 3])
+            .expect("authored waterfall mist model must load");
+    assert_eq!(model.particle_emitters.len(), 1);
+    let authored = model.particle_emitters[0].clone();
+    assert!(authored.texture_fdid.is_some());
+    assert!((authored.bone_index as usize) < model.bones.len());
+    let mut app = render_path_test_app();
+    app.insert_resource(crate::client_options::GraphicsOptions {
+        particle_effects_enabled,
+        ..default()
+    });
+    let root = app.world_mut().spawn(Transform::IDENTITY).id();
+    let mut model = Some(model);
+    let attached = app
+        .world_mut()
+        .run_system_once(
+            move |mut commands: Commands, mut assets: scene_types::CharSelectRenderAssets| {
+                crate::m2_spawn::spawn_m2_model_on_entity(
+                    &mut commands,
+                    &mut crate::m2_spawn::SpawnAssets {
+                        meshes: &mut assets.meshes,
+                        materials: &mut assets.materials,
+                        effect_materials: &mut assets.effect_materials,
+                        skybox_materials: Some(&mut assets.skybox_materials),
+                        images: &mut assets.images,
+                        inverse_bindposes: &mut assets.inv_bp,
+                    },
+                    model.take().expect("attachment runs once"),
+                    root,
+                )
+            },
+        )
+        .expect("mist attachment system must run");
+    assert!(attached);
+    app.update();
+    (app, root, authored)
+}
+
 fn expected_shadow_pixels(shadow: Option<&[u8; 512]>) -> Vec<u8> {
     (0..4096)
         .flat_map(|pixel| {
