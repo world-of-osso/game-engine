@@ -96,7 +96,7 @@ pub fn spawn_m2_model_on_entity(
 ) -> bool {
     let grounded_root =
         ensure_grounded_model_root(commands, entity, ground_offset_y(&model.batches));
-    attach_m2_batches(
+    let skinning = attach_m2_batches(
         commands,
         assets,
         model.batches,
@@ -107,6 +107,15 @@ pub fn spawn_m2_model_on_entity(
         None,
         Some(&model.global_sequences),
     );
+    if !model.particle_emitters.is_empty() {
+        crate::particle::spawn_emitters(
+            commands,
+            &model.particle_emitters,
+            &model.bones,
+            skinning.as_ref().map(|(_, joints)| joints.as_slice()),
+            grounded_root,
+        );
+    }
     true
 }
 
