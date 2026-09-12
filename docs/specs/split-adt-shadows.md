@@ -11,6 +11,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [ ] Load Adventurer's Rest's supplemental waterfall tile and its waterfall/ripple placements.
 - [ ] Include authored waterfall/ripple backdrops on the primary tile even beyond the nearby-prop radius; keep ordinary props radius-limited.
 - [ ] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
+- [ ] Waterfall modulation textures use the shader-encoded second UV set when modern assets omit the legacy coordinate lookup; preserve authored alpha combination.
 
 ## How it works
 
@@ -24,6 +25,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/asset/adt.rs` — mesh-producing split-input entry point.
 - `src/rendering/terrain/terrain_spawn.rs` — resolves and reads companion data.
 - `src/scenes/char_select/scene_tree.rs` — reports backdrop load failures.
+- `src/asset/m2_batch.rs` — resolves waterfall shader UV inputs.
 
 ## Tests asserting this spec
 
