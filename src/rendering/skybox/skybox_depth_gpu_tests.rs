@@ -218,7 +218,7 @@ fn skybox_depth_preserves_foreground_and_foliage_cutouts() {
         app.update();
         assert_no_pipeline_errors(&app);
         for (index, target) in targets.iter().enumerate() {
-            if pending[index] {
+            if pending[index] || consecutive_matches[index] >= 2 {
                 continue;
             }
             let sender = sender.clone();
