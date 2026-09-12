@@ -10,6 +10,7 @@ macro_rules! zeroed_emitter {
             particle_model_filename: None,
             child_emitters_model_filename: None,
             texture_fdid: None,
+            multi_texture: None,
             blend_type: 0,
             emitter_type: 0,
             particle_type: 0,

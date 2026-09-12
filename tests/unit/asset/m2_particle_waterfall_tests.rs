@@ -20,6 +20,28 @@ fn mist_emitter_offset(md20: &[u8]) -> usize {
 }
 
 #[test]
+fn waterfall_mist_retains_three_authored_textures_and_uv_motion() {
+    let mut emitters = parse_particle_emitters(&read_mist_md20());
+    resolve_texture_fdids(&mut emitters, &[1029067, 1029068]);
+    let multi = emitters[0]
+        .multi_texture
+        .as_ref()
+        .expect("waterfall mist declares three texture layers");
+    assert_eq!(multi.texture_indices, [0, 1, 1]);
+    assert_eq!(
+        multi.texture_fdids,
+        [Some(1029067), Some(1029068), Some(1029068)]
+    );
+    assert_eq!(multi.uv_scale_bytes, [16, 44]);
+    assert_eq!(multi.velocity_midpoints, [[0.0, 0.25], [0.0, 0.3984375]]);
+    assert_eq!(
+        multi.velocity_ranges,
+        [[0.048828125, 0.099609375], [0.048828125, 0.048828125]],
+    );
+    assert_eq!(emitters[0].texture_fdid, Some(1029067));
+}
+
+#[test]
 fn waterfall_mist_reads_authored_scale_variation() {
     let emitters = parse_particle_emitters(&read_mist_md20());
     assert_eq!(emitters.len(), 1);
