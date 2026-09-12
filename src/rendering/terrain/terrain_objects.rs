@@ -315,8 +315,9 @@ pub fn spawn_nearby_campsite_objects(
         obj_data,
         &doodad_chunk_refs,
         |doodad| {
-            doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius
-                && !is_charselect_clutter_doodad(doodad)
+            is_waterfall_backdrop_doodad(doodad)
+                || (doodad_position(doodad, tile_y, tile_x).distance(focus) <= doodad_radius
+                    && !is_charselect_clutter_doodad(doodad))
         },
         &mut spawned.doodads,
     );

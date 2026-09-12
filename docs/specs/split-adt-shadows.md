@@ -9,6 +9,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [ ] Keep standalone/monolithic shadow validation strict when no companion supplies required data.
 - [ ] Reject mismatched root/companion chunk counts and conflicting shadow payloads explicitly.
 - [ ] Load Adventurer's Rest's supplemental waterfall tile and its waterfall/ripple placements.
+- [ ] Include authored waterfall/ripple backdrops on the primary tile even beyond the nearby-prop radius; keep ordinary props radius-limited.
 - [ ] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
 
 ## How it works
