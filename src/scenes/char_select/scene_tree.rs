@@ -346,17 +346,12 @@ pub fn light_scene_nodes(
     ambient: Option<Entity>,
     ambient_intensity: f32,
     primary_light: Entity,
-    fill_light: Option<Entity>,
 ) -> Vec<SceneNode> {
-    let mut nodes = vec![
+    vec![
         camera_scene_node(camera, fov),
         light_scene_node("AmbientLight", ambient, "ambient", ambient_intensity),
         primary_light_scene_node(primary_light),
-    ];
-    if let Some(fill_light) = fill_light {
-        nodes.push(fill_light_scene_node(fill_light));
-    }
-    nodes
+    ]
 }
 
 fn camera_scene_node(entity: Entity, fov: f32) -> SceneNode {
@@ -381,15 +376,11 @@ fn light_scene_node(label: &str, entity: Option<Entity>, kind: &str, intensity: 
 }
 
 fn primary_light_scene_node(entity: Entity) -> SceneNode {
-    light_scene_node("PrimaryLight", Some(entity), "directional", 12000.0)
-}
-
-fn fill_light_scene_node(entity: Entity) -> SceneNode {
     light_scene_node(
-        "FillLight",
+        "EnvironmentSun",
         Some(entity),
-        "directional",
-        crate::scenes::char_select::scene::lighting::CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
+        "directional (initial; sky-managed)",
+        light_consts::lux::OVERCAST_DAY,
     )
 }
 
@@ -426,27 +417,18 @@ mod tests {
     }
 
     #[test]
-    fn light_scene_nodes_report_spot_primary_light() {
+    fn light_scene_nodes_report_environment_sun() {
         let camera = Entity::from_raw_u32(1).expect("valid entity id");
         let light = Entity::from_raw_u32(2).expect("valid entity id");
-        let fill = Entity::from_raw_u32(3).expect("valid entity id");
-        let nodes = light_scene_nodes(camera, 45.0, None, 150.0, light, Some(fill));
+        let nodes = light_scene_nodes(camera, 45.0, None, 0.0, light);
 
-        assert_eq!(nodes[2].label, "PrimaryLight");
+        assert_eq!(nodes.len(), 3);
+        assert_eq!(nodes[2].label, "EnvironmentSun");
         assert_eq!(
             nodes[2].props,
             NodeProps::Light {
-                kind: "directional".into(),
-                intensity: 12000.0,
-            }
-        );
-        assert_eq!(nodes[3].label, "FillLight");
-        assert_eq!(
-            nodes[3].props,
-            NodeProps::Light {
-                kind: "directional".into(),
-                intensity:
-                    crate::scenes::char_select::scene::lighting::CHAR_SELECT_FILL_LIGHT_ILLUMINANCE,
+                kind: "directional (initial; sky-managed)".into(),
+                intensity: light_consts::lux::OVERCAST_DAY,
             }
         );
     }

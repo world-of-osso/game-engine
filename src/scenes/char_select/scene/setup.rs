@@ -87,8 +87,7 @@ fn spawn_scene_camera_and_lighting(
         SceneSetupLighting {
             camera_entity,
             fov: camera_params.2,
-            primary_light: sky_light_elapsed.0.primary_light,
-            fill_light: sky_light_elapsed.0.fill_light,
+            primary_light: sky_light_elapsed.0,
         },
         camera_elapsed,
         sky_light_elapsed.1,
@@ -121,7 +120,7 @@ fn attach_scene_skybox_and_spawn_lighting(
     selection: &SceneSetupSelection,
     bg_node: &mut SceneNode,
     camera_translation: Vec3,
-) -> (lighting::CharSelectLightingEntities, std::time::Duration) {
+) -> (Entity, std::time::Duration) {
     let sky_light_start = Instant::now();
     let skybox_translation = selection
         .placement
@@ -134,12 +133,7 @@ fn attach_scene_skybox_and_spawn_lighting(
         skybox_translation,
         bg_node,
     );
-    let dir = lighting::spawn(
-        &mut params.commands,
-        selection.scene_entry.as_ref(),
-        selection.placement.as_ref(),
-        selection.presentation,
-    );
+    let dir = lighting::spawn(&mut params.commands);
     (dir, sky_light_start.elapsed())
 }
 
@@ -253,9 +247,8 @@ fn build_scene_setup_children(
         lighting.camera_entity,
         lighting.fov,
         None,
-        lighting::CHAR_SELECT_AMBIENT_BRIGHTNESS,
+        0.0,
         lighting.primary_light,
-        Some(lighting.fill_light),
     ));
     children
 }

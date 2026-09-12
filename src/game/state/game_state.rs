@@ -290,6 +290,7 @@ fn spawn_world_environment(
     }
     commands.insert_resource(DirectionalLightShadowMap { size: 4096 });
     commands.spawn((
+        crate::sky::SkySun,
         DirectionalLight {
             illuminance: light_consts::lux::OVERCAST_DAY,
             shadow_maps_enabled: shadows_enabled,

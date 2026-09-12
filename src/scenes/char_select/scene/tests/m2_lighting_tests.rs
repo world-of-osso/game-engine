@@ -329,7 +329,7 @@ fn spawn_lighting_scene(mut commands: Commands, authored: Res<AuthoredLights>) {
         None,
         presentation,
     );
-    super::super::lighting::spawn(&mut commands, None, None, presentation);
+    super::super::lighting::spawn(&mut commands);
     commands.insert_resource(FixtureCamera(camera));
     let root = commands
         .spawn((Transform::IDENTITY, Visibility::default()))

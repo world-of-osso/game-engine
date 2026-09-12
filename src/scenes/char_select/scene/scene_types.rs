@@ -86,7 +86,6 @@ pub(super) struct SceneSetupLighting {
     pub(super) camera_entity: Entity,
     pub(super) fov: f32,
     pub(super) primary_light: Entity,
-    pub(super) fill_light: Entity,
 }
 
 pub(super) struct SceneSetupTimings {

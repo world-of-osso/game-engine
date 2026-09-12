@@ -282,6 +282,7 @@ fn light_params_suppresses_celestial_visibility(
 fn spawn_skybox_debug_light(commands: &mut Commands) {
     commands.spawn((
         Name::new("SkyboxDebugLight"),
+        crate::sky::SkySun,
         SkyboxDebugScene,
         DirectionalLight {
             illuminance: 2500.0,
