@@ -217,10 +217,6 @@ fn lit_comparison_settings() -> M2EffectSettings {
 #[test]
 #[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
 fn lit_m2_effect_matches_standard_material_without_fog() {
-    const MIN_LIT_CHANNEL: u8 = 8;
-    const MAX_LIT_CHANNEL: u8 = 247;
-    const RGB_TOLERANCE: u8 = 4;
-
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -300,17 +296,27 @@ fn lit_m2_effect_matches_standard_material_without_fog() {
         RenderLayers::layer(1),
     ));
 
-    let (sender, receiver) = mpsc::channel();
-    let mut pending = [false; 2];
-    let mut ready = [false; 2];
-    let mut stable_frames = [0_u8; 2];
-    let mut pixels = [[0_u8; 4]; 2];
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while Instant::now() < deadline {
-        app.update();
-        assert_no_pipeline_errors(&app);
+    let capture = capture_lit_comparison(&mut app, &targets);
+    assert_lit_comparison(&capture);
+}
+
+#[derive(Default)]
+struct LitComparisonCapture {
+    pending: [bool; 2],
+    ready: [bool; 2],
+    stable_frames: [u8; 2],
+    pixels: [[u8; 4]; 2],
+}
+
+impl LitComparisonCapture {
+    fn request_screenshots(
+        &mut self,
+        app: &mut App,
+        targets: &[Handle<Image>; 2],
+        sender: &mpsc::Sender<(usize, Image)>,
+    ) {
         for (index, target) in targets.iter().enumerate() {
-            if pending[index] || ready[index] {
+            if self.pending[index] || self.ready[index] {
                 continue;
             }
             let sender = sender.clone();
@@ -321,31 +327,65 @@ fn lit_m2_effect_matches_standard_material_without_fog() {
                         .send((index, capture.image.clone()))
                         .expect("lit comparison receiver exists");
                 });
-            pending[index] = true;
+            self.pending[index] = true;
         }
+    }
+
+    fn receive_screenshots(&mut self, receiver: &mpsc::Receiver<(usize, Image)>) {
         for (index, image) in receiver.try_iter() {
-            pending[index] = false;
+            self.pending[index] = false;
             let rgba = image
                 .try_into_dynamic()
                 .expect("readable lit comparison image")
                 .to_rgba8();
             let pixel = rgba.get_pixel(16, 16).0;
-            let lit = pixel[..3]
-                .iter()
-                .all(|channel| (MIN_LIT_CHANNEL..=MAX_LIT_CHANNEL).contains(channel));
-            stable_frames[index] = if lit && pixel == pixels[index] {
-                stable_frames[index] + 1
+            let lit = is_lit_pixel(pixel);
+            self.stable_frames[index] = if lit && pixel == self.pixels[index] {
+                self.stable_frames[index] + 1
             } else {
                 u8::from(lit)
             };
-            pixels[index] = pixel;
-            ready[index] = stable_frames[index] >= 2;
+            self.pixels[index] = pixel;
+            self.ready[index] = self.stable_frames[index] >= 2;
         }
-        if ready.iter().all(|ready| *ready) {
+    }
+}
+
+fn is_lit_pixel(pixel: [u8; 4]) -> bool {
+    const MIN_LIT_CHANNEL: u8 = 8;
+    const MAX_LIT_CHANNEL: u8 = 247;
+    pixel[..3]
+        .iter()
+        .all(|channel| (MIN_LIT_CHANNEL..=MAX_LIT_CHANNEL).contains(channel))
+}
+
+fn capture_lit_comparison(app: &mut App, targets: &[Handle<Image>; 2]) -> LitComparisonCapture {
+    let (sender, receiver) = mpsc::channel();
+    let mut capture = LitComparisonCapture::default();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        app.update();
+        assert_no_pipeline_errors(app);
+        capture.request_screenshots(app, targets, &sender);
+        capture.receive_screenshots(&receiver);
+        if capture.ready.iter().all(|ready| *ready) {
             break;
         }
     }
+    capture
+}
 
+fn assert_lit_pixel(label: &str, pixel: [u8; 4]) {
+    assert!(
+        is_lit_pixel(pixel),
+        "{label} must render nonblack, nonsaturated RGB: {pixel:?}"
+    );
+    assert_eq!(pixel[3], 255, "{label} must retain alpha 1: {pixel:?}");
+}
+
+fn assert_lit_comparison(capture: &LitComparisonCapture) {
+    const RGB_TOLERANCE: u8 = 4;
+    let pixels = capture.pixels;
     println!(
         "Lit comparison: M2EffectMaterial={:?}, StandardMaterial={:?}",
         pixels[0], pixels[1]
@@ -354,16 +394,10 @@ fn lit_m2_effect_matches_standard_material_without_fog() {
         .into_iter()
         .zip(pixels)
     {
-        assert!(
-            pixel[..3]
-                .iter()
-                .all(|channel| (MIN_LIT_CHANNEL..=MAX_LIT_CHANNEL).contains(channel)),
-            "{label} must render nonblack, nonsaturated RGB: {pixel:?}"
-        );
-        assert_eq!(pixel[3], 255, "{label} must retain alpha 1: {pixel:?}");
+        assert_lit_pixel(label, pixel);
     }
     assert!(
-        ready.iter().all(|ready| *ready),
+        capture.ready.iter().all(|ready| *ready),
         "lit comparison did not settle within ten seconds: {pixels:?}"
     );
     for channel in 0..3 {
