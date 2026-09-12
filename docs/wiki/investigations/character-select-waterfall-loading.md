@@ -1,6 +1,6 @@
 # Character-Select Waterfall Loading
 
-Verified: 2026-09-11. Split shadows, primary-backdrop filtering, and waterfall UV decoding are corrected. The final native visibility audit is running; visible render completion is not yet claimed.
+Verified: 2026-09-12. Split shadows, primary-backdrop filtering, waterfall UV decoding, and authored waterfall texture-track looping are corrected. Native proof of a visibly moving cascade remains pending.
 
 Adventurer's Rest loads primary terrain `2703_31_37` and supplemental tile `2703_31_36`. The waterfall in the campsite view belongs to the primary tile: 14 waterfall/ripple placements lie about 264–350 units from the character. The neighboring tile contains another 42 placements, over 500 units away. All supplemental root, `_tex0`, and `_obj0` files exist locally.
 
@@ -10,11 +10,13 @@ The supplemental root contains 227 chunks with the shadow-present flag but no `H
 
 Native inspection after the parser fix exposed the second blocker: the primary object pass applied a 75-unit prop radius to its own waterfall backdrop. `17b77d68` reuses the existing waterfall/ripple predicate to admit the 14 authored primary-tile effects while keeping ordinary props radius-limited. The real-spawn regression changes from 62 props with no waterfall04 model to 76 placements, including that model. The neighboring tile's 42 placements remain supplemental coverage, not the only waterfall source.
 
-Modern waterfall batches also encode their modulation coordinate in the shader-selected second UV set rather than the legacy coordinate lookup. `458868e9`, with named selector bits from `81417de0`, decodes that second UV source while preserving the authored alpha combine. Color-space, opaque, unlit, and cull probes were diagnostic controls only; none is the production fix.
+Modern waterfall batches also encode their modulation coordinate in the shader-selected second UV set rather than the legacy coordinate lookup. `458868e9`, with named selector bits from `81417de0`, decodes that second UV source while preserving the authored alpha combine.
+
+`7b0a12eb` preserves per-track global-sequence periods for ordinary `M2EffectMaterial` instances and samples them as loops rather than clamping at their final keyframe. Waterfall model `4661358` has independent 1000 ms and 1333 ms global periods on different batches; its second texture-animation lookup of `-1` remains static. The timing oracle was corrected in `33db3799`; `29e15a64` is its genuine frozen-animation RED boundary, followed by GREEN in `7b0a12eb`. Color-space, opaque, unlit, and cull probes were diagnostic controls only; none is the production fix.
 
 `f53bba1c` keeps character-select orbit-input diagnostics at DEBUG, avoiding INFO-log noise without removing the diagnostic.
 
-Do not discard shadow flags/data, broadly expand prop loading, or replace alpha combination as substitutes for these corrections. RED/GREEN evidence is under `verification`, `primary-verification`, and `uv-verification`; the final native visibility audit remains running.
+Do not discard shadow flags/data, broadly expand prop loading, replace alpha combination, or use a shared/global animation period as substitutes for these corrections. RED/GREEN evidence is under `verification`, `primary-verification`, and `uv-verification`; moving-waterfall native proof remains pending.
 
 ## Evidence and sources
 
@@ -24,6 +26,8 @@ Do not discard shadow flags/data, broadly expand prop loading, or replace alpha 
 - `src/asset/adt_format/adt.rs` — root parse error propagation.
 - `src/rendering/terrain/terrain_objects.rs` — primary backdrop admission.
 - `src/asset/m2_batch.rs` — shader-selected waterfall UV source.
+- `src/rendering/model/m2_effect_material.rs` — per-track global-sequence texture-offset sampling.
+- `src/rendering/model/m2_spawn_material.rs` — preserves global-sequence timing for ordinary effect materials.
 - `src/scenes/char_select/scene_tree.rs` — terrain-load error reporting.
 - `src/scenes/char_select/warband/mod.rs` — neighboring-tile selection.
 
