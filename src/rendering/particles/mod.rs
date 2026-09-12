@@ -12,6 +12,8 @@ mod visuals;
 
 #[cfg(test)]
 mod multitexture_gpu_tests;
+#[cfg(test)]
+mod xy_quad_gpu_tests;
 
 use bevy::prelude::*;
 use bevy_hanabi::prelude::*;
