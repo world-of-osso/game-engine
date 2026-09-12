@@ -38,6 +38,10 @@ pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 #[derive(Component)]
 struct TimeDisplay;
 
+/// Environmental directional light owned by sky color and time-of-day updates.
+#[derive(Component)]
+pub struct SkySun;
+
 // ---------------------------------------------------------------------------
 // GameTime resource
 // ---------------------------------------------------------------------------
@@ -239,13 +243,13 @@ type CamerasWithoutEnvironment<'w, 's> = Query<
     's,
     (Entity, &'static Camera),
     (
-        With<crate::camera::WowCamera>,
+        Or<(With<crate::camera::WowCamera>, With<CharSelectScene>)>,
         Without<GeneratedEnvironmentMapLight>,
         Without<EnvironmentMapLight>,
     ),
 >;
 
-fn initialize_inworld_camera_ibl(
+fn initialize_scene_camera_ibl(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     game_time: Res<GameTime>,
@@ -277,7 +281,7 @@ fn color_to_vec4(c: Color) -> Vec4 {
 struct SkyVisualParams<'w, 's> {
     sky_dome_q: Query<'w, 's, Ref<'static, MeshMaterial3d<SkyMaterial>>, With<SkyDome>>,
     sky_materials: ResMut<'w, Assets<SkyMaterial>>,
-    dir_lights: Query<'w, 's, &'static mut DirectionalLight>,
+    dir_lights: Query<'w, 's, &'static mut DirectionalLight, With<SkySun>>,
     ambient_q: Query<'w, 's, &'static mut AmbientLight>,
     water_materials: ResMut<'w, Assets<crate::water_material::WaterMaterial>>,
 }
@@ -338,7 +342,7 @@ fn update_sky_dome_material(
 }
 
 fn sync_lights(
-    dir_lights: &mut Query<&mut DirectionalLight>,
+    dir_lights: &mut Query<&mut DirectionalLight, With<SkySun>>,
     ambient_q: &mut Query<&mut AmbientLight>,
     colors: &SkyColorSet,
 ) {
@@ -379,7 +383,7 @@ fn sun_rotation(minutes: f32) -> Quat {
 
 fn update_sun_direction(
     game_time: Res<GameTime>,
-    mut dir_lights: Query<(&mut Transform, &mut DirectionalLight)>,
+    mut dir_lights: Query<(&mut Transform, &mut DirectionalLight), With<SkySun>>,
     mut last_minutes: Local<f32>,
 ) {
     if (game_time.minutes - *last_minutes).abs() < 0.01 {
@@ -683,9 +687,9 @@ fn register_shared_sky_visual_systems(app: &mut App) {
     let sky_active = sky_scene_active;
     app.add_systems(
         Update,
-        initialize_inworld_camera_ibl
+        initialize_scene_camera_ibl
             .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld))
+            .run_if(in_state(GameState::InWorld).or(in_state(GameState::CharSelect)))
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     )
     .add_systems(
@@ -714,7 +718,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
         Update,
         update_sky_env_map
             .after(advance_game_time)
-            .after(initialize_inworld_camera_ibl)
+            .after(initialize_scene_camera_ibl)
             .run_if(sky_scene_active)
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );
