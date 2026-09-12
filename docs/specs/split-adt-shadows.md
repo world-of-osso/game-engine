@@ -14,6 +14,9 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
 - [x] Keep waterfall texture animation moving after its first cycle by sampling each track with its own authored global-sequence duration.
 - [x] Forward parsed emitters only for selected waterfall/ripple backdrops, including spawned skeleton joints and the graphics particle-effects gate.
+- [x] Interpret particle flags as raw M2 file flags, not internal runtime-property flags.
+- [x] Preserve authored packed texture stages, UV scales and signed per-particle UV motion for waterfall mist.
+- [x] Bind every required particle texture and report missing or undecodable stages instead of rendering an incomplete material.
 
 ## How it works
 
