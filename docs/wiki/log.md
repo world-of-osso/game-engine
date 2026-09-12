@@ -811,6 +811,10 @@ Updated [[terrain]] and [[rendering-pipeline]] for `6ea29dba`, `1b5efc68`, and `
 
 - 2026-09-09: Reproduced premature player appearance during Loading: first child preceded meshes/default equipment, yet dedup marked the snapshot applied. Final model metadata now gates application. Real asset lifecycle/body pixel tests pass; missing weapon attachments 0/1 remain explicit. See [character rendering](systems/character-rendering.md#replicated-player-construction-boundary).
 
+## [2026-09-12] rendering | Record waterfall mist emitter boundary
+
+Updated [[character-select-waterfall-loading]] and [split-shadow spec](../specs/split-adt-shadows.md) for `5206d9b4`: preloaded terrain M2 attachments now forward parsed authored emitters and skeleton joints to the existing particle path without bypassing graphics particle-effect disablement. The placed-waterfall census identifies six `1028937` mist and three `2904370` misty-ripple placements, each with one emitter; primary cascade sheets have none. `62e36331` records RED at zero attached emitters where one was expected. GREEN and native cascade/mist acceptance remain open.
+
 ## [2026-09-10] character | Correct starter weapon attachment semantics
 
 Updated [[character-rendering]] and [[npc-motion-validation]] for engine `496a057b`. Local WMVx reference code identifies right palm 1, left palm 2, and shield left wrist 0; HumanMaleHD maps them to bones 206, 211, and 201. The prior 201/206 root-parent proof did not prove the correct semantic mount points. The new live sword/shield test was RED against the former mapping and passes at `5e5b2574`; replacement native visual proof remains pending. No item-local rotation correction is claimed.
