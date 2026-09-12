@@ -58,6 +58,7 @@ pub(crate) fn flipbook_sprite_mode(em: &M2ParticleEmitter) -> Option<FlipbookSpr
     shared::flipbook_sprite_mode(em)
 }
 
+#[cfg(test)]
 pub(crate) fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
     shared_orient_mode(em)
 }
@@ -181,11 +182,7 @@ fn assemble_effect(
         twinkle_enabled,
         size_variation,
     } = init;
-    let orient = if let Some(rotation) = orient_rotation {
-        OrientModifier::new(orient_mode(em)).with_rotation(rotation)
-    } else {
-        OrientModifier::new(orient_mode(em))
-    };
+    let orient = shared::build_particle_orientation(em, orient_rotation);
     let child_event_count_exprs: Vec<ExprHandle> = child_event_counts
         .into_iter()
         .map(|count| module.lit(count))
@@ -226,7 +223,7 @@ fn build_base_effect(
     lifetime: SetAttributeModifier,
     vel: SetAttributeModifier,
     gravity: AccelModifier,
-    orient: OrientModifier,
+    orient: Box<dyn bevy_hanabi::RenderModifier>,
     model_scale: f32,
 ) -> EffectAsset {
     EffectAsset::new(max_particles, spawner, module)
@@ -242,7 +239,7 @@ fn build_base_effect(
             gradient: build_size_gradient(em, model_scale),
             screen_space_size: false,
         })
-        .render(orient)
+        .add_render_modifier(orient)
 }
 
 fn add_position_and_inherit_init(

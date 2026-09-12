@@ -3,6 +3,9 @@ use super::*;
 #[path = "multitexture.rs"]
 mod multitexture;
 pub(super) use multitexture::apply_particle_texture;
+#[path = "orientation.rs"]
+mod orientation;
+pub(super) use orientation::build_particle_orientation;
 
 const DEBUG_PARTICLE_WHITE_BIND_ONLY_FDID: u32 = u32::MAX - 1;
 
@@ -137,8 +140,6 @@ pub(crate) fn add_optional_init_modifiers(
 pub(crate) fn orient_mode(em: &M2ParticleEmitter) -> OrientMode {
     if is_trail_particle(em) || em.flags & PARTICLE_FLAG_VELOCITY_ORIENT != 0 {
         OrientMode::AlongVelocity
-    } else if em.flags & PARTICLE_FLAG_XY_QUAD != 0 {
-        OrientMode::ParallelCameraDepthPlane
     } else {
         OrientMode::FaceCameraPosition
     }

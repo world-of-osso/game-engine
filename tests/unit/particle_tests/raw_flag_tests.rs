@@ -23,15 +23,6 @@ fn raw_particle_flags_mist_particles_use_bone_parent_and_scale() {
 }
 
 #[test]
-fn raw_particle_flags_misty_ripple_uses_xy_quad_orientation() {
-    let emitter = load_authored_mist(2904370);
-    assert!(matches!(
-        orient_mode(&emitter),
-        OrientMode::ParallelCameraDepthPlane
-    ));
-}
-
-#[test]
 fn raw_particle_flags_both_mist_atlases_choose_random_cells() {
     for fdid in [1028937, 2904370] {
         let emitter = load_authored_mist(fdid);
