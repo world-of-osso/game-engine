@@ -161,8 +161,8 @@ const EMITTER_TAIL_LENGTH_OFFSET: usize = 0xE4;
 const EMITTER_DRAG_OFFSET: usize = 0x174;
 const EMITTER_VISUAL_COLOR_OFFSET: usize = 0x104;
 const EMITTER_VISUAL_OPACITY_OFFSET: usize = 0x114;
-const EMITTER_SCALE_VARIATION_OFFSET: usize = 0x118;
-const EMITTER_SCALE_VARIATION_Y_OFFSET: usize = 0x11C;
+const EMITTER_SCALE_VARIATION_OFFSET: usize = 0x134;
+const EMITTER_SCALE_VARIATION_Y_OFFSET: usize = 0x138;
 const EMITTER_VISUAL_SCALE_OFFSET: usize = 0x124;
 const EMITTER_TWINKLE_SPEED_OFFSET: usize = 0x164;
 const EMITTER_TWINKLE_PERCENT_OFFSET: usize = 0x168;
@@ -292,12 +292,7 @@ fn read_f32_track_value(md20: &[u8], emitter: &[u8], track_offset: usize) -> f32
 
 fn uses_compressed_gravity(emitter: &[u8]) -> bool {
     let flags = read_u32(emitter, EMITTER_FLAGS_OFFSET).unwrap_or(0);
-    let scale_variation_y = read_f32(emitter, EMITTER_SCALE_VARIATION_Y_OFFSET).unwrap_or(0.0);
-    // wowdev documents 0x00800000 as compressed gravity, while retail runtime
-    // references reuse that bit for 2D size variation. Treat it as compressed
-    // gravity only when there is no authored Y variation to preserve the known
-    // size-variation behavior.
-    flags & PARTICLE_FLAG_COMPRESSED_GRAVITY != 0 && scale_variation_y == 0.0
+    flags & PARTICLE_FLAG_COMPRESSED_GRAVITY != 0
 }
 
 fn decode_compressed_particle_gravity(value: [u8; 4]) -> [f32; 3] {
