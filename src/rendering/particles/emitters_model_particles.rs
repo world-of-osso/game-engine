@@ -14,7 +14,6 @@ use crate::m2_spawn;
 use super::effect_builder::{
     emitter_spawn_radius, gravity_accel_bevy, lifetime_range, scaled_emission_rate,
 };
-use super::emitters::emitter_uses_sphere_invert_velocity;
 use super::{MODEL_PARTICLE_MIN_SPEED, ParticleSpawnMode, ParticleSpawnSource};
 
 const PSEUDO_RANDOM_SEED_MIX: u32 = 0x9E37_79B9;
@@ -293,10 +292,6 @@ fn sample_model_particle_velocity(em: &M2ParticleEmitter, model_scale: f32, seed
         let source = Vec3::new(0.0, 0.0, em.z_source);
         let direction = (position - source).normalize_or_zero();
         return direction * speed;
-    }
-    if emitter_uses_sphere_invert_velocity(em) {
-        let position = sample_model_particle_local_offset(em, model_scale, seed);
-        return (-position).normalize_or_zero() * speed;
     }
     let yaw = pseudo_random01(seed, 3) * em.horizontal_range;
     let pitch = pseudo_random01(seed, 4) * em.vertical_range;

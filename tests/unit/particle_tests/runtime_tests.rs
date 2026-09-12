@@ -507,21 +507,9 @@ fn inherit_position_back_delta_maps_world_segment_into_local_space() {
 }
 
 #[test]
-fn sphere_invert_flag_switches_sphere_emitters_to_implosion_velocity() {
-    let mut emitter = sample_emitter();
-    emitter.emitter_type = 2;
-    emitter.flags = PARTICLE_FLAG_SPHERE_INVERT;
-
-    assert!(emitter_uses_sphere_invert_velocity(&emitter));
-
-    emitter.emitter_type = 1;
-    assert!(!emitter_uses_sphere_invert_velocity(&emitter));
-}
-
-#[test]
 fn dynamic_wind_flag_uses_dynamic_wind_path() {
     let mut emitter = sample_emitter();
-    emitter.flags = PARTICLE_FLAG_WIND_ENABLED | PARTICLE_FLAG_WIND_DYNAMIC;
+    emitter.flags = PARTICLE_FLAG_WIND_DYNAMIC;
 
     assert!(emitter_uses_dynamic_wind(&emitter));
 }
@@ -538,7 +526,7 @@ fn sync_dynamic_wind_properties_updates_effect_property() {
             ParticleEmitterComp {
                 emitter: {
                     let mut emitter = sample_emitter();
-                    emitter.flags = PARTICLE_FLAG_WIND_ENABLED | PARTICLE_FLAG_WIND_DYNAMIC;
+                    emitter.flags = PARTICLE_FLAG_WIND_DYNAMIC;
                     emitter
                 },
                 bone_entity: None,

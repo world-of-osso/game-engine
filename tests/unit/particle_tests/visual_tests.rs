@@ -260,7 +260,6 @@ fn negate_spin_flag_allocates_stable_spin_sign_attribute() {
 #[test]
 fn wind_vector_maps_to_bevy_axes_and_scale() {
     let mut emitter = sample_emitter();
-    emitter.flags = PARTICLE_FLAG_WIND_ENABLED;
     emitter.wind_vector = [1.0, 2.0, 3.0];
     emitter.wind_time = 2.0;
 
@@ -271,7 +270,7 @@ fn wind_vector_maps_to_bevy_axes_and_scale() {
 #[test]
 fn dynamic_wind_flag_disables_static_wind_path() {
     let mut emitter = sample_emitter();
-    emitter.flags = PARTICLE_FLAG_WIND_ENABLED | PARTICLE_FLAG_WIND_DYNAMIC;
+    emitter.flags = PARTICLE_FLAG_WIND_DYNAMIC;
     emitter.wind_vector = [1.0, 2.0, 3.0];
     emitter.wind_time = 2.0;
 

@@ -24,8 +24,7 @@ use super::emitters::{
     ParticleEmitterComp, emitter_parent_entity, emitter_scale_source, emitter_simulation_space,
     emitter_spawn_offset, emitter_translation, emitter_uses_bone_scale, emitter_uses_dynamic_wind,
     emitter_uses_follow_position, emitter_uses_inherit_position, emitter_uses_inherit_velocity,
-    emitter_uses_model_particles, emitter_uses_project_particle,
-    emitter_uses_sphere_invert_velocity, inherit_position_back_delta_local,
+    emitter_uses_model_particles, emitter_uses_project_particle, inherit_position_back_delta_local,
     model_particle_spawn_count, projected_particle_spawn_y, spawn_emitters,
     spawn_emitters_with_mode, spawn_loaded_child_emitters, sync_dynamic_wind_properties,
 };
@@ -38,9 +37,8 @@ use super::{
     PARTICLE_FLAG_CLAMP_TAIL_TO_AGE, PARTICLE_FLAG_INHERIT_POSITION,
     PARTICLE_FLAG_INHERIT_VELOCITY, PARTICLE_FLAG_NEGATE_SPIN, PARTICLE_FLAG_NO_GLOBAL_SCALE,
     PARTICLE_FLAG_OFFSET_BY_SPIN, PARTICLE_FLAG_RANDOM_TEXTURE, PARTICLE_FLAG_SIZE_VARIATION_2D,
-    PARTICLE_FLAG_SPHERE_INVERT, PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT,
-    PARTICLE_FLAG_WIND_DYNAMIC, PARTICLE_FLAG_WIND_ENABLED, PARTICLE_FLAG_WORLD_SPACE,
-    PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource,
+    PARTICLE_FLAG_TAIL_PARTICLES, PARTICLE_FLAG_VELOCITY_ORIENT, PARTICLE_FLAG_WIND_DYNAMIC,
+    PARTICLE_FLAG_WORLD_SPACE, PARTICLE_FLAG_XY_QUAD, ParticleSpawnMode, ParticleSpawnSource,
 };
 use crate::asset::m2_anim::M2Bone;
 use crate::asset::m2_particle::M2ParticleEmitter;
