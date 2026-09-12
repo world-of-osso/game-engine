@@ -813,7 +813,7 @@ Updated [[terrain]] and [[rendering-pipeline]] for `6ea29dba`, `1b5efc68`, and `
 
 ## [2026-09-12] rendering | Record waterfall mist emitter boundary
 
-Updated [[character-select-waterfall-loading]] and [split-shadow spec](../specs/split-adt-shadows.md) for `5206d9b4`: preloaded terrain M2 attachments now forward parsed authored emitters and skeleton joints to the existing particle path without bypassing graphics particle-effect disablement. The placed-waterfall census identifies six `1028937` mist and three `2904370` misty-ripple placements, each with one emitter; primary cascade sheets have none. `62e36331` records RED at zero attached emitters where one was expected. GREEN and native cascade/mist acceptance remain open.
+Updated [[character-select-waterfall-loading]] and [split-shadow spec](../specs/split-adt-shadows.md) for `5206d9b4`/`030090f3`: parsed emitters and skeleton joints now reach the existing particle path only for the existing waterfall/ripple backdrop selection, preserving unrelated terrain props' prior behavior and the graphics particle-effects gate. The census identifies six `1028937` mist and three `2904370` misty-ripple placements, each with one emitter; primary cascade sheets have none. `62e36331` records zero attached emitters where one was expected; focused GREEN passes. `29819999`/`b1663674` record generated-WGSL sprite-index RED/GREEN. Both selected mist models decode zero gravity; the prior NaN shader came from an unrelated activated prop. Local CASC supplied missing `2904679`; automatic particle-texture extraction remains open. Native cascade/mist acceptance remains open.
 
 ## [2026-09-10] character | Correct starter weapon attachment semantics
 
