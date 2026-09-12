@@ -390,6 +390,18 @@ fn m2_lighting_charselect_uses_one_environment_directional_light() {
 }
 
 #[test]
+fn m2_lighting_recreated_sun_uses_current_sky_without_clock_change() {
+    let (mut app, unrelated, _) = headless_lighting_app();
+    app.update();
+    let previous = scene_directional_entities(&mut app, unrelated)[0];
+    let expected = directional_state(app.world(), previous);
+    app.world_mut().despawn(previous);
+    let replacement = super::super::lighting::spawn(&mut app.world_mut().commands());
+    app.update();
+    assert_eq!(directional_state(app.world(), replacement), expected);
+}
+
+#[test]
 fn m2_lighting_charselect_camera_has_generated_environment_map() {
     let (mut app, _, _) = headless_lighting_app();
     app.update();
