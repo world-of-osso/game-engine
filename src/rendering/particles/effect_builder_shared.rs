@@ -260,9 +260,10 @@ fn build_flipbook_sprite_index_modifiers(
             );
         }
         Some(FlipbookSpriteMode::FirstCell) => writer.lit(0),
-        Some(FlipbookSpriteMode::RandomCell) => {
-            (writer.rand(ScalarType::Float) * writer.lit(total as f32)).floor()
-        }
+        Some(FlipbookSpriteMode::RandomCell) => (writer.rand(ScalarType::Float)
+            * writer.lit(total as f32))
+        .floor()
+        .cast(ScalarType::Int),
         None => return (None, None),
     };
     (
