@@ -481,6 +481,10 @@ fn billboard_rotation_from_camera(camera_rotation: Quat) -> Option<Quat> {
     )
 }
 
+#[cfg(test)]
+#[path = "animation/light_tests.rs"]
+mod light_tests;
+
 fn sync_model_lights(
     players: Query<&M2AnimPlayer>,
     mut lights: Query<(&RuntimeM2PointLight, &mut PointLight, &mut Visibility)>,
