@@ -597,3 +597,7 @@ fn emitter_stride(version: u32) -> usize {
 #[cfg(test)]
 #[path = "../../../tests/unit/asset/m2_particle_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/asset/m2_particle_waterfall_tests.rs"]
+mod waterfall_tests;
