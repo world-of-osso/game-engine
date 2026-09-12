@@ -260,8 +260,13 @@ fn load_primary_placement_data() -> crate::asset::adt_format::adt_obj::AdtObjDat
 }
 
 fn primary_authored_position(doodad: &crate::asset::adt_format::adt_obj::DoodadPlacement) -> Vec3 {
-    // This primary fixture stores direct world [X, Z, Y], not absolute ADT offsets.
-    Vec3::new(doodad.position[0], doodad.position[1], -doodad.position[2])
+    // This primary MDDF uses absolute ADT coordinates, with height in component 1.
+    let center = 32.0 * crate::terrain_tile::TILE_SIZE;
+    Vec3::new(
+        center - doodad.position[2],
+        doodad.position[1],
+        doodad.position[0] - center,
+    )
 }
 
 fn spawned_doodad_world_positions(app: &mut App) -> Vec<Vec3> {
