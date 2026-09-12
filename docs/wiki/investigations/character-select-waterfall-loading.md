@@ -18,7 +18,9 @@ Modern waterfall batches also encode their modulation coordinate in the shader-s
 
 The placed-waterfall census finds nine authored mist placements that the terrain filter already selects: six `1028937` (`6fx_waterfall_mist01.m2`) and three `2904370` (`8fx_ambient_waterfall_ripple01_misty.m2`), each declaring one particle emitter. The cascade-sheet models `4661357`, `4661358`, and `4661361` declare none. Before `5206d9b4`, preloaded terrain M2 attachment forwarded only mesh batches, so these selected mist emitters were discarded. `030090f3` restricts the resulting emitter restoration to the existing `is_waterfall_backdrop_doodad` selection, preserving unrelated terrain props' prior no-emitter behavior; the existing graphics particle-effects disable gate remains authoritative. `62e36331` records the meaningful RED: the actual mist attachment expected one emitter but observed zero; its focused GREEN passes.
 
-The restored waterfall path exposed two separate particle prerequisites. Actual generated-WGSL RED/GREEN in `29819999`/`b1663674` corrects random flipbook sprite assignment to Hanabi's integer sprite attribute. Both selected waterfall mist models decode raw gravity as zero; a prior `NaN` generated shader came from an unrelated newly activated prop, not their gravity. Local CASC extraction supplied missing particle texture `2904679`; automatic extraction in the particle texture loader remains a separate gap. Native cascade/mist acceptance remains unresolved.
+The restored waterfall path exposed two separate particle prerequisites. Actual generated-WGSL RED/GREEN in `29819999`/`b1663674` corrects random flipbook sprite assignment to Hanabi's integer sprite attribute. Both selected waterfall mist models decode raw gravity as zero; a prior `NaN` generated shader came from an unrelated newly activated prop, not their gravity. Local CASC extraction supplied missing particle texture `2904679`; automatic extraction in the particle texture loader remains a separate gap.
+
+`particle-native-fixed/acceptance.md` records a bounded native run with all nine waterfall-backdrop emitters instantiated and substantial localized moving particle output. It found no particle shader-processing failure or Hanabi panic, and no cited orbit-input INFO message. This does **not** accept the overall restoration: the flowing sheet is not independently readable, particle output contaminates its prior silhouette mask, and mist shape, softness, size, density, and reference fidelity remain unproven.
 
 `f53bba1c` keeps character-select orbit-input diagnostics at DEBUG, avoiding INFO-log noise without removing the diagnostic.
 
@@ -37,6 +39,7 @@ Do not discard shadow flags/data, broadly expand prop loading, replace alpha com
 - `data/diagnostics/waterfall-missing-20260911/particle-census/{report.md,census.json}` — placed-waterfall emitter census.
 - `data/diagnostics/waterfall-missing-20260911/{particle-red,particle-green,particle-verification}/` — actual mist-attachment RED/GREEN and scoped verification.
 - `data/diagnostics/waterfall-missing-20260911/particle-sprite-index/` — actual generated-WGSL sprite-index RED/GREEN evidence.
+- `data/diagnostics/waterfall-missing-20260911/particle-native-fixed/acceptance.md` — bounded native emitter, particle-motion, error/panic, and orbit-log assessment; overall sheet/mist fidelity remains unaccepted.
 - `src/rendering/model/m2_effect_material.rs` — per-track global-sequence texture-offset sampling.
 - `src/rendering/model/m2_spawn.rs`, `src/rendering/terrain/terrain_objects.rs` — waterfall-backdrop-only terrain emitter forwarding.
 - `src/rendering/model/m2_spawn_material.rs` — preserves global-sequence timing for ordinary effect materials.
