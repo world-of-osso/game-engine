@@ -54,6 +54,8 @@ use bevy_hanabi::OrientMode;
 mod benchmark_tests;
 #[path = "particle_tests/builder_tests.rs"]
 mod builder_tests;
+#[path = "particle_tests/raw_flag_tests.rs"]
+mod raw_flag_tests;
 #[path = "particle_tests/runtime_tests.rs"]
 mod runtime_tests;
 #[path = "particle_tests/visual_tests.rs"]
