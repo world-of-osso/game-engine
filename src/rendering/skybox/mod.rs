@@ -689,7 +689,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
         Update,
         initialize_scene_camera_ibl
             .after(advance_game_time)
-            .run_if(in_state(GameState::InWorld).or(in_state(GameState::CharSelect)))
+            .run_if(in_state(GameState::InWorld).or_else(in_state(GameState::CharSelect)))
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     )
     .add_systems(
