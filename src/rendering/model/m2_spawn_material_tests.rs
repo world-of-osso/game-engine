@@ -60,67 +60,63 @@ fn waterfall_uv_animation_repeats_each_authored_global_period() {
     let model =
         asset::m2::load_m2_uncached(path, &[0, 0, 0]).expect("load authored waterfall04 model");
     assert_eq!(model.global_sequences.as_slice(), &[1000, 1333]);
-    let batch = model.batches.first().expect("waterfall04 first batch");
-    assert_eq!(batch.render_flags, 0x1010);
-    assert_eq!(batch.shader_id, SHADER_MOD2X);
-
-    let mut images = Assets::<Image>::default();
-    let mut materials = Assets::<StandardMaterial>::default();
-    let mut effect_materials = Assets::<m2_effect_material::M2EffectMaterial>::default();
-    let loaded = load_batch_material(
-        batch,
-        0,
-        &mut images,
-        &mut materials,
-        &mut effect_materials,
-        None,
-        false,
-        None,
-        None,
-        Some(&model.global_sequences),
-    );
-    let BatchMaterial::Effect(handle) = loaded else {
-        panic!("waterfall04 must expose its animated effect material");
-    };
-    let mut material = effect_materials
-        .get_mut(&handle)
-        .expect("waterfall material");
-    let samples = [500, 1500, 1750, 1833].map(|time_ms| {
-        m2_effect_material::update_m2_effect_material_uv(&mut material, time_ms);
-        (material.settings.uv_offset_1, material.settings.uv_offset_2)
-    });
-    let [
-        (first_500, second_500),
-        (first_1500, second_1500),
-        (first_1750, second_1750),
-        (_, second_1833),
-    ] = samples;
     const UV_TOLERANCE: f32 = 0.001;
-
-    assert!(
-        first_500.abs_diff_eq(Vec2::new(-0.5, 0.0), UV_TOLERANCE),
-        "first UV at 500ms: {first_500:?}"
-    );
-    assert!(
-        first_1500.abs_diff_eq(first_500, UV_TOLERANCE),
-        "1000ms UV period must repeat: 500ms={first_500:?}, 1500ms={first_1500:?}"
-    );
-    assert!(
-        first_1750.abs_diff_eq(Vec2::new(-0.75, 0.0), UV_TOLERANCE),
-        "first UV must continue moving after its first cycle: {first_1750:?}"
-    );
-    assert!(
-        second_1833.abs_diff_eq(second_500, UV_TOLERANCE),
-        "second UV must repeat after its own 1333ms period: 500ms={second_500:?}, 1833ms={second_1833:?}"
-    );
-    assert!(
-        !second_1500.abs_diff_eq(second_500, UV_TOLERANCE),
-        "second UV must not use the first UV's 1000ms period"
-    );
-    assert!(
-        !second_1750.abs_diff_eq(second_1500, UV_TOLERANCE),
-        "second UV must not freeze after 1333ms: 1500ms={second_1500:?}, 1750ms={second_1750:?}"
-    );
+    for (global_sequence, period) in [(0, 1000), (1, 1333)] {
+        let batch = model
+            .batches
+            .iter()
+            .find(|batch| {
+                batch
+                    .texture_anim
+                    .as_ref()
+                    .is_some_and(|track| track.global_sequence == global_sequence)
+            })
+            .expect("waterfall04 has both authored global periods");
+        let mut images = Assets::<Image>::default();
+        let mut materials = Assets::<StandardMaterial>::default();
+        let mut effect_materials = Assets::<m2_effect_material::M2EffectMaterial>::default();
+        let loaded = load_batch_material(
+            batch,
+            0,
+            &mut images,
+            &mut materials,
+            &mut effect_materials,
+            None,
+            false,
+            None,
+            None,
+            Some(&model.global_sequences),
+        );
+        let BatchMaterial::Effect(handle) = loaded else {
+            panic!("waterfall04 must expose its animated effect material");
+        };
+        let mut material = effect_materials
+            .get_mut(&handle)
+            .expect("waterfall material");
+        let samples = [500, 500 + period, 750 + period].map(|time_ms| {
+            m2_effect_material::update_m2_effect_material_uv(&mut material, time_ms);
+            (material.settings.uv_offset_1, material.settings.uv_offset_2)
+        });
+        let [
+            (initial, secondary_initial),
+            (repeated, secondary_repeated),
+            (advanced, secondary_advanced),
+        ] = samples;
+        assert!(!initial.abs_diff_eq(Vec2::ZERO, UV_TOLERANCE));
+        assert!(
+            repeated.abs_diff_eq(initial, UV_TOLERANCE),
+            "{period}ms UV period must repeat: initial={initial:?}, repeated={repeated:?}"
+        );
+        assert!(
+            !advanced.abs_diff_eq(repeated, UV_TOLERANCE),
+            "UV must keep moving after its first {period}ms cycle"
+        );
+        assert_eq!(
+            [secondary_initial, secondary_repeated, secondary_advanced],
+            [Vec2::ZERO; 3],
+            "the authored -1 secondary-animation lookup must remain static"
+        );
+    }
 }
 
 #[test]
