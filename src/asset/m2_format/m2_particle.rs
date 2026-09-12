@@ -14,10 +14,8 @@
 //! - blend/type/head-tail bytes at `0x28..0x2B`
 //! - tile rows/cols at `0x30..0x34`
 //!
-//! The suffix after `0x178` is present on 272/274 assets, but until we have a
-//! byte-accurate local layout for those newer fields we keep the early header
-//! on the proven legacy offsets and treat any modern multi-texture parsing as a
-//! separate follow-up.
+//! Multitextured 272/274 emitters retain three packed texture indices, UV scale
+//! bytes at `0x2C`, and signed 6.9 UV velocity pairs in the `0x1DC..0x1EC` suffix.
 
 #[path = "../m2_particle_defaults.rs"]
 mod defaults;
@@ -194,6 +192,13 @@ const EMITTER_FOLLOW_SPEED2_OFFSET: usize = 0x1B8;
 const EMITTER_FOLLOW_SCALE2_OFFSET: usize = 0x1BC;
 const DEFAULT_MID_POINT: f32 = 0.5;
 const PARTICLE_FLAG_COMPRESSED_GRAVITY: u32 = 0x0080_0000;
+const PARTICLE_FLAG_MULTITEXTURE: u32 = 0x1000_0000;
+const EMITTER_MULTITEXTURE_SCALE_OFFSET: usize = 0x2C;
+const EMITTER_MULTITEXTURE_VELOCITY_MIDPOINT_OFFSET: usize = 0x1DC;
+const EMITTER_MULTITEXTURE_VELOCITY_RANGE_OFFSET: usize = 0x1E4;
+const PACKED_TEXTURE_INDEX_BITS: usize = 5;
+const PACKED_TEXTURE_INDEX_MASK: u16 = 0x1F;
+const FIXED_6_9_SCALE: f32 = 512.0;
 const EMITTER_PARSED_PREFIX_SIZE: usize = 0x178;
 const EMITTER_272_STRIDE: usize = 0x1EC;
 
@@ -560,17 +565,66 @@ fn parse_emitter(md20: &[u8], offset: usize) -> Result<M2ParticleEmitter, String
         return Err("Emitter data too short".into());
     }
     let mut em = parse_emitter_header(md20, data)?;
+    em.multi_texture = parse_multitexture(data, em.flags)?;
     fill_track_values(&mut em, md20, data);
     fill_visual_values(&mut em, md20, data);
     Ok(em)
 }
 
+fn parse_multitexture(data: &[u8], flags: u32) -> Result<Option<M2ParticleMultiTexture>, String> {
+    if flags & PARTICLE_FLAG_MULTITEXTURE == 0 {
+        return Ok(None);
+    }
+    let packed_indices = read_u16(data, EMITTER_TEXTURE_INDEX_OFFSET)?;
+    let texture_indices = std::array::from_fn(|index| {
+        (packed_indices >> (index * PACKED_TEXTURE_INDEX_BITS)) & PACKED_TEXTURE_INDEX_MASK
+    });
+    let uv_scale_bytes = read_u16(data, EMITTER_MULTITEXTURE_SCALE_OFFSET)?.to_le_bytes();
+    Ok(Some(M2ParticleMultiTexture {
+        texture_indices,
+        texture_fdids: [None; 3],
+        uv_scale_bytes,
+        velocity_midpoints: read_uv_velocity_pair(
+            data,
+            EMITTER_MULTITEXTURE_VELOCITY_MIDPOINT_OFFSET,
+        )?,
+        velocity_ranges: read_uv_velocity_pair(data, EMITTER_MULTITEXTURE_VELOCITY_RANGE_OFFSET)?,
+    }))
+}
+
+fn read_uv_velocity_pair(data: &[u8], offset: usize) -> Result<[[f32; 2]; 2], String> {
+    const PACKED_UV_VECTOR_BYTES: usize = 4;
+    Ok([
+        read_uv_velocity(data, offset)?,
+        read_uv_velocity(data, offset + PACKED_UV_VECTOR_BYTES)?,
+    ])
+}
+
+fn read_uv_velocity(data: &[u8], offset: usize) -> Result<[f32; 2], String> {
+    let packed_x = read_i16(data, offset)?;
+    let packed_y = read_i16(data, offset + 2)?;
+    Ok([
+        f32::from(packed_x) / FIXED_6_9_SCALE,
+        f32::from(packed_y) / FIXED_6_9_SCALE,
+    ])
+}
+
 /// Resolve texture FDIDs on parsed emitters from the TXID array.
 pub fn resolve_texture_fdids(emitters: &mut [M2ParticleEmitter], txid: &[u32]) {
     for em in emitters {
-        let idx = em.texture_index as usize;
-        em.texture_fdid = txid.get(idx).copied().filter(|&f| f != 0);
+        em.texture_fdid = resolve_texture_fdid(txid, em.texture_index);
+        if let Some(multi) = &mut em.multi_texture {
+            multi.texture_fdids = multi
+                .texture_indices
+                .map(|index| resolve_texture_fdid(txid, index));
+        }
     }
+}
+
+fn resolve_texture_fdid(txid: &[u32], index: u16) -> Option<u32> {
+    txid.get(usize::from(index))
+        .copied()
+        .filter(|&fdid| fdid != 0)
 }
 
 /// Parse all particle emitters from the MD20 header (M2Array at offset 0x128).
