@@ -176,7 +176,16 @@ fn spawn_warband_terrain_tile(
         water_materials: ctx.water_materials,
         images: ctx.images,
     };
-    terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, adt_path).ok()
+    match terrain::spawn_adt_terrain_only(&mut terrain_assets, ctx.heightmap, adt_path) {
+        Ok(result) => Some(result),
+        Err(error) => {
+            error!(
+                "Failed to load warband terrain {}: {error}",
+                adt_path.display()
+            );
+            None
+        }
+    }
 }
 
 fn spawn_warband_terrain_root(commands: &mut Commands) -> Entity {
