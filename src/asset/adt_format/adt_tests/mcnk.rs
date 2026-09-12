@@ -93,7 +93,7 @@ fn parse_mcnk_reads_area_id_from_header() {
     super::fixtures::append_subchunk(&mut payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
     super::fixtures::append_subchunk(&mut payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
 
-    let chunk = parse_mcnk(&payload).expect("expected MCNK header to parse");
+    let chunk = parse_mcnk(&payload, None).expect("expected MCNK header to parse");
     assert_eq!(chunk.area_id, TEST_AREA_ID);
 }
 
@@ -140,6 +140,38 @@ fn parse_mcnk_subchunks_reads_mcsh_when_flagged() {
     assert!(sound_emitters.is_empty());
     assert!(blend_batches.is_empty());
     assert_eq!(detail_doodad_disable, None);
+}
+
+#[test]
+fn split_shadow_payload_satisfies_root_flag_and_preserves_bits() {
+    let payload = mcnk_subchunks_payload(false, false, false, false, false);
+    let shadow = [0x55; 512];
+    let flags = McnkFlags {
+        has_mcsh: true,
+        do_not_fix_alpha_map: true,
+        ..Default::default()
+    };
+    let parsed =
+        crate::asset::adt_format::adt::parsing::parse_mcnk_subchunks(&payload, flags, Some(shadow))
+            .expect("companion shadow satisfies root declaration");
+    assert_eq!(parsed.4, Some(shadow));
+}
+
+#[test]
+fn conflicting_root_and_companion_shadows_are_rejected() {
+    let payload = mcnk_subchunks_payload(true, false, false, false, false);
+    let flags = McnkFlags {
+        has_mcsh: true,
+        ..Default::default()
+    };
+    let error = crate::asset::adt_format::adt::parsing::parse_mcnk_subchunks(
+        &payload,
+        flags,
+        Some([0xFF; 512]),
+    )
+    .err()
+    .expect("conflicting shadows must fail");
+    assert_eq!(error, "conflicting root and texture-companion HSCM data");
 }
 
 #[test]
