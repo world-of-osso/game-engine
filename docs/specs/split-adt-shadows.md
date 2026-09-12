@@ -19,6 +19,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Bind every required particle texture and report missing or undecodable stages instead of rendering an incomplete material.
 - [x] Parse particle-tail, twinkle, burst-multiplier, and drag fields at their authored offsets; `1028937` must retain burst `1.0` separately from drag `5.0`.
 - [x] Render raw `XY_QUAD` waterfall particles in their world XZ plane while retaining authored spin in native and library effect-builder paths.
+- [x] Preserve authored Y coordinates for selected waterfall/ripple backdrops; retain terrain-height grounding for ordinary props.
 
 ## How it works
 
@@ -36,7 +37,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/rendering/model/m2_effect_material.rs` — samples animated texture offsets using model global-sequence periods.
 - `src/rendering/model/m2_spawn_material.rs`, `m2_spawn.rs`, `m2_scene/mod.rs` — retain model timing data when creating ordinary effect materials.
 - `src/rendering/model/m2_spawn.rs` — forwards authored emitters and spawned M2 joints to `particle::spawn_emitters` when the terrain caller selects waterfall/ripple backdrops.
-- `src/rendering/terrain/terrain_objects.rs` — limits emitter restoration to `is_waterfall_backdrop_doodad` rather than activating unrelated terrain-prop emitters.
+- `src/rendering/terrain/terrain_objects.rs` — limits emitter restoration to `is_waterfall_backdrop_doodad` rather than activating unrelated terrain-prop emitters, and preserves authored backdrop heights while grounding ordinary props.
 - `src/asset/m2_format/m2_particle.rs` — parses particle-tail/twinkle/burst/drag fields at their authored tail offsets.
 - `src/rendering/particles/effect_builder_shared.rs` — selects a world-XZ-plane modifier for raw `XY_QUAD` orientation while preserving spin.
 - `src/rendering/particles/effect_builder.rs`, `src/particle_effect_builder.rs` — apply that orientation consistently in native and library paths.
@@ -47,7 +48,8 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/rendering/terrain/terrain_spawn/tests.rs`
 - `src/rendering/model/m2_spawn_material_tests.rs` — actual waterfall model sampled across multiple global periods.
 - `src/scenes/char_select/scene/tests/supplemental_waterfall_tests.rs` — actual mist M2 terrain attachment emitter regression.
-- `src/rendering/particles/xy_quad_gpu_tests.rs` — actual raw `2904370` controlled-white-quad XY top/side visibility against ordinary billboard controls. Its RED measured `[900, 900, 900, 900]`; GREEN remains in progress on main.
+- `src/rendering/particles/xy_quad_gpu_tests.rs` — actual raw `2904370` controlled-white-quad XY top/side visibility against ordinary billboard controls. RED measured `[900, 900, 900, 900]`; GREEN `[900, 0, 900, 900]`.
+- `src/scenes/char_select/scene/tests/supplemental_waterfall_tests.rs` — actual primary-ripple authored-height regression and ordinary-prop grounding control.
 
 ## Known gaps (current cycle)
 
