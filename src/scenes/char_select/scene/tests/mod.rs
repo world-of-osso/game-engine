@@ -21,6 +21,7 @@ pub(super) use shared::components::{CharacterAppearance, EquipmentAppearance};
 pub(super) use shared::protocol::CharacterListEntry;
 
 mod camera_tests;
+mod m2_lighting_tests;
 mod model_sync_tests;
 mod render_path_tests;
 mod supplemental_waterfall_tests;
