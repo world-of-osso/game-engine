@@ -101,6 +101,61 @@ fn supplemental_waterfall_spawns_placements_and_shadowed_terrain() {
     );
 }
 
+#[test]
+fn primary_waterfall_backdrop_is_not_limited_to_nearby_props() {
+    let mut app = render_path_test_app();
+    let warband = app.world().resource::<WarbandScenes>();
+    let scene = warband
+        .scenes
+        .iter()
+        .find(|scene| scene.id == 1)
+        .unwrap()
+        .clone();
+    let focus = warband
+        .solo_character_placement(&scene)
+        .unwrap()
+        .bevy_position();
+    let spawned = app
+        .world_mut()
+        .run_system_once(
+            move |mut commands: Commands,
+                  mut assets: scene_types::CharSelectRenderAssets,
+                  mut heightmap: ResMut<TerrainHeightmap>| {
+                scene_tree::spawn_warband_terrain(
+                    &mut scene_tree::WarbandTerrainSpawnContext {
+                        commands: &mut commands,
+                        meshes: &mut assets.meshes,
+                        materials: &mut assets.materials,
+                        effect_materials: &mut assets.effect_materials,
+                        terrain_materials: &mut assets.terrain_materials,
+                        water_materials: &mut assets.water_materials,
+                        images: &mut assets.images,
+                        inv_bp: &mut assets.inv_bp,
+                        heightmap: &mut heightmap,
+                    },
+                    &scene,
+                    focus,
+                )
+            },
+        )
+        .unwrap()
+        .expect("primary campsite loads");
+    app.update();
+    let waterfall_present = app
+        .world_mut()
+        .query::<&Name>()
+        .iter(app.world())
+        .any(|name| name.as_str() == "4661358");
+    assert!(
+        waterfall_present,
+        "the authored waterfall04 backdrop must be present beyond the prop radius"
+    );
+    assert_eq!(
+        spawned.doodad_count, 76,
+        "62 nearby props plus 14 authored waterfall/ripple placements"
+    );
+}
+
 fn expected_shadow_pixels(shadow: Option<&[u8; 512]>) -> Vec<u8> {
     (0..4096)
         .flat_map(|pixel| {
