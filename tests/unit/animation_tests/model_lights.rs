@@ -42,6 +42,7 @@ fn authored_light() -> M2Light {
 fn light_app(light: M2Light) -> (App, Entity, Entity) {
     let mut app = App::new();
     app.init_resource::<LightChanges>();
+    app.init_resource::<Time>();
     app.add_systems(Update, sync_model_lights);
     app.add_systems(PostUpdate, observe_changes);
     let owner = app
@@ -58,7 +59,7 @@ fn light_app(light: M2Light) -> (App, Entity, Entity) {
         .spawn((
             RuntimeM2PointLight {
                 light,
-                anim_owner: owner,
+                animation: crate::m2_spawn::M2LightAnimation::for_model(&[], &[], Some(owner)),
             },
             PointLight {
                 shadow_maps_enabled: true,
