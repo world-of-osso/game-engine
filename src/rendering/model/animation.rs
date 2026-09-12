@@ -486,15 +486,39 @@ fn billboard_rotation_from_camera(camera_rotation: Quat) -> Option<Quat> {
 mod light_tests;
 
 fn sync_model_lights(
+    time: Res<Time>,
     players: Query<&M2AnimPlayer>,
     mut lights: Query<(&RuntimeM2PointLight, &mut PointLight, &mut Visibility)>,
 ) {
+    let global_time_ms = time.elapsed().as_millis() as u64;
     for (runtime, mut point_light, mut visibility) in &mut lights {
-        let (seq_idx, time_ms) = players
-            .get(runtime.anim_owner)
-            .map(|player| (player.current_seq_idx, player.time_ms as u32))
-            .unwrap_or((0, 0));
-        let authored = m2_light::evaluate_light(&runtime.light, seq_idx, time_ms);
+        let (seq_idx, time_ms) = match runtime.animation.local {
+            super::m2_spawn::M2LightLocalAnimation::Player(owner) => {
+                let Ok(player) = players.get(owner) else {
+                    error!(?owner, "M2 light animation owner has no player");
+                    continue;
+                };
+                (player.current_seq_idx, player.time_ms as u32)
+            }
+            super::m2_spawn::M2LightLocalAnimation::Standalone {
+                sequence_index,
+                duration_ms,
+            } => {
+                let local_time = if duration_ms == 0 {
+                    0
+                } else {
+                    (global_time_ms % u64::from(duration_ms)) as u32
+                };
+                (sequence_index, local_time)
+            }
+        };
+        let authored = m2_light::evaluate_light(
+            &runtime.light,
+            seq_idx,
+            time_ms,
+            global_time_ms,
+            &runtime.animation.global_sequences,
+        );
         let color = Color::linear_rgb(authored.color[0], authored.color[1], authored.color[2]);
         let radius = authored.attenuation_start.min(authored.attenuation_end);
         if point_light.color != color

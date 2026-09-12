@@ -152,22 +152,98 @@ pub fn parse_lights(md20: &[u8]) -> Vec<M2Light> {
     lights
 }
 
-pub fn evaluate_light(light: &M2Light, seq_idx: usize, time_ms: u32) -> EvaluatedLight {
-    let ambient_color =
-        evaluate_vec3_track(&light.ambient_color, seq_idx, time_ms).unwrap_or([0.0; 3]);
-    let diffuse_color =
-        evaluate_vec3_track(&light.diffuse_color, seq_idx, time_ms).unwrap_or([1.0; 3]);
-    let ambient_intensity =
-        evaluate_f32_track(&light.ambient_intensity, seq_idx, time_ms).unwrap_or(0.0);
-    let diffuse_intensity =
-        evaluate_f32_track(&light.diffuse_intensity, seq_idx, time_ms).unwrap_or(1.0);
-    let attenuation_start = evaluate_f32_track(&light.attenuation_start, seq_idx, time_ms)
-        .unwrap_or(1.0)
-        .max(0.0);
-    let attenuation_end = evaluate_f32_track(&light.attenuation_end, seq_idx, time_ms)
-        .unwrap_or(attenuation_start + 1.0)
-        .max(attenuation_start + 0.01);
-    let visibility = evaluate_u8_track(&light.visibility, seq_idx, time_ms).unwrap_or(1);
+fn sample_track<T>(
+    track: &AnimTrack<T>,
+    seq_idx: usize,
+    time_ms: u32,
+    global_time_ms: u64,
+    global_sequences: &[u32],
+    evaluate: impl FnOnce(&AnimTrack<T>, usize, u32) -> Option<T>,
+) -> Option<T> {
+    if track.global_sequence < 0 {
+        return evaluate(track, seq_idx, time_ms);
+    }
+    let duration = *global_sequences.get(track.global_sequence as usize)?;
+    let global_time = if duration == 0 {
+        0
+    } else {
+        (global_time_ms % u64::from(duration)) as u32
+    };
+    evaluate(track, 0, global_time)
+}
+
+pub fn evaluate_light(
+    light: &M2Light,
+    seq_idx: usize,
+    time_ms: u32,
+    global_time_ms: u64,
+    global_sequences: &[u32],
+) -> EvaluatedLight {
+    let ambient_color = sample_track(
+        &light.ambient_color,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_vec3_track,
+    )
+    .unwrap_or([0.0; 3]);
+    let diffuse_color = sample_track(
+        &light.diffuse_color,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_vec3_track,
+    )
+    .unwrap_or([1.0; 3]);
+    let ambient_intensity = sample_track(
+        &light.ambient_intensity,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_f32_track,
+    )
+    .unwrap_or(0.0);
+    let diffuse_intensity = sample_track(
+        &light.diffuse_intensity,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_f32_track,
+    )
+    .unwrap_or(1.0);
+    let attenuation_start = sample_track(
+        &light.attenuation_start,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_f32_track,
+    )
+    .unwrap_or(1.0)
+    .max(0.0);
+    let attenuation_end = sample_track(
+        &light.attenuation_end,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_f32_track,
+    )
+    .unwrap_or(attenuation_start + 1.0)
+    .max(attenuation_start + 0.01);
+    let visibility = sample_track(
+        &light.visibility,
+        seq_idx,
+        time_ms,
+        global_time_ms,
+        global_sequences,
+        evaluate_u8_track,
+    )
+    .unwrap_or(1);
     let color = [
         (ambient_color[0] * ambient_intensity + diffuse_color[0] * diffuse_intensity).max(0.0),
         (ambient_color[1] * ambient_intensity + diffuse_color[1] * diffuse_intensity).max(0.0),

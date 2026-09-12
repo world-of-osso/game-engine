@@ -72,7 +72,7 @@ pub fn spawn_m2_on_entity_filtered(
         .filter(|batch| filter(batch.mesh_part_id))
         .collect::<Vec<_>>();
     let grounded_root = ensure_grounded_model_root(commands, entity, ground_offset_y(&batches));
-    attach_m2_batches(
+    let skinning = attach_m2_batches(
         commands,
         assets,
         batches,
@@ -82,6 +82,13 @@ pub fn spawn_m2_on_entity_filtered(
         None,
         None,
         Some(&model.global_sequences),
+    );
+    spawn_model_point_lights(
+        commands,
+        &model.lights,
+        &skinning,
+        grounded_root,
+        M2LightAnimation::for_model(&model.sequences, &model.global_sequences, None),
     );
     true
 }
@@ -107,6 +114,13 @@ pub fn spawn_m2_model_on_entity(
         None,
         None,
         Some(&model.global_sequences),
+    );
+    spawn_model_point_lights(
+        commands,
+        &model.lights,
+        &skinning,
+        grounded_root,
+        M2LightAnimation::for_model(&model.sequences, &model.global_sequences, None),
     );
     if spawn_particles && !model.particle_emitters.is_empty() {
         crate::particle::spawn_emitters(
@@ -141,6 +155,8 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
         batches,
         bones,
         global_sequences,
+        sequences,
+        lights,
         ..
     } = model;
     let batches = batches
@@ -154,6 +170,13 @@ pub fn spawn_m2_on_entity_filtered_bound_to_existing_joints(
         entity,
         target_joints,
         names,
+    );
+    spawn_model_point_lights(
+        commands,
+        &lights,
+        &skinning,
+        entity,
+        M2LightAnimation::for_model(&sequences, &global_sequences, None),
     );
     for (i, batch) in batches.into_iter().enumerate() {
         spawn_batch_mesh(
@@ -213,11 +236,56 @@ pub fn ensure_grounded_model_root(
 /// Skinning data returned from mesh attachment, for animation setup.
 pub type SkinningResult = Option<(Handle<SkinnedMeshInverseBindposes>, Vec<Entity>)>;
 
-/// Runtime data linking a spawned point light to its M2 light definition and animation owner.
+/// Local tracks either follow the model's skeletal player or its standalone loop.
+#[derive(Clone)]
+pub enum M2LightLocalAnimation {
+    Player(Entity),
+    Standalone {
+        sequence_index: usize,
+        duration_ms: u32,
+    },
+}
+
+#[derive(Clone)]
+pub struct M2LightAnimation {
+    pub local: M2LightLocalAnimation,
+    pub global_sequences: Vec<u32>,
+}
+
+impl M2LightAnimation {
+    pub fn for_model(
+        sequences: &[m2_anim::M2AnimSequence],
+        global_sequences: &[u32],
+        player: Option<Entity>,
+    ) -> Self {
+        let local = match player {
+            Some(owner) => M2LightLocalAnimation::Player(owner),
+            None => {
+                let sequence_index = sequences
+                    .iter()
+                    .position(|sequence| sequence.id == 0)
+                    .unwrap_or(0);
+                let duration_ms = sequences
+                    .get(sequence_index)
+                    .map_or(0, |sequence| sequence.duration);
+                M2LightLocalAnimation::Standalone {
+                    sequence_index,
+                    duration_ms,
+                }
+            }
+        };
+        Self {
+            local,
+            global_sequences: global_sequences.to_vec(),
+        }
+    }
+}
+
+/// Authored point-light definition and the model that owns its animation timing.
 #[derive(Component)]
 pub struct RuntimeM2PointLight {
     pub light: m2_light::M2Light,
-    pub anim_owner: Entity,
+    pub animation: M2LightAnimation,
 }
 
 fn point_light_parent(
@@ -250,8 +318,12 @@ pub fn spawn_model_point_lights(
     lights: &[m2_light::M2Light],
     skinning: &SkinningResult,
     root: Entity,
-    anim_owner: Entity,
+    animation: M2LightAnimation,
 ) {
+    let sequence_index = match animation.local {
+        M2LightLocalAnimation::Standalone { sequence_index, .. } => sequence_index,
+        M2LightLocalAnimation::Player(_) => 0,
+    };
     for (index, light) in lights
         .iter()
         .filter(|l| l.light_type == m2_light::M2_LIGHT_TYPE_POINT)
@@ -259,7 +331,8 @@ pub fn spawn_model_point_lights(
     {
         let parent = point_light_parent(light, skinning, root);
         let pos = asset::m2::wow_to_bevy(light.position[0], light.position[1], light.position[2]);
-        let authored = m2_light::evaluate_light(light, 0, 0);
+        let authored =
+            m2_light::evaluate_light(light, sequence_index, 0, 0, &animation.global_sequences);
         let vis = if authored.visible {
             Visibility::Inherited
         } else {
@@ -273,7 +346,7 @@ pub fn spawn_model_point_lights(
                 vis,
                 RuntimeM2PointLight {
                     light: light.clone(),
-                    anim_owner,
+                    animation: animation.clone(),
                 },
             ));
         });

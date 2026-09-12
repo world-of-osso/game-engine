@@ -237,7 +237,7 @@ fn assert_authored_point_lights(app: &mut App, expected: &[M2Light], joints: &[E
         "authored model lights were discarded"
     );
     for ((point, transform, parent, _, visibility), authored) in actual.into_iter().zip(expected) {
-        let evaluated = evaluate_light(authored, 0, 0);
+        let evaluated = evaluate_light(authored, 0, 0, 0, &[]);
         let bone_index =
             usize::try_from(authored.bone_index).expect("fixture light has an authored bone");
         assert_eq!(
@@ -266,7 +266,7 @@ fn assert_authored_point_lights(app: &mut App, expected: &[M2Light], joints: &[E
 }
 
 #[derive(Resource)]
-struct AuthoredLights(Vec<M2Light>);
+struct AuthoredLights(M2Model);
 
 #[derive(Resource)]
 struct FixtureCamera(Entity);
@@ -296,7 +296,7 @@ fn headless_lighting_app() -> (App, Entity, DirectionalState) {
     app.init_asset::<crate::water_material::WaterMaterial>();
     app.init_resource::<ButtonInput<KeyCode>>();
     app.init_state::<crate::game_state::GameState>();
-    app.insert_resource(AuthoredLights(load_light_fixture(CAULDRON_FDID).lights));
+    app.insert_resource(AuthoredLights(load_light_fixture(CAULDRON_FDID)));
     app.add_plugins(crate::sky::SkyPlugin);
     app.add_systems(
         OnEnter(crate::game_state::GameState::CharSelect),
@@ -334,7 +334,17 @@ fn spawn_lighting_scene(mut commands: Commands, authored: Res<AuthoredLights>) {
     let root = commands
         .spawn((Transform::IDENTITY, Visibility::default()))
         .id();
-    crate::m2_spawn::spawn_model_point_lights(&mut commands, &authored.0, &None, root, root);
+    crate::m2_spawn::spawn_model_point_lights(
+        &mut commands,
+        &authored.0.lights,
+        &None,
+        root,
+        crate::m2_spawn::M2LightAnimation::for_model(
+            &authored.0.sequences,
+            &authored.0.global_sequences,
+            None,
+        ),
+    );
 }
 
 fn directional_state(world: &World, entity: Entity) -> DirectionalState {

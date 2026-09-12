@@ -340,6 +340,7 @@ fn attach_m2_model_parts(
         attached,
         model_entity,
         &visuals.lights,
+        &visuals.global_sequences,
         options.default_main_hand_torch,
     );
 }
@@ -416,8 +417,13 @@ fn spawn_m2_scene_runtime(
     attached: M2SceneAttachedVisuals,
     model_entity: Entity,
     lights: &[M2Light],
+    global_sequences: &[u32],
     default_main_hand_torch: bool,
 ) {
+    let player =
+        (attached.skinning.is_some() && !payload.sequences.is_empty()).then_some(model_entity);
+    let light_animation =
+        m2_spawn::M2LightAnimation::for_model(&payload.sequences, global_sequences, player);
     spawn_anim_and_particles(
         ctx,
         payload,
@@ -431,7 +437,7 @@ fn spawn_m2_scene_runtime(
         lights,
         &attached.skinning,
         attached.visual_root,
-        model_entity,
+        light_animation,
     );
 }
 
