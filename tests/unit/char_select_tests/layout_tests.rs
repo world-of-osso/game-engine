@@ -381,42 +381,102 @@ fn delete_confirmation_modal_keeps_confirm_disabled_until_timer_and_phrase_are_b
     assert_eq!(phrase_locked_button.state, ButtonState::Disabled);
 }
 
+struct CharacterAtlasLoader;
+
+impl ui_toolkit::render_texture::BlpLoader for CharacterAtlasLoader {
+    fn load_blp_to_image(&self, path: &std::path::Path) -> Result<Image, String> {
+        game_engine::asset::blp::load_blp_to_image(path)
+    }
+
+    fn load_blp_gpu_image(&self, path: &std::path::Path) -> Result<Image, String> {
+        game_engine::asset::blp::load_blp_gpu_image(path)
+    }
+
+    fn ensure_texture(&self, fdid: u32) -> Option<std::path::PathBuf> {
+        Some(std::path::PathBuf::from(format!(
+            "data/textures/{fdid}.blp"
+        )))
+    }
+}
+
+fn emitted_card_image(app: &mut App, name: &str) -> ImageNode {
+    let id = app
+        .world()
+        .resource::<ui_toolkit::plugin::UiState>()
+        .registry
+        .get_by_name(name)
+        .expect("card texture frame");
+    let root = app
+        .world_mut()
+        .query::<(Entity, &ui_toolkit::native_render::RegistryNode)>()
+        .iter(app.world())
+        .find(|(_, node)| node.0 == id)
+        .expect("projected card frame")
+        .0;
+    let images: Vec<_> = app
+        .world()
+        .get::<Children>(root)
+        .expect("card visual children")
+        .iter()
+        .filter_map(|entity| app.world().get::<ImageNode>(entity))
+        .cloned()
+        .collect();
+    assert_eq!(images.len(), 1, "one emitted card image");
+    images[0].clone()
+}
+
 #[test]
-fn character_cards_use_tinted_atlas_textures_without_css_border() {
-    let reg = build_screen(CharSelectState {
-        characters: vec![CharDisplayEntry {
-            name: "TestChar".to_string(),
-            info: "Level 60   Race 1   Class 1".to_string(),
-            status: "Ready".to_string(),
-        }],
+fn character_cards_emit_authored_backdrop_color_and_preserve_selected_gold() {
+    let mut app = super::layout_support::layout_app(1920.0, 1080.0);
+    app.insert_resource(ui_toolkit::render_texture::BlpLoaderRes(Box::new(
+        CharacterAtlasLoader,
+    )));
+    app.finish();
+    app.cleanup();
+    let mut shared = ui_toolkit::screen::SharedContext::new();
+    shared.insert(CharSelectState {
+        characters: ["Theron", "Elara"]
+            .into_iter()
+            .map(|name| CharDisplayEntry {
+                name: name.into(),
+                info: "Level 60".into(),
+                status: "Ready".into(),
+            })
+            .collect(),
         selected_index: Some(0),
         ..Default::default()
     });
-
-    let card_id = reg.get_by_name("CharCard_0").expect("CharCard_0");
-    let card = reg.get(card_id).expect("card frame");
-    assert!(
-        card.border.is_none(),
-        "card should rely on atlas art, not CSS border"
+    shared.insert(DeleteConfirmUiState::default());
+    let mut screen = Screen::new(char_select_screen);
+    screen.sync(
+        &shared,
+        &mut app
+            .world_mut()
+            .resource_mut::<ui_toolkit::plugin::UiState>()
+            .registry,
     );
-
-    let backdrop_id = reg
-        .get_by_name("CharCard_0Backdrop")
-        .expect("CharCard_0Backdrop");
-    let backdrop = reg.get(backdrop_id).expect("backdrop frame");
-    let Some(WidgetData::Texture(backdrop_tex)) = backdrop.widget_data.as_ref() else {
-        panic!("backdrop should be a texture");
-    };
-    assert_eq!(backdrop_tex.vertex_color, [0.76, 0.70, 0.57, 0.96]);
-
-    let selected_id = reg
-        .get_by_name("CharCard_0Selected")
-        .expect("CharCard_0Selected");
-    let selected_frame = reg.get(selected_id).expect("selected frame");
-    let Some(WidgetData::Texture(selected_tex)) = selected_frame.widget_data.as_ref() else {
-        panic!("selected highlight should be a texture");
-    };
-    assert_eq!(selected_tex.vertex_color, [0.82, 0.74, 0.46, 0.9]);
+    for _ in 0..3 {
+        app.update();
+    }
+    let backdrop = emitted_card_image(&mut app, "CharCard_1Backdrop");
+    let selected = emitted_card_image(&mut app, "CharCard_0Selected");
+    assert_eq!(selected.color, Color::srgba(0.82, 0.74, 0.46, 0.9));
+    let image = app
+        .world()
+        .resource::<Assets<Image>>()
+        .get(&backdrop.image)
+        .expect("loaded actual card crop");
+    assert_eq!((image.width(), image.height()), (310, 89));
+    let offset = ((44 * 310 + 155) * 4) as usize;
+    assert_eq!(
+        &image.data.as_ref().expect("RGBA card pixels")[offset..offset + 4],
+        &[18, 14, 8, 255]
+    );
+    assert_eq!(
+        backdrop.color,
+        Color::WHITE,
+        "authored card pixels must reach renderer without custom modulation"
+    );
 }
 
 #[test]
