@@ -473,8 +473,8 @@ fn character_cards_emit_authored_backdrop_color_and_preserve_selected_gold() {
         &[18, 14, 8, 255]
     );
     assert_eq!(
-        backdrop.color,
-        Color::WHITE,
+        backdrop.color.to_linear(),
+        Color::WHITE.to_linear(),
         "authored card pixels must reach renderer without custom modulation"
     );
 }
