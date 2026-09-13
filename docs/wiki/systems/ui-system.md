@@ -30,6 +30,14 @@ Registry-native UI was merged into engine `master` by `6fa018d6`; bounded native
 
 Proof remains revision-scoped: engine `965c462d` integration covers 887 cases; toolkit `bc901a6` covers 42 native-render cases; toolkit `821c2a0` covers 72 registry/attrs/Screen/diff/parser cases. The behavior-neutral toolkit `791b282` extraction has four focused native-render cases, check, and format proof; 36 affected engine cases cover the visual corrections. Global engine formatting still fails only on 104 vendor paths. `binrw` is locked at 0.15.2, resolving the former 0.15.1 future-incompatibility warning. Missing character assets prevent full character-screen rendering acceptance. Edit-box carets derive from `EditBoxData`, `blink_speed`, and `UiState.focused_frame`; no separate login form owns caret state. This is not full lifecycle, asset-complete, or final acceptance.
 
+## Character-selection atlas loading
+
+Character-list panel and card artwork remains registry-authored: `CharSelectUi` installs the existing `glues-characterselect-card-all-bg` nine-slice while card frames select their existing selected/unselected atlas names. Missing borders were an asset-resolution failure, not a character-selection state or 3D-scene issue.
+
+`ui-toolkit::atlas::AtlasRegion.source` now distinguishes repository files from authored WoW FileDataIDs. The character-selection regions use `FileDataId(5648070)`: DB2 maps card members through `UiTextureAtlasID 2726` to a 1024×1024 atlas. The toolkit asks the engine `BlpLoader::ensure_texture` for that FDID, then CPU-decodes, materializes, sanitizes, and caches the cropped transparent-edge regions. Engine `4fffafcf` makes `GameBlpLoader::ensure_texture` delegate to `asset_cache::texture`, so an absent local BLP resolves from local CASC rather than the retired machine-specific `UICharacterSelectGlues.BLP` path. No opaque root background, logo overlay, card layout, camera, or 3D lighting changed.
+
+Toolkit RED at `392de1c` reproduced the missing absolute-path load. Toolkit `437b606` passes nine focused atlas/render-texture tests for the 310×89 card, 60×60 panel border, 342×122 selected card, transparent RGB cleanup, and cache reuse after the resolver becomes unavailable. Native cold-cache character-select confirmation remains pending.
+
 ## Player-frame artwork fit
 
 The player HUD preserves its unmodified gold/silver `396×142` shell at `297×106.5`. Historical `232×100` XML coordinates do not apply to this custom artwork. Its actual connected openings are portrait `(18,13,111×113)`, health `(135,52,249×40)`, and mana `(135,94,249×20)`, uniformly scaled 75%.
@@ -207,6 +215,10 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [toolkit resource gates](../../../src/main.rs) — pre-`Ui` processing/render/text resource configuration
 - [cursor and panel-style gates](../../../src/app_setup.rs) — pre-`Ui` startup/update registration
 - [ui-toolkit processing gate](../../../../ui-toolkit/src/plugin.rs) — registry/layout/input/render schedule boundary
+- [atlas source mapping](../../../../ui-toolkit/src/atlas.rs) — explicit file versus FileDataID-backed atlas ownership
+- [atlas loading](../../../../ui-toolkit/src/render_texture.rs) — resolver-backed CPU decode, crop materialization, and cache behavior
+- [engine BLP resolver](../../../src/app_setup.rs) — local CASC-backed `GameBlpLoader::ensure_texture`
+- `../../data/diagnostics/warnings-charselect-style-20260912/atlas-provenance.json` — DB2 member-to-atlas FDID evidence
 - [visibility and alpha propagation](../../../../ui-toolkit/src/registry.rs) — conditional derived-state repair and single-pass `set_hidden` traversal
 - [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — invalidation contract and scope
 - `../../data/diagnostics/ui-layout-dirty-20260909/verification/toolkit-report.md` — 14 focused toolkit regressions and mutation audit
