@@ -424,8 +424,7 @@ impl ui_toolkit::render_texture::BlpLoader for GameBlpLoader {
         game_engine::asset::blp::load_blp_gpu_image(path)
     }
     fn ensure_texture(&self, fdid: u32) -> Option<PathBuf> {
-        let path = PathBuf::from(format!("data/textures/{fdid}.blp"));
-        if path.exists() { Some(path) } else { None }
+        game_engine::asset::asset_cache::texture(fdid)
     }
 }
 
