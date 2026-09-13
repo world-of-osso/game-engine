@@ -145,7 +145,6 @@ const LIST_REALM_BG_ATLAS: &str = "glues-characterselect-listrealm-bg";
 const CARD_BACKDROP_ATLAS: &str = "glues-characterselect-card-singles";
 const CARD_SELECTED_ATLAS: &str = "glues-characterselect-card-selected";
 const EMPTY_CARD_ATLAS: &str = "glues-characterselect-card-empty";
-const CARD_BACKDROP_TINT: &str = "0.76,0.70,0.57,0.96";
 const CARD_SELECTED_TINT: &str = "0.82,0.74,0.46,0.9";
 
 // --- Card frame name helpers ---
@@ -281,7 +280,6 @@ fn card_textures(index: usize, is_selected: bool) -> Element {
             width: 310.0,
             height: 89.0,
             texture_atlas: CARD_BACKDROP_ATLAS,
-            vertex_color: CARD_BACKDROP_TINT,
             pos_type: "absolute",
             left: "50%",
             top: "50%",
