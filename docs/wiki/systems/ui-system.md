@@ -36,7 +36,7 @@ Character-list panel and card artwork remains registry-authored: `CharSelectUi` 
 
 `ui-toolkit::atlas::AtlasRegion.source` now distinguishes repository files from authored WoW FileDataIDs. The character-selection regions use `FileDataId(5648070)`: DB2 maps card members through `UiTextureAtlasID 2726` to a 1024×1024 atlas. The toolkit asks the engine `BlpLoader::ensure_texture` for that FDID, then CPU-decodes, materializes, sanitizes, and caches the cropped transparent-edge regions. Engine `4fffafcf` makes `GameBlpLoader::ensure_texture` delegate to `asset_cache::texture`, so an absent local BLP resolves from local CASC rather than the retired machine-specific `UICharacterSelectGlues.BLP` path. No opaque root background, logo overlay, card layout, camera, or 3D lighting changed.
 
-Toolkit RED at `392de1c` reproduced the missing absolute-path load. Toolkit `437b606` passes nine focused atlas/render-texture tests for the 310×89 card, 60×60 panel border, 342×122 selected card, transparent RGB cleanup, and cache reuse after the resolver becomes unavailable. Native cold-cache character-select confirmation remains pending.
+Toolkit RED at `392de1c` reproduced the missing absolute-path load. Toolkit `437b606` passes nine focused atlas/render-texture tests for the 310×89 card, 60×60 panel border, 342×122 selected card, transparent RGB cleanup, and cache reuse after the resolver becomes unavailable. Engine `4fffafcf` then fixed its bridge to extract the atlas through local CASC. A cold-cache run recreated the exact FDID5648070 asset; current native capture at `a2b284bd` confirms the outer panel, selected gold card, and authored unselected dark card/rim while retaining the 3D scene. Exact Retail pixels are not claimed.
 
 ## Player-frame artwork fit
 
