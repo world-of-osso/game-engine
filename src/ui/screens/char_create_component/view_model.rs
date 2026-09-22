@@ -160,6 +160,7 @@ pub struct CharCreateUiState {
     pub open_dropdown: Option<u32>,
     pub name: String,
     pub error_text: Option<String>,
+    pub support_notice: Option<String>,
     pub name_input_focused: bool,
     /// (class_id, class_name, icon_fdid, available_for_race)
     pub class_availability: Vec<(u8, &'static str, u32, bool)>,
@@ -181,6 +182,7 @@ impl Default for CharCreateUiState {
             open_dropdown: None,
             name: String::new(),
             error_text: None,
+            support_notice: None,
             name_input_focused: false,
             class_availability: CLASSES
                 .iter()

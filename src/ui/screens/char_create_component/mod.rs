@@ -157,6 +157,17 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
     }
 }
 
+fn support_notice(state: &CharCreateUiState) -> Element {
+    let hidden = state.support_notice.is_none();
+    let text = state.support_notice.as_deref().unwrap_or("");
+    rsx! {
+        fontstring { name: "CustomizationSupportNotice", width: 560.0, height: 40.0,
+            pos_type: "absolute", left: "50%", translate_x: "-50%", bottom: 28.0,
+            text, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_GOLD, hidden,
+        }
+    }
+}
+
 pub fn char_create_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<CharCreateUiState>()
@@ -164,7 +175,7 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
     let content = match state.mode {
         CharCreateMode::RaceClass => rsx! { {race_grid(state)} {class_grid(state)} },
         CharCreateMode::Customize => {
-            rsx! { {camera_controls()} {customize_panel(state)} {name_input_field(state)} }
+            rsx! { {camera_controls()} {customize_panel(state)} {name_input_field(state)} {support_notice(state)} }
         }
     };
     rsx! {

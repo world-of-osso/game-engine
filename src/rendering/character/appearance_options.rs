@@ -6,6 +6,16 @@ use crate::customization_data::{
     CustomizationChoice, CustomizationDb, CustomizationOption, OptionType,
 };
 
+/// Choices with mixed effects retain their supported material/geoset changes.
+/// The UI reports partial support; unsupported-only choices are not selectable.
+pub fn choice_can_render(choice: &CustomizationChoice) -> bool {
+    !choice.has_unsupported_effects
+        || !choice.materials.is_empty()
+        || !choice.related_materials.is_empty()
+        || !choice.geosets.is_empty()
+        || !choice.related_geosets.is_empty()
+}
+
 fn core_value(appearance: &CharacterAppearance, kind: OptionType) -> Option<u8> {
     match kind {
         OptionType::SkinColor => Some(appearance.skin_color),
@@ -60,9 +70,7 @@ pub fn selected_choice<'a>(
             .into_iter()
             .find(|choice| choice.id == selection.choice_id);
     }
-    choices
-        .into_iter()
-        .find(|choice| !choice.has_unsupported_effects)
+    choices.into_iter().find(|choice| choice_can_render(choice))
 }
 
 pub fn selected_choices<'a>(
@@ -96,7 +104,7 @@ pub fn set_choice(
         .iter()
         .position(|choice| choice.id == choice_id)
         .ok_or_else(|| format!("Choice {choice_id} is unavailable for option {option_id}"))?;
-    if choices[index].has_unsupported_effects {
+    if !choice_can_render(choices[index]) {
         return Err(format!(
             "{} uses appearance effects not supported yet",
             option.display_name
@@ -149,9 +157,7 @@ pub fn normalize_additional_choices(
                     && db
                         .choices_for_option(race, sex, class, option.id)
                         .iter()
-                        .any(|choice| {
-                            choice.id == selection.choice_id && !choice.has_unsupported_effects
-                        })
+                        .any(|choice| choice.id == selection.choice_id && choice_can_render(choice))
             })
     });
     appearance
