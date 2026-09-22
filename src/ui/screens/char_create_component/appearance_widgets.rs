@@ -63,6 +63,16 @@ fn choice_details(
             }
         }
     }).unwrap_or_default();
+    let selected_swatch = if selected && choice.enabled && choice.swatch.is_some() {
+        rsx! {
+            texture { name: DynName(format!("{name}_SelectedSwatch")), width: 51.0, height: 20.0,
+                texture_atlas: "charactercreate-customize-palette-selected",
+                pos_type: "absolute", left: 96.0, top: 0.0,
+            }
+        }
+    } else {
+        Element::default()
+    };
     rsx! {
         fontstring { name: DynName(format!("{name}_Text")), width, height: CHOICE_HEIGHT,
             text: label, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color, justify_h: JustifyH::Left,
@@ -70,6 +80,7 @@ fn choice_details(
         }
         {first}
         {second}
+        {selected_swatch}
     }
 }
 
@@ -167,7 +178,7 @@ fn checkbox_control(option: &CustomizationOptionUi) -> Element {
     let onclick = CharCreateAction::SelectOptionChoice(option.id, next.id).when_enabled(!disabled);
     rsx! {
         button { name: DynName(format!("OptionCheck_{}", option.id)), width: 32.0, height: 32.0, disabled,
-            onclick,
+            onclick, button_default_skin: false,
             pos_type: "absolute", left: x, top: 3.0,
             texture { name: DynName(format!("OptionCheck_{}_Background", option.id)), width: 32.0, height: 32.0,
                 texture_fdid: 130_755u32,
@@ -218,20 +229,15 @@ fn dropdown_choice(
     let name = format!("OptionChoice_{}_{}", option.id, choice.id);
     let disabled = !option.enabled || !choice.enabled;
     let selected = choice.id == option.selected_choice_id;
-    let marker_hidden = !selected;
     let x = (index / rows) as f32 * CHOICE_WIDTH;
     let y = (index % rows) as f32 * CHOICE_HEIGHT;
     let onclick =
         CharCreateAction::SelectOptionChoice(option.id, choice.id).when_enabled(!disabled);
     rsx! {
         button { name: DynName(name.clone()), width: CHOICE_WIDTH, height: CHOICE_HEIGHT, disabled,
-            onclick,
-            button_atlas_highlight: "charactercreate-customize-dropdown-linemouseover-middle",
+            onclick, button_default_skin: false,
+            button_atlas_highlight: "common-dropdown-customize-mouseover",
             pos_type: "absolute", left: x, top: y,
-            texture { name: DynName(format!("{name}_Selected")), width: CHOICE_WIDTH, height: CHOICE_HEIGHT,
-                texture_atlas: "charactercreate-customize-dropdown-linemouseover-middle", hidden: marker_hidden,
-                pos_type: "absolute", left: 0.0, top: 0.0,
-            }
             r#frame { name: DynName(format!("{name}_Details")), width: 144.0, height: 20.0,
                 pos_type: "absolute", left: 14.0, top: 0.0,
                 {choice_details(&name, choice, index, selected)}
@@ -240,68 +246,17 @@ fn dropdown_choice(
     }
 }
 
-fn border_piece(name: &str, atlas: &str, rect: [f32; 4]) -> Element {
+fn dropdown_background(id: u32, width: f32, height: f32) -> Element {
+    // MenuStyle2Mixin stretches one authored atlas beyond the menu content bounds.
+    let name = format!("Dropdown_{id}_Background");
+    let width = width + 34.0;
+    let height = height + 34.0;
     rsx! {
-        texture { name: DynName(name.to_string()), width: rect[2], height: rect[3], texture_atlas: atlas,
-            pos_type: "absolute", left: rect[0], top: rect[1],
+        texture { name: DynName(name), width, height,
+            texture_atlas: "common-dropdown-c-bg",
+            pos_type: "absolute", left: -17.0, top: -12.0,
         }
     }
-}
-
-fn dropdown_border(id: u32, width: f32, height: f32) -> Element {
-    // Local NineSliceLayouts.lua:206-216: corners extend 30px horizontally and20px vertically.
-    let prefix = format!("Dropdown_{id}");
-    let parts = [
-        (
-            "Center",
-            "charactercreatedropdown-nineslice-center",
-            [0.0, 0.0, width, height],
-        ),
-        (
-            "TL",
-            "charactercreatedropdown-nineslice-cornertopleft",
-            [-30.0, -20.0, 62.0, 52.0],
-        ),
-        (
-            "TR",
-            "charactercreatedropdown-nineslice-cornertopright",
-            [width - 32.0, -20.0, 62.0, 52.0],
-        ),
-        (
-            "BL",
-            "charactercreatedropdown-nineslice-cornerbottomleft",
-            [-30.0, height - 52.0, 62.0, 72.0],
-        ),
-        (
-            "BR",
-            "charactercreatedropdown-nineslice-cornerbottomright",
-            [width - 32.0, height - 52.0, 62.0, 72.0],
-        ),
-        (
-            "T",
-            "_charactercreatedropdown-nineslice-edgetop",
-            [32.0, -20.0, (width - 64.0).max(0.0), 52.0],
-        ),
-        (
-            "B",
-            "_charactercreatedropdown-nineslice-edgebottom",
-            [32.0, height - 52.0, (width - 64.0).max(0.0), 72.0],
-        ),
-        (
-            "L",
-            "!charactercreatedropdown-nineslice-edgeleft",
-            [-30.0, 32.0, 62.0, (height - 84.0).max(0.0)],
-        ),
-        (
-            "R",
-            "!charactercreatedropdown-nineslice-edgeright",
-            [width - 32.0, 32.0, 62.0, (height - 84.0).max(0.0)],
-        ),
-    ];
-    parts
-        .into_iter()
-        .flat_map(|(part, atlas, rect)| border_piece(&format!("{prefix}_{part}"), atlas, rect))
-        .collect()
 }
 
 pub(super) fn dropdown_panel(
@@ -323,7 +278,7 @@ pub(super) fn dropdown_panel(
         r#frame { name: DynName(format!("Dropdown_{}", option.id)), width: layout.width, height: layout.height,
             strata: FrameStrata::Dialog, mouse_enabled: true,
             pos_type: "absolute", anchor: "screen", left: layout.x, top: layout.y,
-            {dropdown_border(option.id, layout.width, layout.height)}
+            {dropdown_background(option.id, layout.width, layout.height)}
             {choices}
         }
     }
