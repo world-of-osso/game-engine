@@ -109,6 +109,12 @@ impl Plugin for CharCreatePlugin {
         app.add_systems(OnExit(GameState::CharCreate), teardown_char_create_ui);
         app.add_observer(handle_create_response);
         app.add_systems(
+            PostUpdate,
+            game_engine::ui::screens::char_create_component::navigation_art::sync_navigation_art
+                .before(ui_toolkit::plugin::UiRenderSet::Prepare)
+                .run_if(in_state(GameState::CharCreate)),
+        );
+        app.add_systems(
             Update,
             (
                 char_create_mouse_input,
