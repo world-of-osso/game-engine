@@ -31,7 +31,7 @@ pub(super) fn choice_visible_for_class(
 fn option_visible_for_class(race: u8, class: u8, opt_type: OptionType) -> bool {
     match opt_type {
         OptionType::Horns | OptionType::Blindfold | OptionType::EyeStyle | OptionType::Eyesight => {
-            matches!(race, 4 | 10) && class == 12
+            !matches!(race, 4 | 10) || class == 12
         }
         _ => true,
     }

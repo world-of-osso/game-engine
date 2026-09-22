@@ -2,7 +2,7 @@
 //!
 //! Parses the CSV chain at startup to build a lookup structure:
 //! (race, sex) -> ChrModelID -> full choice IDs -> materials + geosets.
-//! Player UI options remain a recognized-label subset of the resolved choices.
+//! UI options retain authored IDs, category metadata and ordering for every local option.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -68,6 +68,7 @@ pub enum OptionType {
     Blindfold,
     EyeStyle,
     Eyesight,
+    Additional(u32),
 }
 
 impl OptionType {
@@ -108,6 +109,7 @@ pub struct CustomizationChoice {
     pub id: u32,
     pub display_name: String,
     pub requirement_id: u32,
+    pub has_unsupported_effects: bool,
     /// (ChrModelTextureTargetID, resolved FDID)
     pub materials: Vec<(u16, u32)>,
     /// Materials gated by another selected customization choice.
@@ -123,7 +125,7 @@ pub struct CustomizationChoice {
 }
 
 impl CustomizationChoice {
-    fn swatch_color(&self) -> Option<[u8; 3]> {
+    pub fn swatch_color(&self) -> Option<[u8; 3]> {
         if !self.sample_swatch {
             return None;
         }
@@ -135,6 +137,18 @@ impl CustomizationChoice {
 
 #[derive(Debug, Clone)]
 pub struct CustomizationOption {
+    pub id: u32,
+    pub display_name: String,
+    pub category_id: u32,
+    pub category_name: String,
+    pub category_order_index: u32,
+    pub category_icon: u32,
+    pub category_selected_icon: u32,
+    pub order_index: u32,
+    /// Authored CSV OptionType; distinct from the recognized selector enum.
+    pub ui_type: u32,
+    /// Authored requirement ID, not an inferred eligibility decision.
+    pub requirement_id: u32,
     pub option_type: OptionType,
     pub choices: Vec<CustomizationChoice>,
 }
@@ -201,8 +215,10 @@ impl CustomizationDb {
         let indexed = IndexedData::build(raw);
         for (model_id, opts) in &indexed.opts_by_model {
             let choices = build_model_choices(*model_id, opts, &indexed, raw);
-            db.options_by_model
-                .insert(*model_id, build_model_options(opts, &indexed, &choices));
+            db.options_by_model.insert(
+                *model_id,
+                build_model_options(opts, &indexed, &choices, raw),
+            );
             db.choices_by_model.insert(*model_id, choices);
         }
         db
@@ -222,16 +238,53 @@ impl CustomizationDb {
         self.options_by_model.get(&model_id).map(|v| v.as_slice())
     }
 
+    pub fn option_by_id(&self, race: u8, sex: u8, option_id: u32) -> Option<&CustomizationOption> {
+        self.options_for(race, sex)?
+            .iter()
+            .find(|option| option.id == option_id)
+    }
+
+    pub fn choices_for_option(
+        &self,
+        race: u8,
+        sex: u8,
+        class: u8,
+        option_id: u32,
+    ) -> Vec<&CustomizationChoice> {
+        let Some(option) = self.option_by_id(race, sex, option_id) else {
+            return Vec::new();
+        };
+        option
+            .choices
+            .iter()
+            .filter(|choice| {
+                support::choice_visible_for_class(race, class, option.option_type, choice)
+            })
+            .collect()
+    }
+
+    fn option_for_type(
+        &self,
+        race: u8,
+        sex: u8,
+        opt_type: OptionType,
+    ) -> Option<&CustomizationOption> {
+        // Preserve the original lowest-ID selection when multiple authored labels
+        // share a core selector (for example Beard, Mustache and Sideburns).
+        self.options_for(race, sex)?
+            .iter()
+            .filter(|option| option.option_type == opt_type)
+            .min_by_key(|option| option.id)
+    }
+
     pub fn choice_count(&self, race: u8, sex: u8, opt_type: OptionType) -> u8 {
-        self.options_for(race, sex)
-            .and_then(|opts| opts.iter().find(|o| o.option_type == opt_type))
+        self.option_for_type(race, sex, opt_type)
             .map(|o| o.choices.len().min(255) as u8)
             .unwrap_or(0)
     }
 
     pub fn choice_count_for_class(&self, race: u8, sex: u8, class: u8, opt_type: OptionType) -> u8 {
-        self.options_for(race, sex)
-            .and_then(|opts| opts.iter().find(|o| o.option_type == opt_type))
+        self.option_for_type(race, sex, opt_type)
             .map(|o| {
                 o.choices
                     .iter()
@@ -251,9 +304,7 @@ impl CustomizationDb {
         opt_type: OptionType,
         index: u8,
     ) -> Option<&CustomizationChoice> {
-        self.options_for(race, sex)?
-            .iter()
-            .find(|o| o.option_type == opt_type)?
+        self.option_for_type(race, sex, opt_type)?
             .choices
             .get(index as usize)
     }
@@ -266,9 +317,7 @@ impl CustomizationDb {
         opt_type: OptionType,
         index: u8,
     ) -> Option<&CustomizationChoice> {
-        self.options_for(race, sex)?
-            .iter()
-            .find(|o| o.option_type == opt_type)?
+        self.option_for_type(race, sex, opt_type)?
             .choices
             .iter()
             .filter(|choice| support::choice_visible_for_class(race, class, opt_type, choice))
@@ -314,8 +363,7 @@ impl CustomizationDb {
         sex: u8,
         opt_type: OptionType,
     ) -> Vec<Option<[u8; 3]>> {
-        self.options_for(race, sex)
-            .and_then(|opts| opts.iter().find(|o| o.option_type == opt_type))
+        self.option_for_type(race, sex, opt_type)
             .map(|o| {
                 o.choices
                     .iter()
@@ -402,25 +450,47 @@ fn build_model_options(
     opts: &[&RawOption],
     indexed: &IndexedData<'_>,
     choices: &HashMap<u32, CustomizationChoice>,
+    raw: &RawData,
 ) -> Vec<CustomizationOption> {
-    opts.iter()
-        .filter_map(|opt| {
-            let opt_type = OptionType::from_name(&opt.name)?;
+    let mut options: Vec<_> = opts
+        .iter()
+        .map(|opt| {
+            let opt_type =
+                OptionType::from_name(&opt.name).unwrap_or(OptionType::Additional(opt.id));
+            let category = raw.categories.get(&opt.category_id);
             let mut ordered = indexed
                 .choices_by_option
                 .get(&opt.id)
                 .cloned()
                 .unwrap_or_default();
-            ordered.sort_by_key(|choice| choice.order_index);
-            Some(CustomizationOption {
+            ordered.sort_by_key(|choice| (choice.order_index, choice.id));
+            CustomizationOption {
+                id: opt.id,
+                display_name: opt.name.clone(),
+                category_id: opt.category_id,
+                category_name: category
+                    .map(|category| category.name.clone())
+                    .unwrap_or_default(),
+                category_order_index: category
+                    .map(|category| category.order_index)
+                    .unwrap_or_default(),
+                category_icon: category.map(|category| category.icon).unwrap_or_default(),
+                category_selected_icon: category
+                    .map(|category| category.selected_icon)
+                    .unwrap_or_default(),
+                order_index: opt.order_index,
+                ui_type: opt.ui_type,
+                requirement_id: opt.requirement_id,
                 option_type: opt_type,
                 choices: ordered
                     .iter()
                     .map(|choice| choices[&choice.id].clone())
                     .collect(),
-            })
+            }
         })
-        .collect()
+        .collect();
+    options.sort_by_key(|option| (option.category_order_index, option.order_index, option.id));
+    options
 }
 
 fn resolve_option_choices(
@@ -448,6 +518,13 @@ fn resolve_option_choices(
                 id: ch.id,
                 display_name: ch.name.clone(),
                 requirement_id: ch.requirement_id,
+                has_unsupported_effects: indexed.elements_by_choice.get(&ch.id).is_some_and(
+                    |elements| {
+                        elements
+                            .iter()
+                            .any(|element| element.has_unsupported_effects)
+                    },
+                ),
                 materials,
                 related_materials,
                 geosets,
@@ -578,6 +655,7 @@ fn resolve_choice_geosets(
 pub(crate) struct RawData {
     pub(crate) chr_models: Vec<RawChrModel>,
     pub(crate) options: Vec<RawOption>,
+    pub(crate) categories: HashMap<u32, RawCategory>,
     pub(crate) choices: Vec<RawChoice>,
     pub(crate) elements: Vec<RawElement>,
     pub(crate) materials: HashMap<u32, RawMaterial>,
@@ -598,10 +676,22 @@ pub(crate) struct RawChrModel {
     pub(crate) customize_scale: f32,
     pub(crate) camera_distance_offset: f32,
 }
+#[derive(Default)]
 pub(crate) struct RawOption {
     pub(crate) id: u32,
     pub(crate) name: String,
     pub(crate) chr_model_id: u32,
+    pub(crate) category_id: u32,
+    pub(crate) order_index: u32,
+    pub(crate) ui_type: u32,
+    pub(crate) requirement_id: u32,
+}
+#[derive(Default)]
+pub(crate) struct RawCategory {
+    pub(crate) name: String,
+    pub(crate) order_index: u32,
+    pub(crate) icon: u32,
+    pub(crate) selected_icon: u32,
 }
 pub(crate) struct RawChoice {
     pub(crate) id: u32,
@@ -615,6 +705,7 @@ pub(crate) struct RawElement {
     pub(crate) related_choice_id: u32,
     pub(crate) geoset_id: u32,
     pub(crate) material_id: u32,
+    pub(crate) has_unsupported_effects: bool,
 }
 pub(crate) struct RawMaterial {
     pub(crate) texture_target_id: u16,
