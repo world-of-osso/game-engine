@@ -197,7 +197,7 @@ impl CustomizationDb {
         }
     }
 
-    fn try_load(data_dir: &Path) -> Result<Self, String> {
+    pub fn try_load(data_dir: &Path) -> Result<Self, String> {
         let raw = RawData::parse(data_dir)?;
         Ok(Self::from_raw(&raw))
     }

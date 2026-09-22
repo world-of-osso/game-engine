@@ -72,7 +72,7 @@ impl Drop for CatalogFixture {
 fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
     let fixture = CatalogFixture::new();
     let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
-    let raw = load_customization_raw_data_at(&cache).unwrap();
+    let raw = load_customization_raw_data_at(&fixture.root, &cache).unwrap();
     let eyebrows = raw.options.iter().find(|option| option.id == 890).unwrap();
     assert_eq!(
         (
@@ -155,7 +155,7 @@ fn catalog_cache_rebuilds_old_schema_without_deleting_the_cache_by_hand() {
         conn.pragma_update(None, "user_version", version).unwrap();
         drop(conn);
         import_customization_cache_at(&fixture.root, &cache).unwrap();
-        let raw = load_customization_raw_data_at(&cache).unwrap();
+        let raw = load_customization_raw_data_at(&fixture.root, &cache).unwrap();
         assert_eq!(
             raw.options
                 .iter()
@@ -166,6 +166,67 @@ fn catalog_cache_rebuilds_old_schema_without_deleting_the_cache_by_hand() {
         );
         assert_eq!(raw.categories[&3].name, "Accessories");
     }
+}
+
+#[test]
+fn catalog_loader_rebuilds_previous_catalog_schema_before_reading() {
+    let fixture = CatalogFixture::new();
+    let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
+    let conn = Connection::open(&cache).unwrap();
+    conn.execute_batch("DROP TABLE options;
+        CREATE TABLE options (id INTEGER PRIMARY KEY, name TEXT NOT NULL, chr_model_id INTEGER NOT NULL);
+        INSERT INTO options VALUES (890, 'stale', 1);
+        PRAGMA user_version = 0;").unwrap();
+    drop(conn);
+    let raw = load_customization_raw_data_at(&fixture.root, &cache)
+        .expect("normal loading must rebuild a previous-schema cache");
+    assert_eq!(
+        raw.options
+            .iter()
+            .find(|option| option.id == 890)
+            .unwrap()
+            .name,
+        "Eyebrows"
+    );
+    assert_eq!(raw.categories[&3].name, "Accessories");
+}
+
+#[test]
+fn catalog_cache_reads_actual_local_options_into_an_isolated_cache() {
+    let fixture = CatalogFixture::new();
+    let raw = load_customization_raw_data_at(Path::new("data"), &fixture.cache_path())
+        .expect("import actual local customization data into temporary cache");
+    let ears = raw.options.iter().find(|option| option.id == 8789).unwrap();
+    assert_eq!(
+        (
+            ears.chr_model_id,
+            ears.name.as_str(),
+            ears.category_id,
+            ears.order_index
+        ),
+        (1, "Ears", 23, 14)
+    );
+    let eyebrows = raw.options.iter().find(|option| option.id == 890).unwrap();
+    assert_eq!(
+        (eyebrows.chr_model_id, eyebrows.name.as_str()),
+        (1, "Eyebrows")
+    );
+    let jewelry = raw.options.iter().find(|option| option.id == 776).unwrap();
+    assert_eq!(
+        (
+            jewelry.chr_model_id,
+            jewelry.name.as_str(),
+            jewelry.category_id
+        ),
+        (20, "Jewelry Color", 5)
+    );
+    let gold = raw.choices.iter().find(|choice| choice.id == 8619).unwrap();
+    assert_eq!((gold.option_id, gold.swatch_colors), (776, [-26_091, 0]));
+    assert!(
+        raw.elements
+            .iter()
+            .any(|element| element.choice_id == gold.id && element.material_id != 0)
+    );
 }
 
 #[test]
