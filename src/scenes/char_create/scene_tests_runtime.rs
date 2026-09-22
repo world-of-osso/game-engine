@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     use bevy::asset::AssetApp;
-    use bevy::input::{ButtonInput, InputPlugin};
+    use bevy::input::{mouse::MouseButtonInput, ButtonState, InputPlugin};
     use bevy::state::app::StatesPlugin;
     use bevy::window::PrimaryWindow;
     use game_engine::asset::char_texture::CharTextureData;
@@ -102,9 +102,11 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
         .get_mut::<Window>()
         .unwrap()
         .set_cursor_position(Some(race_2_center));
-    app.world_mut()
-        .resource_mut::<ButtonInput<MouseButton>>()
-        .press(MouseButton::Left);
+    app.world_mut().write_message(MouseButtonInput {
+        button: MouseButton::Left,
+        state: ButtonState::Pressed,
+        window: window_entity,
+    });
 
     app.update();
 
