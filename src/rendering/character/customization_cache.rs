@@ -545,18 +545,13 @@ fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<P
     Ok(cache_path.to_path_buf())
 }
 
-pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, String> {
-    load_customization_raw_data_at(&cache_path())
+pub(crate) fn load_customization_raw_data(data_dir: &Path) -> Result<RawData, String> {
+    load_customization_raw_data_at(data_dir, &cache_path())
 }
 
-fn load_customization_raw_data_at(cache_path: &Path) -> Result<RawData, String> {
-    if !cache_path.exists() {
-        return Err(format!(
-            "{} missing; run `cargo run --bin customization_cache_import` to build it",
-            cache_path.display()
-        ));
-    }
-    let conn = open_read_only(&cache_path)?;
+fn load_customization_raw_data_at(data_dir: &Path, cache_path: &Path) -> Result<RawData, String> {
+    import_customization_cache_at(data_dir, cache_path)?;
+    let conn = open_read_only(cache_path)?;
     Ok(RawData {
         chr_models: load_chr_models(&conn)?,
         options: load_options(&conn)?,
