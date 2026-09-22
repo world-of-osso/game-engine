@@ -819,3 +819,339 @@ fn reload_path_replaces_owned_frames() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+fn addon_file(tag: &str, script: &str) -> (PathBuf, PathBuf) {
+    let dir = std::env::temp_dir().join(format!("addon_{tag}_{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("main.js");
+    std::fs::write(&path, script).unwrap();
+    (dir, path)
+}
+
+fn reload_and_apply(app: &mut App, runtime: &mut AddonRuntime, path: &Path) {
+    let mut ui = app.world_mut().resource_mut::<UiState>();
+    runtime.reload_path(path.to_path_buf(), &mut ui.registry);
+    runtime.apply(&mut ui.registry);
+    app.update();
+    app.update();
+}
+
+/// Run app updates until deferred despawn commands for `removed` are applied.
+/// Returns false when entities survive four updates (commands never applied).
+fn settle_removed(app: &mut App, removed: &[Entity]) -> bool {
+    for _ in 0..4 {
+        app.update();
+        if removed
+            .iter()
+            .all(|entity| app.world().get_entity(*entity).is_err())
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Native entities still projecting removed registry frames (frame nodes and text parts).
+/// Image parts use ui-toolkit-private `RegistryImage` and are covered by subtree capture.
+fn stale_native_entities(world: &mut World, frame_ids: &[u64]) -> Vec<Entity> {
+    let mut stale = Vec::new();
+    let mut nodes = world.query::<(Entity, &ui_toolkit::native_render::RegistryNode)>();
+    for (entity, node) in nodes.iter(world) {
+        if frame_ids.contains(&node.0) {
+            stale.push(entity);
+        }
+    }
+    let mut texts = world.query::<(Entity, &ui_toolkit::native_render::RegistryText)>();
+    for (entity, text) in texts.iter(world) {
+        if frame_ids.contains(&text.frame_id) {
+            stale.push(entity);
+        }
+    }
+    stale
+}
+
+fn reparent_lifecycle_script(panel_anchor: &str, label_text: &str) -> String {
+    format!(
+        r#"
+        addon.createFrame("ReparentPanel", "ParentRoot");
+        addon.setBackgroundColor("ReparentPanel", 0.2, 0.3, 0.4, 1.0);
+        addon.setSize("ReparentPanel", 120, 60);
+        addon.setPosType("ReparentPanel", "absolute");
+        addon.setPos("ReparentPanel", 30, 40);
+        addon.createFontString("ReparentLabel", "ReparentPanel", "{label_text}");
+        addon.setSize("ReparentLabel", 60, 20);
+        {panel_anchor}
+        "#
+    )
+}
+
+fn reparent_removal_assertions(
+    app: &mut App,
+    removed_entities: &[Entity],
+    removed_ids: &[u64],
+    former_parent: Entity,
+    context: &str,
+) {
+    assert!(
+        settle_removed(app, removed_entities),
+        "{context}: despawn commands were not applied"
+    );
+    for entity in removed_entities {
+        assert!(
+            app.world().get_entity(*entity).is_err(),
+            "{context}: native entity {entity:?} survived removal"
+        );
+    }
+    assert!(
+        stale_native_entities(app.world_mut(), removed_ids).is_empty(),
+        "{context}: native projection remains for removed registry frames"
+    );
+    assert!(
+        app.world().get_entity(former_parent).is_ok(),
+        "{context}: former native parent must survive"
+    );
+    let orphans: Vec<Entity> = native_descendants(app.world(), former_parent)
+        .into_iter()
+        .filter(|entity| removed_entities.contains(entity))
+        .collect();
+    assert!(
+        orphans.is_empty(),
+        "{context}: orphaned addon entities still attached to former native parent"
+    );
+}
+
+#[test]
+fn reload_after_screen_reparent_removes_full_native_subtree() {
+    let mut app = native_addon_app();
+    let script = reparent_lifecycle_script("", "Before");
+    let (dir, path) = addon_file("reparent_reload", &script);
+    let mut runtime = AddonRuntime {
+        addon_dir: dir.clone(),
+        addons: HashMap::new(),
+    };
+    reload_and_apply(&mut app, &mut runtime, &path);
+    let (root, panel_id, label_id) = {
+        let registry = &app.world().resource::<UiState>().registry;
+        (
+            registry.get_by_name("ParentRoot").unwrap(),
+            registry.get_by_name("ReparentPanel").unwrap(),
+            registry.get_by_name("ReparentLabel").unwrap(),
+        )
+    };
+    let root_entity = projected_frame(app.world_mut(), root);
+    let panel_entity = projected_frame(app.world_mut(), panel_id);
+    let label_entity = projected_frame(app.world_mut(), label_id);
+    let text = projected_text(app.world(), label_entity);
+    assert_eq!(
+        app.world().get::<ChildOf>(panel_entity).unwrap().parent(),
+        root_entity,
+        "fixture panel starts anchored to its parent"
+    );
+
+    // Reparent the projection to screen scope through the addon operation path.
+    let mut tweak = script_addon(&script);
+    tweak.operations =
+        js::run_js_addon_to_operations("addon.setAnchor('ReparentPanel', 'screen');").unwrap();
+    apply::apply_addon(
+        &tweak,
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+    );
+    app.update();
+    app.update();
+    assert_eq!(
+        projected_frame(app.world_mut(), panel_id),
+        panel_entity,
+        "reparent preserves projection identity"
+    );
+    let former_parent = app.world().get::<ChildOf>(panel_entity).unwrap().parent();
+    assert_ne!(
+        former_parent, root_entity,
+        "screen anchor reparents natively"
+    );
+
+    let removed_entities = native_descendants(app.world(), panel_entity);
+    assert!(
+        removed_entities.contains(&label_entity) && removed_entities.contains(&text),
+        "fixture subtree covers frame, images and text"
+    );
+
+    std::fs::write(
+        &path,
+        "addon.createFrame('KeptPanel', 'ParentRoot');\naddon.setSize('KeptPanel', 40, 40);",
+    )
+    .unwrap();
+    reload_and_apply(&mut app, &mut runtime, &path);
+    assert_eq!(
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .get_by_name("KeptPanel")
+            .is_some(),
+        true,
+        "reloaded addon applied"
+    );
+    assert_eq!(
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .get_by_name("ReparentPanel"),
+        None
+    );
+    reparent_removal_assertions(
+        &mut app,
+        &removed_entities,
+        &[panel_id, label_id],
+        former_parent,
+        "reload after screen reparent",
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn unload_after_parent_reparent_removes_full_native_subtree() {
+    let mut app = native_addon_app();
+    let script =
+        reparent_lifecycle_script("addon.setAnchor(\"ReparentPanel\", \"screen\");", "Before");
+    let (dir, path) = addon_file("reparent_unload", &script);
+    let mut runtime = AddonRuntime {
+        addon_dir: dir.clone(),
+        addons: HashMap::new(),
+    };
+    reload_and_apply(&mut app, &mut runtime, &path);
+    let (root, panel_id, label_id) = {
+        let registry = &app.world().resource::<UiState>().registry;
+        (
+            registry.get_by_name("ParentRoot").unwrap(),
+            registry.get_by_name("ReparentPanel").unwrap(),
+            registry.get_by_name("ReparentLabel").unwrap(),
+        )
+    };
+    let root_entity = projected_frame(app.world_mut(), root);
+    let panel_entity = projected_frame(app.world_mut(), panel_id);
+    let label_entity = projected_frame(app.world_mut(), label_id);
+    let text = projected_text(app.world(), label_entity);
+    let former_parent = app.world().get::<ChildOf>(panel_entity).unwrap().parent();
+    assert_ne!(
+        former_parent, root_entity,
+        "fixture panel starts anchored to screen scope"
+    );
+
+    // Switch the projection back under its logical parent through the addon path.
+    let mut tweak = script_addon(&script);
+    tweak.operations = js::run_js_addon_to_operations("addon.setAnchor('ReparentPanel');").unwrap();
+    apply::apply_addon(
+        &tweak,
+        &mut app.world_mut().resource_mut::<UiState>().registry,
+    );
+    app.update();
+    app.update();
+    assert_eq!(
+        app.world().get::<ChildOf>(panel_entity).unwrap().parent(),
+        root_entity,
+        "parent anchor reparents natively"
+    );
+    let removed_entities = native_descendants(app.world(), panel_entity);
+    assert!(removed_entities.contains(&label_entity));
+    assert!(removed_entities.contains(&text));
+
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        runtime.unload_path(&path, &mut ui.registry);
+    }
+    assert_eq!(
+        app.world()
+            .resource::<UiState>()
+            .registry
+            .get_by_name("ReparentLabel"),
+        None
+    );
+    reparent_removal_assertions(
+        &mut app,
+        &removed_entities,
+        &[panel_id, label_id],
+        root_entity,
+        "unload after parent reparent",
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn reload_recreated_frames_keep_stable_native_identity_after_deferred_removal() {
+    let mut app = native_addon_app();
+    let (dir, path) = addon_file(
+        "sweep_reload",
+        r#"
+        addon.createFrame("SweepPanel", "ParentRoot");
+        addon.setBackgroundColor("SweepPanel", 0.1, 0.1, 0.1, 1.0);
+        addon.setSize("SweepPanel", 100, 50);
+        addon.createFontString("SweepLabel", "SweepPanel", "One");
+        addon.setSize("SweepLabel", 50, 20);
+        addon.createFrame("SweepExtra", "ParentRoot");
+        addon.setBackgroundColor("SweepExtra", 0.9, 0.1, 0.1, 1.0);
+        addon.setSize("SweepExtra", 30, 30);
+        "#,
+    );
+    let mut runtime = AddonRuntime {
+        addon_dir: dir.clone(),
+        addons: HashMap::new(),
+    };
+    reload_and_apply(&mut app, &mut runtime, &path);
+    let old_ids: Vec<u64> = {
+        let registry = &app.world().resource::<UiState>().registry;
+        ["SweepPanel", "SweepLabel", "SweepExtra"]
+            .iter()
+            .map(|name| registry.get_by_name(name).unwrap())
+            .collect()
+    };
+    let mut removed_entities = Vec::new();
+    for id in &old_ids {
+        let entity = projected_frame(app.world_mut(), *id);
+        removed_entities.extend(native_descendants(app.world(), entity));
+    }
+
+    std::fs::write(
+        &path,
+        r#"
+        addon.createFrame("SweepPanel", "ParentRoot");
+        addon.setBackgroundColor("SweepPanel", 0.1, 0.1, 0.1, 1.0);
+        addon.setSize("SweepPanel", 100, 50);
+        addon.createFontString("SweepLabel", "SweepPanel", "Two");
+        addon.setSize("SweepLabel", 50, 20);
+        "#,
+    )
+    .unwrap();
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        runtime.reload_path(path.clone(), &mut ui.registry);
+        runtime.apply(&mut ui.registry);
+    }
+    assert!(
+        settle_removed(&mut app, &removed_entities),
+        "reload despawn commands were not applied"
+    );
+    assert!(
+        stale_native_entities(app.world_mut(), &old_ids).is_empty(),
+        "no native entities may remain for removed registry frames"
+    );
+
+    let (panel_id, label_id) = {
+        let registry = &app.world().resource::<UiState>().registry;
+        (
+            registry.get_by_name("SweepPanel").unwrap(),
+            registry.get_by_name("SweepLabel").unwrap(),
+        )
+    };
+    let panel_entity = projected_frame(app.world_mut(), panel_id);
+    let text = projected_text(app.world(), panel_entity);
+    for _ in 0..3 {
+        app.update();
+    }
+    {
+        let registry = &app.world().resource::<UiState>().registry;
+        assert_eq!(registry.get_by_name("SweepPanel"), Some(panel_id));
+        assert_eq!(registry.get_by_name("SweepLabel"), Some(label_id));
+    }
+    assert_eq!(projected_frame(app.world_mut(), panel_id), panel_entity);
+    assert_eq!(projected_text(app.world(), panel_entity), text);
+    std::fs::remove_dir_all(&dir).ok();
+}
