@@ -269,6 +269,75 @@ fn selection_with_skin_color(skin_color: u8) -> CharacterCustomizationSelection 
     }
 }
 
+#[test]
+fn additional_ear_choice_changes_the_rendered_geoset() {
+    let db = CustomizationDb::load(Path::new("data"));
+    let choices = db.choices_for_option(1, 0, 1, 8789);
+    let first = choices.first().expect("human ear choices");
+    let alternate = choices
+        .iter()
+        .find(|choice| choice.geosets != first.geosets)
+        .expect("human ears have distinct geometry");
+    assert!(!alternate.geosets.is_empty());
+    let mut selection = selection_with_skin_color(0);
+    selection.appearance.customization_choices =
+        vec![shared::components::CustomizationChoiceSelection {
+            option_id: 8789,
+            choice_id: alternate.id,
+        }];
+    let actual = collect_active_geosets(&selection, &db);
+    for &(group, variant) in &alternate.geosets {
+        assert!(
+            actual.contains(&(group, variant)),
+            "selected ear geometry missing: {actual:?}"
+        );
+        assert!(
+            !actual
+                .iter()
+                .any(|&(other_group, other_variant)| other_group == group
+                    && other_variant != variant),
+            "ear choice must replace the default, not combine with it: {actual:?}"
+        );
+    }
+}
+
+#[test]
+fn additional_jewelry_color_changes_the_rendered_materials() {
+    let db = CustomizationDb::load(Path::new("data"));
+    let mut selection = CharacterCustomizationSelection {
+        race: 10,
+        class: 1,
+        sex: 1,
+        appearance: CharacterAppearance {
+            sex: 1,
+            ..Default::default()
+        },
+    };
+    let before = collect_appearance_materials(&selection, &db);
+    let choices = db.choices_for_option(10, 1, 1, 776);
+    let choice = choices
+        .iter()
+        .find(|choice| {
+            choice
+                .materials
+                .iter()
+                .any(|material| !before.contains(material))
+        })
+        .expect("blood elf jewelry colors carry distinct material resources");
+    selection.appearance.customization_choices =
+        vec![shared::components::CustomizationChoiceSelection {
+            option_id: 776,
+            choice_id: choice.id,
+        }];
+    let actual = collect_appearance_materials(&selection, &db);
+    for material in &choice.materials {
+        assert!(
+            actual.contains(material),
+            "selected jewelry material {material:?} absent: {actual:?}"
+        );
+    }
+}
+
 fn resolved_face_target_fdids(
     selection: CharacterCustomizationSelection,
     db: &CustomizationDb,

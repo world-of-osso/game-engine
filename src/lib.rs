@@ -154,6 +154,8 @@ pub mod world_map;
 #[path = "game/world_map_data.rs"]
 pub mod world_map_data;
 
+#[path = "rendering/character/appearance_options.rs"]
+pub mod appearance_options;
 #[path = "rendering/character/char_texture_cache.rs"]
 pub mod char_texture_cache;
 #[path = "rendering/camera/culling.rs"]
