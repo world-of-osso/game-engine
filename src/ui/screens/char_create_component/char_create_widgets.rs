@@ -181,9 +181,10 @@ pub(super) fn class_button(
         COLOR_WHITE
     };
     let scale = bounds[2] / 67.0;
+    let onclick = CharCreateAction::SelectClass(id).when_enabled(available);
     rsx! {
         button { name: DynName(frame_name.clone()), width: bounds[2], height: bounds[2], disabled,
-            onclick: CharCreateAction::SelectClass(id),
+            onclick,
             button_atlas_highlight: "charactercreate-ring-select",
             pos_type: "absolute", left: bounds[0], top: bounds[1],
             {icon(&frame_name, fdid, bounds[2], disabled)}
