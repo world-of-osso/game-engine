@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
-    use bevy::input::ButtonInput;
+    use bevy::input::{ButtonInput, InputPlugin};
     use bevy::state::app::StatesPlugin;
     use bevy::window::PrimaryWindow;
     use game_engine::asset::char_texture::CharTextureData;
@@ -15,12 +15,11 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     app.add_plugins(StatesPlugin);
     app.add_plugins(bevy::asset::AssetPlugin::default());
     app.add_plugins(bevy::text::TextPlugin::default());
+    app.add_plugins(InputPlugin);
     app.add_plugins(bevy::ui::UiPlugin);
     app.add_plugins(bevy::picking::PickingPlugin);
     app.add_plugins(bevy::picking::InteractionPlugin);
     app.add_plugins(UiAutomationPlugin);
-    app.insert_resource(ButtonInput::<MouseButton>::default());
-    app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
     app.insert_resource(crate::client_options::CameraOptions::default());
     app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.insert_resource(CustomizationDb::load(Path::new("data")));
