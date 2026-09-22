@@ -441,6 +441,7 @@ fn direct_entry_has_initial_appearance_by_end_of_first_update() {
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
     app.insert_resource(crate::client_options::CameraOptions::default());
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.insert_resource(CustomizationDb::load(Path::new("data")));
     app.insert_resource(CharTextureData::load(Path::new("data")));
     app.insert_resource(crate::creature_display::CreatureDisplayMap);
