@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-22] character creation | Match Retail dropdown insets, widths and swatches
+
+Engine `4cfb538f`, `9761008e` and `627cb5d6` implement `MenuStyle2` 3/6/3/7 content insets, content-dependent 144/107/136/70 row widths, dual half/full palette placement, secondary-only colors and selected-outline anchoring. Local Lua/XML source and 31 targeted component tests establish layout/layer behavior. Runtime and independent final checks remain pending; no full Retail visual-parity claim. See [[character-creation]].
+
 ## [2026-09-22] character creation | Correct build-pinned palette atlas provenance
 
 Build-pinned Wago CSV exports for `12.1.0.69875` identify the correct atlas-708 palette crops: normal `[519,471..603,491]`, half `[729,471..813,491]`. Older project CSV metadata selected yellow ornament pixels. Fresh local-CASC extraction of FDID `1253496` is byte-identical to the cache, so cache replacement and the unavailable encrypted local DB2s were not the remedy. Toolkit `78c67e7` corrects only the palette bounds; engine `a55af09f` records native source-pixel RED/GREEN. Reference dropdown insets and dual-swatch layout remain open. See [[character-creation]].
