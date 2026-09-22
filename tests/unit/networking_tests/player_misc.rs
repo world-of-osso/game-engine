@@ -91,6 +91,7 @@ fn net_player_customization_selection_uses_player_race_class_and_appearance() {
             hair_style: 4,
             hair_color: 5,
             facial_style: 6,
+            customization_choices: Vec::new(),
         },
     };
 

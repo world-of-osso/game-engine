@@ -59,7 +59,7 @@ fn face_materials_resolve_against_selected_skin_color() {
 fn human_male_defaults_to_single_round_ear_geoset() {
     let db = CustomizationDb::load(Path::new("data"));
     let geosets = collect_active_geosets(
-        CharacterCustomizationSelection {
+        &CharacterCustomizationSelection {
             race: 1,
             class: 1,
             sex: 0,
@@ -71,6 +71,7 @@ fn human_male_defaults_to_single_round_ear_geoset() {
                 hair_style: 0,
                 hair_color: 0,
                 facial_style: 0,
+                customization_choices: Vec::new(),
             },
         },
         &db,
@@ -206,10 +207,11 @@ fn human_male_eye_color_selection_provides_default_eye_texture() {
             hair_style: 4,
             hair_color: 5,
             facial_style: 1,
+            customization_choices: Vec::new(),
         },
     };
 
-    let materials = collect_appearance_materials(selection, &db);
+    let materials = collect_appearance_materials(&selection, &db);
 
     assert!(
         materials
@@ -236,10 +238,11 @@ fn hidden_helmet_groups_use_scalp_fallback_for_group_zero() {
             hair_style: 0,
             hair_color: 0,
             facial_style: 0,
+            customization_choices: Vec::new(),
         },
     };
 
-    apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups, selection, &db);
+    apply_hidden_geoset_groups(&mut active_geosets, &hidden_groups, &selection, &db);
 
     assert!(active_geosets.contains(&(0, 0)));
     assert!(active_geosets.contains(&(7, 1)));
@@ -261,6 +264,7 @@ fn selection_with_skin_color(skin_color: u8) -> CharacterCustomizationSelection 
             hair_style: 0,
             hair_color: 0,
             facial_style: 0,
+            customization_choices: Vec::new(),
         },
     }
 }
@@ -269,7 +273,7 @@ fn resolved_face_target_fdids(
     selection: CharacterCustomizationSelection,
     db: &CustomizationDb,
 ) -> Vec<u32> {
-    collect_appearance_materials(selection, db)
+    collect_appearance_materials(&selection, db)
         .iter()
         .filter(|(target_id, _)| *target_id == 5)
         .map(|(_, fdid)| *fdid)

@@ -20,6 +20,7 @@ fn blood_elf_warrior_state() -> CharCreateState {
             hair_style: 0,
             hair_color: 0,
             facial_style: 0,
+            customization_choices: Vec::new(),
         },
         ..Default::default()
     }
@@ -30,11 +31,11 @@ fn assert_face_materials_present(db: &CustomizationDb, state: &CharCreateState) 
         .get_choice_for_class(10, 0, 1, OptionType::Face, 0)
         .unwrap();
     let all_materials = collect_appearance_materials(
-        CharacterCustomizationSelection {
+        &CharacterCustomizationSelection {
             race: state.selected_race,
             class: state.selected_class,
             sex: state.selected_sex,
-            appearance: state.appearance,
+            appearance: state.appearance.clone(),
         },
         db,
     );

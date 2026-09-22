@@ -451,7 +451,7 @@ fn desired_character_appearance(character: &CharacterListEntry) -> AppliedCharac
         character_id: character.character_id,
         race: character.race,
         class: character.class,
-        appearance: character.appearance,
+        appearance: character.appearance.clone(),
         equipment_appearance: character.equipment_appearance.clone(),
     }
 }
@@ -467,11 +467,11 @@ fn apply_selected_character_appearance(
         selection.character.appearance.sex,
     );
     apply_character_customization(
-        CharacterCustomizationSelection {
+        &CharacterCustomizationSelection {
             race: selection.character.race,
             class: selection.character.class,
             sex: selection.character.appearance.sex,
-            appearance: selection.character.appearance,
+            appearance: selection.character.appearance.clone(),
         },
         &params.customization_db,
         &params.char_tex,

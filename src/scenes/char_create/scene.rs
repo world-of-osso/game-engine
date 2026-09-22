@@ -279,7 +279,7 @@ struct CharCreateAppearanceParams<'w, 's> {
 impl CharCreateAppearanceParams<'_, '_> {
     fn apply(&mut self, selection: CharacterCustomizationSelection, root: Entity) {
         apply_character_customization(
-            selection,
+            &selection,
             &self.cust_db,
             &self.char_tex,
             None,
@@ -434,7 +434,7 @@ fn sync_appearance(
     mut displayed: ResMut<DisplayedModels>,
 ) {
     let Some(state) = state else { return };
-    let appearance = state.appearance;
+    let appearance = state.appearance.clone();
     if !appearance_needs_sync(
         &displayed,
         state.selected_race,
@@ -443,7 +443,7 @@ fn sync_appearance(
     ) {
         return;
     }
-    displayed.last_appearance = Some(appearance);
+    displayed.last_appearance = Some(appearance.clone());
     displayed.last_class = Some(state.selected_class);
 
     let Some(root) = active_model_entity(&displayed, state.selected_sex) else {

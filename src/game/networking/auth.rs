@@ -524,7 +524,7 @@ pub fn sync_selected_character_roster_entry(
     entry.name = player.name.clone();
     entry.race = player.race;
     entry.class = player.class;
-    entry.appearance = player.appearance;
+    entry.appearance = player.appearance.clone();
     entry.equipment_appearance = equipment_appearance;
 }
 

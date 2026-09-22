@@ -205,7 +205,7 @@ pub fn sync_character_stats_snapshot(
     snapshot.level = selected_character.map(|entry| entry.level);
     snapshot.race = selected_character.map(|entry| entry.race);
     snapshot.class = selected_character.map(|entry| entry.class);
-    snapshot.appearance = selected_character.map(|entry| entry.appearance);
+    snapshot.appearance = selected_character.map(|entry| entry.appearance.clone());
     snapshot.zone_id = current_zone.zone_id;
     fill_local_player_stats(&mut snapshot, &local_player_query);
     snapshot.secondary_resource = snapshot

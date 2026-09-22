@@ -8,7 +8,7 @@ use super::{
 };
 
 pub(super) fn apply_base_skin_and_overlay_textures(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
     overlay_set: &game_engine::outfit_data::OutfitResult,
@@ -53,7 +53,7 @@ struct ReplacementTextureHandles {
 }
 
 fn build_replacement_texture_handles(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
     overlay_set: &game_engine::outfit_data::OutfitResult,

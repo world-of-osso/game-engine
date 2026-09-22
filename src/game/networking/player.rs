@@ -317,7 +317,7 @@ pub(crate) fn net_player_customization_selection(
         race: player.race,
         class: player.class,
         sex: player.appearance.sex,
-        appearance: player.appearance,
+        appearance: player.appearance.clone(),
     }
 }
 
@@ -470,7 +470,7 @@ fn apply_character_visual(
     resolved_equipment: &crate::equipment_appearance::ResolvedEquipmentAppearance,
 ) {
     crate::character_customization::apply_character_customization(
-        selection,
+        &selection,
         &params.customization_db,
         &params.char_tex,
         Some(resolved_equipment),
