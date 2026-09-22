@@ -57,6 +57,7 @@ pub(crate) struct CharCreateState {
     pub(crate) selected_race: u8,
     pub(crate) selected_class: u8,
     pub(crate) selected_sex: u8,
+    pub(crate) name: String,
     pub(crate) appearance: CharacterAppearance,
     pub(crate) mode: CharCreateMode,
     pub(crate) error_text: Option<String>,
@@ -71,6 +72,7 @@ impl Default for CharCreateState {
             selected_race: 1,
             selected_class: 1,
             selected_sex: 0,
+            name: String::new(),
             appearance: CharacterAppearance::default(),
             mode: CharCreateMode::RaceClass,
             error_text: None,
@@ -278,13 +280,13 @@ fn char_create_hover_visuals(
 fn char_create_update_visuals(
     mut ui: ResMut<UiState>,
     cc_ui: Option<Res<CharCreateUi>>,
-    state: Option<Res<CharCreateState>>,
+    mut state: Option<ResMut<CharCreateState>>,
     focus: Res<CharCreateFocus>,
     mut screen_res: Option<ResMut<CharCreateScreenWrap>>,
     cust_db: Res<CustomizationDb>,
 ) {
     let Some(_cc) = cc_ui.as_ref() else { return };
-    let Some(state) = state.as_ref() else { return };
+    let Some(state) = state.as_mut() else { return };
     // Look up by name each frame — the editbox only exists in Customize mode
     // so the ID resolved at startup may be None/stale.
     let name_input_id = ui.registry.get_by_name(CREATE_NAME_INPUT.0);
@@ -303,7 +305,7 @@ fn char_create_update_visuals(
 fn sync_screen_state(
     screen_res: &mut Option<ResMut<CharCreateScreenWrap>>,
     reg: &mut FrameRegistry,
-    state: &CharCreateState,
+    state: &mut CharCreateState,
     cust_db: &CustomizationDb,
     name_input_focused: bool,
 ) {
@@ -311,13 +313,13 @@ fn sync_screen_state(
         return;
     };
     let inner = &mut res.0;
+    if let Some(id) = reg.get_by_name(CREATE_NAME_INPUT.0) {
+        state.name = get_editbox_text(reg, id);
+    }
     let mut new_state = build_ui_state(state, cust_db);
     new_state.name_input_focused = name_input_focused;
     new_state.viewport_width = reg.screen_width as u32;
     new_state.viewport_height = reg.screen_height as u32;
-    if let Some(id) = reg.get_by_name(CREATE_NAME_INPUT.0) {
-        new_state.name = get_editbox_text(reg, id);
-    }
     if inner.shared.get::<CharCreateUiState>() != Some(&new_state) {
         inner.shared.insert(new_state);
     }
