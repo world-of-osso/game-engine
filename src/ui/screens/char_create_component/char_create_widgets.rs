@@ -1,493 +1,401 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::widgets::font_string::{FontColor, GameFont};
+use crate::char_create_data::{Faction, RACES};
+use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
+use super::reference_layout::*;
 use super::{
-    BACK_BUTTON, BUTTON_ATLAS_DISABLED, BUTTON_ATLAS_HIGHLIGHT, BUTTON_ATLAS_PRESSED,
-    BUTTON_ATLAS_UP, COLOR_DISABLED, COLOR_GOLD, COLOR_SELECTED, COLOR_SUBTITLE, CREATE_BUTTON,
-    CREATE_NAME_INPUT, CharCreateAction, CharCreateMode, DynName, ERROR_TEXT, NEXT_BUTTON,
-    RANDOMIZE_BUTTON, SEX_TOGGLE_BUTTON,
+    BACK_BUTTON, COLOR_DISABLED, COLOR_GOLD, COLOR_WHITE, CREATE_BUTTON, CREATE_NAME_INPUT,
+    CameraControl, CharCreateAction, CharCreateMode, CharCreateUiState, CustomizationCategoryUi,
+    DynName, ERROR_TEXT, NEXT_BUTTON,
 };
 
-fn dyn_name(s: String) -> DynName {
-    DynName(s)
-}
-
-// --- Race grid ---
-
-fn race_button_style(is_selected: bool) -> (&'static str, &'static str) {
-    if is_selected {
-        ("2px solid 1.0,0.82,0.0,1.0", "0.2,0.16,0.08,0.9")
-    } else {
-        ("1px solid 0.45,0.38,0.22,0.6", "0.1,0.08,0.05,0.7")
-    }
-}
-
-fn race_top_widget(race_id: u8, icon_fdid: u32) -> Element {
-    rsx! {
-        texture {
-            name: dyn_name(format!("Race_{race_id}_Icon")),
-            width: 36.0,
-            height: 36.0,
-            texture_fdid: icon_fdid,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {4.0},
-        }
-    }
-}
-
-fn wrap_tile_label(name: &str) -> String {
-    if name.contains('\n') || !name.contains(' ') {
-        return name.to_string();
-    }
-    let midpoint = name.len() / 2;
-    let Some((split, _)) = name
-        .match_indices(' ')
-        .min_by_key(|(idx, _)| idx.abs_diff(midpoint))
-    else {
-        return name.to_string();
-    };
-    let (first, second) = (name[..split].trim_end(), name[split + 1..].trim_start());
-    if first.is_empty() || second.is_empty() {
-        name.to_string()
-    } else {
-        format!("{first}\n{second}")
-    }
-}
-
-const TILE_LABEL_WIDTH: f32 = 72.0;
-const TILE_LABEL_HEIGHT: f32 = 24.0;
-const TILE_LABEL_FONT_SIZE: f32 = 8.0;
-const RACE_LABEL_Y: f32 = 4.0;
-const CLASS_LABEL_Y: f32 = 2.0;
-
-fn tile_name_label(name_id: String, name: &str, color: FontColor, y: f32) -> Element {
-    let text = wrap_tile_label(name);
-    rsx! {
-        fontstring {
-            name: dyn_name(name_id),
-            width: TILE_LABEL_WIDTH,
-            height: TILE_LABEL_HEIGHT,
-            text,
-            font: GameFont::FrizQuadrata,
-            font_size: TILE_LABEL_FONT_SIZE,
-            font_color: color,
-            pos_type: "absolute",
-            left: "50%",
-            top: "100%",
-            translate_x: "-50%",
-            translate_y: "-100%",
-            margin_top: {-(y)},
-        }
-    }
-}
-
-fn race_name_label(race_id: u8, name: &str, color: FontColor) -> Element {
-    tile_name_label(format!("Race_{race_id}_Label"), name, color, RACE_LABEL_Y)
-}
-
-pub(super) fn race_buttons_for_faction(
-    faction: crate::char_create_data::Faction,
-    selected_race: u8,
-) -> Element {
-    use crate::char_create_data::RACES;
-    RACES
-        .iter()
-        .filter(|r| r.faction == faction)
-        .flat_map(|r| race_button(r.id, r.name, r.icon_fdid, r.id == selected_race))
-        .collect()
-}
-
-pub(super) fn race_button(race_id: u8, name: &str, icon_fdid: u32, is_selected: bool) -> Element {
-    let color = if is_selected {
-        COLOR_SELECTED
-    } else {
-        COLOR_SUBTITLE
-    };
-    let (border, bg) = race_button_style(is_selected);
-    let top = race_top_widget(race_id, icon_fdid);
-    let label = race_name_label(race_id, name, color);
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("Race_{race_id}")),
-            width: 56.0,
-            height: 72.0,
-            onclick: CharCreateAction::SelectRace(race_id),
-            border,
-            background_color: bg,
-            {top}
-            {label}
-        }
-    }
-}
-
-pub(super) fn faction_column(
-    label: &str,
-    col_name: &str,
-    x_offset: &str,
-    races: Element,
+pub(super) fn atlas_centered(
+    name: String,
+    atlas: &str,
+    width: f32,
+    height: f32,
+    hidden: bool,
 ) -> Element {
     rsx! {
-        fontstring {
-            name: dyn_name(format!("{col_name}Label")),
-            width: 140.0,
-            height: 24.0,
-            text: label,
-            font: GameFont::FrizQuadrata,
-            font_size: 16.0,
-            font_color: COLOR_GOLD,
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
-            margin_left: {x_offset},
-            margin_top: {4.0},
-        }
-        r#frame {
-            name: dyn_name(format!("{col_name}Races")),
-            width: 150.0,
-            height: 400.0,
-            layout: "flex-row-wrap",
-            gap: 6.0,
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
-            margin_left: {x_offset},
-            margin_top: {30.0},
-            {races}
+        texture { name: DynName(name), width, height, texture_atlas: atlas, hidden,
+            pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
         }
     }
 }
 
-// --- Class grid ---
-
-pub(super) fn class_button_style(
-    is_selected: bool,
-    available: bool,
-) -> (FontColor, &'static str, &'static str) {
-    let color = if !available {
-        COLOR_DISABLED
-    } else if is_selected {
-        COLOR_SELECTED
-    } else {
-        COLOR_SUBTITLE
-    };
-    let border = if is_selected && available {
-        "2px solid 1.0,0.82,0.0,1.0"
-    } else {
-        "1px solid 0.45,0.38,0.22,0.4"
-    };
-    let bg = if is_selected && available {
-        "0.2,0.16,0.08,0.9"
-    } else {
-        "0.1,0.08,0.05,0.7"
-    };
-    (color, border, bg)
+fn ring(name: &str, atlas: &str, size: [f32; 2]) -> Element {
+    atlas_centered(format!("{name}_Ring"), atlas, size[0], size[1], false)
 }
 
-fn class_icon_widget(class_id: u8, icon_fdid: u32, alpha: &str) -> Element {
-    rsx! {
-        texture {
-            name: dyn_name(format!("Class_{class_id}_Icon")),
-            width: 36.0,
-            height: 36.0,
-            texture_fdid: icon_fdid,
-            alpha,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {4.0},
-        }
-    }
-}
-
-fn class_name_label(class_id: u8, name: &str, color: FontColor) -> Element {
-    tile_name_label(
-        format!("Class_{class_id}_Label"),
-        name,
-        color,
-        CLASS_LABEL_Y,
+fn selection_ring(name: &str, size: f32, selected: bool) -> Element {
+    atlas_centered(
+        format!("{name}_Selected"),
+        "charactercreate-ring-select",
+        size,
+        size,
+        !selected,
     )
 }
 
-pub(super) fn class_button(
-    class_id: u8,
-    name: &str,
-    icon_fdid: u32,
-    is_selected: bool,
-    available: bool,
-) -> Element {
-    let (color, border, bg) = class_button_style(is_selected, available);
-    let onclick = if available {
-        CharCreateAction::SelectClass(class_id).to_string()
-    } else {
-        String::new()
-    };
-    let alpha = if available { "1.0" } else { "0.3" };
+fn icon(name: &str, fdid: u32, size: f32, disabled: bool) -> Element {
+    let alpha = if disabled { 0.25 } else { 1.0 };
     rsx! {
-        r#frame {
-            name: dyn_name(format!("Class_{class_id}")),
-            width: 56.0,
-            height: 72.0,
-            onclick,
-            border,
-            background_color: bg,
-            {class_icon_widget(class_id, icon_fdid, alpha)}
-            {class_name_label(class_id, name, color)}
+        texture { name: DynName(format!("{name}_Icon")), width: size, height: size,
+            texture_fdid: fdid, alpha,
+            pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
         }
     }
 }
 
-// --- Name input + create button ---
+fn tile_label(
+    frame_name: &str,
+    label: &str,
+    width: f32,
+    y: f32,
+    color: FontColor,
+    hidden: bool,
+) -> Element {
+    rsx! {
+        fontstring { name: DynName(format!("{frame_name}_Label")), width, height: 40.0,
+            text: label, hidden, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color,
+            pos_type: "absolute", left: "50%", top: y, translate_x: "-50%",
+        }
+    }
+}
 
-fn input_border_textures(center_texture: &str) -> [String; 9] {
+fn race_button(
+    id: u8,
+    name: &str,
+    fdid: u32,
+    faction: Faction,
+    selected: bool,
+    position: [f32; 2],
+) -> Element {
+    let frame_name = format!("Race_{id}");
+    let ring_atlas = match faction {
+        Faction::Alliance => "charactercreate-ring-alliance",
+        Faction::Horde => "charactercreate-ring-horde",
+    };
+    rsx! {
+        button { name: DynName(frame_name.clone()), width: 79.0, height: 79.0,
+            onclick: CharCreateAction::SelectRace(id),
+            button_atlas_highlight: "charactercreate-ring-select",
+            pos_type: "absolute", left: position[0], top: position[1],
+            {icon(&frame_name, fdid, 79.0, false)}
+            {ring(&frame_name, ring_atlas, [139.0, 140.0])}
+            {selection_ring(&frame_name, 118.0, selected)}
+            {tile_label(&frame_name, name, 112.0, 72.0, COLOR_GOLD, !selected)}
+        }
+    }
+}
+
+pub(super) fn faction_column(faction: Faction, state: &CharCreateUiState) -> Element {
+    let alliance = faction == Faction::Alliance;
+    let name = if alliance { "Alliance" } else { "Horde" };
+    let x = if alliance {
+        0.0
+    } else {
+        state.viewport_width as f32 - 250.0
+    };
+    let base_x = if alliance { 68.0 } else { 103.0 };
+    let allied_x = if alliance { 165.0 } else { 6.0 };
+    let races = RACES
+        .iter()
+        .filter(|race| race.faction == faction)
+        .collect::<Vec<_>>();
+    let base_count = races.iter().filter(|race| race.id < 27).count();
+    let space = state.viewport_height as f32 - 106.0 - NAV_HEIGHT - NAV_BOTTOM - 20.0;
+    let spacing = fit_spacing(space, base_count, 79.0, 18.0);
+    let (mut base_index, mut allied_index) = (0, 0);
+    let buttons: Element = races
+        .into_iter()
+        .flat_map(|race| {
+            let position = if race.id >= 27 {
+                let point = [allied_x, 174.0 + allied_index as f32 * (79.0 + spacing)];
+                allied_index += 1;
+                point
+            } else {
+                let point = [base_x, 106.0 + base_index as f32 * (79.0 + spacing)];
+                base_index += 1;
+                point
+            };
+            race_button(
+                race.id,
+                race.name,
+                race.icon_fdid,
+                faction,
+                race.id == state.selected_race,
+                position,
+            )
+        })
+        .collect();
+    let header_atlas = if alliance {
+        "charactercreate-icon-alliance"
+    } else {
+        "charactercreate-icon-horde"
+    };
+    let header_x = if alliance { 3.0 } else { 155.0 };
+    let text_x = if alliance { 77.0 } else { 6.0 };
+    let justify = if alliance {
+        JustifyH::Left
+    } else {
+        JustifyH::Right
+    };
+    rsx! {
+        r#frame { name: DynName(format!("{name}Races")), width: 250.0, height: "fill",
+            pos_type: "absolute", left: x, top: 0.0,
+            texture { name: DynName(format!("{name}Emblem")), width: 92.0, height: 100.0,
+                texture_atlas: header_atlas, pos_type: "absolute", left: header_x, top: 10.0,
+            }
+            fontstring { name: DynName(format!("{name}Label")), width: 167.0, height: 26.0,
+                text: name, font: GameFont::FrizQuadrata, font_size: 20.0, font_color: COLOR_GOLD, justify_h: justify,
+                pos_type: "absolute", left: text_x, top: 47.0,
+            }
+            {buttons}
+        }
+    }
+}
+
+pub(super) fn class_button(
+    id: u8,
+    name: &str,
+    fdid: u32,
+    selected: bool,
+    available: bool,
+    bounds: [f32; 3],
+) -> Element {
+    let frame_name = format!("Class_{id}");
+    let disabled = !available;
+    let ring_atlas = if disabled {
+        "charactercreate-ring-metaldark-disabled"
+    } else {
+        "charactercreate-ring-metaldark"
+    };
+    let color = if disabled {
+        COLOR_DISABLED
+    } else if selected {
+        COLOR_GOLD
+    } else {
+        COLOR_WHITE
+    };
+    let scale = bounds[2] / 67.0;
+    rsx! {
+        button { name: DynName(frame_name.clone()), width: bounds[2], height: bounds[2], disabled,
+            onclick: CharCreateAction::SelectClass(id),
+            button_atlas_highlight: "charactercreate-ring-select",
+            pos_type: "absolute", left: bounds[0], top: bounds[1],
+            {icon(&frame_name, fdid, bounds[2], disabled)}
+            {ring(&frame_name, ring_atlas, [116.0 * scale, 117.0 * scale])}
+            {selection_ring(&frame_name, 99.0 * scale, selected && available)}
+            {tile_label(&frame_name, name, 85.0 * scale, bounds[2] - 3.0, color, false)}
+        }
+    }
+}
+
+pub(super) fn category_button(
+    category: &CustomizationCategoryUi,
+    selected: bool,
+    x: f32,
+) -> Element {
+    let frame_name = format!("Category_{}", category.id);
+    let normal = category
+        .icon_atlas
+        .as_deref()
+        .map(|atlas| {
+            atlas_centered(
+                format!("{frame_name}_Icon"),
+                atlas,
+                104.0,
+                105.0,
+                selected && category.selected_icon_atlas.is_some(),
+            )
+        })
+        .unwrap_or_default();
+    let active = category
+        .selected_icon_atlas
+        .as_deref()
+        .map(|atlas| {
+            atlas_centered(
+                format!("{frame_name}_SelectedIcon"),
+                atlas,
+                104.0,
+                105.0,
+                !selected,
+            )
+        })
+        .unwrap_or_default();
+    let color = if selected { COLOR_GOLD } else { COLOR_WHITE };
+    rsx! {
+        button { name: DynName(frame_name.clone()), width: CATEGORY_WIDTH, height: CATEGORY_HEIGHT,
+            onclick: CharCreateAction::SelectCategory(category.id),
+            button_atlas_highlight: "charactercreate-ring-select",
+            pos_type: "absolute", left: x, top: 0.0,
+            {normal}
+            {active}
+            {ring(&frame_name, "charactercreate-ring-metallight", [108.0, 109.0])}
+            {selection_ring(&frame_name, 93.0, selected)}
+            {tile_label(&frame_name, &category.label, 104.0, 90.0, color, false)}
+        }
+    }
+}
+
+pub(super) fn small_button(
+    name: &str,
+    icon_atlas: &str,
+    action: CharCreateAction,
+    x: f32,
+    y: f32,
+) -> Element {
+    rsx! {
+        button { name: DynName(name.to_string()), width: 48.0, height: 48.0, onclick: action,
+            button_atlas_up: "common-button-square-gray-up",
+            button_atlas_pressed: "common-button-square-gray-down",
+            button_atlas_highlight: "common-button-square-gray-up",
+            pos_type: "absolute", left: x, top: y,
+            {atlas_centered(format!("{name}_Icon"), icon_atlas, 24.0, 23.0, false)}
+        }
+    }
+}
+
+pub(super) fn camera_controls() -> Element {
+    let controls = [
+        (CameraControl::Reset, "common-icon-undo", 0.0),
+        (CameraControl::ZoomOut, "common-icon-zoomout", 43.0),
+        (CameraControl::ZoomIn, "common-icon-zoomin", 86.0),
+        (CameraControl::RotateLeft, "common-icon-rotateleft", 159.0),
+        (CameraControl::RotateRight, "common-icon-rotateright", 202.0),
+    ];
+    let buttons: Element = controls
+        .into_iter()
+        .flat_map(|(control, atlas, x)| {
+            small_button(
+                &format!("Camera_{}", control.as_str()),
+                atlas,
+                CharCreateAction::Camera(control),
+                x,
+                0.0,
+            )
+        })
+        .collect();
+    rsx! {
+        r#frame { name: "CharCreateCameraControls", width: 250.0, height: 48.0,
+            pos_type: "absolute", left: 40.0, top: 30.0,
+            {buttons}
+        }
+    }
+}
+
+fn body_type_button(sex: u8, selected: bool, x: f32) -> Element {
+    let name = format!("CharCreateSex_{sex}");
+    let atlas = match (sex, selected) {
+        (0, false) => "charactercreate-gendericon-male",
+        (0, true) => "charactercreate-gendericon-male-selected",
+        (_, false) => "charactercreate-gendericon-female",
+        (_, true) => "charactercreate-gendericon-female-selected",
+    };
+    rsx! {
+        button { name: DynName(name.clone()), width: 46.0, height: 46.0,
+            onclick: CharCreateAction::SelectSex(sex),
+            button_atlas_highlight: "charactercreate-ring-select",
+            pos_type: "absolute", left: x, top: 0.0,
+            {atlas_centered(format!("{name}_Icon"), atlas, 46.0, 46.0, false)}
+            {ring(&name, "charactercreate-ring-metaldark", [99.0, 100.0])}
+            {selection_ring(&name, 84.0, selected)}
+        }
+    }
+}
+
+pub(super) fn body_type_buttons(state: &CharCreateUiState) -> Element {
+    let x = match state.mode {
+        CharCreateMode::RaceClass => (state.viewport_width as f32 - 114.0) / 2.0,
+        CharCreateMode::Customize => state.viewport_width as f32 - 41.0 - 114.0,
+    };
+    let y = if state.mode == CharCreateMode::RaceClass {
+        27.0
+    } else {
+        37.0
+    };
+    rsx! {
+        r#frame { name: "CharCreateBodyTypes", width: 114.0, height: 46.0,
+            pos_type: "absolute", left: x, top: y,
+            {body_type_button(0, state.selected_sex == 0, 0.0)}
+            {body_type_button(1, state.selected_sex == 1, 68.0)}
+        }
+    }
+}
+
+pub(super) fn name_input_field(state: &CharCreateUiState) -> Element {
     let base = "data/ui/Common-Input-Border-";
-    [
+    let center = if state.name_input_focused {
+        "data/textures/editbox-white-fill.ktx2"
+    } else {
+        "data/ui/Common-Input-Border-M.blp"
+    };
+    let textures = [
         format!("{base}TL.blp"),
         format!("{base}T.blp"),
         format!("{base}TR.blp"),
         format!("{base}L.blp"),
-        center_texture.to_string(),
+        center.to_string(),
         format!("{base}R.blp"),
         format!("{base}BL.blp"),
         format!("{base}B.blp"),
         format!("{base}BR.blp"),
-    ]
-}
-
-fn focused_name_editbox() -> Element {
-    let bg_color = "0.14,0.10,0.07,0.5";
-    let textures = input_border_textures("data/textures/editbox-white-fill.ktx2");
-    rsx! {
-        editbox {
-            name: CREATE_NAME_INPUT,
-            width: 300.0,
-            height: 38.0,
-            background_color: {bg_color},
-            font: GameFont::ArialNarrow,
-            font_size: 16.0,
-            font_color: COLOR_GOLD,
-            text_insets: "12,5,8,8",
-            nine_slice {
-                edge_size: 8,
-                bg_color: {bg_color},
-                border_color: "1.0,0.82,0.0,1.0",
-                textures: {textures},
-            }
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {28.0},
-        }
-    }
-}
-
-fn unfocused_name_editbox() -> Element {
-    let textures = input_border_textures("data/ui/Common-Input-Border-M.blp");
-    rsx! {
-        editbox {
-            name: CREATE_NAME_INPUT,
-            width: 300.0,
-            height: 38.0,
-            font: GameFont::ArialNarrow,
-            font_size: 16.0,
-            font_color: COLOR_GOLD,
-            text_insets: "12,5,8,8",
-            nine_slice {
-                edge_size: 8,
-                bg_color: "1,1,1,1",
-                border_color: "1,1,1,1",
-                textures: {textures},
-            }
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {28.0},
-        }
-    }
-}
-
-pub(super) fn name_input_field(focused: bool) -> Element {
-    let editbox = if focused {
-        focused_name_editbox()
+    ];
+    let bg = if state.name_input_focused {
+        "0.14,0.10,0.07,0.5"
     } else {
-        unfocused_name_editbox()
+        "1,1,1,1"
     };
+    let error_hidden = state.error_text.is_none();
+    let error = state.error_text.as_deref().unwrap_or("");
     rsx! {
-        fontstring {
-            name: "NameLabel",
-            width: 300.0,
-            height: 24.0,
-            text: "Character Name",
-            font: GameFont::FrizQuadrata,
-            font_size: 14.0,
-            font_color: COLOR_GOLD,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-        }
-        {editbox}
-    }
-}
-
-pub(super) fn error_label(error_text: Option<&str>) -> Element {
-    let error_hidden = error_text.is_none();
-    let text = error_text.unwrap_or("");
-    rsx! {
-        fontstring {
-            name: ERROR_TEXT,
-            width: 300.0,
-            height: 20.0,
-            text,
-            hidden: error_hidden,
-            font: GameFont::FrizQuadrata,
-            font_size: 12.0,
-            font_color: FontColor::new(1.0, 0.2, 0.2, 1.0),
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {70.0},
-        }
-    }
-}
-
-pub(super) fn create_confirm_button() -> Element {
-    rsx! {
-        button {
-            name: CREATE_BUTTON,
-            width: 205.0,
-            height: 42.0,
-            text: "Create Character",
-            font_size: 14.0,
-            onclick: CharCreateAction::CreateConfirm,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            pos_type: "absolute",
-            left: "50%",
-            top: "0%",
-            translate_x: "-50%",
-            margin_top: {96.0},
-        }
-    }
-}
-
-// --- Bottom buttons ---
-
-pub(super) fn back_button() -> Element {
-    rsx! {
-        button {
-            name: BACK_BUTTON,
-            width: 188.0,
-            height: 42.0,
-            text: "Back",
-            font_size: 14.0,
-            onclick: CharCreateAction::Back,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            pos_type: "absolute",
-            left: "0%",
-            top: "100%",
-            translate_y: "-100%",
-            margin_left: {12},
-            margin_top: {-60.0},
-        }
-    }
-}
-
-pub(super) fn next_button(hidden: bool) -> Element {
-    rsx! {
-        button {
-            name: NEXT_BUTTON,
-            width: 188.0,
-            height: 42.0,
-            text: "Next",
-            font_size: 14.0,
-            hidden,
-            onclick: CharCreateAction::NextMode,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            pos_type: "absolute",
-            left: "100%",
-            top: "100%",
-            translate_x: "-100%",
-            translate_y: "-100%",
-            margin_left: {-12},
-            margin_top: {-60.0},
-        }
-    }
-}
-
-pub(super) fn sex_toggle_button() -> Element {
-    rsx! {
-        button {
-            name: SEX_TOGGLE_BUTTON,
-            width: 140.0,
-            height: 42.0,
-            text: "Toggle Sex",
-            font_size: 14.0,
-            onclick: CharCreateAction::ToggleSex,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            pos_type: "absolute",
-            left: "50%",
-            top: "100%",
-            translate_x: "-50%",
-            translate_y: "-100%",
-            margin_left: {-96},
-            margin_top: {-60.0},
-        }
-    }
-}
-
-pub(super) fn randomize_button() -> Element {
-    rsx! {
-        button {
-            name: RANDOMIZE_BUTTON,
-            width: 140.0,
-            height: 42.0,
-            text: "Randomize",
-            font_size: 14.0,
-            onclick: CharCreateAction::Randomize,
-            button_atlas_up: BUTTON_ATLAS_UP,
-            button_atlas_pressed: BUTTON_ATLAS_PRESSED,
-            button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
-            button_atlas_disabled: BUTTON_ATLAS_DISABLED,
-            pos_type: "absolute",
-            left: "50%",
-            top: "100%",
-            translate_x: "-50%",
-            translate_y: "-100%",
-            margin_left: {96},
-            margin_top: {-60.0},
+        r#frame { name: "NamePanel", width: 400.0, height: 100.0,
+            pos_type: "absolute", left: "50%", top: 34.0, translate_x: "-50%",
+            fontstring { name: "NameLabel", width: 300.0, height: 24.0, text: "Name",
+                font: GameFont::FrizQuadrata, font_size: 20.0, font_color: COLOR_WHITE,
+                pos_type: "absolute", left: "50%", translate_x: "-50%", top: 0.0,
+            }
+            editbox { name: CREATE_NAME_INPUT, width: 300.0, height: 38.0, text: state.name.clone(),
+                font: GameFont::ArialNarrow, font_size: 16.0, font_color: COLOR_GOLD,
+                text_insets: "12,5,8,8",
+                nine_slice { edge_size: 8, bg_color: bg, border_color: "1,1,1,1", textures: textures, }
+                pos_type: "absolute", left: "50%", translate_x: "-50%", top: 26.0,
+            }
+            fontstring { name: ERROR_TEXT, width: 400.0, height: 30.0, text: error, hidden: error_hidden,
+                font: GameFont::FrizQuadrata, font_size: 12.0,
+                font_color: FontColor::new(1.0, 0.2, 0.2, 1.0),
+                pos_type: "absolute", left: 0.0, top: 70.0,
+            }
         }
     }
 }
 
 pub(super) fn bottom_buttons(mode: CharCreateMode) -> Element {
-    let hide_next = mode != CharCreateMode::RaceClass;
-    [
-        back_button(),
-        next_button(hide_next),
-        sex_toggle_button(),
-        randomize_button(),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
+    let (forward_name, text, action) = match mode {
+        CharCreateMode::RaceClass => (NEXT_BUTTON, "Customize", CharCreateAction::NextMode),
+        CharCreateMode::Customize => (
+            CREATE_BUTTON,
+            "Create Character",
+            CharCreateAction::CreateConfirm,
+        ),
+    };
+    rsx! {
+        button { name: BACK_BUTTON, width: NAV_WIDTH, height: NAV_HEIGHT,
+            text: "Back", font_size: 22.0, onclick: CharCreateAction::Back,
+            button_atlas_up: "glue-bigbutton-brown-up",
+            button_atlas_pressed: "glue-bigbutton-brown-down",
+            button_atlas_highlight: "glue-bigbutton-brown-highlight",
+            pos_type: "absolute", left: NAV_SIDE, bottom: NAV_BOTTOM,
+        }
+        button { name: forward_name, width: NAV_WIDTH, height: NAV_HEIGHT,
+            text, font_size: 22.0, onclick: action,
+            button_atlas_up: "glue-bigbutton-brown-up",
+            button_atlas_pressed: "glue-bigbutton-brown-down",
+            button_atlas_highlight: "glue-bigbutton-brown-highlight",
+            pos_type: "absolute", right: NAV_SIDE, bottom: NAV_BOTTOM,
+        }
+    }
 }

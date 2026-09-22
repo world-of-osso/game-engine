@@ -1,46 +1,24 @@
-#![allow(clippy::field_reassign_with_default)]
-
 use super::*;
-use crate::ui::frame::{Dimension, WidgetData};
+use crate::ui::frame::{Frame, WidgetData};
+use crate::ui::registry::FrameRegistry;
+use crate::ui::widgets::button::ButtonState;
 #[path = "../menu_character_layout_test_support.rs"]
 mod layout_support;
-use layout_support::compute_layout as recompute_layouts;
-
-fn rect_for_name(
-    reg: &crate::ui::registry::FrameRegistry,
-    name: &str,
-) -> crate::ui::layout::LayoutRect {
-    let id = reg
-        .get_by_name(name)
-        .unwrap_or_else(|| panic!("{name} frame should exist"));
-    reg.get(id)
-        .and_then(|frame| frame.layout_rect.clone())
-        .unwrap_or_else(|| panic!("{name} should have a layout rect"))
-}
 
 struct ScreenHarness {
     screen: ui_toolkit::screen::Screen,
-    shared: ui_toolkit::screen::SharedContext,
-    reg: crate::ui::registry::FrameRegistry,
+    shared: SharedContext,
+    reg: FrameRegistry,
 }
 
 impl ScreenHarness {
     fn new(state: CharCreateUiState) -> Self {
-        let mut shared = ui_toolkit::screen::SharedContext::new();
+        let mut reg = FrameRegistry::new(state.viewport_width as f32, state.viewport_height as f32);
+        let mut shared = SharedContext::new();
         shared.insert(state);
-        let mut reg = crate::ui::registry::FrameRegistry::new(1920.0, 1080.0);
         let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
         screen.sync(&shared, &mut reg);
-        let root = reg
-            .get_by_name(CHAR_CREATE_ROOT.0)
-            .expect("CharCreateRoot should exist");
-        let (screen_width, screen_height) = (reg.screen_width, reg.screen_height);
-        if let Some(frame) = reg.get_mut(root) {
-            frame.width = Dimension::Fixed(screen_width);
-            frame.height = Dimension::Fixed(screen_height);
-        }
-        reg.mark_all_rects_dirty();
-        recompute_layouts(&mut reg);
+        layout_support::compute_layout(&mut reg);
         Self {
             screen,
             shared,
@@ -51,669 +29,491 @@ impl ScreenHarness {
     fn sync(&mut self, state: CharCreateUiState) {
         self.shared.insert(state);
         self.screen.sync(&self.shared, &mut self.reg);
-        self.reg.mark_all_rects_dirty();
-        recompute_layouts(&mut self.reg);
+        layout_support::compute_layout(&mut self.reg);
     }
 }
 
-fn build_screen(state: CharCreateUiState) -> crate::ui::registry::FrameRegistry {
-    ScreenHarness::new(state).reg
+fn frame<'a>(reg: &'a FrameRegistry, name: &str) -> &'a Frame {
+    reg.get_by_name(name)
+        .and_then(|id| reg.get(id))
+        .unwrap_or_else(|| panic!("{name} should exist"))
 }
 
-fn font_text(reg: &crate::ui::registry::FrameRegistry, name: &str) -> String {
-    let id = reg
-        .get_by_name(name)
-        .unwrap_or_else(|| panic!("{name} frame should exist"));
-    reg.get(id)
-        .and_then(|frame| match &frame.widget_data {
-            Some(WidgetData::FontString(data)) => Some(data.text.clone()),
-            _ => None,
-        })
-        .unwrap_or_else(|| panic!("{name} should be a fontstring"))
+fn rect(reg: &FrameRegistry, name: &str) -> crate::ui::layout::LayoutRect {
+    frame(reg, name)
+        .layout_rect
+        .clone()
+        .unwrap_or_else(|| panic!("{name} should have native bounds"))
+}
+
+fn assert_rect(reg: &FrameRegistry, name: &str, expected: [f32; 4]) {
+    let r = rect(reg, name);
+    for (actual, expected) in [r.x, r.y, r.width, r.height].into_iter().zip(expected) {
+        assert!(
+            (actual - expected).abs() < 0.02,
+            "{name}: {r:?} vs {expected}"
+        );
+    }
+}
+
+fn font_text(reg: &FrameRegistry, name: &str) -> &str {
+    match &frame(reg, name).widget_data {
+        Some(WidgetData::FontString(data)) => &data.text,
+        _ => panic!("{name} should be text"),
+    }
+}
+
+fn action(reg: &FrameRegistry, name: &str) -> CharCreateAction {
+    CharCreateAction::parse(frame(reg, name).onclick.as_deref().unwrap_or(""))
+        .unwrap_or_else(|| panic!("{name} should dispatch an action"))
+}
+
+fn choice(id: u32, label: &str) -> CustomizationChoiceUi {
+    CustomizationChoiceUi {
+        id,
+        label: label.to_string(),
+        swatch: None,
+        secondary_swatch: None,
+        enabled: true,
+    }
+}
+
+fn option(id: u32, label: &str) -> CustomizationOptionUi {
+    CustomizationOptionUi {
+        id,
+        label: label.to_string(),
+        ui_type: 0,
+        selected_choice_id: 70001,
+        choices: vec![
+            choice(70001, "Amber"),
+            choice(70005, "Blue"),
+            choice(70100, "Violet"),
+        ],
+        enabled: true,
+        disabled_reason: None,
+    }
+}
+
+fn customize_state() -> CharCreateUiState {
+    CharCreateUiState {
+        mode: CharCreateMode::Customize,
+        categories: vec![
+            CustomizationCategoryUi {
+                id: 3,
+                label: "Hair".into(),
+                icon_atlas: Some("charactercreate-icon-customize-hair".into()),
+                selected_icon_atlas: Some("charactercreate-icon-customize-hair-selected".into()),
+            },
+            CustomizationCategoryUi {
+                id: 23,
+                label: "Eyes".into(),
+                icon_atlas: Some("charactercreate-icon-customize-head".into()),
+                selected_icon_atlas: Some("charactercreate-icon-customize-head-selected".into()),
+            },
+        ],
+        selected_category: 23,
+        options: vec![
+            option(22, "Eye Color"),
+            option(8789, "Ears"),
+            option(525, "Face Shape"),
+        ],
+        name: "Aeloria".into(),
+        ..Default::default()
+    }
 }
 
 #[test]
-fn action_roundtrip() {
+fn retail_creation_reference_navigation_and_tiles() {
+    let harness = ScreenHarness::new(CharCreateUiState::default());
+    let reg = &harness.reg;
+    assert_rect(reg, "Race_1", [68.0, 106.0, 79.0, 79.0]);
+    let class = rect(reg, "Class_1");
+    assert_eq!((class.width, class.height), (67.0, 67.0));
+    assert_eq!(class.y + class.height, 1080.0 - 62.0);
+    assert_rect(reg, BACK_BUTTON.0, [46.0, 986.0, 250.0, 66.0]);
+    assert_rect(reg, NEXT_BUTTON.0, [1624.0, 986.0, 250.0, 66.0]);
+}
+
+#[test]
+fn retail_creation_reference_customization_column() {
+    let harness = ScreenHarness::new(customize_state());
+    let panel = rect(&harness.reg, "CustomizePanel");
+    assert_eq!(panel.x + panel.width, 1920.0 - 33.0);
+    assert_eq!(panel.y, 297.0);
+    assert_rect(&harness.reg, "Camera_reset", [40.0, 30.0, 48.0, 48.0]);
+    assert_rect(&harness.reg, "Category_23", [1796.0, 166.0, 104.0, 105.0]);
+}
+
+#[test]
+fn actions_preserve_full_option_and_choice_ids() {
     let actions = [
-        CharCreateAction::SelectRace(2),
+        CharCreateAction::SelectRace(29),
         CharCreateAction::SelectClass(5),
-        CharCreateAction::ToggleSex,
+        CharCreateAction::SelectSex(1),
         CharCreateAction::Randomize,
         CharCreateAction::NextMode,
         CharCreateAction::Back,
-        CharCreateAction::AppearanceInc(AppearanceField::HairStyle),
-        CharCreateAction::AppearanceDec(AppearanceField::Face),
-        CharCreateAction::ToggleDropdown(AppearanceField::SkinColor),
-        CharCreateAction::SelectChoice(AppearanceField::HairColor, 5),
+        CharCreateAction::SelectCategory(23),
+        CharCreateAction::AdjustOption(8789, -1),
+        CharCreateAction::AdjustOption(8789, 1),
+        CharCreateAction::ToggleOption(525),
+        CharCreateAction::SelectOptionChoice(8789, 70005),
         CharCreateAction::CreateConfirm,
+        CharCreateAction::Camera(CameraControl::Reset),
+        CharCreateAction::Camera(CameraControl::ZoomIn),
+        CharCreateAction::Camera(CameraControl::ZoomOut),
+        CharCreateAction::Camera(CameraControl::RotateLeft),
+        CharCreateAction::Camera(CameraControl::RotateRight),
     ];
-    for action in &actions {
-        let s = action.to_string();
-        let parsed = CharCreateAction::parse(&s).unwrap_or_else(|| panic!("failed to parse '{s}'"));
-        assert_eq!(&parsed, action);
+    for value in actions {
+        assert_eq!(CharCreateAction::parse(&value.to_string()), Some(value));
+    }
+    for malformed in [
+        "select_sex:2",
+        "adjust_option:1:0",
+        "adjust_option:1:300",
+        "select_category:3:extra",
+        "appearance_inc:skin",
+        "select_option_choice:1",
+        "camera:unknown",
+    ] {
+        assert!(CharCreateAction::parse(malformed).is_none(), "{malformed}");
     }
 }
 
 #[test]
-fn screen_builds_with_default_state() {
-    let reg = build_screen(CharCreateUiState::default());
-    assert!(reg.get_by_name("CharCreateRoot").is_some());
-    assert!(reg.get_by_name("CharCreateBack").is_some());
-    assert!(reg.get_by_name("CharCreateRandomize").is_some());
-}
-
-#[test]
-fn customize_mode_shows_appearance_options() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    let reg = build_screen(state);
-    assert!(reg.get_by_name("CustomizePanel").is_some());
-    assert!(reg.get_by_name("CharCreateNameInput").is_some());
-    assert!(reg.get_by_name("CharCreateRandomize").is_some());
-}
-
-#[test]
-fn customize_mode_shows_create_error_text() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.error_text = Some("Name already exists".to_string());
-
-    let reg = build_screen(state);
-    let error = reg
-        .get_by_name(ERROR_TEXT.0)
-        .and_then(|id| reg.get(id))
-        .expect("CharCreateError should exist");
-
-    assert!(!error.hidden, "expected create error label to be visible");
-    assert_eq!(font_text(&reg, ERROR_TEXT.0), "Name already exists");
-}
-
-#[test]
-fn customize_mode_shows_choice_names_for_non_color_options() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.face_label = "Calm".to_string();
-    state.hair_style_label = "Bald".to_string();
-    state.facial_style_label = "Goatee".to_string();
-
-    let reg = build_screen(state);
-
-    assert_eq!(font_text(&reg, "AppVal_face"), "Calm");
-    assert_eq!(font_text(&reg, "AppVal_hair_style"), "Bald");
-    assert_eq!(font_text(&reg, "AppVal_facial"), "Goatee");
-}
-
-#[test]
-fn dropdown_panel_background_is_fully_opaque() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.open_dropdown = Some(AppearanceField::SkinColor);
-    state.skin_color_swatches = vec![Some([64, 32, 16])];
-
-    let reg = build_screen(state);
-    let dropdown = reg
-        .get_by_name("Dropdown_skin")
-        .and_then(|id| reg.get(id))
-        .expect("Dropdown_skin frame should exist");
-    let bg = dropdown
-        .background_color
-        .expect("Dropdown_skin should have a background color");
-
-    assert!(
-        (bg[3] - 1.0).abs() < f32::EPSILON,
-        "expected opaque dropdown bg, got {bg:?}"
-    );
-}
-
-#[test]
-fn swatch_preview_is_centered_between_stepper_buttons() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.skin_color_swatches = vec![Some([64, 32, 16])];
-
-    let reg = build_screen(state);
-    let dec = rect_for_name(&reg, "AppDec_skin");
-    let swatch = rect_for_name(&reg, "AppSwatchArea_skin");
-    let inc = rect_for_name(&reg, "AppInc_skin");
-
-    let button_gap_center = ((dec.x + dec.width) + inc.x) * 0.5;
-    let swatch_center = swatch.x + swatch.width * 0.5;
-
-    assert!(
-        (swatch_center - button_gap_center).abs() < 0.01,
-        "expected swatch center {swatch_center} to match button gap center {button_gap_center}"
-    );
-}
-
-fn assert_rect(
-    reg: &crate::ui::registry::FrameRegistry,
-    name: &str,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-) {
-    let r = rect_for_name(reg, name);
-    assert_eq!((r.x, r.y, r.width, r.height), (x, y, w, h), "{name}");
-}
-
-fn build_skin_dropdown_screen() -> crate::ui::registry::FrameRegistry {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.open_dropdown = Some(AppearanceField::SkinColor);
-    state.skin_color_swatches = vec![Some([64, 32, 16]), Some([96, 48, 24]), Some([128, 64, 32])];
-    state.skin_color = 1;
-    build_screen(state)
-}
-
-#[test]
-fn skin_dropdown_positions_match_expected_layout() {
-    let reg = build_skin_dropdown_screen();
-
-    assert_rect(&reg, "Dropdown_skin", 20.0, 156.0, 282.0, 36.0);
-    assert_rect(&reg, "DropChoice_skin_0", 24.0, 160.0, 44.0, 28.0);
-    assert_rect(&reg, "DropChoice_skin_1", 70.0, 160.0, 44.0, 28.0);
-    assert_rect(&reg, "DropChoice_skin_2", 116.0, 160.0, 44.0, 28.0);
-    assert_rect(&reg, "DropSwatch_skin_1", 72.0, 164.0, 40.0, 20.0);
-    assert_rect(&reg, "DropSel_skin_1", 64.0, 160.0, 48.0, 28.0);
-}
-
-#[test]
-fn dropdown_children_inherit_dialog_strata() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.open_dropdown = Some(AppearanceField::SkinColor);
-    state.skin_color_swatches = vec![Some([64, 32, 16])];
-
-    let reg = build_screen(state);
-    let dropdown = reg
-        .get_by_name("Dropdown_skin")
-        .and_then(|id| reg.get(id))
-        .expect("Dropdown_skin should exist");
-    let choice = reg
-        .get_by_name("DropChoice_skin_0")
-        .and_then(|id| reg.get(id))
-        .expect("DropChoice_skin_0 should exist");
-    let swatch = reg
-        .get_by_name("DropSwatch_skin_0")
-        .and_then(|id| reg.get(id))
-        .expect("DropSwatch_skin_0 should exist");
-
-    assert_eq!(dropdown.strata, crate::ui::strata::FrameStrata::Dialog);
-    assert_eq!(choice.strata, crate::ui::strata::FrameStrata::Dialog);
-    assert_eq!(swatch.strata, crate::ui::strata::FrameStrata::Dialog);
-}
-
-#[test]
-fn dropdown_background_expands_to_cover_all_swatch_choices() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.open_dropdown = Some(AppearanceField::SkinColor);
-    state.skin_color_swatches = (0..40)
-        .map(|i| Some([(20 + i) as u8, (40 + i) as u8, (60 + i) as u8]))
-        .collect();
-
-    let reg = build_screen(state);
-    let dropdown = rect_for_name(&reg, "Dropdown_skin");
-    let last_choice = rect_for_name(&reg, "DropChoice_skin_39");
-
-    assert!(
-        last_choice.y + last_choice.height <= dropdown.y + dropdown.height,
-        "expected dropdown to cover all choices, got dropdown={dropdown:?} last_choice={last_choice:?}"
-    );
-}
-
-#[test]
-fn skin_dropdown_opens_below_its_label_row() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.open_dropdown = Some(AppearanceField::SkinColor);
-    state.skin_color_swatches = vec![Some([64, 32, 16])];
-
-    let reg = build_screen(state);
-    let label = rect_for_name(&reg, "AppLabel_skin");
-    let dropdown = rect_for_name(&reg, "Dropdown_skin");
-
-    assert!(
-        dropdown.y >= label.y + label.height,
-        "expected dropdown below label row, got label={label:?} dropdown={dropdown:?}"
-    );
-}
-
-#[test]
-fn hair_dropdown_aligns_with_customize_panel_and_opens_below_row() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-    state.open_dropdown = Some(AppearanceField::HairColor);
-    state.hair_color_swatches = vec![Some([64, 32, 16]), Some([96, 48, 24])];
-
-    let reg = build_screen(state);
-    let panel = rect_for_name(&reg, "CustomizePanel");
-    let label = rect_for_name(&reg, "AppLabel_hair_color");
-    let dropdown = rect_for_name(&reg, "Dropdown_hair_color");
-
-    assert_eq!(dropdown.x, panel.x);
-    assert!(
-        dropdown.y >= label.y + label.height,
-        "expected hair dropdown below label row, got label={label:?} dropdown={dropdown:?}"
-    );
-}
-
-#[test]
-fn name_panel_controls_stack_with_spacing() {
-    let mut state = CharCreateUiState::default();
-    state.mode = CharCreateMode::Customize;
-
-    let reg = build_screen(state);
-    let name_label = rect_for_name(&reg, "NameLabel");
-    let name_input = rect_for_name(&reg, "CharCreateNameInput");
-    let create_button = rect_for_name(&reg, "CharCreateButton");
-
-    assert!(
-        name_input.y >= name_label.y + name_label.height,
-        "expected name input below label, got label={name_label:?} input={name_input:?}"
-    );
-    assert!(
-        create_button.y >= name_input.y + name_input.height,
-        "expected create button below input, got input={name_input:?} button={create_button:?}"
-    );
-    assert!(
-        create_button.y > name_input.y + name_input.height,
-        "expected visible gap between input and create button, got input={name_input:?} button={create_button:?}"
-    );
-}
-
-#[test]
-fn name_input_exists_in_all_dropdown_states() {
-    // Verify the editbox frame exists for every possible open_dropdown value
-    let dropdowns: Vec<Option<AppearanceField>> = vec![
-        None,
-        Some(AppearanceField::SkinColor),
-        Some(AppearanceField::Face),
-        Some(AppearanceField::HairStyle),
-        Some(AppearanceField::HairColor),
-        Some(AppearanceField::FacialStyle),
-    ];
-    for dropdown in &dropdowns {
-        let mut state = CharCreateUiState::default();
-        state.mode = CharCreateMode::Customize;
-        state.open_dropdown = *dropdown;
-        state.skin_color_swatches = vec![Some([64, 32, 16])];
-        state.hair_color_swatches = vec![Some([64, 32, 16])];
-        let reg = build_screen(state);
-        assert!(
-            reg.get_by_name("CharCreateNameInput").is_some(),
-            "name input should exist when open_dropdown={dropdown:?}"
-        );
-        assert!(
-            reg.get_by_name("NameLabel").is_some(),
-            "name label should exist when open_dropdown={dropdown:?}"
-        );
-        let input_rect = rect_for_name(&reg, "CharCreateNameInput");
-        assert!(
-            input_rect.width > 0.0 && input_rect.height > 0.0,
-            "name input should have size when open_dropdown={dropdown:?}, got {input_rect:?}"
-        );
-    }
-}
-
-#[test]
-fn name_panel_stays_on_screen_after_dropdown_toggle() {
-    let mut harness = ScreenHarness::new({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s
-    });
-
-    // Check initial position
-    let initial_panel = rect_for_name(&harness.reg, "NamePanel");
-    let screen_h = harness.reg.screen_height;
-    assert!(
-        initial_panel.y + initial_panel.height <= screen_h,
-        "NamePanel should be on screen initially, got {initial_panel:?} screen_h={screen_h}"
-    );
-
-    // Toggle face dropdown and re-sync
-    harness.sync({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s.open_dropdown = Some(AppearanceField::Face);
-        s
-    });
-
-    let after_panel = rect_for_name(&harness.reg, "NamePanel");
-    assert!(
-        after_panel.y + after_panel.height <= screen_h,
-        "NamePanel should stay on screen after dropdown toggle, got {after_panel:?} screen_h={screen_h}"
-    );
-    assert!(
-        after_panel.y >= 0.0,
-        "NamePanel should not go above screen, got {after_panel:?}"
-    );
-
-    // Also check the root frame size hasn't changed
-    let root_id = harness.reg.get_by_name(CHAR_CREATE_ROOT.0).unwrap();
-    let root = harness.reg.get(root_id).unwrap();
-    assert_eq!(
-        root.resolved_width(),
-        1920.0,
-        "root width should stay at screen width"
-    );
-    assert_eq!(
-        root.resolved_height(),
-        1080.0,
-        "root height should stay at screen height"
-    );
-}
-
-#[test]
-fn name_input_not_present_in_race_class_mode() {
-    // The editbox only exists in Customize mode. Starting in RaceClass means
-    // any one-time setup targeting the editbox by ID will miss it.
+fn every_supported_race_and_class_remains_present_and_hittable() {
     let harness = ScreenHarness::new(CharCreateUiState::default());
-    assert!(
-        harness.reg.get_by_name("CharCreateNameInput").is_none(),
-        "name input should not exist in RaceClass mode"
-    );
-}
-
-#[test]
-fn name_input_created_on_customize_mode_switch() {
-    let mut harness = ScreenHarness::new(CharCreateUiState::default());
-    harness.sync({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s
-    });
-    let id = harness
-        .reg
-        .get_by_name("CharCreateNameInput")
-        .expect("name input should exist after switching to Customize mode");
-    let frame = harness.reg.get(id).unwrap();
-    assert!(
-        frame.nine_slice.is_some(),
-        "name input should have nine_slice backdrop from RSX after mode switch"
-    );
-}
-
-#[test]
-fn name_input_survives_dropdown_toggle() {
-    let mut harness = ScreenHarness::new({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s
-    });
-
-    // Verify editbox exists initially
-    assert!(
-        harness.reg.get_by_name("CharCreateNameInput").is_some(),
-        "name input should exist before dropdown toggle"
-    );
-
-    // Open face dropdown and re-sync
-    harness.sync({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s.open_dropdown = Some(AppearanceField::Face);
-        s
-    });
-
-    // Editbox must still exist
-    assert!(
-        harness.reg.get_by_name("CharCreateNameInput").is_some(),
-        "name input should survive face dropdown toggle"
-    );
-    let name_input = rect_for_name(&harness.reg, "CharCreateNameInput");
-    assert!(
-        name_input.width > 0.0 && name_input.height > 0.0,
-        "name input should have non-zero size after dropdown toggle, got {name_input:?}"
-    );
-}
-
-fn editbox_background_color(reg: &crate::ui::registry::FrameRegistry) -> Option<[f32; 4]> {
-    let id = reg.get_by_name("CharCreateNameInput")?;
-    let frame = reg.get(id)?;
-    frame.background_color
-}
-
-fn editbox_center_texture(reg: &crate::ui::registry::FrameRegistry) -> Option<String> {
-    let id = reg.get_by_name("CharCreateNameInput")?;
-    let frame = reg.get(id)?;
-    let ns = frame.nine_slice.as_ref()?;
-    let parts = ns.part_textures.as_ref()?;
-    match &parts[4] {
-        crate::ui::widgets::texture::TextureSource::File(path) => Some(path.clone()),
-        _ => None,
+    for race in crate::char_create_data::RACES {
+        let name = format!("Race_{}", race.id);
+        assert_eq!(
+            action(&harness.reg, &name),
+            CharCreateAction::SelectRace(race.id)
+        );
+        let r = rect(&harness.reg, &name);
+        let hit = ui_toolkit::input::find_frame_at(
+            &harness.reg,
+            r.x + r.width / 2.0,
+            r.y + r.height / 2.0,
+        )
+        .expect("race center should receive input");
+        assert_eq!(hit, frame(&harness.reg, &name).id);
     }
-}
-
-#[test]
-fn editbox_background_color_changes_on_focus() {
-    let mut harness = ScreenHarness::new({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s
-    });
-
-    let unfocused_center =
-        editbox_center_texture(&harness.reg).expect("editbox should have a center texture");
-    assert!(
-        unfocused_center.ends_with("Common-Input-Border-M.blp"),
-        "unfocused state should match pre-77f891b center texture, got {unfocused_center}"
-    );
-    assert!(
-        editbox_background_color(&harness.reg).is_none(),
-        "unfocused state should not use a frame background_color"
-    );
-
-    // Switch to focused
-    harness.sync({
-        let mut s = CharCreateUiState::default();
-        s.mode = CharCreateMode::Customize;
-        s.name_input_focused = true;
-        s
-    });
-
-    let focused_center = editbox_center_texture(&harness.reg)
-        .expect("editbox should have a center texture after focus");
-    assert!(
-        focused_center.ends_with("editbox-white-fill.ktx2"),
-        "focused state should use the white-fill center texture, got {focused_center}"
-    );
-    let focused_background = editbox_background_color(&harness.reg)
-        .expect("editbox should have a backdrop color after focus");
-    assert!(
-        focused_background[0] > 0.1,
-        "focused background should be visibly warm, got {focused_background:?}"
-    );
-    assert!(
-        !focused_center.ends_with("Common-Input-Border-M.blp"),
-        "focused state should differ from the unfocused original center texture"
-    );
-}
-
-#[test]
-fn race_buttons_have_onclick_action() {
-    let reg = build_screen(CharCreateUiState::default());
-    let race_2_id = reg
-        .get_by_name("Race_2")
-        .expect("Race_2 frame should exist in RaceClass mode");
-    // Walk up from Race_2 to find onclick
-    let mut id = race_2_id;
-    let mut onclick = None;
-    loop {
-        if let Some(f) = reg.get(id) {
-            if f.onclick.is_some() {
-                onclick = f.onclick.clone();
-                break;
-            }
-            if let Some(parent) = f.parent_id {
-                id = parent;
-                continue;
-            }
-        }
-        break;
-    }
-    assert_eq!(
-        onclick.as_deref(),
-        Some("select_race:2"),
-        "Race_2 button should have onclick 'select_race:2', got {onclick:?}"
-    );
-}
-
-#[test]
-fn race_and_class_labels_keep_shared_tile_style_with_expected_offsets() {
-    let reg = build_screen(CharCreateUiState::default());
-
-    let race_label = reg
-        .frames_iter()
-        .find(|frame| {
-            frame
-                .name
-                .as_deref()
-                .is_some_and(|name| name.starts_with("Race_") && name.ends_with("_Label"))
-        })
-        .expect("at least one race label frame");
-    let class_label = reg
-        .frames_iter()
-        .find(|frame| {
-            frame
-                .name
-                .as_deref()
-                .is_some_and(|name| name.starts_with("Class_") && name.ends_with("_Label"))
-        })
-        .expect("at least one class label frame");
-
-    assert_eq!(race_label.resolved_width(), 72.0);
-    assert_eq!(race_label.resolved_height(), 24.0);
-    assert_eq!(class_label.resolved_width(), 72.0);
-    assert_eq!(class_label.resolved_height(), 24.0);
-
-    let Some(WidgetData::FontString(race_font)) = race_label.widget_data.as_ref() else {
-        panic!("race label should be a fontstring");
-    };
-    let Some(WidgetData::FontString(class_font)) = class_label.widget_data.as_ref() else {
-        panic!("class label should be a fontstring");
-    };
-    assert_eq!(race_font.font_size, 8.0);
-    assert_eq!(class_font.font_size, 8.0);
-
-    for (label, inset) in [(race_label, 4.0), (class_label, 2.0)] {
-        let parent = reg.get(label.parent_id.unwrap()).unwrap();
-        let label_rect = label.layout_rect.as_ref().unwrap();
-        let parent_rect = parent.layout_rect.as_ref().unwrap();
+    for class in crate::char_create_data::CLASSES {
         assert!(
-            (parent_rect.y + parent_rect.height - label_rect.y - label_rect.height - inset).abs()
-                < 1.0
+            harness
+                .reg
+                .get_by_name(&format!("Class_{}", class.id))
+                .is_some()
         );
     }
 }
 
 #[test]
-fn race_button_onclick_survives_race_change_sync() {
+fn unavailable_classes_are_disabled_and_selected_race_updates_in_place() {
     let mut harness = ScreenHarness::new(CharCreateUiState::default());
-
-    // Change selected race to orc
-    let mut new_state = CharCreateUiState::default();
-    new_state.selected_race = 2;
-    harness.sync(new_state);
-
-    // Race_2 button should still have its onclick after the sync that changed selected race
-    let race_2_id = harness
-        .reg
-        .get_by_name("Race_2")
-        .expect("Race_2 should exist after sync");
-    let onclick = harness.reg.get(race_2_id).unwrap().onclick.clone();
+    let id = frame(&harness.reg, "Race_2").id;
+    let disabled_class = frame(&harness.reg, "Class_11");
+    assert!(
+        matches!(&disabled_class.widget_data, Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled)
+    );
+    harness.sync(CharCreateUiState {
+        selected_race: 2,
+        ..Default::default()
+    });
+    assert_eq!(frame(&harness.reg, "Race_2").id, id);
+    assert!(!frame(&harness.reg, "Race_2_Selected").hidden);
+    assert!(frame(&harness.reg, "Race_1_Selected").hidden);
     assert_eq!(
-        onclick.as_deref(),
-        Some("select_race:2"),
-        "Race_2 onclick should survive a sync that changes selected_race, got {onclick:?}"
+        action(&harness.reg, "Race_2"),
+        CharCreateAction::SelectRace(2)
     );
 }
 
 #[test]
-fn race_button_onclick_survives_screen_sync() {
+fn class_buttons_wrap_to_two_rows_without_overlapping_navigation() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        viewport_width: 1280,
+        viewport_height: 900,
+        ..Default::default()
+    });
+    let back = rect(&harness.reg, BACK_BUTTON.0);
+    let next = rect(&harness.reg, NEXT_BUTTON.0);
+    let first = rect(&harness.reg, "Class_1");
+    let last = rect(&harness.reg, "Class_11");
+    assert!(
+        last.y > first.y,
+        "ten classes should span two rows at this width"
+    );
+    for class in crate::char_create_data::CLASSES {
+        let r = rect(&harness.reg, &format!("Class_{}", class.id));
+        assert!(r.x > back.x + back.width && r.x + r.width < next.x);
+        assert!(r.y + r.height <= 900.0 - 62.0);
+    }
+}
+
+#[test]
+fn dynamic_categories_and_all_option_rows_dispatch_by_identity() {
+    let harness = ScreenHarness::new(customize_state());
+    assert_eq!(
+        action(&harness.reg, "Category_3"),
+        CharCreateAction::SelectCategory(3)
+    );
+    for (id, label) in [(22, "Eye Color"), (8789, "Ears"), (525, "Face Shape")] {
+        assert_eq!(font_text(&harness.reg, &format!("OptionLabel_{id}")), label);
+        assert_eq!(
+            action(&harness.reg, &format!("OptionToggle_{id}")),
+            CharCreateAction::ToggleOption(id)
+        );
+        assert_eq!(
+            action(&harness.reg, &format!("OptionInc_{id}")),
+            CharCreateAction::AdjustOption(id, 1)
+        );
+    }
+    for control in [
+        CameraControl::Reset,
+        CameraControl::ZoomIn,
+        CameraControl::ZoomOut,
+        CameraControl::RotateLeft,
+        CameraControl::RotateRight,
+    ] {
+        assert_eq!(
+            action(&harness.reg, &format!("Camera_{}", control.as_str())),
+            CharCreateAction::Camera(control)
+        );
+    }
+    assert_eq!(
+        action(&harness.reg, "CharCreateRandomize"),
+        CharCreateAction::Randomize
+    );
+    assert_eq!(
+        action(&harness.reg, "CharCreateSex_1"),
+        CharCreateAction::SelectSex(1)
+    );
+}
+
+#[test]
+fn category_change_removes_old_controls_without_replacing_name_input() {
+    let state = customize_state();
+    let mut harness = ScreenHarness::new(state.clone());
+    let name_id = frame(&harness.reg, CREATE_NAME_INPUT.0).id;
+    harness.sync(CharCreateUiState {
+        selected_category: 3,
+        options: vec![option(890, "Eyebrows")],
+        ..state
+    });
+    assert!(harness.reg.get_by_name("Option_22").is_none());
+    assert!(harness.reg.get_by_name("Option_890").is_some());
+    assert_eq!(frame(&harness.reg, CREATE_NAME_INPUT.0).id, name_id);
+    assert!(!frame(&harness.reg, "Category_3_Selected").hidden);
+}
+
+#[test]
+fn non_color_dropdown_preserves_authored_order_and_choice_ids() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    for (index, (id, label)) in [(70001, "Amber"), (70005, "Blue"), (70100, "Violet")]
+        .into_iter()
+        .enumerate()
+    {
+        let name = format!("OptionChoice_22_{id}");
+        assert_eq!(
+            action(&harness.reg, &name),
+            CharCreateAction::SelectOptionChoice(22, id)
+        );
+        assert_eq!(font_text(&harness.reg, &format!("{name}_Text")), label);
+        assert_eq!(
+            rect(&harness.reg, &name).y,
+            rect(&harness.reg, "Dropdown_22").y + index as f32 * 20.0
+        );
+        assert_eq!(frame(&harness.reg, &name).strata, FrameStrata::Dialog);
+    }
+}
+
+#[test]
+fn unnamed_choices_remain_numbered_and_split_swatches_keep_authored_colors() {
+    let mut opt = option(22, "Eye Color");
+    opt.choices[0] = CustomizationChoiceUi {
+        id: 70001,
+        label: String::new(),
+        swatch: Some([128, 32, 16]),
+        secondary_swatch: Some([20, 80, 160]),
+        enabled: true,
+    };
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![opt],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    assert_eq!(font_text(&harness.reg, "OptionValue_22_Text"), "1");
+    for (suffix, expected) in [
+        ("Swatch", [128.0 / 255.0, 32.0 / 255.0, 16.0 / 255.0, 1.0]),
+        (
+            "SecondarySwatch",
+            [20.0 / 255.0, 80.0 / 255.0, 160.0 / 255.0, 1.0],
+        ),
+    ] {
+        let data = &frame(&harness.reg, &format!("OptionChoice_22_70001_{suffix}")).widget_data;
+        assert!(
+            matches!(data, Some(WidgetData::Texture(texture)) if texture.vertex_color == expected)
+        );
+    }
+}
+
+#[test]
+fn long_popup_uses_columns_and_keeps_every_choice_on_screen() {
+    let mut opt = option(22, "Eye Color");
+    opt.choices = (0..130)
+        .map(|index| choice(80000 + index, &format!("Color {index}")))
+        .collect();
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![opt],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let first = rect(&harness.reg, "OptionChoice_22_80000");
+    let last = rect(&harness.reg, "OptionChoice_22_80129");
+    assert!(
+        last.x > first.x,
+        "fixture must actually exercise additional columns"
+    );
+    for index in 0..130 {
+        let r = rect(&harness.reg, &format!("OptionChoice_22_{}", 80000 + index));
+        assert!(
+            r.x >= 0.0 && r.y >= 0.0 && r.x + r.width <= 1920.0 && r.y + r.height <= 1080.0,
+            "choice {index}: {r:?}"
+        );
+    }
+}
+
+#[test]
+fn option_spacing_compresses_without_clipping_at_shorter_viewport() {
+    let options = (0..12)
+        .map(|id| option(100 + id, "Customization"))
+        .collect();
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options,
+        viewport_height: 900,
+        ..customize_state()
+    });
+    assert_eq!(rect(&harness.reg, "CustomizePanel").y, 267.0);
+    let mut bottom = 0.0;
+    for id in 100..112 {
+        let r = rect(&harness.reg, &format!("Option_{id}"));
+        assert!(r.y >= bottom);
+        assert!(r.y + r.height < 900.0 - 94.0);
+        bottom = r.y + r.height;
+    }
+}
+
+#[test]
+fn checkbox_uses_two_actual_choice_ids_and_selected_mark() {
+    let opt = CustomizationOptionUi {
+        ui_type: 1,
+        choices: vec![choice(3, "No"), choice(9, "Yes")],
+        selected_choice_id: 9,
+        ..option(24, "Upright")
+    };
+    let state = CharCreateUiState {
+        options: vec![opt.clone()],
+        ..customize_state()
+    };
+    let mut harness = ScreenHarness::new(state.clone());
+    assert_eq!(
+        action(&harness.reg, "OptionCheck_24"),
+        CharCreateAction::SelectOptionChoice(24, 3)
+    );
+    assert!(!frame(&harness.reg, "OptionCheck_24_Mark").hidden);
+    harness.sync(CharCreateUiState {
+        options: vec![CustomizationOptionUi {
+            selected_choice_id: 3,
+            ..opt
+        }],
+        ..state
+    });
+    assert_eq!(
+        action(&harness.reg, "OptionCheck_24"),
+        CharCreateAction::SelectOptionChoice(24, 9)
+    );
+    assert!(frame(&harness.reg, "OptionCheck_24_Mark").hidden);
+}
+
+#[test]
+fn disabled_options_explain_unavailable_controls_and_disabled_choices_stay_disabled() {
+    let blocked = CustomizationOptionUi {
+        enabled: false,
+        disabled_reason: Some("Unsupported model effect".into()),
+        ..option(24, "Posture")
+    };
+    let mut selectable = option(22, "Eye Color");
+    selectable.choices[1].enabled = false;
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![blocked, selectable],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    assert_eq!(
+        font_text(&harness.reg, "OptionReason_24"),
+        "Unsupported model effect"
+    );
+    assert!(harness.reg.get_by_name("OptionToggle_24").is_none());
+    assert!(
+        matches!(&frame(&harness.reg, "OptionChoice_22_70005").widget_data, Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled)
+    );
+}
+
+#[test]
+fn missing_control_support_is_explicit_not_a_silent_dropdown() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![CustomizationOptionUi {
+            ui_type: 2,
+            ..option(77, "Height")
+        }],
+        ..customize_state()
+    });
+    assert_eq!(
+        font_text(&harness.reg, "OptionReason_77"),
+        "This control type is not supported"
+    );
+    assert!(harness.reg.get_by_name("OptionToggle_77").is_none());
+}
+
+#[test]
+fn name_focus_text_and_errors_survive_popup_rebuilds() {
+    let state = CharCreateUiState {
+        error_text: Some("Name already exists".into()),
+        ..customize_state()
+    };
+    let mut harness = ScreenHarness::new(state.clone());
+    let name_id = frame(&harness.reg, CREATE_NAME_INPUT.0).id;
+    harness.sync(CharCreateUiState {
+        open_dropdown: Some(22),
+        name_input_focused: true,
+        ..state
+    });
+    let input = frame(&harness.reg, CREATE_NAME_INPUT.0);
+    assert_eq!(input.id, name_id);
+    assert!(
+        matches!(&input.widget_data, Some(WidgetData::EditBox(edit)) if edit.text == "Aeloria")
+    );
+    assert_eq!(font_text(&harness.reg, ERROR_TEXT.0), "Name already exists");
+    assert_rect(&harness.reg, "NamePanel", [760.0, 34.0, 400.0, 100.0]);
+    assert_eq!(
+        action(&harness.reg, CREATE_BUTTON.0),
+        CharCreateAction::CreateConfirm
+    );
+}
+
+#[test]
+fn name_entry_is_only_created_in_customize_mode() {
     let mut harness = ScreenHarness::new(CharCreateUiState::default());
-
-    // Verify onclick exists before sync
-    let race_2_id = harness
-        .reg
-        .get_by_name("Race_2")
-        .expect("Race_2 should exist");
-    let before = harness.reg.get(race_2_id).unwrap().onclick.clone();
-
-    // Sync with same state (simulates update loop)
+    assert!(harness.reg.get_by_name(CREATE_NAME_INPUT.0).is_none());
+    harness.sync(customize_state());
+    assert!(harness.reg.get_by_name(CREATE_NAME_INPUT.0).is_some());
+    assert!(harness.reg.get_by_name(NEXT_BUTTON.0).is_none());
     harness.sync(CharCreateUiState::default());
-
-    let after = harness.reg.get(race_2_id).unwrap().onclick.clone();
-    assert_eq!(
-        before, after,
-        "screen.sync should preserve onclick on Race_2"
-    );
-    assert!(
-        after.is_some(),
-        "Race_2 onclick should not be None after sync"
-    );
-}
-
-#[test]
-fn name_input_not_visible_in_race_class_mode() {
-    let reg = build_screen(CharCreateUiState::default());
-    let name_input = reg.get_by_name(CREATE_NAME_INPUT.0);
-    if let Some(id) = name_input {
-        let frame = reg.get(id).unwrap();
-        assert!(
-            !frame.visible || frame.hidden,
-            "name input should not be visible/active in RaceClass mode"
-        );
-    }
-    // If name_input is None, that's also fine — it doesn't exist in this mode
-}
-
-#[test]
-fn race_button_is_mouse_enabled() {
-    let reg = build_screen(CharCreateUiState::default());
-    let race_2_id = reg
-        .get_by_name("Race_2")
-        .expect("Race_2 frame should exist");
-    let frame = reg.get(race_2_id).unwrap();
-    assert!(
-        frame.mouse_enabled,
-        "Race_2 must be mouse_enabled for hit testing"
-    );
-}
-
-#[test]
-fn race_button_is_hittable_at_its_center() {
-    let reg = build_screen(CharCreateUiState::default());
-    let race_2_id = reg
-        .get_by_name("Race_2")
-        .expect("Race_2 frame should exist");
-    let rect = rect_for_name(&reg, "Race_2");
-    let cx = rect.x + rect.width / 2.0;
-    let cy = rect.y + rect.height / 2.0;
-    let hit = ui_toolkit::input::find_frame_at(&reg, cx, cy);
-    // The hit should be Race_2 or a descendant of Race_2
-    let hit_id = hit.expect("click at Race_2 center should hit a frame");
-    let mut id = hit_id;
-    let mut found_race_2 = id == race_2_id;
-    while !found_race_2 {
-        if let Some(f) = reg.get(id) {
-            if let Some(parent) = f.parent_id {
-                if parent == race_2_id {
-                    found_race_2 = true;
-                } else {
-                    id = parent;
-                }
-            } else {
-                break;
-            }
-        } else {
-            break;
-        }
-    }
-    assert!(
-        found_race_2,
-        "clicking at Race_2 center ({cx:.0}, {cy:.0}) should hit Race_2 or a descendant, got frame id {hit_id}"
-    );
+    assert!(harness.reg.get_by_name(CREATE_NAME_INPUT.0).is_none());
+    assert!(harness.reg.get_by_name(CREATE_BUTTON.0).is_none());
 }
