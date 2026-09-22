@@ -53,7 +53,7 @@ impl Fixture {
         sync_screen_state(
             &mut screen,
             &mut self.registry,
-            &self.state,
+            &mut self.state,
             &self.db,
             focused,
         );
@@ -102,6 +102,22 @@ impl Fixture {
         assert_eq!(self.generation(), generation);
         assert!(self.registry.render_dirty.is_empty());
     }
+}
+
+#[test]
+fn creation_name_survives_back_and_next_navigation() {
+    let mut fixture = Fixture::new();
+    fixture.state.mode = CharCreateMode::Customize;
+    fixture.sync(false);
+    let input = fixture.registry.get_by_name(CREATE_NAME_INPUT.0).unwrap();
+    insert_char_into_editbox(&mut fixture.registry, input, "DraftProof");
+    fixture.sync(true);
+    fixture.state.mode = CharCreateMode::RaceClass;
+    fixture.sync(false);
+    fixture.state.mode = CharCreateMode::Customize;
+    fixture.sync(false);
+    let input = fixture.registry.get_by_name(CREATE_NAME_INPUT.0).unwrap();
+    assert_eq!(get_editbox_text(&fixture.registry, input), "DraftProof");
 }
 
 #[test]

@@ -59,6 +59,7 @@ pub(super) fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> C
             )
         }),
         mode: state.mode,
+        name: state.name.clone(),
         selected_race: state.selected_race,
         selected_class: state.selected_class,
         selected_sex: state.selected_sex,
