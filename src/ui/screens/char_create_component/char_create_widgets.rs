@@ -387,16 +387,16 @@ pub(super) fn bottom_buttons(mode: CharCreateMode) -> Element {
     };
     rsx! {
         button { name: BACK_BUTTON, width: NAV_WIDTH, height: NAV_HEIGHT,
-            text: "Back", font_size: 22.0, onclick: CharCreateAction::Back,
+            text: "", onclick: CharCreateAction::Back,
             button_default_skin: false,
             pos_type: "absolute", left: NAV_SIDE, bottom: NAV_BOTTOM,
-            {navigation_layers(BACK_BUTTON.0, NAV_WIDTH, NAV_HEIGHT)}
+            {navigation_layers(BACK_BUTTON.0, "Back", NAV_WIDTH, NAV_HEIGHT)}
         }
         button { name: forward_name, width: NAV_WIDTH, height: NAV_HEIGHT,
-            text, font_size: 22.0, onclick: action,
+            text: "", onclick: action,
             button_default_skin: false,
             pos_type: "absolute", right: NAV_SIDE, bottom: NAV_BOTTOM,
-            {navigation_layers(forward_name.0, NAV_WIDTH, NAV_HEIGHT)}
+            {navigation_layers(forward_name.0, text, NAV_WIDTH, NAV_HEIGHT)}
         }
     }
 }

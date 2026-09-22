@@ -6,6 +6,7 @@ use crate::ui::frame::WidgetData;
 use crate::ui::plugin::UiState;
 use crate::ui::registry::FrameRegistry;
 use crate::ui::widgets::button::ButtonState;
+use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 use crate::ui::widgets::texture::TextureSource;
 
 use super::{BACK_BUTTON, CREATE_BUTTON, DynName, NEXT_BUTTON};
@@ -34,7 +35,7 @@ fn part_widths(width: f32, height: f32) -> [f32; 3] {
     [left, width - left - right, right]
 }
 
-pub(super) fn navigation_layers(name: &str, width: f32, height: f32) -> Element {
+pub(super) fn navigation_layers(name: &str, label: &str, width: f32, height: f32) -> Element {
     let [left_width, center_width, right_width] = part_widths(width, height);
     let center_x = left_width;
     let right_x = center_x + center_width;
@@ -51,6 +52,12 @@ pub(super) fn navigation_layers(name: &str, width: f32, height: f32) -> Element 
         texture { name: DynName(format!("{name}_Highlight")), width, height,
             texture_atlas: HIGHLIGHT, pos_type: "absolute", left: 0.0, top: 0.0,
             hidden: true,
+        }
+        fontstring { name: DynName(format!("{name}_Label")), width, height,
+            text: label, font: GameFont::FrizQuadrata, font_size: 22.0,
+            font_color: FontColor::new(1.0, 0.82, 0.0, 1.0),
+            justify_h: JustifyH::Center,
+            pos_type: "absolute", left: 0.0, top: 0.0,
         }
     }
 }
@@ -100,6 +107,33 @@ fn sync_navigation_highlight(registry: &mut FrameRegistry, name: &str, visible: 
     }
 }
 
+fn sync_navigation_label(registry: &mut FrameRegistry, name: &str, state: ButtonState) {
+    let label_name = format!("{name}_Label");
+    let Some(id) = registry.get_by_name(&label_name) else {
+        warn!("Character-creation navigation art missing label {label_name}");
+        return;
+    };
+    let color = match state {
+        ButtonState::Normal => [1.0, 0.82, 0.0, 1.0],
+        ButtonState::Pushed => [0.8, 0.65, 0.0, 1.0],
+        ButtonState::Disabled => [0.5, 0.5, 0.5, 1.0],
+    };
+    let current = registry.get(id).and_then(|frame| match &frame.widget_data {
+        Some(WidgetData::FontString(text)) => Some(text.color),
+        _ => None,
+    });
+    if current == Some(color) {
+        return;
+    }
+    if let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::FontString(text)) = &mut frame.widget_data
+    {
+        text.color = color;
+    } else {
+        warn!("Character-creation navigation label {label_name} is not text");
+    }
+}
+
 fn sync_button(registry: &mut FrameRegistry, name: &str) {
     let Some(id) = registry.get_by_name(name) else {
         return;
@@ -124,6 +158,7 @@ fn sync_button(registry: &mut FrameRegistry, name: &str) {
         );
     }
     sync_navigation_highlight(registry, name, show_highlight);
+    sync_navigation_label(registry, name, state);
 }
 
 /// Keep only the three authored parts and hover overlay in sync with the live
