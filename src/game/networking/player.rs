@@ -466,11 +466,11 @@ fn apply_mounted_visual(
 fn apply_character_visual(
     params: &mut ReplicatedPlayerCustomizationParams,
     entity: Entity,
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     resolved_equipment: &crate::equipment_appearance::ResolvedEquipmentAppearance,
 ) {
     crate::character_customization::apply_character_customization(
-        &selection,
+        selection,
         &params.customization_db,
         &params.char_tex,
         Some(resolved_equipment),
@@ -622,7 +622,7 @@ fn apply_player_customization_for_entity(
     equipment_snapshot: NetEquipmentAppearance,
     mount_display_id: Option<u32>,
 ) {
-    let mut resolved_equipment = resolve_player_equipment(params, &equipment_snapshot, selection);
+    let mut resolved_equipment = resolve_player_equipment(params, &equipment_snapshot, &selection);
     let replacement_player = {
         let (_, player, _, _, applied, _) = params
             .player_query
@@ -634,13 +634,13 @@ fn apply_player_customization_for_entity(
                 .explicit_slots
                 .extend(previous.equipment.entries.iter().map(|entry| entry.slot));
         }
-        player_model_changed(applied, selection, mount_display_id).then(|| player.clone())
+        player_model_changed(applied, &selection, mount_display_id).then(|| player.clone())
     };
     // Publish deduplication state before model insertion observers run.
     insert_applied_player_appearance(
         params,
         entity,
-        selection,
+        selection.clone(),
         equipment_snapshot,
         mount_display_id,
     );
@@ -653,14 +653,14 @@ fn apply_player_customization_for_entity(
             return;
         }
     } else if mount_display_id.is_none() {
-        apply_character_visual(params, entity, selection, &resolved_equipment);
+        apply_character_visual(params, entity, &selection, &resolved_equipment);
     }
     apply_runtime_equipment_snapshot(params, entity, &resolved_equipment);
 }
 
 fn player_model_changed(
     applied: Option<&AppliedPlayerAppearance>,
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     mount_display_id: Option<u32>,
 ) -> bool {
     applied.is_some_and(|previous| {
@@ -674,7 +674,7 @@ fn player_model_changed(
 fn resolve_player_equipment(
     params: &ReplicatedPlayerCustomizationParams,
     equipment_snapshot: &NetEquipmentAppearance,
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
 ) -> ResolvedEquipmentAppearance {
     equipment_appearance::resolve_equipment_appearance(
         equipment_snapshot,
@@ -711,7 +711,7 @@ fn restore_character_visual(
     params.commands.queue(move |world: &mut World| {
         world
             .run_system_once(move |mut params: ReplicatedPlayerCustomizationParams| {
-                apply_character_visual(&mut params, entity, selection, &resolved_equipment);
+                apply_character_visual(&mut params, entity, &selection, &resolved_equipment);
                 apply_runtime_equipment_snapshot(&mut params, entity, &resolved_equipment);
             })
             .expect("restored character customization must have its registered resources");
