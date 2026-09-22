@@ -28,6 +28,12 @@ Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD mod
 
 **Bone remapping**: vertex bone indices are global skeleton indices. The skin file's bone lookup table maps local (per-submesh) indices to global indices and must be applied via `remap_bone_indices()`.
 
+## Character-creation choice application
+
+Core appearance indexes and ordered additional `(option_id, choice_id)` selections must resolve into one effective set of customization choices before material/geoset application. Core selectors remain canonical for their corresponding option; additional pairs only select other options. This prevents default ears or a second index domain from competing with an authored extra choice.
+
+The local catalog now carries direct/related material and geoset elements, but also marks choices with element effects the renderer does not yet apply. Those choices must remain visibly unsupported rather than be represented as working appearance changes. General requirement/visibility IDs are data, not an implemented unlock evaluator. Renderer integration and end-to-end proof are tracked in [[character-creation]].
+
 ## Geoset System
 
 `mesh_part_id = (group * 100) + variant`. Variant 0 = hidden, variant 1+ = visible. Key groups:

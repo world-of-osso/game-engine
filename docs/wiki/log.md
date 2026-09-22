@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-22] character creation | Record staged full-customization boundaries
+
+The selected local Retail Interface files define reference layout/control behavior. Engine catalog work surfaces 1,147 authored options in 59 categories with order, icon, swatch, requirement and unsupported-effect metadata; automatic cache refresh replaces manual cache repair. Shared and server commits preserve non-core `(option_id, choice_id)` selections through historic-bitcode upgrade, creation, reopen and roster. This records staged data/persistence capability only: generic control integration, effective renderer proof, general eligibility evaluation, circular portrait masking and rendered parity remain open. See [[character-creation]].
+
 ## [2026-09-22] ui | Stage additional character-customization selections
 
 Shared `9123a5f` retains the existing six appearance selectors plus `sex` and adds disjoint authored `(option_id, choice_id)` selections. Engine `6ca0a28d` updates barber, export, and IPC consumers to preserve owned appearance values. This is staged representation plumbing only; full character-customization UI, renderer, persistence verification, and acceptance remain open in [character-creation](../../specs/character-creation.md).
