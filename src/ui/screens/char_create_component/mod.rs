@@ -1,5 +1,6 @@
 mod appearance_widgets;
 mod char_create_widgets;
+pub mod navigation_art;
 mod reference_layout;
 mod view_model;
 

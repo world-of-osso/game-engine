@@ -4,6 +4,7 @@ use ui_toolkit::widget_def::Element;
 use crate::char_create_data::{Faction, RACES, RaceInfo};
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
+use super::navigation_art::navigation_layers;
 use super::reference_layout::*;
 use super::{
     BACK_BUTTON, COLOR_DISABLED, COLOR_GOLD, COLOR_WHITE, CREATE_BUTTON, CREATE_NAME_INPUT,
@@ -387,17 +388,15 @@ pub(super) fn bottom_buttons(mode: CharCreateMode) -> Element {
     rsx! {
         button { name: BACK_BUTTON, width: NAV_WIDTH, height: NAV_HEIGHT,
             text: "Back", font_size: 22.0, onclick: CharCreateAction::Back,
-            button_atlas_up: "glue-bigbutton-brown-up",
-            button_atlas_pressed: "glue-bigbutton-brown-down",
-            button_atlas_highlight: "glue-bigbutton-brown-highlight",
+            button_default_skin: false,
             pos_type: "absolute", left: NAV_SIDE, bottom: NAV_BOTTOM,
+            {navigation_layers(BACK_BUTTON.0, NAV_WIDTH, NAV_HEIGHT)}
         }
         button { name: forward_name, width: NAV_WIDTH, height: NAV_HEIGHT,
             text, font_size: 22.0, onclick: action,
-            button_atlas_up: "glue-bigbutton-brown-up",
-            button_atlas_pressed: "glue-bigbutton-brown-down",
-            button_atlas_highlight: "glue-bigbutton-brown-highlight",
+            button_default_skin: false,
             pos_type: "absolute", right: NAV_SIDE, bottom: NAV_BOTTOM,
+            {navigation_layers(forward_name.0, NAV_WIDTH, NAV_HEIGHT)}
         }
     }
 }
