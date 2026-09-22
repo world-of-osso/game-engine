@@ -16,7 +16,7 @@ Shared protocol and server persistence preserve additional pairs through creatio
 
 ## Reference assets
 
-Race/class icons and the customization atlas resolve through local CASC FileDataIDs. Build-pinned Wago DB2 CSV exports for `12.1.0.69875` establish the palette bounds on atlas 708 / FDID `1253496`: `charactercreate-customize-palette` is `[519,471..603,491]`; `-half` is `[729,471..813,491]`. Earlier CSV metadata instead selected a yellow ornament. Fresh local-CASC extraction matched the cached BLP byte-for-byte, so `ui-toolkit` `78c67e7` corrects metadata, not asset bytes. Engine native source-pixel RED/GREEN is `a55af09f`.
+Race/class icons and the customization atlas resolve through local CASC FileDataIDs. Build-pinned Wago DB2 CSV exports for `12.1.0.69875` establish the palette bounds on atlas 708 / FDID `1253496`: `charactercreate-customize-palette` is `[519,471..603,491]`; `-half` is `[729,471..813,491]`. Earlier CSV metadata instead selected a yellow ornament. Fresh local-CASC extraction matched the cached BLP byte-for-byte, so `ui-toolkit` `78c67e7` corrects metadata, not asset bytes. The matching slice-data export also gives `common-dropdown-c-bg` element 25590 asymmetric nine-slice margins 23/18/23/28. Engine `83490974` applies that `NineSlice` after either `Screen::sync` path; a whole-image stretch is incorrect. Native source-pixel RED/GREEN is `a55af09f`.
 
 Dropdown rows follow local Retail `MenuStyle2` content insets (left 3, top 6, right 3, bottom 7). Single-column details occupy 116 pixels plus ResizeLayoutFrame padding for a 144-pixel row. Multi-column rows use 107 pixels for colors, 136 for names, and 70 for numeric choices; those widths determine column packing. A selectable color starts after the 25-pixel number field. Dual colors use half-palette then full-palette art, secondary-only colors occupy the first slot, and the selected 51×20 outline starts four pixels before that effective first swatch. Engine `4cfb538f`, `9761008e`, and `627cb5d6` implement these rules. Atlas crop and native-layout proof are not full rendered parity, and native additive glow remains unsupported.
 
@@ -24,12 +24,12 @@ Dropdown rows follow local Retail `MenuStyle2` content insets (left 3, top 6, ri
 
 - General `ChrCustomizationReq` evaluation is unavailable locally; requirement and visibility IDs are preserved but not interpreted as Retail account/unlock policy.
 - Partial material/geoset output does not prove every element effect for that choice is rendered; unsupported-only choices remain disabled.
-- Final rendered dropdown comparison, additive swatch glow, and full Retail visual parity remain unproven. Catalog/control integration, camera interaction and create/save/reload acceptance have separate evidence boundaries.
+- Final rendered dropdown comparison, additive swatch glow, and full Retail visual parity remain unproven. Nine-part background projection, opaque center, label ordering and idle-state dirty behavior have native coverage; runtime/final verification remains separate. Catalog/control integration, camera interaction and create/save/reload acceptance have separate evidence boundaries.
 
 ## Sources
 
 - [character-creation spec](../../specs/character-creation.md) — product contract and gaps
-- `https://wago.tools/db2/{UiTextureAtlas,UiTextureAtlasElement,UiTextureAtlasMember}/csv?build=12.1.0.69875` — build-pinned metadata exports saved under `data/diagnostics/charcreate-button-style-20260922/build-12.1.0.69875/`
+- `https://wago.tools/db2/{UiTextureAtlas,UiTextureAtlasElement,UiTextureAtlasMember,UiTextureAtlasElementSliceData}/csv?build=12.1.0.69875` — build-pinned metadata exports saved under `data/diagnostics/charcreate-button-style-20260922/build-12.1.0.69875/`
 - [UI system](ui-system.md) — registry/native UI and asset projection
 - [character rendering](character-rendering.md) — material/geoset application
 - [asset pipeline](asset-pipeline.md) — local CASC/FileDataID contract

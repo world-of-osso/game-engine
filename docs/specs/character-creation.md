@@ -13,7 +13,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Child-art race, class, body-type and category buttons opt out of the toolkit default skin so only explicitly authored layers paint; camera controls retain their separately authored square treatment.
 - [x] Present the DB category `Mirror` (ID 23) as an authored normal/selected icon tab, without a permanent raw-category caption.
 - [x] Render Back, Next and Create with authored Retail red left/center/right slices that retain asymmetric cap proportions; synchronize pressed, disabled and hover-highlight state before native projection. Keep labels above all artwork, preserving wording, font and state colors. Slices must meet on physical-pixel boundaries without gaps or overlap at scale factors 1.0, 1.15, 1.25 and 1.5.
-- [x] Lay out dropdown choices column-major: one column through 10 choices, then two through 24, three through 36 and four above that, compacting for the popup anchor, viewport and 100-pixel margin. Include MenuStyle2 content insets 3/6/3/7 and its stretched background; use subtle hover opacity.
+- [x] Lay out dropdown choices column-major: one column through 10 choices, then two through 24, three through 36 and four above that, compacting for the popup anchor, viewport and 100-pixel margin. Include MenuStyle2 content insets 3/6/3/7 and element 25590's asymmetric 23/18/23/28 nine-slice background; use subtle hover opacity.
 - [x] Size dropdown rows from Retail content: 144 single-column, then 107 multi-column color, 136 multi-column named text, or 70 multi-column numeric-only. Derive columns from those widths.
 - [x] Render a first swatch after the selectable 25-pixel number field; use half then full palette artwork for dual colors, support secondary-only colors, and anchor the 51×20 selected outline four pixels before the first effective swatch.
 - [x] Keep choices and primary controls within tested viewport bounds; disabled controls must not emit selection actions.
@@ -53,7 +53,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 ## Tests asserting this spec
 
-- `src/ui/screens/char_create_component/mod_tests.rs` — reference geometry, popup insets, content-dependent columns, swatch/outline placement, hit areas, choice identity, disabled controls and popup/name stability.
+- `src/ui/screens/char_create_component/mod_tests.rs` — reference geometry, popup insets, content-dependent columns, swatch/outline placement, dropdown nine-slice projection, hit areas, choice identity, disabled controls and popup/name stability.
 - `tests/unit/charcreate_button_background_tests.rs` — child-art controls project no default root image; Mirror icon tab projects authored pixels without a permanent caption.
 - `src/ui/screens/char_create_component/navigation_art_tests.rs` — exact local-CASC slice crops, asymmetric geometry, physical-pixel-contiguous slices at 1.0/1.15/1.25/1.5 scale, native label-over-art ordering/style and live normal/pressed/disabled/hover state synchronization.
 - `tests/unit/{char_create_tests,char_create_shared_tests,char_create_response_tests,character_customization_tests}.rs` — selection, request loopback, response and render-effect behavior.
@@ -65,7 +65,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 ## Known gaps (current cycle)
 
-- [ ] Final rendered dropdown acceptance remains pending. Build `12.1.0.69875` metadata maps `charactercreate-customize-palette` to `[519,471..603,491]` and `-half` to `[729,471..813,491]`; `ui-toolkit` `78c67e7` applies those bounds. Fresh local-CASC assets matched the cache, so this was metadata drift, not stale BLP bytes. Engine `a55af09f` provides native source-pixel RED/GREEN; engine `4cfb538f`, `9761008e` and `627cb5d6` cover reference dropdown layout and layers. Runtime and independent final checks remain pending.
+- [ ] Final rendered dropdown acceptance remains pending. Build `12.1.0.69875` metadata maps `charactercreate-customize-palette` to `[519,471..603,491]` and `-half` to `[729,471..813,491]`; `ui-toolkit` `78c67e7` applies those bounds. Element 25590 additionally requires asymmetric 23/18/23/28 nine-slice margins, applied after both screen-sync paths by `83490974`. Fresh local-CASC assets matched the cache, so these were metadata drift, not stale BLP bytes. Native nine-part projection, opaque center, label ordering and idle-dirty tests pass; runtime and final verification remain pending.
 - [ ] Pixel-perfect Retail visual parity has not been established. The contracts above are source-, layout- and native-layer-tested; no uninspected screenshot comparison or pixel-parity claim is made. Native additive glow, tooltip/hold-repeat details and unsupported effect families are not claimed complete.
 - [ ] Local `ChrCustomizationReq.csv` is absent. General account/unlock eligibility is not implemented; existing class filtering is not full retail eligibility parity.
 - [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
