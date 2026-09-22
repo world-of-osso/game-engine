@@ -362,7 +362,7 @@ fn non_color_dropdown_preserves_authored_order_and_choice_ids() {
         assert_eq!(font_text(&harness.reg, &format!("{name}_Text")), label);
         assert_eq!(
             rect(&harness.reg, &name).y,
-            rect(&harness.reg, "Dropdown_22").y + index as f32 * 20.0
+            rect(&harness.reg, "Dropdown_22").y + POPUP_INSET_TOP + index as f32 * 20.0
         );
         assert_eq!(frame(&harness.reg, &name).strata, FrameStrata::Dialog);
     }

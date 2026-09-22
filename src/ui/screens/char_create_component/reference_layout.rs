@@ -12,6 +12,10 @@ pub(super) const CATEGORY_WIDTH: f32 = 104.0;
 pub(super) const CATEGORY_TOP: f32 = 166.0;
 pub(super) const CHOICE_WIDTH: f32 = 172.0;
 pub(super) const CHOICE_HEIGHT: f32 = 20.0;
+pub(super) const POPUP_INSET_LEFT: f32 = 3.0;
+pub(super) const POPUP_INSET_TOP: f32 = 6.0;
+pub(super) const POPUP_INSET_RIGHT: f32 = 3.0;
+pub(super) const POPUP_INSET_BOTTOM: f32 = 7.0;
 
 pub(super) fn fit_spacing(space: f32, count: usize, size: f32, base: f32) -> f32 {
     if count == 0 {
@@ -92,15 +96,16 @@ pub(super) fn popup_layout(viewport: [u32; 2], count: usize, anchor_bottom: f32)
     let rows_below = ((viewport[1] as f32 - anchor_bottom - 100.0) / CHOICE_HEIGHT)
         .floor()
         .max(1.0) as usize;
-    let columns_available = ((viewport[0] as f32 - 60.0) / CHOICE_WIDTH)
+    let columns_available = ((viewport[0] as f32 - 60.0 - POPUP_INSET_LEFT - POPUP_INSET_RIGHT)
+        / CHOICE_WIDTH)
         .floor()
         .max(1.0) as usize;
     let columns = base_columns
         .max(count.div_ceil(rows_below))
         .min(columns_available);
     let rows = count.div_ceil(columns).max(1);
-    let width = columns as f32 * CHOICE_WIDTH;
-    let height = rows as f32 * CHOICE_HEIGHT;
+    let width = columns as f32 * CHOICE_WIDTH + POPUP_INSET_LEFT + POPUP_INSET_RIGHT;
+    let height = rows as f32 * CHOICE_HEIGHT + POPUP_INSET_TOP + POPUP_INSET_BOTTOM;
     let right = viewport[0] as f32 - OPTION_RIGHT - 36.5;
     PopupLayout {
         x: (right - width).max(30.0),

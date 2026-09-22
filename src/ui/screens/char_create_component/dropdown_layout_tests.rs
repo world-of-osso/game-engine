@@ -7,7 +7,7 @@ fn authored_choice_counts_set_popup_columns_before_compaction() {
         let layout = popup_layout([1280, 989], count, 305.0);
         assert_eq!(
             layout.width,
-            columns as f32 * CHOICE_WIDTH,
+            columns as f32 * CHOICE_WIDTH + POPUP_INSET_LEFT + POPUP_INSET_RIGHT,
             "{count} choices"
         );
         assert_eq!(layout.rows, count.div_ceil(columns), "{count} choices");
@@ -21,7 +21,10 @@ fn authored_choice_counts_set_popup_columns_before_compaction() {
 #[test]
 fn popup_compacts_against_its_anchor_without_losing_viewport_bounds() {
     let layout = popup_layout([1280, 989], 36, 680.0);
-    assert_eq!(layout.width, 4.0 * CHOICE_WIDTH);
+    assert_eq!(
+        layout.width,
+        4.0 * CHOICE_WIDTH + POPUP_INSET_LEFT + POPUP_INSET_RIGHT
+    );
     assert_eq!(layout.rows, 9);
     assert!(layout.y >= 30.0 && layout.y + layout.height <= 959.0);
 
@@ -50,7 +53,7 @@ fn native_dropdown_keeps_all_choices_in_column_major_identity_order() {
     };
     let harness = ScreenHarness::new(state);
     let panel = rect(&harness.reg, "Dropdown_22");
-    let rows = (panel.height / CHOICE_HEIGHT) as usize;
+    let rows = ((panel.height - POPUP_INSET_TOP - POPUP_INSET_BOTTOM) / CHOICE_HEIGHT) as usize;
     assert!(rows > 1 && rows < 130);
     let first = rect(&harness.reg, "OptionChoice_22_80000");
     let second_column = rect(&harness.reg, &format!("OptionChoice_22_{}", 80000 + rows));
@@ -169,6 +172,90 @@ fn selected_swatch_uses_retail_selection_art_without_a_row_wide_bar() {
             .is_none(),
         "retail highlights its selected swatch and text, not the whole row"
     );
+}
+
+#[test]
+fn popup_insets_rows_and_bounds_match_menu_style_two() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let panel = rect(&harness.reg, "Dropdown_22");
+    let first = rect(&harness.reg, "OptionChoice_22_70001");
+    let last = rect(&harness.reg, "OptionChoice_22_70100");
+    assert_eq!(
+        [panel.width, panel.height],
+        [CHOICE_WIDTH + 6.0, 3.0 * CHOICE_HEIGHT + 13.0]
+    );
+    assert_eq!([first.x - panel.x, first.y - panel.y], [3.0, 6.0]);
+    assert_eq!(last.y + last.height, panel.y + panel.height - 7.0);
+}
+
+#[test]
+fn palette_swatches_follow_selection_number_and_retail_two_color_art() {
+    let mut opt = option(22, "Eye Color");
+    opt.choices[0].swatch = Some([128, 32, 16]);
+    opt.choices[0].secondary_swatch = Some([20, 80, 160]);
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![opt],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let details = rect(&harness.reg, "OptionChoice_22_70001_Details");
+    let first = rect(&harness.reg, "OptionChoice_22_70001_Swatch");
+    let second = rect(&harness.reg, "OptionChoice_22_70001_SecondarySwatch");
+    let outline = rect(&harness.reg, "OptionChoice_22_70001_SelectedSwatch");
+    assert_eq!([first.x - details.x, first.y - details.y], [25.0, 5.0]);
+    assert_eq!([second.x - first.x, second.y - first.y], [18.0, 2.0]);
+    assert_eq!(outline.x - first.x, -4.0);
+    for (name, atlas) in [
+        (
+            "OptionChoice_22_70001_Swatch",
+            "charactercreate-customize-palette-half",
+        ),
+        (
+            "OptionChoice_22_70001_SecondarySwatch",
+            "charactercreate-customize-palette",
+        ),
+    ] {
+        assert!(
+            matches!(
+                &frame(&harness.reg, name).widget_data,
+                Some(WidgetData::Texture(texture)) if texture.source == TextureSource::Atlas(atlas.to_owned())
+            ),
+            "{name} must use {atlas}"
+        );
+    }
+}
+
+#[test]
+fn secondary_only_swatch_uses_full_palette_and_still_has_selected_outline() {
+    let mut opt = option(22, "Eye Color");
+    opt.choices[0].swatch = None;
+    opt.choices[0].secondary_swatch = Some([20, 80, 160]);
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![opt],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let first = rect(&harness.reg, "OptionChoice_22_70001_Swatch");
+    let details = rect(&harness.reg, "OptionChoice_22_70001_Details");
+    assert_eq!(first.x - details.x, 25.0);
+    assert_eq!(
+        rect(&harness.reg, "OptionChoice_22_70001_SelectedSwatch").x,
+        first.x - 4.0
+    );
+    assert!(
+        harness
+            .reg
+            .get_by_name("OptionChoice_22_70001_SecondarySwatch")
+            .is_none()
+    );
+    assert!(matches!(
+        &frame(&harness.reg, "OptionChoice_22_70001_Swatch").widget_data,
+        Some(WidgetData::Texture(texture))
+            if texture.source == TextureSource::Atlas("charactercreate-customize-palette".to_owned())
+    ));
 }
 
 #[test]
