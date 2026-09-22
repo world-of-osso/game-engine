@@ -50,7 +50,7 @@ Customization arrows and palette regions retain their existing atlas names and U
 
 `CharacterAppearance` retains the existing `sex`, skin, face, eye, hair-style, hair-color, and facial-style selectors. Shared protocol commit `9123a5f` adds owned `customization_choices: Vec<CustomizationChoiceSelection>`, where each value carries an authored `option_id` and `choice_id`. The vector is reserved for non-core options; it must not duplicate a core selector's option.
 
-Engine commit `6ca0a28d` adapts barber snapshots, character export, and IPC status formatting to retain owned appearance values after the type ceased to be `Copy`. Full catalog-driven controls, effective render choices and acceptance are tracked in [[character-creation]].
+Engine commit `6ca0a28d` adapts barber snapshots, character export, and IPC status formatting to retain owned appearance values after the type ceased to be `Copy`. The character-creation UI selects one effective option/choice set: core selectors own their option; additional pairs own only non-core options. Mixed-effect choices retain their material/geoset output and show a category partial-support notice; unsupported-only choices are disabled. Requirement IDs remain metadata, not Retail unlock evaluation. Full acceptance is tracked in [[character-creation]].
 
 ## Player-frame artwork fit
 
