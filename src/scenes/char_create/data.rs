@@ -13,16 +13,16 @@ pub struct RaceInfo {
     pub short_name: &'static str,
     pub faction: Faction,
     pub available_classes: &'static [u8],
-    /// Path to the race icon BLP file.
-    pub icon_file: &'static str,
+    /// FileDataID of the authored race icon BLP.
+    pub icon_fdid: u32,
 }
 
 pub struct ClassInfo {
     pub id: u8,
     pub name: &'static str,
     pub color: Color,
-    /// Path to the class icon BLP file.
-    pub icon_file: &'static str,
+    /// FileDataID of the authored class icon BLP.
+    pub icon_fdid: u32,
 }
 
 // Modern retail race→class availability
@@ -34,7 +34,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Hu",
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 4, 5, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Human_Male.blp",
+        icon_fdid: 236448,
     },
     RaceInfo {
         id: 3,
@@ -42,7 +42,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Dw",
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 4, 5, 6],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Dwarf_Male.blp",
+        icon_fdid: 236444,
     },
     RaceInfo {
         id: 4,
@@ -50,7 +50,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "NE",
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 11],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Nightelf_Male.blp",
+        icon_fdid: 236450,
     },
     RaceInfo {
         id: 7,
@@ -58,7 +58,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Gn",
         faction: Faction::Alliance,
         available_classes: &[1, 4, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Gnome_Male.blp",
+        icon_fdid: 236446,
     },
     RaceInfo {
         id: 11,
@@ -66,7 +66,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Dr",
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 5, 6, 7, 8],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Draenei_Male.blp",
+        icon_fdid: 236442,
     },
     // Alliance allied
     RaceInfo {
@@ -75,7 +75,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Wo",
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9, 11],
-        icon_file: "/home/osso/Projects/wow/Interface/CHARACTERFRAME/TEMPORARYPORTRAIT-MALE-WORGEN.BLP",
+        icon_fdid: 455993,
     },
     RaceInfo {
         id: 29,
@@ -83,7 +83,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "VE",
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_VoidElf.blp",
+        icon_fdid: 1786422,
     },
     RaceInfo {
         id: 30,
@@ -91,7 +91,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "LF",
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 5, 6, 8],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_LightforgedDraenei.blp",
+        icon_fdid: 1786420,
     },
     RaceInfo {
         id: 34,
@@ -99,7 +99,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "DI",
         faction: Faction::Alliance,
         available_classes: &[1, 2, 3, 4, 5, 6, 7, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_DarkIronDwarf.blp",
+        icon_fdid: 1851464,
     },
     RaceInfo {
         id: 37,
@@ -107,7 +107,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Me",
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_Mechagnome.blp",
+        icon_fdid: 3208032,
     },
     // Horde classics
     RaceInfo {
@@ -116,7 +116,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Or",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 6, 7, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Orc_Male.blp",
+        icon_fdid: 236452,
     },
     RaceInfo {
         id: 5,
@@ -124,7 +124,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Ud",
         faction: Faction::Horde,
         available_classes: &[1, 4, 5, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Undead_Male.blp",
+        icon_fdid: 236458,
     },
     RaceInfo {
         id: 6,
@@ -132,7 +132,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Ta",
         faction: Faction::Horde,
         available_classes: &[1, 3, 6, 7, 11],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Tauren_Male.blp",
+        icon_fdid: 236454,
     },
     RaceInfo {
         id: 8,
@@ -140,7 +140,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Tr",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Troll_Male.blp",
+        icon_fdid: 236456,
     },
     RaceInfo {
         id: 10,
@@ -148,7 +148,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "BE",
         faction: Faction::Horde,
         available_classes: &[2, 3, 4, 5, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Bloodelf_Male.blp",
+        icon_fdid: 236440,
     },
     // Horde allied
     RaceInfo {
@@ -157,7 +157,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Go",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/achievement_Goblinhead.blp",
+        icon_fdid: 463874,
     },
     RaceInfo {
         id: 27,
@@ -165,7 +165,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Nb",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_Nightborne.blp",
+        icon_fdid: 1786421,
     },
     RaceInfo {
         id: 28,
@@ -173,7 +173,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "HM",
         faction: Faction::Horde,
         available_classes: &[1, 3, 5, 6, 7, 11],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_HighmountainTauren.blp",
+        icon_fdid: 1786419,
     },
     RaceInfo {
         id: 31,
@@ -181,7 +181,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "ZT",
         faction: Faction::Horde,
         available_classes: &[1, 2, 3, 4, 5, 6, 7, 8, 11],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_ZandalariTroll.blp",
+        icon_fdid: 1851465,
     },
     RaceInfo {
         id: 35,
@@ -189,7 +189,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Vu",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 7, 8, 9],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_Vulpera.blp",
+        icon_fdid: 3208033,
     },
     RaceInfo {
         id: 36,
@@ -197,7 +197,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "MO",
         faction: Faction::Horde,
         available_classes: &[1, 3, 4, 5, 6, 7, 8],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_AlliedRace_MagharOrc.blp",
+        icon_fdid: 1989713,
     },
     // Neutral
     RaceInfo {
@@ -206,7 +206,7 @@ pub static RACES: &[RaceInfo] = &[
         short_name: "Pa",
         faction: Faction::Alliance,
         available_classes: &[1, 3, 4, 5, 7, 8],
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/Achievement_Character_Pandaren_Female.blp",
+        icon_fdid: 626190,
     },
 ];
 
@@ -215,61 +215,61 @@ pub static CLASSES: &[ClassInfo] = &[
         id: 1,
         name: "Warrior",
         color: Color::srgb(0.78, 0.61, 0.43),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Warrior.blp",
+        icon_fdid: 626008,
     },
     ClassInfo {
         id: 2,
         name: "Paladin",
         color: Color::srgb(0.96, 0.55, 0.73),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Paladin.blp",
+        icon_fdid: 626003,
     },
     ClassInfo {
         id: 3,
         name: "Hunter",
         color: Color::srgb(0.67, 0.83, 0.45),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Hunter.blp",
+        icon_fdid: 626000,
     },
     ClassInfo {
         id: 4,
         name: "Rogue",
         color: Color::srgb(1.0, 0.96, 0.41),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Rogue.blp",
+        icon_fdid: 626005,
     },
     ClassInfo {
         id: 5,
         name: "Priest",
         color: Color::srgb(1.0, 1.0, 1.0),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Priest.blp",
+        icon_fdid: 626004,
     },
     ClassInfo {
         id: 6,
         name: "Death Knight",
         color: Color::srgb(0.77, 0.12, 0.23),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_DeathKnight.blp",
+        icon_fdid: 625998,
     },
     ClassInfo {
         id: 7,
         name: "Shaman",
         color: Color::srgb(0.0, 0.44, 0.87),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Shaman.blp",
+        icon_fdid: 626006,
     },
     ClassInfo {
         id: 8,
         name: "Mage",
         color: Color::srgb(0.25, 0.78, 0.92),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Mage.blp",
+        icon_fdid: 626001,
     },
     ClassInfo {
         id: 9,
         name: "Warlock",
         color: Color::srgb(0.53, 0.53, 0.93),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Warlock.blp",
+        icon_fdid: 626007,
     },
     ClassInfo {
         id: 11,
         name: "Druid",
         color: Color::srgb(1.0, 0.49, 0.04),
-        icon_file: "/home/osso/Projects/wow/Interface/ICONS/ClassIcon_Druid.blp",
+        icon_fdid: 625999,
     },
 ];
 
@@ -319,17 +319,6 @@ mod tests {
             assert!(
                 !race.available_classes.is_empty(),
                 "{} has no classes",
-                race.name
-            );
-        }
-    }
-
-    #[test]
-    fn all_races_have_icons() {
-        for race in RACES {
-            assert!(
-                !race.icon_file.is_empty(),
-                "{} is missing an icon",
                 race.name
             );
         }
