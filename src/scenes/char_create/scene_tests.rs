@@ -67,33 +67,33 @@ fn zoom_target_no_dropdown_returns_default() {
 
 #[test]
 fn zoom_target_face_field_returns_face_params() {
-    let (focus, distance) = zoom_target_for_dropdown(Some(AppearanceField::Face));
+    let (focus, distance) = zoom_target_for_dropdown(Some(OptionType::Face));
     assert_eq!(focus, FACE_FOCUS);
     assert_eq!(distance, FACE_DISTANCE);
 }
 
 #[test]
 fn zoom_target_hair_style_is_face_zoom() {
-    let (focus, distance) = zoom_target_for_dropdown(Some(AppearanceField::HairStyle));
+    let (focus, distance) = zoom_target_for_dropdown(Some(OptionType::HairStyle));
     assert_eq!(focus, FACE_FOCUS);
     assert_eq!(distance, FACE_DISTANCE);
 }
 
 #[test]
 fn zoom_target_hair_color_is_face_zoom() {
-    let (_, distance) = zoom_target_for_dropdown(Some(AppearanceField::HairColor));
+    let (_, distance) = zoom_target_for_dropdown(Some(OptionType::HairColor));
     assert_eq!(distance, FACE_DISTANCE);
 }
 
 #[test]
 fn zoom_target_facial_style_is_face_zoom() {
-    let (_, distance) = zoom_target_for_dropdown(Some(AppearanceField::FacialStyle));
+    let (_, distance) = zoom_target_for_dropdown(Some(OptionType::FacialHair));
     assert_eq!(distance, FACE_DISTANCE);
 }
 
 #[test]
 fn zoom_target_non_face_field_returns_default() {
-    let (focus, distance) = zoom_target_for_dropdown(Some(AppearanceField::SkinColor));
+    let (focus, distance) = zoom_target_for_dropdown(Some(OptionType::SkinColor));
     assert_eq!(focus, DEFAULT_FOCUS);
     let expected = (DEFAULT_EYE - DEFAULT_FOCUS).length();
     assert!((distance - expected).abs() < 0.01);
@@ -102,7 +102,7 @@ fn zoom_target_non_face_field_returns_default() {
 #[test]
 fn zoom_target_restore_on_close_matches_no_dropdown() {
     // Opening a face dropdown then closing (None) should restore default
-    let (open_focus, open_dist) = zoom_target_for_dropdown(Some(AppearanceField::Face));
+    let (open_focus, open_dist) = zoom_target_for_dropdown(Some(OptionType::Face));
     let (close_focus, close_dist) = zoom_target_for_dropdown(None);
     assert_ne!(open_focus, close_focus);
     assert!((open_dist - close_dist).abs() > 0.1);
@@ -662,10 +662,195 @@ fn apply_orbit_produces_valid_transform() {
         focus: DEFAULT_FOCUS,
         distance: (DEFAULT_EYE - DEFAULT_FOCUS).length(),
         base_pitch: 0.0,
+        manual_distance: None,
     };
     let mut transform = Transform::default();
     apply_orbit_transform(&orbit, &mut transform);
     // Camera should be looking roughly toward the focus point
     let forward = transform.forward();
     assert!(forward.z < 0.0, "camera should face -Z (toward model)");
+}
+
+struct CameraFixture {
+    world: World,
+    camera: Entity,
+}
+
+impl CameraFixture {
+    fn new() -> Self {
+        let mut world = World::new();
+        world.init_resource::<CharCreateState>();
+        world.init_resource::<CustomizationDb>();
+        world.insert_resource(Time::<()>::default());
+        let offset = DEFAULT_EYE - DEFAULT_FOCUS;
+        let orbit = CharCreateOrbit {
+            yaw: 0.0,
+            pitch: 0.0,
+            focus: DEFAULT_FOCUS,
+            distance: offset.length(),
+            base_pitch: (offset.y / offset.length()).asin(),
+            manual_distance: None,
+        };
+        let mut transform = Transform::default();
+        apply_orbit_transform(&orbit, &mut transform);
+        let camera = world.spawn((orbit, transform)).id();
+        Self { world, camera }
+    }
+
+    fn control(&mut self, control: CameraControl) {
+        self.world.resource_mut::<CharCreateState>().camera_action = Some(control);
+        self.world
+            .run_system_once(apply_camera_control)
+            .expect("camera action system");
+        assert!(
+            self.world
+                .resource::<CharCreateState>()
+                .camera_action
+                .is_none()
+        );
+        self.settle_zoom();
+    }
+
+    fn settle_zoom(&mut self) {
+        self.world
+            .resource_mut::<Time>()
+            .advance_by(std::time::Duration::from_millis(200));
+        self.world
+            .run_system_once(camera_zoom_for_dropdown)
+            .expect("camera zoom system");
+    }
+
+    fn position(&self) -> Vec3 {
+        self.world
+            .get::<Transform>(self.camera)
+            .unwrap()
+            .translation
+    }
+
+    fn radius(&self) -> f32 {
+        let focus = self
+            .world
+            .get::<CharCreateOrbit>(self.camera)
+            .unwrap()
+            .focus;
+        self.position().distance(focus)
+    }
+}
+
+#[test]
+fn camera_control_rotation_actions_move_the_preview_and_consume_requests() {
+    for (control, expected_sign) in [
+        (CameraControl::RotateLeft, -1.0),
+        (CameraControl::RotateRight, 1.0),
+    ] {
+        let mut fixture = CameraFixture::new();
+        let before = fixture.position();
+        fixture.control(control);
+        let after = fixture.position();
+        assert!(
+            after.x * expected_sign > 0.1,
+            "rotation should move camera around preview: {after:?}"
+        );
+        assert!((after.distance(DEFAULT_FOCUS) - before.distance(DEFAULT_FOCUS)).abs() < 0.0001);
+        let transform = fixture.world.get::<Transform>(fixture.camera).unwrap();
+        let to_focus = (DEFAULT_FOCUS - after).normalize();
+        assert!(Vec3::from(transform.forward()).dot(to_focus) > 0.999);
+        fixture.world.run_system_once(apply_camera_control).unwrap();
+        assert_eq!(
+            fixture.position(),
+            after,
+            "consumed request must not rotate a second time"
+        );
+    }
+}
+
+#[test]
+fn camera_control_manual_zoom_persists_until_reset() {
+    let mut fixture = CameraFixture::new();
+    let default_radius = fixture.radius();
+    fixture.control(CameraControl::ZoomIn);
+    assert!((fixture.radius() - (default_radius - 0.5)).abs() < 0.0001);
+    let manual = fixture
+        .world
+        .get::<CharCreateOrbit>(fixture.camera)
+        .unwrap()
+        .manual_distance
+        .expect("manual zoom target must remain active");
+    assert!((manual - (default_radius - 0.5)).abs() < 0.0001);
+    fixture.settle_zoom();
+    assert!(
+        (fixture.radius() - (default_radius - 0.5)).abs() < 0.0001,
+        "automatic dropdown zoom must not undo manual zoom"
+    );
+    fixture.control(CameraControl::ZoomOut);
+    assert!((fixture.radius() - default_radius).abs() < 0.0001);
+    fixture.control(CameraControl::ZoomIn);
+    fixture.control(CameraControl::RotateRight);
+    fixture.control(CameraControl::Reset);
+    assert!(
+        fixture
+            .world
+            .get::<CharCreateOrbit>(fixture.camera)
+            .unwrap()
+            .manual_distance
+            .is_none()
+    );
+    assert!(
+        fixture.position().distance(DEFAULT_EYE) < 0.0001,
+        "reset should restore default preview framing: {:?}",
+        fixture.position()
+    );
+}
+
+#[test]
+fn camera_control_manual_zoom_stays_within_preview_limits() {
+    let mut fixture = CameraFixture::new();
+    fixture
+        .world
+        .get_mut::<CharCreateOrbit>(fixture.camera)
+        .unwrap()
+        .manual_distance = Some(1.2);
+    fixture.control(CameraControl::ZoomIn);
+    assert!((fixture.radius() - 1.0).abs() < 0.0001);
+    fixture.control(CameraControl::ZoomIn);
+    assert!((fixture.radius() - 1.0).abs() < 0.0001);
+    fixture
+        .world
+        .get_mut::<CharCreateOrbit>(fixture.camera)
+        .unwrap()
+        .manual_distance = Some(9.8);
+    fixture.control(CameraControl::ZoomOut);
+    assert!((fixture.radius() - 10.0).abs() < 0.0001);
+    fixture.control(CameraControl::ZoomOut);
+    assert!((fixture.radius() - 10.0).abs() < 0.0001);
+}
+
+#[test]
+fn camera_control_eye_and_ear_option_ids_zoom_to_face_and_restore_on_close() {
+    let mut fixture = CameraFixture::new();
+    fixture
+        .world
+        .insert_resource(CustomizationDb::try_load(Path::new("data")).expect("local catalog"));
+    for option_id in [463, 8789] {
+        fixture
+            .world
+            .resource_mut::<CharCreateState>()
+            .open_dropdown = Some(option_id);
+        fixture.settle_zoom();
+        assert!((fixture.radius() - FACE_DISTANCE).abs() < 0.0001);
+        assert_eq!(
+            fixture
+                .world
+                .get::<CharCreateOrbit>(fixture.camera)
+                .unwrap()
+                .focus,
+            FACE_FOCUS
+        );
+        fixture
+            .world
+            .resource_mut::<CharCreateState>()
+            .open_dropdown = None;
+        fixture.settle_zoom();
+        assert!(fixture.position().distance(DEFAULT_EYE) < 0.0001);
+    }
 }
