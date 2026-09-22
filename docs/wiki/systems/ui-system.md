@@ -18,7 +18,7 @@ The UI system uses Dioxus `rsx!` authoring, `SharedContext` generation tracking,
 
 ## Frame Hierarchy and Layout
 
-`rsx!` and `Screen` author registry frames through `screen.sync(&shared, registry)`. Use `pos_type`, `pos_x`, `pos_y`, `left`, `right`, `top`, `bottom`, `translate_x`, `translate_y`, `margin_*`, `anchor: parent|screen`, and `width`/`height` `auto` or `fill`. Legacy `anchor { ... }` is rejected; arbitrary named-frame anchors, `setPoint`, and the registry layout solver do not exist. Raw Bevy input continues through registry hit testing, focus, text editing, and dispatch; arbitrary ECS mutations never feed properties back into authored registry state.
+`rsx!` and `Screen` author registry frames through `screen.sync(&shared, registry)`. Use `pos_type`, `pos_x`, `pos_y`, `left`, `right`, `top`, `bottom`, `translate_x`, `translate_y`, `margin_*`, `anchor: parent|screen`, and `width`/`height` `auto` or `fill`. Legacy `anchor { ... }` is rejected; arbitrary named-frame anchors, `setPoint`, and the registry layout solver do not exist. `AnchorPoint`, `anchor_position`, and `frame_position_from_anchor` were deleted in toolkit `e584425`; `AnchorTarget::Parent|Screen` remains. Character-select tests now assert computed bounds rather than anchor-point geometry (`6ad8cf75`). Raw Bevy input continues through registry hit testing, focus, text editing, and dispatch; arbitrary ECS mutations never feed properties back into authored registry state.
 
 `setPos(x, y)` offsets from top-left with X right and Y down. `setPosType(relative|absolute)` and `setAnchor(parent|screen)` select native layout behavior. A `screen` layout parent does not change logical ownership, alpha, hiding, or removal. Strata and draw-layer ordering remain registry properties.
 
@@ -49,6 +49,14 @@ Engine `038b1ecf` passes 16 layout tests, 12 state/artwork tests, and one render
 ## Layout invalidation
 
 Registry mutations project authored native layout properties to Bevy. Bevy's layout pass computes bounds, which are read back solely for registry hit testing and measurement. Consult the [registry-backed Bevy UI spec](../../specs/registry-bevy-ui.md) for supported properties and lifecycle guarantees; this page does not preserve the removed anchor-solver behavior.
+
+## Mutation publication
+
+Toolkit `1072518` retracts a pending registry write when its final frame value is unchanged. The mutation boundary, rather than each caller, prevents unchanged size, visibility, alpha, text, and position writes from publishing dirty frames or native component changes. Real changes and existing repair paths remain publishable.
+
+## Frame removal cleanup
+
+Toolkit `7e0323f` resolves removed IDs before native despawn: it clears `FrameRegistry.focused_frame` and `UiState.focused_frame` when either points at a removed frame, then unregisters that frame's EventBus listeners. Addon unload therefore cannot leave stale focused EditBoxes or listeners while native subtree cleanup runs.
 
 ## Visibility and alpha invalidation
 
@@ -220,6 +228,8 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [engine BLP resolver](../../../src/app_setup.rs) — local CASC-backed `GameBlpLoader::ensure_texture`
 - `../../data/diagnostics/warnings-charselect-style-20260912/atlas-provenance.json` — DB2 member-to-atlas FDID evidence
 - [visibility and alpha propagation](../../../../ui-toolkit/src/registry.rs) — conditional derived-state repair and single-pass `set_hidden` traversal
+- [registry mutation and removal cleanup](../../../../ui-toolkit/src/registry.rs) — unchanged-write retraction and removed-ID focus cleanup
+- [UI lifecycle resolution](../../../../ui-toolkit/src/plugin.rs) — EventBus listener teardown before native despawn
 - [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — invalidation contract and scope
 - `../../data/diagnostics/ui-layout-dirty-20260909/verification/toolkit-report.md` — 14 focused toolkit regressions and mutation audit
 - `../../data/diagnostics/ui-layout-dirty-20260909/engine-addon/green.log` — 7 addon integration tests
