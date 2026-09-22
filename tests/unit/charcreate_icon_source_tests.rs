@@ -10,6 +10,9 @@ use ui_toolkit::screen::{Screen, SharedContext};
 #[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
 mod layout_support;
 
+#[path = "charcreate_atlas_source_tests.rs"]
+mod customization_atlas;
+
 // Exact original paths matched case-insensitively against LOCAL community-listfile.csv.
 const ICONS: &[(&str, u32, &str)] = &[
     (
