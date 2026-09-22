@@ -2,7 +2,7 @@
 //!
 //! Preloads both sex models for the selected race so toggling sex is instant.
 
-use std::f32::consts::{FRAC_PI_8, PI};
+use std::f32::consts::{PI, TAU};
 use std::path::PathBuf;
 
 use bevy::ecs::system::SystemParam;
@@ -26,8 +26,8 @@ use crate::model_path_resolver::resolve_model_path;
 use crate::orbit_camera::scaled_orbit_delta;
 use crate::scenes::char_create::CharCreateState;
 use game_engine::asset::char_texture::CharTextureData;
-use game_engine::customization_data::CustomizationDb;
-use game_engine::ui::screens::char_create_component::AppearanceField;
+use game_engine::customization_data::{CustomizationDb, OptionType};
+use game_engine::ui::screens::char_create_component::CameraControl;
 use shared::components::CharacterAppearance;
 
 #[derive(Component)]
@@ -60,9 +60,9 @@ struct CharCreateOrbit {
     focus: Vec3,
     distance: f32,
     base_pitch: f32,
+    manual_distance: Option<f32>,
 }
 
-const ORBIT_YAW_LIMIT: f32 = FRAC_PI_8;
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
 
 const DEFAULT_FOCUS: Vec3 = Vec3::new(0.0, 1.0, 0.0);
@@ -82,6 +82,7 @@ impl Plugin for CharCreateScenePlugin {
             (
                 sync_model,
                 sync_appearance,
+                apply_camera_control,
                 camera_zoom_for_dropdown,
                 orbit_camera,
             )
@@ -113,6 +114,7 @@ fn spawn_camera(commands: &mut Commands) -> Entity {
                 focus,
                 distance,
                 base_pitch,
+                manual_distance: None,
             },
         ))
         .id()
@@ -141,20 +143,58 @@ fn orbit_camera(
     }
     let orbit_delta = scaled_orbit_delta(motion.delta, options.mouse_sensitivity);
     for (mut orbit, mut transform) in &mut query {
-        orbit.yaw = (orbit.yaw + orbit_delta.x).clamp(-ORBIT_YAW_LIMIT, ORBIT_YAW_LIMIT);
+        orbit.yaw = (orbit.yaw + orbit_delta.x).rem_euclid(TAU);
         orbit.pitch = (orbit.pitch + orbit_delta.y).clamp(-ORBIT_PITCH_LIMIT, ORBIT_PITCH_LIMIT);
         apply_orbit_transform(&orbit, &mut transform);
     }
 }
 
-fn zoom_target_for_dropdown(open_dropdown: Option<AppearanceField>) -> (Vec3, f32) {
+fn apply_camera_control(
+    state: Option<ResMut<CharCreateState>>,
+    mut cameras: Query<(&mut CharCreateOrbit, &mut Transform)>,
+) {
+    let Some(mut state) = state else { return };
+    if state.camera_action.is_none() {
+        return;
+    }
+    let action = state
+        .camera_action
+        .take()
+        .expect("camera action checked above");
+    for (mut orbit, mut transform) in &mut cameras {
+        match action {
+            CameraControl::Reset => {
+                orbit.yaw = 0.0;
+                orbit.pitch = 0.0;
+                orbit.manual_distance = None;
+            }
+            CameraControl::ZoomIn => {
+                orbit.manual_distance =
+                    Some((orbit.manual_distance.unwrap_or(orbit.distance) - 0.5).max(1.0))
+            }
+            CameraControl::ZoomOut => {
+                orbit.manual_distance =
+                    Some((orbit.manual_distance.unwrap_or(orbit.distance) + 0.5).min(10.0))
+            }
+            CameraControl::RotateLeft => orbit.yaw = (orbit.yaw - PI / 12.0).rem_euclid(TAU),
+            CameraControl::RotateRight => orbit.yaw = (orbit.yaw + PI / 12.0).rem_euclid(TAU),
+        }
+        apply_orbit_transform(&orbit, &mut transform);
+    }
+}
+
+fn zoom_target_for_dropdown(open_dropdown: Option<OptionType>) -> (Vec3, f32) {
     let is_face_field = open_dropdown.is_some_and(|f| {
         matches!(
             f,
-            AppearanceField::Face
-                | AppearanceField::HairStyle
-                | AppearanceField::HairColor
-                | AppearanceField::FacialStyle
+            OptionType::Face
+                | OptionType::EyeColor
+                | OptionType::HairStyle
+                | OptionType::HairColor
+                | OptionType::FacialHair
+                | OptionType::Ears
+                | OptionType::Horns
+                | OptionType::Blindfold
         )
     });
     if is_face_field {
@@ -166,16 +206,24 @@ fn zoom_target_for_dropdown(open_dropdown: Option<AppearanceField>) -> (Vec3, f3
 
 fn camera_zoom_for_dropdown(
     state: Option<Res<CharCreateState>>,
+    db: Res<CustomizationDb>,
     time: Res<Time>,
     mut query: Query<(&mut CharCreateOrbit, &mut Transform)>,
 ) {
-    let dropdown = state.as_ref().and_then(|s| s.open_dropdown);
+    let dropdown = state.as_ref().and_then(|state| {
+        state.open_dropdown.and_then(|id| {
+            db.option_by_id(state.selected_race, state.selected_sex, id)
+                .map(|option| option.option_type)
+        })
+    });
     let (target_focus, target_distance) = zoom_target_for_dropdown(dropdown);
     let t = (CAMERA_ZOOM_SPEED * time.delta_secs()).min(1.0);
 
     for (mut orbit, mut transform) in &mut query {
         orbit.focus = orbit.focus.lerp(target_focus, t);
-        orbit.distance = orbit.distance.lerp(target_distance, t);
+        orbit.distance = orbit
+            .distance
+            .lerp(orbit.manual_distance.unwrap_or(target_distance), t);
 
         // Keep a proportional upward tilt: eye sits 0.8 units above focus in the default view.
         let default_offset_len = (DEFAULT_EYE - DEFAULT_FOCUS).length();

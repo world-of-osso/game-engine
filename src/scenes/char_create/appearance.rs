@@ -3,9 +3,7 @@ use std::collections::HashSet;
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use shared::components::CharacterAppearance;
 
-use super::{
-    AppearanceField, CharCreateState, clamp_appearance_field, mix_seed, pick_random_choice,
-};
+use super::{CharCreateState, clamp_appearance_field, mix_seed, pick_random_choice};
 
 pub(super) fn randomize_appearance_with_seed(
     state: &mut CharCreateState,
@@ -43,6 +41,9 @@ pub(super) fn randomize_appearance_with_seed(
         ),
         customization_choices: Vec::new(),
     };
+    randomize_additional_choices(state, db, &mut seed);
+    state.open_dropdown = None;
+    state.selected_category = 0;
 }
 
 fn random_skin_index(db: &CustomizationDb, race: u8, sex: u8, class: u8, seed: &mut u64) -> u8 {
@@ -85,53 +86,129 @@ pub(super) fn normalize_appearance(state: &mut CharCreateState, db: &Customizati
         &mut state.appearance.facial_style,
         db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
     );
+    game_engine::appearance_options::normalize_additional_choices(
+        db,
+        race,
+        sex,
+        class,
+        &mut state.appearance,
+    );
 }
 
 pub(super) fn adjust_appearance(
     state: &mut CharCreateState,
-    field: AppearanceField,
+    option_id: u32,
     delta: i8,
     db: &CustomizationDb,
 ) {
-    match field {
-        AppearanceField::SkinColor => {
-            let max = choice_count(state, db, OptionType::SkinColor);
-            cycle_choice(&mut state.appearance.skin_color, max, delta);
-            normalize_face_choice(state, db);
-        }
-        AppearanceField::Face => cycle_face_choice(state, db, delta),
-        AppearanceField::HairStyle => {
-            let max = choice_count(state, db, OptionType::HairStyle);
-            cycle_choice(&mut state.appearance.hair_style, max, delta);
-        }
-        AppearanceField::HairColor => {
-            let max = choice_count(state, db, OptionType::HairColor);
-            cycle_choice(&mut state.appearance.hair_color, max, delta);
-        }
-        AppearanceField::FacialStyle => {
-            let max = choice_count(state, db, OptionType::FacialHair);
-            cycle_choice(&mut state.appearance.facial_style, max, delta);
-        }
+    let Some(option) = db.option_by_id(state.selected_race, state.selected_sex, option_id) else {
+        return;
+    };
+    if option.option_type == OptionType::Face
+        && game_engine::appearance_options::is_core_option(
+            db,
+            state.selected_race,
+            state.selected_sex,
+            option,
+        )
+    {
+        cycle_face_choice(state, db, delta);
+        state.open_dropdown = None;
+        return;
     }
+    let choices: Vec<_> = db
+        .choices_for_option(
+            state.selected_race,
+            state.selected_sex,
+            state.selected_class,
+            option_id,
+        )
+        .into_iter()
+        .filter(|choice| !choice.has_unsupported_effects)
+        .collect();
+    if choices.is_empty() {
+        return;
+    }
+    let selected = game_engine::appearance_options::selected_choice(
+        db,
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+        &state.appearance,
+        option,
+    );
+    let current = selected
+        .and_then(|selected| choices.iter().position(|choice| choice.id == selected.id))
+        .unwrap_or(0);
+    let next = (current as isize + delta as isize).rem_euclid(choices.len() as isize) as usize;
+    select_choice(state, option_id, choices[next].id, db);
 }
 
 pub(super) fn select_choice(
     state: &mut CharCreateState,
-    field: AppearanceField,
-    idx: u8,
+    option_id: u32,
+    choice_id: u32,
     db: &CustomizationDb,
 ) {
-    match field {
-        AppearanceField::SkinColor => {
-            state.appearance.skin_color = idx;
+    let result = game_engine::appearance_options::set_choice(
+        db,
+        state.selected_race,
+        state.selected_sex,
+        state.selected_class,
+        &mut state.appearance,
+        option_id,
+        choice_id,
+    );
+    match result {
+        Ok(()) => {
             normalize_face_choice(state, db);
+            state.error_text = None;
+            state.open_dropdown = None;
         }
-        AppearanceField::Face => state.appearance.face = idx,
-        AppearanceField::HairStyle => state.appearance.hair_style = idx,
-        AppearanceField::HairColor => state.appearance.hair_color = idx,
-        AppearanceField::FacialStyle => state.appearance.facial_style = idx,
+        Err(error) => state.error_text = Some(error),
     }
-    state.open_dropdown = None;
+}
+
+fn randomize_additional_choices(state: &mut CharCreateState, db: &CustomizationDb, seed: &mut u64) {
+    for option in db
+        .options_for(state.selected_race, state.selected_sex)
+        .into_iter()
+        .flatten()
+    {
+        if game_engine::appearance_options::is_core_option(
+            db,
+            state.selected_race,
+            state.selected_sex,
+            option,
+        ) {
+            continue;
+        }
+        let choices: Vec<_> = db
+            .choices_for_option(
+                state.selected_race,
+                state.selected_sex,
+                state.selected_class,
+                option.id,
+            )
+            .into_iter()
+            .filter(|choice| !choice.has_unsupported_effects)
+            .collect();
+        if choices.is_empty() {
+            continue;
+        }
+        *seed = mix_seed(*seed);
+        let choice = choices[(*seed % choices.len() as u64) as usize];
+        state.appearance.customization_choices.push(
+            shared::components::CustomizationChoiceSelection {
+                option_id: option.id,
+                choice_id: choice.id,
+            },
+        );
+    }
+    state
+        .appearance
+        .customization_choices
+        .sort_by_key(|selection| selection.option_id);
 }
 
 fn random_face_index(
@@ -270,23 +347,6 @@ fn skin_choice_ids(db: &CustomizationDb, race: u8, sex: u8, class: u8) -> HashSe
                 .map(|choice| choice.id)
         })
         .collect()
-}
-
-fn choice_count(state: &CharCreateState, db: &CustomizationDb, opt_type: OptionType) -> u8 {
-    db.choice_count_for_class(
-        state.selected_race,
-        state.selected_sex,
-        state.selected_class,
-        opt_type,
-    )
-}
-
-fn cycle_choice(value: &mut u8, count: u8, delta: i8) {
-    if count == 0 {
-        return;
-    }
-    let current = (*value).min(count - 1) as usize;
-    *value = next_index(current, count as usize, delta) as u8;
 }
 
 fn next_index(current: usize, len: usize, delta: i8) -> usize {

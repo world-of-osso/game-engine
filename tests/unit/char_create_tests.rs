@@ -142,7 +142,15 @@ fn changing_skin_color_reclamps_face_to_compatible_set() {
         ..Default::default()
     };
 
-    input::adjust_appearance(&mut state, AppearanceField::SkinColor, 1, &db);
+    let skin_option = db
+        .options_for(state.selected_race, state.selected_sex)
+        .unwrap()
+        .iter()
+        .filter(|option| option.option_type == OptionType::SkinColor)
+        .map(|option| option.id)
+        .min()
+        .unwrap();
+    input::adjust_appearance(&mut state, skin_option, 1, &db);
 
     assert!(face_is_compatible_with_skin(
         &db,
