@@ -438,6 +438,7 @@ fn direct_entry_has_initial_appearance_by_end_of_first_update() {
     app.add_plugins(bevy::text::TextPlugin::default());
     app.add_plugins(UiAutomationPlugin);
     app.add_plugins(ui_toolkit::plugin::UiPlugin);
+    app.init_resource::<bevy::ui::UiScale>();
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
     app.insert_resource(crate::client_options::CameraOptions::default());

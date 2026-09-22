@@ -29,6 +29,7 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
     app.add_plugins(ui_toolkit::plugin::UiPlugin);
+    app.init_resource::<bevy::ui::UiScale>();
     app.add_plugins(crate::scenes::char_create::CharCreatePlugin);
     app.add_plugins(CharCreateScenePlugin);
     app.add_message::<bevy::input::keyboard::KeyboardInput>();
