@@ -28,17 +28,19 @@ pub(super) fn load_player_portrait(class_id: Option<u8>) -> String {
 
 fn load_and_cache_player_portrait(class_id: Option<u8>) -> Result<PathBuf, String> {
     let aperture = artwork::load_portrait_aperture_and_cache_bar_masks()?;
-    let metadata_path = match class_id.and_then(class_by_id) {
-        Some(class) => class.icon_file,
-        None => super::UNKNOWN_PORTRAIT_TEXTURE_FILE,
+    let fdid = match class_id.and_then(class_by_id) {
+        Some(class) => class.icon_fdid,
+        None => {
+            let metadata_path = super::UNKNOWN_PORTRAIT_TEXTURE_FILE;
+            let filename = Path::new(metadata_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(|| format!("invalid icon metadata path: {metadata_path}"))?;
+            let wow_path = format!("interface/icons/{filename}");
+            game_engine::listfile::lookup_path(&wow_path)
+                .ok_or_else(|| format!("icon missing from local listfile: {wow_path}"))?
+        }
     };
-    let filename = Path::new(metadata_path)
-        .file_name()
-        .and_then(|name| name.to_str())
-        .ok_or_else(|| format!("invalid icon metadata path: {metadata_path}"))?;
-    let wow_path = format!("interface/icons/{filename}");
-    let fdid = game_engine::listfile::lookup_path(&wow_path)
-        .ok_or_else(|| format!("icon missing from local listfile: {wow_path}"))?;
     let output = game_engine::paths::shared_data_path("ui/unitframes/portraits")
         .join(format!("{fdid}-aperture-v1.png"));
     if output.is_file() {
