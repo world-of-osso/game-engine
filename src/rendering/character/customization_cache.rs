@@ -13,7 +13,7 @@ use crate::customization_data::{
 use crate::sqlite_util::is_missing_table_error;
 
 type HairGeosetKey = (u32, u16, u16);
-const CACHE_SCHEMA_VERSION: u32 = 1;
+const CACHE_SCHEMA_VERSION: u32 = 2;
 
 fn cache_path() -> PathBuf {
     crate::paths::shared_data_path("cache/customization.sqlite")
@@ -188,7 +188,10 @@ fn customization_cache_core_tables_sql() -> &'static str {
          option_id INTEGER NOT NULL,
          name TEXT NOT NULL,
          requirement_id INTEGER NOT NULL,
-         order_index INTEGER NOT NULL
+         order_index INTEGER NOT NULL,
+         visibility_requirement_id INTEGER NOT NULL,
+         swatch_color_0 INTEGER NOT NULL,
+         swatch_color_1 INTEGER NOT NULL
      );"
 }
 
@@ -284,6 +287,21 @@ fn parse_u32(fields: &[String], index: usize) -> u32 {
         .unwrap_or(0)
 }
 
+fn parse_i32(fields: &[String], index: usize, path: &Path) -> Result<i32, String> {
+    let value = fields.get(index).ok_or_else(|| {
+        format!(
+            "missing signed integer column {index} in {}",
+            path.display()
+        )
+    })?;
+    value.parse().map_err(|err| {
+        format!(
+            "invalid signed integer {value:?} in {} column {index}: {err}",
+            path.display()
+        )
+    })
+}
+
 fn parse_f32(fields: &[String], index: usize) -> f32 {
     fields
         .get(index)
@@ -366,7 +384,7 @@ fn populate_categories(conn: &Connection, path: &Path) -> Result<(), String> {
 fn populate_choices(conn: &Connection, path: &Path) -> Result<(), String> {
     insert_simple_rows(
         conn,
-        "INSERT INTO choices (id, option_id, name, requirement_id, order_index) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO choices (id, option_id, name, requirement_id, order_index, visibility_requirement_id, swatch_color_0, swatch_color_1) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         path,
         |headers, fields, path| {
             let id = header_index(headers, "ID", path)?;
@@ -374,12 +392,18 @@ fn populate_choices(conn: &Connection, path: &Path) -> Result<(), String> {
             let name = header_index(headers, "Name_lang", path)?;
             let requirement_id = header_index(headers, "ChrCustomizationReqID", path)?;
             let order_index = header_index(headers, "OrderIndex", path)?;
+            let visibility_requirement = header_index(headers, "ChrCustomizationVisReqID", path)?;
+            let swatch_color_0 = header_index(headers, "SwatchColor_0", path)?;
+            let swatch_color_1 = header_index(headers, "SwatchColor_1", path)?;
             Ok(Some((
                 parse_u32(fields, id),
                 parse_u32(fields, option_id),
                 parse_str(fields, name),
                 parse_u32(fields, requirement_id),
                 parse_u32(fields, order_index),
+                parse_u32(fields, visibility_requirement),
+                parse_i32(fields, swatch_color_0, path)?,
+                parse_i32(fields, swatch_color_1, path)?,
             )))
         },
     )
@@ -607,7 +631,7 @@ fn load_categories(conn: &Connection) -> Result<HashMap<u32, RawCategory>, Strin
 
 fn load_choices(conn: &Connection) -> Result<Vec<RawChoice>, String> {
     let mut choices_stmt = conn
-        .prepare("SELECT id, option_id, name, requirement_id, order_index FROM choices ORDER BY id")
+        .prepare("SELECT id, option_id, name, requirement_id, order_index, visibility_requirement_id, swatch_color_0, swatch_color_1 FROM choices ORDER BY id")
         .map_err(|err| format!("prepare choices lookup: {err}"))?;
     choices_stmt
         .query_map([], |row| {
@@ -617,6 +641,8 @@ fn load_choices(conn: &Connection) -> Result<Vec<RawChoice>, String> {
                 name: row.get(2)?,
                 requirement_id: row.get(3)?,
                 order_index: row.get(4)?,
+                visibility_requirement_id: row.get(5)?,
+                swatch_colors: [row.get(6)?, row.get(7)?],
             })
         })
         .map_err(|err| format!("query choices: {err}"))?

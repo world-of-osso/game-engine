@@ -30,7 +30,7 @@ impl CatalogFixture {
             ),
             (
                 "ChrCustomizationChoice",
-                "Name_lang,ID,ChrCustomizationOptionID,ChrCustomizationReqID,OrderIndex\nCurved,90001,890,0,2\nStraight,90002,890,0,1\nGold,90003,776,19,0\n",
+                "Name_lang,ID,ChrCustomizationOptionID,ChrCustomizationReqID,OrderIndex,ChrCustomizationVisReqID,SwatchColor_0,SwatchColor_1\nCurved,90001,890,0,2,0,0,0\nStraight,90002,890,0,1,0,0,0\nGold,90003,776,19,0,23,-26091,-16777216\n",
             ),
             (
                 "ChrCustomizationElement",
@@ -93,6 +93,13 @@ fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
         ),
         ("Jewelry Color", 5, 26, 1, 12)
     );
+    let jewelry_choice = raw
+        .choices
+        .iter()
+        .find(|choice| choice.id == 90003)
+        .unwrap();
+    assert_eq!(jewelry_choice.swatch_colors, [-26_091, -16_777_216]);
+    assert_eq!(jewelry_choice.visibility_requirement_id, 23);
     let category = &raw.categories[&3];
     assert_eq!(
         (
@@ -141,22 +148,40 @@ fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
 fn catalog_cache_rebuilds_old_schema_without_deleting_the_cache_by_hand() {
     let fixture = CatalogFixture::new();
     let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
-    let conn = Connection::open(&cache).unwrap();
-    conn.execute("UPDATE options SET name = 'stale' WHERE id = 890", [])
-        .unwrap();
-    conn.pragma_update(None, "user_version", 0).unwrap();
-    drop(conn);
-    import_customization_cache_at(&fixture.root, &cache).unwrap();
-    let raw = load_customization_raw_data_at(&cache).unwrap();
-    assert_eq!(
-        raw.options
-            .iter()
-            .find(|option| option.id == 890)
-            .unwrap()
-            .name,
-        "Eyebrows"
+    for version in [0, 1] {
+        let conn = Connection::open(&cache).unwrap();
+        conn.execute("UPDATE options SET name = 'stale' WHERE id = 890", [])
+            .unwrap();
+        conn.pragma_update(None, "user_version", version).unwrap();
+        drop(conn);
+        import_customization_cache_at(&fixture.root, &cache).unwrap();
+        let raw = load_customization_raw_data_at(&cache).unwrap();
+        assert_eq!(
+            raw.options
+                .iter()
+                .find(|option| option.id == 890)
+                .unwrap()
+                .name,
+            "Eyebrows"
+        );
+        assert_eq!(raw.categories[&3].name, "Accessories");
+    }
+}
+
+#[test]
+fn catalog_cache_rejects_invalid_authored_swatch_instead_of_inventing_color() {
+    let fixture = CatalogFixture::new();
+    let path = fixture.root.join("ChrCustomizationChoice.csv");
+    let csv = std::fs::read_to_string(&path)
+        .unwrap()
+        .replace("-26091", "not-a-color");
+    std::fs::write(&path, csv).unwrap();
+    let error = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap_err();
+    assert!(
+        error.contains("invalid signed integer \"not-a-color\""),
+        "{error}"
     );
-    assert_eq!(raw.categories[&3].name, "Accessories");
+    assert!(error.contains("ChrCustomizationChoice.csv"), "{error}");
 }
 
 #[test]
