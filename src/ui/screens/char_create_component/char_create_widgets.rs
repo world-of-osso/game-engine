@@ -231,6 +231,7 @@ pub(super) fn category_button(
     rsx! {
         button { name: DynName(frame_name.clone()), width: CATEGORY_WIDTH, height: CATEGORY_HEIGHT,
             onclick: CharCreateAction::SelectCategory(category.id),
+            hit_rect_insets: "15,15,15,15",
             button_atlas_highlight: "charactercreate-ring-select",
             pos_type: "absolute", left: x, top: 0.0,
             {normal}
