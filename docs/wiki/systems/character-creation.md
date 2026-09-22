@@ -6,8 +6,8 @@ Character creation is registry-authored `rsx!` UI over a 3D preview. The selecte
 
 - `CharacterAppearance` retains `sex` and six core index selectors. Additional non-core choices are ordered `(option_id, choice_id)` pairs; the core selector remains the only authority for its option.
 - The local customization cache imports authored option/category IDs, labels, ordering, icon element IDs, UI type, signed swatches, requirement IDs and choice effect metadata. Cache freshness is version- and source-aware; it rebuilds through the importer rather than requiring manual cache deletion.
-- The engine exposes 1,147 options in 59 categories from the local data. This is catalog coverage, not proof that every effect can render. Choices with unsupported element effects must remain explicit rather than selectable as inert controls.
-- Existing material/geoset rendering is being generalized to resolve one effective selected-choice set: core selectors plus disjoint additional pairs. Renderer/UI end-to-end proof remains open.
+- The engine exposes 1,147 options in 59 categories from the local data. This is catalog coverage, not proof that every effect can render. A choice with supported material/geoset effects plus unsupported metadata remains selectable and its category shows a partial-support notice; an unsupported-only choice stays disabled rather than inert.
+- Existing material/geoset rendering resolves one effective selected-choice set: core selectors plus disjoint additional pairs. This preserves working partial effects such as face materials while keeping unsupported effects explicit.
 - Local Retail XML establishes the intended race/class grid, bottom navigation, category tabs, options column, camera controls, dropdown/checkbox behavior and authored control dimensions. Installed build metadata reports `12.1.0.69875`; independent provenance of the extracted Interface files is not established.
 
 ## Persistence boundary
@@ -20,8 +20,8 @@ Race/class icons and the customization atlas resolve through local CASC FileData
 
 ## Known limits
 
-- General `ChrCustomizationReq` evaluation is unavailable locally; requirement and visibility IDs are surfaced but not interpreted as unlock policy.
-- Raw options with unsupported element effects must not be claimed rendered.
+- General `ChrCustomizationReq` evaluation is unavailable locally; requirement and visibility IDs are preserved but not interpreted as Retail account/unlock policy.
+- Partial material/geoset output does not prove every element effect for that choice is rendered; unsupported-only choices remain disabled.
 - Category/control screen integration, camera interaction, rendered comparison and create/save/reload acceptance are current-cycle work.
 
 ## Sources
