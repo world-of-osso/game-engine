@@ -2,6 +2,7 @@ use super::*;
 
 #[test]
 fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
+    use bevy::asset::AssetApp;
     use bevy::input::{ButtonInput, InputPlugin};
     use bevy::state::app::StatesPlugin;
     use bevy::window::PrimaryWindow;
@@ -14,6 +15,7 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     app.add_plugins(bevy::transform::TransformPlugin);
     app.add_plugins(StatesPlugin);
     app.add_plugins(bevy::asset::AssetPlugin::default());
+    app.init_asset::<TextureAtlasLayout>();
     app.add_plugins(bevy::text::TextPlugin::default());
     app.add_plugins(InputPlugin);
     app.add_plugins(bevy::ui::UiPlugin);
