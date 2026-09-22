@@ -1,4 +1,5 @@
 use super::*;
+use crate::ui::widgets::texture::TextureSource;
 
 #[test]
 fn authored_choice_counts_set_popup_columns_before_compaction() {
@@ -115,6 +116,59 @@ fn last_option_popup_moves_above_its_anchor_at_a_short_viewport() {
             "{name}"
         );
     }
+}
+
+#[test]
+fn popup_uses_authored_retail_menu_art_and_choice_hover() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let panel = rect(&harness.reg, "Dropdown_22");
+    let background = frame(&harness.reg, "Dropdown_22_Background");
+    assert!(matches!(&background.widget_data,
+        Some(WidgetData::Texture(texture))
+            if texture.source == TextureSource::Atlas("common-dropdown-c-bg".to_owned())));
+    let backdrop = rect(&harness.reg, "Dropdown_22_Background");
+    assert_eq!(
+        [
+            backdrop.x - panel.x,
+            backdrop.y - panel.y,
+            backdrop.width - panel.width,
+            backdrop.height - panel.height
+        ],
+        [-17.0, -12.0, 34.0, 34.0]
+    );
+    let hovered = frame(&harness.reg, "OptionChoice_22_70005");
+    assert!(matches!(&hovered.widget_data,
+        Some(WidgetData::Button(button))
+            if button.highlight_texture.as_ref() == Some(&TextureSource::Atlas("common-dropdown-customize-mouseover".to_owned()))));
+}
+
+#[test]
+fn selected_swatch_uses_retail_selection_art_without_a_row_wide_bar() {
+    let mut opt = option(22, "Eye Color");
+    opt.choices[0].swatch = Some([128, 32, 16]);
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![opt],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let selected = frame(&harness.reg, "OptionChoice_22_70001_SelectedSwatch");
+    assert!(matches!(&selected.widget_data,
+        Some(WidgetData::Texture(texture))
+            if texture.source == TextureSource::Atlas("charactercreate-customize-palette-selected".to_owned())));
+    let marker = rect(&harness.reg, "OptionChoice_22_70001_SelectedSwatch");
+    let swatch = rect(&harness.reg, "OptionChoice_22_70001_Swatch");
+    assert_eq!(marker.x - swatch.x, -4.0);
+    assert_eq!([marker.width, marker.height], [51.0, 20.0]);
+    assert!(
+        harness
+            .reg
+            .get_by_name("OptionChoice_22_70001_Selected")
+            .is_none(),
+        "retail highlights its selected swatch and text, not the whole row"
+    );
 }
 
 #[test]
