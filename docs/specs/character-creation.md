@@ -63,9 +63,11 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - Shared/server appearance tests — wire roundtrips, six historical storage schemas, temporary-database reopen and login roster preservation.
 - `debug/character-create.js` — real offline controls, eyes/ears, name entry, camera actions and Back/Next, without character submission.
 
-## Known gaps (current cycle)
+## Scoped visual verification — 2026-09-22
 
-- [ ] Final rendered dropdown acceptance remains pending. Build `12.1.0.69875` metadata maps `charactercreate-customize-palette` to `[519,471..603,491]` and `-half` to `[729,471..813,491]`; `ui-toolkit` `78c67e7` applies those bounds. Element 25590 additionally requires asymmetric 23/18/23/28 nine-slice margins, applied after both screen-sync paths by `83490974`. Fresh local-CASC assets matched the cache, so these were metadata drift, not stale BLP bytes. Native nine-part projection, opaque center, label ordering and idle-dirty tests pass; runtime and final verification remain pending.
+Reported control/background corrections have native-layer, decoded-asset, interaction and inspected runtime evidence. Final one-column and four-column captures show filled swatches, selected outlines, readable labels and background coverage. Independent checks pass for authored slicing, repeated screen sync and fractional-scale navigation. Evidence: `data/diagnostics/charcreate-button-style-20260922/completion-report.md` and `independent-dropdown-slice-report.md`. Runtime logs retain unrelated local-CASC character-texture misses; this is not full 3D-preview acceptance.
+
+## Known gaps (current cycle)
 - [ ] Pixel-perfect Retail visual parity has not been established. The contracts above are source-, layout- and native-layer-tested; no uninspected screenshot comparison or pixel-parity claim is made. Native additive glow, tooltip/hold-repeat details and unsupported effect families are not claimed complete.
 - [ ] Local `ChrCustomizationReq.csv` is absent. General account/unlock eligibility is not implemented; existing class filtering is not full retail eligibility parity.
 - [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
