@@ -326,6 +326,25 @@ fn category_change_removes_old_controls_without_replacing_name_input() {
 }
 
 #[test]
+fn dropdown_choice_uses_subtle_hover_opacity_without_changing_other_buttons() {
+    let harness = ScreenHarness::new(CharCreateUiState {
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let hovered_choice = frame(&harness.reg, "OptionChoice_22_70005");
+    let Some(WidgetData::Button(choice)) = &hovered_choice.widget_data else {
+        panic!("popup choice must be an interactive button");
+    };
+    assert_eq!(choice.highlight_alpha, 0.15);
+    assert!(!choice.use_default_skin);
+    let ordinary = frame(&harness.reg, "Camera_reset");
+    let Some(WidgetData::Button(camera)) = &ordinary.widget_data else {
+        panic!("camera control must be an interactive button");
+    };
+    assert_eq!(camera.highlight_alpha, 0.5);
+}
+
+#[test]
 fn non_color_dropdown_preserves_authored_order_and_choice_ids() {
     let harness = ScreenHarness::new(CharCreateUiState {
         open_dropdown: Some(22),
