@@ -33,6 +33,10 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 - `data/terrain/{fdid}.adt` — ADT terrain files
 - `data/community-listfile.csv` — 136MB FDID→path map (from wowdev/wow-listfile)
 
+## UI consumers
+
+WoW UI metadata stores authored FileDataIDs. A virtual path is only listfile lookup input; it is never a runtime filesystem path or a fallback export directory. Character-creation race/class icons follow this boundary: retained `rsx!` emits `texture_fdid`, then `GameBlpLoader` resolves the asset through local CASC/cache. See [[ui-system]].
+
 ## Community Listfile
 
 CASC is path-free; the community listfile is a crowdsourced FDID→virtual-path map. It is load-bearing for two directions:
@@ -72,6 +76,7 @@ Some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*`
 - [casc-extraction.md](../casc-extraction.md) — casc-local tool, refresh procedure, cascette-rs library
 - [casc-db2-keys.md](../casc-db2-keys.md) — WoWDBDefs vs TACTKeys distinction
 - AGENTS.md — Data Assets section
+- [character-creation icon metadata](../../../src/scenes/char_create/data.rs) — typed UI FileDataID consumer
 
 ## See Also
 
@@ -79,3 +84,4 @@ Some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*`
 - [[terrain]] — ADT extraction and companion file lookup
 - [[character-rendering]] — texture compositing from CASC-extracted BLP files
 - [[skybox]] — LightSkybox.db2 decryption required for authored lookup
+- [[ui-system]] — registry UI consumers of local CASC-backed FileDataIDs
