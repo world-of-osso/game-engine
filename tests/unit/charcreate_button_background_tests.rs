@@ -1,7 +1,8 @@
 use super::GameBlpLoader;
 use bevy::prelude::*;
 use game_engine::ui::screens::char_create_component::{
-    CharCreateMode, CharCreateUiState, CustomizationCategoryUi, char_create_screen,
+    CharCreateMode, CharCreateUiState, CustomizationCategoryUi, CustomizationChoiceUi,
+    CustomizationOptionUi, char_create_screen,
 };
 use ui_toolkit::native_render::RegistryNode;
 use ui_toolkit::plugin::UiState;
@@ -49,6 +50,54 @@ fn images_for(app: &mut App, name: &str) -> Vec<Handle<Image>> {
         .filter(|(parent, _)| parent.parent() == entity)
         .map(|(_, image)| image.image.clone())
         .collect()
+}
+
+#[test]
+fn dropdown_palette_projects_a_tintable_bar_from_the_installed_texture() {
+    let mut app = app(CharCreateUiState {
+        mode: CharCreateMode::Customize,
+        options: vec![CustomizationOptionUi {
+            id: 776,
+            label: "Jewelry Color".into(),
+            ui_type: 0,
+            selected_choice_id: 8619,
+            choices: vec![CustomizationChoiceUi {
+                id: 8619,
+                label: "1".into(),
+                swatch: Some([17, 91, 201]),
+                secondary_swatch: None,
+                enabled: true,
+            }],
+            enabled: true,
+            disabled_reason: None,
+        }],
+        open_dropdown: Some(776),
+        ..Default::default()
+    });
+    for name in ["OptionValue_776_Swatch", "OptionChoice_776_8619_Swatch"] {
+        let images = images_for(&mut app, name);
+        assert_eq!(images.len(), 1);
+        let image = app
+            .world()
+            .resource::<Assets<Image>>()
+            .get(&images[0])
+            .unwrap();
+        let pixels = image.data.as_ref().unwrap();
+        let opaque: Vec<_> = pixels
+            .chunks_exact(4)
+            .filter(|pixel| pixel[3] > 200)
+            .collect();
+        assert!(
+            opaque.len() > pixels.len() / 8,
+            "{name}: expected a filled swatch, not sparse ornament"
+        );
+        assert!(
+            opaque
+                .iter()
+                .all(|pixel| pixel[0] == pixel[1] && pixel[1] == pixel[2]),
+            "{name}: tintable artwork must be neutral, not colored ornament"
+        );
+    }
 }
 
 #[test]
