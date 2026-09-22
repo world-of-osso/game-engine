@@ -162,35 +162,50 @@ pub(super) fn build_test_app() -> App {
     app
 }
 
-pub(super) fn assert_single_anchor(
+/// Assert the frame's computed bounds sit (`dx`, `dy`) from the target's top-left
+/// corner in screen pixels (Y downward).
+pub(super) fn assert_bounds_offset_from_top_left(
     reg: &FrameRegistry,
     frame_id: u64,
-    point: game_engine::ui::anchor::AnchorPoint,
-    relative_point: game_engine::ui::anchor::AnchorPoint,
     relative_to: Option<u64>,
-    x_offset: f32,
-    y_offset: f32,
+    dx: f32,
+    dy: f32,
 ) {
-    let frame = reg.get(frame_id).expect("frame");
-    let actual = frame.layout_rect.as_ref().expect("native frame bounds");
-    let target = relative_to
-        .map(|id| reg.get(id).unwrap().layout_rect.clone().unwrap())
-        .unwrap_or_else(|| reg.screen_rect());
-    let actual =
-        ui_toolkit::anchor::anchor_position(point, actual.x, actual.y, actual.width, actual.height);
-    let expected = ui_toolkit::anchor::anchor_position(
-        relative_point,
-        target.x,
-        target.y,
-        target.width,
-        target.height,
-    );
+    let actual = computed_bounds(reg, frame_id);
+    let target = target_bounds(reg, relative_to);
     assert!(
-        (actual.0 - expected.0 - x_offset).abs() <= 1.0,
-        "native horizontal placement {actual:?} vs {expected:?}"
+        (actual.x - target.x - dx).abs() <= 1.0 && (actual.y - target.y - dy).abs() <= 1.0,
+        "native placement {actual:?} vs target {target:?} + ({dx}, {dy})"
     );
+}
+
+/// Assert the frame's computed bounds are horizontally centered on the target
+/// with their top edge `dy` pixels below the target's top edge.
+pub(super) fn assert_top_edge_centered(
+    reg: &FrameRegistry,
+    frame_id: u64,
+    relative_to: Option<u64>,
+    dy: f32,
+) {
+    let actual = computed_bounds(reg, frame_id);
+    let target = target_bounds(reg, relative_to);
     assert!(
-        (actual.1 - expected.1 + y_offset).abs() <= 1.0,
-        "native vertical placement {actual:?} vs {expected:?}"
+        (actual.x + actual.width / 2.0 - (target.x + target.width / 2.0)).abs() <= 1.0
+            && (actual.y - target.y - dy).abs() <= 1.0,
+        "native top-center placement {actual:?} vs target {target:?} + dy {dy}"
     );
+}
+
+fn computed_bounds(reg: &FrameRegistry, frame_id: u64) -> ui_toolkit::layout::LayoutRect {
+    reg.get(frame_id)
+        .expect("frame")
+        .layout_rect
+        .clone()
+        .expect("native frame bounds")
+}
+
+fn target_bounds(reg: &FrameRegistry, relative_to: Option<u64>) -> ui_toolkit::layout::LayoutRect {
+    relative_to
+        .map(|id| computed_bounds(reg, id))
+        .unwrap_or_else(|| reg.screen_rect())
 }
