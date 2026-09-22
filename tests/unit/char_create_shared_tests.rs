@@ -147,17 +147,27 @@ fn char_create_shared_mode_appearance_error_and_focus_changes_propagate() {
     assert_eq!(fixture.generation(), previous + 1);
     assert_eq!(fixture.option(10).selected_choice_id, 22);
     assert_eq!(fixture.option(11).selected_choice_id, 47);
-    // Human Face also requires an unsupported bone-set effect, unlike Hair Style.
-    // Its selected ID still propagates, but the view must explain its disabled state.
-    assert!(!fixture.option(10).enabled);
-    assert_eq!(
-        fixture.text("OptionReason_10"),
-        fixture.option(10).disabled_reason.as_deref().unwrap()
-    );
-    assert!(fixture.text("OptionReason_10").contains("not supported"));
+    // Face still has a working material path even when its extra bone-set effect is unsupported.
+    assert!(fixture.option(10).enabled);
+    assert_eq!(fixture.text("OptionValue_10_Text"), "3");
     assert_eq!(fixture.text("OptionValue_11_Text"), "Monk");
     assert!(fixture.shared().name_input_focused);
     assert_eq!(fixture.text(ERROR_TEXT.0), "Name unavailable");
+    let notice = fixture
+        .shared()
+        .support_notice
+        .as_deref()
+        .expect("partial appearance support must be disclosed");
+    assert!(
+        notice.contains("Face"),
+        "notice must identify the partially supported option: {notice}"
+    );
+    assert_eq!(fixture.text("CustomizationSupportNotice"), notice);
+    assert_ne!(
+        notice,
+        fixture.text(ERROR_TEXT.0),
+        "support notice must not replace creation errors"
+    );
     assert_eq!(
         helpers::get_editbox_text(&fixture.registry, input),
         "Theron"
@@ -427,6 +437,14 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
     assert_eq!(request.appearance, expected);
 }
 
+fn is_purely_unsupported(choice: &game_engine::customization_data::CustomizationChoice) -> bool {
+    choice.has_unsupported_effects
+        && choice.materials.is_empty()
+        && choice.geosets.is_empty()
+        && choice.related_materials.is_empty()
+        && choice.related_geosets.is_empty()
+}
+
 fn authored_rgb(value: i32) -> Option<[u8; 3]> {
     let [_, red, green, blue] = value.to_be_bytes();
     (value != 0).then_some([red, green, blue])
@@ -438,6 +456,7 @@ fn char_create_shared_catalog_choices_keep_filtered_ids_names_and_swatches_align
     let mut filtered_options = 0;
     let mut colored_choices = 0;
     let mut unsupported_choices = 0;
+    let mut partially_supported_choices = 0;
     for (race, sex, class) in [(1, 0, 1), (2, 0, 1), (10, 0, 1), (10, 0, 12), (10, 1, 1)] {
         let mut state = CharCreateState {
             selected_race: race,
@@ -485,15 +504,17 @@ fn char_create_shared_catalog_choices_keep_filtered_ids_names_and_swatches_align
                     authored_rgb(expected.swatch_colors[1])
                 );
                 colored_choices += usize::from(actual.swatch.is_some());
-                if expected.has_unsupported_effects {
+                if is_purely_unsupported(expected) {
                     unsupported_choices += 1;
                     assert!(
                         !actual.enabled,
-                        "unsupported effects must not become selectable"
+                        "choices with no supported effect must not become selectable"
                     );
+                } else if expected.has_unsupported_effects {
+                    partially_supported_choices += 1;
                 }
             }
-            if choices.is_empty() || choices.iter().all(|choice| choice.has_unsupported_effects) {
+            if choices.is_empty() || choices.iter().all(|choice| is_purely_unsupported(choice)) {
                 assert!(!row.enabled);
                 assert!(
                     row.disabled_reason
@@ -514,5 +535,9 @@ fn char_create_shared_catalog_choices_keep_filtered_ids_names_and_swatches_align
     assert!(
         unsupported_choices > 0,
         "fixtures must exercise unsupported effects"
+    );
+    assert!(
+        partially_supported_choices > 0,
+        "fixtures must distinguish partial effects from completely unsupported choices"
     );
 }
