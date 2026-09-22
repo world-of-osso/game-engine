@@ -46,6 +46,12 @@ Character-creation race and class metadata stores FileDataIDs, while retained `r
 
 Customization arrows and palette regions retain their existing atlas names and UVs, but the toolkit resolves `CharacterCreate.BLP` through authored FileDataID `1253496` rather than a machine-specific export path. `charcreate_atlas_source_tests.rs` compares eight materialized native crops with decoded local-CASC RGBA source pixels. Commit `1b48b132` changes only the atlas source; no artwork or crop geometry changed.
 
+## Staged additional character-customization selections
+
+`CharacterAppearance` retains the existing `sex`, skin, face, eye, hair-style, hair-color, and facial-style selectors. Shared protocol commit `9123a5f` adds owned `customization_choices: Vec<CustomizationChoiceSelection>`, where each value carries an authored `option_id` and `choice_id`. The vector is reserved for non-core options; it must not duplicate a core selector's option.
+
+Engine commit `6ca0a28d` adapts barber snapshots, character export, and IPC status formatting to retain owned appearance values after the type ceased to be `Copy`. This records representation plumbing only: category UI, renderer application, server persistence verification, and full character-creation acceptance remain open in the [character-creation spec](../../specs/character-creation.md).
+
 ## Player-frame artwork fit
 
 The player HUD preserves its unmodified gold/silver `396×142` shell at `297×106.5`. Historical `232×100` XML coordinates do not apply to this custom artwork. Its actual connected openings are portrait `(18,13,111×113)`, health `(135,52,249×40)`, and mana `(135,94,249×20)`, uniformly scaled 75%.
@@ -237,6 +243,9 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [character-creation icon metadata](../../../src/scenes/char_create/data.rs) — authored race/class FileDataIDs
 - [character-creation icon widgets](../../../src/ui/screens/char_create_component/char_create_widgets.rs) — `texture_fdid` registry authoring
 - [character-creation icon regressions](../../../tests/unit/charcreate_icon_source_tests.rs) — listfile, decode, and native-content coverage
+- [shared appearance payload](../../../../shared-protocol/src/components.rs) — core selectors plus disjoint authored option/choice selections
+- [appearance consumer adapters](../../../src/barber_shop.rs) — barber snapshot ownership after additional selections
+- [character-creation spec](../../specs/character-creation.md) — full-customization contract and current gaps
 - `../../data/diagnostics/warnings-charselect-style-20260912/atlas-provenance.json` — DB2 member-to-atlas FDID evidence
 - [visibility and alpha propagation](../../../../ui-toolkit/src/registry.rs) — conditional derived-state repair and single-pass `set_hidden` traversal
 - [registry mutation and removal cleanup](../../../../ui-toolkit/src/registry.rs) — unchanged-write retraction and removed-ID focus cleanup
