@@ -109,6 +109,9 @@ pub struct CustomizationChoice {
     pub id: u32,
     pub display_name: String,
     pub requirement_id: u32,
+    pub visibility_requirement_id: u32,
+    /// Authored signed ARGB values; zero is retained rather than replaced by sampled colors.
+    pub swatch_colors: [i32; 2],
     pub has_unsupported_effects: bool,
     /// (ChrModelTextureTargetID, resolved FDID)
     pub materials: Vec<(u16, u32)>,
@@ -518,6 +521,8 @@ fn resolve_option_choices(
                 id: ch.id,
                 display_name: ch.name.clone(),
                 requirement_id: ch.requirement_id,
+                visibility_requirement_id: ch.visibility_requirement_id,
+                swatch_colors: ch.swatch_colors,
                 has_unsupported_effects: indexed.elements_by_choice.get(&ch.id).is_some_and(
                     |elements| {
                         elements
@@ -698,6 +703,8 @@ pub(crate) struct RawChoice {
     pub(crate) option_id: u32,
     pub(crate) name: String,
     pub(crate) requirement_id: u32,
+    pub(crate) visibility_requirement_id: u32,
+    pub(crate) swatch_colors: [i32; 2],
     pub(crate) order_index: u32,
 }
 pub(crate) struct RawElement {

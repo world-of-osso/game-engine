@@ -53,6 +53,8 @@ fn full_choice_lookup_fixture() -> RawData {
         option_id,
         name: name.into(),
         requirement_id: 19,
+        visibility_requirement_id: 23,
+        swatch_colors: [-26_091, 0],
         order_index,
     })
     .collect();
@@ -154,6 +156,8 @@ fn full_choice_lookup_resolves_unrecognized_options_and_related_elements() {
     let choice = db.choice_by_id(1, 0, 70_001).unwrap();
     assert_eq!(choice.display_name, "Face shape");
     assert_eq!(choice.requirement_id, 19);
+    assert_eq!(choice.visibility_requirement_id, 23);
+    assert_eq!(choice.swatch_colors, [-26_091, 0]);
     assert_eq!(choice.materials, vec![(6, 1_020_001)]);
     assert_eq!(choice.geosets, vec![(32, 2)]);
     let related_materials: Vec<_> = choice
