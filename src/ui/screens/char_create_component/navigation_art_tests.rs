@@ -133,6 +133,49 @@ fn authored_navigation_parts_project_the_original_local_casc_pixels() {
     for suffix in ["Left", "Center", "Right"] {
         assert_crop(&mut app, &format!("CharCreateBack_{suffix}"), &source);
     }
+    let label_id = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("CharCreateBack_Label")
+        .unwrap();
+    let text_entity = app
+        .world_mut()
+        .query::<(Entity, &ui_toolkit::native_render::RegistryText)>()
+        .iter(app.world())
+        .find(|(_, text)| text.frame_id == label_id)
+        .expect("navigation label projects to native UI text")
+        .0;
+    let text_bounds = app.world().get::<ChildOf>(text_entity).unwrap().parent();
+    let text_z = app.world().get::<GlobalZIndex>(text_bounds).unwrap().0;
+    for suffix in ["Left", "Center", "Right"] {
+        let part_name = format!("CharCreateBack_{suffix}");
+        let part_id = app
+            .world()
+            .resource::<UiState>()
+            .registry
+            .get_by_name(&part_name)
+            .unwrap();
+        let part_entity = app
+            .world_mut()
+            .query::<(Entity, &RegistryNode)>()
+            .iter(app.world())
+            .find(|(_, node)| node.0 == part_id)
+            .unwrap()
+            .0;
+        let image_entity = app
+            .world_mut()
+            .query::<(Entity, &ChildOf, &ImageNode)>()
+            .iter(app.world())
+            .find(|(_, parent, _)| parent.parent() == part_entity)
+            .unwrap()
+            .0;
+        let art_z = app.world().get::<GlobalZIndex>(image_entity).unwrap().0;
+        assert!(
+            text_z > art_z,
+            "{part_name}: navigation label z={text_z} must appear above art z={art_z}"
+        );
+    }
     let id = app
         .world()
         .resource::<UiState>()
@@ -156,6 +199,31 @@ fn authored_navigation_parts_project_the_original_local_casc_pixels() {
         app.update();
     }
     assert_crop(&mut app, "CharCreateBack_Highlight", &source);
+    let highlight_id = app
+        .world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name("CharCreateBack_Highlight")
+        .unwrap();
+    let highlight_frame = app
+        .world_mut()
+        .query::<(Entity, &RegistryNode)>()
+        .iter(app.world())
+        .find(|(_, node)| node.0 == highlight_id)
+        .unwrap()
+        .0;
+    let highlight_image = app
+        .world_mut()
+        .query::<(Entity, &ChildOf, &ImageNode)>()
+        .iter(app.world())
+        .find(|(_, parent, _)| parent.parent() == highlight_frame)
+        .unwrap()
+        .0;
+    let highlight_z = app.world().get::<GlobalZIndex>(highlight_image).unwrap().0;
+    assert!(
+        text_z > highlight_z,
+        "navigation label must stay above the hover overlay"
+    );
 }
 
 #[test]
@@ -188,6 +256,17 @@ fn navigation_parts_follow_button_state_without_idle_registry_writes() {
     }
     world.run_system_once(super::sync_navigation_art).unwrap();
     let reg = &world.resource::<UiState>().registry;
+    let label_id = reg
+        .get_by_name("CharCreateBack_Label")
+        .expect("visible navigation label");
+    let Some(WidgetData::FontString(label)) = &reg.get(label_id).unwrap().widget_data else {
+        panic!("navigation label is text")
+    };
+    assert_eq!(
+        label.color,
+        [0.8, 0.65, 0.0, 1.0],
+        "pressed label color matches the original button"
+    );
     for (part, expected) in [
         ("Left", "128-redbutton-left-pressed"),
         ("Center", "_128-redbutton-center-pressed"),
@@ -237,6 +316,11 @@ fn navigation_parts_follow_button_state_without_idle_registry_writes() {
         atlas(reg, "CharCreateBack_Right"),
         "128-redbutton-right-disabled"
     );
+    let label_id = reg.get_by_name("CharCreateBack_Label").unwrap();
+    let Some(WidgetData::FontString(label)) = &reg.get(label_id).unwrap().widget_data else {
+        panic!("navigation label is text")
+    };
+    assert_eq!(label.color, [0.5, 0.5, 0.5, 1.0]);
     assert!(
         reg.get(reg.get_by_name("CharCreateBack_Highlight").unwrap())
             .unwrap()
@@ -265,14 +349,24 @@ fn character_create_navigation_uses_three_authored_red_parts_without_square_skin
         250.0 - (114.0 + 292.0) * scale,
         292.0 * scale,
     ];
-    for (mode, forward, forward_action) in [
-        (CharCreateMode::RaceClass, NEXT_BUTTON.0, "next_mode"),
-        (CharCreateMode::Customize, CREATE_BUTTON.0, "create_confirm"),
+    for (mode, forward, forward_action, forward_label) in [
+        (
+            CharCreateMode::RaceClass,
+            NEXT_BUTTON.0,
+            "next_mode",
+            "Customize",
+        ),
+        (
+            CharCreateMode::Customize,
+            CREATE_BUTTON.0,
+            "create_confirm",
+            "Create Character",
+        ),
     ] {
         let registry = projected_screen(mode);
-        for (name, x, action) in [
-            (BACK_BUTTON.0, 46.0, "back"),
-            (forward, 1624.0, forward_action),
+        for (name, x, action, label) in [
+            (BACK_BUTTON.0, 46.0, "back", "Back"),
+            (forward, 1624.0, forward_action, forward_label),
         ] {
             let id = registry.get_by_name(name).expect("navigation button");
             let frame = registry.get(id).unwrap();
@@ -289,6 +383,28 @@ fn character_create_navigation_uses_three_authored_red_parts_without_square_skin
                 "{name}: authored art must not gain a square default skin"
             );
             assert!(button.normal_texture.is_none());
+            let label_id = registry
+                .get_by_name(&format!("{name}_Label"))
+                .expect("visible navigation wording");
+            let Some(WidgetData::FontString(text)) = &registry.get(label_id).unwrap().widget_data
+            else {
+                panic!("navigation wording must render as text")
+            };
+            assert_eq!(text.text, label);
+            assert_eq!(
+                text.font,
+                crate::ui::widgets::font_string::GameFont::FrizQuadrata
+            );
+            assert_eq!(text.font_size, 22.0);
+            assert_eq!(text.color, [1.0, 0.82, 0.0, 1.0]);
+            assert_eq!(
+                text.justify_h,
+                crate::ui::widgets::font_string::JustifyH::Center
+            );
+            assert_eq!(
+                text.justify_v,
+                crate::ui::widgets::font_string::JustifyV::Middle
+            );
             let mut left = x;
             for (suffix, source, width) in [
                 ("Left", "128-redbutton-left", widths[0]),
