@@ -1,4 +1,4 @@
-use ui_toolkit::frame::{Dimension, WidgetData};
+use ui_toolkit::frame::{Dimension, WidgetData, WidgetType};
 
 use super::*;
 
@@ -1154,4 +1154,140 @@ fn reload_recreated_frames_keep_stable_native_identity_after_deferred_removal() 
     assert_eq!(projected_frame(app.world_mut(), panel_id), panel_entity);
     assert_eq!(projected_text(app.world(), panel_entity), text);
     std::fs::remove_dir_all(&dir).ok();
+}
+
+fn editbox_addon(names: &[&str]) -> LoadedAddon {
+    LoadedAddon {
+        name: "editbox-fixture".into(),
+        operations: Vec::new(),
+        owned_frames: names.iter().map(|name| (*name).to_string()).collect(),
+    }
+}
+
+fn create_addon_editbox(app: &mut App, addon: &LoadedAddon, name: &str, x: f32, y: f32) -> u64 {
+    let id = {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        let id = apply::ensure_owned_frame(
+            addon,
+            &mut ui.registry,
+            name,
+            Some("ParentRoot"),
+            WidgetType::EditBox,
+        )
+        .expect("owned editbox should be created");
+        let frame = ui.registry.get_mut(id).unwrap();
+        frame.width = Dimension::Fixed(120.0);
+        frame.height = Dimension::Fixed(30.0);
+        if let Some(WidgetData::EditBox(eb)) = frame.widget_data.as_mut() {
+            eb.text = "typed".into();
+        }
+        ui.registry
+            .set_pos_type(id, PositionType::Absolute)
+            .unwrap();
+        ui.registry.set_pos(id, x, y).unwrap();
+        id
+    };
+    app.update();
+    app.update();
+    app.update();
+    id
+}
+
+/// Registry input routing mirroring scenes/login/input.rs::handle_mouse_press:
+/// hit-test through the registry, click the hit frame, mirror registry focus into
+/// UiState; a miss clears the mirrored focus.
+fn click_at(ui: &mut UiState, x: f32, y: f32) -> Option<u64> {
+    let hit = ui_toolkit::input::find_frame_at(&ui.registry, x, y);
+    match hit {
+        Some(id) => {
+            ui.registry.click_frame(id);
+            ui.focused_frame = ui.registry.focused_frame;
+        }
+        None => ui.focused_frame = None,
+    }
+    hit
+}
+
+fn editbox_center(ui: &UiState, id: u64) -> (f32, f32) {
+    let frame = ui.registry.get(id).unwrap();
+    let rect = frame.layout_rect.as_ref().expect("editbox layout computed");
+    (rect.x + rect.width / 2.0, rect.y + rect.height / 2.0)
+}
+
+#[test]
+fn addon_owned_editbox_click_focuses_via_registry_input() {
+    let mut app = native_addon_app();
+    let addon = editbox_addon(&["AddonInput"]);
+    let editbox = create_addon_editbox(&mut app, &addon, "AddonInput", 50.0, 40.0);
+    let (cx, cy) = {
+        let ui = app.world().resource::<UiState>();
+        assert!(
+            ui.registry.get(editbox).unwrap().is_editbox(),
+            "addon-owned editbox must carry editbox widget data"
+        );
+        editbox_center(ui, editbox)
+    };
+    let mut ui = app.world_mut().resource_mut::<UiState>();
+    let hit = click_at(&mut ui, cx, cy);
+    assert_eq!(hit, Some(editbox), "hit-test finds the addon editbox");
+    assert_eq!(ui.registry.focused_frame, Some(editbox));
+    assert_eq!(ui.focused_frame, Some(editbox));
+    let frame = ui.registry.get(editbox).unwrap();
+    let Some(WidgetData::EditBox(eb)) = frame.widget_data.as_ref() else {
+        panic!("editbox widget data missing");
+    };
+    assert_eq!(
+        eb.cursor_position,
+        eb.text.len(),
+        "clicking an editbox selects all text (cursor to end)"
+    );
+}
+
+#[test]
+fn addon_editbox_focus_redirects_and_clears_on_outside_click() {
+    let mut app = native_addon_app();
+    let addon = editbox_addon(&["AddonInputA", "AddonInputB"]);
+    let first = create_addon_editbox(&mut app, &addon, "AddonInputA", 50.0, 40.0);
+    let second = create_addon_editbox(&mut app, &addon, "AddonInputB", 50.0, 90.0);
+    let (first_center, second_center) = {
+        let ui = app.world().resource::<UiState>();
+        (editbox_center(ui, first), editbox_center(ui, second))
+    };
+
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        assert_eq!(
+            click_at(&mut ui, first_center.0, first_center.1),
+            Some(first)
+        );
+        assert_eq!(ui.registry.focused_frame, Some(first));
+        assert_eq!(ui.focused_frame, Some(first));
+    }
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        assert_eq!(
+            click_at(&mut ui, second_center.0, second_center.1),
+            Some(second),
+            "a second editbox receives the click"
+        );
+        assert_eq!(
+            ui.registry.focused_frame,
+            Some(second),
+            "focus redirects to the clicked editbox"
+        );
+        assert_eq!(ui.focused_frame, Some(second));
+    }
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        assert_eq!(
+            ui_toolkit::input::find_frame_at(&ui.registry, 700.0, 560.0),
+            None,
+            "click outside every frame hits nothing"
+        );
+        assert_eq!(click_at(&mut ui, 700.0, 560.0), None);
+        assert_eq!(
+            ui.focused_frame, None,
+            "outside click clears the mirrored focus"
+        );
+    }
 }

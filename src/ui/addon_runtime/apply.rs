@@ -1,5 +1,6 @@
 use bevy::log::warn;
 use ui_toolkit::frame::{Dimension, WidgetData, WidgetType};
+use ui_toolkit::widgets::edit_box::EditBoxData;
 use ui_toolkit::widgets::font_string::FontStringData;
 
 use super::{AddonOperation, LoadedAddon};
@@ -250,7 +251,7 @@ fn set_owned_font_color(
     data.color = color;
 }
 
-fn ensure_owned_frame(
+pub(super) fn ensure_owned_frame(
     addon: &LoadedAddon,
     registry: &mut ui_toolkit::registry::FrameRegistry,
     name: &str,
@@ -287,10 +288,17 @@ fn initialize_widget(
 ) -> Option<()> {
     let frame = registry.get_mut(frame_id)?;
     frame.widget_type = widget_type;
-    if widget_type == WidgetType::FontString {
-        frame.width = Dimension::Auto;
-        frame.height = Dimension::Auto;
-        frame.widget_data = Some(WidgetData::FontString(FontStringData::default()));
+    match widget_type {
+        WidgetType::FontString => {
+            frame.width = Dimension::Auto;
+            frame.height = Dimension::Auto;
+            frame.widget_data = Some(WidgetData::FontString(FontStringData::default()));
+        }
+        WidgetType::EditBox => {
+            frame.mouse_enabled = true;
+            frame.widget_data = Some(WidgetData::EditBox(EditBoxData::default()));
+        }
+        _ => {}
     }
     Some(())
 }
