@@ -163,12 +163,12 @@ fn race_class_and_sex_changes_re_randomize_appearance() {
     assert_eq!(state.selected_race, 10);
     assert_ne!(state.appearance, CharacterAppearance::default());
 
-    let race_appearance = state.appearance;
+    let race_appearance = state.appearance.clone();
     input::apply_class_change_with_seed(&mut state, 3, &db, 2);
     assert_eq!(state.selected_class, 3);
     assert_ne!(state.appearance, race_appearance);
 
-    let class_appearance = state.appearance;
+    let class_appearance = state.appearance.clone();
     input::apply_sex_toggle_with_seed(&mut state, &db, 3);
     assert_eq!(state.selected_sex, 1);
     assert_eq!(state.appearance.sex, 1);
@@ -186,7 +186,7 @@ fn explicit_randomize_re_rolls_appearance_without_changing_selection() {
     };
 
     randomize_appearance_with_seed(&mut state, &db, 11);
-    let original = state.appearance;
+    let original = state.appearance.clone();
 
     input::apply_randomize_with_seed(&mut state, &db, 12);
 

@@ -41,6 +41,7 @@ pub(super) fn randomize_appearance_with_seed(
             &mut seed,
             db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
         ),
+        customization_choices: Vec::new(),
     };
 }
 

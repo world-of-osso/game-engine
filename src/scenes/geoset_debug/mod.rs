@@ -77,6 +77,7 @@ impl DebugCharacterConfig {
                 hair_style: env_u8("DEBUG_CHARACTER_HAIR_STYLE", 4),
                 hair_color: env_u8("DEBUG_CHARACTER_HAIR_COLOR", 5),
                 facial_style: env_u8("DEBUG_CHARACTER_FACIAL_STYLE", 1),
+                customization_choices: Vec::new(),
             },
             // Display 1128: clearly visible plate helm with runtime M2 model.
             left_head_display: env_u32("DEBUG_CHARACTER_LEFT_HEAD_DISPLAY", 1128),
@@ -289,7 +290,7 @@ fn insert_debug_character_request(
                 race: ctx.config.race,
                 class: ctx.config.class,
                 sex: ctx.config.sex,
-                appearance: ctx.config.appearance,
+                appearance: ctx.config.appearance.clone(),
             },
             equipment_appearance: debug_equipment_appearance(
                 ctx.config, side.head, side.hands, side.waist, side.legs, side.feet,

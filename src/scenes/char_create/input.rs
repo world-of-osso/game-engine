@@ -237,7 +237,7 @@ fn send_create_request(
         name: name.clone(),
         race: state.selected_race,
         class: state.selected_class,
-        appearance: state.appearance,
+        appearance: state.appearance.clone(),
     };
     for mut sender in senders.iter_mut() {
         sender.send::<AuthChannel>(msg.clone());

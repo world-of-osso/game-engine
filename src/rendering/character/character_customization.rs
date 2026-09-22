@@ -26,7 +26,7 @@ pub(crate) use character_customization_textures::{
     component_sections_for_slot, replacement_texture_for_batch,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct CharacterCustomizationSelection {
     pub(crate) race: u8,
     pub(crate) class: u8,
@@ -131,7 +131,7 @@ impl Plugin for CharacterCustomizationPlugin {
 }
 
 pub(crate) fn apply_character_customization(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     char_tex: &CharTextureData,
     equipped_appearance: Option<&ResolvedEquipmentAppearance>,
@@ -189,7 +189,7 @@ pub(crate) fn apply_character_customization(
 }
 
 pub(crate) fn collect_appearance_materials(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> Vec<(u16, u32)> {
     let selected_choice_ids = selected_choice_ids(selection, customization_db);
@@ -283,7 +283,7 @@ fn apply_character_render_customization(
     context: &mut CharacterRenderRequestContext,
 ) {
     apply_character_customization(
-        request.selection,
+        &request.selection,
         context.customization_db,
         context.char_tex,
         Some(resolved_equipment),
@@ -399,7 +399,7 @@ fn character_render_targets_ready(
 }
 
 fn apply_geoset_visibility(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
     outfit: &game_engine::outfit_data::OutfitResult,
     hidden_groups: &HashSet<u16>,
@@ -476,7 +476,7 @@ fn is_group_zero_body_segment(mesh_part_id: u16) -> bool {
 }
 
 fn selected_choice_ids(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> HashSet<u32> {
     let fields = [
@@ -504,7 +504,7 @@ fn selected_choice_ids(
 }
 
 fn collect_active_geosets(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> Vec<(u16, u16)> {
     let mut active_geosets: Vec<(u16, u16)> = Vec::new();
@@ -534,7 +534,7 @@ fn collect_active_geosets(
 }
 
 fn selected_geoset_fields(
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
 ) -> [(OptionType, Option<u8>); 3] {
     [
         (OptionType::HairStyle, Some(selection.appearance.hair_style)),
@@ -551,7 +551,7 @@ fn selected_geoset_fields(
 fn apply_hidden_geoset_groups(
     active_geosets: &mut Vec<(u16, u16)>,
     hidden_groups: &HashSet<u16>,
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) {
     for &group in hidden_groups {
@@ -565,7 +565,7 @@ fn apply_hidden_geoset_groups(
 
 fn hidden_group_variant(
     group: u16,
-    selection: CharacterCustomizationSelection,
+    selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> u16 {
     if group == 0 {
