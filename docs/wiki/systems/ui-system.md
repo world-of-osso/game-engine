@@ -42,6 +42,10 @@ Toolkit RED at `392de1c` reproduced the missing absolute-path load. Toolkit `437
 
 Character-creation race and class metadata stores FileDataIDs, while retained `rsx!` widgets emit `texture_fdid`. `GameBlpLoader` resolves those authored assets through the local CASC cache; it never reads a machine-specific WoW export directory. Commit `11267c8d` maps all 22 race and 10 class icons to their exact community-listfile entries, including the Worgen portrait FDID `455993`. `charcreate_icon_source_tests.rs` covers local resolution, decode, and registry/native image content for the set. This documents source behavior only; current rendered character-creation acceptance remains separate.
 
+## Character-creation customization atlas
+
+Customization arrows and palette regions retain their existing atlas names and UVs, but the toolkit resolves `CharacterCreate.BLP` through authored FileDataID `1253496` rather than a machine-specific export path. `charcreate_atlas_source_tests.rs` compares eight materialized native crops with decoded local-CASC RGBA source pixels. Commit `1b48b132` changes only the atlas source; no artwork or crop geometry changed.
+
 ## Player-frame artwork fit
 
 The player HUD preserves its unmodified gold/silver `396×142` shell at `297×106.5`. Historical `232×100` XML coordinates do not apply to this custom artwork. Its actual connected openings are portrait `(18,13,111×113)`, health `(135,52,249×40)`, and mana `(135,94,249×20)`, uniformly scaled 75%.
