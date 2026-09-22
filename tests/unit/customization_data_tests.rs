@@ -12,26 +12,31 @@ fn full_choice_lookup_fixture() -> RawData {
             id: 10,
             name: "Hair Style".into(),
             chr_model_id: 1,
+            ..Default::default()
         },
         RawOption {
             id: 20,
             name: "Face Shape".into(),
             chr_model_id: 1,
+            ..Default::default()
         },
         RawOption {
             id: 30,
             name: "Eyebrows".into(),
             chr_model_id: 1,
+            ..Default::default()
         },
         RawOption {
             id: 40,
             name: "Piercings".into(),
             chr_model_id: 1,
+            ..Default::default()
         },
         RawOption {
             id: 50,
             name: "Eyebrows".into(),
             chr_model_id: 3,
+            ..Default::default()
         },
     ];
     let choices = [
@@ -54,6 +59,7 @@ fn full_choice_lookup_fixture() -> RawData {
     RawData {
         chr_models: vec![],
         options,
+        categories: HashMap::new(),
         choices,
         elements: vec![
             RawElement {
@@ -61,18 +67,21 @@ fn full_choice_lookup_fixture() -> RawData {
                 related_choice_id: 0,
                 geoset_id: 1,
                 material_id: 1,
+                has_unsupported_effects: false,
             },
             RawElement {
                 choice_id: 70_001,
                 related_choice_id: 70_002,
                 geoset_id: 2,
                 material_id: 2,
+                has_unsupported_effects: false,
             },
             RawElement {
                 choice_id: 501,
                 related_choice_id: 0,
                 geoset_id: 3,
                 material_id: 0,
+                has_unsupported_effects: false,
             },
         ],
         materials: HashMap::from([
@@ -120,6 +129,23 @@ fn full_choice_lookup_fixture() -> RawData {
 }
 
 #[test]
+fn catalog_exposes_every_authored_option_for_the_model() {
+    let db = CustomizationDb::from_raw(&full_choice_lookup_fixture());
+    let choices_by_option: Vec<Vec<u32>> = db
+        .options_for(1, 0)
+        .unwrap()
+        .iter()
+        .map(|option| option.choices.iter().map(|choice| choice.id).collect())
+        .collect();
+    assert_eq!(
+        choices_by_option,
+        vec![vec![501, 500], vec![70_001], vec![70_002], vec![70_003]],
+        "Face Shape, Eyebrows and Piercings must remain available alongside Hair Style"
+    );
+    assert_eq!(db.options_for(2, 0).unwrap()[0].choices[0].id, 90_000);
+}
+
+#[test]
 fn full_choice_lookup_resolves_unrecognized_options_and_related_elements() {
     let db = CustomizationDb::from_raw(&full_choice_lookup_fixture());
     for id in [70_001, 70_002, 70_003] {
@@ -163,7 +189,7 @@ fn full_choice_lookup_is_scoped_to_race_and_sex() {
 fn full_choice_lookup_preserves_ui_choices_and_hair_scalp_semantics() {
     let db = CustomizationDb::from_raw(&full_choice_lookup_fixture());
     let options = db.options_for(1, 0).unwrap();
-    assert_eq!(options.len(), 1);
+    assert_eq!(options.len(), 4);
     assert_eq!(options[0].option_type, OptionType::HairStyle);
     assert_eq!(db.choice_count(1, 0, OptionType::HairStyle), 2);
     assert_eq!(
@@ -180,6 +206,156 @@ fn full_choice_lookup_preserves_ui_choices_and_hair_scalp_semantics() {
     );
     assert!(db.choice_by_id(1, 0, 501).unwrap().shows_scalp);
     assert!(!db.choice_by_id(1, 0, 500).unwrap().shows_scalp);
+}
+
+#[test]
+fn catalog_retains_authored_names_categories_order_and_requirement_ids() {
+    let mut raw = full_choice_lookup_fixture();
+    raw.categories = HashMap::from([
+        (
+            2,
+            RawCategory {
+                name: "Face".into(),
+                order_index: 1,
+                icon: 11991,
+                selected_icon: 11990,
+            },
+        ),
+        (
+            3,
+            RawCategory {
+                name: "Accessories".into(),
+                order_index: 3,
+                icon: 11985,
+                selected_icon: 11984,
+            },
+        ),
+    ]);
+    for option in &mut raw.options {
+        option.category_id = 3;
+        option.order_index = 10;
+    }
+    raw.options[0].category_id = 2;
+    raw.options[0].order_index = 4;
+    raw.options[1].category_id = 2;
+    raw.options[1].order_index = 1;
+    raw.options[2].name = "Sourcils".into();
+    raw.options[2].ui_type = 2;
+    raw.options[2].requirement_id = 12;
+    let db = CustomizationDb::from_raw(&raw);
+    assert_eq!(
+        db.options_for(1, 0)
+            .unwrap()
+            .iter()
+            .map(|o| o.id)
+            .collect::<Vec<_>>(),
+        vec![20, 10, 30, 40]
+    );
+    let option = db.option_by_id(1, 0, 30).unwrap();
+    assert_eq!(option.display_name, "Sourcils");
+    assert_eq!(option.option_type, OptionType::Additional(30));
+    assert_eq!(
+        (
+            option.category_id,
+            option.category_name.as_str(),
+            option.category_order_index,
+            option.order_index
+        ),
+        (3, "Accessories", 3, 10)
+    );
+    assert_eq!((option.ui_type, option.requirement_id), (2, 12));
+    assert_eq!(
+        (option.category_icon, option.category_selected_icon),
+        (11985, 11984)
+    );
+    assert!(db.option_by_id(2, 0, 30).is_none());
+    assert_eq!(
+        db.get_choice(1, 0, OptionType::HairStyle, 0).unwrap().id,
+        501
+    );
+}
+
+#[test]
+fn catalog_filtered_choice_ids_names_and_swatches_use_the_same_sequence() {
+    let mut raw = full_choice_lookup_fixture();
+    raw.options[0].name = "Face".into();
+    raw.options[0].chr_model_id = 19;
+    raw.choices[0].requirement_id = 142;
+    raw.choices[1].requirement_id = 146;
+    let mut db = CustomizationDb::from_raw(&raw);
+    let option = &mut db.options_by_model.get_mut(&19).unwrap()[0];
+    for (choice, color) in option.choices.iter_mut().zip([[17, 29, 43], [59, 71, 83]]) {
+        choice.sample_swatch = true;
+        choice.swatch_color_cache.set(Some(color)).unwrap();
+    }
+    let values = |class| {
+        db.choices_for_option(10, 0, class, 10)
+            .into_iter()
+            .map(|choice| {
+                (
+                    choice.id,
+                    choice.display_name.as_str(),
+                    choice.swatch_color(),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(values(1), vec![(500, "Hair second", Some([59, 71, 83]))]);
+    assert_eq!(values(12), vec![(501, "Hair first", Some([17, 29, 43]))]);
+    assert!(db.choices_for_option(10, 1, 1, 10).is_empty());
+    assert!(db.choices_for_option(10, 0, 1, 999_999).is_empty());
+}
+
+#[test]
+fn catalog_core_aliases_keep_the_original_lowest_id_choice_source() {
+    let mut raw = full_choice_lookup_fixture();
+    raw.options[0].name = "Beard".into();
+    raw.options[0].order_index = 9;
+    raw.options[1].name = "Mustache".into();
+    raw.options[1].order_index = 1;
+    let db = CustomizationDb::from_raw(&raw);
+    assert_eq!(
+        db.get_choice(1, 0, OptionType::FacialHair, 0).unwrap().id,
+        501
+    );
+    assert_eq!(db.option_by_id(1, 0, 20).unwrap().choices[0].id, 70_001);
+}
+
+#[test]
+fn catalog_marks_authored_unsupported_effects_without_rejecting_empty_choices() {
+    let mut raw = full_choice_lookup_fixture();
+    raw.elements[0].has_unsupported_effects = true;
+    let db = CustomizationDb::from_raw(&raw);
+    assert!(
+        db.choice_by_id(1, 0, 70_001)
+            .unwrap()
+            .has_unsupported_effects
+    );
+    assert!(
+        !db.choice_by_id(1, 0, 70_002)
+            .unwrap()
+            .has_unsupported_effects
+    );
+    assert!(!db.choice_by_id(1, 0, 501).unwrap().has_unsupported_effects);
+}
+
+#[test]
+fn catalog_demon_hunter_filter_does_not_hide_other_races_authored_options() {
+    let mut raw = full_choice_lookup_fixture();
+    raw.options[0].name = "Eyesight".into();
+    raw.options[1].name = "Horns".into();
+    raw.options[1].chr_model_id = 21;
+    let db = CustomizationDb::from_raw(&raw);
+    assert_eq!(
+        db.choices_for_option(1, 0, 1, 10).len(),
+        2,
+        "Human Eyesight remains selectable"
+    );
+    assert_eq!(
+        db.choices_for_option(11, 0, 1, 20).len(),
+        1,
+        "Draenei Horns remain selectable"
+    );
 }
 
 #[test]

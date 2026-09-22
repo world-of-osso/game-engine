@@ -7,18 +7,19 @@ use std::path::{Path, PathBuf};
 
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::customization_data::{
-    RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial, RawOption,
+    RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial, RawOption,
     chr_model_id_for_hair_row,
 };
 use crate::sqlite_util::is_missing_table_error;
 
 type HairGeosetKey = (u32, u16, u16);
+const CACHE_SCHEMA_VERSION: u32 = 1;
 
 fn cache_path() -> PathBuf {
     crate::paths::shared_data_path("cache/customization.sqlite")
 }
 
-fn required_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
+fn required_csv_paths(data_dir: &Path) -> [PathBuf; 8] {
     [
         data_dir.join("ChrModel.csv"),
         data_dir.join("ChrCustomizationOption.csv"),
@@ -27,6 +28,7 @@ fn required_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
         data_dir.join("ChrCustomizationMaterial.csv"),
         data_dir.join("ChrCustomizationGeoset.csv"),
         data_dir.join("CharHairGeosets.csv"),
+        data_dir.join("ChrCustomizationCategory.csv"),
     ]
 }
 
@@ -41,6 +43,12 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
 }
 
 fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
+    let version: u32 = conn
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .map_err(|err| format!("read customization cache schema version: {err}"))?;
+    if version != CACHE_SCHEMA_VERSION {
+        return Ok(false);
+    }
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
         Err(err) if is_missing_table_error(&err) => {
@@ -93,13 +101,14 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     populate_materials(&conn, &csv_paths[4])?;
     populate_geosets(&conn, &csv_paths[5])?;
     populate_hair_geosets(&conn, &csv_paths[6])?;
+    populate_categories(&conn, &csv_paths[7])?;
     populate_texture_fdids(&conn, &texture_file_data)?;
     conn.execute_batch("COMMIT;")
         .map_err(|err| format!("commit customization cache: {err}"))?;
     Ok(())
 }
 
-fn rebuild_source_paths(csv_paths: &[PathBuf; 7], texture_file_data: &Path) -> Vec<PathBuf> {
+fn rebuild_source_paths(csv_paths: &[PathBuf; 8], texture_file_data: &Path) -> Vec<PathBuf> {
     let mut all_sources = csv_paths.to_vec();
     all_sources.push(texture_file_data.to_path_buf());
     all_sources
@@ -122,15 +131,16 @@ fn create_cache_parent_dir(cache_path: &Path) -> Result<(), String> {
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(&build_customization_cache_schema_sql())
-        .map_err(|err| format!("init customization cache: {err}"))
+        .map_err(|err| format!("init customization cache: {err}"))?;
+    conn.pragma_update(None, "user_version", CACHE_SCHEMA_VERSION)
+        .map_err(|err| format!("set customization cache schema version: {err}"))
 }
 
 fn build_customization_cache_schema_sql() -> String {
     format!(
         "BEGIN;
          {drops}
-         {creates}
-         COMMIT;",
+         {creates}",
         drops = customization_cache_drop_tables_sql(),
         creates = customization_cache_create_tables_sql(),
     )
@@ -140,6 +150,7 @@ fn customization_cache_drop_tables_sql() -> &'static str {
     "DROP TABLE IF EXISTS source_files;
      DROP TABLE IF EXISTS chr_models;
      DROP TABLE IF EXISTS options;
+     DROP TABLE IF EXISTS categories;
      DROP TABLE IF EXISTS choices;
      DROP TABLE IF EXISTS elements;
      DROP TABLE IF EXISTS materials;
@@ -159,7 +170,18 @@ fn customization_cache_core_tables_sql() -> &'static str {
      CREATE TABLE options (
          id INTEGER PRIMARY KEY,
          name TEXT NOT NULL,
-         chr_model_id INTEGER NOT NULL
+         chr_model_id INTEGER NOT NULL,
+         category_id INTEGER NOT NULL,
+         order_index INTEGER NOT NULL,
+         ui_type INTEGER NOT NULL,
+         requirement_id INTEGER NOT NULL
+     );
+     CREATE TABLE categories (
+         id INTEGER PRIMARY KEY,
+         name TEXT NOT NULL,
+         order_index INTEGER NOT NULL,
+         icon INTEGER NOT NULL,
+         selected_icon INTEGER NOT NULL
      );
      CREATE TABLE choices (
          id INTEGER PRIMARY KEY,
@@ -175,7 +197,8 @@ fn customization_cache_relation_tables_sql() -> &'static str {
          choice_id INTEGER NOT NULL,
          related_choice_id INTEGER NOT NULL,
          geoset_id INTEGER NOT NULL,
-         material_id INTEGER NOT NULL
+         material_id INTEGER NOT NULL,
+         has_unsupported_effects INTEGER NOT NULL
      );
      CREATE TABLE materials (
          id INTEGER PRIMARY KEY,
@@ -295,16 +318,46 @@ fn populate_chr_models(conn: &Connection, path: &Path) -> Result<(), String> {
 fn populate_options(conn: &Connection, path: &Path) -> Result<(), String> {
     insert_simple_rows(
         conn,
-        "INSERT INTO options (id, name, chr_model_id) VALUES (?1, ?2, ?3)",
+        "INSERT INTO options (id, name, chr_model_id, category_id, order_index, ui_type, requirement_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
         path,
         |headers, fields, path| {
             let id = header_index(headers, "ID", path)?;
             let name = header_index(headers, "Name_lang", path)?;
             let model = header_index(headers, "ChrModelID", path)?;
+            let category = header_index(headers, "ChrCustomizationCategoryID", path)?;
+            let order = header_index(headers, "OrderIndex", path)?;
+            let ui_type = header_index(headers, "OptionType", path)?;
+            let requirement = header_index(headers, "Requirement", path)?;
             Ok(Some((
                 parse_u32(fields, id),
                 parse_str(fields, name),
                 parse_u32(fields, model),
+                parse_u32(fields, category),
+                parse_u32(fields, order),
+                parse_u32(fields, ui_type),
+                parse_u32(fields, requirement),
+            )))
+        },
+    )
+}
+
+fn populate_categories(conn: &Connection, path: &Path) -> Result<(), String> {
+    insert_simple_rows(
+        conn,
+        "INSERT INTO categories (id, name, order_index, icon, selected_icon) VALUES (?1, ?2, ?3, ?4, ?5)",
+        path,
+        |headers, fields, path| {
+            let id = header_index(headers, "ID", path)?;
+            let name = header_index(headers, "CategoryName_lang", path)?;
+            let order = header_index(headers, "OrderIndex", path)?;
+            let icon = header_index(headers, "CustomizeIcon", path)?;
+            let selected_icon = header_index(headers, "CustomizeIconSelected", path)?;
+            Ok(Some((
+                parse_u32(fields, id),
+                parse_str(fields, name),
+                parse_u32(fields, order),
+                parse_u32(fields, icon),
+                parse_u32(fields, selected_icon),
             )))
         },
     )
@@ -335,7 +388,7 @@ fn populate_choices(conn: &Connection, path: &Path) -> Result<(), String> {
 fn populate_elements(conn: &Connection, path: &Path) -> Result<(), String> {
     insert_simple_rows(
         conn,
-        "INSERT INTO elements (choice_id, related_choice_id, geoset_id, material_id) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT INTO elements (choice_id, related_choice_id, geoset_id, material_id, has_unsupported_effects) VALUES (?1, ?2, ?3, ?4, ?5)",
         path,
         |headers, fields, path| {
             let choice_id = header_index(headers, "ChrCustomizationChoiceID", path)?;
@@ -347,9 +400,27 @@ fn populate_elements(conn: &Connection, path: &Path) -> Result<(), String> {
                 parse_u32(fields, related_choice_id),
                 parse_u32(fields, geoset_id),
                 parse_u32(fields, material_id),
+                has_unsupported_effects(headers, fields),
             )))
         },
     )
+}
+
+fn has_unsupported_effects(headers: &[String], fields: &[String]) -> bool {
+    const UNSUPPORTED_COLUMNS: [&str; 9] = [
+        "ChrCustomizationSkinnedModelID",
+        "ChrCustomizationBoneSetID",
+        "ChrCustomizationCondModelID",
+        "ChrCustomizationDisplayInfoID",
+        "ChrCustItemGeoModifyID",
+        "ChrCustomizationVoiceID",
+        "AnimKitID",
+        "ParticleColorID",
+        "ChrCustGeoComponentLinkID",
+    ];
+    headers.iter().enumerate().any(|(index, name)| {
+        UNSUPPORTED_COLUMNS.contains(&name.as_str()) && parse_u32(fields, index) != 0
+    })
 }
 
 fn populate_materials(conn: &Connection, path: &Path) -> Result<(), String> {
@@ -432,7 +503,10 @@ fn populate_texture_fdids(conn: &Connection, path: &Path) -> Result<(), String> 
 }
 
 pub fn import_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
-    let cache_path = cache_path();
+    import_customization_cache_at(data_dir, &cache_path())
+}
+
+fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<PathBuf, String> {
     let mut csv_paths = required_csv_paths(data_dir).to_vec();
     csv_paths.push(texture_file_data_path(data_dir));
     let needs_rebuild = if cache_path.exists() {
@@ -444,11 +518,14 @@ pub fn import_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
     if needs_rebuild {
         rebuild_cache(&cache_path, data_dir)?;
     }
-    Ok(cache_path)
+    Ok(cache_path.to_path_buf())
 }
 
 pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, String> {
-    let cache_path = cache_path();
+    load_customization_raw_data_at(&cache_path())
+}
+
+fn load_customization_raw_data_at(cache_path: &Path) -> Result<RawData, String> {
     if !cache_path.exists() {
         return Err(format!(
             "{} missing; run `cargo run --bin customization_cache_import` to build it",
@@ -459,6 +536,7 @@ pub(crate) fn load_customization_raw_data(_data_dir: &Path) -> Result<RawData, S
     Ok(RawData {
         chr_models: load_chr_models(&conn)?,
         options: load_options(&conn)?,
+        categories: load_categories(&conn)?,
         choices: load_choices(&conn)?,
         elements: load_elements(&conn)?,
         materials: load_materials(&conn)?,
@@ -488,7 +566,7 @@ fn load_chr_models(conn: &Connection) -> Result<Vec<RawChrModel>, String> {
 
 fn load_options(conn: &Connection) -> Result<Vec<RawOption>, String> {
     let mut options_stmt = conn
-        .prepare("SELECT id, name, chr_model_id FROM options ORDER BY id")
+        .prepare("SELECT id, name, chr_model_id, category_id, order_index, ui_type, requirement_id FROM options ORDER BY id")
         .map_err(|err| format!("prepare options lookup: {err}"))?;
     options_stmt
         .query_map([], |row| {
@@ -496,11 +574,35 @@ fn load_options(conn: &Connection) -> Result<Vec<RawOption>, String> {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 chr_model_id: row.get(2)?,
+                category_id: row.get(3)?,
+                order_index: row.get(4)?,
+                ui_type: row.get(5)?,
+                requirement_id: row.get(6)?,
             })
         })
         .map_err(|err| format!("query options: {err}"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|err| format!("read options row: {err}"))
+}
+
+fn load_categories(conn: &Connection) -> Result<HashMap<u32, RawCategory>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, name, order_index, icon, selected_icon FROM categories")
+        .map_err(|err| format!("prepare categories lookup: {err}"))?;
+    stmt.query_map([], |row| {
+        Ok((
+            row.get(0)?,
+            RawCategory {
+                name: row.get(1)?,
+                order_index: row.get(2)?,
+                icon: row.get(3)?,
+                selected_icon: row.get(4)?,
+            },
+        ))
+    })
+    .map_err(|err| format!("query categories: {err}"))?
+    .collect::<Result<HashMap<_, _>, _>>()
+    .map_err(|err| format!("read categories row: {err}"))
 }
 
 fn load_choices(conn: &Connection) -> Result<Vec<RawChoice>, String> {
@@ -524,7 +626,7 @@ fn load_choices(conn: &Connection) -> Result<Vec<RawChoice>, String> {
 
 fn load_elements(conn: &Connection) -> Result<Vec<RawElement>, String> {
     let mut elements_stmt = conn
-        .prepare("SELECT choice_id, related_choice_id, geoset_id, material_id FROM elements")
+        .prepare("SELECT choice_id, related_choice_id, geoset_id, material_id, has_unsupported_effects FROM elements")
         .map_err(|err| format!("prepare elements lookup: {err}"))?;
     elements_stmt
         .query_map([], |row| {
@@ -533,6 +635,7 @@ fn load_elements(conn: &Connection) -> Result<Vec<RawElement>, String> {
                 related_choice_id: row.get(1)?,
                 geoset_id: row.get(2)?,
                 material_id: row.get(3)?,
+                has_unsupported_effects: row.get(4)?,
             })
         })
         .map_err(|err| format!("query elements: {err}"))?
@@ -610,9 +713,24 @@ fn load_texture_fdids(conn: &Connection) -> Result<HashMap<u32, u32>, String> {
 }
 
 #[cfg(test)]
+#[path = "../../../tests/unit/customization_catalog_cache_tests.rs"]
+mod catalog_tests;
+
+#[cfg(test)]
 mod tests {
     use super::{import_customization_cache, load_customization_raw_data};
     use std::path::Path;
+
+    #[test]
+    fn catalog_cache_rejects_the_previous_schema_even_with_unchanged_sources() {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        super::init_cache_schema(&conn).unwrap();
+        conn.pragma_update(None, "user_version", 0).unwrap();
+        assert!(
+            !super::cache_is_fresh(&conn, &[]).unwrap(),
+            "an old cache must rebuild even when its source timestamps match"
+        );
+    }
 
     #[test]
     fn customization_raw_data_loads_from_imported_cache() {
