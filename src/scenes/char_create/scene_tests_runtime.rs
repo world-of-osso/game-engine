@@ -15,6 +15,7 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     app.add_plugins(StatesPlugin);
     app.add_plugins(bevy::asset::AssetPlugin::default());
     app.add_plugins(bevy::text::TextPlugin::default());
+    app.add_plugins(bevy::ui::UiPlugin);
     app.add_plugins(UiAutomationPlugin);
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
@@ -51,7 +52,7 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
         initial_models.len()
     );
 
-    let race_2_center = {
+    let (race_2_center, race_2_id) = {
         let ui = app.world().resource::<UiState>();
         let race_2_id = ui
             .registry
@@ -62,11 +63,36 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
             .get(race_2_id)
             .and_then(|f| f.layout_rect.as_ref())
             .expect("Race_2 should have layout");
-        Vec2::new(
-            layout.x + layout.width / 2.0,
-            layout.y + layout.height / 2.0,
+        (
+            Vec2::new(
+                layout.x + layout.width / 2.0,
+                layout.y + layout.height / 2.0,
+            ),
+            race_2_id,
         )
     };
+    let ui = app.world().resource::<UiState>();
+    let hit_id = ui_toolkit::input::find_frame_at(&ui.registry, race_2_center.x, race_2_center.y)
+        .expect("Race_2 center should hit an enabled frame");
+    let race_10_id = ui
+        .registry
+        .get_by_name("Race_10")
+        .expect("Race_10 frame should exist");
+    let race_2_bounds = ui
+        .registry
+        .get(race_2_id)
+        .and_then(|frame| frame.layout_rect.as_ref())
+        .unwrap();
+    let race_10_bounds = ui
+        .registry
+        .get(race_10_id)
+        .and_then(|frame| frame.layout_rect.as_ref())
+        .unwrap();
+    assert_eq!(
+        crate::ui_input::walk_up_for_onclick(&ui.registry, hit_id),
+        crate::ui_input::walk_up_for_onclick(&ui.registry, race_2_id),
+        "Race_2={race_2_bounds:?}, Race_10={race_10_bounds:?}, point={race_2_center:?} must resolve to Race_2's action",
+    );
 
     app.world_mut()
         .entity_mut(window_entity)
