@@ -1,64 +1,66 @@
 # Character creation
 
-Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_component/` provides race/class selection, a live appearance preview, customization and character creation. User-selected target: full supported customization and the locally available retail WoW UI source. See [UI system](../wiki/systems/ui-system.md).
+Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_component/` provides race/class selection, a live preview, customization and character creation. User-selected target: full supported customization and the locally available retail UI source. Architecture and reference provenance live in [character creation](../wiki/systems/character-creation.md).
 
 ## What it must do
 
 ### Reference and presentation
 
-- [ ] Retain `rsx!`/`Screen` authoring and native Bevy UI projection.
-- [ ] Match the local `Blizzard_CharacterCreate`, `Blizzard_CharacterCustomize` and `Blizzard_CustomizationUI` source layouts and control artwork: faction race columns, bottom class choices, body-type controls, category tabs, options column and navigation.
-- [ ] Provide the reference camera reset, zoom and rotation controls with a live preview; changing appearance updates that preview.
-- [ ] Use exact local asset identities, not machine-specific source directories or substituted artwork.
-- [ ] Keep labels, selected/disabled states, popup choices and primary actions legible and reachable at the tested viewport.
-- [ ] Overlapping category-tab artwork must not steal neighboring clicks: retain the reference's 15-pixel hit insets without changing visual bounds.
+- [x] Retain `rsx!`/`Screen` authoring and native Bevy UI projection.
+- [x] Use source-referenced faction columns, race/class sizes, body-type controls, category tabs, options column and navigation. Native-layout tests cover the reference geometry and shorter viewports; this is not a pixel-parity assertion.
+- [x] Provide camera reset, zoom and rotation controls; appearance changes reach the live preview.
+- [x] Resolve exact local artwork identities through FileDataIDs, including the authored portrait alpha mask, without machine-specific source directories or substitute images.
+- [x] Keep choices and primary controls within tested viewport bounds; disabled controls must not emit selection actions.
+- [x] Preserve the reference category tabs' 15-pixel hit insets so overlapping artwork does not steal neighboring clicks.
 
 ### Customization
 
-- [ ] Present supported options by authored category and ordering, including eye color and applicable race-specific options rather than a fixed five-row UI.
-- [ ] Use one class-filtered choice sequence for option values, displayed names and swatches.
-- [ ] Select by option/choice identity; core selectors and additional selections must not independently control the same option.
-- [ ] Preserve additional selections through preview, creation, persistence and roster reload; preserve existing stored characters when the appearance schema gains additional selections.
-- [ ] Race, class, body-type and category changes leave valid selections and no stale popup or preview state.
-- [ ] Support reference dropdown, discrete-slider and two-choice checkbox behavior where the available data defines those controls.
-- [ ] Surface genuinely unsupported choice effects or unresolved eligibility requirements explicitly; do not present inert options as implemented.
+- [x] Present available options by authored category/order, including eye color and applicable race-specific options instead of a fixed five-row UI.
+- [x] Derive displayed values, labels and swatches from the same class-filtered choices; preserve authored split colors and option/choice IDs.
+- [x] Keep six existing core selectors canonical for their original options; additional option/choice pairs must not independently control those same options.
+- [x] Preserve additional selections through preview, serialized creation, persistence and roster reload, including upgrades of existing stored characters.
+- [x] Race, class, body-type and category changes keep supported selections and preview output coherent; skin/face compatibility is retained.
+- [x] Support the dropdown and two-choice checkbox control types present in local data. Unsupported control types are explained rather than represented by inert controls.
+- [x] Keep supported material/geoset effects selectable when a choice also contains unimplemented effects; show a partial-support notice. Disable unsupported-only choices explicitly.
+- [x] Preserve eligibility metadata without inventing account/unlock rules; disclose the missing general eligibility evaluation below.
 
 ### Creation flow
 
-- [ ] Preserve typed names across appearance/category changes, show creation errors and retain working next/back transitions.
-- [ ] Preserve existing validated server creation behavior while transmitting the complete supported appearance.
+- [x] Preserve typed names through category/popup updates and Back/Next navigation; retain focus and error presentation where applicable.
+- [x] Transmit the complete supported appearance through the existing creation path and preserve it after server storage/reopen and roster loading.
 
 ## How it works
 
+- [Character creation](../wiki/systems/character-creation.md)
 - [UI system](../wiki/systems/ui-system.md)
 - [Asset pipeline](../wiki/systems/asset-pipeline.md)
 
 ## Implementation inventory
 
-- `src/ui/screens/char_create_component/` — declarative controls, actions and view state.
-- `src/scenes/char_create/` — selection, input, preview and creation flow.
-- `src/rendering/character/customization_data.rs` — local customization catalog.
-- `src/rendering/character/customization_cache.rs` — catalog cache and source metadata.
-- `src/rendering/character/character_customization.rs` — appearance material/geoset application.
-- `../shared-protocol/src/components.rs` — shared appearance payload.
-- `../game-server/crates/server/src/character_data.rs` — stored character representation and upgrades.
-- `../ui-toolkit/src/atlas.rs` — native texture atlas identities and crops.
+- `src/ui/screens/char_create_component/` — reference views, actions, layout and view models.
+- `src/scenes/char_create/` — input, catalog/view bridge, name draft, preview and masked-icon integration.
+- `src/rendering/character/{customization_data,customization_cache,appearance_options,character_customization}.rs` — catalog/cache, disjoint selections and material/geoset application.
+- `src/ui/character_creation_icons.rs` — cached authored-alpha-mask composition.
+- `../shared-protocol/src/components.rs`, `../game-server/crates/server/src/character_data.rs` — appearance payload and stored-data upgrades.
+- `../ui-toolkit/src/atlas/retail.rs`, `../ui-toolkit/src/attrs.rs` — atlas identities/crops and authored hit insets.
 
 ## Tests asserting this spec
 
-- `tests/unit/char_create_tests.rs`
-- `tests/unit/char_create_shared_tests.rs`
-- `tests/unit/char_create_response_tests.rs`
-- `tests/unit/charcreate_icon_source_tests.rs`
-- `tests/unit/customization_data_tests.rs`
-- `src/ui/screens/char_create_component/mod_tests.rs`
+- `src/ui/screens/char_create_component/mod_tests.rs` — reference geometry, hit areas, choice identity, disabled controls and popup/name stability.
+- `tests/unit/{char_create_tests,char_create_shared_tests,char_create_response_tests,character_customization_tests}.rs` — selection, request loopback, response and render-effect behavior.
+- `src/scenes/char_create/{scene_tests,scene_tests_runtime}.rs` — camera/preview and native mouse-input scheduling.
+- `tests/unit/{customization_data_tests,customization_catalog_cache_tests}.rs` — catalog fidelity, filtering, stale-schema autoload and real local-data loading.
+- `src/ui/character_creation_icons.rs` — decoded pixel/mask/cache/error regressions.
+- Shared/server appearance tests — wire roundtrips, six historical storage schemas, temporary-database reopen and login roster preservation.
+- `debug/character-create.js` — real offline controls, eyes/ears, name entry, camera actions and Back/Next, without character submission.
 
 ## Known gaps (current cycle)
 
-- [ ] Full supported options, reference controls/layout, persistence and rendered interaction acceptance are being implemented; prior texture proof does not close these requirements.
-- [ ] The local install reports build `12.1.0.69875`; independent provenance of the extracted Interface source is unconfirmed. The files themselves are the chosen layout reference.
-- [ ] Local `ChrCustomizationReq.csv` is absent; general eligibility/unlock parity has not been established.
-- [ ] Raw data presence alone does not prove all element effects are supported by the preview renderer.
+- [ ] Pixel-perfect retail visual parity has not been established. Native additive glow, tooltip/hold-repeat details and unsupported effect families are not claimed complete.
+- [ ] Local `ChrCustomizationReq.csv` is absent. General account/unlock eligibility is not implemented; existing class filtering is not full retail eligibility parity.
+- [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
+- [ ] Slider type 2 has no records in the local option data and is not implemented; types 0/1 are the supported contract for this data set.
+- [ ] The local install reports build `12.1.0.69875`; independent version provenance of the extracted Interface source is unconfirmed. The local files themselves are the chosen reference.
 
 ## Out of scope
 
