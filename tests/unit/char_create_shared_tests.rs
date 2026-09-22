@@ -88,7 +88,7 @@ impl Fixture {
         let id = self
             .registry
             .get_by_name(name)
-            .expect("expected text frame");
+            .unwrap_or_else(|| panic!("expected text frame: {name}"));
         match &self.registry.get(id).unwrap().widget_data {
             Some(WidgetData::FontString(text)) => &text.text,
             _ => panic!("expected font string: {name}"),
@@ -147,7 +147,14 @@ fn char_create_shared_mode_appearance_error_and_focus_changes_propagate() {
     assert_eq!(fixture.generation(), previous + 1);
     assert_eq!(fixture.option(10).selected_choice_id, 22);
     assert_eq!(fixture.option(11).selected_choice_id, 47);
-    assert_eq!(fixture.text("OptionValue_10_Text"), "3");
+    // Human Face also requires an unsupported bone-set effect, unlike Hair Style.
+    // Its selected ID still propagates, but the view must explain its disabled state.
+    assert!(!fixture.option(10).enabled);
+    assert_eq!(
+        fixture.text("OptionReason_10"),
+        fixture.option(10).disabled_reason.as_deref().unwrap()
+    );
+    assert!(fixture.text("OptionReason_10").contains("not supported"));
     assert_eq!(fixture.text("OptionValue_11_Text"), "Monk");
     assert!(fixture.shared().name_input_focused);
     assert_eq!(fixture.text(ERROR_TEXT.0), "Name unavailable");
