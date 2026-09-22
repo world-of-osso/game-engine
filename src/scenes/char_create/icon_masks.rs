@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 use game_engine::ui::character_creation_icons::CharacterCreationIconMasks;
+use game_engine::ui::frame::WidgetData;
 use game_engine::ui::plugin::UiState;
-use game_engine::ui::widgets::{WidgetData, texture::TextureSource};
+use game_engine::ui::widgets::texture::TextureSource;
 
 pub(super) fn mask_character_create_icons(
     mut ui: ResMut<UiState>,

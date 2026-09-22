@@ -79,6 +79,18 @@ fn build_option(
         &state.appearance,
         option,
     );
+    let compatible_faces = (option.option_type
+        == game_engine::customization_data::OptionType::Face
+        && appearance_options::is_core_option(db, state.selected_race, state.selected_sex, option))
+    .then(|| {
+        super::appearance::compatible_face_indices(
+            db,
+            state.selected_race,
+            state.selected_sex,
+            state.selected_class,
+            state.appearance.skin_color,
+        )
+    });
     let supported = choices.iter().any(|choice| !choice.has_unsupported_effects);
     let disabled_reason = if choices.is_empty() {
         Some("No choices available for this character".to_owned())
@@ -106,7 +118,10 @@ fn build_option(
                 },
                 swatch: rgb(choice.swatch_colors[0]),
                 secondary_swatch: rgb(choice.swatch_colors[1]),
-                enabled: !choice.has_unsupported_effects,
+                enabled: !choice.has_unsupported_effects
+                    && compatible_faces.as_ref().is_none_or(|indices| {
+                        indices.iter().any(|&valid| usize::from(valid) == index)
+                    }),
             })
             .collect(),
         enabled: disabled_reason.is_none(),
