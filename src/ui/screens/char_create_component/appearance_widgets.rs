@@ -235,7 +235,7 @@ fn dropdown_choice(
         CharCreateAction::SelectOptionChoice(option.id, choice.id).when_enabled(!disabled);
     rsx! {
         button { name: DynName(name.clone()), width: CHOICE_WIDTH, height: CHOICE_HEIGHT, disabled,
-            onclick, button_default_skin: false,
+            onclick, button_default_skin: false, button_highlight_alpha: "0.15",
             button_atlas_highlight: "common-dropdown-customize-mouseover",
             pos_type: "absolute", left: x, top: y,
             r#frame { name: DynName(format!("{name}_Details")), width: 144.0, height: 20.0,
