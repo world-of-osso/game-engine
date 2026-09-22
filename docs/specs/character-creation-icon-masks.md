@@ -4,12 +4,12 @@
 
 ## What it must do
 
-- [ ] Resolve icon and authored mask through the existing local-CASC texture cache; report resolution/decoding failures explicitly.
-- [ ] Preserve source dimensions and RGB bytes. Resize the mask alpha deterministically to source dimensions and multiply source alpha; do not multiply mask RGB/luminance or substitute another mask shape.
-- [ ] Produce transparent corners and preserve the source's center alpha using the actual authored mask.
-- [ ] Reuse the same `Handle<Image>` for repeated requests for an icon FileDataID in the owning image-assets collection.
-- [ ] Do not publish/cache an unmasked image after source/mask failure; successful later requests may retry failed loads.
-- [ ] Reject zero-sized source/mask images before composition.
+- [x] Resolve icon and authored mask through the existing local-CASC texture cache; report resolution/decoding failures explicitly.
+- [x] Preserve source dimensions and RGB bytes. Resize the mask alpha deterministically to source dimensions and multiply source alpha; do not multiply mask RGB/luminance or substitute another mask shape.
+- [x] Produce transparent corners and preserve the source's center alpha using the actual authored mask.
+- [x] Reuse the same `Handle<Image>` for repeated requests for an icon FileDataID in the owning image-assets collection.
+- [x] Do not publish/cache an unmasked image after source/mask failure; successful later requests may retry failed loads.
+- [x] Reject zero-sized source/mask images before composition.
 
 ## How it works
 
