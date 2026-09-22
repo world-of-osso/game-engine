@@ -16,7 +16,7 @@ Shared protocol and server persistence preserve additional pairs through creatio
 
 ## Reference assets
 
-Race/class icons and the customization atlas resolve through local CASC FileDataIDs. Toolkit has bounded Retail control/category atlas crops and element-ID lookup. The circular portrait mask uses local FDID `130924`; engine-side composed icon support is in progress. Atlas crop proof is not full rendered parity, and native additive glow remains unsupported.
+Race/class icons and the customization atlas resolve through local CASC FileDataIDs. Build-pinned Wago DB2 CSV exports for `12.1.0.69875` establish the palette bounds on atlas 708 / FDID `1253496`: `charactercreate-customize-palette` is `[519,471..603,491]`; `-half` is `[729,471..813,491]`. Earlier CSV metadata instead selected a yellow ornament. Fresh local-CASC extraction matched the cached BLP byte-for-byte, so `ui-toolkit` `78c67e7` corrects metadata, not asset bytes. Engine native source-pixel RED/GREEN is `a55af09f`. The circular portrait mask uses local FDID `130924`; engine-side composed icon support is in progress. Atlas crop proof is not full rendered parity, and native additive glow remains unsupported.
 
 ## Known limits
 
@@ -27,6 +27,7 @@ Race/class icons and the customization atlas resolve through local CASC FileData
 ## Sources
 
 - [character-creation spec](../../specs/character-creation.md) — product contract and gaps
+- `https://wago.tools/db2/{UiTextureAtlas,UiTextureAtlasElement,UiTextureAtlasMember}/csv?build=12.1.0.69875` — build-pinned metadata exports saved under `data/diagnostics/charcreate-button-style-20260922/build-12.1.0.69875/`
 - [UI system](ui-system.md) — registry/native UI and asset projection
 - [character rendering](character-rendering.md) — material/geoset application
 - [asset pipeline](asset-pipeline.md) — local CASC/FileDataID contract
