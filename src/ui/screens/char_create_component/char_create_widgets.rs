@@ -1,7 +1,7 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use crate::char_create_data::{Faction, RACES};
+use crate::char_create_data::{Faction, RACES, RaceInfo};
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 use super::reference_layout::*;
@@ -65,28 +65,75 @@ fn tile_label(
     }
 }
 
-fn race_button(
-    id: u8,
-    name: &str,
-    fdid: u32,
-    faction: Faction,
-    selected: bool,
-    position: [f32; 2],
-) -> Element {
-    let frame_name = format!("Race_{id}");
-    let ring_atlas = match faction {
+fn race_button(race: &RaceInfo, selected: bool, position: [f32; 2]) -> Element {
+    let frame_name = format!("Race_{}", race.id);
+    let ring_atlas = match race.faction {
         Faction::Alliance => "charactercreate-ring-alliance",
         Faction::Horde => "charactercreate-ring-horde",
     };
     rsx! {
         button { name: DynName(frame_name.clone()), width: 79.0, height: 79.0,
-            onclick: CharCreateAction::SelectRace(id),
+            onclick: CharCreateAction::SelectRace(race.id),
             button_atlas_highlight: "charactercreate-ring-select",
             pos_type: "absolute", left: position[0], top: position[1],
-            {icon(&frame_name, fdid, 79.0, false)}
+            {icon(&frame_name, race.icon_fdid, 79.0, false)}
             {ring(&frame_name, ring_atlas, [139.0, 140.0])}
             {selection_ring(&frame_name, 118.0, selected)}
-            {tile_label(&frame_name, name, 112.0, 72.0, COLOR_GOLD, !selected)}
+            {tile_label(&frame_name, race.name, 112.0, 72.0, COLOR_GOLD, !selected)}
+        }
+    }
+}
+
+fn calculate_race_button_position(
+    faction: Faction,
+    allied: bool,
+    index: usize,
+    step: f32,
+) -> [f32; 2] {
+    let x = match (faction, allied) {
+        (Faction::Alliance, false) => 68.0,
+        (Faction::Alliance, true) => 165.0,
+        (Faction::Horde, false) => 103.0,
+        (Faction::Horde, true) => 6.0,
+    };
+    let top = if allied { 174.0 } else { 106.0 };
+    [x, top + index as f32 * step]
+}
+
+fn build_faction_race_buttons(faction: Faction, state: &CharCreateUiState) -> Element {
+    let races: Vec<_> = RACES
+        .iter()
+        .filter(|race| race.faction == faction)
+        .collect();
+    let base_count = races.iter().filter(|race| race.id < 27).count();
+    let space = state.viewport_height as f32 - 106.0 - NAV_HEIGHT - NAV_BOTTOM - 20.0;
+    let step = 79.0 + fit_spacing(space, base_count, 79.0, 18.0);
+    let mut counts = [0, 0];
+    races
+        .into_iter()
+        .flat_map(|race| {
+            let allied = race.id >= 27;
+            let column = usize::from(allied);
+            let position = calculate_race_button_position(faction, allied, counts[column], step);
+            counts[column] += 1;
+            race_button(race, race.id == state.selected_race, position)
+        })
+        .collect()
+}
+
+fn build_faction_header(name: &str, alliance: bool) -> Element {
+    let (atlas, icon_x, text_x, justify) = if alliance {
+        ("charactercreate-icon-alliance", 3.0, 77.0, JustifyH::Left)
+    } else {
+        ("charactercreate-icon-horde", 155.0, 6.0, JustifyH::Right)
+    };
+    rsx! {
+        texture { name: DynName(format!("{name}Emblem")), width: 92.0, height: 100.0,
+            texture_atlas: atlas, pos_type: "absolute", left: icon_x, top: 10.0,
+        }
+        fontstring { name: DynName(format!("{name}Label")), width: 167.0, height: 26.0,
+            text: name, font: GameFont::FrizQuadrata, font_size: 20.0, font_color: COLOR_GOLD, justify_h: justify,
+            pos_type: "absolute", left: text_x, top: 47.0,
         }
     }
 }
@@ -99,60 +146,11 @@ pub(super) fn faction_column(faction: Faction, state: &CharCreateUiState) -> Ele
     } else {
         state.viewport_width as f32 - 250.0
     };
-    let base_x = if alliance { 68.0 } else { 103.0 };
-    let allied_x = if alliance { 165.0 } else { 6.0 };
-    let races = RACES
-        .iter()
-        .filter(|race| race.faction == faction)
-        .collect::<Vec<_>>();
-    let base_count = races.iter().filter(|race| race.id < 27).count();
-    let space = state.viewport_height as f32 - 106.0 - NAV_HEIGHT - NAV_BOTTOM - 20.0;
-    let spacing = fit_spacing(space, base_count, 79.0, 18.0);
-    let (mut base_index, mut allied_index) = (0, 0);
-    let buttons: Element = races
-        .into_iter()
-        .flat_map(|race| {
-            let position = if race.id >= 27 {
-                let point = [allied_x, 174.0 + allied_index as f32 * (79.0 + spacing)];
-                allied_index += 1;
-                point
-            } else {
-                let point = [base_x, 106.0 + base_index as f32 * (79.0 + spacing)];
-                base_index += 1;
-                point
-            };
-            race_button(
-                race.id,
-                race.name,
-                race.icon_fdid,
-                faction,
-                race.id == state.selected_race,
-                position,
-            )
-        })
-        .collect();
-    let header_atlas = if alliance {
-        "charactercreate-icon-alliance"
-    } else {
-        "charactercreate-icon-horde"
-    };
-    let header_x = if alliance { 3.0 } else { 155.0 };
-    let text_x = if alliance { 77.0 } else { 6.0 };
-    let justify = if alliance {
-        JustifyH::Left
-    } else {
-        JustifyH::Right
-    };
+    let buttons = build_faction_race_buttons(faction, state);
     rsx! {
         r#frame { name: DynName(format!("{name}Races")), width: 250.0, height: "fill",
             pos_type: "absolute", left: x, top: 0.0,
-            texture { name: DynName(format!("{name}Emblem")), width: 92.0, height: 100.0,
-                texture_atlas: header_atlas, pos_type: "absolute", left: header_x, top: 10.0,
-            }
-            fontstring { name: DynName(format!("{name}Label")), width: 167.0, height: 26.0,
-                text: name, font: GameFont::FrizQuadrata, font_size: 20.0, font_color: COLOR_GOLD, justify_h: justify,
-                pos_type: "absolute", left: text_x, top: 47.0,
-            }
+            {build_faction_header(name, alliance)}
             {buttons}
         }
     }
