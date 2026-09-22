@@ -13,7 +13,8 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Child-art race, class, body-type and category buttons opt out of the toolkit default skin so only explicitly authored layers paint; camera controls retain their separately authored square treatment.
 - [x] Present the DB category `Mirror` (ID 23) as an authored normal/selected icon tab, without a permanent raw-category caption.
 - [x] Render Back, Next and Create with authored Retail red left/center/right slices that retain asymmetric cap proportions; synchronize pressed, disabled and hover-highlight state before native projection. Keep labels above all artwork, preserving wording, font and state colors. Slices must meet on physical-pixel boundaries without gaps or overlap at scale factors 1.0, 1.15, 1.25 and 1.5.
-- [x] Lay out dropdown choices column-major: one column through 10 choices, then two through 24, three through 36 and four above that, compacting for the popup anchor, viewport and 100-pixel margin. Use the authored stretched background and subtle authored hover layer.
+- [x] Lay out dropdown choices column-major: one column through 10 choices, then two through 24, three through 36 and four above that, compacting for the popup anchor, viewport and 100-pixel margin. Use the reference stretched-background geometry and subtle hover opacity.
+- [ ] Match dropdown palette/background artwork to the installed assets; current crop metadata does not establish correct rendered artwork.
 - [x] Keep choices and primary controls within tested viewport bounds; disabled controls must not emit selection actions.
 - [x] Preserve the reference category tabs' 15-pixel hit insets so overlapping artwork does not steal neighboring clicks.
 
@@ -63,6 +64,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 ## Known gaps (current cycle)
 
+- [ ] Dropdown palette crop resolves yellow artwork instead of a tintable swatch in the installed texture. Fresh local-CASC extraction matches the cache, so replacing cached bytes does not fix it. Same-build atlas metadata is unverified; local extraction of `UiTextureAtlas`, `UiTextureAtlasMember` and `UiTextureAtlasElement` is blocked by missing TACT key `0599D267A15C719F`. Matching metadata or the missing key is needed before correcting bounds without guessing.
 - [ ] Pixel-perfect Retail visual parity has not been established. The contracts above are source-, layout- and native-layer-tested; no uninspected screenshot comparison or pixel-parity claim is made. Native additive glow, tooltip/hold-repeat details and unsupported effect families are not claimed complete.
 - [ ] Local `ChrCustomizationReq.csv` is absent. General account/unlock eligibility is not implemented; existing class filtering is not full retail eligibility parity.
 - [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
