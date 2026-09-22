@@ -11,6 +11,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [ ] Provide the reference camera reset, zoom and rotation controls with a live preview; changing appearance updates that preview.
 - [ ] Use exact local asset identities, not machine-specific source directories or substituted artwork.
 - [ ] Keep labels, selected/disabled states, popup choices and primary actions legible and reachable at the tested viewport.
+- [ ] Overlapping category-tab artwork must not steal neighboring clicks: retain the reference's 15-pixel hit insets without changing visual bounds.
 
 ### Customization
 

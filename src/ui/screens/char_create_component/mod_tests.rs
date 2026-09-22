@@ -123,6 +123,21 @@ fn customize_state() -> CharCreateUiState {
 }
 
 #[test]
+fn retail_category_hit_insets_prevent_adjacent_tab_stealing_clicks() {
+    let harness = ScreenHarness::new(customize_state());
+    let left = rect(&harness.reg, "Category_3");
+    let right = rect(&harness.reg, "Category_23");
+    let x = right.x + 5.0;
+    let y = left.y + left.height / 2.0;
+    assert!(x < left.x + left.width - 15.0);
+    let hit = ui_toolkit::input::find_frame_at(&harness.reg, x, y).unwrap();
+    assert_eq!(
+        harness.reg.get(hit).unwrap().onclick.as_deref(),
+        Some("select_category:3")
+    );
+}
+
+#[test]
 fn retail_creation_reference_navigation_and_tiles() {
     let harness = ScreenHarness::new(CharCreateUiState::default());
     let reg = &harness.reg;
