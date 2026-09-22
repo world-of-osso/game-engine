@@ -52,8 +52,9 @@ It uses the same internal login helpers for:
 
 Current scope:
 
-- login screen interactions are routed through the existing login UI code
+- login and character-creation interactions use their scene's named-frame focus/action handlers
 - waits and dump actions are generic runner actions
+- script filenames are flag values, not model asset paths
 
 ## Debug Checklist
 
@@ -68,9 +69,15 @@ Current scope:
 - Post-login entity tree dump:
   Use a script that waits for `CharSelect` and then calls `ui.dumpTree()`
 
+## Character-creation draft
+
+`cargo run --bin game-engine -- --screen charcreate --run-js-ui-script debug/character-create.js`
+
+The script selects Human/Warrior, switches both body types, selects pointed ears and an eye color through category dropdowns, types `DraftProof`, exercises camera controls, then navigates Back/Next. It leaves the draft open without submitting a character. Inspect it with the instance-specific IPC `dump-ui-tree` and `screenshot` commands; the name should remain `DraftProof` and the Ears value should be `Point`.
+
 ## Known Limitations
 
-- The current scripted input path is implemented for the login screen first
+- Named-frame automation does not simulate physical pointer movement
 - No general pointer movement model is exposed yet
 - The JavaScript layer queues actions; Rust executes them
 - Unsupported key names fail during script loading
