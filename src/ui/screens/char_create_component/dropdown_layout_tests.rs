@@ -75,6 +75,49 @@ fn native_dropdown_keeps_all_choices_in_column_major_identity_order() {
 }
 
 #[test]
+fn last_option_popup_moves_above_its_anchor_at_a_short_viewport() {
+    let mut last = option(22, "Eye Color");
+    last.choices = (0..58)
+        .map(|index| choice(90000 + index, &format!("Color {index}")))
+        .collect();
+    last.selected_choice_id = 90057;
+    let mut options: Vec<_> = (0..7)
+        .map(|index| option(100 + index, "Earlier option"))
+        .collect();
+    options.push(last);
+    let harness = ScreenHarness::new(CharCreateUiState {
+        options,
+        viewport_width: 1280,
+        viewport_height: 900,
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let panel = rect(&harness.reg, "Dropdown_22");
+    let trigger = rect(&harness.reg, "Option_22");
+    assert!(
+        panel.y < trigger.y,
+        "late option should reposition its popup upward"
+    );
+    for index in 0..58 {
+        let id = 90000 + index;
+        let name = format!("OptionChoice_22_{id}");
+        let choice_rect = rect(&harness.reg, &name);
+        assert_eq!(
+            action(&harness.reg, &name),
+            CharCreateAction::SelectOptionChoice(22, id)
+        );
+        assert!(
+            choice_rect.x >= 0.0 && choice_rect.x + choice_rect.width <= 1280.0,
+            "{name}"
+        );
+        assert!(
+            choice_rect.y >= 0.0 && choice_rect.y + choice_rect.height <= 900.0,
+            "{name}"
+        );
+    }
+}
+
+#[test]
 fn decorated_choice_and_checkbox_buttons_do_not_gain_default_square_skins() {
     let dropdown = ScreenHarness::new(CharCreateUiState {
         open_dropdown: Some(22),
