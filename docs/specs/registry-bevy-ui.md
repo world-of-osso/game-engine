@@ -25,6 +25,8 @@ Legacy standalone rendering helpers may remain as compatibility/test utilities a
 
 Menu titles attached above panels must overlap the panel by two pixels; a gap is a visual regression. Loading zone, tip, status, and percentage labels must stay legible above the artwork, bar background, and progress fill at every progress value.
 
+Character-creation race/class icons must preserve all 32 authored artworks using exact local-listfile FileDataIDs and the existing local CASC loader. They must render without the obsolete `/home/osso/Projects/wow/Interface/` export directory; alternate art, alternate directories, and text substitutes are not compatibility paths. `tests/unit/charcreate_icon_source_tests.rs` exercises all 32 through local resolution/decoding and compares their RSX-driven native image content.
+
 ## Edit-box caret
 
 - Project raw `EditBoxData.text` and its byte cursor; passwords retain one displayed asterisk per raw byte.

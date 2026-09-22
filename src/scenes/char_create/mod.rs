@@ -320,10 +320,10 @@ fn sync_screen_state(
     inner.screen.sync(&inner.shared, reg);
 }
 
-fn build_class_availability(race: u8) -> Vec<(u8, &'static str, &'static str, bool)> {
+fn build_class_availability(race: u8) -> Vec<(u8, &'static str, u32, bool)> {
     CLASSES
         .iter()
-        .map(|c| (c.id, c.name, c.icon_file, race_can_be_class(race, c.id)))
+        .map(|c| (c.id, c.name, c.icon_fdid, race_can_be_class(race, c.id)))
         .collect()
 }
 

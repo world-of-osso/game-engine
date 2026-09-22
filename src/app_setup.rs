@@ -414,6 +414,10 @@ fn log_window_backend(display: Option<Res<bevy::winit::DisplayHandleWrapper>>) {
     );
 }
 
+#[cfg(all(test, feature = "casc"))]
+#[path = "../tests/unit/charcreate_icon_source_tests.rs"]
+mod charcreate_icon_source_tests;
+
 struct GameBlpLoader;
 
 impl ui_toolkit::render_texture::BlpLoader for GameBlpLoader {

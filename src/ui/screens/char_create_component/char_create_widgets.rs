@@ -24,37 +24,18 @@ fn race_button_style(is_selected: bool) -> (&'static str, &'static str) {
     }
 }
 
-fn race_top_widget(race_id: u8, short_name: &str, icon_file: &str, color: FontColor) -> Element {
-    if !icon_file.is_empty() {
-        rsx! {
-            texture {
-                name: dyn_name(format!("Race_{race_id}_Icon")),
-                width: 36.0,
-                height: 36.0,
-                texture_file: icon_file,
-                pos_type: "absolute",
-                left: "50%",
-                top: "0%",
-                translate_x: "-50%",
-                margin_top: {4.0},
-            }
-        }
-    } else {
-        rsx! {
-            fontstring {
-                name: dyn_name(format!("Race_{race_id}_Short")),
-                width: 44.0,
-                height: 24.0,
-                text: short_name,
-                font: GameFont::FrizQuadrata,
-                font_size: 16.0,
-                font_color: color,
-                pos_type: "absolute",
-                left: "50%",
-                top: "0%",
-                translate_x: "-50%",
-                margin_top: {4.0},
-            }
+fn race_top_widget(race_id: u8, icon_fdid: u32) -> Element {
+    rsx! {
+        texture {
+            name: dyn_name(format!("Race_{race_id}_Icon")),
+            width: 36.0,
+            height: 36.0,
+            texture_fdid: icon_fdid,
+            pos_type: "absolute",
+            left: "50%",
+            top: "0%",
+            translate_x: "-50%",
+            margin_top: {4.0},
         }
     }
 }
@@ -117,32 +98,18 @@ pub(super) fn race_buttons_for_faction(
     RACES
         .iter()
         .filter(|r| r.faction == faction)
-        .flat_map(|r| {
-            race_button(
-                r.id,
-                r.short_name,
-                r.name,
-                r.icon_file,
-                r.id == selected_race,
-            )
-        })
+        .flat_map(|r| race_button(r.id, r.name, r.icon_fdid, r.id == selected_race))
         .collect()
 }
 
-pub(super) fn race_button(
-    race_id: u8,
-    short_name: &str,
-    name: &str,
-    icon_file: &str,
-    is_selected: bool,
-) -> Element {
+pub(super) fn race_button(race_id: u8, name: &str, icon_fdid: u32, is_selected: bool) -> Element {
     let color = if is_selected {
         COLOR_SELECTED
     } else {
         COLOR_SUBTITLE
     };
     let (border, bg) = race_button_style(is_selected);
-    let top = race_top_widget(race_id, short_name, icon_file, color);
+    let top = race_top_widget(race_id, icon_fdid);
     let label = race_name_label(race_id, name, color);
     rsx! {
         r#frame {
@@ -221,13 +188,13 @@ pub(super) fn class_button_style(
     (color, border, bg)
 }
 
-fn class_icon_widget(class_id: u8, icon: &str, alpha: &str) -> Element {
+fn class_icon_widget(class_id: u8, icon_fdid: u32, alpha: &str) -> Element {
     rsx! {
         texture {
             name: dyn_name(format!("Class_{class_id}_Icon")),
             width: 36.0,
             height: 36.0,
-            texture_file: icon,
+            texture_fdid: icon_fdid,
             alpha,
             pos_type: "absolute",
             left: "50%",
@@ -250,7 +217,7 @@ fn class_name_label(class_id: u8, name: &str, color: FontColor) -> Element {
 pub(super) fn class_button(
     class_id: u8,
     name: &str,
-    icon: &str,
+    icon_fdid: u32,
     is_selected: bool,
     available: bool,
 ) -> Element {
@@ -269,7 +236,7 @@ pub(super) fn class_button(
             onclick,
             border,
             background_color: bg,
-            {class_icon_widget(class_id, icon, alpha)}
+            {class_icon_widget(class_id, icon_fdid, alpha)}
             {class_name_label(class_id, name, color)}
         }
     }

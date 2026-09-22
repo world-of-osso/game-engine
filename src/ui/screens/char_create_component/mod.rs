@@ -148,8 +148,8 @@ pub struct CharCreateUiState {
     pub name: String,
     pub error_text: Option<String>,
     pub name_input_focused: bool,
-    /// (class_id, class_name, icon_file, available_for_race)
-    pub class_availability: Vec<(u8, &'static str, &'static str, bool)>,
+    /// (class_id, class_name, icon_fdid, available_for_race)
+    pub class_availability: Vec<(u8, &'static str, u32, bool)>,
 }
 
 impl Default for CharCreateUiState {
@@ -158,7 +158,7 @@ impl Default for CharCreateUiState {
         let race = 1;
         let class_availability: Vec<_> = CLASSES
             .iter()
-            .map(|c| (c.id, c.name, c.icon_file, race_can_be_class(race, c.id)))
+            .map(|c| (c.id, c.name, c.icon_fdid, race_can_be_class(race, c.id)))
             .collect();
         Self {
             mode: CharCreateMode::RaceClass,
