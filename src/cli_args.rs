@@ -412,6 +412,8 @@ pub fn parse_asset_path_from_args(args: &[String]) -> Option<PathBuf> {
             | "--screen"
             | "--char"
             | "--load-scene"
+            | "--run-ui-script"
+            | "--run-js-ui-script"
             | "--skybox-fdid"
             | "--light-skybox-id"
             | "--skybox-time-ms"

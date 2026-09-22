@@ -660,6 +660,23 @@ fn asset_path_skips_flags_and_screenshot_output() {
 }
 
 #[test]
+fn asset_path_skips_ui_automation_script_inputs() {
+    for flag in ["--run-ui-script", "--run-js-ui-script"] {
+        let mut input = args(&["--screen", "charcreate", flag, "debug/character-create.js"]);
+        assert_eq!(
+            parse_asset_path_from_args(&input),
+            None,
+            "script input is not a model asset"
+        );
+        input.push("data/models/humanmale_hd.m2".to_owned());
+        assert_eq!(
+            parse_asset_path_from_args(&input),
+            Some(PathBuf::from("data/models/humanmale_hd.m2"))
+        );
+    }
+}
+
+#[test]
 fn asset_path_after_screenshot_is_preserved() {
     let parsed = parse_asset_path_from_args(&args(&[
         "--state",
