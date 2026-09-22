@@ -4,323 +4,318 @@ use ui_toolkit::widget_def::Element;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{GameFont, JustifyH};
 
+use super::reference_layout::*;
 use super::{
-    AppearanceField, COLOR_SELECTED, COLOR_SUBTITLE, COLOR_WHITE, CharCreateAction, DynName,
+    COLOR_DISABLED, COLOR_GOLD, COLOR_WHITE, CharCreateAction, CustomizationChoiceUi,
+    CustomizationOptionUi, DynName,
 };
 
-fn dyn_name(s: String) -> DynName {
-    DynName(s)
-}
-
-const STEPPER_SIZE: f32 = 38.0;
-const DEC_RIGHT_INSET: f32 = 130.0;
-const INC_RIGHT_INSET: f32 = 10.0;
-const SWATCH_PREVIEW_WIDTH: f32 = 84.0;
-const SWATCH_PREVIEW_HEIGHT: f32 = 20.0;
-const SWATCH_PREVIEW_AREA_HEIGHT: f32 = 40.0;
-const SWATCH_DROPDOWN_WIDTH: f32 = 40.0;
-const SWATCH_DROPDOWN_HEIGHT: f32 = 20.0;
-const SWATCH_DROPDOWN_CHOICE_WIDTH: f32 = 44.0;
-const SWATCH_DROPDOWN_CHOICE_HEIGHT: f32 = 28.0;
-const SWATCH_DROPDOWN_SELECTION_WIDTH: f32 = 48.0;
-const SWATCH_DROPDOWN_SELECTION_HEIGHT: f32 = 28.0;
-const NUMBER_DROPDOWN_CHOICE_WIDTH: f32 = 28.0;
-const NUMBER_DROPDOWN_CHOICE_HEIGHT: f32 = 22.0;
-const DROPDOWN_WIDTH: f32 = 282.0;
-const DROPDOWN_GAP: f32 = 2.0;
-const DROPDOWN_PADDING: f32 = 4.0;
-const SELECTION_DROPDOWN_OFFSET_X: f32 = -4.0;
-
-fn right_inset_x(inset: f32) -> String {
-    format!("-{inset}")
-}
-
-fn x_offset(x: f32) -> String {
-    format!("{x}")
-}
-
-fn swatch_gap_center_x() -> String {
-    let inset = (DEC_RIGHT_INSET + INC_RIGHT_INSET + STEPPER_SIZE) * 0.5;
-    right_inset_x(inset)
-}
-
-fn stepper_dec_button(field: AppearanceField) -> Element {
-    let x = right_inset_x(DEC_RIGHT_INSET);
-    rsx! {
-        button {
-            name: dyn_name(format!("AppDec_{}", field.as_str())),
-            width: STEPPER_SIZE,
-            height: STEPPER_SIZE,
-            text: "",
-            onclick: CharCreateAction::AppearanceDec(field),
-            button_atlas_up: "charactercreate-customize-backbutton",
-            button_atlas_pressed: "charactercreate-customize-backbutton-down",
-            button_atlas_highlight: "charactercreate-customize-backbutton",
-            button_atlas_disabled: "charactercreate-customize-backbutton-disabled",
-            pos_type: "absolute",
-            left: "100%",
-            top: "50%",
-            translate_x: "-100%",
-            translate_y: "-50%",
-            margin_left: {x},
-        }
-    }
-}
-
-fn stepper_inc_button(field: AppearanceField) -> Element {
-    let x = right_inset_x(INC_RIGHT_INSET);
-    rsx! {
-        button {
-            name: dyn_name(format!("AppInc_{}", field.as_str())),
-            width: STEPPER_SIZE,
-            height: STEPPER_SIZE,
-            text: "",
-            onclick: CharCreateAction::AppearanceInc(field),
-            button_atlas_up: "charactercreate-customize-nextbutton",
-            button_atlas_pressed: "charactercreate-customize-nextbutton-down",
-            button_atlas_highlight: "charactercreate-customize-nextbutton",
-            button_atlas_disabled: "charactercreate-customize-nextbutton-disabled",
-            pos_type: "absolute",
-            left: "100%",
-            top: "50%",
-            translate_x: "-100%",
-            translate_y: "-50%",
-            margin_left: {x},
-        }
-    }
-}
-
-fn appearance_row_label(field: AppearanceField, label: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: dyn_name(format!("AppLabel_{}", field.as_str())),
-            width: 120.0,
-            height: 24.0,
-            text: label,
-            font: GameFont::FrizQuadrata,
-            font_size: 13.0,
-            font_color: COLOR_SUBTITLE,
-            justify_h: JustifyH::Left,
-            pos_type: "absolute",
-            left: "0%",
-            top: "50%",
-            translate_y: "-50%",
-            margin_left: {10},
-        }
-    }
-}
-
-fn appearance_row_value(field: AppearanceField, value: u8, label: &str) -> Element {
-    let val_text = if label.is_empty() {
-        format!("{}", value + 1)
+fn choice_label(choice: &CustomizationChoiceUi, index: usize) -> String {
+    if choice.label.is_empty() {
+        (index + 1).to_string()
     } else {
-        label.to_string()
-    };
-    let x = swatch_gap_center_x();
-    rsx! {
-        fontstring {
-            name: dyn_name(format!("AppVal_{}", field.as_str())),
-            width: SWATCH_PREVIEW_WIDTH,
-            height: 24.0,
-            text: val_text,
-            font: GameFont::FrizQuadrata,
-            font_size: 12.0,
-            font_color: COLOR_WHITE,
-            pos_type: "absolute",
-            left: "100%",
-            top: "50%",
-            translate_x: "-50%",
-            translate_y: "-50%",
-            margin_left: {x},
-        }
+        choice.label.clone()
     }
 }
 
-fn rgb_to_vertex_color(color: [u8; 3]) -> String {
+fn tint(color: [u8; 3]) -> String {
     format!(
-        "{},{},{},1.0",
+        "{},{},{},1",
         color[0] as f32 / 255.0,
         color[1] as f32 / 255.0,
         color[2] as f32 / 255.0
     )
 }
 
-fn swatch_color_preview(field: AppearanceField, vc: &str) -> Element {
-    rsx! {
-        texture {
-            name: dyn_name(format!("AppSwatch_{}", field.as_str())),
-            width: SWATCH_PREVIEW_WIDTH,
-            height: SWATCH_PREVIEW_HEIGHT,
-            texture_atlas: "charactercreate-customize-palette",
-            vertex_color: vc,
-            pos_type: "absolute",
-            left: "50%",
-            top: "50%",
-            translate_x: "-50%",
-            translate_y: "-50%",
-        }
-    }
-}
-
-fn swatch_texture(field: AppearanceField, color: [u8; 3]) -> Element {
-    let (vc, x) = (rgb_to_vertex_color(color), swatch_gap_center_x());
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("AppSwatchArea_{}", field.as_str())),
-            width: SWATCH_PREVIEW_WIDTH,
-            height: SWATCH_PREVIEW_AREA_HEIGHT,
-            onclick: CharCreateAction::ToggleDropdown(field),
-            pos_type: "absolute",
-            left: "100%",
-            top: "50%",
-            translate_x: "-50%",
-            translate_y: "-50%",
-            margin_left: {x},
-            {swatch_color_preview(field, &vc)}
-        }
-    }
-}
-
-fn dropdown_color_choice(
-    field: AppearanceField,
-    i: usize,
-    color: [u8; 3],
+fn choice_details(
+    name: &str,
+    choice: &CustomizationChoiceUi,
+    index: usize,
     selected: bool,
 ) -> Element {
-    let vc = rgb_to_vertex_color(color);
-    let sel_hidden = !selected;
-    let idx = i as u8;
-    let selection_x = x_offset(SELECTION_DROPDOWN_OFFSET_X);
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("DropChoice_{}_{i}", field.as_str())),
-            width: SWATCH_DROPDOWN_CHOICE_WIDTH,
-            height: SWATCH_DROPDOWN_CHOICE_HEIGHT,
-            onclick: CharCreateAction::SelectChoice(field, idx),
-            texture {
-                name: dyn_name(format!("DropSwatch_{}_{i}", field.as_str())),
-                width: SWATCH_DROPDOWN_WIDTH,
-                height: SWATCH_DROPDOWN_HEIGHT,
-                texture_atlas: "charactercreate-customize-palette",
-                vertex_color: vc,
-                pos_type: "absolute",
-                left: "50%",
-                top: "50%",
-                translate_x: "-50%",
-                translate_y: "-50%",
-            }
-            texture {
-                name: dyn_name(format!("DropSel_{}_{i}", field.as_str())),
-                width: SWATCH_DROPDOWN_SELECTION_WIDTH,
-                height: SWATCH_DROPDOWN_SELECTION_HEIGHT,
-                hidden: sel_hidden,
-                texture_atlas: "charactercreate-customize-palette-selected",
-                pos_type: "absolute",
-                left: "50%",
-                top: "50%",
-                translate_x: "-50%",
-                translate_y: "-50%",
-                margin_left: {selection_x},
-            }
-        }
-    }
-}
-
-fn dropdown_number_choice(field: AppearanceField, i: usize, selected: bool) -> Element {
-    let idx = i as u8;
-    let val_text = format!("{}", idx + 1);
-    let color = if selected {
-        COLOR_SELECTED
+    let color = if !choice.enabled {
+        COLOR_DISABLED
+    } else if selected {
+        COLOR_GOLD
     } else {
         COLOR_WHITE
     };
+    let label = choice_label(choice, index);
+    let width = if choice.swatch.is_some() { 92.0 } else { 144.0 };
+    let first = choice
+        .swatch
+        .map(|color| {
+            let vertex_color = tint(color);
+            rsx! {
+                texture { name: DynName(format!("{name}_Swatch")), width: 42.0, height: 10.0,
+                    texture_atlas: "charactercreate-customize-palette", vertex_color,
+                    pos_type: "absolute", left: 100.0, top: 5.0,
+                }
+            }
+        })
+        .unwrap_or_default();
+    let second = choice.secondary_swatch.map(|color| {
+        let vertex_color = tint(color);
+        rsx! {
+            texture { name: DynName(format!("{name}_SecondarySwatch")), width: 36.0, height: 8.0,
+                texture_atlas: "charactercreate-customize-palette-half", vertex_color,
+                pos_type: "absolute", left: 118.0, top: 7.0,
+            }
+        }
+    }).unwrap_or_default();
     rsx! {
-        r#frame {
-            name: dyn_name(format!("DropChoice_{}_{i}", field.as_str())),
-            width: NUMBER_DROPDOWN_CHOICE_WIDTH,
-            height: NUMBER_DROPDOWN_CHOICE_HEIGHT,
-            onclick: CharCreateAction::SelectChoice(field, idx),
-            background_color: "0.15,0.12,0.08,0.9",
-            border: "1px solid 0.4,0.35,0.2,0.6",
-            fontstring {
-                name: dyn_name(format!("DropVal_{}_{i}", field.as_str())),
-                width: NUMBER_DROPDOWN_CHOICE_WIDTH,
-                height: NUMBER_DROPDOWN_CHOICE_HEIGHT,
-                text: val_text,
-                font: GameFont::FrizQuadrata,
-                font_size: 11.0,
-                font_color: color,
+        fontstring { name: DynName(format!("{name}_Text")), width, height: CHOICE_HEIGHT,
+            text: label, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color, justify_h: JustifyH::Left,
+            pos_type: "absolute", left: 0.0, top: 0.0,
+        }
+        {first}
+        {second}
+    }
+}
+
+fn option_label(option: &CustomizationOptionUi, checkbox: bool) -> Element {
+    let x = if checkbox { -68.0 } else { -275.0 };
+    let color = if option.enabled {
+        COLOR_WHITE
+    } else {
+        COLOR_DISABLED
+    };
+    rsx! {
+        fontstring { name: DynName(format!("OptionLabel_{}", option.id)), width: 225.0, height: OPTION_HEIGHT,
+            text: option.label.clone(), font: GameFont::FrizQuadrata, font_size: 15.0,
+            font_color: color, justify_h: JustifyH::Right,
+            pos_type: "absolute", left: x, top: 0.0,
+        }
+    }
+}
+
+fn stepper(option: &CustomizationOptionUi, delta: i8) -> Element {
+    let increment = delta > 0;
+    let name = format!(
+        "Option{}_{}",
+        if increment { "Inc" } else { "Dec" },
+        option.id
+    );
+    let atlas = if increment {
+        "common-dropdown-icon-next"
+    } else {
+        "common-dropdown-icon-back"
+    };
+    let disabled_atlas = if increment {
+        "common-dropdown-icon-next-disabled"
+    } else {
+        "common-dropdown-icon-back-disabled"
+    };
+    let disabled = !option.enabled
+        || option
+            .choices
+            .iter()
+            .filter(|choice| choice.enabled)
+            .count()
+            < 2;
+    let x = if increment { OPTION_WIDTH - 38.0 } else { 0.0 };
+    rsx! {
+        button { name: DynName(name), width: 38.0, height: OPTION_HEIGHT, disabled,
+            onclick: CharCreateAction::AdjustOption(option.id, delta),
+            button_atlas_up: atlas, button_atlas_pressed: atlas,
+            button_atlas_highlight: atlas, button_atlas_disabled: disabled_atlas,
+            pos_type: "absolute", left: x, top: 0.0,
+        }
+    }
+}
+
+fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
+    let name = format!("OptionToggle_{}", option.id);
+    let atlas = if open {
+        "charactercreate-customize-dropdownbox-open"
+    } else {
+        "charactercreate-customize-dropdownbox"
+    };
+    let disabled = !option.enabled || option.choices.is_empty();
+    let value = option.choices.iter().enumerate().find(|(_, choice)| choice.id == option.selected_choice_id)
+        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false))
+        .unwrap_or_else(|| rsx! {
+            fontstring { name: DynName(format!("OptionValue_{}_Text", option.id)), width: 144.0, height: 20.0,
+                text: "Choose", font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_WHITE,
+            }
+        });
+    rsx! {
+        {stepper(option, -1)}
+        button { name: DynName(name), width: 150.0, height: OPTION_HEIGHT, disabled,
+            onclick: CharCreateAction::ToggleOption(option.id),
+            button_atlas_up: atlas, button_atlas_pressed: "charactercreate-customize-dropdownbox-open",
+            button_atlas_highlight: "charactercreate-customize-dropdownbox-hover",
+            pos_type: "absolute", left: 36.5, top: 0.0,
+            r#frame { name: DynName(format!("OptionValue_{}", option.id)), width: 144.0, height: 20.0,
+                pos_type: "absolute", left: 3.0, top: 9.0,
+                {value}
+            }
+        }
+        {stepper(option, 1)}
+    }
+}
+
+fn checkbox_control(option: &CustomizationOptionUi) -> Element {
+    let checked = option.selected_choice_id == option.choices[1].id;
+    let next = &option.choices[usize::from(!checked)];
+    let disabled = !option.enabled || !next.enabled;
+    let checked_hidden = !checked;
+    let check_fdid = if disabled { 130_750u32 } else { 130_751u32 };
+    rsx! {
+        button { name: DynName(format!("OptionCheck_{}", option.id)), width: 32.0, height: 32.0, disabled,
+            onclick: CharCreateAction::SelectOptionChoice(option.id, next.id),
+            pos_type: "absolute", left: OPTION_WIDTH - 32.0, top: 3.0,
+            texture { name: DynName(format!("OptionCheck_{}_Background", option.id)), width: 32.0, height: 32.0,
+                texture_fdid: 130_755u32,
+            }
+            texture { name: DynName(format!("OptionCheck_{}_Mark", option.id)), width: 32.0, height: 32.0,
+                texture_fdid: check_fdid, hidden: checked_hidden,
+                pos_type: "absolute", left: 0.0, top: 0.0,
             }
         }
     }
 }
 
-fn build_dropdown_choices(
-    field: AppearanceField,
-    swatches: &[Option<[u8; 3]>],
-    selected: u8,
+fn unavailable(option: &CustomizationOptionUi, reason: &str) -> Element {
+    rsx! {
+        fontstring { name: DynName(format!("OptionReason_{}", option.id)), width: OPTION_WIDTH, height: OPTION_HEIGHT,
+            text: reason, font: GameFont::FrizQuadrata, font_size: 11.0, font_color: COLOR_DISABLED,
+            justify_h: JustifyH::Left,
+        }
+    }
+}
+
+pub(super) fn customization_row(option: &CustomizationOptionUi, open: bool, y: f32) -> Element {
+    let control = match (option.enabled, option.ui_type, option.choices.len()) {
+        (false, _, _) => unavailable(
+            option,
+            option.disabled_reason.as_deref().unwrap_or("Unavailable"),
+        ),
+        (true, 0, _) => dropdown_control(option, open),
+        (true, 1, 2) => checkbox_control(option),
+        (true, 1, _) => unavailable(option, "Checkbox requires two choices"),
+        _ => unavailable(option, "This control type is not supported"),
+    };
+    rsx! {
+        r#frame { name: DynName(format!("Option_{}", option.id)), width: OPTION_WIDTH, height: OPTION_HEIGHT,
+            pos_type: "absolute", left: 0.0, top: y,
+            {option_label(option, option.ui_type == 1 && option.enabled)}
+            {control}
+        }
+    }
+}
+
+fn dropdown_choice(
+    option: &CustomizationOptionUi,
+    choice: &CustomizationChoiceUi,
+    index: usize,
+    rows: usize,
 ) -> Element {
-    swatches
-        .iter()
-        .enumerate()
-        .flat_map(|(i, swatch)| {
-            let is_sel = i as u8 == selected;
-            match swatch {
-                Some(c) => dropdown_color_choice(field, i, *c, is_sel),
-                None => dropdown_number_choice(field, i, is_sel),
+    let name = format!("OptionChoice_{}_{}", option.id, choice.id);
+    let disabled = !option.enabled || !choice.enabled;
+    let selected = choice.id == option.selected_choice_id;
+    let marker_hidden = !selected;
+    rsx! {
+        button { name: DynName(name.clone()), width: CHOICE_WIDTH, height: CHOICE_HEIGHT, disabled,
+            onclick: CharCreateAction::SelectOptionChoice(option.id, choice.id),
+            button_atlas_highlight: "charactercreate-customize-dropdown-linemouseover-middle",
+            pos_type: "absolute", left: (index / rows) as f32 * CHOICE_WIDTH, top: (index % rows) as f32 * CHOICE_HEIGHT,
+            texture { name: DynName(format!("{name}_Selected")), width: CHOICE_WIDTH, height: CHOICE_HEIGHT,
+                texture_atlas: "charactercreate-customize-dropdown-linemouseover-middle", hidden: marker_hidden,
+                pos_type: "absolute", left: 0.0, top: 0.0,
             }
-        })
+            r#frame { name: DynName(format!("{name}_Details")), width: 144.0, height: 20.0,
+                pos_type: "absolute", left: 14.0, top: 0.0,
+                {choice_details(&name, choice, index, selected)}
+            }
+        }
+    }
+}
+
+fn border_piece(name: &str, atlas: &str, rect: [f32; 4]) -> Element {
+    rsx! {
+        texture { name: DynName(name.to_string()), width: rect[2], height: rect[3], texture_atlas: atlas,
+            pos_type: "absolute", left: rect[0], top: rect[1],
+        }
+    }
+}
+
+fn dropdown_border(id: u32, width: f32, height: f32) -> Element {
+    // Local NineSliceLayouts.lua:206-216: corners extend 30px horizontally and20px vertically.
+    let prefix = format!("Dropdown_{id}");
+    let parts = [
+        (
+            "Center",
+            "charactercreatedropdown-nineslice-center",
+            [0.0, 0.0, width, height],
+        ),
+        (
+            "TL",
+            "charactercreatedropdown-nineslice-cornertopleft",
+            [-30.0, -20.0, 62.0, 52.0],
+        ),
+        (
+            "TR",
+            "charactercreatedropdown-nineslice-cornertopright",
+            [width - 32.0, -20.0, 62.0, 52.0],
+        ),
+        (
+            "BL",
+            "charactercreatedropdown-nineslice-cornerbottomleft",
+            [-30.0, height - 52.0, 62.0, 72.0],
+        ),
+        (
+            "BR",
+            "charactercreatedropdown-nineslice-cornerbottomright",
+            [width - 32.0, height - 52.0, 62.0, 72.0],
+        ),
+        (
+            "T",
+            "_charactercreatedropdown-nineslice-edgetop",
+            [32.0, -20.0, (width - 64.0).max(0.0), 52.0],
+        ),
+        (
+            "B",
+            "_charactercreatedropdown-nineslice-edgebottom",
+            [32.0, height - 52.0, (width - 64.0).max(0.0), 72.0],
+        ),
+        (
+            "L",
+            "!charactercreatedropdown-nineslice-edgeleft",
+            [-30.0, 32.0, 62.0, (height - 84.0).max(0.0)],
+        ),
+        (
+            "R",
+            "!charactercreatedropdown-nineslice-edgeright",
+            [width - 32.0, 32.0, 62.0, (height - 84.0).max(0.0)],
+        ),
+    ];
+    parts
+        .into_iter()
+        .flat_map(|(part, atlas, rect)| border_piece(&format!("{prefix}_{part}"), atlas, rect))
         .collect()
 }
 
-pub(super) fn customization_row(
-    label: &str,
-    value: u8,
-    value_label: &str,
-    swatches: &[Option<[u8; 3]>],
-    field: AppearanceField,
-) -> Element {
-    let current_swatch = swatches.get(value as usize).copied().flatten();
-    let center = match current_swatch {
-        Some(color) => swatch_texture(field, color),
-        None => appearance_row_value(field, value, value_label),
-    };
-    rsx! {
-        r#frame {
-            name: dyn_name(format!("Appearance_{}", field.as_str())),
-            width: 280.0,
-            height: 44.0,
-            {appearance_row_label(field, label)}
-            {stepper_dec_button(field)}
-            {center}
-            {stepper_inc_button(field)}
-        }
-    }
-}
-
 pub(super) fn dropdown_panel(
-    field: AppearanceField,
-    swatches: &[Option<[u8; 3]>],
-    selected_idx: u8,
-    y_offset: f32,
+    option: &CustomizationOptionUi,
+    viewport: [u32; 2],
+    anchor_bottom: f32,
 ) -> Element {
-    let choices = build_dropdown_choices(field, swatches, selected_idx);
+    if !option.enabled || option.ui_type != 0 || option.choices.is_empty() {
+        return Element::default();
+    }
+    let layout = popup_layout(viewport, option.choices.len(), anchor_bottom);
+    let choices: Element = option
+        .choices
+        .iter()
+        .enumerate()
+        .flat_map(|(index, choice)| dropdown_choice(option, choice, index, layout.rows))
+        .collect();
     rsx! {
-        r#frame {
-            name: dyn_name(format!("Dropdown_{}", field.as_str())),
-            width: DROPDOWN_WIDTH,
-            height: "auto",
-            strata: FrameStrata::Dialog,
-            background_color: "0.05,0.05,0.05,1.0",
-            border: "1px solid 0.4,0.35,0.2,0.8",
-            layout: "flex-row-wrap",
-            gap: DROPDOWN_GAP,
-            padding: DROPDOWN_PADDING,
-            pos_type: "absolute",
-            left: "0%",
-            top: "0%",
-            margin_left: {20},
-            margin_top: {-y_offset},
+        r#frame { name: DynName(format!("Dropdown_{}", option.id)), width: layout.width, height: layout.height,
+            strata: FrameStrata::Dialog, mouse_enabled: true,
+            pos_type: "absolute", anchor: "screen", left: layout.x, top: layout.y,
+            {dropdown_border(option.id, layout.width, layout.height)}
             {choices}
         }
     }
