@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-22] character creation | Apply authored dropdown background slices
+
+Build-pinned `UiTextureAtlasElementSliceData` for `12.1.0.69875` adds element 25590 margins 23/18/23/28. Engine `83490974` applies the asymmetric `NineSlice` after both `Screen::sync` paths; the prior whole-image stretch left the popup background short of its columns. Native nine-part, opaque-center, label-order and idle-dirty tests pass. Runtime and final verification remain pending. See [[character-creation]].
+
 ## [2026-09-22] character creation | Match Retail dropdown insets, widths and swatches
 
 Engine `4cfb538f`, `9761008e` and `627cb5d6` implement `MenuStyle2` 3/6/3/7 content insets, content-dependent 144/107/136/70 row widths, dual half/full palette placement, secondary-only colors and selected-outline anchoring. Local Lua/XML source and 31 targeted component tests establish layout/layer behavior. Runtime and independent final checks remain pending; no full Retail visual-parity claim. See [[character-creation]].
