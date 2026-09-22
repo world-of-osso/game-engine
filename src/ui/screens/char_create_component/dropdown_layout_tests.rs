@@ -127,6 +127,208 @@ fn last_option_popup_moves_above_its_anchor_at_a_short_viewport() {
 }
 
 #[test]
+fn repeated_popup_style_application_does_not_dirty_unchanged_frames() {
+    let mut harness = ScreenHarness::new(CharCreateUiState {
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    harness.reg.render_dirty.clear();
+    harness.reg.rect_dirty.clear();
+    apply_character_create_styles(&mut harness.reg, Some(22));
+    assert!(harness.reg.render_dirty.is_empty());
+    assert!(harness.reg.rect_dirty.is_empty());
+    harness.sync(CharCreateUiState {
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    assert_eq!(
+        frame(&harness.reg, "Dropdown_22_Background")
+            .nine_slice
+            .as_ref()
+            .unwrap()
+            .edge_sizes,
+        Some([23.0, 18.0, 23.0, 28.0])
+    );
+}
+
+#[test]
+fn native_popup_projects_nine_authored_parts_without_covering_choice_labels() {
+    use bevy::prelude::*;
+    use std::path::Path;
+    use ui_toolkit::native_render::RegistryNode;
+    use ui_toolkit::plugin::UiState;
+    use ui_toolkit::render_texture::{BlpLoader, BlpLoaderRes};
+
+    struct LocalBlp;
+    impl BlpLoader for LocalBlp {
+        fn load_blp_to_image(&self, path: &Path) -> Result<Image, String> {
+            crate::asset::blp::load_blp_to_image(path)
+        }
+        fn load_blp_gpu_image(&self, path: &Path) -> Result<Image, String> {
+            crate::asset::blp::load_blp_gpu_image(path)
+        }
+        fn ensure_texture(&self, fdid: u32) -> Option<std::path::PathBuf> {
+            crate::asset::asset_cache::texture(fdid)
+        }
+    }
+
+    for count in [2, 41] {
+        let mut opt = option(22, "Eye Color");
+        opt.choices = (0..count)
+            .map(|index| CustomizationChoiceUi {
+                swatch: Some([20, 80, 160]),
+                ..choice(80000 + index, "")
+            })
+            .collect();
+        let state = CharCreateUiState {
+            options: vec![opt],
+            open_dropdown: Some(22),
+            viewport_width: 1280,
+            viewport_height: 989,
+            ..customize_state()
+        };
+        let mut app = layout_support::layout_app(1280.0, 989.0);
+        app.insert_resource(BlpLoaderRes(Box::new(LocalBlp)));
+        app.finish();
+        app.cleanup();
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        ui_toolkit::screen::Screen::new(char_create_screen).sync(
+            &shared,
+            &mut app.world_mut().resource_mut::<UiState>().registry,
+        );
+        let reg = &mut app.world_mut().resource_mut::<UiState>().registry;
+        apply_character_create_styles(reg, Some(22));
+        for _ in 0..3 {
+            app.update();
+        }
+        let (background_id, choice_id, width, height) = {
+            let reg = &app.world().resource::<UiState>().registry;
+            let background_id = reg.get_by_name("Dropdown_22_Background").unwrap();
+            let choice_id = reg.get_by_name("OptionChoice_22_80000_Text").unwrap();
+            let bounds = reg
+                .get(background_id)
+                .unwrap()
+                .layout_rect
+                .as_ref()
+                .unwrap();
+            (background_id, choice_id, bounds.width, bounds.height)
+        };
+        let background_entity = app
+            .world_mut()
+            .query::<(Entity, &RegistryNode)>()
+            .iter(app.world())
+            .find(|(_, node)| node.0 == background_id)
+            .unwrap()
+            .0;
+        let label_entity = app
+            .world_mut()
+            .query::<(Entity, &RegistryNode)>()
+            .iter(app.world())
+            .find(|(_, node)| node.0 == choice_id)
+            .unwrap()
+            .0;
+        let parts: Vec<_> = app
+            .world_mut()
+            .query::<(&ChildOf, &ImageNode, &Node, &GlobalZIndex)>()
+            .iter(app.world())
+            .filter(|(parent, _, _, _)| parent.parent() == background_entity)
+            .map(|(_, image, node, z)| {
+                (
+                    image.rect,
+                    node.width,
+                    node.height,
+                    z.0,
+                    image.image.clone(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            parts.len(),
+            9,
+            "{count} choices: missing sliced backdrop parts"
+        );
+        let center = parts
+            .iter()
+            .find(|part| part.0 == Some(Rect::new(23.0, 18.0, 67.0, 62.0)))
+            .unwrap_or_else(|| panic!("correct source center crop; got {parts:?}"));
+        assert_eq!(center.1, Val::Px(width - 46.0));
+        assert_eq!(center.2, Val::Px(height - 46.0));
+        let source = app
+            .world()
+            .resource::<Assets<Image>>()
+            .get(&center.4)
+            .unwrap();
+        let pixels = source.data.as_ref().unwrap();
+        let sample = ((40 * source.width() + 45) * 4) as usize;
+        assert_eq!(
+            &pixels[sample..sample + 4],
+            &[0, 0, 0, 255],
+            "authored center must fill the menu behind every choice"
+        );
+        let label_z = app
+            .world_mut()
+            .query::<(&ChildOf, &GlobalZIndex)>()
+            .iter(app.world())
+            .find(|(parent, _)| parent.parent() == label_entity)
+            .expect("projected text bounds")
+            .1
+            .0;
+        assert!(
+            parts.iter().all(|part| label_z > part.3),
+            "choice text z={label_z} must be above background {parts:?}"
+        );
+    }
+}
+
+#[test]
+fn popup_background_uses_build_pinned_asymmetric_slice_with_filled_center() {
+    for (count, expected) in [(2, [150.0, 53.0]), (41, [434.0, 233.0])] {
+        let mut opt = option(22, "Eye Color");
+        opt.choices = (0..count)
+            .map(|index| CustomizationChoiceUi {
+                swatch: Some([20, 80, 160]),
+                ..choice(80000 + index, "")
+            })
+            .collect();
+        let harness = ScreenHarness::new(CharCreateUiState {
+            options: vec![opt],
+            open_dropdown: Some(22),
+            viewport_width: 1280,
+            viewport_height: 989,
+            ..customize_state()
+        });
+        let panel = rect(&harness.reg, "Dropdown_22");
+        assert_eq!([panel.width, panel.height], expected);
+        let background = frame(&harness.reg, "Dropdown_22_Background");
+        let bounds = rect(&harness.reg, "Dropdown_22_Background");
+        assert_eq!(
+            [bounds.width, bounds.height],
+            [expected[0] + 34.0, expected[1] + 34.0]
+        );
+        let slice = background
+            .nine_slice
+            .as_ref()
+            .expect("Retail menu uses atlas slice data");
+        assert_eq!(slice.edge_sizes, Some([23.0, 18.0, 23.0, 28.0]));
+        assert_eq!(slice.uv_edge_sizes, Some([23.0, 18.0, 23.0, 28.0]));
+        assert_eq!(
+            slice.texture,
+            Some(TextureSource::Atlas("common-dropdown-c-bg".into()))
+        );
+        assert_eq!(slice.bg_color, [1.0; 4]);
+        assert_eq!(slice.border_color, [1.0; 4]);
+        assert!(background.background_color.is_none());
+        let center_width = bounds.width - 46.0;
+        let center_height = bounds.height - 46.0;
+        assert!(
+            center_width > 0.0 && center_height > 0.0,
+            "all choices need a filled center"
+        );
+    }
+}
+
+#[test]
 fn popup_uses_authored_retail_menu_art_and_choice_hover() {
     let harness = ScreenHarness::new(CharCreateUiState {
         open_dropdown: Some(22),

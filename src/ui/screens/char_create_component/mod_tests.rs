@@ -20,6 +20,12 @@ impl ScreenHarness {
         shared.insert(state);
         let mut screen = ui_toolkit::screen::Screen::new(char_create_screen);
         screen.sync(&shared, &mut reg);
+        apply_character_create_styles(
+            &mut reg,
+            shared
+                .get::<CharCreateUiState>()
+                .and_then(|state| state.open_dropdown),
+        );
         layout_support::compute_layout(&mut reg);
         Self {
             screen,
@@ -31,6 +37,12 @@ impl ScreenHarness {
     fn sync(&mut self, state: CharCreateUiState) {
         self.shared.insert(state);
         self.screen.sync(&self.shared, &mut self.reg);
+        apply_character_create_styles(
+            &mut self.reg,
+            self.shared
+                .get::<CharCreateUiState>()
+                .and_then(|state| state.open_dropdown),
+        );
         layout_support::compute_layout(&mut self.reg);
     }
 }

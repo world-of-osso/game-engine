@@ -15,6 +15,14 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 use appearance_widgets::{customization_row, dropdown_panel};
+
+/// Restore authored MenuStyle2 atlas slicing after the declarative screen sync.
+pub fn apply_character_create_styles(
+    registry: &mut crate::ui::registry::FrameRegistry,
+    open_dropdown: Option<u32>,
+) {
+    appearance_widgets::apply_dropdown_background_style(registry, open_dropdown);
+}
 use char_create_widgets::{
     body_type_buttons, bottom_buttons, camera_controls, category_button, class_button,
     faction_column, name_input_field, small_button,
