@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     use bevy::asset::AssetApp;
-    use bevy::input::{mouse::MouseButtonInput, ButtonState, InputPlugin};
+    use bevy::input::{ButtonState, InputPlugin, mouse::MouseButtonInput};
     use bevy::state::app::StatesPlugin;
     use bevy::window::PrimaryWindow;
     use game_engine::asset::char_texture::CharTextureData;
