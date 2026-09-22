@@ -128,6 +128,7 @@ pub mod addon_runtime;
 pub mod addon_watcher;
 pub mod automation;
 pub mod automation_script;
+pub mod character_creation_icons;
 pub mod game_plugin;
 pub mod js_automation;
 pub mod panel_styles;
