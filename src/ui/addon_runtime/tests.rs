@@ -1291,3 +1291,51 @@ fn addon_editbox_focus_redirects_and_clears_on_outside_click() {
         );
     }
 }
+
+#[test]
+fn unload_of_focused_addon_editbox_leaves_no_stale_focus_reference() {
+    let mut app = native_addon_app();
+    let addon = editbox_addon(&["AddonInput"]);
+    let (dir, path) = addon_file(
+        "stale_focus",
+        "// fixture addon; unload path driven directly",
+    );
+    let mut runtime = AddonRuntime {
+        addon_dir: dir.clone(),
+        addons: HashMap::from([(path.clone(), addon.clone())]),
+    };
+    let editbox = create_addon_editbox(&mut app, &addon, "AddonInput", 50.0, 40.0);
+    let editbox_entity = projected_frame(app.world_mut(), editbox);
+    let removed_entities = native_descendants(app.world(), editbox_entity);
+    let (cx, cy) = {
+        let ui = app.world().resource::<UiState>();
+        editbox_center(ui, editbox)
+    };
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        assert_eq!(click_at(&mut ui, cx, cy), Some(editbox));
+        assert_eq!(ui.registry.focused_frame, Some(editbox));
+        assert_eq!(ui.focused_frame, Some(editbox));
+    }
+    {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        runtime.unload_path(&path, &mut ui.registry);
+    }
+    assert!(
+        settle_removed(&mut app, &removed_entities),
+        "unload despawn commands were not applied"
+    );
+    let ui = app.world().resource::<UiState>();
+    assert!(
+        ui.registry.get(editbox).is_none(),
+        "focused editbox is removed from the registry"
+    );
+    assert_eq!(
+        ui.registry.focused_frame, None,
+        "registry focus must not reference a removed frame"
+    );
+    assert_eq!(
+        ui.focused_frame, None,
+        "UiState focus must not reference a removed frame"
+    );
+}
