@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::asset::m2::default_geoset_visible;
-use game_engine::customization_data::{CustomizationDb, OptionType};
+use game_engine::customization_data::CustomizationDb;
 use shared::components::{CharacterAppearance, EquipmentAppearance as NetEquipmentAppearance};
 
 use crate::equipment::{Equipment, EquipmentItem};
@@ -192,35 +192,26 @@ pub(crate) fn collect_appearance_materials(
     selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> Vec<(u16, u32)> {
-    let selected_choice_ids = selected_choice_ids(selection, customization_db);
-    let fields = [
-        (OptionType::SkinColor, selection.appearance.skin_color),
-        (OptionType::Face, selection.appearance.face),
-        (OptionType::EyeColor, selection.appearance.eye_color),
-        (OptionType::HairStyle, selection.appearance.hair_style),
-        (OptionType::HairColor, selection.appearance.hair_color),
-        (OptionType::FacialHair, selection.appearance.facial_style),
-    ];
-    let mut all = Vec::new();
-    for (opt_type, index) in fields {
-        if let Some(choice) = customization_db.get_choice_for_class(
-            selection.race,
-            selection.sex,
-            selection.class,
-            opt_type,
-            index,
-        ) {
-            all.extend_from_slice(&choice.materials);
-            all.extend(
+    let choices = game_engine::appearance_options::selected_choices(
+        customization_db,
+        selection.race,
+        selection.sex,
+        selection.class,
+        &selection.appearance,
+    );
+    let selected_ids: HashSet<_> = choices.iter().map(|choice| choice.id).collect();
+    choices
+        .iter()
+        .flat_map(|choice| {
+            choice.materials.iter().copied().chain(
                 choice
                     .related_materials
                     .iter()
-                    .filter(|material| selected_choice_ids.contains(&material.related_choice_id))
+                    .filter(|material| selected_ids.contains(&material.related_choice_id))
                     .map(|material| (material.target_id, material.fdid)),
-            );
-        }
-    }
-    all
+            )
+        })
+        .collect()
 }
 
 fn sync_character_render_requests(mut params: CharacterRenderRequestParams) {
@@ -475,77 +466,30 @@ fn is_group_zero_body_segment(mesh_part_id: u16) -> bool {
     matches!(mesh_part_id, 0 | 1 | 27..=33)
 }
 
-fn selected_choice_ids(
-    selection: &CharacterCustomizationSelection,
-    customization_db: &CustomizationDb,
-) -> HashSet<u32> {
-    let fields = [
-        (OptionType::SkinColor, selection.appearance.skin_color),
-        (OptionType::Face, selection.appearance.face),
-        (OptionType::EyeColor, selection.appearance.eye_color),
-        (OptionType::HairStyle, selection.appearance.hair_style),
-        (OptionType::HairColor, selection.appearance.hair_color),
-        (OptionType::FacialHair, selection.appearance.facial_style),
-    ];
-    fields
-        .into_iter()
-        .filter_map(|(opt_type, index)| {
-            customization_db
-                .get_choice_for_class(
-                    selection.race,
-                    selection.sex,
-                    selection.class,
-                    opt_type,
-                    index,
-                )
-                .map(|choice| choice.id)
-        })
-        .collect()
-}
-
 fn collect_active_geosets(
     selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
 ) -> Vec<(u16, u16)> {
-    let mut active_geosets: Vec<(u16, u16)> = Vec::new();
-    let selected_choice_ids = selected_choice_ids(selection, customization_db);
-    for (opt_type, index) in selected_geoset_fields(selection) {
-        let Some(index) = index else {
-            continue;
-        };
-        if let Some(choice) = customization_db.get_choice_for_class(
-            selection.race,
-            selection.sex,
-            selection.class,
-            opt_type,
-            index,
-        ) {
-            active_geosets.extend_from_slice(&choice.geosets);
-            active_geosets.extend(
+    let choices = game_engine::appearance_options::selected_choices(
+        customization_db,
+        selection.race,
+        selection.sex,
+        selection.class,
+        &selection.appearance,
+    );
+    let selected_ids: HashSet<_> = choices.iter().map(|choice| choice.id).collect();
+    choices
+        .iter()
+        .flat_map(|choice| {
+            choice.geosets.iter().copied().chain(
                 choice
                     .related_geosets
                     .iter()
-                    .filter(|geoset| selected_choice_ids.contains(&geoset.related_choice_id))
+                    .filter(|geoset| selected_ids.contains(&geoset.related_choice_id))
                     .map(|geoset| (geoset.geoset_type, geoset.geoset_id)),
-            );
-        }
-    }
-    active_geosets
-}
-
-fn selected_geoset_fields(
-    selection: &CharacterCustomizationSelection,
-) -> [(OptionType, Option<u8>); 3] {
-    [
-        (OptionType::HairStyle, Some(selection.appearance.hair_style)),
-        (
-            OptionType::FacialHair,
-            Some(selection.appearance.facial_style),
-        ),
-        // CharacterAppearance doesn't persist modern ear choices yet.
-        // Pick the first DB choice so render state still drives one sane ear geoset.
-        (OptionType::Ears, Some(0)),
-    ]
+            )
+        })
+        .collect()
 }
 
 fn apply_hidden_geoset_groups(
