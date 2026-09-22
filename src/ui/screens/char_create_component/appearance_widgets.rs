@@ -32,6 +32,7 @@ fn choice_details(
     choice: &CustomizationChoiceUi,
     index: usize,
     selected: bool,
+    selectable: bool,
 ) -> Element {
     let color = if !choice.enabled {
         COLOR_DISABLED
@@ -40,42 +41,60 @@ fn choice_details(
     } else {
         COLOR_WHITE
     };
-    let label = choice_label(choice, index);
-    let width = if choice.swatch.is_some() { 92.0 } else { 144.0 };
-    let first = choice
+    let has_colors = choice.swatch.is_some() || choice.secondary_swatch.is_some();
+    let first_color = choice.swatch.or(choice.secondary_swatch);
+    let second_color = choice
         .swatch
+        .zip(choice.secondary_swatch)
+        .map(|(_, color)| color);
+    let swatch_x = if selectable { 25.0 } else { 0.0 };
+    let second_swatch_x = swatch_x + 18.0;
+    let selected_swatch_x = swatch_x - 4.0;
+    let label = if selectable && has_colors {
+        (index + 1).to_string()
+    } else {
+        choice_label(choice, index)
+    };
+    let hide_label = !selectable && has_colors;
+    let first = first_color
         .map(|color| {
             let vertex_color = tint(color);
+            let atlas = if second_color.is_some() {
+                "charactercreate-customize-palette-half"
+            } else {
+                "charactercreate-customize-palette"
+            };
             rsx! {
                 texture { name: DynName(format!("{name}_Swatch")), width: 42.0, height: 10.0,
-                    texture_atlas: "charactercreate-customize-palette", vertex_color,
-                    pos_type: "absolute", left: 100.0, top: 5.0,
+                    texture_atlas: atlas, vertex_color,
+                    pos_type: "absolute", left: swatch_x, top: 5.0,
                 }
             }
         })
         .unwrap_or_default();
-    let second = choice.secondary_swatch.map(|color| {
+    let second = second_color.map(|color| {
         let vertex_color = tint(color);
         rsx! {
             texture { name: DynName(format!("{name}_SecondarySwatch")), width: 36.0, height: 8.0,
-                texture_atlas: "charactercreate-customize-palette-half", vertex_color,
-                pos_type: "absolute", left: 118.0, top: 7.0,
+                texture_atlas: "charactercreate-customize-palette", vertex_color,
+                pos_type: "absolute", left: second_swatch_x, top: 7.0,
             }
         }
     }).unwrap_or_default();
-    let selected_swatch = if selected && choice.enabled && choice.swatch.is_some() {
+    let selected_swatch = if selected && choice.enabled && has_colors {
         rsx! {
             texture { name: DynName(format!("{name}_SelectedSwatch")), width: 51.0, height: 20.0,
                 texture_atlas: "charactercreate-customize-palette-selected",
-                pos_type: "absolute", left: 96.0, top: 0.0,
+                pos_type: "absolute", left: selected_swatch_x, top: 0.0,
             }
         }
     } else {
         Element::default()
     };
     rsx! {
-        fontstring { name: DynName(format!("{name}_Text")), width, height: CHOICE_HEIGHT,
-            text: label, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color, justify_h: JustifyH::Left,
+        fontstring { name: DynName(format!("{name}_Text")), width: 144.0, height: CHOICE_HEIGHT,
+            text: label, hidden: hide_label,
+            font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color, justify_h: JustifyH::Left,
             pos_type: "absolute", left: 0.0, top: 0.0,
         }
         {first}
@@ -146,7 +165,7 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
     let disabled = !option.enabled || option.choices.is_empty();
     let onclick = CharCreateAction::ToggleOption(option.id).when_enabled(!disabled);
     let value = option.choices.iter().enumerate().find(|(_, choice)| choice.id == option.selected_choice_id)
-        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false))
+        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false))
         .unwrap_or_else(|| rsx! {
             fontstring { name: DynName(format!("OptionValue_{}_Text", option.id)), width: 144.0, height: 20.0,
                 text: "Choose", font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_WHITE,
@@ -229,8 +248,8 @@ fn dropdown_choice(
     let name = format!("OptionChoice_{}_{}", option.id, choice.id);
     let disabled = !option.enabled || !choice.enabled;
     let selected = choice.id == option.selected_choice_id;
-    let x = (index / rows) as f32 * CHOICE_WIDTH;
-    let y = (index % rows) as f32 * CHOICE_HEIGHT;
+    let x = POPUP_INSET_LEFT + (index / rows) as f32 * CHOICE_WIDTH;
+    let y = POPUP_INSET_TOP + (index % rows) as f32 * CHOICE_HEIGHT;
     let onclick =
         CharCreateAction::SelectOptionChoice(option.id, choice.id).when_enabled(!disabled);
     rsx! {
@@ -240,7 +259,7 @@ fn dropdown_choice(
             pos_type: "absolute", left: x, top: y,
             r#frame { name: DynName(format!("{name}_Details")), width: 144.0, height: 20.0,
                 pos_type: "absolute", left: 14.0, top: 0.0,
-                {choice_details(&name, choice, index, selected)}
+                {choice_details(&name, choice, index, selected, true)}
             }
         }
     }
