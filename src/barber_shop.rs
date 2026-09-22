@@ -75,7 +75,7 @@ pub fn queue_ipc_request(
         Request::BarberApply => {
             runtime
                 .pending_actions
-                .push_back(Action::Apply(snapshot.pending_appearance));
+                .push_back(Action::Apply(snapshot.pending_appearance.clone()));
             runtime.pending_replies.push_back(respond);
             true
         }
@@ -163,8 +163,10 @@ pub fn apply_barber_shop_state_update(
     update: BarberShopStateUpdate,
 ) {
     if let Some(server) = update.snapshot {
-        runtime.shop_state.sync_from_appearance(server.appearance);
-        snapshot.current_appearance = server.appearance;
+        runtime
+            .shop_state
+            .sync_from_appearance(server.appearance.clone());
+        snapshot.current_appearance = server.appearance.clone();
         snapshot.pending_appearance = server.appearance;
         snapshot.gold = server.gold;
         snapshot.pending_cost = 0;
@@ -196,13 +198,13 @@ fn sync_pending_snapshot(
 ) {
     let pending = runtime
         .shop_state
-        .preview_appearance(snapshot.current_appearance);
+        .preview_appearance(snapshot.current_appearance.clone());
+    snapshot.pending_cost = barber_cost(&snapshot.current_appearance, &pending);
     snapshot.pending_appearance = pending;
-    snapshot.pending_cost = barber_cost(snapshot.current_appearance, pending);
     snapshot.last_error = None;
 }
 
-fn barber_cost(current: CharacterAppearance, pending: CharacterAppearance) -> u32 {
+fn barber_cost(current: &CharacterAppearance, pending: &CharacterAppearance) -> u32 {
     let changed = [
         current.hair_style != pending.hair_style,
         current.hair_color != pending.hair_color,
@@ -238,7 +240,7 @@ fn format_status(snapshot: &BarberShopStatusSnapshot) -> String {
     crate::ipc::format::format_barber_shop_status(snapshot)
 }
 
-pub fn option_value(appearance: CharacterAppearance, option_index: usize) -> &'static str {
+pub fn option_value(appearance: &CharacterAppearance, option_index: usize) -> &'static str {
     let value_index = match option_index {
         0 => appearance.hair_style,
         1 => appearance.hair_color,
@@ -310,6 +312,7 @@ mod tests {
                         hair_style: 4,
                         hair_color: 5,
                         facial_style: 1,
+                        customization_choices: Vec::new(),
                     },
                     gold: 80_000,
                 }),
@@ -336,7 +339,7 @@ mod tests {
         };
         runtime
             .shop_state
-            .sync_from_appearance(snapshot.current_appearance);
+            .sync_from_appearance(snapshot.current_appearance.clone());
 
         set_barber_option(&mut runtime, &mut snapshot, BarberOption::HairStyle, 1);
 

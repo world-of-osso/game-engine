@@ -92,7 +92,7 @@ fn resolve_export_identity(
         level: required_field(stats.level, "level")?,
         race: required_field(stats.race, "race")?,
         class: required_field(stats.class, "class")?,
-        appearance: required_field(stats.appearance, "appearance")?,
+        appearance: required_field(stats.appearance.clone(), "appearance")?,
         equipment_appearance: None,
     })
 }
@@ -115,7 +115,7 @@ impl ExportIdentity {
             level: entry.level,
             race: entry.race,
             class: entry.class,
-            appearance: entry.appearance,
+            appearance: entry.appearance.clone(),
             equipment_appearance: Some(entry.equipment_appearance.clone()),
         }
     }

@@ -324,6 +324,7 @@ mod tests {
             hair_style: 2,
             hair_color: 3,
             facial_style: 4,
+            customization_choices: Vec::new(),
         });
 
         assert_eq!(state.selected_value(0), "Style 3");
