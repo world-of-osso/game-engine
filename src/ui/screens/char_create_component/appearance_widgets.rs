@@ -43,65 +43,78 @@ fn choice_details(
         COLOR_WHITE
     };
     let has_colors = choice.swatch.is_some() || choice.secondary_swatch.is_some();
-    let first_color = choice.swatch.or(choice.secondary_swatch);
-    let second_color = choice
-        .swatch
-        .zip(choice.secondary_swatch)
-        .map(|(_, color)| color);
-    let swatch_x = if selectable { 25.0 } else { 0.0 };
-    let second_swatch_x = swatch_x + 18.0;
-    let selected_swatch_x = swatch_x - 4.0;
     let label = if selectable && has_colors {
         (index + 1).to_string()
     } else {
         choice_label(choice, index)
     };
     let hide_label = !selectable && has_colors;
-    let first = first_color
-        .map(|color| {
-            let vertex_color = tint(color);
-            let atlas = if second_color.is_some() {
-                "charactercreate-customize-palette-half"
-            } else {
-                "charactercreate-customize-palette"
-            };
-            rsx! {
-                texture { name: DynName(format!("{name}_Swatch")), width: 42.0, height: 10.0,
-                    texture_atlas: atlas, vertex_color,
-                    pos_type: "absolute", left: swatch_x, top: 5.0,
-                }
-            }
-        })
-        .unwrap_or_default();
-    let second = second_color.map(|color| {
-        let vertex_color = tint(color);
-        rsx! {
-            texture { name: DynName(format!("{name}_SecondarySwatch")), width: 36.0, height: 8.0,
-                texture_atlas: "charactercreate-customize-palette", vertex_color,
-                pos_type: "absolute", left: second_swatch_x, top: 7.0,
-            }
-        }
-    }).unwrap_or_default();
-    let selected_swatch = if selected && choice.enabled && has_colors {
-        rsx! {
-            texture { name: DynName(format!("{name}_SelectedSwatch")), width: 51.0, height: 20.0,
-                texture_atlas: "charactercreate-customize-palette-selected",
-                pos_type: "absolute", left: selected_swatch_x, top: 0.0,
-            }
-        }
-    } else {
-        Element::default()
-    };
+    let swatches = choice_swatches(name, choice, selected, selectable);
     rsx! {
         fontstring { name: DynName(format!("{name}_Text")), width: details_width, height: CHOICE_HEIGHT,
             text: label, hidden: hide_label,
             font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color, justify_h: JustifyH::Left,
             pos_type: "absolute", left: 0.0, top: 0.0,
         }
-        {first}
-        {second}
-        {selected_swatch}
+        {swatches}
     }
+}
+
+fn primary_swatch(name: &str, color: [u8; 3], dual_color: bool, x: f32) -> Element {
+    let vertex_color = tint(color);
+    let atlas = if dual_color {
+        "charactercreate-customize-palette-half"
+    } else {
+        "charactercreate-customize-palette"
+    };
+    rsx! {
+        texture { name: DynName(format!("{name}_Swatch")), width: 42.0, height: 10.0,
+            texture_atlas: atlas, vertex_color,
+            pos_type: "absolute", left: x, top: 5.0,
+        }
+    }
+}
+
+fn swatch_selection(name: &str, visible: bool, x: f32) -> Element {
+    if !visible {
+        return Element::default();
+    }
+    let x = x - 4.0;
+    rsx! {
+        texture { name: DynName(format!("{name}_SelectedSwatch")), width: 51.0, height: 20.0,
+            texture_atlas: "charactercreate-customize-palette-selected",
+            pos_type: "absolute", left: x, top: 0.0,
+        }
+    }
+}
+
+fn choice_swatches(
+    name: &str,
+    choice: &CustomizationChoiceUi,
+    selected: bool,
+    selectable: bool,
+) -> Element {
+    let Some(first_color) = choice.swatch.or(choice.secondary_swatch) else {
+        return Element::default();
+    };
+    let second_color = choice
+        .swatch
+        .zip(choice.secondary_swatch)
+        .map(|(_, color)| color);
+    let x = if selectable { 25.0 } else { 0.0 };
+    let first = primary_swatch(name, first_color, second_color.is_some(), x);
+    let second_x = x + 18.0;
+    let second = second_color.map(|color| {
+        let vertex_color = tint(color);
+        rsx! {
+            texture { name: DynName(format!("{name}_SecondarySwatch")), width: 36.0, height: 8.0,
+                texture_atlas: "charactercreate-customize-palette", vertex_color,
+                pos_type: "absolute", left: second_x, top: 7.0,
+            }
+        }
+    }).unwrap_or_default();
+    let selection = swatch_selection(name, selected && choice.enabled, x);
+    rsx! { {first} {second} {selection} }
 }
 
 fn option_label(option: &CustomizationOptionUi, checkbox: bool) -> Element {
