@@ -150,6 +150,36 @@ pub(super) fn select_choice(
     choice_id: u32,
     db: &CustomizationDb,
 ) {
+    if let Some(option) = db.option_by_id(state.selected_race, state.selected_sex, option_id)
+        && option.option_type == OptionType::Face
+        && game_engine::appearance_options::is_core_option(
+            db,
+            state.selected_race,
+            state.selected_sex,
+            option,
+        )
+    {
+        let choices = db.choices_for_option(
+            state.selected_race,
+            state.selected_sex,
+            state.selected_class,
+            option_id,
+        );
+        let compatible = compatible_face_indices(
+            db,
+            state.selected_race,
+            state.selected_sex,
+            state.selected_class,
+            state.appearance.skin_color,
+        );
+        if !choices.iter().enumerate().any(|(index, choice)| {
+            choice.id == choice_id && compatible.iter().any(|&valid| usize::from(valid) == index)
+        }) {
+            state.error_text =
+                Some("That face is unavailable for the selected skin color".to_owned());
+            return;
+        }
+    }
     let result = game_engine::appearance_options::set_choice(
         db,
         state.selected_race,
@@ -264,7 +294,7 @@ fn cycle_face_choice(state: &mut CharCreateState, db: &CustomizationDb, delta: i
     state.appearance.face = compatible[next];
 }
 
-fn compatible_face_indices(
+pub(super) fn compatible_face_indices(
     db: &CustomizationDb,
     race: u8,
     sex: u8,
