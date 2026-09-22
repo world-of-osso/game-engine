@@ -85,6 +85,21 @@ fn sync_part(registry: &mut FrameRegistry, name: &str, atlas: &str) {
     }
 }
 
+fn sync_navigation_highlight(registry: &mut FrameRegistry, name: &str, visible: bool) {
+    let highlight_name = format!("{name}_Highlight");
+    let Some(highlight) = registry.get_by_name(&highlight_name) else {
+        warn!("Character-creation navigation art missing highlight {highlight_name}");
+        return;
+    };
+    let hidden = !visible;
+    if registry
+        .get(highlight)
+        .is_some_and(|frame| frame.hidden != hidden)
+    {
+        registry.set_hidden(highlight, hidden);
+    }
+}
+
 fn sync_button(registry: &mut FrameRegistry, name: &str) {
     let Some(id) = registry.get_by_name(name) else {
         return;
@@ -108,17 +123,7 @@ fn sync_button(registry: &mut FrameRegistry, name: &str) {
             &format!("{atlas}{suffix}"),
         );
     }
-    let highlight_name = format!("{name}_Highlight");
-    if let Some(highlight) = registry.get_by_name(&highlight_name) {
-        if registry
-            .get(highlight)
-            .is_some_and(|frame| frame.hidden == show_highlight)
-        {
-            registry.set_hidden(highlight, !show_highlight);
-        }
-    } else {
-        warn!("Character-creation navigation art missing highlight {highlight_name}");
-    }
+    sync_navigation_highlight(registry, name, show_highlight);
 }
 
 /// Keep only the three authored parts and hover overlay in sync with the live
