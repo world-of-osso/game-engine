@@ -10,8 +10,12 @@ pub(super) const OPTION_RIGHT: f32 = 33.0;
 pub(super) const CATEGORY_HEIGHT: f32 = 105.0;
 pub(super) const CATEGORY_WIDTH: f32 = 104.0;
 pub(super) const CATEGORY_TOP: f32 = 166.0;
-pub(super) const CHOICE_WIDTH: f32 = 172.0;
 pub(super) const CHOICE_HEIGHT: f32 = 20.0;
+pub(super) const CHOICE_WIDTH_PADDING: f32 = 28.0;
+pub(super) const SINGLE_CHOICE_WIDTH: f32 = 116.0 + CHOICE_WIDTH_PADDING;
+pub(super) const MULTI_COLOR_DETAILS_WIDTH: f32 = 79.0;
+pub(super) const MULTI_TEXT_DETAILS_WIDTH: f32 = 108.0;
+pub(super) const MULTI_NUMBER_DETAILS_WIDTH: f32 = 42.0;
 pub(super) const POPUP_INSET_LEFT: f32 = 3.0;
 pub(super) const POPUP_INSET_TOP: f32 = 6.0;
 pub(super) const POPUP_INSET_RIGHT: f32 = 3.0;
@@ -82,9 +86,16 @@ pub(super) struct PopupLayout {
     pub width: f32,
     pub height: f32,
     pub rows: usize,
+    pub columns: usize,
+    pub choice_width: f32,
 }
 
-pub(super) fn popup_layout(viewport: [u32; 2], count: usize, anchor_bottom: f32) -> PopupLayout {
+pub(super) fn popup_layout(
+    viewport: [u32; 2],
+    count: usize,
+    anchor_bottom: f32,
+    multi_choice_width: f32,
+) -> PopupLayout {
     // Blizzard_Menu/Menu.lua: base column thresholds, then compact to the
     // number of rows that fit below this control with its 100px margin.
     let base_columns: usize = match count {
@@ -97,14 +108,19 @@ pub(super) fn popup_layout(viewport: [u32; 2], count: usize, anchor_bottom: f32)
         .floor()
         .max(1.0) as usize;
     let columns_available = ((viewport[0] as f32 - 60.0 - POPUP_INSET_LEFT - POPUP_INSET_RIGHT)
-        / CHOICE_WIDTH)
+        / multi_choice_width)
         .floor()
         .max(1.0) as usize;
     let columns = base_columns
         .max(count.div_ceil(rows_below))
         .min(columns_available);
     let rows = count.div_ceil(columns).max(1);
-    let width = columns as f32 * CHOICE_WIDTH + POPUP_INSET_LEFT + POPUP_INSET_RIGHT;
+    let choice_width = if columns > 1 {
+        multi_choice_width
+    } else {
+        SINGLE_CHOICE_WIDTH
+    };
+    let width = columns as f32 * choice_width + POPUP_INSET_LEFT + POPUP_INSET_RIGHT;
     let height = rows as f32 * CHOICE_HEIGHT + POPUP_INSET_TOP + POPUP_INSET_BOTTOM;
     let right = viewport[0] as f32 - OPTION_RIGHT - 36.5;
     PopupLayout {
@@ -115,5 +131,7 @@ pub(super) fn popup_layout(viewport: [u32; 2], count: usize, anchor_bottom: f32)
         width,
         height,
         rows,
+        columns,
+        choice_width,
     }
 }

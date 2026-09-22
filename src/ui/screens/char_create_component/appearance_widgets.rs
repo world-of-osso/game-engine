@@ -33,6 +33,7 @@ fn choice_details(
     index: usize,
     selected: bool,
     selectable: bool,
+    details_width: f32,
 ) -> Element {
     let color = if !choice.enabled {
         COLOR_DISABLED
@@ -92,7 +93,7 @@ fn choice_details(
         Element::default()
     };
     rsx! {
-        fontstring { name: DynName(format!("{name}_Text")), width: 144.0, height: CHOICE_HEIGHT,
+        fontstring { name: DynName(format!("{name}_Text")), width: details_width, height: CHOICE_HEIGHT,
             text: label, hidden: hide_label,
             font: GameFont::FrizQuadrata, font_size: 12.0, font_color: color, justify_h: JustifyH::Left,
             pos_type: "absolute", left: 0.0, top: 0.0,
@@ -165,7 +166,7 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
     let disabled = !option.enabled || option.choices.is_empty();
     let onclick = CharCreateAction::ToggleOption(option.id).when_enabled(!disabled);
     let value = option.choices.iter().enumerate().find(|(_, choice)| choice.id == option.selected_choice_id)
-        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false))
+        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false, 144.0))
         .unwrap_or_else(|| rsx! {
             fontstring { name: DynName(format!("OptionValue_{}_Text", option.id)), width: 144.0, height: 20.0,
                 text: "Choose", font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_WHITE,
@@ -243,23 +244,29 @@ fn dropdown_choice(
     option: &CustomizationOptionUi,
     choice: &CustomizationChoiceUi,
     index: usize,
-    rows: usize,
+    layout: &PopupLayout,
 ) -> Element {
     let name = format!("OptionChoice_{}_{}", option.id, choice.id);
     let disabled = !option.enabled || !choice.enabled;
     let selected = choice.id == option.selected_choice_id;
-    let x = POPUP_INSET_LEFT + (index / rows) as f32 * CHOICE_WIDTH;
-    let y = POPUP_INSET_TOP + (index % rows) as f32 * CHOICE_HEIGHT;
+    let x = POPUP_INSET_LEFT + (index / layout.rows) as f32 * layout.choice_width;
+    let y = POPUP_INSET_TOP + (index % layout.rows) as f32 * CHOICE_HEIGHT;
+    let details_width = if layout.columns == 1 {
+        SINGLE_CHOICE_WIDTH - CHOICE_WIDTH_PADDING
+    } else {
+        multiple_column_details_width(choice)
+    };
+    let choice_width = layout.choice_width;
     let onclick =
         CharCreateAction::SelectOptionChoice(option.id, choice.id).when_enabled(!disabled);
     rsx! {
-        button { name: DynName(name.clone()), width: CHOICE_WIDTH, height: CHOICE_HEIGHT, disabled,
+        button { name: DynName(name.clone()), width: choice_width, height: CHOICE_HEIGHT, disabled,
             onclick, button_default_skin: false, button_highlight_alpha: "0.15",
             button_atlas_highlight: "common-dropdown-customize-mouseover",
             pos_type: "absolute", left: x, top: y,
-            r#frame { name: DynName(format!("{name}_Details")), width: 144.0, height: 20.0,
+            r#frame { name: DynName(format!("{name}_Details")), width: details_width, height: 20.0,
                 pos_type: "absolute", left: 14.0, top: 0.0,
-                {choice_details(&name, choice, index, selected, true)}
+                {choice_details(&name, choice, index, selected, true, details_width)}
             }
         }
     }
@@ -278,6 +285,16 @@ fn dropdown_background(id: u32, width: f32, height: f32) -> Element {
     }
 }
 
+fn multiple_column_details_width(choice: &CustomizationChoiceUi) -> f32 {
+    if choice.swatch.is_some() || choice.secondary_swatch.is_some() {
+        MULTI_COLOR_DETAILS_WIDTH
+    } else if !choice.label.is_empty() {
+        MULTI_TEXT_DETAILS_WIDTH
+    } else {
+        MULTI_NUMBER_DETAILS_WIDTH
+    }
+}
+
 pub(super) fn dropdown_panel(
     option: &CustomizationOptionUi,
     viewport: [u32; 2],
@@ -286,12 +303,23 @@ pub(super) fn dropdown_panel(
     if !option.enabled || option.ui_type != 0 || option.choices.is_empty() {
         return Element::default();
     }
-    let layout = popup_layout(viewport, option.choices.len(), anchor_bottom);
+    let multi_choice_width = option
+        .choices
+        .iter()
+        .map(multiple_column_details_width)
+        .fold(0.0_f32, f32::max)
+        + CHOICE_WIDTH_PADDING;
+    let layout = popup_layout(
+        viewport,
+        option.choices.len(),
+        anchor_bottom,
+        multi_choice_width,
+    );
     let choices: Element = option
         .choices
         .iter()
         .enumerate()
-        .flat_map(|(index, choice)| dropdown_choice(option, choice, index, layout.rows))
+        .flat_map(|(index, choice)| dropdown_choice(option, choice, index, &layout))
         .collect();
     rsx! {
         r#frame { name: DynName(format!("Dropdown_{}", option.id)), width: layout.width, height: layout.height,

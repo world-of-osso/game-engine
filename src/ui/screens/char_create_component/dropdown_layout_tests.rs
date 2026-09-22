@@ -4,10 +4,15 @@ use crate::ui::widgets::texture::TextureSource;
 #[test]
 fn authored_choice_counts_set_popup_columns_before_compaction() {
     for (count, columns) in [(10, 1), (24, 2), (26, 3), (36, 3), (58, 4)] {
-        let layout = popup_layout([1280, 989], count, 305.0);
+        let layout = popup_layout([1280, 989], count, 305.0, 136.0);
+        let choice_width = if columns == 1 {
+            SINGLE_CHOICE_WIDTH
+        } else {
+            136.0
+        };
         assert_eq!(
             layout.width,
-            columns as f32 * CHOICE_WIDTH + POPUP_INSET_LEFT + POPUP_INSET_RIGHT,
+            columns as f32 * choice_width + POPUP_INSET_LEFT + POPUP_INSET_RIGHT,
             "{count} choices"
         );
         assert_eq!(layout.rows, count.div_ceil(columns), "{count} choices");
@@ -20,19 +25,19 @@ fn authored_choice_counts_set_popup_columns_before_compaction() {
 
 #[test]
 fn popup_compacts_against_its_anchor_without_losing_viewport_bounds() {
-    let layout = popup_layout([1280, 989], 36, 680.0);
+    let layout = popup_layout([1280, 989], 36, 680.0, 136.0);
     assert_eq!(
         layout.width,
-        4.0 * CHOICE_WIDTH + POPUP_INSET_LEFT + POPUP_INSET_RIGHT
+        4.0 * 136.0 + POPUP_INSET_LEFT + POPUP_INSET_RIGHT
     );
     assert_eq!(layout.rows, 9);
     assert!(layout.y >= 30.0 && layout.y + layout.height <= 959.0);
 
     // A low control leaves too few rows below it. Keep the same items reachable
     // by moving the popup up rather than growing it beyond the screen width.
-    let large = popup_layout([1280, 900], 130, 780.0);
+    let large = popup_layout([1280, 900], 130, 780.0, 136.0);
     assert!(large.width <= 1220.0);
-    assert_eq!(large.rows, 19);
+    assert_eq!(large.rows, 17);
     assert!(large.x >= 30.0 && large.x + large.width <= 1250.0);
     assert!(large.y >= 30.0 && large.y + large.height <= 870.0);
 }
@@ -57,7 +62,7 @@ fn native_dropdown_keeps_all_choices_in_column_major_identity_order() {
     assert!(rows > 1 && rows < 130);
     let first = rect(&harness.reg, "OptionChoice_22_80000");
     let second_column = rect(&harness.reg, &format!("OptionChoice_22_{}", 80000 + rows));
-    assert_eq!(second_column.x - first.x, CHOICE_WIDTH);
+    assert_eq!(second_column.x - first.x, first.width);
     assert_eq!(second_column.y, first.y);
     for index in 0..130 {
         let id = 80000 + index;
@@ -175,6 +180,50 @@ fn selected_swatch_uses_retail_selection_art_without_a_row_wide_bar() {
 }
 
 #[test]
+fn retail_details_width_changes_popup_columns_for_text_and_color() {
+    for (label, swatch, row_width) in [
+        ("Long named choice", None, 136.0),
+        ("", Some([128, 32, 16]), 107.0),
+    ] {
+        let mut opt = option(22, "Eye Color");
+        opt.choices = (0..24)
+            .map(|index| CustomizationChoiceUi {
+                id: 80000 + index,
+                label: label.to_owned(),
+                swatch,
+                secondary_swatch: None,
+                enabled: true,
+            })
+            .collect();
+        let harness = ScreenHarness::new(CharCreateUiState {
+            options: vec![opt],
+            viewport_width: 1280,
+            viewport_height: 989,
+            open_dropdown: Some(22),
+            ..customize_state()
+        });
+        let panel = rect(&harness.reg, "Dropdown_22");
+        let first = rect(&harness.reg, "OptionChoice_22_80000");
+        let next_column = rect(&harness.reg, "OptionChoice_22_80012");
+        assert_eq!(first.width, row_width);
+        assert_eq!(
+            rect(&harness.reg, "OptionChoice_22_80000_Details").width,
+            row_width - CHOICE_WIDTH_PADDING
+        );
+        assert_eq!(
+            rect(&harness.reg, "OptionChoice_22_80000_Text").width,
+            row_width - CHOICE_WIDTH_PADDING,
+            "text must not cover the neighboring column"
+        );
+        assert_eq!(next_column.x - first.x, row_width);
+        assert_eq!(
+            panel.width,
+            row_width * 2.0 + POPUP_INSET_LEFT + POPUP_INSET_RIGHT
+        );
+    }
+}
+
+#[test]
 fn popup_insets_rows_and_bounds_match_menu_style_two() {
     let harness = ScreenHarness::new(CharCreateUiState {
         open_dropdown: Some(22),
@@ -185,7 +234,7 @@ fn popup_insets_rows_and_bounds_match_menu_style_two() {
     let last = rect(&harness.reg, "OptionChoice_22_70100");
     assert_eq!(
         [panel.width, panel.height],
-        [CHOICE_WIDTH + 6.0, 3.0 * CHOICE_HEIGHT + 13.0]
+        [SINGLE_CHOICE_WIDTH + 6.0, 3.0 * CHOICE_HEIGHT + 13.0]
     );
     assert_eq!([first.x - panel.x, first.y - panel.y], [3.0, 6.0]);
     assert_eq!(last.y + last.height, panel.y + panel.height - 7.0);
@@ -255,6 +304,7 @@ fn secondary_only_swatch_uses_full_palette_and_still_has_selected_outline() {
         &frame(&harness.reg, "OptionChoice_22_70001_Swatch").widget_data,
         Some(WidgetData::Texture(texture))
             if texture.source == TextureSource::Atlas("charactercreate-customize-palette".to_owned())
+                && texture.vertex_color == [20.0 / 255.0, 80.0 / 255.0, 160.0 / 255.0, 1.0]
     ));
 }
 
