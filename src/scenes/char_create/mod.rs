@@ -10,7 +10,7 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
     BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, CameraControl,
     CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON,
-    char_create_screen,
+    apply_character_create_styles, char_create_screen,
 };
 use game_engine::ui_resource;
 use shared::components::CharacterAppearance;
@@ -148,6 +148,7 @@ fn build_char_create_ui(
     shared.insert(ui_state);
     let mut screen = Screen::new(char_create_screen);
     screen.sync(&shared, &mut ui.registry);
+    apply_character_create_styles(&mut ui.registry, initial_state.open_dropdown);
 
     let cc = CharCreateUi::resolve(&ui.registry);
     apply_post_setup(&mut ui.registry, &cc);
@@ -330,6 +331,7 @@ fn sync_screen_state(
         inner.shared.insert(new_state);
     }
     inner.screen.sync(&inner.shared, reg);
+    apply_character_create_styles(reg, state.open_dropdown);
 }
 
 fn build_class_availability(race: u8) -> Vec<(u8, &'static str, u32, bool)> {

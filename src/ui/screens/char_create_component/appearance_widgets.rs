@@ -1,8 +1,11 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
+use crate::ui::frame::NineSlice;
+use crate::ui::registry::FrameRegistry;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{GameFont, JustifyH};
+use crate::ui::widgets::texture::TextureSource;
 
 use super::reference_layout::*;
 use super::{
@@ -285,8 +288,33 @@ fn dropdown_choice(
     }
 }
 
+pub(super) fn apply_dropdown_background_style(registry: &mut FrameRegistry, open: Option<u32>) {
+    let Some(id) = open else { return };
+    let Some(frame_id) = registry.get_by_name(&format!("Dropdown_{id}_Background")) else {
+        return;
+    };
+    let slice = NineSlice {
+        edge_size: 23.0,
+        edge_sizes: Some([23.0, 18.0, 23.0, 28.0]),
+        uv_edge_sizes: Some([23.0, 18.0, 23.0, 28.0]),
+        bg_color: [1.0; 4],
+        border_color: [1.0; 4],
+        texture: Some(TextureSource::Atlas("common-dropdown-c-bg".into())),
+        ..Default::default()
+    };
+    if registry
+        .get(frame_id)
+        .is_some_and(|frame| frame.nine_slice.as_ref() == Some(&slice))
+    {
+        return;
+    }
+    if let Some(frame) = registry.get_mut(frame_id) {
+        frame.nine_slice = Some(slice);
+    }
+}
+
 fn dropdown_background(id: u32, width: f32, height: f32) -> Element {
-    // MenuStyle2Mixin stretches one authored atlas beyond the menu content bounds.
+    // MenuStyle2Mixin insets the atlas from the menu's content bounds.
     let name = format!("Dropdown_{id}_Background");
     let width = width + 34.0;
     let height = height + 34.0;
