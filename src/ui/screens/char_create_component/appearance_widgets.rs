@@ -6,6 +6,7 @@ use crate::ui::registry::FrameRegistry;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{GameFont, JustifyH};
 use crate::ui::widgets::texture::TextureSource;
+use ui_toolkit::text_measure::measure_text;
 
 use super::reference_layout::*;
 use super::{
@@ -181,10 +182,30 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
     };
     let disabled = !option.enabled || option.choices.is_empty();
     let onclick = CharCreateAction::ToggleOption(option.id).when_enabled(!disabled);
-    let value = option.choices.iter().enumerate().find(|(_, choice)| choice.id == option.selected_choice_id)
-        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false, 144.0))
+    let selected = option
+        .choices
+        .iter()
+        .enumerate()
+        .find(|(_, choice)| choice.id == option.selected_choice_id);
+    let value_width = match selected {
+        Some((_, choice)) if choice.swatch.is_some() && choice.secondary_swatch.is_some() => 54.0,
+        Some((_, choice)) if choice.swatch.is_some() || choice.secondary_swatch.is_some() => 42.0,
+        Some((index, choice)) => {
+            measure_text(&choice_label(choice, index), GameFont::FrizQuadrata, 12.0)
+                .expect("closed customization font must be available")
+                .0
+                .min(126.0)
+        }
+        None => measure_text("Choose", GameFont::FrizQuadrata, 12.0)
+            .expect("closed customization font must be available")
+            .0
+            .min(126.0),
+    };
+    let value_left = (150.0 - value_width) / 2.0;
+    let value = selected
+        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false, value_width))
         .unwrap_or_else(|| rsx! {
-            fontstring { name: DynName(format!("OptionValue_{}_Text", option.id)), width: 144.0, height: 20.0,
+            fontstring { name: DynName(format!("OptionValue_{}_Text", option.id)), width: value_width, height: 20.0,
                 text: "Choose", font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_WHITE,
             }
         });
@@ -195,8 +216,8 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
             button_atlas_up: atlas, button_atlas_pressed: "charactercreate-customize-dropdownbox-open",
             button_atlas_highlight: "charactercreate-customize-dropdownbox-hover",
             pos_type: "absolute", left: 36.5, top: 0.0,
-            r#frame { name: DynName(format!("OptionValue_{}", option.id)), width: 144.0, height: 20.0,
-                pos_type: "absolute", left: 3.0, top: 9.0,
+            r#frame { name: DynName(format!("OptionValue_{}", option.id)), width: value_width, height: 20.0,
+                pos_type: "absolute", left: value_left, top: 9.0,
                 {value}
             }
         }

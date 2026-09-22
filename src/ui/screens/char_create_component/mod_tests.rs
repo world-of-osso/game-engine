@@ -1,4 +1,6 @@
 use super::*;
+#[path = "closed_value_tests.rs"]
+mod closed_value_tests;
 #[path = "dropdown_layout_tests.rs"]
 mod dropdown_layout_tests;
 use crate::ui::frame::{Frame, WidgetData};
