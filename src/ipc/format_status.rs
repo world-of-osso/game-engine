@@ -93,8 +93,8 @@ pub fn format_barber_shop_status(snapshot: &BarberShopStatusSnapshot) -> String 
         lines.push(format!(
             "{}: current={} pending={}",
             def.label,
-            crate::barber_shop::option_value(snapshot.current_appearance, index),
-            crate::barber_shop::option_value(snapshot.pending_appearance, index)
+            crate::barber_shop::option_value(&snapshot.current_appearance, index),
+            crate::barber_shop::option_value(&snapshot.pending_appearance, index)
         ));
     }
     if let Some(message) = &snapshot.last_server_message {
