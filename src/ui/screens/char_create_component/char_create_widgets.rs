@@ -73,6 +73,7 @@ fn race_button(race: &RaceInfo, selected: bool, position: [f32; 2]) -> Element {
     };
     rsx! {
         button { name: DynName(frame_name.clone()), width: 79.0, height: 79.0,
+            button_default_skin: "false",
             onclick: CharCreateAction::SelectRace(race.id),
             button_atlas_highlight: "charactercreate-ring-select",
             pos_type: "absolute", left: position[0], top: position[1],
@@ -182,6 +183,7 @@ pub(super) fn class_button(
     let onclick = CharCreateAction::SelectClass(id).when_enabled(available);
     rsx! {
         button { name: DynName(frame_name.clone()), width: bounds[2], height: bounds[2], disabled,
+            button_default_skin: "false",
             onclick,
             button_atlas_highlight: "charactercreate-ring-select",
             pos_type: "absolute", left: bounds[0], top: bounds[1],
@@ -225,9 +227,9 @@ pub(super) fn category_button(
             )
         })
         .unwrap_or_default();
-    let color = if selected { COLOR_GOLD } else { COLOR_WHITE };
     rsx! {
         button { name: DynName(frame_name.clone()), width: CATEGORY_WIDTH, height: CATEGORY_HEIGHT,
+            button_default_skin: "false",
             onclick: CharCreateAction::SelectCategory(category.id),
             hit_rect_insets: "15,15,15,15",
             button_atlas_highlight: "charactercreate-ring-select",
@@ -236,7 +238,6 @@ pub(super) fn category_button(
             {active}
             {ring(&frame_name, "charactercreate-ring-metallight", [108.0, 109.0])}
             {selection_ring(&frame_name, 93.0, selected)}
-            {tile_label(&frame_name, &category.label, 104.0, 90.0, color, false)}
         }
     }
 }
@@ -297,6 +298,7 @@ fn body_type_button(sex: u8, selected: bool, x: f32) -> Element {
     };
     rsx! {
         button { name: DynName(name.clone()), width: 46.0, height: 46.0,
+            button_default_skin: "false",
             onclick: CharCreateAction::SelectSex(sex),
             button_atlas_highlight: "charactercreate-ring-select",
             pos_type: "absolute", left: x, top: 0.0,
