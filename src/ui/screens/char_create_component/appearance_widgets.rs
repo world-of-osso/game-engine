@@ -114,9 +114,10 @@ fn stepper(option: &CustomizationOptionUi, delta: i8) -> Element {
             .count()
             < 2;
     let x = if increment { OPTION_WIDTH - 38.0 } else { 0.0 };
+    let onclick = CharCreateAction::AdjustOption(option.id, delta).when_enabled(!disabled);
     rsx! {
         button { name: DynName(name), width: 38.0, height: OPTION_HEIGHT, disabled,
-            onclick: CharCreateAction::AdjustOption(option.id, delta),
+            onclick,
             button_atlas_up: atlas, button_atlas_pressed: atlas,
             button_atlas_highlight: atlas, button_atlas_disabled: disabled_atlas,
             pos_type: "absolute", left: x, top: 0.0,
@@ -132,6 +133,7 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
         "charactercreate-customize-dropdownbox"
     };
     let disabled = !option.enabled || option.choices.is_empty();
+    let onclick = CharCreateAction::ToggleOption(option.id).when_enabled(!disabled);
     let value = option.choices.iter().enumerate().find(|(_, choice)| choice.id == option.selected_choice_id)
         .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false))
         .unwrap_or_else(|| rsx! {
@@ -142,7 +144,7 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
     rsx! {
         {stepper(option, -1)}
         button { name: DynName(name), width: 150.0, height: OPTION_HEIGHT, disabled,
-            onclick: CharCreateAction::ToggleOption(option.id),
+            onclick,
             button_atlas_up: atlas, button_atlas_pressed: "charactercreate-customize-dropdownbox-open",
             button_atlas_highlight: "charactercreate-customize-dropdownbox-hover",
             pos_type: "absolute", left: 36.5, top: 0.0,
@@ -162,9 +164,10 @@ fn checkbox_control(option: &CustomizationOptionUi) -> Element {
     let checked_hidden = !checked;
     let check_fdid = if disabled { 130_750u32 } else { 130_751u32 };
     let x = OPTION_WIDTH - 32.0;
+    let onclick = CharCreateAction::SelectOptionChoice(option.id, next.id).when_enabled(!disabled);
     rsx! {
         button { name: DynName(format!("OptionCheck_{}", option.id)), width: 32.0, height: 32.0, disabled,
-            onclick: CharCreateAction::SelectOptionChoice(option.id, next.id),
+            onclick,
             pos_type: "absolute", left: x, top: 3.0,
             texture { name: DynName(format!("OptionCheck_{}_Background", option.id)), width: 32.0, height: 32.0,
                 texture_fdid: 130_755u32,
@@ -218,9 +221,11 @@ fn dropdown_choice(
     let marker_hidden = !selected;
     let x = (index / rows) as f32 * CHOICE_WIDTH;
     let y = (index % rows) as f32 * CHOICE_HEIGHT;
+    let onclick =
+        CharCreateAction::SelectOptionChoice(option.id, choice.id).when_enabled(!disabled);
     rsx! {
         button { name: DynName(name.clone()), width: CHOICE_WIDTH, height: CHOICE_HEIGHT, disabled,
-            onclick: CharCreateAction::SelectOptionChoice(option.id, choice.id),
+            onclick,
             button_atlas_highlight: "charactercreate-customize-dropdown-linemouseover-middle",
             pos_type: "absolute", left: x, top: y,
             texture { name: DynName(format!("{name}_Selected")), width: CHOICE_WIDTH, height: CHOICE_HEIGHT,

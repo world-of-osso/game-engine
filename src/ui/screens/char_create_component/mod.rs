@@ -150,7 +150,10 @@ fn customize_panel(state: &CharCreateUiState) -> Element {
             {rows}
             {empty}
         }
-        {dropdown}
+        r#frame { name: "CustomizationPopupLayer", width: "fill", height: "fill",
+            strata: FrameStrata::Dialog, pos_type: "absolute", left: 0.0, top: 0.0,
+            {dropdown}
+        }
     }
 }
 

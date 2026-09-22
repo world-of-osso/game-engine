@@ -465,6 +465,36 @@ fn disabled_options_explain_unavailable_controls_and_disabled_choices_stay_disab
 }
 
 #[test]
+fn disabled_view_buttons_do_not_dispatch_from_registry_clicks() {
+    let mut opt = option(22, "Eye Color");
+    opt.choices[1].enabled = false;
+    let mut harness = ScreenHarness::new(CharCreateUiState {
+        options: vec![opt],
+        open_dropdown: Some(22),
+        ..customize_state()
+    });
+    let id = frame(&harness.reg, "OptionChoice_22_70005").id;
+    let action = harness
+        .reg
+        .click_frame(id)
+        .and_then(|value| CharCreateAction::parse(&value));
+    assert!(
+        action.is_none(),
+        "disabled choice must not emit a selection: {action:?}"
+    );
+    let mut race_harness = ScreenHarness::new(CharCreateUiState::default());
+    let id = frame(&race_harness.reg, "Class_11").id;
+    let action = race_harness
+        .reg
+        .click_frame(id)
+        .and_then(|value| CharCreateAction::parse(&value));
+    assert!(
+        action.is_none(),
+        "disabled class must not emit a selection: {action:?}"
+    );
+}
+
+#[test]
 fn missing_control_support_is_explicit_not_a_silent_dropdown() {
     let harness = ScreenHarness::new(CharCreateUiState {
         options: vec![CustomizationOptionUi {

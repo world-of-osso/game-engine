@@ -71,6 +71,14 @@ impl fmt::Display for CharCreateAction {
 }
 
 impl CharCreateAction {
+    pub(super) fn when_enabled(self, enabled: bool) -> String {
+        if enabled {
+            self.to_string()
+        } else {
+            String::new()
+        }
+    }
+
     pub fn parse(value: &str) -> Option<Self> {
         let parts = value.split(':').collect::<Vec<_>>();
         match parts.as_slice() {
