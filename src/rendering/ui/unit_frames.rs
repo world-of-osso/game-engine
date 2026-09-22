@@ -335,10 +335,19 @@ fn portrait_texture_for_target(player: Option<&NetPlayer>) -> String {
 }
 
 fn portrait_texture_for_class(class_id: Option<u8>) -> String {
-    class_id
-        .and_then(class_by_id)
-        .map(|class| class.icon_file.to_string())
-        .unwrap_or_else(|| UNKNOWN_PORTRAIT_TEXTURE_FILE.to_string())
+    let Some(class) = class_id.and_then(class_by_id) else {
+        return UNKNOWN_PORTRAIT_TEXTURE_FILE.to_string();
+    };
+    match game_engine::asset::asset_cache::texture(class.icon_fdid) {
+        Some(path) => path.to_string_lossy().into_owned(),
+        None => {
+            warn!(
+                "Cannot resolve target portrait icon {} from local CASC",
+                class.icon_fdid
+            );
+            String::new()
+        }
+    }
 }
 
 fn resolve_target_auras<'a>(
