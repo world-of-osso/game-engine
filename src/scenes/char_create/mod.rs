@@ -8,9 +8,9 @@ use game_engine::ui::frame::Dimension;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
-    AppearanceField, BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT,
+    BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, CameraControl,
     CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON,
-    SEX_TOGGLE_BUTTON, char_create_screen,
+    char_create_screen,
 };
 use game_engine::ui_resource;
 use shared::components::CharacterAppearance;
@@ -27,7 +27,10 @@ use helpers::{
 };
 
 mod appearance;
+mod customization_view;
+mod icon_masks;
 mod input;
+use customization_view::build_ui_state;
 pub mod scene;
 
 use appearance as appearance_logic;
@@ -42,7 +45,6 @@ ui_resource! {
         root: CHAR_CREATE_ROOT,
         back_button: BACK_BUTTON,
         next_button ?: NEXT_BUTTON,
-        sex_toggle ?: SEX_TOGGLE_BUTTON,
         randomize_button ?: RANDOMIZE_BUTTON,
         create_button ?: CREATE_BUTTON,
         name_input ?: CREATE_NAME_INPUT,
@@ -58,7 +60,9 @@ pub(crate) struct CharCreateState {
     pub(crate) appearance: CharacterAppearance,
     pub(crate) mode: CharCreateMode,
     pub(crate) error_text: Option<String>,
-    pub(crate) open_dropdown: Option<AppearanceField>,
+    pub(crate) open_dropdown: Option<u32>,
+    pub(crate) selected_category: u32,
+    pub(crate) camera_action: Option<CameraControl>,
 }
 
 impl Default for CharCreateState {
@@ -71,6 +75,8 @@ impl Default for CharCreateState {
             mode: CharCreateMode::RaceClass,
             error_text: None,
             open_dropdown: None,
+            selected_category: 0,
+            camera_action: None,
         }
     }
 }
@@ -95,6 +101,8 @@ pub struct CharCreatePlugin;
 
 impl Plugin for CharCreatePlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<game_engine::ui::character_creation_icons::CharacterCreationIconMasks>(
+        );
         app.add_systems(OnEnter(GameState::CharCreate), build_char_create_ui);
         app.add_systems(OnExit(GameState::CharCreate), teardown_char_create_ui);
         app.add_observer(handle_create_response);
@@ -106,8 +114,9 @@ impl Plugin for CharCreatePlugin {
                 char_create_run_automation,
                 char_create_hover_visuals,
                 char_create_update_visuals,
+                icon_masks::mask_character_create_icons,
             )
-                .into_configs()
+                .chain()
                 .run_if(in_state(GameState::CharCreate)),
         );
     }
@@ -124,18 +133,9 @@ fn build_char_create_ui(
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let initial_state = initial_char_create_state(startup_mode.as_deref().copied(), &cust_db);
-    let ui_state = CharCreateUiState {
-        mode: initial_state.mode,
-        selected_race: initial_state.selected_race,
-        selected_class: initial_state.selected_class,
-        selected_sex: initial_state.selected_sex,
-        skin_color: initial_state.appearance.skin_color,
-        face: initial_state.appearance.face,
-        hair_style: initial_state.appearance.hair_style,
-        hair_color: initial_state.appearance.hair_color,
-        facial_style: initial_state.appearance.facial_style,
-        ..CharCreateUiState::default()
-    };
+    let mut ui_state = build_ui_state(&initial_state, &cust_db);
+    ui_state.viewport_width = ui.registry.screen_width as u32;
+    ui_state.viewport_height = ui.registry.screen_height as u32;
     let mut shared = ui_toolkit::screen::SharedContext::new();
     shared.insert(ui_state);
     let mut screen = Screen::new(char_create_screen);
@@ -261,7 +261,6 @@ fn char_create_hover_visuals(
     let button_ids: Vec<u64> = [
         Some(cc.back_button),
         cc.next_button,
-        cc.sex_toggle,
         cc.randomize_button,
         cc.create_button,
     ]
@@ -314,6 +313,11 @@ fn sync_screen_state(
     let inner = &mut res.0;
     let mut new_state = build_ui_state(state, cust_db);
     new_state.name_input_focused = name_input_focused;
+    new_state.viewport_width = reg.screen_width as u32;
+    new_state.viewport_height = reg.screen_height as u32;
+    if let Some(id) = reg.get_by_name(CREATE_NAME_INPUT.0) {
+        new_state.name = get_editbox_text(reg, id);
+    }
     if inner.shared.get::<CharCreateUiState>() != Some(&new_state) {
         inner.shared.insert(new_state);
     }
@@ -325,99 +329,6 @@ fn build_class_availability(race: u8) -> Vec<(u8, &'static str, u32, bool)> {
         .iter()
         .map(|c| (c.id, c.name, c.icon_fdid, race_can_be_class(race, c.id)))
         .collect()
-}
-
-struct AppearanceLabels {
-    face: String,
-    hair_style: String,
-    facial_style: String,
-}
-
-struct AppearanceSwatches {
-    skin_colors: Vec<Option<[u8; 3]>>,
-    hair_colors: Vec<Option<[u8; 3]>>,
-}
-
-fn build_appearance_labels(
-    state: &CharCreateState,
-    cust_db: &CustomizationDb,
-    race: u8,
-    sex: u8,
-) -> AppearanceLabels {
-    AppearanceLabels {
-        face: choice_label(
-            cust_db,
-            race,
-            sex,
-            state.selected_class,
-            OptionType::Face,
-            state.appearance.face,
-        ),
-        hair_style: choice_label(
-            cust_db,
-            race,
-            sex,
-            state.selected_class,
-            OptionType::HairStyle,
-            state.appearance.hair_style,
-        ),
-        facial_style: choice_label(
-            cust_db,
-            race,
-            sex,
-            state.selected_class,
-            OptionType::FacialHair,
-            state.appearance.facial_style,
-        ),
-    }
-}
-
-fn choice_label(
-    cust_db: &CustomizationDb,
-    race: u8,
-    sex: u8,
-    class: u8,
-    option: OptionType,
-    selected: u8,
-) -> String {
-    cust_db
-        .choice_name_for_class(race, sex, class, option, selected)
-        .unwrap_or_default()
-        .to_string()
-}
-
-fn build_appearance_swatches(cust_db: &CustomizationDb, race: u8, sex: u8) -> AppearanceSwatches {
-    AppearanceSwatches {
-        skin_colors: cust_db.all_swatch_colors(race, sex, OptionType::SkinColor),
-        hair_colors: cust_db.all_swatch_colors(race, sex, OptionType::HairColor),
-    }
-}
-
-fn build_ui_state(state: &CharCreateState, cust_db: &CustomizationDb) -> CharCreateUiState {
-    let (race, sex) = (state.selected_race, state.selected_sex);
-    let labels = build_appearance_labels(state, cust_db, race, sex);
-    let swatches = build_appearance_swatches(cust_db, race, sex);
-    CharCreateUiState {
-        mode: state.mode,
-        selected_race: race,
-        selected_class: state.selected_class,
-        selected_sex: sex,
-        skin_color: state.appearance.skin_color,
-        face: state.appearance.face,
-        hair_style: state.appearance.hair_style,
-        hair_color: state.appearance.hair_color,
-        facial_style: state.appearance.facial_style,
-        face_label: labels.face,
-        hair_style_label: labels.hair_style,
-        facial_style_label: labels.facial_style,
-        skin_color_swatches: swatches.skin_colors,
-        hair_color_swatches: swatches.hair_colors,
-        open_dropdown: state.open_dropdown,
-        name: String::new(),
-        error_text: state.error_text.clone(),
-        class_availability: build_class_availability(race),
-        name_input_focused: false,
-    }
 }
 
 #[cfg(test)]

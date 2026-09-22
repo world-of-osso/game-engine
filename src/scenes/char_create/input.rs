@@ -86,20 +86,34 @@ fn dispatch_action(
     match action {
         CharCreateAction::SelectRace(id) => apply_race_change(ctx.state, id, ctx.cust_db),
         CharCreateAction::SelectClass(id) => apply_class_change(ctx.state, id, ctx.cust_db),
-        CharCreateAction::ToggleSex => apply_sex_toggle(ctx.state, ctx.cust_db),
+        CharCreateAction::SelectSex(sex) => {
+            if sex <= 1 && sex != ctx.state.selected_sex {
+                apply_sex_toggle_with_seed(ctx.state, ctx.cust_db, fresh_random_seed());
+            }
+        }
         CharCreateAction::Randomize => apply_randomize(ctx.state, ctx.cust_db),
         CharCreateAction::NextMode => ctx.state.mode = CharCreateMode::Customize,
         CharCreateAction::Back => handle_back(ctx.state, next_state),
-        CharCreateAction::AppearanceInc(f) => {
-            adjust_appearance(ctx.state, f, 1, ctx.cust_db);
-            ctx.state.open_dropdown = None;
+        CharCreateAction::AdjustOption(id, delta) => {
+            adjust_appearance(ctx.state, id, delta, ctx.cust_db)
         }
-        CharCreateAction::AppearanceDec(f) => {
-            adjust_appearance(ctx.state, f, -1, ctx.cust_db);
-            ctx.state.open_dropdown = None;
+        CharCreateAction::ToggleOption(id) => toggle_dropdown(ctx.state, id),
+        CharCreateAction::SelectOptionChoice(id, choice) => {
+            select_choice(ctx.state, id, choice, ctx.cust_db)
         }
-        CharCreateAction::ToggleDropdown(f) => toggle_dropdown(ctx.state, f),
-        CharCreateAction::SelectChoice(f, idx) => select_choice(ctx.state, f, idx, ctx.cust_db),
+        CharCreateAction::SelectCategory(id) => {
+            if ctx
+                .cust_db
+                .options_for(ctx.state.selected_race, ctx.state.selected_sex)
+                .into_iter()
+                .flatten()
+                .any(|option| option.category_id == id)
+            {
+                ctx.state.selected_category = id;
+                ctx.state.open_dropdown = None;
+            }
+        }
+        CharCreateAction::Camera(action) => ctx.state.camera_action = Some(action),
         CharCreateAction::CreateConfirm => {
             send_create_request(ctx.state, ctx.reg, ctx.cc, create_senders);
             if let Some(id) = ctx.reg.get_by_name(CREATE_NAME_INPUT.0) {
@@ -142,10 +156,6 @@ pub(super) fn apply_class_change_with_seed(
         state.selected_class = class_id;
         randomize_appearance_with_seed(state, db, seed);
     }
-}
-
-fn apply_sex_toggle(state: &mut CharCreateState, db: &CustomizationDb) {
-    apply_sex_toggle_with_seed(state, db, fresh_random_seed());
 }
 
 pub(super) fn apply_sex_toggle_with_seed(
@@ -195,14 +205,14 @@ fn handle_back(state: &mut CharCreateState, next_state: &mut NextState<GameState
 
 pub(super) fn adjust_appearance(
     state: &mut CharCreateState,
-    field: AppearanceField,
+    field: u32,
     delta: i8,
     db: &CustomizationDb,
 ) {
     appearance_logic::adjust_appearance(state, field, delta, db);
 }
 
-fn toggle_dropdown(state: &mut CharCreateState, field: AppearanceField) {
+fn toggle_dropdown(state: &mut CharCreateState, field: u32) {
     state.open_dropdown = if state.open_dropdown == Some(field) {
         None
     } else {
@@ -210,23 +220,18 @@ fn toggle_dropdown(state: &mut CharCreateState, field: AppearanceField) {
     };
 }
 
-fn select_choice(
-    state: &mut CharCreateState,
-    field: AppearanceField,
-    idx: u8,
-    db: &CustomizationDb,
-) {
+fn select_choice(state: &mut CharCreateState, field: u32, idx: u32, db: &CustomizationDb) {
     appearance_logic::select_choice(state, field, idx, db);
 }
 
 fn send_create_request(
     state: &mut CharCreateState,
     reg: &FrameRegistry,
-    cc: &CharCreateUi,
+    _cc: &CharCreateUi,
     senders: &mut MessageSenders<CreateCharacter>,
 ) {
-    let name = cc
-        .name_input
+    let name = reg
+        .get_by_name(CREATE_NAME_INPUT.0)
         .map(|id| get_editbox_text(reg, id))
         .unwrap_or_default();
     if name.is_empty() {
