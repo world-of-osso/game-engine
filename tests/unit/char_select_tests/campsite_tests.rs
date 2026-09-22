@@ -1,47 +1,21 @@
 use super::*;
 
 #[test]
-fn campsite_tab_is_anchored_to_top_center_without_offsets() {
-    use game_engine::ui::anchor::AnchorPoint;
+fn campsite_tab_keeps_top_center_position() {
     let reg = build_screen_with_campsites(CharSelectState::default(), one_scene_campsite_state());
     let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
     let bar_id = reg.get_by_name("CampsiteMenuBar").expect("CampsiteMenuBar");
     let tab_id = reg.get_by_name("CampsiteTab").expect("CampsiteTab");
-    assert_single_anchor(
-        &reg,
-        bar_id,
-        AnchorPoint::Top,
-        AnchorPoint::Top,
-        Some(root_id),
-        0.0,
-        0.0,
-    );
-    assert_single_anchor(
-        &reg,
-        tab_id,
-        AnchorPoint::TopLeft,
-        AnchorPoint::TopLeft,
-        Some(bar_id),
-        357.0,
-        -1.0,
-    );
+    assert_top_edge_centered(&reg, bar_id, Some(root_id), 0.0);
+    assert_bounds_offset_from_top_left(&reg, tab_id, Some(bar_id), 357.0, 1.0);
 }
 
 #[test]
-fn campsite_panel_is_anchored_to_top_center_without_offsets() {
-    use game_engine::ui::anchor::AnchorPoint;
+fn campsite_panel_keeps_top_center_position() {
     let reg = build_screen_with_campsites(CharSelectState::default(), one_scene_campsite_state());
     let root_id = reg.get_by_name("CharSelectRoot").expect("CharSelectRoot");
     let panel_id = reg.get_by_name("CampsitePanel").expect("CampsitePanel");
-    assert_single_anchor(
-        &reg,
-        panel_id,
-        AnchorPoint::Top,
-        AnchorPoint::Top,
-        Some(root_id),
-        0.0,
-        -58.0,
-    );
+    assert_top_edge_centered(&reg, panel_id, Some(root_id), 58.0);
 }
 
 #[test]

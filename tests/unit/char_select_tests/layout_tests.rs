@@ -52,9 +52,7 @@ fn char_select_screen_builds_all_critical_frames() {
 }
 
 #[test]
-fn character_card_list_is_anchored_to_top_left() {
-    use game_engine::ui::anchor::AnchorPoint;
-
+fn character_card_list_keeps_top_left_position() {
     let reg = build_screen(CharSelectState {
         characters: vec![CharDisplayEntry {
             name: "TestChar".to_string(),
@@ -71,15 +69,7 @@ fn character_card_list_is_anchored_to_top_left() {
     let list_panel_id = reg
         .get_by_name("CharacterListPanel")
         .expect("CharacterListPanel");
-    assert_single_anchor(
-        &reg,
-        cards_id,
-        AnchorPoint::TopLeft,
-        AnchorPoint::TopLeft,
-        Some(list_panel_id),
-        19.0,
-        -94.0,
-    );
+    assert_bounds_offset_from_top_left(&reg, cards_id, Some(list_panel_id), 19.0, 94.0);
 }
 
 #[test]
