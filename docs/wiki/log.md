@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-22] ui | Resolve character-creation icons through local CASC
+
+Commit `11267c8d` replaces 22 race and 10 class machine-specific icon paths with their exact community-listfile FileDataIDs. Retained `rsx!` widgets author `texture_fdid`; `GameBlpLoader` resolves through local CASC/cache. The Worgen portrait remains FDID `455993`; no alternate art or directory fallback was added. Source tests cover listfile resolution, decode, and native image content. Current rendered character-creation acceptance is separate. See [[ui-system]] and [[asset-pipeline]].
+
 ## [2026-09-12] ui | Restore resolver-backed character-selection atlas artwork
 
 Character-list borders and card backgrounds were already authored through existing atlas names and a panel nine-slice; they rendered as bare text because the toolkit attempted to load `UICharacterSelectGlues.BLP` from a missing machine-specific path. `ui-toolkit` `437b606` replaces that source with explicit `FileDataId(5648070)`. DB2 maps `glues-characterselect-card-*` members through atlas `2726` to the 1024×1024 FDID. Engine `4fffafcf` resolves it through local CASC when absent from `data/textures/`, then the toolkit CPU-decodes and materializes cached card/panel crops. Toolkit RED at `392de1c` reproduces the missing path; nine focused tests pass. A cold-cache native run recreated the exact asset, and final `a2b284bd` capture confirms the dark panel, selected gold card, and authored unselected dark card/rim without obscuring the 3D scene. Exact Retail pixels are not claimed. See [[ui-system]].

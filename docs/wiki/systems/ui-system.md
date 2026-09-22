@@ -38,6 +38,10 @@ Character-list panel and card artwork remains registry-authored: `CharSelectUi` 
 
 Toolkit RED at `392de1c` reproduced the missing absolute-path load. Toolkit `437b606` passes nine focused atlas/render-texture tests for the 310×89 card, 60×60 panel border, 342×122 selected card, transparent RGB cleanup, and cache reuse after the resolver becomes unavailable. Engine `4fffafcf` then fixed its bridge to extract the atlas through local CASC. A cold-cache run recreated the exact FDID5648070 asset; current native capture at `a2b284bd` confirms the outer panel, selected gold card, and authored unselected dark card/rim while retaining the 3D scene. Exact Retail pixels are not claimed.
 
+## Character-creation icon loading
+
+Character-creation race and class metadata stores FileDataIDs, while retained `rsx!` widgets emit `texture_fdid`. `GameBlpLoader` resolves those authored assets through the local CASC cache; it never reads a machine-specific WoW export directory. Commit `11267c8d` maps all 22 race and 10 class icons to their exact community-listfile entries, including the Worgen portrait FDID `455993`. `charcreate_icon_source_tests.rs` covers local resolution, decode, and registry/native image content for the set. This documents source behavior only; current rendered character-creation acceptance remains separate.
+
 ## Player-frame artwork fit
 
 The player HUD preserves its unmodified gold/silver `396×142` shell at `297×106.5`. Historical `232×100` XML coordinates do not apply to this custom artwork. Its actual connected openings are portrait `(18,13,111×113)`, health `(135,52,249×40)`, and mana `(135,94,249×20)`, uniformly scaled 75%.
@@ -226,6 +230,9 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [atlas source mapping](../../../../ui-toolkit/src/atlas.rs) — explicit file versus FileDataID-backed atlas ownership
 - [atlas loading](../../../../ui-toolkit/src/render_texture.rs) — resolver-backed CPU decode, crop materialization, and cache behavior
 - [engine BLP resolver](../../../src/app_setup.rs) — local CASC-backed `GameBlpLoader::ensure_texture`
+- [character-creation icon metadata](../../../src/scenes/char_create/data.rs) — authored race/class FileDataIDs
+- [character-creation icon widgets](../../../src/ui/screens/char_create_component/char_create_widgets.rs) — `texture_fdid` registry authoring
+- [character-creation icon regressions](../../../tests/unit/charcreate_icon_source_tests.rs) — listfile, decode, and native-content coverage
 - `../../data/diagnostics/warnings-charselect-style-20260912/atlas-provenance.json` — DB2 member-to-atlas FDID evidence
 - [visibility and alpha propagation](../../../../ui-toolkit/src/registry.rs) — conditional derived-state repair and single-pass `set_hidden` traversal
 - [registry mutation and removal cleanup](../../../../ui-toolkit/src/registry.rs) — unchanged-write retraction and removed-ID focus cleanup
@@ -244,5 +251,6 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [[rendering-pipeline]] — UI renders on top of 3D scene
 - [[procedural-cloud-regeneration]] — empty-stage performance investigation and machine-side relaunch proof; human visual gate pending
 - [[world-builder]] — diagnostic sidebar built on Screen, SharedContext, and FrameRegistry
+- [[asset-pipeline]] — local listfile and CASC resolution for authored UI FileDataIDs
 - [[npc-motion-validation]] — revision-pinned world-picking and `--no-ui` policy evidence
 - [UI layout invalidation spec](../../specs/ui-layout-invalidation.md) — explicit geometry invalidation contract
