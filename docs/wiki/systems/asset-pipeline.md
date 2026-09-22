@@ -35,7 +35,7 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 
 ## UI consumers
 
-WoW UI metadata stores authored FileDataIDs. A virtual path is only listfile lookup input; it is never a runtime filesystem path or a fallback export directory. Character-creation race/class icons follow this boundary: retained `rsx!` emits `texture_fdid`, then `GameBlpLoader` resolves the asset through local CASC/cache. See [[ui-system]].
+WoW UI metadata stores authored FileDataIDs. A virtual path is only listfile lookup input; it is never a runtime filesystem path or a fallback export directory. Character-creation race/class icons emit `texture_fdid`; customization arrows and palette regions use an atlas FileDataID. `GameBlpLoader` resolves both through local CASC/cache. See [[ui-system]].
 
 ## Community Listfile
 

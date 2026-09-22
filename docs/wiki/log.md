@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-22] ui | Resolve character-creation customization atlas through local CASC
+
+Toolkit `1b48b132` replaces the character-creation atlas's machine-specific source path with FileDataID `1253496` (`Interface/GLUES/CHARACTERCREATE/CharacterCreate.BLP`). Existing arrow and palette names/UVs remain unchanged. Engine `4ee36dd1` compares all eight native crops with decoded local-CASC RGBA source pixels. See [[ui-system]] and [[asset-pipeline]].
+
 ## [2026-09-22] ui | Resolve character-creation icons through local CASC
 
 Commit `11267c8d` replaces 22 race and 10 class machine-specific icon paths with their exact community-listfile FileDataIDs. Retained `rsx!` widgets author `texture_fdid`; `GameBlpLoader` resolves through local CASC/cache. The Worgen portrait remains FDID `455993`; no alternate art or directory fallback was added. Source tests cover listfile resolution, decode, and native image content. Current rendered character-creation acceptance is separate. See [[ui-system]] and [[asset-pipeline]].
