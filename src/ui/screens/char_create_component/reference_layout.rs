@@ -81,11 +81,23 @@ pub(super) struct PopupLayout {
 }
 
 pub(super) fn popup_layout(viewport: [u32; 2], count: usize, anchor_bottom: f32) -> PopupLayout {
-    // Retail's vertical auto-grid reserves 100px before introducing another column.
-    let rows_available = ((viewport[1] as f32 - 100.0) / CHOICE_HEIGHT)
+    // Blizzard_Menu/Menu.lua: base column thresholds, then compact to the
+    // number of rows that fit below this control with its 100px margin.
+    let base_columns: usize = match count {
+        0..=10 => 1,
+        11..=24 => 2,
+        25..=36 => 3,
+        _ => 4,
+    };
+    let rows_below = ((viewport[1] as f32 - anchor_bottom - 100.0) / CHOICE_HEIGHT)
         .floor()
         .max(1.0) as usize;
-    let columns = count.div_ceil(rows_available).max(1);
+    let columns_available = ((viewport[0] as f32 - 60.0) / CHOICE_WIDTH)
+        .floor()
+        .max(1.0) as usize;
+    let columns = base_columns
+        .max(count.div_ceil(rows_below))
+        .min(columns_available);
     let rows = count.div_ceil(columns).max(1);
     let width = columns as f32 * CHOICE_WIDTH;
     let height = rows as f32 * CHOICE_HEIGHT;

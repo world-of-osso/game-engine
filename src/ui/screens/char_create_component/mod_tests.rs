@@ -1,4 +1,6 @@
 use super::*;
+#[path = "dropdown_layout_tests.rs"]
+mod dropdown_layout_tests;
 use crate::ui::frame::{Frame, WidgetData};
 use crate::ui::registry::FrameRegistry;
 use crate::ui::widgets::button::ButtonState;
