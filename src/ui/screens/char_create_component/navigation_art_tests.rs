@@ -342,6 +342,111 @@ fn navigation_parts_follow_button_state_without_idle_registry_writes() {
 }
 
 #[test]
+fn navigation_slices_share_native_pixel_edges_at_fractional_window_scale() {
+    use bevy::ecs::system::RunSystemOnce;
+    use bevy::prelude::With;
+    use ui_toolkit::plugin::UiState;
+
+    fn assert_parts_meet(registry: &FrameRegistry, button_name: &str, scale: f32) {
+        let button = registry
+            .get(registry.get_by_name(button_name).unwrap())
+            .unwrap();
+        let root = button.layout_rect.as_ref().unwrap();
+        let bounds: Vec<_> = ["Left", "Center", "Right"]
+            .into_iter()
+            .map(|part| {
+                registry
+                    .get(
+                        registry
+                            .get_by_name(&format!("{button_name}_{part}"))
+                            .unwrap(),
+                    )
+                    .unwrap()
+                    .layout_rect
+                    .clone()
+                    .unwrap()
+            })
+            .collect();
+        let physical = |n: f32| (n * scale).round();
+        assert_eq!(physical(bounds[0].x), physical(root.x));
+        for pair in bounds.windows(2) {
+            let prior_end = pair[0].x + pair[0].width;
+            let next_start = pair[1].x;
+            assert!(
+                (prior_end - next_start).abs() < 0.01,
+                "{button_name} at {scale}x has a native gap/overlap: end={prior_end} next={next_start}; {bounds:?}"
+            );
+        }
+        let right_end = bounds[2].x + bounds[2].width;
+        assert!(
+            (right_end - root.x - root.width).abs() < 0.01,
+            "{button_name} at {scale}x does not fill its root: {bounds:?}, {root:?}"
+        );
+        let cap_widths = super::part_widths(250.0, 66.0);
+        for (index, cap) in [(0, cap_widths[0]), (2, cap_widths[2])] {
+            assert_eq!(physical(bounds[index].width), physical(cap));
+        }
+    }
+
+    for mode in [CharCreateMode::RaceClass, CharCreateMode::Customize] {
+        let mut app = layout_support::layout_app(1280.0, 1198.0);
+        app.finish();
+        app.cleanup();
+        let mut registry = FrameRegistry::new(1280.0, 1198.0);
+        let mut shared = SharedContext::new();
+        shared.insert(CharCreateUiState {
+            mode,
+            ..Default::default()
+        });
+        Screen::new(char_create_screen).sync(&shared, &mut registry);
+        app.world_mut().resource_mut::<UiState>().registry = registry;
+        for scale in [1.0, 1.15, 1.25, 1.5] {
+            {
+                let world = app.world_mut();
+                let mut windows = world
+                    .query_filtered::<&mut bevy::window::Window, With<bevy::window::PrimaryWindow>>(
+                    );
+                let mut window = windows.single_mut(world).unwrap();
+                window.resolution.set_scale_factor_override(Some(scale));
+                window.resolution.set_physical_resolution(
+                    (1280.0 * scale) as u32,
+                    (1198.0 * scale).round() as u32,
+                );
+            }
+            app.world_mut()
+                .run_system_once(super::sync_navigation_art)
+                .unwrap();
+            for _ in 0..3 {
+                app.update();
+            }
+            let registry = &app.world().resource::<UiState>().registry;
+            assert_parts_meet(registry, BACK_BUTTON.0, scale);
+            let forward = if mode == CharCreateMode::RaceClass {
+                NEXT_BUTTON.0
+            } else {
+                CREATE_BUTTON.0
+            };
+            assert_parts_meet(registry, forward, scale);
+            app.world_mut()
+                .resource_mut::<UiState>()
+                .registry
+                .rect_dirty
+                .clear();
+            app.world_mut()
+                .run_system_once(super::sync_navigation_art)
+                .unwrap();
+            assert!(
+                app.world()
+                    .resource::<UiState>()
+                    .registry
+                    .rect_dirty
+                    .is_empty()
+            );
+        }
+    }
+}
+
+#[test]
 fn character_create_navigation_uses_three_authored_red_parts_without_square_skin() {
     let scale = 66.0 / 128.0;
     let widths = [
