@@ -161,10 +161,11 @@ fn checkbox_control(option: &CustomizationOptionUi) -> Element {
     let disabled = !option.enabled || !next.enabled;
     let checked_hidden = !checked;
     let check_fdid = if disabled { 130_750u32 } else { 130_751u32 };
+    let x = OPTION_WIDTH - 32.0;
     rsx! {
         button { name: DynName(format!("OptionCheck_{}", option.id)), width: 32.0, height: 32.0, disabled,
             onclick: CharCreateAction::SelectOptionChoice(option.id, next.id),
-            pos_type: "absolute", left: OPTION_WIDTH - 32.0, top: 3.0,
+            pos_type: "absolute", left: x, top: 3.0,
             texture { name: DynName(format!("OptionCheck_{}_Background", option.id)), width: 32.0, height: 32.0,
                 texture_fdid: 130_755u32,
             }
@@ -215,11 +216,13 @@ fn dropdown_choice(
     let disabled = !option.enabled || !choice.enabled;
     let selected = choice.id == option.selected_choice_id;
     let marker_hidden = !selected;
+    let x = (index / rows) as f32 * CHOICE_WIDTH;
+    let y = (index % rows) as f32 * CHOICE_HEIGHT;
     rsx! {
         button { name: DynName(name.clone()), width: CHOICE_WIDTH, height: CHOICE_HEIGHT, disabled,
             onclick: CharCreateAction::SelectOptionChoice(option.id, choice.id),
             button_atlas_highlight: "charactercreate-customize-dropdown-linemouseover-middle",
-            pos_type: "absolute", left: (index / rows) as f32 * CHOICE_WIDTH, top: (index % rows) as f32 * CHOICE_HEIGHT,
+            pos_type: "absolute", left: x, top: y,
             texture { name: DynName(format!("{name}_Selected")), width: CHOICE_WIDTH, height: CHOICE_HEIGHT,
                 texture_atlas: "charactercreate-customize-dropdown-linemouseover-middle", hidden: marker_hidden,
                 pos_type: "absolute", left: 0.0, top: 0.0,

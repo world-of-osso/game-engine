@@ -56,7 +56,7 @@ fn assert_rect(reg: &FrameRegistry, name: &str, expected: [f32; 4]) {
     }
 }
 
-fn font_text(reg: &FrameRegistry, name: &str) -> &str {
+fn font_text<'a>(reg: &'a FrameRegistry, name: &str) -> &'a str {
     match &frame(reg, name).widget_data {
         Some(WidgetData::FontString(data)) => &data.text,
         _ => panic!("{name} should be text"),
