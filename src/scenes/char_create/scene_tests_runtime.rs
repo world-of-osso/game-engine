@@ -17,6 +17,7 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     app.add_plugins(bevy::text::TextPlugin::default());
     app.add_plugins(bevy::ui::UiPlugin);
     app.add_plugins(bevy::picking::PickingPlugin);
+    app.add_plugins(bevy::picking::InteractionPlugin);
     app.add_plugins(UiAutomationPlugin);
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.insert_resource(bevy::input::mouse::AccumulatedMouseMotion::default());
