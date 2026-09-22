@@ -3,6 +3,7 @@
 mod native_layout_support;
 
 use super::*;
+use game_engine::customization_data::OptionType;
 use std::path::Path;
 
 const RANDOMIZED_APPEARANCE_TEST_SEED: u64 = 0x1234_5678_9abc_def0;

@@ -34,7 +34,30 @@ pub(super) fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> C
         .filter(|option| option.category_id == selected_category)
         .map(|option| build_option(state, db, option))
         .collect();
+    let partial_labels: Vec<_> = options
+        .iter()
+        .filter(|option| option.category_id == selected_category)
+        .filter(|option| {
+            db.choices_for_option(
+                state.selected_race,
+                state.selected_sex,
+                state.selected_class,
+                option.id,
+            )
+            .iter()
+            .any(|choice| {
+                choice.has_unsupported_effects && appearance_options::choice_can_render(choice)
+            })
+        })
+        .map(|option| option.display_name.as_str())
+        .collect();
     CharCreateUiState {
+        support_notice: (!partial_labels.is_empty()).then(|| {
+            format!(
+                "Some effects are not rendered for: {}.",
+                partial_labels.join(", ")
+            )
+        }),
         mode: state.mode,
         selected_race: state.selected_race,
         selected_class: state.selected_class,
@@ -91,7 +114,9 @@ fn build_option(
             state.appearance.skin_color,
         )
     });
-    let supported = choices.iter().any(|choice| !choice.has_unsupported_effects);
+    let supported = choices
+        .iter()
+        .any(|choice| appearance_options::choice_can_render(choice));
     let disabled_reason = if choices.is_empty() {
         Some("No choices available for this character".to_owned())
     } else if !supported {
@@ -118,7 +143,7 @@ fn build_option(
                 },
                 swatch: rgb(choice.swatch_colors[0]),
                 secondary_swatch: rgb(choice.swatch_colors[1]),
-                enabled: !choice.has_unsupported_effects
+                enabled: appearance_options::choice_can_render(choice)
                     && compatible_faces.as_ref().is_none_or(|indices| {
                         indices.iter().any(|&valid| usize::from(valid) == index)
                     }),

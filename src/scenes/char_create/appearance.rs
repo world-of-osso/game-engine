@@ -124,7 +124,7 @@ pub(super) fn adjust_appearance(
             option_id,
         )
         .into_iter()
-        .filter(|choice| !choice.has_unsupported_effects)
+        .filter(|choice| game_engine::appearance_options::choice_can_render(choice))
         .collect();
     if choices.is_empty() {
         return;
@@ -221,7 +221,7 @@ fn randomize_additional_choices(state: &mut CharCreateState, db: &CustomizationD
                 option.id,
             )
             .into_iter()
-            .filter(|choice| !choice.has_unsupported_effects)
+            .filter(|choice| game_engine::appearance_options::choice_can_render(choice))
             .collect();
         if choices.is_empty() {
             continue;

@@ -20,7 +20,7 @@ use ui_toolkit::screen::Screen;
 use crate::game_state::GameState;
 use crate::scenes::login::helpers;
 use game_engine::char_create_data::{CLASSES, first_available_class, race_can_be_class};
-use game_engine::customization_data::{CustomizationDb, OptionType};
+use game_engine::customization_data::CustomizationDb;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, set_button_hovered,
