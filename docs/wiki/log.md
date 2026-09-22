@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-22] ui | Stage additional character-customization selections
+
+Shared `9123a5f` retains the existing six appearance selectors plus `sex` and adds disjoint authored `(option_id, choice_id)` selections. Engine `6ca0a28d` updates barber, export, and IPC consumers to preserve owned appearance values. This is staged representation plumbing only; full character-customization UI, renderer, persistence verification, and acceptance remain open in [character-creation](../../specs/character-creation.md).
+
 ## [2026-09-22] ui | Resolve character-creation customization atlas through local CASC
 
 Toolkit `1b48b132` replaces the character-creation atlas's machine-specific source path with FileDataID `1253496` (`Interface/GLUES/CHARACTERCREATE/CharacterCreate.BLP`). Existing arrow and palette names/UVs remain unchanged. Engine `4ee36dd1` compares all eight native crops with decoded local-CASC RGBA source pixels. See [[ui-system]] and [[asset-pipeline]].
