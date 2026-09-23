@@ -1,0 +1,333 @@
+//! Joins the spell DB2 CSV exports into [`CatalogSpell`] rows.
+//!
+//! Per-difficulty tables contribute only their `DifficultyID = 0` row.
+
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::path::Path;
+use std::str::FromStr;
+
+use super::csv_records::CsvTable;
+use super::{CatalogEffect, CatalogSpell, SpellCharges, SpellCooldown, SpellPowerCost, SpellRange};
+
+/// Source CSVs, also the cache key inputs.
+pub(super) const SOURCE_TABLES: &[&str] = &[
+    "SpellName",
+    "Spell",
+    "SpellMisc",
+    "SpellEffect",
+    "SpellPower",
+    "SpellCastTimes",
+    "SpellRange",
+    "SpellDuration",
+    "SpellRadius",
+    "SpellCooldowns",
+    "SpellCategories",
+    "SpellCategory",
+    "SpellAuraOptions",
+];
+
+type SpellMap = HashMap<u32, CatalogSpell>;
+
+pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
+    let mut spells = load_names(dir)?;
+    apply_text(dir, &mut spells)?;
+    apply_misc(dir, &mut spells)?;
+    apply_effects(dir, &mut spells)?;
+    apply_powers(dir, &mut spells)?;
+    apply_cooldowns(dir, &mut spells)?;
+    apply_charges(dir, &mut spells)?;
+    apply_aura_options(dir, &mut spells)?;
+    let mut sorted: Vec<CatalogSpell> = spells.into_values().collect();
+    sorted.sort_unstable_by_key(|spell| spell.id);
+    Ok(sorted)
+}
+
+struct Row<'r> {
+    table: &'r CsvTable,
+    record: &'r [Cow<'r, str>],
+    columns: &'r [usize],
+}
+
+impl Row<'_> {
+    fn text(&self, column: usize) -> Result<&str, String> {
+        self.record
+            .get(self.columns[column])
+            .map(|field| field.as_ref())
+            .ok_or_else(|| format!("{} has a short record", self.table.path().display()))
+    }
+
+    fn get<T: FromStr>(&self, column: usize) -> Result<T, String> {
+        let raw = self.text(column)?;
+        raw.parse().map_err(|_| {
+            format!(
+                "{} column {}: bad value {raw:?}",
+                self.table.path().display(),
+                self.columns[column]
+            )
+        })
+    }
+
+    fn is_base_difficulty(&self, column: usize) -> Result<bool, String> {
+        Ok(self.get::<u32>(column)? == 0)
+    }
+}
+
+fn for_each_row(
+    dir: &Path,
+    table: &str,
+    columns: &[&str],
+    mut visit: impl FnMut(&Row) -> Result<(), String>,
+) -> Result<(), String> {
+    let table = CsvTable::read(&dir.join(format!("{table}.csv")))?;
+    let columns = columns
+        .iter()
+        .map(|name| table.column(name))
+        .collect::<Result<Vec<_>, _>>()?;
+    for record in table.records() {
+        visit(&Row {
+            table: &table,
+            record: &record,
+            columns: &columns,
+        })?;
+    }
+    Ok(())
+}
+
+fn load_names(dir: &Path) -> Result<SpellMap, String> {
+    let mut spells = SpellMap::new();
+    for_each_row(dir, "SpellName", &["ID", "Name_lang"], |row| {
+        let id = row.get(0)?;
+        let name = row.text(1)?.into();
+        spells.insert(
+            id,
+            CatalogSpell {
+                id,
+                name,
+                ..Default::default()
+            },
+        );
+        Ok(())
+    })?;
+    Ok(spells)
+}
+
+fn apply_text(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let columns = [
+        "ID",
+        "NameSubtext_lang",
+        "Description_lang",
+        "AuraDescription_lang",
+    ];
+    for_each_row(dir, "Spell", &columns, |row| {
+        if let Some(spell) = spells.get_mut(&row.get(0)?) {
+            spell.subtext = row.text(1)?.into();
+            spell.description = row.text(2)?.into();
+            spell.aura_description = row.text(3)?.into();
+        }
+        Ok(())
+    })
+}
+
+fn load_id_map<T>(
+    dir: &Path,
+    table: &str,
+    columns: &[&str],
+    value: impl Fn(&Row) -> Result<T, String>,
+) -> Result<HashMap<u32, T>, String> {
+    let mut map = HashMap::new();
+    for_each_row(dir, table, columns, |row| {
+        map.insert(row.get(0)?, value(row)?);
+        Ok(())
+    })?;
+    Ok(map)
+}
+
+fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let cast_times = load_id_map(dir, "SpellCastTimes", &["ID", "Base"], |row| row.get(1))?;
+    let durations = load_id_map(
+        dir,
+        "SpellDuration",
+        &["ID", "Duration", "MaxDuration"],
+        |row| Ok((row.get(1)?, row.get(2)?)),
+    )?;
+    let range_columns = ["ID", "RangeMin_0", "RangeMin_1", "RangeMax_0", "RangeMax_1"];
+    let ranges = load_id_map(dir, "SpellRange", &range_columns, |row| {
+        Ok(SpellRange {
+            min_yd: [row.get(1)?, row.get(2)?],
+            max_yd: [row.get(3)?, row.get(4)?],
+        })
+    })?;
+    let columns = [
+        "SpellID",
+        "DifficultyID",
+        "CastingTimeIndex",
+        "DurationIndex",
+        "RangeIndex",
+        "SchoolMask",
+        "SpellIconFileDataID",
+        "ActiveIconFileDataID",
+    ];
+    for_each_row(dir, "SpellMisc", &columns, |row| {
+        if !row.is_base_difficulty(1)? {
+            return Ok(());
+        }
+        let Some(spell) = spells.get_mut(&row.get(0)?) else {
+            return Ok(());
+        };
+        spell.cast_time_ms = cast_times.get(&row.get(2)?).copied().unwrap_or(0);
+        (spell.duration_ms, spell.max_duration_ms) =
+            durations.get(&row.get(3)?).copied().unwrap_or((0, 0));
+        spell.range = ranges.get(&row.get(4)?).copied().unwrap_or_default();
+        spell.school_mask = row.get(5)?;
+        spell.icon_fdid = row.get(6)?;
+        spell.active_icon_fdid = row.get(7)?;
+        Ok(())
+    })
+}
+
+fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let radii = load_id_map(dir, "SpellRadius", &["ID", "Radius"], |row| row.get(1))?;
+    let radius = |index: u32| radii.get(&index).copied().unwrap_or(0.0_f32);
+    let columns = [
+        "SpellID",
+        "DifficultyID",
+        "EffectIndex",
+        "Effect",
+        "EffectAura",
+        "EffectBasePointsF",
+        "EffectAuraPeriod",
+        "EffectChainTargets",
+        "EffectRadiusIndex_0",
+        "EffectRadiusIndex_1",
+    ];
+    let mut effects: HashMap<u32, Vec<CatalogEffect>> = HashMap::new();
+    for_each_row(dir, "SpellEffect", &columns, |row| {
+        if !row.is_base_difficulty(1)? {
+            return Ok(());
+        }
+        let primary_radius = radius(row.get(8)?);
+        let radius_yd = if primary_radius > 0.0 {
+            primary_radius
+        } else {
+            radius(row.get(9)?)
+        };
+        effects.entry(row.get(0)?).or_default().push(CatalogEffect {
+            index: row.get(2)?,
+            effect: row.get(3)?,
+            aura: row.get(4)?,
+            base_points: row.get(5)?,
+            aura_period_ms: row.get(6)?,
+            chain_targets: row.get(7)?,
+            radius_yd,
+        });
+        Ok(())
+    })?;
+    for (id, mut list) in effects {
+        if let Some(spell) = spells.get_mut(&id) {
+            list.sort_unstable_by_key(|effect| effect.index);
+            spell.effects = list.into_boxed_slice();
+        }
+    }
+    Ok(())
+}
+
+fn apply_powers(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let columns = [
+        "SpellID",
+        "OrderIndex",
+        "PowerType",
+        "ManaCost",
+        "PowerCostPct",
+        "RequiredAuraSpellID",
+    ];
+    let mut powers: HashMap<u32, Vec<(u32, SpellPowerCost)>> = HashMap::new();
+    for_each_row(dir, "SpellPower", &columns, |row| {
+        let cost = SpellPowerCost {
+            power_type: row.get(2)?,
+            flat: row.get(3)?,
+            pct: row.get(4)?,
+            required_aura_spell_id: row.get(5)?,
+        };
+        powers
+            .entry(row.get(0)?)
+            .or_default()
+            .push((row.get(1)?, cost));
+        Ok(())
+    })?;
+    for (id, mut list) in powers {
+        if let Some(spell) = spells.get_mut(&id) {
+            list.sort_by_key(|(order, _)| *order);
+            spell.powers = list.into_iter().map(|(_, cost)| cost).collect();
+        }
+    }
+    Ok(())
+}
+
+fn apply_cooldowns(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let columns = [
+        "SpellID",
+        "DifficultyID",
+        "RecoveryTime",
+        "CategoryRecoveryTime",
+        "StartRecoveryTime",
+    ];
+    for_each_row(dir, "SpellCooldowns", &columns, |row| {
+        if !row.is_base_difficulty(1)? {
+            return Ok(());
+        }
+        if let Some(spell) = spells.get_mut(&row.get(0)?) {
+            spell.cooldown = SpellCooldown {
+                recovery_ms: row.get(2)?,
+                category_recovery_ms: row.get(3)?,
+                gcd_ms: row.get(4)?,
+            };
+        }
+        Ok(())
+    })
+}
+
+fn apply_charges(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let category_columns = ["ID", "MaxCharges", "ChargeRecoveryTime"];
+    let categories = load_id_map(dir, "SpellCategory", &category_columns, |row| {
+        Ok(SpellCharges {
+            max_charges: row.get(1)?,
+            recovery_ms: row.get(2)?,
+        })
+    })?;
+    let columns = ["SpellID", "DifficultyID", "ChargeCategory"];
+    for_each_row(dir, "SpellCategories", &columns, |row| {
+        if !row.is_base_difficulty(1)? {
+            return Ok(());
+        }
+        let Some(spell) = spells.get_mut(&row.get(0)?) else {
+            return Ok(());
+        };
+        spell.charges = categories
+            .get(&row.get(2)?)
+            .copied()
+            .filter(|charges| charges.max_charges > 0);
+        Ok(())
+    })
+}
+
+fn apply_aura_options(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let columns = [
+        "SpellID",
+        "DifficultyID",
+        "CumulativeAura",
+        "ProcChance",
+        "ProcCharges",
+    ];
+    for_each_row(dir, "SpellAuraOptions", &columns, |row| {
+        if !row.is_base_difficulty(1)? {
+            return Ok(());
+        }
+        if let Some(spell) = spells.get_mut(&row.get(0)?) {
+            spell.max_stacks = row.get(2)?;
+            spell.proc_chance = row.get(3)?;
+            spell.proc_charges = row.get(4)?;
+        }
+        Ok(())
+    })
+}

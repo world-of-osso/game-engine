@@ -3956,6 +3956,7 @@ dependencies = [
  "bevy_hanabi",
  "bevy_replicon",
  "bevy_transform",
+ "bincode",
  "binrw",
  "clap",
  "criterion",
