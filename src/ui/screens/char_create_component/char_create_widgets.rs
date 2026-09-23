@@ -30,6 +30,20 @@ fn ring(name: &str, atlas: &str, size: [f32; 2]) -> Element {
     atlas_centered(format!("{name}_Ring"), atlas, size[0], size[1], false)
 }
 
+fn hover_ring_art<'a>(
+    selected: bool,
+    ring_atlas: &'a str,
+    ring_size: [f32; 2],
+    selected_size: f32,
+) -> (&'a str, String) {
+    let (atlas, [width, height]) = if selected {
+        ("charactercreate-ring-select", [selected_size; 2])
+    } else {
+        (ring_atlas, ring_size)
+    };
+    (atlas, format!("{width},{height}"))
+}
+
 fn selection_ring(name: &str, size: f32, selected: bool) -> Element {
     atlas_centered(
         format!("{name}_Selected"),
@@ -72,11 +86,13 @@ fn race_button(race: &RaceInfo, selected: bool, position: [f32; 2]) -> Element {
         Faction::Alliance => "charactercreate-ring-alliance",
         Faction::Horde => "charactercreate-ring-horde",
     };
+    let (highlight_atlas, highlight_size) =
+        hover_ring_art(selected, ring_atlas, [139.0, 140.0], 118.0);
     rsx! {
         button { name: DynName(frame_name.clone()), width: 79.0, height: 79.0,
             button_default_skin: "false",
             onclick: CharCreateAction::SelectRace(race.id),
-            button_atlas_highlight: "charactercreate-ring-select",
+            button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
             pos_type: "absolute", left: position[0], top: position[1],
             {icon(&frame_name, race.icon_fdid, 79.0, false)}
             {ring(&frame_name, ring_atlas, [139.0, 140.0])}
@@ -182,11 +198,17 @@ pub(super) fn class_button(
     };
     let scale = bounds[2] / 67.0;
     let onclick = CharCreateAction::SelectClass(id).when_enabled(available);
+    let (highlight_atlas, highlight_size) = hover_ring_art(
+        selected && available,
+        ring_atlas,
+        [116.0 * scale, 117.0 * scale],
+        99.0 * scale,
+    );
     rsx! {
         button { name: DynName(frame_name.clone()), width: bounds[2], height: bounds[2], disabled,
             button_default_skin: "false",
             onclick,
-            button_atlas_highlight: "charactercreate-ring-select",
+            button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
             pos_type: "absolute", left: bounds[0], top: bounds[1],
             {icon(&frame_name, fdid, bounds[2], disabled)}
             {ring(&frame_name, ring_atlas, [116.0 * scale, 117.0 * scale])}
@@ -202,6 +224,12 @@ pub(super) fn category_button(
     x: f32,
 ) -> Element {
     let frame_name = format!("Category_{}", category.id);
+    let (highlight_atlas, highlight_size) = hover_ring_art(
+        selected,
+        "charactercreate-ring-metallight",
+        [108.0, 109.0],
+        93.0,
+    );
     let normal = category
         .icon_atlas
         .as_deref()
@@ -233,7 +261,7 @@ pub(super) fn category_button(
             button_default_skin: "false",
             onclick: CharCreateAction::SelectCategory(category.id),
             hit_rect_insets: "15,15,15,15",
-            button_atlas_highlight: "charactercreate-ring-select",
+            button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
             pos_type: "absolute", left: x, top: 0.0,
             {normal}
             {active}
@@ -291,6 +319,12 @@ pub(super) fn camera_controls() -> Element {
 
 fn body_type_button(sex: u8, selected: bool, x: f32) -> Element {
     let name = format!("CharCreateSex_{sex}");
+    let (highlight_atlas, highlight_size) = hover_ring_art(
+        selected,
+        "charactercreate-ring-metaldark",
+        [99.0, 100.0],
+        84.0,
+    );
     let atlas = match (sex, selected) {
         (0, false) => "charactercreate-gendericon-male",
         (0, true) => "charactercreate-gendericon-male-selected",
@@ -301,7 +335,7 @@ fn body_type_button(sex: u8, selected: bool, x: f32) -> Element {
         button { name: DynName(name.clone()), width: 46.0, height: 46.0,
             button_default_skin: "false",
             onclick: CharCreateAction::SelectSex(sex),
-            button_atlas_highlight: "charactercreate-ring-select",
+            button_atlas_highlight: highlight_atlas, button_highlight_size: highlight_size,
             pos_type: "absolute", left: x, top: 0.0,
             {atlas_centered(format!("{name}_Icon"), atlas, 46.0, 46.0, false)}
             {ring(&name, "charactercreate-ring-metaldark", [99.0, 100.0])}
