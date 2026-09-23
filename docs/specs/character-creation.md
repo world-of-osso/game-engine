@@ -69,7 +69,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - `src/ui/screens/char_create_component/navigation_art_tests.rs` — exact local-CASC slice crops, asymmetric geometry, physical-pixel-contiguous slices at 1.0/1.15/1.25/1.5 scale, native label-over-art ordering/style and live normal/pressed/disabled/hover state synchronization.
 - `tests/unit/{char_create_tests,char_create_shared_tests,char_create_response_tests,character_customization_tests}.rs` — selection, request loopback, response and render-effect behavior.
 - `src/scenes/char_create/{name_catalog_tests,name_action_tests}.rs` and `src/ui/screens/char_create_component/name_button_tests.rs` — real authored race/body-type coverage, validation, distinct action, native placement, missing data, draft/editbox preservation.
-- `src/scenes/char_create/{scene_tests,scene_tests_runtime}.rs` — camera/preview and native mouse-input scheduling.
+- `src/scenes/char_create/{scene_tests,scene_tests_runtime,neutral_capture_tests}.rs` — authored backdrop lighting/material boundaries, camera/preview presentation, neutral loader-only capture and native mouse-input scheduling.
 - `tests/unit/{customization_data_tests,customization_catalog_cache_tests}.rs` — catalog fidelity, filtering, stale-schema autoload and real local-data loading.
 - `src/ui/character_creation_icons.rs` — decoded pixel/mask/cache/error regressions.
 - Shared/server appearance tests — wire roundtrips, six historical storage schemas, temporary-database reopen and login roster preservation.
@@ -81,6 +81,8 @@ Reported control/background corrections have native-layer, decoded-asset, intera
 
 ## Known gaps (current cycle)
 Closed-value centering and authored circular hover sizes passed independent native pointer/pixel/geometry/input checks and inspected owned-window captures on 2026-09-23. Evidence: `data/diagnostics/charcreate-hover-select-20260922/completion-report.md`; popup styling and hit areas are unchanged.
+
+- [ ] Inspect a new GUI capture after the authored-creation lighting revision. Existing scoped RED/GREEN evidence in `data/diagnostics/charcreate-authored-scenes-20260923/` covers the removed 8,000-lux fill, unbound/removed procedural map, ambient conversion, diffuse backdrop materials, presentation scale/distance, and neutral loader-only GPU capture; it is not final three-backdrop visual acceptance.
 - [ ] Pixel-perfect Retail visual parity has not been established. The contracts above are source-, layout- and native-layer-tested; no uninspected screenshot comparison or pixel-parity claim is made. Native additive glow, tooltip/hold-repeat details and unsupported effect families are not claimed complete.
 - [ ] Local `ChrCustomizationReq.csv` is absent. General account/unlock eligibility is not implemented; existing class filtering is not full retail eligibility parity.
 - [ ] Bone sets, conditional/skinned models, voice, animation-kit and other non-material/geoset effects remain unsupported or partial, as shown by the controls.
