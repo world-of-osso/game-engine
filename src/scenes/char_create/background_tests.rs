@@ -244,7 +244,7 @@ fn camera_entity(app: &mut App) -> Entity {
         .expect("creation scene camera")
 }
 
-fn assert_camera_matches_source(app: &mut App, fdid: u32) {
+fn assert_camera_matches_source(app: &mut App, fdid: u32, distance_offset: f32) {
     let camera = camera_entity(app);
     let world = app.world();
     let root = backdrop_root(world);
@@ -256,8 +256,10 @@ fn assert_camera_matches_source(app: &mut App, fdid: u32) {
         let local = scene.compute_affine().inverse().transform_point3(point);
         Vec3::new(local.x, -local.z, local.y)
     };
-    let source_eye = Vec3::from_array(authored.position);
     let source_focus = Vec3::from_array(authored.target);
+    let authored_offset = Vec3::from_array(authored.position) - source_focus;
+    let source_eye =
+        source_focus + authored_offset.normalize() * (authored_offset.length() + distance_offset);
     assert!(
         to_source(eye).distance(source_eye) < 0.01,
         "authored camera eye {fdid}"
@@ -267,7 +269,7 @@ fn assert_camera_matches_source(app: &mut App, fdid: u32) {
         "authored camera target {fdid}"
     );
     assert_eq!(orbit.focus, orbit.default_focus);
-    assert!((orbit.distance - orbit.default_distance).abs() < 0.001);
+    assert!((orbit.distance - orbit.default_distance - distance_offset).abs() < 0.001);
     let Projection::Perspective(projection) = world.get::<Projection>(camera).unwrap() else {
         panic!("authored camera must use perspective projection");
     };
@@ -278,7 +280,7 @@ fn assert_camera_matches_source(app: &mut App, fdid: u32) {
 #[test]
 fn authored_camera_resets_on_switch_zoom_and_reentry() {
     let mut app = scene_app();
-    assert_camera_matches_source(&mut app, ALLIANCE);
+    assert_camera_matches_source(&mut app, ALLIANCE, 0.0);
     app.insert_resource(CustomizationDb::load(Path::new("data")));
     app.insert_resource(Time::<()>::default());
     let camera = camera_entity(&mut app);
@@ -303,7 +305,7 @@ fn authored_camera_resets_on_switch_zoom_and_reentry() {
             .is_some()
     );
     select_race(&mut app, 2);
-    assert_camera_matches_source(&mut app, HORDE);
+    assert_camera_matches_source(&mut app, HORDE, 0.0);
     assert!(
         app.world()
             .get::<CharCreateOrbit>(camera)
@@ -341,12 +343,17 @@ fn authored_camera_resets_on_switch_zoom_and_reentry() {
     app.world_mut()
         .run_system_once(camera_zoom_for_dropdown)
         .unwrap();
-    assert_camera_matches_source(&mut app, HORDE);
+    let distance_offset = app
+        .world()
+        .resource::<CustomizationDb>()
+        .presentation_for(2, 0)
+        .camera_distance_offset;
+    assert_camera_matches_source(&mut app, HORDE, distance_offset);
     select_race(&mut app, 24);
-    assert_camera_matches_source(&mut app, NEUTRAL);
+    assert_camera_matches_source(&mut app, NEUTRAL, 0.0);
     app.world_mut().run_system_once(teardown_scene).unwrap();
     app.update();
     app.world_mut().run_system_once(setup_scene).unwrap();
     app.update();
-    assert_camera_matches_source(&mut app, ALLIANCE);
+    assert_camera_matches_source(&mut app, ALLIANCE, 0.0);
 }
