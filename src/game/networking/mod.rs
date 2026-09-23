@@ -360,6 +360,12 @@ fn register_inworld_snapshot_systems(app: &mut App) {
         msg::receive_combat_log_events,
         application_in_world,
     );
+    app.init_resource::<game_engine::ui::ui_errors::UiErrors>();
+    register_message_handler::<CastFailed, _>(
+        app,
+        crate::scenes::ui_errors_frame::receive_cast_failed,
+        application_in_world,
+    );
     register_message_handler::<AchievementStateUpdate, _>(
         app,
         msg::receive_achievement_state_update,

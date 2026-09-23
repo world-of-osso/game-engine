@@ -138,4 +138,5 @@ pub mod screens;
 pub mod spellbook_data;
 pub mod spellbook_frames;
 pub mod spellbook_runtime;
+pub mod ui_errors;
 pub mod wasm_host;
