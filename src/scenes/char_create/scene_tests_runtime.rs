@@ -55,6 +55,38 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
         initial_models.len()
     );
 
+    for (sex, entity) in &initial_models {
+        let presentation = app
+            .world()
+            .resource::<CustomizationDb>()
+            .presentation_for(1, *sex);
+        assert_eq!(
+            app.world().get::<Transform>(*entity).unwrap().scale,
+            Vec3::splat(presentation.customize_scale),
+            "creation uses the authored character scale"
+        );
+    }
+    app.world_mut()
+        .resource_mut::<Time>()
+        .advance_by(std::time::Duration::from_secs(1));
+    app.world_mut()
+        .run_system_once(camera_zoom_for_dropdown)
+        .unwrap();
+    let distance_offset = app
+        .world()
+        .resource::<CustomizationDb>()
+        .presentation_for(1, 0)
+        .camera_distance_offset;
+    let orbit = app
+        .world_mut()
+        .query::<&CharCreateOrbit>()
+        .single(app.world())
+        .unwrap();
+    assert!(
+        (orbit.distance - orbit.default_distance - distance_offset).abs() < 0.001,
+        "creation applies the authored character camera offset"
+    );
+
     let (race_2_center, race_2_id) = {
         let ui = app.world().resource::<UiState>();
         let race_2_id = ui
