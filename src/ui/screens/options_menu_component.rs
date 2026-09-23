@@ -59,6 +59,7 @@ const TAB_DIVIDER_COLOR: &str = "0.22,0.18,0.10,0.45";
 
 pub const ACTION_OPTIONS_OKAY: &str = "options_okay";
 pub const ACTION_OPTIONS_DEFAULTS: &str = "options_defaults";
+pub const ACTION_RESET_WINDOW_POSITIONS: &str = "options_reset_window_positions";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptionsCategory {

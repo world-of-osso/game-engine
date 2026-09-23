@@ -66,6 +66,7 @@ mod taxi;
 mod trash_button_screen;
 mod ui_input;
 mod ui_input_mode;
+mod ui_layout_store;
 mod update_schedule_isolation;
 mod window_manager;
 

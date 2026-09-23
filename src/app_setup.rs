@@ -261,6 +261,7 @@ fn register_ui_plugins(app: &mut App) {
         .add_plugins(IpcPlugin)
         .add_plugins(client_options::ClientOptionsPlugin)
         .add_plugins(crate::ui_input_mode::UiInputModePlugin)
+        .add_plugins(crate::ui_layout_store::UiLayoutStorePlugin)
         .add_plugins(crate::window_manager::WindowManagerPlugin);
 }
 

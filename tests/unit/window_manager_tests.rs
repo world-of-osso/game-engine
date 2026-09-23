@@ -328,3 +328,181 @@ fn leaving_the_world_closes_every_window() {
 
     assert!(!app.world().resource::<WindowManager>().any_open());
 }
+
+// --- Moved windows: drag, clamp, per-character persistence ---
+
+pub(crate) fn temp_layout_path(tag: &str) -> std::path::PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+    std::env::temp_dir().join(format!(
+        "ui-layout-{tag}-{}-{}.ron",
+        std::process::id(),
+        SEQUENCE.fetch_add(1, Ordering::Relaxed)
+    ))
+}
+
+fn select_character(app: &mut App, character_id: u64) {
+    app.insert_resource(crate::networking::SelectedCharacterId {
+        character_id: Some(character_id),
+        character_name: Some(format!("Char{character_id}")),
+    });
+}
+
+/// App with a layout store at `path` (loaded as on startup) and a character frame.
+fn persistent_window_app(path: &std::path::Path, ui_scale: f32, character_id: u64) -> App {
+    let mut app = window_app(Vec2::new(1920.0, 1080.0), ui_scale);
+    app.insert_resource(crate::ui_layout_store::UiLayoutStore::load(
+        path.to_path_buf(),
+    ));
+    select_character(&mut app, character_id);
+    add_window_frame(&mut app, WindowId::Character, Vec2::new(CHARACTER_W, 424.0));
+    app.update();
+    app
+}
+
+fn move_cursor_holding_left(app: &mut App, cursor: Vec2, ui_scale: f32) {
+    let mut windows = app
+        .world_mut()
+        .query_filtered::<&mut Window, With<PrimaryWindow>>();
+    windows
+        .single_mut(app.world_mut())
+        .unwrap()
+        .set_cursor_position(Some(cursor * ui_scale));
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.update();
+}
+
+fn release_left(app: &mut App) {
+    let mut mouse = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+    mouse.clear();
+    mouse.release(MouseButton::Left);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+}
+
+/// Drags by the title region from `grab` to `drop` (UI units).
+fn drag_title(app: &mut App, grab: Vec2, drop: Vec2, ui_scale: f32) {
+    press_left_at(app, grab, ui_scale);
+    move_cursor_holding_left(app, drop, ui_scale);
+    release_left(app);
+}
+
+fn reopen(app: &mut App, id: WindowId) {
+    app.world_mut().resource_mut::<WindowManager>().close(id);
+    app.update();
+    open_window(app, id);
+}
+
+#[test]
+fn dragged_window_reopens_at_its_saved_position_only_for_that_character() {
+    let path = temp_layout_path("drag");
+    {
+        let mut app = persistent_window_app(&path, 1.0, 11);
+        open_window(&mut app, WindowId::Character);
+        // Grab 10 units into the title region at (16,104), drop 300/200 away.
+        drag_title(
+            &mut app,
+            Vec2::new(40.0, 114.0),
+            Vec2::new(340.0, 314.0),
+            1.0,
+        );
+        assert_eq!(
+            frame_pos(&app, WindowId::Character),
+            Vec2::new(316.0, 304.0)
+        );
+
+        reopen(&mut app, WindowId::Character);
+        assert_eq!(
+            frame_pos(&app, WindowId::Character),
+            Vec2::new(316.0, 304.0)
+        );
+    }
+
+    let mut same = persistent_window_app(&path, 1.0, 11);
+    open_window(&mut same, WindowId::Character);
+    assert_eq!(
+        frame_pos(&same, WindowId::Character),
+        Vec2::new(316.0, 304.0),
+        "restart restores the character's saved position"
+    );
+
+    let mut other = persistent_window_app(&path, 1.0, 22);
+    open_window(&mut other, WindowId::Character);
+    assert_eq!(
+        frame_pos(&other, WindowId::Character),
+        Vec2::new(16.0, 104.0),
+        "another character opens at the slot"
+    );
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn press_below_the_title_region_does_not_move_the_window() {
+    let path = temp_layout_path("body");
+    let mut app = persistent_window_app(&path, 1.0, 11);
+    open_window(&mut app, WindowId::Character);
+
+    drag_title(
+        &mut app,
+        Vec2::new(40.0, 200.0),
+        Vec2::new(340.0, 400.0),
+        1.0,
+    );
+
+    assert_eq!(frame_pos(&app, WindowId::Character), Vec2::new(16.0, 104.0));
+    assert!(!path.exists(), "nothing saved");
+}
+
+#[test]
+fn dragged_window_clamps_to_screen_edges_at_ui_scale_four_thirds() {
+    let path = temp_layout_path("clamp");
+    let scale = 4.0 / 3.0;
+    let mut app = persistent_window_app(&path, scale, 11);
+    let screen = Vec2::new(1920.0 / scale, 1080.0 / scale);
+    open_window(&mut app, WindowId::Character);
+
+    drag_title(
+        &mut app,
+        Vec2::new(40.0, 114.0),
+        Vec2::new(5000.0, 5000.0),
+        scale,
+    );
+    assert_eq!(
+        frame_pos(&app, WindowId::Character),
+        Vec2::new(screen.x - CHARACTER_W, screen.y - 424.0)
+    );
+
+    drag_title(
+        &mut app,
+        Vec2::new(screen.x - CHARACTER_W + 10.0, screen.y - 420.0),
+        Vec2::new(-900.0, -900.0),
+        scale,
+    );
+    assert_eq!(frame_pos(&app, WindowId::Character), Vec2::ZERO);
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[test]
+fn reset_window_positions_returns_moved_windows_to_their_slots() {
+    let path = temp_layout_path("reset");
+    let mut app = persistent_window_app(&path, 1.0, 11);
+    open_window(&mut app, WindowId::Character);
+    drag_title(
+        &mut app,
+        Vec2::new(40.0, 114.0),
+        Vec2::new(340.0, 314.0),
+        1.0,
+    );
+
+    ResetWindowPositionsCommand.apply(app.world_mut());
+    app.update();
+
+    assert_eq!(frame_pos(&app, WindowId::Character), Vec2::new(16.0, 104.0));
+    let reloaded = crate::ui_layout_store::UiLayoutStore::load(path.clone());
+    assert_eq!(reloaded.window_position("11", "CharacterFrame"), None);
+    std::fs::remove_file(&path).unwrap();
+}

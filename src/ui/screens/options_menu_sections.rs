@@ -137,6 +137,43 @@ pub fn ghost_button_row(key: &str, label: &str, detail: &str) -> Element {
     }
 }
 
+/// Row with an enabled button that dispatches `action`.
+pub fn action_button_row(
+    key: &str,
+    label: &str,
+    detail: &str,
+    text: &str,
+    action: &str,
+) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("ActionRow{key}"))},
+            width: {OPTIONS_CONTENT_W - 30.0},
+            height: 34.0,
+            {row_label(key, label)}
+            {ghost_detail(key, detail)}
+            button {
+                name: {DynName(format!("ActionButton{key}"))},
+                width: 84.0,
+                height: 30.0,
+                text,
+                font_size: 14.0,
+                onclick: action,
+                button_atlas_up: BUTTON_ATLAS_UP,
+                button_atlas_pressed: BUTTON_ATLAS_PRESSED,
+                button_atlas_highlight: BUTTON_ATLAS_HIGHLIGHT,
+                button_atlas_disabled: BUTTON_ATLAS_DISABLED,
+                pos_type: "absolute",
+                left: "100%",
+                top: "50%",
+                translate_x: "-100%",
+                translate_y: "-50%",
+                margin_left: {-4},
+            }
+        }
+    }
+}
+
 fn section_stack(rows: Element) -> Element {
     rsx! {
         r#frame {

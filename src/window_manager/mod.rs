@@ -14,6 +14,27 @@ mod sessions;
 
 pub use placement::{WindowPlacements, place_windows};
 
+/// Clears the current character's moved-window positions ("Reset window positions").
+pub struct ResetWindowPositionsCommand;
+
+impl Command for ResetWindowPositionsCommand {
+    type Out = ();
+
+    fn apply(self, world: &mut World) {
+        let character = crate::ui_layout_store::character_key(
+            world.get_resource::<crate::networking::SelectedCharacterId>(),
+        );
+        let Some(character) = character else { return };
+        let Some(mut store) = world.get_resource_mut::<crate::ui_layout_store::UiLayoutStore>()
+        else {
+            return;
+        };
+        if store.clear_window_positions(&character) {
+            store.save();
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum WindowId {
     Achievements,
@@ -240,12 +261,13 @@ impl Plugin for WindowManagerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WindowManager>();
         app.init_resource::<WindowPlacements>();
+        app.init_resource::<input::WindowDrag>();
         app.add_systems(
             Update,
             (
                 sessions::sync_merchant_window,
                 sessions::sync_inspect_window,
-                input::raise_window_on_click,
+                (input::raise_window_on_click, input::drag_window_by_title).chain(),
             ),
         );
         app.add_systems(OnExit(GameState::InWorld), close_all_windows);
