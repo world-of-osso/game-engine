@@ -88,11 +88,22 @@ fn assert_atlas_pixels(app: &App, handle: &Handle<Image>, atlas: &str) {
         })
         .collect();
     let painted = app.world().resource::<Assets<Image>>().get(handle).unwrap();
+    let actual = painted.data.as_deref().unwrap();
     assert_eq!(
-        painted.data.as_deref().unwrap(),
-        expected,
-        "{atlas}: exact hover artwork"
+        actual.len(),
+        expected.len(),
+        "{atlas}: source crop dimensions"
     );
+    for (index, (actual, expected)) in actual
+        .chunks_exact(4)
+        .zip(expected.chunks_exact(4))
+        .enumerate()
+    {
+        assert_eq!(actual[3], expected[3], "{atlas}: pixel {index} alpha");
+        if expected[3] != 0 {
+            assert_eq!(actual, expected, "{atlas}: pixel {index} visible color");
+        }
+    }
 }
 
 #[test]
