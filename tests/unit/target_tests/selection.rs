@@ -134,22 +134,3 @@ fn test_tab_target_skips_hidden_npcs() {
     assert_eq!(current.0, Some(visible));
     assert_ne!(current.0, Some(hidden));
 }
-
-#[test]
-fn test_escape_clears_target() {
-    let mut app = game_engine::test_harness::headless_app();
-    app.init_resource::<CurrentTarget>();
-    app.init_resource::<ButtonInput<KeyCode>>();
-    app.add_systems(Update, clear_target);
-
-    let entity = app.world_mut().spawn_empty().id();
-    app.world_mut().resource_mut::<CurrentTarget>().0 = Some(entity);
-
-    app.world_mut()
-        .resource_mut::<ButtonInput<KeyCode>>()
-        .press(KeyCode::Escape);
-    game_engine::test_harness::run_updates(&mut app, 1);
-
-    let target = app.world().resource::<CurrentTarget>();
-    assert_eq!(target.0, None);
-}

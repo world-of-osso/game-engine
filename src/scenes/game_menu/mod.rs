@@ -27,9 +27,10 @@ mod interaction;
 pub mod options;
 
 use self::escape_stack::{
-    InWorldEscapePanelMut, InWorldEscapeStack, close_topmost_tracked_panel, close_tracked_panel,
-    sync_inworld_escape_stack,
+    InWorldEscapePanelMut, InWorldEscapeStack, close_all_tracked_panels, sync_inworld_escape_stack,
 };
+use crate::ui_input_mode::UiInputMode;
+use game_engine::targeting::CurrentTarget;
 
 const DRAG_THRESHOLD: f32 = 4.0;
 const OPTIONS_W: f32 = 860.0;
@@ -77,7 +78,7 @@ impl Plugin for GameMenuScreenPlugin {
         );
         app.add_systems(
             Update,
-            open_inworld_menu_on_escape
+            handle_inworld_escape
                 .after(sync_inworld_escape_stack)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
@@ -241,36 +242,65 @@ fn close_menu_overlay(mut commands: Commands) {
     close_game_menu(&mut commands);
 }
 
-fn open_inworld_menu_on_escape(
+/// The only in-world Escape handler: one action per press, first match wins.
+/// The game menu overlay keeps its own Escape handling (Modal mode).
+fn handle_inworld_escape(
     keys: Res<ButtonInput<KeyCode>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    overlay: Option<Res<GameMenuOverlay>>,
-    spellbook_runtime: Option<NonSend<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+    mode: Res<UiInputMode>,
+    spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
     mut escape_stack: ResMut<InWorldEscapeStack>,
     mut panels: InWorldEscapePanelMut,
+    target: Option<ResMut<CurrentTarget>>,
     mut ui: ResMut<UiState>,
     mut commands: Commands,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || overlay.is_some() {
-        return;
-    }
-    if spellbook_runtime
-        .as_ref()
-        .is_some_and(|runtime| runtime.has_focus())
+    if !keys.just_pressed(KeyCode::Escape)
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || *mode == UiInputMode::Modal
     {
         return;
     }
-    if !keys.just_pressed(KeyCode::Escape) {
+    if *mode == UiInputMode::Text {
+        clear_text_focus(&mut ui, spellbook_runtime);
         return;
     }
-    if close_topmost_tracked_panel(&mut escape_stack, |panel| {
-        close_tracked_panel(panel, &mut panels)
-    })
-    .is_some()
+    if cancel_cursor_action() || close_top_popup() {
+        return;
+    }
+    if close_all_tracked_panels(&mut escape_stack, &mut panels) {
+        return;
+    }
+    if let Some(mut target) = target
+        && target.0.is_some()
     {
+        target.0 = None;
         return;
     }
     open_game_menu(&mut ui, &mut commands, GameState::InWorld);
+}
+
+fn clear_text_focus(
+    ui: &mut UiState,
+    spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+) {
+    ui.focused_frame = None;
+    ui.registry.focused_frame = None;
+    if let Some(mut runtime) = spellbook_runtime {
+        runtime.clear_focus();
+    }
+}
+
+/// Escape step: drop the cursor item or cancel spell targeting.
+/// Hook point: no cursor item or spell-targeting state exists yet; always false.
+fn cancel_cursor_action() -> bool {
+    false
+}
+
+/// Escape step: close the top popup.
+/// Hook point for `PopupStack` (`is_open()` / `cancel_top()`); always false until wired.
+fn close_top_popup() -> bool {
+    false
 }
 
 fn clamp_top_left(pos: Vec2, reg: &FrameRegistry) -> [f32; 2] {

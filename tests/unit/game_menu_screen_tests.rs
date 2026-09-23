@@ -1,4 +1,6 @@
-use super::escape_stack::{InWorldEscapePanel, close_bag_panel, close_inspect_panel};
+use super::escape_stack::{
+    InWorldEscapePanel, close_bag_panel, close_inspect_panel, close_topmost_tracked_panel,
+};
 use super::*;
 use crate::scenes::game_menu::options::HudDraft;
 use game_engine::status::InspectStatusSnapshot;
@@ -106,35 +108,127 @@ fn inworld_options_can_show_inworld_hud_frames() {
     assert!(action_bar.visible);
 }
 
-#[test]
-fn escape_opens_game_menu_inworld() {
+fn inworld_escape_app(ui: UiState) -> App {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.init_resource::<ui_toolkit::native_render::caret::UiCaretBlocked>();
     app.add_plugins(GameMenuScreenPlugin);
+    app.add_plugins(crate::ui_input_mode::UiInputModePlugin);
     app.insert_state(GameState::InWorld);
     app.insert_resource(ButtonInput::<KeyCode>::default());
-    app.insert_resource(UiState {
-        registry: FrameRegistry::new(1920.0, 1080.0),
-        event_bus: EventBus::new(),
-        focused_frame: None,
-    });
+    app.insert_resource(ui);
     app.insert_resource(CameraOptions::default());
     app.insert_resource(HudOptions::default());
     app.insert_resource(ClientOptionsUiState {
         modal_offset: None,
         legacy_modal_position: None,
     });
-
-    app.world_mut()
-        .resource_mut::<ButtonInput<KeyCode>>()
-        .press(KeyCode::Escape);
+    app.init_resource::<CurrentTarget>();
+    app.init_resource::<crate::scenes::character_frame::CharacterFrameOpen>();
+    app.init_resource::<crate::scenes::mail_frame::MailFrameOpen>();
     app.update();
+    app
+}
+
+fn empty_ui() -> UiState {
+    UiState {
+        registry: FrameRegistry::new(1920.0, 1080.0),
+        event_bus: EventBus::new(),
+        focused_frame: None,
+    }
+}
+
+fn press_escape(app: &mut App) {
+    let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+    keys.release_all();
+    keys.clear();
+    keys.press(KeyCode::Escape);
+    app.update();
+}
+
+fn open_character_and_mail(app: &mut App) {
+    app.world_mut()
+        .resource_mut::<crate::scenes::character_frame::CharacterFrameOpen>()
+        .0 = true;
+    app.world_mut()
+        .resource_mut::<crate::scenes::mail_frame::MailFrameOpen>()
+        .0 = true;
+    app.update();
+}
+
+fn panels_open(app: &App) -> (bool, bool) {
+    (
+        app.world()
+            .resource::<crate::scenes::character_frame::CharacterFrameOpen>()
+            .0,
+        app.world()
+            .resource::<crate::scenes::mail_frame::MailFrameOpen>()
+            .0,
+    )
+}
+
+fn game_menu_open(app: &App) -> bool {
+    app.world()
+        .resource::<UiState>()
+        .registry
+        .get_by_name(GAME_MENU_ROOT.0)
+        .is_some()
+}
+
+#[test]
+fn escape_opens_game_menu_inworld() {
+    let mut app = inworld_escape_app(empty_ui());
+
+    press_escape(&mut app);
 
     assert!(app.world().contains_resource::<UiModalOpen>());
+    assert!(game_menu_open(&app));
+}
+
+#[test]
+fn escape_closes_all_panels_then_clears_target_then_opens_menu() {
+    let mut app = inworld_escape_app(empty_ui());
+    let target = app.world_mut().spawn_empty().id();
+    app.world_mut().resource_mut::<CurrentTarget>().0 = Some(target);
+    open_character_and_mail(&mut app);
+
+    press_escape(&mut app);
+    assert_eq!(
+        panels_open(&app),
+        (false, false),
+        "press 1 closes both panels"
+    );
+    assert_eq!(app.world().resource::<CurrentTarget>().0, Some(target));
+    assert!(!game_menu_open(&app));
+
+    press_escape(&mut app);
+    assert_eq!(
+        app.world().resource::<CurrentTarget>().0,
+        None,
+        "press 2 clears target"
+    );
+    assert!(!game_menu_open(&app));
+
+    press_escape(&mut app);
+    assert!(game_menu_open(&app), "press 3 opens the game menu");
+}
+
+#[test]
+fn escape_with_focused_editbox_only_clears_focus() {
+    let mut app = inworld_escape_app(crate::ui_input_mode::tests::ui_with_focused_editbox());
+    let target = app.world_mut().spawn_empty().id();
+    app.world_mut().resource_mut::<CurrentTarget>().0 = Some(target);
+    open_character_and_mail(&mut app);
+
+    press_escape(&mut app);
+
     let ui = app.world().resource::<UiState>();
-    assert!(ui.registry.get_by_name(GAME_MENU_ROOT.0).is_some());
+    assert_eq!(ui.focused_frame, None);
+    assert_eq!(ui.registry.focused_frame, None);
+    assert_eq!(panels_open(&app), (true, true));
+    assert_eq!(app.world().resource::<CurrentTarget>().0, Some(target));
+    assert!(!game_menu_open(&app));
 }
 
 #[test]

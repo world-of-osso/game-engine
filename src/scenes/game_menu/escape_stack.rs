@@ -233,6 +233,20 @@ pub(super) fn close_topmost_tracked_panel(
     None
 }
 
+/// Closes every open tracked panel; returns whether any was closed.
+pub(super) fn close_all_tracked_panels(
+    escape_stack: &mut InWorldEscapeStack,
+    panels: &mut InWorldEscapePanelMut,
+) -> bool {
+    let mut closed_any = false;
+    while close_topmost_tracked_panel(escape_stack, |panel| close_tracked_panel(panel, panels))
+        .is_some()
+    {
+        closed_any = true;
+    }
+    closed_any
+}
+
 pub(super) fn close_tracked_panel(
     panel: InWorldEscapePanel,
     panels: &mut InWorldEscapePanelMut,
