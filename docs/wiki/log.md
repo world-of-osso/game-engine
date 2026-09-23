@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-23] formats | Parse first authored M2 camera snapshot
+
+Version-274 MD21 camera offsets are relative to the MD20 payload, not the file; a 116-byte record has base position/target plus first spline offsets and a tracked diagonal FOV. The pure parser rejects missing records/keys and matches cached `623712`, `623714`, and `623716` bytes in three focused tests. Animation and scene integration remain out of scope. See [[m2-format]].
+
 ## [2026-09-22] character creation | Apply authored dropdown background slices
 
 Build-pinned `UiTextureAtlasElementSliceData` for `12.1.0.69875` adds element 25590 margins 23/18/23/28. Engine `83490974` applies the asymmetric `NineSlice` after both `Screen::sync` paths; the prior whole-image stretch left the popup background short of its columns. Native nine-part, opaque-center, label-order and idle-dirty tests pass. Runtime and final verification remain pending. See [[character-creation]].

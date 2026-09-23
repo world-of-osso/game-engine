@@ -68,12 +68,20 @@ The MD20 header light array starts at `0x108`. Current modern records are 156 by
 
 `4238519` has two type-1 cauldron point lights and `5149702`/`5140152` each have four lantern point lights. Local tracks sample the owning model sequence; global tracks use their declared global-sequence period. Static M2 attachments retain their authored lights and run the model-default local sequence independently of a parent skeletal player. See [[character-select-lighting-overwrite]] for the asset-backed regression evidence.
 
+## Authored Cameras
+
+For MD20 version 274 inside the `MD21` chunk, the camera array header is at payload offsets `0x110` (count) and `0x114` (offset). The outer chunk's 8-byte header is **not** part of these offsets. A camera record is 116 bytes: signed type and far/near clips at `0x00/0x04/0x08`; position spline track and base at `0x0c/0x20`; target spline track and base at `0x2c/0x40`; roll and FOV spline tracks at `0x4c/0x60`. The spline's first value is an offset added to the position/target base; FOV is a diagonal angle in radians. All coordinates remain raw WoW model-local coordinates.
+
+`m2_camera::parse_camera_snapshot` extracts camera index zero and each track's first key only; it does not evaluate animation. It rejects missing/truncated records or required keys and unsupported MD20 versions rather than inventing FOV defaults. The three cached creation backdrops (`623712`, `623714`, `623716`) each have one type-`-1` camera, with FOV `0.84570783`, near clip `0.22222222`, and far clip `513.91522`. This parser does not yet wire a scene camera.
+
 ## Particles
 
 Particle emitter data lives in the MD21 header at offset `0x128` (Cata+ layout, 476-byte stride). Each emitter references a bone index, a texture FDID (from TXID), and carries M2Track fields for emission speed, gravity, lifespan, etc. See [[particle-system]] for the renderer details and known limitations.
 
 ## Sources
 
+- [wowlib M2 camera records](https://skarndev.github.io/wowlib/python/m2/records/) — versioned camera fields and spline/FOV interpretation
+- [M2 camera parser](../../../src/asset/m2_format/m2_camera.rs) — MD20 layout, bounds checks, and cached creation-model fixtures
 - [docs/particle-system.md](../particle-system.md) — M2 particle parser layout, field list, renderer architecture
 - [docs/geosets.md](../geosets.md) — geoset groups, bone indices, texture types, HD geoset observations
 - [docs/hd-skeleton-status.md](../hd-skeleton-status.md) — external .skel loading, skin index overflow fix, render flags, bone remap
