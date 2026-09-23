@@ -116,6 +116,7 @@ fn spawn_camera(commands: &mut Commands, framing: background::Framing) -> Entity
             Name::new("CharCreateCamera"),
             CharCreateScene,
             Camera3d::default(),
+            bevy::camera::Exposure::default(),
             Projection::Perspective(PerspectiveProjection {
                 fov: framing.fov,
                 near: framing.near,

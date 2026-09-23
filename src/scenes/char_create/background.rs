@@ -38,8 +38,10 @@ pub(super) fn spawn(
         Name::new(format!("CharCreateBackdrop_{fdid}")),
     ));
     ctx.commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(ambient[0], ambient[1], ambient[2]),
-        brightness: 80.0,
+        color: Color::linear_rgb(ambient[0], ambient[1], ambient[2]),
+        // M2 ambient is a dimensionless shader multiplier, not illuminance.
+        // Convert to Bevy's pre-exposure units without changing camera exposure.
+        brightness: bevy::camera::Exposure::default().exposure().recip(),
         ..default()
     });
     Ok(Backdrop {
