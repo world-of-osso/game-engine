@@ -21,6 +21,49 @@ fn scene_app() -> App {
     app
 }
 
+#[test]
+fn creation_backdrop_materials_do_not_add_pbr_specular_to_authored_diffuse() {
+    let mut app = scene_app();
+    let outside = app
+        .world_mut()
+        .resource_mut::<Assets<StandardMaterial>>()
+        .add(StandardMaterial::default());
+    select_race(&mut app, 2);
+    let root = backdrop_root(app.world());
+    let meshes = descendants_with::<MeshMaterial3d<StandardMaterial>>(app.world_mut(), root);
+    let mut lit = 0;
+    for entity in meshes {
+        let handle = &app
+            .world()
+            .get::<MeshMaterial3d<StandardMaterial>>(entity)
+            .unwrap()
+            .0;
+        let material = app
+            .world()
+            .resource::<Assets<StandardMaterial>>()
+            .get(handle)
+            .unwrap();
+        if !material.unlit {
+            lit += 1;
+            assert_eq!(
+                material.reflectance, 0.0,
+                "UI-model scene lighting has zero specular, like the M2 effect path"
+            );
+            assert_eq!(material.perceptual_roughness, 1.0);
+        }
+    }
+    assert!(lit > 0, "actual scene must exercise lit standard batches");
+    assert_eq!(
+        app.world()
+            .resource::<Assets<StandardMaterial>>()
+            .get(&outside)
+            .unwrap()
+            .reflectance,
+        StandardMaterial::default().reflectance,
+        "non-backdrop materials remain unchanged"
+    );
+}
+
 fn backdrop_root(world: &World) -> Entity {
     world
         .resource::<DisplayedModels>()

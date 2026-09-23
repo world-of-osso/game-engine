@@ -37,6 +37,8 @@ pub(super) fn spawn(
         CharCreateScene,
         Name::new(format!("CharCreateBackdrop_{fdid}")),
     ));
+    ctx.commands
+        .queue(move |world: &mut World| apply_ui_model_material_lighting(world, root));
     ctx.commands.insert_resource(GlobalAmbientLight {
         color: Color::linear_rgb(ambient[0], ambient[1], ambient[2]),
         // M2 ambient is a dimensionless shader multiplier, not illuminance.
@@ -49,6 +51,39 @@ pub(super) fn spawn(
         root,
         framing,
     })
+}
+
+fn apply_ui_model_material_lighting(world: &mut World, root: Entity) {
+    let handles = backdrop_material_handles(world, root);
+    let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
+    for handle in handles {
+        let material = materials
+            .get_mut(&handle)
+            .expect("loaded backdrop material");
+        if !material.unlit {
+            // UIModel supplies zero scene specular. Match the existing M2 effect
+            // shader rather than introducing StandardMaterial's plastic sheen.
+            material.reflectance = 0.0;
+            material.perceptual_roughness = 1.0;
+        }
+    }
+}
+
+fn backdrop_material_handles(
+    world: &World,
+    root: Entity,
+) -> std::collections::HashSet<Handle<StandardMaterial>> {
+    let mut pending = vec![root];
+    let mut handles = std::collections::HashSet::new();
+    while let Some(entity) = pending.pop() {
+        if let Some(children) = world.get::<Children>(entity) {
+            pending.extend(children.iter());
+        }
+        if let Some(material) = world.get::<MeshMaterial3d<StandardMaterial>>(entity) {
+            handles.insert(material.0.clone());
+        }
+    }
+    handles
 }
 
 fn authored_ambient(model: &asset::m2::M2Model) -> Result<[f32; 3], String> {
