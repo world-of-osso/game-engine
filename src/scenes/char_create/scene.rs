@@ -279,25 +279,6 @@ fn sync_scene_projection(
     }
 }
 
-fn spawn_lighting(commands: &mut Commands) {
-    commands.insert_resource(GlobalAmbientLight {
-        color: Color::srgb(1.0, 0.95, 0.85),
-        brightness: 80.0,
-        ..default()
-    });
-    commands.spawn((
-        Name::new("DirectionalLight"),
-        CharCreateScene,
-        DirectionalLight {
-            illuminance: 8000.0,
-            shadow_maps_enabled: true,
-            color: Color::srgb(1.0, 0.92, 0.8),
-            ..default()
-        },
-        Transform::from_rotation(Quat::from_euler(EulerRot::XYZ, -PI / 4.0, PI / 6.0, 0.0)),
-    ));
-}
-
 fn model_transform() -> Transform {
     Transform::from_xyz(0.0, 0.0, 0.0)
         .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
@@ -433,8 +414,6 @@ fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
 }
 
 fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<DisplayedModels>) {
-    spawn_lighting(&mut spawn.commands);
-    ensure_sky_env_map(&mut spawn.commands, &mut spawn.images);
     let fdid = spawn
         .scene_catalog
         .lookup(1)
@@ -447,13 +426,6 @@ fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<Displayed
     displayed.active_sex = 0;
     displayed.models = models;
     displayed.background = Some(backdrop);
-}
-
-fn ensure_sky_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
-    let colors = crate::sky_lightdata::default_sky_colors();
-    let cubemap = crate::sky::build_sky_cubemap(&colors);
-    let handle = images.add(cubemap);
-    commands.insert_resource(crate::sky::SkyEnvMapHandle(handle));
 }
 
 fn sync_model(
