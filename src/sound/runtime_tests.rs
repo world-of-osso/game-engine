@@ -10,6 +10,7 @@ fn maintenance_test_app() -> App {
         .init_resource::<ButtonInput<KeyCode>>()
         .init_resource::<ButtonInput<MouseButton>>()
         .init_resource::<InputBindings>()
+        .init_resource::<crate::ui_input_mode::UiInputMode>()
         .insert_resource(SoundAssets {
             footstep_light: Handle::default(),
             footstep_heavy: Handle::default(),

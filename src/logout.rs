@@ -157,9 +157,11 @@ fn cancel_logout_on_input(
     keys: Res<ButtonInput<KeyCode>>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     bindings: Res<InputBindings>,
+    mode: Res<crate::ui_input_mode::UiInputMode>,
     mut logout: ResMut<LogoutState>,
 ) {
-    if logout.pending.is_none() || !logout_cancelled_by_input(&bindings, &keys, &mouse_buttons) {
+    let keys = crate::ui_input_mode::gameplay_keys(*mode, &keys);
+    if logout.pending.is_none() || !logout_cancelled_by_input(&bindings, keys, &mouse_buttons) {
         return;
     }
     logout.pending = None;

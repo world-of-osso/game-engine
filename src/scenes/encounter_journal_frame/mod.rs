@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use game_engine::encounter_journal_data::{
     AbilityDef, LootEntry, abilities_for_boss, loot_for_boss,
 };
+use game_engine::input_bindings::InputAction;
 use game_engine::status::EncounterJournalStatusSnapshot;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::encounter_journal_component::{
@@ -88,15 +89,10 @@ fn teardown_encounter_journal_frame_ui(
 }
 
 fn toggle_encounter_journal_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<EncounterJournalFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyJ) {
+    if keybinds.just_pressed(InputAction::ToggleEncounterJournal) {
         open.0 = !open.0;
     }
 }

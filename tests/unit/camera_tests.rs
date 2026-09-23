@@ -328,7 +328,6 @@ fn forward_input_counts_as_manual_override_for_pathing() {
         &keys,
         &mouse_buttons,
         &bindings,
-        None,
     ));
 }
 
@@ -340,8 +339,7 @@ fn modal_close_clears_autorun() {
         ..Default::default()
     };
 
-    let modal = crate::scenes::game_menu::UiModalOpen;
-    let closed = close_player_movement_for_modal(Some(&modal), &mut movement);
+    let closed = close_player_movement_for_modal(UiInputMode::Modal, &mut movement);
 
     assert!(closed);
     assert!(!movement.autorun);

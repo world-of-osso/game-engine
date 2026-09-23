@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::input_bindings::InputAction;
 use game_engine::status::{FriendsStatusSnapshot, WhoStatusSnapshot};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -95,17 +96,12 @@ fn teardown_friends_frame_ui(
 }
 
 fn toggle_friends_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<FriendsFrameOpen>,
     selection: Res<FriendsFrameSelection>,
     mut who_runtime: ResMut<WhoRuntimeState>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyO) {
+    if keybinds.just_pressed(InputAction::ToggleSocial) {
         open.0 = !open.0;
         if open.0 && selection.0 == FriendsFrameTabKind::Who {
             queue_query(&mut who_runtime, String::new());

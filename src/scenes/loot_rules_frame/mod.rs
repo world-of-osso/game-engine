@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::input_bindings::InputAction;
 use game_engine::raid_party_data::{GroupIntentQueue, LootMethod, LootThreshold, PartyState};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -85,15 +86,10 @@ fn teardown_loot_rules_frame_ui(
 }
 
 fn toggle_loot_rules_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<LootRulesFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyL) {
+    if keybinds.just_pressed(InputAction::ToggleLootRules) {
         open.0 = !open.0;
     }
 }

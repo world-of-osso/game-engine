@@ -2,6 +2,7 @@
 mod tests;
 
 use bevy::prelude::*;
+use game_engine::input_bindings::InputAction;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::achievement_frame_component::{
     AchievementCategory, AchievementFrameState, AchievementRow, AchievementTab,
@@ -83,15 +84,10 @@ fn teardown_achievement_frame_ui(
 }
 
 fn toggle_achievement_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<AchievementFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyY) {
+    if keybinds.just_pressed(InputAction::ToggleAchievements) {
         open.0 = !open.0;
     }
 }

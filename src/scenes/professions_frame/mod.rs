@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::input_bindings::InputAction;
 use game_engine::profession::{ProfessionRuntimeState, queue_craft_action};
 use game_engine::status::{ProfessionRecipeEntry, ProfessionStatusSnapshot};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
@@ -93,15 +94,10 @@ fn teardown_professions_frame_ui(
 }
 
 fn toggle_professions_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<ProfessionsFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyK) {
+    if keybinds.just_pressed(InputAction::ToggleProfessions) {
         open.0 = !open.0;
     }
 }

@@ -7,6 +7,12 @@ fn movement_app() -> (App, Entity) {
         .init_resource::<ButtonInput<KeyCode>>()
         .init_resource::<ButtonInput<MouseButton>>()
         .init_resource::<InputBindings>()
+        .insert_resource(game_engine::ui::plugin::UiState {
+            registry: game_engine::ui::registry::FrameRegistry::new(1920.0, 1080.0),
+            event_bus: game_engine::ui::event::EventBus::new(),
+            focused_frame: None,
+        })
+        .add_plugins(crate::ui_input_mode::UiInputModePlugin)
         .init_resource::<PathingState>()
         .init_resource::<game_engine::status::MapStatusSnapshot>()
         .init_resource::<ScriptedMovement>()
@@ -192,5 +198,36 @@ fn leaving_inworld_cancels_scripted_movement() {
             .resource_mut::<ScriptedMovement>()
             .next_step(0.1)
             .is_none()
+    );
+}
+
+#[test]
+fn focused_editbox_suppresses_movement_keys() {
+    let (mut app, player) = movement_app();
+    app.insert_resource(crate::ui_input_mode::tests::ui_with_focused_editbox());
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::KeyW);
+
+    advance_movement(&mut app, 0.1);
+
+    assert_eq!(
+        *app.world().resource::<crate::ui_input_mode::UiInputMode>(),
+        crate::ui_input_mode::UiInputMode::Text
+    );
+    assert_eq!(position(&app, player), Vec3::ZERO);
+    assert_eq!(
+        app.world().get::<MovementState>(player).unwrap().direction,
+        MoveDirection::None
+    );
+
+    app.world_mut()
+        .resource_mut::<game_engine::ui::plugin::UiState>()
+        .focused_frame = None;
+    advance_movement(&mut app, 0.1);
+
+    assert!(
+        position(&app, player).length() > 0.1,
+        "W moves once the editbox loses focus"
     );
 }

@@ -14,6 +14,7 @@ use crate::game_state::GameState;
 use crate::pathing::PathingState;
 use crate::taxi::TaxiState;
 use crate::terrain_heightmap::TerrainHeightmap;
+use crate::ui_input_mode::{UiInputMode, gameplay_keys};
 use game_engine::input_bindings::{InputAction, InputBindings};
 use game_engine::movement_control::{ScriptedMovement, ScriptedMovementStep};
 
@@ -160,7 +161,7 @@ fn camera_input(
     mouse_scroll: Res<AccumulatedMouseScroll>,
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    mode: Res<UiInputMode>,
     taxi: Option<Res<TaxiState>>,
     options: Res<crate::client_options::CameraOptions>,
     bindings: Res<InputBindings>,
@@ -168,11 +169,12 @@ fn camera_input(
     mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect)
-        || modal_open.is_some()
+        || *mode == UiInputMode::Modal
         || taxi.as_deref().is_some_and(TaxiState::is_active)
     {
         return;
     }
+    let keys = gameplay_keys(*mode, &keys);
     let Ok(mut cam) = camera_q.single_mut() else {
         return;
     };
@@ -198,14 +200,7 @@ fn camera_input(
         cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
     }
 
-    apply_keyboard_camera(
-        &keys,
-        &mouse_buttons,
-        &bindings,
-        dt,
-        &mut cam,
-        &mut facing_q,
-    );
+    apply_keyboard_camera(keys, &mouse_buttons, &bindings, dt, &mut cam, &mut facing_q);
 
     if mouse_scroll.delta.y != 0.0 {
         cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;
@@ -298,7 +293,7 @@ fn player_movement(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     terrain: Option<Res<TerrainHeightmap>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    mode: Res<UiInputMode>,
     taxi: Option<Res<TaxiState>>,
     mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
     bindings: Res<InputBindings>,
@@ -333,16 +328,16 @@ fn player_movement(
         return;
     }
 
-    if close_player_movement_for_modal(modal_open.as_deref(), &mut movement) {
+    if close_player_movement_for_modal(*mode, &mut movement) {
         scripted.stop();
         return;
     }
+    let keys = gameplay_keys(*mode, &keys);
 
     sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
 
-    sync_player_movement_toggles(&keys, &mouse_buttons, &bindings, &mut movement);
-    let manual_override =
-        has_manual_movement_override(&keys, &mouse_buttons, &bindings, modal_open.as_deref());
+    sync_player_movement_toggles(keys, &mouse_buttons, &bindings, &mut movement);
+    let manual_override = has_manual_movement_override(keys, &mouse_buttons, &bindings);
     let scripted_step = advance_scripted_movement(
         &mut scripted,
         &mut movement,
@@ -372,7 +367,7 @@ fn player_movement(
     .unwrap_or(false);
     let pathing_elapsed = perf.elapsed_since(pathing_start);
     let (direction, speed) = resolve_player_movement_state(
-        &keys,
+        keys,
         &mouse_buttons,
         &bindings,
         &mut movement,
@@ -405,7 +400,7 @@ fn player_movement(
         transform: &mut transform,
         movement: &mut movement,
         physics: &mut physics,
-        keys: &keys,
+        keys,
         mouse_buttons: &mouse_buttons,
         bindings: &bindings,
         terrain: terrain.as_deref(),
@@ -610,11 +605,8 @@ fn build_proposed_ground_movement(
     Some(current + direction.normalize() * speed * dt)
 }
 
-fn close_player_movement_for_modal(
-    modal_open: Option<&crate::scenes::game_menu::UiModalOpen>,
-    movement: &mut MovementState,
-) -> bool {
-    if modal_open.is_none() {
+fn close_player_movement_for_modal(mode: UiInputMode, movement: &mut MovementState) -> bool {
+    if mode != UiInputMode::Modal {
         return false;
     }
     movement.autorun = false;
@@ -669,10 +661,8 @@ fn has_manual_movement_override(
     keys: &ButtonInput<KeyCode>,
     mouse_buttons: &ButtonInput<MouseButton>,
     bindings: &InputBindings,
-    modal_open: Option<&crate::scenes::game_menu::UiModalOpen>,
 ) -> bool {
-    modal_open.is_some()
-        || bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
+    bindings.is_pressed(InputAction::MoveForward, keys, mouse_buttons)
         || bindings.is_pressed(InputAction::MoveBackward, keys, mouse_buttons)
         || bindings.is_pressed(InputAction::StrafeLeft, keys, mouse_buttons)
         || bindings.is_pressed(InputAction::StrafeRight, keys, mouse_buttons)

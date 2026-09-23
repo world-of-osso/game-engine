@@ -39,6 +39,7 @@ fn test_tab_target_ignores_non_npc_remote_entities() {
     let mut app = game_engine::test_harness::headless_app();
     app.init_resource::<CurrentTarget>();
     app.insert_resource(InputBindings::default());
+    app.init_resource::<crate::ui_input_mode::UiInputMode>();
     app.insert_resource(ButtonInput::<KeyCode>::default());
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.add_systems(Update, tab_target);
@@ -89,6 +90,7 @@ fn test_tab_target_skips_hidden_npcs() {
     let mut app = game_engine::test_harness::headless_app();
     app.init_resource::<CurrentTarget>();
     app.insert_resource(InputBindings::default());
+    app.init_resource::<crate::ui_input_mode::UiInputMode>();
     app.insert_resource(ButtonInput::<KeyCode>::default());
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.add_systems(Update, tab_target);
