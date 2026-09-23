@@ -8,9 +8,10 @@ const FEMALE: u8 = 1;
 struct ActionDispatchContext<'a, 'w, 's> {
     state: &'a mut CharCreateState,
     focus: &'a mut CharCreateFocus,
-    reg: &'a FrameRegistry,
+    reg: &'a mut FrameRegistry,
     cc: &'a CharCreateUi,
     cust_db: &'a CustomizationDb,
+    name_catalog: &'a NameCatalogResource,
     _marker: std::marker::PhantomData<(&'w (), &'s ())>,
 }
 
@@ -20,19 +21,21 @@ struct AutomationContext<'a, 'w, 's> {
     state: &'a mut CharCreateState,
     focus: &'a mut CharCreateFocus,
     cust_db: &'a CustomizationDb,
+    name_catalog: &'a NameCatalogResource,
     _marker: std::marker::PhantomData<(&'w (), &'s ())>,
 }
 
 pub(super) fn char_create_mouse_input(
     buttons: Res<ButtonInput<MouseButton>>,
     windows: Query<&Window>,
-    ui: Res<UiState>,
+    mut ui: ResMut<UiState>,
     cc_ui: Option<Res<CharCreateUi>>,
     mut state: ResMut<CharCreateState>,
     mut focus: ResMut<CharCreateFocus>,
     mut create_senders: MessageSenders<CreateCharacter>,
     mut next_state: ResMut<NextState<GameState>>,
     cust_db: Res<CustomizationDb>,
+    name_catalog: Res<NameCatalogResource>,
 ) {
     let Some(cc) = cc_ui.as_ref() else { return };
     if !buttons.just_pressed(MouseButton::Left) {
@@ -60,9 +63,10 @@ pub(super) fn char_create_mouse_input(
     let mut ctx = ActionDispatchContext {
         state: &mut state,
         focus: &mut focus,
-        reg: &ui.registry,
+        reg: &mut ui.registry,
         cc,
         cust_db: &cust_db,
+        name_catalog: &name_catalog,
         _marker: std::marker::PhantomData,
     };
     dispatch_action(&action, &mut ctx, &mut create_senders, &mut next_state);
@@ -92,6 +96,14 @@ fn dispatch_action(
             }
         }
         CharCreateAction::Randomize => apply_randomize(ctx.state, ctx.cust_db),
+        CharCreateAction::RandomizeName => {
+            if let Ok(catalog) = &ctx.name_catalog.0 {
+                apply_random_name_with_seed(ctx.state, ctx.reg, catalog, fresh_random_seed());
+            } else {
+                ctx.state.error_text = Some("Authored random names are unavailable".to_string());
+            }
+            return;
+        }
         CharCreateAction::NextMode => ctx.state.mode = CharCreateMode::Customize,
         CharCreateAction::Back => handle_back(ctx.state, next_state),
         CharCreateAction::AdjustOption(id, delta) => {
@@ -169,6 +181,26 @@ pub(super) fn apply_sex_toggle_with_seed(
         MALE
     };
     randomize_appearance_with_seed(state, db, seed);
+}
+
+pub(super) fn apply_random_name_with_seed(
+    state: &mut CharCreateState,
+    reg: &mut FrameRegistry,
+    catalog: &NameCatalog,
+    seed: u64,
+) {
+    let input_id = reg.get_by_name(CREATE_NAME_INPUT.0);
+    let current = input_id.map_or_else(|| state.name.clone(), |id| get_editbox_text(reg, id));
+    let Some(name) = catalog.pick_name(state.selected_race, state.selected_sex, &current, seed)
+    else {
+        state.error_text = Some("No authored names for this race and body type".to_string());
+        return;
+    };
+    state.name = name.to_string();
+    if let Some(id) = input_id {
+        set_editbox_text(reg, id, name);
+    }
+    state.error_text = None;
 }
 
 fn apply_randomize(state: &mut CharCreateState, db: &CustomizationDb) {
@@ -291,6 +323,7 @@ pub(super) fn char_create_run_automation(
     mut create_senders: MessageSenders<CreateCharacter>,
     mut next_state: ResMut<NextState<GameState>>,
     cust_db: Res<CustomizationDb>,
+    name_catalog: Res<NameCatalogResource>,
     mut queue: ResMut<UiAutomationQueue>,
     mut runner: ResMut<UiAutomationRunner>,
 ) {
@@ -307,6 +340,7 @@ pub(super) fn char_create_run_automation(
         state: &mut state,
         focus: &mut focus,
         cust_db: &cust_db,
+        name_catalog: &name_catalog,
         _marker: std::marker::PhantomData,
     };
     let result =
@@ -373,9 +407,10 @@ fn click_char_create_frame(
     let mut dispatch = ActionDispatchContext {
         state: ctx.state,
         focus: ctx.focus,
-        reg: &ctx.ui.registry,
+        reg: &mut ctx.ui.registry,
         cc: ctx.cc,
         cust_db: ctx.cust_db,
+        name_catalog: ctx.name_catalog,
         _marker: std::marker::PhantomData,
     };
     dispatch_action(&action, &mut dispatch, create_senders, next_state);

@@ -35,6 +35,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 ### Creation flow
 
 - [x] Preserve typed names through category/popup updates and Back/Next navigation; retain focus and error presentation where applicable.
+- [x] Place a distinct Randomize Name dice control immediately left of the name editbox. Load the build-pinned authored NameGen catalog once; select only names for the selected race and body type, mapping Pandaren faction IDs 25/26 to neutral ID 24. Exclude names rejected by the existing 2–12 ASCII-letter creation validation, never truncate or synthesize. Repeated clicks change the name where another candidate exists, updating both draft and editbox without altering appearance, category, popup, navigation or submitting a character. Missing/invalid catalog or empty race/body-type group disables the control; forced selection reports an error.
 - [x] Transmit the complete supported appearance through the existing creation path and preserve it after server storage/reopen and roster loading.
 
 ## How it works
@@ -47,7 +48,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 - `src/ui/screens/char_create_component/` — reference views, actions, layout and view models.
 - `src/ui/screens/char_create_component/navigation_art.rs` — authored asymmetric navigation layers and live button-state synchronization before projection.
-- `src/scenes/char_create/` — input, catalog/view bridge, name draft, preview and masked-icon integration.
+- `src/scenes/char_create/` — input, catalog/view bridge, authored name catalog and draft, preview and masked-icon integration.
 - `src/rendering/character/{customization_data,customization_cache,appearance_options,character_customization}.rs` — catalog/cache, disjoint selections and material/geoset application.
 - `src/ui/character_creation_icons.rs` — cached authored-alpha-mask composition.
 - `../shared-protocol/src/components.rs`, `../game-server/crates/server/src/character_data.rs` — appearance payload and stored-data upgrades.
@@ -59,6 +60,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - `tests/unit/charcreate_button_background_tests.rs` — child-art controls project no default root image; Mirror icon tab projects authored pixels without a permanent caption; circular hover artwork has native geometry/pixel regressions.
 - `src/ui/screens/char_create_component/navigation_art_tests.rs` — exact local-CASC slice crops, asymmetric geometry, physical-pixel-contiguous slices at 1.0/1.15/1.25/1.5 scale, native label-over-art ordering/style and live normal/pressed/disabled/hover state synchronization.
 - `tests/unit/{char_create_tests,char_create_shared_tests,char_create_response_tests,character_customization_tests}.rs` — selection, request loopback, response and render-effect behavior.
+- `src/scenes/char_create/{name_catalog_tests,name_action_tests}.rs` and `src/ui/screens/char_create_component/name_button_tests.rs` — real authored race/body-type coverage, validation, distinct action, native placement, missing data, draft/editbox preservation.
 - `src/scenes/char_create/{scene_tests,scene_tests_runtime}.rs` — camera/preview and native mouse-input scheduling.
 - `tests/unit/{customization_data_tests,customization_catalog_cache_tests}.rs` — catalog fidelity, filtering, stale-schema autoload and real local-data loading.
 - `src/ui/character_creation_icons.rs` — decoded pixel/mask/cache/error regressions.

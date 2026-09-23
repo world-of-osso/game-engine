@@ -10,6 +10,7 @@ struct Fixture {
     registry: FrameRegistry,
     state: CharCreateState,
     db: CustomizationDb,
+    names: NameCatalogResource,
 }
 
 impl Fixture {
@@ -24,6 +25,7 @@ impl Fixture {
             registry: FrameRegistry::new(1920.0, 1080.0),
             state: CharCreateState::default(),
             db: CustomizationDb::default(),
+            names: NameCatalogResource(NameCatalog::load(Path::new("data/NameGen.csv"))),
         }
     }
 
@@ -55,6 +57,7 @@ impl Fixture {
             &mut self.registry,
             &mut self.state,
             &self.db,
+            &self.names,
             focused,
         );
     }
@@ -395,6 +398,7 @@ fn char_create_shared_request_uses_live_name_after_next_and_category_changes() {
         registry,
         state,
         db,
+        ..
     } = fixture;
     world.insert_resource(UiState {
         registry,
