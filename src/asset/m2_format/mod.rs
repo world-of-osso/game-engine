@@ -42,8 +42,8 @@ pub(crate) const MD20_TEXTURE_LOOKUP_COUNT_OFFSET: usize = 0x80;
 pub(crate) const MD20_TEXTURE_UNIT_LOOKUP_COUNT_OFFSET: usize = 0x88;
 pub(crate) const MD20_BOUNDING_BOX_MIN_OFFSET: usize = 0xA0;
 pub(crate) const MD20_BOUNDING_BOX_MAX_OFFSET: usize = 0xAC;
-pub(crate) const MD20_ATTACHMENTS_COUNT_OFFSET: usize = 0xD8;
-pub(crate) const MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET: usize = 0xE0;
+pub(crate) const MD20_ATTACHMENTS_COUNT_OFFSET: usize = 0xF0;
+pub(crate) const MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET: usize = 0xF8;
 pub(crate) const MD20_PARTICLE_EMITTERS_COUNT_OFFSET: usize = 0x128;
 
 /// Parse the vertex bounding box from the MD20 header.

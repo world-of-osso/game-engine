@@ -1,8 +1,9 @@
 //! M2 attachment point parser.
 //!
 //! MD20 header M2Array offsets:
-//!   0xD8: attachments (count + offset) → M2Attachment[n] (40 bytes each)
-//!   0xE0: attachment_lookup (count + offset) → i16[n]
+//!   0xD8–0xEF: collision indices, vertices, normals (three M2Arrays)
+//!   0xF0: attachments (count + offset) → M2Attachment[n] (40 bytes each)
+//!   0xF8: attachment_lookup (count + offset) → i16[n]
 //!
 //! M2Attachment layout (40 bytes):
 //!   0x00: id (u32) — attachment lookup ID
@@ -35,7 +36,7 @@ pub struct M2Attachment {
     pub position: [f32; 3],
 }
 
-/// Parse M2Attachment entries from MD20 offset 0xD8.
+/// Parse M2Attachment entries from MD20 offset 0xF0.
 pub fn parse_attachments(md20: &[u8]) -> Result<Vec<M2Attachment>, String> {
     let (count, offset) = read_m2_array_header(md20, MD20_ATTACHMENTS_COUNT_OFFSET)?;
     let mut attachments = Vec::with_capacity(count);
@@ -82,7 +83,7 @@ pub fn parse_ska1_attachments(ska1: &[u8]) -> Result<Vec<M2Attachment>, String> 
     Ok(attachments)
 }
 
-/// Parse attachment lookup table from MD20 offset 0xE0 (array of i16).
+/// Parse attachment lookup table from MD20 offset 0xF8 (array of i16).
 pub fn parse_attachment_lookup(md20: &[u8]) -> Result<Vec<i16>, String> {
     let (count, offset) = read_m2_array_header(md20, MD20_ATTACHMENT_LOOKUP_COUNT_OFFSET)?;
     let mut lookup = Vec::with_capacity(count);
