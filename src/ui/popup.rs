@@ -111,6 +111,18 @@ impl PopupStack {
         true
     }
 
+    /// Whether a popup of `key` is stacked (visible or queued).
+    pub fn contains(&self, key: &str) -> bool {
+        self.slots.iter().any(|s| s.entry.spec.key == key)
+    }
+
+    /// Close the `key` popup without a result (`StaticPopup_Hide`). Returns false when absent.
+    pub fn hide(&mut self, key: &str) -> bool {
+        let before = self.slots.len();
+        self.slots.retain(|s| s.entry.spec.key != key);
+        self.slots.len() != before
+    }
+
     /// Advance on-screen time for visible popups and time out expired ones.
     pub fn tick(&mut self, delta: Duration) {
         let mut expired = Vec::new();
@@ -182,6 +194,20 @@ mod tests {
         assert_eq!(visible.len(), 2);
         assert_eq!(visible[0].id, invite);
         assert_eq!(visible[0].spec.text, "Arthas invites you");
+        assert!(stack.drain_results().is_empty());
+    }
+
+    #[test]
+    fn hide_removes_popup_without_a_result_and_promotes_queued() {
+        let mut stack = PopupStack::default();
+        for key in ["a", "b", "c", "d"] {
+            stack.push(spec(key));
+        }
+        assert!(stack.hide("b"));
+        assert!(!stack.hide("b"));
+        assert!(!stack.contains("b"));
+        let keys: Vec<_> = stack.visible().into_iter().map(|e| e.spec.key).collect();
+        assert_eq!(keys, ["a", "c", "d"]);
         assert!(stack.drain_results().is_empty());
     }
 
