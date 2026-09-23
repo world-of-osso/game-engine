@@ -711,6 +711,9 @@ fn camera_ray_hits_character_model() {
 #[path = "scene_tests_runtime.rs"]
 mod runtime_tests;
 
+#[path = "background_tests.rs"]
+mod background_tests;
+
 #[test]
 fn apply_orbit_produces_valid_transform() {
     let orbit = CharCreateOrbit {
