@@ -22,6 +22,28 @@ fn choice_label(choice: &CustomizationChoiceUi, index: usize) -> String {
     }
 }
 
+fn fit_closed_label(label: &str) -> (String, f32) {
+    const MAX_WIDTH: f32 = 126.0;
+    let width = |text: &str| {
+        measure_text(text, GameFont::FrizQuadrata, 12.0)
+            .expect("closed customization font must be available")
+            .0
+    };
+    let full_width = width(label);
+    if full_width <= MAX_WIDTH {
+        return (label.to_string(), full_width);
+    }
+    let mut characters: Vec<char> = label.chars().collect();
+    loop {
+        characters.pop();
+        let shortened = format!("{}…", characters.iter().collect::<String>());
+        let shortened_width = width(&shortened);
+        if shortened_width <= MAX_WIDTH {
+            return (shortened, shortened_width);
+        }
+    }
+}
+
 fn tint(color: [u8; 3]) -> String {
     format!(
         "{},{},{},1",
@@ -38,6 +60,7 @@ fn choice_details(
     selected: bool,
     selectable: bool,
     details_width: f32,
+    label_override: Option<&str>,
 ) -> Element {
     let color = if !choice.enabled {
         COLOR_DISABLED
@@ -47,11 +70,13 @@ fn choice_details(
         COLOR_WHITE
     };
     let has_colors = choice.swatch.is_some() || choice.secondary_swatch.is_some();
-    let label = if selectable && has_colors {
-        (index + 1).to_string()
-    } else {
-        choice_label(choice, index)
-    };
+    let label = label_override.map(str::to_owned).unwrap_or_else(|| {
+        if selectable && has_colors {
+            (index + 1).to_string()
+        } else {
+            choice_label(choice, index)
+        }
+    });
     let hide_label = !selectable && has_colors;
     let swatches = choice_swatches(name, choice, selected, selectable);
     rsx! {
@@ -187,26 +212,21 @@ fn dropdown_control(option: &CustomizationOptionUi, open: bool) -> Element {
         .iter()
         .enumerate()
         .find(|(_, choice)| choice.id == option.selected_choice_id);
+    let label = selected
+        .map(|(index, choice)| choice_label(choice, index))
+        .unwrap_or_else(|| "Choose".to_string());
+    let (displayed_label, text_width) = fit_closed_label(&label);
     let value_width = match selected {
         Some((_, choice)) if choice.swatch.is_some() && choice.secondary_swatch.is_some() => 54.0,
         Some((_, choice)) if choice.swatch.is_some() || choice.secondary_swatch.is_some() => 42.0,
-        Some((index, choice)) => {
-            measure_text(&choice_label(choice, index), GameFont::FrizQuadrata, 12.0)
-                .expect("closed customization font must be available")
-                .0
-                .min(126.0)
-        }
-        None => measure_text("Choose", GameFont::FrizQuadrata, 12.0)
-            .expect("closed customization font must be available")
-            .0
-            .min(126.0),
+        _ => text_width,
     };
     let value_left = (150.0 - value_width) / 2.0;
     let value = selected
-        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false, value_width))
+        .map(|(index, choice)| choice_details(&format!("OptionValue_{}", option.id), choice, index, false, false, value_width, Some(&displayed_label)))
         .unwrap_or_else(|| rsx! {
             fontstring { name: DynName(format!("OptionValue_{}_Text", option.id)), width: value_width, height: 20.0,
-                text: "Choose", font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_WHITE,
+                text: displayed_label, font: GameFont::FrizQuadrata, font_size: 12.0, font_color: COLOR_WHITE,
             }
         });
     rsx! {
@@ -303,7 +323,7 @@ fn dropdown_choice(
             pos_type: "absolute", left: x, top: y,
             r#frame { name: DynName(format!("{name}_Details")), width: details_width, height: 20.0,
                 pos_type: "absolute", left: 14.0, top: 0.0,
-                {choice_details(&name, choice, index, selected, true, details_width)}
+                {choice_details(&name, choice, index, selected, true, details_width, None)}
             }
         }
     }
