@@ -215,6 +215,47 @@ fn escape_closes_all_panels_then_clears_target_then_opens_menu() {
 }
 
 #[test]
+fn escape_cancels_only_the_popup_when_popup_and_panel_are_open() {
+    let mut app = inworld_escape_app(empty_ui());
+    app.init_resource::<PopupStack>();
+    let popup =
+        app.world_mut()
+            .resource_mut::<PopupStack>()
+            .push(game_engine::ui::popup::PopupSpec {
+                key: "duel".into(),
+                text: "Duel?".into(),
+                accept_label: "Accept".into(),
+                cancel_label: Some("Decline".into()),
+                timeout: None,
+            });
+    open_character_and_mail(&mut app);
+
+    press_escape(&mut app);
+
+    let results = app.world_mut().resource_mut::<PopupStack>().drain_results();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, popup);
+    assert_eq!(
+        results[0].outcome,
+        game_engine::ui::popup::PopupOutcome::Cancelled
+    );
+    assert!(!app.world().resource::<PopupStack>().is_open());
+    assert_eq!(
+        panels_open(&app),
+        (true, true),
+        "panels stay open on press 1"
+    );
+    assert!(!game_menu_open(&app));
+
+    press_escape(&mut app);
+    assert_eq!(
+        panels_open(&app),
+        (false, false),
+        "press 2 closes the panels"
+    );
+}
+
+#[test]
 fn escape_with_focused_editbox_only_clears_focus() {
     let mut app = inworld_escape_app(crate::ui_input_mode::tests::ui_with_focused_editbox());
     let target = app.world_mut().spawn_empty().id();

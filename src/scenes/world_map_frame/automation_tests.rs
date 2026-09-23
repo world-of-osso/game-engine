@@ -30,8 +30,13 @@ fn inworld_app() -> App {
     app.init_resource::<WorldMapState>();
     app.init_resource::<CurrentZone>();
     app.init_resource::<crate::taxi::TaxiState>();
+    app.init_resource::<game_engine::input_bindings::InputBindings>();
     app.insert_state(GameState::InWorld);
-    app.add_plugins((UiAutomationPlugin, WorldMapFramePlugin));
+    app.add_plugins((
+        UiAutomationPlugin,
+        WorldMapFramePlugin,
+        crate::ui_input_mode::UiInputModePlugin,
+    ));
     app.update();
     app
 }
@@ -84,11 +89,11 @@ fn assert_no_automation_error(app: &App) {
 }
 
 #[test]
-fn js_shift_m_opens_world_map_and_click_close_button_closes_it() {
+fn js_m_opens_world_map_and_click_close_button_closes_it() {
     let mut app = inworld_app();
     assert!(!map_open(&app));
 
-    queue_script(&mut app, r#"ui.key("Shift+M");"#);
+    queue_script(&mut app, r#"ui.key("M");"#);
     run_until_queue_drained(&mut app);
     assert_no_automation_error(&app);
     assert!(map_open(&app));
@@ -102,8 +107,9 @@ fn js_shift_m_opens_world_map_and_click_close_button_closes_it() {
 }
 
 #[test]
-fn js_plain_m_without_shift_does_not_open_world_map() {
+fn js_m_with_focused_editbox_does_not_open_world_map() {
     let mut app = inworld_app();
+    app.insert_resource(crate::ui_input_mode::tests::ui_with_focused_editbox());
     queue_script(&mut app, r#"ui.key("M");"#);
     run_until_queue_drained(&mut app);
     assert_no_automation_error(&app);
@@ -114,10 +120,7 @@ fn js_plain_m_without_shift_does_not_open_world_map() {
 fn js_click_on_hidden_inworld_frame_reports_error_and_advances() {
     let mut app = inworld_app();
     simulate_layout_readback(&mut app, "WorldMapCloseBtn");
-    queue_script(
-        &mut app,
-        r#"ui.click("WorldMapCloseBtn"); ui.key("Shift+M");"#,
-    );
+    queue_script(&mut app, r#"ui.click("WorldMapCloseBtn"); ui.key("M");"#);
     run_until_queue_drained(&mut app);
     let error = app
         .world()

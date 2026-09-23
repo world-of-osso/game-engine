@@ -21,14 +21,18 @@ The configurable keybinding system currently covers:
 - camera keyboard controls: turn left/right, pitch up/down, zoom in/out
 - targeting: target nearest
 - action bar slots: 1 through 12
-- audio: toggle mute
+- audio: toggle mute (Ctrl+S, Retail "Toggle Sound")
 - interface panel toggles: character (C), professions (K), achievements (Y), talents (N),
-  adventure guide (J), social (O), mail (M), loot rules (L), world map (Shift+M)
+  adventure guide (J), social (O), mail (unbound; a mailbox opens it), loot rules (L), world map (M)
 
 These bindings are persisted with client options and edited through the Options -> Keybindings screen.
-A binding is a single key, a single key with Shift held, or a mouse button. During capture Shift acts
-only as a modifier. While Shift is held, a plain key yields to a Shift+key binding on the same key.
-Saved files that predate an action get its default unless a saved action already owns that input.
+Defaults follow Retail and contain no duplicates. A binding is a key, Shift+key, Ctrl+key, or a mouse
+button. During capture Shift and Ctrl act only as modifiers (Ctrl wins when both are held). While a
+modifier is held, a plain key yields to a modifier binding on the same key (Ctrl+S mutes without
+moving backward).
+
+Saved-file migration: an explicitly saved binding wins. An action missing from the file, or still on a
+retired default (mute on `M`), gets the current default unless an explicit binding already owns it.
 
 All bindable actions fire only in World input mode (`UiInputMode` in `src/ui_input_mode.rs`):
 never while an editbox or the spellbook search has focus (Text) or the game menu is open (Modal).

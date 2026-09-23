@@ -31,6 +31,7 @@ use self::escape_stack::{
 };
 use crate::ui_input_mode::UiInputMode;
 use game_engine::targeting::CurrentTarget;
+use game_engine::ui::popup::PopupStack;
 
 const DRAG_THRESHOLD: f32 = 4.0;
 const OPTIONS_W: f32 = 860.0;
@@ -252,6 +253,7 @@ fn handle_inworld_escape(
     mut escape_stack: ResMut<InWorldEscapeStack>,
     mut panels: InWorldEscapePanelMut,
     target: Option<ResMut<CurrentTarget>>,
+    popups: Option<ResMut<PopupStack>>,
     mut ui: ResMut<UiState>,
     mut commands: Commands,
 ) {
@@ -265,7 +267,7 @@ fn handle_inworld_escape(
         clear_text_focus(&mut ui, spellbook_runtime);
         return;
     }
-    if cancel_cursor_action() || close_top_popup() {
+    if cancel_cursor_action() || close_top_popup(popups) {
         return;
     }
     if close_all_tracked_panels(&mut escape_stack, &mut panels) {
@@ -297,10 +299,13 @@ fn cancel_cursor_action() -> bool {
     false
 }
 
-/// Escape step: close the top popup.
-/// Hook point for `PopupStack` (`is_open()` / `cancel_top()`); always false until wired.
-fn close_top_popup() -> bool {
-    false
+/// Escape step: cancel the newest visible popup.
+fn close_top_popup(popups: Option<ResMut<PopupStack>>) -> bool {
+    let Some(mut popups) = popups.filter(|popups| popups.is_open()) else {
+        return false;
+    };
+    popups.cancel_top();
+    true
 }
 
 fn clamp_top_left(pos: Vec2, reg: &FrameRegistry) -> [f32; 2] {

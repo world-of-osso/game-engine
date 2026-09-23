@@ -214,29 +214,35 @@ impl InputAction {
             Self::ToggleCharacter => (
                 "toggle_character",
                 "Character Info",
-                keyboard(KeyCode::KeyC),
+                Some(keyboard(KeyCode::KeyC)),
             ),
-            Self::ToggleProfessions => {
-                ("toggle_professions", "Professions", keyboard(KeyCode::KeyK))
-            }
+            Self::ToggleProfessions => (
+                "toggle_professions",
+                "Professions",
+                Some(keyboard(KeyCode::KeyK)),
+            ),
             Self::ToggleAchievements => (
                 "toggle_achievements",
                 "Achievements",
-                keyboard(KeyCode::KeyY),
+                Some(keyboard(KeyCode::KeyY)),
             ),
-            Self::ToggleTalents => ("toggle_talents", "Talents", keyboard(KeyCode::KeyN)),
+            Self::ToggleTalents => ("toggle_talents", "Talents", Some(keyboard(KeyCode::KeyN))),
             Self::ToggleEncounterJournal => (
                 "toggle_encounter_journal",
                 "Adventure Guide",
-                keyboard(KeyCode::KeyJ),
+                Some(keyboard(KeyCode::KeyJ)),
             ),
-            Self::ToggleSocial => ("toggle_social", "Social", keyboard(KeyCode::KeyO)),
-            Self::ToggleMail => ("toggle_mail", "Mail", keyboard(KeyCode::KeyM)),
-            Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", keyboard(KeyCode::KeyL)),
+            Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(KeyCode::KeyO))),
+            Self::ToggleMail => ("toggle_mail", "Mail", None),
+            Self::ToggleLootRules => (
+                "toggle_loot_rules",
+                "Loot Rules",
+                Some(keyboard(KeyCode::KeyL)),
+            ),
             Self::ToggleWorldMap => (
                 "toggle_world_map",
                 "World Map",
-                InputBinding::ShiftKeyboard(KeyCode::KeyM),
+                Some(keyboard(KeyCode::KeyM)),
             ),
             _ => return None,
         };
@@ -244,7 +250,7 @@ impl InputAction {
             key,
             label,
             BindingSection::Interface,
-            Some(binding),
+            binding,
         ))
     }
 
@@ -265,7 +271,12 @@ impl InputAction {
             Self::ZoomOut => camera_meta("zoom_out", "Zoom Out", KeyCode::PageDown),
             Self::TargetNearest => targeting_meta("target_nearest", "Target Nearest", KeyCode::Tab),
             Self::TargetSelf => targeting_meta("target_self", "Target Self", KeyCode::F1),
-            Self::ToggleMute => audio_meta("toggle_mute", "Toggle Mute", KeyCode::KeyM),
+            Self::ToggleMute => input_action_meta(
+                "toggle_mute",
+                "Toggle Mute",
+                BindingSection::Audio,
+                Some(InputBinding::CtrlKeyboard(KeyCode::KeyS)),
+            ),
             Self::ToggleCharacter
             | Self::ToggleProfessions
             | Self::ToggleAchievements
@@ -370,6 +381,8 @@ pub enum InputBinding {
     Keyboard(KeyCode),
     /// Key pressed while either Shift is held.
     ShiftKeyboard(KeyCode),
+    /// Key pressed while either Ctrl is held.
+    CtrlKeyboard(KeyCode),
     Mouse(MouseButton),
 }
 
@@ -382,6 +395,7 @@ impl InputBinding {
         match self {
             Self::Keyboard(key) => keys.pressed(key),
             Self::ShiftKeyboard(key) => shift_held(keys) && keys.pressed(key),
+            Self::CtrlKeyboard(key) => ctrl_held(keys) && keys.pressed(key),
             Self::Mouse(button) => mouse_buttons.pressed(button),
         }
     }
@@ -394,6 +408,7 @@ impl InputBinding {
         match self {
             Self::Keyboard(key) => keys.just_pressed(key),
             Self::ShiftKeyboard(key) => shift_held(keys) && keys.just_pressed(key),
+            Self::CtrlKeyboard(key) => ctrl_held(keys) && keys.just_pressed(key),
             Self::Mouse(button) => mouse_buttons.just_pressed(button),
         }
     }
@@ -402,21 +417,27 @@ impl InputBinding {
         match self {
             Self::Keyboard(key) => key_display(key),
             Self::ShiftKeyboard(key) => format!("Shift-{}", key_display(key)),
+            Self::CtrlKeyboard(key) => format!("Ctrl-{}", key_display(key)),
             Self::Mouse(button) => mouse_button_display(button),
         }
     }
 }
 
-/// Binding captured from a key press. Shift keys act as the modifier and are
-/// never captured on their own.
+/// Binding captured from a key press. Shift and Ctrl act as modifiers and are
+/// never captured on their own; Ctrl wins when both are held.
 pub fn captured_keyboard_binding(
     key: KeyCode,
     keys: &ButtonInput<KeyCode>,
 ) -> Option<InputBinding> {
-    if matches!(key, KeyCode::ShiftLeft | KeyCode::ShiftRight) {
+    if matches!(
+        key,
+        KeyCode::ShiftLeft | KeyCode::ShiftRight | KeyCode::ControlLeft | KeyCode::ControlRight
+    ) {
         return None;
     }
-    Some(if shift_held(keys) {
+    Some(if ctrl_held(keys) {
+        InputBinding::CtrlKeyboard(key)
+    } else if shift_held(keys) {
         InputBinding::ShiftKeyboard(key)
     } else {
         InputBinding::Keyboard(key)
@@ -448,16 +469,28 @@ pub struct InputBindings {
     bindings: BTreeMap<InputAction, Option<InputBinding>>,
 }
 
-/// Persisted form. Actions missing from a saved file (added after it was written)
-/// get their default binding unless a saved action already owns that input.
+/// Persisted form. Saved files store every action, so a saved value equal to a
+/// retired default is treated as "never customized".
 #[derive(Deserialize)]
 struct SavedInputBindings {
     bindings: BTreeMap<InputAction, Option<InputBinding>>,
 }
 
+/// Defaults that shipped and were later changed: (action, old default).
+const RETIRED_DEFAULTS: [(InputAction, InputBinding); 1] = [(
+    InputAction::ToggleMute,
+    InputBinding::Keyboard(KeyCode::KeyM),
+)];
+
 impl From<SavedInputBindings> for InputBindings {
+    /// Explicit saved bindings win. Actions missing from the file or still on a
+    /// retired default get the current default unless an explicit binding owns it.
     fn from(saved: SavedInputBindings) -> Self {
-        let mut bindings = saved.bindings;
+        let mut bindings: BTreeMap<_, _> = saved
+            .bindings
+            .into_iter()
+            .filter(|(action, binding)| !is_retired_default(*action, *binding))
+            .collect();
         for action in InputAction::ALL {
             if bindings.contains_key(&action) {
                 continue;
@@ -469,6 +502,12 @@ impl From<SavedInputBindings> for InputBindings {
         }
         Self { bindings }
     }
+}
+
+fn is_retired_default(action: InputAction, binding: Option<InputBinding>) -> bool {
+    RETIRED_DEFAULTS
+        .iter()
+        .any(|(retired_action, retired)| *retired_action == action && binding == Some(*retired))
 }
 
 impl Default for InputBindings {
@@ -493,7 +532,8 @@ impl InputBindings {
         mouse_buttons: &ButtonInput<MouseButton>,
     ) -> bool {
         self.binding(action).is_some_and(|binding| {
-            binding.pressed(keys, mouse_buttons) && !self.shadowed_by_shift_binding(binding, keys)
+            binding.pressed(keys, mouse_buttons)
+                && !self.shadowed_by_modified_binding(binding, keys)
         })
     }
 
@@ -505,12 +545,13 @@ impl InputBindings {
     ) -> bool {
         self.binding(action).is_some_and(|binding| {
             binding.just_pressed(keys, mouse_buttons)
-                && !self.shadowed_by_shift_binding(binding, keys)
+                && !self.shadowed_by_modified_binding(binding, keys)
         })
     }
 
-    /// A plain key yields to a Shift+key binding on the same key while Shift is held.
-    fn shadowed_by_shift_binding(
+    /// A plain key yields to a Shift+key or Ctrl+key binding on the same key
+    /// while that modifier is held.
+    fn shadowed_by_modified_binding(
         &self,
         binding: InputBinding,
         keys: &ButtonInput<KeyCode>,
@@ -518,11 +559,9 @@ impl InputBindings {
         let InputBinding::Keyboard(key) = binding else {
             return false;
         };
-        shift_held(keys)
-            && self
-                .bindings
-                .values()
-                .any(|owned| *owned == Some(InputBinding::ShiftKeyboard(key)))
+        let owned = |modified| self.bindings.values().any(|b| *b == Some(modified));
+        (shift_held(keys) && owned(InputBinding::ShiftKeyboard(key)))
+            || (ctrl_held(keys) && owned(InputBinding::CtrlKeyboard(key)))
     }
 
     pub fn assign(&mut self, action: InputAction, binding: InputBinding) {
@@ -547,6 +586,10 @@ impl InputBindings {
 
 fn shift_held(keys: &ButtonInput<KeyCode>) -> bool {
     keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight)
+}
+
+fn ctrl_held(keys: &ButtonInput<KeyCode>) -> bool {
+    keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight)
 }
 
 fn keyboard(key: KeyCode) -> InputBinding {
@@ -600,15 +643,6 @@ fn targeting_meta(key: &'static str, label: &'static str, default_key: KeyCode) 
         key,
         label,
         BindingSection::Targeting,
-        Some(InputBinding::Keyboard(default_key)),
-    )
-}
-
-fn audio_meta(key: &'static str, label: &'static str, default_key: KeyCode) -> InputActionMeta {
-    input_action_meta(
-        key,
-        label,
-        BindingSection::Audio,
         Some(InputBinding::Keyboard(default_key)),
     )
 }
@@ -777,6 +811,7 @@ fn binding_token(binding: InputBinding) -> String {
     match binding {
         InputBinding::Keyboard(key) => format!("key:{key:?}"),
         InputBinding::ShiftKeyboard(key) => format!("shift+key:{key:?}"),
+        InputBinding::CtrlKeyboard(key) => format!("ctrl+key:{key:?}"),
         InputBinding::Mouse(button) => format!("mouse:{button:?}"),
     }
 }
@@ -785,6 +820,11 @@ fn parse_binding_token(token: &str) -> Result<InputBinding, String> {
     if let Some(key) = token.strip_prefix("shift+key:") {
         return parse_key_code(key)
             .map(InputBinding::ShiftKeyboard)
+            .ok_or_else(|| format!("unsupported key binding token '{token}'"));
+    }
+    if let Some(key) = token.strip_prefix("ctrl+key:") {
+        return parse_key_code(key)
+            .map(InputBinding::CtrlKeyboard)
             .ok_or_else(|| format!("unsupported key binding token '{token}'"));
     }
     if let Some(key) = token.strip_prefix("key:") {
