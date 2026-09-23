@@ -714,6 +714,9 @@ mod runtime_tests;
 #[path = "background_tests.rs"]
 mod background_tests;
 
+#[path = "neutral_capture_tests.rs"]
+mod neutral_capture_tests;
+
 #[path = "projection_tests.rs"]
 mod projection_tests;
 
