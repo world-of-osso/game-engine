@@ -408,7 +408,7 @@ pub(super) fn name_input_field(state: &CharCreateUiState) -> Element {
                 {atlas_centered("RandomNameIcon".to_string(), "charactercreate-icon-dice", 24.0, 23.0, false)}
             }
             editbox { name: CREATE_NAME_INPUT, width: 300.0, height: 38.0, text: state.name.clone(),
-                font: GameFont::ArialNarrow, font_size: 16.0, font_color: COLOR_GOLD,
+                font: GameFont::ArialNarrow, font_size: 20.0, font_color: COLOR_GOLD,
                 text_insets: "12,5,8,8",
                 nine_slice { edge_size: 8, bg_color: bg, border_color: "1,1,1,1", textures: textures, }
                 pos_type: "absolute", left: "50%", translate_x: "-50%", top: 26.0,
