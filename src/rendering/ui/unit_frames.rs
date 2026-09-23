@@ -576,6 +576,7 @@ fn target_aura_icon(aura: &AuraInstance, colorblind_mode: bool) -> TargetAuraIco
         timer_text: aura.timer_text(),
         stacks: aura.stacks,
         border_color,
+        mine: aura.from_local_player,
     }
 }
 
@@ -587,7 +588,7 @@ mod layout_test_support;
 mod tests {
     use super::layout_test_support::compute_layout;
     use super::*;
-    use game_engine::buff_data::{self, DebuffType, textures};
+    use game_engine::buff_data::{self, DebuffType};
     use game_engine::ui::event::EventBus;
     use game_engine::ui::frame::{Dimension, WidgetData};
     use game_engine::ui::screens::inworld_unit_frames_component::reaction_health_color;
@@ -934,11 +935,13 @@ mod tests {
         let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
         app.world_mut().entity_mut(wolf).insert(UnitAuraState {
             auras: vec![buff_data::AuraInstance {
+                instance_id: 2,
                 spell_id: 2,
                 name: "Poison".into(),
                 description: String::new(),
-                icon_fdid: textures::NULLIFY_POISON,
+                icon_fdid: 136067,
                 source: "Rogue".into(),
+                from_local_player: false,
                 duration: 12.0,
                 remaining: 6.2,
                 stacks: 3,

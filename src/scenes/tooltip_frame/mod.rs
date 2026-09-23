@@ -829,11 +829,13 @@ mod tests {
 
     fn sample_aura() -> AuraInstance {
         AuraInstance {
+            instance_id: 9,
             spell_id: 100,
             name: "Blessing of Kings".into(),
             description: "Increases all stats.".into(),
             icon_fdid: 1,
             source: "Uther".into(),
+            from_local_player: false,
             duration: 1800.0,
             remaining: 125.0,
             stacks: 2,
@@ -1012,7 +1014,7 @@ mod tests {
         let tooltip = aura_tooltip(&sample_aura(), false);
         assert_eq!(tooltip.title, "Blessing of Kings");
         assert_eq!(tooltip.lines[0].left_text, "Increases all stats.");
-        assert_eq!(tooltip.lines[1].right_text, "2m");
+        assert_eq!(tooltip.lines[1].right_text, "3 m");
         assert_eq!(tooltip.lines[2].right_text, "2");
         assert_eq!(tooltip.lines[3].right_text, "Uther");
     }

@@ -75,8 +75,8 @@ pub use app_runtime::rgba_image;
 pub(crate) use app_runtime::{ScreenshotRequest, run_headless_ui_dump_app, take_screenshot};
 pub(crate) use game::{
     client_options, creature_display, equipment, equipment_appearance, game_state,
-    inworld_scene_stage::InWorldSceneStage, networking, networking_auth, networking_messages,
-    networking_npc, networking_player, zone_names,
+    inworld_scene_stage::InWorldSceneStage, networking, networking_auras, networking_auth,
+    networking_messages, networking_npc, networking_player, zone_names,
 };
 pub use rendering::{
     action_bar, animation, camera, character_customization, character_models, ground, health_bar,
