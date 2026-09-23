@@ -17,6 +17,8 @@ pub(crate) mod inworld_scene_stage;
 
 #[path = "networking/mod.rs"]
 pub(crate) mod networking;
+#[path = "networking/auras.rs"]
+pub(crate) mod networking_auras;
 #[path = "networking/auth.rs"]
 pub(crate) mod networking_auth;
 #[path = "networking/messages.rs"]

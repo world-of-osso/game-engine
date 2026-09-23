@@ -558,6 +558,7 @@ fn add_core_screen_plugins(app: &mut App) {
     app.add_plugins((
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
+        crate::networking_auras::AuraSyncPlugin,
         scenes::eula::EulaScreenPlugin,
         scenes::login::LoginScreenPlugin,
         scenes::loading::LoadingScreenPlugin,

@@ -123,6 +123,12 @@ impl SpellCatalogData {
         Self::from_sorted(spells, tabs)
     }
 
+    /// Catalog from unsorted spells, e.g. fixtures.
+    pub fn from_spells(mut spells: Vec<CatalogSpell>) -> Self {
+        spells.sort_by_key(|spell| spell.id);
+        Self::from_sorted(spells)
+    }
+
     pub fn len(&self) -> usize {
         self.spells.len()
     }

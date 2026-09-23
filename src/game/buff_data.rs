@@ -1,28 +1,7 @@
 use bevy::prelude::*;
+use shared::components::AuraView;
 
-/// Sample spell icon texture FDIDs for buffs and debuffs.
-pub mod textures {
-    // Buff icons
-    /// Power Word: Fortitude.
-    pub const FORTITUDE: u32 = 135987;
-    /// Power Word: Shield.
-    pub const PW_SHIELD: u32 = 135940;
-    /// Mark of the Wild / Regeneration.
-    pub const MARK_OF_WILD: u32 = 136078;
-    /// Blessing of Protection.
-    pub const BLESSING_PROTECTION: u32 = 135880;
-    // Debuff icons
-    /// Shadow Word: Pain.
-    pub const SHADOW_WORD_PAIN: u32 = 136207;
-    /// Slow (nature).
-    pub const SLOW: u32 = 136091;
-    /// Nullify Poison.
-    pub const NULLIFY_POISON: u32 = 136067;
-    /// Remove Disease.
-    pub const REMOVE_DISEASE: u32 = 136083;
-    /// Anti-Shadow (generic magic debuff).
-    pub const ANTI_SHADOW: u32 = 136121;
-}
+use crate::spell_catalog::SpellCatalog;
 
 /// Debuff dispel type, determines border color.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -36,6 +15,17 @@ pub enum DebuffType {
 }
 
 impl DebuffType {
+    /// Retail `SpellDispelType` id (1 magic, 2 curse, 3 disease, 4 poison).
+    pub fn from_dispel_id(id: u8) -> Self {
+        match id {
+            1 => Self::Magic,
+            2 => Self::Curse,
+            3 => Self::Disease,
+            4 => Self::Poison,
+            _ => Self::None,
+        }
+    }
+
     /// RGBA border color for this debuff type.
     pub fn border_color(self) -> &'static str {
         self.border_color_for_mode(false)
@@ -51,8 +41,9 @@ impl DebuffType {
                 Self::Poison => "0.0,0.85,0.75,1.0",
             };
         }
+        // Retail `DebuffTypeColor`.
         match self {
-            Self::None => "0.5,0.0,0.0,1.0",
+            Self::None => "0.8,0.0,0.0,1.0",
             Self::Magic => "0.2,0.6,1.0,1.0",
             Self::Curse => "0.6,0.0,1.0,1.0",
             Self::Disease => "0.6,0.4,0.0,1.0",
@@ -64,11 +55,16 @@ impl DebuffType {
 /// A single active buff or debuff.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AuraInstance {
+    pub instance_id: u32,
     pub spell_id: u32,
     pub name: String,
+    /// Rendered `AuraDescription_lang`.
     pub description: String,
     pub icon_fdid: u32,
+    /// Caster name, empty when unknown.
     pub source: String,
+    /// Cast by the local player.
+    pub from_local_player: bool,
     /// Total duration in seconds (0 = permanent).
     pub duration: f32,
     /// Remaining time in seconds.
@@ -83,19 +79,18 @@ impl AuraInstance {
         self.duration <= 0.0
     }
 
-    /// Timer display text (e.g. "5m", "30s", "" for permanent).
+    /// Retail `SecondsToTimeAbbrev` text ("1 h", "5 m", "59 s"); empty when permanent.
     pub fn timer_text(&self) -> String {
         if self.is_permanent() {
             return String::new();
         }
-        let secs = self.remaining.ceil() as u32;
-        if secs >= 3600 {
-            format!("{}h", secs / 3600)
-        } else if secs >= 60 {
-            format!("{}m", secs / 60)
-        } else {
-            format!("{secs}s")
+        let secs = self.remaining.max(0.0);
+        for (unit, label) in [(86_400.0, "d"), (3_600.0, "h"), (60.0, "m")] {
+            if secs >= unit {
+                return format!("{} {label}", (secs / unit).ceil() as u32);
+            }
         }
+        format!("{} s", secs as u32)
     }
 }
 
@@ -105,7 +100,7 @@ pub struct AuraState {
     pub auras: Vec<AuraInstance>,
 }
 
-/// Optional aura state attached to any world entity for UI consumers like target frames.
+/// Aura state of any other world unit, for target frames and nameplates.
 #[derive(Component, Clone, Debug, PartialEq, Default)]
 pub struct UnitAuraState {
     pub auras: Vec<AuraInstance>,
@@ -121,16 +116,7 @@ impl AuraState {
     }
 
     pub fn tick(&mut self, dt: f32) {
-        for aura in &mut self.auras {
-            if aura.remaining > 0.0 {
-                aura.remaining = (aura.remaining - dt).max(0.0);
-            }
-        }
-    }
-
-    /// Remove expired non-permanent auras.
-    pub fn remove_expired(&mut self) {
-        self.auras.retain(|a| a.is_permanent() || a.remaining > 0.0);
+        tick_auras(&mut self.auras, dt);
     }
 }
 
@@ -142,19 +128,89 @@ impl UnitAuraState {
     pub fn debuffs(&self) -> impl Iterator<Item = &AuraInstance> {
         self.auras.iter().filter(|a| a.is_debuff)
     }
+
+    pub fn tick(&mut self, dt: f32) {
+        tick_auras(&mut self.auras, dt);
+    }
+}
+
+/// Counts timed auras down and drops the ones that ran out; the server removal follows.
+fn tick_auras(auras: &mut Vec<AuraInstance>, dt: f32) {
+    for aura in auras.iter_mut() {
+        aura.remaining = (aura.remaining - dt).max(0.0);
+    }
+    auras.retain(|a| a.is_permanent() || a.remaining > 0.0);
+}
+
+/// Who cast an aura, relative to the viewing client.
+pub struct AuraCasterLookup<'a> {
+    /// Server entity bits of the local player.
+    pub local_player: Option<u64>,
+    pub name_of: &'a dyn Fn(u64) -> Option<String>,
+}
+
+/// Displayable auras in Retail order: buffs, then debuffs with the local player's first.
+/// Hidden and passive auras are dropped.
+pub fn aura_instances(
+    views: &[AuraView],
+    catalog: &SpellCatalog,
+    casters: &AuraCasterLookup,
+) -> Vec<AuraInstance> {
+    let mut auras: Vec<AuraInstance> = views
+        .iter()
+        .filter(|view| view.flags & (AuraView::FLAG_HIDDEN | AuraView::FLAG_PASSIVE) == 0)
+        .map(|view| aura_instance(view, catalog, casters))
+        .collect();
+    auras.sort_by_key(|aura| (aura.is_debuff, !aura.from_local_player || !aura.is_debuff));
+    auras
+}
+
+fn aura_instance(
+    view: &AuraView,
+    catalog: &SpellCatalog,
+    casters: &AuraCasterLookup,
+) -> AuraInstance {
+    let spell = catalog.get(view.spell_id);
+    AuraInstance {
+        instance_id: view.instance_id,
+        spell_id: view.spell_id,
+        name: spell
+            .map(|spell| spell.name.to_string())
+            .unwrap_or_default(),
+        description: catalog
+            .render_aura_description(view.spell_id)
+            .unwrap_or_default(),
+        icon_fdid: spell.map_or(0, |spell| spell.icon_fdid),
+        source: view
+            .caster
+            .and_then(|caster| (casters.name_of)(caster))
+            .unwrap_or_default(),
+        from_local_player: view.caster.is_some() && view.caster == casters.local_player,
+        duration: view.duration_ms as f32 / 1000.0,
+        remaining: view.remaining_ms as f32 / 1000.0,
+        stacks: u32::from(view.stacks),
+        is_debuff: view.harmful,
+        debuff_type: DebuffType::from_dispel_id(view.dispel_type),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::spell_catalog::{CatalogSpell, SpellCatalogData, SpellCatalogState};
+
+    const LOCAL: u64 = 42;
+    const OTHER: u64 = 77;
 
     fn make_buff(name: &str, duration: f32, remaining: f32) -> AuraInstance {
         AuraInstance {
+            instance_id: 1,
             spell_id: 1,
             name: name.into(),
             description: String::new(),
             icon_fdid: 12345,
-            source: "Player".into(),
+            source: String::new(),
+            from_local_player: false,
             duration,
             remaining,
             stacks: 1,
@@ -163,206 +219,143 @@ mod tests {
         }
     }
 
-    fn make_debuff(name: &str, debuff_type: DebuffType) -> AuraInstance {
-        AuraInstance {
-            is_debuff: true,
-            debuff_type,
-            ..make_buff(name, 30.0, 30.0)
+    fn view(instance_id: u32, spell_id: u32, caster: u64, harmful: bool, flags: u16) -> AuraView {
+        AuraView {
+            instance_id,
+            spell_id,
+            caster: Some(caster),
+            stacks: 0,
+            charges: 0,
+            duration_ms: 18_000,
+            remaining_ms: 12_500,
+            harmful,
+            dispel_type: 1,
+            flags,
         }
     }
 
-    #[test]
-    fn timer_text_formats() {
-        let perm = make_buff("Perm", 0.0, 0.0);
-        assert_eq!(perm.timer_text(), "");
+    fn catalog() -> SpellCatalog {
+        let spell = |id: u32, name: &str, icon: u32, aura_description: &str| CatalogSpell {
+            id,
+            name: name.into(),
+            icon_fdid: icon,
+            aura_description: aura_description.into(),
+            ..Default::default()
+        };
+        SpellCatalog {
+            state: SpellCatalogState::Ready(SpellCatalogData::from_spells(vec![
+                spell(589, "Shadow Word: Pain", 136207, "Suffering Shadow damage."),
+                spell(21562, "Power Word: Fortitude", 135987, "Stamina increased."),
+                spell(172, "Corruption", 136118, ""),
+            ])),
+        }
+    }
 
-        let secs = make_buff("Short", 10.0, 5.3);
-        assert_eq!(secs.timer_text(), "6s");
+    fn lookup(caster: u64) -> Option<String> {
+        (caster == OTHER).then(|| "Kobold Geomancer".to_string())
+    }
 
-        let mins = make_buff("Med", 300.0, 125.0);
-        assert_eq!(mins.timer_text(), "2m");
-
-        let hours = make_buff("Long", 7200.0, 3700.0);
-        assert_eq!(hours.timer_text(), "1h");
+    fn instances(views: &[AuraView]) -> Vec<AuraInstance> {
+        let casters = AuraCasterLookup {
+            local_player: Some(LOCAL),
+            name_of: &lookup,
+        };
+        aura_instances(views, &catalog(), &casters)
     }
 
     #[test]
-    fn buffs_and_debuffs_filtered() {
-        let mut state = AuraState::default();
-        state.auras.push(make_buff("Fort", 3600.0, 3600.0));
-        state
-            .auras
-            .push(make_debuff("Curse of Agony", DebuffType::Curse));
-        state.auras.push(make_buff("MotW", 3600.0, 3600.0));
-
-        assert_eq!(state.buffs().count(), 2);
-        assert_eq!(state.debuffs().count(), 1);
+    fn replicated_views_resolve_spell_data_and_drop_hidden_or_passive() {
+        let auras = instances(&[
+            view(1, 21562, LOCAL, false, AuraView::FLAG_FROM_PLAYER),
+            view(2, 589, OTHER, true, 0),
+            view(3, 172, LOCAL, false, AuraView::FLAG_PASSIVE),
+            view(4, 172, LOCAL, false, AuraView::FLAG_HIDDEN),
+        ]);
+        assert_eq!(auras.len(), 2);
+        let fort = &auras[0];
+        assert_eq!(fort.name, "Power Word: Fortitude");
+        assert_eq!(fort.icon_fdid, 135987);
+        assert_eq!(fort.description, "Stamina increased.");
+        assert!(fort.from_local_player && !fort.is_debuff);
+        let pain = &auras[1];
+        assert_eq!(
+            (pain.instance_id, pain.is_debuff, pain.debuff_type),
+            (2, true, DebuffType::Magic)
+        );
+        assert_eq!(pain.source, "Kobold Geomancer");
+        assert!(!pain.from_local_player);
+        assert_eq!((pain.duration, pain.remaining), (18.0, 12.5));
     }
 
     #[test]
-    fn tick_decrements_remaining() {
-        let mut state = AuraState::default();
-        state.auras.push(make_buff("Test", 10.0, 5.0));
+    fn buffs_come_first_then_the_local_players_debuffs() {
+        let auras = instances(&[
+            view(1, 589, OTHER, true, 0),
+            view(2, 172, LOCAL, true, 0),
+            view(3, 21562, OTHER, false, 0),
+            view(4, 589, LOCAL, true, 0),
+        ]);
+        let order: Vec<u32> = auras.iter().map(|aura| aura.instance_id).collect();
+        assert_eq!(order, [3, 2, 4, 1]);
+    }
+
+    #[test]
+    fn timer_text_uses_retail_abbreviations() {
+        let text = |remaining: f32| make_buff("A", 100_000.0, remaining).timer_text();
+        assert_eq!(make_buff("Perm", 0.0, 0.0).timer_text(), "");
+        assert_eq!(text(59.9), "59 s");
+        assert_eq!(text(0.4), "0 s");
+        assert_eq!(text(60.0), "1 m");
+        assert_eq!(text(125.0), "3 m");
+        assert_eq!(text(3600.0), "1 h");
+        assert_eq!(text(3700.0), "2 h");
+        assert_eq!(text(90_000.0), "2 d");
+    }
+
+    #[test]
+    fn tick_counts_down_and_drops_expired_timed_auras() {
+        let mut state = AuraState {
+            auras: vec![
+                make_buff("Perm", 0.0, 0.0),
+                make_buff("Short", 10.0, 1.0),
+                make_buff("Long", 10.0, 5.0),
+            ],
+        };
         state.tick(2.0);
-        assert!((state.auras[0].remaining - 3.0).abs() < 0.01);
+        let left: Vec<(&str, f32)> = state
+            .auras
+            .iter()
+            .map(|aura| (aura.name.as_str(), aura.remaining))
+            .collect();
+        assert_eq!(left, [("Perm", 0.0), ("Long", 3.0)]);
     }
 
     #[test]
-    fn tick_clamps_at_zero() {
-        let mut state = AuraState::default();
-        state.auras.push(make_buff("Test", 10.0, 1.0));
-        state.tick(5.0);
-        assert_eq!(state.auras[0].remaining, 0.0);
-    }
-
-    #[test]
-    fn remove_expired_keeps_permanent() {
-        let mut state = AuraState::default();
-        state.auras.push(make_buff("Perm", 0.0, 0.0));
-        state.auras.push(make_buff("Expired", 10.0, 0.0));
-        state.auras.push(make_buff("Active", 10.0, 5.0));
-        state.remove_expired();
-        assert_eq!(state.auras.len(), 2);
-        assert_eq!(state.auras[0].name, "Perm");
-        assert_eq!(state.auras[1].name, "Active");
-    }
-
-    #[test]
-    fn debuff_type_border_colors_are_distinct() {
-        let colors: Vec<&str> = [
-            DebuffType::None,
-            DebuffType::Magic,
-            DebuffType::Curse,
-            DebuffType::Disease,
-            DebuffType::Poison,
-        ]
-        .iter()
-        .map(|t| t.border_color())
-        .collect();
-        for (i, a) in colors.iter().enumerate() {
-            for (j, b) in colors.iter().enumerate() {
-                if i != j {
-                    assert_ne!(a, b, "types {i} and {j} should have different colors");
-                }
-            }
-        }
+    fn dispel_ids_map_to_retail_border_colors() {
+        let colors: Vec<&str> = (0..=4)
+            .map(|id| DebuffType::from_dispel_id(id).border_color())
+            .collect();
+        assert_eq!(
+            colors,
+            [
+                "0.8,0.0,0.0,1.0",
+                "0.2,0.6,1.0,1.0",
+                "0.6,0.0,1.0,1.0",
+                "0.6,0.4,0.0,1.0",
+                "0.0,0.6,0.0,1.0",
+            ]
+        );
     }
 
     #[test]
     fn colorblind_debuff_border_colors_are_distinct() {
-        let colors: Vec<&str> = [
-            DebuffType::None,
-            DebuffType::Magic,
-            DebuffType::Curse,
-            DebuffType::Disease,
-            DebuffType::Poison,
-        ]
-        .iter()
-        .map(|t| t.border_color_for_mode(true))
-        .collect();
+        let colors: Vec<&str> = (0..=4)
+            .map(|id| DebuffType::from_dispel_id(id).border_color_for_mode(true))
+            .collect();
         for (i, a) in colors.iter().enumerate() {
-            for (j, b) in colors.iter().enumerate() {
-                if i != j {
-                    assert_ne!(a, b, "types {i} and {j} should have different colors");
-                }
+            for b in &colors[i + 1..] {
+                assert_ne!(a, b);
             }
         }
-    }
-
-    #[test]
-    fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::FORTITUDE, 0);
-        assert_ne!(textures::PW_SHIELD, 0);
-        assert_ne!(textures::SHADOW_WORD_PAIN, 0);
-        assert_ne!(textures::NULLIFY_POISON, 0);
-        assert_ne!(textures::ANTI_SHADOW, 0);
-    }
-
-    // --- Stack count tests ---
-
-    #[test]
-    fn stack_count_preserved_through_tick() {
-        let mut state = AuraState::default();
-        let mut aura = make_buff("Lifebloom", 10.0, 10.0);
-        aura.stacks = 3;
-        state.auras.push(aura);
-        state.tick(5.0);
-        assert_eq!(state.auras[0].stacks, 3);
-        assert!((state.auras[0].remaining - 5.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn zero_stacks_treated_as_no_display() {
-        let aura = make_buff("Fort", 3600.0, 3600.0);
-        // Default stack count is 1, which means "don't show count"
-        assert_eq!(aura.stacks, 1);
-    }
-
-    #[test]
-    fn high_stack_count() {
-        let mut aura = make_buff("Sunder Armor", 30.0, 30.0);
-        aura.stacks = 5;
-        aura.is_debuff = true;
-        aura.debuff_type = DebuffType::None;
-        assert_eq!(aura.stacks, 5);
-        assert!(aura.is_debuff);
-    }
-
-    // --- Debuff classification ---
-
-    #[test]
-    fn debuff_type_classification() {
-        let magic = make_debuff("Polymorph", DebuffType::Magic);
-        assert_eq!(magic.debuff_type, DebuffType::Magic);
-        assert!(magic.is_debuff);
-
-        let poison = make_debuff("Deadly Poison", DebuffType::Poison);
-        assert_eq!(poison.debuff_type, DebuffType::Poison);
-
-        let disease = make_debuff("Plague", DebuffType::Disease);
-        assert_eq!(disease.debuff_type, DebuffType::Disease);
-
-        let curse = make_debuff("Curse of Weakness", DebuffType::Curse);
-        assert_eq!(curse.debuff_type, DebuffType::Curse);
-    }
-
-    // --- Duration countdown edge cases ---
-
-    #[test]
-    fn tick_permanent_aura_stays_at_zero() {
-        let mut state = AuraState::default();
-        state.auras.push(make_buff("Perm", 0.0, 0.0));
-        state.tick(100.0);
-        assert_eq!(state.auras[0].remaining, 0.0);
-    }
-
-    #[test]
-    fn timer_text_boundary_at_60_seconds() {
-        let at_59 = make_buff("A", 60.0, 59.5);
-        assert_eq!(at_59.timer_text(), "1m"); // ceil(59.5) = 60s = 1m
-
-        let at_60 = make_buff("B", 120.0, 60.0);
-        assert_eq!(at_60.timer_text(), "1m");
-    }
-
-    #[test]
-    fn timer_text_boundary_at_3600_seconds() {
-        let at_3599 = make_buff("A", 7200.0, 3599.5);
-        assert_eq!(at_3599.timer_text(), "1h"); // ceil(3599.5) = 3600s = 1h
-
-        let at_3600 = make_buff("B", 7200.0, 3600.0);
-        assert_eq!(at_3600.timer_text(), "1h");
-    }
-
-    #[test]
-    fn remove_expired_with_mixed_debuffs() {
-        let mut state = AuraState::default();
-        state.auras.push(make_debuff("Active", DebuffType::Magic));
-        let mut expired = make_debuff("Expired", DebuffType::Curse);
-        expired.remaining = 0.0;
-        state.auras.push(expired);
-        state.remove_expired();
-        assert_eq!(state.auras.len(), 1);
-        assert_eq!(state.auras[0].name, "Active");
     }
 }

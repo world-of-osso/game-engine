@@ -137,6 +137,8 @@ pub struct TargetAuraIconState {
     pub timer_text: String,
     pub stacks: u32,
     pub border_color: String,
+    /// Cast by the local player; drawn larger.
+    pub mine: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
