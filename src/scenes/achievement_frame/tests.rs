@@ -12,6 +12,9 @@ fn test_world() -> (World, SystemId) {
     world.init_resource::<AchievementCompletionState>();
     world.init_resource::<AchievementFrameOpen>();
     world.init_resource::<ButtonInput<KeyCode>>();
+    world.init_resource::<ButtonInput<MouseButton>>();
+    world.init_resource::<game_engine::input_bindings::InputBindings>();
+    world.init_resource::<crate::ui_input_mode::UiInputMode>();
     let build = world.register_system(build_achievement_frame_ui);
     world.run_system(build).unwrap();
     let sync = world.register_system(sync_achievement_frame_state);
