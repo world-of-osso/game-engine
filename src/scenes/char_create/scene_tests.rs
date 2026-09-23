@@ -288,6 +288,26 @@ fn setup_scene_creates_camera_and_lighting_standalone() {
         ambient.brightness > 0.0,
         "ambient light should have positive brightness"
     );
+    let source_model = asset::m2::load_m2(Path::new("data/models/623712.m2"), &[0; 3]).unwrap();
+    let source_light = asset::m2_light::evaluate_light(
+        &source_model.lights[0],
+        0,
+        0,
+        0,
+        &source_model.global_sequences,
+    );
+    let color = ambient.color.to_linear();
+    let exposed = Vec3::new(color.red, color.green, color.blue)
+        * ambient.brightness
+        * bevy::camera::Exposure::default().exposure();
+    assert!(
+        (exposed - Vec3::from_array(source_light.color))
+            .abs()
+            .max_element()
+            < 0.0001,
+        "authored ambient multiplier must survive renderer exposure: {exposed:?} vs {:?}",
+        source_light.color
+    );
 
     let has_directional = app
         .world_mut()
