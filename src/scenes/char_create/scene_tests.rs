@@ -714,6 +714,9 @@ mod runtime_tests;
 #[path = "background_tests.rs"]
 mod background_tests;
 
+#[path = "projection_tests.rs"]
+mod projection_tests;
+
 #[test]
 fn apply_orbit_produces_valid_transform() {
     let orbit = CharCreateOrbit {

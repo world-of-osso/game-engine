@@ -228,7 +228,6 @@ fn assert_camera_matches_source(app: &mut App, fdid: u32) {
     let Projection::Perspective(projection) = world.get::<Projection>(camera).unwrap() else {
         panic!("authored camera must use perspective projection");
     };
-    assert!((projection.fov - authored.fov).abs() < 0.0001);
     assert!((projection.near - authored.near_clip).abs() < 0.0001);
     assert!((projection.far - authored.far_clip).abs() < 0.0001);
 }
