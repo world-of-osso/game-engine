@@ -254,8 +254,9 @@ fn run_automation_action(
         UiAutomationAction::TypeText(text) => {
             type_delete_confirm_text(ui, delete_confirm, text)?;
         }
-        UiAutomationAction::PressKey(key) => {
-            if handle_selection_key(*key, selected, char_list, senders) {
+        UiAutomationAction::PressKey(chord) => {
+            let key = chord.unmodified_key()?;
+            if handle_selection_key(key, selected, char_list, senders) {
                 return Ok(());
             }
             return Err(format!("unsupported char select key press: {key:?}"));

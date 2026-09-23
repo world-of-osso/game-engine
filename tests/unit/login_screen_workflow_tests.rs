@@ -44,7 +44,7 @@ fn login_workflow_type_credentials_and_connect() {
         &mut focus,
         &mut status,
         &mut next_state,
-        &UiAutomationAction::PressKey(KeyCode::Tab),
+        &UiAutomationAction::PressKey(KeyCode::Tab.into()),
     );
     assert_eq!(focus.0, Some(login.password_input));
 
@@ -67,7 +67,7 @@ fn login_workflow_type_credentials_and_connect() {
         &mut focus,
         &mut status,
         &mut next_state,
-        &UiAutomationAction::PressKey(KeyCode::Enter),
+        &UiAutomationAction::PressKey(KeyCode::Enter.into()),
     );
 
     assert!(
@@ -126,7 +126,7 @@ fn login_workflow_tab_cycles_through_fields() {
         &mut focus,
         &mut status,
         &mut next_state,
-        &UiAutomationAction::PressKey(KeyCode::Tab),
+        &UiAutomationAction::PressKey(KeyCode::Tab.into()),
     );
     assert_eq!(
         focus.0,
@@ -143,7 +143,7 @@ fn login_workflow_tab_cycles_through_fields() {
         &mut focus,
         &mut status,
         &mut next_state,
-        &UiAutomationAction::PressKey(KeyCode::Tab),
+        &UiAutomationAction::PressKey(KeyCode::Tab.into()),
     );
     assert_eq!(
         focus.0,

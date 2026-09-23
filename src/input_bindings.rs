@@ -643,7 +643,8 @@ fn key_short_label(key: KeyCode) -> Option<&'static str> {
     }
 }
 
-fn key_alpha_numeric_label(key: KeyCode) -> Option<&'static str> {
+/// Label of a letter or digit key ("A" for `KeyA`, "1" for `Digit1`).
+pub fn key_alpha_numeric_label(key: KeyCode) -> Option<&'static str> {
     LETTER_KEYS
         .iter()
         .chain(DIGIT_KEYS.iter())
@@ -659,6 +660,18 @@ fn mouse_button_display(button: MouseButton) -> String {
         MouseButton::Forward => "Forward Mouse".to_string(),
         MouseButton::Other(id) => format!("Mouse Button {id}"),
     }
+}
+
+/// Parse a human key name ("M", "KeyM", "1", "F10", "Escape"), ignoring ASCII case.
+pub fn parse_key_name(token: &str) -> Option<KeyCode> {
+    let token = token.strip_prefix("Key").unwrap_or(token);
+    let token = token.strip_prefix("Digit").unwrap_or(token);
+    LETTER_KEYS
+        .iter()
+        .chain(DIGIT_KEYS.iter())
+        .chain(FUNCTION_KEYS.iter())
+        .chain(NAMED_KEYS.iter())
+        .find_map(|(name, code)| name.eq_ignore_ascii_case(token).then_some(*code))
 }
 
 fn parse_key_code(token: &str) -> Option<KeyCode> {

@@ -303,6 +303,9 @@ fn build_flight_paths(world_map: &WorldMapState) -> Vec<FlightPathSegment> {
 }
 
 #[cfg(test)]
+mod automation_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use game_engine::world_map_data::{

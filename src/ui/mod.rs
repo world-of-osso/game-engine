@@ -127,6 +127,7 @@ pub use ui_toolkit::widgets;
 pub mod addon_runtime;
 pub mod addon_watcher;
 pub mod automation;
+mod automation_inworld;
 pub mod automation_script;
 pub mod character_creation_icons;
 pub mod game_plugin;
