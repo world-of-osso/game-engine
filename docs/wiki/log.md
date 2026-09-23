@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-23] spell catalog | Add client spell catalog
+
+At `77eadcf8`, `SpellCatalog` loads all 414,027 spells from the 12.1.0.69933 CSVs on a background task. It writes a keyed bincode cache under `data/cache/`. Dev-profile load takes 10.7 s cold and 0.89 s warm, with about 114 MB of heap. 16 `spell_catalog` lib tests pass: token fixtures, plus real-CSV rendering for Fireball, Crusader Strike, Shadow Word: Pain and 7 other spells. The app runtime load was not exercised. See [[spell-catalog]].
+
 ## [2026-09-23] character creation | Record behavioral scene and name-entry verification boundary
 
 At `24fce090`, independent evidence records 30 passing character-creation scene tests (one ignored), covering mapped-scene replacement/exit lifecycle and authored camera/presentation behavior; its focused 20-logical-pixel Arial Narrow name glyph test also passes. `126ab4aa` differs only in scene module ordering and independently passes `cargo check` plus scoped library formatting. A native runtime dump confirms `Donagh` with cursor position 6 in the unchanged 300×38 name field. This is behavioral/source and native-state evidence, not visual acceptance: revised-lighting GUI inspection, all-three-backdrop scene acceptance, and exact Retail parity remain open. An internally inconsistent visual-helper description was excluded as evidence. See [[character-creation]].
