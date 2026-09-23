@@ -25,6 +25,8 @@ pub mod camera_control;
 pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
+#[path = "scenes/char_create/background_data.rs"]
+pub mod creation_scene_data;
 pub mod character_export;
 #[path = "rendering/character/character_models.rs"]
 pub mod character_models;
