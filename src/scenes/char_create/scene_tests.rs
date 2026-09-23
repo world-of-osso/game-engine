@@ -929,26 +929,34 @@ fn camera_control_eye_and_ear_option_ids_zoom_to_face_and_restore_on_close() {
     fixture
         .world
         .insert_resource(CustomizationDb::try_load(Path::new("data")).expect("local catalog"));
+    let presentation = fixture
+        .world
+        .resource::<CustomizationDb>()
+        .presentation_for(1, 0);
+    let default_offset = DEFAULT_EYE - DEFAULT_FOCUS;
+    let default_eye = DEFAULT_FOCUS
+        + default_offset.normalize()
+            * (default_offset.length() + presentation.camera_distance_offset);
     for option_id in [463, 8789] {
         fixture
             .world
             .resource_mut::<CharCreateState>()
             .open_dropdown = Some(option_id);
         fixture.settle_zoom();
-        assert!((fixture.radius() - FACE_DISTANCE).abs() < 0.0001);
+        assert!((fixture.radius() - FACE_DISTANCE * presentation.customize_scale).abs() < 0.0001);
         assert_eq!(
             fixture
                 .world
                 .get::<CharCreateOrbit>(fixture.camera)
                 .unwrap()
                 .focus,
-            FACE_FOCUS
+            FACE_FOCUS * presentation.customize_scale
         );
         fixture
             .world
             .resource_mut::<CharCreateState>()
             .open_dropdown = None;
         fixture.settle_zoom();
-        assert!(fixture.position().distance(DEFAULT_EYE) < 0.0001);
+        assert!(fixture.position().distance(default_eye) < 0.0001);
     }
 }
