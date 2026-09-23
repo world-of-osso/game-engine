@@ -42,6 +42,8 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 ### Creation flow
 
+- [ ] Render name-entry text at the Retail `NumberFont_Shadow_Large` Roman size: Arial Narrow, 20 logical pixels. Keep allowed 12-letter names within the unchanged field and preserve input/caret behavior.
+
 - [x] Preserve typed names through category/popup updates and Back/Next navigation; retain focus and error presentation where applicable.
 - [x] Place a distinct Randomize Name dice control immediately left of the name editbox. Load the build-pinned authored NameGen catalog once; select only names for the selected race and body type, mapping Pandaren faction IDs 25/26 to neutral ID 24. Exclude names rejected by the existing 2–12 ASCII-letter creation validation, never truncate or synthesize. Repeated clicks change the name where another candidate exists, updating both draft and editbox without altering appearance, category, popup, navigation or submitting a character. Missing/invalid catalog or empty race/body-type group disables the control; forced selection reports an error.
 - [x] Transmit the complete supported appearance through the existing creation path and preserve it after server storage/reopen and roster loading.
