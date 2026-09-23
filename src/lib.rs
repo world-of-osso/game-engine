@@ -25,8 +25,6 @@ pub mod camera_control;
 pub mod casting_data;
 #[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
-#[path = "scenes/char_create/background_data.rs"]
-pub mod creation_scene_data;
 pub mod character_export;
 #[path = "rendering/character/character_models.rs"]
 pub mod character_models;
@@ -41,6 +39,8 @@ pub mod communities_data;
 pub mod cooldown_data;
 #[cfg(feature = "cpu-system-profile")]
 pub mod cpu_system_profile;
+#[path = "scenes/char_create/background_data.rs"]
+pub mod creation_scene_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
 pub mod csv_util;
