@@ -79,7 +79,7 @@ impl Plugin for ActionBarPlugin {
         app.add_systems(
             Update,
             (
-                toggle_edit_mode,
+                follow_hud_edit_mode,
                 sync_action_bar_money_display,
                 sync_action_bar_visibility,
             )
@@ -129,19 +129,20 @@ fn teardown_action_bars(
     commands.remove_resource::<ActionBarEditState>();
 }
 
-fn toggle_edit_mode(
-    keybinds: crate::ui_input_mode::WorldKeybinds,
+/// Bars preview (extra bars, mover labels) follows the HUD edit mode (F10).
+fn follow_hud_edit_mode(
+    hud_edit: Option<Res<crate::edit_mode::EditMode>>,
     mut ui: ResMut<UiState>,
     bars: Option<Res<ActionBarsUi>>,
     edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    if !keybinds.fixed_key_just_pressed(KeyCode::F10) {
-        return;
-    }
-    let (Some(bars), Some(mut edit)) = (bars, edit) else {
+    let (Some(hud_edit), Some(bars), Some(mut edit)) = (hud_edit, bars, edit) else {
         return;
     };
-    edit.enabled = !edit.enabled;
+    if edit.enabled == hud_edit.is_active() {
+        return;
+    }
+    edit.enabled = hud_edit.is_active();
     apply_edit_mode(&mut ui.registry, &bars, &edit);
 }
 

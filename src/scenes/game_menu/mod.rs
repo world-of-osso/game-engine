@@ -240,6 +240,7 @@ fn handle_inworld_escape(
     mode: Res<UiInputMode>,
     spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
     mut window_manager: ResMut<WindowManager>,
+    mut edit_mode: Option<ResMut<crate::edit_mode::EditMode>>,
     target: Option<ResMut<CurrentTarget>>,
     popups: Option<ResMut<PopupStack>>,
     mut ui: ResMut<UiState>,
@@ -256,6 +257,10 @@ fn handle_inworld_escape(
         return;
     }
     if cancel_cursor_action() || close_top_popup(popups) {
+        return;
+    }
+    if let Some(edit_mode) = edit_mode.as_mut().filter(|edit| edit.is_active()) {
+        edit_mode.exit();
         return;
     }
     if window_manager.any_open() {
