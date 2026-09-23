@@ -11,7 +11,8 @@ use game_engine::ui::screens::game_menu_component::{
     GameMenuView,
 };
 use game_engine::ui::screens::options_menu_component::{
-    ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, OPTIONS_DRAG_HANDLE, OptionsCategory,
+    ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, ACTION_RESET_WINDOW_POSITIONS,
+    OPTIONS_DRAG_HANDLE, OptionsCategory,
 };
 
 use super::options::{
@@ -457,6 +458,9 @@ fn handle_overlay_command_action(
             queue_apply_current_options(overlay, commands);
         }
         ACTION_OPTIONS_OKAY => close_game_menu(commands),
+        ACTION_RESET_WINDOW_POSITIONS => {
+            commands.queue(crate::window_manager::ResetWindowPositionsCommand);
+        }
         _ if *state.get() == GameState::GameMenu => warn!("Unknown menu action: {action}"),
         _ => {}
     }

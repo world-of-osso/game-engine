@@ -12,6 +12,8 @@ use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 
 use super::{WindowClass, WindowId, WindowManager};
+use crate::networking::SelectedCharacterId;
+use crate::ui_layout_store::{UiLayoutStore, character_key};
 
 pub const PANEL_LEFT: f32 = 16.0;
 pub const WINDOW_TOP: f32 = 104.0;
@@ -38,12 +40,19 @@ impl WindowPlacements {
 pub fn place_windows(
     mut ui: ResMut<UiState>,
     manager: Res<WindowManager>,
+    store: Option<Res<UiLayoutStore>>,
+    selected: Option<Res<SelectedCharacterId>>,
     mut placements: ResMut<WindowPlacements>,
 ) {
     // Registry writes carry their own dirtiness; placement must not publish a
     // UiState change every frame.
     let registry = &mut ui.bypass_change_detection().registry;
-    let positions = compute_positions(&manager, registry);
+    let character = character_key(selected.as_deref());
+    let saved = |id: WindowId| {
+        let (store, character) = (store.as_deref()?, character.as_deref()?);
+        store.window_position(character, &id.root_frame_name())
+    };
+    let positions = compute_positions(&manager, registry, saved);
     let levels = stacking_levels(&manager);
     for (id, pos) in &positions {
         let Some(root) = registry.get_by_name(&id.root_frame_name()) else {
@@ -77,9 +86,11 @@ fn screen_size(registry: &FrameRegistry) -> Vec2 {
     Vec2::new(registry.screen_width, registry.screen_height)
 }
 
+/// Saved (moved) positions win over slots; every position is clamped on screen.
 pub fn compute_positions(
     manager: &WindowManager,
     registry: &FrameRegistry,
+    saved: impl Fn(WindowId) -> Option<Vec2>,
 ) -> HashMap<WindowId, Vec2> {
     let screen = screen_size(registry);
     let size = |id: WindowId| window_size(registry, id).unwrap_or(Vec2::ZERO);
@@ -93,9 +104,11 @@ pub fn compute_positions(
             WindowClass::Wide => wide_position(size(id), screen),
             WindowClass::Container => continue,
         };
-        positions.insert(id, clamp_to_screen(slot, size(id), screen));
+        let pos = saved(id).unwrap_or(slot);
+        positions.insert(id, clamp_to_screen(pos, size(id), screen));
     }
-    for (id, pos) in container_positions(manager, &size, screen) {
+    for (id, slot) in container_positions(manager, &size, screen) {
+        let pos = saved(id).unwrap_or(slot);
         positions.insert(id, clamp_to_screen(pos, size(id), screen));
     }
     positions

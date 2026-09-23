@@ -19,6 +19,7 @@ const LEGACY_OPTIONS_PATH: &str = "data/ui/options_settings.ron";
 const OPTIONS_FILE_NAME: &str = "options_settings.ron";
 const LEGACY_CREDENTIALS_PATH: &str = "data/ui/credentials.ron";
 const CREDENTIALS_FILE_NAME: &str = "credentials.ron";
+const UI_LAYOUT_FILE_NAME: &str = "ui_layout.ron";
 
 #[path = "client_options_storage.rs"]
 mod storage;
@@ -414,6 +415,11 @@ pub fn save_client_options_values(
 
 pub fn load_login_credentials() -> Option<LoginCredentials> {
     storage::load_login_credentials()
+}
+
+/// Saved window positions and edit-mode layouts, next to the options file.
+pub fn ui_layout_path() -> PathBuf {
+    storage::ui_layout_path()
 }
 
 pub fn load_preferred_realm() -> RealmPreset {

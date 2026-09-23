@@ -26,16 +26,24 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 - [x] Every placed position is clamped to the registry screen size in UI units.
 - [x] Clicking an open window raises it. The topmost window keeps its authored frame levels; each window below sinks its whole subtree by 32 levels, so popups authored above windows stay above all of them.
 
+### Moved windows
+
+- [x] Pressing inside a window's top 24 units (not on a button) and dragging moves it; the position is clamped to the registry screen size in UI units (UI scale applied).
+- [x] Releasing saves the position for the current character (key: server character id) in `ui_layout.ron` next to `options_settings.ron` (`window_positions: {character: {root frame name: [x, y]}}`, RON).
+- [x] A moved window opens at its saved position instead of its slot, for that character only; other characters keep the slot. Saved positions are re-clamped every frame.
+- [x] Options → Interface → "Reset Window Positions" clears the current character's saved positions; windows return to their slots.
+
 ## Implementation inventory
 
 - `src/window_manager/mod.rs` — `WindowId`, `WindowClass`, `WindowManager`, plugin.
 - `src/window_manager/placement.rs` — `PostUpdate` placement before `UiRenderSet::Prepare` (screen rebuilds reset authored positions).
-- `src/window_manager/input.rs` — click-to-raise.
+- `src/window_manager/input.rs` — click-to-raise, title-region drag.
+- `src/ui_layout_store.rs` — `UiLayoutStore` (`ui_layout.ron`) load/save.
 - `src/window_manager/sessions.rs` — merchant/inspect session reconciliation.
 
 ## Tests asserting this spec
 
-- `tests/unit/window_manager_tests.rs` — class rules, slot/wide/bag placement, raise stacking, sessions, world exit.
+- `tests/unit/window_manager_tests.rs` — class rules, slot/wide/bag placement, raise stacking, sessions, world exit, drag/save/reload per character, clamp at UI scale 4/3, reset.
 - `tests/unit/game_menu_screen_tests.rs` — Escape order and one-press close-all.
 
 ## Known gaps

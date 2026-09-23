@@ -409,6 +409,10 @@ pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
     save_options_file_to_path(&path, &file)
 }
 
+pub(super) fn ui_layout_path() -> PathBuf {
+    world_of_osso_config_dir().join(UI_LAYOUT_FILE_NAME)
+}
+
 pub fn login_credentials_path() -> PathBuf {
     world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
 }

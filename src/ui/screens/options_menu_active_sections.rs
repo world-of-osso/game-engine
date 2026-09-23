@@ -94,6 +94,13 @@ pub fn interface_body(hud: &HudOptionsView) -> Element {
                 "Communities Chat",
                 "Applies to the existing communities chat tab without changing world render scale",
             ),
+            options_menu_sections::action_button_row(
+                "reset_window_positions",
+                "Reset Window Positions",
+                "Moved windows reopen in their default slots",
+                "Reset",
+                super::options_menu_component::ACTION_RESET_WINDOW_POSITIONS,
+            ),
         ]
         .into_iter()
         .flatten()
