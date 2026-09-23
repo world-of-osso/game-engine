@@ -150,7 +150,8 @@ pub(super) fn world_builder_keyboard_input(
             clear_world_builder_focus(&mut ui);
             continue;
         }
-        let editbox_changed = mutate_editbox_from_key(&mut ui.registry, focused_id, event);
+        let editbox_changed =
+            crate::ui_input::mutate_editbox_from_key(&mut ui.registry, focused_id, event);
         let filter_changed = ui.registry.get_by_name(WORLD_BUILDER_FILTER.0) == Some(focused_id);
         if editbox_changed && filter_changed {
             sync_filter_from_editbox(&ui.registry, focused_id, &mut model);
@@ -161,34 +162,6 @@ pub(super) fn world_builder_keyboard_input(
 pub(super) fn clear_world_builder_focus(ui: &mut UiState) {
     ui.focused_frame = None;
     ui.registry.focused_frame = None;
-}
-
-pub(super) fn mutate_editbox_from_key(
-    registry: &mut game_engine::ui::registry::FrameRegistry,
-    focused_id: u64,
-    event: &KeyboardInput,
-) -> bool {
-    let Some(WidgetData::EditBox(editbox)) = registry
-        .get_mut(focused_id)
-        .and_then(|frame| frame.widget_data.as_mut())
-    else {
-        return false;
-    };
-    match event.key_code {
-        KeyCode::Backspace => editbox.backspace(),
-        KeyCode::Delete => editbox.delete_forward(),
-        KeyCode::ArrowLeft => editbox.cursor_left(),
-        KeyCode::ArrowRight => editbox.cursor_right(),
-        KeyCode::Home => editbox.cursor_home(),
-        KeyCode::End => editbox.cursor_end(),
-        _ => {
-            let Some(text) = event.text.as_ref() else {
-                return false;
-            };
-            editbox.insert_at_cursor(text.as_str());
-        }
-    }
-    true
 }
 
 pub(super) fn sync_filter_from_editbox(

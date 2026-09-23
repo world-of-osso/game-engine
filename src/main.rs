@@ -40,6 +40,7 @@ mod cli_args;
 mod collision;
 mod csv_util;
 mod dump_systems;
+mod edit_mode;
 mod empty_window;
 mod game;
 mod little_endian;

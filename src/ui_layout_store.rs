@@ -1,5 +1,5 @@
 //! Client-side UI layout persistence (`ui_layout.ron` next to the options file):
-//! per-character window positions.
+//! per-character window positions and account-wide edit-mode layouts.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -15,6 +15,8 @@ pub struct UiLayoutFile {
     /// Character key → window key → saved top-left in UI units.
     #[serde(default)]
     pub window_positions: BTreeMap<String, BTreeMap<String, [f32; 2]>>,
+    #[serde(default)]
+    pub edit_mode: crate::edit_mode::layouts::EditModeLayoutsFile,
 }
 
 #[derive(Resource, Debug)]
