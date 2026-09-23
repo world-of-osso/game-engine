@@ -12,6 +12,9 @@ use ui_toolkit::screen::{Screen, SharedContext};
 #[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
 mod layout_support;
 
+#[path = "charcreate_hover_ring_tests.rs"]
+mod hover_ring;
+
 fn app(state: CharCreateUiState) -> App {
     let mut app = layout_support::layout_app(1920.0, 1080.0);
     app.insert_resource(BlpLoaderRes(Box::new(GameBlpLoader)));
