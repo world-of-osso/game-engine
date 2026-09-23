@@ -388,12 +388,23 @@ pub(super) fn name_input_field(state: &CharCreateUiState) -> Element {
     };
     let error_hidden = state.error_text.is_none();
     let error = state.error_text.as_deref().unwrap_or("");
+    let name_button_disabled = !state.random_name_available;
+    let name_button_action =
+        CharCreateAction::RandomizeName.when_enabled(state.random_name_available);
     rsx! {
         r#frame { name: "NamePanel", width: 400.0, height: 100.0,
             pos_type: "absolute", left: "50%", top: 34.0, translate_x: "-50%",
             fontstring { name: "NameLabel", width: 300.0, height: 24.0, text: "Name",
                 font: GameFont::FrizQuadrata, font_size: 20.0, font_color: COLOR_WHITE,
                 pos_type: "absolute", left: "50%", translate_x: "-50%", top: 0.0,
+            }
+            button { name: super::RANDOM_NAME_BUTTON, width: 48.0, height: 48.0,
+                disabled: name_button_disabled, onclick: name_button_action,
+                button_atlas_up: "common-button-square-gray-up",
+                button_atlas_pressed: "common-button-square-gray-down",
+                button_atlas_highlight: "common-button-square-gray-up",
+                pos_type: "absolute", left: 2.0, top: 20.0,
+                {atlas_centered("RandomNameIcon".to_string(), "charactercreate-icon-dice", 24.0, 23.0, false)}
             }
             editbox { name: CREATE_NAME_INPUT, width: 300.0, height: 38.0, text: state.name.clone(),
                 font: GameFont::ArialNarrow, font_size: 16.0, font_color: COLOR_GOLD,
