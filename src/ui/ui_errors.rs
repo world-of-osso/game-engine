@@ -88,6 +88,12 @@ pub fn cast_failed_text(
         CastFailReason::SchoolLockedOut => "Can't do that while silenced",
         // Not a Retail string: the server cannot execute this spell.
         CastFailReason::NotSupported => "That spell isn't available yet.",
+        // SPELL_FAILED_STUNNED
+        CastFailReason::Stunned => "Can't do that while stunned",
+        // SPELL_FAILED_SILENCED
+        CastFailReason::Silenced => "Can't do that while silenced",
+        // SPELL_FAILED_PACIFIED
+        CastFailReason::Pacified => "Can't do that while pacified",
     };
     text.to_string()
 }
