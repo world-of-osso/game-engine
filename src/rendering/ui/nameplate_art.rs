@@ -42,7 +42,7 @@ impl NameplateArtCache {
         )?;
         let health_thick = load_skin(include_bytes!("nameplate_skins/health-thick.png"), images)?;
         let health_thin = load_skin(include_bytes!("nameplate_skins/health-thin.png"), images)?;
-        let casting = load_atlas(4505182, images)?;
+        let casting = load_fdid_texture(4505182, images)?;
         let cast_thick = load_skin(include_bytes!("nameplate_skins/cast-thick.png"), images)?;
         let cast_thin = load_skin(include_bytes!("nameplate_skins/cast-thin.png"), images)?;
         let path = "data/fonts/FRIZQT__.TTF";
@@ -159,7 +159,10 @@ mod tests {
     }
 }
 
-fn load_atlas(fdid: u32, images: &mut Assets<Image>) -> Result<Handle<Image>, String> {
+pub(crate) fn load_fdid_texture(
+    fdid: u32,
+    images: &mut Assets<Image>,
+) -> Result<Handle<Image>, String> {
     let path = crate::asset::asset_cache::texture(fdid)
         .ok_or_else(|| format!("Nameplate atlas {fdid} unavailable in local CASC"))?;
     let mut image = crate::asset::blp::load_blp_to_image(&path)
