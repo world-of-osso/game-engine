@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use game_engine::input_bindings::InputAction;
 use game_engine::mail_data::MailState;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::mail_frame_component::{
@@ -96,15 +97,10 @@ fn sync_mail_frame_state(
 }
 
 fn toggle_mail_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<MailFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyM) {
+    if keybinds.just_pressed(InputAction::ToggleMail) {
         open.0 = !open.0;
     }
 }

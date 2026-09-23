@@ -65,6 +65,7 @@ mod system_isolation;
 mod taxi;
 mod trash_button_screen;
 mod ui_input;
+mod ui_input_mode;
 mod update_schedule_isolation;
 
 pub use app_runtime::rgba_image;

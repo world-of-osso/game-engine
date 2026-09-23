@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use game_engine::input_bindings::InputAction;
 use game_engine::status::{CharacterStatsSnapshot, EquippedGearStatusSnapshot};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::character_frame_component::{
@@ -78,15 +79,10 @@ fn teardown_character_frame_ui(
 }
 
 fn toggle_character_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<CharacterFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if keys.just_pressed(KeyCode::KeyC) {
+    if keybinds.just_pressed(InputAction::ToggleCharacter) {
         open.0 = !open.0;
     }
 }

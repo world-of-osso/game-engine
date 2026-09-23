@@ -365,19 +365,12 @@ fn is_hidden_entity(entity: Entity, visibility_q: &Query<&Visibility>) -> bool {
 
 /// On Tab, cycle through nearby RemoteEntity sorted by distance from local player.
 fn tab_target(
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     player_q: Query<&Transform, With<Player>>,
     remote_q: RemoteTargetQuery<'_, '_>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
-    bindings: Res<InputBindings>,
     mut current: ResMut<CurrentTarget>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if !bindings.is_just_pressed(InputAction::TargetNearest, &keys, &mouse_buttons) {
+    if !keybinds.just_pressed(InputAction::TargetNearest) {
         return;
     }
     let Ok(player_tf) = player_q.single() else {
@@ -449,18 +442,11 @@ pub(crate) fn resolve_targetable_ancestor(
 
 /// On F1, set the current target to the local player entity.
 fn self_target(
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     player_q: Query<Entity, With<Player>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
-    bindings: Res<InputBindings>,
     mut current: ResMut<CurrentTarget>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    if !bindings.is_just_pressed(InputAction::TargetSelf, &keys, &mouse_buttons) {
+    if !keybinds.just_pressed(InputAction::TargetSelf) {
         return;
     }
     let Ok(player) = player_q.single() else {

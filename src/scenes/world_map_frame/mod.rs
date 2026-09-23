@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::input_bindings::InputAction;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::world_map_frame_component::{
@@ -91,16 +92,10 @@ fn teardown_world_map_frame_ui(
 }
 
 fn toggle_world_map_frame(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut open: ResMut<WorldMapFrameOpen>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
-        return;
-    }
-    let shift_pressed = keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight);
-    if shift_pressed && keys.just_pressed(KeyCode::KeyM) {
+    if keybinds.just_pressed(InputAction::ToggleWorldMap) {
         open.0 = !open.0;
     }
 }

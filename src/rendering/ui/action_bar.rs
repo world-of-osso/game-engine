@@ -134,12 +134,12 @@ fn teardown_action_bars(
 }
 
 fn toggle_edit_mode(
-    keys: Res<ButtonInput<KeyCode>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut ui: ResMut<UiState>,
     bars: Option<Res<ActionBarsUi>>,
     edit: Option<ResMut<ActionBarEditState>>,
 ) {
-    if !keys.just_pressed(KeyCode::F10) {
+    if !keybinds.fixed_key_just_pressed(KeyCode::F10) {
         return;
     }
     let (Some(bars), Some(mut edit)) = (bars, edit) else {
@@ -150,17 +150,15 @@ fn toggle_edit_mode(
 }
 
 fn update_action_bar_slot_flash(
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     time: Res<Time>,
     mut ui: ResMut<UiState>,
     bars: Option<ResMut<ActionBarsUi>>,
-    bindings: Res<InputBindings>,
 ) {
     let Some(mut bars) = bars else { return };
     let dt = time.delta_secs();
     for index in 0..SLOT_COUNT {
-        if bindings.is_just_pressed(slot_action(index), &keys, &mouse_buttons) {
+        if keybinds.just_pressed(slot_action(index)) {
             bars.flashes[index] = FLASH_SECONDS;
         }
         bars.flashes[index] = (bars.flashes[index] - dt).max(0.0);
@@ -490,6 +488,7 @@ mod tests {
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app.init_resource::<InputBindings>();
+        app.init_resource::<crate::ui_input_mode::UiInputMode>();
         app.init_resource::<Time>();
         app.init_resource::<FlashUiChanged>();
         app.add_systems(Update, update_action_bar_slot_flash);
@@ -653,6 +652,7 @@ mod tests {
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app.init_resource::<InputBindings>();
+        app.init_resource::<crate::ui_input_mode::UiInputMode>();
         app.add_plugins(ActionBarPlugin);
         app.update();
         app

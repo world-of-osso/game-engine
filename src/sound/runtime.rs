@@ -189,17 +189,11 @@ type AudioVolumeQueries<'w, 's> = ParamSet<
 >;
 
 fn toggle_mute(
-    keys: Res<ButtonInput<KeyCode>>,
-    mouse_buttons: Res<ButtonInput<MouseButton>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
-    bindings: Res<InputBindings>,
+    keybinds: crate::ui_input_mode::WorldKeybinds,
     mut settings: ResMut<SoundSettings>,
     mut sinks: AudioVolumeQueries<'_, '_>,
 ) {
-    if modal_open.is_some() {
-        return;
-    }
-    if bindings.is_just_pressed(InputAction::ToggleMute, &keys, &mouse_buttons) {
+    if keybinds.just_pressed(InputAction::ToggleMute) {
         settings.muted = !settings.muted;
         let ambient_volume = compute_ambient_volume(&settings);
         for mut sink in &mut sinks.p0() {
