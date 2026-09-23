@@ -91,6 +91,7 @@ impl Plugin for CharCreateScenePlugin {
             (
                 sync_model,
                 sync_appearance,
+                sync_model_presentation,
                 apply_camera_control,
                 camera_zoom_for_dropdown,
                 orbit_camera,
@@ -229,21 +230,27 @@ fn camera_zoom_for_dropdown(
     time: Res<Time>,
     mut query: Query<(&mut CharCreateOrbit, &mut Transform)>,
 ) {
-    let dropdown = state.as_ref().and_then(|state| {
-        state.open_dropdown.and_then(|id| {
-            db.option_by_id(state.selected_race, state.selected_sex, id)
-                .map(|option| option.option_type)
-        })
+    let Some(state) = state else { return };
+    let dropdown = state.open_dropdown.and_then(|id| {
+        db.option_by_id(state.selected_race, state.selected_sex, id)
+            .map(|option| option.option_type)
     });
+    let presentation = db.presentation_for(state.selected_race, state.selected_sex);
     let (field_focus, field_distance) = zoom_target_for_dropdown(dropdown);
     let face_focused = field_focus == FACE_FOCUS;
     let t = (CAMERA_ZOOM_SPEED * time.delta_secs()).min(1.0);
 
     for (mut orbit, mut transform) in &mut query {
         let (target_focus, target_distance) = if face_focused {
-            (field_focus, field_distance)
+            (
+                field_focus * presentation.customize_scale,
+                field_distance * presentation.customize_scale,
+            )
         } else {
-            (orbit.default_focus, orbit.default_distance)
+            (
+                orbit.default_focus,
+                orbit.default_distance + presentation.camera_distance_offset,
+            )
         };
         orbit.focus = orbit.focus.lerp(target_focus, t);
         orbit.distance = orbit
@@ -557,6 +564,23 @@ fn sync_appearance(
         },
         root,
     );
+}
+
+fn sync_model_presentation(
+    state: Option<Res<CharCreateState>>,
+    db: Res<CustomizationDb>,
+    mut models: Query<(&ModelSex, &mut Transform), With<CharCreateModelRoot>>,
+) {
+    let Some(state) = state else { return };
+    for (sex, mut transform) in &mut models {
+        let scale = Vec3::splat(
+            db.presentation_for(state.selected_race, sex.0)
+                .customize_scale,
+        );
+        if transform.scale != scale {
+            transform.scale = scale;
+        }
+    }
 }
 
 fn appearance_needs_sync(
