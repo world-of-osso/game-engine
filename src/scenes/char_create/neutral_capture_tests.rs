@@ -29,7 +29,7 @@ fn spawn_neutral_backdrop(app: &mut App, target: Handle<Image>) {
                 spawn
                     .commands
                     .entity(camera)
-                    .insert((RenderTarget::Image(target.into()), Msaa::Off));
+                    .insert((RenderTarget::Image(target.clone().into()), Msaa::Off));
                 displayed.background = Some(backdrop);
             },
         )
@@ -107,7 +107,6 @@ fn capture_neutral_loader_backdrop_without_character_actor() {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
-    app.add_plugins(bevy::state::app::StatesPlugin);
     app.insert_state(crate::game_state::GameState::CharCreate);
     app.add_plugins((
         crate::m2_effect_material::M2EffectMaterialPlugin,
