@@ -14,11 +14,11 @@ Persisted with client options; configurable via Options → Keybindings.
 
 **Action bar**: slots 1–12
 
-**Audio**: toggle mute
+**Audio**: toggle mute (Ctrl+S)
 
-**Interface**: panel toggles — character C, professions K, achievements Y, talents N, adventure guide J, social O, mail M, loot rules L, world map Shift+M
+**Interface**: panel toggles — character C, professions K, achievements Y, talents N, adventure guide J, social O, mail unbound (mailbox opens it), loot rules L, world map M
 
-Bindings are a key, Shift+key, or mouse button. All fire only in World input mode (no focused editbox, no game menu); see `src/ui_input_mode.rs`.
+Bindings are a key, Shift+key, Ctrl+key, or mouse button; defaults follow Retail with no duplicates. All fire only in World input mode (no focused editbox, no game menu); see `src/ui_input_mode.rs`.
 
 ## Fixed Inputs (Intentional)
 
