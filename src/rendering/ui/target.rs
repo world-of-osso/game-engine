@@ -203,7 +203,6 @@ impl Plugin for TargetPlugin {
         app.add_systems(Update, click_to_target.run_if(click_targeting_state_active));
         app.add_systems(Update, tab_target.run_if(targeting_state_active));
         app.add_systems(Update, self_target.run_if(targeting_state_active));
-        app.add_systems(Update, clear_target.run_if(targeting_state_active));
         app.add_systems(Update, right_click_interact.run_if(targeting_state_active));
         app.add_systems(
             Update,
@@ -453,20 +452,6 @@ fn self_target(
         return;
     };
     current.0 = Some(player);
-}
-
-/// On Escape, clear the current target.
-fn clear_target(
-    keys: Res<ButtonInput<KeyCode>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    mut current: ResMut<CurrentTarget>,
-) {
-    if !crate::networking::gameplay_input_allowed(reconnect) {
-        return;
-    }
-    if keys.just_pressed(KeyCode::Escape) {
-        current.0 = None;
-    }
 }
 
 /// Maximum distance (world units) at which NPC interaction is allowed.

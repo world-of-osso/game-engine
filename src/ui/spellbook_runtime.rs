@@ -36,7 +36,6 @@ pub enum SpellbookKeyInput {
     PreviousPage,
     NextPage,
     Backspace,
-    Clear,
     Character(char),
 }
 
@@ -101,6 +100,10 @@ impl SpellbookUiRuntime {
 
     pub fn has_focus(&self) -> bool {
         self.has_keyboard_focus
+    }
+
+    pub fn clear_focus(&mut self) {
+        self.has_keyboard_focus = false;
     }
 
     /// Returns whether hover changed the displayed spellbook.
@@ -170,12 +173,6 @@ impl SpellbookUiRuntime {
                 } else {
                     false
                 }
-            }
-            SpellbookKeyInput::Clear => {
-                let had = !self.search_query.is_empty();
-                self.search_query.clear();
-                self.page_index = 0;
-                had
             }
             SpellbookKeyInput::Character(ch) => {
                 if !is_search_character(ch) {

@@ -132,7 +132,6 @@ pub fn handle_spellbook_keyboard(
             KeyCode::PageUp => Some(SpellbookKeyInput::PreviousPage),
             KeyCode::PageDown => Some(SpellbookKeyInput::NextPage),
             KeyCode::Backspace => Some(SpellbookKeyInput::Backspace),
-            KeyCode::Escape => Some(SpellbookKeyInput::Clear),
             _ => None,
         };
 

@@ -16,6 +16,10 @@ Persisted with client options; configurable via Options → Keybindings.
 
 **Audio**: toggle mute
 
+**Interface**: panel toggles — character C, professions K, achievements Y, talents N, adventure guide J, social O, mail M, loot rules L, world map Shift+M
+
+Bindings are a key, Shift+key, or mouse button. All fire only in World input mode (no focused editbox, no game menu); see `src/ui_input_mode.rs`.
+
 ## Fixed Inputs (Intentional)
 
 | Input | Reason |
@@ -25,6 +29,7 @@ Persisted with client options; configurable via Options → Keybindings.
 | Char select navigation | Fixed to screen flow |
 | Menu/options overlay | Navigation and modal dismissal must stay stable even if gameplay bindings break |
 | Action-bar edit/debug controls | Editor affordances outside the player-facing binding set |
+| In-world `Escape` | Single chain: clear focus → cursor/spell cancel (hook) → top popup (hook) → close all panels → clear target → game menu |
 | `F9` World Builder toggle | Fixed diagnostic UI control; active only when launched with `--world-builder` |
 
 ## Non-Goals of the Current System

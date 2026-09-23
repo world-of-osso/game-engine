@@ -22,8 +22,16 @@ The configurable keybinding system currently covers:
 - targeting: target nearest
 - action bar slots: 1 through 12
 - audio: toggle mute
+- interface panel toggles: character (C), professions (K), achievements (Y), talents (N),
+  adventure guide (J), social (O), mail (M), loot rules (L), world map (Shift+M)
 
 These bindings are persisted with client options and edited through the Options -> Keybindings screen.
+A binding is a single key, a single key with Shift held, or a mouse button. During capture Shift acts
+only as a modifier. While Shift is held, a plain key yields to a Shift+key binding on the same key.
+Saved files that predate an action get its default unless a saved action already owns that input.
+
+All bindable actions fire only in World input mode (`UiInputMode` in `src/ui_input_mode.rs`):
+never while an editbox or the spellbook search has focus (Text) or the game menu is open (Modal).
 
 ## Intentionally Fixed Inputs
 
@@ -38,7 +46,10 @@ The following inputs remain fixed on purpose:
 - menu/options overlay bindings
   - Menu navigation, modal dismissal, and key capture controls remain fixed.
 - action-bar edit/debug controls
-  - Layout editing keys remain fixed and separate from gameplay bindings.
+  - Layout editing keys (F10) remain fixed and separate from gameplay bindings; they still obey the input mode.
+- in-world Escape
+  - One system runs a fixed chain, one action per press: clear editbox focus, cancel cursor/spell
+    targeting (hook), close top popup (hook), close all open panels, clear target, open game menu.
 
 ## Why These Stay Fixed
 
