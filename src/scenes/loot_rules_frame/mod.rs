@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::raid_party_data::{GroupIntentQueue, LootMethod, LootThreshold, PartyState};
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::loot_rules_frame_component::{
     ACTION_CLOSE, ACTION_METHOD_PREFIX, ACTION_THRESHOLD_PREFIX, LootRulesFrameState,
@@ -160,7 +160,7 @@ fn handle_loot_rules_input(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
     let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {

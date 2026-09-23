@@ -728,3 +728,89 @@ fn frame_limit_interval_uses_clamped_hz_when_enabled() {
         ))
     );
 }
+
+#[test]
+fn auto_fit_ui_scale_fits_reference_canvas_with_720p_floor() {
+    let cases = [
+        (1920.0, 1080.0, 1.0, 1.0),
+        (2560.0, 1440.0, 1.0, 4.0 / 3.0),
+        (1280.0, 720.0, 1.0, 2.0 / 3.0),
+        (1024.0, 600.0, 1.0, 2.0 / 3.0),
+        (3440.0, 1440.0, 1.0, 4.0 / 3.0),
+        (2560.0, 1440.0, 1.25, 5.0 / 3.0),
+        (1920.0, 1080.0, 5.0, MAX_UI_SCALE),
+    ];
+    for (width, height, user_scale, expected) in cases {
+        let actual = auto_fit_ui_scale(Vec2::new(width, height), user_scale);
+        assert!(
+            (actual - expected).abs() < 0.0001,
+            "{width}x{height} x{user_scale}: {actual} != {expected}"
+        );
+    }
+}
+
+fn ui_scale_app(
+    state: crate::game_state::GameState,
+    width: u32,
+    height: u32,
+    ui_scale: f32,
+) -> App {
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+    app.add_plugins(ui_toolkit::plugin::UiPlugin);
+    app.insert_resource(ui_toolkit::plugin::UiRenderEnabled(false));
+    app.insert_resource(GraphicsOptions {
+        ui_scale,
+        ..GraphicsOptions::default()
+    });
+    app.insert_state(state);
+    app.add_systems(Update, sync_ui_scale);
+    app.world_mut().spawn((
+        Window {
+            resolution: (width, height).into(),
+            ..Default::default()
+        },
+        PrimaryWindow,
+    ));
+    app.update();
+    app.update();
+    app
+}
+
+fn registry_screen_size(app: &App) -> (f32, f32) {
+    let registry = &app
+        .world()
+        .resource::<ui_toolkit::plugin::UiState>()
+        .registry;
+    let round = |value: f32| (value * 100.0).round() / 100.0;
+    (round(registry.screen_width), round(registry.screen_height))
+}
+
+#[test]
+fn inworld_registry_screen_is_sized_in_reference_ui_units() {
+    use crate::game_state::GameState;
+
+    let app = ui_scale_app(GameState::InWorld, 2560, 1440, 1.0);
+    assert_eq!(registry_screen_size(&app), (1920.0, 1080.0));
+    let app = ui_scale_app(GameState::InWorld, 2560, 1440, 1.25);
+    assert_eq!(registry_screen_size(&app), (1536.0, 864.0));
+    // Below 1280x720 the reference canvas grows instead of shrinking the UI further.
+    let app = ui_scale_app(GameState::InWorld, 1024, 600, 1.0);
+    assert_eq!(registry_screen_size(&app), (1536.0, 900.0));
+}
+
+#[test]
+fn non_inworld_states_keep_user_ui_scale_only() {
+    use crate::game_state::GameState;
+
+    for state in [
+        GameState::Login,
+        GameState::CharSelect,
+        GameState::CharCreate,
+    ] {
+        let app = ui_scale_app(state, 2560, 1440, 1.0);
+        assert_eq!(registry_screen_size(&app), (2560.0, 1440.0), "{state:?}");
+        let app = ui_scale_app(state, 2560, 1440, 1.25);
+        assert_eq!(registry_screen_size(&app), (2048.0, 1152.0), "{state:?}");
+    }
+}

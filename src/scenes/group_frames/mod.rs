@@ -9,7 +9,7 @@ use bevy::window::PrimaryWindow;
 use game_engine::inspect::InspectRuntimeState;
 use game_engine::status::{GroupMemberEntry, GroupRole, GroupStatusSnapshot};
 use game_engine::targeting::CurrentTarget;
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::group_frames_component::{
     ACTION_GROUP_MENU_CLOSE, ACTION_GROUP_MENU_INSPECT, ACTION_GROUP_MENU_TARGET, GROUP_MENU_W,
@@ -374,7 +374,7 @@ fn handle_group_frame_pointer(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
     if mouse.just_pressed(MouseButton::Left) {

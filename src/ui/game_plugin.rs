@@ -3,6 +3,7 @@ use bevy::{input::ButtonState, input::keyboard::KeyboardInput};
 use game_engine::network_runtime::messages::MessageSenders;
 
 use crate::targeting::CurrentTarget;
+use crate::ui::input::ui_cursor_position;
 use crate::ui::plugin::UiState;
 use crate::ui::spellbook_runtime::{SpellbookAction, SpellbookKeyInput, SpellbookUiRuntime};
 use shared::protocol::{CombatChannel, SpellCastIntent};
@@ -65,13 +66,13 @@ pub fn handle_spellbook_pointer(
     let (Ok(window), Some(mut runtime)) = (windows.single(), runtime) else {
         return;
     };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&state.registry, window) else {
         *last_cursor = None;
         return;
     };
 
     let x = cursor.x;
-    let y = window.height() - cursor.y;
+    let y = state.registry.screen_height - cursor.y;
     let position = Vec2::new(x, y);
     if *last_cursor != Some(position) || state.is_changed() || runtime.is_changed() {
         let changed = runtime.bypass_change_detection().handle_pointer_move(

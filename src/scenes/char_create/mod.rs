@@ -278,7 +278,10 @@ fn char_create_hover_visuals(
     cc_ui: Option<Res<CharCreateUi>>,
 ) {
     let Some(cc) = cc_ui.as_ref() else { return };
-    let cursor = windows.iter().next().and_then(|w| w.cursor_position());
+    let cursor = windows
+        .iter()
+        .next()
+        .and_then(|w| ui_toolkit::input::ui_cursor_position(&ui.registry, w));
     let button_ids: Vec<u64> = [
         Some(cc.back_button),
         cc.next_button,
