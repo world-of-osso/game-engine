@@ -1,5 +1,6 @@
 pub mod achievement_frame;
 pub mod bag_frame;
+pub mod buff_frame;
 pub mod calendar_frame;
 pub mod casting_bar_frame;
 pub mod char_create;

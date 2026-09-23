@@ -1,5 +1,9 @@
+//! Player buff/debuff frame: top right, left of the minimap.
+
 use std::fmt;
 
+use crate::buff_data::{AuraInstance, AuraState};
+use crate::ui::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -12,27 +16,31 @@ impl fmt::Display for DynName {
     }
 }
 
-const ICON_SIZE: f32 = 30.0;
-const ICON_GAP: f32 = 2.0;
-const ICONS_PER_ROW: usize = 10;
-const ROW_GAP: f32 = 14.0;
-const DEBUFF_GAP: f32 = 4.0;
-const TIMER_H: f32 = 12.0;
-const STACK_SIZE: f32 = 14.0;
-const TOOLTIP_W: f32 = 200.0;
-const TOOLTIP_H: f32 = 60.0;
-
-const BUFF_BG: &str = "0.0,0.0,0.0,0.5";
-const DEBUFF_BG: &str = "0.4,0.0,0.0,0.5";
-const TIMER_COLOR: &str = "1.0,1.0,1.0,0.9";
-const STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
-const TOOLTIP_BG: &str = "0.0,0.0,0.0,0.92";
-const TOOLTIP_TITLE_COLOR: &str = "1.0,1.0,1.0,1.0";
-const TOOLTIP_DESC_COLOR: &str = "1.0,0.82,0.0,1.0";
-const TOOLTIP_SOURCE_COLOR: &str = "0.6,0.6,0.6,1.0";
-
+/// Stable root name; edit mode moves buffs and debuffs together through it.
+pub const BUFF_FRAME: &str = "BuffFrame";
+pub const BUFFS_PER_ROW: usize = 16;
 pub const MAX_BUFFS: usize = 32;
 pub const MAX_DEBUFFS: usize = 16;
+
+const BUFF_BUTTON: &str = "BuffButton";
+const DEBUFF_BUTTON: &str = "DebuffButton";
+
+const ICON_SIZE: f32 = 30.0;
+const ICON_GAP: f32 = 4.0;
+const DURATION_H: f32 = 12.0;
+const ROW_H: f32 = ICON_SIZE + DURATION_H + 2.0;
+const DEBUFF_GAP: f32 = 6.0;
+const FRAME_W: f32 = BUFFS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
+/// Minimap cluster (200 wide, 5 from the edge) plus a gap.
+const FRAME_RIGHT: f32 = 215.0;
+const FRAME_TOP: f32 = 10.0;
+
+/// Thin metal edge around buff icons; debuffs use their dispel colour.
+pub const BUFF_BORDER: &str = "0.52,0.47,0.38,1.0";
+const ICON_BACKING: &str = "0.03,0.03,0.03,0.9";
+const DURATION_COLOR: &str = "1.0,0.82,0.0,1.0";
+const COUNT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const TEXT_SHADOW: &str = "0.0,0.0,0.0,1.0";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuffIconState {
@@ -40,12 +48,7 @@ pub struct BuffIconState {
     pub timer_text: String,
     /// Stack count (0 or 1 = hide).
     pub stacks: u32,
-    /// Tooltip name.
-    pub name: String,
-    /// Tooltip description (e.g. "Increases haste by 5%").
-    pub description: String,
-    /// Source of the buff (e.g. caster name).
-    pub source: String,
+    pub border_color: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -54,160 +57,159 @@ pub struct BuffFrameState {
     pub debuffs: Vec<BuffIconState>,
 }
 
+impl BuffFrameState {
+    /// Icons in `AuraState` order, so button index `i` is `buffs().nth(i)`.
+    pub fn from_auras(auras: &AuraState, colorblind_mode: bool) -> Self {
+        let icon = |aura: &AuraInstance| BuffIconState {
+            icon_fdid: aura.icon_fdid,
+            timer_text: aura.timer_text(),
+            stacks: aura.stacks,
+            border_color: if aura.is_debuff {
+                aura.debuff_type
+                    .border_color_for_mode(colorblind_mode)
+                    .to_string()
+            } else {
+                BUFF_BORDER.to_string()
+            },
+        };
+        Self {
+            buffs: auras.buffs().take(MAX_BUFFS).map(icon).collect(),
+            debuffs: auras.debuffs().take(MAX_DEBUFFS).map(icon).collect(),
+        }
+    }
+}
+
+/// A buff-frame button under the cursor: `(is_debuff, index)`.
+pub fn buff_button_at(registry: &FrameRegistry, mut frame_id: u64) -> Option<(bool, usize)> {
+    loop {
+        let frame = registry.get(frame_id)?;
+        if let Some(hit) = frame.name.as_deref().and_then(parse_button_name) {
+            return Some(hit);
+        }
+        frame_id = frame.parent_id?;
+    }
+}
+
+fn parse_button_name(name: &str) -> Option<(bool, usize)> {
+    let (is_debuff, rest) = match name.strip_prefix(BUFF_BUTTON) {
+        Some(rest) => (false, rest),
+        None => (true, name.strip_prefix(DEBUFF_BUTTON)?),
+    };
+    rest.parse().ok().map(|index| (is_debuff, index))
+}
+
+fn row_count(icons: usize) -> usize {
+    icons.div_ceil(BUFFS_PER_ROW)
+}
+
 pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<BuffFrameState>()
         .expect("BuffFrameState must be in SharedContext");
-    rsx! {
-        {buff_grid(&state.buffs)}
-        {debuff_grid(&state.buffs, &state.debuffs)}
-        {buff_tooltip()}
-    }
-}
-
-fn buff_grid(buffs: &[BuffIconState]) -> Element {
-    let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
-    let buff_rows = (buffs.len().min(MAX_BUFFS) + ICONS_PER_ROW - 1) / ICONS_PER_ROW.max(1);
-    let grid_h = buff_rows.max(1) as f32 * (ICON_SIZE + ROW_GAP);
-    let icons: Element = buffs
+    let buff_rows = row_count(state.buffs.len());
+    let debuff_top = buff_rows as f32 * ROW_H + if buff_rows > 0 { DEBUFF_GAP } else { 0.0 };
+    let height = (debuff_top + row_count(state.debuffs.len()) as f32 * ROW_H).max(ICON_SIZE);
+    let buttons: Element = state
+        .buffs
         .iter()
         .enumerate()
-        .take(MAX_BUFFS)
-        .flat_map(|(i, buff)| buff_icon(i, buff, "Buff"))
+        .flat_map(|(i, icon)| aura_button(BUFF_BUTTON, i, icon, 0.0))
+        .chain(
+            state
+                .debuffs
+                .iter()
+                .enumerate()
+                .flat_map(|(i, icon)| aura_button(DEBUFF_BUTTON, i, icon, debuff_top)),
+        )
         .collect();
     rsx! {
         r#frame {
-            name: "BuffFrame",
-            width: {grid_w},
-            height: {grid_h},
+            name: BUFF_FRAME,
+            width: {FRAME_W},
+            height: {height},
             pos_type: "absolute",
-            right: 205.0,
-            top: 8.0,
-            {icons}
+            right: {FRAME_RIGHT},
+            top: {FRAME_TOP},
+            {buttons}
         }
     }
 }
 
-fn debuff_grid(buffs: &[BuffIconState], debuffs: &[BuffIconState]) -> Element {
-    let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
-    let buff_rows = (buffs.len().min(MAX_BUFFS) + ICONS_PER_ROW - 1) / ICONS_PER_ROW.max(1);
-    let debuff_y_offset = buff_rows.max(1) as f32 * (ICON_SIZE + ROW_GAP) + DEBUFF_GAP;
-    let debuff_rows = (debuffs.len().min(MAX_DEBUFFS) + ICONS_PER_ROW - 1) / ICONS_PER_ROW.max(1);
-    let grid_h = debuff_rows.max(1) as f32 * (ICON_SIZE + ROW_GAP);
-    let icons: Element = debuffs
-        .iter()
-        .enumerate()
-        .take(MAX_DEBUFFS)
-        .flat_map(|(i, debuff)| buff_icon(i, debuff, "Debuff"))
-        .collect();
-    rsx! {
-        r#frame {
-            name: "DebuffFrame",
-            width: {grid_w},
-            height: {grid_h},
-            pos_type: "absolute",
-            right: 205.0,
-            top: {-(-(8.0 + debuff_y_offset))},
-            {icons}
-        }
-    }
-}
-
-fn buff_icon(index: usize, buff: &BuffIconState, prefix: &str) -> Element {
-    let col = index % ICONS_PER_ROW;
-    let row = index / ICONS_PER_ROW;
-    let x = col as f32 * (ICON_SIZE + ICON_GAP);
-    let y = -(row as f32 * (ICON_SIZE + ROW_GAP));
-    let icon_name = DynName(format!("{prefix}Icon{index}"));
-    let bg = if prefix == "Buff" { BUFF_BG } else { DEBUFF_BG };
-    let stack_text = if buff.stacks > 1 {
-        format!("{}", buff.stacks)
+/// Retail layout: icons grow leftwards from the frame's right edge.
+fn aura_button(prefix: &str, index: usize, icon: &BuffIconState, top: f32) -> Element {
+    let right = (index % BUFFS_PER_ROW) as f32 * (ICON_SIZE + ICON_GAP);
+    let top = top + (index / BUFFS_PER_ROW) as f32 * ROW_H;
+    let name = format!("{prefix}{index}");
+    let count = if icon.stacks > 1 {
+        icon.stacks.to_string()
     } else {
         String::new()
     };
     rsx! {
         r#frame {
-            name: icon_name,
+            name: {DynName(name.clone())},
             width: {ICON_SIZE},
-            height: {ICON_SIZE},
-            background_color: bg,
+            height: {ROW_H},
+            mouse_enabled: true,
             pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-            {icon_timer(DynName(format!("{prefix}Icon{index}Timer")), &buff.timer_text)}
-            {icon_stacks(DynName(format!("{prefix}Icon{index}Stack")), &stack_text)}
-        }
-    }
-}
-
-fn icon_timer(id: DynName, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {ICON_SIZE},
-            height: {TIMER_H},
-            text: text,
-            font_size: 8.0,
-            font_color: TIMER_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: {TIMER_H},
-        }
-    }
-}
-
-fn icon_stacks(id: DynName, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {STACK_SIZE},
-            height: {STACK_SIZE},
-            text: text,
-            font_size: 10.0,
-            font_color: STACK_COLOR,
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: 1.0,
-            bottom: 1.0,
-        }
-    }
-}
-
-fn tooltip_line(name: DynName, h: f32, font_size: f32, color: &str, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: name,
-            width: {TOOLTIP_W - 8.0},
-            height: {h},
-            text: "",
-            font_size: font_size,
-            font_color: color,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 4.0,
-            top: {-(y)},
-        }
-    }
-}
-
-fn buff_tooltip() -> Element {
-    use crate::ui::strata::FrameStrata;
-    rsx! {
-        r#frame {
-            name: "BuffTooltip",
-            width: {TOOLTIP_W},
-            height: {TOOLTIP_H},
-            background_color: TOOLTIP_BG,
-            strata: FrameStrata::Tooltip,
-            hidden: true,
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-            {tooltip_line(DynName("BuffTooltipTitle".into()), 16.0, 11.0, TOOLTIP_TITLE_COLOR, -4.0)}
-            {tooltip_line(DynName("BuffTooltipDesc".into()), 16.0, 9.0, TOOLTIP_DESC_COLOR, -22.0)}
-            {tooltip_line(DynName("BuffTooltipSource".into()), 14.0, 8.0, TOOLTIP_SOURCE_COLOR, -40.0)}
+            right: {right},
+            top: {top},
+            r#frame {
+                name: {DynName(format!("{name}Border"))},
+                width: {ICON_SIZE},
+                height: {ICON_SIZE},
+                background_color: {icon.border_color.as_str()},
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+                r#frame {
+                    name: {DynName(format!("{name}Backing"))},
+                    width: {ICON_SIZE - 2.0},
+                    height: {ICON_SIZE - 2.0},
+                    background_color: ICON_BACKING,
+                    pos_type: "absolute",
+                    left: 1.0,
+                    top: 1.0,
+                    texture {
+                        name: {DynName(format!("{name}Icon"))},
+                        width: {ICON_SIZE - 2.0},
+                        height: {ICON_SIZE - 2.0},
+                        texture_fdid: {icon.icon_fdid},
+                        pos_type: "absolute",
+                        left: 0.0,
+                        top: 0.0,
+                    }
+                }
+                fontstring {
+                    name: {DynName(format!("{name}Count"))},
+                    width: {ICON_SIZE - 2.0},
+                    height: 12.0,
+                    text: {count.as_str()},
+                    font_size: 11.0,
+                    font_color: COUNT_COLOR,
+                    shadow_color: TEXT_SHADOW,
+                    shadow_offset: "1,-1",
+                    justify_h: "RIGHT",
+                    pos_type: "absolute",
+                    right: 1.0,
+                    bottom: 1.0,
+                }
+            }
+            fontstring {
+                name: {DynName(format!("{name}Duration"))},
+                width: {ICON_SIZE + ICON_GAP},
+                height: {DURATION_H},
+                text: {icon.timer_text.as_str()},
+                font_size: 9.0,
+                font_color: DURATION_COLOR,
+                shadow_color: TEXT_SHADOW,
+                shadow_offset: "1,-1",
+                justify_h: "CENTER",
+                pos_type: "absolute",
+                left: "50%",
+                translate_x: "-50%",
+                top: {ICON_SIZE + 1.0},
+            }
         }
     }
 }
@@ -215,44 +217,34 @@ fn buff_tooltip() -> Element {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::buff_data::DebuffType;
     use crate::ui::screens::menu_character_layout_test_support::compute_layout;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::layout::LayoutRect;
-    use ui_toolkit::registry::FrameRegistry;
-    use ui_toolkit::screen::{Screen, SharedContext};
+    use ui_toolkit::screen::Screen;
 
-    fn make_icon(timer: &str) -> BuffIconState {
-        BuffIconState {
-            icon_fdid: 12345,
-            timer_text: timer.into(),
-            stacks: 0,
-            name: "Test Buff".into(),
-            description: "Does something".into(),
-            source: "Player".into(),
+    fn aura(spell_id: u32, is_debuff: bool, remaining: f32) -> AuraInstance {
+        AuraInstance {
+            instance_id: spell_id,
+            spell_id,
+            name: format!("Spell {spell_id}"),
+            description: String::new(),
+            icon_fdid: 135987,
+            source: String::new(),
+            from_local_player: true,
+            duration: 3600.0,
+            remaining,
+            stacks: 1,
+            is_debuff,
+            debuff_type: DebuffType::None,
         }
     }
 
-    fn make_state(buff_count: usize, debuff_count: usize) -> BuffFrameState {
-        BuffFrameState {
-            buffs: (0..buff_count)
-                .map(|i| make_icon(&format!("{i}m")))
-                .collect(),
-            debuffs: (0..debuff_count)
-                .map(|i| make_icon(&format!("{i}s")))
-                .collect(),
-        }
-    }
-
-    fn build_registry(buff_count: usize, debuff_count: usize) -> FrameRegistry {
+    fn registry(state: BuffFrameState) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
-        shared.insert(make_state(buff_count, debuff_count));
+        shared.insert(state);
         Screen::new(buff_frame_screen).sync(&shared, &mut reg);
-        reg
-    }
-
-    fn layout_reg(buff_count: usize, debuff_count: usize) -> FrameRegistry {
-        let mut reg = build_registry(buff_count, debuff_count);
         compute_layout(&mut reg);
         reg
     }
@@ -263,262 +255,88 @@ mod tests {
             .unwrap_or_else(|| panic!("{name} has no layout_rect"))
     }
 
-    #[test]
-    fn builds_buff_and_debuff_frames() {
-        let reg = build_registry(3, 2);
-        assert!(reg.get_by_name("BuffFrame").is_some());
-        assert!(reg.get_by_name("DebuffFrame").is_some());
+    fn background(reg: &FrameRegistry, name: &str) -> [f32; 4] {
+        reg.get(reg.get_by_name(name).expect(name))
+            .expect(name)
+            .background_color
+            .expect("background")
     }
 
-    #[test]
-    fn builds_buff_icons_with_timers() {
-        let reg = build_registry(5, 0);
-        for i in 0..5 {
-            assert!(
-                reg.get_by_name(&format!("BuffIcon{i}")).is_some(),
-                "BuffIcon{i} missing"
-            );
-            assert!(
-                reg.get_by_name(&format!("BuffIcon{i}Timer")).is_some(),
-                "BuffIcon{i}Timer missing"
-            );
-        }
-        assert!(reg.get_by_name("BuffIcon5").is_none());
-    }
-
-    #[test]
-    fn builds_debuff_icons_with_timers() {
-        let reg = build_registry(0, 4);
-        for i in 0..4 {
-            assert!(
-                reg.get_by_name(&format!("DebuffIcon{i}")).is_some(),
-                "DebuffIcon{i} missing"
-            );
-            assert!(
-                reg.get_by_name(&format!("DebuffIcon{i}Timer")).is_some(),
-                "DebuffIcon{i}Timer missing"
-            );
-        }
-    }
-
-    #[test]
-    fn empty_state_builds_frames_only() {
-        let reg = build_registry(0, 0);
-        assert!(reg.get_by_name("BuffFrame").is_some());
-        assert!(reg.get_by_name("DebuffFrame").is_some());
-        assert!(reg.get_by_name("BuffIcon0").is_none());
-        assert!(reg.get_by_name("DebuffIcon0").is_none());
-    }
-
-    // --- Coord validation ---
-
-    #[test]
-    fn coord_buff_frame_right_aligned() {
-        let reg = layout_reg(5, 0);
-        let r = rect(&reg, "BuffFrame");
-        let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
-        let expected_x = 1920.0 - 205.0 - grid_w;
-        assert!(
-            (r.x - expected_x).abs() < 1.0,
-            "x: expected {expected_x}, got {}",
-            r.x
-        );
-        assert!((r.y - 8.0).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_buff_icon_wraps_to_second_row() {
-        let reg = layout_reg(12, 0);
-        let first = rect(&reg, "BuffIcon0");
-        let eleventh = rect(&reg, "BuffIcon10");
-        let row_offset = ICON_SIZE + ROW_GAP;
-        assert!(
-            (eleventh.y - first.y - row_offset).abs() < 1.0,
-            "second row y offset: expected {row_offset}, got {}",
-            eleventh.y - first.y
-        );
-    }
-
-    #[test]
-    fn coord_debuff_below_buffs() {
-        let reg = layout_reg(5, 3);
-        let buff_frame = rect(&reg, "BuffFrame");
-        let debuff_frame = rect(&reg, "DebuffFrame");
-        assert!(
-            debuff_frame.y > buff_frame.y,
-            "debuff frame should be below buff frame"
-        );
-    }
-
-    #[test]
-    fn coord_icon_dimensions() {
-        let reg = layout_reg(1, 1);
-        let buff = rect(&reg, "BuffIcon0");
-        assert!((buff.width - ICON_SIZE).abs() < 1.0);
-        assert!((buff.height - ICON_SIZE).abs() < 1.0);
-        let debuff = rect(&reg, "DebuffIcon0");
-        assert!((debuff.width - ICON_SIZE).abs() < 1.0);
-        assert!((debuff.height - ICON_SIZE).abs() < 1.0);
-    }
-
-    #[test]
-    fn buff_icons_have_stack_count_overlay() {
-        let reg = build_registry(3, 2);
-        for i in 0..3 {
-            assert!(
-                reg.get_by_name(&format!("BuffIcon{i}Stack")).is_some(),
-                "BuffIcon{i}Stack missing"
-            );
-        }
-        for i in 0..2 {
-            assert!(
-                reg.get_by_name(&format!("DebuffIcon{i}Stack")).is_some(),
-                "DebuffIcon{i}Stack missing"
-            );
-        }
-    }
-
-    #[test]
-    fn tooltip_frame_exists_and_hidden() {
-        let reg = build_registry(1, 0);
-        let id = reg.get_by_name("BuffTooltip").expect("BuffTooltip");
-        let frame = reg.get(id).expect("data");
-        assert!(frame.hidden, "tooltip should start hidden");
-        assert!(reg.get_by_name("BuffTooltipTitle").is_some());
-        assert!(reg.get_by_name("BuffTooltipDesc").is_some());
-        assert!(reg.get_by_name("BuffTooltipSource").is_some());
-    }
-
-    #[test]
-    fn coord_buff_icon_horizontal_spacing() {
-        let reg = layout_reg(3, 0);
-        let icon0 = rect(&reg, "BuffIcon0");
-        let icon1 = rect(&reg, "BuffIcon1");
-        let expected = ICON_SIZE + ICON_GAP;
-        let actual = icon1.x - icon0.x;
-        assert!(
-            (actual - expected).abs() < 1.0,
-            "icon spacing: expected {expected}, got {actual}"
-        );
-    }
-
-    #[test]
-    fn coord_debuff_frame_right_aligned() {
-        let reg = layout_reg(0, 3);
-        let r = rect(&reg, "DebuffFrame");
-        let grid_w = ICONS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
-        let expected_x = 1920.0 - 205.0 - grid_w;
-        assert!(
-            (r.x - expected_x).abs() < 1.0,
-            "debuff x: expected {expected_x}, got {}",
-            r.x
-        );
-    }
-
-    // --- Text content tests ---
-
-    fn build_with_state(state: BuffFrameState) -> FrameRegistry {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(state);
-        Screen::new(buff_frame_screen).sync(&shared, &mut reg);
-        reg
-    }
-
-    #[test]
-    fn timer_text_displayed() {
-        let reg = build_registry(3, 0);
-        assert_eq!(fontstring_text(&reg, "BuffIcon0Timer"), "0m");
-        assert_eq!(fontstring_text(&reg, "BuffIcon1Timer"), "1m");
-        assert_eq!(fontstring_text(&reg, "BuffIcon2Timer"), "2m");
-    }
-
-    #[test]
-    fn stack_count_hidden_at_zero_and_one() {
-        let state = BuffFrameState {
-            buffs: vec![
-                BuffIconState {
-                    stacks: 0,
-                    ..make_icon("5m")
-                },
-                BuffIconState {
-                    stacks: 1,
-                    ..make_icon("3m")
-                },
-            ],
-            debuffs: vec![],
+    fn state_with(buffs: usize, debuffs: usize) -> BuffFrameState {
+        let auras = AuraState {
+            auras: (0..buffs)
+                .map(|i| aura(i as u32 + 1, false, 300.0))
+                .chain((0..debuffs).map(|i| aura(i as u32 + 100, true, 30.0)))
+                .collect(),
         };
-        let reg = build_with_state(state);
-        assert_eq!(fontstring_text(&reg, "BuffIcon0Stack"), "");
-        assert_eq!(fontstring_text(&reg, "BuffIcon1Stack"), "");
+        BuffFrameState::from_auras(&auras, false)
     }
 
     #[test]
-    fn stack_count_shown_above_one() {
-        let state = BuffFrameState {
-            buffs: vec![BuffIconState {
-                stacks: 5,
-                ..make_icon("10s")
-            }],
-            debuffs: vec![BuffIconState {
-                stacks: 3,
-                ..make_icon("8s")
-            }],
-        };
-        let reg = build_with_state(state);
-        assert_eq!(fontstring_text(&reg, "BuffIcon0Stack"), "5");
-        assert_eq!(fontstring_text(&reg, "DebuffIcon0Stack"), "3");
+    fn frame_sits_left_of_the_minimap_with_icons_growing_leftwards() {
+        let reg = registry(state_with(2, 0));
+        let frame = rect(&reg, BUFF_FRAME);
+        assert_eq!(frame.x + frame.width, 1920.0 - FRAME_RIGHT);
+        assert_eq!(frame.y, FRAME_TOP);
+        let first = rect(&reg, "BuffButton0");
+        let second = rect(&reg, "BuffButton1");
+        assert_eq!(first.x + first.width, frame.x + frame.width);
+        assert_eq!(first.x - second.x, ICON_SIZE + ICON_GAP);
     }
 
     #[test]
-    fn debuff_timer_text() {
-        let reg = build_registry(0, 2);
-        assert_eq!(fontstring_text(&reg, "DebuffIcon0Timer"), "0s");
-        assert_eq!(fontstring_text(&reg, "DebuffIcon1Timer"), "1s");
+    fn buffs_wrap_after_sixteen_and_debuffs_sit_below() {
+        let reg = registry(state_with(17, 1));
+        let first = rect(&reg, "BuffButton0");
+        let wrapped = rect(&reg, "BuffButton16");
+        assert_eq!(wrapped.x, first.x);
+        assert_eq!(wrapped.y - first.y, ROW_H);
+        let debuff = rect(&reg, "DebuffButton0");
+        assert_eq!(debuff.y - first.y, 2.0 * ROW_H + DEBUFF_GAP);
     }
 
     #[test]
-    fn debuff_y_shifts_with_buff_row_count() {
-        let one_row = layout_reg(5, 1);
-        let two_rows = layout_reg(15, 1);
-        let debuff_one = rect(&one_row, "DebuffFrame");
-        let debuff_two = rect(&two_rows, "DebuffFrame");
-        assert!(
-            debuff_two.y > debuff_one.y,
-            "more buff rows should push debuffs further down"
+    fn border_follows_dispel_type_and_count_shows_above_one_stack() {
+        let mut poison = aura(200, true, 30.0);
+        poison.debuff_type = DebuffType::Poison;
+        poison.stacks = 3;
+        let reg = registry(BuffFrameState::from_auras(
+            &AuraState {
+                auras: vec![aura(1, false, 300.0), poison],
+            },
+            false,
+        ));
+        assert_eq!(
+            background(&reg, "BuffButton0Border"),
+            [0.52, 0.47, 0.38, 1.0]
         );
-        let row_step = ICON_SIZE + ROW_GAP;
-        let shift = debuff_two.y - debuff_one.y;
-        assert!(
-            (shift - row_step).abs() < 1.0,
-            "shift: expected {row_step}, got {shift}"
+        assert_eq!(
+            background(&reg, "DebuffButton0Border"),
+            [0.0, 0.6, 0.0, 1.0]
+        );
+        assert_eq!(fontstring_text(&reg, "BuffButton0Count"), "");
+        assert_eq!(fontstring_text(&reg, "DebuffButton0Count"), "3");
+        assert_eq!(fontstring_text(&reg, "BuffButton0Duration"), "5 m");
+        assert_eq!(fontstring_text(&reg, "DebuffButton0Duration"), "30 s");
+    }
+
+    #[test]
+    fn caps_buffs_and_debuffs() {
+        let state = state_with(40, 20);
+        assert_eq!(
+            (state.buffs.len(), state.debuffs.len()),
+            (MAX_BUFFS, MAX_DEBUFFS)
         );
     }
 
     #[test]
-    fn max_buffs_capped() {
-        let reg = build_registry(40, 0);
-        for i in 0..MAX_BUFFS {
-            assert!(
-                reg.get_by_name(&format!("BuffIcon{i}")).is_some(),
-                "BuffIcon{i} missing"
-            );
-        }
-        assert!(reg.get_by_name(&format!("BuffIcon{MAX_BUFFS}")).is_none());
-    }
-
-    #[test]
-    fn max_debuffs_capped() {
-        let reg = build_registry(0, 20);
-        for i in 0..MAX_DEBUFFS {
-            assert!(
-                reg.get_by_name(&format!("DebuffIcon{i}")).is_some(),
-                "DebuffIcon{i} missing"
-            );
-        }
-        assert!(
-            reg.get_by_name(&format!("DebuffIcon{MAX_DEBUFFS}"))
-                .is_none()
-        );
+    fn button_lookup_walks_up_from_children() {
+        let reg = registry(state_with(1, 2));
+        let icon = reg.get_by_name("DebuffButton1Icon").unwrap();
+        assert_eq!(buff_button_at(&reg, icon), Some((true, 1)));
+        let duration = reg.get_by_name("BuffButton0Duration").unwrap();
+        assert_eq!(buff_button_at(&reg, duration), Some((false, 0)));
+        let root = reg.get_by_name(BUFF_FRAME).unwrap();
+        assert_eq!(buff_button_at(&reg, root), None);
     }
 }
