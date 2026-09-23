@@ -20,8 +20,6 @@ fn spawn_neutral_backdrop(app: &mut App, target: Handle<Image>) {
                     .lookup(24)
                     .expect("neutral scene mapping");
                 assert_eq!(fdid, 623716, "capture must use authored neutral scene");
-                spawn_lighting(&mut spawn.commands);
-                ensure_sky_env_map(&mut spawn.commands, &mut spawn.images);
                 let backdrop =
                     background::spawn(&mut CharCreateSpawnContext::from_params(&mut spawn), fdid)
                         .expect("neutral backdrop loader");

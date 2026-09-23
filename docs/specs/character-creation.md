@@ -25,6 +25,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 - [x] Resolve creation-scene FileDataIDs from `ChrRaces.CreateScreenFileDataID`, including Alliance, Horde and neutral Pandaren; keep the selectable roster unchanged.
 - [ ] Render all three original scene models with their authored textures, animation and lights instead of the substitute grass plane.
+- [ ] Do not add the old preview directional sun or manufacture an unused procedural sky map; retain the scene ambient color and authored point lights. Bevy light-unit calibration is not exact Retail shading parity.
 - [ ] Use the authored default camera framing and preserve rotate, zoom, reset and face-focused customization controls.
 - [ ] Replace scenes on mapped-scene changes without retaining old geometry/lights; release scene descendants on exit and reuse the backdrop for races sharing it.
 

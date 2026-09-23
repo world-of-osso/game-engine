@@ -232,7 +232,7 @@ fn setup_scene_loads_the_authored_alliance_backdrop() {
 }
 
 #[test]
-fn setup_scene_provides_sky_env_map_for_pbr_lighting() {
+fn setup_scene_does_not_create_an_unused_procedural_sky_map() {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
@@ -253,8 +253,8 @@ fn setup_scene_provides_sky_env_map_for_pbr_lighting() {
         .get_resource::<crate::sky::SkyEnvMapHandle>()
         .is_some();
     assert!(
-        has_env_map,
-        "char create scene must provide SkyEnvMapHandle for PBR materials to render correctly standalone"
+        !has_env_map,
+        "creation should not manufacture an unrelated procedural sky environment"
     );
 }
 
@@ -296,10 +296,18 @@ fn setup_scene_creates_camera_and_lighting_standalone() {
         .count()
         > 0;
     assert!(
-        has_directional,
-        "char create scene should spawn a directional light"
+        !has_directional,
+        "authored creation scene must not receive an extra outdoor directional light"
     );
 
+    assert_eq!(
+        app.world_mut()
+            .query::<&PointLight>()
+            .iter(app.world())
+            .count(),
+        2,
+        "both authored scene point lights must remain"
+    );
     let displayed = app.world().resource::<DisplayedModels>();
     assert_eq!(
         displayed.race,
