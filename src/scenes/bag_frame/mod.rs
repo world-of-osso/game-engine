@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use bevy::prelude::*;
 use game_engine::bag_data::InventoryState;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
@@ -13,34 +11,7 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::sound::{UiSoundKind, UiSoundQueue, queue_ui_sound};
 use crate::ui_input::walk_up_for_onclick;
-
-#[derive(Resource, Default, Debug, PartialEq, Eq)]
-pub struct BagFrameOpenState {
-    open_bags: BTreeSet<usize>,
-}
-
-impl BagFrameOpenState {
-    pub fn is_open(&self, bag_index: usize) -> bool {
-        self.open_bags.contains(&bag_index)
-    }
-
-    pub fn any_open(&self) -> bool {
-        !self.open_bags.is_empty()
-    }
-
-    pub fn close_all(&mut self) {
-        self.open_bags.clear();
-    }
-
-    pub fn toggle(&mut self, bag_index: usize) -> bool {
-        if self.open_bags.remove(&bag_index) {
-            false
-        } else {
-            self.open_bags.insert(bag_index);
-            true
-        }
-    }
-}
+use crate::window_manager::{WindowId, WindowManager};
 
 struct BagFrameRes {
     screen: Screen,
@@ -60,7 +31,6 @@ pub struct BagFramePlugin;
 
 impl Plugin for BagFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<BagFrameOpenState>();
         app.init_resource::<InventoryState>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -81,10 +51,10 @@ fn build_bag_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     inventory: Res<InventoryState>,
-    open: Res<BagFrameOpenState>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&inventory, &open);
+    let state = build_state(&inventory, &window_manager);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(bag_frame_screen);
@@ -110,12 +80,12 @@ fn sync_bag_frame_state(
     mut wrap: Option<ResMut<BagFrameWrap>>,
     mut last_model: Option<ResMut<BagFrameModel>>,
     inventory: Res<InventoryState>,
-    open: Res<BagFrameOpenState>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&inventory, &open);
+    let state = build_state(&inventory, &window_manager);
     if last_model.0 == state {
         return;
     }
@@ -132,7 +102,7 @@ fn toggle_bag_frame(
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
     inventory: Res<InventoryState>,
-    mut open: ResMut<BagFrameOpenState>,
+    mut window_manager: ResMut<WindowManager>,
     mut sounds: Option<ResMut<UiSoundQueue>>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
@@ -152,10 +122,15 @@ fn toggle_bag_frame(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    let _ = apply_bag_toggle_action(&action, &inventory, &mut open, sounds.as_deref_mut());
+    let _ = apply_bag_toggle_action(
+        &action,
+        &inventory,
+        &mut window_manager,
+        sounds.as_deref_mut(),
+    );
 }
 
-fn build_state(inventory: &InventoryState, open: &BagFrameOpenState) -> BagFrameState {
+fn build_state(inventory: &InventoryState, window_manager: &WindowManager) -> BagFrameState {
     BagFrameState {
         bags: inventory
             .bags
@@ -174,7 +149,7 @@ fn build_state(inventory: &InventoryState, open: &BagFrameOpenState) -> BagFrame
                         quality_border: slot.quality.border_color().into(),
                     })
                     .collect(),
-                visible: open.is_open(bag.index),
+                visible: window_manager.is_open(WindowId::Bag(bag.index)),
             })
             .collect(),
     }
@@ -183,7 +158,7 @@ fn build_state(inventory: &InventoryState, open: &BagFrameOpenState) -> BagFrame
 fn apply_bag_toggle_action(
     action: &str,
     inventory: &InventoryState,
-    open: &mut BagFrameOpenState,
+    window_manager: &mut WindowManager,
     sounds: Option<&mut UiSoundQueue>,
 ) -> bool {
     let Some(bag_index) = parse_bag_toggle_action(action) else {
@@ -193,7 +168,7 @@ fn apply_bag_toggle_action(
         return false;
     }
 
-    let opened = open.toggle(bag_index);
+    let opened = window_manager.toggle(WindowId::Bag(bag_index));
     if let Some(sounds) = sounds {
         let sound = if opened {
             UiSoundKind::BagOpen
@@ -225,23 +200,23 @@ mod tests {
     #[test]
     fn apply_bag_toggle_action_toggles_open_state_and_queues_sounds() {
         let inventory = InventoryState::default();
-        let mut open = BagFrameOpenState::default();
+        let mut window_manager = WindowManager::default();
         let mut sounds = UiSoundQueue::default();
 
         assert!(apply_bag_toggle_action(
             "bag_toggle:0",
             &inventory,
-            &mut open,
+            &mut window_manager,
             Some(&mut sounds)
         ));
-        assert!(open.is_open(0));
+        assert!(window_manager.is_open(WindowId::Bag(0)));
         assert!(apply_bag_toggle_action(
             "bag_toggle:0",
             &inventory,
-            &mut open,
+            &mut window_manager,
             Some(&mut sounds)
         ));
-        assert!(!open.is_open(0));
+        assert!(!window_manager.is_open(WindowId::Bag(0)));
         assert_eq!(
             sounds.queued_kinds(),
             vec![UiSoundKind::BagOpen, UiSoundKind::BagClose]
@@ -267,10 +242,10 @@ mod tests {
                 InventorySlot::default(),
             ]],
         };
-        let mut open = BagFrameOpenState::default();
-        open.toggle(0);
+        let mut window_manager = WindowManager::default();
+        window_manager.open(WindowId::Bag(0));
 
-        let state = build_state(&inventory, &open);
+        let state = build_state(&inventory, &window_manager);
 
         assert_eq!(state.bags.len(), 1);
         assert_eq!(state.bags[0].title, "Backpack");

@@ -13,9 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
-
-#[derive(Resource, Default)]
-pub struct LootRulesFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 struct LootRulesFrameRes {
     screen: Screen,
@@ -35,7 +33,6 @@ pub struct LootRulesFramePlugin;
 
 impl Plugin for LootRulesFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LootRulesFrameOpen>();
         app.init_resource::<PartyState>();
         app.init_resource::<GroupIntentQueue>();
         app.add_systems(
@@ -60,11 +57,11 @@ fn build_loot_rules_frame_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
-    open: Res<LootRulesFrameOpen>,
+    window_manager: Res<WindowManager>,
     party: Res<PartyState>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&open, &party);
+    let state = build_state(window_manager.is_open(WindowId::LootRules), &party);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(loot_rules_frame_screen);
@@ -87,10 +84,10 @@ fn teardown_loot_rules_frame_ui(
 
 fn toggle_loot_rules_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<LootRulesFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleLootRules) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::LootRules);
     }
 }
 
@@ -98,13 +95,13 @@ fn sync_loot_rules_frame_state(
     mut ui: ResMut<UiState>,
     mut wrap: Option<ResMut<LootRulesFrameWrap>>,
     mut last_model: Option<ResMut<LootRulesFrameModel>>,
-    open: Res<LootRulesFrameOpen>,
+    window_manager: Res<WindowManager>,
     party: Res<PartyState>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&open, &party);
+    let state = build_state(window_manager.is_open(WindowId::LootRules), &party);
     if last_model.0 == state {
         return;
     }
@@ -114,9 +111,9 @@ fn sync_loot_rules_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
-fn build_state(open: &LootRulesFrameOpen, party: &PartyState) -> LootRulesFrameState {
+fn build_state(open: bool, party: &PartyState) -> LootRulesFrameState {
     LootRulesFrameState {
-        visible: open.0,
+        visible: open,
         group_summary: build_group_summary(party),
         current_method: party.loot.method,
         current_threshold: party.loot.threshold,
@@ -141,11 +138,11 @@ fn handle_loot_rules_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    mut open_state: ResMut<LootRulesFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
     mut party: ResMut<PartyState>,
     mut queue: ResMut<GroupIntentQueue>,
 ) {
-    if !open_state.0
+    if !window_manager.is_open(WindowId::LootRules)
         || !crate::networking::gameplay_input_allowed(reconnect)
         || modal_open.is_some()
     {
@@ -165,17 +162,17 @@ fn handle_loot_rules_input(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    dispatch_action(&action, &mut open_state, &mut party, &mut queue);
+    dispatch_action(&action, &mut window_manager, &mut party, &mut queue);
 }
 
 fn dispatch_action(
     action: &str,
-    open: &mut LootRulesFrameOpen,
+    window_manager: &mut WindowManager,
     party: &mut PartyState,
     queue: &mut GroupIntentQueue,
 ) {
     if action == ACTION_CLOSE {
-        open.0 = false;
+        window_manager.close(WindowId::LootRules);
         return;
     }
     if let Some(method) = parse_loot_method_action(action) {
@@ -226,7 +223,7 @@ mod tests {
         party.loot.method = LootMethod::MasterLooter;
         party.loot.threshold = LootThreshold::Epic;
 
-        let state = build_state(&LootRulesFrameOpen(true), &party);
+        let state = build_state(true, &party);
 
         assert!(state.visible);
         assert_eq!(state.current_method, LootMethod::MasterLooter);
@@ -239,7 +236,7 @@ mod tests {
 
     #[test]
     fn dispatch_personal_loot_updates_party_and_queue() {
-        let mut open = LootRulesFrameOpen(true);
+        let mut window_manager = WindowManager::default();
         let mut party = PartyState::default();
         let mut queue = GroupIntentQueue::default();
 
@@ -250,7 +247,7 @@ mod tests {
                     LootMethod::PersonalLoot
                 )
             ),
-            &mut open,
+            &mut window_manager,
             &mut party,
             &mut queue,
         );
@@ -267,7 +264,7 @@ mod tests {
 
     #[test]
     fn dispatch_threshold_updates_party_and_queue() {
-        let mut open = LootRulesFrameOpen(true);
+        let mut window_manager = WindowManager::default();
         let mut party = PartyState::default();
         let mut queue = GroupIntentQueue::default();
 
@@ -278,7 +275,7 @@ mod tests {
                     LootThreshold::Epic
                 )
             ),
-            &mut open,
+            &mut window_manager,
             &mut party,
             &mut queue,
         );

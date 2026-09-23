@@ -22,14 +22,11 @@ use crate::scenes::game_menu::options::{
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::{BindingSection, InputBindings};
 
-mod escape_stack;
 mod interaction;
 pub mod options;
 
-use self::escape_stack::{
-    InWorldEscapePanelMut, InWorldEscapeStack, close_all_tracked_panels, sync_inworld_escape_stack,
-};
 use crate::ui_input_mode::UiInputMode;
+use crate::window_manager::WindowManager;
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::popup::PopupStack;
 
@@ -61,7 +58,6 @@ pub struct GameMenuScreenPlugin;
 
 impl Plugin for GameMenuScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<InWorldEscapeStack>();
         app.add_systems(
             PostUpdate,
             sync_caret_blocking.before(ui_toolkit::native_render::caret::sync_carets),
@@ -73,14 +69,7 @@ impl Plugin for GameMenuScreenPlugin {
         app.add_systems(OnExit(GameState::GameMenu), close_menu_overlay);
         app.add_systems(
             Update,
-            sync_inworld_escape_stack
-                .run_if(in_state(GameState::InWorld))
-                .run_if(inworld_scene_stage_allows_ui),
-        );
-        app.add_systems(
-            Update,
             handle_inworld_escape
-                .after(sync_inworld_escape_stack)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
@@ -250,8 +239,7 @@ fn handle_inworld_escape(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mode: Res<UiInputMode>,
     spellbook_runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
-    mut escape_stack: ResMut<InWorldEscapeStack>,
-    mut panels: InWorldEscapePanelMut,
+    mut window_manager: ResMut<WindowManager>,
     target: Option<ResMut<CurrentTarget>>,
     popups: Option<ResMut<PopupStack>>,
     mut ui: ResMut<UiState>,
@@ -270,7 +258,8 @@ fn handle_inworld_escape(
     if cancel_cursor_action() || close_top_popup(popups) {
         return;
     }
-    if close_all_tracked_panels(&mut escape_stack, &mut panels) {
+    if window_manager.any_open() {
+        window_manager.close_all();
         return;
     }
     if let Some(mut target) = target

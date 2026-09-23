@@ -14,15 +14,13 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::CurrentZone;
 use crate::ui_input::walk_up_for_onclick;
+use crate::window_manager::{WindowId, WindowManager};
 use crate::zone_names::zone_id_to_name;
 
 const ZONE_LABEL_X: f32 = 0.06;
 const ZONE_LABEL_Y: f32 = 0.06;
 const ZONE_LABEL_W: f32 = 0.28;
 const ZONE_LABEL_H: f32 = 0.08;
-
-#[derive(Resource, Default)]
-pub struct WorldMapFrameOpen(pub bool);
 
 struct WorldMapFrameRes {
     screen: Screen,
@@ -42,7 +40,6 @@ pub struct WorldMapFramePlugin;
 
 impl Plugin for WorldMapFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WorldMapFrameOpen>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_world_map_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -67,10 +64,14 @@ fn build_world_map_frame_ui(
     windows: Query<&Window, With<PrimaryWindow>>,
     world_map: Res<WorldMapState>,
     current_zone: Res<CurrentZone>,
-    open: Res<WorldMapFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&world_map, &current_zone, &open);
+    let state = build_state(
+        &world_map,
+        &current_zone,
+        window_manager.is_open(WindowId::WorldMap),
+    );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(world_map_frame_screen);
@@ -93,10 +94,10 @@ fn teardown_world_map_frame_ui(
 
 fn toggle_world_map_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<WorldMapFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleWorldMap) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::WorldMap);
     }
 }
 
@@ -106,12 +107,16 @@ fn sync_world_map_frame_state(
     mut last_model: Option<ResMut<WorldMapFrameModel>>,
     world_map: Res<WorldMapState>,
     current_zone: Res<CurrentZone>,
-    open: Res<WorldMapFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&world_map, &current_zone, &open);
+    let state = build_state(
+        &world_map,
+        &current_zone,
+        window_manager.is_open(WindowId::WorldMap),
+    );
     if last_model.0 == state {
         return;
     }
@@ -127,10 +132,13 @@ fn handle_world_map_frame_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    mut open: ResMut<WorldMapFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
     mut taxi: ResMut<crate::taxi::TaxiState>,
 ) {
-    if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !window_manager.is_open(WindowId::WorldMap)
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
         return;
     }
     let Some(mouse) = mouse else { return };
@@ -148,12 +156,12 @@ fn handle_world_map_frame_input(
         return;
     };
     if action == ACTION_WORLD_MAP_CLOSE {
-        open.0 = false;
+        window_manager.close(WindowId::WorldMap);
         return;
     }
     if let Some(pin_index) = parse_taxi_pin_action(&action) {
         taxi.queue_pin(pin_index);
-        open.0 = false;
+        window_manager.close(WindowId::WorldMap);
     }
 }
 
@@ -167,13 +175,13 @@ fn parse_taxi_pin_action(action: &str) -> Option<usize> {
 fn build_state(
     world_map: &WorldMapState,
     current_zone: &CurrentZone,
-    open: &WorldMapFrameOpen,
+    open: bool,
 ) -> WorldMapFrameState {
     let zone_id = resolve_zone_id(world_map, current_zone);
     let zone_name = resolve_zone_name(world_map, zone_id);
     let explored = zone_id != 0 && world_map.fog.is_explored(zone_id);
     WorldMapFrameState {
-        visible: open.0,
+        visible: open,
         zone_name: zone_name.clone(),
         player_x: world_map.player.x,
         player_y: world_map.player.y,
@@ -360,11 +368,7 @@ mod tests {
 
     #[test]
     fn build_state_adds_fog_for_unexplored_zone() {
-        let state = build_state(
-            &sample_world_map(false),
-            &CurrentZone { zone_id: 12 },
-            &WorldMapFrameOpen(true),
-        );
+        let state = build_state(&sample_world_map(false), &CurrentZone { zone_id: 12 }, true);
 
         assert!(state.visible);
         assert_eq!(state.zone_name, "Elwynn Forest");
@@ -375,11 +379,7 @@ mod tests {
 
     #[test]
     fn build_state_uses_live_exploration_to_clear_fog() {
-        let state = build_state(
-            &sample_world_map(true),
-            &CurrentZone { zone_id: 12 },
-            &WorldMapFrameOpen(true),
-        );
+        let state = build_state(&sample_world_map(true), &CurrentZone { zone_id: 12 }, true);
 
         assert!(state.fog_overlays.is_empty());
         assert_eq!(state.zone_overlays.len(), 1);
@@ -391,11 +391,7 @@ mod tests {
 
     #[test]
     fn build_state_uses_current_zone_texture_for_map_canvas() {
-        let state = build_state(
-            &sample_world_map(true),
-            &CurrentZone { zone_id: 12 },
-            &WorldMapFrameOpen(true),
-        );
+        let state = build_state(&sample_world_map(true), &CurrentZone { zone_id: 12 }, true);
 
         assert_eq!(state.map_texture_fdid, 654321);
     }

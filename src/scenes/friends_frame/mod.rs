@@ -14,9 +14,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
-
-#[derive(Resource, Default)]
-pub struct FriendsFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 #[derive(Resource, Clone, Copy, PartialEq, Eq, Default)]
 struct FriendsFrameSelection(FriendsFrameTabKind);
@@ -39,7 +37,6 @@ pub struct FriendsFramePlugin;
 
 impl Plugin for FriendsFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<FriendsFrameOpen>();
         app.init_resource::<FriendsFrameSelection>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -65,14 +62,14 @@ fn build_friends_frame_ui(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     snapshot: Option<Res<FriendsStatusSnapshot>>,
     who_snapshot: Option<Res<WhoStatusSnapshot>>,
-    open: Res<FriendsFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<FriendsFrameSelection>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_state(
         snapshot.as_deref(),
         who_snapshot.as_deref(),
-        &open,
+        window_manager.is_open(WindowId::Friends),
         &selection,
     );
     let mut shared = SharedContext::new();
@@ -97,13 +94,13 @@ fn teardown_friends_frame_ui(
 
 fn toggle_friends_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<FriendsFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
     selection: Res<FriendsFrameSelection>,
     mut who_runtime: ResMut<WhoRuntimeState>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleSocial) {
-        open.0 = !open.0;
-        if open.0 && selection.0 == FriendsFrameTabKind::Who {
+        let opened = window_manager.toggle(WindowId::Friends);
+        if opened && selection.0 == FriendsFrameTabKind::Who {
             queue_query(&mut who_runtime, String::new());
         }
     }
@@ -115,7 +112,7 @@ fn sync_friends_frame_state(
     mut last_model: Option<ResMut<FriendsFrameModel>>,
     snapshot: Option<Res<FriendsStatusSnapshot>>,
     who_snapshot: Option<Res<WhoStatusSnapshot>>,
-    open: Res<FriendsFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<FriendsFrameSelection>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
@@ -124,7 +121,7 @@ fn sync_friends_frame_state(
     let state = build_state(
         snapshot.as_deref(),
         who_snapshot.as_deref(),
-        &open,
+        window_manager.is_open(WindowId::Friends),
         &selection,
     );
     if last_model.0 == state {
@@ -139,11 +136,11 @@ fn sync_friends_frame_state(
 fn build_state(
     snapshot: Option<&FriendsStatusSnapshot>,
     who_snapshot: Option<&WhoStatusSnapshot>,
-    open: &FriendsFrameOpen,
+    open: bool,
     selection: &FriendsFrameSelection,
 ) -> FriendsFrameState {
     FriendsFrameState {
-        visible: open.0,
+        visible: open,
         active_tab: selection.0,
         tabs: build_tabs(selection.0),
         friends: snapshot
@@ -222,11 +219,14 @@ fn handle_friends_frame_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    open: Res<FriendsFrameOpen>,
+    window_manager: Res<WindowManager>,
     mut selection: ResMut<FriendsFrameSelection>,
     mut who_runtime: ResMut<WhoRuntimeState>,
 ) {
-    if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !window_manager.is_open(WindowId::Friends)
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
         return;
     }
     let Some(mouse) = mouse else { return };
@@ -281,7 +281,7 @@ mod tests {
         let state = build_state(
             None,
             Some(&who_snapshot),
-            &FriendsFrameOpen(true),
+            true,
             &FriendsFrameSelection(FriendsFrameTabKind::Who),
         );
 

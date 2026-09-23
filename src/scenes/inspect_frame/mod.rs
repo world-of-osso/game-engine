@@ -10,6 +10,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
+use crate::window_manager::{WindowId, WindowManager};
 
 struct InspectFrameRes {
     screen: Screen,
@@ -48,9 +49,13 @@ fn build_inspect_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     snapshot: Option<Res<InspectStatusSnapshot>>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(snapshot.as_deref());
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::Inspect),
+    );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(inspect_frame_screen);
@@ -76,11 +81,15 @@ fn sync_inspect_frame_state(
     mut wrap: Option<ResMut<InspectFrameWrap>>,
     mut last_model: Option<ResMut<InspectFrameModel>>,
     snapshot: Option<Res<InspectStatusSnapshot>>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(snapshot.as_deref());
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::Inspect),
+    );
     if last_model.0 == state {
         return;
     }
@@ -90,8 +99,8 @@ fn sync_inspect_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
-fn build_state(snapshot: Option<&InspectStatusSnapshot>) -> InspectFrameState {
-    let Some(snapshot) = snapshot else {
+fn build_state(snapshot: Option<&InspectStatusSnapshot>, open: bool) -> InspectFrameState {
+    let Some(snapshot) = snapshot.filter(|_| open) else {
         return InspectFrameState::default();
     };
     let Some(target_name) = snapshot.target_name.clone() else {
@@ -209,32 +218,35 @@ mod tests {
 
     #[test]
     fn build_state_maps_equipment_and_talents() {
-        let state = build_state(Some(&InspectStatusSnapshot {
-            target_name: Some("Alice".into()),
-            equipment_appearance: EquipmentAppearance {
-                entries: vec![shared::components::EquippedAppearanceEntry {
-                    slot: EquipmentVisualSlot::Head,
-                    item_id: Some(100),
-                    display_info_id: Some(200),
-                    inventory_type: 1,
-                    hidden: false,
+        let state = build_state(
+            Some(&InspectStatusSnapshot {
+                target_name: Some("Alice".into()),
+                equipment_appearance: EquipmentAppearance {
+                    entries: vec![shared::components::EquippedAppearanceEntry {
+                        slot: EquipmentVisualSlot::Head,
+                        item_id: Some(100),
+                        display_info_id: Some(200),
+                        inventory_type: 1,
+                        hidden: false,
+                    }],
+                },
+                spec_tabs: vec![TalentSpecTabEntry {
+                    name: "Protection".into(),
+                    active: true,
                 }],
-            },
-            spec_tabs: vec![TalentSpecTabEntry {
-                name: "Protection".into(),
-                active: true,
-            }],
-            talents: vec![TalentNodeEntry {
-                talent_id: 1,
-                name: "Divine Strength".into(),
-                points_spent: 1,
-                max_points: 1,
-                active: true,
-            }],
-            points_remaining: 50,
-            last_server_message: Some("inspect ready".into()),
-            last_error: None,
-        }));
+                talents: vec![TalentNodeEntry {
+                    talent_id: 1,
+                    name: "Divine Strength".into(),
+                    points_spent: 1,
+                    max_points: 1,
+                    active: true,
+                }],
+                points_remaining: 50,
+                last_server_message: Some("inspect ready".into()),
+                last_error: None,
+            }),
+            true,
+        );
 
         assert!(state.visible);
         assert_eq!(state.target_name, "Alice");

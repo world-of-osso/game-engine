@@ -9,9 +9,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
-
-#[derive(Resource, Default)]
-pub struct MailFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 struct MailFrameRes {
     screen: Screen,
@@ -31,7 +29,6 @@ pub struct MailFramePlugin;
 
 impl Plugin for MailFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MailFrameOpen>();
         app.init_resource::<MailState>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -52,10 +49,10 @@ fn build_mail_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mail: Res<MailState>,
-    open: Res<MailFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&mail, &open);
+    let state = build_state(&mail, window_manager.is_open(WindowId::Mail));
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(mail_frame_screen);
@@ -81,12 +78,12 @@ fn sync_mail_frame_state(
     mut wrap: Option<ResMut<MailFrameWrap>>,
     mut last_model: Option<ResMut<MailFrameModel>>,
     mail: Res<MailState>,
-    open: Res<MailFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&mail, &open);
+    let state = build_state(&mail, window_manager.is_open(WindowId::Mail));
     if last_model.0 == state {
         return;
     }
@@ -98,16 +95,16 @@ fn sync_mail_frame_state(
 
 fn toggle_mail_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<MailFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleMail) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::Mail);
     }
 }
 
-fn build_state(mail: &MailState, open: &MailFrameOpen) -> MailFrameState {
+fn build_state(mail: &MailState, open: bool) -> MailFrameState {
     MailFrameState {
-        visible: open.0,
+        visible: open,
         tabs: vec![
             MailTab {
                 name: "Inbox".into(),
@@ -169,7 +166,7 @@ mod tests {
             send_attachments: vec![],
         };
 
-        let state = build_state(&mail, &MailFrameOpen(true));
+        let state = build_state(&mail, true);
 
         assert!(state.visible);
         assert_eq!(state.inbox.len(), 1);
@@ -183,7 +180,7 @@ mod tests {
 
     #[test]
     fn build_state_hides_frame_when_closed() {
-        let state = build_state(&MailState::default(), &MailFrameOpen(false));
+        let state = build_state(&MailState::default(), false);
         assert!(!state.visible);
         assert_eq!(state.inbox, Vec::<InboxEntry>::new());
     }

@@ -13,9 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
-
-#[derive(Resource, Default)]
-pub struct EncounterJournalFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 struct EncounterJournalFrameRes {
     screen: Screen,
@@ -35,7 +33,6 @@ pub struct EncounterJournalFramePlugin;
 
 impl Plugin for EncounterJournalFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<EncounterJournalFrameOpen>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_encounter_journal_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -61,10 +58,13 @@ fn build_encounter_journal_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     snapshot: Option<Res<EncounterJournalStatusSnapshot>>,
-    open: Res<EncounterJournalFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(snapshot.as_deref(), &open);
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::EncounterJournal),
+    );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(encounter_journal_screen);
@@ -90,10 +90,10 @@ fn teardown_encounter_journal_frame_ui(
 
 fn toggle_encounter_journal_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<EncounterJournalFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleEncounterJournal) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::EncounterJournal);
     }
 }
 
@@ -102,12 +102,15 @@ fn sync_encounter_journal_frame_state(
     mut wrap: Option<ResMut<EncounterJournalFrameWrap>>,
     mut last_model: Option<ResMut<EncounterJournalFrameModel>>,
     snapshot: Option<Res<EncounterJournalStatusSnapshot>>,
-    open: Res<EncounterJournalFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(snapshot.as_deref(), &open);
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::EncounterJournal),
+    );
     if last_model.0 == state {
         return;
     }
@@ -119,12 +122,12 @@ fn sync_encounter_journal_frame_state(
 
 fn build_state(
     snapshot: Option<&EncounterJournalStatusSnapshot>,
-    open: &EncounterJournalFrameOpen,
+    open: bool,
 ) -> EncounterJournalState {
     let tabs = encounter_journal_tabs();
     let Some(snapshot) = snapshot else {
         return EncounterJournalState {
-            visible: open.0,
+            visible: open,
             tabs,
             ..EncounterJournalState::default()
         };
@@ -133,7 +136,7 @@ fn build_state(
     let selected_instance = select_instance(&visible_instances);
     let selected_boss = select_boss(selected_instance);
     EncounterJournalState {
-        visible: open.0,
+        visible: open,
         tabs,
         instances: map_instance_entries(&visible_instances, selected_instance),
         bosses: map_boss_entries(selected_instance, selected_boss),
@@ -321,7 +324,7 @@ mod tests {
                 ],
                 last_error: None,
             }),
-            &EncounterJournalFrameOpen(true),
+            true,
         );
 
         assert!(state.visible);

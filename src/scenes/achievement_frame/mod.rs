@@ -12,13 +12,10 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
+use crate::window_manager::{WindowId, WindowManager};
 use game_engine::achievements::{
     AchievementCompletionState, achievements_for_category, build_category_tree, categories_for_tab,
 };
-
-/// Tracks whether the Achievement panel is open.
-#[derive(Resource, Default)]
-pub struct AchievementFrameOpen(pub bool);
 
 struct AchievementFrameRes {
     screen: Screen,
@@ -38,7 +35,6 @@ pub struct AchievementFramePlugin;
 
 impl Plugin for AchievementFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<AchievementFrameOpen>();
         app.init_resource::<AchievementCompletionState>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -59,10 +55,10 @@ fn build_achievement_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     completion: Res<AchievementCompletionState>,
-    open: Res<AchievementFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&completion, &open);
+    let state = build_state(&completion, window_manager.is_open(WindowId::Achievements));
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(achievement_frame_screen);
@@ -85,10 +81,10 @@ fn teardown_achievement_frame_ui(
 
 fn toggle_achievement_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<AchievementFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleAchievements) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::Achievements);
     }
 }
 
@@ -97,16 +93,16 @@ fn sync_achievement_frame_state(
     mut wrap: Option<ResMut<AchievementFrameWrap>>,
     mut last_model: Option<ResMut<AchievementFrameModel>>,
     completion: Res<AchievementCompletionState>,
-    open: Res<AchievementFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
-    let inputs_changed = completion.is_changed() || open.is_changed();
+    let inputs_changed = completion.is_changed() || window_manager.is_changed();
     if !inputs_changed {
         return;
     }
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&completion, &open);
+    let state = build_state(&completion, window_manager.is_open(WindowId::Achievements));
     if last_model.0 == state {
         return;
     }
@@ -116,14 +112,11 @@ fn sync_achievement_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
-fn build_state(
-    completion: &AchievementCompletionState,
-    open: &AchievementFrameOpen,
-) -> AchievementFrameState {
+fn build_state(completion: &AchievementCompletionState, open: bool) -> AchievementFrameState {
     let tab_cats = categories_for_tab(0);
     let first_cat_id = tab_cats.first().map(|c| c.id);
     AchievementFrameState {
-        visible: open.0,
+        visible: open,
         tabs: default_tabs(),
         categories: build_sidebar_categories(first_cat_id),
         achievements: build_achievement_rows(first_cat_id, completion),

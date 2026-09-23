@@ -110,8 +110,7 @@ struct RightClickInteractionState<'w, 's> {
     current: ResMut<'w, CurrentTarget>,
     gossip_queue: ResMut<'w, GossipIntentQueue>,
     mail_queue: ResMut<'w, MailIntentQueue>,
-    mail_frame_open: Option<ResMut<'w, crate::scenes::mail_frame::MailFrameOpen>>,
-    professions_open: Option<ResMut<'w, crate::scenes::professions_frame::ProfessionsFrameOpen>>,
+    window_manager: Option<ResMut<'w, crate::window_manager::WindowManager>>,
     emote_input: Option<ResMut<'w, crate::networking::EmoteInput>>,
     profession_runtime: Option<ResMut<'w, game_engine::profession::ProfessionRuntimeState>>,
     casting_state: Option<ResMut<'w, game_engine::casting_data::CastingState>>,
@@ -562,8 +561,7 @@ fn interact_with_clicked_object(
     let _ = interact_with_object(
         kind,
         &mut state.mail_queue,
-        state.mail_frame_open.as_deref_mut(),
-        state.professions_open.as_deref_mut(),
+        state.window_manager.as_deref_mut(),
         state.emote_input.as_deref_mut(),
         state.profession_runtime.as_deref_mut(),
         state.casting_state.as_deref_mut(),
@@ -621,8 +619,7 @@ fn interaction_target_at_cursor(
 fn interact_with_object(
     kind: WorldObjectInteractionKind,
     mail_queue: &mut MailIntentQueue,
-    mail_frame_open: Option<&mut crate::scenes::mail_frame::MailFrameOpen>,
-    professions_open: Option<&mut crate::scenes::professions_frame::ProfessionsFrameOpen>,
+    window_manager: Option<&mut crate::window_manager::WindowManager>,
     emote_input: Option<&mut crate::networking::EmoteInput>,
     profession_runtime: Option<&mut game_engine::profession::ProfessionRuntimeState>,
     casting_state: Option<&mut game_engine::casting_data::CastingState>,
@@ -630,14 +627,14 @@ fn interact_with_object(
     match kind {
         WorldObjectInteractionKind::Mailbox => {
             mail_queue.open_mailbox();
-            if let Some(open) = mail_frame_open {
-                open.0 = true;
+            if let Some(window_manager) = window_manager {
+                window_manager.open(crate::window_manager::WindowId::Mail);
             }
             true
         }
         WorldObjectInteractionKind::Forge | WorldObjectInteractionKind::Anvil => {
-            if let Some(open) = professions_open {
-                open.0 = true;
+            if let Some(window_manager) = window_manager {
+                window_manager.open(crate::window_manager::WindowId::Professions);
                 return true;
             }
             false

@@ -1,9 +1,6 @@
-use super::escape_stack::{
-    InWorldEscapePanel, close_bag_panel, close_inspect_panel, close_topmost_tracked_panel,
-};
 use super::*;
 use crate::scenes::game_menu::options::HudDraft;
-use game_engine::status::InspectStatusSnapshot;
+use crate::window_manager::WindowId;
 use game_engine::ui::{event::EventBus, plugin::UiState};
 
 #[test]
@@ -125,8 +122,7 @@ fn inworld_escape_app(ui: UiState) -> App {
         legacy_modal_position: None,
     });
     app.init_resource::<CurrentTarget>();
-    app.init_resource::<crate::scenes::character_frame::CharacterFrameOpen>();
-    app.init_resource::<crate::scenes::mail_frame::MailFrameOpen>();
+    app.add_plugins(crate::window_manager::WindowManagerPlugin);
     app.update();
     app
 }
@@ -148,23 +144,17 @@ fn press_escape(app: &mut App) {
 }
 
 fn open_character_and_mail(app: &mut App) {
-    app.world_mut()
-        .resource_mut::<crate::scenes::character_frame::CharacterFrameOpen>()
-        .0 = true;
-    app.world_mut()
-        .resource_mut::<crate::scenes::mail_frame::MailFrameOpen>()
-        .0 = true;
+    let mut windows = app.world_mut().resource_mut::<WindowManager>();
+    windows.open(WindowId::Character);
+    windows.open(WindowId::Mail);
     app.update();
 }
 
 fn panels_open(app: &App) -> (bool, bool) {
+    let windows = app.world().resource::<WindowManager>();
     (
-        app.world()
-            .resource::<crate::scenes::character_frame::CharacterFrameOpen>()
-            .0,
-        app.world()
-            .resource::<crate::scenes::mail_frame::MailFrameOpen>()
-            .0,
+        windows.is_open(WindowId::Character),
+        windows.is_open(WindowId::Mail),
     )
 }
 
@@ -273,60 +263,18 @@ fn escape_with_focused_editbox_only_clears_focus() {
 }
 
 #[test]
-fn escape_stack_tracks_open_order_and_reopen_promotion() {
-    let mut stack = InWorldEscapeStack::default();
+fn escape_closes_bags_with_wide_window_in_one_press() {
+    let mut app = inworld_escape_app(empty_ui());
+    {
+        let mut windows = app.world_mut().resource_mut::<WindowManager>();
+        windows.open(WindowId::Bag(0));
+        windows.open(WindowId::Bag(2));
+        windows.open(WindowId::WorldMap);
+    }
+    app.update();
 
-    stack.sync(InWorldEscapePanel::Character, true);
-    stack.sync(InWorldEscapePanel::WorldMap, true);
-    stack.sync(InWorldEscapePanel::Character, false);
-    stack.sync(InWorldEscapePanel::Character, true);
+    press_escape(&mut app);
 
-    assert_eq!(
-        stack.ordered_panels(),
-        vec![InWorldEscapePanel::WorldMap, InWorldEscapePanel::Character]
-    );
-}
-
-#[test]
-fn close_topmost_tracked_panel_skips_stale_entries() {
-    let mut stack = InWorldEscapeStack::with_open_order(&[
-        InWorldEscapePanel::Character,
-        InWorldEscapePanel::WorldMap,
-        InWorldEscapePanel::Calendar,
-    ]);
-    let mut attempted = Vec::new();
-
-    let closed = close_topmost_tracked_panel(&mut stack, |panel| {
-        attempted.push(panel);
-        panel == InWorldEscapePanel::WorldMap
-    });
-
-    assert_eq!(closed, Some(InWorldEscapePanel::WorldMap));
-    assert_eq!(
-        attempted,
-        vec![InWorldEscapePanel::Calendar, InWorldEscapePanel::WorldMap]
-    );
-    assert_eq!(stack.ordered_panels(), vec![InWorldEscapePanel::Character]);
-}
-
-#[test]
-fn close_bag_panel_clears_all_open_bags() {
-    let mut open = crate::scenes::bag_frame::BagFrameOpenState::default();
-    open.toggle(0);
-    open.toggle(2);
-
-    assert!(close_bag_panel(Some(&mut open)));
-    assert!(!open.any_open());
-}
-
-#[test]
-fn close_inspect_panel_resets_snapshot() {
-    let mut snapshot = InspectStatusSnapshot {
-        target_name: Some("Valeera".into()),
-        last_server_message: Some("inspect ready".into()),
-        ..Default::default()
-    };
-
-    assert!(close_inspect_panel(Some(&mut snapshot)));
-    assert_eq!(snapshot, InspectStatusSnapshot::default());
+    assert!(!app.world().resource::<WindowManager>().any_open());
+    assert!(!game_menu_open(&app));
 }
