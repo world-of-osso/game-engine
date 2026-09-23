@@ -24,13 +24,13 @@ Closed dropdown `SelectionDetails` uses the same Retail `ResizeLayoutFrame` cont
 
 ## Authored 3D preview backdrops
 
-`ChrRaces.CreateScreenFileDataID` supplies the backdrop model: Alliance `623712`, Horde `623714`, and neutral Pandaren `623716`. Race 25 reuses Alliance and race 26 reuses Horde; the selectable roster remains unchanged. The loader accepts neutral race 24 rather than inferring a faction substitute.
+`ChrRaces.CreateScreenFileDataID` supplies the backdrop model: Alliance `623712`, Horde `623714`, and neutral Pandaren `623716`. Race 25 reuses Alliance and race 26 reuses Horde; neutral race 24 is loader-supported without adding an actor or changing the selectable roster.
 
-The local-CASC cache currently contains the three `.m2` files with 12 `.skin` files and 101 referenced textures. Each backdrop parses camera snapshot zero and root attachment 0, then normalizes the attachment to preview origin while rotating its camera axis to `+Z`; the transformed eye/focus, FOV, near and far values seed the existing orbit camera. This is a first-key/static snapshot, not camera-track evaluation. Existing rotate, zoom, reset and face-focused camera controls remain unchanged.
+The local-CASC cache currently contains the three `.m2` files with 12 `.skin` files and 101 referenced textures. Each backdrop parses camera snapshot zero and root attachment 0, then normalizes the attachment to preview origin while rotating its camera axis to `+Z`; the transformed eye/focus, FOV, near and far values seed the existing orbit camera. This is a first-key/static snapshot, not camera-track evaluation. Presentation `customize_scale` now scales the preview actor, and `camera_distance_offset` adjusts its authored default orbit distance; rotate, zoom, reset and face-focused controls remain intact.
 
-Backdrop ambient uses the authored type-0 M2 light color sampled at time/sequence zero. The existing directional PBR fill and sky environment map remain, so this does **not** claim exact authored or Retail lighting parity. Backdrop point lights pass through the ordinary static-M2 light-spawn pipeline rather than a character-creation-only lighting path.
+Backdrop ambient uses the authored type-0 M2 light color at time/sequence zero, converted to linear RGB. Its brightness is the reciprocal of Bevy's default camera exposure, preserving the authored dimensionless multiplier before Bevy's BRDF; the camera explicitly retains the same numeric default exposure. The generic 8,000-lux directional fill was removed. The procedural `SkyEnvMapHandle` was never bound to the character-creation camera and is no longer created, so it is not evidence of active IBL or a cause of washout. Backdrop point lights still use the ordinary static-M2 light-spawn pipeline. Backdrop-owned `StandardMaterial`s use `reflectance = 0` and `perceptual_roughness = 1`, matching the M2-effect/UI-model diffuse reference; other materials are unchanged. This approximates PBR/light units and does **not** claim exact WoW or Retail shading parity.
 
-The Alliance `1` / sex `1` target passed native validation. GPU/lifecycle validation for all three backdrops, all camera-control paths, and independent final verification remain pending.
+Focused RED/GREEN evidence covers removal of the extra directional light and unused procedural map, authored ambient conversion, backdrop diffuse material settings, presentation scale/distance application, and neutral loader-only GPU capture. See `data/diagnostics/charcreate-authored-scenes-20260923/`, including `neutral-diffuse-lighting-gpu.log`. A new GUI capture under the revised lighting, complete three-backdrop visual acceptance, and independent final verification remain pending.
 
 ## Known limits
 
@@ -46,7 +46,8 @@ The Alliance `1` / sex `1` target passed native validation. GPU/lifecycle valida
 - [UI system](ui-system.md) — registry/native UI and asset projection
 - [character rendering](character-rendering.md) — material/geoset application
 - [asset pipeline](asset-pipeline.md) — local CASC/FileDataID contract
-- `src/scenes/char_create/{background,background_data,scene}.rs` — authored backdrop catalog, framing normalization, and scene ownership
+- `src/scenes/char_create/{background,background_data,scene}.rs` — authored backdrop catalog, framing normalization, lighting/material conversion and scene ownership
+- `data/diagnostics/charcreate-authored-scenes-20260923/` — scoped RED/GREEN source, GPU and runtime evidence; `NameGen-12.1.0.69875.csv` is the pinned Wago acquisition input, while `data/NameGen.csv` is an untracked generated cache.
 - `src/asset/m2_format/{m2_camera,m2_attach}.rs` — snapshot-zero camera and corrected root-attachment parsing
 - [shared customization contract](../../../shared-protocol/docs/specs/character-customization.md) — appearance payload
 - [server customization storage](../../../game-server/docs/specs/character-customization-storage.md) — historic persistence upgrade
