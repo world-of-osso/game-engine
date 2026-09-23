@@ -77,15 +77,17 @@ pub fn cast_failed_text(
         // SPELL_FAILED_MOVING
         CastFailReason::CantCastWhileMoving => "Can't do that while moving",
         // SPELL_FAILED_TOO_CLOSE
-        CastFailReason::TooClose => "Target too close",
+        CastFailReason::TooClose => "Target too close.",
         // SPELL_FAILED_SPELL_IN_PROGRESS
-        CastFailReason::SpellInProgress => "Another action is in progress",
+        CastFailReason::SpellInProgress => "Another action is in progress.",
         // SPELL_FAILED_NO_CHARGES_REMAIN
-        CastFailReason::NoChargesRemain => "No charges remain",
+        CastFailReason::NoChargesRemain => "No charges remain.",
         // SPELL_FAILED_UNIT_NOT_INFRONT
         CastFailReason::NotInFront => "Target needs to be in front of you.",
-        // ERR_GENERIC_THROTTLE-style wording; no dedicated Retail string.
-        CastFailReason::SchoolLockedOut | CastFailReason::NotSupported => "You can't do that yet",
+        // SPELL_FAILED_SILENCED, shown for interrupt school lockouts
+        CastFailReason::SchoolLockedOut => "Can't do that while silenced",
+        // Not a Retail string: the server cannot execute this spell.
+        CastFailReason::NotSupported => "That spell isn't available yet.",
     };
     text.to_string()
 }
@@ -172,6 +174,24 @@ mod tests {
         assert_eq!(text(CastFailReason::InvalidTarget), "Invalid target");
         assert_eq!(text(CastFailReason::OnCooldown), "Spell is not ready yet.");
         assert_eq!(text(CastFailReason::NoTarget), "You have no target.");
+        assert_eq!(text(CastFailReason::TooClose), "Target too close.");
+        assert_eq!(
+            text(CastFailReason::SchoolLockedOut),
+            "Can't do that while silenced"
+        );
+        assert_eq!(
+            text(CastFailReason::SpellInProgress),
+            "Another action is in progress."
+        );
+        assert_eq!(text(CastFailReason::NoChargesRemain), "No charges remain.");
+        assert_eq!(
+            text(CastFailReason::NotInFront),
+            "Target needs to be in front of you."
+        );
+        assert_eq!(
+            text(CastFailReason::NotSupported),
+            "That spell isn't available yet."
+        );
         assert_eq!(text(CastFailReason::NotEnoughResource), "Not enough power.");
         assert_eq!(
             cast_failed_text(
