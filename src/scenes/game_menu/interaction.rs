@@ -2,7 +2,7 @@ use bevy::app::AppExit;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
-use game_engine::input_bindings::{InputAction, InputBinding};
+use game_engine::input_bindings::{InputAction, InputBinding, captured_keyboard_binding};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
@@ -36,8 +36,12 @@ pub(super) fn handle_overlay_input(
     mut commands: Commands,
     state: Res<State<GameState>>,
 ) {
-    let capture_changed =
-        handle_binding_capture_keys(&mut overlay, key_events.as_mut(), &mut commands);
+    let capture_changed = handle_binding_capture_keys(
+        &mut overlay,
+        keyboard.as_deref(),
+        key_events.as_mut(),
+        &mut commands,
+    );
     if capture_changed {
         sync_overlay_model_only(&mut overlay, &mut ui.registry);
     }
@@ -128,13 +132,14 @@ fn handle_press(
 
 fn handle_binding_capture_keys(
     overlay: &mut GameMenuOverlay,
+    keyboard: Option<&ButtonInput<KeyCode>>,
     key_events: Option<&mut MessageReader<KeyboardInput>>,
     commands: &mut Commands,
 ) -> bool {
     let Some(action) = listening_binding_action(overlay) else {
         return false;
     };
-    let Some(key_events) = key_events else {
+    let (Some(keyboard), Some(key_events)) = (keyboard, key_events) else {
         return false;
     };
     for event in key_events.read() {
@@ -146,14 +151,12 @@ fn handle_binding_capture_keys(
             return true;
         }
         if event.key_code
-            != KeyCode::Unidentified(bevy::input::keyboard::NativeKeyCode::Unidentified)
+            == KeyCode::Unidentified(bevy::input::keyboard::NativeKeyCode::Unidentified)
         {
-            assign_binding(
-                action,
-                InputBinding::Keyboard(event.key_code),
-                overlay,
-                commands,
-            );
+            continue;
+        }
+        if let Some(binding) = captured_keyboard_binding(event.key_code, keyboard) {
+            assign_binding(action, binding, overlay, commands);
             return true;
         }
     }

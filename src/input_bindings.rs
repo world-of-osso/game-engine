@@ -122,10 +122,19 @@ pub enum InputAction {
     ActionSlot11,
     ActionSlot12,
     ToggleMute,
+    ToggleCharacter,
+    ToggleProfessions,
+    ToggleAchievements,
+    ToggleTalents,
+    ToggleEncounterJournal,
+    ToggleSocial,
+    ToggleMail,
+    ToggleLootRules,
+    ToggleWorldMap,
 }
 
 impl InputAction {
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 37] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -154,6 +163,15 @@ impl InputAction {
         Self::ActionSlot11,
         Self::ActionSlot12,
         Self::ToggleMute,
+        Self::ToggleCharacter,
+        Self::ToggleProfessions,
+        Self::ToggleAchievements,
+        Self::ToggleTalents,
+        Self::ToggleEncounterJournal,
+        Self::ToggleSocial,
+        Self::ToggleMail,
+        Self::ToggleLootRules,
+        Self::ToggleWorldMap,
     ];
 
     pub fn key(self) -> &'static str {
@@ -166,6 +184,7 @@ impl InputAction {
             .or_else(|| targeting_action_from_key(key))
             .or_else(|| action_slot_from_key(key))
             .or_else(|| audio_action_from_key(key))
+            .or_else(|| interface_action_from_key(key))
     }
 
     pub fn label(self) -> &'static str {
@@ -184,7 +203,49 @@ impl InputAction {
         if let Some(meta) = self.action_slot_meta() {
             return meta;
         }
+        if let Some(meta) = self.interface_meta() {
+            return meta;
+        }
         self.non_action_slot_meta()
+    }
+
+    fn interface_meta(self) -> Option<InputActionMeta> {
+        let (key, label, binding) = match self {
+            Self::ToggleCharacter => (
+                "toggle_character",
+                "Character Info",
+                keyboard(KeyCode::KeyC),
+            ),
+            Self::ToggleProfessions => {
+                ("toggle_professions", "Professions", keyboard(KeyCode::KeyK))
+            }
+            Self::ToggleAchievements => (
+                "toggle_achievements",
+                "Achievements",
+                keyboard(KeyCode::KeyY),
+            ),
+            Self::ToggleTalents => ("toggle_talents", "Talents", keyboard(KeyCode::KeyN)),
+            Self::ToggleEncounterJournal => (
+                "toggle_encounter_journal",
+                "Adventure Guide",
+                keyboard(KeyCode::KeyJ),
+            ),
+            Self::ToggleSocial => ("toggle_social", "Social", keyboard(KeyCode::KeyO)),
+            Self::ToggleMail => ("toggle_mail", "Mail", keyboard(KeyCode::KeyM)),
+            Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", keyboard(KeyCode::KeyL)),
+            Self::ToggleWorldMap => (
+                "toggle_world_map",
+                "World Map",
+                InputBinding::ShiftKeyboard(KeyCode::KeyM),
+            ),
+            _ => return None,
+        };
+        Some(input_action_meta(
+            key,
+            label,
+            BindingSection::Interface,
+            Some(binding),
+        ))
     }
 
     fn non_action_slot_meta(self) -> InputActionMeta {
@@ -205,6 +266,15 @@ impl InputAction {
             Self::TargetNearest => targeting_meta("target_nearest", "Target Nearest", KeyCode::Tab),
             Self::TargetSelf => targeting_meta("target_self", "Target Self", KeyCode::F1),
             Self::ToggleMute => audio_meta("toggle_mute", "Toggle Mute", KeyCode::KeyM),
+            Self::ToggleCharacter
+            | Self::ToggleProfessions
+            | Self::ToggleAchievements
+            | Self::ToggleTalents
+            | Self::ToggleEncounterJournal
+            | Self::ToggleSocial
+            | Self::ToggleMail
+            | Self::ToggleLootRules
+            | Self::ToggleWorldMap => unreachable!("panel toggles handled by interface_meta"),
             Self::ActionSlot1
             | Self::ActionSlot2
             | Self::ActionSlot3
@@ -247,15 +317,17 @@ pub enum BindingSection {
     Targeting,
     ActionBar,
     Audio,
+    Interface,
 }
 
 impl BindingSection {
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::Movement,
         Self::Camera,
         Self::Targeting,
         Self::ActionBar,
         Self::Audio,
+        Self::Interface,
     ];
 
     pub fn key(self) -> &'static str {
@@ -265,6 +337,7 @@ impl BindingSection {
             Self::Targeting => "targeting",
             Self::ActionBar => "action_bar",
             Self::Audio => "audio",
+            Self::Interface => "interface",
         }
     }
 
@@ -275,6 +348,7 @@ impl BindingSection {
             "targeting" => Self::Targeting,
             "action_bar" => Self::ActionBar,
             "audio" => Self::Audio,
+            "interface" => Self::Interface,
             _ => return None,
         })
     }
@@ -286,6 +360,7 @@ impl BindingSection {
             Self::Targeting => "Targeting",
             Self::ActionBar => "Action Bar",
             Self::Audio => "Audio",
+            Self::Interface => "Interface",
         }
     }
 }
@@ -293,6 +368,8 @@ impl BindingSection {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum InputBinding {
     Keyboard(KeyCode),
+    /// Key pressed while either Shift is held.
+    ShiftKeyboard(KeyCode),
     Mouse(MouseButton),
 }
 
@@ -304,6 +381,7 @@ impl InputBinding {
     ) -> bool {
         match self {
             Self::Keyboard(key) => keys.pressed(key),
+            Self::ShiftKeyboard(key) => shift_held(keys) && keys.pressed(key),
             Self::Mouse(button) => mouse_buttons.pressed(button),
         }
     }
@@ -315,6 +393,7 @@ impl InputBinding {
     ) -> bool {
         match self {
             Self::Keyboard(key) => keys.just_pressed(key),
+            Self::ShiftKeyboard(key) => shift_held(keys) && keys.just_pressed(key),
             Self::Mouse(button) => mouse_buttons.just_pressed(button),
         }
     }
@@ -322,9 +401,26 @@ impl InputBinding {
     pub fn display(self) -> String {
         match self {
             Self::Keyboard(key) => key_display(key),
+            Self::ShiftKeyboard(key) => format!("Shift-{}", key_display(key)),
             Self::Mouse(button) => mouse_button_display(button),
         }
     }
+}
+
+/// Binding captured from a key press. Shift keys act as the modifier and are
+/// never captured on their own.
+pub fn captured_keyboard_binding(
+    key: KeyCode,
+    keys: &ButtonInput<KeyCode>,
+) -> Option<InputBinding> {
+    if matches!(key, KeyCode::ShiftLeft | KeyCode::ShiftRight) {
+        return None;
+    }
+    Some(if shift_held(keys) {
+        InputBinding::ShiftKeyboard(key)
+    } else {
+        InputBinding::Keyboard(key)
+    })
 }
 
 impl Serialize for InputBinding {
@@ -347,8 +443,32 @@ impl<'de> Deserialize<'de> for InputBinding {
 }
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(from = "SavedInputBindings")]
 pub struct InputBindings {
     bindings: BTreeMap<InputAction, Option<InputBinding>>,
+}
+
+/// Persisted form. Actions missing from a saved file (added after it was written)
+/// get their default binding unless a saved action already owns that input.
+#[derive(Deserialize)]
+struct SavedInputBindings {
+    bindings: BTreeMap<InputAction, Option<InputBinding>>,
+}
+
+impl From<SavedInputBindings> for InputBindings {
+    fn from(saved: SavedInputBindings) -> Self {
+        let mut bindings = saved.bindings;
+        for action in InputAction::ALL {
+            if bindings.contains_key(&action) {
+                continue;
+            }
+            let default = action
+                .default_binding()
+                .filter(|binding| !bindings.values().any(|owned| *owned == Some(*binding)));
+            bindings.insert(action, default);
+        }
+        Self { bindings }
+    }
 }
 
 impl Default for InputBindings {
@@ -372,8 +492,9 @@ impl InputBindings {
         keys: &ButtonInput<KeyCode>,
         mouse_buttons: &ButtonInput<MouseButton>,
     ) -> bool {
-        self.binding(action)
-            .is_some_and(|binding| binding.pressed(keys, mouse_buttons))
+        self.binding(action).is_some_and(|binding| {
+            binding.pressed(keys, mouse_buttons) && !self.shadowed_by_shift_binding(binding, keys)
+        })
     }
 
     pub fn is_just_pressed(
@@ -382,8 +503,26 @@ impl InputBindings {
         keys: &ButtonInput<KeyCode>,
         mouse_buttons: &ButtonInput<MouseButton>,
     ) -> bool {
-        self.binding(action)
-            .is_some_and(|binding| binding.just_pressed(keys, mouse_buttons))
+        self.binding(action).is_some_and(|binding| {
+            binding.just_pressed(keys, mouse_buttons)
+                && !self.shadowed_by_shift_binding(binding, keys)
+        })
+    }
+
+    /// A plain key yields to a Shift+key binding on the same key while Shift is held.
+    fn shadowed_by_shift_binding(
+        &self,
+        binding: InputBinding,
+        keys: &ButtonInput<KeyCode>,
+    ) -> bool {
+        let InputBinding::Keyboard(key) = binding else {
+            return false;
+        };
+        shift_held(keys)
+            && self
+                .bindings
+                .values()
+                .any(|owned| *owned == Some(InputBinding::ShiftKeyboard(key)))
     }
 
     pub fn assign(&mut self, action: InputAction, binding: InputBinding) {
@@ -404,6 +543,14 @@ impl InputBindings {
             self.bindings.insert(*action, action.default_binding());
         }
     }
+}
+
+fn shift_held(keys: &ButtonInput<KeyCode>) -> bool {
+    keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight)
+}
+
+fn keyboard(key: KeyCode) -> InputBinding {
+    InputBinding::Keyboard(key)
 }
 
 fn action_slot_meta(slot: u8, _action: InputAction, default_key: KeyCode) -> InputActionMeta {
@@ -517,6 +664,21 @@ fn action_slot_from_key(key: &str) -> Option<InputAction> {
     })
 }
 
+fn interface_action_from_key(key: &str) -> Option<InputAction> {
+    Some(match key {
+        "toggle_character" => InputAction::ToggleCharacter,
+        "toggle_professions" => InputAction::ToggleProfessions,
+        "toggle_achievements" => InputAction::ToggleAchievements,
+        "toggle_talents" => InputAction::ToggleTalents,
+        "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
+        "toggle_social" => InputAction::ToggleSocial,
+        "toggle_mail" => InputAction::ToggleMail,
+        "toggle_loot_rules" => InputAction::ToggleLootRules,
+        "toggle_world_map" => InputAction::ToggleWorldMap,
+        _ => return None,
+    })
+}
+
 fn audio_action_from_key(key: &str) -> Option<InputAction> {
     match key {
         "toggle_mute" => Some(InputAction::ToggleMute),
@@ -545,6 +707,7 @@ pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
         BindingSection::Targeting => targeting_section_actions(),
         BindingSection::ActionBar => action_bar_section_actions(),
         BindingSection::Audio => audio_section_actions(),
+        BindingSection::Interface => interface_section_actions(),
     }
 }
 
@@ -596,14 +759,34 @@ fn audio_section_actions() -> &'static [InputAction] {
     &[InputAction::ToggleMute]
 }
 
+fn interface_section_actions() -> &'static [InputAction] {
+    &[
+        InputAction::ToggleCharacter,
+        InputAction::ToggleProfessions,
+        InputAction::ToggleAchievements,
+        InputAction::ToggleTalents,
+        InputAction::ToggleEncounterJournal,
+        InputAction::ToggleSocial,
+        InputAction::ToggleMail,
+        InputAction::ToggleLootRules,
+        InputAction::ToggleWorldMap,
+    ]
+}
+
 fn binding_token(binding: InputBinding) -> String {
     match binding {
         InputBinding::Keyboard(key) => format!("key:{key:?}"),
+        InputBinding::ShiftKeyboard(key) => format!("shift+key:{key:?}"),
         InputBinding::Mouse(button) => format!("mouse:{button:?}"),
     }
 }
 
 fn parse_binding_token(token: &str) -> Result<InputBinding, String> {
+    if let Some(key) = token.strip_prefix("shift+key:") {
+        return parse_key_code(key)
+            .map(InputBinding::ShiftKeyboard)
+            .ok_or_else(|| format!("unsupported key binding token '{token}'"));
+    }
     if let Some(key) = token.strip_prefix("key:") {
         return parse_key_code(key)
             .map(InputBinding::Keyboard)
