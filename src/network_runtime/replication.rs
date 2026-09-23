@@ -11,7 +11,8 @@ use lightyear::prelude::client::Remote;
 use shared::casting::CastState;
 use shared::components::{
     CombatStatus, EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
-    MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, Zone,
+    MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate,
+    UnitLevel, UnitPowers, Zone,
 };
 
 use super::worker::MainUpdate;
@@ -170,6 +171,10 @@ struct EntitySnapshot {
     guild_membership: Option<GuildMembership>,
     presence_status: Option<PresenceStatus>,
     equipment_appearance: Option<EquipmentAppearance>,
+    powers: Option<UnitPowers>,
+    auras: Option<UnitAuras>,
+    level: Option<UnitLevel>,
+    faction_template: Option<UnitFactionTemplate>,
 }
 
 impl EntitySnapshot {
@@ -193,6 +198,10 @@ impl EntitySnapshot {
             guild_membership: entity.get::<GuildMembership>().cloned(),
             presence_status: entity.get::<PresenceStatus>().copied(),
             equipment_appearance: entity.get::<EquipmentAppearance>().cloned(),
+            powers: entity.get::<UnitPowers>().cloned(),
+            auras: entity.get::<UnitAuras>().cloned(),
+            level: entity.get::<UnitLevel>().copied(),
+            faction_template: entity.get::<UnitFactionTemplate>().copied(),
         }
     }
 
@@ -214,6 +223,10 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.guild_membership);
             apply_component(&mut entity, self.presence_status);
             apply_component(&mut entity, self.equipment_appearance);
+            apply_component(&mut entity, self.powers);
+            apply_component(&mut entity, self.auras);
+            apply_component(&mut entity, self.level);
+            apply_component(&mut entity, self.faction_template);
             // Add observers immediately query support components: insert identities last.
             apply_component(&mut entity, self.player);
             apply_component(&mut entity, self.npc);
@@ -328,6 +341,69 @@ mod tests {
         worker.entity_mut(source).remove::<CastState>();
         apply(main.world_mut(), snapshot(&worker, source, source, 3));
         assert!(main.world().get::<CastState>(mirror).is_none());
+    }
+
+    #[test]
+    fn unit_frame_snapshot_preserves_powers_auras_level_faction_and_removal() {
+        use shared::components::{AuraView, PowerEntry, PowerType};
+        let mut worker = World::new();
+        let source = source_player(&mut worker);
+        let powers = UnitPowers {
+            entries: vec![
+                PowerEntry {
+                    power: PowerType::Mana,
+                    current: 4200,
+                    max: 5000,
+                },
+                PowerEntry {
+                    power: PowerType::HolyPower,
+                    current: 3,
+                    max: 5,
+                },
+            ],
+        };
+        let auras = UnitAuras {
+            auras: vec![AuraView {
+                instance_id: 7,
+                spell_id: 465,
+                caster: Some(42),
+                stacks: 1,
+                charges: 0,
+                duration_ms: 0,
+                remaining_ms: 0,
+                harmful: false,
+                dispel_type: 0,
+                flags: AuraView::FLAG_FROM_PLAYER,
+            }],
+        };
+        worker.entity_mut(source).insert((
+            powers.clone(),
+            auras.clone(),
+            UnitLevel(60),
+            UnitFactionTemplate(1),
+        ));
+        let mut main = main_app();
+        apply(main.world_mut(), snapshot(&worker, source, source, 1));
+        let mirror = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        assert_eq!(main.world().get::<UnitPowers>(mirror), Some(&powers));
+        assert_eq!(main.world().get::<UnitAuras>(mirror), Some(&auras));
+        assert_eq!(main.world().get::<UnitLevel>(mirror), Some(&UnitLevel(60)));
+        assert_eq!(
+            main.world().get::<UnitFactionTemplate>(mirror),
+            Some(&UnitFactionTemplate(1))
+        );
+        worker
+            .entity_mut(source)
+            .remove::<(UnitPowers, UnitAuras, UnitLevel, UnitFactionTemplate)>();
+        apply(main.world_mut(), snapshot(&worker, source, source, 2));
+        assert!(main.world().get::<UnitPowers>(mirror).is_none());
+        assert!(main.world().get::<UnitAuras>(mirror).is_none());
+        assert!(main.world().get::<UnitLevel>(mirror).is_none());
+        assert!(main.world().get::<UnitFactionTemplate>(mirror).is_none());
     }
 
     #[derive(Resource, Default)]
