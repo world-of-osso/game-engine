@@ -22,10 +22,18 @@ pub enum CastType {
     Channel,
 }
 
-/// Runtime casting state for the local player.
+/// Retail `CastingBarFrame` holds the "Interrupted" bar for about a second.
+pub const INTERRUPTED_HOLD_SECS: f32 = 1.0;
+
+/// Runtime casting state for the local player: the replicated server cast, or a
+/// client-started gather cast while the server has none.
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct CastingState {
     pub active: Option<ActiveCast>,
+    /// `active` mirrors the local player's replicated `CastState`; only its removal ends it.
+    pub server_cast: bool,
+    /// Remaining seconds of the "Interrupted" bar.
+    pub interrupted: Option<f32>,
 }
 
 /// An in-progress cast or channel.
@@ -43,6 +51,21 @@ pub struct ActiveCast {
 }
 
 impl ActiveCast {
+    pub fn from_replicated(cast: &shared::casting::CastState) -> Self {
+        Self {
+            spell_name: cast.spell_name.clone(),
+            spell_id: cast.spell_id,
+            icon_fdid: 0,
+            cast_type: match cast.cast_type {
+                shared::casting::CastType::Normal => CastType::Cast,
+                shared::casting::CastType::Channel => CastType::Channel,
+            },
+            interruptible: cast.interruptible,
+            duration: cast.duration,
+            elapsed: cast.elapsed,
+        }
+    }
+
     /// Progress fraction 0.0..=1.0.
     /// For casts: fills left-to-right (elapsed / duration).
     /// For channels: drains right-to-left (remaining / duration).
@@ -74,26 +97,61 @@ impl ActiveCast {
 }
 
 impl CastingState {
-    /// Start a new cast.
+    /// Start a new client-side cast.
     pub fn start(&mut self, cast: ActiveCast) {
-        self.active = Some(cast);
+        *self = Self {
+            active: Some(cast),
+            ..default()
+        };
     }
 
-    /// Advance the active cast by `dt` seconds.
+    /// Start or resynchronise from the local player's replicated `CastState`.
+    pub fn apply_server_cast(&mut self, cast: ActiveCast) {
+        *self = Self {
+            active: Some(cast),
+            server_cast: true,
+            interrupted: None,
+        };
+    }
+
+    /// The replicated `CastState` was removed: completed or cancelled.
+    pub fn end_server_cast(&mut self) {
+        if self.server_cast {
+            self.active = None;
+            self.server_cast = false;
+        }
+    }
+
+    /// Server reported an interrupt of the local player's cast.
+    pub fn interrupt(&mut self) {
+        *self = Self {
+            interrupted: Some(INTERRUPTED_HOLD_SECS),
+            ..default()
+        };
+    }
+
+    /// Advance the active cast and the interrupted hold by `dt` seconds.
     pub fn tick(&mut self, dt: f32) {
         if let Some(cast) = &mut self.active {
             cast.elapsed = (cast.elapsed + dt).min(cast.duration);
         }
+        if let Some(hold) = &mut self.interrupted {
+            *hold -= dt;
+            if *hold <= 0.0 {
+                self.interrupted = None;
+            }
+        }
     }
 
-    /// Cancel/interrupt the active cast.
+    /// Cancel the active cast.
     pub fn cancel(&mut self) {
         self.active = None;
+        self.server_cast = false;
     }
 
-    /// Remove finished casts.
+    /// Remove finished client casts; server casts wait for `CastState` removal.
     pub fn clear_finished(&mut self) {
-        if self.active.as_ref().is_some_and(|c| c.is_finished()) {
+        if !self.server_cast && self.active.as_ref().is_some_and(|c| c.is_finished()) {
             self.active = None;
         }
     }
@@ -296,6 +354,51 @@ mod tests {
         let mut state = CastingState::default();
         state.tick(1.0); // should not panic
         assert!(state.active.is_none());
+    }
+
+    #[test]
+    fn server_cast_waits_for_removal_after_finishing() {
+        let mut state = CastingState::default();
+        state.apply_server_cast(fireball_cast());
+        state.tick(3.0);
+        state.clear_finished();
+        assert!(state.active.is_some());
+        state.end_server_cast();
+        assert!(state.active.is_none());
+    }
+
+    #[test]
+    fn end_server_cast_keeps_client_gather_cast() {
+        let mut state = CastingState::default();
+        state.start(fireball_cast());
+        state.end_server_cast();
+        assert!(state.active.is_some());
+    }
+
+    #[test]
+    fn interrupt_holds_then_expires() {
+        let mut state = CastingState::default();
+        state.apply_server_cast(fireball_cast());
+        state.interrupt();
+        assert!(state.active.is_none());
+        state.tick(INTERRUPTED_HOLD_SECS / 2.0);
+        assert!(state.interrupted.is_some());
+        state.tick(INTERRUPTED_HOLD_SECS);
+        assert!(state.interrupted.is_none());
+    }
+
+    #[test]
+    fn replicated_channel_maps_timing_and_flags() {
+        let mut cast = shared::casting::CastState::channel(5143, 0, 4.0, 1.0, false);
+        cast.spell_name = "Arcane Missiles".into();
+        cast.elapsed = 1.0;
+        let active = ActiveCast::from_replicated(&cast);
+        assert_eq!(active.spell_name, "Arcane Missiles");
+        assert_eq!(active.spell_id, 5143);
+        assert_eq!(active.cast_type, CastType::Channel);
+        assert!(!active.interruptible);
+        assert_eq!(active.timer_text(), "3.0");
+        assert!((active.progress() - 0.75).abs() < 0.01);
     }
 
     #[test]
