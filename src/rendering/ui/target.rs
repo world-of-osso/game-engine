@@ -6,7 +6,7 @@ use game_engine::gossip_data::GossipIntentQueue;
 use game_engine::mail_data::MailIntentQueue;
 use game_engine::quest_tracking::QuestTrackedItem;
 use game_engine::targeting::CurrentTarget;
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
 use shared::components::Npc;
 use shared::protocol::{EmoteIntent, EmoteKind};
@@ -296,7 +296,7 @@ fn click_to_target(
     };
     if ui_state
         .as_deref()
-        .is_some_and(|ui| find_frame_at(&ui.registry, cursor.x, cursor.y).is_some())
+        .is_some_and(|ui| cursor_over_ui(ui, window))
     {
         return;
     }
@@ -528,13 +528,18 @@ fn right_click_interact(
     let _ = interact_with_current_npc_target(player_position, &mut state);
 }
 
+fn cursor_over_ui(ui: &UiState, window: &Window) -> bool {
+    ui_cursor_position(&ui.registry, window)
+        .is_some_and(|cursor| find_frame_at(&ui.registry, cursor.x, cursor.y).is_some())
+}
+
 fn right_click_cursor(
     windows: &Query<&Window, With<PrimaryWindow>>,
     ui_state: Option<&UiState>,
 ) -> Option<Vec2> {
     let window = windows.single().ok()?;
     let cursor = window.cursor_position()?;
-    if ui_state.is_some_and(|ui| find_frame_at(&ui.registry, cursor.x, cursor.y).is_some()) {
+    if ui_state.is_some_and(|ui| cursor_over_ui(ui, window)) {
         return None;
     }
     Some(cursor)

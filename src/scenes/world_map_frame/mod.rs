@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::world_map_frame_component::{
     ACTION_WORLD_MAP_CLOSE, ACTION_WORLD_MAP_TAXI_PIN_PREFIX, FlightPathSegment, MapPin,
@@ -143,7 +143,7 @@ fn handle_world_map_frame_input(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
     let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {

@@ -48,7 +48,10 @@ pub(super) fn login_mouse_input(
     let Some(login) = lp.login_ui.as_ref() else {
         return;
     };
-    let cursor = windows.iter().next().and_then(|w| w.cursor_position());
+    let cursor = windows
+        .iter()
+        .next()
+        .and_then(|w| ui_toolkit::input::ui_cursor_position(&lp.ui.registry, w));
 
     if buttons.just_pressed(MouseButton::Left)
         && let Some(cursor) = cursor

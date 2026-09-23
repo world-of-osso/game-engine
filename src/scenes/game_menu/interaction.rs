@@ -3,7 +3,7 @@ use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
 use game_engine::input_bindings::{InputAction, InputBinding};
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::game_menu_component::{
@@ -45,10 +45,9 @@ pub(super) fn handle_overlay_input(
     let (Some(mouse), Ok(window)) = (mouse, windows.single()) else {
         return;
     };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
-    let cursor = Vec2::new(cursor.x, cursor.y);
     handle_press(
         &mouse,
         cursor,

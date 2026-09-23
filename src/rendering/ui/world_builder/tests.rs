@@ -426,7 +426,8 @@ fn click_world_builder_frame(app: &mut App, window: Entity, name: &str) {
             .get(id)
             .and_then(|frame| frame.layout_rect.as_ref())
             .expect("frame layout");
-        Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0)
+        // Registry rects are UI units; the window cursor is in logical pixels.
+        Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0) * ui.registry.ui_scale
     };
     app.world_mut()
         .entity_mut(window)
@@ -457,6 +458,42 @@ fn type_world_builder_text(app: &mut App, text: &str) {
             });
     }
     app.update();
+}
+
+#[test]
+fn scaled_ui_click_hits_frame_drawn_at_scaled_window_position() {
+    let mut app = world_builder_interaction_app();
+    let editable = app
+        .world_mut()
+        .spawn((Name::new("Editable"), Transform::IDENTITY))
+        .id();
+    let window = app
+        .world_mut()
+        .spawn((
+            Window {
+                resolution: (2560, 1440).into(),
+                ..default()
+            },
+            PrimaryWindow,
+        ))
+        .id();
+    app.world_mut()
+        .resource_mut::<game_engine::ui::plugin::UiState>()
+        .registry
+        .ui_scale = 4.0 / 3.0;
+
+    app.update();
+    click_world_builder_frame(
+        &mut app,
+        window,
+        &world_builder_row_name(editable.to_bits()),
+    );
+    let editbox_name = world_builder_transform_edit_name(editable.to_bits(), 0);
+    click_world_builder_frame(&mut app, window, &editbox_name);
+
+    let ui = app.world().resource::<game_engine::ui::plugin::UiState>();
+    let id = ui.registry.get_by_name(&editbox_name).expect("editbox");
+    assert_eq!(ui.focused_frame, Some(id));
 }
 
 #[test]

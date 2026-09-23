@@ -363,7 +363,7 @@ fn inworld_selection_debug_mouse_input(
     if !buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = cursor_pos(&windows) else {
+    let Some(cursor) = cursor_pos(&windows, &ui) else {
         return;
     };
     if let Some(action) = find_clicked_action(&ui, cursor.x, cursor.y) {

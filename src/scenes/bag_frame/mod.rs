@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use bevy::prelude::*;
 use game_engine::bag_data::InventoryState;
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::bag_frame_component::{
     ACTION_BAG_TOGGLE_PREFIX, BagContainerState, BagFrameState, BagSlotState, bag_frame_screen,
@@ -143,7 +143,7 @@ fn toggle_bag_frame(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
     let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {

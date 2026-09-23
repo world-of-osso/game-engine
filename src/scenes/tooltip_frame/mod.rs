@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use game_engine::bag_data::{InventorySlot, InventoryState, ItemQuality};
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
 use game_engine::targeting::CurrentTarget;
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::spellbook_data::SpellbookSpell;
@@ -210,7 +210,7 @@ fn build_state(
     graphics_options: Option<&GraphicsOptions>,
     spellbook_runtime: Option<&SpellbookUiRuntime>,
 ) -> TooltipFrameState {
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
     };
     let Some(frame_id) = find_frame_at(registry, cursor.x, cursor.y) else {
@@ -232,7 +232,7 @@ fn build_state(
     else {
         return TooltipFrameState::hidden();
     };
-    place_tooltip(content, cursor, window)
+    place_tooltip(content, cursor, registry)
 }
 
 fn hovered_spell_tooltip(
@@ -278,10 +278,10 @@ fn hovered_target_aura_tooltip(
 fn place_tooltip(
     mut tooltip: TooltipFrameState,
     cursor: Vec2,
-    window: &Window,
+    registry: &FrameRegistry,
 ) -> TooltipFrameState {
-    let max_x = (window.width() - TOOLTIP_W - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
-    let max_y = (window.height() - tooltip.height() - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
+    let max_x = (registry.screen_width - TOOLTIP_W - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
+    let max_y = (registry.screen_height - tooltip.height() - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
     tooltip.visible = true;
     tooltip.x = (cursor.x + TOOLTIP_CURSOR_X).min(max_x);
     tooltip.y = (cursor.y + TOOLTIP_CURSOR_Y).min(max_y);

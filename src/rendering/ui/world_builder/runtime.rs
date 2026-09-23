@@ -46,7 +46,10 @@ pub(super) fn world_builder_mouse_input(
     if !model.open || !buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = windows.iter().find_map(Window::cursor_position) else {
+    let Some(cursor) = windows
+        .iter()
+        .find_map(|window| ui_cursor_position(&ui.registry, window))
+    else {
         return;
     };
     let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {

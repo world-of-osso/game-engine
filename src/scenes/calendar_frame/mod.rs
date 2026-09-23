@@ -7,7 +7,7 @@ use game_engine::calendar::{
 use game_engine::status::{
     CalendarEventEntry, CalendarSignupStateEntry, CalendarStatusSnapshot, CharacterStatsSnapshot,
 };
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::calendar_frame_component::{
     ACTION_CALENDAR_CLOSE, ACTION_CALENDAR_REFRESH, ACTION_CALENDAR_SCHEDULE_PARTY,
@@ -146,7 +146,7 @@ fn handle_calendar_frame_input(
         return;
     }
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
     let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {

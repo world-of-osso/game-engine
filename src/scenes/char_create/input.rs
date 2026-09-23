@@ -41,7 +41,11 @@ pub(super) fn char_create_mouse_input(
     if !buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = windows.iter().next().and_then(|w| w.cursor_position()) else {
+    let Some(cursor) = windows
+        .iter()
+        .next()
+        .and_then(|w| ui_toolkit::input::ui_cursor_position(&ui.registry, w))
+    else {
         return;
     };
     let (mx, my) = (cursor.x, cursor.y);

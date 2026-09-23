@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cli_args::{RealmPreset, default_realm_preset};
 use crate::game::inworld_scene_stage::InWorldSceneStage;
+use crate::game_state::GameState;
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::InputBindings;
 
@@ -481,20 +482,40 @@ fn sync_hud_visibility_toggles(
     }
 }
 
+/// Reference in-world UI canvas in UI units.
+const UI_REFERENCE_SIZE: Vec2 = Vec2::new(1920.0, 1080.0);
+/// Fit of the 1280x720 minimum viewport; smaller windows grow the canvas instead.
+const MIN_UI_FIT_SCALE: f32 = 2.0 / 3.0;
+
+pub(crate) fn auto_fit_ui_scale(window_size: Vec2, user_scale: f32) -> f32 {
+    let fit = (window_size / UI_REFERENCE_SIZE)
+        .min_element()
+        .max(MIN_UI_FIT_SCALE);
+    fit * user_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE)
+}
+
 fn sync_ui_scale(
     graphics: Res<GraphicsOptions>,
+    state: Option<Res<State<GameState>>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
     mut ui_camera: Query<&mut Projection, With<UiCamera>>,
 ) {
-    if !graphics.is_changed() {
-        return;
-    }
+    let in_world = state.is_some_and(|state| *state.get() == GameState::InWorld);
+    let ui_scale = match windows.single() {
+        Ok(window) if in_world => auto_fit_ui_scale(window.size(), graphics.ui_scale),
+        _ => graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE),
+    };
     let Ok(mut projection) = ui_camera.single_mut() else {
         return;
     };
-    let Projection::Orthographic(orthographic) = projection.as_mut() else {
+    let Projection::Orthographic(orthographic) = projection.bypass_change_detection() else {
         return;
     };
-    orthographic.scale = 1.0 / graphics.ui_scale.clamp(MIN_UI_SCALE, MAX_UI_SCALE);
+    let scale = ui_scale.recip();
+    if orthographic.scale != scale {
+        orthographic.scale = scale;
+        projection.set_changed();
+    }
 }
 
 fn sync_window_present_mode(

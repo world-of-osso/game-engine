@@ -2,7 +2,7 @@ use bevy::audio::{AudioSource, PlaybackSettings, Volume};
 use bevy::prelude::*;
 
 use crate::ui_input::walk_up_for_onclick;
-use game_engine::ui::input::find_frame_at;
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
 
 use super::{SoundAssets, SoundSettings, compute_effects_volume, load_generated_audio};
@@ -60,7 +60,7 @@ pub(super) fn queue_button_click_sound(
     }
     let Some(ui) = ui else { return };
     let Ok(window) = windows.single() else { return };
-    let Some(cursor) = window.cursor_position() else {
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
         return;
     };
     let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {

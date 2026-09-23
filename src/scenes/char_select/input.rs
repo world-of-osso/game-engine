@@ -35,7 +35,7 @@ pub(crate) fn char_select_mouse_input(
     if !buttons.just_pressed(MouseButton::Left) {
         return;
     }
-    let Some(cursor) = cursor_pos(&windows) else {
+    let Some(cursor) = cursor_pos(&windows, &ui) else {
         return;
     };
     if let Some(id) = ui
@@ -383,8 +383,11 @@ pub(crate) fn dispatch_char_select_action(
     }
 }
 
-pub(crate) fn cursor_pos(windows: &Query<&Window>) -> Option<Vec2> {
-    windows.iter().next().and_then(|w| w.cursor_position())
+pub(crate) fn cursor_pos(windows: &Query<&Window>, ui: &UiState) -> Option<Vec2> {
+    windows
+        .iter()
+        .next()
+        .and_then(|w| ui_toolkit::input::ui_cursor_position(&ui.registry, w))
 }
 
 pub(crate) fn find_clicked_action(ui: &UiState, mx: f32, my: f32) -> Option<String> {
