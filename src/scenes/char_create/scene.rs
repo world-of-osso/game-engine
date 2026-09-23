@@ -94,6 +94,7 @@ impl Plugin for CharCreateScenePlugin {
                 apply_camera_control,
                 camera_zoom_for_dropdown,
                 orbit_camera,
+                sync_scene_projection,
             )
                 .chain()
                 .after(super::input::char_create_mouse_input)
@@ -249,6 +250,32 @@ fn camera_zoom_for_dropdown(
             .lerp(orbit.manual_distance.unwrap_or(target_distance), t);
 
         apply_orbit_transform(&orbit, &mut transform);
+    }
+}
+
+fn sync_scene_projection(
+    displayed: Res<DisplayedModels>,
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mut cameras: Query<&mut Projection, With<CharCreateOrbit>>,
+) {
+    let Some(backdrop) = &displayed.background else {
+        return;
+    };
+    let Ok(window) = windows.single() else { return };
+    if window.height() == 0.0 {
+        return;
+    }
+    let aspect = window.width() / window.height();
+    // M2 UI cameras use diagonal FOV; the renderer expects vertical FOV.
+    // Reference: wow_client/src/ui/model.c camera projection.
+    let vertical_fov = backdrop.framing.fov / (1.0 + aspect * aspect).sqrt();
+    for mut projection in &mut cameras {
+        if let Projection::Perspective(perspective) = &*projection
+            && perspective.fov != vertical_fov
+            && let Projection::Perspective(perspective) = &mut *projection
+        {
+            perspective.fov = vertical_fov;
+        }
     }
 }
 
