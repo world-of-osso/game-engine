@@ -31,6 +31,7 @@ fn name_button_is_left_of_editbox_and_dispatches_distinct_action() {
             <= input.layout_rect.as_ref().unwrap().x
     );
     assert_eq!(button.layout_rect.as_ref().unwrap().height, 48.0);
+    assert_eq!(button.hit_rect_insets, [6.0; 4]);
 }
 
 #[test]

@@ -400,6 +400,7 @@ pub(super) fn name_input_field(state: &CharCreateUiState) -> Element {
             }
             button { name: super::RANDOM_NAME_BUTTON, width: 48.0, height: 48.0,
                 disabled: name_button_disabled, onclick: name_button_action,
+                hit_rect_insets: "6,6,6,6",
                 button_atlas_up: "common-button-square-gray-up",
                 button_atlas_pressed: "common-button-square-gray-down",
                 button_atlas_highlight: "common-button-square-gray-up",
