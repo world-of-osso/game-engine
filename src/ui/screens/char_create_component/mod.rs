@@ -35,6 +35,7 @@ pub const CREATE_BUTTON: FrameName = FrameName("CharCreateButton");
 pub const BACK_BUTTON: FrameName = FrameName("CharCreateBack");
 pub const NEXT_BUTTON: FrameName = FrameName("CharCreateNext");
 pub const RANDOMIZE_BUTTON: FrameName = FrameName("CharCreateRandomize");
+pub const RANDOM_NAME_BUTTON: FrameName = FrameName("CharCreateRandomName");
 pub const ERROR_TEXT: FrameName = FrameName("CharCreateError");
 
 pub(super) const COLOR_GOLD: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
@@ -196,6 +197,9 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
     }
 }
 
+#[cfg(test)]
+#[path = "name_button_tests.rs"]
+mod name_button_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod tests;

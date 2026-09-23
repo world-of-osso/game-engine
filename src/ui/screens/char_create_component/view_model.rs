@@ -39,6 +39,7 @@ pub enum CharCreateAction {
     SelectClass(u8),
     SelectSex(u8),
     Randomize,
+    RandomizeName,
     NextMode,
     Back,
     SelectCategory(u32),
@@ -56,6 +57,7 @@ impl fmt::Display for CharCreateAction {
             Self::SelectClass(id) => write!(f, "select_class:{id}"),
             Self::SelectSex(sex) => write!(f, "select_sex:{sex}"),
             Self::Randomize => f.write_str("randomize"),
+            Self::RandomizeName => f.write_str("randomize_name"),
             Self::NextMode => f.write_str("next_mode"),
             Self::Back => f.write_str("back"),
             Self::SelectCategory(id) => write!(f, "select_category:{id}"),
@@ -104,6 +106,7 @@ impl CharCreateAction {
             )),
             ["camera", control] => CameraControl::parse(control).map(Self::Camera),
             ["randomize"] => Some(Self::Randomize),
+            ["randomize_name"] => Some(Self::RandomizeName),
             ["next_mode"] => Some(Self::NextMode),
             ["back"] => Some(Self::Back),
             ["create_confirm"] => Some(Self::CreateConfirm),
@@ -162,6 +165,7 @@ pub struct CharCreateUiState {
     pub error_text: Option<String>,
     pub support_notice: Option<String>,
     pub name_input_focused: bool,
+    pub random_name_available: bool,
     /// (class_id, class_name, icon_fdid, available_for_race)
     pub class_availability: Vec<(u8, &'static str, u32, bool)>,
     pub viewport_width: u32,
@@ -184,6 +188,7 @@ impl Default for CharCreateUiState {
             error_text: None,
             support_notice: None,
             name_input_focused: false,
+            random_name_available: false,
             class_availability: CLASSES
                 .iter()
                 .map(|class| {
