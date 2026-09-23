@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-23] character creation | Record authored creation-backdrop integration boundary
+
+`ChrRaces.CreateScreenFileDataID` maps Alliance/Horde/neutral Pandaren to cached local-CASC M2s `623712`/`623714`/`623716`; race 25/26 reuse Alliance/Horde and neutral 24 remains loader-supported. The cache currently holds three M2s, 12 skins and 101 textures. Snapshot-zero camera framing is normalized from root attachment 0, while type-0 ambient color and ordinary static-M2 point-light spawning join the retained PBR fill/sky environment. This is not exact lighting parity. Alliance `1` / sex `1` native target passed; all-three GPU/lifecycle and camera-control coverage plus independent final verification remain pending. See [[character-creation]] and [[m2-format]].
+
 ## [2026-09-23] formats | Parse first authored M2 camera snapshot
 
 Version-274 MD21 camera offsets are relative to the MD20 payload, not the file; a 116-byte record has base position/target plus first spline offsets and a tracked diagonal FOV. The pure parser rejects missing records/keys and matches cached `623712`, `623714`, and `623716` bytes in three focused tests. Animation and scene integration remain out of scope. See [[m2-format]].

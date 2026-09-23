@@ -22,6 +22,16 @@ Dropdown rows follow local Retail `MenuStyle2` content insets (left 3, top 6, ri
 
 Closed dropdown `SelectionDetails` uses the same Retail `ResizeLayoutFrame` contract: its 144-pixel XML size is initial, then content is centered at 42 pixels for one effective swatch or 54 for dual swatches; named text is capped at 126. Engine `fa162861` applies this without moving the 150-pixel trigger or its input area. Circular controls follow `RingedMaskedButtonMixin:UpdateHighlightTexture`: checked hover matches `CheckedTexture`; unchecked hover matches the authored `Ring`. Engine `c022b454` authors those sizes; toolkit support and final rendered verification remain pending. Atlas crop and native-layout proof are not full rendered parity, and native additive glow remains unsupported.
 
+## Authored 3D preview backdrops
+
+`ChrRaces.CreateScreenFileDataID` supplies the backdrop model: Alliance `623712`, Horde `623714`, and neutral Pandaren `623716`. Race 25 reuses Alliance and race 26 reuses Horde; the selectable roster remains unchanged. The loader accepts neutral race 24 rather than inferring a faction substitute.
+
+The local-CASC cache currently contains the three `.m2` files with 12 `.skin` files and 101 referenced textures. Each backdrop parses camera snapshot zero and root attachment 0, then normalizes the attachment to preview origin while rotating its camera axis to `+Z`; the transformed eye/focus, FOV, near and far values seed the existing orbit camera. This is a first-key/static snapshot, not camera-track evaluation. Existing rotate, zoom, reset and face-focused camera controls remain unchanged.
+
+Backdrop ambient uses the authored type-0 M2 light color sampled at time/sequence zero. The existing directional PBR fill and sky environment map remain, so this does **not** claim exact authored or Retail lighting parity. Backdrop point lights pass through the ordinary static-M2 light-spawn pipeline rather than a character-creation-only lighting path.
+
+The Alliance `1` / sex `1` target passed native validation. GPU/lifecycle validation for all three backdrops, all camera-control paths, and independent final verification remain pending.
+
 ## Known limits
 
 - General `ChrCustomizationReq` evaluation is unavailable locally; requirement and visibility IDs are preserved but not interpreted as Retail account/unlock policy.
@@ -36,6 +46,8 @@ Closed dropdown `SelectionDetails` uses the same Retail `ResizeLayoutFrame` cont
 - [UI system](ui-system.md) — registry/native UI and asset projection
 - [character rendering](character-rendering.md) — material/geoset application
 - [asset pipeline](asset-pipeline.md) — local CASC/FileDataID contract
+- `src/scenes/char_create/{background,background_data,scene}.rs` — authored backdrop catalog, framing normalization, and scene ownership
+- `src/asset/m2_format/{m2_camera,m2_attach}.rs` — snapshot-zero camera and corrected root-attachment parsing
 - [shared customization contract](../../../shared-protocol/docs/specs/character-customization.md) — appearance payload
 - [server customization storage](../../../game-server/docs/specs/character-customization-storage.md) — historic persistence upgrade
 - [Retail atlas contract](../../../ui-toolkit/docs/specs/character-creation-atlases.md) — bounded atlas metadata
