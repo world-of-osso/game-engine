@@ -141,6 +141,7 @@ fn char_create_action_parse_recognizes_select_race() {
 #[test]
 fn sync_model_detects_race_change_and_respawns() {
     let mut app = App::new();
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
@@ -155,6 +156,7 @@ fn sync_model_detects_race_change_and_respawns() {
         models: vec![],
         last_appearance: None,
         last_class: None,
+        background: None,
     });
 
     // Change state to race 2 (orc)
@@ -182,8 +184,57 @@ fn sync_model_detects_race_change_and_respawns() {
 }
 
 #[test]
+fn setup_scene_loads_the_authored_alliance_backdrop() {
+    let mut app = App::new();
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
+    app.init_resource::<Assets<Mesh>>();
+    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<M2EffectMaterial>>();
+    app.init_resource::<Assets<Image>>();
+    app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+    app.insert_resource(creature_display::CreatureDisplayMap);
+    app.init_resource::<DisplayedModels>();
+    app.world_mut().run_system_once(setup_scene).unwrap();
+    app.update();
+    let root = app
+        .world_mut()
+        .query::<(Entity, &Name)>()
+        .iter(app.world())
+        .find(|(_, name)| name.as_str() == "CharCreateBackdrop_623712")
+        .map(|(entity, _)| entity)
+        .expect("creation must load the authored Alliance scene");
+    let mesh_count = app
+        .world_mut()
+        .query::<(Entity, &Mesh3d)>()
+        .iter(app.world())
+        .filter(|(entity, _)| {
+            let mut entity = *entity;
+            while let Some(parent) = app.world().get::<ChildOf>(entity) {
+                entity = parent.parent();
+                if entity == root {
+                    return true;
+                }
+            }
+            false
+        })
+        .count();
+    assert!(
+        mesh_count > 20,
+        "authored scene must contain actual renderable M2 batches, got {mesh_count}"
+    );
+    assert!(
+        !app.world_mut()
+            .query::<&Name>()
+            .iter(app.world())
+            .any(|name| name.as_str() == "Ground"),
+        "substitute grass plane must be removed"
+    );
+}
+
+#[test]
 fn setup_scene_provides_sky_env_map_for_pbr_lighting() {
     let mut app = App::new();
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
@@ -210,6 +261,7 @@ fn setup_scene_provides_sky_env_map_for_pbr_lighting() {
 #[test]
 fn setup_scene_creates_camera_and_lighting_standalone() {
     let mut app = App::new();
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
@@ -290,6 +342,7 @@ fn setup_scene_creates_camera_and_lighting_standalone() {
 #[test]
 fn changing_race_replaces_model_entities_in_bevy_tree() {
     let mut app = App::new();
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
     app.init_resource::<Assets<StandardMaterial>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
@@ -503,6 +556,7 @@ fn sync_appearance_unhides_geoset_meshes() {
     app.insert_resource(creature_display::CreatureDisplayMap);
     app.insert_resource(CustomizationDb::load(Path::new("data")));
     app.insert_resource(CharTextureData::load(Path::new("data")));
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<DisplayedModels>();
 
     // Spawn the scene
@@ -544,6 +598,7 @@ fn sync_appearance_unhides_geoset_meshes() {
 #[test]
 fn camera_ray_hits_character_model() {
     let mut app = App::new();
+    app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.add_plugins(bevy::MinimalPlugins);
     app.add_plugins(bevy::transform::TransformPlugin);
     app.add_plugins(bevy::camera::visibility::VisibilityPlugin);
@@ -665,6 +720,8 @@ fn apply_orbit_produces_valid_transform() {
         distance: (DEFAULT_EYE - DEFAULT_FOCUS).length(),
         base_pitch: 0.0,
         manual_distance: None,
+        default_focus: DEFAULT_FOCUS,
+        default_distance: (DEFAULT_EYE - DEFAULT_FOCUS).length(),
     };
     let mut transform = Transform::default();
     apply_orbit_transform(&orbit, &mut transform);
@@ -692,6 +749,8 @@ impl CameraFixture {
             distance: offset.length(),
             base_pitch: (offset.y / offset.length()).asin(),
             manual_distance: None,
+            default_focus: DEFAULT_FOCUS,
+            default_distance: offset.length(),
         };
         let mut transform = Transform::default();
         apply_orbit_transform(&orbit, &mut transform);
