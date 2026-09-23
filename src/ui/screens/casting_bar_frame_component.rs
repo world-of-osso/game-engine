@@ -19,6 +19,9 @@ const BAR_BG: &str = "0.15,0.15,0.15,0.9";
 const FILL_CAST: &str = "1.0,0.7,0.0,1.0";
 const FILL_CHANNEL: &str = "0.0,0.64,0.0,1.0";
 const FILL_UNINTERRUPTIBLE: &str = "0.63,0.63,0.63,1.0";
+const FILL_INTERRUPTED: &str = "1.0,0.0,0.0,1.0";
+/// Retail GlobalStrings `INTERRUPTED`.
+pub const INTERRUPTED_TEXT: &str = "Interrupted";
 const SPARK_COLOR: &str = "1.0,1.0,1.0,0.8";
 const SPELL_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
 const TIMER_COLOR: &str = "1.0,1.0,1.0,1.0";
@@ -32,6 +35,7 @@ pub struct CastingBarState {
     pub progress: f32,
     pub is_channel: bool,
     pub is_interruptible: bool,
+    pub is_interrupted: bool,
 }
 
 impl Default for CastingBarState {
@@ -43,6 +47,20 @@ impl Default for CastingBarState {
             progress: 0.0,
             is_channel: false,
             is_interruptible: true,
+            is_interrupted: false,
+        }
+    }
+}
+
+impl CastingBarState {
+    /// Full red bar with "Interrupted", as Retail `CastingBarFrame` shows it.
+    pub fn interrupted() -> Self {
+        Self {
+            visible: true,
+            spell_name: INTERRUPTED_TEXT.into(),
+            progress: 1.0,
+            is_interrupted: true,
+            ..Self::default()
         }
     }
 }
@@ -53,7 +71,7 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
         .expect("CastingBarState must be in SharedContext");
     let hide = !state.visible;
     let fill_w = BAR_W * state.progress.clamp(0.0, 1.0);
-    let fill_color = bar_fill_color(state.is_channel, state.is_interruptible);
+    let fill_color = bar_fill_color(state);
     let spark_x = fill_w - SPARK_W / 2.0;
     rsx! {
         r#frame {
@@ -71,10 +89,12 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn bar_fill_color(is_channel: bool, is_interruptible: bool) -> &'static str {
-    if !is_interruptible {
+fn bar_fill_color(state: &CastingBarState) -> &'static str {
+    if state.is_interrupted {
+        FILL_INTERRUPTED
+    } else if !state.is_interruptible {
         FILL_UNINTERRUPTIBLE
-    } else if is_channel {
+    } else if state.is_channel {
         FILL_CHANNEL
     } else {
         FILL_CAST
@@ -186,6 +206,7 @@ mod tests {
             progress,
             is_channel: false,
             is_interruptible: true,
+            is_interrupted: false,
         }
     }
 
@@ -241,10 +262,27 @@ mod tests {
 
     #[test]
     fn fill_color_changes_for_channel() {
-        assert_eq!(bar_fill_color(false, true), FILL_CAST);
-        assert_eq!(bar_fill_color(true, true), FILL_CHANNEL);
-        assert_eq!(bar_fill_color(false, false), FILL_UNINTERRUPTIBLE);
-        assert_eq!(bar_fill_color(true, false), FILL_UNINTERRUPTIBLE);
+        let color = |is_channel, is_interruptible| {
+            bar_fill_color(&CastingBarState {
+                is_channel,
+                is_interruptible,
+                ..make_state(0.5)
+            })
+        };
+        assert_eq!(color(false, true), FILL_CAST);
+        assert_eq!(color(true, true), FILL_CHANNEL);
+        assert_eq!(color(false, false), FILL_UNINTERRUPTIBLE);
+        assert_eq!(color(true, false), FILL_UNINTERRUPTIBLE);
+    }
+
+    #[test]
+    fn interrupted_state_shows_full_red_bar_with_retail_text() {
+        let state = CastingBarState::interrupted();
+        assert_eq!(bar_fill_color(&state), FILL_INTERRUPTED);
+        let reg = build_with_state(state);
+        assert_eq!(fontstring_text(&reg, "CastingBarSpellName"), "Interrupted");
+        let fill = reg.get(reg.get_by_name("CastingBarFill").unwrap()).unwrap();
+        assert_eq!(fill.width, Dimension::Fixed(BAR_W));
     }
 
     // --- Coord validation ---
@@ -367,6 +405,7 @@ mod tests {
             progress: 0.8,
             is_channel: true,
             is_interruptible: true,
+            is_interrupted: false,
         };
         let reg = build_with_state(state);
         assert_eq!(fontstring_text(&reg, "CastingBarSpellName"), "Drain Life");
@@ -382,6 +421,7 @@ mod tests {
             progress: 0.8,
             is_channel: true,
             is_interruptible: true,
+            is_interrupted: false,
         };
         let reg = build_with_state(state);
         let id = reg.get_by_name("CastingBarFill").expect("fill");
