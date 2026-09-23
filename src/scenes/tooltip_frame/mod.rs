@@ -8,6 +8,7 @@ use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::buff_frame_component::buff_button_at;
 use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
@@ -249,6 +250,7 @@ fn build_state(
     let Some(content) = hovered_spell_tooltip(registry, frame_id, spells)
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
+        .or_else(|| hovered_player_aura_tooltip(registry, frame_id, aura_state, graphics_options))
         .or_else(|| {
             hovered_target_aura_tooltip(
                 registry,
@@ -370,6 +372,23 @@ fn hovered_target_aura_tooltip(
         target_auras,
         aura_state,
     )?;
+    let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
+    Some(aura_tooltip(aura, colorblind_mode))
+}
+
+fn hovered_player_aura_tooltip(
+    registry: &FrameRegistry,
+    frame_id: u64,
+    aura_state: Option<&AuraState>,
+    graphics_options: Option<&GraphicsOptions>,
+) -> Option<TooltipFrameState> {
+    let (is_debuff, index) = buff_button_at(registry, frame_id)?;
+    let auras = aura_state?;
+    let aura = if is_debuff {
+        auras.debuffs().nth(index)
+    } else {
+        auras.buffs().nth(index)
+    }?;
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
     Some(aura_tooltip(aura, colorblind_mode))
 }
@@ -1017,6 +1036,25 @@ mod tests {
         assert_eq!(tooltip.lines[1].right_text, "3 m");
         assert_eq!(tooltip.lines[2].right_text, "2");
         assert_eq!(tooltip.lines[3].right_text, "Uther");
+    }
+
+    #[test]
+    fn hovering_a_player_buff_shows_its_rendered_description() {
+        use game_engine::ui::screens::buff_frame_component::{BuffFrameState, buff_frame_screen};
+        let auras = AuraState {
+            auras: vec![sample_aura()],
+        };
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(BuffFrameState::from_auras(&auras, false));
+        Screen::new(buff_frame_screen).sync(&shared, &mut registry);
+        let icon = registry.get_by_name("BuffButton0Icon").unwrap();
+        let tooltip =
+            hovered_player_aura_tooltip(&registry, icon, Some(&auras), None).expect("tooltip");
+        assert_eq!(tooltip.title, "Blessing of Kings");
+        assert_eq!(tooltip.lines[0].left_text, "Increases all stats.");
+        let root = registry.get_by_name("BuffFrame").unwrap();
+        assert!(hovered_player_aura_tooltip(&registry, root, Some(&auras), None).is_none());
     }
 
     #[test]

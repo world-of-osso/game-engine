@@ -594,6 +594,7 @@ fn add_frame_plugins(app: &mut App) {
         scenes::inspect_frame::InspectFramePlugin,
         scenes::achievement_frame::AchievementFramePlugin,
         scenes::bag_frame::BagFramePlugin,
+        scenes::buff_frame::BuffFramePlugin,
         scenes::calendar_frame::CalendarFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
         scenes::talent_frame::TalentFramePlugin,
