@@ -42,7 +42,9 @@ use game_engine::world_map::apply_world_map_state_update as map_world_map_state_
 #[path = "messages_combat.rs"]
 mod messages_combat;
 
-pub(crate) use messages_combat::{receive_combat_events, receive_combat_log_snapshot};
+pub(crate) use messages_combat::{
+    CombatTextSource, receive_combat_events, receive_combat_log_events, receive_combat_log_snapshot,
+};
 
 /// Send a queued chat message to the server.
 pub(crate) fn send_chat_message(

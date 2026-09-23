@@ -70,6 +70,8 @@ pub mod water_material;
 
 #[path = "ui/action_bar.rs"]
 pub mod action_bar;
+#[path = "ui/floating_combat_text.rs"]
+pub mod floating_combat_text;
 #[path = "ui/health_bar.rs"]
 pub mod health_bar;
 #[path = "ui/minimap.rs"]

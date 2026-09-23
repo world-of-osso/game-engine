@@ -151,14 +151,14 @@ fn spawn_npc_nameplate(
 }
 
 #[derive(SystemParam)]
-struct NameplateFontAssets<'w> {
+pub(crate) struct NameplateFontAssets<'w> {
     cache: ResMut<'w, NameplateArtCache>,
     images: ResMut<'w, Assets<Image>>,
     fonts: ResMut<'w, Assets<Font>>,
 }
 
 impl NameplateFontAssets<'_> {
-    fn load_font(&mut self) -> Handle<Font> {
+    pub(crate) fn load_font(&mut self) -> Handle<Font> {
         self.cache
             .load(&mut self.images, &mut self.fonts)
             .unwrap_or_else(|error| panic!("Cannot load nameplate artwork: {error}"))
@@ -400,17 +400,27 @@ fn project_owner(
             Anchor::CENTER,
         ),
     };
-    if !world_camera.logical_viewport_rect()?.contains(viewport) {
-        return None;
-    }
-    let position = overlay_camera
-        .viewport_to_world_2d(overlay_transform, viewport)
-        .ok()?;
+    let position = viewport_to_overlay(world_camera, overlay_camera, overlay_transform, viewport)?;
     Some(ProjectedPlate {
         position,
         alpha,
         anchor: text_anchor,
     })
+}
+
+/// Overlay-space position of an on-screen world-camera viewport point.
+pub(crate) fn viewport_to_overlay(
+    world_camera: &Camera,
+    overlay_camera: &Camera,
+    overlay_transform: &GlobalTransform,
+    viewport: Vec2,
+) -> Option<Vec2> {
+    if !world_camera.logical_viewport_rect()?.contains(viewport) {
+        return None;
+    }
+    overlay_camera
+        .viewport_to_world_2d(overlay_transform, viewport)
+        .ok()
 }
 
 fn project_bar_top(
@@ -614,4 +624,4 @@ mod bar_tests;
 
 #[cfg(test)]
 #[path = "nameplate_projection_tests.rs"]
-mod tests;
+pub(crate) mod tests;
