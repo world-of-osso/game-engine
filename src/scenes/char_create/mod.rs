@@ -9,8 +9,8 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_create_component::{
     BACK_BUTTON, CHAR_CREATE_ROOT, CREATE_BUTTON, CREATE_NAME_INPUT, CameraControl,
-    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON, RANDOMIZE_BUTTON,
-    apply_character_create_styles, char_create_screen,
+    CharCreateAction, CharCreateMode, CharCreateUiState, ERROR_TEXT, NEXT_BUTTON,
+    RANDOM_NAME_BUTTON, RANDOMIZE_BUTTON, apply_character_create_styles, char_create_screen,
 };
 use game_engine::ui_resource;
 use shared::components::CharacterAppearance;
@@ -24,13 +24,16 @@ use game_engine::customization_data::CustomizationDb;
 use helpers::{
     editbox_backspace, editbox_cursor_end, editbox_cursor_home, editbox_delete,
     editbox_move_cursor, get_editbox_text, hit_frame, insert_char_into_editbox, set_button_hovered,
+    set_editbox_text,
 };
 
 mod appearance;
 mod customization_view;
 mod icon_masks;
 mod input;
+mod name_catalog;
 use customization_view::build_ui_state;
+use name_catalog::{NameCatalog, NameCatalogResource};
 pub mod scene;
 
 use appearance as appearance_logic;
@@ -103,6 +106,11 @@ pub struct CharCreatePlugin;
 
 impl Plugin for CharCreatePlugin {
     fn build(&self, app: &mut App) {
+        let name_catalog = NameCatalog::load(std::path::Path::new("data/NameGen.csv"));
+        if let Err(err) = &name_catalog {
+            error!("Random name control unavailable: {err}");
+        }
+        app.insert_resource(NameCatalogResource(name_catalog));
         app.init_resource::<game_engine::ui::character_creation_icons::CharacterCreationIconMasks>(
         );
         app.add_systems(OnEnter(GameState::CharCreate), build_char_create_ui);
@@ -137,11 +145,15 @@ fn build_char_create_ui(
     mut commands: Commands,
     startup_mode: Option<Res<StartupCharCreateMode>>,
     cust_db: Res<CustomizationDb>,
+    name_catalog: Res<NameCatalogResource>,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let initial_state = initial_char_create_state(startup_mode.as_deref().copied(), &cust_db);
     let mut ui_state = build_ui_state(&initial_state, &cust_db);
+    ui_state.random_name_available = name_catalog.0.as_ref().is_ok_and(|catalog| {
+        catalog.has_names(initial_state.selected_race, initial_state.selected_sex)
+    });
     ui_state.viewport_width = ui.registry.screen_width as u32;
     ui_state.viewport_height = ui.registry.screen_height as u32;
     let mut shared = ui_toolkit::screen::SharedContext::new();
@@ -271,6 +283,7 @@ fn char_create_hover_visuals(
         Some(cc.back_button),
         cc.next_button,
         cc.randomize_button,
+        ui.registry.get_by_name(RANDOM_NAME_BUTTON.0),
         cc.create_button,
     ]
     .into_iter()
@@ -291,6 +304,7 @@ fn char_create_update_visuals(
     focus: Res<CharCreateFocus>,
     mut screen_res: Option<ResMut<CharCreateScreenWrap>>,
     cust_db: Res<CustomizationDb>,
+    name_catalog: Res<NameCatalogResource>,
 ) {
     let Some(_cc) = cc_ui.as_ref() else { return };
     let Some(state) = state.as_mut() else { return };
@@ -304,6 +318,7 @@ fn char_create_update_visuals(
         &mut ui.registry,
         state,
         &cust_db,
+        &name_catalog,
         name_focused,
     );
     ui.focused_frame = focus.0.filter(|_| state.mode == CharCreateMode::Customize);
@@ -314,6 +329,7 @@ fn sync_screen_state(
     reg: &mut FrameRegistry,
     state: &mut CharCreateState,
     cust_db: &CustomizationDb,
+    name_catalog: &NameCatalogResource,
     name_input_focused: bool,
 ) {
     let Some(res) = screen_res.as_mut() else {
@@ -324,6 +340,10 @@ fn sync_screen_state(
         state.name = get_editbox_text(reg, id);
     }
     let mut new_state = build_ui_state(state, cust_db);
+    new_state.random_name_available = name_catalog
+        .0
+        .as_ref()
+        .is_ok_and(|catalog| catalog.has_names(state.selected_race, state.selected_sex));
     new_state.name_input_focused = name_input_focused;
     new_state.viewport_width = reg.screen_width as u32;
     new_state.viewport_height = reg.screen_height as u32;
@@ -348,3 +368,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../../../tests/unit/char_create_shared_tests.rs"]
 mod shared_tests;
+
+#[cfg(test)]
+#[path = "name_action_tests.rs"]
+mod name_action_tests;
