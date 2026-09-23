@@ -26,7 +26,7 @@ Closed dropdown `SelectionDetails` uses the same Retail `ResizeLayoutFrame` cont
 
 - General `ChrCustomizationReq` evaluation is unavailable locally; requirement and visibility IDs are preserved but not interpreted as Retail account/unlock policy.
 - Partial material/geoset output does not prove every element effect for that choice is rendered; unsupported-only choices remain disabled.
-- Closed-value centering and authored circular hover sizing have source and native RED coverage; toolkit integration, bounded runtime capture and independent verification remain pending.
+- Closed-value centering and circular hover sizing have independent native pointer/pixel/geometry/input proof and inspected owned-window captures. See `data/diagnostics/charcreate-hover-select-20260922/completion-report.md`; popup styling and hit areas remain unchanged.
 - Final rendered dropdown comparison, additive swatch glow, and full Retail visual parity remain unproven. Nine-part background projection, opaque center, label ordering and idle-state dirty behavior have native coverage; runtime/final verification remains separate. Catalog/control integration, camera interaction and create/save/reload acceptance have separate evidence boundaries.
 
 ## Sources
