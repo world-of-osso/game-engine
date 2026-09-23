@@ -349,9 +349,15 @@ fn register_inworld_snapshot_systems(app: &mut App) {
         msg::receive_combat_log_snapshot,
         application_in_world,
     );
+    app.init_resource::<msg::CombatTextSource>();
     register_message_handler::<CombatEvent, _>(
         app,
         msg::receive_combat_events,
+        application_in_world,
+    );
+    register_message_handler::<CombatLogEvent, _>(
+        app,
+        msg::receive_combat_log_events,
         application_in_world,
     );
     register_message_handler::<AchievementStateUpdate, _>(

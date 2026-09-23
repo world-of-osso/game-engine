@@ -3,6 +3,7 @@
 //! Damage and heal numbers that appear above units and float upward,
 //! fading out over their lifetime. Supports crit scaling, color coding
 //! by damage type, and staggered spawn offsets to avoid overlap.
+//! Crits keep their kind's colour and are drawn larger (Retail `CombatText`).
 
 use bevy::prelude::*;
 
@@ -12,14 +13,16 @@ pub enum CombatTextKind {
     PhysicalDamage,
     SpellDamage,
     Heal,
-    CritDamage,
-    CritHeal,
     Miss,
     Dodge,
     Parry,
     Block,
     Resist,
     Absorb,
+    Immune,
+    Evade,
+    Deflect,
+    Reflect,
 }
 
 impl CombatTextKind {
@@ -29,27 +32,21 @@ impl CombatTextKind {
             Self::PhysicalDamage => [1.0, 1.0, 1.0, 1.0],
             Self::SpellDamage => [1.0, 1.0, 0.0, 1.0],
             Self::Heal => [0.0, 1.0, 0.0, 1.0],
-            Self::CritDamage => [1.0, 0.0, 0.0, 1.0],
-            Self::CritHeal => [0.0, 1.0, 0.5, 1.0],
-            Self::Miss | Self::Dodge | Self::Parry | Self::Resist => [0.7, 0.7, 0.7, 1.0],
+            Self::Miss
+            | Self::Dodge
+            | Self::Parry
+            | Self::Resist
+            | Self::Immune
+            | Self::Evade
+            | Self::Deflect
+            | Self::Reflect => [0.7, 0.7, 0.7, 1.0],
             Self::Block | Self::Absorb => [0.8, 0.8, 1.0, 1.0],
         }
     }
 
     /// Whether this kind shows a number or a text label.
     pub fn is_label(self) -> bool {
-        matches!(
-            self,
-            Self::Miss | Self::Dodge | Self::Parry | Self::Block | Self::Resist | Self::Absorb
-        )
-    }
-
-    /// Font scale multiplier (crits are bigger).
-    pub fn font_scale(self) -> f32 {
-        match self {
-            Self::CritDamage | Self::CritHeal => 1.5,
-            _ => 1.0,
-        }
+        !matches!(self, Self::PhysicalDamage | Self::SpellDamage | Self::Heal)
     }
 
     /// Display label for non-numeric kinds.
@@ -61,6 +58,10 @@ impl CombatTextKind {
             Self::Block => "Block",
             Self::Resist => "Resist",
             Self::Absorb => "Absorb",
+            Self::Immune => "Immune",
+            Self::Evade => "Evade",
+            Self::Deflect => "Deflect",
+            Self::Reflect => "Reflect",
             _ => "",
         }
     }
@@ -69,12 +70,14 @@ impl CombatTextKind {
 const FCT_LIFETIME: f32 = 1.5;
 const FCT_RISE_SPEED: f32 = 60.0;
 const FCT_FADE_START: f32 = 0.7;
+const FCT_CRIT_SCALE: f32 = 1.5;
 
 /// A single floating combat text instance.
 #[derive(Clone, Debug)]
 pub struct FloatingCombatText {
     pub kind: CombatTextKind,
     pub amount: u32,
+    pub crit: bool,
     pub elapsed: f32,
     pub lifetime: f32,
     /// Horizontal offset to stagger overlapping texts.
@@ -86,10 +89,23 @@ impl FloatingCombatText {
         Self {
             kind,
             amount,
+            crit: false,
             elapsed: 0.0,
             lifetime: FCT_LIFETIME,
             x_offset: 0.0,
         }
+    }
+
+    pub fn critical(kind: CombatTextKind, amount: u32) -> Self {
+        Self {
+            crit: true,
+            ..Self::new(kind, amount)
+        }
+    }
+
+    /// Font scale multiplier (crits are bigger).
+    pub fn font_scale(&self) -> f32 {
+        if self.crit { FCT_CRIT_SCALE } else { 1.0 }
     }
 
     /// Display text (number or label).
@@ -173,10 +189,14 @@ mod tests {
     }
 
     #[test]
-    fn crit_has_larger_font_scale() {
-        assert!(CombatTextKind::CritDamage.font_scale() > 1.0);
-        assert!(CombatTextKind::CritHeal.font_scale() > 1.0);
-        assert_eq!(CombatTextKind::PhysicalDamage.font_scale(), 1.0);
+    fn crit_keeps_kind_and_has_larger_font_scale() {
+        let crit = FloatingCombatText::critical(CombatTextKind::SpellDamage, 900);
+        assert_eq!(crit.kind, CombatTextKind::SpellDamage);
+        assert_eq!(crit.font_scale(), 1.5);
+        assert_eq!(
+            FloatingCombatText::new(CombatTextKind::PhysicalDamage, 1).font_scale(),
+            1.0
+        );
     }
 
     #[test]

@@ -199,6 +199,11 @@ fn reset_combat_runtime_states(world: &mut World) {
     {
         *casting_state = game_engine::casting_data::CastingState::default();
     }
+    if let Some(mut source) =
+        world.get_resource_mut::<crate::networking_messages::CombatTextSource>()
+    {
+        source.combat_log_seen = false;
+    }
 }
 
 fn reset_progression_runtime_states(world: &mut World) {

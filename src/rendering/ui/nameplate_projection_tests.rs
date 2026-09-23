@@ -130,7 +130,7 @@ fn observe_changes(
     changes.0 = plates.iter().collect();
 }
 
-pub(super) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
+pub(crate) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     let mut app = App::new();
     app.add_plugins((
         MinimalPlugins,
@@ -212,13 +212,13 @@ pub(super) fn wolf(app: &mut App) -> (Entity, Entity) {
     (owner, label)
 }
 
-pub(super) fn settle(app: &mut App) {
+pub(crate) fn settle(app: &mut App) {
     for _ in 0..3 {
         app.update();
     }
 }
 
-pub(super) fn visible(app: &App, plate: Entity) -> bool {
+pub(crate) fn visible(app: &App, plate: Entity) -> bool {
     app.world().get::<Visibility>(plate) == Some(&Visibility::Visible)
 }
 

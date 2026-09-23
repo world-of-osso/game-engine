@@ -276,6 +276,7 @@ fn register_world_plugins(app: &mut App) {
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin)
+        .add_plugins(crate::rendering::floating_combat_text::FloatingCombatTextPlugin)
         .add_plugins(quest_sparkle::QuestSparklePlugin)
         .add_plugins(target::TargetPlugin)
         .add_plugins(equipment::EquipmentPlugin)
