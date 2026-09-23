@@ -21,6 +21,18 @@ pub struct DeathRuntimeState {
     queried_inworld: bool,
 }
 
+impl DeathRuntimeState {
+    /// UI release (StaticPopup `DEATH` accept). Unlike IPC requests, no reply is awaited.
+    pub fn request_release_spirit(&mut self) {
+        self.pending_actions.push_back(Action::ReleaseSpirit);
+    }
+
+    /// UI corpse resurrection (StaticPopup `RECOVER_CORPSE` accept).
+    pub fn request_resurrect_at_corpse(&mut self) {
+        self.pending_actions.push_back(Action::ResurrectAtCorpse);
+    }
+}
+
 enum Action {
     ReleaseSpirit,
     ResurrectAtCorpse,

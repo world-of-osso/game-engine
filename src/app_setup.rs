@@ -616,6 +616,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(scenes::group_frames::GroupFramesPlugin);
     app.add_plugins(scenes::loot_rules_frame::LootRulesFramePlugin);
     app.add_plugins(scenes::static_popup::StaticPopupPlugin);
+    app.add_plugins(scenes::death_ui::DeathUiPlugin);
     app.add_plugins(scenes::ui_errors_frame::UiErrorsFramePlugin);
     app.add_plugins(scenes::chat_frame::ChatFramePlugin);
 }
