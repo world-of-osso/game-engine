@@ -59,5 +59,6 @@ fn missing_or_malformed_catalog_fails_explicitly() {
         NameCatalog::parse("ID,Name,RaceID,Sex\n1,A,1,0\n2,Twelveletters,1,0\n3,Valid,1,0\n")
             .unwrap();
     assert_eq!(short.pick_name(1, 0, "", 0), Some("Valid"));
+    assert_eq!(short.pick_name(1, 0, "Valid", 0), Some("Valid"));
     assert!(short.pick_name(1, 1, "", 0).is_none());
 }

@@ -67,6 +67,9 @@ impl NameCatalog {
 
     pub(super) fn pick_name(&self, race: u8, sex: u8, current: &str, seed: u64) -> Option<&str> {
         let names = self.names.get(&(canonical_name_race(race), sex))?;
+        if names.len() == 1 {
+            return Some(&names[0]);
+        }
         let current_index = names.iter().position(|name| name == current);
         let count = names.len() - usize::from(current_index.is_some());
         if count == 0 {
