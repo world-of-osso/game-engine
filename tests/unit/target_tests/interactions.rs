@@ -56,7 +56,6 @@ fn interact_with_object_mailbox_queues_mail_open() {
         None,
         None,
         None,
-        None,
     ));
     assert_eq!(
         queue.pending,
@@ -67,17 +66,16 @@ fn interact_with_object_mailbox_queues_mail_open() {
 #[test]
 fn interact_with_object_forge_opens_professions_frame() {
     let mut queue = game_engine::mail_data::MailIntentQueue::default();
-    let mut open = crate::scenes::professions_frame::ProfessionsFrameOpen(false);
+    let mut window_manager = crate::window_manager::WindowManager::default();
     assert!(interact_with_object(
         WorldObjectInteractionKind::Forge,
         &mut queue,
-        None,
-        Some(&mut open),
+        Some(&mut window_manager),
         None,
         None,
         None,
     ));
-    assert!(open.0);
+    assert!(window_manager.is_open(crate::window_manager::WindowId::Professions));
 }
 
 #[test]
@@ -87,7 +85,6 @@ fn interact_with_object_chair_queues_sit_emote() {
     assert!(interact_with_object(
         WorldObjectInteractionKind::Chair,
         &mut queue,
-        None,
         None,
         Some(&mut input),
         None,
@@ -112,7 +109,6 @@ fn interact_with_object_gather_node_starts_cast_and_blocks_repeat() {
         &mut queue,
         None,
         None,
-        None,
         Some(&mut profession_runtime),
         Some(&mut casting_state),
     ));
@@ -129,7 +125,6 @@ fn interact_with_object_gather_node_starts_cast_and_blocks_repeat() {
         &mut queue,
         None,
         None,
-        None,
         Some(&mut profession_runtime),
         Some(&mut casting_state),
     ));
@@ -142,7 +137,6 @@ fn interact_with_object_zone_transition_consumes_click() {
     assert!(interact_with_object(
         WorldObjectInteractionKind::ZoneTransition,
         &mut queue,
-        None,
         None,
         None,
         None,

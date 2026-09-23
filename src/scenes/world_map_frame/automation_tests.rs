@@ -12,9 +12,10 @@ use game_engine::ui::plugin::UiState;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::world_map_data::WorldMapState;
 
-use super::{WorldMapFrameOpen, WorldMapFramePlugin};
+use super::WorldMapFramePlugin;
 use crate::game_state::GameState;
 use crate::networking::CurrentZone;
+use crate::window_manager::{WindowId, WindowManager};
 
 fn inworld_app() -> App {
     let mut app = App::new();
@@ -30,6 +31,7 @@ fn inworld_app() -> App {
     app.init_resource::<WorldMapState>();
     app.init_resource::<CurrentZone>();
     app.init_resource::<crate::taxi::TaxiState>();
+    app.init_resource::<WindowManager>();
     app.init_resource::<game_engine::input_bindings::InputBindings>();
     app.insert_state(GameState::InWorld);
     app.add_plugins((
@@ -72,7 +74,9 @@ fn simulate_layout_readback(app: &mut App, name: &str) {
 }
 
 fn map_open(app: &App) -> bool {
-    app.world().resource::<WorldMapFrameOpen>().0
+    app.world()
+        .resource::<WindowManager>()
+        .is_open(WindowId::WorldMap)
 }
 
 fn frame_visible(app: &App, name: &str) -> bool {

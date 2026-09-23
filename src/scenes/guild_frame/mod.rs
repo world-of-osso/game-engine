@@ -13,9 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
-
-#[derive(Resource, Default)]
-pub struct GuildFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 #[derive(Resource, Clone, Copy, PartialEq, Eq, Default)]
 struct GuildFrameSelection(GuildTabKind);
@@ -38,7 +36,6 @@ pub struct GuildFramePlugin;
 
 impl Plugin for GuildFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<GuildFrameOpen>();
         app.init_resource::<GuildFrameSelection>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -63,11 +60,15 @@ fn build_guild_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     snapshot: Option<Res<GuildStatusSnapshot>>,
-    open: Res<GuildFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<GuildFrameSelection>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(snapshot.as_deref(), &open, &selection);
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::Guild),
+        &selection,
+    );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(guild_frame_screen);
@@ -94,7 +95,7 @@ fn toggle_guild_frame(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    mut open: ResMut<GuildFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
     mut runtime: ResMut<GuildRuntimeState>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
@@ -115,8 +116,7 @@ fn toggle_guild_frame(
         return;
     };
     if action == ACTION_GUILD_TOGGLE {
-        open.0 = !open.0;
-        if open.0 {
+        if window_manager.toggle(WindowId::Guild) {
             queue_query(&mut runtime);
         }
     }
@@ -127,13 +127,17 @@ fn sync_guild_frame_state(
     mut wrap: Option<ResMut<GuildFrameWrap>>,
     mut last_model: Option<ResMut<GuildFrameModel>>,
     snapshot: Option<Res<GuildStatusSnapshot>>,
-    open: Res<GuildFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<GuildFrameSelection>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(snapshot.as_deref(), &open, &selection);
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::Guild),
+        &selection,
+    );
     if last_model.0 == state {
         return;
     }
@@ -145,7 +149,7 @@ fn sync_guild_frame_state(
 
 fn build_state(
     snapshot: Option<&GuildStatusSnapshot>,
-    open: &GuildFrameOpen,
+    open: bool,
     selection: &GuildFrameSelection,
 ) -> GuildFrameState {
     let guild_name = snapshot.map(|s| s.guild_name.clone()).unwrap_or_default();
@@ -155,7 +159,7 @@ fn build_state(
     let tabs = guild_tabs(selection.0);
     let members = guild_member_rows(snapshot);
     GuildFrameState {
-        visible: open.0,
+        visible: open,
         guild_name,
         motd,
         info_text,
@@ -222,10 +226,13 @@ fn handle_guild_frame_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    open: Res<GuildFrameOpen>,
+    window_manager: Res<WindowManager>,
     mut selection: ResMut<GuildFrameSelection>,
 ) {
-    if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !window_manager.is_open(WindowId::Guild)
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
         return;
     }
     let Some(mouse) = mouse else { return };
@@ -273,7 +280,7 @@ mod tests {
 
         let state = build_state(
             Some(&snapshot),
-            &GuildFrameOpen(true),
+            true,
             &GuildFrameSelection(GuildTabKind::Roster),
         );
 

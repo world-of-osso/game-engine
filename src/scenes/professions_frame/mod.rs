@@ -14,10 +14,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
-
-/// Tracks whether the Professions panel is open.
-#[derive(Resource, Default)]
-pub struct ProfessionsFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 #[derive(Resource, Default, Clone, PartialEq)]
 struct ProfessionsFrameSelection {
@@ -43,7 +40,6 @@ pub struct ProfessionsFramePlugin;
 
 impl Plugin for ProfessionsFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ProfessionsFrameOpen>();
         app.init_resource::<ProfessionsFrameSelection>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -68,11 +64,15 @@ fn build_professions_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     snapshot: Option<Res<ProfessionStatusSnapshot>>,
-    open: Res<ProfessionsFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<ProfessionsFrameSelection>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(snapshot.as_deref(), &open, &selection);
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::Professions),
+        &selection,
+    );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(professions_frame_screen);
@@ -95,10 +95,10 @@ fn teardown_professions_frame_ui(
 
 fn toggle_professions_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<ProfessionsFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleProfessions) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::Professions);
     }
 }
 
@@ -107,13 +107,17 @@ fn sync_professions_frame_state(
     mut wrap: Option<ResMut<ProfessionsFrameWrap>>,
     mut last_model: Option<ResMut<ProfessionsFrameModel>>,
     snapshot: Option<Res<ProfessionStatusSnapshot>>,
-    open: Res<ProfessionsFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<ProfessionsFrameSelection>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(snapshot.as_deref(), &open, &selection);
+    let state = build_state(
+        snapshot.as_deref(),
+        window_manager.is_open(WindowId::Professions),
+        &selection,
+    );
     if last_model.0 == state {
         return;
     }
@@ -129,12 +133,15 @@ fn handle_professions_frame_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    open: Res<ProfessionsFrameOpen>,
+    window_manager: Res<WindowManager>,
     snapshot: Option<Res<ProfessionStatusSnapshot>>,
     mut selection: ResMut<ProfessionsFrameSelection>,
     mut runtime: ResMut<ProfessionRuntimeState>,
 ) {
-    if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !window_manager.is_open(WindowId::Professions)
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
         return;
     }
     let Some(mouse) = mouse else { return };
@@ -156,14 +163,14 @@ fn handle_professions_frame_input(
 
 fn build_state(
     snapshot: Option<&ProfessionStatusSnapshot>,
-    open: &ProfessionsFrameOpen,
+    open: bool,
     selection: &ProfessionsFrameSelection,
 ) -> ProfessionsFrameState {
     let active_profession = resolve_active_profession(snapshot, selection);
     let recipes = filtered_recipes(snapshot, active_profession.as_deref());
     let selected_recipe = resolve_selected_recipe(&recipes, selection.selected_recipe_id);
     ProfessionsFrameState {
-        visible: open.0,
+        visible: open,
         tabs: build_tabs(snapshot, active_profession.as_deref()),
         recipes: recipes
             .iter()
@@ -386,7 +393,7 @@ mod tests {
     fn build_state_filters_recipes_by_selected_profession() {
         let state = build_state(
             Some(&snapshot()),
-            &ProfessionsFrameOpen(true),
+            true,
             &ProfessionsFrameSelection {
                 active_profession: Some("Mining".into()),
                 selected_recipe_id: None,
@@ -402,7 +409,7 @@ mod tests {
     fn build_state_marks_selected_recipe_and_detail() {
         let state = build_state(
             Some(&snapshot()),
-            &ProfessionsFrameOpen(true),
+            true,
             &ProfessionsFrameSelection {
                 active_profession: Some("Alchemy".into()),
                 selected_recipe_id: Some(1001),

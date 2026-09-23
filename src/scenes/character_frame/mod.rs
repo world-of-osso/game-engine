@@ -10,10 +10,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
-
-/// Tracks whether the Character panel is open.
-#[derive(Resource, Default)]
-pub struct CharacterFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 struct CharacterFrameRes {
     screen: Screen,
@@ -33,7 +30,6 @@ pub struct CharacterFramePlugin;
 
 impl Plugin for CharacterFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CharacterFrameOpen>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_character_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -54,10 +50,14 @@ fn build_character_frame_ui(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
     gear: Option<Res<EquippedGearStatusSnapshot>>,
-    open: Res<CharacterFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(character_stats.as_deref(), gear.as_deref(), &open);
+    let state = build_state(
+        character_stats.as_deref(),
+        gear.as_deref(),
+        window_manager.is_open(WindowId::Character),
+    );
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(character_frame_screen);
@@ -80,10 +80,10 @@ fn teardown_character_frame_ui(
 
 fn toggle_character_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<CharacterFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleCharacter) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::Character);
     }
 }
 
@@ -93,12 +93,16 @@ fn sync_character_frame_state(
     mut last_model: Option<ResMut<CharacterFrameModel>>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
     gear: Option<Res<EquippedGearStatusSnapshot>>,
-    open: Res<CharacterFrameOpen>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(character_stats.as_deref(), gear.as_deref(), &open);
+    let state = build_state(
+        character_stats.as_deref(),
+        gear.as_deref(),
+        window_manager.is_open(WindowId::Character),
+    );
     if last_model.0 == state {
         return;
     }
@@ -111,7 +115,7 @@ fn sync_character_frame_state(
 fn build_state(
     character_stats: Option<&CharacterStatsSnapshot>,
     gear: Option<&EquippedGearStatusSnapshot>,
-    open: &CharacterFrameOpen,
+    open: bool,
 ) -> CharacterFrameState {
     let (character_name, level, class_name) = extract_identity(character_stats);
     let health = format_resource_bar(character_stats, |s| (s.health_current, s.health_max));
@@ -122,7 +126,7 @@ fn build_state(
         .unwrap_or_default();
 
     CharacterFrameState {
-        visible: open.0,
+        visible: open,
         character_name,
         level,
         class_name,

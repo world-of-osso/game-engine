@@ -27,13 +27,10 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use crate::ui_input::walk_up_for_onclick;
+use crate::window_manager::{WindowId, WindowManager};
 
 /// `PopupStack` key of the Apply confirmation.
 const APPLY_POPUP_KEY: &str = "TALENT_APPLY_CHANGES";
-
-/// Tracks whether the talent window (`PlayerSpellsFrame`) is open.
-#[derive(Resource, Default)]
-pub struct TalentFrameOpen(pub bool);
 
 struct TalentFrameRes {
     screen: Screen,
@@ -53,7 +50,6 @@ pub struct TalentFramePlugin;
 
 impl Plugin for TalentFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TalentFrameOpen>();
         app.init_resource::<TalentTooltips>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -93,7 +89,7 @@ fn build_talent_frame_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
-    open: Res<TalentFrameOpen>,
+    window_manager: Res<WindowManager>,
     trees: Res<TalentTrees>,
     state: Res<TalentState>,
     catalog: Res<SpellCatalog>,
@@ -101,7 +97,7 @@ fn build_talent_frame_ui(
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let (model, tooltips) = build_state(&TalentInputs {
-        open: open.0,
+        open: window_manager.is_open(WindowId::Talents),
         trees: &trees,
         state: &state,
         catalog: &catalog,
@@ -132,10 +128,10 @@ fn teardown_talent_frame_ui(
 
 fn toggle_talent_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<TalentFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleTalents) {
-        open.0 = !open.0;
+        window_manager.toggle(WindowId::Talents);
     }
 }
 
@@ -144,7 +140,7 @@ fn sync_talent_frame_state(
     mut wrap: Option<ResMut<TalentFrameWrap>>,
     mut last_model: Option<ResMut<TalentFrameModel>>,
     mut tooltips: ResMut<TalentTooltips>,
-    open: Res<TalentFrameOpen>,
+    window_manager: Res<WindowManager>,
     trees: Res<TalentTrees>,
     state: Res<TalentState>,
     catalog: Res<SpellCatalog>,
@@ -154,7 +150,7 @@ fn sync_talent_frame_state(
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let inputs_changed = open.is_changed()
+    let inputs_changed = window_manager.is_changed()
         || trees.is_changed()
         || state.is_changed()
         || catalog.is_changed()
@@ -163,7 +159,7 @@ fn sync_talent_frame_state(
         return;
     }
     let (model, next_tooltips) = build_state(&TalentInputs {
-        open: open.0,
+        open: window_manager.is_open(WindowId::Talents),
         trees: &trees,
         state: &state,
         catalog: &catalog,
@@ -252,13 +248,16 @@ fn handle_talent_frame_input(
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
-    open: Res<TalentFrameOpen>,
+    window_manager: Res<WindowManager>,
     trees: Res<TalentTrees>,
     mut state: ResMut<TalentState>,
     mut popups: ResMut<PopupStack>,
     levels: Query<&UnitLevel, With<LocalPlayer>>,
 ) {
-    if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+    if !window_manager.is_open(WindowId::Talents)
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
         return;
     }
     let Some(mouse) = mouse else { return };

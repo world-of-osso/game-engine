@@ -95,7 +95,9 @@ fn talent_app(data: &TalentTreeData) -> App {
     });
     app.init_resource::<SpellCatalog>();
     app.init_resource::<TalentTooltips>();
-    app.insert_resource(TalentFrameOpen(true));
+    let mut window_manager = crate::window_manager::WindowManager::default();
+    window_manager.open(crate::window_manager::WindowId::Talents);
+    app.insert_resource(window_manager);
     app.init_resource::<PopupStack>();
     app.add_message::<PopupResult>();
     app.world_mut().spawn((LocalPlayer, UnitLevel(LEVEL)));

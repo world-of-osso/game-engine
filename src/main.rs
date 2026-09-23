@@ -67,6 +67,7 @@ mod trash_button_screen;
 mod ui_input;
 mod ui_input_mode;
 mod update_schedule_isolation;
+mod window_manager;
 
 pub use app_runtime::rgba_image;
 pub(crate) use app_runtime::{ScreenshotRequest, run_headless_ui_dump_app, take_screenshot};

@@ -10,7 +10,7 @@ fn test_world() -> (World, SystemId) {
         focused_frame: None,
     });
     world.init_resource::<AchievementCompletionState>();
-    world.init_resource::<AchievementFrameOpen>();
+    world.init_resource::<WindowManager>();
     world.init_resource::<ButtonInput<KeyCode>>();
     world.init_resource::<ButtonInput<MouseButton>>();
     world.init_resource::<game_engine::input_bindings::InputBindings>();
@@ -64,20 +64,20 @@ fn keyboard_toggle_changes_open_only_on_a_key_event() {
     let toggle = world.register_system(toggle_achievement_frame);
     world.clear_trackers();
     world.run_system(toggle).unwrap();
-    assert!(!world.resource_ref::<AchievementFrameOpen>().is_changed());
+    assert!(!world.resource_ref::<WindowManager>().is_changed());
 
     world
         .resource_mut::<ButtonInput<KeyCode>>()
         .press(KeyCode::KeyY);
     world.run_system(toggle).unwrap();
-    assert!(world.resource_ref::<AchievementFrameOpen>().is_changed());
+    assert!(world.resource_ref::<WindowManager>().is_changed());
     world.run_system(sync).unwrap();
     assert_visible(&world, true);
 
     world.resource_mut::<ButtonInput<KeyCode>>().clear();
     world.clear_trackers();
     world.run_system(toggle).unwrap();
-    assert!(!world.resource_ref::<AchievementFrameOpen>().is_changed());
+    assert!(!world.resource_ref::<WindowManager>().is_changed());
     world.run_system(sync).unwrap();
     assert_visible(&world, true);
 
@@ -114,7 +114,9 @@ fn closed_progress_and_completion_publish_before_opening() {
     assert!(published_state(&world).achievements[0].completed);
     assert_eq!(published_state(&world).achievements[0].progress, 1.0);
 
-    world.resource_mut::<AchievementFrameOpen>().0 = true;
+    world
+        .resource_mut::<WindowManager>()
+        .open(WindowId::Achievements);
     world.run_system(sync).unwrap();
     assert_visible(&world, true);
     assert_eq!(published_state(&world).total_points, 10);
@@ -131,7 +133,9 @@ fn reset_and_reentry_initialize_even_after_sync_without_a_view() {
         .resource_mut::<AchievementCompletionState>()
         .earned
         .insert(1);
-    world.resource_mut::<AchievementFrameOpen>().0 = true;
+    world
+        .resource_mut::<WindowManager>()
+        .open(WindowId::Achievements);
     world.run_system(sync).unwrap();
     assert_eq!(published_state(&world).total_points, 10);
 
@@ -148,7 +152,7 @@ fn reset_and_reentry_initialize_even_after_sync_without_a_view() {
             .is_none()
     );
     world.insert_resource(AchievementCompletionState::default());
-    world.insert_resource(AchievementFrameOpen::default());
+    world.insert_resource(WindowManager::default());
     world.run_system(sync).unwrap();
     world.run_system(build).unwrap();
     world.run_system(sync).unwrap();

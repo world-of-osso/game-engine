@@ -13,6 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
+use crate::window_manager::{WindowId, WindowManager};
 
 const SELL_TAB_EMPTY_TEXT: &str = "Sell items from your bags to populate buyback.";
 const BUYBACK_TAB_EMPTY_TEXT: &str = "No items available for buyback.";
@@ -57,9 +58,10 @@ fn build_merchant_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     merchant: Res<MerchantState>,
+    window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&merchant);
+    let state = build_state(&merchant, window_manager.is_open(WindowId::Merchant));
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(merchant_frame_screen);
@@ -85,11 +87,12 @@ fn sync_merchant_frame_state(
     mut wrap: Option<ResMut<MerchantFrameWrap>>,
     mut last_model: Option<ResMut<MerchantFrameModel>>,
     merchant: Res<MerchantState>,
+    window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&merchant);
+    let state = build_state(&merchant, window_manager.is_open(WindowId::Merchant));
     if last_model.0 == state {
         return;
     }
@@ -131,9 +134,9 @@ fn handle_merchant_frame_input(
     dispatch_action(&action, &mut merchant, &mut intents);
 }
 
-fn build_state(merchant: &MerchantState) -> MerchantFrameState {
+fn build_state(merchant: &MerchantState, open: bool) -> MerchantFrameState {
     MerchantFrameState {
-        visible: merchant.is_open(),
+        visible: open && merchant.is_open(),
         tabs: build_tabs(merchant.current_tab()),
         items: build_items(merchant),
         page: merchant.page + 1,
@@ -303,7 +306,7 @@ mod tests {
         let mut merchant = merchant_state();
         merchant.set_tab(MerchantTabKind::Buyback);
 
-        let state = build_state(&merchant);
+        let state = build_state(&merchant, true);
 
         assert!(state.visible);
         assert!(state.tabs[2].active);
@@ -319,7 +322,7 @@ mod tests {
         merchant.buyback_inventory.clear();
         merchant.set_tab(MerchantTabKind::Buyback);
 
-        let state = build_state(&merchant);
+        let state = build_state(&merchant, true);
 
         assert_eq!(state.empty_text.as_deref(), Some(BUYBACK_TAB_EMPTY_TEXT));
     }

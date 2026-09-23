@@ -1,6 +1,7 @@
 use super::*;
 use crate::game_state::GameState;
-use crate::scenes::character_frame::{CharacterFrameOpen, CharacterFramePlugin};
+use crate::scenes::character_frame::CharacterFramePlugin;
+use crate::window_manager::{WindowId, WindowManager};
 use game_engine::input_bindings::InputBinding;
 use game_engine::ui::event::EventBus;
 use game_engine::ui::registry::FrameRegistry;
@@ -31,6 +32,7 @@ fn panel_app(ui: UiState) -> App {
     app.init_resource::<InputBindings>();
     app.insert_resource(ui);
     app.add_plugins(UiInputModePlugin);
+    app.init_resource::<WindowManager>();
     app.add_plugins(CharacterFramePlugin);
     app.update();
     app
@@ -45,7 +47,9 @@ fn tap(app: &mut App, key: KeyCode) {
 }
 
 fn character_open(app: &App) -> bool {
-    app.world().resource::<CharacterFrameOpen>().0
+    app.world()
+        .resource::<WindowManager>()
+        .is_open(WindowId::Character)
 }
 
 #[test]

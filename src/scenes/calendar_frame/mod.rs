@@ -21,9 +21,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::ui_input::walk_up_for_onclick;
-
-#[derive(Resource, Default)]
-pub struct CalendarFrameOpen(pub bool);
+use crate::window_manager::{WindowId, WindowManager};
 
 #[derive(Resource, Default, Clone, PartialEq, Eq)]
 struct CalendarFrameSelection {
@@ -48,7 +46,6 @@ pub struct CalendarFramePlugin;
 
 impl Plugin for CalendarFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CalendarFrameOpen>();
         app.init_resource::<CalendarFrameSelection>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -70,14 +67,14 @@ fn build_calendar_frame_ui(
     windows: Query<&Window, With<PrimaryWindow>>,
     snapshot: Option<Res<CalendarStatusSnapshot>>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
-    open: Res<CalendarFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<CalendarFrameSelection>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_state(
         snapshot.as_deref(),
         character_stats.as_deref(),
-        &open,
+        window_manager.is_open(WindowId::Calendar),
         &selection,
     );
     let mut shared = SharedContext::new();
@@ -106,7 +103,7 @@ fn sync_calendar_frame_state(
     mut last_model: Option<ResMut<CalendarFrameModel>>,
     snapshot: Option<Res<CalendarStatusSnapshot>>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
-    open: Res<CalendarFrameOpen>,
+    window_manager: Res<WindowManager>,
     selection: Res<CalendarFrameSelection>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
@@ -115,7 +112,7 @@ fn sync_calendar_frame_state(
     let state = build_state(
         snapshot.as_deref(),
         character_stats.as_deref(),
-        &open,
+        window_manager.is_open(WindowId::Calendar),
         &selection,
     );
     if last_model.0 == state {
@@ -134,7 +131,7 @@ fn handle_calendar_frame_input(
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
     snapshot: Option<Res<CalendarStatusSnapshot>>,
-    mut open_state: ResMut<CalendarFrameOpen>,
+    mut window_manager: ResMut<WindowManager>,
     mut selection: ResMut<CalendarFrameSelection>,
     mut runtime: ResMut<CalendarRuntimeState>,
 ) {
@@ -155,13 +152,13 @@ fn handle_calendar_frame_input(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    if !open_state.0 && action != ACTION_CALENDAR_TOGGLE {
+    if !window_manager.is_open(WindowId::Calendar) && action != ACTION_CALENDAR_TOGGLE {
         return;
     }
     dispatch_action(
         &action,
         snapshot.as_deref(),
-        open_state.as_mut(),
+        window_manager.as_mut(),
         selection.as_mut(),
         runtime.as_mut(),
     );
@@ -170,13 +167,13 @@ fn handle_calendar_frame_input(
 fn build_state(
     snapshot: Option<&CalendarStatusSnapshot>,
     character_stats: Option<&CharacterStatsSnapshot>,
-    open: &CalendarFrameOpen,
+    open: bool,
     selection: &CalendarFrameSelection,
 ) -> CalendarFrameState {
     let events = snapshot.map_or_else(Vec::new, |snapshot| snapshot.events.clone());
     let selected_event = resolve_selected_event(&events, selection.selected_event_id);
     CalendarFrameState {
-        visible: open.0,
+        visible: open,
         events: events
             .iter()
             .map(|event| map_event_row(event, selected_event.map(|event| event.event_id)))
@@ -195,7 +192,7 @@ fn build_state(
                     .or_else(|| snapshot.last_server_message.clone())
             })
             .unwrap_or_default(),
-        empty_text: if open.0 && events.is_empty() {
+        empty_text: if open && events.is_empty() {
             Some("No scheduled events yet.".into())
         } else {
             None
@@ -276,20 +273,21 @@ fn signup_status_label(status: CalendarSignupStateEntry) -> &'static str {
 fn dispatch_action(
     action: &str,
     snapshot: Option<&CalendarStatusSnapshot>,
-    open: &mut CalendarFrameOpen,
+    window_manager: &mut WindowManager,
     selection: &mut CalendarFrameSelection,
     runtime: &mut CalendarRuntimeState,
 ) {
     match action {
         ACTION_CALENDAR_TOGGLE => {
-            open.0 = !open.0;
-            if open.0 {
+            if window_manager.toggle(WindowId::Calendar) {
                 queue_query(runtime);
                 selection.selected_event_id = snapshot
                     .and_then(|snapshot| snapshot.events.first().map(|event| event.event_id));
             }
         }
-        ACTION_CALENDAR_CLOSE => open.0 = false,
+        ACTION_CALENDAR_CLOSE => {
+            window_manager.close(WindowId::Calendar);
+        }
         ACTION_CALENDAR_REFRESH => queue_query(runtime),
         ACTION_CALENDAR_SCHEDULE_RAID => {
             queue_schedule_action(runtime, "Raid Group", 60, 20, true);
@@ -367,7 +365,7 @@ mod tests {
         let state = build_state(
             Some(&snapshot),
             Some(&character_stats),
-            &CalendarFrameOpen(true),
+            true,
             &CalendarFrameSelection {
                 selected_event_id: Some(7),
             },
@@ -386,7 +384,7 @@ mod tests {
 
     #[test]
     fn toggle_action_opens_and_queues_query() {
-        let mut open = CalendarFrameOpen(false);
+        let mut window_manager = WindowManager::default();
         let mut selection = CalendarFrameSelection::default();
         let mut runtime = CalendarRuntimeState::default();
         let snapshot = sample_snapshot();
@@ -394,12 +392,12 @@ mod tests {
         dispatch_action(
             ACTION_CALENDAR_TOGGLE,
             Some(&snapshot),
-            &mut open,
+            &mut window_manager,
             &mut selection,
             &mut runtime,
         );
 
-        assert!(open.0);
+        assert!(window_manager.is_open(WindowId::Calendar));
         assert_eq!(selection.selected_event_id, Some(7));
         assert_eq!(game_engine::calendar::pending_action_count(&runtime), 1);
     }
