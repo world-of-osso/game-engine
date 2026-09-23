@@ -371,12 +371,13 @@ fn run_char_create_automation_action(
                 insert_char_into_editbox(&mut ctx.ui.registry, focused_id, &ch.to_string());
             }
         }
-        UiAutomationAction::PressKey(key) => {
+        UiAutomationAction::PressKey(chord) => {
+            let key = chord.unmodified_key()?;
             let focused_id = ctx
                 .focus
                 .0
                 .ok_or("automation key press requires a focused frame")?;
-            handle_char_create_key(*key, focused_id, ctx.ui);
+            handle_char_create_key(key, focused_id, ctx.ui);
         }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)

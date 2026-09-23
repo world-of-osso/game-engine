@@ -1,10 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use bevy::input::keyboard::KeyCode;
 use serde::Deserialize;
 
 use crate::game_state_enum::GameState;
-use crate::ui::automation::UiAutomationAction;
+use crate::ui::automation::{UiAutomationAction, parse_key_chord};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UiAutomationScriptPath {
@@ -64,7 +63,9 @@ fn raw_action_to_action(raw: RawAutomationAction) -> Result<UiAutomationAction, 
     match raw {
         RawAutomationAction::Click { click } => Ok(UiAutomationAction::ClickFrame(click)),
         RawAutomationAction::Type { text } => Ok(UiAutomationAction::TypeText(text)),
-        RawAutomationAction::Key { key } => Ok(UiAutomationAction::PressKey(parse_key(&key)?)),
+        RawAutomationAction::Key { key } => {
+            Ok(UiAutomationAction::PressKey(parse_key_chord(&key)?))
+        }
         RawAutomationAction::WaitForState {
             wait_for_state,
             timeout_secs,
@@ -96,16 +97,6 @@ fn parse_state(value: &str) -> Result<GameState, String> {
         "Loading" | "loading" => Ok(GameState::Loading),
         "InWorld" | "inworld" => Ok(GameState::InWorld),
         other => Err(format!("unknown game state '{other}'")),
-    }
-}
-
-fn parse_key(value: &str) -> Result<KeyCode, String> {
-    match value {
-        "Enter" | "enter" => Ok(KeyCode::Enter),
-        "Tab" | "tab" => Ok(KeyCode::Tab),
-        "Escape" | "escape" | "esc" => Ok(KeyCode::Escape),
-        "Backspace" | "backspace" => Ok(KeyCode::Backspace),
-        other => Err(format!("unsupported automation key '{other}'")),
     }
 }
 

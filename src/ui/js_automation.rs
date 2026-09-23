@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use quick_js::{Arguments, Context, JsValue};
 
 use crate::game_state_enum::GameState;
-use crate::ui::automation::UiAutomationAction;
+use crate::ui::automation::{UiAutomationAction, parse_key_chord};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct JsAutomationScriptPath {
@@ -58,7 +58,7 @@ fn register_action_callbacks(ctx: &Context) -> Result<(), String> {
     })
     .map_err(|err| format!("failed to register type callback: {err}"))?;
     ctx.add_callback("__key", |key: String| -> Result<bool, String> {
-        push_action(UiAutomationAction::PressKey(parse_key(&key)?));
+        push_action(UiAutomationAction::PressKey(parse_key_chord(&key)?));
         Ok(true)
     })
     .map_err(|err| format!("failed to register key callback: {err}"))
@@ -150,16 +150,6 @@ fn parse_state(value: &str) -> Result<GameState, String> {
     }
 }
 
-fn parse_key(value: &str) -> Result<bevy::input::keyboard::KeyCode, String> {
-    match value {
-        "Enter" | "enter" => Ok(bevy::input::keyboard::KeyCode::Enter),
-        "Tab" | "tab" => Ok(bevy::input::keyboard::KeyCode::Tab),
-        "Escape" | "escape" | "esc" => Ok(bevy::input::keyboard::KeyCode::Escape),
-        "Backspace" | "backspace" => Ok(bevy::input::keyboard::KeyCode::Backspace),
-        other => Err(format!("unsupported automation key '{other}'")),
-    }
-}
-
 const PRELUDE: &str = r#"
 globalThis.ui = {
   click: (name) => __click(name),
@@ -197,6 +187,40 @@ mod tests {
                 UiAutomationAction::TypeText("secret".into()),
             ]
         );
+    }
+
+    #[test]
+    fn js_key_parses_letters_digits_function_keys_and_modifier_chords() {
+        use bevy::input::keyboard::KeyCode;
+        let script = r#"
+            ui.key("b");
+            ui.key("1");
+            ui.key("F12");
+            ui.key("Shift+M");
+            ui.key("Ctrl+Alt+KeyP");
+            ui.key("esc");
+        "#;
+        let actions = run_js_to_actions(script).expect("JS actions should parse");
+        let chord = |modifiers: Vec<KeyCode>, key| {
+            UiAutomationAction::PressKey(crate::ui::automation::KeyChord { modifiers, key })
+        };
+        assert_eq!(
+            actions,
+            vec![
+                chord(vec![], KeyCode::KeyB),
+                chord(vec![], KeyCode::Digit1),
+                chord(vec![], KeyCode::F12),
+                chord(vec![KeyCode::ShiftLeft], KeyCode::KeyM),
+                chord(vec![KeyCode::ControlLeft, KeyCode::AltLeft], KeyCode::KeyP),
+                chord(vec![], KeyCode::Escape),
+            ]
+        );
+    }
+
+    #[test]
+    fn js_key_rejects_unknown_key_and_modifier() {
+        assert!(run_js_to_actions(r#"ui.key("Hyper+M");"#).is_err());
+        assert!(run_js_to_actions(r#"ui.key("NotAKey");"#).is_err());
     }
 
     #[test]

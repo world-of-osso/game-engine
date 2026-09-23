@@ -148,7 +148,9 @@ pub fn run_login_automation_action(
     match action {
         UiAutomationAction::ClickFrame(name) => click_login_frame(ctx, name),
         UiAutomationAction::TypeText(text) => type_login_automation_text(ctx, text),
-        UiAutomationAction::PressKey(key) => press_login_automation_key(ctx, *key),
+        UiAutomationAction::PressKey(chord) => {
+            press_login_automation_key(ctx, chord.unmodified_key()?)
+        }
         _ => Ok(()),
     }
 }
