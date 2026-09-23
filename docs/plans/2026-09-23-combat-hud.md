@@ -19,7 +19,7 @@ The following guide later design discussion; none are accepted requirements.
 
 ## Scope boundary
 
-This cycle designs the combat HUD only. It does not redesign game windows, minimap, or chat, and it does not implement gameplay abilities. These are design-stage boundaries, not permanent exclusions.
+This cycle designs the combat HUD only. It does not redesign game windows, minimap, or chat, and it does not implement gameplay abilities. These are design-stage boundaries, not permanent exclusions. Whole-client coverage, layout and phasing: [complete in-game UI](2026-09-23-ingame-ui.md).
 
 ## Existing source paths
 
