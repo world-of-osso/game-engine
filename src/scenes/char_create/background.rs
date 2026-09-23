@@ -57,7 +57,7 @@ fn apply_ui_model_material_lighting(world: &mut World, root: Entity) {
     let handles = backdrop_material_handles(world, root);
     let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
     for handle in handles {
-        let material = materials
+        let mut material = materials
             .get_mut(&handle)
             .expect("loaded backdrop material");
         if !material.unlit {
