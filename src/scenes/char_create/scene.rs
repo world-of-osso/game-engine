@@ -3,7 +3,6 @@
 //! Preloads both sex models for the selected race so toggling sex is instant.
 
 use std::f32::consts::{PI, TAU};
-use std::path::PathBuf;
 
 use bevy::ecs::system::SystemParam;
 use bevy::input::mouse::AccumulatedMouseMotion;
@@ -18,7 +17,6 @@ use crate::character_customization::{
 use crate::creature_display;
 use crate::equipment::EquipmentItem;
 use crate::game_state::GameState;
-use crate::ground;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_scene;
 use crate::m2_spawn::GeosetMesh;
@@ -26,9 +24,13 @@ use crate::model_path_resolver::resolve_model_path;
 use crate::orbit_camera::scaled_orbit_delta;
 use crate::scenes::char_create::CharCreateState;
 use game_engine::asset::char_texture::CharTextureData;
+use game_engine::creation_scene_data::CreationSceneCatalog;
 use game_engine::customization_data::{CustomizationDb, OptionType};
 use game_engine::ui::screens::char_create_component::CameraControl;
 use shared::components::CharacterAppearance;
+
+#[path = "background.rs"]
+mod background;
 
 #[derive(Component)]
 struct CharCreateScene;
@@ -51,6 +53,7 @@ struct DisplayedModels {
     last_appearance: Option<CharacterAppearance>,
     /// Last-applied class (to detect outfit changes).
     last_class: Option<u8>,
+    background: Option<background::Backdrop>,
 }
 
 #[derive(Component)]
@@ -61,6 +64,8 @@ struct CharCreateOrbit {
     distance: f32,
     base_pitch: f32,
     manual_distance: Option<f32>,
+    default_focus: Vec3,
+    default_distance: f32,
 }
 
 const ORBIT_PITCH_LIMIT: f32 = 0.15;
@@ -76,6 +81,10 @@ pub struct CharCreateScenePlugin;
 impl Plugin for CharCreateScenePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DisplayedModels>();
+        app.insert_resource(
+            CreationSceneCatalog::load(std::path::Path::new("data/ChrRaces.csv"))
+                .expect("character-creation scene catalog must be available"),
+        );
         app.add_systems(OnEnter(GameState::CharCreate), setup_scene);
         app.add_systems(
             Update,
@@ -95,9 +104,9 @@ impl Plugin for CharCreateScenePlugin {
     }
 }
 
-fn spawn_camera(commands: &mut Commands) -> Entity {
-    let focus = Vec3::new(0.0, 1.0, 0.0);
-    let eye = Vec3::new(0.0, 1.8, 6.0);
+fn spawn_camera(commands: &mut Commands, framing: background::Framing) -> Entity {
+    let focus = framing.focus;
+    let eye = framing.eye;
     let offset = eye - focus;
     let distance = offset.length();
     let base_pitch = (offset.y / distance).asin();
@@ -106,6 +115,12 @@ fn spawn_camera(commands: &mut Commands) -> Entity {
             Name::new("CharCreateCamera"),
             CharCreateScene,
             Camera3d::default(),
+            Projection::Perspective(PerspectiveProjection {
+                fov: framing.fov,
+                near: framing.near,
+                far: framing.far,
+                ..default()
+            }),
             additive_particle_glow_tonemapping(),
             Transform::from_translation(eye).looking_at(focus, Vec3::Y),
             CharCreateOrbit {
@@ -115,6 +130,8 @@ fn spawn_camera(commands: &mut Commands) -> Entity {
                 distance,
                 base_pitch,
                 manual_distance: None,
+                default_focus: focus,
+                default_distance: distance,
             },
         ))
         .id()
@@ -216,19 +233,20 @@ fn camera_zoom_for_dropdown(
                 .map(|option| option.option_type)
         })
     });
-    let (target_focus, target_distance) = zoom_target_for_dropdown(dropdown);
+    let (field_focus, field_distance) = zoom_target_for_dropdown(dropdown);
+    let face_focused = field_focus == FACE_FOCUS;
     let t = (CAMERA_ZOOM_SPEED * time.delta_secs()).min(1.0);
 
     for (mut orbit, mut transform) in &mut query {
+        let (target_focus, target_distance) = if face_focused {
+            (field_focus, field_distance)
+        } else {
+            (orbit.default_focus, orbit.default_distance)
+        };
         orbit.focus = orbit.focus.lerp(target_focus, t);
         orbit.distance = orbit
             .distance
             .lerp(orbit.manual_distance.unwrap_or(target_distance), t);
-
-        // Keep a proportional upward tilt: eye sits 0.8 units above focus in the default view.
-        let default_offset_len = (DEFAULT_EYE - DEFAULT_FOCUS).length();
-        let eye_height_above_focus = 0.8 * (orbit.distance / default_offset_len);
-        orbit.base_pitch = (eye_height_above_focus / orbit.distance).asin();
 
         apply_orbit_transform(&orbit, &mut transform);
     }
@@ -253,38 +271,6 @@ fn spawn_lighting(commands: &mut Commands) {
     ));
 }
 
-fn spawn_ground(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-) {
-    let grass_path = asset::asset_cache::texture(187126)
-        .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
-    let mut img = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
-        eprintln!("{e}");
-        ground::generate_grass_texture()
-    });
-    img.sampler = bevy::image::ImageSampler::Descriptor(bevy::image::ImageSamplerDescriptor {
-        address_mode_u: bevy::image::ImageAddressMode::Repeat,
-        address_mode_v: bevy::image::ImageAddressMode::Repeat,
-        ..bevy::image::ImageSamplerDescriptor::linear()
-    });
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(img)),
-        perceptual_roughness: 0.9,
-        ..default()
-    });
-    let mut mesh = Plane3d::default().mesh().size(30.0, 30.0).build();
-    ground::scale_mesh_uvs(&mut mesh, 6.0);
-    commands.spawn((
-        Name::new("Ground"),
-        CharCreateScene,
-        Mesh3d(meshes.add(mesh)),
-        MeshMaterial3d(material),
-    ));
-}
-
 fn model_transform() -> Transform {
     Transform::from_xyz(0.0, 0.0, 0.0)
         .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
@@ -299,6 +285,7 @@ struct CharCreateSpawnParams<'w, 's> {
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
     creature_display_map: Res<'w, creature_display::CreatureDisplayMap>,
+    scene_catalog: Res<'w, CreationSceneCatalog>,
 }
 
 #[derive(SystemParam)]
@@ -419,19 +406,20 @@ fn despawn_models(commands: &mut Commands, displayed: &mut DisplayedModels) {
 }
 
 fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<DisplayedModels>) {
-    spawn_camera(&mut spawn.commands);
     spawn_lighting(&mut spawn.commands);
     ensure_sky_env_map(&mut spawn.commands, &mut spawn.images);
-    spawn_ground(
-        &mut spawn.commands,
-        &mut spawn.meshes,
-        &mut spawn.materials,
-        &mut spawn.images,
-    );
+    let fdid = spawn
+        .scene_catalog
+        .lookup(1)
+        .expect("Human creation scene mapping");
+    let backdrop = background::spawn(&mut CharCreateSpawnContext::from_params(&mut spawn), fdid)
+        .expect("authored character-creation scene must load");
+    spawn_camera(&mut spawn.commands, backdrop.framing);
     let models = CharCreateSpawnContext::from_params(&mut spawn).spawn_race_pair(1, 0);
     displayed.race = Some(1);
     displayed.active_sex = 0;
     displayed.models = models;
+    displayed.background = Some(backdrop);
 }
 
 fn ensure_sky_env_map(commands: &mut Commands, images: &mut Assets<Image>) {
@@ -446,6 +434,7 @@ fn sync_model(
     state: Option<Res<CharCreateState>>,
     mut model_vis: Query<(&ModelSex, &mut Visibility)>,
     mut displayed: ResMut<DisplayedModels>,
+    mut cameras: Query<(&mut CharCreateOrbit, &mut Transform, &mut Projection)>,
 ) {
     let Some(state) = state else { return };
     let race_changed = displayed.race != Some(state.selected_race);
@@ -454,6 +443,12 @@ fn sync_model(
         return;
     }
     if race_changed {
+        sync_backdrop(
+            &mut spawn,
+            &mut displayed,
+            state.selected_race,
+            &mut cameras,
+        );
         despawn_models(&mut spawn.commands, &mut displayed);
         let models = CharCreateSpawnContext::from_params(&mut spawn)
             .spawn_race_pair(state.selected_race, state.selected_sex);
@@ -464,6 +459,62 @@ fn sync_model(
         update_visibility(&mut model_vis, state.selected_sex);
         displayed.active_sex = state.selected_sex;
     }
+}
+
+fn sync_backdrop(
+    spawn: &mut CharCreateSpawnParams,
+    displayed: &mut DisplayedModels,
+    race: u8,
+    cameras: &mut Query<(&mut CharCreateOrbit, &mut Transform, &mut Projection)>,
+) {
+    let fdid = spawn
+        .scene_catalog
+        .lookup(race)
+        .expect("selected race creation scene mapping");
+    if displayed
+        .background
+        .as_ref()
+        .is_some_and(|scene| scene.fdid == fdid)
+    {
+        return;
+    }
+    let backdrop = background::spawn(&mut CharCreateSpawnContext::from_params(spawn), fdid)
+        .expect("selected creation scene must load");
+    for (mut orbit, mut transform, mut projection) in cameras.iter_mut() {
+        reset_scene_framing(
+            &mut orbit,
+            &mut transform,
+            &mut projection,
+            backdrop.framing,
+        );
+    }
+    if let Some(previous) = displayed.background.replace(backdrop) {
+        spawn.commands.entity(previous.root).despawn();
+    }
+}
+
+fn reset_scene_framing(
+    orbit: &mut CharCreateOrbit,
+    transform: &mut Transform,
+    projection: &mut Projection,
+    framing: background::Framing,
+) {
+    let offset = framing.eye - framing.focus;
+    orbit.default_focus = framing.focus;
+    orbit.default_distance = offset.length();
+    orbit.focus = framing.focus;
+    orbit.distance = offset.length();
+    orbit.base_pitch = (offset.y / offset.length()).asin();
+    orbit.yaw = 0.0;
+    orbit.pitch = 0.0;
+    orbit.manual_distance = None;
+    *projection = Projection::Perspective(PerspectiveProjection {
+        fov: framing.fov,
+        near: framing.near,
+        far: framing.far,
+        ..default()
+    });
+    apply_orbit_transform(orbit, transform);
 }
 
 fn update_visibility(model_vis: &mut Query<(&ModelSex, &mut Visibility)>, active_sex: u8) {
@@ -538,6 +589,7 @@ fn teardown_scene(
     displayed.race = None;
     displayed.models.clear();
     displayed.last_class = None;
+    displayed.background = None;
 }
 
 #[cfg(test)]

@@ -21,6 +21,13 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Keep choices and primary controls within tested viewport bounds; disabled controls must not emit selection actions.
 - [x] Preserve the reference category tabs' 15-pixel hit insets so overlapping artwork does not steal neighboring clicks.
 
+### Authored creation scenes
+
+- [x] Resolve creation-scene FileDataIDs from `ChrRaces.CreateScreenFileDataID`, including Alliance, Horde and neutral Pandaren; keep the selectable roster unchanged.
+- [ ] Render all three original scene models with their authored textures, animation and lights instead of the substitute grass plane.
+- [ ] Use the authored default camera framing and preserve rotate, zoom, reset and face-focused customization controls.
+- [ ] Replace scenes on mapped-scene changes without retaining old geometry/lights; release scene descendants on exit and reuse the backdrop for races sharing it.
+
 ### Customization
 
 - [x] Present available options by authored category/order, including eye color and applicable race-specific options instead of a fixed five-row UI.
