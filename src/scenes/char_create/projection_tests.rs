@@ -69,4 +69,15 @@ fn creation_scene_projection_tracks_authored_vertical_fov_after_window_resize() 
         (projected_fov(&mut app) - square_fov).abs() < 0.0001,
         "resizing to 1:1 should update the live camera projection"
     );
+
+    {
+        let mut window = app.world_mut().get_mut::<Window>(window).unwrap();
+        window.resolution.set_scale_factor_override(Some(1.15));
+        window.resolution.set(1600.0, 900.0);
+    }
+    app.update();
+    assert!(
+        (projected_fov(&mut app) - widescreen_fov).abs() < 0.0001,
+        "DPI scaling must not change the viewport aspect used for authored FOV"
+    );
 }
