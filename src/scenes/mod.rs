@@ -28,6 +28,7 @@ pub mod scene_tree;
 pub mod selection_debug;
 pub mod setup;
 pub mod skybox_debug;
+pub mod static_popup;
 pub mod talent_frame;
 pub mod teardown;
 pub mod tooltip_frame;

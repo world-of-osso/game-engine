@@ -5,6 +5,7 @@ use crate::ui::plugin::UiState;
 use crate::ui::screens::loading_component::{
     TEX_LOADING_BAR_CENTER, TEX_LOADING_BAR_LEFT, TEX_LOADING_BAR_RIGHT,
 };
+use crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE;
 use crate::ui::widgets::texture::TextureSource;
 
 /// Register built-in panel styles on startup.
@@ -42,6 +43,32 @@ fn register_nine_slice_styles(ui: &mut UiState) {
             ..Default::default()
         },
     );
+    ui.registry
+        .register_panel_style(STATIC_POPUP_PANEL_STYLE, static_popup_border());
+}
+
+/// `Interface/DialogFrame/UIFrameDiamondMetalBorder`: atlas `UI-DiamondDialogBox-Border`
+/// occupies texels 1..71 of the 128px sheet; corners are 16 texels.
+fn static_popup_border() -> NineSlice {
+    const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];
+    let mut uv_rects = [[0.0; 4]; 9];
+    for (part, rect) in uv_rects.iter_mut().enumerate() {
+        let (col, row) = (part % 3, part / 3);
+        *rect = [
+            COLUMNS[col],
+            COLUMNS[col + 1],
+            COLUMNS[row],
+            COLUMNS[row + 1],
+        ];
+    }
+    NineSlice {
+        edge_size: 16.0,
+        bg_color: [1.0, 1.0, 1.0, 1.0],
+        border_color: [1.0, 1.0, 1.0, 1.0],
+        texture: Some(TextureSource::FileDataId(6_795_680)),
+        uv_rects: Some(uv_rects),
+        ..Default::default()
+    }
 }
 
 fn register_three_slice_styles(ui: &mut UiState) {
