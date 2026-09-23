@@ -60,6 +60,87 @@ fn closed_named_and_numeric_values_center_the_visible_text_without_overflow() {
 }
 
 #[test]
+fn closed_named_values_render_on_one_native_line_within_the_visible_area() {
+    let mut failures = Vec::new();
+    for scale in [1.0, 1.15] {
+        for label in [
+            "Thick Braids",
+            "Double Right",
+            "A very long named customization selection",
+        ] {
+            let mut app = layout_support::layout_app(1920.0, 1080.0);
+            app.finish();
+            app.cleanup();
+            app.world_mut()
+                .query_filtered::<&mut Window, With<bevy::window::PrimaryWindow>>()
+                .single_mut(app.world_mut())
+                .unwrap()
+                .resolution
+                .set_scale_factor_override(Some(scale));
+            let mut shared = SharedContext::new();
+            shared.insert(closed_choice(label, None, None));
+            ui_toolkit::screen::Screen::new(char_create_screen).sync(
+                &shared,
+                &mut app.world_mut().resource_mut::<UiState>().registry,
+            );
+            for _ in 0..3 {
+                app.update();
+            }
+            let (text_id, value) = {
+                let ui = app.world().resource::<UiState>();
+                (
+                    ui.registry.get_by_name("OptionValue_22_Text").unwrap(),
+                    rect(&ui.registry, "OptionValue_22"),
+                )
+            };
+            let (content, layout) = app
+                .world_mut()
+                .query::<(
+                    &ui_toolkit::native_render::RegistryText,
+                    &Text,
+                    &bevy::text::TextLayoutInfo,
+                )>()
+                .iter(app.world())
+                .find(|(text, _, _)| text.frame_id == text_id && text.key == 0)
+                .map(|(_, content, layout)| (content, layout))
+                .expect("native closed value text");
+            let displayed = content.0.as_str();
+            let expected_full = label != "A very long named customization selection";
+            let content_ok = if expected_full {
+                displayed == label
+            } else {
+                displayed.starts_with("A very long")
+                    && displayed.ends_with('…')
+                    && displayed.len() < label.len()
+            };
+            let max_x = layout
+                .glyphs
+                .iter()
+                .map(|glyph| {
+                    (glyph.position.x + glyph.atlas_info.rect.width() / 2.0) / layout.scale_factor
+                })
+                .fold(0.0_f32, f32::max);
+            let lines = layout
+                .glyphs
+                .iter()
+                .map(|glyph| glyph.line_index)
+                .max()
+                .unwrap_or(0)
+                + 1;
+            if !content_ok
+                || layout.glyphs.is_empty()
+                || lines != 1
+                || max_x > value.width + 1.0
+                || value.width > 126.0
+            {
+                failures.push(format!("{label:?} scale={scale}: displayed={displayed:?} lines={lines} extent={max_x} width={}", value.width));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("; "));
+}
+
+#[test]
 fn centered_closed_value_preserves_the_native_toggle_hit_target() {
     let state = closed_choice("", Some([128, 32, 16]), Some([20, 80, 160]));
     let mut app = layout_support::layout_app(1920.0, 1080.0);
