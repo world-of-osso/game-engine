@@ -878,3 +878,7 @@ Updated [[character-select-waterfall-loading]] and [split-shadow spec](../specs/
 ## [2026-09-10] character | Correct starter weapon attachment semantics
 
 Updated [[character-rendering]] and [[npc-motion-validation]] for engine `496a057b`. Local WMVx reference code identifies right palm 1, left palm 2, and shield left wrist 0; HumanMaleHD maps them to bones 206, 211, and 201. The prior 201/206 root-parent proof did not prove the correct semantic mount points. The new live sword/shield test was RED against the former mapping and passes at `5e5b2574`; replacement native visual proof remains pending. No item-local rotation correction is claimed.
+
+## [2026-09-23] ui | Combat feedback wiring
+
+Updated [[ui-system]] (Combat Feedback). The player cast bar now follows the replicated local `CastState`. FCT labels are drawn through the nameplate projection. `CombatLogEvent` becomes the only FCT producer once it arrives. `UIErrorsFrame` is fed by `CastFailed`. Focused bin (24) and lib (63) tests pass. No native run.
