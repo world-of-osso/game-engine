@@ -38,6 +38,8 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 ktx2-rw = "0.2.4"
 notify = "7"
 directories = "5"
+# Local-time chat timestamps (Chattynator `date("%X")`).
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
 arboard = "3"
 raw-window-handle = "0.6"
 # Empty-window baseline: reuse winit and paint only OS-requested frames in shared memory.

@@ -1,7 +1,9 @@
-//! In-world chat frame model (Retail `ChatFrame1`): tabs, Retail line formatting,
-//! the client slash-command parser, combat log lines and word wrapping.
+//! In-world chat frame model (`ChatFrame1`, Chattynator look): tabs, Retail line
+//! formatting, the client slash-command parser, combat log lines, timestamps, tab flashing,
+//! scrolling and word wrapping. Chattynator references are to its Lua source.
 
 use bevy::prelude::*;
+use chrono::TimeZone;
 use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind, MissKind};
 
 use crate::chat_data::{ChatChannelType, ChatMessage};
@@ -15,6 +17,8 @@ pub const UNKNOWN_NAME: &str = "Unknown";
 /// Retail spell link colour `|cff71d5ff`.
 pub const SPELL_LINK_COLOR: [f32; 4] = [0.443, 0.835, 1.0, 1.0];
 pub const COMBAT_LOG_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+/// Chattynator copies at most 200 lines (Display/CopyChat.lua:96).
+pub const MAX_COPY_LINES: usize = 200;
 
 pub const HELP_LINES: [&str; 6] = [
     "Chat: /s /say, /y /yell, /p /party, /g /guild, /e /emote",
@@ -58,6 +62,35 @@ impl ChatTab {
 
     pub fn from_action(action: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|tab| tab.action() == action)
+    }
+
+    /// Tab colour: GENERAL `06a1ff` (Core/Config.lua:43), COMBAT_LOG `c97c48`
+    /// (Core/Initialize.lua:50); whisper tabs take the WHISPER chat colour
+    /// (Display/Tabs.lua:588).
+    pub fn color(self) -> [f32; 3] {
+        match self {
+            Self::General => rgb(0x06a1ff),
+            Self::CombatLog => rgb(0xc97c48),
+            Self::Whispers => {
+                let [r, g, b, _] = ChatChannelType::Whisper.color();
+                [r, g, b]
+            }
+        }
+    }
+
+    /// Background colour: `1a1a1a` (Core/Config.lua:11,43), COMBAT_LOG `262626`
+    /// (Core/Initialize.lua:49).
+    pub fn background(self) -> [f32; 3] {
+        match self {
+            Self::CombatLog => rgb(0x262626),
+            _ => rgb(0x1a1a1a),
+        }
+    }
+
+    /// Chattynator's combat log tab embeds Blizzard's ChatFrame2 (API/CustomTab.lua:6-54),
+    /// which has no Chattynator timestamps or message spacing.
+    pub fn is_combat_log(self) -> bool {
+        self == Self::CombatLog
     }
 
     /// Whether a received chat message is listed in this tab.
@@ -107,16 +140,30 @@ impl ChatLine {
     }
 }
 
+fn rgb(hex: u32) -> [f32; 3] {
+    [hex >> 16, hex >> 8, hex].map(|channel| (channel & 0xff) as f32 / 255.0)
+}
+
+/// A shown line and when it arrived (Unix seconds).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ChatEntry {
+    pub timestamp: f64,
+    pub line: ChatLine,
+}
+
 /// Combat log tab lines. Names are resolved when the event arrives because the
 /// entities may be gone by the time the line is shown.
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
 pub struct CombatLogChat {
-    pub lines: Vec<ChatLine>,
+    pub lines: Vec<ChatEntry>,
+    /// Lines ever pushed, so newly arrived lines are known after old ones are dropped.
+    pub received: u64,
 }
 
 impl CombatLogChat {
-    pub fn push(&mut self, line: ChatLine) {
-        self.lines.push(line);
+    pub fn push(&mut self, timestamp: f64, line: ChatLine) {
+        self.lines.push(ChatEntry { timestamp, line });
+        self.received += 1;
         if self.lines.len() > MAX_COMBAT_LINES {
             let overflow = self.lines.len() - MAX_COMBAT_LINES;
             self.lines.drain(0..overflow);
@@ -124,10 +171,14 @@ impl CombatLogChat {
     }
 }
 
-/// Selected tab, edit box visibility, sent-line history and idle time.
+/// Selected tab, flashing tabs, scroll position, edit box visibility and sent-line history.
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
 pub struct ChatFrameState {
     pub tab: ChatTab,
+    /// Unselected tabs with unseen messages.
+    pub flashing: Vec<ChatTab>,
+    /// Messages scrolled up from the newest; 0 is at the bottom.
+    pub scroll: usize,
     pub input_open: bool,
     /// Sent lines, oldest first.
     pub sent: Vec<String>,
@@ -136,6 +187,28 @@ pub struct ChatFrameState {
 }
 
 impl ChatFrameState {
+    /// Clicking a tab deselects, and so stops flashing, every tab (Display/Tabs.lua:170-173,
+    /// 299-302) and resets the scroll to the newest message (Display/ScrollingMessages.lua:47-50).
+    pub fn select_tab(&mut self, tab: ChatTab) {
+        self.tab = tab;
+        self.flashing.clear();
+        self.scroll = 0;
+    }
+
+    /// Scroll `amount` messages up (negative: down), between the newest message and the
+    /// oldest of `total`.
+    pub fn scroll_by(&mut self, amount: isize, total: usize) {
+        let max = total.saturating_sub(1);
+        self.scroll = self.scroll.saturating_add_signed(amount).min(max);
+    }
+
+    pub fn start_flashing(&mut self, tabs: impl IntoIterator<Item = ChatTab>) {
+        for tab in tabs {
+            if !self.flashing.contains(&tab) {
+                self.flashing.push(tab);
+            }
+        }
+    }
     pub fn remember_sent(&mut self, line: &str) {
         self.history_index = None;
         if line.is_empty() || self.sent.last().is_some_and(|last| last == line) {
@@ -170,6 +243,91 @@ impl ChatFrameState {
         self.history_index = Some(index);
         Some(&self.sent[index])
     }
+}
+
+/// Tabs that start flashing for newly received messages, with Chattynator's default
+/// `tab_flash_on = "all"` (Core/Config.lua:107, Display/Tabs.lua:188-230): outgoing
+/// whispers never flash, and nothing flashes when the selected tab lists any of them. The
+/// combat log tab lists no chat messages, so it never flashes.
+pub fn tabs_to_flash(selected: ChatTab, new: &[ChatMessage]) -> Vec<ChatTab> {
+    let incoming: Vec<&ChatMessage> = new.iter().filter(|msg| !is_outgoing(msg)).collect();
+    let matching: Vec<ChatTab> = ChatTab::ALL
+        .into_iter()
+        .filter(|tab| incoming.iter().any(|msg| tab.shows(msg)))
+        .collect();
+    if matching.contains(&selected) {
+        return Vec::new();
+    }
+    matching
+}
+
+/// Flash alpha `elapsed` seconds in: a looping BOUNCE of 0 to 1 over 0.5 s
+/// (Skins/Dark.lua:329-348).
+pub fn flash_alpha(elapsed: f32) -> f32 {
+    let phase = (elapsed / 0.5).rem_euclid(2.0);
+    if phase < 1.0 { phase } else { 2.0 - phase }
+}
+
+fn is_outgoing(msg: &ChatMessage) -> bool {
+    msg.channel_type == ChatChannelType::Whisper && !msg.channel_name.is_empty()
+}
+
+/// Chattynator's default timestamp format `%X` (Core/Config.lua:97), `HH:MM:SS`.
+pub fn format_timestamp<Tz: TimeZone>(unix_seconds: f64, zone: &Tz) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    zone.timestamp_opt(unix_seconds.floor() as i64, 0)
+        .earliest()
+        .expect("chat timestamps are within chrono's range")
+        .format("%H:%M:%S")
+        .to_string()
+}
+
+/// [`format_timestamp`] in the local time zone, as Lua `date` does.
+pub fn local_timestamp(unix_seconds: f64) -> String {
+    format_timestamp(unix_seconds, &chrono::Local)
+}
+
+/// How many messages, newest first, fit in `available` height with `spacing` between
+/// them. A message that does not fit whole is not shown.
+pub fn messages_that_fit(heights_newest_first: &[f32], available: f32, spacing: f32) -> usize {
+    let mut used = 0.0;
+    heights_newest_first
+        .iter()
+        .take_while(|height| {
+            let next = if used > 0.0 { used + spacing } else { 0.0 } + **height;
+            let fits = next <= available;
+            if fits {
+                used = next;
+            }
+            fits
+        })
+        .count()
+}
+
+/// Copy Chat text: the newest [`MAX_COPY_LINES`] lines, oldest first, each prefixed with
+/// its `[timestamp] ` (Core/Config.lua:122 `copy_timestamps`, Display/CopyChat.lua:96-121).
+pub fn copy_chat_text<Tz: TimeZone>(
+    entries: &[ChatEntry],
+    spell_name: impl Fn(u32) -> String,
+    zone: &Tz,
+) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let start = entries.len().saturating_sub(MAX_COPY_LINES);
+    entries[start..]
+        .iter()
+        .map(|entry| {
+            format!(
+                "[{}] {}",
+                format_timestamp(entry.timestamp, zone),
+                entry.line.plain_text(&spell_name)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Retail chat line for a received message.

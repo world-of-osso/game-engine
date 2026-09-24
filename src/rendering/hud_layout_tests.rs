@@ -1,7 +1,6 @@
 //! Lays out the whole in-world HUD with the native layout engine at 16:9 and at a taller
 //! aspect ratio, where auto-fit keeps the 1920 reference width and grows the canvas height.
 
-use game_engine::ui::chat_frame::ChatTab;
 use game_engine::ui::layout::LayoutRect;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::{BuffFrameState, buff_frame_screen};
@@ -71,11 +70,7 @@ fn mount_hud(width: f32, height: f32) -> FrameRegistry {
         ..CastingBarState::default()
     });
     shared.insert(BuffFrameState::default());
-    shared.insert(ChatFrameView {
-        tab: ChatTab::General,
-        rows: Vec::new(),
-        input_open: false,
-    });
+    shared.insert(ChatFrameView::default());
     shared.insert(UiErrors::default());
     for build in [
         inworld_unit_frames_screen,
@@ -171,8 +166,9 @@ fn hud_regions_follow_the_accepted_composition() {
             minimap.y < 20.0 && width - (minimap.x + minimap.width) < 20.0,
             "minimap top-right {size}"
         );
+        // Chattynator's default window sits at BOTTOMLEFT (0, 40) (Core/Config.lua:28).
         assert!(
-            chat.x < 40.0 && height - bottom(&chat) < 40.0,
+            chat.x < 40.0 && (height - bottom(&chat) - 40.0).abs() < 0.5,
             "chat bottom-left {size}"
         );
         for (name, r) in [("micro menu", &micro), ("bags", &bags)] {
@@ -207,10 +203,14 @@ fn action_buttons_sit_in_one_row_on_the_retail_grid() {
 }
 
 #[test]
-fn chat_tabs_have_labels_laid_out() {
+fn chat_tabs_are_laid_out_ten_apart() {
     let reg = mount_hud(1920.0, 1080.0);
-    let general = rect(&reg, "ChatFrame1TabsTab0").expect("General tab laid out");
-    let whispers = rect(&reg, "ChatFrame1TabsTab2").expect("Whispers tab laid out");
-    assert_eq!((general.width, general.height), (96.0, 22.0));
-    assert!(whispers.x > general.x + general.width);
+    let tabs: Vec<LayoutRect> = (0..3)
+        .map(|index| rect(&reg, &format!("ChatFrame1TabsTab{index}")).expect("tab laid out"))
+        .collect();
+    for pair in tabs.windows(2) {
+        assert_eq!(pair[0].height, 22.0);
+        assert!(pair[0].width >= 50.0, "label width plus 30 padding");
+        assert!((pair[1].x - (pair[0].x + pair[0].width) - 10.0).abs() < 0.5);
+    }
 }

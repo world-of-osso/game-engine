@@ -181,7 +181,7 @@ fn apply_incoming_chat_message(
         chat_log.messages.remove(0);
     }
 
-    let timestamp = current_chat_timestamp();
+    let timestamp = game_engine::chat_data::now_timestamp();
     let (channel_type, channel_name) =
         map_runtime_chat_channel(&msg.channel, &msg.sender, local_name);
     if channel_type == ChatChannelType::Whisper {
@@ -247,13 +247,6 @@ fn update_whisper_state(
     } else {
         whisper_state.receive_whisper(&msg.sender);
     }
-}
-
-pub(crate) fn current_chat_timestamp() -> f64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs_f64())
-        .unwrap_or_default()
 }
 
 pub(crate) fn apply_rest_state_update(

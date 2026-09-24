@@ -338,11 +338,14 @@ pub(crate) fn receive_combat_log_events(
             let source_entity = msg
                 .source
                 .and_then(|bits| super::resolve_server_entity(bits, &mirror));
-            combat_chat.push(combat_log_line(
-                &msg,
-                &unit_name(source_entity, &unit_names),
-                &unit_name(target, &unit_names),
-            ));
+            combat_chat.push(
+                game_engine::chat_data::now_timestamp(),
+                combat_log_line(
+                    &msg,
+                    &unit_name(source_entity, &unit_names),
+                    &unit_name(target, &unit_names),
+                ),
+            );
             if msg.kind == CombatLogKind::Interrupt
                 && target.is_some_and(|target| local_player.contains(target))
                 && let Some(casting) = casting.as_mut()
