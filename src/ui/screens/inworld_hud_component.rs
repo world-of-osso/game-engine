@@ -37,6 +37,12 @@ const MICRO_BTN_W: f32 = 28.0;
 const MICRO_BTN_H: f32 = 36.0;
 const MICRO_BTN_GAP: f32 = 2.0;
 const MICRO_BTN_BG: &str = "0.08,0.07,0.06,0.88";
+/// Retail `MicroButtonAndBagsBar`: micro menu in the bottom-right corner, bags bar
+/// `BAGS_ANCHOR_OFFSET_Y` above it (EditModePresetLayoutConstants.lua).
+const MICRO_MENU_RIGHT: f32 = 8.0;
+const MICRO_MENU_BOTTOM: f32 = 8.0;
+const BAGS_BAR_RIGHT: f32 = MICRO_MENU_RIGHT;
+const BAGS_BAR_BOTTOM: f32 = MICRO_MENU_BOTTOM + MICRO_BTN_H + 10.0;
 const BAG_SLOT_SIZE: f32 = 30.0;
 const BAG_SLOT_GAP: f32 = 4.0;
 const BAG_SLOT_BG: &str = "0.06,0.05,0.04,0.82";
@@ -467,8 +473,8 @@ fn bag_bar() -> Element {
             width: {total_w},
             height: {bar_h},
             pos_type: "absolute",
-            right: 4.0,
-            bottom: 8.0,
+            right: {BAGS_BAR_RIGHT},
+            bottom: {BAGS_BAR_BOTTOM},
             {backpack}
             {bags}
             {money_display()}
