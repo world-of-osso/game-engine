@@ -15,6 +15,8 @@ const SLOT_COUNT: usize = 12;
 const SLOT_W: f32 = 45.0;
 const SLOT_H: f32 = 45.0;
 const MINIMAP_DISPLAY_SIZE: f32 = 200.0;
+/// Game clock under the map's left edge; coordinates take the rest of the row.
+const MINIMAP_CLOCK_W: f32 = 60.0;
 
 const BAR_BG: &str = "0.03,0.02,0.01,0.18";
 const SLOT_BG: &str = "0.06,0.05,0.04,0.82";
@@ -73,6 +75,7 @@ pub const MINIMAP_BORDER: FrameName = FrameName("MinimapBorder");
 pub const MINIMAP_ARROW: FrameName = FrameName("MinimapArrow");
 pub const MINIMAP_ZONE_NAME: FrameName = FrameName("MinimapZoneName");
 pub const MINIMAP_COORDS: FrameName = FrameName("MinimapCoords");
+pub const MINIMAP_CLOCK: FrameName = FrameName("MinimapClock");
 
 struct DynName(String);
 
@@ -625,8 +628,21 @@ fn minimap_overlay() -> Element {
             translate_y: "-50%",
         }
         fontstring {
+            name: MINIMAP_CLOCK,
+            width: MINIMAP_CLOCK_W,
+            height: 18.0,
+            text: "12:00",
+            font_size: 14.0,
+            font_color: MINIMAP_COORDS_COLOR,
+            justify_h: "LEFT",
+            pos_type: "absolute",
+            left: 0.0,
+            top: "100%",
+            margin_top: 6.0,
+        }
+        fontstring {
             name: MINIMAP_COORDS,
-            width: MINIMAP_DISPLAY_SIZE,
+            width: {MINIMAP_DISPLAY_SIZE - MINIMAP_CLOCK_W},
             height: 18.0,
             text: "0, 0",
             font_size: 14.0,
