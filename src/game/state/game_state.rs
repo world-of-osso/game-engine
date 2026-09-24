@@ -7,8 +7,7 @@ use game_engine::network_runtime::connection::Connected;
 
 use crate::camera::{self, WowCamera};
 use crate::game::inworld_scene_stage::{
-    InWorldSceneStage, configured_inworld_scene_stage, inworld_scene_stage_allows_ui,
-    terrain_is_required_for_loading,
+    InWorldSceneStage, configured_inworld_scene_stage, terrain_is_required_for_loading,
 };
 use crate::networking::{CurrentZone, LocalPlayer, ServerAddr};
 use crate::shadow_config::default_cascade_shadow_config;
@@ -53,7 +52,6 @@ impl Plugin for GameStatePlugin {
         init_state(app, has_server, initial_state);
         app.init_resource::<ZoneTransitionTracker>();
         register_state_transitions(app, has_server);
-        register_in_world_systems(app);
         app.add_systems(Update, log_screen_switches);
     }
 }
@@ -149,57 +147,6 @@ fn register_state_update_transitions(app: &mut App) {
         Update,
         handle_zone_transition.run_if(in_state(GameState::InWorld)),
     );
-}
-
-fn register_in_world_systems(app: &mut App) {
-    use game_engine::ui::game_plugin::{
-        SpellbookUiSystems, register_spellbook_frame_systems, teardown_spellbook_ui,
-    };
-    register_spellbook_frame_systems(app);
-    app.configure_sets(
-        Update,
-        SpellbookUiSystems::Sync
-            .run_if(in_state(GameState::InWorld))
-            .run_if(inworld_scene_stage_allows_ui),
-    );
-    app.configure_sets(
-        Update,
-        SpellbookUiSystems::Input
-            .run_if(
-                in_state(GameState::InWorld).and_then(crate::networking::gameplay_input_allowed),
-            )
-            .run_if(inworld_scene_stage_allows_ui),
-    );
-    app.add_systems(
-        Update,
-        (toggle_spellbook_frame, sync_spellbook_window)
-            .chain()
-            .before(SpellbookUiSystems::Sync)
-            .run_if(in_state(GameState::InWorld)),
-    );
-    app.add_systems(OnExit(GameState::InWorld), teardown_spellbook_ui);
-}
-
-fn toggle_spellbook_frame(
-    keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut window_manager: ResMut<crate::window_manager::WindowManager>,
-) {
-    if keybinds.just_pressed(game_engine::input_bindings::InputAction::ToggleSpellbook) {
-        window_manager.toggle(crate::window_manager::WindowId::Spellbook);
-    }
-}
-
-/// The spellbook runtime shows exactly what the window manager has open.
-fn sync_spellbook_window(
-    window_manager: Res<crate::window_manager::WindowManager>,
-    mut ui: ResMut<game_engine::ui::plugin::UiState>,
-    runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
-) {
-    let Some(mut runtime) = runtime else { return };
-    let open = window_manager.is_open(crate::window_manager::WindowId::Spellbook);
-    if runtime.is_open() != open {
-        game_engine::ui::game_plugin::set_spellbook_open(&mut ui, &mut runtime, open);
-    }
 }
 
 fn on_enter_connecting(
@@ -477,61 +424,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn spellbook_open_state_follows_the_window_manager() {
-        use crate::window_manager::{WindowId, WindowManager};
-        use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
-        let mut app = App::new();
-        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
-        app.insert_state(GameState::InWorld);
-        app.init_resource::<ButtonInput<KeyCode>>();
-        app.init_resource::<ButtonInput<MouseButton>>();
-        app.init_resource::<game_engine::input_bindings::InputBindings>();
-        app.init_resource::<crate::ui_input_mode::UiInputMode>();
-        app.insert_resource(game_engine::ui::plugin::UiState {
-            registry: game_engine::ui::registry::FrameRegistry::new(1920.0, 1080.0),
-            event_bus: game_engine::ui::event::EventBus::new(),
-            focused_frame: None,
-        });
-        app.insert_non_send(SpellbookUiRuntime::new());
-        app.add_plugins(crate::window_manager::WindowManagerPlugin);
-        app.add_systems(
-            Update,
-            (toggle_spellbook_frame, sync_spellbook_window).chain(),
-        );
-
-        app.world_mut()
-            .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::KeyP);
-        app.update();
-        assert!(
-            app.world()
-                .resource::<WindowManager>()
-                .is_open(WindowId::Spellbook)
-        );
-        assert!(
-            app.world()
-                .non_send::<SpellbookUiRuntime>()
-                .is_open()
-        );
-
-        {
-            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
-            keys.release_all();
-            keys.clear();
-        }
-        let mut windows = app.world_mut().resource_mut::<WindowManager>();
-        windows.open(WindowId::Character);
-        windows.open(WindowId::Friends);
-        app.update();
-        assert!(
-            !app.world()
-                .non_send::<SpellbookUiRuntime>()
-                .is_open(),
-            "the oldest of three panels (spellbook) closes"
-        );
-    }
-
-    #[test]
     fn test_default_state_is_login() {
         assert_eq!(GameState::default(), GameState::Login);
     }
@@ -543,6 +435,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_plugins(bevy::asset::AssetPlugin::default());
         app.init_asset::<bevy::text::Font>();
+        app.init_resource::<bevy::ui::UiScale>();
         app.add_plugins(bevy::state::app::StatesPlugin);
         app.add_plugins(game_engine::ui::plugin::UiPlugin);
         // No ServerAddr inserted — standalone mode.

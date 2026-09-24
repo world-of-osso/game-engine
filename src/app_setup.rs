@@ -598,6 +598,7 @@ fn add_frame_plugins(app: &mut App) {
         scenes::buff_frame::BuffFramePlugin,
         scenes::calendar_frame::CalendarFramePlugin,
         scenes::professions_frame::ProfessionsFramePlugin,
+        scenes::spellbook_frame::SpellbookFramePlugin,
         scenes::talent_frame::TalentFramePlugin,
         scenes::tooltip_frame::TooltipFramePlugin,
         scenes::world_map_frame::WorldMapFramePlugin,
