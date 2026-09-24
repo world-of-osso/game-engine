@@ -89,7 +89,7 @@ fn parse_mcnk_reads_area_id_from_header() {
     payload[0..4].copy_from_slice(&0u32.to_le_bytes());
     payload[4..8].copy_from_slice(&3u32.to_le_bytes());
     payload[8..12].copy_from_slice(&7u32.to_le_bytes());
-    payload[60..64].copy_from_slice(&TEST_AREA_ID.to_le_bytes());
+    payload[0x34..0x38].copy_from_slice(&TEST_AREA_ID.to_le_bytes());
     super::fixtures::append_subchunk(&mut payload, b"TVCM", vec![0; MCVT_COUNT * 4]);
     super::fixtures::append_subchunk(&mut payload, b"RNCM", vec![0; MCVT_COUNT * 3]);
 

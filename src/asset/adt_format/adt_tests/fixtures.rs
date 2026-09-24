@@ -85,7 +85,7 @@ fn mcnk_payload(
     let mut payload = vec![0; 128];
     payload[4..8].copy_from_slice(&3u32.to_le_bytes());
     payload[8..12].copy_from_slice(&7u32.to_le_bytes());
-    payload[60..64].copy_from_slice(&TEST_AREA_ID.to_le_bytes());
+    payload[0x34..0x38].copy_from_slice(&TEST_AREA_ID.to_le_bytes());
     payload.extend_from_slice(&mcnk_subchunks_payload(
         include_mcsh,
         include_mclv,
