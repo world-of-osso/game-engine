@@ -15,6 +15,7 @@ See also: [awesome-wow-rust](https://github.com/arlyon/awesome-wow-rust) — cur
 | [OpenWow](https://github.com/World0fWarcraft/OpenWow) | C++ | 1.12 | Abandoned | — |
 | [Wowser](https://github.com/wowserhq/client) | TypeScript/WebGL 2 | WotLK 3.3.5a | Stalled | Browser-based, MIT |
 | [Warcraft-Arena-Unity](https://github.com/Reinisch/Warcraft-Arena-Unity) | C# (Unity) | — | Abandoned (2019) | Arena combat sim: 30+ spells, aura system, networking via Photon Bolt |
+| [solarityclient](https://github.com/isekaishy-jpg/solarityclient) | Rust (Vulkan via ash, shipyard ECS, SDL3, egui, mlua) | WotLK 3.3.5a | 1,000+ commits | Full client on warcraft-rs `wow-*` crates + gtker `wow_*_messages`. [Rendering crate](https://github.com/isekaishy-jpg/solarityclient/tree/main/crates/rendering/src): terrain, model, particle, liquid, lighting, weather, minimap, world_text, ui. |
 | [idewave-cli](https://github.com/idewave/idewave-cli) | Rust | — | — | CLI-based WoW client |
 
 ## Renderers & Map Viewers
