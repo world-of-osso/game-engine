@@ -903,3 +903,7 @@ Updated [[ui-system]] (Unit Frames). Portrait artwork frames replaced by the acc
 ## [2026-09-24] reference | Merge WoW clients list
 
 Merged `docs/open-source-wow-clients.md` into [[open-source-wow-clients]] (added solarityclient, idewave-cli, forge, worgen-rs, Rust servers/libraries, extra format crates) and deleted the top-level copy. AGENTS.md now points at the wiki page.
+
+## [2026-09-24] query | solarityclient performance comparison
+
+Created [[solarityclient-performance-comparison]]: their frame cost comes from few objects and no per-frame churn, not instancing. Our gaps: per-instance bone entities and assets (including static doodads), 256 terrain materials per tile, global chunk-index culling key, O(WMOs x groups) portal culling. Read-only; nothing measured.
