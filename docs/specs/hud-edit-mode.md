@@ -37,6 +37,6 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 
 ## Known gaps
 
-- No chat frame exists, so chat is not registered. Buff, debuff and objective-tracker frames are registered but not mounted in world yet; they become movable once a frame with that name is mounted.
+- No chat frame exists, so chat is not registered. The objective-tracker frame is registered but not mounted in world yet; it becomes movable once a frame with that name is mounted. `BuffFrame` and `DebuffFrame` are mounted ([buff frame](buff-frame.md)).
 - Exiting with unsaved edits discards them without a confirmation prompt.
 - No per-element settings (size, orientation, padding) as in Retail.

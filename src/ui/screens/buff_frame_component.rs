@@ -1,8 +1,10 @@
-//! Player buff/debuff frame: top right, left of the minimap.
+//! Player BuffFrame and DebuffFrame: Retail edit-mode defaults, top right, left of the
+//! minimap. Every number cites `retail/AddOns` in the Blizzard UI tree; see
+//! `docs/specs/buff-frame.md`.
 
 use std::fmt;
 
-use crate::buff_data::{AuraInstance, AuraState};
+use crate::buff_data::{AuraInstance, AuraState, DebuffType};
 use crate::ui::anchor::FrameName;
 use crate::ui::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -17,40 +19,76 @@ impl fmt::Display for DynName {
     }
 }
 
-/// Stable root name; edit mode moves buffs and debuffs together through it.
 pub const BUFF_FRAME: FrameName = FrameName("BuffFrame");
-pub const BUFFS_PER_ROW: usize = 16;
+pub const DEBUFF_FRAME: FrameName = FrameName("DebuffFrame");
+/// `BUFF_MAX_DISPLAY` / `DEBUFF_MAX_DISPLAY` (BuffFrame.lua:2-3).
 pub const MAX_BUFFS: usize = 32;
 pub const MAX_DEBUFFS: usize = 16;
+/// Edit-mode `IconLimitBuffFrame` 11 / `IconLimitDebuffFrame` 8 (EditModePresetLayouts.lua:421,438).
+pub const BUFFS_PER_ROW: usize = 11;
+pub const DEBUFFS_PER_ROW: usize = 8;
 
 const BUFF_BUTTON: &str = "BuffButton";
 const DEBUFF_BUTTON: &str = "DebuffButton";
 
+/// Horizontal aura button 30×40 (BuffFrame.lua:139-140), icon 30×30 at its top
+/// (BuffFrameTemplates.xml:5-11).
+const AURA_W: f32 = 30.0;
+const AURA_H: f32 = 40.0;
 const ICON_SIZE: f32 = 30.0;
-const ICON_GAP: f32 = 4.0;
-const DURATION_H: f32 = 12.0;
-const ROW_H: f32 = ICON_SIZE + DURATION_H + 2.0;
-const DEBUFF_GAP: f32 = 6.0;
-const FRAME_W: f32 = BUFFS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
-/// Retail BuffFrame default `TOPRIGHT` offset -255 (EditModePresetLayouts.lua); clears the
-/// 215-wide minimap cluster 12 from the edge.
-const FRAME_RIGHT: f32 = 255.0;
-const FRAME_TOP: f32 = 10.0;
+/// Edit-mode `IconPadding` 5 (EditModePresetLayouts.lua:423,440) between grid cells.
+const ICON_PADDING: f32 = 5.0;
+/// The 15-wide CollapseAndExpandButton sits at BuffFrame's TOPRIGHT and the aura container
+/// hangs off its TOPLEFT (BuffFrame.xml:14-17, BuffFrame.lua:531-534), hidden or not.
+const COLLAPSE_BUTTON_W: f32 = 15.0;
+/// Edit-mode anchors: BuffFrame TOPRIGHT -255,-10; DebuffFrame TOPRIGHT -270,-155
+/// (EditModePresetLayouts.lua:425-431,443-449).
+const BUFF_FRAME_RIGHT: f32 = 255.0;
+const BUFF_FRAME_TOP: f32 = 10.0;
+const DEBUFF_FRAME_RIGHT: f32 = 270.0;
+const DEBUFF_FRAME_TOP: f32 = 155.0;
 
-/// Thin metal edge around buff icons; debuffs use their dispel colour.
-pub const BUFF_BORDER: &str = "0.52,0.47,0.38,1.0";
-const ICON_BACKING: &str = "0.03,0.03,0.03,0.9";
+/// `DebuffBorder` 40×40 centred on the icon (BuffFrameTemplates.xml:20-25).
+const DEBUFF_BORDER_SIZE: f32 = 40.0;
+/// `UiTextureAtlas` 3726, `interface/hud/uidebuffframes.blp`, 256×128.
+const DEBUFF_BORDER_ATLAS_FDID: u32 = 7_553_349;
+const DEBUFF_BORDER_ATLAS: (f32, f32) = (256.0, 128.0);
+
+/// `GameFontNormalSmall`: FRIZQT 10 with a 1,-1 shadow (FontStyles.xml:56, Fonts.xml:39-45).
+const DURATION_FONT_SIZE: f32 = 10.0;
+/// `NORMAL_FONT_COLOR`, and `HIGHLIGHT_FONT_COLOR` once under `BUFF_DURATION_WARNING_TIME`
+/// (BuffFrame.lua `UpdateDuration`).
 const DURATION_COLOR: &str = "1.0,0.82,0.0,1.0";
-const COUNT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const DURATION_WARNING_COLOR: &str = "1.0,1.0,1.0,1.0";
+/// `NumberFontNormal`: ARIALN 14 outline, white (FontStyles.xml:389, Fonts.xml:874-876).
+const COUNT_FONT_SIZE: f32 = 14.0;
+/// `TextStatusBarText`: FRIZQT 10 outline, white (GameFontStyles.xml:69, GameFonts.xml:4-6).
+const SYMBOL_FONT_SIZE: f32 = 10.0;
+const WHITE: &str = "1.0,1.0,1.0,1.0";
 const TEXT_SHADOW: &str = "0.0,0.0,0.0,1.0";
+
+/// `BUFF_DURATION_WARNING_TIME` (AuraUtil.lua:2): duration text turns white below it.
+pub const BUFF_DURATION_WARNING_TIME: f32 = 90.0;
+/// `BUFF_WARNING_TIME` (BuffFrame.lua:1): buttons flash below it.
+pub const BUFF_WARNING_TIME: f32 = 31.0;
+/// AuraContainerTemplate flash: period 1.5 s bouncing alpha 0.3..1.0
+/// (BuffFrameTemplates.xml:69-71; BuffFrame.lua:37-49).
+const WARNING_FLASH_PERIOD: f32 = 1.5;
+const WARNING_MIN_ALPHA: f32 = 0.3;
+const WARNING_MAX_ALPHA: f32 = 1.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct BuffIconState {
     pub icon_fdid: u32,
     pub timer_text: String,
+    /// Under `BUFF_DURATION_WARNING_TIME`: white duration text.
+    pub timer_warning: bool,
     /// Stack count (0 or 1 = hide).
     pub stacks: u32,
-    pub border_color: String,
+    /// Debuffs only: dispel type selecting the border atlas.
+    pub dispel: Option<DebuffType>,
+    /// Colorblind dispel abbreviation (`AuraUtil.SetAuraSymbol`); empty otherwise.
+    pub symbol: &'static str,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -65,13 +103,13 @@ impl BuffFrameState {
         let icon = |aura: &AuraInstance| BuffIconState {
             icon_fdid: aura.icon_fdid,
             timer_text: aura.timer_text(),
+            timer_warning: !aura.is_permanent() && aura.remaining < BUFF_DURATION_WARNING_TIME,
             stacks: aura.stacks,
-            border_color: if aura.is_debuff {
-                aura.debuff_type
-                    .border_color_for_mode(colorblind_mode)
-                    .to_string()
+            dispel: aura.is_debuff.then_some(aura.debuff_type),
+            symbol: if aura.is_debuff && colorblind_mode {
+                dispel_symbol(aura.debuff_type)
             } else {
-                BUFF_BORDER.to_string()
+                ""
             },
         };
         Self {
@@ -79,6 +117,71 @@ impl BuffFrameState {
             debuffs: auras.debuffs().take(MAX_DEBUFFS).map(icon).collect(),
         }
     }
+}
+
+/// enUS `DEBUFF_SYMBOL_*` global strings; `None` has no abbreviation (AuraUtil.lua:5-10).
+fn dispel_symbol(dispel: DebuffType) -> &'static str {
+    match dispel {
+        DebuffType::None => "",
+        DebuffType::Magic => "Ma",
+        DebuffType::Curse => "Cu",
+        DebuffType::Disease => "Di",
+        DebuffType::Poison => "Po",
+    }
+}
+
+/// `ui-debuff-border-*` member rect `(left, right, top, bottom)` in the 256×128 atlas
+/// (UiTextureAtlasMember 35477-35484). DebuffFrame shows dispel types (edit-mode
+/// `ShowDispelType` 1, EditModePresetLayouts.lua:441), so typed debuffs use the `-icon`
+/// member and untyped ones `default-noicon` (Mainline/AuraUtil.lua:20-23).
+fn debuff_border_rect(dispel: DebuffType) -> (f32, f32, f32, f32) {
+    match dispel {
+        DebuffType::None => (43.0, 83.0, 43.0, 83.0),
+        DebuffType::Magic => (85.0, 125.0, 43.0, 83.0),
+        DebuffType::Curse => (1.0, 41.0, 85.0, 125.0),
+        DebuffType::Disease => (43.0, 83.0, 85.0, 125.0),
+        DebuffType::Poison => (127.0, 167.0, 1.0, 41.0),
+    }
+}
+
+/// Normalised `left,right,top,bottom` for a debuff border.
+pub fn debuff_border_tex_coords(dispel: DebuffType) -> String {
+    let (left, right, top, bottom) = debuff_border_rect(dispel);
+    let (width, height) = DEBUFF_BORDER_ATLAS;
+    format!(
+        "{},{},{},{}",
+        left / width,
+        right / width,
+        top / height,
+        bottom / height
+    )
+}
+
+/// Alpha of an aura button at `clock` seconds: bouncing between 0.3 and 1.0 over a
+/// 1.5 s period while under `BUFF_WARNING_TIME`, opaque otherwise or when permanent
+/// (`AuraContainerMixin:GetAuraWarningAlphaForDuration`, BuffFrame.lua:56-62).
+pub fn aura_warning_alpha(clock: f32, time_left: Option<f32>) -> f32 {
+    if !time_left.is_some_and(|left| left < BUFF_WARNING_TIME) {
+        return WARNING_MAX_ALPHA;
+    }
+    let half = WARNING_FLASH_PERIOD / 2.0;
+    let phase = clock.rem_euclid(WARNING_FLASH_PERIOD);
+    let progress = if phase < half {
+        phase / half
+    } else {
+        2.0 - phase / half
+    };
+    WARNING_MIN_ALPHA + (WARNING_MAX_ALPHA - WARNING_MIN_ALPHA) * progress
+}
+
+/// Registry name of buff (`false`) or debuff (`true`) button `index`.
+pub fn aura_button_name(is_debuff: bool, index: usize) -> String {
+    let prefix = if is_debuff {
+        DEBUFF_BUTTON
+    } else {
+        BUFF_BUTTON
+    };
+    format!("{prefix}{index}")
 }
 
 /// A buff-frame button under the cursor: `(is_debuff, index)`.
@@ -100,245 +203,191 @@ fn parse_button_name(name: &str) -> Option<(bool, usize)> {
     rest.parse().ok().map(|index| (is_debuff, index))
 }
 
-fn row_count(icons: usize) -> usize {
-    icons.div_ceil(BUFFS_PER_ROW)
+/// One aura grid: its frame size counts every slot, shown or not (`AuraFrameMixin:UpdateSize`,
+/// BuffFrame.lua:251-273).
+struct AuraGrid {
+    per_row: usize,
+    max: usize,
+    /// Right inset of the first column inside the frame.
+    inset_right: f32,
+}
+
+impl AuraGrid {
+    const BUFFS: Self = Self {
+        per_row: BUFFS_PER_ROW,
+        max: MAX_BUFFS,
+        inset_right: COLLAPSE_BUTTON_W,
+    };
+    const DEBUFFS: Self = Self {
+        per_row: DEBUFFS_PER_ROW,
+        max: MAX_DEBUFFS,
+        inset_right: 0.0,
+    };
+
+    fn width(&self) -> f32 {
+        (AURA_W + ICON_PADDING) * self.per_row as f32 + self.inset_right
+    }
+
+    fn height(&self) -> f32 {
+        (AURA_H + ICON_PADDING) * self.max.div_ceil(self.per_row) as f32
+    }
+
+    /// Icons grow left from the top right, wrapping down (`IconDirection` Left, `IconWrap`
+    /// Down, EditModePresetLayouts.lua:419-420).
+    fn cell(&self, index: usize) -> (f32, f32) {
+        let right = self.inset_right + (index % self.per_row) as f32 * (AURA_W + ICON_PADDING);
+        let top = (index / self.per_row) as f32 * (AURA_H + ICON_PADDING);
+        (right, top)
+    }
 }
 
 pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<BuffFrameState>()
         .expect("BuffFrameState must be in SharedContext");
-    let buff_rows = row_count(state.buffs.len());
-    let debuff_top = buff_rows as f32 * ROW_H + if buff_rows > 0 { DEBUFF_GAP } else { 0.0 };
-    let height = (debuff_top + row_count(state.debuffs.len()) as f32 * ROW_H).max(ICON_SIZE);
-    let buttons: Element = state
-        .buffs
+    let buffs = aura_frame(
+        BUFF_FRAME,
+        &AuraGrid::BUFFS,
+        (BUFF_FRAME_RIGHT, BUFF_FRAME_TOP),
+        &state.buffs,
+        false,
+    );
+    let debuffs = aura_frame(
+        DEBUFF_FRAME,
+        &AuraGrid::DEBUFFS,
+        (DEBUFF_FRAME_RIGHT, DEBUFF_FRAME_TOP),
+        &state.debuffs,
+        true,
+    );
+    buffs.into_iter().chain(debuffs).collect()
+}
+
+fn aura_frame(
+    name: FrameName,
+    grid: &AuraGrid,
+    (right, top): (f32, f32),
+    icons: &[BuffIconState],
+    is_debuff: bool,
+) -> Element {
+    let buttons: Element = icons
         .iter()
         .enumerate()
-        .flat_map(|(i, icon)| aura_button(BUFF_BUTTON, i, icon, 0.0))
-        .chain(
-            state
-                .debuffs
-                .iter()
-                .enumerate()
-                .flat_map(|(i, icon)| aura_button(DEBUFF_BUTTON, i, icon, debuff_top)),
-        )
+        .flat_map(|(i, icon)| aura_button(aura_button_name(is_debuff, i), grid.cell(i), icon))
         .collect();
     rsx! {
         r#frame {
-            name: BUFF_FRAME,
-            width: {FRAME_W},
-            height: {height},
+            name: name,
+            width: {grid.width()},
+            height: {grid.height()},
             pos_type: "absolute",
-            right: {FRAME_RIGHT},
-            top: {FRAME_TOP},
+            right: right,
+            top: top,
             {buttons}
         }
     }
 }
 
-/// Retail layout: icons grow leftwards from the frame's right edge.
-fn aura_button(prefix: &str, index: usize, icon: &BuffIconState, top: f32) -> Element {
-    let right = (index % BUFFS_PER_ROW) as f32 * (ICON_SIZE + ICON_GAP);
-    let top = top + (index / BUFFS_PER_ROW) as f32 * ROW_H;
-    let name = format!("{prefix}{index}");
+fn aura_button(name: String, (right, top): (f32, f32), icon: &BuffIconState) -> Element {
     let count = if icon.stacks > 1 {
         icon.stacks.to_string()
     } else {
         String::new()
     };
+    let duration_color = if icon.timer_warning {
+        DURATION_WARNING_COLOR
+    } else {
+        DURATION_COLOR
+    };
+    let border: Element = icon
+        .dispel
+        .map(|dispel| debuff_border(&name, dispel))
+        .unwrap_or_default();
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
-            width: {ICON_SIZE},
-            height: {ROW_H},
+            width: AURA_W,
+            height: AURA_H,
             mouse_enabled: true,
             pos_type: "absolute",
-            right: {right},
-            top: {top},
-            r#frame {
-                name: {DynName(format!("{name}Border"))},
-                width: {ICON_SIZE},
-                height: {ICON_SIZE},
-                background_color: {icon.border_color.as_str()},
+            right: right,
+            top: top,
+            texture {
+                name: {DynName(format!("{name}Icon"))},
+                width: ICON_SIZE,
+                height: ICON_SIZE,
+                texture_fdid: {icon.icon_fdid},
                 pos_type: "absolute",
                 left: 0.0,
                 top: 0.0,
-                r#frame {
-                    name: {DynName(format!("{name}Backing"))},
-                    width: {ICON_SIZE - 2.0},
-                    height: {ICON_SIZE - 2.0},
-                    background_color: ICON_BACKING,
-                    pos_type: "absolute",
-                    left: 1.0,
-                    top: 1.0,
-                    texture {
-                        name: {DynName(format!("{name}Icon"))},
-                        width: {ICON_SIZE - 2.0},
-                        height: {ICON_SIZE - 2.0},
-                        texture_fdid: {icon.icon_fdid},
-                        pos_type: "absolute",
-                        left: 0.0,
-                        top: 0.0,
-                    }
-                }
-                fontstring {
-                    name: {DynName(format!("{name}Count"))},
-                    width: {ICON_SIZE - 2.0},
-                    height: 12.0,
-                    text: {count.as_str()},
-                    font_size: 11.0,
-                    font_color: COUNT_COLOR,
-                    shadow_color: TEXT_SHADOW,
-                    shadow_offset: "1,-1",
-                    justify_h: "RIGHT",
-                    pos_type: "absolute",
-                    right: 1.0,
-                    bottom: 1.0,
-                }
             }
+            {border}
+            // `Symbol` TOPLEFT 2,-2 (BuffFrameTemplates.xml:32-36).
+            fontstring {
+                name: {DynName(format!("{name}Symbol"))},
+                width: {ICON_SIZE - 2.0},
+                height: 12.0,
+                text: {icon.symbol},
+                font: "FrizQuadrata",
+                font_size: SYMBOL_FONT_SIZE,
+                font_color: WHITE,
+                outline: "OUTLINE",
+                justify_h: "LEFT",
+                pos_type: "absolute",
+                left: 2.0,
+                top: 2.0,
+            }
+            // `Count` BOTTOMRIGHT of the icon at -2,2 (BuffFrameTemplates.xml:37-41).
+            fontstring {
+                name: {DynName(format!("{name}Count"))},
+                width: {ICON_SIZE - 2.0},
+                height: 14.0,
+                text: {count.as_str()},
+                font: "ArialNarrow",
+                font_size: COUNT_FONT_SIZE,
+                font_color: WHITE,
+                outline: "OUTLINE",
+                justify_h: "RIGHT",
+                pos_type: "absolute",
+                right: 2.0,
+                top: {ICON_SIZE - 2.0 - 14.0},
+            }
+            // `Duration` TOP on the icon's BOTTOM (BuffFrameTemplates.xml:13-17).
             fontstring {
                 name: {DynName(format!("{name}Duration"))},
-                width: {ICON_SIZE + ICON_GAP},
-                height: {DURATION_H},
+                width: {AURA_W + ICON_PADDING * 2.0},
+                height: {AURA_H - ICON_SIZE},
                 text: {icon.timer_text.as_str()},
-                font_size: 9.0,
-                font_color: DURATION_COLOR,
+                font: "FrizQuadrata",
+                font_size: DURATION_FONT_SIZE,
+                font_color: duration_color,
                 shadow_color: TEXT_SHADOW,
                 shadow_offset: "1,-1",
                 justify_h: "CENTER",
                 pos_type: "absolute",
-                left: "50%",
-                translate_x: "-50%",
-                top: {ICON_SIZE + 1.0},
+                left: {-ICON_PADDING},
+                top: ICON_SIZE,
             }
+        }
+    }
+}
+
+fn debuff_border(button: &str, dispel: DebuffType) -> Element {
+    let coords = debuff_border_tex_coords(dispel);
+    let inset = (DEBUFF_BORDER_SIZE - ICON_SIZE) / 2.0;
+    rsx! {
+        texture {
+            name: {DynName(format!("{button}Border"))},
+            width: DEBUFF_BORDER_SIZE,
+            height: DEBUFF_BORDER_SIZE,
+            texture_fdid: DEBUFF_BORDER_ATLAS_FDID,
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            left: {-inset},
+            top: {-inset},
         }
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::buff_data::DebuffType;
-    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
-    use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::LayoutRect;
-    use ui_toolkit::screen::Screen;
-
-    fn aura(spell_id: u32, is_debuff: bool, remaining: f32) -> AuraInstance {
-        AuraInstance {
-            instance_id: spell_id,
-            spell_id,
-            name: format!("Spell {spell_id}"),
-            description: String::new(),
-            icon_fdid: 135987,
-            source: String::new(),
-            from_local_player: true,
-            duration: 3600.0,
-            remaining,
-            stacks: 1,
-            is_debuff,
-            debuff_type: DebuffType::None,
-        }
-    }
-
-    fn registry(state: BuffFrameState) -> FrameRegistry {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(state);
-        Screen::new(buff_frame_screen).sync(&shared, &mut reg);
-        compute_layout(&mut reg);
-        reg
-    }
-
-    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
-        reg.get(reg.get_by_name(name).expect(name))
-            .and_then(|f| f.layout_rect.clone())
-            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
-    }
-
-    fn background(reg: &FrameRegistry, name: &str) -> [f32; 4] {
-        reg.get(reg.get_by_name(name).expect(name))
-            .expect(name)
-            .background_color
-            .expect("background")
-    }
-
-    fn state_with(buffs: usize, debuffs: usize) -> BuffFrameState {
-        let auras = AuraState {
-            auras: (0..buffs)
-                .map(|i| aura(i as u32 + 1, false, 300.0))
-                .chain((0..debuffs).map(|i| aura(i as u32 + 100, true, 30.0)))
-                .collect(),
-        };
-        BuffFrameState::from_auras(&auras, false)
-    }
-
-    #[test]
-    fn frame_sits_left_of_the_minimap_with_icons_growing_leftwards() {
-        let reg = registry(state_with(2, 0));
-        let frame = rect(&reg, BUFF_FRAME.0);
-        assert_eq!(frame.x + frame.width, 1920.0 - FRAME_RIGHT);
-        assert_eq!(frame.y, FRAME_TOP);
-        let first = rect(&reg, "BuffButton0");
-        let second = rect(&reg, "BuffButton1");
-        assert_eq!(first.x + first.width, frame.x + frame.width);
-        assert_eq!(first.x - second.x, ICON_SIZE + ICON_GAP);
-    }
-
-    #[test]
-    fn buffs_wrap_after_sixteen_and_debuffs_sit_below() {
-        let reg = registry(state_with(17, 1));
-        let first = rect(&reg, "BuffButton0");
-        let wrapped = rect(&reg, "BuffButton16");
-        assert_eq!(wrapped.x, first.x);
-        assert_eq!(wrapped.y - first.y, ROW_H);
-        let debuff = rect(&reg, "DebuffButton0");
-        assert_eq!(debuff.y - first.y, 2.0 * ROW_H + DEBUFF_GAP);
-    }
-
-    #[test]
-    fn border_follows_dispel_type_and_count_shows_above_one_stack() {
-        let mut poison = aura(200, true, 30.0);
-        poison.debuff_type = DebuffType::Poison;
-        poison.stacks = 3;
-        let reg = registry(BuffFrameState::from_auras(
-            &AuraState {
-                auras: vec![aura(1, false, 300.0), poison],
-            },
-            false,
-        ));
-        assert_eq!(
-            background(&reg, "BuffButton0Border"),
-            [0.52, 0.47, 0.38, 1.0]
-        );
-        assert_eq!(
-            background(&reg, "DebuffButton0Border"),
-            [0.0, 0.6, 0.0, 1.0]
-        );
-        assert_eq!(fontstring_text(&reg, "BuffButton0Count"), "");
-        assert_eq!(fontstring_text(&reg, "DebuffButton0Count"), "3");
-        assert_eq!(fontstring_text(&reg, "BuffButton0Duration"), "5 m");
-        assert_eq!(fontstring_text(&reg, "DebuffButton0Duration"), "30 s");
-    }
-
-    #[test]
-    fn caps_buffs_and_debuffs() {
-        let state = state_with(40, 20);
-        assert_eq!(
-            (state.buffs.len(), state.debuffs.len()),
-            (MAX_BUFFS, MAX_DEBUFFS)
-        );
-    }
-
-    #[test]
-    fn button_lookup_walks_up_from_children() {
-        let reg = registry(state_with(1, 2));
-        let icon = reg.get_by_name("DebuffButton1Icon").unwrap();
-        assert_eq!(buff_button_at(&reg, icon), Some((true, 1)));
-        let duration = reg.get_by_name("BuffButton0Duration").unwrap();
-        assert_eq!(buff_button_at(&reg, duration), Some((false, 0)));
-        let root = reg.get_by_name(BUFF_FRAME.0).unwrap();
-        assert_eq!(buff_button_at(&reg, root), None);
-    }
-}
+#[path = "buff_frame_component_tests.rs"]
+mod tests;
