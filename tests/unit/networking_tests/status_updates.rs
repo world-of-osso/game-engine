@@ -1,44 +1,6 @@
 use super::*;
 
 #[test]
-fn talent_state_update_populates_status_snapshot() {
-    let mut snapshot = game_engine::status::TalentStatusSnapshot::default();
-
-    crate::networking_messages::apply_talent_state_update(
-        &mut snapshot,
-        shared::protocol::TalentStateUpdate {
-            snapshot: Some(shared::protocol::TalentSnapshot {
-                spec_tabs: vec![shared::protocol::TalentSpecTabSnapshot {
-                    name: "Protection".into(),
-                    active: true,
-                }],
-                talents: vec![shared::protocol::TalentNodeSnapshot {
-                    talent_id: 101,
-                    name: "Divine Strength".into(),
-                    points_spent: 1,
-                    max_points: 1,
-                    active: true,
-                }],
-                points_remaining: 50,
-            }),
-            message: Some("talent applied".into()),
-            error: None,
-        },
-    );
-
-    assert_eq!(snapshot.spec_tabs.len(), 1);
-    assert_eq!(snapshot.spec_tabs[0].name, "Protection");
-    assert_eq!(snapshot.talents.len(), 1);
-    assert_eq!(snapshot.talents[0].talent_id, 101);
-    assert_eq!(snapshot.points_remaining, 50);
-    assert_eq!(
-        snapshot.last_server_message.as_deref(),
-        Some("talent applied")
-    );
-    assert_eq!(snapshot.last_error, None);
-}
-
-#[test]
 fn profession_state_update_populates_status_snapshot() {
     let mut snapshot = game_engine::status::ProfessionStatusSnapshot::default();
 

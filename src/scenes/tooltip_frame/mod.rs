@@ -8,6 +8,7 @@ use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
 use shared::components::PowerType;
@@ -199,6 +200,7 @@ fn sync_tooltip_frame_state(
     aura_state: Option<Res<AuraState>>,
     graphics_options: Option<Res<GraphicsOptions>>,
     spells: HoveredSpellSources,
+    talent_tooltips: Option<Res<TalentTooltips>>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
@@ -214,6 +216,7 @@ fn sync_tooltip_frame_state(
         aura_state.as_deref(),
         graphics_options.as_deref(),
         &spells,
+        talent_tooltips.as_deref(),
     );
     if last_model.0 == state {
         return;
@@ -234,6 +237,7 @@ fn build_state(
     aura_state: Option<&AuraState>,
     graphics_options: Option<&GraphicsOptions>,
     spells: &HoveredSpellSources,
+    talent_tooltips: Option<&TalentTooltips>,
 ) -> TooltipFrameState {
     let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
@@ -242,6 +246,7 @@ fn build_state(
         return TooltipFrameState::hidden();
     };
     let Some(content) = hovered_spell_tooltip(registry, frame_id, spells)
+        .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
         .or_else(|| {
             hovered_target_aura_tooltip(
@@ -297,6 +302,41 @@ fn hovered_action_slot(registry: &FrameRegistry, mut frame_id: u64) -> Option<us
             return Some(slot);
         }
         frame_id = frame.parent_id?;
+    }
+}
+
+/// The nearest named ancestor with talent tooltip content (`TalentNode_*`).
+fn hovered_talent_tooltip(
+    registry: &FrameRegistry,
+    mut frame_id: u64,
+    talent_tooltips: Option<&TalentTooltips>,
+) -> Option<TooltipFrameState> {
+    let tooltips = talent_tooltips?;
+    loop {
+        let frame = registry.get(frame_id)?;
+        if let Some(tooltip) = frame
+            .name
+            .as_deref()
+            .and_then(|name| tooltips.by_frame.get(name))
+        {
+            return Some(talent_tooltip(tooltip));
+        }
+        frame_id = frame.parent_id?;
+    }
+}
+
+fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
+    let mut lines = vec![TooltipLineState::new(tooltip.rank.clone())];
+    for line in wrap_text(&tooltip.description, TOOLTIP_WRAP_CHARS) {
+        lines.push(TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR));
+    }
+    TooltipFrameState {
+        visible: true,
+        x: 0.0,
+        y: 0.0,
+        title: tooltip.title.clone(),
+        title_color: TOOLTIP_TEXT_COLOR,
+        lines,
     }
 }
 
@@ -932,6 +972,36 @@ mod tests {
         let button = registry.create_frame("ActionButton1_2", None);
         let icon = registry.create_frame("ActionButton1_2Icon", Some(button));
         assert_eq!(hovered_action_slot(&registry, icon), Some(1));
+    }
+
+    #[test]
+    fn talent_tooltip_shows_rank_and_wrapped_description_for_hovered_node_child() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let node = registry.create_frame("TalentNode_81526", None);
+        let icon = registry.create_frame("TalentNode_81526Icon", Some(node));
+        let mut tooltips = TalentTooltips::default();
+        tooltips.by_frame.insert(
+            "TalentNode_81526".into(),
+            TalentTooltip {
+                title: "Blade of Justice".into(),
+                rank: "Rank 0/1".into(),
+                description: "Pierce an enemy with a blade of light, dealing Holy damage and \
+                              generating 1 Holy Power."
+                    .into(),
+            },
+        );
+        let tooltip =
+            hovered_talent_tooltip(&registry, icon, Some(&tooltips)).expect("talent tooltip");
+        assert_eq!(tooltip.title, "Blade of Justice");
+        let lines: Vec<&str> = tooltip.lines.iter().map(|l| l.left_text.as_str()).collect();
+        assert_eq!(
+            lines,
+            [
+                "Rank 0/1",
+                "Pierce an enemy with a blade of light, dealing",
+                "Holy damage and generating 1 Holy Power.",
+            ]
+        );
     }
 
     #[test]

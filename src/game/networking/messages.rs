@@ -7,7 +7,7 @@ use shared::protocol::{
     GroupRosterSnapshot, InputChannel, InspectStateUpdate, LoadTerrain, PlayerInput,
     ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
     QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, RestAreaKindSnapshot,
-    RestStateUpdate, SetTarget, TalentStateUpdate, WorldMapStateUpdate,
+    RestStateUpdate, SetTarget, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -33,8 +33,7 @@ use game_engine::status::{
     GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot,
     ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
     QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
-    ReputationsStatusSnapshot, RestAreaKindEntry, TalentNodeEntry, TalentSpecTabEntry,
-    TalentStatusSnapshot,
+    ReputationsStatusSnapshot, RestAreaKindEntry,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -569,36 +568,6 @@ pub(crate) fn apply_reputation_state_update(
                 value: e.value,
             })
             .collect();
-    }
-    snapshot.last_server_message = update.message;
-    snapshot.last_error = update.error;
-}
-
-pub(crate) fn apply_talent_state_update(
-    snapshot: &mut TalentStatusSnapshot,
-    update: TalentStateUpdate,
-) {
-    if let Some(talent_snapshot) = update.snapshot {
-        snapshot.spec_tabs = talent_snapshot
-            .spec_tabs
-            .into_iter()
-            .map(|tab| TalentSpecTabEntry {
-                name: tab.name,
-                active: tab.active,
-            })
-            .collect();
-        snapshot.talents = talent_snapshot
-            .talents
-            .into_iter()
-            .map(|talent| TalentNodeEntry {
-                talent_id: talent.talent_id,
-                name: talent.name,
-                points_spent: talent.points_spent,
-                max_points: talent.max_points,
-                active: talent.active,
-            })
-            .collect();
-        snapshot.points_remaining = talent_snapshot.points_remaining;
     }
     snapshot.last_server_message = update.message;
     snapshot.last_error = update.error;

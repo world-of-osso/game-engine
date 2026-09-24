@@ -70,11 +70,6 @@ enum Cmd {
         #[command(subcommand)]
         command: DuelCmd,
     },
-    /// Talent operations via the running engine
-    Talent {
-        #[command(subcommand)]
-        command: TalentCmd,
-    },
     /// Inspect current target via the running engine
     Inspect {
         #[command(subcommand)]
@@ -559,16 +554,6 @@ pub(crate) enum DuelCmd {
     Challenge,
     Accept,
     Decline,
-}
-
-#[derive(Subcommand)]
-pub(crate) enum TalentCmd {
-    Status,
-    Apply {
-        #[arg(long)]
-        talent_id: u32,
-    },
-    Reset,
 }
 
 #[derive(Subcommand)]

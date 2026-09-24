@@ -298,10 +298,8 @@ fn reset_world_tracking_resources(world: &mut World) {
     {
         game_engine::inspect::reset_runtime(&mut inspect_state);
     }
-    if let Some(mut talent_state) =
-        world.get_resource_mut::<game_engine::talent::TalentRuntimeState>()
-    {
-        game_engine::talent::reset_runtime(&mut talent_state);
+    if let Some(mut talent_state) = world.get_resource_mut::<game_engine::talent::TalentState>() {
+        game_engine::talent::reset_state(&mut talent_state);
     }
     if let Some(mut adt_manager) = world.get_resource_mut::<crate::terrain::AdtManager>() {
         adt_manager.server_requested.clear();
@@ -350,7 +348,6 @@ fn reset_world_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::QuestLogStatusSnapshot>(world);
     reset_resource::<game_engine::status::ReputationsStatusSnapshot>(world);
     reset_resource::<game_engine::status::SoundStatusSnapshot>(world);
-    reset_resource::<game_engine::status::TalentStatusSnapshot>(world);
     reset_resource::<game_engine::status::TerrainStatusSnapshot>(world);
     reset_resource::<game_engine::status::WarbankStatusSnapshot>(world);
 }

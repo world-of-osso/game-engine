@@ -18,8 +18,7 @@ use game_engine::status::{
     InspectStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
     PresenceStateEntry, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
     ReputationsStatusSnapshot, SecondaryResourceEntry, SecondaryResourceKindEntry,
-    SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
-    WhoStatusSnapshot,
+    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, WhoStatusSnapshot,
 };
 use shared::components::{
     CombatStatus as NetCombatStatus, EquipmentAppearance as NetEquipmentAppearance,
@@ -394,7 +393,6 @@ pub(crate) fn init_status_resources(app: &mut App) {
         .insert_resource(InspectStatusSnapshot::default())
         .insert_resource(ProfessionStatusSnapshot::default())
         .insert_resource(QuestLogStatusSnapshot::default())
-        .insert_resource(TalentStatusSnapshot::default())
         .insert_resource(ReputationsStatusSnapshot::default())
         .insert_resource(WarbankStatusSnapshot::default());
 }
