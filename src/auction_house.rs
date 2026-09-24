@@ -26,12 +26,16 @@ pub struct AuctionHouseState {
     pub bid_results: Vec<AuctionListingSummary>,
     pub inventory: Option<AuctionInventorySnapshot>,
     pub mailbox: Vec<shared::protocol::AuctionMailEntry>,
+    /// Failed operation messages for the UI error frame; the frame drains them.
+    pub errors: Vec<String>,
     pending_actions: VecDeque<PendingAction>,
     pending_replies: VecDeque<PendingReply>,
 }
 
-#[derive(Clone)]
-enum Action {
+/// One auction request to the server. The frame queues these with
+/// [`AuctionHouseState::request`]; IPC queues them with a reply channel.
+#[derive(Clone, Debug, PartialEq)]
+pub enum AuctionRequest {
     Open,
     Browse(AuctionSearchQuery),
     Owned,
@@ -46,7 +50,7 @@ enum Action {
 }
 
 struct PendingAction {
-    action: Action,
+    action: AuctionRequest,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -60,9 +64,69 @@ enum ReplyKind {
     Operation,
 }
 
+/// Responses arrive in request order per kind; a frame request holds its slot
+/// without a reply channel so IPC replies stay paired with their own requests.
 struct PendingReply {
     kind: ReplyKind,
-    respond: mpsc::Sender<Response>,
+    respond: Option<mpsc::Sender<Response>>,
+}
+
+impl PendingReply {
+    fn send(self, response: Response) {
+        if let Some(respond) = self.respond {
+            let _ = respond.send(response);
+        }
+    }
+}
+
+impl AuctionHouseState {
+    /// Queues a frame request; its response only updates this state.
+    pub fn request(&mut self, request: AuctionRequest) {
+        let kind = reply_kind(&request);
+        self.pending_actions
+            .push_back(PendingAction { action: request });
+        self.pending_replies.push_back(PendingReply {
+            kind,
+            respond: None,
+        });
+    }
+
+    /// The frame closed: its results are stale by the next opening.
+    pub fn close(&mut self) {
+        let errors = std::mem::take(&mut self.errors);
+        *self = Self {
+            pending_actions: std::mem::take(&mut self.pending_actions),
+            pending_replies: std::mem::take(&mut self.pending_replies),
+            errors,
+            ..Default::default()
+        };
+    }
+
+    /// Everything the frame shows after an auction changed hands or was posted.
+    fn refresh(&mut self) {
+        self.request(AuctionRequest::Inventory);
+        self.request(AuctionRequest::Owned);
+        self.request(AuctionRequest::Bids);
+        if let Some(query) = self.last_query.clone() {
+            self.request(AuctionRequest::Browse(query));
+        }
+    }
+}
+
+fn reply_kind(request: &AuctionRequest) -> ReplyKind {
+    match request {
+        AuctionRequest::Open => ReplyKind::Open,
+        AuctionRequest::Browse(_) => ReplyKind::Browse,
+        AuctionRequest::Owned => ReplyKind::Owned,
+        AuctionRequest::Bids => ReplyKind::Bids,
+        AuctionRequest::Inventory => ReplyKind::Inventory,
+        AuctionRequest::Mailbox => ReplyKind::Mailbox,
+        AuctionRequest::Create(_)
+        | AuctionRequest::Bid(_)
+        | AuctionRequest::Buyout(_)
+        | AuctionRequest::Cancel(_)
+        | AuctionRequest::Claim(_) => ReplyKind::Operation,
+    }
 }
 
 pub struct AuctionHousePlugin;
@@ -109,10 +173,15 @@ pub fn queue_ipc_request(
     if handle_auction_status_request(state, request, &respond) {
         return true;
     }
-    let Some((action, kind)) = auction_ipc_action(request) else {
+    let Some(action) = auction_ipc_action(request) else {
         return false;
     };
-    enqueue_auction_request(state, action, kind, respond)
+    state.pending_replies.push_back(PendingReply {
+        kind: reply_kind(&action),
+        respond: Some(respond),
+    });
+    state.pending_actions.push_back(PendingAction { action });
+    true
 }
 
 fn handle_auction_status_request(
@@ -129,44 +198,22 @@ fn handle_auction_status_request(
     }
 }
 
-fn auction_ipc_action(request: &Request) -> Option<(Action, ReplyKind)> {
-    match request {
-        Request::AuctionOpen => Some((Action::Open, ReplyKind::Open)),
-        Request::AuctionBrowse { query } => {
-            Some((Action::Browse(query.clone()), ReplyKind::Browse))
-        }
-        Request::AuctionOwned => Some((Action::Owned, ReplyKind::Owned)),
-        Request::AuctionBids => Some((Action::Bids, ReplyKind::Bids)),
-        Request::AuctionInventory => Some((Action::Inventory, ReplyKind::Inventory)),
-        Request::AuctionMailbox => Some((Action::Mailbox, ReplyKind::Mailbox)),
-        Request::AuctionCreate { create } => {
-            Some((Action::Create(create.clone()), ReplyKind::Operation))
-        }
-        Request::AuctionBid { bid } => Some((Action::Bid(bid.clone()), ReplyKind::Operation)),
-        Request::AuctionBuyout { buyout } => {
-            Some((Action::Buyout(buyout.clone()), ReplyKind::Operation))
-        }
-        Request::AuctionCancel { cancel } => {
-            Some((Action::Cancel(cancel.clone()), ReplyKind::Operation))
-        }
-        Request::AuctionClaimMail { claim } => {
-            Some((Action::Claim(claim.clone()), ReplyKind::Operation))
-        }
-        _ => None,
-    }
-}
-
-fn enqueue_auction_request(
-    state: &mut AuctionHouseState,
-    action: Action,
-    kind: ReplyKind,
-    respond: mpsc::Sender<Response>,
-) -> bool {
-    state.pending_actions.push_back(PendingAction { action });
-    state
-        .pending_replies
-        .push_back(PendingReply { kind, respond });
-    true
+fn auction_ipc_action(request: &Request) -> Option<AuctionRequest> {
+    use AuctionRequest as A;
+    Some(match request {
+        Request::AuctionOpen => A::Open,
+        Request::AuctionBrowse { query } => A::Browse(query.clone()),
+        Request::AuctionOwned => A::Owned,
+        Request::AuctionBids => A::Bids,
+        Request::AuctionInventory => A::Inventory,
+        Request::AuctionMailbox => A::Mailbox,
+        Request::AuctionCreate { create } => A::Create(create.clone()),
+        Request::AuctionBid { bid } => A::Bid(bid.clone()),
+        Request::AuctionBuyout { buyout } => A::Buyout(buyout.clone()),
+        Request::AuctionCancel { cancel } => A::Cancel(cancel.clone()),
+        Request::AuctionClaimMail { claim } => A::Claim(claim.clone()),
+        _ => return None,
+    })
 }
 
 #[derive(SystemParam)]
@@ -186,29 +233,35 @@ struct AuctionSenders<'w, 's> {
 
 fn send_pending_actions(mut state: ResMut<AuctionHouseState>, mut senders: AuctionSenders) {
     while let Some(pending) = state.pending_actions.pop_front() {
+        let kind = reply_kind(&pending.action);
         let sent = match pending.action {
-            Action::Open => send_all(&mut senders.open_senders, OpenAuctionHouse),
-            Action::Browse(query) => send_all(&mut senders.browse_senders, QueryAuctions { query }),
-            Action::Owned => send_all(&mut senders.owned_senders, QueryOwnedAuctions),
-            Action::Bids => send_all(&mut senders.bids_senders, QueryBidAuctions),
-            Action::Inventory => send_all(&mut senders.inventory_senders, QueryAuctionInventory),
-            Action::Mailbox => send_all(&mut senders.mailbox_senders, QueryAuctionMailbox),
-            Action::Create(req) => send_all(&mut senders.create_senders, req),
-            Action::Bid(req) => send_all(&mut senders.bid_senders, req),
-            Action::Buyout(req) => send_all(&mut senders.buyout_senders, req),
-            Action::Cancel(req) => send_all(&mut senders.cancel_senders, req),
-            Action::Claim(req) => send_all(&mut senders.claim_senders, req),
+            AuctionRequest::Open => send_all(&mut senders.open_senders, OpenAuctionHouse),
+            AuctionRequest::Browse(query) => {
+                send_all(&mut senders.browse_senders, QueryAuctions { query })
+            }
+            AuctionRequest::Owned => send_all(&mut senders.owned_senders, QueryOwnedAuctions),
+            AuctionRequest::Bids => send_all(&mut senders.bids_senders, QueryBidAuctions),
+            AuctionRequest::Inventory => {
+                send_all(&mut senders.inventory_senders, QueryAuctionInventory)
+            }
+            AuctionRequest::Mailbox => send_all(&mut senders.mailbox_senders, QueryAuctionMailbox),
+            AuctionRequest::Create(req) => send_all(&mut senders.create_senders, req),
+            AuctionRequest::Bid(req) => send_all(&mut senders.bid_senders, req),
+            AuctionRequest::Buyout(req) => send_all(&mut senders.buyout_senders, req),
+            AuctionRequest::Cancel(req) => send_all(&mut senders.cancel_senders, req),
+            AuctionRequest::Claim(req) => send_all(&mut senders.claim_senders, req),
         };
         if !sent {
-            state.last_error = Some("auction house is unavailable: not connected".into());
-            if let Some(reply) = state.pending_replies.pop_front() {
-                let _ = reply.respond.send(Response::Error(
-                    "auction house is unavailable: not connected".into(),
-                ));
+            state.last_error = Some(NOT_CONNECTED.into());
+            state.errors.push(NOT_CONNECTED.into());
+            if let Some(reply) = pop_reply(&mut state, kind) {
+                reply.send(Response::Error(NOT_CONNECTED.into()));
             }
         }
     }
 }
+
+const NOT_CONNECTED: &str = "auction house is unavailable: not connected";
 
 fn send_all<T: Clone + lightyear::prelude::Message>(
     senders: &mut MessageSenders<T>,
@@ -234,14 +287,16 @@ fn receive_opened(
 }
 
 fn apply_opened_response(state: &mut AuctionHouseState, response: AuctionHouseOpened) {
+    let opening = response.success && !state.is_open;
     state.is_open = response.success;
     state.last_error = response.error.clone();
+    if opening {
+        state.refresh();
+    }
     let Some(reply) = pop_reply(state, ReplyKind::Open) else {
         return;
     };
-    let _ = reply
-        .respond
-        .send(opened_response_to_ipc(response.success, response.error));
+    reply.send(opened_response_to_ipc(response.success, response.error));
 }
 
 fn opened_response_to_ipc(success: bool, error: Option<String>) -> Response {
@@ -267,9 +322,7 @@ fn receive_search_results(
             state.search_total = response.total_results;
             state.search_results = response.results;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Browse) {
-                let _ = reply
-                    .respond
-                    .send(Response::Text(format_search_results(&state)));
+                reply.send(Response::Text(format_search_results(&state)));
             }
         }
     }
@@ -283,7 +336,7 @@ fn receive_owned_results(
         for response in receiver.receive() {
             state.owned_results = response.listings;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Owned) {
-                let _ = reply.respond.send(Response::Text(format_listing_block(
+                reply.send(Response::Text(format_listing_block(
                     "owned auctions",
                     &state.owned_results,
                 )));
@@ -300,7 +353,7 @@ fn receive_bid_results(
         for response in receiver.receive() {
             state.bid_results = response.listings;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Bids) {
-                let _ = reply.respond.send(Response::Text(format_listing_block(
+                reply.send(Response::Text(format_listing_block(
                     "bid auctions",
                     &state.bid_results,
                 )));
@@ -317,7 +370,7 @@ fn receive_inventory_snapshot(
         for response in receiver.receive() {
             state.inventory = Some(response);
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Inventory) {
-                let _ = reply.respond.send(Response::Text(format_inventory(&state)));
+                reply.send(Response::Text(format_inventory(&state)));
             }
         }
     }
@@ -331,7 +384,7 @@ fn receive_mailbox_snapshot(
         for response in receiver.receive() {
             state.mailbox = response.entries;
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Mailbox) {
-                let _ = reply.respond.send(Response::Text(format_mailbox(&state)));
+                reply.send(Response::Text(format_mailbox(&state)));
             }
         }
     }
@@ -347,13 +400,20 @@ fn receive_operation_response(
             if !response.success {
                 state.last_error = Some(response.message.clone());
             }
+            if state.is_open {
+                if response.success {
+                    state.refresh();
+                } else {
+                    state.errors.push(response.message.clone());
+                }
+            }
             if let Some(reply) = pop_reply(&mut state, ReplyKind::Operation) {
                 let out = if response.success {
                     Response::Text(response.message)
                 } else {
                     Response::Error(response.message)
                 };
-                let _ = reply.respond.send(out);
+                reply.send(out);
             }
         }
     }
@@ -545,9 +605,92 @@ mod tests {
         assert_eq!(state.pending_actions.len(), 1);
         assert_eq!(state.pending_replies.len(), 1);
         match &state.pending_actions[0].action {
-            Action::Browse(queued) => assert_eq!(queued, &query),
+            AuctionRequest::Browse(queued) => assert_eq!(queued, &query),
             _ => panic!("expected browse action"),
         }
+    }
+
+    fn query(text: &str) -> AuctionSearchQuery {
+        AuctionSearchQuery {
+            text: text.into(),
+            page: 0,
+            page_size: 50,
+            min_level: None,
+            max_level: None,
+            quality: None,
+            usable_only: false,
+            sort_field: AuctionSortField::Name,
+            sort_dir: AuctionSortDir::Asc,
+            faction: 0,
+        }
+    }
+
+    fn plugin_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
+        app.add_plugins(AuctionHousePlugin);
+        app
+    }
+
+    fn deliver<M: lightyear::prelude::Message>(app: &mut App, messages: Vec<M>) {
+        app.insert_resource(game_engine::network_runtime::messages::Inbox::new(messages));
+        crate::network_events::dispatch_incoming(app.world_mut());
+    }
+
+    #[test]
+    fn frame_request_response_leaves_ipc_reply_for_its_own_request() {
+        let mut app = plugin_app();
+        let (respond, replies) = mpsc::channel();
+        {
+            let mut state = app.world_mut().resource_mut::<AuctionHouseState>();
+            state.request(AuctionRequest::Browse(query("linen")));
+            queue_ipc_request(
+                &mut state,
+                &Request::AuctionBrowse {
+                    query: query("copper"),
+                },
+                respond,
+            );
+        }
+
+        deliver(
+            &mut app,
+            vec![
+                AuctionSearchResults {
+                    query: query("linen"),
+                    total_results: 0,
+                    results: vec![],
+                },
+                AuctionSearchResults {
+                    query: query("copper"),
+                    total_results: 0,
+                    results: vec![],
+                },
+            ],
+        );
+
+        let Response::Text(text) = replies.try_recv().expect("ipc reply") else {
+            panic!("expected text reply");
+        };
+        assert!(text.contains("text=copper"), "{text}");
+        assert!(replies.try_recv().is_err());
+    }
+
+    #[test]
+    fn failed_operation_while_open_reaches_the_error_frame() {
+        let mut app = plugin_app();
+        app.world_mut().resource_mut::<AuctionHouseState>().is_open = true;
+
+        deliver(
+            &mut app,
+            vec![AuctionOperationResponse {
+                success: false,
+                message: "not enough gold for auction deposit".into(),
+            }],
+        );
+
+        let state = app.world().resource::<AuctionHouseState>();
+        assert_eq!(state.errors, ["not enough gold for auction deposit"]);
     }
 
     #[test]
