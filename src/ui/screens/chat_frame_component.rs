@@ -165,9 +165,11 @@ pub fn tab_flash_name(index: usize) -> String {
     format!("{}Flash", tab_name(index))
 }
 
-/// Tab width: the label, at least 20, plus 30 padding (Skins/Dark.lua:253, Constants.lua).
+/// Tab width: the label, at least 20, plus 30 padding (Skins/Dark.lua:253, Constants.lua),
+/// rounded up to whole units so the caps and middle meet without a seam after layout
+/// rounding.
 fn tab_width(tab: ChatTab) -> f32 {
-    text_width(tab.label(), TAB_FONT, TAB_FONT_SIZE).max(MIN_TAB_TEXT_W) + TAB_PADDING
+    (text_width(tab.label(), TAB_FONT, TAB_FONT_SIZE).max(MIN_TAB_TEXT_W) + TAB_PADDING).ceil()
 }
 
 pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
