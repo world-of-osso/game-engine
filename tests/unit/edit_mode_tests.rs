@@ -101,6 +101,7 @@ fn every_plan_hud_element_is_registered_once() {
         "PartyFrame",
         "RaidFrame",
         "UIErrorsFrame",
+        "ChatFrame1",
         "MicroMenuContainer",
         "BagsBar",
     ] {

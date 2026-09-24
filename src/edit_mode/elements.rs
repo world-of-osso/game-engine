@@ -89,6 +89,12 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
     element("raid_frames", "Raid Frames", "RaidFrame", HudAnchor::Left),
     element("ui_errors", "Error Text", "UIErrorsFrame", HudAnchor::Top),
     element(
+        "chat_frame",
+        "Chat Frame",
+        "ChatFrame1",
+        HudAnchor::BottomLeft,
+    ),
+    element(
         "micro_menu",
         "Micro Menu",
         "MicroMenuContainer",
