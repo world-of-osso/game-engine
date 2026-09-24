@@ -61,7 +61,9 @@ struct Fixture {
 fn fixture() -> Fixture {
     let mut app = App::new();
     app.add_plugins(bevy::time::TimePlugin);
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_secs(2)));
+    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::from_millis(
+        200,
+    )));
     app.insert_resource(catalog());
     app.init_resource::<ConnectionSender>();
     app.add_plugins(AuraSyncPlugin);
@@ -124,11 +126,12 @@ fn timers_count_down_between_server_updates() {
         app.world().resource::<AuraState>().auras[0].timer_text(),
         "2 m"
     );
-    app.update();
-    app.update();
+    for _ in 0..6 {
+        app.update();
+    }
     let aura = &app.world().resource::<AuraState>().auras[0];
-    assert_eq!(first - aura.remaining, 4.0);
-    assert_eq!(aura.timer_text(), "1 m");
+    assert!((first - aura.remaining - 1.2).abs() < 1e-3);
+    assert_eq!(aura.timer_text(), "59 s");
 }
 
 #[test]
