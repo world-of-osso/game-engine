@@ -676,7 +676,7 @@ mod tests {
         handle_group_frame_click(
             &registry,
             &click_map,
-            Vec2::new(20.0, 225.0),
+            party_member_center(&registry, 0),
             MouseButton::Left,
             &mut menu,
             &mut target,
@@ -726,7 +726,7 @@ mod tests {
         handle_group_frame_click(
             &registry,
             &click_map,
-            Vec2::new(20.0, 225.0),
+            party_member_center(&registry, 0),
             MouseButton::Right,
             &mut menu,
             &mut target,
@@ -735,6 +735,13 @@ mod tests {
 
         assert!(menu.visible);
         assert_eq!(menu.title, "Valeera");
+    }
+
+    fn party_member_center(registry: &FrameRegistry, index: usize) -> Vec2 {
+        let name = format!("PartyMember{index}");
+        let id = registry.get_by_name(&name).expect(&name);
+        let rect = registry.get(id).unwrap().layout_rect.clone().unwrap();
+        Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0)
     }
 
     fn build_registry(state: &GroupFramesState) -> FrameRegistry {
