@@ -40,12 +40,16 @@ Our entity count feeds the Bevy costs already identified in [[movement-performan
 
 ## Candidate order
 
-1. Static doodads without skeletons: bake bind pose, no bone entities, no `SkinnedMesh` when a model has no animation player.
-2. Share mesh and material handles across identical M2/WMO instances so Bevy batching can merge draws.
-3. Merge terrain chunks per tile into one mesh with an atlas material.
-4. Fix the chunk-index culling key (tile, chunk).
-5. Precompute per-WMO group lists for portal culling.
-6. Share hanabi effect assets per emitter definition.
+Constraint (user, 2026-09-24): follow Bevy best practice; do not port solarityclient's custom render architecture. Joint entities for animated models and one entity per batch are standard Bevy and stay. Only fixes that move us toward standard Bevy usage qualify.
+
+1. Static doodads as plain meshes: no joint entities, no `SkinnedMesh` when a model has no animation player.
+2. Share mesh and material handles across identical M2/WMO instances (as Bevy's glTF scene spawning does) so automatic batching can merge draws. Unknown: whether Bevy 0.19 batches skinned meshes across instances.
+3. Share `AnimationClip`s/`AnimationGraph` per model; one `AnimationPlayer` per instance.
+4. Share hanabi `EffectAsset`s per emitter definition with per-instance properties.
+5. Fix the chunk-index culling key (tile, chunk).
+6. Lower priority: merge terrain chunks per tile; precompute per-WMO group lists for portal culling.
+
+Rejected: flat per-frame bone arrays, custom CPU particle buffers, serial frame loop.
 
 Each needs an entity-count and CPU/FPS A/B using the method in [[movement-performance]].
 
