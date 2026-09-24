@@ -133,7 +133,6 @@ pub struct ChatFrameState {
     pub sent: Vec<String>,
     /// Position in `sent` while cycling with Up/Down.
     pub history_index: Option<usize>,
-    pub idle_secs: f32,
 }
 
 impl ChatFrameState {

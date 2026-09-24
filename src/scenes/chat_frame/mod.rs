@@ -20,8 +20,8 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::popup::PopupStack;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::chat_frame_component::{
-    CHAT_BACKGROUND_ALPHA, CHAT_EDITBOX, CHAT_FONT, CHAT_FONT_SIZE, CHAT_FRAME, CHAT_MESSAGES,
-    CHAT_TEXT_W, ChatFrameView, chat_frame_screen,
+    CHAT_EDITBOX, CHAT_FONT, CHAT_FONT_SIZE, CHAT_FRAME, CHAT_MESSAGES, CHAT_TEXT_W, ChatFrameView,
+    chat_frame_screen,
 };
 use game_engine::who::{WhoRuntimeState, queue_query};
 use shared::protocol::{ChatMessage, CombatChannel, EmoteIntent, GroupInviteIntent};
@@ -34,9 +34,6 @@ use crate::networking::{ChatInput, EmoteInput, ReconnectState};
 use crate::ui_input::walk_up_for_onclick;
 use crate::ui_input_mode::{UiInputMode, focused_editbox};
 
-/// Idle seconds before the background starts fading, and the fade length.
-const FADE_DELAY_SECS: f32 = 3.0;
-const FADE_SECS: f32 = 1.0;
 const ENTER_KEYS: [KeyCode; 2] = [KeyCode::Enter, KeyCode::NumpadEnter];
 
 struct ChatFrameRes {
@@ -68,7 +65,6 @@ impl Plugin for ChatFramePlugin {
             (
                 handle_chat_keyboard,
                 handle_chat_tab_clicks,
-                tick_chat_idle,
                 sync_chat_frame_ui,
             )
                 .chain()
@@ -89,12 +85,10 @@ fn build_chat_frame_ui(
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     state.input_open = false;
-    state.idle_secs = 0.0;
     let view = ChatFrameView {
         tab: state.tab,
         rows: chat_rows(state.tab, &chat, &combat, catalog.as_deref()),
         input_open: false,
-        background_alpha: background_alpha(&state),
     };
     let mut res = ChatFrameRes {
         screen: Screen::new(chat_frame_screen),
@@ -241,7 +235,6 @@ fn open_input(ui: &mut UiState, editbox: u64, state: &mut ChatFrameState, prefil
     ui.focused_frame = Some(editbox);
     state.input_open = true;
     state.history_index = None;
-    state.idle_secs = 0.0;
 }
 
 fn close_input(ui: &mut UiState, editbox: u64, state: &mut ChatFrameState) {
@@ -368,44 +361,6 @@ fn handle_chat_tab_clicks(
     }
 }
 
-/// Idle time grows while the cursor is off the frame and the edit box is closed.
-fn tick_chat_idle(
-    time: Res<Time>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-    ui: Res<UiState>,
-    mut state: ResMut<ChatFrameState>,
-) {
-    let hovered = windows
-        .single()
-        .ok()
-        .and_then(|window| ui_cursor_position(&ui.registry, window))
-        .is_some_and(|cursor| cursor_over_chat(&ui.registry, cursor));
-    if hovered || state.input_open {
-        if state.idle_secs != 0.0 {
-            state.idle_secs = 0.0;
-        }
-    } else if state.idle_secs < FADE_DELAY_SECS + FADE_SECS {
-        state.idle_secs += time.delta_secs();
-    }
-}
-
-fn cursor_over_chat(registry: &FrameRegistry, cursor: Vec2) -> bool {
-    registry
-        .get_by_name(CHAT_FRAME.0)
-        .and_then(|id| registry.get(id)?.layout_rect.clone())
-        .is_some_and(|rect| {
-            cursor.x >= rect.x
-                && cursor.x <= rect.x + rect.width
-                && cursor.y >= rect.y
-                && cursor.y <= rect.y + rect.height
-        })
-}
-
-fn background_alpha(state: &ChatFrameState) -> f32 {
-    let fade = ((state.idle_secs - FADE_DELAY_SECS) / FADE_SECS).clamp(0.0, 1.0);
-    CHAT_BACKGROUND_ALPHA * (1.0 - fade)
-}
-
 fn sync_chat_frame_ui(
     mut ui: ResMut<UiState>,
     wrap: Option<ResMut<ChatFrameWrap>>,
@@ -421,9 +376,7 @@ fn sync_chat_frame_ui(
         || chat.is_changed()
         || combat.is_changed()
         || catalog.as_ref().is_some_and(|catalog| catalog.is_changed());
-    let alpha = background_alpha(&state);
-    let view_changed =
-        rows_dirty || res.view.input_open != state.input_open || res.view.background_alpha != alpha;
+    let view_changed = rows_dirty || res.view.input_open != state.input_open;
     let scrolled = ui.registry.scroll_lists.generation(CHAT_MESSAGES) != res.scroll_generation;
     if !view_changed && !scrolled {
         return;
@@ -433,7 +386,6 @@ fn sync_chat_frame_ui(
     }
     res.view.tab = state.tab;
     res.view.input_open = state.input_open;
-    res.view.background_alpha = alpha;
     sync_screen(res, &mut ui.registry, tab_changed);
 }
 
