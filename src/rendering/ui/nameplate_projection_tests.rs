@@ -440,3 +440,22 @@ fn nameplate_fade_retains_configured_distance_curve() {
     }
     assert!((nameplate_alpha(45.0, 60.0) - 0.5).abs() < 0.0001);
 }
+
+#[test]
+fn quest_marker_yaws_toward_camera_without_pitch_under_a_turned_npc() {
+    let parent = Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
+    let marker = Vec3::new(10.0, 3.5, 0.0);
+    // Camera above and to the south-east of the marker.
+    let camera = Vec3::new(10.0, 20.0, 8.0);
+    let local = indicator_facing(camera, marker, parent).expect("camera not overhead");
+    let world_forward = (parent * local) * Vec3::NEG_Z;
+    assert!(world_forward.y.abs() < 1e-5, "no pitch: {world_forward:?}");
+    assert!(
+        world_forward.distance(Vec3::Z) < 1e-5,
+        "faces the camera on the ground plane: {world_forward:?}"
+    );
+    assert_eq!(
+        indicator_facing(marker + Vec3::Y * 5.0, marker, parent),
+        None
+    );
+}

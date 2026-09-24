@@ -443,24 +443,35 @@ fn project_bar_top(
 }
 
 /// Rotate nameplates to always face the camera (billboard effect).
+/// Turns quest indicator markers toward the camera around the vertical axis only, from
+/// their world position, compensating the NPC's own facing.
 fn billboard_nameplates(
     camera_query: Query<&GlobalTransform, With<Camera3d>>,
-    mut plate_query: Query<&mut Transform, With<QuestIndicatorModel>>,
+    mut indicators: Query<(&mut Transform, &GlobalTransform, &ChildOf), With<QuestIndicatorModel>>,
+    parents: Query<&GlobalTransform, Without<QuestIndicatorModel>>,
 ) {
     let Ok(camera_global) = camera_query.single() else {
         return;
     };
     let camera_pos = camera_global.translation();
-    for mut transform in plate_query.iter_mut() {
-        let dir = camera_pos - transform.translation;
-        if dir.length_squared() > 0.001 {
-            let look = Transform::from_translation(transform.translation)
-                .looking_to(Dir3::new(dir).unwrap_or(Dir3::Z), Dir3::Y);
-            if transform.rotation != look.rotation {
-                transform.rotation = look.rotation;
-            }
+    for (mut transform, global, child_of) in &mut indicators {
+        let Ok(parent) = parents.get(child_of.parent()) else {
+            continue;
+        };
+        let rotation = indicator_facing(camera_pos, global.translation(), parent.rotation());
+        if let Some(rotation) = rotation.filter(|rotation| *rotation != transform.rotation) {
+            transform.rotation = rotation;
         }
     }
+}
+
+/// Local rotation that yaws a marker at `marker` toward `camera` under a parent with
+/// world rotation `parent`; `None` when the camera is straight above.
+fn indicator_facing(camera: Vec3, marker: Vec3, parent: Quat) -> Option<Quat> {
+    let flat = Vec3::new(camera.x - marker.x, 0.0, camera.z - marker.z);
+    let dir = Dir3::new(flat).ok()?;
+    let world = Transform::IDENTITY.looking_to(dir, Dir3::Y).rotation;
+    Some(parent.inverse() * world)
 }
 
 fn nameplate_fade_near(fade_far: f32) -> f32 {
