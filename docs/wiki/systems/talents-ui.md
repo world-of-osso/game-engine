@@ -16,7 +16,7 @@ Retail-style talent window `PlayerSpellsFrame`, driven by the server trait confi
 
 ## Data
 
-`TalentTreePlugin` loads on `AsyncComputeTaskPool` at `Startup` (`TalentTrees.state`: `Loading` → `Ready`/`Failed`). There is no cache (see load time below).
+`TalentTreePlugin` loads on `AsyncComputeTaskPool` at `Startup` (`TalentTrees.state`: `Loading` → `Ready`/`Failed`). The result is cached in `data/cache/talent_trees-12.1.0.69933.bin` (bincode, keyed by format, build, and the size and mtime of every source CSV), the same scheme as the [[spell-catalog]].
 
 - Trees: the ten character-creation classes, class skill line → `SkillLineXTraitTree` (same table as the server, Paladin 800 → 790).
 - Per node: `PosX`/`PosY`, `Type`, `TraitSubTreeID`, entries in `_Index` order (`TraitNodeEntry` → `TraitDefinition` spell, override name/icon, `MaxRanks`), groups, parents (`TraitEdge` types 2/3; any other type fails the load, as on the server), and the conditions and costs linked to the node, its groups and its entries.
@@ -67,7 +67,15 @@ A port of game-server `trait_config` (TrinityCore `TraitMgr`): granted entries, 
 
 ## Load time
 
-Measured in the dev test profile (debug crate, deps at opt-level 2) under heavy machine load: see [[log]] for the measured value. The background task keeps it off the main thread.
+Measured on 2026-09-23 in the dev test profile (debug crate, deps at opt-level 2), with a machine load average of about 120:
+
+| | |
+|---|---|
+| Cold (CSV build + cache write) | 1.49 s |
+| Warm (cache read) | 7.4 ms |
+| Cache file | 151 KB |
+
+The cold load includes the 417k-row `SpellMisc.csv` scan for the passive flags. Command: `cargo test --lib talent_tree -- --nocapture`.
 
 ## Known gaps
 

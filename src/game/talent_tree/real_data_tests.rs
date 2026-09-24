@@ -11,19 +11,34 @@ const PALADIN_TREE: u32 = 790;
 const RETRIBUTION: u32 = 70;
 const PROTECTION: u32 = 66;
 
+/// Cold load (CSV build + cache write) and warm load (cache read), once per process.
 fn loaded() -> Option<&'static TalentTreeData> {
     static LOADED: OnceLock<Option<TalentTreeData>> = OnceLock::new();
     LOADED
         .get_or_init(|| {
-            let dir = talent_source_dir(Path::new("data"));
-            if !dir.join("TraitNode.csv").exists() {
+            if !talent_source_dir(Path::new("data"))
+                .join("TraitNode.csv")
+                .exists()
+            {
                 eprintln!("skipping: trait DB2 CSVs not present");
                 return None;
             }
+            let mut paths = TalentTreePaths::for_data_dir(Path::new("data"));
+            paths.cache_path =
+                std::env::temp_dir().join(format!("talent_trees_test_{}.bin", std::process::id()));
             let started = Instant::now();
-            let data = load_talent_trees(Path::new("data")).expect("load talent trees");
-            eprintln!("talent trees loaded in {:?}", started.elapsed());
-            Some(data)
+            let cold = load_talent_trees(&paths).expect("cold talent tree load");
+            let cold_time = started.elapsed();
+            let started = Instant::now();
+            let warm = load_talent_trees(&paths).expect("warm talent tree load");
+            eprintln!(
+                "talent trees: cold {cold_time:?}, warm {:?}, cache {} bytes",
+                started.elapsed(),
+                std::fs::metadata(&paths.cache_path).map_or(0, |meta| meta.len())
+            );
+            std::fs::remove_file(&paths.cache_path).expect("remove test cache");
+            assert_eq!(cold, warm, "cache round trip");
+            Some(warm)
         })
         .as_ref()
 }
