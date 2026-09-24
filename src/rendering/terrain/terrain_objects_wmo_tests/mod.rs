@@ -6,6 +6,7 @@ pub(super) use bevy::ecs::system::RunSystemOnce;
 
 mod doodads;
 mod group_runtime;
+mod interior_gpu;
 mod liquid;
 mod root_runtime;
 
