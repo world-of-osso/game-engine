@@ -12,6 +12,7 @@ pub mod char_create_component;
 pub mod char_select_component;
 pub mod char_select_delete_confirm_component;
 pub mod character_frame_component;
+pub mod chat_frame_component;
 pub mod communities_frame_component;
 pub mod dress_up_frame_component;
 pub mod edit_mode_component;

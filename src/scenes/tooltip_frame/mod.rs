@@ -8,6 +8,7 @@ use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
+use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
@@ -281,13 +282,15 @@ fn hovered_spell_tooltip(
         .spellbook
         .as_deref()
         .and_then(|runtime| runtime.spell_for_frame(registry, frame_id));
-    let spell_id = from_spellbook.or_else(|| {
-        let slot = hovered_action_slot(registry, frame_id)?;
-        match sources.action_slots.as_deref()?.get(slot)? {
-            ActionRef::Spell(id) => Some(id),
-            ActionRef::Item(_) | ActionRef::Macro(_) => None,
-        }
-    })?;
+    let spell_id = from_spellbook
+        .or_else(|| {
+            let slot = hovered_action_slot(registry, frame_id)?;
+            match sources.action_slots.as_deref()?.get(slot)? {
+                ActionRef::Spell(id) => Some(id),
+                ActionRef::Item(_) | ActionRef::Macro(_) => None,
+            }
+        })
+        .or_else(|| chat_spell_link_at(registry, frame_id))?;
     let catalog = sources.catalog.as_deref();
     Some(match catalog.and_then(|catalog| catalog.get(spell_id)) {
         Some(spell) => spell_tooltip(spell, catalog.and_then(|c| c.render_description(spell_id))),

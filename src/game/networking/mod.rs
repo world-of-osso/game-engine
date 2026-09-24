@@ -183,6 +183,7 @@ fn register_zone_and_chat_resources(app: &mut App) {
     app.init_resource::<ChatLog>();
     app.init_resource::<ChatInput>();
     app.init_resource::<EmoteInput>();
+    app.init_resource::<game_engine::ui::chat_frame::CombatLogChat>();
     app.insert_resource(game_engine::chat_data::ChatState {
         max_messages: MAX_CHAT_LOG,
         ..Default::default()

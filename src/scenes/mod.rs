@@ -5,6 +5,7 @@ pub mod casting_bar_frame;
 pub mod char_create;
 pub mod char_select;
 pub mod character_frame;
+pub mod chat_frame;
 pub mod dump_tree;
 pub mod encounter_journal_frame;
 pub mod eula;

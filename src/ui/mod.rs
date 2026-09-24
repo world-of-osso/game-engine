@@ -130,6 +130,7 @@ pub mod automation;
 mod automation_inworld;
 pub mod automation_script;
 pub mod character_creation_icons;
+pub mod chat_frame;
 pub mod game_plugin;
 pub mod js_automation;
 pub mod panel_styles;
