@@ -171,6 +171,8 @@ pub enum QuestIndicator {
     TurnIn,
     /// Silver ! — NPC has a quest available but requirements not met.
     Unavailable,
+    /// Silver ? — a quest in the log ends here but is not complete.
+    Incomplete,
     /// Blue ! — Daily quest available.
     DailyAvailable,
     /// Blue ? — Daily quest turn-in.
@@ -188,7 +190,7 @@ impl QuestIndicator {
             | Self::Unavailable
             | Self::DailyAvailable
             | Self::CampaignAvailable => "!",
-            Self::TurnIn | Self::DailyTurnIn => "?",
+            Self::TurnIn | Self::DailyTurnIn | Self::Incomplete => "?",
         }
     }
 
@@ -197,7 +199,7 @@ impl QuestIndicator {
         match self {
             Self::None => [0.0; 4],
             Self::Available | Self::TurnIn => [1.0, 0.82, 0.0, 1.0],
-            Self::Unavailable => [0.7, 0.7, 0.7, 1.0],
+            Self::Unavailable | Self::Incomplete => [0.7, 0.7, 0.7, 1.0],
             Self::DailyAvailable | Self::DailyTurnIn => [0.3, 0.5, 1.0, 1.0],
             Self::CampaignAvailable => [1.0, 0.5, 0.0, 1.0],
         }
@@ -219,6 +221,7 @@ impl QuestIndicator {
             }
             Self::CampaignAvailable => crate::quest_data::textures::QUEST_BANG_CAMPAIGN,
             Self::Unavailable => crate::quest_data::textures::QUEST_BANG_NORMAL,
+            Self::Incomplete => crate::quest_data::textures::QUEST_TURNIN,
         }
     }
 
@@ -229,6 +232,7 @@ impl QuestIndicator {
             Self::Available => 130731,         // talktome.m2 (yellow !)
             Self::TurnIn => 130738,            // talktomequestionmark.m2 (yellow ?)
             Self::Unavailable => 130734,       // talktomegrey.m2 (silver !)
+            Self::Incomplete => 130735,        // talktomequestion_grey.m2 (silver ?)
             Self::DailyAvailable => 130732,    // talktomeblue.m2 (blue !)
             Self::DailyTurnIn => 130736,       // talktomequestion_ltblue.m2 (blue ?)
             Self::CampaignAvailable => 650616, // talktome_legendary.m2 (orange !)

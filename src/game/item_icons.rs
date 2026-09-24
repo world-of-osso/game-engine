@@ -1,0 +1,114 @@
+//! Item icon FileDataIDs: `ItemModifiedAppearance` (item → appearance, lowest
+//! `OrderIndex`) joined with `ItemAppearance.DefaultIconFileDataID`, as Retail
+//! `C_Item.GetItemIconByID` resolves the base appearance.
+
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader};
+use std::path::Path;
+use std::sync::OnceLock;
+
+use crate::csv_util::{header_index, parse_csv_line};
+
+pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
+    static ICONS: OnceLock<HashMap<u32, u32>> = OnceLock::new();
+    ICONS
+        .get_or_init(|| {
+            load_item_icons().unwrap_or_else(|err| {
+                bevy::log::error!("item icons unavailable: {err}");
+                HashMap::new()
+            })
+        })
+        .get(&item_id)
+        .copied()
+}
+
+fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
+    let appearance_icons = read_columns(
+        &crate::paths::resolve_data_path("ItemAppearance.csv"),
+        ["ID", "DefaultIconFileDataID", "ID"],
+    )?;
+    let appearance_icon: HashMap<u32, u32> = appearance_icons
+        .into_iter()
+        .map(|[id, icon, _]| (id, icon))
+        .collect();
+    let modified = read_columns(
+        &crate::paths::resolve_data_path("ItemModifiedAppearance.csv"),
+        ["ItemID", "ItemAppearanceID", "OrderIndex"],
+    )?;
+    Ok(item_icons(modified, &appearance_icon))
+}
+
+/// Keeps each item's lowest-`OrderIndex` appearance that has an icon.
+fn item_icons(modified: Vec<[u32; 3]>, appearance_icon: &HashMap<u32, u32>) -> HashMap<u32, u32> {
+    let mut best: HashMap<u32, (u32, u32)> = HashMap::new();
+    for [item_id, appearance_id, order] in modified {
+        let Some(&icon) = appearance_icon
+            .get(&appearance_id)
+            .filter(|icon| **icon != 0)
+        else {
+            continue;
+        };
+        let entry = best.entry(item_id).or_insert((order, icon));
+        if order < entry.0 {
+            *entry = (order, icon);
+        }
+    }
+    best.into_iter()
+        .map(|(item, (_, icon))| (item, icon))
+        .collect()
+}
+
+fn read_columns(path: &Path, columns: [&str; 3]) -> Result<Vec<[u32; 3]>, String> {
+    let file =
+        std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
+    let mut lines = BufReader::new(file).lines();
+    let header = lines
+        .next()
+        .ok_or_else(|| format!("{} is empty", path.display()))?
+        .map_err(|err| format!("read {}: {err}", path.display()))?;
+    let headers = parse_csv_line(&header);
+    let indexes = [
+        header_index(&headers, columns[0], path)?,
+        header_index(&headers, columns[1], path)?,
+        header_index(&headers, columns[2], path)?,
+    ];
+    let mut rows = Vec::new();
+    for line in lines {
+        let line = line.map_err(|err| format!("read {}: {err}", path.display()))?;
+        let fields = parse_csv_line(&line);
+        let value = |index: usize| fields.get(index).and_then(|v| v.parse::<u32>().ok());
+        if let (Some(a), Some(b), Some(c)) =
+            (value(indexes[0]), value(indexes[1]), value(indexes[2]))
+        {
+            rows.push([a, b, c]);
+        }
+    }
+    Ok(rows)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lowest_order_index_with_an_icon_wins() {
+        let appearance_icon = HashMap::from([(10, 135_274), (11, 0), (12, 134_948)]);
+        let icons = item_icons(
+            vec![[2055, 12, 1], [2055, 10, 0], [2057, 11, 0], [2057, 12, 2]],
+            &appearance_icon,
+        );
+        assert_eq!(icons.get(&2055), Some(&135_274));
+        assert_eq!(
+            icons.get(&2057),
+            Some(&134_948),
+            "icon-less appearance skipped"
+        );
+    }
+
+    #[test]
+    fn brotherhood_of_thieves_reward_resolves_from_retail_tables() {
+        // Brotherhood of Thieves (18) choice reward 5580.
+        // ItemModifiedAppearance 2132 → ItemAppearance 1885.
+        assert_eq!(item_icon_fdid(5580), Some(133_057));
+    }
+}

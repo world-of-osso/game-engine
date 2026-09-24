@@ -103,9 +103,10 @@ fn world_camera_click_selects_npc_with_ui_camera_and_ui_disabled() {
 }
 
 #[test]
-fn world_camera_right_click_ray_resolves_npc_with_ui_camera() {
+fn world_camera_right_click_ray_resolves_npc_and_requests_interaction() {
+    use crate::networking_quests::NpcInteractionRequest;
     let (mut app, npc) = picking_app();
-    app.init_resource::<GossipIntentQueue>()
+    app.add_message::<NpcInteractionRequest>()
         .init_resource::<MailIntentQueue>();
     app.world_mut().spawn((
         Player,
@@ -118,4 +119,10 @@ fn world_camera_right_click_ray_resolves_npc_with_ui_camera() {
         .run_system_once(right_click_interact)
         .unwrap();
     assert_eq!(app.world().resource::<CurrentTarget>().0, Some(npc));
+    let requests: Vec<NpcInteractionRequest> = app
+        .world_mut()
+        .resource_mut::<Messages<NpcInteractionRequest>>()
+        .drain()
+        .collect();
+    assert_eq!(requests, vec![NpcInteractionRequest::Interact(npc)]);
 }

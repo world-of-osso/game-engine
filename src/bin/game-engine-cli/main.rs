@@ -360,6 +360,11 @@ pub(crate) enum InventoryCmd {
 pub(crate) enum QuestCmd {
     List,
     Watch,
+    /// Interact with an NPC by name, as a right-click on it does
+    Interact {
+        #[arg(long)]
+        npc: String,
+    },
     Show {
         #[arg(long)]
         id: u32,

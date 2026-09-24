@@ -6,6 +6,7 @@ pub(crate) fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
     let frame = reg.get(id).expect("frame data");
     match frame.widget_data.as_ref() {
         Some(WidgetData::FontString(fs)) => fs.text.clone(),
-        _ => panic!("{name} is not a FontString"),
+        Some(WidgetData::Button(button)) => button.text.clone(),
+        _ => panic!("{name} is not a FontString or Button"),
     }
 }

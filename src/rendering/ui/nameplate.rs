@@ -504,60 +504,23 @@ fn sync_quest_indicators(
     mut commands: Commands,
     changed: Query<(Entity, &NpcQuestIndicator, Option<&Children>), Changed<NpcQuestIndicator>>,
     indicator_models: Query<Entity, With<QuestIndicatorModel>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
-    mut images: ResMut<Assets<Image>>,
-    mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
+    mut assets: QuestIndicatorAssets,
 ) {
-    let mut assets = quest_indicator_spawn_assets(
-        &mut meshes,
-        &mut materials,
-        &mut effect_materials,
-        &mut images,
-        &mut inv_bp,
-    );
     for (entity, npc_qi, children) in &changed {
-        sync_indicator_for_entity(
-            &mut commands,
-            &mut assets,
-            &indicator_models,
-            entity,
-            npc_qi,
-            children,
-        );
+        despawn_indicator_children(&mut commands, children, &indicator_models);
+        if npc_qi.0.is_visible() {
+            spawn_indicator_m2(&mut commands, &mut assets, entity, npc_qi.0);
+        }
     }
 }
 
-fn quest_indicator_spawn_assets<'a>(
-    meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
-    effect_materials: &'a mut Assets<M2EffectMaterial>,
-    images: &'a mut Assets<Image>,
-    inverse_bindposes: &'a mut Assets<SkinnedMeshInverseBindposes>,
-) -> m2_spawn::SpawnAssets<'a> {
-    m2_spawn::SpawnAssets {
-        meshes,
-        materials,
-        effect_materials,
-        skybox_materials: None,
-        images,
-        inverse_bindposes,
-    }
-}
-
-fn sync_indicator_for_entity(
-    commands: &mut Commands,
-    assets: &mut m2_spawn::SpawnAssets<'_>,
-    indicator_models: &Query<Entity, With<QuestIndicatorModel>>,
-    entity: Entity,
-    npc_qi: &NpcQuestIndicator,
-    children: Option<&Children>,
-) {
-    despawn_indicator_children(commands, children, indicator_models);
-    if npc_qi.0.is_visible() {
-        spawn_indicator_m2(commands, assets, entity, npc_qi.0);
-    }
+#[derive(SystemParam)]
+struct QuestIndicatorAssets<'w> {
+    meshes: ResMut<'w, Assets<Mesh>>,
+    materials: ResMut<'w, Assets<StandardMaterial>>,
+    effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
+    images: ResMut<'w, Assets<Image>>,
+    inverse_bindposes: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
 }
 
 fn despawn_indicator_children(
@@ -573,9 +536,10 @@ fn despawn_indicator_children(
     }
 }
 
+/// Spawns the `interface/buttons/talktome*.m2` marker with its looping animation.
 fn spawn_indicator_m2(
     commands: &mut Commands,
-    assets: &mut m2_spawn::SpawnAssets<'_>,
+    assets: &mut QuestIndicatorAssets,
     parent: Entity,
     indicator: QuestIndicator,
 ) {
@@ -590,10 +554,25 @@ fn spawn_indicator_m2(
             Name::new("QuestIndicator"),
             Transform::from_xyz(0.0, QUEST_INDICATOR_Y, 0.0),
             Visibility::default(),
+            ChildOf(parent),
         ))
         .id();
-    commands.entity(parent).add_child(indicator_root);
-    m2_spawn::spawn_m2_on_entity(commands, assets, &m2_path, indicator_root, &[0, 0, 0]);
+    let mut context = crate::m2_scene::M2SceneSpawnContext {
+        commands,
+        assets: m2_spawn::SpawnAssets {
+            meshes: &mut assets.meshes,
+            materials: &mut assets.materials,
+            effect_materials: &mut assets.effect_materials,
+            skybox_materials: None,
+            images: &mut assets.images,
+            inverse_bindposes: &mut assets.inverse_bindposes,
+        },
+        creature_display_map: &crate::creature_display::CreatureDisplayMap,
+    };
+    if !crate::m2_scene::spawn_full_m2_on_entity(&mut context, &m2_path, indicator_root) {
+        warn!("Quest indicator M2 {} failed to load", m2_path.display());
+        context.commands.entity(indicator_root).despawn();
+    }
 }
 
 /// Clean up quest indicator M2 when the component is removed.

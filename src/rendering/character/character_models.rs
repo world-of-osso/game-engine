@@ -299,6 +299,26 @@ fn ensure_named_model_asset(wow_path: &str) -> Option<PathBuf> {
     asset::asset_cache::file_at_path(fdid, &out_path)
 }
 
+/// Retail `ChrClasses` names by class id.
+pub fn class_name(class_id: u8) -> &'static str {
+    match class_id {
+        1 => "Warrior",
+        2 => "Paladin",
+        3 => "Hunter",
+        4 => "Rogue",
+        5 => "Priest",
+        6 => "Death Knight",
+        7 => "Shaman",
+        8 => "Mage",
+        9 => "Warlock",
+        10 => "Monk",
+        11 => "Druid",
+        12 => "Demon Hunter",
+        13 => "Evoker",
+        _ => "Unknown",
+    }
+}
+
 pub fn race_name(race: u8) -> &'static str {
     race_name_entry(race).unwrap_or("Unknown")
 }

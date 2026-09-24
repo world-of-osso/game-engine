@@ -144,7 +144,7 @@ fn extract_identity(stats: Option<&CharacterStatsSnapshot>) -> (String, u16, Str
     let level = stats.and_then(|s| s.level).unwrap_or(0);
     let class = stats
         .and_then(|s| s.class)
-        .map(class_name_from_id)
+        .map(|class| game_engine::character_models::class_name(class).to_string())
         .unwrap_or_default();
     (name, level, class)
 }
@@ -186,24 +186,4 @@ fn format_resource_bar(
             }
         })
         .unwrap_or_default()
-}
-
-fn class_name_from_id(class_id: u8) -> String {
-    match class_id {
-        1 => "Warrior",
-        2 => "Paladin",
-        3 => "Hunter",
-        4 => "Rogue",
-        5 => "Priest",
-        6 => "Death Knight",
-        7 => "Shaman",
-        8 => "Mage",
-        9 => "Warlock",
-        10 => "Monk",
-        11 => "Druid",
-        12 => "Demon Hunter",
-        13 => "Evoker",
-        _ => "Unknown",
-    }
-    .to_string()
 }

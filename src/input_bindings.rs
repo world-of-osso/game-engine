@@ -131,11 +131,12 @@ pub enum InputAction {
     ToggleSocial,
     ToggleMail,
     ToggleLootRules,
+    ToggleQuestLog,
     ToggleWorldMap,
 }
 
 impl InputAction {
-    pub const ALL: [Self; 38] = [
+    pub const ALL: [Self; 39] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -173,6 +174,7 @@ impl InputAction {
         Self::ToggleSocial,
         Self::ToggleMail,
         Self::ToggleLootRules,
+        Self::ToggleQuestLog,
         Self::ToggleWorldMap,
     ];
 
@@ -241,9 +243,11 @@ impl InputAction {
             ),
             Self::ToggleSocial => ("toggle_social", "Social", Some(keyboard(KeyCode::KeyO))),
             Self::ToggleMail => ("toggle_mail", "Mail", None),
-            Self::ToggleLootRules => (
-                "toggle_loot_rules",
-                "Loot Rules",
+            Self::ToggleLootRules => ("toggle_loot_rules", "Loot Rules", None),
+            // Retail TOGGLEQUESTLOG default binding.
+            Self::ToggleQuestLog => (
+                "toggle_quest_log",
+                "Quest Log",
                 Some(keyboard(KeyCode::KeyL)),
             ),
             Self::ToggleWorldMap => (
@@ -293,6 +297,7 @@ impl InputAction {
             | Self::ToggleSocial
             | Self::ToggleMail
             | Self::ToggleLootRules
+            | Self::ToggleQuestLog
             | Self::ToggleWorldMap => unreachable!("panel toggles handled by interface_meta"),
             Self::ActionSlot1
             | Self::ActionSlot2
@@ -717,6 +722,7 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
         "toggle_social" => InputAction::ToggleSocial,
         "toggle_mail" => InputAction::ToggleMail,
         "toggle_loot_rules" => InputAction::ToggleLootRules,
+        "toggle_quest_log" => InputAction::ToggleQuestLog,
         "toggle_world_map" => InputAction::ToggleWorldMap,
         _ => return None,
     })
@@ -813,6 +819,7 @@ fn interface_section_actions() -> &'static [InputAction] {
         InputAction::ToggleSocial,
         InputAction::ToggleMail,
         InputAction::ToggleLootRules,
+        InputAction::ToggleQuestLog,
         InputAction::ToggleWorldMap,
     ]
 }

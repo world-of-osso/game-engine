@@ -49,6 +49,8 @@ pub enum WindowId {
     Mail,
     Merchant,
     Professions,
+    QuestGiver,
+    QuestLog,
     Spellbook,
     Talents,
     WorldMap,
@@ -77,13 +79,15 @@ impl WindowId {
             | Self::Mail
             | Self::Merchant
             | Self::Professions
+            | Self::QuestGiver
+            | Self::QuestLog
             | Self::Spellbook => WindowClass::Panel,
         }
     }
 
     /// NPC-driven panels take slot L and push the others right.
     pub fn npc_driven(self) -> bool {
-        matches!(self, Self::Mail | Self::Merchant)
+        matches!(self, Self::Mail | Self::Merchant | Self::QuestGiver)
     }
 
     /// Registry name of the window's root frame; also its saved-position key.
@@ -101,6 +105,8 @@ impl WindowId {
             Self::Mail => "MailFrame",
             Self::Merchant => "MerchantFrame",
             Self::Professions => "ProfessionsFrame",
+            Self::QuestGiver => "QuestFrame",
+            Self::QuestLog => "QuestLogFrame",
             Self::Spellbook => "SpellBookRoot",
             Self::Talents => "PlayerSpellsFrame",
             Self::WorldMap => "WorldMapFrame",

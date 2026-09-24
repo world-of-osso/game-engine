@@ -322,6 +322,8 @@ struct IpcSenderParams<'w, 's> {
     >,
     game_state: Res<'w, State<crate::game_state_enum::GameState>>,
     connected_query: Query<'w, 's, Entity, With<Connected>>,
+    npc_interactions: MessageWriter<'w, game_engine::quest_runtime::NpcInteractionRequest>,
+    npcs: Query<'w, 's, (Entity, &'static shared::components::Npc)>,
 }
 
 pub struct IpcPlugin;
@@ -329,6 +331,7 @@ pub struct IpcPlugin;
 impl Plugin for IpcPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EquipmentControlQueue>()
+            .add_message::<game_engine::quest_runtime::NpcInteractionRequest>()
             .init_resource::<ScriptedMovement>()
             .init_resource::<PendingIpcCommands>()
             .configure_sets(
@@ -666,6 +669,7 @@ fn dispatch_map_and_equipment_request(
         Request::ScriptedMovementStop => {
             handle_scripted_movement_stop(cmd.respond, &mut sender_params.scripted_movement);
         }
+        Request::QuestInteract { npc } => handle_quest_interact(cmd.respond, sender_params, &npc),
         Request::EquipmentSet { .. } => {
             dispatch_equipment_set_request(cmd, &mut sender_params.equipment_control);
         }
@@ -687,6 +691,28 @@ fn dispatch_map_and_equipment_request(
         }
         _ => {}
     }
+}
+
+/// Queues the right-click interaction for the NPC named `name`; the server checks range.
+fn handle_quest_interact(
+    respond: mpsc::Sender<Response>,
+    params: &mut IpcSenderParams,
+    name: &str,
+) {
+    let npc = params
+        .npcs
+        .iter()
+        .find(|(_, npc)| npc.name.eq_ignore_ascii_case(name));
+    let response = match npc {
+        Some((entity, npc)) => {
+            params.npc_interactions.write(
+                game_engine::quest_runtime::NpcInteractionRequest::Interact(entity),
+            );
+            Response::Text(format!("interact {}", npc.name))
+        }
+        None => Response::Error(format!("no NPC named {name}")),
+    };
+    let _ = respond.send(response);
 }
 
 fn respond_with_map_position(cmd: Command, map_status: &MapStatusSnapshot) {

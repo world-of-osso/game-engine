@@ -561,6 +561,7 @@ fn add_core_screen_plugins(app: &mut App) {
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
         crate::networking_auras::AuraSyncPlugin,
+        crate::networking_quests::QuestNetworkPlugin,
         scenes::eula::EulaScreenPlugin,
         scenes::login::LoginScreenPlugin,
         scenes::loading::LoadingScreenPlugin,
@@ -617,6 +618,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(taxi::TaxiPlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);
     app.add_plugins(scenes::mail_frame::MailFramePlugin);
+    app.add_plugins(scenes::quest_ui::QuestUiPlugin);
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
     app.add_plugins(scenes::group_frames::GroupFramesPlugin);
     app.add_plugins(scenes::loot_rules_frame::LootRulesFramePlugin);

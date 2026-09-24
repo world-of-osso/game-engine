@@ -209,6 +209,10 @@ pub enum Request {
     },
     QuestList,
     QuestWatch,
+    /// Interact with the nearest NPC of this name (the right-click request).
+    QuestInteract {
+        npc: String,
+    },
     QuestShow {
         quest_id: u32,
     },
