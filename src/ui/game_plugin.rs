@@ -21,20 +21,15 @@ pub enum SpellbookUiSystems {
     Input,
 }
 
-/// Whether the spellbook panel is shown. Toggled by the `ToggleSpellbook` binding.
-#[derive(Resource, Default, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SpellbookFrameOpen(pub bool);
-
 pub fn register_spellbook_frame_systems(app: &mut App) {
     app.insert_non_send(SpellbookUiRuntime::new());
-    app.init_resource::<SpellbookFrameOpen>();
     app.configure_sets(
         Update,
         (SpellbookUiSystems::Sync, SpellbookUiSystems::Input).chain(),
     );
     app.add_systems(
         Update,
-        (sync_spellbook_model, sync_screen_ui, sync_spellbook_open)
+        (sync_spellbook_model, sync_screen_ui)
             .chain()
             .in_set(SpellbookUiSystems::Sync),
     );
@@ -86,32 +81,20 @@ pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<Spe
     }
 }
 
-pub fn sync_spellbook_open(
-    mut state: ResMut<UiState>,
-    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
-    open: Option<Res<SpellbookFrameOpen>>,
-) {
-    let (Some(mut runtime), Some(open)) = (runtime, open) else {
-        return;
-    };
-    if runtime.is_open() != open.0 {
-        runtime
-            .bypass_change_detection()
-            .set_open(&mut state.bypass_change_detection().registry, open.0);
+/// Shows or hides the spellbook; the engine window manager owns the open state.
+pub fn set_spellbook_open(state: &mut UiState, runtime: &mut SpellbookUiRuntime, open: bool) {
+    if runtime.is_open() != open {
+        runtime.set_open(&mut state.registry, open);
     }
 }
 
 pub fn teardown_spellbook_ui(
     mut state: ResMut<UiState>,
     runtime: Option<NonSendMut<SpellbookUiRuntime>>,
-    open: Option<ResMut<SpellbookFrameOpen>>,
 ) {
     if let Some(mut runtime) = runtime {
         runtime.teardown(&mut state.registry);
         runtime.set_open(&mut state.registry, false);
-    }
-    if let Some(mut open) = open {
-        open.set_if_neq(SpellbookFrameOpen(false));
     }
 }
 
@@ -270,6 +253,14 @@ mod idle_tests {
         ))
     }
 
+    fn set_open(app: &mut App, open: bool) {
+        app.world_mut()
+            .resource_scope(|world, mut state: Mut<UiState>| {
+                let mut runtime = world.non_send_resource_mut::<SpellbookUiRuntime>();
+                set_spellbook_open(&mut state, &mut runtime, open);
+            });
+    }
+
     fn app() -> App {
         let mut app = App::new();
         app.insert_resource(UiState {
@@ -301,7 +292,7 @@ mod idle_tests {
         app.insert_resource(LayoutOrigin(Vec2::new(80.0, 120.0)));
         app.add_systems(PostUpdate, readback_layout);
         app.add_systems(Last, record_changes);
-        app.world_mut().resource_mut::<SpellbookFrameOpen>().0 = true;
+        set_open(&mut app, true);
         app.update();
         (app, window)
     }
@@ -494,7 +485,7 @@ mod idle_tests {
     fn closing_the_spellbook_hides_it_and_stops_clicks() {
         let (mut app, window) = production_app();
         point_at(&mut app, window, "SpellBookTabPanel1");
-        app.world_mut().resource_mut::<SpellbookFrameOpen>().0 = false;
+        set_open(&mut app, false);
         app.update();
         click(&mut app);
         let registry = &app.world().resource::<UiState>().registry;

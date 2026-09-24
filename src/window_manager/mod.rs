@@ -101,7 +101,7 @@ impl WindowId {
             Self::Mail => "MailFrame",
             Self::Merchant => "MerchantFrame",
             Self::Professions => "ProfessionsFrame",
-            Self::Spellbook => "SpellbookFrame",
+            Self::Spellbook => "SpellBookRoot",
             Self::Talents => "PlayerSpellsFrame",
             Self::WorldMap => "WorldMapFrame",
         };

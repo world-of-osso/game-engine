@@ -172,7 +172,8 @@ fn register_in_world_systems(app: &mut App) {
     );
     app.add_systems(
         Update,
-        toggle_spellbook_frame
+        (toggle_spellbook_frame, sync_spellbook_window)
+            .chain()
             .before(SpellbookUiSystems::Sync)
             .run_if(in_state(GameState::InWorld)),
     );
@@ -181,10 +182,23 @@ fn register_in_world_systems(app: &mut App) {
 
 fn toggle_spellbook_frame(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut open: ResMut<game_engine::ui::game_plugin::SpellbookFrameOpen>,
+    mut window_manager: ResMut<crate::window_manager::WindowManager>,
 ) {
     if keybinds.just_pressed(game_engine::input_bindings::InputAction::ToggleSpellbook) {
-        open.0 = !open.0;
+        window_manager.toggle(crate::window_manager::WindowId::Spellbook);
+    }
+}
+
+/// The spellbook runtime shows exactly what the window manager has open.
+fn sync_spellbook_window(
+    window_manager: Res<crate::window_manager::WindowManager>,
+    mut ui: ResMut<game_engine::ui::plugin::UiState>,
+    runtime: Option<NonSendMut<game_engine::ui::spellbook_runtime::SpellbookUiRuntime>>,
+) {
+    let Some(mut runtime) = runtime else { return };
+    let open = window_manager.is_open(crate::window_manager::WindowId::Spellbook);
+    if runtime.is_open() != open {
+        game_engine::ui::game_plugin::set_spellbook_open(&mut ui, &mut runtime, open);
     }
 }
 

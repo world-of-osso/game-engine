@@ -890,7 +890,6 @@ Updated [[ui-system]] (Combat Feedback). The player cast bar now follows the rep
 ## [2026-09-23] ui | Spellbook and action bars from server data
 
 Updated [[ui-system]] (Spellbook and action bars) and [[spell-catalog]] (passive flag, tab rule). Known spells, spec, action bar slots, cooldowns and charges come from the server. The spellbook is mounted in production behind `P`. Action buttons are `ActionButton<bar>_<button>` with icons, cooldown wipe/text, charges and range/power tints. Drag and drop sends `SetActionButton`. Casts target the server entity. Focused tests only; no native run.
-||||||| parent of 6c27c7c0 (Docs: window manager and edit mode in UI wiki and plan framework table)
 
 ## [2026-09-23] ui | Window manager, movable windows, HUD edit mode
 

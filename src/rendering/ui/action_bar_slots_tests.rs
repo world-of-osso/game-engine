@@ -618,13 +618,19 @@ fn unchanged_slots_do_not_dirty_the_ui() {
 #[test]
 fn dragging_spellbook_entry_onto_slot_two_sends_set_action_button() {
     use game_engine::player_spells::KnownSpells;
-    use game_engine::ui::game_plugin::{SpellbookFrameOpen, register_spellbook_frame_systems};
+    use game_engine::ui::game_plugin::{register_spellbook_frame_systems, set_spellbook_open};
+    use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
     let mut f = fixture();
     f.app.add_message::<bevy::input::keyboard::KeyboardInput>();
     register_spellbook_frame_systems(&mut f.app);
     f.app
         .insert_resource(KnownSpells::new(vec![CRUSADER_STRIKE, JUDGMENT]));
-    f.app.world_mut().resource_mut::<SpellbookFrameOpen>().0 = true;
+    f.app
+        .world_mut()
+        .resource_scope(|world, mut state: Mut<UiState>| {
+            let mut runtime = world.non_send_resource_mut::<SpellbookUiRuntime>();
+            set_spellbook_open(&mut state, &mut runtime, true);
+        });
     f.app.update();
     f.relayout();
     assert_eq!(f.text("SpellBookSpellName2"), "Judgment");
