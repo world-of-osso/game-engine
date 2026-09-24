@@ -51,7 +51,6 @@ pub(super) fn draw_tracking_icons(
     player_row: u32,
     player_col: u32,
     tracking_points: &[TrackingPoint],
-    mask: &[bool],
 ) {
     let half = ds as i32 / 2;
     for point in tracking_points {
@@ -65,9 +64,6 @@ pub(super) fn draw_tracking_icons(
         let crop_x = icon_px_x as i32 - px_x as i32 + half;
         let crop_y = icon_px_y as i32 - px_y as i32 + half;
         if crop_x < 0 || crop_y < 0 || crop_x as usize >= ds || crop_y as usize >= ds {
-            continue;
-        }
-        if !mask[crop_y as usize * ds + crop_x as usize] {
             continue;
         }
         draw_tracking_icon(data, ds, crop_x, crop_y, point.kind);

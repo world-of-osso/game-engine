@@ -49,7 +49,7 @@ pub struct MinimapState {
 /// The 768×768 composite buffer only changes when the tile grid or loaded
 /// tiles change.  When just the player pixel moves within the same grid,
 /// we skip the expensive full recomposite and only redo the cheap 200×200
-/// circular crop.
+/// square crop.
 #[derive(Resource)]
 struct LastMinimapPixel {
     px_x: usize,
@@ -58,10 +58,8 @@ struct LastMinimapPixel {
     tile_col: u32,
     tile_generation: usize,
     composite_buf: Vec<u8>,
-    /// Reusable output buffer for the circular crop (avoids per-frame allocation).
+    /// Reusable output buffer for the square crop (avoids per-frame allocation).
     crop_buf: Vec<u8>,
-    /// Precomputed circular mask: true = inside circle. Computed once on first use.
-    circle_mask: Vec<bool>,
 }
 
 impl Default for LastMinimapPixel {
@@ -74,7 +72,6 @@ impl Default for LastMinimapPixel {
             tile_generation: 0,
             composite_buf: Vec::new(),
             crop_buf: Vec::new(),
-            circle_mask: Vec::new(),
         }
     }
 }
@@ -89,7 +86,6 @@ pub struct MinimapComposite {
 #[derive(Resource)]
 struct MinimapFrames {
     cluster: u64,
-    header: u64,
     display: u64,
     border: u64,
     arrow: u64,
@@ -135,7 +131,7 @@ fn register_minimap_systems(app: &mut App) {
             update_minimap_composite.after(generate_tile_textures),
             update_coord_text,
             update_zone_name,
-            rotate_minimap,
+            rotate_minimap_arrow,
         )
             .run_if(in_state(GameState::InWorld))
             .run_if(inworld_scene_stage_allows_ui),
@@ -146,14 +142,6 @@ fn resolve_frame_id(registry: &FrameRegistry, name: &str) -> u64 {
     registry
         .get_by_name(name)
         .unwrap_or_else(|| panic!("missing frame {name}"))
-}
-
-fn set_initial_visibility(registry: &mut FrameRegistry, id: u64) {
-    if let Some(frame) = registry.get_mut(id) {
-        frame.hidden = true;
-        frame.visible = false;
-        frame.effective_alpha = 0.0;
-    }
 }
 
 /// Create minimap frames in the UI toolkit registry.
@@ -178,17 +166,7 @@ fn create_minimap_frames(
         border_handle,
         arrow_handle,
     );
-    for id in [
-        frames.cluster,
-        frames.header,
-        frames.display,
-        frames.border,
-        frames.arrow,
-        frames.zone_name,
-        frames.coords,
-    ] {
-        set_initial_visibility(&mut ui.registry, id);
-    }
+    ui.registry.set_hidden(frames.cluster, true);
 
     commands.insert_resource(MinimapComposite {
         handle: composite_handle,
@@ -202,7 +180,6 @@ fn build_minimap_screen(registry: &mut FrameRegistry) -> MinimapFrames {
     screen.sync(&shared, registry);
     MinimapFrames {
         cluster: resolve_frame_id(registry, "MinimapCluster"),
-        header: resolve_frame_id(registry, "MinimapHeader"),
         display: resolve_frame_id(registry, "MinimapDisplay"),
         border: resolve_frame_id(registry, "MinimapBorder"),
         arrow: resolve_frame_id(registry, "MinimapArrow"),
@@ -232,22 +209,9 @@ fn set_minimap_texture(registry: &mut FrameRegistry, frame_id: u64, handle: Hand
     }
 }
 
+/// Children follow the cluster through `set_hidden` propagation.
 fn set_hud_visibility(ui: &mut UiState, frames: &MinimapFrames, visible: bool) {
-    for &fid in &[
-        frames.cluster,
-        frames.header,
-        frames.display,
-        frames.border,
-        frames.arrow,
-        frames.zone_name,
-        frames.coords,
-    ] {
-        if let Some(frame) = ui.registry.get_mut(fid) {
-            frame.hidden = !visible;
-            frame.visible = visible;
-            frame.effective_alpha = if visible { frame.alpha } else { 0.0 };
-        }
-    }
+    ui.registry.set_hidden(frames.cluster, !visible);
 }
 
 fn show_minimap_hud(mut ui: ResMut<UiState>, frames: Option<Res<MinimapFrames>>) {
@@ -274,19 +238,27 @@ fn sync_minimap_visibility(
     set_hud_visibility(&mut ui, &frames, visible);
 }
 
-/// Rotate minimap image by camera yaw (WoW-style rotating minimap).
-fn rotate_minimap(
-    camera_q: Query<&crate::camera::WowCamera>,
+/// North-up square map: the player arrow turns with the character's facing.
+fn rotate_minimap_arrow(
+    player_q: Query<&crate::camera::CharacterFacing, With<crate::camera::Player>>,
     mut ui: ResMut<UiState>,
     frames: Option<Res<MinimapFrames>>,
 ) {
-    let Ok(cam) = camera_q.single() else { return };
+    let Ok(facing) = player_q.single() else {
+        return;
+    };
     let Some(frames) = frames else { return };
-    if let Some(frame) = ui.registry.get_mut(frames.display) {
-        if let Some(WidgetData::Texture(tex)) = &mut frame.widget_data {
-            tex.rotation = -cam.yaw;
-        }
+    let rotation = arrow_rotation(facing.yaw);
+    if let Some(frame) = ui.registry.get_mut(frames.arrow)
+        && let Some(WidgetData::Texture(tex)) = &mut frame.widget_data
+    {
+        tex.rotation = rotation;
     }
+}
+
+/// Arrow angle for a facing yaw; `camera.rs` keeps facing at camera yaw + PI.
+fn arrow_rotation(facing_yaw: f32) -> f32 {
+    facing_yaw - std::f32::consts::PI
 }
 
 /// Generate minimap tile textures for newly loaded terrain tiles.
@@ -322,7 +294,7 @@ fn try_load_minimap_blp(tile_x: u32, tile_y: u32) -> Option<Image> {
     Some(crate::rgba_image(pixels, w, h))
 }
 
-/// Composite tile images centered on the player, crop and apply circular mask.
+/// Composite tile images centered on the player and crop the square display window.
 ///
 /// The 768×768 composite is only rebuilt when the tile grid or loaded tile set
 /// changes.  When just the player pixel shifts (same grid), we skip the heavy
@@ -373,7 +345,7 @@ fn update_minimap_composite(
         );
     }
     update_last_minimap_pixel(&mut last, &state, tile_gen);
-    apply_circular_crop(
+    apply_square_crop(
         &state.composite,
         &mut images,
         &mut last,
@@ -426,7 +398,7 @@ fn tile_grid_changed(last: &LastMinimapPixel, row: u32, col: u32, tile_gen: usiz
     row != last.tile_row || col != last.tile_col || tile_gen != last.tile_generation
 }
 
-fn apply_circular_crop(
+fn apply_square_crop(
     composite_res: &MinimapComposite,
     images: &mut Assets<Image>,
     last: &mut LastMinimapPixel,
@@ -438,17 +410,15 @@ fn apply_circular_crop(
     tracking_points: &[TrackingPoint],
 ) {
     let ds = MINIMAP_DISPLAY_SIZE as usize;
-    ensure_circle_mask(&mut last.circle_mask, ds);
     let crop_len = ds * ds * 4;
     last.crop_buf.resize(crop_len, 0);
 
-    crop_with_mask(
+    crop_square(
         &last.composite_buf,
         comp_size,
         px_x,
         px_y,
         ds,
-        &last.circle_mask,
         &mut last.crop_buf,
     );
     draw_tracking_icons(
@@ -459,7 +429,6 @@ fn apply_circular_crop(
         player_row,
         player_col,
         tracking_points,
-        &last.circle_mask,
     );
 
     if let Some(mut img) = images.get_mut(&composite_res.handle) {
@@ -467,31 +436,14 @@ fn apply_circular_crop(
     }
 }
 
-/// Build the circular mask once (true = inside circle).
-fn ensure_circle_mask(mask: &mut Vec<bool>, ds: usize) {
-    if mask.len() == ds * ds {
-        return;
-    }
-    let radius = ds as f32 / 2.0;
-    let r2 = radius * radius;
-    *mask = (0..ds * ds)
-        .map(|i| {
-            let x = (i % ds) as f32 - radius + 0.5;
-            let y = (i / ds) as f32 - radius + 0.5;
-            x * x + y * y <= r2
-        })
-        .collect();
-}
-
-/// Crop a display-sized window from the composite using a precomputed mask.
+/// Crop a display-sized square window from the composite centred on (cx, cy).
 /// Writes into `out` (must be pre-sized to ds*ds*4).
-fn crop_with_mask(
+fn crop_square(
     composite: &[u8],
     comp_size: usize,
     cx: usize,
     cy: usize,
     ds: usize,
-    mask: &[bool],
     out: &mut [u8],
 ) {
     let half = ds / 2;
@@ -501,10 +453,6 @@ fn crop_with_mask(
         let sy = cy as i32 - half as i32 + y as i32;
         for x in 0..ds {
             let di = (y * ds + x) * 4;
-            if !mask[y * ds + x] {
-                out[di..di + 4].fill(0);
-                continue;
-            }
             let sx = cx as i32 - half as i32 + x as i32;
             let in_bounds =
                 sx >= 0 && (sx as usize) < comp_size && sy >= 0 && (sy as usize) < comp_size;

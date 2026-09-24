@@ -1,8 +1,8 @@
 use super::*;
 use crate::asset::adt::ChunkHeightGrid;
 use crate::minimap_render::{
-    TrackingIconKind, create_arrow_image, create_border_image, crop_with_circle, draw_dot,
-    draw_tracking_icon, find_height_range, height_to_color, point_in_triangle, render_tile_image,
+    TrackingIconKind, create_arrow_image, create_border_image, draw_dot, draw_tracking_icon,
+    find_height_range, height_to_color, point_in_triangle, render_tile_image,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -352,13 +352,6 @@ fn arrow_image_has_yellow_pixels() {
 }
 
 #[test]
-fn crop_circle_center_pixel_opaque() {
-    let comp = vec![255u8; 4 * 4 * 4];
-    let result = crop_with_circle(&comp, 4, 2, 2, 4);
-    assert_eq!(result[(2 * 4 + 2) * 4 + 3], 255);
-}
-
-#[test]
 fn draw_dot_center() {
     let mut data = vec![0u8; 10 * 10 * 4];
     draw_dot(&mut data, 10, 5, 5, &[255, 0, 0, 255]);
@@ -378,21 +371,25 @@ fn draw_dot_edge_no_panic() {
 }
 
 #[test]
-fn crop_circle_corner_transparent() {
+fn square_crop_keeps_corner_pixels() {
     let comp = vec![255u8; 100 * 100 * 4];
-    let result = crop_with_circle(&comp, 100, 50, 50, 100);
-    assert_eq!(result[3], 0);
+    let mut out = vec![0u8; 100 * 100 * 4];
+    crop_square(&comp, 100, 50, 50, 100, &mut out);
+    assert_eq!(&out[0..4], &[255, 255, 255, 255]);
+    let last = out.len() - 4;
+    assert_eq!(&out[last..], &[255, 255, 255, 255]);
 }
 
 #[test]
-fn border_image_has_opaque_ring() {
+fn border_image_has_opaque_square_frame() {
     let img = create_border_image(MINIMAP_DISPLAY_SIZE as usize);
     let data = img.data.as_ref().unwrap();
     let size = MINIMAP_DISPLAY_SIZE as usize;
     let edge_x = size / 2;
     let edge_y = 1;
     let i = (edge_y * size + edge_x) * 4;
-    assert!(data[i + 3] > 0, "Border ring should have alpha at edge");
+    assert!(data[i + 3] > 0, "Border should have alpha at edge");
+    assert!(data[3] > 0, "Square border covers the corner");
     let center_i = (size / 2 * size + size / 2) * 4;
     assert_eq!(data[center_i + 3], 0, "Center should be transparent");
 }
@@ -421,7 +418,6 @@ fn tile_grid_changed_same_grid_returns_false() {
         tile_generation: 5,
         composite_buf: Vec::new(),
         crop_buf: Vec::new(),
-        circle_mask: Vec::new(),
     };
     assert!(!tile_grid_changed(&last, 32, 48, 5));
 }
@@ -436,7 +432,6 @@ fn tile_grid_changed_detects_tile_generation_change() {
         tile_generation: 5,
         composite_buf: Vec::new(),
         crop_buf: Vec::new(),
-        circle_mask: Vec::new(),
     };
     assert!(tile_grid_changed(&last, 32, 48, 6));
 }
@@ -451,7 +446,6 @@ fn pixel_change_without_grid_change_skips_recomposite() {
         tile_generation: 5,
         composite_buf: Vec::new(),
         crop_buf: Vec::new(),
-        circle_mask: Vec::new(),
     };
     // Grid unchanged — no recomposite needed
     assert!(!tile_grid_changed(&last, 32, 48, 5));
@@ -513,8 +507,6 @@ fn draw_tracking_icons_places_mailbox_at_player_center() {
     let ds = MINIMAP_DISPLAY_SIZE as usize;
     let (px_x, px_y) = player_pixel_in_composite(bx, bz, row, col, comp_size);
     let mut data = vec![0u8; ds * ds * 4];
-    let mut mask = Vec::new();
-    ensure_circle_mask(&mut mask, ds);
 
     draw_tracking_icons(
         &mut data,
@@ -528,7 +520,6 @@ fn draw_tracking_icons_places_mailbox_at_player_center() {
             bx,
             bz,
         }],
-        &mask,
     );
 
     let center = (ds / 2 * ds + ds / 2) * 4;
@@ -544,48 +535,19 @@ fn fill_dark_background_fills_rgba() {
 }
 
 #[test]
-fn ensure_circle_mask_builds_correct_size() {
-    let mut mask = Vec::new();
-    ensure_circle_mask(&mut mask, 10);
-    assert_eq!(mask.len(), 100);
-    // Center pixel is inside
-    assert!(mask[5 * 10 + 5]);
-    // Corner pixel is outside
-    assert!(!mask[0]);
-    // Calling again is a no-op (same length)
-    let ptr = mask.as_ptr();
-    ensure_circle_mask(&mut mask, 10);
-    assert_eq!(mask.as_ptr(), ptr);
-}
-
-#[test]
-fn crop_with_mask_matches_crop_with_circle() {
-    // Create a simple 8x8 composite with known data
+fn square_crop_copies_window_centred_on_player() {
     let comp_size = 8;
     let mut comp = vec![0u8; comp_size * comp_size * 4];
     for i in 0..comp_size * comp_size {
-        comp[i * 4] = (i % 256) as u8;
-        comp[i * 4 + 1] = 100;
-        comp[i * 4 + 2] = 200;
+        comp[i * 4] = i as u8;
         comp[i * 4 + 3] = 255;
     }
     let ds = 4;
-    let mut mask = Vec::new();
-    ensure_circle_mask(&mut mask, ds);
     let mut out = vec![0u8; ds * ds * 4];
-    crop_with_mask(&comp, comp_size, 4, 4, ds, &mask, &mut out);
-
-    let reference = crop_with_circle(&comp, comp_size, 4, 4, ds as u32);
-    // Inside-circle pixels should match
-    for i in 0..ds * ds {
-        if mask[i] {
-            assert_eq!(
-                &out[i * 4..i * 4 + 4],
-                &reference[i * 4..i * 4 + 4],
-                "mismatch at pixel {i}"
-            );
-        }
-    }
+    crop_square(&comp, comp_size, 4, 4, ds, &mut out);
+    // Top-left of a 4-wide window centred on (4, 4) is composite pixel (2, 2).
+    assert_eq!(out[0], (2 * comp_size + 2) as u8);
+    assert_eq!(out[(ds * ds - 1) * 4], (5 * comp_size + 5) as u8);
 }
 
 #[test]
@@ -728,4 +690,27 @@ fn blit_image_full_composite_coverage() {
             );
         }
     }
+}
+
+#[test]
+fn showing_the_hud_reveals_the_map_under_the_cluster() {
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let frames = build_minimap_screen(&mut registry);
+    let mut ui = UiState {
+        registry,
+        event_bus: ui_toolkit::event::EventBus::new(),
+        focused_frame: None,
+    };
+    set_hud_visibility(&mut ui, &frames, false);
+    set_hud_visibility(&mut ui, &frames, true);
+    for (name, id) in [
+        ("display", frames.display),
+        ("border", frames.border),
+        ("arrow", frames.arrow),
+        ("coords", frames.coords),
+    ] {
+        assert!(ui.registry.get(id).unwrap().visible, "{name} hidden");
+    }
+    set_hud_visibility(&mut ui, &frames, false);
+    assert!(!ui.registry.get(frames.display).unwrap().visible);
 }
