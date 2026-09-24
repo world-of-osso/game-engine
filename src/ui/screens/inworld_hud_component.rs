@@ -6,8 +6,11 @@ use crate::ui::anchor::FrameName;
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
 use crate::ui::strata::FrameStrata;
+use inworld_hud_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
 use inworld_hud_micro::micro_menu_bar;
 
+#[path = "inworld_hud_art.rs"]
+mod inworld_hud_art;
 #[path = "inworld_hud_micro.rs"]
 mod inworld_hud_micro;
 
@@ -35,19 +38,20 @@ const GUIDE_COLOR: &str = "0.95,0.78,0.25,0.95";
 const EDIT_BANNER_BG: &str = "0.03,0.04,0.06,0.9";
 const EDIT_BANNER_TEXT: &str = "1.0,0.86,0.25,1.0";
 const MOVER_LABEL_TEXT: &str = "1.0,0.9,0.45,1.0";
-const MICRO_BTN_W: f32 = 28.0;
-const MICRO_BTN_H: f32 = 36.0;
-const MICRO_BTN_GAP: f32 = 2.0;
-const MICRO_BTN_BG: &str = "0.08,0.07,0.06,0.88";
+/// Retail `MicroButtonTemplate` size (Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.xml).
+const MICRO_BTN_W: f32 = 32.0;
+const MICRO_BTN_H: f32 = 40.0;
+const MICRO_BTN_GAP: f32 = 0.0;
 /// Retail `MicroButtonAndBagsBar`: micro menu in the bottom-right corner, bags bar
 /// `BAGS_ANCHOR_OFFSET_Y` above it (EditModePresetLayoutConstants.lua).
 const MICRO_MENU_RIGHT: f32 = 8.0;
 const MICRO_MENU_BOTTOM: f32 = 8.0;
 const BAGS_BAR_RIGHT: f32 = MICRO_MENU_RIGHT;
 const BAGS_BAR_BOTTOM: f32 = MICRO_MENU_BOTTOM + MICRO_BTN_H + 10.0;
+/// Retail bag slot and backpack sizes (Blizzard_MainMenuBarBagButtons/Mainline xml).
 const BAG_SLOT_SIZE: f32 = 30.0;
+const BACKPACK_SIZE: f32 = 48.0;
 const BAG_SLOT_GAP: f32 = 4.0;
-const BAG_SLOT_BG: &str = "0.06,0.05,0.04,0.82";
 const BAG_COUNT: usize = 4;
 const MONEY_DISPLAY_W: f32 = 160.0;
 const MONEY_DISPLAY_H: f32 = 14.0;
@@ -459,17 +463,31 @@ pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
     .collect()
 }
 
+/// Bags left of the backpack, as in Retail; money under the row.
 fn bag_bar() -> Element {
-    let backpack = bag_slot("MainMenuBarBackpackButton", 0);
+    let bags_w = BAG_COUNT as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+    let total_w = bags_w + BACKPACK_SIZE;
     let bags: Element = (0..BAG_COUNT)
         .flat_map(|i| {
-            let name = format!("CharacterBag{i}Slot");
-            let slot_index = i + 1;
-            bag_slot(&name, slot_index)
+            // CharacterBag0Slot sits next to the backpack.
+            let x = bags_w - (i + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+            let y = BACKPACK_SIZE - BAG_SLOT_SIZE;
+            let slot = BagSlot {
+                name: format!("CharacterBag{i}Slot"),
+                index: i + 1,
+                size: BAG_SLOT_SIZE,
+                art: BAG_SLOT_EMPTY,
+            };
+            bag_slot(slot, x, y)
         })
         .collect();
-    let total_w = (BAG_COUNT as f32 + 1.0) * BAG_SLOT_SIZE + BAG_COUNT as f32 * BAG_SLOT_GAP;
-    let bar_h = BAG_SLOT_SIZE + MONEY_DISPLAY_H + 4.0;
+    let backpack = BagSlot {
+        name: "MainMenuBarBackpackButton".to_string(),
+        index: 0,
+        size: BACKPACK_SIZE,
+        art: BACKPACK,
+    };
+    let bar_h = BACKPACK_SIZE + MONEY_DISPLAY_H + 2.0;
     rsx! {
         r#frame {
             name: "BagsBar",
@@ -478,7 +496,7 @@ fn bag_bar() -> Element {
             pos_type: "absolute",
             right: {BAGS_BAR_RIGHT},
             bottom: {BAGS_BAR_BOTTOM},
-            {backpack}
+            {bag_slot(backpack, bags_w, 0.0)}
             {bags}
             {money_display()}
         }
@@ -498,27 +516,43 @@ fn money_display() -> Element {
             justify_h: "RIGHT",
             pos_type: "absolute",
             right: 0.0,
-            pos_y: {BAG_SLOT_SIZE + 4.0},
+            pos_y: {BACKPACK_SIZE + 2.0},
         }
     }
 }
 
-fn bag_slot(name: &str, index: usize) -> Element {
-    let slot_name = DynName(name.to_string());
-    let x = index as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
-    let action = bag_toggle_action(index);
+struct BagSlot {
+    name: String,
+    index: usize,
+    size: f32,
+    art: SheetCrop,
+}
+
+fn bag_slot(slot: BagSlot, x: f32, y: f32) -> Element {
+    let action = bag_toggle_action(slot.index);
+    let art_name = DynName(format!("{}Art", slot.name));
+    let coords = slot.art.tex_coords();
     rsx! {
         button {
-            name: slot_name,
-            width: {BAG_SLOT_SIZE},
-            height: {BAG_SLOT_SIZE},
+            name: DynName(slot.name),
+            width: {slot.size},
+            height: {slot.size},
             text: "",
             font_size: 8.0,
-            background_color: BAG_SLOT_BG,
             onclick: {action.as_str()},
             pos_type: "absolute",
             pos_x: x,
-            pos_y: 0.0,
+            pos_y: y,
+            texture {
+                name: art_name,
+                width: {slot.size},
+                height: {slot.size},
+                texture_fdid: {slot.art.fdid},
+                tex_coords: {coords.as_str()},
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
         }
     }
 }

@@ -3,9 +3,10 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::guild_frame_component::ACTION_GUILD_TOGGLE;
 
+use super::inworld_hud_art::{MICRO_BUTTON_BG, SheetCrop, micro_button_icon};
 use super::{
-    DynName, MICRO_BTN_BG, MICRO_BTN_GAP, MICRO_BTN_H, MICRO_BTN_W, MICRO_BUTTONS,
-    MICRO_MENU_BOTTOM, MICRO_MENU_RIGHT,
+    DynName, MICRO_BTN_GAP, MICRO_BTN_H, MICRO_BTN_W, MICRO_BUTTONS, MICRO_MENU_BOTTOM,
+    MICRO_MENU_RIGHT,
 };
 
 pub(super) fn micro_menu_bar() -> Element {
@@ -36,6 +37,12 @@ fn micro_button(index: usize, name: &str) -> Element {
     let btn_name = DynName(name.to_string());
     let onclick = micro_button_action(name);
     let x = index as f32 * (MICRO_BTN_W + MICRO_BTN_GAP);
+    let layers: Element = [Some(MICRO_BUTTON_BG), micro_button_icon(name)]
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .flat_map(|(layer, crop)| micro_button_layer(name, layer, crop))
+        .collect();
     rsx! {
         button {
             name: btn_name,
@@ -43,11 +50,28 @@ fn micro_button(index: usize, name: &str) -> Element {
             height: {MICRO_BTN_H},
             text: "",
             font_size: 8.0,
-            background_color: MICRO_BTN_BG,
             onclick: {onclick},
             pos_type: "absolute",
             left: {x},
             top: -0.0,
+            {layers}
+        }
+    }
+}
+
+fn micro_button_layer(button: &str, layer: usize, crop: SheetCrop) -> Element {
+    let name = DynName(format!("{button}Art{layer}"));
+    let coords = crop.tex_coords();
+    rsx! {
+        texture {
+            name,
+            width: {MICRO_BTN_W},
+            height: {MICRO_BTN_H},
+            texture_fdid: {crop.fdid},
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
         }
     }
 }
