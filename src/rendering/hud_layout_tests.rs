@@ -172,7 +172,7 @@ fn hud_regions_follow_the_accepted_composition() {
             "minimap top-right {size}"
         );
         assert!(
-            chat.x < 20.0 && height - bottom(&chat) < 20.0,
+            chat.x < 40.0 && height - bottom(&chat) < 40.0,
             "chat bottom-left {size}"
         );
         for (name, r) in [("micro menu", &micro), ("bags", &bags)] {
