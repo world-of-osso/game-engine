@@ -137,17 +137,21 @@ fn handle_popup_clicks(
 }
 
 /// Enter accepts the focused (top) popup unless an editbox owns the keyboard.
+/// Accepting consumes the press so Enter does not also open chat.
 fn handle_popup_enter(
-    keys: Option<Res<ButtonInput<KeyCode>>>,
+    keys: Option<ResMut<ButtonInput<KeyCode>>>,
     ui: Res<UiState>,
     mut stack: ResMut<PopupStack>,
 ) {
-    let Some(keys) = keys else { return };
-    if ui.focused_frame.is_some() || !keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter])
-    {
+    let Some(mut keys) = keys else { return };
+    let enter = [KeyCode::Enter, KeyCode::NumpadEnter];
+    if ui.focused_frame.is_some() || stack.top().is_none() || !keys.any_just_pressed(enter) {
         return;
     }
     stack.accept_top();
+    for key in enter {
+        keys.clear_just_pressed(key);
+    }
 }
 
 fn tick_popup_timeouts(time: Res<Time>, mut stack: ResMut<PopupStack>) {
