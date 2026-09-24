@@ -1,30 +1,6 @@
 use super::*;
 
 #[test]
-fn talent_status_command_maps_to_request() {
-    assert_eq!(
-        talent_request(TalentCmd::Status).unwrap(),
-        Request::TalentStatus
-    );
-}
-
-#[test]
-fn talent_apply_command_maps_to_request() {
-    assert_eq!(
-        talent_request(TalentCmd::Apply { talent_id: 101 }).unwrap(),
-        Request::TalentApply { talent_id: 101 }
-    );
-}
-
-#[test]
-fn talent_reset_command_maps_to_request() {
-    assert_eq!(
-        talent_request(TalentCmd::Reset).unwrap(),
-        Request::TalentReset
-    );
-}
-
-#[test]
 fn duel_status_command_maps_to_request() {
     assert_eq!(duel_request(DuelCmd::Status).unwrap(), Request::DuelStatus);
 }

@@ -57,10 +57,8 @@ use crate::status::{
     FriendsStatusSnapshot, GroupStatusSnapshot, GuildStatusSnapshot, GuildVaultStatusSnapshot,
     IgnoreListStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
     ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
-    SoundStatusSnapshot, TalentStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot,
-    Waypoint, WhoStatusSnapshot,
+    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint, WhoStatusSnapshot,
 };
-use crate::talent::{TalentRuntimeState, queue_ipc_request as queue_talent_ipc_request};
 use crate::targeting::CurrentTarget;
 use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_request};
 use crate::ui::plugin::UiState;
@@ -301,8 +299,6 @@ struct WorldParams<'w> {
     inspect: ResMut<'w, InspectRuntimeState>,
     inspect_status: Res<'w, crate::status::InspectStatusSnapshot>,
     trade: ResMut<'w, TradeClientState>,
-    talent: ResMut<'w, TalentRuntimeState>,
-    talent_status: Res<'w, TalentStatusSnapshot>,
     mail: ResMut<'w, MailState>,
 }
 
@@ -548,12 +544,6 @@ fn dispatch_character_runtime_request(
         request,
         respond.clone(),
     ) || queue_trade_ipc_request(&mut world.trade, request, respond.clone())
-        || queue_talent_ipc_request(
-            &mut world.talent,
-            &world.talent_status,
-            request,
-            respond.clone(),
-        )
         || queue_mail_ipc_request(world.mail.as_mut(), request, respond.clone())
 }
 

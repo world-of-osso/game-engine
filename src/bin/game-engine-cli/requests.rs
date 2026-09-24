@@ -11,7 +11,7 @@ use crate::{
     AuctionCmd, BarberCmd, CalendarCmd, CameraCmd, CollectionCmd, CombatCmd, CurrencyCmd, DeathCmd,
     DuelCmd, EmoteCmd, EquipmentCmd, FriendCmd, GroupCmd, GuildCmd, IgnoreCmd, InspectCmd,
     InventoryCmd, ItemCmd, LfgCmd, MailCmd, MapCmd, MovementCmd, PresenceCmd, ProfessionCmd,
-    PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TalentCmd, TradeCmd, WaypointCmd, WhoCmd,
+    PvpCmd, QuestCmd, ReputationCmd, SpellCmd, StatusCmd, TradeCmd, WaypointCmd, WhoCmd,
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
@@ -248,15 +248,6 @@ pub fn duel_request(command: DuelCmd) -> Result<Request, String> {
         DuelCmd::Challenge => Request::DuelChallenge,
         DuelCmd::Accept => Request::DuelAccept,
         DuelCmd::Decline => Request::DuelDecline,
-    };
-    Ok(request)
-}
-
-pub fn talent_request(command: TalentCmd) -> Result<Request, String> {
-    let request = match command {
-        TalentCmd::Status => Request::TalentStatus,
-        TalentCmd::Apply { talent_id } => Request::TalentApply { talent_id },
-        TalentCmd::Reset => Request::TalentReset,
     };
     Ok(request)
 }

@@ -9,8 +9,8 @@ use super::requests::{
     equipment_request, export_character_request, export_scene_request, friend_request,
     group_request, guild_request, ignore_request, inspect_request, inventory_request, item_request,
     lfg_request, mail_request, map_request, movement_request, presence_request, profession_request,
-    pvp_request, quest_request, reputation_request, spell_request, status_request, talent_request,
-    trade_request, who_request,
+    pvp_request, quest_request, reputation_request, spell_request, status_request, trade_request,
+    who_request,
 };
 use super::*;
 
@@ -45,7 +45,6 @@ fn is_social_status_command(command: &Cmd) -> bool {
             | Cmd::Mail { .. }
             | Cmd::Trade { .. }
             | Cmd::Duel { .. }
-            | Cmd::Talent { .. }
             | Cmd::Inspect { .. }
             | Cmd::Status { .. }
             | Cmd::Barber { .. }
@@ -92,7 +91,6 @@ fn dispatch_social_status_command(
         | Cmd::Mail { .. }
         | Cmd::Trade { .. }
         | Cmd::Duel { .. }
-        | Cmd::Talent { .. }
         | Cmd::Inspect { .. }
         | Cmd::Status { .. }
         | Cmd::Barber { .. }
@@ -122,7 +120,6 @@ fn dispatch_runtime_status_command(
         Cmd::Mail { command } => handle_mail(socket, command, json),
         Cmd::Trade { command } => handle_trade(socket, command, json),
         Cmd::Duel { command } => handle_duel(socket, command, json),
-        Cmd::Talent { command } => handle_talent(socket, command, json),
         Cmd::Inspect { command } => handle_inspect(socket, command, json),
         Cmd::Status { command } => handle_status(socket, command, json),
         Cmd::Barber { command } => handle_barber(socket, command, json),
@@ -244,10 +241,6 @@ fn handle_mail(socket: &PathBuf, command: MailCmd, json: bool) -> Result<(), Str
 
 fn handle_trade(socket: &PathBuf, command: TradeCmd, json: bool) -> Result<(), String> {
     handle_text_response(socket, trade_request(command)?, json)
-}
-
-fn handle_talent(socket: &PathBuf, command: TalentCmd, json: bool) -> Result<(), String> {
-    handle_text_response(socket, talent_request(command)?, json)
 }
 
 fn handle_duel(socket: &PathBuf, command: DuelCmd, json: bool) -> Result<(), String> {

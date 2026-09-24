@@ -1,110 +1,117 @@
+//! Retail talent (trait config) client state: the last `TraitConfigSnapshot`,
+//! the active spec, the pending local config and queued commit / spec requests.
+//! Server rules and messages: game-server `docs/wiki/systems/talents.md`.
+
 use std::collections::VecDeque;
-use std::sync::mpsc;
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
-    ApplyTalentChoice, QueryTalents, ResetTalents, TalentChannel, TalentStateUpdate,
+    CommitTraitConfig, SetSpecialization, SpecializationChanged, TalentChannel, TraitCommitResult,
+    TraitConfigSnapshot,
 };
 
-use crate::ipc::{Request, Response};
 use crate::network_events::{register_message_handler, register_outgoing_handler};
-use crate::status::{TalentNodeEntry, TalentSpecTabEntry, TalentStatusSnapshot};
+use crate::network_runtime::messages::{MessageReceivers, MessageSenders};
+use crate::talent_tree::rules::ConfigEntry;
+use crate::ui::ui_errors::UiErrors;
 
-#[derive(Resource, Default)]
-pub struct TalentRuntimeState {
-    pending_actions: VecDeque<Action>,
-    pending_replies: VecDeque<mpsc::Sender<Response>>,
-    queried_inworld: bool,
+#[derive(Resource, Default, Debug)]
+pub struct TalentState {
+    pub snapshot: Option<TraitConfigSnapshot>,
+    /// Spec named by the last `SpecializationChanged` or snapshot.
+    pub active_spec: Option<u32>,
+    /// Local edits of the snapshot config; `None` when there are none.
+    pub pending: Option<Vec<ConfigEntry>>,
+    outgoing: VecDeque<Outgoing>,
 }
 
-enum Action {
-    Apply(u32),
-    Reset,
+#[derive(Debug, Clone, PartialEq)]
+enum Outgoing {
+    Commit(CommitTraitConfig),
+    SetSpec(u32),
+}
+
+impl TalentState {
+    pub fn queue_commit(&mut self, commit: CommitTraitConfig) {
+        self.outgoing.push_back(Outgoing::Commit(commit));
+    }
+
+    pub fn queue_set_spec(&mut self, spec_id: u32) {
+        self.outgoing.push_back(Outgoing::SetSpec(spec_id));
+    }
+
+    /// Commits waiting for the next outgoing dispatch.
+    pub fn queued_commits(&self) -> impl Iterator<Item = &CommitTraitConfig> {
+        self.outgoing.iter().filter_map(|outgoing| match outgoing {
+            Outgoing::Commit(commit) => Some(commit),
+            Outgoing::SetSpec(_) => None,
+        })
+    }
+
+    /// Spec requests waiting for the next outgoing dispatch.
+    pub fn queued_spec_requests(&self) -> impl Iterator<Item = u32> + '_ {
+        self.outgoing.iter().filter_map(|outgoing| match outgoing {
+            Outgoing::SetSpec(spec_id) => Some(*spec_id),
+            Outgoing::Commit(_) => None,
+        })
+    }
+
+    fn apply_snapshot(&mut self, snapshot: TraitConfigSnapshot) {
+        self.active_spec = Some(snapshot.spec_id);
+        self.snapshot = Some(snapshot);
+        self.pending = None;
+    }
+
+    /// A different spec drops the old spec's snapshot until its own arrives.
+    fn apply_spec_changed(&mut self, spec_id: u32) {
+        self.active_spec = Some(spec_id);
+        if self
+            .snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.spec_id != spec_id)
+        {
+            self.snapshot = None;
+            self.pending = None;
+        }
+    }
 }
 
 pub struct TalentPlugin;
 
 impl Plugin for TalentPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<TalentRuntimeState>();
-        register_outgoing_handler(app, request_talents_on_enter_world, talent_query_pending);
-        register_outgoing_handler(app, send_pending_actions, |world| {
-            !world
-                .resource::<TalentRuntimeState>()
-                .pending_actions
-                .is_empty()
+        app.init_resource::<TalentState>();
+        app.init_resource::<UiErrors>();
+        register_outgoing_handler(app, send_outgoing, |world| {
+            !world.resource::<TalentState>().outgoing.is_empty()
         });
-        register_message_handler::<TalentStateUpdate, _>(app, receive_talent_updates, |_| true);
+        register_message_handler::<TraitConfigSnapshot, _>(app, receive_snapshots, |_| true);
+        register_message_handler::<SpecializationChanged, _>(app, receive_spec_changes, |_| true);
+        register_message_handler::<TraitCommitResult, _>(app, receive_commit_results, |_| true);
     }
 }
 
-pub fn queue_ipc_request(
-    runtime: &mut TalentRuntimeState,
-    snapshot: &TalentStatusSnapshot,
-    request: &Request,
-    respond: mpsc::Sender<Response>,
-) -> bool {
-    match request {
-        Request::TalentStatus => {
-            let _ = respond.send(Response::Text(format_status(snapshot)));
-            true
-        }
-        Request::TalentApply { talent_id } => {
-            queue_apply(runtime, *talent_id);
-            runtime.pending_replies.push_back(respond);
-            true
-        }
-        Request::TalentReset => {
-            queue_reset(runtime);
-            runtime.pending_replies.push_back(respond);
-            true
-        }
-        _ => false,
-    }
-}
-
-pub fn queue_apply(runtime: &mut TalentRuntimeState, talent_id: u32) {
-    runtime.pending_actions.push_back(Action::Apply(talent_id));
-}
-
-pub fn queue_reset(runtime: &mut TalentRuntimeState) {
-    runtime.pending_actions.push_back(Action::Reset);
-}
-
-fn talent_query_pending(world: &World) -> bool {
-    !world.resource::<TalentRuntimeState>().queried_inworld
-        && world.resource::<TalentStatusSnapshot>().talents.is_empty()
-}
-
-fn request_talents_on_enter_world(
-    mut runtime: ResMut<TalentRuntimeState>,
-    mut senders: MessageSenders<QueryTalents>,
-) {
-    if send_all(&mut senders, QueryTalents) {
-        runtime.queried_inworld = true;
-    }
+pub fn reset_state(state: &mut TalentState) {
+    *state = TalentState::default();
 }
 
 #[derive(SystemParam)]
 struct TalentSenders<'w, 's> {
-    apply: MessageSenders<'w, 's, ApplyTalentChoice>,
-    reset: MessageSenders<'w, 's, ResetTalents>,
+    commit: MessageSenders<'w, 's, CommitTraitConfig>,
+    spec: MessageSenders<'w, 's, SetSpecialization>,
 }
 
-fn send_pending_actions(mut runtime: ResMut<TalentRuntimeState>, mut senders: TalentSenders) {
-    while let Some(action) = runtime.pending_actions.pop_front() {
-        let sent = match action {
-            Action::Apply(talent_id) => {
-                send_all(&mut senders.apply, ApplyTalentChoice { talent_id })
+fn send_outgoing(mut state: ResMut<TalentState>, mut senders: TalentSenders) {
+    while let Some(outgoing) = state.outgoing.pop_front() {
+        let sent = match outgoing {
+            Outgoing::Commit(commit) => send_all(&mut senders.commit, commit),
+            Outgoing::SetSpec(spec_id) => {
+                send_all(&mut senders.spec, SetSpecialization { spec_id })
             }
-            Action::Reset => send_all(&mut senders.reset, ResetTalents),
         };
-        if !sent && let Some(reply) = runtime.pending_replies.pop_front() {
-            let _ = reply.send(Response::Error(
-                "talents are unavailable: not connected".into(),
-            ));
+        if !sent {
+            warn!("talent request dropped: not connected");
         }
     }
 }
@@ -121,213 +128,39 @@ fn send_all<T: Clone + lightyear::prelude::Message>(
     sent
 }
 
-fn receive_talent_updates(
-    mut runtime: ResMut<TalentRuntimeState>,
-    mut snapshot: ResMut<TalentStatusSnapshot>,
-    mut receivers: MessageReceivers<TalentStateUpdate>,
+fn receive_snapshots(
+    mut state: ResMut<TalentState>,
+    mut receivers: MessageReceivers<TraitConfigSnapshot>,
 ) {
     for receiver in receivers.iter_mut() {
-        for update in receiver.receive() {
-            apply_talent_state_update(&mut snapshot, update);
-            if let Some(reply) = runtime.pending_replies.pop_front() {
-                let response = if let Some(error) = &snapshot.last_error {
-                    Response::Error(error.clone())
-                } else {
-                    Response::Text(format_status(&snapshot))
-                };
-                let _ = reply.send(response);
-            }
+        for snapshot in receiver.receive() {
+            state.apply_snapshot(snapshot);
         }
     }
 }
 
-pub fn reset_runtime(runtime: &mut TalentRuntimeState) {
-    *runtime = TalentRuntimeState::default();
-}
-
-fn apply_talent_state_update(snapshot: &mut TalentStatusSnapshot, update: TalentStateUpdate) {
-    if let Some(talent_snapshot) = update.snapshot {
-        snapshot.spec_tabs = talent_snapshot
-            .spec_tabs
-            .into_iter()
-            .map(|tab| TalentSpecTabEntry {
-                name: tab.name,
-                active: tab.active,
-            })
-            .collect();
-        snapshot.talents = talent_snapshot
-            .talents
-            .into_iter()
-            .map(|talent| TalentNodeEntry {
-                talent_id: talent.talent_id,
-                name: talent.name,
-                points_spent: talent.points_spent,
-                max_points: talent.max_points,
-                active: talent.active,
-            })
-            .collect();
-        snapshot.points_remaining = talent_snapshot.points_remaining;
-    }
-    snapshot.last_server_message = update.message;
-    snapshot.last_error = update.error;
-}
-
-fn format_status(snapshot: &TalentStatusSnapshot) -> String {
-    let mut lines = Vec::new();
-    lines.push(format!(
-        "talents: tabs={} selected={} points_remaining={}",
-        joined_active_names(
-            &snapshot.spec_tabs,
-            |tab| tab.active,
-            |tab| tab.name.as_str(),
-            ","
-        ),
-        active_talent_count(snapshot),
-        snapshot.points_remaining
-    ));
-    push_optional_line(
-        &mut lines,
-        "message",
-        snapshot.last_server_message.as_deref(),
-    );
-    push_optional_line(&mut lines, "error", snapshot.last_error.as_deref());
-    if !snapshot.talents.is_empty() {
-        lines.push(format!("selected: {}", selected_talent_names(snapshot)));
-    }
-    lines.join("\n")
-}
-
-fn active_talent_count(snapshot: &TalentStatusSnapshot) -> usize {
-    snapshot
-        .talents
-        .iter()
-        .filter(|talent| talent.active)
-        .count()
-}
-
-fn selected_talent_names(snapshot: &TalentStatusSnapshot) -> String {
-    joined_active_names(
-        &snapshot.talents,
-        |talent| talent.active,
-        |talent| talent.name.as_str(),
-        ", ",
-    )
-}
-
-fn joined_active_names<T>(
-    entries: &[T],
-    is_active: impl Fn(&T) -> bool,
-    name: impl Fn(&T) -> &str,
-    separator: &str,
-) -> String {
-    let names = entries
-        .iter()
-        .filter(|entry| is_active(entry))
-        .map(name)
-        .collect::<Vec<_>>();
-    if names.is_empty() {
-        "none".into()
-    } else {
-        names.join(separator)
+fn receive_spec_changes(
+    mut state: ResMut<TalentState>,
+    mut receivers: MessageReceivers<SpecializationChanged>,
+) {
+    for receiver in receivers.iter_mut() {
+        for changed in receiver.receive() {
+            state.apply_spec_changed(changed.spec_id);
+        }
     }
 }
 
-fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
-    if let Some(value) = value {
-        lines.push(format!("{label}: {value}"));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn dispatcher_queries_only_when_existing_talents_are_cleared() {
-        let mut app = App::new();
-        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
-        app.add_plugins(TalentPlugin);
-        app.insert_resource(TalentStatusSnapshot {
-            talents: vec![TalentNodeEntry {
-                talent_id: 101,
-                name: "Divine Strength".into(),
-                points_spent: 1,
-                max_points: 1,
-                active: true,
-            }],
-            ..Default::default()
-        });
-        let (sender, commands) = std::sync::mpsc::channel();
-        app.insert_resource(
-            game_engine::network_runtime::messages::ConnectionSender::new(Some(sender)),
-        );
-        crate::network_events::dispatch_outgoing(app.world_mut());
-        assert!(!app.world().resource::<TalentRuntimeState>().queried_inworld);
-        assert!(matches!(
-            commands.try_recv(),
-            Err(std::sync::mpsc::TryRecvError::Empty)
-        ));
-        app.world_mut()
-            .resource_mut::<TalentStatusSnapshot>()
-            .talents
-            .clear();
-        crate::network_events::dispatch_outgoing(app.world_mut());
-        assert!(app.world().resource::<TalentRuntimeState>().queried_inworld);
-        assert!(matches!(
-            commands.try_recv(),
-            Ok(crate::network_runtime::worker::NetworkCommand::Apply(_))
-        ));
-    }
-
-    #[test]
-    fn format_status_reports_selected_talents() {
-        let snapshot = TalentStatusSnapshot {
-            spec_tabs: vec![crate::status::TalentSpecTabEntry {
-                name: "Protection".into(),
-                active: true,
-            }],
-            talents: vec![crate::status::TalentNodeEntry {
-                talent_id: 101,
-                name: "Divine Strength".into(),
-                points_spent: 1,
-                max_points: 1,
-                active: true,
-            }],
-            points_remaining: 50,
-            last_server_message: Some("talent applied".into()),
-            last_error: None,
-        };
-
-        let text = format_status(&snapshot);
-
-        assert!(text.contains("tabs=Protection"));
-        assert!(text.contains("selected=1"));
-        assert!(text.contains("Divine Strength"));
-    }
-
-    #[test]
-    fn queue_apply_enqueues_pending_action() {
-        let mut runtime = TalentRuntimeState::default();
-
-        queue_apply(&mut runtime, 101);
-
-        assert_eq!(runtime.pending_actions.len(), 1);
-        assert!(matches!(
-            runtime.pending_actions.front(),
-            Some(Action::Apply(101))
-        ));
-    }
-
-    #[test]
-    fn queue_reset_enqueues_pending_action() {
-        let mut runtime = TalentRuntimeState::default();
-
-        queue_reset(&mut runtime);
-
-        assert_eq!(runtime.pending_actions.len(), 1);
-        assert!(matches!(
-            runtime.pending_actions.front(),
-            Some(Action::Reset)
-        ));
+/// A rejected commit keeps the pending config so the player can fix it.
+fn receive_commit_results(
+    mut errors: ResMut<UiErrors>,
+    mut receivers: MessageReceivers<TraitCommitResult>,
+) {
+    for receiver in receivers.iter_mut() {
+        for result in receiver.receive() {
+            if !result.ok {
+                let reason = result.reason.as_deref().unwrap_or("Talent change failed.");
+                errors.add(reason);
+            }
+        }
     }
 }
