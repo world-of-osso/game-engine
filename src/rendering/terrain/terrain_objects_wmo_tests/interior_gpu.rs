@@ -12,12 +12,31 @@ const NORTHSHIRE_ABBEY_ROOT_FDID: u32 = 107074;
 const CLEAR: [u8; 4] = [255, 0, 255, 255];
 
 /// Northshire Abbey group 0 is an interior group: its MOCV alpha is the indoor
-/// lighting blend (fixed to 0), not opacity. Rendered through the world camera's
-/// depth/normal prepass, a wall built from it must show its own color rather
-/// than leaving prepass depth that hides everything behind it.
+/// lighting blend (fixed to 0), not opacity. A wall built from it must be drawn
+/// in the color pass, with or without a depth/normal prepass on the camera.
+#[test]
+#[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
+fn abbey_interior_wall_renders_without_prepass() {
+    assert_wall_drawn(render_abbey_wall_center(false));
+}
+
+/// With a prepass, a wall discarded in the color pass would also leave its
+/// depth behind and hide the background, showing only the clear color.
 #[test]
 #[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
 fn abbey_interior_wall_renders_through_world_camera_prepass() {
+    assert_wall_drawn(render_abbey_wall_center(true));
+}
+
+fn assert_wall_drawn(wall: [u8; 4]) {
+    assert_ne!(wall, CLEAR, "interior wall left prepass depth but no color");
+    assert!(
+        !is_background(wall),
+        "interior wall is missing; background shows through: {wall:?}"
+    );
+}
+
+fn render_abbey_wall_center(prepass: bool) -> [u8; 4] {
     let root_data = std::fs::read(format!("data/models/{NORTHSHIRE_ABBEY_ROOT_FDID}.wmo"))
         .expect("Northshire Abbey root WMO in data/models");
     let root = wmo::load_wmo_root(&root_data).expect("parse abbey root");
@@ -45,28 +64,29 @@ fn abbey_interior_wall_renders_through_world_camera_prepass() {
     } else {
         Vec3::Y
     };
-    app.world_mut().spawn((
-        Camera3d::default(),
-        Camera {
-            clear_color: Color::srgba_u8(CLEAR[0], CLEAR[1], CLEAR[2], CLEAR[3]).into(),
-            ..default()
-        },
-        RenderTarget::Image(target.clone().into()),
-        Transform::from_translation(centroid + normal * 0.3).looking_at(centroid, up),
-        Msaa::Sample4,
-        DepthPrepass,
-        NormalPrepass,
-        Tonemapping::None,
-    ));
+    let camera = app
+        .world_mut()
+        .spawn((
+            Camera3d::default(),
+            Camera {
+                clear_color: Color::srgba_u8(CLEAR[0], CLEAR[1], CLEAR[2], CLEAR[3]).into(),
+                ..default()
+            },
+            RenderTarget::Image(target.clone().into()),
+            Transform::from_translation(centroid + normal * 0.3).looking_at(centroid, up),
+            Msaa::Sample4,
+            Tonemapping::None,
+        ))
+        .id();
+    if prepass {
+        app.world_mut()
+            .entity_mut(camera)
+            .insert((DepthPrepass, NormalPrepass));
+    }
     spawn_green_background(&mut app, centroid - normal, normal, up);
     spawn_wmo_batch(&mut app, &root, &group, batch);
 
-    let wall = capture_center_until_wall(&mut app, target);
-    assert_ne!(wall, CLEAR, "interior wall left prepass depth but no color");
-    assert!(
-        !is_background(wall),
-        "interior wall is missing; background shows through: {wall:?}"
-    );
+    capture_center_until_wall(&mut app, target)
 }
 
 fn gpu_app() -> App {
