@@ -6,7 +6,7 @@
 
 mod build;
 mod cache;
-mod csv_records;
+pub(crate) mod csv_records;
 mod render;
 mod tabs;
 

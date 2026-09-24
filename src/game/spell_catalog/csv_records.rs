@@ -4,14 +4,14 @@
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
-pub(super) struct CsvTable {
+pub(crate) struct CsvTable {
     path: PathBuf,
     headers: Vec<String>,
     body: String,
 }
 
 impl CsvTable {
-    pub(super) fn read(path: &Path) -> Result<Self, String> {
+    pub(crate) fn read(path: &Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path)
             .map_err(|err| format!("read {}: {err}", path.display()))?;
         let mut records = Records { rest: &text };
@@ -29,20 +29,20 @@ impl CsvTable {
         })
     }
 
-    pub(super) fn column(&self, name: &str) -> Result<usize, String> {
+    pub(crate) fn column(&self, name: &str) -> Result<usize, String> {
         crate::csv_util::header_index(&self.headers, name, &self.path)
     }
 
-    pub(super) fn records(&self) -> Records<'_> {
+    pub(crate) fn records(&self) -> Records<'_> {
         Records { rest: &self.body }
     }
 
-    pub(super) fn path(&self) -> &Path {
+    pub(crate) fn path(&self) -> &Path {
         &self.path
     }
 }
 
-pub(super) struct Records<'a> {
+pub(crate) struct Records<'a> {
     rest: &'a str,
 }
 
