@@ -57,8 +57,8 @@ fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bund
     let world_camera = app.world().entity(world_entity);
     assert_eq!(world_camera.get::<Msaa>(), Some(&Msaa::Off));
     assert_eq!(app.world().get::<Msaa>(ui_entity), Some(&Msaa::Off));
-    assert!(world_camera.contains::<DepthPrepass>());
-    assert!(world_camera.contains::<NormalPrepass>());
+    assert!(!world_camera.contains::<DepthPrepass>());
+    assert!(!world_camera.contains::<NormalPrepass>());
     assert!(world_camera.contains::<Tonemapping>());
     assert!(world_camera.contains::<ShadowFilteringMethod>());
     assert!(!world_camera.contains::<TemporalAntiAliasing>());
@@ -226,6 +226,53 @@ fn sync_camera_graphics_post_process_keeps_ssao_compatible_with_anti_aliasing() 
     assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Off));
     assert!(camera.get::<TemporalAntiAliasing>().is_some());
     assert!(camera.get::<ScreenSpaceAmbientOcclusion>().is_some());
+}
+
+/// Default MSAA without SSAO or TAA has no prepass consumer: Bevy's SSAO requires
+/// depth+normal and TAA requires depth+motion prepasses, and the main pass reads
+/// neither texture under MSAA. Unused prepasses redraw every opaque mesh at 4x.
+#[test]
+fn default_msaa_camera_renders_no_prepass_or_temporal_state() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.insert_resource(GraphicsOptions::default());
+    app.add_systems(
+        Update,
+        camera_post_process::sync_camera_graphics_post_process,
+    );
+    let camera_entity = spawn_wow_camera(&mut app.world_mut().commands());
+    app.update();
+    app.update();
+
+    let camera = app.world().entity(camera_entity);
+    assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Sample4));
+    assert!(!camera.contains::<DepthPrepass>());
+    assert!(!camera.contains::<NormalPrepass>());
+    assert!(!camera.contains::<MotionVectorPrepass>());
+    assert!(!camera.contains::<TemporalJitter>());
+    assert!(!camera.contains::<MipBias>());
+
+    let mut graphics = app.world_mut().resource_mut::<GraphicsOptions>();
+    graphics.anti_alias = AntiAliasMode::Taa;
+    graphics.ssao_enabled = true;
+    app.update();
+    let camera = app.world().entity(camera_entity);
+    assert!(camera.contains::<DepthPrepass>());
+    assert!(camera.contains::<NormalPrepass>());
+    assert!(camera.contains::<MotionVectorPrepass>());
+    assert!(camera.contains::<TemporalJitter>());
+
+    let mut graphics = app.world_mut().resource_mut::<GraphicsOptions>();
+    graphics.anti_alias = AntiAliasMode::Msaa4x;
+    graphics.ssao_enabled = false;
+    app.update();
+    app.update();
+    let camera = app.world().entity(camera_entity);
+    assert!(!camera.contains::<DepthPrepass>());
+    assert!(!camera.contains::<NormalPrepass>());
+    assert!(!camera.contains::<MotionVectorPrepass>());
+    assert!(!camera.contains::<TemporalJitter>());
+    assert!(!camera.contains::<MipBias>());
 }
 
 fn graphics_effects_test_app() -> (App, Entity) {
@@ -396,7 +443,7 @@ fn camera_post_process_stage_lighting_restores_render_bundle_after_empty() {
 }
 
 #[test]
-fn camera_post_process_stage_lighting_restores_msaa_prepasses_after_empty() {
+fn camera_post_process_stage_lighting_restores_msaa_without_unused_prepasses() {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.insert_resource(GraphicsOptions::default());
@@ -418,8 +465,8 @@ fn camera_post_process_stage_lighting_restores_msaa_prepasses_after_empty() {
 
     let camera = app.world().entity(camera_entity);
     assert_eq!(camera.get::<Msaa>(), Some(&Msaa::Sample4));
-    assert!(camera.contains::<DepthPrepass>());
-    assert!(camera.contains::<NormalPrepass>());
+    assert!(!camera.contains::<DepthPrepass>());
+    assert!(!camera.contains::<NormalPrepass>());
     assert!(!camera.contains::<TemporalAntiAliasing>());
     assert!(!camera.contains::<ScreenSpaceAmbientOcclusion>());
     assert!(!camera.contains::<MotionVectorPrepass>());
