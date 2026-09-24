@@ -238,13 +238,13 @@ impl QuestRuntime {
     }
 
     /// A turn-in finished: Retail `ERR_QUEST_COMPLETE_S`, `ERR_QUEST_REWARD_EXP_I` and
-    /// `ERR_QUEST_REWARD_MONEY_S` lines; the reward page closes.
+    /// `ERR_QUEST_REWARD_MONEY_S` lines; that quest's reward page closes.
     pub fn complete_quest(&mut self, complete: &QuestGiverQuestComplete) -> Vec<String> {
         let title = self
             .completed_title(complete.quest_id)
             .unwrap_or_else(|| format!("Quest {}", complete.quest_id));
-        if let Some(npc) = self.dialog.as_ref().map(|dialog| dialog.npc) {
-            self.close_dialog_for(npc);
+        if self.reward_page_for(complete.quest_id) {
+            self.dialog = None;
         }
         let mut notices = vec![format!("{title} completed.")];
         if complete.xp > 0 {
@@ -260,15 +260,23 @@ impl QuestRuntime {
     }
 
     fn completed_title(&self, quest_id: u32) -> Option<String> {
-        if let Some(QuestDialog {
-            page: QuestDialogPage::Reward { offer, .. },
-            ..
-        }) = &self.dialog
-            && offer.quest_id == quest_id
-        {
-            return Some(offer.title.clone());
+        match &self.dialog {
+            Some(QuestDialog {
+                page: QuestDialogPage::Reward { offer, .. },
+                ..
+            }) if offer.quest_id == quest_id => Some(offer.title.clone()),
+            _ => self.entry(quest_id).map(|entry| entry.title.clone()),
         }
-        self.entry(quest_id).map(|entry| entry.title.clone())
+    }
+
+    fn reward_page_for(&self, quest_id: u32) -> bool {
+        matches!(
+            &self.dialog,
+            Some(QuestDialog {
+                page: QuestDialogPage::Reward { offer, .. },
+                ..
+            }) if offer.quest_id == quest_id
+        )
     }
 }
 

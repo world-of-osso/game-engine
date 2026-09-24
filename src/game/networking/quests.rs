@@ -171,6 +171,14 @@ fn receive_quest_dialog(
         &mut requests,
         &mut errors,
     );
+    // A turn-in answers QuestGiverQuestComplete before the chain's next
+    // QuestGiverQuestDetails; one batch can carry both.
+    for inbox in receivers.completes.iter_mut() {
+        for complete in inbox.receive() {
+            let notices = runtime.complete_quest(&complete);
+            post_notices(notices, &mut chat);
+        }
+    }
     for inbox in receivers.lists.iter_mut() {
         for list in inbox.receive() {
             runtime.apply_quest_list(list);
@@ -192,12 +200,6 @@ fn receive_quest_dialog(
         for offer in inbox.receive() {
             let name = npcs.name(offer.npc);
             runtime.show_reward(name, offer);
-        }
-    }
-    for inbox in receivers.completes.iter_mut() {
-        for complete in inbox.receive() {
-            let notices = runtime.complete_quest(&complete);
-            post_notices(notices, &mut chat);
         }
     }
     for inbox in receivers.quest_failed.iter_mut() {
