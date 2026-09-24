@@ -16,6 +16,9 @@ use super::*;
 use crate::ui_input_mode::UiInputMode;
 use crate::window_manager::{WindowId, WindowManager};
 
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
+
 const SCREEN: Vec2 = Vec2::new(1920.0, 1080.0);
 /// Authored target frame rect used by these tests.
 const TARGET_AUTHORED: Vec2 = Vec2::new(1100.0, 800.0);
@@ -89,7 +92,9 @@ fn every_plan_hud_element_is_registered_once() {
     for frame in [
         "PlayerFrame",
         "TargetFrame",
-        "CastingBarFrame",
+        "TargetOfTargetFrame",
+        "FocusFrame",
+        "PlayerCastingBarFrame",
         "MainActionBar",
         "MultiBarBottomLeft",
         "MultiBarBottomRight",
@@ -115,6 +120,10 @@ fn every_plan_hud_element_is_registered_once() {
 // --- Bevy App ---
 
 fn edit_mode_app(path: &Path, character_id: u64) -> App {
+    edit_mode_app_with(path, character_id, add_target_frame)
+}
+
+fn edit_mode_app_with(path: &Path, character_id: u64, mount: fn(&mut App)) -> App {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
     app.insert_state(GameState::Loading);
@@ -141,7 +150,7 @@ fn edit_mode_app(path: &Path, character_id: u64) -> App {
         PrimaryWindow,
     ));
     app.add_plugins(EditModePlugin);
-    add_target_frame(&mut app);
+    mount(&mut app);
     app.update();
     app.world_mut()
         .resource_mut::<NextState<GameState>>()
@@ -290,6 +299,62 @@ fn f10_shows_a_named_selection_box_for_each_mounted_element() {
             .is_none(),
         "unmounted elements have no box"
     );
+}
+
+/// The real combat cluster screens (unit frames with target, ToT and focus, plus the cast bar),
+/// laid out at 1920×1080.
+fn mount_combat_cluster(app: &mut App) {
+    use game_engine::ui::screens::casting_bar_frame_component::{
+        CastingBarState, casting_bar_frame_screen,
+    };
+    use game_engine::ui::screens::inworld_unit_frames_component::{
+        InWorldUnitFramesState, SmallUnitFrameState, UnitFrameMenuState, UnitFrameState,
+        inworld_unit_frames_screen,
+    };
+    use ui_toolkit::screen::{Screen, SharedContext};
+    let unit = UnitFrameState::named("Theron");
+    let mut shared = SharedContext::new();
+    shared.insert(InWorldUnitFramesState {
+        show_player_frame: true,
+        show_target_frame: true,
+        player: unit.clone(),
+        target: Some(unit.clone()),
+        target_of_target: Some(SmallUnitFrameState::from(&unit)),
+        focus: Some(SmallUnitFrameState::from(&unit)),
+        menu: UnitFrameMenuState::default(),
+    });
+    shared.insert(CastingBarState {
+        visible: true,
+        ..CastingBarState::default()
+    });
+    let mut ui = app.world_mut().resource_mut::<UiState>();
+    Screen::new(inworld_unit_frames_screen).sync(&shared, &mut ui.registry);
+    Screen::new(casting_bar_frame_screen).sync(&shared, &mut ui.registry);
+    layout_support::compute_layout(&mut ui.registry);
+}
+
+#[test]
+fn f10_boxes_every_combat_cluster_frame() {
+    let path = temp_layout_path("cluster");
+    let mut app = edit_mode_app_with(&path, 12, mount_combat_cluster);
+
+    tap_key(&mut app, KeyCode::F10);
+
+    let registry = &app.world().resource::<UiState>().registry;
+    for key in [
+        "player_frame",
+        "target_frame",
+        "target_of_target",
+        "focus_frame",
+        "cast_bar",
+    ] {
+        assert!(
+            registry
+                .get_by_name(&format!("EditModeSelection_{key}"))
+                .is_some(),
+            "{key} has no edit-mode selection box"
+        );
+    }
 }
 
 #[test]

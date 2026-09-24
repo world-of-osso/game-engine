@@ -40,7 +40,24 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
         "TargetFrame",
         HudAnchor::Bottom,
     ),
-    element("cast_bar", "Cast Bar", "CastingBarFrame", HudAnchor::Bottom),
+    element(
+        "target_of_target",
+        "Target of Target",
+        "TargetOfTargetFrame",
+        HudAnchor::Bottom,
+    ),
+    element(
+        "focus_frame",
+        "Focus Frame",
+        "FocusFrame",
+        HudAnchor::Bottom,
+    ),
+    element(
+        "cast_bar",
+        "Cast Bar",
+        "PlayerCastingBarFrame",
+        HudAnchor::Bottom,
+    ),
     element(
         "action_bar_1",
         "Action Bar 1",
