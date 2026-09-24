@@ -6,9 +6,10 @@ use std::path::Path;
 use std::sync::{OnceLock, mpsc};
 
 use bevy::ecs::system::RunSystemOnce;
-use game_engine::network_events::{dispatch_incoming, dispatch_outgoing};
+use game_engine::network_events::{dispatch_incoming, dispatch_outgoing, register_message_handler};
 use game_engine::network_runtime::messages::{ConnectionSender, Inbox};
 use game_engine::network_runtime::worker::NetworkCommand;
+use game_engine::player_spells::receive_specialization_changed;
 use game_engine::talent::TalentPlugin;
 use game_engine::talent_tree::rules::{TraitContext, granted_entries};
 use game_engine::talent_tree::{
@@ -84,6 +85,11 @@ fn talent_app(data: &TalentTreeData) -> App {
     });
     app.init_resource::<ConnectionSender>();
     app.add_plugins(TalentPlugin);
+    register_message_handler::<SpecializationChanged, _>(
+        &mut app,
+        receive_specialization_changed,
+        |_| true,
+    );
     app.insert_resource(TalentTrees {
         state: TalentTreesState::Ready(data.clone()),
     });
@@ -98,7 +104,9 @@ fn talent_app(data: &TalentTreeData) -> App {
         .unwrap();
     app.add_systems(
         Update,
-        (apply_on_confirmation, sync_talent_frame_state).chain(),
+        (apply_on_confirmation, sync_talent_frame_state)
+            .chain()
+            .after(game_engine::talent::follow_active_specialization),
     );
     app.update();
     app
