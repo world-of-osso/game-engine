@@ -9,7 +9,7 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 ### Open state and classes
 
 - [x] One resource (`WindowManager`) owns every in-world window's open state. Scene frames read it for visibility; no per-scene open flag exists.
-- [x] Panel: character, spellbook, professions, friends/social, guild, mail, loot rules, calendar, inspect, merchant. At most two; opening a third closes the oldest open panel.
+- [x] Panel: character, spellbook (`P`, root `SpellBookRoot`; the runtime shows what the manager has open), professions, friends/social, guild, mail, loot rules, calendar, inspect, merchant. At most two; opening a third closes the oldest open panel.
 - [x] NPC-driven panels (merchant, mail) take slot L and push the others right.
 - [x] Wide: world map, talents, achievements, encounter journal. Opening one closes every panel and other wide window; bags stay.
 - [x] Container: each bag. Coexists with everything.
@@ -48,5 +48,4 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 
 ## Known gaps
 
-- The spellbook has no mounted in-world frame yet; `WindowId::Spellbook` (`SpellbookFrame`) is reserved for it.
 - The world map component is authored 1920×1080, larger than the 1000×680 Wide maximum; placement clamps it to (0, 0) instead of resizing it.
