@@ -8,7 +8,7 @@ use game_engine::chat_data::{ChatChannelType, ChatMessage, ChatState};
 use game_engine::nameplate_data::QuestIndicator;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
-pub use game_engine::quest_runtime::NpcInteractionRequest;
+pub use game_engine::quest_runtime::{NpcFrameEvent, NpcInteractionRequest};
 use game_engine::quest_runtime::{QuestRuntime, quest_failed_text};
 use game_engine::status::QuestLogStatusSnapshot;
 use game_engine::ui::ui_errors::UiErrors;
@@ -36,7 +36,8 @@ impl Plugin for QuestNetworkPlugin {
         app.init_resource::<QuestRuntime>()
             .init_resource::<UiErrors>()
             .init_resource::<ReplicationMirrorMap>()
-            .add_message::<NpcInteractionRequest>();
+            .add_message::<NpcInteractionRequest>()
+            .add_message::<NpcFrameEvent>();
         let log = register_message_handler::<QuestLogSnapshot, _>(app, receive_quest_log, in_world);
         add_message_route::<QuestLogUpdate>(app, log);
         add_message_route::<QuestGiverStatusMultiple>(app, log);
@@ -161,6 +162,7 @@ fn receive_quest_dialog(
     npcs: NpcLookup,
     mut runtime: ResMut<QuestRuntime>,
     mut requests: MessageWriter<NpcInteractionRequest>,
+    mut frames: MessageWriter<NpcFrameEvent>,
     mut chat: ResMut<ChatState>,
     mut errors: ResMut<UiErrors>,
 ) {
@@ -168,7 +170,7 @@ fn receive_quest_dialog(
         &mut receivers,
         &npcs,
         &mut runtime,
-        &mut requests,
+        (&mut requests, &mut frames),
         &mut errors,
     );
     // A turn-in answers QuestGiverQuestComplete before the chain's next
@@ -209,13 +211,17 @@ fn receive_quest_dialog(
     }
 }
 
-/// `InteractionOpened` opens the greeting (and asks a quest giver for its quests);
-/// failures show the Retail error text; `InteractionClosed` closes the frame.
+/// `InteractionOpened` opens the greeting (and asks a quest giver for its quests) or,
+/// for another role, tells that role's frame; failures show the Retail error text;
+/// `InteractionClosed` closes the frame.
 fn receive_interactions(
     receivers: &mut QuestDialogReceivers,
     npcs: &NpcLookup,
     runtime: &mut QuestRuntime,
-    requests: &mut MessageWriter<NpcInteractionRequest>,
+    (requests, frames): (
+        &mut MessageWriter<NpcInteractionRequest>,
+        &mut MessageWriter<NpcFrameEvent>,
+    ),
     errors: &mut UiErrors,
 ) {
     for inbox in receivers.opened.iter_mut() {
@@ -232,7 +238,14 @@ fn receive_interactions(
                     runtime.open_quest_giver(opened.npc, name);
                     requests.write(NpcInteractionRequest::Hello { npc: opened.npc });
                 }
-                InteractionKind::Role(_) => {}
+                InteractionKind::Role(role) => {
+                    // A role frame replaces the gossip greeting it was picked from.
+                    runtime.close_dialog_for(opened.npc);
+                    frames.write(NpcFrameEvent::Opened {
+                        npc: opened.npc,
+                        role,
+                    });
+                }
             }
         }
     }
@@ -244,6 +257,7 @@ fn receive_interactions(
     for inbox in receivers.closed.iter_mut() {
         for closed in inbox.receive() {
             runtime.close_dialog_for(closed.npc);
+            frames.write(NpcFrameEvent::Closed { npc: closed.npc });
         }
     }
 }

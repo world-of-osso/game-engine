@@ -20,6 +20,7 @@ fn fixture() -> Fixture {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins)
         .add_message::<NpcInteractionRequest>()
+        .add_message::<NpcFrameEvent>()
         .init_resource::<QuestRuntime>()
         .init_resource::<QuestLogStatusSnapshot>()
         .init_resource::<ChatState>()
@@ -72,6 +73,56 @@ fn chat_lines(app: &App) -> Vec<String> {
         .filter(|message| message.channel_type == ChatChannelType::System)
         .map(|message| message.text.clone())
         .collect()
+}
+
+fn frame_events(app: &mut App) -> Vec<NpcFrameEvent> {
+    app.world_mut()
+        .resource_mut::<Messages<NpcFrameEvent>>()
+        .drain()
+        .collect()
+}
+
+#[test]
+fn auctioneer_role_picked_from_gossip_closes_the_greeting_and_opens_its_frame() {
+    let Fixture { mut app, .. } = fixture();
+    deliver(
+        &mut app,
+        vec![
+            InteractionOpened {
+                npc: WILLEM_SERVER,
+                kind: InteractionKind::Gossip(GossipMenu {
+                    menu_id: 0,
+                    text: String::new(),
+                    options: vec![],
+                }),
+            },
+            InteractionOpened {
+                npc: WILLEM_SERVER,
+                kind: InteractionKind::Role(NpcRole::AuctionHouse),
+            },
+        ],
+    );
+    app.world_mut()
+        .run_system_once(receive_quest_dialog)
+        .unwrap();
+
+    assert!(app.world().resource::<QuestRuntime>().dialog.is_none());
+    assert_eq!(
+        frame_events(&mut app),
+        vec![NpcFrameEvent::Opened {
+            npc: WILLEM_SERVER,
+            role: NpcRole::AuctionHouse,
+        }]
+    );
+
+    deliver(&mut app, vec![InteractionClosed { npc: WILLEM_SERVER }]);
+    app.world_mut()
+        .run_system_once(receive_quest_dialog)
+        .unwrap();
+    assert_eq!(
+        frame_events(&mut app),
+        vec![NpcFrameEvent::Closed { npc: WILLEM_SERVER }]
+    );
 }
 
 #[test]
