@@ -69,6 +69,7 @@ impl Plugin for TalentFramePlugin {
                 sync_talent_frame_state,
             )
                 .chain()
+                .after(game_engine::talent::follow_active_specialization)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );

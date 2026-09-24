@@ -9,7 +9,7 @@ Retail-style talent window `PlayerSpellsFrame`, driven by the server trait confi
 | Tree data (CSV load, model) | `src/game/talent_tree/{mod,load}.rs` |
 | Mirrored rules (granted, validate, spent) | `src/game/talent_tree/rules.rs` |
 | Local edits of a snapshot config | `src/game/talent_tree/session.rs` |
-| Network state (snapshot, spec, pending, outgoing) | `src/talent.rs` (`TalentState`, `TalentPlugin`) |
+| Network state (snapshot, pending, outgoing; spec from `ActiveSpecialization`) | `src/talent.rs` (`TalentState`, `TalentPlugin`) |
 | View model + layout + tooltips | `src/ui/screens/talent_frame_view.rs` |
 | `rsx!` window | `src/ui/screens/talent_frame_component.rs` |
 | Scene: build/sync, clicks, edge rotation | `src/scenes/talent_frame/` |
@@ -58,7 +58,7 @@ Edges run from center to center, shortened by one node size. `rsx!` has no rotat
 - **Left click** buys a rank of the node's entry. For tiered (apex) nodes it buys the first entry that is not maxed. For a choice half it buys that entry, replacing a bought choice of the same node. **Right click** refunds one bought rank (the last entry with ranks); granted ranks cannot be refunded. An edit is kept only if the whole resulting config passes the mirrored `validate`, so a refund that would strand a child is refused.
 - **Apply** (enabled with pending edits) opens a `PopupStack` confirmation "Apply talent changes?" (Accept/Cancel, key `TALENT_APPLY_CHANGES`, plan rule 11). Only Accept queues `CommitTraitConfig { spec_id, entries }` on `TalentChannel`. Ranks are totals (granted + bought), as the snapshot sends them. Pending edits stay until the next snapshot replaces them. `TraitCommitResult { ok: false }` adds its reason to `UiErrors` (UIErrorsFrame).
 - **Reset** drops the pending edits.
-- **Spec buttons:** the class specs except the Initial one (`OrderIndex` 4). They are disabled below level 10 (server `SPEC_UNLOCK_LEVEL`) and for the active spec. A click sends `SetSpecialization`. `SpecializationChanged` to another spec drops the snapshot, so the window shows Loading until the new spec's snapshot arrives.
+- **Spec buttons:** the class specs except the Initial one (`OrderIndex` 4). They are disabled below level 10 (server `SPEC_UNLOCK_LEVEL`) and for the active spec. A click sends `SetSpecialization`. The client does not receive `SpecializationChanged` itself: `player_spells` owns that receiver and writes `ActiveSpecialization`, and `TalentPlugin` reacts to changes of that resource. A change to another spec drops the snapshot, so the window shows Loading until the new spec's snapshot arrives.
 - **Tooltip:** the shared `TooltipFrame` looks up the hovered frame (or its nearest ancestor) in `TalentTooltips`. It shows the name (override name or spell name), "Rank x/y", and the `SpellCatalog` rendered description wrapped at 46 characters.
 
 ## Mirrored rules
