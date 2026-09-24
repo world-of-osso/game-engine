@@ -714,3 +714,28 @@ fn showing_the_hud_reveals_the_map_under_the_cluster() {
     set_hud_visibility(&mut ui, &frames, false);
     assert!(!ui.registry.get(frames.display).unwrap().visible);
 }
+
+#[test]
+fn downscale_averages_each_block() {
+    // 4x4 → 2x2: top-left block is two white and two black pixels.
+    let mut pixels = vec![0u8; 4 * 4 * 4];
+    for (x, y) in [(0, 0), (1, 0)] {
+        let i = (y * 4 + x) * 4;
+        pixels[i..i + 4].copy_from_slice(&[255, 255, 255, 255]);
+    }
+    let out = downscale_rgba(&pixels, 4, 4, 2).unwrap();
+    assert_eq!(&out[0..4], &[127, 127, 127, 127]);
+    assert_eq!(&out[4..8], &[0, 0, 0, 0]);
+}
+
+#[test]
+fn elwynn_tile_loads_minimap_art_in_adt_index_order() {
+    // azeroth_32_48.adt is terrain key (tile_y 32, tile_x 48); its art is map32_48.blp.
+    let image = try_load_minimap_blp(32, 48).expect("map32_48.blp");
+    assert_eq!(image.width(), MINIMAP_TILE_SIZE);
+    assert_eq!(image.height(), MINIMAP_TILE_SIZE);
+    assert!(
+        try_load_minimap_blp(48, 32).is_none(),
+        "swapped index has no art"
+    );
+}
