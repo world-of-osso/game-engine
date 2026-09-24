@@ -33,7 +33,7 @@ use serde::Serialize;
 #[cfg(test)]
 mod overhead_benchmark;
 
-const START_DELAY: Duration = Duration::from_secs(10);
+const DEFAULT_START_DELAY: Duration = Duration::from_secs(10);
 const CAPTURE_DURATION: Duration = Duration::from_secs(5);
 const EXPORT_DELAY: Duration = Duration::from_secs(1);
 
@@ -50,7 +50,13 @@ pub fn layer(app: &mut App) -> Option<BoxedLayer> {
         panic!("WOO_CPU_PROFILE_OUTPUT must name an output file");
     }
 
-    let profiler = Arc::new(SharedProfiler::new(PathBuf::from(output)));
+    let start_delay =
+        std::env::var("WOO_CPU_PROFILE_START_SECS").map_or(DEFAULT_START_DELAY, |secs| {
+            Duration::from_secs(secs.parse().unwrap_or_else(|error| {
+                panic!("WOO_CPU_PROFILE_START_SECS must be whole seconds: {error}")
+            }))
+        });
+    let profiler = Arc::new(SharedProfiler::new(PathBuf::from(output), start_delay));
     app.insert_resource(CpuSpanProfileResource(profiler.clone()));
     app.add_systems(Last, export_profile_once);
     Some(Box::new(CpuSpanLayer { profiler }))
@@ -121,6 +127,7 @@ where
 struct SharedProfiler {
     id: usize,
     started: Instant,
+    start_delay: Duration,
     output: PathBuf,
     threads: Mutex<BTreeMap<String, Arc<Mutex<ThreadReport>>>>,
     error: Mutex<Option<String>>,
@@ -128,19 +135,24 @@ struct SharedProfiler {
 }
 
 impl SharedProfiler {
-    fn new(output: PathBuf) -> Self {
-        Self::with_started(output, Instant::now())
+    fn new(output: PathBuf, start_delay: Duration) -> Self {
+        Self::with_started(output, Instant::now(), start_delay)
     }
 
     #[cfg(test)]
     fn for_test(output: PathBuf) -> Self {
-        Self::with_started(output, Instant::now() - START_DELAY)
+        Self::with_started(
+            output,
+            Instant::now() - DEFAULT_START_DELAY,
+            DEFAULT_START_DELAY,
+        )
     }
 
-    fn with_started(output: PathBuf, started: Instant) -> Self {
+    fn with_started(output: PathBuf, started: Instant, start_delay: Duration) -> Self {
         Self {
             id: NEXT_PROFILER_ID.fetch_add(1, Ordering::Relaxed),
             started,
+            start_delay,
             output,
             threads: Mutex::new(BTreeMap::new()),
             error: Mutex::new(None),
@@ -150,11 +162,11 @@ impl SharedProfiler {
 
     fn capture_active(&self) -> bool {
         let elapsed = self.started.elapsed();
-        elapsed >= START_DELAY && elapsed < START_DELAY + CAPTURE_DURATION
+        elapsed >= self.start_delay && elapsed < self.start_delay + CAPTURE_DURATION
     }
 
     fn ready_to_export(&self) -> bool {
-        self.started.elapsed() >= START_DELAY + CAPTURE_DURATION + EXPORT_DELAY
+        self.started.elapsed() >= self.start_delay + CAPTURE_DURATION + EXPORT_DELAY
     }
 
     fn thread_report(&self) -> Arc<Mutex<ThreadReport>> {
@@ -194,9 +206,9 @@ impl SharedProfiler {
             .map(|report| report.lock().unwrap().snapshot())
             .collect();
         let payload = CpuProfileOutput {
-            capture_start_after_seconds: START_DELAY.as_secs(),
+            capture_start_after_seconds: self.start_delay.as_secs(),
             capture_duration_seconds: CAPTURE_DURATION.as_secs(),
-            export_after_seconds: (START_DELAY + CAPTURE_DURATION + EXPORT_DELAY).as_secs(),
+            export_after_seconds: (self.start_delay + CAPTURE_DURATION + EXPORT_DELAY).as_secs(),
             boundary_policy: "Only spans that enter and exit inside the capture window are counted. boundary_crossing_spans counts entries inside the window that exit afterward, not spans already active at its start. Export waits one second for ordinary exits.".to_string(),
             limitation: "observed_cpu_ns is the first-to-last captured selected-span CPU-clock delta on each thread, not its complete five-second CPU use. Unobserved boundary intervals and threads without selected spans are absent. Blocked time is excluded; uninstrumented work and profiler overhead within the observed intervals remain outside named-span attribution.".to_string(),
             threads: reports,
