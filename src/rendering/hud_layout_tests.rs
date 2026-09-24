@@ -48,9 +48,14 @@ fn small(name: &str) -> SmallUnitFrameState {
     SmallUnitFrameState::from(&unit(name))
 }
 
-/// Every HUD screen the in-world stage mounts, with all optional frames shown.
+/// Registry size when the HUD is built, before the in-world auto-fit scale applies
+/// (1472×1137 at the pre-world UI scale 1.15, as in the live report).
+const BUILD_SIZE: (f32, f32) = (1280.0, 989.0);
+
+/// Every HUD screen the in-world stage mounts, with all optional frames shown, built at
+/// [`BUILD_SIZE`] and laid out after the canvas becomes `width`×`height`.
 fn mount_hud(width: f32, height: f32) -> FrameRegistry {
-    let mut reg = FrameRegistry::new(width, height);
+    let mut reg = FrameRegistry::new(BUILD_SIZE.0, BUILD_SIZE.1);
     let mut shared = SharedContext::new();
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
@@ -86,6 +91,8 @@ fn mount_hud(width: f32, height: f32) -> FrameRegistry {
     let minimap = reg.get_by_name("MinimapCluster").expect("minimap cluster");
     reg.set_hidden(minimap, false);
     crate::rendering::action_bar::create_action_bars(&mut reg);
+    reg.screen_width = width;
+    reg.screen_height = height;
     layout_test_support::compute_layout(&mut reg);
     reg
 }
