@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
-use bevy::prelude::*;
 
 use super::super::terrain_background_parse::parse_tile_background;
 use super::super::{AdtManager, DoodadLod, LoadedTileSpawnParams, ParsedTile, TileLoadResult};

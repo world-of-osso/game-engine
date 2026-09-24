@@ -5,7 +5,6 @@ use bevy::ecs::system::SystemState;
 use bevy::mesh::VertexAttributeValues;
 use bevy::mesh::skinning::{SkinnedMesh, SkinnedMeshInverseBindposes};
 use bevy::mesh::{Mesh, Mesh3d};
-use bevy::prelude::*;
 
 use super::*;
 use crate::animation::AnimationPlugin;

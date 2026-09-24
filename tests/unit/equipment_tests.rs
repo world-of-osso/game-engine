@@ -3,7 +3,6 @@ use std::path::Path;
 
 use bevy::mesh::Mesh3d;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
-use bevy::prelude::*;
 use bevy::transform::TransformPlugin;
 
 use super::*;

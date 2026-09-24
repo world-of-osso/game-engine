@@ -628,7 +628,7 @@ fn dragging_spellbook_entry_onto_slot_two_sends_set_action_button() {
     f.app
         .world_mut()
         .resource_scope(|world, mut state: Mut<UiState>| {
-            let mut runtime = world.non_send_resource_mut::<SpellbookUiRuntime>();
+            let mut runtime = world.non_send_mut::<SpellbookUiRuntime>();
             set_spellbook_open(&mut state, &mut runtime, true);
         });
     f.app.update();
