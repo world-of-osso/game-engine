@@ -464,35 +464,10 @@ fn apply_ui_hud_visibility_for_state(
     hud: &options::HudDraft,
 ) {
     let in_world = current_state == GameState::InWorld;
-    set_named_frames_visible(
-        reg,
-        &[
-            "MinimapCluster",
-            "MinimapHeader",
-            "MinimapDisplay",
-            "MinimapBorder",
-            "MinimapArrow",
-            "MinimapZoneName",
-            "MinimapCoords",
-        ],
-        in_world && hud.show_minimap,
-    );
-    set_named_frames_visible(
-        reg,
-        &[
-            "MainActionBar",
-            "MultiBarBottomLeft",
-            "MultiBarBottomRight",
-            "MultiBarRight",
-            "MultiBarLeft",
-            "MainActionBarMoverLabel",
-            "MultiBarBottomLeftMoverLabel",
-            "MultiBarBottomRightMoverLabel",
-            "MultiBarRightMoverLabel",
-            "MultiBarLeftMoverLabel",
-        ],
-        in_world && hud.show_action_bars,
-    );
+    // Roots only: `set_hidden` propagates to children. Extra action bars stay owned by
+    // the action bar edit-mode preview.
+    set_named_frame_visible(reg, "MinimapCluster", in_world && hud.show_minimap);
+    set_named_frame_visible(reg, "MainActionBar", in_world && hud.show_action_bars);
 }
 
 fn apply_target_marker_visibility(world: &mut World, visible: bool) {
@@ -507,17 +482,9 @@ fn apply_target_marker_visibility(world: &mut World, visible: bool) {
     }
 }
 
-fn set_named_frames_visible(reg: &mut FrameRegistry, names: &[&str], visible: bool) {
-    for name in names {
-        let Some(id) = reg.get_by_name(name) else {
-            continue;
-        };
-        let Some(frame) = reg.get_mut(id) else {
-            continue;
-        };
-        frame.hidden = !visible;
-        frame.visible = visible;
-        frame.effective_alpha = if visible { frame.alpha } else { 0.0 };
+fn set_named_frame_visible(reg: &mut FrameRegistry, name: &str, visible: bool) {
+    if let Some(id) = reg.get_by_name(name) {
+        reg.set_hidden(id, !visible);
     }
 }
 

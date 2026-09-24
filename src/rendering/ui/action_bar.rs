@@ -1,7 +1,7 @@
 use bevy::prelude::*;
+use bevy::ui::Val2;
 
 use game_engine::auction_house_data::Money;
-use game_engine::player_spells::{action_button_name, bar_slot_index};
 use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::frame::{Dimension, WidgetData};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -30,6 +30,19 @@ const FLAT_H: f32 = 45.0;
 const SIDE_W: f32 = 45.0;
 const SIDE_H: f32 = 562.0;
 const MAIN_SLOT_Y: f32 = 7.0;
+/// Retail `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Blizzard_EditMode/Standard/EditModePresetLayoutConstants.lua).
+const MAIN_BOTTOM: f32 = 45.0;
+/// Retail `BOTTOM_ACTION_BARS_SPACER_Y`: gap between stacked bottom bars.
+const BOTTOM_BAR_SPACER: f32 = 5.0;
+const BOTTOM_LEFT_BOTTOM: f32 = MAIN_BOTTOM + MAIN_H + BOTTOM_BAR_SPACER;
+const BOTTOM_RIGHT_BOTTOM: f32 = BOTTOM_LEFT_BOTTOM + FLAT_H + BOTTOM_BAR_SPACER;
+/// Retail `RIGHT_ACTION_BAR_DEFAULT_OFFSET_X/Y`: right edge inset and drop below centre.
+const SIDE_RIGHT: f32 = 5.0;
+const SIDE_CENTER_DROP: f32 = 77.0;
+const SIDE_GAP: f32 = 5.0;
+const EDIT_BANNER_W: f32 = 760.0;
+const EDIT_BANNER_H: f32 = 34.0;
+const EDIT_BANNER_TOP: f32 = 24.0;
 
 const BAR_BG: [f32; 4] = [0.03, 0.02, 0.01, 0.18];
 const BAR_EDIT_BG: [f32; 4] = [0.18, 0.14, 0.08, 0.78];
@@ -49,11 +62,8 @@ enum BarId {
 pub(crate) struct ActionBarsUi {
     roots: [u64; 5],
     labels: [u64; 5],
-    main_slots: [u64; SLOT_COUNT],
-    bottom_left_slots: [u64; SLOT_COUNT],
-    bottom_right_slots: [u64; SLOT_COUNT],
-    right_slots: [u64; SLOT_COUNT],
-    left_slots: [u64; SLOT_COUNT],
+    /// Per-bar button containers, in `roots` order.
+    containers: [[u64; SLOT_COUNT]; 5],
     money_display: u64,
     edit_banner: u64,
     edit_banner_text: u64,
@@ -188,11 +198,14 @@ fn resolve_action_bars(reg: &FrameRegistry) -> ActionBarsUi {
     ActionBarsUi {
         roots: root_ids(reg),
         labels: label_ids(reg),
-        main_slots: slot_ids(reg, 1),
-        bottom_left_slots: slot_ids(reg, 2),
-        bottom_right_slots: slot_ids(reg, 3),
-        right_slots: slot_ids(reg, 4),
-        left_slots: slot_ids(reg, 5),
+        containers: [
+            "MainActionBarButtonContainer",
+            "MultiBarBottomLeftButtonContainer",
+            "MultiBarBottomRightButtonContainer",
+            "MultiBarRightButtonContainer",
+            "MultiBarLeftButtonContainer",
+        ]
+        .map(|prefix| container_ids(reg, prefix)),
         money_display: frame_id(reg, "BagsBarMoneyDisplay"),
         edit_banner: frame_id(reg, "ActionBarEditBanner"),
         edit_banner_text: frame_id(reg, "ActionBarEditBannerText"),
@@ -226,79 +239,123 @@ fn frame_id(reg: &FrameRegistry, name: &str) -> u64 {
         .unwrap_or_else(|| panic!("missing frame {name}"))
 }
 
-fn slot_ids(reg: &FrameRegistry, bar: usize) -> [u64; SLOT_COUNT] {
-    std::array::from_fn(|index| frame_id(reg, &action_button_name(bar_slot_index(bar, index + 1))))
+fn container_ids(reg: &FrameRegistry, prefix: &str) -> [u64; SLOT_COUNT] {
+    std::array::from_fn(|index| frame_id(reg, &format!("{prefix}{}", index + 1)))
 }
 
 fn apply_layout(reg: &mut FrameRegistry, bars: &ActionBarsUi) {
-    layout_main_bar(reg, bars.roots[0], bars.labels[0], &bars.main_slots);
-    layout_flat_bar(reg, bars.roots[1], bars.labels[1], &bars.bottom_left_slots);
-    layout_flat_bar(reg, bars.roots[2], bars.labels[2], &bars.bottom_right_slots);
-    layout_side_bar(reg, bars.roots[3], bars.labels[3], &bars.right_slots, 0.0);
-    layout_side_bar(
-        reg,
-        bars.roots[4],
-        bars.labels[4],
-        &bars.left_slots,
-        -SIDE_W - 5.0,
-    );
+    let [main, bottom_left, bottom_right, right, left] = bars.roots;
+    place_bottom_center(reg, main, MAIN_BOTTOM, MAIN_W, MAIN_H);
+    place_bottom_center(reg, bottom_left, BOTTOM_LEFT_BOTTOM, FLAT_W, FLAT_H);
+    place_bottom_center(reg, bottom_right, BOTTOM_RIGHT_BOTTOM, FLAT_W, FLAT_H);
+    place_right_center(reg, right, SIDE_RIGHT, SIDE_W, SIDE_H);
+    place_right_center(reg, left, SIDE_RIGHT + SIDE_W + SIDE_GAP, SIDE_W, SIDE_H);
+    layout_row(reg, &bars.containers[0], MAIN_SLOT_Y);
+    layout_row(reg, &bars.containers[1], 0.0);
+    layout_row(reg, &bars.containers[2], 0.0);
+    layout_column(reg, &bars.containers[3]);
+    layout_column(reg, &bars.containers[4]);
+    layout_labels(reg, &bars.labels);
     center_banner(reg, bars.edit_banner, bars.edit_banner_text);
 }
 
-fn layout_main_bar(reg: &mut FrameRegistry, root: u64, label: u64, slots: &[u64; SLOT_COUNT]) {
-    let x = (reg.screen_width - MAIN_W) * 0.5;
-    let y = reg.screen_height - MAIN_H - 45.0;
-    set_rect(reg, root, x, y, MAIN_W, MAIN_H);
-    layout_row(reg, slots, MAIN_SLOT_Y);
-    set_rect(reg, label, 8.0, 4.0, MAIN_W - 16.0, 16.0);
+fn layout_labels(reg: &mut FrameRegistry, labels: &[u64; 5]) {
+    set_rect(reg, labels[0], 8.0, 4.0, MAIN_W - 16.0, 16.0);
     set_font_string_with_justify(
         reg,
-        label,
+        labels[0],
         "Main Action Bar",
         13.0,
         MOVER_LABEL_TEXT,
         JustifyH::Left,
     );
-}
-
-fn layout_flat_bar(reg: &mut FrameRegistry, root: u64, label: u64, slots: &[u64; SLOT_COUNT]) {
-    let x = (reg.screen_width - FLAT_W) * 0.5;
-    let y = reg.screen_height - FLAT_H - 45.0;
-    set_rect(reg, root, x, y, FLAT_W, FLAT_H);
-    layout_row(reg, slots, 0.0);
-    set_rect(reg, label, 8.0, 4.0, FLAT_W - 16.0, 16.0);
-}
-
-fn layout_side_bar(
-    reg: &mut FrameRegistry,
-    root: u64,
-    label: u64,
-    slots: &[u64; SLOT_COUNT],
-    x_offset: f32,
-) {
-    let x = reg.screen_width - SIDE_W - 5.0 + x_offset;
-    let y = (reg.screen_height - SIDE_H) * 0.5 + 77.0;
-    set_rect(reg, root, x, y, SIDE_W, SIDE_H);
-    layout_column(reg, slots);
-    set_rect(reg, label, 4.0, 4.0, SIDE_W + 160.0, 16.0);
-}
-
-fn layout_row(reg: &mut FrameRegistry, slots: &[u64; SLOT_COUNT], y: f32) {
-    for (index, slot) in slots.iter().copied().enumerate() {
-        set_rect(reg, slot, index as f32 * SLOT_STEP, y, SLOT_W, SLOT_H);
+    for &label in &labels[1..3] {
+        set_rect(reg, label, 8.0, 4.0, FLAT_W - 16.0, 16.0);
+    }
+    for &label in &labels[3..] {
+        set_rect(reg, label, 4.0, 4.0, SIDE_W + 160.0, 16.0);
     }
 }
 
-fn layout_column(reg: &mut FrameRegistry, slots: &[u64; SLOT_COUNT]) {
-    for (index, slot) in slots.iter().copied().enumerate() {
-        set_rect(reg, slot, 0.0, index as f32 * SLOT_STEP, SLOT_W, SLOT_H);
+/// Horizontally centred, `bottom` above the screen's bottom edge at any canvas height.
+fn place_bottom_center(reg: &mut FrameRegistry, id: u64, bottom: f32, w: f32, h: f32) {
+    let insets = UiRect {
+        left: Val::Percent(50.0),
+        right: Val::Auto,
+        top: Val::Auto,
+        bottom: Val::Px(bottom),
+    };
+    let translation = Val2::new(Val::Percent(-50.0), Val::Px(0.0));
+    place_anchored(reg, id, insets, translation, UiRect::ZERO, (w, h));
+}
+
+/// `right` from the screen's right edge, vertically centred and shifted down like Retail.
+fn place_right_center(reg: &mut FrameRegistry, id: u64, right: f32, w: f32, h: f32) {
+    let insets = UiRect {
+        left: Val::Auto,
+        right: Val::Px(right),
+        top: Val::Percent(50.0),
+        bottom: Val::Auto,
+    };
+    let translation = Val2::new(Val::Px(0.0), Val::Percent(-50.0));
+    let drop = UiRect {
+        top: Val::Px(SIDE_CENTER_DROP),
+        ..UiRect::ZERO
+    };
+    place_anchored(reg, id, insets, translation, drop, (w, h));
+}
+
+fn place_anchored(
+    reg: &mut FrameRegistry,
+    id: u64,
+    insets: UiRect,
+    translation: Val2,
+    margin: UiRect,
+    (w, h): (f32, f32),
+) {
+    if let Some(frame) = reg.get_mut(id) {
+        frame.width = Dimension::Fixed(w);
+        frame.height = Dimension::Fixed(h);
+        frame.position = insets;
+        frame.position_type = PositionType::Absolute;
+        frame.anchor = AnchorTarget::Parent;
+        frame.translation = translation;
+        frame.margin = margin;
+    }
+    reg.mark_rect_dirty(id);
+}
+
+/// Buttons are centred in their containers, so the containers carry the grid.
+fn layout_row(reg: &mut FrameRegistry, containers: &[u64; SLOT_COUNT], y: f32) {
+    for (index, container) in containers.iter().copied().enumerate() {
+        set_rect(reg, container, index as f32 * SLOT_STEP, y, SLOT_W, SLOT_H);
+    }
+}
+
+fn layout_column(reg: &mut FrameRegistry, containers: &[u64; SLOT_COUNT]) {
+    for (index, container) in containers.iter().copied().enumerate() {
+        set_rect(
+            reg,
+            container,
+            0.0,
+            index as f32 * SLOT_STEP,
+            SLOT_W,
+            SLOT_H,
+        );
     }
 }
 
 fn center_banner(reg: &mut FrameRegistry, banner: u64, text: u64) {
-    let x = (reg.screen_width - 760.0) * 0.5;
-    set_rect(reg, banner, x, 24.0, 760.0, 34.0);
-    set_rect(reg, text, 0.0, 0.0, 760.0, 34.0);
+    let insets = UiRect {
+        left: Val::Percent(50.0),
+        right: Val::Auto,
+        top: Val::Px(EDIT_BANNER_TOP),
+        bottom: Val::Auto,
+    };
+    let translation = Val2::new(Val::Percent(-50.0), Val::Px(0.0));
+    let size = (EDIT_BANNER_W, EDIT_BANNER_H);
+    place_anchored(reg, banner, insets, translation, UiRect::ZERO, size);
+    set_rect(reg, text, 0.0, 0.0, EDIT_BANNER_W, EDIT_BANNER_H);
 }
 
 fn apply_edit_mode(reg: &mut FrameRegistry, bars: &ActionBarsUi, edit: &ActionBarEditState) {
@@ -316,8 +373,9 @@ fn set_action_bar_visibility(
     edit: &ActionBarEditState,
     visible: bool,
 ) {
-    for &id in &bars.roots {
-        reg.set_hidden(id, !visible);
+    reg.set_hidden(bars.roots[0], !visible);
+    for &id in &bars.roots[1..] {
+        reg.set_hidden(id, !visible || !edit.enabled);
     }
     reg.set_hidden(bars.edit_banner, !visible || !edit.enabled);
     for &id in &bars.labels {
@@ -525,7 +583,11 @@ mod tests {
             .and_then(|frame| frame.layout_rect.clone())
             .expect("main bar rect");
         let slot = registry
-            .get(bars.main_slots[0])
+            .get(
+                registry
+                    .get_by_name("ActionButton1_1")
+                    .expect("first button"),
+            )
             .and_then(|frame| frame.layout_rect.clone())
             .expect("first button rect");
         assert_eq!((root.width, root.height), (MAIN_W, MAIN_H));
