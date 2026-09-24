@@ -248,7 +248,8 @@ fn reaction_strip(prefix: &str, reaction: Option<Reaction>, scale: f32) -> Eleme
     tinted_art_texture(
         dyn_name(format!("{prefix}ReputationColor")),
         &REACTION_STRIP,
-        scaled((BAR_X, NAME_Y, BAR_W, NAME_H + 1.0), scale),
+        // Authored 18px tall: a 13px band that fades out above its transparent lower rows.
+        scaled((BAR_X, NAME_Y, BAR_W, REACTION_STRIP.size().1), scale),
         reaction_color(reaction),
         false,
     )
