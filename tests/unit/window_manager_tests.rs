@@ -465,12 +465,8 @@ fn dragged_window_clamps_to_screen_edges_at_ui_scale_four_thirds() {
     let screen = Vec2::new(1920.0 / scale, 1080.0 / scale);
     open_window(&mut app, WindowId::Character);
 
-    drag_title(
-        &mut app,
-        Vec2::new(40.0, 114.0),
-        Vec2::new(5000.0, 5000.0),
-        scale,
-    );
+    // The cursor cannot leave the window; drop at its far corner.
+    drag_title(&mut app, Vec2::new(40.0, 114.0), screen - Vec2::ONE, scale);
     assert_eq!(
         frame_pos(&app, WindowId::Character),
         Vec2::new(screen.x - CHARACTER_W, screen.y - 424.0)
@@ -479,7 +475,7 @@ fn dragged_window_clamps_to_screen_edges_at_ui_scale_four_thirds() {
     drag_title(
         &mut app,
         Vec2::new(screen.x - CHARACTER_W + 10.0, screen.y - 420.0),
-        Vec2::new(-900.0, -900.0),
+        Vec2::ZERO,
         scale,
     );
     assert_eq!(frame_pos(&app, WindowId::Character), Vec2::ZERO);

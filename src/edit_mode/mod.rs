@@ -209,9 +209,9 @@ pub fn element_rect(
     Some(Rect::from_corners(top_left, top_left + size))
 }
 
-/// Snaps a dragged top-left to the grid, then to screen edges, then clamps.
+/// Snaps a dragged top-left to a screen edge within one grid step, else to the
+/// grid, then clamps it on screen.
 pub fn snap_position(top_left: Vec2, size: Vec2, screen: Vec2) -> Vec2 {
-    let grid = (top_left / SNAP_GRID).round() * SNAP_GRID;
     let snap_axis = |value: f32, extent: f32, limit: f32| {
         let far = limit - extent;
         let snapped = if value.abs() < SNAP_GRID {
@@ -219,13 +219,13 @@ pub fn snap_position(top_left: Vec2, size: Vec2, screen: Vec2) -> Vec2 {
         } else if (value - far).abs() < SNAP_GRID {
             far
         } else {
-            value
+            (value / SNAP_GRID).round() * SNAP_GRID
         };
         snapped.clamp(0.0, far.max(0.0))
     };
     Vec2::new(
-        snap_axis(grid.x, size.x, screen.x),
-        snap_axis(grid.y, size.y, screen.y),
+        snap_axis(top_left.x, size.x, screen.x),
+        snap_axis(top_left.y, size.y, screen.y),
     )
 }
 
