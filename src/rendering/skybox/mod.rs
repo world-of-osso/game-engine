@@ -15,6 +15,9 @@ use crate::scenes::char_select::scene::CharSelectScene;
 use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
 };
+use game_engine::ui::frame::WidgetData;
+use game_engine::ui::plugin::UiState;
+use game_engine::ui::screens::inworld_hud_component::MINIMAP_CLOCK;
 
 #[cfg(test)]
 #[path = "tests/cloud_sampling_gpu.rs"]
@@ -30,13 +33,6 @@ use self::inworld_skybox::{
 use cloud_texture::create_procedural_cloud_maps;
 
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
-
-// ---------------------------------------------------------------------------
-// Time display UI
-// ---------------------------------------------------------------------------
-
-#[derive(Component)]
-struct TimeDisplay;
 
 /// Environmental directional light owned by sky color and time-of-day updates.
 #[derive(Component)]
@@ -554,37 +550,6 @@ fn update_sky_env_map(
 // Time display systems
 // ---------------------------------------------------------------------------
 
-fn spawn_time_display(mut commands: Commands) {
-    commands.spawn((
-        TimeDisplay,
-        Visibility::Hidden,
-        Text::new("12:00"),
-        TextFont {
-            font_size: FontSize::Px(20.0),
-            ..default()
-        },
-        TextColor(Color::WHITE),
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            right: Val::Px(220.0),
-            ..default()
-        },
-    ));
-}
-
-fn show_time_display(mut query: Query<&mut Visibility, With<TimeDisplay>>) {
-    for mut vis in &mut query {
-        *vis = Visibility::Visible;
-    }
-}
-
-fn hide_time_display(mut query: Query<&mut Visibility, With<TimeDisplay>>) {
-    for mut vis in &mut query {
-        *vis = Visibility::Hidden;
-    }
-}
-
 /// Convert GameTime minutes (0–2880) to HH:MM clock string.
 fn format_game_clock(total: f32) -> String {
     let m = total.rem_euclid(2880.0);
@@ -593,18 +558,24 @@ fn format_game_clock(total: f32) -> String {
     format!("{hours:02}:{mins:02}")
 }
 
+/// Game clock text in the minimap cluster (`MinimapClock`).
 fn update_time_display(
     game_time: Res<GameTime>,
-    mut query: Query<&mut Text, With<TimeDisplay>>,
-    mut last_minutes: Local<f32>,
+    mut ui: ResMut<UiState>,
+    mut shown: Local<Option<String>>,
 ) {
-    if (game_time.minutes - *last_minutes).abs() < 0.5 {
+    let clock = format_game_clock(game_time.minutes);
+    if shown.as_deref() == Some(clock.as_str()) {
         return;
     }
-    *last_minutes = game_time.minutes;
-    let clock = format_game_clock(game_time.minutes);
-    for mut text in &mut query {
-        **text = clock.clone();
+    let Some(id) = ui.registry.get_by_name(MINIMAP_CLOCK.0) else {
+        return;
+    };
+    if let Some(frame) = ui.registry.get_mut(id)
+        && let Some(WidgetData::FontString(text)) = &mut frame.widget_data
+    {
+        text.text = clock.clone();
+        *shown = Some(clock);
     }
 }
 
@@ -757,14 +728,7 @@ impl Plugin for SkyPlugin {
         app.add_systems(PostUpdate, remove_disabled_sky_domes)
             .insert_resource(GameTime::default())
             .insert_resource(LightKeyframes(keyframes))
-            .add_systems(Startup, init_procedural_cloud_maps)
-            .add_systems(Startup, spawn_time_display)
-            .add_systems(
-                OnEnter(GameState::InWorld),
-                show_time_display
-                    .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui),
-            )
-            .add_systems(OnExit(GameState::InWorld), hide_time_display);
+            .add_systems(Startup, init_procedural_cloud_maps);
         register_inworld_systems(app);
     }
 }

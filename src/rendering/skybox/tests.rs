@@ -17,53 +17,34 @@ use game_engine::culling::{Wmo, WmoGroup};
 mod inworld_ibl;
 
 #[test]
-fn no_ui_clock_visibility_respects_startup_override_and_scene_stage() {
-    use crate::client_options::UiDisabled;
-    use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
+fn game_clock_shows_in_the_minimap_cluster() {
+    use bevy::ecs::system::RunSystemOnce;
+    use game_engine::ui::registry::FrameRegistry;
+    use game_engine::ui::screens::inworld_hud_component::minimap_screen;
+    use ui_toolkit::screen::{Screen, SharedContext};
 
-    for stage in [
-        None,
-        Some(InWorldSceneStage::Ui),
-        Some(InWorldSceneStage::Empty),
-    ] {
-        for disabled in [false, true] {
-            let mut app = App::new();
-            app.add_plugins(bevy::state::app::StatesPlugin);
-            app.init_state::<GameState>();
-            if let Some(stage) = stage {
-                app.insert_resource(stage);
-            }
-            if disabled {
-                app.insert_resource(UiDisabled);
-            }
-            app.add_systems(Startup, spawn_time_display);
-            app.add_systems(
-                OnEnter(GameState::InWorld),
-                show_time_display.run_if(inworld_scene_stage_allows_ui),
-            );
-            app.add_systems(OnExit(GameState::InWorld), hide_time_display);
-            app.update();
-            app.world_mut()
-                .resource_mut::<NextState<GameState>>()
-                .set(GameState::InWorld);
-            app.update();
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(minimap_screen).sync(&SharedContext::new(), &mut registry);
+    let mut app = App::new();
+    app.insert_resource(UiState {
+        registry,
+        event_bus: ui_toolkit::event::EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(GameTime {
+        minutes: 2160.0,
+        speed: 1.0,
+    });
+    app.world_mut()
+        .run_system_once(update_time_display)
+        .unwrap();
 
-            let expected = if !disabled && stage != Some(InWorldSceneStage::Empty) {
-                Visibility::Visible
-            } else {
-                Visibility::Hidden
-            };
-            let world = app.world_mut();
-            let mut clock = world.query_filtered::<(&Text, &Visibility), With<TimeDisplay>>();
-            let clocks: Vec<_> = clock.iter(world).collect();
-            assert_eq!(clocks.len(), 1);
-            assert_eq!(clocks[0].0.0, "12:00");
-            assert_eq!(
-                *clocks[0].1, expected,
-                "stage={stage:?}, disabled={disabled}"
-            );
-        }
-    }
+    let ui = app.world().resource::<UiState>();
+    let id = ui.registry.get_by_name(MINIMAP_CLOCK.0).unwrap();
+    let Some(WidgetData::FontString(text)) = &ui.registry.get(id).unwrap().widget_data else {
+        panic!("MinimapClock is not a font string");
+    };
+    assert_eq!(text.text, "18:00");
 }
 
 #[test]
