@@ -5,6 +5,9 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::raid_party_data::{GroupRole, health_fraction as unit_health_fraction};
+use crate::ui::screens::inworld_unit_frames_component::{
+    PARTY_BOTTOM, PARTY_GAP, PLAYER_FRAME_LEFT,
+};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -16,10 +19,6 @@ impl fmt::Display for DynName {
 }
 
 // --- Layout constants ---
-
-/// Anchor offset from top-left of screen.
-pub const ANCHOR_X: f32 = 10.0;
-pub const ANCHOR_Y: f32 = 220.0;
 
 pub const UNIT_W: f32 = 160.0;
 pub const UNIT_H: f32 = 46.0;
@@ -182,8 +181,9 @@ pub fn party_frame_screen(ctx: &SharedContext) -> Element {
             hidden: hide,
             background_color: "0.0,0.0,0.0,0.0",
             pos_type: "absolute",
-            left: {ANCHOR_X},
-            top: {-(-ANCHOR_Y)},
+            left: "50%",
+            margin_left: {PLAYER_FRAME_LEFT - PARTY_GAP - UNIT_W},
+            bottom: {PARTY_BOTTOM},
             {member_frames}
         }
     }

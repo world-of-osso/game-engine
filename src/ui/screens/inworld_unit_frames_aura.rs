@@ -1,16 +1,14 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{
-    DynName, TARGET_FRAME_CONFIG, TARGET_MANA_BAR_W, TargetAuraIconState, UNIT_NAME_FONT, dyn_name,
-};
+use super::{BAR_W, BAR_X, DynName, TargetAuraIconState, UNIT_FONT, dyn_name};
 
 const TARGET_AURA_ICON_SIZE: f32 = 18.0;
 const TARGET_AURA_ICON_GAP: f32 = 2.0;
 const TARGET_AURA_TIMER_COLOR: &str = "1.0,1.0,1.0,0.95";
 const TARGET_AURA_STACK_COLOR: &str = "1.0,1.0,1.0,1.0";
 const TARGET_AURA_DEFAULT_BORDER: &str = "0.08,0.08,0.08,0.95";
-const TARGET_AURA_ROW_WIDTH: f32 = TARGET_MANA_BAR_W;
+const TARGET_AURA_ROW_WIDTH: f32 = BAR_W;
 
 struct TargetAuraNames {
     icon: DynName,
@@ -34,7 +32,7 @@ pub(super) fn target_aura_row(prefix: &str, icons: &[TargetAuraIconState], y: f3
             height: {TARGET_AURA_ICON_SIZE},
             hidden: {hidden}
             pos_type: "absolute",
-            left: {TARGET_FRAME_CONFIG.health_bar.x},
+            left: {BAR_X},
             top: {-(-y)},
             {content}
         }
@@ -109,7 +107,7 @@ fn target_aura_timer(names: &TargetAuraNames, icon: &TargetAuraIconState) -> Ele
             width: {TARGET_AURA_ICON_SIZE + 4.0},
             height: 10.0,
             text: {icon.timer_text.as_str()},
-            font: UNIT_NAME_FONT,
+            font: UNIT_FONT,
             font_size: 8.0,
             font_color: TARGET_AURA_TIMER_COLOR,
             shadow_color: "0.0,0.0,0.0,1.0",
@@ -130,7 +128,7 @@ fn target_aura_stack(names: &TargetAuraNames, stack_text: &str) -> Element {
             width: 12.0,
             height: 10.0,
             text: {stack_text},
-            font: UNIT_NAME_FONT,
+            font: UNIT_FONT,
             font_size: 8.0,
             font_color: TARGET_AURA_STACK_COLOR,
             shadow_color: "0.0,0.0,0.0,1.0",

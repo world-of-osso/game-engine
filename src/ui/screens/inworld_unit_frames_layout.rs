@@ -1,252 +1,54 @@
-pub(super) struct ShellConfig {
-    pub width: f32,
-    pub height: f32,
-    pub texture: &'static str,
-    pub anchor_x: &'static str,
-    pub anchor_y: f32,
-}
+//! Combat cluster geometry at the 1920×1080 reference: player frame, cast dock and target frame
+//! centred above the action bars; target-of-target and focus to the target's right; party
+//! frames left of the player frame, above chat.
 
-pub(super) struct PortraitConfig {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-    pub background_color: &'static str,
-}
+/// Width of the shared resource/cast area between the player and target frames.
+pub const CAST_DOCK_W: f32 = 264.0;
+pub const CAST_DOCK_GAP: f32 = 16.0;
+/// Cluster bottom edge above the bottom of the screen; clears two action bar rows.
+pub const CLUSTER_BOTTOM: f32 = 152.0;
 
-pub(super) struct TextConfig {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-}
+pub const FRAME_W: f32 = 232.0;
+pub const FRAME_H: f32 = 60.0;
+pub const PLAYER_FRAME_LEFT: f32 = -(CAST_DOCK_W / 2.0 + CAST_DOCK_GAP + FRAME_W);
+pub const TARGET_FRAME_LEFT: f32 = CAST_DOCK_W / 2.0 + CAST_DOCK_GAP;
 
-pub(super) struct BarConfig {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-    pub text_x: f32,
-    pub mask_texture: Option<&'static str>,
-}
+pub const SMALL_FRAME_GAP: f32 = 8.0;
+pub const TOT_W: f32 = 120.0;
+pub const TOT_H: f32 = 32.0;
+pub const TOT_LEFT: f32 = TARGET_FRAME_LEFT + FRAME_W + SMALL_FRAME_GAP;
+pub const FOCUS_W: f32 = 150.0;
+pub const FOCUS_H: f32 = 32.0;
+pub const FOCUS_LEFT: f32 = TOT_LEFT + TOT_W + SMALL_FRAME_GAP;
+/// Small frames align with the target frame's top edge.
+pub const SMALL_FRAME_BOTTOM: f32 = CLUSTER_BOTTOM + FRAME_H - TOT_H;
 
-pub(super) struct MarkerConfig {
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
-}
+/// Party frames: right edge `PARTY_GAP` left of the player frame, bottom raised above chat.
+pub const PARTY_GAP: f32 = 12.0;
+pub const PARTY_BOTTOM: f32 = 232.0;
 
-pub(super) struct FrameConfig {
-    pub frame_x: f32,
-    pub shell: ShellConfig,
-    pub portrait: PortraitConfig,
-    pub name: TextConfig,
-    pub level: TextConfig,
-    pub health_bar: BarConfig,
-    pub mana_bar: BarConfig,
-}
+pub(super) const BORDER: f32 = 1.0;
+pub const BAR_X: f32 = 4.0;
+pub const BAR_W: f32 = FRAME_W - 2.0 * BAR_X;
+pub(super) const NAME_Y: f32 = 4.0;
+pub(super) const NAME_H: f32 = 12.0;
+pub(super) const LEVEL_W: f32 = 28.0;
+pub(super) const HEALTH_Y: f32 = 18.0;
+pub(super) const HEALTH_H: f32 = 20.0;
+pub(super) const POWER_Y: f32 = 40.0;
+pub(super) const POWER_H: f32 = 10.0;
+pub(super) const PIPS_Y: f32 = 52.0;
+pub(super) const PIPS_H: f32 = 5.0;
+pub(super) const PIP_GAP: f32 = 2.0;
+pub(super) const SMALL_NAME_Y: f32 = 3.0;
+pub(super) const SMALL_BAR_Y: f32 = 17.0;
+pub(super) const SMALL_BAR_H: f32 = 11.0;
 
-pub(super) const FRAME_W: f32 = 232.0;
-pub(super) const FRAME_H: f32 = 100.0;
-pub(super) const PLAYER_FRAME_SCALE: f32 = 0.75;
-pub(super) const PLAYER_FRAME_W: f32 = 396.0 * PLAYER_FRAME_SCALE;
-pub(super) const PLAYER_FRAME_H: f32 = 142.0 * PLAYER_FRAME_SCALE;
-pub(super) const FRAME_BOTTOM_Y: f32 = 130.0;
-pub(super) const TARGET_RESTING_LABEL_X: f32 = 85.0;
-pub(super) const BAR_H: f32 = 20.0;
-pub(super) const MANA_H: f32 = 10.0;
-pub(super) const PORTRAIT_BG: &str = "0.02,0.02,0.02,0.92";
-pub(super) const PLAYER_HEALTH_BG: &str = "0.07,0.02,0.02,0.90";
-pub(super) const PLAYER_HEALTH_FILL: &str = "0.11,0.65,0.20,0.95";
-pub(super) const TARGET_HEALTH_BG: &str = "0.08,0.02,0.02,0.90";
-pub(super) const TARGET_HEALTH_FILL: &str = "0.80,0.12,0.12,0.95";
-pub(super) const MANA_BG: &str = "0.03,0.05,0.12,0.90";
-pub(super) const MANA_FILL: &str = "0.14,0.43,0.88,0.95";
-pub(super) const BAR_EDGE: &str = "1.0,0.93,0.75,0.18";
+pub(super) const METAL_BORDER: &str = "0.50,0.45,0.36,0.95";
+pub(super) const DARK_BACKING: &str = "0.03,0.03,0.04,0.88";
+pub(super) const BAR_BG: &str = "0.06,0.06,0.07,0.95";
 pub(super) const GOLD_TEXT: &str = "1.0,0.82,0.0,1.0";
 pub(super) const NAME_TEXT: &str = "0.98,0.95,0.90,1.0";
 pub(super) const VALUE_TEXT: &str = "1.0,1.0,1.0,0.95";
-pub(super) const UNIT_NAME_FONT: &str = "FrizQuadrata";
-pub(super) const UNIT_NAME_FONT_SIZE: f32 = 10.0;
-pub(super) const UNIT_LEVEL_FONT_SIZE: f32 = 10.0;
-pub(super) const STATUS_BAR_FONT: &str = "FrizQuadrata";
-pub(super) const STATUS_BAR_FONT_SIZE: f32 = 10.0;
-pub(super) const READY_CHECK_W: f32 = 40.0;
-pub(super) const READY_CHECK_H: f32 = 40.0;
-
-pub(super) const PLAYER_FRAME_CONFIG: FrameConfig = FrameConfig {
-    frame_x: 268.0,
-    shell: ShellConfig {
-        width: PLAYER_FRAME_W,
-        height: PLAYER_FRAME_H,
-        texture: "data/ui/unitframes/player-frame-shell.ktx2",
-        anchor_x: "0",
-        anchor_y: 0.0,
-    },
-    // Coordinates follow the openings in the 396x142 artwork, not Blizzard's XML frame.
-    portrait: PortraitConfig {
-        x: 18.0 * PLAYER_FRAME_SCALE,
-        y: 13.0 * PLAYER_FRAME_SCALE,
-        width: 111.0 * PLAYER_FRAME_SCALE,
-        height: 113.0 * PLAYER_FRAME_SCALE,
-        background_color: "0.0,0.0,0.0,0.0",
-    },
-    name: TextConfig {
-        x: 134.0 * PLAYER_FRAME_SCALE,
-        y: 31.0 * PLAYER_FRAME_SCALE,
-        width: 190.0 * PLAYER_FRAME_SCALE,
-    },
-    level: TextConfig {
-        x: -22.0 * PLAYER_FRAME_SCALE,
-        y: 31.0 * PLAYER_FRAME_SCALE,
-        width: 24.0 * PLAYER_FRAME_SCALE,
-    },
-    health_bar: BarConfig {
-        x: 135.0 * PLAYER_FRAME_SCALE,
-        y: 52.0 * PLAYER_FRAME_SCALE,
-        width: 249.0 * PLAYER_FRAME_SCALE,
-        height: 40.0 * PLAYER_FRAME_SCALE,
-        text_x: 0.0,
-        mask_texture: Some("data/ui/unitframes/player-health-aperture-v1.png"),
-    },
-    mana_bar: BarConfig {
-        x: 135.0 * PLAYER_FRAME_SCALE,
-        y: 94.0 * PLAYER_FRAME_SCALE,
-        width: 249.0 * PLAYER_FRAME_SCALE,
-        height: 20.0 * PLAYER_FRAME_SCALE,
-        text_x: 0.0,
-        mask_texture: Some("data/ui/unitframes/player-mana-aperture-v1.png"),
-    },
-};
-
-pub(super) const TARGET_FRAME_CONFIG: FrameConfig = FrameConfig {
-    frame_x: 1100.0,
-    shell: ShellConfig {
-        width: 384.0,
-        height: 134.0,
-        texture: "data/ui/unitframes/target-frame-shell.ktx2",
-        anchor_x: "-2",
-        anchor_y: 0.0,
-    },
-    portrait: PortraitConfig {
-        x: 148.0,
-        y: 19.0,
-        width: 58.0,
-        height: 58.0,
-        background_color: PORTRAIT_BG,
-    },
-    name: TextConfig {
-        x: 51.0,
-        y: 26.0,
-        width: 90.0,
-    },
-    level: TextConfig {
-        x: 24.0,
-        y: 27.0,
-        width: 24.0,
-    },
-    health_bar: BarConfig {
-        x: 22.0,
-        y: 28.0,
-        width: 126.0,
-        height: BAR_H,
-        text_x: 0.0,
-        mask_texture: None,
-    },
-    mana_bar: BarConfig {
-        x: 22.0,
-        y: 39.0,
-        width: 134.0,
-        height: MANA_H,
-        text_x: -4.0,
-        mask_texture: None,
-    },
-};
-
-pub(super) const PLAYER_LEADER: MarkerConfig = MarkerConfig {
-    x: 86.0,
-    y: 10.0,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const PLAYER_ROLE: MarkerConfig = MarkerConfig {
-    x: 196.0,
-    y: 27.0,
-    width: 12.0,
-    height: 12.0,
-};
-pub(super) const PLAYER_ATTACK: MarkerConfig = MarkerConfig {
-    x: 64.0,
-    y: 62.0,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const PLAYER_CORNER: MarkerConfig = MarkerConfig {
-    x: 58.5,
-    y: 53.5,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const PLAYER_PVP: MarkerConfig = MarkerConfig {
-    x: 25.0,
-    y: 50.0,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const PLAYER_PRESTIGE: MarkerConfig = MarkerConfig {
-    x: -2.0,
-    y: 38.0,
-    width: 50.0,
-    height: 52.0,
-};
-pub(super) const PLAYER_PRESTIGE_BADGE_W: f32 = 30.0;
-pub(super) const PLAYER_PRESTIGE_BADGE_H: f32 = 30.0;
-
-pub(super) const TARGET_REPUTATION: MarkerConfig = MarkerConfig {
-    x: 157.0,
-    y: 25.0,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const TARGET_HIGH_LEVEL: MarkerConfig = MarkerConfig {
-    x: 28.0,
-    y: 25.0,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const TARGET_LEADER: MarkerConfig = MarkerConfig {
-    x: 147.0,
-    y: 8.0,
-    width: 0.0,
-    height: 0.0,
-};
-pub(super) const TARGET_RAID_ICON: MarkerConfig = MarkerConfig {
-    x: 0.0,
-    y: 0.0,
-    width: 26.0,
-    height: 26.0,
-};
-pub(super) const TARGET_PRESTIGE: MarkerConfig = MarkerConfig {
-    x: 180.0,
-    y: 38.0,
-    width: 50.0,
-    height: 52.0,
-};
-pub(super) const TARGET_PET_BATTLE: MarkerConfig = MarkerConfig {
-    x: 187.0,
-    y: 52.0,
-    width: 32.0,
-    height: 32.0,
-};
-pub(super) const TARGET_PRESTIGE_BADGE_W: f32 = 30.0;
-pub(super) const TARGET_PRESTIGE_BADGE_H: f32 = 30.0;
-pub(super) const TARGET_THREAT: MarkerConfig = MarkerConfig {
-    x: 147.0,
-    y: 5.0,
-    width: 49.0,
-    height: 18.0,
-};
-
-pub const PLAYER_HEALTH_BAR_W: f32 = PLAYER_FRAME_CONFIG.health_bar.width;
-pub const TARGET_HEALTH_BAR_W: f32 = TARGET_FRAME_CONFIG.health_bar.width;
-pub const TARGET_MANA_BAR_W: f32 = TARGET_FRAME_CONFIG.mana_bar.width;
+pub(super) const UNIT_FONT: &str = "FrizQuadrata";
+pub(super) const UNIT_FONT_SIZE: f32 = 10.0;

@@ -257,11 +257,12 @@ fn role_labels_match_group_role_labels() {
 // --- Coord validation ---
 
 #[test]
-fn coord_party_frame_top_left() {
+fn coord_party_frame_left_of_player_frame_above_chat() {
     let reg = layout_registry();
     let r = rect(&reg, "PartyFrame");
-    assert!((r.x - ANCHOR_X).abs() < 1.0);
-    assert!((r.y - ANCHOR_Y).abs() < 1.0);
+    let player_frame_x = 960.0 + PLAYER_FRAME_LEFT;
+    assert!((r.x + r.width - (player_frame_x - PARTY_GAP)).abs() < 1.0);
+    assert!((r.y + r.height - (1080.0 - PARTY_BOTTOM)).abs() < 1.0);
     assert!((r.width - UNIT_W).abs() < 1.0);
 }
 

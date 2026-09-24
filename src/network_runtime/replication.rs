@@ -12,7 +12,7 @@ use shared::casting::CastState;
 use shared::components::{
     CombatStatus, EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
     MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate,
-    UnitLevel, UnitPowers, Zone,
+    UnitLevel, UnitPowers, UnitTarget, Zone,
 };
 
 use super::worker::MainUpdate;
@@ -175,6 +175,7 @@ struct EntitySnapshot {
     auras: Option<UnitAuras>,
     level: Option<UnitLevel>,
     faction_template: Option<UnitFactionTemplate>,
+    unit_target: Option<UnitTarget>,
 }
 
 impl EntitySnapshot {
@@ -202,6 +203,7 @@ impl EntitySnapshot {
             auras: entity.get::<UnitAuras>().cloned(),
             level: entity.get::<UnitLevel>().copied(),
             faction_template: entity.get::<UnitFactionTemplate>().copied(),
+            unit_target: entity.get::<UnitTarget>().copied(),
         }
     }
 
@@ -227,6 +229,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.auras);
             apply_component(&mut entity, self.level);
             apply_component(&mut entity, self.faction_template);
+            apply_component(&mut entity, self.unit_target);
             // Add observers immediately query support components: insert identities last.
             apply_component(&mut entity, self.player);
             apply_component(&mut entity, self.npc);
@@ -344,7 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn unit_frame_snapshot_preserves_powers_auras_level_faction_and_removal() {
+    fn unit_frame_snapshot_preserves_powers_auras_level_faction_target_and_removal() {
         use shared::components::{AuraView, PowerEntry, PowerType};
         let mut worker = World::new();
         let source = source_player(&mut worker);
@@ -381,6 +384,7 @@ mod tests {
             auras.clone(),
             UnitLevel(60),
             UnitFactionTemplate(1),
+            UnitTarget(Some(0x0000_0001_0000_002A)),
         ));
         let mut main = main_app();
         apply(main.world_mut(), snapshot(&worker, source, source, 1));
@@ -396,14 +400,23 @@ mod tests {
             main.world().get::<UnitFactionTemplate>(mirror),
             Some(&UnitFactionTemplate(1))
         );
-        worker
-            .entity_mut(source)
-            .remove::<(UnitPowers, UnitAuras, UnitLevel, UnitFactionTemplate)>();
+        assert_eq!(
+            main.world().get::<UnitTarget>(mirror),
+            Some(&UnitTarget(Some(0x0000_0001_0000_002A)))
+        );
+        worker.entity_mut(source).remove::<(
+            UnitPowers,
+            UnitAuras,
+            UnitLevel,
+            UnitFactionTemplate,
+            UnitTarget,
+        )>();
         apply(main.world_mut(), snapshot(&worker, source, source, 2));
         assert!(main.world().get::<UnitPowers>(mirror).is_none());
         assert!(main.world().get::<UnitAuras>(mirror).is_none());
         assert!(main.world().get::<UnitLevel>(mirror).is_none());
         assert!(main.world().get::<UnitFactionTemplate>(mirror).is_none());
+        assert!(main.world().get::<UnitTarget>(mirror).is_none());
     }
 
     #[derive(Resource, Default)]

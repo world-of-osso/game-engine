@@ -2,36 +2,51 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::status::{SecondaryResourceEntry, SecondaryResourceKindEntry};
+use crate::status::SecondaryResourceEntry;
+use crate::ui::screens::menu_primitives::{
+    ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
+};
 use crate::ui::strata::FrameStrata;
 #[path = "inworld_unit_frames_aura.rs"]
 mod inworld_unit_frames_aura;
-#[path = "inworld_unit_frames_background.rs"]
-mod inworld_unit_frames_background;
 #[path = "inworld_unit_frames_layout.rs"]
 mod inworld_unit_frames_layout;
 #[path = "inworld_unit_frames_parts.rs"]
 mod inworld_unit_frames_parts;
-#[path = "inworld_unit_frames_state.rs"]
-mod inworld_unit_frames_state;
+#[path = "inworld_unit_frames_power.rs"]
+mod inworld_unit_frames_power;
 use inworld_unit_frames_aura::target_aura_row;
-use inworld_unit_frames_background::unit_frame_shell_background;
-use inworld_unit_frames_layout::*;
-pub use inworld_unit_frames_layout::{PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W};
-use inworld_unit_frames_parts::{
-    UnitFrameBarSpec, anchored_marker, anchored_top_marker, anchored_topright_marker,
-    centered_marker, marker_group, portrait_edge_marker, sized_marker, unit_frame_bar,
-};
-pub use inworld_unit_frames_state::{
-    default_player_frame_state, fallback_target_frame_state, fill_width, format_value_text,
-    missing_target_name,
-};
+pub use inworld_unit_frames_layout::*;
+use inworld_unit_frames_parts::{BarSpec, bordered_root, status_bar, unit_label};
+pub use inworld_unit_frames_power::{PowerBarState, power_bar_color};
 
-const SECONDARY_RESOURCE_ROW_Y: f32 = 85.5;
-const SECONDARY_RESOURCE_ROW_H: f32 = 8.0;
-const SECONDARY_RESOURCE_GAP: f32 = 2.0;
-pub const UNKNOWN_PORTRAIT_TEXTURE_FILE: &str =
-    "/home/osso/Projects/wow/Interface/ICONS/INV_Misc_QuestionMark.blp";
+pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
+pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
+pub const ACTION_UNIT_MENU_CLOSE: &str = "unit_menu_close";
+pub const UNIT_MENU_W: f32 = 140.0;
+const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
+    ContextMenuItem {
+        name: "UnitFrameContextMenuSetFocus",
+        label: "Set Focus",
+        action: ACTION_UNIT_MENU_SET_FOCUS,
+    },
+    ContextMenuItem {
+        name: "UnitFrameContextMenuClearFocus",
+        label: "Clear Focus",
+        action: ACTION_UNIT_MENU_CLEAR_FOCUS,
+    },
+    ContextMenuItem {
+        name: "UnitFrameContextMenuClose",
+        label: "Close",
+        action: ACTION_UNIT_MENU_CLOSE,
+    },
+];
+
+pub fn unit_menu_height() -> f32 {
+    menu_height_for_items(UNIT_MENU_ITEMS.len())
+}
+
+const PLAYER_HEALTH_COLOR: &str = "0.11,0.65,0.20,1.0";
 
 #[derive(Clone)]
 pub(super) struct DynName(pub(super) String);
@@ -40,22 +55,87 @@ pub(super) fn dyn_name(name: String) -> DynName {
     DynName(name)
 }
 
+/// Retail reaction buckets; colours are `FACTION_BAR_COLORS` hostile (1), neutral (4), friendly (5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnitReaction {
+    Hostile,
+    Neutral,
+    Friendly,
+}
+
+impl UnitReaction {
+    pub fn health_color(self) -> &'static str {
+        match self {
+            Self::Hostile => "0.8,0.3,0.22,1.0",
+            Self::Neutral => "0.9,0.7,0.0,1.0",
+            Self::Friendly => "0.0,0.6,0.1,1.0",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct UnitFrameState {
-    pub portrait_texture_file: String,
     pub name: String,
     pub level_text: String,
-    pub resting_text: String,
     pub health_text: String,
-    pub mana_text: String,
-    pub health_fill_width: f32,
-    pub mana_fill_width: f32,
+    /// Health fill fraction 0.0..=1.0.
+    pub health_fraction: f32,
+    pub reaction: Option<UnitReaction>,
+    pub power: Option<PowerBarState>,
     pub secondary_resource: Option<SecondaryResourceEntry>,
-    pub has_mana: bool,
     pub show_combat_icon: bool,
     pub show_resting_icon: bool,
     pub target_buffs: Vec<TargetAuraIconState>,
     pub target_debuffs: Vec<TargetAuraIconState>,
+}
+
+impl UnitFrameState {
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            level_text: String::new(),
+            health_text: String::new(),
+            health_fraction: 0.0,
+            reaction: None,
+            power: None,
+            secondary_resource: None,
+            show_combat_icon: false,
+            show_resting_icon: false,
+            target_buffs: Vec::new(),
+            target_debuffs: Vec::new(),
+        }
+    }
+
+    fn health_color(&self) -> &'static str {
+        self.reaction
+            .map_or(PLAYER_HEALTH_COLOR, UnitReaction::health_color)
+    }
+}
+
+/// Target-of-target and focus: name and health only.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SmallUnitFrameState {
+    pub name: String,
+    pub health_fraction: f32,
+    pub reaction: Option<UnitReaction>,
+}
+
+impl From<&UnitFrameState> for SmallUnitFrameState {
+    fn from(unit: &UnitFrameState) -> Self {
+        Self {
+            name: unit.name.clone(),
+            health_fraction: unit.health_fraction,
+            reaction: unit.reaction,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct UnitFrameMenuState {
+    pub visible: bool,
+    pub title: String,
+    pub x: f32,
+    pub y: f32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -72,6 +152,20 @@ pub struct InWorldUnitFramesState {
     pub show_target_frame: bool,
     pub player: UnitFrameState,
     pub target: Option<UnitFrameState>,
+    pub target_of_target: Option<SmallUnitFrameState>,
+    pub focus: Option<SmallUnitFrameState>,
+    pub menu: UnitFrameMenuState,
+}
+
+pub fn fraction(current: f32, max: f32) -> f32 {
+    if max <= 0.0 {
+        return 0.0;
+    }
+    (current / max).clamp(0.0, 1.0)
+}
+
+pub fn format_value_text(current: f32, max: f32) -> String {
+    format!("{current:.0} / {max:.0}")
 }
 
 pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
@@ -90,570 +184,217 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             background_color: "0.0,0.0,0.0,0.0",
             {player_frame(&state.player, state.show_player_frame)}
             {target_frame(state.target.as_ref(), state.show_target_frame)}
+            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
+            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
+            {unit_frame_menu(&state.menu)}
         }
     }
 }
 
-fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
-    let hide_target = target.is_none() || !visible;
-    rsx! {
-        r#frame {
-            name: "TargetFrame",
-            width: FRAME_W,
-            height: FRAME_H,
-            hidden: hide_target,
-            pos_type: "absolute",
-            pos_x: TARGET_FRAME_CONFIG.frame_x,
-            bottom: FRAME_BOTTOM_Y,
-            {target.map(target_frame_contents).unwrap_or_default()}
-        }
-    }
+fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameState> {
+    let target_shown = state.show_target_frame && state.target.is_some();
+    state.target_of_target.as_ref().filter(|_| target_shown)
 }
 
 fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
-    rsx! {
-        r#frame {
-            name: "PlayerFrame",
-            width: PLAYER_FRAME_W,
-            height: PLAYER_FRAME_H,
-            strata: FrameStrata::Dialog,
-            hidden: {!visible},
-            pos_type: "absolute",
-            pos_x: PLAYER_FRAME_CONFIG.frame_x,
-            bottom: FRAME_BOTTOM_Y,
-            {unit_frame_shell("Player", state, true)}
-        }
-    }
+    let content = rsx! {
+        {unit_frame_contents("Player", state)}
+        {secondary_resource_row(state.secondary_resource.as_ref())}
+        {status_icons(state)}
+    };
+    bordered_root(
+        dyn_name("PlayerFrame".into()),
+        (FRAME_W, FRAME_H),
+        (PLAYER_FRAME_LEFT, CLUSTER_BOTTOM),
+        !visible,
+        content,
+    )
+}
+
+fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
+    let content = target.map(target_frame_contents).unwrap_or_default();
+    bordered_root(
+        dyn_name("TargetFrame".into()),
+        (FRAME_W, FRAME_H),
+        (TARGET_FRAME_LEFT, CLUSTER_BOTTOM),
+        target.is_none() || !visible,
+        content,
+    )
 }
 
 fn target_frame_contents(state: &UnitFrameState) -> Element {
     rsx! {
-        {unit_frame_shell("Target", state, false)}
-        {target_aura_row("TargetBuff", &state.target_buffs, 17.0)}
-        {target_aura_row("TargetDebuff", &state.target_debuffs, 40.0)}
+        {unit_frame_contents("Target", state)}
+        {target_aura_row("TargetBuff", &state.target_buffs, -22.0)}
+        {target_aura_row("TargetDebuff", &state.target_debuffs, -42.0)}
     }
 }
 
-pub(super) struct UnitFrameNames {
-    container: DynName,
-    shell: DynName,
-    portrait: DynName,
-    name: DynName,
-    level: DynName,
-}
-
-struct UnitFrameVisuals<'a> {
-    frame: &'a FrameConfig,
-    health_bg: &'static str,
-    health_fill: &'static str,
-    mana_hidden: bool,
-}
-
-fn build_unit_frame_names(prefix: &str) -> UnitFrameNames {
-    UnitFrameNames {
-        container: dyn_name(format!("{prefix}FrameContainer")),
-        shell: dyn_name(format!("{prefix}FrameTexture")),
-        portrait: dyn_name(format!("{prefix}Portrait")),
-        name: dyn_name(format!("{prefix}Name")),
-        level: dyn_name(format!("{prefix}LevelText")),
-    }
-}
-
-fn unit_frame_visuals<'a>(state: &UnitFrameState, player_side: bool) -> UnitFrameVisuals<'a> {
-    UnitFrameVisuals {
-        frame: if player_side {
-            &PLAYER_FRAME_CONFIG
-        } else {
-            &TARGET_FRAME_CONFIG
-        },
-        health_bg: if player_side {
-            PLAYER_HEALTH_BG
-        } else {
-            TARGET_HEALTH_BG
-        },
-        health_fill: if player_side {
-            PLAYER_HEALTH_FILL
-        } else {
-            TARGET_HEALTH_FILL
-        },
-        mana_hidden: !state.has_mana,
-    }
-}
-
-fn unit_frame_shell(prefix: &str, state: &UnitFrameState, player_side: bool) -> Element {
-    let names = build_unit_frame_names(prefix);
-    let visuals = unit_frame_visuals(state, player_side);
-    let frame = visuals.frame;
+fn unit_frame_contents(prefix: &str, state: &UnitFrameState) -> Element {
+    let power_text = state.power.as_ref().map(PowerBarState::text);
+    let power_fraction = state.power.as_ref().map_or(0.0, |power| {
+        fraction(power.current as f32, power.max as f32)
+    });
     rsx! {
-            r#frame {
-                name: names.container,
-                width: "fill",
-                height: "fill",
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: 0.0,
-                {unit_frame_shell_background(&names, state, frame, player_side)}
-            {unit_frame_shell_labels(&names, state, frame, player_side)}
-            {unit_frame_shell_bars(prefix, state, &visuals, frame)}
-            {player_secondary_resource_row(prefix, state)}
-            {contextual_icons(prefix, player_side, state)}
-        }
+        {unit_label(dyn_name(format!("{prefix}Name")), &state.name, (BAR_X + 2.0, NAME_Y), BAR_W - LEVEL_W, NAME_TEXT, "LEFT")}
+        {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, (FRAME_W - BAR_X - LEVEL_W, NAME_Y), LEVEL_W, GOLD_TEXT, "RIGHT")}
+        {status_bar(BarSpec {
+            name: format!("{prefix}HealthBar"),
+            y: HEALTH_Y,
+            width: BAR_W,
+            height: HEALTH_H,
+            fraction: state.health_fraction,
+            color: state.health_color(),
+            text: &state.health_text,
+            hidden: false,
+        })}
+        {status_bar(BarSpec {
+            name: format!("{prefix}ManaBar"),
+            y: POWER_Y,
+            width: BAR_W,
+            height: POWER_H,
+            fraction: power_fraction,
+            color: state.power.as_ref().map_or("0,0,0,0", |power| power_bar_color(power.power)),
+            text: power_text.as_deref().unwrap_or_default(),
+            hidden: state.power.is_none(),
+        })}
     }
 }
 
-fn unit_frame_shell_labels(
-    names: &UnitFrameNames,
-    state: &UnitFrameState,
-    frame: &FrameConfig,
-    player_side: bool,
-) -> Element {
-    rsx! {
-        {unit_frame_name_label(names, state, frame)}
-        {unit_frame_level_label(names, state, frame, player_side)}
-    }
-}
-
-fn unit_frame_name_label(
-    names: &UnitFrameNames,
-    state: &UnitFrameState,
-    frame: &FrameConfig,
-) -> Element {
-    rsx! {
-        fontstring {
-            name: names.name,
-            width: frame.name.width,
-            height: 12.0,
-            text: {state.name.as_str()},
-            font: UNIT_NAME_FONT,
-            font_size: UNIT_NAME_FONT_SIZE,
-            font_color: NAME_TEXT,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            pos_x: frame.name.x,
-            pos_y: frame.name.y,
-        }
-    }
-}
-
-fn unit_frame_level_label(
-    names: &UnitFrameNames,
-    state: &UnitFrameState,
-    frame: &FrameConfig,
-    player_side: bool,
-) -> Element {
-    let justify_h = if player_side { "RIGHT" } else { "CENTER" };
-    let left = if player_side {
-        "auto".to_string()
-    } else {
-        frame.level.x.to_string()
-    };
-    let right = if player_side {
-        (-frame.level.x).to_string()
-    } else {
-        "auto".to_string()
-    };
-    rsx! {
-        fontstring {
-            name: names.level,
-            width: frame.level.width,
-            height: 12.0,
-            text: {state.level_text.as_str()},
-            font: UNIT_NAME_FONT,
-            font_size: UNIT_LEVEL_FONT_SIZE,
-            font_color: GOLD_TEXT,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h,
-            pos_type: "absolute",
-            left,
-            right,
-            pos_y: frame.level.y,
-        }
-    }
-}
-
-fn unit_frame_shell_bars(
-    prefix: &str,
-    state: &UnitFrameState,
-    visuals: &UnitFrameVisuals,
-    frame: &FrameConfig,
-) -> Element {
-    rsx! {
-        {unit_frame_bar(
-            UnitFrameBarSpec {
-                prefix,
-                label: "HealthBar",
-                layout: &frame.health_bar,
-                height: frame.health_bar.height,
-                bg_color: visuals.health_bg,
-                fill_color: visuals.health_fill,
-                fill_width: state.health_fill_width,
-                value_text: state.health_text.as_str(),
-                hidden: false,
-            },
-        )}
-        {unit_frame_bar(
-            UnitFrameBarSpec {
-                prefix,
-                label: "ManaBar",
-                layout: &frame.mana_bar,
-                height: frame.mana_bar.height,
-                bg_color: MANA_BG,
-                fill_color: MANA_FILL,
-                fill_width: state.mana_fill_width,
-                value_text: state.mana_text.as_str(),
-                hidden: visuals.mana_hidden,
-            },
-        )}
-        {resting_label(prefix, state)}
-    }
-}
-
-fn player_secondary_resource_row(prefix: &str, state: &UnitFrameState) -> Element {
-    let Some(resource) = state.secondary_resource.as_ref() else {
+fn secondary_resource_row(resource: Option<&SecondaryResourceEntry>) -> Element {
+    let Some(resource) = resource.filter(|resource| resource.max > 0) else {
         return Element::default();
     };
-    if resource.max == 0 {
-        return Element::default();
-    }
-    let row_width = PLAYER_FRAME_CONFIG.health_bar.width;
-    let pip_w = (row_width - SECONDARY_RESOURCE_GAP * (resource.max.saturating_sub(1) as f32))
-        / resource.max as f32;
+    let count = resource.max as f32;
+    let pip_w = (BAR_W - PIP_GAP * (count - 1.0)) / count;
     let pips: Element = (0..resource.max)
-        .flat_map(|index| secondary_resource_pip(prefix, resource, index, pip_w))
+        .flat_map(|index| {
+            let lit = index < resource.current;
+            rsx! {
+                r#frame {
+                    name: {dyn_name(format!("PlayerSecondaryResourcePip{index}"))},
+                    width: pip_w,
+                    height: PIPS_H,
+                    background_color: {inworld_unit_frames_power::pip_color(&resource.kind, lit)},
+                    pos_type: "absolute",
+                    pos_x: {index as f32 * (pip_w + PIP_GAP)},
+                    pos_y: 0.0,
+                }
+            }
+        })
         .collect();
     rsx! {
         r#frame {
-            name: {dyn_name(format!("{prefix}SecondaryResourceRow"))},
-            width: row_width,
-            height: SECONDARY_RESOURCE_ROW_H,
+            name: "PlayerSecondaryResourceRow",
+            width: BAR_W,
+            height: PIPS_H,
             pos_type: "absolute",
-            pos_x: PLAYER_FRAME_CONFIG.health_bar.x,
-            pos_y: SECONDARY_RESOURCE_ROW_Y,
+            pos_x: BAR_X,
+            pos_y: PIPS_Y,
             {pips}
         }
     }
 }
 
-fn secondary_resource_pip(
-    prefix: &str,
-    resource: &SecondaryResourceEntry,
-    index: u8,
-    pip_w: f32,
-) -> Element {
-    let x = index as f32 * (pip_w + SECONDARY_RESOURCE_GAP);
-    let filled = index < resource.current;
+fn status_icons(state: &UnitFrameState) -> Element {
+    let icon_x = FRAME_W - BAR_X - LEVEL_W - 20.0;
     rsx! {
-        r#frame {
-            name: {dyn_name(format!("{prefix}SecondaryResourcePip{index}"))},
-            width: pip_w,
-            height: SECONDARY_RESOURCE_ROW_H,
-            background_color: {secondary_resource_color(resource, filled)},
-            pos_type: "absolute",
-            pos_x: x,
-            pos_y: 0.0,
-        }
+        {status_icon("PlayerCombatIcon", "⚔", "1.0,0.2,0.15,1.0", icon_x, !state.show_combat_icon)}
+        {status_icon("PlayerRestingIcon", "zzz", "1.0,0.85,0.35,1.0", icon_x - 22.0, !state.show_resting_icon)}
     }
 }
 
-fn secondary_resource_color(resource: &SecondaryResourceEntry, filled: bool) -> &'static str {
-    match (&resource.kind, filled) {
-        (SecondaryResourceKindEntry::ComboPoints, true) => "1.0,0.25,0.12,0.96",
-        (SecondaryResourceKindEntry::ComboPoints, false) => "0.22,0.05,0.03,0.92",
-        (SecondaryResourceKindEntry::HolyPower, true) => "1.0,0.84,0.28,0.96",
-        (SecondaryResourceKindEntry::HolyPower, false) => "0.24,0.19,0.05,0.92",
-        (SecondaryResourceKindEntry::Chi, true) => "0.08,0.96,0.72,0.96",
-        (SecondaryResourceKindEntry::Chi, false) => "0.04,0.20,0.15,0.92",
-        (SecondaryResourceKindEntry::Essence, true) => "0.24,0.78,1.0,0.96",
-        (SecondaryResourceKindEntry::Essence, false) => "0.06,0.14,0.22,0.92",
-    }
-}
-
-fn contextual_icons(prefix: &str, player_side: bool, state: &UnitFrameState) -> Element {
-    if player_side {
-        player_contextual_icons(prefix, state)
-    } else {
-        target_contextual_icons(prefix)
-    }
-}
-
-fn player_contextual_icons(prefix: &str, state: &UnitFrameState) -> Element {
-    [
-        player_left_status_icons(prefix),
-        player_portrait_overlay_icons(prefix, state),
-        player_right_badge_icons(prefix),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn player_left_status_icons(prefix: &str) -> Element {
-    [
-        anchored_marker(
-            format!("{prefix}LeaderIcon"),
-            PLAYER_LEADER.x,
-            PLAYER_LEADER.y,
-        ),
-        anchored_marker(
-            format!("{prefix}GuideIcon"),
-            PLAYER_LEADER.x,
-            PLAYER_LEADER.y,
-        ),
-        sized_marker(
-            format!("{prefix}RoleIcon"),
-            PLAYER_ROLE.x,
-            PLAYER_ROLE.y,
-            PLAYER_ROLE.width,
-            PLAYER_ROLE.height,
-        ),
-        anchored_marker(
-            format!("{prefix}AttackIcon"),
-            PLAYER_ATTACK.x,
-            PLAYER_ATTACK.y,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn player_portrait_overlay_icons(prefix: &str, state: &UnitFrameState) -> Element {
-    [
-        anchored_marker(
-            format!("{prefix}PlayerPortraitCornerIcon"),
-            PLAYER_CORNER.x,
-            PLAYER_CORNER.y,
-        ),
-        anchored_top_marker(format!("{prefix}PVPIcon"), PLAYER_PVP.x, PLAYER_PVP.y),
-        player_portrait_marker_group(prefix, state),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn combat_icon(prefix: &str, state: &UnitFrameState) -> Element {
-    let hidden = !state.show_combat_icon;
+fn status_icon(name: &str, text: &str, color: &str, x: f32, hidden: bool) -> Element {
     rsx! {
         fontstring {
-            name: {dyn_name(format!("{prefix}CombatIcon"))},
-            width: 18.0,
-            height: 12.0,
-            text: "⚔",
-            hidden: hidden,
-            font: UNIT_NAME_FONT,
-            font_size: 12.0,
-            font_color: "1.0,0.2,0.15,1.0",
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            bottom: 15.0,
-            margin_left: 15.0,
-            translate_x: "-50%",
-            translate_y: "50%",
-        }
-    }
-}
-
-fn resting_icon(prefix: &str, state: &UnitFrameState) -> Element {
-    let hidden = !state.show_resting_icon;
-    rsx! {
-        fontstring {
-            name: {dyn_name(format!("{prefix}RestingIcon"))},
-            width: 24.0,
-            height: 12.0,
-            text: "zzz",
-            hidden: hidden,
-            font: UNIT_NAME_FONT,
-            font_size: 12.0,
-            font_color: "1.0,0.85,0.35,1.0",
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            bottom: 15.0,
-            margin_left: -9.0,
-            translate_x: "-50%",
-            translate_y: "50%",
-        }
-    }
-}
-
-fn resting_label(prefix: &str, state: &UnitFrameState) -> Element {
-    let hidden = state.resting_text.is_empty();
-    let bottom_offset = if prefix == "Player" { 1.0 } else { 6.0 };
-    let x = if prefix == "Player" {
-        PLAYER_FRAME_CONFIG.health_bar.x
-    } else {
-        TARGET_RESTING_LABEL_X
-    };
-    rsx! {
-        fontstring {
-            name: {dyn_name(format!("{prefix}RestingLabel"))},
-            width: 80.0,
-            height: 12.0,
-            text: {state.resting_text.as_str()},
-            hidden: hidden,
-            font: UNIT_NAME_FONT,
+            name: {dyn_name(name.into())},
+            width: 20.0,
+            height: NAME_H,
+            text,
+            hidden,
+            font: UNIT_FONT,
             font_size: 11.0,
-            font_color: "1.0,0.82,0.25,1.0",
+            font_color: color,
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
-            justify_h: "LEFT",
+            justify_h: "CENTER",
             pos_type: "absolute",
             pos_x: x,
-            bottom: bottom_offset,
+            pos_y: NAME_Y,
         }
     }
 }
 
-fn player_portrait_marker_group(prefix: &str, state: &UnitFrameState) -> Element {
-    let portrait = &PLAYER_FRAME_CONFIG.portrait;
-    let children = rsx! {
-        {combat_icon(prefix, state)}
-        {resting_icon(prefix, state)}
-        {centered_marker(format!("{prefix}ReadyCheck"), READY_CHECK_W, READY_CHECK_H)}
+struct SmallFrameSpec {
+    root: &'static str,
+    prefix: &'static str,
+    width: f32,
+    height: f32,
+    left: f32,
+}
+
+impl SmallFrameSpec {
+    const TARGET_OF_TARGET: Self = Self {
+        root: "TargetOfTargetFrame",
+        prefix: "TargetOfTarget",
+        width: TOT_W,
+        height: TOT_H,
+        left: TOT_LEFT,
     };
-    marker_group(
-        format!("{prefix}PortraitMarkers"),
-        portrait.x,
-        portrait.y,
-        portrait.width,
-        portrait.height,
-        children,
+    const FOCUS: Self = Self {
+        root: "FocusFrame",
+        prefix: "Focus",
+        width: FOCUS_W,
+        height: FOCUS_H,
+        left: FOCUS_LEFT,
+    };
+}
+
+fn small_unit_frame(spec: SmallFrameSpec, state: Option<&SmallUnitFrameState>) -> Element {
+    let content = state
+        .map(|unit| small_unit_contents(&spec, unit))
+        .unwrap_or_default();
+    bordered_root(
+        dyn_name(spec.root.into()),
+        (spec.width, spec.height),
+        (spec.left, SMALL_FRAME_BOTTOM),
+        state.is_none(),
+        content,
     )
 }
 
-fn player_right_badge_icons(prefix: &str) -> Element {
-    prestige_marker_group(
-        prefix,
-        &PLAYER_PRESTIGE,
-        PLAYER_PRESTIGE_BADGE_W,
-        PLAYER_PRESTIGE_BADGE_H,
-    )
-}
-
-fn prestige_marker_group(
-    prefix: &str,
-    layout: &MarkerConfig,
-    badge_width: f32,
-    badge_height: f32,
-) -> Element {
-    let children = rsx! {
-        {sized_marker(format!("{prefix}PrestigePortrait"), 0.0, 0.0, layout.width, layout.height)}
-        {centered_marker(format!("{prefix}PrestigeBadge"), badge_width, badge_height)}
-    };
-    marker_group(
-        format!("{prefix}PrestigeMarkers"),
-        layout.x,
-        layout.y,
-        layout.width,
-        layout.height,
-        children,
-    )
-}
-
-fn target_contextual_icons(prefix: &str) -> Element {
-    [
-        target_left_status_icons(prefix),
-        target_portrait_overlay_icons(prefix),
-        target_right_badge_icons(prefix),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn target_left_status_icons(prefix: &str) -> Element {
-    [
-        anchored_marker(
-            format!("{prefix}ReputationColor"),
-            TARGET_REPUTATION.x,
-            TARGET_REPUTATION.y,
-        ),
-        anchored_marker(
-            format!("{prefix}HighLevelTexture"),
-            TARGET_HIGH_LEVEL.x,
-            TARGET_HIGH_LEVEL.y,
-        ),
-        anchored_topright_marker(
-            format!("{prefix}LeaderIcon"),
-            TARGET_LEADER.x,
-            TARGET_LEADER.y,
-        ),
-        anchored_topright_marker(
-            format!("{prefix}GuideIcon"),
-            TARGET_LEADER.x,
-            TARGET_LEADER.y,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn target_portrait_overlay_icons(prefix: &str) -> Element {
-    let portrait = &TARGET_FRAME_CONFIG.portrait;
-    let children = rsx! {
-        {portrait_edge_marker(format!("{prefix}RaidTargetIcon"), true, TARGET_RAID_ICON.width, TARGET_RAID_ICON.height)}
-        {portrait_edge_marker(format!("{prefix}BossIcon"), false, 0.0, 0.0)}
-        {portrait_edge_marker(format!("{prefix}QuestIcon"), false, 0.0, 0.0)}
-    };
+fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Element {
+    let bar_w = spec.width - 2.0 * BAR_X;
+    let color = unit
+        .reaction
+        .map_or(PLAYER_HEALTH_COLOR, UnitReaction::health_color);
     rsx! {
-        {marker_group(format!("{prefix}PortraitMarkers"), portrait.x, portrait.y,
-            portrait.width, portrait.height, children)}
-        {anchored_top_marker(format!("{prefix}PvpIcon"), FRAME_W - 26.0, PLAYER_PVP.y)}
+        {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, (BAR_X + 2.0, SMALL_NAME_Y), bar_w, NAME_TEXT, "LEFT")}
+        {status_bar(BarSpec {
+            name: format!("{}HealthBar", spec.prefix),
+            y: SMALL_BAR_Y,
+            width: bar_w,
+            height: SMALL_BAR_H,
+            fraction: unit.health_fraction,
+            color,
+            text: "",
+            hidden: false,
+        })}
     }
 }
 
-fn target_right_badge_icons(prefix: &str) -> Element {
-    [
-        target_right_prestige_icons(prefix),
-        target_right_threat_icons(prefix),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn target_right_prestige_icons(prefix: &str) -> Element {
-    [
-        prestige_marker_group(
-            prefix,
-            &TARGET_PRESTIGE,
-            TARGET_PRESTIGE_BADGE_W,
-            TARGET_PRESTIGE_BADGE_H,
-        ),
-        sized_marker(
-            format!("{prefix}PetBattleIcon"),
-            TARGET_PET_BATTLE.x,
-            TARGET_PET_BATTLE.y,
-            TARGET_PET_BATTLE.width,
-            TARGET_PET_BATTLE.height,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn target_right_threat_icons(prefix: &str) -> Element {
-    [sized_marker(
-        format!("{prefix}NumericalThreat"),
-        TARGET_THREAT.x,
-        TARGET_THREAT.y,
-        TARGET_THREAT.width,
-        TARGET_THREAT.height,
-    )]
-    .into_iter()
-    .flatten()
-    .collect()
+fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
+    context_menu(ContextMenu {
+        frame_name: "UnitFrameContextMenu",
+        title_name: "UnitFrameContextMenuTitle",
+        divider_name: "UnitFrameContextMenuDivider",
+        hidden: !state.visible,
+        title: state.title.as_str(),
+        width: UNIT_MENU_W,
+        x: state.x,
+        y: state.y,
+        items: UNIT_MENU_ITEMS,
+    })
 }
 
 #[cfg(test)]

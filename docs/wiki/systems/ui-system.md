@@ -52,14 +52,6 @@ Customization arrows and palette regions retain their existing atlas names and U
 
 Engine commit `6ca0a28d` adapts barber snapshots, character export, and IPC status formatting to retain owned appearance values after the type ceased to be `Copy`. The character-creation UI selects one effective option/choice set: core selectors own their option; additional pairs own only non-core options. Mixed-effect choices retain their material/geoset output and show a category partial-support notice; unsupported-only choices are disabled. Requirement IDs remain metadata, not Retail unlock evaluation. Full acceptance is tracked in [[character-creation]].
 
-## Player-frame artwork fit
-
-The player HUD preserves its unmodified gold/silver `396×142` shell at `297×106.5`. Historical `232×100` XML coordinates do not apply to this custom artwork. Its actual connected openings are portrait `(18,13,111×113)`, health `(135,52,249×40)`, and mana `(135,94,249×20)`, uniformly scaled 75%.
-
-The engine derives alpha masks from those openings: class icons are cover-resized into the portrait keyhole mask, while player bar background and left-cropped fills use the health/mana masks. The shell overlays the fills to retain its painted edges. Player portrait selection resolves through local listfile/CASC instead of an invalid absolute icon path, avoiding the renderer's white fallback quad. The target frame retains its existing geometry; its resting anchor remains unchanged.
-
-Engine `038b1ecf` passes 16 layout tests, 12 state/artwork tests, and one rendered GPU test covering full, partial, and empty bars. Toolkit `675b213` passes three crop/default/atlas tests; its fixture uses the same top-left anchoring as runtime bars. Proof and captures: `data/diagnostics/player-frame-fit-20260910/`.
-
 ## Layout invalidation
 
 Registry mutations project authored native layout properties to Bevy. Bevy's layout pass computes bounds, which are read back solely for registry hit testing and measurement. Consult the [registry-backed Bevy UI spec](../../specs/registry-bevy-ui.md) for supported properties and lifecycle guarantees; this page does not preserve the removed anchor-solver behavior.
@@ -174,7 +166,17 @@ Left-click targeting and right-click interaction use the 3D camera, not an unfil
 
 ## Unit Frames
 
-PlayerFrame (232×100) and TargetFrame (232×100) mirror WoW's XML structure. PlayerFrame anchored at `x=268 y=850`; TargetFrame at `x=1100 y=850`. Both use real replicated ECS data: `LocalPlayer` + `Health`/`Mana` components; target via `CurrentTarget(Entity)`. Font: `FRIZQT__.TTF` 10px (`GameFontNormalSmall`). See [inworld-unit-frames-reference.md](../../inworld-unit-frames-reference.md).
+The combat cluster replaces the portrait artwork frames (accepted design: thin metal borders, dark backing, no portraits). Geometry lives in `ui/screens/inworld_unit_frames_layout.rs`; at 1920×1080:
+
+- `PlayerFrame` `(580,868,232×60)` and `TargetFrame` `(1108,868,232×60)` flank a 264-wide cast dock where `PlayerCastingBarFrame` sits, bottom-aligned 152 px above the screen bottom (clears two action bar rows). Roots anchor `left: 50%` plus an offset, so the cluster stays centred.
+- `TargetOfTargetFrame` (120×32) and `FocusFrame` (150×32) sit right of the target, top-aligned. `PartyFrame` sits 12 px left of the player frame, bottom 232 px (above chat).
+- Each frame: name + level row, health bar, primary power bar; the player frame adds a pip row and combat (`⚔`) / resting (`zzz`) icons.
+
+Data: health from `Health`; powers from replicated `UnitPowers` only (the first bar-type entry is the power bar, the first pip-type entry the pips). `UnitPowers` values are raw DB2 units; display divides by `PowerType.csv` `DisplayModifier` (`status::power_display_modifier`): Rage, Runic Power, Soul Shards, Lunar Power, Pain ÷10, Insanity ÷100. Pip resources: Holy Power, Combo Points, Chi, Soul Shards (whole shards), Arcane Charges, Runes, Essence. Bar colours are Retail `PowerBarColor`. `CharacterStatsSnapshot.secondary_resource` uses the same `SecondaryResourceEntry::from_unit_powers`.
+
+Target name is `Player.name` or the replicated `Npc.name`. Level is `UnitLevel`; a unit 10+ levels above the player shows `??`. The player's own level uses `UnitLevel` when present, otherwise the character list (the server does not yet put `UnitLevel` on players). Reaction colours the target health fill with `FACTION_BAR_COLORS`. **Interim:** the client has no FactionTemplate/Faction data, and the server gives every NPC a `UnitFactionTemplate`, so players show friendly and all NPCs neutral until FactionTemplate rows reach the client.
+
+Focus: `targeting::FocusTarget` is set by the `SetFocus` message (`CurrentTarget`, `Unit(entity)`, `Clear`), for `/focus` and the unit-frame right-click menu (`UnitFrameContextMenu`: Set Focus, Clear Focus, Close). Target-of-target reads the target's replicated `UnitTarget` (server entity bits), mapped through `ReplicationMirrorMap::server_to_main`.
 
 ## Combat Feedback
 
@@ -250,7 +252,7 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 - [hotreload-frame-stability.md](../../hotreload-frame-stability.md) — template key bug, fix approach
 - [ui-automation-debugging.md](../../ui-automation-debugging.md) — JS automation API, debug scripts
 - [editbox-focus-texture-swap-2026-04-06.md](../../editbox-focus-texture-swap-2026-04-06.md) — focus visual problem, core nine-slice gap issue
-- [inworld-unit-frames-reference.md](../../inworld-unit-frames-reference.md) — PlayerFrame/TargetFrame geometry
+- [inworld-unit-frames-reference.md](../../inworld-unit-frames-reference.md) — Retail PlayerFrame/TargetFrame XML reference
 - [wow-ui-sim-layout-spec-2026-03-31.md](../../wow-ui-sim-layout-spec-2026-03-31.md) — exact pixel geometry for frames and tabs
 - [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — nameplate design research
 - [keybindings-scope.md](../../keybindings-scope.md) — bindable vs fixed inputs
