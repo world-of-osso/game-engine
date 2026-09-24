@@ -882,3 +882,7 @@ Updated [[character-rendering]] and [[npc-motion-validation]] for engine `496a05
 ## [2026-09-23] ui | Combat feedback wiring
 
 Updated [[ui-system]] (Combat Feedback). The player cast bar now follows the replicated local `CastState`. FCT labels are drawn through the nameplate projection. `CombatLogEvent` becomes the only FCT producer once it arrives. `UIErrorsFrame` is fed by `CastFailed`. Focused bin (24) and lib (63) tests pass. No native run.
+
+## [2026-09-23] ui | Spellbook and action bars from server data
+
+Updated [[ui-system]] (Spellbook and action bars) and [[spell-catalog]] (passive flag, tab rule). Known spells, spec, action bar slots, cooldowns and charges come from the server. The spellbook is mounted in production behind `P`. Action buttons are `ActionButton<bar>_<button>` with icons, cooldown wipe/text, charges and range/power tints. Drag and drop sends `SetActionButton`. Casts target the server entity. Focused tests only; no native run.

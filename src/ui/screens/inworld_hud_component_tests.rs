@@ -37,8 +37,8 @@ fn main_action_bar_builds_12_slots() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("ActionButton{i}")).is_some(),
-            "ActionButton{i} missing"
+            reg.get_by_name(&format!("ActionButton1_{i}")).is_some(),
+            "ActionButton1_{i} missing"
         );
     }
 }
@@ -48,8 +48,9 @@ fn main_action_bar_slots_have_hotkey_labels() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("ActionButton{i}HotKey")).is_some(),
-            "ActionButton{i}HotKey missing"
+            reg.get_by_name(&format!("ActionButton1_{i}HotKey"))
+                .is_some(),
+            "ActionButton1_{i}HotKey missing"
         );
     }
 }
@@ -59,8 +60,9 @@ fn main_action_bar_slots_have_count_labels() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("ActionButton{i}Count")).is_some(),
-            "ActionButton{i}Count missing"
+            reg.get_by_name(&format!("ActionButton1_{i}Count"))
+                .is_some(),
+            "ActionButton1_{i}Count missing"
         );
     }
 }
@@ -79,9 +81,8 @@ fn bottom_left_bar_builds_12_slots() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("MultiBarBottomLeftButton{i}"))
-                .is_some(),
-            "MultiBarBottomLeftButton{i} missing"
+            reg.get_by_name(&format!("ActionButton2_{i}")).is_some(),
+            "ActionButton2_{i} missing"
         );
     }
 }
@@ -91,9 +92,8 @@ fn bottom_right_bar_builds_12_slots() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("MultiBarBottomRightButton{i}"))
-                .is_some(),
-            "MultiBarBottomRightButton{i} missing"
+            reg.get_by_name(&format!("ActionButton3_{i}")).is_some(),
+            "ActionButton3_{i} missing"
         );
     }
 }
@@ -103,9 +103,8 @@ fn right_bar_builds_12_slots() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("MultiBarRightButton{i}"))
-                .is_some(),
-            "MultiBarRightButton{i} missing"
+            reg.get_by_name(&format!("ActionButton4_{i}")).is_some(),
+            "ActionButton4_{i} missing"
         );
     }
 }
@@ -115,8 +114,8 @@ fn left_bar_builds_12_slots() {
     let reg = action_bar_registry();
     for i in 1..=SLOT_COUNT {
         assert!(
-            reg.get_by_name(&format!("MultiBarLeftButton{i}")).is_some(),
-            "MultiBarLeftButton{i} missing"
+            reg.get_by_name(&format!("ActionButton5_{i}")).is_some(),
+            "ActionButton5_{i} missing"
         );
     }
 }
@@ -177,7 +176,7 @@ fn bag_bar_has_money_display() {
 #[test]
 fn coord_main_action_bar_slot_dimensions() {
     let reg = action_bar_registry();
-    let id = reg.get_by_name("ActionButton1").expect("ActionButton1");
+    let id = reg.get_by_name("ActionButton1_1").expect("ActionButton1_1");
     let frame = reg.get(id).expect("frame data");
     assert_eq!(frame.width, Dimension::Fixed(SLOT_W));
     assert_eq!(frame.height, Dimension::Fixed(SLOT_H));

@@ -20,6 +20,8 @@ const BAR_BG: &str = "0.03,0.02,0.01,0.18";
 const SLOT_BG: &str = "0.06,0.05,0.04,0.82";
 const SLOT_HOTKEY: &str = "0.82,0.88,1.0,0.95";
 const SLOT_COUNT_COLOR: &str = "1.0,1.0,1.0,0.95";
+const SLOT_COOLDOWN_COLOR: &str = "0.0,0.0,0.0,0.65";
+const SLOT_COOLDOWN_TEXT: &str = "1.0,0.95,0.6,1.0";
 const MAIN_BUTTON_ATLAS: &str = "ui-hud-actionbar-iconframe";
 const EXTRA_BUTTON_ATLAS: &str = "ui-hud-actionbar-iconframe-addrow";
 const MAIN_BUTTON_PRESSED_ATLAS: &str = "ui-hud-actionbar-iconframe-down";
@@ -140,14 +142,62 @@ fn slot_frame_texture(texture_name: DynName, atlas: &str, hidden: bool, size: f3
     }
 }
 
+/// Spell icon under the frame art; filled from the action bar slot contents.
+fn slot_icon(icon_name: DynName) -> Element {
+    rsx! {
+        texture {
+            name: icon_name,
+            width: SLOT_W,
+            height: SLOT_H,
+            hidden: true,
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
+        }
+    }
+}
+
+/// Dark cooldown wipe over the icon plus remaining-time text.
+fn slot_cooldown(button_name: &DynName) -> Element {
+    let overlay_name = dyn_name(format!("{}Cooldown", button_name.0));
+    let text_name = dyn_name(format!("{}CooldownText", button_name.0));
+    rsx! {
+        r#frame {
+            name: overlay_name,
+            width: SLOT_W,
+            height: SLOT_H,
+            background_color: SLOT_COOLDOWN_COLOR,
+            hidden: true,
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
+        }
+        fontstring {
+            name: text_name,
+            width: SLOT_W,
+            height: SLOT_H,
+            text: "",
+            font_size: 16.0,
+            font_color: SLOT_COOLDOWN_TEXT,
+            justify_h: "CENTER",
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
+        }
+    }
+}
+
 fn slot_button_layers(button_name: &DynName, frame_atlas: &str) -> Element {
+    let icon_name = dyn_name(format!("{}Icon", button_name.0));
     let normal_name = dyn_name(format!("{}NormalTexture", button_name.0));
     let border_name = dyn_name(format!("{}Border", button_name.0));
     let flash_name = dyn_name(format!("{}Flash", button_name.0));
     rsx! {
+        {slot_icon(icon_name)}
         {slot_frame_texture(normal_name, frame_atlas, false, SLOT_W)}
         {slot_frame_texture(border_name, BORDER_ATLAS, true, SLOT_W + 1.0)}
         {slot_frame_texture(flash_name, FLASH_ATLAS, true, SLOT_W + 1.0)}
+        {slot_cooldown(button_name)}
     }
 }
 
@@ -185,14 +235,14 @@ fn slot_button_widget(
 
 fn action_button(
     container_prefix: &str,
-    button_prefix: &str,
+    bar: usize,
     index: usize,
     hotkey: &str,
     frame_atlas: &str,
     pressed_atlas: &str,
 ) -> Element {
     let container_name = dyn_name(format!("{container_prefix}{}", index + 1));
-    let button_name = dyn_name(format!("{button_prefix}{}", index + 1));
+    let button_name = dyn_name(format!("ActionButton{bar}_{}", index + 1));
     rsx! {
         r#frame {
             name: container_name,
@@ -203,9 +253,10 @@ fn action_button(
     }
 }
 
+/// Buttons of `bar` (1-based), named `ActionButton<bar>_<button>`.
 fn slot_buttons(
     container_prefix: &str,
-    button_prefix: &str,
+    bar: usize,
     show_hotkeys: bool,
     frame_atlas: &str,
     pressed_atlas: &str,
@@ -215,7 +266,7 @@ fn slot_buttons(
             let hotkey = if show_hotkeys { slot_label(index) } else { "" };
             action_button(
                 container_prefix,
-                button_prefix,
+                bar,
                 index,
                 hotkey,
                 frame_atlas,
@@ -262,7 +313,7 @@ fn main_action_bar() -> Element {
         false,
         slot_buttons(
             "MainActionBarButtonContainer",
-            "ActionButton",
+            1,
             true,
             MAIN_BUTTON_ATLAS,
             MAIN_BUTTON_PRESSED_ATLAS,
@@ -285,7 +336,7 @@ fn bottom_left_action_bar() -> Element {
         true,
         slot_buttons(
             "MultiBarBottomLeftButtonContainer",
-            "MultiBarBottomLeftButton",
+            2,
             false,
             EXTRA_BUTTON_ATLAS,
             EXTRA_BUTTON_PRESSED_ATLAS,
@@ -301,7 +352,7 @@ fn bottom_right_action_bar() -> Element {
         true,
         slot_buttons(
             "MultiBarBottomRightButtonContainer",
-            "MultiBarBottomRightButton",
+            3,
             false,
             EXTRA_BUTTON_ATLAS,
             EXTRA_BUTTON_PRESSED_ATLAS,
@@ -324,7 +375,7 @@ fn right_action_bar() -> Element {
         true,
         slot_buttons(
             "MultiBarRightButtonContainer",
-            "MultiBarRightButton",
+            4,
             false,
             EXTRA_BUTTON_ATLAS,
             EXTRA_BUTTON_PRESSED_ATLAS,
@@ -340,7 +391,7 @@ fn left_action_bar() -> Element {
         true,
         slot_buttons(
             "MultiBarLeftButtonContainer",
-            "MultiBarLeftButton",
+            5,
             false,
             EXTRA_BUTTON_ATLAS,
             EXTRA_BUTTON_PRESSED_ATLAS,
