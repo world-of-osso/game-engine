@@ -13,6 +13,8 @@ use game_engine::floating_combat_text::{
     CombatTextKind, FloatingCombatText, FloatingCombatTextStack,
 };
 use game_engine::status::{CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot};
+use game_engine::ui::chat_frame::{CombatLogChat, UNKNOWN_NAME, combat_log_line};
+use shared::components::{Npc, Player as NetPlayer};
 
 use crate::networking::LocalPlayer;
 
@@ -318,6 +320,8 @@ pub(crate) fn receive_combat_events(
 pub(crate) fn receive_combat_log_events(
     mut receivers: MessageReceivers<CombatLogEvent>,
     mirror: Res<ReplicationMirrorMap>,
+    unit_names: Query<(Option<&Npc>, Option<&NetPlayer>)>,
+    mut combat_chat: ResMut<CombatLogChat>,
     mut source: ResMut<CombatTextSource>,
     mut stacks: Query<&mut FloatingCombatTextStack>,
     local_player: Query<Entity, With<LocalPlayer>>,
@@ -331,6 +335,14 @@ pub(crate) fn receive_combat_log_events(
             let target = msg
                 .target
                 .and_then(|bits| super::resolve_server_entity(bits, &mirror));
+            let source_entity = msg
+                .source
+                .and_then(|bits| super::resolve_server_entity(bits, &mirror));
+            combat_chat.push(combat_log_line(
+                &msg,
+                &unit_name(source_entity, &unit_names),
+                &unit_name(target, &unit_names),
+            ));
             if msg.kind == CombatLogKind::Interrupt
                 && target.is_some_and(|target| local_player.contains(target))
                 && let Some(casting) = casting.as_mut()
@@ -344,6 +356,16 @@ pub(crate) fn receive_combat_log_events(
             }
         }
     }
+}
+
+/// Display name of a replicated unit: NPC name, then player name, else "Unknown".
+fn unit_name(entity: Option<Entity>, names: &Query<(Option<&Npc>, Option<&NetPlayer>)>) -> String {
+    let Some((npc, player)) = entity.and_then(|entity| names.get(entity).ok()) else {
+        return UNKNOWN_NAME.to_string();
+    };
+    npc.map(|npc| npc.name.clone())
+        .or_else(|| player.map(|player| player.name.clone()))
+        .unwrap_or_else(|| UNKNOWN_NAME.to_string())
 }
 
 pub(crate) fn append_combat_entry(snapshot: &mut CombatLogStatusSnapshot, entry: CombatLogEntry) {
@@ -601,6 +623,7 @@ mod tests {
         app.init_resource::<SpellSoundQueue>();
         app.init_resource::<CombatTextSource>();
         app.init_resource::<CastingState>();
+        app.init_resource::<CombatLogChat>();
         app.init_resource::<Inbox<CombatLogEvent>>();
         app.init_resource::<Inbox<CombatEvent>>();
         CombatTextApp {
