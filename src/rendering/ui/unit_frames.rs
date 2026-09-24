@@ -67,7 +67,7 @@ impl FactionTemplates {
 
 /// What the local player brings to a target's level text and reaction.
 struct Viewer<'a> {
-    level: Option<u16>,
+    level: Option<u8>,
     template: Option<&'a FactionTemplateRow>,
 }
 
@@ -261,7 +261,7 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
         .unwrap_or_else(|| UnitFrameState::named("Player"));
     let local = sources.player_query.iter().next();
     let viewer = Viewer {
-        level: local_player_level(local, stats),
+        level: local.and_then(|unit| unit.6).map(|level| level.0),
         template: sources.faction_templates.row(local.and_then(|unit| unit.7)),
     };
     let unit_state = |entity: Option<Entity>| {
@@ -304,27 +304,12 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
     }
 }
 
-/// `UnitLevel` once the server sends it for players; until then the character list level.
-fn local_player_level(
-    local: Option<UnitComponents>,
-    stats: Option<&CharacterStatsSnapshot>,
-) -> Option<u16> {
-    let replicated = local
-        .and_then(|unit| unit.6)
-        .map(|level| u16::from(level.0));
-    replicated.or_else(|| stats.and_then(|stats| stats.level))
-}
-
 fn build_player_state(
     character_stats: Option<&CharacterStatsSnapshot>,
     (player, health, powers, _npc, name, _auras, level, _faction): UnitComponents,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_player_name(player, character_stats, name));
-    state.level_text = level
-        .map(|level| u16::from(level.0))
-        .or_else(|| character_stats.and_then(|stats| stats.level))
-        .map(|level| level.to_string())
-        .unwrap_or_default();
+    state.level_text = level.map(|level| level.0.to_string()).unwrap_or_default();
     state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
     state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
     state.secondary_resource = powers.and_then(SecondaryResourceEntry::from_unit_powers);
@@ -369,9 +354,9 @@ fn resolve_target_name(
 }
 
 /// Retail hides the level of units 10 or more levels above the player behind "??".
-fn target_level_text(level: Option<u8>, player_level: Option<u16>) -> String {
+fn target_level_text(level: Option<u8>, player_level: Option<u8>) -> String {
     match (level, player_level) {
-        (Some(level), Some(player)) if u16::from(level) >= player + 10 => "??".into(),
+        (Some(level), Some(player)) if u16::from(level) >= u16::from(player) + 10 => "??".into(),
         (Some(level), _) => level.to_string(),
         (None, _) => String::new(),
     }
@@ -882,11 +867,8 @@ mod tests {
     #[test]
     fn target_ten_levels_above_player_shows_question_marks() {
         let mut app = unit_frames_app();
-        app.insert_resource(CharacterStatsSnapshot {
-            level: Some(70),
-            ..default()
-        });
-        spawn_local_player(&mut app, Vec::new());
+        let player = spawn_local_player(&mut app, Vec::new());
+        app.world_mut().entity_mut(player).insert(UnitLevel(70));
         let boss = spawn_npc(&mut app, "Onyxia", 90);
         app.update();
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(boss);
