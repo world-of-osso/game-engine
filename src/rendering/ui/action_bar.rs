@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use game_engine::auction_house_data::Money;
-use game_engine::input_bindings::{InputAction, InputBindings};
+use game_engine::player_spells::{action_button_name, bar_slot_index};
 use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::frame::{Dimension, WidgetData};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -30,12 +30,9 @@ const FLAT_H: f32 = 45.0;
 const SIDE_W: f32 = 45.0;
 const SIDE_H: f32 = 562.0;
 const MAIN_SLOT_Y: f32 = 7.0;
-const FLASH_SECONDS: f32 = 0.12;
 
 const BAR_BG: [f32; 4] = [0.03, 0.02, 0.01, 0.18];
 const BAR_EDIT_BG: [f32; 4] = [0.18, 0.14, 0.08, 0.78];
-const SLOT_BG: [f32; 4] = [0.06, 0.05, 0.04, 0.82];
-const SLOT_FLASH_BG: [f32; 4] = [0.85, 0.66, 0.18, 1.0];
 const EDIT_BANNER_TEXT: [f32; 4] = [1.0, 0.86, 0.25, 1.0];
 const MOVER_LABEL_TEXT: [f32; 4] = [1.0, 0.9, 0.45, 1.0];
 
@@ -49,7 +46,7 @@ enum BarId {
 }
 
 #[derive(Resource)]
-struct ActionBarsUi {
+pub(crate) struct ActionBarsUi {
     roots: [u64; 5],
     labels: [u64; 5],
     main_slots: [u64; SLOT_COUNT],
@@ -62,7 +59,6 @@ struct ActionBarsUi {
     edit_banner_text: u64,
     guide_v: u64,
     guide_h: u64,
-    flashes: [f32; SLOT_COUNT],
 }
 
 #[derive(Resource, Default)]
@@ -79,11 +75,11 @@ impl Plugin for ActionBarPlugin {
             build_action_bars.run_if(inworld_scene_stage_allows_ui),
         );
         app.add_systems(OnExit(GameState::InWorld), teardown_action_bars);
+        super::action_bar_slots::register_action_slot_systems(app);
         app.add_systems(
             Update,
             (
                 toggle_edit_mode,
-                update_action_bar_slot_flash,
                 sync_action_bar_money_display,
                 sync_action_bar_visibility,
             )
@@ -149,31 +145,6 @@ fn toggle_edit_mode(
     apply_edit_mode(&mut ui.registry, &bars, &edit);
 }
 
-fn update_action_bar_slot_flash(
-    keybinds: crate::ui_input_mode::WorldKeybinds,
-    time: Res<Time>,
-    mut ui: ResMut<UiState>,
-    bars: Option<ResMut<ActionBarsUi>>,
-) {
-    let Some(mut bars) = bars else { return };
-    let dt = time.delta_secs();
-    for index in 0..SLOT_COUNT {
-        if keybinds.just_pressed(slot_action(index)) {
-            bars.flashes[index] = FLASH_SECONDS;
-        }
-        bars.flashes[index] = (bars.flashes[index] - dt).max(0.0);
-        let color = if bars.flashes[index] > 0.0 {
-            SLOT_FLASH_BG
-        } else {
-            SLOT_BG
-        };
-        let slot = bars.main_slots[index];
-        if background_needs_update(&ui.registry, slot, color) {
-            set_bg(&mut ui.registry, slot, color);
-        }
-    }
-}
-
 fn sync_action_bar_visibility(
     mut ui: ResMut<UiState>,
     bars: Option<Res<ActionBarsUi>>,
@@ -198,7 +169,7 @@ fn sync_action_bar_money_display(
     update_money_display(&mut ui.registry, &bars, character_stats.gold);
 }
 
-fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
+pub(crate) fn create_action_bars(reg: &mut FrameRegistry) -> ActionBarsUi {
     mount_action_bar_screen(reg);
     let bars = resolve_action_bars(reg);
     apply_layout(reg, &bars);
@@ -216,17 +187,16 @@ fn resolve_action_bars(reg: &FrameRegistry) -> ActionBarsUi {
     ActionBarsUi {
         roots: root_ids(reg),
         labels: label_ids(reg),
-        main_slots: slot_ids(reg, "ActionButton"),
-        bottom_left_slots: slot_ids(reg, "MultiBarBottomLeftButton"),
-        bottom_right_slots: slot_ids(reg, "MultiBarBottomRightButton"),
-        right_slots: slot_ids(reg, "MultiBarRightButton"),
-        left_slots: slot_ids(reg, "MultiBarLeftButton"),
+        main_slots: slot_ids(reg, 1),
+        bottom_left_slots: slot_ids(reg, 2),
+        bottom_right_slots: slot_ids(reg, 3),
+        right_slots: slot_ids(reg, 4),
+        left_slots: slot_ids(reg, 5),
         money_display: frame_id(reg, "BagsBarMoneyDisplay"),
         edit_banner: frame_id(reg, "ActionBarEditBanner"),
         edit_banner_text: frame_id(reg, "ActionBarEditBannerText"),
         guide_v: frame_id(reg, "ActionBarGuideVertical"),
         guide_h: frame_id(reg, "ActionBarGuideHorizontal"),
-        flashes: [0.0; SLOT_COUNT],
     }
 }
 
@@ -255,8 +225,8 @@ fn frame_id(reg: &FrameRegistry, name: &str) -> u64 {
         .unwrap_or_else(|| panic!("missing frame {name}"))
 }
 
-fn slot_ids(reg: &FrameRegistry, prefix: &str) -> [u64; SLOT_COUNT] {
-    std::array::from_fn(|index| frame_id(reg, &format!("{prefix}{}", index + 1)))
+fn slot_ids(reg: &FrameRegistry, bar: usize) -> [u64; SLOT_COUNT] {
+    std::array::from_fn(|index| frame_id(reg, &action_button_name(bar_slot_index(bar, index + 1))))
 }
 
 fn apply_layout(reg: &mut FrameRegistry, bars: &ActionBarsUi) {
@@ -447,178 +417,9 @@ fn set_bg(reg: &mut FrameRegistry, id: u64, color: [f32; 4]) {
     }
 }
 
-fn slot_action(index: usize) -> InputAction {
-    match index {
-        0 => InputAction::ActionSlot1,
-        1 => InputAction::ActionSlot2,
-        2 => InputAction::ActionSlot3,
-        3 => InputAction::ActionSlot4,
-        4 => InputAction::ActionSlot5,
-        5 => InputAction::ActionSlot6,
-        6 => InputAction::ActionSlot7,
-        7 => InputAction::ActionSlot8,
-        8 => InputAction::ActionSlot9,
-        9 => InputAction::ActionSlot10,
-        10 => InputAction::ActionSlot11,
-        _ => InputAction::ActionSlot12,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[derive(Resource, Default)]
-    struct FlashUiChanged(bool);
-
-    fn observe_flash_ui(ui: Res<UiState>, mut changed: ResMut<FlashUiChanged>) {
-        changed.0 = ui.is_changed();
-    }
-
-    fn flash_test_app() -> App {
-        let mut app = App::new();
-        let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        let bars = create_action_bars(&mut registry);
-        app.insert_resource(UiState {
-            registry,
-            event_bus: game_engine::ui::event::EventBus::new(),
-            focused_frame: None,
-        });
-        app.insert_resource(bars);
-        app.init_resource::<ButtonInput<KeyCode>>();
-        app.init_resource::<ButtonInput<MouseButton>>();
-        app.init_resource::<InputBindings>();
-        app.init_resource::<crate::ui_input_mode::UiInputMode>();
-        app.init_resource::<Time>();
-        app.init_resource::<FlashUiChanged>();
-        app.add_systems(Update, update_action_bar_slot_flash);
-        app.add_systems(PostUpdate, observe_flash_ui);
-        app.update();
-        app
-    }
-
-    fn flash_frame(app: &mut App, seconds: f32) {
-        app.world_mut()
-            .resource_mut::<UiState>()
-            .bypass_change_detection()
-            .registry
-            .render_dirty
-            .clear();
-        app.world_mut()
-            .resource_mut::<Time>()
-            .advance_by(std::time::Duration::from_secs_f32(seconds));
-        app.world_mut().clear_trackers();
-        app.update();
-    }
-
-    #[test]
-    fn action_bar_idle_background_does_not_dirty_ui() {
-        let mut app = flash_test_app();
-        for _ in 0..3 {
-            flash_frame(&mut app, 0.016);
-            assert!(
-                app.world()
-                    .resource::<UiState>()
-                    .registry
-                    .render_dirty
-                    .is_empty()
-            );
-            assert!(!app.world().resource::<FlashUiChanged>().0);
-        }
-    }
-
-    #[test]
-    fn action_bar_idle_background_preserves_flash_start_and_expiry() {
-        let mut app = flash_test_app();
-        let slot = app.world().resource::<ActionBarsUi>().main_slots[0];
-        app.world_mut()
-            .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::Digit1);
-        flash_frame(&mut app, 0.01);
-        let ui = app.world().resource::<UiState>();
-        assert_eq!(
-            ui.registry.get(slot).unwrap().background_color,
-            Some(SLOT_FLASH_BG)
-        );
-        assert_eq!(ui.registry.render_dirty.len(), 1);
-        assert!(ui.registry.render_dirty.contains(&slot));
-        assert!(app.world().resource::<FlashUiChanged>().0);
-        assert!((app.world().resource::<ActionBarsUi>().flashes[0] - 0.11).abs() < 0.00001);
-        app.world_mut()
-            .resource_mut::<ButtonInput<KeyCode>>()
-            .clear();
-        flash_frame(&mut app, 0.01);
-        assert!(
-            app.world()
-                .resource::<UiState>()
-                .registry
-                .render_dirty
-                .is_empty()
-        );
-        assert!(!app.world().resource::<FlashUiChanged>().0);
-        flash_frame(&mut app, 0.2);
-        let ui = app.world().resource::<UiState>();
-        assert_eq!(
-            ui.registry.get(slot).unwrap().background_color,
-            Some(SLOT_BG)
-        );
-        assert_eq!(ui.registry.render_dirty.len(), 1);
-        assert!(ui.registry.render_dirty.contains(&slot));
-        assert!(app.world().resource::<FlashUiChanged>().0);
-        assert_eq!(app.world().resource::<ActionBarsUi>().flashes[0], 0.0);
-        flash_frame(&mut app, 0.016);
-        assert!(
-            app.world()
-                .resource::<UiState>()
-                .registry
-                .render_dirty
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn action_bar_idle_background_initializes_replacement_slot() {
-        let mut app = flash_test_app();
-        let slot = app
-            .world_mut()
-            .resource_mut::<UiState>()
-            .registry
-            .create_frame("ReplacementActionSlot", None);
-        app.world_mut().resource_mut::<ActionBarsUi>().main_slots[0] = slot;
-        flash_frame(&mut app, 0.016);
-        let ui = app.world().resource::<UiState>();
-        assert_eq!(
-            ui.registry.get(slot).unwrap().background_color,
-            Some(SLOT_BG)
-        );
-        assert_eq!(ui.registry.render_dirty.len(), 1);
-        assert!(ui.registry.render_dirty.contains(&slot));
-        flash_frame(&mut app, 0.016);
-        assert!(
-            app.world()
-                .resource::<UiState>()
-                .registry
-                .render_dirty
-                .is_empty()
-        );
-    }
-
-    #[test]
-    fn action_bar_idle_background_setter_skips_equal_colors() {
-        let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        let bars = create_action_bars(&mut registry);
-        let slot = bars.main_slots[0];
-        set_bg(&mut registry, slot, SLOT_BG);
-        registry.render_dirty.clear();
-        set_bg(&mut registry, slot, SLOT_BG);
-        assert!(registry.render_dirty.is_empty());
-        set_bg(&mut registry, slot, SLOT_FLASH_BG);
-        assert_eq!(
-            registry.get(slot).unwrap().background_color,
-            Some(SLOT_FLASH_BG)
-        );
-        assert!(registry.render_dirty.contains(&slot));
-    }
 
     fn fontstring_text(reg: &FrameRegistry, name: &str) -> String {
         let id = reg.get_by_name(name).expect(name);
@@ -651,8 +452,10 @@ mod tests {
         });
         app.init_resource::<ButtonInput<KeyCode>>();
         app.init_resource::<ButtonInput<MouseButton>>();
-        app.init_resource::<InputBindings>();
+        app.init_resource::<game_engine::input_bindings::InputBindings>();
         app.init_resource::<crate::ui_input_mode::UiInputMode>();
+        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
+        app.add_plugins(game_engine::player_spells::PlayerSpellsPlugin);
         app.add_plugins(ActionBarPlugin);
         app.update();
         app
@@ -707,8 +510,8 @@ mod tests {
                 .get_by_name("MainActionBarButtonContainer1")
                 .is_some()
         );
-        assert!(registry.get_by_name("ActionButton1HotKey").is_some());
-        assert!(registry.get_by_name("MultiBarRightButton12Count").is_some());
+        assert!(registry.get_by_name("ActionButton1_1HotKey").is_some());
+        assert!(registry.get_by_name("ActionButton4_12Count").is_some());
     }
 
     #[test]
