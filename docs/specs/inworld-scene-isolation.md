@@ -24,7 +24,7 @@ Empty is a startup-only diagnostic; returning to the full rendering pipeline req
 ### MSAA-only control
 
 - [x] Accept opt-in `--no-msaa`: override configured 4x MSAA to single-sample rendering in the camera render bundle, without changing the saved graphics option.
-- [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, depth/normal prepasses, common camera effects, and lighting.
+- [x] Keep SSAO compatibility based on the original configured anti-alias mode so this diagnostic does not enable SSAO. Preserve TAA when independently configured, consumer-driven prepasses, common camera effects, and lighting.
 - [x] Keep the composited UI camera's MSAA synchronized with the active 3D camera after graphics updates, including diagnostic restoration and preserved pre-Lighting sampling. Preserve UI clear/order behavior and readable changing FPS digits; do not apply 3D post-processing to the UI camera.
 
 ### Pipelined-rendering control
@@ -136,7 +136,7 @@ Native standalone proof, regression counts, and remaining integration qualificat
 
 - [x] Remove TAA, SSAO, depth/normal/motion prepasses, temporal jitter, and mip bias from `WowCamera` before `Lighting`.
 - [x] Restore graphics-option-driven TAA/SSAO and required prepasses when the stage advances to `Lighting`.
-- [x] Restore depth and normal prepasses with MSAA at `Lighting` without enabling TAA or SSAO.
+- [x] From `Lighting` on, keep `WowCamera` prepasses only for their consumers: depth+normal for SSAO, depth+motion vectors plus temporal jitter and mip bias for TAA. MSAA without SSAO has none; the MSAA main pass reads no prepass texture.
 - [x] Preserve camera identity, transforms, MSAA state before `Lighting`, tonemapping, shadow filtering, spatial audio, bloom, sharpening, and depth-of-field synchronization.
 - [x] Keep the standalone performance overlay active while game UI and early camera rendering are isolated.
 
