@@ -214,3 +214,18 @@ fn chat_tabs_are_laid_out_ten_apart() {
         assert!((pair[1].x - (pair[0].x + pair[0].width) - 10.0).abs() < 0.5);
     }
 }
+
+#[test]
+fn chat_tab_caps_meet_the_middle_without_a_seam() {
+    for (width, height) in CANVASES {
+        let reg = mount_hud(width, height);
+        for index in 0..3 {
+            let part = |name: &str| {
+                rect(&reg, &format!("ChatFrame1TabsTab{index}{name}")).expect("tab part laid out")
+            };
+            let (left, middle, right) = (part("Left"), part("Middle"), part("Right"));
+            assert_eq!(left.x + left.width, middle.x, "tab {index} left cap");
+            assert_eq!(middle.x + middle.width, right.x, "tab {index} right cap");
+        }
+    }
+}
