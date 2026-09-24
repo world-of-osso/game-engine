@@ -30,6 +30,7 @@ fn chat_app() -> App {
     app.init_resource::<EmoteInput>();
     app.init_resource::<ChatState>();
     app.init_resource::<WhisperState>();
+    app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
     app.add_plugins((UiInputModePlugin, StaticPopupPlugin, ChatFramePlugin));
     app.world_mut().spawn((
         Window {
