@@ -30,24 +30,18 @@ pub fn create_blank_image(w: u32, h: u32) -> Image {
     )
 }
 
-/// Create a 200x200 RGBA image with a dark ring at the circle edge.
-pub fn create_border_image(size: usize) -> Image {
-    let center = size as f32 / 2.0;
-    let outer_radius = center;
-    let inner_radius = center - 3.0;
-    let mut data = vec![0u8; size * size * 4];
+const BORDER_PX: usize = 2;
+const BORDER_METAL: [u8; 4] = [128, 115, 92, 242];
 
+/// Create a square RGBA image with a thin metal frame around a transparent centre.
+pub fn create_border_image(size: usize) -> Image {
+    let mut data = vec![0u8; size * size * 4];
     for y in 0..size {
         for x in 0..size {
-            let dx = x as f32 - center + 0.5;
-            let dy = y as f32 - center + 0.5;
-            let dist = (dx * dx + dy * dy).sqrt();
-            if dist >= inner_radius && dist <= outer_radius {
+            let edge = x.min(y).min(size - 1 - x).min(size - 1 - y);
+            if edge < BORDER_PX {
                 let i = (y * size + x) * 4;
-                data[i] = 80;
-                data[i + 1] = 60;
-                data[i + 2] = 20;
-                data[i + 3] = 220;
+                data[i..i + 4].copy_from_slice(&BORDER_METAL);
             }
         }
     }
@@ -177,42 +171,6 @@ fn draw_icon_pixel(data: &mut [u8], size: usize, x: i32, y: i32, color: [u8; 4])
     }
     let offset = (y as usize * size + x as usize) * 4;
     data[offset..offset + 4].copy_from_slice(&color);
-}
-
-/// Crop a display_size window centered on (cx, cy) and apply a circular alpha mask.
-pub fn crop_with_circle(
-    composite: &[u8],
-    comp_size: usize,
-    cx: usize,
-    cy: usize,
-    display_size: u32,
-) -> Vec<u8> {
-    let ds = display_size as usize;
-    let radius = ds as f32 / 2.0;
-    let mut out = vec![0u8; ds * ds * 4];
-
-    for y in 0..ds {
-        for x in 0..ds {
-            let dx = x as f32 - radius + 0.5;
-            let dy = y as f32 - radius + 0.5;
-            if (dx * dx + dy * dy).sqrt() > radius {
-                continue;
-            }
-            let di = (y * ds + x) * 4;
-            let sx = cx as i32 - ds as i32 / 2 + x as i32;
-            let sy = cy as i32 - ds as i32 / 2 + y as i32;
-            if sx >= 0 && (sx as usize) < comp_size && sy >= 0 && (sy as usize) < comp_size {
-                let si = (sy as usize * comp_size + sx as usize) * 4;
-                out[di..di + 4].copy_from_slice(&composite[si..si + 4]);
-            } else {
-                out[di] = 20;
-                out[di + 1] = 20;
-                out[di + 2] = 20;
-                out[di + 3] = 255;
-            }
-        }
-    }
-    out
 }
 
 /// Draw a 3x3 colored dot at (cx, cy) in an RGBA buffer.
