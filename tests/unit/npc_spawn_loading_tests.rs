@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use bevy::ecs::system::RunSystemOnce;
 use bevy::mesh::{Indices, VertexAttributeValues, skinning::SkinnedMeshInverseBindposes};
-use bevy::prelude::*;
 
 use super::*;
 

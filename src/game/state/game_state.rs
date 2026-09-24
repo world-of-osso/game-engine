@@ -510,7 +510,7 @@ mod tests {
         );
         assert!(
             app.world()
-                .non_send_resource::<SpellbookUiRuntime>()
+                .non_send::<SpellbookUiRuntime>()
                 .is_open()
         );
 
@@ -525,7 +525,7 @@ mod tests {
         app.update();
         assert!(
             !app.world()
-                .non_send_resource::<SpellbookUiRuntime>()
+                .non_send::<SpellbookUiRuntime>()
                 .is_open(),
             "the oldest of three panels (spellbook) closes"
         );

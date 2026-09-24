@@ -256,7 +256,7 @@ mod idle_tests {
     fn set_open(app: &mut App, open: bool) {
         app.world_mut()
             .resource_scope(|world, mut state: Mut<UiState>| {
-                let mut runtime = world.non_send_resource_mut::<SpellbookUiRuntime>();
+                let mut runtime = world.non_send_mut::<SpellbookUiRuntime>();
                 set_spellbook_open(&mut state, &mut runtime, open);
             });
     }

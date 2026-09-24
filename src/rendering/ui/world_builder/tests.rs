@@ -5,7 +5,6 @@ mod native_layout_support;
 use std::collections::HashSet;
 
 use bevy::ecs::entity_disabling::Disabled;
-use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::ui::screens::world_builder_component::{
     WORLD_BUILDER_APPLY_TRANSFORM, WorldBuilderAction, WorldBuilderViewState,
