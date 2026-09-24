@@ -9,9 +9,10 @@ use std::collections::{HashMap, HashSet};
 
 use bevy::prelude::*;
 use shared::protocol::{
-    GossipMenu, GossipMenuOption, QuestEntrySnapshot, QuestFailedReason, QuestGiverOfferReward,
-    QuestGiverQuestComplete, QuestGiverQuestDetails, QuestGiverQuestEntry, QuestGiverQuestList,
-    QuestGiverRequestItems, QuestGiverStatus, QuestLogSnapshot, QuestLogUpdate,
+    GossipMenu, GossipMenuOption, NpcRole, QuestEntrySnapshot, QuestFailedReason,
+    QuestGiverOfferReward, QuestGiverQuestComplete, QuestGiverQuestDetails, QuestGiverQuestEntry,
+    QuestGiverQuestList, QuestGiverRequestItems, QuestGiverStatus, QuestLogSnapshot,
+    QuestLogUpdate,
 };
 
 #[derive(Resource, Default, Debug, Clone, PartialEq)]
@@ -23,6 +24,14 @@ pub struct QuestRuntime {
     /// Quest giver marker per NPC (server entity bits).
     pub giver_status: HashMap<u64, QuestGiverStatus>,
     pub dialog: Option<QuestDialog>,
+}
+
+/// A role frame (auction house, vendor, ...) the server opened for an NPC interaction,
+/// or the end of that interaction. Frames other than the quest dialog read these.
+#[derive(Message, Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NpcFrameEvent {
+    Opened { npc: u64, role: NpcRole },
+    Closed { npc: u64 },
 }
 
 /// A player action for the server quest / interaction runtime.
