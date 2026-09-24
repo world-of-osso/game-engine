@@ -3,6 +3,7 @@
 use std::fmt;
 
 use crate::buff_data::{AuraInstance, AuraState};
+use crate::ui::anchor::FrameName;
 use crate::ui::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -17,7 +18,7 @@ impl fmt::Display for DynName {
 }
 
 /// Stable root name; edit mode moves buffs and debuffs together through it.
-pub const BUFF_FRAME: &str = "BuffFrame";
+pub const BUFF_FRAME: FrameName = FrameName("BuffFrame");
 pub const BUFFS_PER_ROW: usize = 16;
 pub const MAX_BUFFS: usize = 32;
 pub const MAX_DEBUFFS: usize = 16;
@@ -275,7 +276,7 @@ mod tests {
     #[test]
     fn frame_sits_left_of_the_minimap_with_icons_growing_leftwards() {
         let reg = registry(state_with(2, 0));
-        let frame = rect(&reg, BUFF_FRAME);
+        let frame = rect(&reg, BUFF_FRAME.0);
         assert_eq!(frame.x + frame.width, 1920.0 - FRAME_RIGHT);
         assert_eq!(frame.y, FRAME_TOP);
         let first = rect(&reg, "BuffButton0");
@@ -336,7 +337,7 @@ mod tests {
         assert_eq!(buff_button_at(&reg, icon), Some((true, 1)));
         let duration = reg.get_by_name("BuffButton0Duration").unwrap();
         assert_eq!(buff_button_at(&reg, duration), Some((false, 0)));
-        let root = reg.get_by_name(BUFF_FRAME).unwrap();
+        let root = reg.get_by_name(BUFF_FRAME.0).unwrap();
         assert_eq!(buff_button_at(&reg, root), None);
     }
 }
