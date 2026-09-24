@@ -3,7 +3,7 @@
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
-use ui_toolkit::widget_def::Element;
+use ui_toolkit::widget_def::{Attr, Element, WidgetChild};
 use ui_toolkit::widgets::scroll_list::{ScrollList, scroll_list};
 use ui_toolkit::widgets::tabs::{Tab, TabStrip, tab_strip};
 
@@ -37,7 +37,8 @@ pub const CHAT_FONT_SIZE: f32 = 14.0;
 pub const CHAT_TEXT_W: f32 = MESSAGES_W - TRACK_W - PAD;
 /// Background alpha while the frame is in use; it fades to 0 when idle.
 pub const CHAT_BACKGROUND_ALPHA: f32 = 0.4;
-const SELECTED_TAB_BG: &str = "1,0.82,0,0.3";
+/// Dark plate behind the selected tab so its gold label stays legible over the world.
+const SELECTED_TAB_BG: &str = "0,0,0,0.5";
 const LINK_PREFIX: &str = "ChatFrame1Link";
 
 struct DynName(String);
@@ -112,6 +113,7 @@ fn tabs(selected: ChatTab) -> Element {
         gap: TAB_GAP,
         art: None,
     });
+    let strip = with_size(strip, FRAME_W, TAB_H);
     let highlight_x = selected.index() as f32 * (TAB_W + TAB_GAP);
     rsx! {
         r#frame {
@@ -133,6 +135,17 @@ fn tabs(selected: ChatTab) -> Element {
             {strip}
         }
     }
+}
+
+/// A flex strip without a size lays out 0 wide and shrinks every tab to nothing.
+fn with_size(mut element: Element, width: f32, height: f32) -> Element {
+    if let Some(WidgetChild::Widget(def)) = element.first_mut() {
+        def.attrs
+            .push(Attr::new_dynamic("width", width.to_string()));
+        def.attrs
+            .push(Attr::new_dynamic("height", height.to_string()));
+    }
+    element
 }
 
 fn messages(ctx: &SharedContext, rows: &[ChatRow]) -> Element {
