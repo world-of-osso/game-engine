@@ -4,9 +4,8 @@ use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CombatChannel, DuelStateUpdate,
     DurabilityStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse, GroupRoleSnapshot,
     GroupRosterSnapshot, InputChannel, InspectStateUpdate, LoadTerrain, PlayerInput,
-    ProfessionSnapshot, ProfessionStateUpdate, QuestLogSnapshot,
-    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, RestAreaKindSnapshot,
-    RestStateUpdate, SetTarget, WorldMapStateUpdate,
+    ProfessionSnapshot, ProfessionStateUpdate, QuestRepeatability as QuestRepeatabilitySnapshot,
+    ReputationStateUpdate, RestAreaKindSnapshot, RestStateUpdate, SetTarget, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -31,7 +30,7 @@ use game_engine::status::{
     AchievementsStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot, GroupMemberEntry,
     GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot,
     ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
-    QuestEntry, QuestLogStatusSnapshot, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
+    QuestEntry, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
     ReputationsStatusSnapshot, RestAreaKindEntry,
 };
 use game_engine::targeting::CurrentTarget;
@@ -250,7 +249,7 @@ fn update_whisper_state(
     }
 }
 
-fn current_chat_timestamp() -> f64 {
+pub(crate) fn current_chat_timestamp() -> f64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs_f64())
@@ -368,19 +367,7 @@ fn apply_load_terrain_message(
     adt_manager.server_requested.insert(key);
 }
 
-pub(crate) fn receive_quest_log_snapshot(
-    mut receivers: MessageReceivers<QuestLogSnapshot>,
-    mut snapshot: ResMut<QuestLogStatusSnapshot>,
-) {
-    for receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.entries = msg.entries.into_iter().map(map_quest_entry).collect();
-            snapshot.watched_quest_ids = msg.watched_quest_ids;
-        }
-    }
-}
-
-fn map_quest_entry(entry: shared::protocol::QuestEntrySnapshot) -> QuestEntry {
+pub(crate) fn map_quest_entry(entry: shared::protocol::QuestEntrySnapshot) -> QuestEntry {
     QuestEntry {
         quest_id: entry.quest_id,
         title: entry.title,

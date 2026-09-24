@@ -282,7 +282,7 @@ fn register_gameplay_net_systems(app: &mut App) {
     use crate::networking_messages as msg;
     use game_engine::network_events::{register_message_handler, register_outgoing_handler};
     use game_engine::network_tick::{NetworkTick, NetworkTickSystems};
-    use shared::protocol::{EmoteEvent, GroupRosterSnapshot, QuestLogSnapshot};
+    use shared::protocol::{EmoteEvent, GroupRosterSnapshot};
 
     register_message_handler::<ChatMessage, _>(
         app,
@@ -290,11 +290,6 @@ fn register_gameplay_net_systems(app: &mut App) {
         application_in_world,
     );
     register_message_handler::<EmoteEvent, _>(app, msg::receive_emote_events, application_in_world);
-    register_message_handler::<QuestLogSnapshot, _>(
-        app,
-        msg::receive_quest_log_snapshot,
-        application_in_world,
-    );
     register_message_handler::<GroupRosterSnapshot, _>(
         app,
         msg::receive_group_roster_snapshot,

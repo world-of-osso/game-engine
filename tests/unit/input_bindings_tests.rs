@@ -104,8 +104,9 @@ fn panel_toggles_use_retail_default_keys() {
             Some(InputBinding::Keyboard(KeyCode::KeyO)),
         ),
         (InputAction::ToggleMail, None),
+        (InputAction::ToggleLootRules, None),
         (
-            InputAction::ToggleLootRules,
+            InputAction::ToggleQuestLog,
             Some(InputBinding::Keyboard(KeyCode::KeyL)),
         ),
         (

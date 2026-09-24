@@ -346,6 +346,7 @@ fn reset_world_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::NetworkStatusSnapshot>(world);
     reset_resource::<game_engine::status::ProfessionStatusSnapshot>(world);
     reset_resource::<game_engine::status::QuestLogStatusSnapshot>(world);
+    reset_resource::<game_engine::quest_runtime::QuestRuntime>(world);
     reset_resource::<game_engine::status::ReputationsStatusSnapshot>(world);
     reset_resource::<game_engine::status::SoundStatusSnapshot>(world);
     reset_resource::<game_engine::status::TerrainStatusSnapshot>(world);

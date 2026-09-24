@@ -14,6 +14,7 @@ use shared::components::{
     MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate,
     UnitLevel, UnitPowers, UnitTarget, Zone,
 };
+use shared::protocol::NpcFlags;
 
 use super::worker::MainUpdate;
 
@@ -162,6 +163,7 @@ struct EntitySnapshot {
     gold: Option<Gold>,
     player: Option<Player>,
     npc: Option<Npc>,
+    npc_flags: Option<NpcFlags>,
     model_display: Option<ModelDisplay>,
     rotation: Option<Rotation>,
     movement_speed: Option<MovementSpeed>,
@@ -190,6 +192,7 @@ impl EntitySnapshot {
             gold: entity.get::<Gold>().copied(),
             player: entity.get::<Player>().cloned(),
             npc: entity.get::<Npc>().cloned(),
+            npc_flags: entity.get::<NpcFlags>().copied(),
             model_display: entity.get::<ModelDisplay>().copied(),
             rotation: entity.get::<Rotation>().copied(),
             movement_speed: entity.get::<MovementSpeed>().copied(),
@@ -230,6 +233,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.level);
             apply_component(&mut entity, self.faction_template);
             apply_component(&mut entity, self.unit_target);
+            apply_component(&mut entity, self.npc_flags);
             // Add observers immediately query support components: insert identities last.
             apply_component(&mut entity, self.player);
             apply_component(&mut entity, self.npc);
@@ -417,6 +421,30 @@ mod tests {
         assert!(main.world().get::<UnitLevel>(mirror).is_none());
         assert!(main.world().get::<UnitFactionTemplate>(mirror).is_none());
         assert!(main.world().get::<UnitTarget>(mirror).is_none());
+    }
+
+    #[test]
+    fn npc_flags_mirror_for_quest_giver_markers() {
+        let mut worker = World::new();
+        let source = worker
+            .spawn((
+                Remote,
+                Npc {
+                    template_id: 823,
+                    name: "Deputy Willem".into(),
+                },
+                NpcFlags(NpcFlags::GOSSIP | NpcFlags::QUESTGIVER),
+            ))
+            .id();
+        let mut main = main_app();
+        apply(main.world_mut(), snapshot(&worker, source, source, 1));
+        let mirror = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        let flags = main.world().get::<NpcFlags>(mirror).copied();
+        assert!(flags.is_some_and(|flags| flags.contains(NpcFlags::QUESTGIVER)));
     }
 
     #[derive(Resource, Default)]

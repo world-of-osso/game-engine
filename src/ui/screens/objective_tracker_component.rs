@@ -1,685 +1,423 @@
-use std::fmt;
+//! Retail objective tracker (`Blizzard_ObjectiveTracker`): the "All Objectives"
+//! container header, the "Quests" module header and one block per watched quest with
+//! its POI button, title and objective lines.
 
+use shared::protocol::QuestEntrySnapshot;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
-struct DynName(String);
+use crate::quest_runtime::QuestRuntime;
+use crate::ui::screens::quest_art::{
+    DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
+    TRACKER_EXPAND_ALL, TRACKER_PRIMARY_HEADER, TRACKER_SECONDARY_COLLAPSE,
+    TRACKER_SECONDARY_EXPAND, TRACKER_SECONDARY_HEADER, atlas_texture, wrapped_text_height,
+};
 
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
+/// `ObjectiveTrackerContainerTemplate` width.
+pub const TRACKER_W: f32 = 260.0;
+/// Retail default Edit Mode anchor: TOPRIGHT of UIParent at (-110, -275).
+pub const TRACKER_RIGHT: f32 = 110.0;
+pub const TRACKER_TOP: f32 = 275.0;
+const CONTAINER_HEADER_H: f32 = 32.0;
+/// `ObjectiveTrackerFrame.topModulePadding`.
+const TOP_MODULE_PADDING: f32 = 38.0;
+const MODULE_HEADER_H: f32 = 26.0;
+/// `ObjectiveTrackerModuleMixin` defaults: headerHeight 25, fromHeaderOffsetY -10,
+/// blockOffsetX 20, fromBlockOffsetY -10, lineSpacing 4.
+const MODULE_HEADER_HEIGHT: f32 = 25.0;
+const FROM_HEADER_OFFSET_Y: f32 = 10.0;
+const BLOCK_OFFSET_X: f32 = 20.0;
+const FROM_BLOCK_OFFSET_Y: f32 = 10.0;
+const LINE_SPACING: f32 = 4.0;
+const BLOCK_W: f32 = TRACKER_W - BLOCK_OFFSET_X;
+/// `ObjectiveTrackerLineFont` (12) and `ObjectiveTrackerHeaderFont` (14).
+const LINE_FONT: f32 = 12.0;
+const HEADER_FONT: f32 = 14.0;
+/// Width of `QUEST_DASH` ("- ") in the line font.
+const DASH_W: f32 = 9.0;
+const POI_SIZE: f32 = 20.0;
 
-pub const TRACKER_W: f32 = 248.0;
-const HEADER_H: f32 = 20.0;
-const OBJECTIVE_H: f32 = 14.0;
-const OBJECTIVE_GAP: f32 = 2.0;
-const QUEST_GAP: f32 = 8.0;
-const CHECKBOX_SIZE: f32 = 12.0;
-const CHECKBOX_GAP: f32 = 4.0;
-const INSET: f32 = 4.0;
-
+/// `NORMAL_FONT_COLOR` for the container and module headers.
 const HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
-const OBJECTIVE_COLOR: &str = "0.8,0.8,0.8,1.0";
-const OBJECTIVE_DONE_COLOR: &str = "0.0,1.0,0.0,1.0";
-const CHECKBOX_BG: &str = "0.1,0.1,0.1,0.8";
-const CHECKBOX_CHECK: &str = "0.0,1.0,0.0,1.0";
+/// `OBJECTIVE_TRACKER_COLOR`: Header (block title), Normal, Complete.
+const BLOCK_HEADER_COLOR: &str = "0.75,0.61,0.0,1.0";
+const NORMAL_COLOR: &str = "0.8,0.8,0.8,1.0";
+const COMPLETE_COLOR: &str = "0.6,0.6,0.6,1.0";
+const SHADOW: &str = "0.0,0.0,0.0,1.0";
 
-// Bonus / timer / scenario
-const PROGRESS_BAR_W: f32 = 180.0;
-const PROGRESS_BAR_H: f32 = 10.0;
-const TIMER_H: f32 = 16.0;
-const SCENARIO_STEP_H: f32 = 16.0;
-const PROGRESS_BG: &str = "0.1,0.1,0.1,0.9";
-const PROGRESS_FILL: &str = "0.2,0.6,0.1,0.9";
-const PROGRESS_TEXT_COLOR: &str = "1.0,1.0,1.0,0.9";
-const TIMER_COLOR: &str = "1.0,0.4,0.0,1.0";
-const SCENARIO_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
-const SCENARIO_STEP_COLOR: &str = "0.8,0.8,0.8,1.0";
+pub const TOGGLE_ACTION: &str = "quest_tracker:toggle";
+pub const TOGGLE_QUESTS_ACTION: &str = "quest_tracker:toggle_quests";
+pub const OPEN_QUEST_PREFIX: &str = "quest_tracker:open:";
 
-pub const MAX_QUESTS: usize = 8;
-pub const MAX_OBJECTIVES_PER_QUEST: usize = 5;
-pub const MAX_BONUS_OBJECTIVES: usize = 3;
-pub const MAX_SCENARIO_STEPS: usize = 5;
+/// `QUEST_WATCH_QUEST_READY`.
+pub const READY_FOR_TURN_IN: &str = "Ready for turn-in";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObjectiveLineStyle {
+    /// Dash, `OBJECTIVE_TRACKER_COLOR.Normal`.
+    InProgress,
+    /// Check icon, no dash, `Complete` colour.
+    Completed,
+    /// Completion text of a finished quest: no dash, `Normal` colour.
+    CompletionText,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct ObjectiveLine {
     pub text: String,
-    pub completed: bool,
+    pub style: ObjectiveLineStyle,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TrackedQuest {
+    pub quest_id: u32,
     pub title: String,
-    pub collapsed: bool,
-    pub objectives: Vec<ObjectiveLine>,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct BonusObjective {
-    pub name: String,
-    pub progress: f32,
-    pub progress_text: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct TimerBlock {
-    pub label: String,
-    pub time_text: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct ScenarioStep {
-    pub text: String,
-    pub completed: bool,
+    pub complete: bool,
+    pub lines: Vec<ObjectiveLine>,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ObjectiveTrackerState {
+    pub collapsed: bool,
+    pub quests_collapsed: bool,
     pub quests: Vec<TrackedQuest>,
-    pub bonus_objectives: Vec<BonusObjective>,
-    pub timers: Vec<TimerBlock>,
-    pub scenario_name: String,
-    pub scenario_steps: Vec<ScenarioStep>,
 }
 
-fn build_quest_elements(quests: &[TrackedQuest], y_cursor: &mut f32) -> Element {
-    quests
-        .iter()
-        .enumerate()
-        .take(MAX_QUESTS)
-        .flat_map(|(qi, quest)| {
-            let header_y = -*y_cursor;
-            *y_cursor += HEADER_H + QUEST_GAP;
-            let header = quest_header(qi, quest, header_y);
-            let objectives: Element = if quest.collapsed {
-                Vec::new()
-            } else {
-                quest
-                    .objectives
-                    .iter()
-                    .enumerate()
-                    .take(MAX_OBJECTIVES_PER_QUEST)
-                    .flat_map(|(oi, obj)| {
-                        let obj_y = -*y_cursor;
-                        *y_cursor += OBJECTIVE_H + OBJECTIVE_GAP;
-                        objective_line(qi, oi, obj, obj_y)
-                    })
-                    .collect()
-            };
-            [header, objectives]
+impl ObjectiveTrackerState {
+    pub fn from_runtime(runtime: &QuestRuntime, collapsed: bool, quests_collapsed: bool) -> Self {
+        Self {
+            collapsed,
+            quests_collapsed,
+            quests: runtime
+                .watched_entries()
                 .into_iter()
-                .flatten()
-                .collect::<Vec<_>>()
-        })
-        .collect()
+                .map(tracked_quest)
+                .collect(),
+        }
+    }
+}
+
+/// `QuestObjectiveTrackerMixin:UpdateSingle`: a finished quest shows only its
+/// completion text (or "Ready for turn-in"); otherwise one line per objective,
+/// finished ones checked.
+fn tracked_quest(entry: &QuestEntrySnapshot) -> TrackedQuest {
+    let lines = if entry.completed {
+        vec![completion_line(entry)]
+    } else if entry.objectives.is_empty() {
+        vec![ObjectiveLine {
+            text: entry.objectives_text.clone(),
+            style: ObjectiveLineStyle::InProgress,
+        }]
+    } else {
+        entry
+            .objectives
+            .iter()
+            .map(|objective| ObjectiveLine {
+                text: format!(
+                    "{}/{} {}",
+                    objective.current, objective.required, objective.text
+                ),
+                style: if objective.completed {
+                    ObjectiveLineStyle::Completed
+                } else {
+                    ObjectiveLineStyle::InProgress
+                },
+            })
+            .collect()
+    };
+    TrackedQuest {
+        quest_id: entry.quest_id,
+        title: entry.title.clone(),
+        complete: entry.completed,
+        lines,
+    }
+}
+
+fn completion_line(entry: &QuestEntrySnapshot) -> ObjectiveLine {
+    if entry.completion_text.is_empty() {
+        ObjectiveLine {
+            text: READY_FOR_TURN_IN.into(),
+            style: ObjectiveLineStyle::Completed,
+        }
+    } else {
+        ObjectiveLine {
+            text: entry.completion_text.clone(),
+            style: ObjectiveLineStyle::CompletionText,
+        }
+    }
 }
 
 pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<ObjectiveTrackerState>()
         .expect("ObjectiveTrackerState must be in SharedContext");
-    let mut y_cursor = 0.0_f32;
-    let quest_elements = build_quest_elements(&state.quests, &mut y_cursor);
-    let bonus_elements = bonus_section(&state.bonus_objectives, &mut y_cursor);
-    let timer_elements = timer_section(&state.timers, &mut y_cursor);
-    let scenario_elements =
-        scenario_section(&state.scenario_name, &state.scenario_steps, &mut y_cursor);
+    let hide = state.quests.is_empty();
+    let mut height = CONTAINER_HEADER_H;
+    let mut contents = container_header(state.collapsed);
+    if !state.collapsed {
+        contents.extend(quests_module(state, &mut height));
+    }
     rsx! {
         r#frame {
-            name: "ObjectiveTrackerFrame",
-            width: {TRACKER_W},
-            height: {y_cursor.max(20.0)},
+            name: {DynName(TRACKER_FRAME.into())},
+            width: TRACKER_W,
+            height: {height},
+            hidden: hide,
             pos_type: "absolute",
-            right: 10.0,
-            top: 260.0,
-            {quest_elements}
-            {bonus_elements}
-            {timer_elements}
-            {scenario_elements}
+            right: TRACKER_RIGHT,
+            top: TRACKER_TOP,
+            {contents}
         }
     }
 }
 
-fn quest_header(qi: usize, quest: &TrackedQuest, y: f32) -> Element {
-    let header_id = DynName(format!("QuestHeader{qi}"));
-    rsx! {
-        fontstring {
-            name: header_id,
-            width: {TRACKER_W - INSET},
-            height: {HEADER_H},
-            text: {quest.title.as_str()},
-            font_size: 12.0,
-            font_color: HEADER_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {INSET},
-            top: {-(y)},
-        }
-    }
-}
-
-fn objective_line(qi: usize, oi: usize, obj: &ObjectiveLine, y: f32) -> Element {
-    let check_text = if obj.completed { "\u{2713}" } else { "" };
-    let text_color = if obj.completed {
-        OBJECTIVE_DONE_COLOR
+fn container_header(collapsed: bool) -> Element {
+    let button_art = if collapsed {
+        TRACKER_EXPAND_ALL
     } else {
-        OBJECTIVE_COLOR
+        TRACKER_COLLAPSE_ALL
     };
-    let text_x = INSET + CHECKBOX_SIZE + CHECKBOX_GAP;
-    rsx! {
-        {obj_checkbox(DynName(format!("QuestObj{qi}_{oi}Check")), DynName(format!("QuestObj{qi}_{oi}CheckText")), check_text, y)}
-        {obj_text_label(DynName(format!("QuestObj{qi}_{oi}Text")), &obj.text, text_color, text_x, y)}
-    }
-}
-
-fn obj_checkbox(id: DynName, text_id: DynName, check: &str, y: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: id,
-            width: {CHECKBOX_SIZE},
-            height: {CHECKBOX_SIZE},
-            background_color: CHECKBOX_BG,
-            pos_type: "absolute",
-            left: {INSET},
-            top: {-(y)},
-            fontstring {
-                name: text_id,
-                width: {CHECKBOX_SIZE},
-                height: {CHECKBOX_SIZE},
-                text: check,
-                font_size: 10.0,
-                font_color: CHECKBOX_CHECK,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn obj_text_label(id: DynName, text: &str, color: &str, x: f32, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {TRACKER_W - x - INSET},
-            height: {OBJECTIVE_H},
-            text: text,
-            font_size: 10.0,
-            font_color: color,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-        }
-    }
-}
-
-fn bonus_name_label(id: DynName, text: &str, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {TRACKER_W - 2.0 * INSET},
-            height: {OBJECTIVE_H},
-            text: text,
-            font_size: 10.0,
-            font_color: OBJECTIVE_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {INSET},
-            top: {-(y)},
-        }
-    }
-}
-
-fn bonus_progress_bar(
-    bar_id: DynName,
-    fill_id: DynName,
-    text_id: DynName,
-    fill_w: f32,
-    progress_text: &str,
-    y: f32,
-) -> Element {
-    rsx! {
-        r#frame {
-            name: bar_id,
-            width: {PROGRESS_BAR_W},
-            height: {PROGRESS_BAR_H},
-            background_color: PROGRESS_BG,
-            pos_type: "absolute",
-            left: {INSET},
-            top: {-(y)},
-            r#frame {
-                name: fill_id,
-                width: {fill_w},
-                height: {PROGRESS_BAR_H},
-                background_color: PROGRESS_FILL,
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-            fontstring {
-                name: text_id,
-                width: {PROGRESS_BAR_W},
-                height: {PROGRESS_BAR_H},
-                text: progress_text,
-                font_size: 8.0,
-                font_color: PROGRESS_TEXT_COLOR,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn bonus_section(bonuses: &[BonusObjective], y: &mut f32) -> Element {
-    bonuses
-        .iter()
-        .enumerate()
-        .take(MAX_BONUS_OBJECTIVES)
-        .flat_map(|(i, bonus)| {
-            let label_y = -*y;
-            *y += OBJECTIVE_H + OBJECTIVE_GAP;
-            let bar_y = -*y;
-            *y += PROGRESS_BAR_H + QUEST_GAP;
-            let fill_w = PROGRESS_BAR_W * bonus.progress.clamp(0.0, 1.0);
-            let name = bonus_name_label(DynName(format!("BonusObj{i}Name")), &bonus.name, label_y);
-            let bar = bonus_progress_bar(
-                DynName(format!("BonusObj{i}Bar")),
-                DynName(format!("BonusObj{i}Fill")),
-                DynName(format!("BonusObj{i}Text")),
-                fill_w,
-                &bonus.progress_text,
-                bar_y,
-            );
-            [name, bar].into_iter().flatten().collect::<Vec<_>>()
-        })
-        .collect()
-}
-
-fn timer_section(timers: &[TimerBlock], y: &mut f32) -> Element {
-    timers
-        .iter()
-        .enumerate()
-        .flat_map(|(i, timer)| {
-            let ty = -*y;
-            *y += TIMER_H + OBJECTIVE_GAP;
-            timer_row(i, timer, ty)
-        })
-        .collect()
-}
-
-#[derive(Clone, Copy)]
-enum TimerTextKind {
-    Label,
-    Time,
-}
-
-fn timer_row(i: usize, timer: &TimerBlock, y: f32) -> Element {
-    let label = timer_text(
-        DynName(format!("Timer{i}Label")),
-        timer.label.as_str(),
-        y,
-        TimerTextKind::Label,
+    let mut elements = atlas_texture(
+        "ObjectiveTrackerFrameHeaderBackground".into(),
+        &TRACKER_PRIMARY_HEADER,
+        (-20.0, -4.0, 300.0, 40.0),
     );
-    let time = timer_text(
-        DynName(format!("Timer{i}Time")),
-        timer.time_text.as_str(),
-        y,
-        TimerTextKind::Time,
-    );
-    [label, time].into_iter().flatten().collect()
+    elements.extend(header_text(
+        "ObjectiveTrackerFrameHeaderText",
+        "All Objectives",
+        (CONTAINER_HEADER_H - HEADER_FONT * 1.2) / 2.0,
+    ));
+    elements.extend(header_button(
+        "ObjectiveTrackerFrameHeaderMinimizeButton",
+        &button_art,
+        TOGGLE_ACTION,
+        (
+            TRACKER_W - 1.0 - 18.0,
+            (CONTAINER_HEADER_H - 19.0) / 2.0,
+            18.0,
+            19.0,
+        ),
+    ));
+    elements
 }
 
-fn timer_text(id: DynName, text: &str, y: f32, kind: TimerTextKind) -> Element {
-    let (width, justify_h, x) = match kind {
-        TimerTextKind::Label => (TRACKER_W * 0.6, "LEFT", INSET),
-        TimerTextKind::Time => (TRACKER_W * 0.35, "RIGHT", TRACKER_W * 0.65 - INSET),
+fn quests_module(state: &ObjectiveTrackerState, height: &mut f32) -> Element {
+    let top = TOP_MODULE_PADDING;
+    let button_art = if state.quests_collapsed {
+        TRACKER_SECONDARY_EXPAND
+    } else {
+        TRACKER_SECONDARY_COLLAPSE
     };
+    let mut elements = atlas_texture(
+        "QuestObjectiveTrackerHeaderBackground".into(),
+        &TRACKER_SECONDARY_HEADER,
+        (-20.0, top - 2.0, 300.0, 30.0),
+    );
+    elements.extend(header_text(
+        "QuestObjectiveTrackerHeaderText",
+        "Quests",
+        top + (MODULE_HEADER_H - HEADER_FONT * 1.2) / 2.0,
+    ));
+    elements.extend(header_button(
+        "QuestObjectiveTrackerHeaderMinimizeButton",
+        &button_art,
+        TOGGLE_QUESTS_ACTION,
+        (TRACKER_W + 1.0 - 16.0, top + 5.0, 16.0, 16.0),
+    ));
+    *height = top + MODULE_HEADER_H;
+    if state.quests_collapsed {
+        return elements;
+    }
+    let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
+    for quest in &state.quests {
+        elements.extend(quest_block(quest, &mut y));
+        *height = y;
+        y += FROM_BLOCK_OFFSET_Y;
+    }
+    elements
+}
+
+fn header_text(name: &str, text: &str, top: f32) -> Element {
     rsx! {
         fontstring {
-            name: id,
-            width: {width},
-            height: {TIMER_H},
+            name: {DynName(name.into())},
+            width: 208.0,
+            height: {HEADER_FONT * 1.2},
             text,
-            font_size: 10.0,
-            font_color: TIMER_COLOR,
-            justify_h,
+            font: GameFont::FrizQuadrata,
+            font_size: HEADER_FONT,
+            font_color: HEADER_COLOR,
+            shadow_color: SHADOW,
+            shadow_offset: "1,-1",
+            justify_h: "LEFT",
+            pos_type: "absolute",
+            left: 7.0,
+            top,
+        }
+    }
+}
+
+fn header_button(
+    name: &str,
+    art: &crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt,
+    action: &str,
+    (x, y, width, height): (f32, f32, f32, f32),
+) -> Element {
+    let coords = art.tex_coords(1.0);
+    rsx! {
+        texture {
+            name: {DynName(name.into())},
+            width,
+            height,
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
+            onclick: action,
             pos_type: "absolute",
             left: x,
-            top: {-y},
+            top: y,
         }
     }
 }
 
-fn scenario_step_label(i: usize, step: &ScenarioStep, y: f32) -> Element {
-    let id = DynName(format!("ScenarioStep{i}"));
-    let color = if step.completed {
-        OBJECTIVE_DONE_COLOR
-    } else {
-        SCENARIO_STEP_COLOR
+fn quest_block(quest: &TrackedQuest, y: &mut f32) -> Element {
+    let block = format!("QuestBlock{}", quest.quest_id);
+    let action = format!("{OPEN_QUEST_PREFIX}{}", quest.quest_id);
+    let block_top = *y;
+    let title_h = wrapped_text_height(&quest.title, BLOCK_W, LINE_FONT);
+    let mut elements = poi_button(&block, quest.complete, &action, block_top);
+    elements.extend(block_title(
+        &block,
+        &quest.title,
+        &action,
+        block_top,
+        title_h,
+    ));
+    *y += title_h;
+    for (index, line) in quest.lines.iter().enumerate() {
+        *y += LINE_SPACING;
+        elements.extend(objective_line(&format!("{block}Line{index}"), line, *y));
+        *y += wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT);
+    }
+    elements
+}
+
+/// `POIButton` (20×20) TOPRIGHT at the header's TOPLEFT (-7, +5): in-progress icon on
+/// the quest number plate, or the turn-in icon for a finished quest.
+fn poi_button(block: &str, complete: bool, action: &str, top: f32) -> Element {
+    let x = BLOCK_OFFSET_X - 7.0 - POI_SIZE;
+    let y = top - 5.0;
+    let centre = |size: f32| {
+        (
+            x + (POI_SIZE - size) / 2.0,
+            y + (POI_SIZE - size) / 2.0,
+            size,
+            size,
+        )
     };
+    let mut elements = if complete {
+        atlas_texture(
+            format!("{block}POIButtonTurnIn"),
+            &POI_TURN_IN,
+            centre(32.0),
+        )
+    } else {
+        let mut plate = atlas_texture(format!("{block}POIButtonNormal"), &POI_NUMBER, centre(32.0));
+        plate.extend(atlas_texture(
+            format!("{block}POIButtonInProgress"),
+            &POI_IN_PROGRESS,
+            centre(20.0),
+        ));
+        plate
+    };
+    let hit = DynName(format!("{block}POIButton"));
+    elements.extend(rsx! {
+        r#frame {
+            name: hit,
+            width: POI_SIZE,
+            height: POI_SIZE,
+            onclick: action,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    });
+    elements
+}
+
+fn block_title(block: &str, title: &str, action: &str, top: f32, height: f32) -> Element {
     rsx! {
         fontstring {
-            name: id,
-            width: {TRACKER_W - 2.0 * INSET},
-            height: {SCENARIO_STEP_H},
-            text: {step.text.as_str()},
-            font_size: 10.0,
-            font_color: color,
+            name: {DynName(format!("{block}HeaderText"))},
+            width: BLOCK_W,
+            height,
+            text: title,
+            font: GameFont::FrizQuadrata,
+            font_size: LINE_FONT,
+            font_color: BLOCK_HEADER_COLOR,
+            shadow_color: SHADOW,
+            shadow_offset: "1,-1",
             justify_h: "LEFT",
+            onclick: action,
             pos_type: "absolute",
-            left: {INSET},
-            top: {-(y)},
+            left: BLOCK_OFFSET_X,
+            top,
         }
     }
 }
 
-fn scenario_section(name: &str, steps: &[ScenarioStep], y: &mut f32) -> Element {
-    if name.is_empty() {
-        return Vec::new();
-    }
-    let header_y = -*y;
-    *y += HEADER_H + OBJECTIVE_GAP;
-    let step_elements: Element = steps
-        .iter()
-        .enumerate()
-        .take(MAX_SCENARIO_STEPS)
-        .flat_map(|(i, step)| {
-            let sy = -*y;
-            *y += SCENARIO_STEP_H + OBJECTIVE_GAP;
-            scenario_step_label(i, step, sy)
-        })
-        .collect();
-    rsx! {
+fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
+    let text_h = wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT);
+    let (color, dash) = match line.style {
+        ObjectiveLineStyle::InProgress => (NORMAL_COLOR, "- "),
+        ObjectiveLineStyle::Completed => (COMPLETE_COLOR, ""),
+        ObjectiveLineStyle::CompletionText => (NORMAL_COLOR, ""),
+    };
+    let mut elements = rsx! {
         fontstring {
-            name: "ScenarioHeader",
-            width: {TRACKER_W - 2.0 * INSET},
-            height: {HEADER_H},
-            text: name,
-            font_size: 12.0,
-            font_color: SCENARIO_HEADER_COLOR,
+            name: {DynName(format!("{name}Dash"))},
+            width: DASH_W,
+            height: {LINE_FONT * 1.2},
+            text: dash,
+            font: GameFont::FrizQuadrata,
+            font_size: LINE_FONT,
+            font_color: color,
+            shadow_color: SHADOW,
+            shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: {INSET},
-            top: {-(header_y)},
+            left: BLOCK_OFFSET_X,
+            top: {top - 1.0},
         }
-        {step_elements}
+        fontstring {
+            name: {DynName(format!("{name}Text"))},
+            width: {BLOCK_W - DASH_W},
+            height: text_h,
+            text: {line.text.as_str()},
+            font: GameFont::FrizQuadrata,
+            font_size: LINE_FONT,
+            font_color: color,
+            shadow_color: SHADOW,
+            shadow_offset: "1,-1",
+            justify_h: "LEFT",
+            pos_type: "absolute",
+            left: {BLOCK_OFFSET_X + DASH_W},
+            top,
+        }
+    };
+    if line.style == ObjectiveLineStyle::Completed {
+        // ObjectiveTrackerAnimLineTemplate Icon: 16×16 at TOPLEFT (-10, +2).
+        elements.extend(atlas_texture(
+            format!("{name}Check"),
+            &TRACKER_CHECK,
+            (BLOCK_OFFSET_X - 10.0, top - 2.0, 16.0, 16.0),
+        ));
     }
+    elements
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
-    use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::LayoutRect;
-    use ui_toolkit::registry::FrameRegistry;
-    use ui_toolkit::screen::{Screen, SharedContext};
-
-    fn make_state() -> ObjectiveTrackerState {
-        ObjectiveTrackerState {
-            quests: vec![
-                TrackedQuest {
-                    title: "The Defias Brotherhood".into(),
-                    collapsed: false,
-                    objectives: vec![
-                        ObjectiveLine {
-                            text: "Kill 10 Defias".into(),
-                            completed: true,
-                        },
-                        ObjectiveLine {
-                            text: "Collect 5 bandanas".into(),
-                            completed: false,
-                        },
-                    ],
-                },
-                TrackedQuest {
-                    title: "Red Ridge Supply Run".into(),
-                    collapsed: true,
-                    objectives: vec![ObjectiveLine {
-                        text: "Gather supplies".into(),
-                        completed: false,
-                    }],
-                },
-            ],
-            ..Default::default()
-        }
-    }
-
-    fn build_registry() -> FrameRegistry {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(make_state());
-        Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
-        reg
-    }
-
-    fn layout_registry() -> FrameRegistry {
-        let mut reg = build_registry();
-        compute_layout(&mut reg);
-        reg
-    }
-
-    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
-        reg.get(reg.get_by_name(name).expect(name))
-            .and_then(|f| f.layout_rect.clone())
-            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
-    }
-
-    #[test]
-    fn builds_tracker_frame() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("ObjectiveTrackerFrame").is_some());
-    }
-
-    #[test]
-    fn builds_quest_headers() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("QuestHeader0").is_some());
-        assert!(reg.get_by_name("QuestHeader1").is_some());
-    }
-
-    #[test]
-    fn builds_objectives_for_expanded_quest() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("QuestObj0_0Check").is_some());
-        assert!(reg.get_by_name("QuestObj0_0Text").is_some());
-        assert!(reg.get_by_name("QuestObj0_1Check").is_some());
-        assert!(reg.get_by_name("QuestObj0_1Text").is_some());
-    }
-
-    #[test]
-    fn collapsed_quest_hides_objectives() {
-        let reg = build_registry();
-        // Quest 1 is collapsed — no objectives rendered
-        assert!(reg.get_by_name("QuestObj1_0Check").is_none());
-    }
-
-    // --- Coord validation ---
-
-    #[test]
-    fn coord_tracker_right_anchored() {
-        let reg = layout_registry();
-        let r = rect(&reg, "ObjectiveTrackerFrame");
-        let expected_x = 1920.0 - 10.0 - TRACKER_W;
-        assert!((r.x - expected_x).abs() < 1.0);
-        assert!((r.width - TRACKER_W).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_first_checkbox_dimensions() {
-        let reg = layout_registry();
-        let r = rect(&reg, "QuestObj0_0Check");
-        assert!((r.width - CHECKBOX_SIZE).abs() < 1.0);
-        assert!((r.height - CHECKBOX_SIZE).abs() < 1.0);
-    }
-
-    // --- Bonus / timer / scenario tests ---
-
-    fn make_full_state() -> ObjectiveTrackerState {
-        let mut state = make_state();
-        state.bonus_objectives = vec![BonusObjective {
-            name: "Defend the Bridge".into(),
-            progress: 0.6,
-            progress_text: "3/5".into(),
-        }];
-        state.timers = vec![TimerBlock {
-            label: "Arena".into(),
-            time_text: "1:30".into(),
-        }];
-        state.scenario_name = "Proving Grounds".into();
-        state.scenario_steps = vec![
-            ScenarioStep {
-                text: "Survive wave 1".into(),
-                completed: true,
-            },
-            ScenarioStep {
-                text: "Survive wave 2".into(),
-                completed: false,
-            },
-        ];
-        state
-    }
-
-    fn full_registry() -> FrameRegistry {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(make_full_state());
-        Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
-        reg
-    }
-
-    #[test]
-    fn bonus_objective_builds_progress_bar() {
-        let reg = full_registry();
-        assert!(reg.get_by_name("BonusObj0Name").is_some());
-        assert!(reg.get_by_name("BonusObj0Bar").is_some());
-        assert!(reg.get_by_name("BonusObj0Fill").is_some());
-    }
-
-    #[test]
-    fn timer_block_builds() {
-        let reg = full_registry();
-        assert!(reg.get_by_name("Timer0Label").is_some());
-        assert!(reg.get_by_name("Timer0Time").is_some());
-    }
-
-    #[test]
-    fn scenario_builds_header_and_steps() {
-        let reg = full_registry();
-        assert!(reg.get_by_name("ScenarioHeader").is_some());
-        assert!(reg.get_by_name("ScenarioStep0").is_some());
-        assert!(reg.get_by_name("ScenarioStep1").is_some());
-    }
-
-    // --- Text content tests ---
-
-    #[test]
-    fn quest_header_text() {
-        let reg = build_registry();
-        assert_eq!(
-            fontstring_text(&reg, "QuestHeader0"),
-            "The Defias Brotherhood"
-        );
-        assert_eq!(
-            fontstring_text(&reg, "QuestHeader1"),
-            "Red Ridge Supply Run"
-        );
-    }
-
-    #[test]
-    fn objective_line_text() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "QuestObj0_0Text"), "Kill 10 Defias");
-        assert_eq!(
-            fontstring_text(&reg, "QuestObj0_1Text"),
-            "Collect 5 bandanas"
-        );
-    }
-
-    #[test]
-    fn objective_checkbox_completed() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "QuestObj0_0CheckText"), "✓");
-    }
-
-    #[test]
-    fn objective_checkbox_incomplete() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "QuestObj0_1CheckText"), "");
-    }
-
-    #[test]
-    fn bonus_objective_text() {
-        let reg = full_registry();
-        assert_eq!(fontstring_text(&reg, "BonusObj0Name"), "Defend the Bridge");
-        assert_eq!(fontstring_text(&reg, "BonusObj0Text"), "3/5");
-    }
-
-    #[test]
-    fn timer_text() {
-        let reg = full_registry();
-        assert_eq!(fontstring_text(&reg, "Timer0Label"), "Arena");
-        assert_eq!(fontstring_text(&reg, "Timer0Time"), "1:30");
-    }
-
-    #[test]
-    fn scenario_header_and_step_text() {
-        let reg = full_registry();
-        assert_eq!(fontstring_text(&reg, "ScenarioHeader"), "Proving Grounds");
-        assert_eq!(fontstring_text(&reg, "ScenarioStep0"), "Survive wave 1");
-        assert_eq!(fontstring_text(&reg, "ScenarioStep1"), "Survive wave 2");
-    }
-
-    #[test]
-    fn empty_state_builds_frame_only() {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(ObjectiveTrackerState::default());
-        Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
-        assert!(reg.get_by_name("ObjectiveTrackerFrame").is_some());
-        assert!(reg.get_by_name("QuestHeader0").is_none());
-        assert!(reg.get_by_name("ScenarioHeader").is_none());
-    }
-
-    #[test]
-    fn scenario_hidden_when_name_empty() {
-        let reg = build_registry();
-        // Default state has empty scenario_name
-        assert!(reg.get_by_name("ScenarioHeader").is_none());
-    }
-
-    #[test]
-    fn max_quests_capped() {
-        let quests: Vec<TrackedQuest> = (0..12)
-            .map(|i| TrackedQuest {
-                title: format!("Quest {i}"),
-                collapsed: true,
-                objectives: vec![],
-            })
-            .collect();
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(ObjectiveTrackerState {
-            quests,
-            ..Default::default()
-        });
-        Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
-        for i in 0..MAX_QUESTS {
-            assert!(
-                reg.get_by_name(&format!("QuestHeader{i}")).is_some(),
-                "QuestHeader{i} missing"
-            );
-        }
-        assert!(
-            reg.get_by_name(&format!("QuestHeader{MAX_QUESTS}"))
-                .is_none()
-        );
-    }
-}
+#[path = "objective_tracker_component_tests.rs"]
+mod tests;

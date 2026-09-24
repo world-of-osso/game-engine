@@ -2,7 +2,6 @@ use bevy::ecs::system::SystemParam;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use game_engine::gossip_data::GossipIntentQueue;
 use game_engine::mail_data::MailIntentQueue;
 use game_engine::quest_tracking::QuestTrackedItem;
 use game_engine::targeting::CurrentTarget;
@@ -108,7 +107,7 @@ struct RightClickInteractionState<'w, 's> {
         Or<(With<WorldObjectInteraction>, With<QuestTrackedItem>)>,
     >,
     current: ResMut<'w, CurrentTarget>,
-    gossip_queue: ResMut<'w, GossipIntentQueue>,
+    interactions: MessageWriter<'w, crate::networking_quests::NpcInteractionRequest>,
     mail_queue: ResMut<'w, MailIntentQueue>,
     window_manager: Option<ResMut<'w, crate::window_manager::WindowManager>>,
     emote_input: Option<ResMut<'w, crate::networking::EmoteInput>>,
@@ -191,7 +190,7 @@ impl Plugin for TargetPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentTarget>();
         app.init_resource::<TargetCircleStyle>();
-        app.init_resource::<GossipIntentQueue>();
+        app.add_message::<crate::networking_quests::NpcInteractionRequest>();
         app.init_resource::<MailIntentQueue>();
         app.init_resource::<ZoneTransitionContactState>();
         let stage = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
@@ -542,7 +541,11 @@ fn interact_with_clicked_npc(
     if player_position.distance(npc_tf.translation()) > INTERACT_RANGE {
         return true;
     }
-    state.gossip_queue.interact(target_entity.to_bits());
+    state
+        .interactions
+        .write(crate::networking_quests::NpcInteractionRequest::Interact(
+            target_entity,
+        ));
     true
 }
 
@@ -582,7 +585,11 @@ fn interact_with_current_npc_target(
     if player_position.distance(npc_tf.translation()) > INTERACT_RANGE {
         return false;
     }
-    state.gossip_queue.interact(target_entity.to_bits());
+    state
+        .interactions
+        .write(crate::networking_quests::NpcInteractionRequest::Interact(
+            target_entity,
+        ));
     true
 }
 

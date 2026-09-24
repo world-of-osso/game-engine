@@ -1,635 +1,388 @@
-use std::fmt;
+//! Quest log window (L): quest list grouped by zone header on the left, the selected
+//! quest's details on `questlogbackground` parchment on the right, with Abandon and
+//! Track/Untrack. Retail `QuestMapFrame` list and details content in a Panel window.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::ui::screens::quest_art::{
+    DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
+    QUEST_LOG_BACKGROUND, QUEST_LOG_DIVIDER, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
+    panel_button, window_chrome, wrapped_text_height,
+};
+use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
 use crate::ui::strata::FrameStrata;
 
-struct DynName(String);
+pub const QUEST_LOG_FRAME: &str = "QuestLogFrame";
+pub const FRAME_W: f32 = 640.0;
+pub const FRAME_H: f32 = 496.0;
+const PANE_TOP: f32 = 62.0;
+const PANE_BOTTOM: f32 = FRAME_H - 32.0;
+const LIST_X: f32 = 12.0;
+const LIST_W: f32 = 300.0;
+/// `questlogbackground` 287×510, cropped to the pane.
+const DETAILS_X: f32 = 330.0;
+const DETAILS_W: f32 = 287.0;
+const DETAILS_INSET: f32 = 12.0;
+const DETAILS_TEXT_W: f32 = DETAILS_W - 2.0 * DETAILS_INSET;
+const HEADER_H: f32 = 26.0;
+const ROW_H: f32 = 18.0;
+const ROW_FONT: f32 = 12.0;
+const TITLE_FONT: f32 = 18.0;
+const BODY_FONT: f32 = 13.0;
+const GAP: f32 = 6.0;
+/// `Interface\QuestFrame\UI-QuestLog-BookIcon` in the portrait ring.
+const BOOK_ICON: u32 = 136_797;
+/// `QUEST_OBJECTIVE_FONT_COLOR` for finished objective lines on parchment.
+const DONE_OBJECTIVE_COLOR: &str = "0.35,0.35,0.35,1.0";
 
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+pub const CLOSE_ACTION: &str = "quest_log:close";
+pub const ABANDON_ACTION: &str = "quest_log:abandon";
+pub const TRACK_ACTION: &str = "quest_log:track";
+pub const SELECT_PREFIX: &str = "quest_log:select:";
+pub const HEADER_PREFIX: &str = "quest_log:header:";
 
-// --- Layout constants ---
-
-pub const FRAME_W: f32 = 700.0;
-pub const FRAME_H: f32 = 500.0;
-const HEADER_H: f32 = 28.0;
-const INSET: f32 = 8.0;
-const CONTENT_TOP: f32 = HEADER_H + 4.0;
-
-const LIST_W: f32 = 240.0;
-const LIST_GAP: f32 = 6.0;
-const DETAIL_INSET: f32 = LIST_W + LIST_GAP + INSET;
-
-const ZONE_HEADER_H: f32 = 22.0;
-const QUEST_ROW_H: f32 = 20.0;
-const ROW_GAP: f32 = 2.0;
-
-const DETAIL_TITLE_H: f32 = 24.0;
-const DETAIL_DESC_H: f32 = 80.0;
-const DETAIL_OBJ_ROW_H: f32 = 18.0;
-const DETAIL_OBJ_GAP: f32 = 2.0;
-const DETAIL_SECTION_GAP: f32 = 12.0;
-
-const REWARD_ICON_SIZE: f32 = 32.0;
-const REWARD_LABEL_H: f32 = 18.0;
-const REWARD_GAP: f32 = 8.0;
-const REWARD_NAME_W: f32 = 80.0;
-const REWARD_SLOT_W: f32 = REWARD_ICON_SIZE + REWARD_GAP;
-
-const ACTION_BTN_W: f32 = 110.0;
-const ACTION_BTN_H: f32 = 26.0;
-const ACTION_BTN_GAP: f32 = 8.0;
-
-// --- Colors ---
-
-const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
-const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const LIST_BG: &str = "0.0,0.0,0.0,0.3";
-const DETAIL_BG: &str = "0.0,0.0,0.0,0.3";
-const ZONE_HEADER_BG: &str = "0.12,0.10,0.06,0.9";
-const ZONE_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
-const QUEST_SELECTED_BG: &str = "0.2,0.15,0.05,0.95";
-const QUEST_NORMAL_COLOR: &str = "1.0,1.0,1.0,1.0";
-const QUEST_COMPLETE_COLOR: &str = "0.5,0.5,0.5,1.0";
-const QUEST_SELECTED_COLOR: &str = "1.0,0.82,0.0,1.0";
-const DETAIL_TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const DETAIL_DESC_COLOR: &str = "0.85,0.85,0.85,1.0";
-const OBJ_INCOMPLETE_COLOR: &str = "1.0,1.0,1.0,1.0";
-const OBJ_COMPLETE_COLOR: &str = "0.5,0.5,0.5,1.0";
-const LEVEL_COLOR: &str = "0.7,0.7,0.7,1.0";
-const REWARD_HEADER_COLOR: &str = "1.0,0.82,0.0,1.0";
-const REWARD_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
-const REWARD_ICON_BG: &str = "0.08,0.08,0.08,0.8";
-const ACCEPT_BTN_BG: &str = "0.15,0.25,0.1,0.95";
-const ACCEPT_BTN_TEXT: &str = "0.2,1.0,0.2,1.0";
-const ABANDON_BTN_BG: &str = "0.25,0.08,0.08,0.95";
-const ABANDON_BTN_TEXT: &str = "1.0,0.3,0.3,1.0";
-const COMPLETE_BTN_BG: &str = "0.15,0.25,0.1,0.95";
-const COMPLETE_BTN_TEXT: &str = "0.2,1.0,0.2,1.0";
-
-// --- Data types ---
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct QuestLogObjective {
-    pub text: String,
-    pub current: u32,
-    pub required: u32,
-}
-
-impl QuestLogObjective {
-    pub fn is_complete(&self) -> bool {
-        self.current >= self.required
-    }
-
-    pub fn display_text(&self) -> String {
-        if self.required <= 1 {
-            self.text.clone()
-        } else {
-            format!("{}: {}/{}", self.text, self.current, self.required)
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct QuestRewardItem {
-    pub name: String,
-    pub icon_fdid: u32,
-    pub quantity: u32,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct QuestLogEntry {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestLogRow {
     pub quest_id: u32,
     pub title: String,
-    pub level: u32,
-    pub zone: String,
-    pub description: String,
-    pub objectives: Vec<QuestLogObjective>,
-    pub rewards: Vec<QuestRewardItem>,
+    pub complete: bool,
+    pub watched: bool,
     pub selected: bool,
 }
 
-impl QuestLogEntry {
-    pub fn is_complete(&self) -> bool {
-        !self.objectives.is_empty() && self.objectives.iter().all(|o| o.is_complete())
-    }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestLogGroup {
+    pub sort_id: i32,
+    pub name: String,
+    pub collapsed: bool,
+    pub quests: Vec<QuestLogRow>,
 }
 
-type QuestRowPositions = Vec<(usize, f32, Vec<(usize, f32)>)>;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestLogObjectiveLine {
+    pub text: String,
+    pub done: bool,
+}
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestLogDetails {
+    pub quest_id: u32,
+    pub title: String,
+    pub objectives_text: String,
+    pub objectives: Vec<QuestLogObjectiveLine>,
+    /// Story text; known once the quest giver showed it this session.
+    pub description: Option<String>,
+    pub rewards: Option<RewardView>,
+    pub watched: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct QuestLogFrameState {
     pub visible: bool,
-    pub quests: Vec<QuestLogEntry>,
+    pub quest_count: usize,
+    pub max_quests: usize,
+    pub groups: Vec<QuestLogGroup>,
+    pub details: Option<QuestLogDetails>,
 }
-
-// --- Screen entry ---
 
 pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<QuestLogFrameState>()
         .expect("QuestLogFrameState must be in SharedContext");
     let hide = !state.visible;
-    let selected = state.quests.iter().find(|q| q.selected);
+    let chrome = window_chrome(
+        QUEST_LOG_FRAME,
+        (FRAME_W, FRAME_H),
+        "Quest Log",
+        CLOSE_ACTION,
+    );
+    let list = quest_list(state);
+    let details = details_pane(state.details.as_ref());
+    let count_text = format!("Quests: {}/{}", state.quest_count, state.max_quests);
     rsx! {
         r#frame {
-            name: "QuestLogFrame",
-            width: {FRAME_W},
-            height: {FRAME_H},
+            name: {DynName(QUEST_LOG_FRAME.into())},
+            width: FRAME_W,
+            height: FRAME_H,
             strata: FrameStrata::Dialog,
             hidden: hide,
-            background_color: FRAME_BG,
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: "50%",
-            translate_y: "-50%",
-            {title_bar()}
-            {quest_list(&state.quests)}
-            {detail_panel(selected)}
-        }
-    }
-}
-
-// --- Title ---
-
-fn title_bar() -> Element {
-    rsx! {
-        fontstring {
-            name: "QuestLogFrameTitle",
-            width: {FRAME_W},
-            height: {HEADER_H},
-            text: "Quest Log",
-            font_size: 16.0,
-            font_color: TITLE_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-        }
-    }
-}
-
-// --- Quest list (left panel, grouped by zone) ---
-
-/// Compute the y-offset for each row in the zone-grouped quest list.
-/// Returns (group_idx, zone_name, quests_with_indices, zone_header_y) tuples.
-fn zone_row_positions(groups: &[(String, Vec<&QuestLogEntry>)]) -> QuestRowPositions {
-    let mut y: f32 = 0.0;
-    groups
-        .iter()
-        .enumerate()
-        .map(|(gi, (_zone, zone_quests))| {
-            let header_y = y;
-            y += ZONE_HEADER_H + ROW_GAP;
-            let quest_positions: Vec<(usize, f32)> = zone_quests
-                .iter()
-                .enumerate()
-                .map(|(qi, _)| {
-                    let qy = y;
-                    y += QUEST_ROW_H + ROW_GAP;
-                    (qi, qy)
-                })
-                .collect();
-            (gi, header_y, quest_positions)
-        })
-        .collect()
-}
-
-fn quest_list(quests: &[QuestLogEntry]) -> Element {
-    let list_h = FRAME_H - CONTENT_TOP - INSET;
-    let list_y = -CONTENT_TOP;
-    let groups = group_by_zone(quests);
-    let positions = zone_row_positions(&groups);
-    let rows: Element = positions
-        .iter()
-        .flat_map(|(gi, header_y, quest_positions)| {
-            let (zone, zone_quests) = &groups[*gi];
-            let mut elems = zone_header(*gi, zone, *header_y);
-            for &(qi, qy) in quest_positions {
-                elems.extend(quest_row(*gi, qi, zone_quests[qi], qy));
-            }
-            elems
-        })
-        .collect();
-    rsx! {
-        r#frame {
-            name: "QuestLogList",
-            width: {LIST_W},
-            height: {list_h},
-            background_color: LIST_BG,
-            pos_type: "absolute",
-            left: {INSET},
-            top: {-(list_y)},
-            {rows}
-        }
-    }
-}
-
-fn group_by_zone(quests: &[QuestLogEntry]) -> Vec<(String, Vec<&QuestLogEntry>)> {
-    let mut groups: Vec<(String, Vec<&QuestLogEntry>)> = Vec::new();
-    for q in quests {
-        if let Some(g) = groups.iter_mut().find(|(z, _)| *z == q.zone) {
-            g.1.push(q);
-        } else {
-            groups.push((q.zone.clone(), vec![q]));
-        }
-    }
-    groups
-}
-
-fn zone_header(group_idx: usize, zone: &str, y: f32) -> Element {
-    let id = DynName(format!("QuestLogZone{group_idx}"));
-    let label_id = DynName(format!("QuestLogZone{group_idx}Label"));
-    rsx! {
-        r#frame {
-            name: id,
-            width: {LIST_W - 4.0},
-            height: {ZONE_HEADER_H},
-            background_color: ZONE_HEADER_BG,
-            pos_type: "absolute",
-            left: 2.0,
-            top: {-(-y)},
-            fontstring {
-                name: label_id,
-                width: {LIST_W - 12.0},
-                height: {ZONE_HEADER_H},
-                text: zone,
-                font_size: 11.0,
-                font_color: ZONE_HEADER_COLOR,
-                justify_h: "LEFT",
-                pos_type: "absolute",
-                left: 4.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn quest_row_color(quest: &QuestLogEntry) -> &'static str {
-    if quest.selected {
-        QUEST_SELECTED_COLOR
-    } else if quest.is_complete() {
-        QUEST_COMPLETE_COLOR
-    } else {
-        QUEST_NORMAL_COLOR
-    }
-}
-
-fn quest_row(group_idx: usize, quest_idx: usize, quest: &QuestLogEntry, y: f32) -> Element {
-    let row_id = DynName(format!("QuestLogRow{group_idx}_{quest_idx}"));
-    let level_text = format!("[{}]", quest.level);
-    let color = quest_row_color(quest);
-    let bg = if quest.selected {
-        QUEST_SELECTED_BG
-    } else {
-        "0.0,0.0,0.0,0.0"
-    };
-    rsx! {
-        r#frame {
-            name: row_id,
-            width: {LIST_W - 4.0},
-            height: {QUEST_ROW_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: 2.0,
-            top: {-(-y)},
-            {quest_level_label(DynName(format!("QuestLogRow{group_idx}_{quest_idx}Level")), &level_text)}
-            {quest_title_label(DynName(format!("QuestLogRow{group_idx}_{quest_idx}Label")), &quest.title, color)}
-        }
-    }
-}
-
-fn quest_level_label(id: DynName, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: 30.0,
-            height: {QUEST_ROW_H},
-            text: text,
-            font_size: 10.0,
-            font_color: LEVEL_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 4.0,
-            top: -0.0,
-        }
-    }
-}
-
-fn quest_title_label(id: DynName, text: &str, color: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {LIST_W - 42.0},
-            height: {QUEST_ROW_H},
-            text: text,
-            font_size: 10.0,
-            font_color: color,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 34.0,
-            top: -0.0,
-        }
-    }
-}
-
-// --- Detail panel (right side) ---
-
-fn detail_panel(selected: Option<&QuestLogEntry>) -> Element {
-    let detail_x = DETAIL_INSET;
-    let detail_y = -CONTENT_TOP;
-    let detail_w = FRAME_W - DETAIL_INSET - INSET;
-    let detail_h = FRAME_H - CONTENT_TOP - INSET;
-    let content: Element = match selected {
-        Some(quest) => detail_content(quest, detail_w),
-        None => empty_detail(detail_w),
-    };
-    rsx! {
-        r#frame {
-            name: "QuestLogDetail",
-            width: {detail_w},
-            height: {detail_h},
-            background_color: DETAIL_BG,
-            pos_type: "absolute",
-            left: {detail_x},
-            top: {-(detail_y)},
-            {content}
-        }
-    }
-}
-
-fn empty_detail(w: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: "QuestLogDetailEmpty",
-            width: {w},
-            height: 20.0,
-            text: "Select a quest to view details",
-            font_size: 11.0,
-            font_color: LEVEL_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: "50%",
-            translate_y: "-50%",
-        }
-    }
-}
-
-fn detail_content(quest: &QuestLogEntry, w: f32) -> Element {
-    let inner_w = w - 16.0;
-    let title_y: f32 = 8.0;
-    let desc_y = title_y + DETAIL_TITLE_H + DETAIL_SECTION_GAP;
-    let obj_count = quest.objectives.len() as f32;
-    let obj_y = desc_y + DETAIL_DESC_H + DETAIL_SECTION_GAP;
-    let obj_total_h =
-        DETAIL_OBJ_ROW_H + (obj_count * (DETAIL_OBJ_ROW_H + DETAIL_OBJ_GAP)) + DETAIL_SECTION_GAP;
-    let rewards_y = obj_y + obj_total_h;
-    let detail_h = FRAME_H - CONTENT_TOP - INSET;
-    rsx! {
-        {detail_title(quest, inner_w, title_y)}
-        {detail_description(&quest.description, inner_w, desc_y)}
-        {detail_objectives(&quest.objectives, inner_w, obj_y)}
-        {reward_items_row(&quest.rewards, inner_w, rewards_y)}
-        {action_buttons(quest.is_complete(), detail_h)}
-    }
-}
-
-fn detail_title(quest: &QuestLogEntry, w: f32, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: "QuestLogDetailTitle",
-            width: {w},
-            height: {DETAIL_TITLE_H},
-            text: {quest.title.as_str()},
-            font_size: 14.0,
-            font_color: DETAIL_TITLE_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 8.0,
-            top: {-(-y)},
-        }
-    }
-}
-
-fn detail_description(description: &str, w: f32, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: "QuestLogDetailDesc",
-            width: {w},
-            height: {DETAIL_DESC_H},
-            text: description,
-            font_size: 11.0,
-            font_color: DETAIL_DESC_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 8.0,
-            top: {-(-y)},
-        }
-    }
-}
-
-fn detail_objectives(objectives: &[QuestLogObjective], w: f32, y: f32) -> Element {
-    let header_y = y;
-    let rows: Element = objectives
-        .iter()
-        .enumerate()
-        .flat_map(|(i, obj)| {
-            let obj_y = header_y
-                + DETAIL_OBJ_ROW_H
-                + DETAIL_OBJ_GAP
-                + i as f32 * (DETAIL_OBJ_ROW_H + DETAIL_OBJ_GAP);
-            objective_row(i, obj, w, obj_y)
-        })
-        .collect();
-    rsx! {
-        fontstring {
-            name: "QuestLogDetailObjHeader",
-            width: {w},
-            height: {DETAIL_OBJ_ROW_H},
-            text: "Objectives",
-            font_size: 12.0,
-            font_color: DETAIL_TITLE_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 8.0,
-            top: {-(-header_y)},
-        }
-        {rows}
-    }
-}
-
-fn objective_row(idx: usize, obj: &QuestLogObjective, w: f32, y: f32) -> Element {
-    let id = DynName(format!("QuestLogObj{idx}"));
-    let color = if obj.is_complete() {
-        OBJ_COMPLETE_COLOR
-    } else {
-        OBJ_INCOMPLETE_COLOR
-    };
-    let text = obj.display_text();
-    rsx! {
-        fontstring {
-            name: id,
-            width: {w},
-            height: {DETAIL_OBJ_ROW_H},
-            text: {text.as_str()},
-            font_size: 10.0,
-            font_color: color,
-            justify_h: "LEFT",
+            mouse_enabled: true,
             pos_type: "absolute",
             left: 16.0,
-            top: {-(-y)},
-        }
-    }
-}
-
-// --- Reward items row ---
-
-fn rewards_header_label(w: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: "QuestLogRewardsLabel",
-            width: {w},
-            height: {REWARD_LABEL_H},
-            text: "Rewards",
-            font_size: 12.0,
-            font_color: REWARD_HEADER_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-        }
-    }
-}
-
-fn reward_items_row(rewards: &[QuestRewardItem], w: f32, y: f32) -> Element {
-    let hide_rewards = rewards.is_empty();
-    let items: Element = rewards
-        .iter()
-        .enumerate()
-        .flat_map(|(i, reward)| reward_item_slot(i, reward))
-        .collect();
-    rsx! {
-        r#frame {
-            name: "QuestLogRewards",
-            width: {w},
-            height: {REWARD_LABEL_H + REWARD_ICON_SIZE + 4.0},
-            hidden: hide_rewards,
-            pos_type: "absolute",
-            left: 8.0,
-            top: {-(-y)},
-            {rewards_header_label(w)}
-            {items}
-        }
-    }
-}
-
-fn reward_item_slot(idx: usize, reward: &QuestRewardItem) -> Element {
-    let slot_id = DynName(format!("QuestLogReward{idx}"));
-    let x = idx as f32 * (REWARD_SLOT_W + REWARD_NAME_W + REWARD_GAP);
-    let label = if reward.quantity > 1 {
-        format!("{} x{}", reward.name, reward.quantity)
-    } else {
-        reward.name.clone()
-    };
-    rsx! {
-        r#frame {
-            name: slot_id,
-            width: {REWARD_SLOT_W + REWARD_NAME_W},
-            height: {REWARD_ICON_SIZE},
-            pos_type: "absolute",
-            left: {x},
-            top: {-(-REWARD_LABEL_H)},
-            {reward_slot_icon(DynName(format!("QuestLogReward{idx}Icon")))}
-            {reward_slot_name(DynName(format!("QuestLogReward{idx}Name")), &label)}
-        }
-    }
-}
-
-fn reward_slot_icon(id: DynName) -> Element {
-    rsx! {
-        r#frame {
-            name: id,
-            width: {REWARD_ICON_SIZE},
-            height: {REWARD_ICON_SIZE},
-            background_color: REWARD_ICON_BG,
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-        }
-    }
-}
-
-fn reward_slot_name(id: DynName, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {REWARD_NAME_W},
-            height: {REWARD_ICON_SIZE},
-            text: text,
-            font_size: 10.0,
-            font_color: REWARD_NAME_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {REWARD_SLOT_W},
-            top: -0.0,
-        }
-    }
-}
-
-// --- Action buttons ---
-
-fn quest_action_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
-    let btn_id = DynName(name.into());
-    let text_id = DynName(format!("{name}Text"));
-    rsx! {
-        r#frame {
-            name: btn_id,
-            width: {ACTION_BTN_W},
-            height: {ACTION_BTN_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
+            top: 104.0,
+            {chrome}
+            texture {
+                name: "QuestLogFramePortrait",
+                width: 60.0,
+                height: 60.0,
+                texture_fdid: BOOK_ICON,
+                pos_type: "absolute",
+                left: -4.0,
+                top: -6.0,
+            }
             fontstring {
-                name: text_id,
-                width: {ACTION_BTN_W},
-                height: {ACTION_BTN_H},
-                text: label,
-                font_size: 11.0,
-                font_color: color,
+                name: "QuestLogCount",
+                width: LIST_W,
+                height: 16.0,
+                text: {count_text.as_str()},
+                font: GameFont::FrizQuadrata,
+                font_size: ROW_FONT,
+                font_color: HIGHLIGHT_FONT_COLOR,
+                justify_h: "RIGHT",
+                pos_type: "absolute",
+                left: LIST_X,
+                top: 36.0,
+            }
+            {list}
+            {details}
+        }
+    }
+}
+
+fn quest_list(state: &QuestLogFrameState) -> Element {
+    if state.groups.is_empty() {
+        return rsx! {
+            fontstring {
+                name: "QuestLogNoQuestsText",
+                width: LIST_W,
+                height: 60.0,
+                text: "No quests available\n\nAccept quests by talking to characters with a ! above their head.",
+                font: GameFont::FrizQuadrata,
+                font_size: ROW_FONT,
+                font_color: NORMAL_FONT_COLOR,
                 justify_h: "CENTER",
                 pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
+                left: LIST_X,
+                top: {PANE_TOP + 40.0},
             }
+        };
+    }
+    let mut y = PANE_TOP;
+    let mut elements = Vec::new();
+    for group in &state.groups {
+        elements.extend(group_header(group, y));
+        y += HEADER_H;
+        if group.collapsed {
+            continue;
+        }
+        for row in &group.quests {
+            elements.extend(quest_row(row, y));
+            y += ROW_H;
+        }
+    }
+    elements
+}
+
+/// Zone header on the `questlog_divider` plate with a +/- collapse marker.
+fn group_header(group: &QuestLogGroup, y: f32) -> Element {
+    let name = format!("QuestLogHeader{}", group.sort_id);
+    let action = format!("{HEADER_PREFIX}{}", group.sort_id);
+    let marker = if group.collapsed { "+" } else { "-" };
+    let mut elements = atlas_texture(
+        format!("{name}Background"),
+        &QUEST_LOG_DIVIDER,
+        (LIST_X, y - 5.0, LIST_W, 37.0),
+    );
+    elements.extend(rsx! {
+        fontstring {
+            name: {DynName(format!("{name}Marker"))},
+            width: 14.0,
+            height: HEADER_H,
+            text: marker,
+            font: GameFont::FrizQuadrata,
+            font_size: 14.0,
+            font_color: NORMAL_FONT_COLOR,
+            justify_h: "CENTER",
+            pos_type: "absolute",
+            left: {LIST_X + 8.0},
+            top: y,
+        }
+        fontstring {
+            name: {DynName(format!("{name}Text"))},
+            width: {LIST_W - 30.0},
+            height: HEADER_H,
+            text: {group.name.as_str()},
+            font: GameFont::FrizQuadrata,
+            font_size: 13.0,
+            font_color: NORMAL_FONT_COLOR,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: "LEFT",
+            onclick: {action.as_str()},
+            pos_type: "absolute",
+            left: {LIST_X + 26.0},
+            top: y,
+        }
+    });
+    elements
+}
+
+fn quest_row(row: &QuestLogRow, y: f32) -> Element {
+    let name = format!("QuestLogTitle{}", row.quest_id);
+    let action = format!("{SELECT_PREFIX}{}", row.quest_id);
+    let icon = if row.complete {
+        POI_TURN_IN
+    } else {
+        POI_IN_PROGRESS
+    };
+    let color = if row.selected {
+        HIGHLIGHT_FONT_COLOR
+    } else {
+        NORMAL_FONT_COLOR
+    };
+    let mut elements = Vec::new();
+    if row.selected {
+        elements.extend(rsx! {
+            r#frame {
+                name: {DynName(format!("{name}Selected"))},
+                width: LIST_W,
+                height: ROW_H,
+                background_color: "1.0,0.82,0.0,0.2",
+                pos_type: "absolute",
+                left: LIST_X,
+                top: y,
+            }
+        });
+    }
+    elements.extend(atlas_texture(
+        format!("{name}Icon"),
+        &icon,
+        (LIST_X + 22.0, y + 1.0, 16.0, 16.0),
+    ));
+    elements.extend(rsx! {
+        fontstring {
+            name: {DynName(format!("{name}Text"))},
+            width: {LIST_W - 64.0},
+            height: ROW_H,
+            text: {row.title.as_str()},
+            font: GameFont::FrizQuadrata,
+            font_size: ROW_FONT,
+            font_color: color,
+            justify_h: "LEFT",
+            onclick: {action.as_str()},
+            pos_type: "absolute",
+            left: {LIST_X + 42.0},
+            top: {y + 2.0},
+        }
+    });
+    if row.watched {
+        elements.extend(atlas_texture(
+            format!("{name}Check"),
+            &TRACKER_CHECK,
+            (LIST_X + LIST_W - 20.0, y + 1.0, 16.0, 16.0),
+        ));
+    }
+    elements
+}
+
+fn details_pane(details: Option<&QuestLogDetails>) -> Element {
+    let mut elements = atlas_texture(
+        "QuestLogDetailsBackground".into(),
+        &QUEST_LOG_BACKGROUND,
+        (DETAILS_X, PANE_TOP, DETAILS_W, PANE_BOTTOM - PANE_TOP),
+    );
+    let Some(details) = details else {
+        return elements;
+    };
+    let mut y = PANE_TOP + DETAILS_INSET;
+    elements.extend(details_text(
+        "QuestLogDetailsTitle",
+        &details.title,
+        TITLE_FONT,
+        QUEST_TEXT_COLOR,
+        &mut y,
+    ));
+    y += GAP;
+    elements.extend(details_text(
+        "QuestLogDetailsObjectivesText",
+        &details.objectives_text,
+        BODY_FONT,
+        QUEST_TEXT_COLOR,
+        &mut y,
+    ));
+    for (index, objective) in details.objectives.iter().enumerate() {
+        let color = if objective.done {
+            DONE_OBJECTIVE_COLOR
+        } else {
+            QUEST_TEXT_COLOR
+        };
+        y += 2.0;
+        elements.extend(details_text(
+            &format!("QuestLogDetailsObjective{index}"),
+            &format!("- {}", objective.text),
+            BODY_FONT,
+            color,
+            &mut y,
+        ));
+    }
+    if let Some(description) = &details.description {
+        y += GAP * 2.0;
+        elements.extend(details_text(
+            "QuestLogDetailsDescriptionHeader",
+            "Description",
+            TITLE_FONT,
+            QUEST_TEXT_COLOR,
+            &mut y,
+        ));
+        y += GAP;
+        elements.extend(details_text(
+            "QuestLogDetailsDescription",
+            description,
+            BODY_FONT,
+            QUEST_TEXT_COLOR,
+            &mut y,
+        ));
+    }
+    if let Some(rewards) = &details.rewards {
+        let column = Column {
+            x: DETAILS_X + DETAILS_INSET,
+            width: DETAILS_TEXT_W,
+        };
+        elements.extend(rewards_section(rewards, false, column, &mut y));
+    }
+    let track_label = if details.watched { "Untrack" } else { "Track" };
+    let button_y = FRAME_H - 4.0 - 22.0;
+    elements.extend(panel_button(
+        "QuestLogAbandonButton".into(),
+        "Abandon",
+        ABANDON_ACTION,
+        true,
+        (DETAILS_X, button_y, 100.0, 22.0),
+    ));
+    elements.extend(panel_button(
+        "QuestLogTrackButton".into(),
+        track_label,
+        TRACK_ACTION,
+        true,
+        (DETAILS_X + DETAILS_W - 100.0, button_y, 100.0, 22.0),
+    ));
+    elements
+}
+
+fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32) -> Element {
+    let height = wrapped_text_height(text, DETAILS_TEXT_W, font_size);
+    let top = *y;
+    *y += height;
+    rsx! {
+        fontstring {
+            name: {DynName(name.into())},
+            width: DETAILS_TEXT_W,
+            height,
+            text,
+            font: GameFont::FrizQuadrata,
+            font_size,
+            font_color: color,
+            justify_h: "LEFT",
+            pos_type: "absolute",
+            left: {DETAILS_X + DETAILS_INSET},
+            top,
         }
     }
 }
 
-fn action_buttons(quest_complete: bool, panel_h: f32) -> Element {
-    let y = -(panel_h - ACTION_BTN_H - 8.0);
-    let (primary_label, primary_bg, primary_text) = if quest_complete {
-        ("Complete", COMPLETE_BTN_BG, COMPLETE_BTN_TEXT)
-    } else {
-        ("Accept", ACCEPT_BTN_BG, ACCEPT_BTN_TEXT)
-    };
-    rsx! {
-        {quest_action_btn("QuestLogAcceptBtn", primary_label, primary_bg, primary_text, 8.0, y)}
-        {quest_action_btn("QuestLogAbandonBtn", "Abandon", ABANDON_BTN_BG, ABANDON_BTN_TEXT, 8.0 + ACTION_BTN_W + ACTION_BTN_GAP, y)}
-    }
-}
-
-#[cfg(test)]
 #[cfg(test)]
 #[path = "quest_log_frame_component_tests.rs"]
 mod tests;
