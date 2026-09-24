@@ -106,7 +106,7 @@ fn not_enough_power_text(power: Option<PowerType>) -> String {
     }
 }
 
-fn power_display_name(power: PowerType) -> Option<&'static str> {
+pub fn power_display_name(power: PowerType) -> Option<&'static str> {
     Some(match power {
         PowerType::Mana => "mana",
         PowerType::Rage => "rage",

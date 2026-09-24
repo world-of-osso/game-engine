@@ -107,3 +107,20 @@ fn game_menu_modal_resource_selects_modal_mode() {
     assert_eq!(*app.world().resource::<UiInputMode>(), UiInputMode::Modal);
     assert!(!character_open(&app));
 }
+
+#[test]
+fn dragged_action_selects_drag_mode_and_blocks_panel_toggles() {
+    use game_engine::player_spells::{ActionDrag, DragSource, DraggedAction};
+    let mut ui = ui_with_focused_editbox();
+    ui.focused_frame = None;
+    let mut app = panel_app(ui);
+    app.insert_resource(ActionDrag(Some(DraggedAction {
+        action: shared::protocol::ActionRef::Spell(20271),
+        source: DragSource::Spellbook,
+    })));
+
+    tap(&mut app, KeyCode::KeyC);
+
+    assert_eq!(*app.world().resource::<UiInputMode>(), UiInputMode::Drag);
+    assert!(!character_open(&app));
+}

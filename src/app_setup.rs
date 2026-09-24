@@ -251,6 +251,7 @@ fn register_ui_plugins(app: &mut App) {
         .add_plugins(logout::LogoutPlugin)
         .add_plugins(game_engine::profession::ProfessionPlugin)
         .add_plugins(game_engine::spell_catalog::SpellCatalogPlugin)
+        .add_plugins(game_engine::player_spells::PlayerSpellsPlugin)
         .add_plugins(game_engine::talent::TalentPlugin)
         .add_plugins(game_engine::trade::TradePlugin)
         .add_plugins(game_engine::mail::MailPlugin)

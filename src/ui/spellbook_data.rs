@@ -1,150 +1,143 @@
-#[derive(Debug, Clone, Copy)]
+//! Spellbook tabs built from the known-spell list and the spell catalog.
+//! Grouping rule: [`crate::spell_catalog::SpellbookTabIndex`].
+
+use crate::spell_catalog::{SpellCatalogData, SpellbookTabKind};
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpellbookSpell {
     pub id: u32,
-    pub name: &'static str,
+    pub name: String,
+    pub subtext: String,
     pub passive: bool,
     pub icon_file_data_id: u32,
-    pub cooldown_seconds: f32,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpellbookTab {
-    pub name: &'static str,
-    pub spells: &'static [SpellbookSpell],
+    pub name: String,
+    pub spells: Vec<SpellbookSpell>,
 }
 
-const GENERAL_SPELLS: &[SpellbookSpell] = &[
-    spell_icon(6603, "Auto Attack", 135274),
-    spell_icon_cd(8690, "Hearthstone", 134414, 600.0),
-    spell_icon_cd(7328, "Redemption", 135955, 600.0),
-];
+/// General and class tabs always; a spec tab for an active non-Initial spec.
+/// Actives come before passives, each in learn order.
+pub fn build_spellbook_tabs(
+    known: &[u32],
+    spec_id: Option<u32>,
+    catalog: Option<&SpellCatalogData>,
+) -> Vec<SpellbookTab> {
+    let class_name = catalog
+        .and_then(|data| data.tabs.class_name(spec_id, known))
+        .unwrap_or("Class");
+    let spec_name = catalog.and_then(|data| data.tabs.spec_name(spec_id));
+    let mut tabs = vec![tab("General"), tab(class_name)];
+    if let Some(name) = spec_name {
+        tabs.push(tab(name));
+    }
+    for &id in known {
+        let kind = catalog.map_or(SpellbookTabKind::General, |data| {
+            data.tabs.classify(id, spec_id)
+        });
+        let index = match kind {
+            SpellbookTabKind::General => 0,
+            SpellbookTabKind::Class => 1,
+            SpellbookTabKind::Spec => tabs.len() - 1,
+        };
+        tabs[index].spells.push(spellbook_spell(id, catalog));
+    }
+    for tab in &mut tabs {
+        tab.spells.sort_by_key(|spell| spell.passive);
+    }
+    tabs
+}
 
-const PALADIN_SPELLS: &[SpellbookSpell] = &[
-    spell_icon(35395, "Crusader Strike", 135891),
-    spell_icon(19750, "Flash of Light", 135907),
-    spell_icon(85673, "Word of Glory", 133192),
-    spell_icon_cd(853, "Hammer of Justice", 135963, 60.0),
-    spell_icon(275779, "Judgment", 135959),
-    spell_icon(465, "Devotion Aura", 135893),
-    spell_icon_cd(1022, "Blessing of Protection", 135964, 300.0),
-    spell_icon(1044, "Blessing of Freedom", 135968),
-    spell_icon_cd(642, "Divine Shield", 524354, 300.0),
-    spell_icon_cd(633, "Lay on Hands", 135928, 600.0),
-    spell_icon_cd(190784, "Divine Steed", 1360759, 45.0),
-    spell_icon_cd(96231, "Rebuke", 523893, 15.0),
-    spell_icon_cd(10326, "Turn Evil", 571559, 15.0),
-    spell_icon(213644, "Cleanse Toxins", 135953),
-    spell_icon_cd(6940, "Blessing of Sacrifice", 135966, 120.0),
-    spell_icon_cd(31884, "Avenging Wrath", 135875, 120.0),
-    spell_icon_cd(375576, "Divine Toll", 6035315, 60.0),
-    spell_icon_cd(115750, "Blinding Light", 571553, 90.0),
-    spell_icon(32223, "Crusader Aura", 135890),
-    spell_icon(317920, "Concentration Aura", 135933),
-    spell_icon(183435, "Retribution Aura", 135889),
-    spell_icon(5502, "Sense Undead", 135974),
-    spell_icon(121183, "Contemplation", 134916),
-    passive_icon(137026, "Plate Specialization", 236216),
-    passive_icon(385125, "Of Dusk and Dawn", 461859),
-];
-
-const PROTECTION_SPELLS: &[SpellbookSpell] = &[
-    spell_icon_cd(31935, "Avenger's Shield", 135874, 15.0),
-    spell_icon(53595, "Hammer of the Righteous", 236253),
-    spell_icon_cd(26573, "Consecration", 135926, 12.0),
-    spell_icon(53600, "Shield of the Righteous", 236265),
-    spell_icon_cd(31850, "Ardent Defender", 135870, 120.0),
-    spell_icon_cd(86659, "Guardian of Ancient Kings", 135919, 300.0),
-    spell_icon_cd(62124, "Hand of Reckoning", 135984, 8.0),
-    spell_icon_cd(498, "Divine Protection", 524353, 60.0),
-    spell_icon_cd(327193, "Moment of Glory", 237537, 90.0),
-    spell_icon_cd(378974, "Bastion of Light", 535594, 120.0),
-    spell_icon_cd(387174, "Eye of Tyr", 1272527, 60.0),
-    spell_icon(204019, "Blessed Hammer", 535595),
-    passive_icon(85043, "Grand Crusader", 133176),
-    passive_icon(152261, "Holy Shield", 1526019),
-    passive_icon(76671, "Mastery: Divine Bulwark", 135923),
-    passive_icon(280373, "Redoubt", 132359),
-];
-
-const HOLY_SPELLS: &[SpellbookSpell] = &[
-    spell_icon(20473, "Holy Shock", 135972),
-    spell_icon(82326, "Holy Light", 135981),
-    spell_icon_cd(85222, "Light of Dawn", 461859, 12.0),
-    spell_icon(4987, "Cleanse", 135949),
-    spell_icon(53563, "Beacon of Light", 236247),
-    spell_icon_cd(105809, "Holy Avenger", 571555, 180.0),
-    spell_icon_cd(200652, "Tyr's Deliverance", 1122562, 90.0),
-    passive_icon(53576, "Infusion of Light", 236254),
-    passive_icon(183997, "Mastery: Lightbringer", 133041),
-];
-
-const RETRIBUTION_SPELLS: &[SpellbookSpell] = &[
-    spell_icon(184575, "Blade of Justice", 1360757),
-    spell_icon(85256, "Templar's Verdict", 461860),
-    spell_icon_cd(255937, "Wake of Ashes", 1112939, 30.0),
-    spell_icon_cd(184662, "Shield of Vengeance", 236264, 120.0),
-    spell_icon_cd(343527, "Execution Sentence", 613954, 30.0),
-    spell_icon_cd(343721, "Final Reckoning", 135878, 60.0),
-    spell_icon_cd(383185, "Exorcism", 135903, 30.0),
-    passive_icon(267344, "Art of War", 236246),
-    passive_icon(231832, "Blade of Wrath", 1360757),
-    passive_icon(269569, "Zeal", 135961),
-];
-
-pub const SPELLBOOK_TABS: &[SpellbookTab] = &[
+fn tab(name: &str) -> SpellbookTab {
     SpellbookTab {
-        name: "General",
-        spells: GENERAL_SPELLS,
-    },
-    SpellbookTab {
-        name: "Paladin",
-        spells: PALADIN_SPELLS,
-    },
-    SpellbookTab {
-        name: "Protection",
-        spells: PROTECTION_SPELLS,
-    },
-    SpellbookTab {
-        name: "Holy",
-        spells: HOLY_SPELLS,
-    },
-    SpellbookTab {
-        name: "Retribution",
-        spells: RETRIBUTION_SPELLS,
-    },
-];
-
-const fn spell_icon(id: u32, name: &'static str, icon_file_data_id: u32) -> SpellbookSpell {
-    SpellbookSpell {
-        id,
-        name,
-        passive: false,
-        icon_file_data_id,
-        cooldown_seconds: 0.0,
+        name: name.to_string(),
+        spells: Vec::new(),
     }
 }
 
-const fn passive_icon(id: u32, name: &'static str, icon_file_data_id: u32) -> SpellbookSpell {
-    SpellbookSpell {
-        id,
-        name,
-        passive: true,
-        icon_file_data_id,
-        cooldown_seconds: 0.0,
+fn spellbook_spell(id: u32, catalog: Option<&SpellCatalogData>) -> SpellbookSpell {
+    match catalog.and_then(|data| data.get(id)) {
+        Some(spell) => SpellbookSpell {
+            id,
+            name: spell.name.to_string(),
+            subtext: spell.subtext.to_string(),
+            passive: spell.passive,
+            icon_file_data_id: spell.icon_fdid,
+        },
+        None => SpellbookSpell {
+            id,
+            name: format!("Spell {id}"),
+            subtext: String::new(),
+            passive: false,
+            icon_file_data_id: 0,
+        },
     }
 }
 
-const fn spell_icon_cd(
-    id: u32,
-    name: &'static str,
-    icon_file_data_id: u32,
-    cooldown_seconds: f32,
-) -> SpellbookSpell {
-    SpellbookSpell {
-        id,
-        name,
-        passive: false,
-        icon_file_data_id,
-        cooldown_seconds,
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::spell_catalog::{CatalogSpell, SpecTabInfo, SpellbookTabIndex};
+
+    fn spell(id: u32, name: &str, passive: bool) -> CatalogSpell {
+        CatalogSpell {
+            id,
+            name: name.into(),
+            passive,
+            icon_fdid: id + 1,
+            ..Default::default()
+        }
+    }
+
+    fn catalog() -> SpellCatalogData {
+        let tabs = SpellbookTabIndex {
+            class_names: [(2, "Paladin".to_string())].into(),
+            specs: [(
+                66,
+                SpecTabInfo {
+                    name: "Protection".into(),
+                    class_id: 2,
+                    initial: false,
+                    spells: [76671].into(),
+                },
+            )]
+            .into(),
+            class_spells: [(35395, 2), (20271, 2)].into(),
+        };
+        SpellCatalogData::from_parts(
+            vec![
+                spell(6603, "Auto Attack", false),
+                spell(35395, "Crusader Strike", false),
+                spell(20271, "Judgment", false),
+                spell(76671, "Mastery: Divine Bulwark", true),
+            ],
+            tabs,
+        )
+    }
+
+    fn names(tab: &SpellbookTab) -> Vec<&str> {
+        tab.spells.iter().map(|spell| spell.name.as_str()).collect()
+    }
+
+    #[test]
+    fn known_spells_group_into_general_class_and_spec_tabs() {
+        let catalog = catalog();
+        let tabs = build_spellbook_tabs(&[76671, 6603, 35395, 20271], Some(66), Some(&catalog));
+        let tab_names: Vec<_> = tabs.iter().map(|tab| tab.name.as_str()).collect();
+        assert_eq!(tab_names, ["General", "Paladin", "Protection"]);
+        assert_eq!(names(&tabs[0]), ["Auto Attack"]);
+        assert_eq!(names(&tabs[1]), ["Crusader Strike", "Judgment"]);
+        assert_eq!(names(&tabs[2]), ["Mastery: Divine Bulwark"]);
+        assert!(tabs[2].spells[0].passive);
+        assert_eq!(tabs[1].spells[0].icon_file_data_id, 35396);
+    }
+
+    #[test]
+    fn missing_catalog_lists_spell_ids_on_general() {
+        let tabs = build_spellbook_tabs(&[35395], None, None);
+        assert_eq!(tabs.len(), 2);
+        assert_eq!(names(&tabs[0]), ["Spell 35395"]);
     }
 }

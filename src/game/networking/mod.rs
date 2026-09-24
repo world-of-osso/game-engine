@@ -360,6 +360,7 @@ fn register_inworld_snapshot_systems(app: &mut App) {
         msg::receive_combat_log_events,
         application_in_world,
     );
+    register_player_spell_handlers(app);
     app.init_resource::<game_engine::ui::ui_errors::UiErrors>();
     register_message_handler::<CastFailed, _>(
         app,
@@ -394,6 +395,47 @@ fn register_inworld_snapshot_systems(app: &mut App) {
     register_message_handler::<ReputationStateUpdate, _>(
         app,
         msg::receive_reputation_snapshot,
+        application_in_world,
+    );
+}
+
+fn register_player_spell_handlers(app: &mut App) {
+    use game_engine::network_events::register_message_handler;
+    use game_engine::player_spells as spells;
+    use shared::protocol::*;
+    register_message_handler::<KnownSpellsSnapshot, _>(
+        app,
+        spells::receive_known_spells_snapshot,
+        application_in_world,
+    );
+    register_message_handler::<SpellsLearned, _>(
+        app,
+        spells::receive_spells_learned,
+        application_in_world,
+    );
+    register_message_handler::<SpellsUnlearned, _>(
+        app,
+        spells::receive_spells_unlearned,
+        application_in_world,
+    );
+    register_message_handler::<SpecializationChanged, _>(
+        app,
+        spells::receive_specialization_changed,
+        application_in_world,
+    );
+    register_message_handler::<ActionBarSnapshot, _>(
+        app,
+        spells::receive_action_bar_snapshot,
+        application_in_world,
+    );
+    register_message_handler::<SpellCooldownUpdate, _>(
+        app,
+        spells::receive_spell_cooldowns,
+        application_in_world,
+    );
+    register_message_handler::<SpellChargesUpdate, _>(
+        app,
+        spells::receive_spell_charges,
         application_in_world,
     );
 }

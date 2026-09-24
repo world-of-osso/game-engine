@@ -124,15 +124,7 @@ pub struct TabRowParams<'a> {
     pub is_pressed: bool,
 }
 
-pub struct SpellRowExtrasParams<'a> {
-    pub index: usize,
-    pub spell: &'a SpellbookSpell,
-    pub row_y: f32,
-    pub target: crate::ui::spellbook_runtime::HitTarget,
-    pub cooldown: f32,
-}
-
-pub fn create_header_title(builder: &mut FrameBuilder<'_>, root_id: u64) {
+pub fn create_header_title(builder: &mut FrameBuilder<'_>, root_id: u64, subtitle: &str) {
     builder.create_label(
         "SpellBookTitle",
         root_id,
@@ -148,7 +140,7 @@ pub fn create_header_title(builder: &mut FrameBuilder<'_>, root_id: u64) {
         "SpellBookSubtitle",
         root_id,
         LabelSpec {
-            text: "Paladin data mirrored from wow-ui-sim",
+            text: subtitle,
             color: [0.80, 0.74, 0.58, 0.96],
             rect: [18.0, 60.0, 588.0, 24.0],
             font_size: 16.0,
@@ -261,7 +253,7 @@ pub fn create_tab_row(
         builder,
         root_id,
         params.index,
-        params.tab.name,
+        &params.tab.name,
         params.tab_y,
     );
     let count_id = create_tab_count_label(
@@ -313,7 +305,7 @@ fn create_spell_row_panel(
     color: [f32; 4],
 ) -> u64 {
     builder.create_panel(
-        &format!("SpellBookSpellRow{}", index + 1),
+        &format!("SpellBookSpell{}", index + 1),
         root_id,
         color,
         [208.0, row_y, 380.0, 28.0],
@@ -331,7 +323,7 @@ fn create_spell_name_label(
         &format!("SpellBookSpellName{}", index + 1),
         root_id,
         LabelSpec {
-            text: spell.name,
+            text: &spell.name,
             color: [0.96, 0.90, 0.78, 1.0],
             rect: [242.0, row_y + 6.0, 262.0, 20.0],
             font_size: 13.0,
@@ -340,7 +332,7 @@ fn create_spell_name_label(
     )
 }
 
-fn create_spell_id_label(
+fn create_spell_subtext_label(
     builder: &mut FrameBuilder<'_>,
     root_id: u64,
     index: usize,
@@ -348,10 +340,10 @@ fn create_spell_id_label(
     row_y: f32,
 ) -> u64 {
     builder.create_label(
-        &format!("SpellBookSpellId{}", index + 1),
+        &format!("SpellBookSpellSubtext{}", index + 1),
         root_id,
         LabelSpec {
-            text: &spell.id.to_string(),
+            text: &spell.subtext,
             color: [0.74, 0.68, 0.54, 1.0],
             rect: [512.0, row_y + 6.0, 70.0, 20.0],
             font_size: 12.0,
@@ -376,8 +368,8 @@ pub fn create_spell_row_base(
         [214.0, row_y + 4.0, 20.0, 20.0],
     );
     let name_id = create_spell_name_label(builder, root_id, index, spell, row_y);
-    let spell_id_id = create_spell_id_label(builder, root_id, index, spell, row_y);
-    (row_id, icon_id, name_id, spell_id_id)
+    let subtext_id = create_spell_subtext_label(builder, root_id, index, spell, row_y);
+    (row_id, icon_id, name_id, subtext_id)
 }
 
 pub fn create_spell_passive_badge(
@@ -397,33 +389,6 @@ pub fn create_spell_passive_badge(
             justify_h: JustifyH::Right,
         },
     )
-}
-
-pub fn create_spell_cooldown_frames(
-    builder: &mut FrameBuilder<'_>,
-    root_id: u64,
-    index: usize,
-    row_y: f32,
-    cooldown: f32,
-) -> (u64, u64) {
-    let overlay_id = builder.create_panel(
-        &format!("SpellBookSpellCooldownOverlay{}", index + 1),
-        root_id,
-        [0.02, 0.02, 0.02, 0.70],
-        [214.0, row_y + 4.0, 20.0, 20.0],
-    );
-    let text_id = builder.create_label(
-        &format!("SpellBookSpellCooldown{}", index + 1),
-        root_id,
-        LabelSpec {
-            text: &format!("{cooldown:.1}"),
-            color: [1.0, 0.94, 0.70, 1.0],
-            rect: [206.0, row_y + 6.0, 36.0, 16.0],
-            font_size: 10.0,
-            justify_h: JustifyH::Center,
-        },
-    );
-    (overlay_id, text_id)
 }
 
 pub fn tab_color(is_active: bool, is_hover: bool, is_pressed: bool) -> [f32; 4] {

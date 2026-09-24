@@ -80,6 +80,10 @@ fn panel_toggles_use_retail_default_keys() {
             Some(InputBinding::Keyboard(KeyCode::KeyC)),
         ),
         (
+            InputAction::ToggleSpellbook,
+            Some(InputBinding::Keyboard(KeyCode::KeyP)),
+        ),
+        (
             InputAction::ToggleProfessions,
             Some(InputBinding::Keyboard(KeyCode::KeyK)),
         ),
