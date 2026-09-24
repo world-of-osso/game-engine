@@ -7,7 +7,7 @@ Client-side lookup of static spell data for tooltips, spellbook and action bars.
 - CSVs: `data/db2/12.1.0.69933/` — SpellName, Spell, SpellMisc, SpellEffect, SpellPower, SpellCastTimes, SpellRange, SpellDuration, SpellRadius, SpellCooldowns, SpellCategories, SpellCategory, SpellAuraOptions.
 - Per-difficulty tables contribute only `DifficultyID = 0` rows. 3,382 SpellName ids have no SpellMisc row and keep zeroed misc fields.
 - `SpellCatalogPlugin` spawns the load on `AsyncComputeTaskPool` at `Startup`; `SpellCatalog.state` goes `Loading` → `Ready` / `Failed`.
-- Cache: `data/cache/spell_catalog-12.1.0.69933.bin`, bincode (`CacheKey` then `Vec<CatalogSpell>`). Key = format version + build + (size, mtime ns) of every source CSV; any mismatch or decode error rebuilds and rewrites it.
+- Cache: `data/cache/spell_catalog-12.1.0.69933.bin`, bincode (`CacheKey` then `Vec<CatalogSpell>`). Key = format version + build + (size, mtime ns) of every source CSV; any mismatch or decode error rebuilds and rewrites it. Storage is the shared `src/game/db2_cache.rs` (also used by [[talents-ui]]).
 
 ## Measured (dev test profile, 2026-09-23)
 

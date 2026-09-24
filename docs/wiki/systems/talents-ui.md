@@ -16,7 +16,7 @@ Retail-style talent window `PlayerSpellsFrame`, driven by the server trait confi
 
 ## Data
 
-`TalentTreePlugin` loads on `AsyncComputeTaskPool` at `Startup` (`TalentTrees.state`: `Loading` → `Ready`/`Failed`). The result is cached in `data/cache/talent_trees-12.1.0.69933.bin` (bincode, keyed by format, build, and the size and mtime of every source CSV), the same scheme as the [[spell-catalog]].
+`TalentTreePlugin` loads on `AsyncComputeTaskPool` at `Startup` (`TalentTrees.state`: `Loading` → `Ready`/`Failed`). The result is cached in `data/cache/talent_trees-12.1.0.69933.bin` (bincode, keyed by format, build, and the size and mtime of every source CSV) through `src/game/db2_cache.rs`, the helper the [[spell-catalog]] also uses.
 
 - Trees: the ten character-creation classes, class skill line → `SkillLineXTraitTree` (same table as the server, Paladin 800 → 790).
 - Per node: `PosX`/`PosY`, `Type`, `TraitSubTreeID`, entries in `_Index` order (`TraitNodeEntry` → `TraitDefinition` spell, override name/icon, `MaxRanks`), groups, parents (`TraitEdge` types 2/3; any other type fails the load, as on the server), and the conditions and costs linked to the node, its groups and its entries.
@@ -56,7 +56,7 @@ Edges run from center to center, shortened by one node size. `rsx!` has no rotat
 
 - **States:** Loading while tree data, the first `TraitConfigSnapshot`, or the local `UnitLevel` is missing. Error when the tree load failed or the snapshot names an unknown tree.
 - **Left click** buys a rank of the node's entry. For tiered (apex) nodes it buys the first entry that is not maxed. For a choice half it buys that entry, replacing a bought choice of the same node. **Right click** refunds one bought rank (the last entry with ranks); granted ranks cannot be refunded. An edit is kept only if the whole resulting config passes the mirrored `validate`, so a refund that would strand a child is refused.
-- **Apply** (enabled with pending edits) queues `CommitTraitConfig { spec_id, entries }` on `TalentChannel`. Ranks are totals (granted + bought), as the snapshot sends them. Pending edits stay until the next snapshot replaces them. `TraitCommitResult { ok: false }` adds its reason to `UiErrors` (UIErrorsFrame).
+- **Apply** (enabled with pending edits) opens a `PopupStack` confirmation "Apply talent changes?" (Accept/Cancel, key `TALENT_APPLY_CHANGES`, plan rule 11). Only Accept queues `CommitTraitConfig { spec_id, entries }` on `TalentChannel`. Ranks are totals (granted + bought), as the snapshot sends them. Pending edits stay until the next snapshot replaces them. `TraitCommitResult { ok: false }` adds its reason to `UiErrors` (UIErrorsFrame).
 - **Reset** drops the pending edits.
 - **Spec buttons:** the class specs except the Initial one (`OrderIndex` 4). They are disabled below level 10 (server `SPEC_UNLOCK_LEVEL`) and for the active spec. A click sends `SetSpecialization`. `SpecializationChanged` to another spec drops the snapshot, so the window shows Loading until the new spec's snapshot arrives.
 - **Tooltip:** the shared `TooltipFrame` looks up the hovered frame (or its nearest ancestor) in `TalentTooltips`. It shows the name (override name or spell name), "Rank x/y", and the `SpellCatalog` rendered description wrapped at 46 characters.
@@ -79,7 +79,6 @@ The cold load includes the 417k-row `SpellMisc.csv` scan for the passive flags. 
 
 ## Known gaps
 
-- No confirmation popup on Apply (plan rule 11 lists talent changes).
 - No gate art or "spend N more points" text. No search, loadouts, or import/export.
 - Edge rotation direction and node art are unverified in a native capture.
 - The window does not block world clicks under it.
