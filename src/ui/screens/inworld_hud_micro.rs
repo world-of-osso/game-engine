@@ -29,6 +29,8 @@ pub(super) fn micro_menu_bar() -> Element {
     }
 }
 
+const MICRO_ART_H: f32 = 41.0;
+
 fn micro_menu_bar_width() -> f32 {
     MICRO_BUTTONS.len() as f32 * MICRO_BTN_W + (MICRO_BUTTONS.len() - 1) as f32 * MICRO_BTN_GAP
 }
@@ -59,6 +61,7 @@ fn micro_button(index: usize, name: &str) -> Element {
     }
 }
 
+/// Retail draws the 32x41 atlas art centred on the 32x40 button.
 fn micro_button_layer(button: &str, layer: usize, crop: SheetCrop) -> Element {
     let name = DynName(format!("{button}Art{layer}"));
     let coords = crop.tex_coords();
@@ -66,12 +69,12 @@ fn micro_button_layer(button: &str, layer: usize, crop: SheetCrop) -> Element {
         texture {
             name,
             width: {MICRO_BTN_W},
-            height: {MICRO_BTN_H},
+            height: {MICRO_ART_H},
             texture_fdid: {crop.fdid},
             tex_coords: {coords.as_str()},
             pos_type: "absolute",
             left: 0.0,
-            top: 0.0,
+            top: {(MICRO_BTN_H - MICRO_ART_H) / 2.0},
         }
     }
 }

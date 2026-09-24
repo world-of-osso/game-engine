@@ -38,20 +38,26 @@ const GUIDE_COLOR: &str = "0.95,0.78,0.25,0.95";
 const EDIT_BANNER_BG: &str = "0.03,0.04,0.06,0.9";
 const EDIT_BANNER_TEXT: &str = "1.0,0.86,0.25,1.0";
 const MOVER_LABEL_TEXT: &str = "1.0,0.9,0.45,1.0";
-/// Retail `MicroButtonTemplate` size (Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.xml).
+/// Retail `MainMenuBarMicroButton` 32x40, laid out with `childXPadding=-5`
+/// (Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.xml, MicroMenuContainer.xml).
 const MICRO_BTN_W: f32 = 32.0;
 const MICRO_BTN_H: f32 = 40.0;
-const MICRO_BTN_GAP: f32 = 0.0;
-/// Retail `MicroButtonAndBagsBar`: micro menu in the bottom-right corner, bags bar
-/// `BAGS_ANCHOR_OFFSET_Y` above it (EditModePresetLayoutConstants.lua).
-const MICRO_MENU_RIGHT: f32 = 8.0;
-const MICRO_MENU_BOTTOM: f32 = 8.0;
-const BAGS_BAR_RIGHT: f32 = MICRO_MENU_RIGHT;
-const BAGS_BAR_BOTTOM: f32 = MICRO_MENU_BOTTOM + MICRO_BTN_H + 10.0;
-/// Retail bag slot and backpack sizes (Blizzard_MainMenuBarBagButtons/Mainline xml).
+const MICRO_BTN_GAP: f32 = -5.0;
+/// Retail `MicroButtonAndBagsBar` (232x80, BOTTOMRIGHT -6,6): micro menu at its bottom-right,
+/// bags bar TOPRIGHT +10 above its top (Blizzard_EditMode/Standard/EditModePresetLayouts.lua).
+const MICRO_BAGS_INSET: f32 = 6.0;
+const MICRO_BAGS_BAR_H: f32 = 80.0;
+const BAGS_ABOVE_BAR: f32 = 10.0;
+const MICRO_MENU_RIGHT: f32 = MICRO_BAGS_INSET;
+const MICRO_MENU_BOTTOM: f32 = MICRO_BAGS_INSET;
+/// Retail BagsBar: 47 high, backpack 48x48, bag slots 30x30 chained with no padding
+/// (Blizzard_MainMenuBarBagButtons/Mainline/MainMenuBarBagButtons.xml).
+const BAGS_BAR_H: f32 = 47.0;
+const BAGS_BAR_RIGHT: f32 = MICRO_BAGS_INSET;
+const BAGS_BAR_BOTTOM: f32 = MICRO_BAGS_INSET + MICRO_BAGS_BAR_H + BAGS_ABOVE_BAR - BAGS_BAR_H;
 const BAG_SLOT_SIZE: f32 = 30.0;
 const BACKPACK_SIZE: f32 = 48.0;
-const BAG_SLOT_GAP: f32 = 4.0;
+const BAG_SLOT_GAP: f32 = 0.0;
 const BAG_COUNT: usize = 4;
 const MONEY_DISPLAY_W: f32 = 160.0;
 const MONEY_DISPLAY_H: f32 = 14.0;
@@ -463,22 +469,24 @@ pub fn action_bar_screen(_ctx: &SharedContext) -> Element {
     .collect()
 }
 
-/// Bags left of the backpack, as in Retail; money under the row.
+/// Bags chained leftward from the backpack, vertically centred on it, as in Retail. Money
+/// (not part of the Retail bar) sits left of the bags.
 fn bag_bar() -> Element {
     let bags_w = BAG_COUNT as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
-    let total_w = bags_w + BACKPACK_SIZE;
+    let total_w = MONEY_DISPLAY_W + bags_w + BACKPACK_SIZE;
+    let backpack_x = total_w - BACKPACK_SIZE;
+    let centre_y = |size: f32| (BAGS_BAR_H - size) / 2.0;
     let bags: Element = (0..BAG_COUNT)
         .flat_map(|i| {
             // CharacterBag0Slot sits next to the backpack.
-            let x = bags_w - (i + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
-            let y = BACKPACK_SIZE - BAG_SLOT_SIZE;
+            let x = backpack_x - (i + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
             let slot = BagSlot {
                 name: format!("CharacterBag{i}Slot"),
                 index: i + 1,
                 size: BAG_SLOT_SIZE,
                 art: BAG_SLOT_EMPTY,
             };
-            bag_slot(slot, x, y)
+            bag_slot(slot, x, centre_y(BAG_SLOT_SIZE))
         })
         .collect();
     let backpack = BagSlot {
@@ -487,27 +495,26 @@ fn bag_bar() -> Element {
         size: BACKPACK_SIZE,
         art: BACKPACK,
     };
-    let bar_h = BACKPACK_SIZE + MONEY_DISPLAY_H + 2.0;
     rsx! {
         r#frame {
             name: "BagsBar",
             width: {total_w},
-            height: {bar_h},
+            height: {BAGS_BAR_H},
             pos_type: "absolute",
             right: {BAGS_BAR_RIGHT},
             bottom: {BAGS_BAR_BOTTOM},
-            {bag_slot(backpack, bags_w, 0.0)}
+            {bag_slot(backpack, backpack_x, centre_y(BACKPACK_SIZE))}
             {bags}
-            {money_display()}
+            {money_display(centre_y(MONEY_DISPLAY_H))}
         }
     }
 }
 
-fn money_display() -> Element {
+fn money_display(y: f32) -> Element {
     rsx! {
         fontstring {
             name: "BagsBarMoneyDisplay",
-            width: {MONEY_DISPLAY_W},
+            width: {MONEY_DISPLAY_W - 6.0},
             height: {MONEY_DISPLAY_H},
             text: "0g 0s 0c",
             font: "ArialNarrow",
@@ -515,8 +522,8 @@ fn money_display() -> Element {
             font_color: MONEY_TEXT_COLOR,
             justify_h: "RIGHT",
             pos_type: "absolute",
-            right: 0.0,
-            pos_y: {BACKPACK_SIZE + 2.0},
+            left: 0.0,
+            pos_y: y,
         }
     }
 }
