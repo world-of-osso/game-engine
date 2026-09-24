@@ -90,11 +90,16 @@ fn talent_app(data: &TalentTreeData) -> App {
     app.init_resource::<SpellCatalog>();
     app.init_resource::<TalentTooltips>();
     app.insert_resource(TalentFrameOpen(true));
+    app.init_resource::<PopupStack>();
+    app.add_message::<PopupResult>();
     app.world_mut().spawn((LocalPlayer, UnitLevel(LEVEL)));
     app.world_mut()
         .run_system_once(build_talent_frame_ui)
         .unwrap();
-    app.add_systems(Update, sync_talent_frame_state);
+    app.add_systems(
+        Update,
+        (apply_on_confirmation, sync_talent_frame_state).chain(),
+    );
     app.update();
     app
 }
@@ -142,16 +147,33 @@ fn click(app: &mut App, frame: &str, button: MouseButton) {
         .unwrap_or_else(|| panic!("{frame} missing"));
     let action = walk_up_for_onclick(reg, id).unwrap_or_else(|| panic!("{frame} has no action"));
     app.world_mut()
-        .resource_scope(|world, mut state: Mut<TalentState>| {
-            dispatch_action(
-                &action,
-                button,
-                world.resource::<TalentTrees>(),
-                Some(LEVEL),
-                &mut state,
-            );
+        .resource_scope(|world, mut popups: Mut<PopupStack>| {
+            world.resource_scope(|world, mut state: Mut<TalentState>| {
+                let trees = world.resource::<TalentTrees>();
+                dispatch_action(&action, button, trees, Some(LEVEL), &mut state, &mut popups);
+            });
         });
     app.update();
+}
+
+/// Resolves the open Apply confirmation like its popup button and emits the result.
+fn answer_apply_popup(app: &mut App, outcome: PopupOutcome) {
+    let mut stack = app.world_mut().resource_mut::<PopupStack>();
+    let popup = stack.visible().pop().expect("apply confirmation shown");
+    assert_eq!(popup.spec.text, "Apply talent changes?");
+    assert_eq!(popup.spec.accept_label, "Accept");
+    assert_eq!(popup.spec.cancel_label.as_deref(), Some("Cancel"));
+    stack.resolve(popup.id, outcome);
+    let results = stack.drain_results();
+    app.world_mut().write_message_batch(results);
+    app.update();
+}
+
+fn queued_commit_count(app: &App) -> usize {
+    app.world()
+        .resource::<TalentState>()
+        .queued_commits()
+        .count()
 }
 
 #[test]
@@ -225,6 +247,12 @@ fn apply_sends_commit_with_the_pending_entries_and_reset_discards() {
         MouseButton::Left,
     );
     click(&mut app, TALENT_APPLY_BUTTON, MouseButton::Left);
+    assert_eq!(
+        queued_commit_count(&app),
+        0,
+        "nothing is sent before Accept"
+    );
+    answer_apply_popup(&mut app, PopupOutcome::Accepted);
     let commits: Vec<CommitTraitConfig> = app
         .world()
         .resource::<TalentState>()
@@ -262,6 +290,21 @@ fn apply_sends_commit_with_the_pending_entries_and_reset_discards() {
     click(&mut app, TALENT_RESET_BUTTON, MouseButton::Left);
     assert!(app.world().resource::<TalentState>().pending.is_none());
     assert_eq!(rank_text(&app, BLADE_OF_JUSTICE.0), "0/1");
+}
+
+#[test]
+fn cancelling_the_apply_confirmation_sends_nothing_and_keeps_pending() {
+    let Some(mut app) = ret_app() else { return };
+    click(
+        &mut app,
+        &talent_node_name(BLADE_OF_JUSTICE.0),
+        MouseButton::Left,
+    );
+    click(&mut app, TALENT_APPLY_BUTTON, MouseButton::Left);
+    answer_apply_popup(&mut app, PopupOutcome::Cancelled);
+    assert_eq!(queued_commit_count(&app), 0);
+    assert!(app.world().resource::<TalentState>().pending.is_some());
+    assert_eq!(rank_text(&app, BLADE_OF_JUSTICE.0), "1/1");
 }
 
 #[test]
