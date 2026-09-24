@@ -5,6 +5,7 @@ use std::sync::OnceLock;
 use std::time::Instant;
 
 use super::*;
+use crate::db2_cache;
 
 fn temp_paths(tag: &str) -> SpellCatalogPaths {
     let mut paths = SpellCatalogPaths::for_data_dir(Path::new("data"));
@@ -168,8 +169,8 @@ fn changed_source_key_invalidates_cache() {
     let Some(data) = catalog() else { return };
     let paths = temp_paths("stale");
     let key = cache::cache_key(&paths.source_dir).unwrap();
-    cache::write_cache(&paths.cache_path, &key, &data.spells[..1]).unwrap();
-    let cached = cache::read_cache(&paths.cache_path, &key).unwrap();
+    db2_cache::write_cache(&paths.cache_path, &key, &data.spells[..1]).unwrap();
+    let cached: Option<Vec<CatalogSpell>> = db2_cache::read_cache(&paths.cache_path, &key).unwrap();
     assert_eq!(cached.as_deref(), Some(&data.spells[..1]));
 
     let other_source =
@@ -179,7 +180,8 @@ fn changed_source_key_invalidates_cache() {
         std::fs::write(other_source.join(format!("{table}.csv")), "ID\n").unwrap();
     }
     let changed = cache::cache_key(&other_source).unwrap();
-    let stale = cache::read_cache(&paths.cache_path, &changed).unwrap();
+    let stale: Option<Vec<CatalogSpell>> =
+        db2_cache::read_cache(&paths.cache_path, &changed).unwrap();
     std::fs::remove_dir_all(other_source).unwrap();
     std::fs::remove_file(paths.cache_path).unwrap();
     assert!(stale.is_none());

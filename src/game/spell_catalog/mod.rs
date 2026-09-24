@@ -219,11 +219,9 @@ impl SpellCatalogPaths {
 pub fn load_spell_catalog(paths: &SpellCatalogPaths) -> Result<SpellCatalogData, String> {
     let tabs = tabs::load_tab_index(&paths.source_dir)?;
     let key = cache::cache_key(&paths.source_dir)?;
-    if let Some(spells) = cache::read_cache(&paths.cache_path, &key)? {
-        return Ok(SpellCatalogData::from_sorted(spells, tabs));
-    }
-    let spells = build::build_spells(&paths.source_dir)?;
-    cache::write_cache(&paths.cache_path, &key, &spells)?;
+    let spells = crate::db2_cache::load_or_build(&paths.cache_path, &key, || {
+        build::build_spells(&paths.source_dir)
+    })?;
     Ok(SpellCatalogData::from_sorted(spells, tabs))
 }
 

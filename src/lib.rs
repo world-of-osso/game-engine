@@ -45,6 +45,8 @@ pub mod creation_scene_data;
 pub mod creature_display;
 pub mod csv_util;
 pub mod currency;
+#[path = "game/db2_cache.rs"]
+pub mod db2_cache;
 pub mod death;
 #[path = "game/dress_up_data.rs"]
 pub mod dress_up_data;
