@@ -20,7 +20,7 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::popup::PopupStack;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::chat_frame_component::{
-    CHAT_EDITBOX, CHAT_FONT, CHAT_FONT_SIZE, CHAT_FRAME, CHAT_MESSAGES, CHAT_TEXT_W, ChatFrameView,
+    CHAT_EDITBOX, CHAT_FONT, CHAT_FONT_SIZE, CHAT_MESSAGES, CHAT_TEXT_W, ChatFrameView,
     chat_frame_screen,
 };
 use game_engine::who::{WhoRuntimeState, queue_query};
