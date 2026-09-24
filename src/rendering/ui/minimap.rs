@@ -271,7 +271,7 @@ fn generate_tile_textures(
         if minimap.generated.contains(&(ty, tx)) {
             continue;
         }
-        let image = try_load_minimap_blp(tx, ty).or_else(|| {
+        let image = try_load_minimap_blp(ty, tx).or_else(|| {
             heightmap
                 .tile_chunks(ty, tx)
                 .map(|chunks| render_tile_image(chunks, MINIMAP_TILE_SIZE as usize))
@@ -287,11 +287,47 @@ fn generate_tile_textures(
     minimap.generated.retain(|k| loaded.contains(k));
 }
 
-/// Try loading a pre-rendered BLP minimap tile from `data/minimap/map{x}_{y}.blp`.
-fn try_load_minimap_blp(tile_x: u32, tile_y: u32) -> Option<Image> {
-    let path = format!("data/minimap/map{tile_x}_{tile_y}.blp");
+/// Try loading a pre-rendered BLP minimap tile. Files follow the ADT index order:
+/// `azeroth_32_48.adt` (tile_y 32, tile_x 48) pairs with `data/minimap/map32_48.blp`.
+fn try_load_minimap_blp(tile_y: u32, tile_x: u32) -> Option<Image> {
+    let path = format!("data/minimap/map{tile_y}_{tile_x}.blp");
     let (pixels, w, h) = crate::asset::blp::load_blp_rgba(Path::new(&path)).ok()?;
-    Some(crate::rgba_image(pixels, w, h))
+    let size = MINIMAP_TILE_SIZE as usize;
+    let pixels = downscale_rgba(&pixels, w as usize, h as usize, size)?;
+    Some(crate::rgba_image(
+        pixels,
+        MINIMAP_TILE_SIZE,
+        MINIMAP_TILE_SIZE,
+    ))
+}
+
+/// Box-filter a square RGBA image whose side is a whole multiple of `size` down to `size`.
+fn downscale_rgba(pixels: &[u8], w: usize, h: usize, size: usize) -> Option<Vec<u8>> {
+    if w != h || w < size || w % size != 0 {
+        warn!("minimap tile {w}x{h} is not a square multiple of {size}");
+        return None;
+    }
+    let factor = w / size;
+    let area = (factor * factor) as u32;
+    let mut out = vec![0u8; size * size * 4];
+    for y in 0..size {
+        for x in 0..size {
+            let mut sum = [0u32; 4];
+            for sy in y * factor..(y + 1) * factor {
+                for sx in x * factor..(x + 1) * factor {
+                    let i = (sy * w + sx) * 4;
+                    for c in 0..4 {
+                        sum[c] += u32::from(pixels[i + c]);
+                    }
+                }
+            }
+            let o = (y * size + x) * 4;
+            for c in 0..4 {
+                out[o + c] = (sum[c] / area) as u8;
+            }
+        }
+    }
+    Some(out)
 }
 
 /// Composite tile images centered on the player and crop the square display window.
