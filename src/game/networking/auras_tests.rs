@@ -127,7 +127,7 @@ fn timers_count_down_between_server_updates() {
     let first = app.world().resource::<AuraState>().auras[0].remaining;
     assert_eq!(
         app.world().resource::<AuraState>().auras[0].timer_text(),
-        "2 m"
+        "61 s"
     );
     for _ in 0..6 {
         app.update();
