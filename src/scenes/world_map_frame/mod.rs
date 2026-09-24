@@ -112,6 +112,10 @@ fn sync_world_map_frame_state(
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
+    // The model derives only from these inputs.
+    if !(world_map.is_changed() || current_zone.is_changed() || window_manager.is_changed()) {
+        return;
+    }
     let state = build_state(
         &world_map,
         &current_zone,

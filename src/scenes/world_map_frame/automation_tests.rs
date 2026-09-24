@@ -135,3 +135,33 @@ fn js_click_on_hidden_inworld_frame_reports_error_and_advances() {
     assert!(error.contains("WorldMapCloseBtn"), "{error}");
     assert!(map_open(&app), "queue must continue after the failed click");
 }
+
+#[test]
+fn settled_map_state_still_follows_player_movement_after_idle_frames() {
+    let mut app = inworld_app();
+    for _ in 0..3 {
+        app.update();
+    }
+    let idle = app
+        .world()
+        .resource::<super::WorldMapFrameModel>()
+        .0
+        .clone();
+
+    app.world_mut().resource_mut::<WorldMapState>().player.x = 0.75;
+    app.update();
+    let moved = &app.world().resource::<super::WorldMapFrameModel>().0;
+    assert_eq!(moved.player_x, 0.75);
+    assert_ne!(moved.player_x, idle.player_x);
+
+    app.world_mut()
+        .resource_mut::<WindowManager>()
+        .open(WindowId::WorldMap);
+    app.update();
+    assert!(
+        app.world()
+            .resource::<super::WorldMapFrameModel>()
+            .0
+            .visible
+    );
+}
