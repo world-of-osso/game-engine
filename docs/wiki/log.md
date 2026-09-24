@@ -899,3 +899,7 @@ Updated [[ui-system]] (Windows and HUD Edit Mode) and added the [window manager]
 ## [2026-09-23] ui | Combat cluster unit frames
 
 Updated [[ui-system]] (Unit Frames). Portrait artwork frames replaced by the accepted combat cluster: compact player/target frames flank the docked `PlayerCastingBarFrame`; target-of-target and focus sit right of the target; party frames left of the player frame. Powers come from replicated `UnitPowers` with `DisplayModifier` scaling; NPC names/levels from `Npc`/`UnitLevel`; focus via `SetFocus`; ToT via replicated `UnitTarget`. Reaction from FactionTemplate.csv via the pure `faction_reaction` module. Focused lib (59) and bin (12) tests pass. No native run.
+
+## [2026-09-24] reference | Merge WoW clients list
+
+Merged `docs/open-source-wow-clients.md` into [[open-source-wow-clients]] (added solarityclient, idewave-cli, forge, worgen-rs, Rust servers/libraries, extra format crates) and deleted the top-level copy. AGENTS.md now points at the wiki page.
