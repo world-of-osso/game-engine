@@ -167,6 +167,7 @@ fn register_bevy_plugins(
     register_render_plugins(app);
     app.add_plugins(FpsOverlayPlugin {
         config: FpsOverlayConfig {
+            enabled: false,
             refresh_interval: Duration::from_millis(500),
             ..default()
         },

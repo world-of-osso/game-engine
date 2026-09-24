@@ -248,7 +248,7 @@ impl Default for HudOptions {
             nameplate_spellbar_thickness: default_nameplate_spellbar_thickness(),
             show_health_bars: true,
             show_target_marker: true,
-            show_fps_overlay: true,
+            show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
         }
     }

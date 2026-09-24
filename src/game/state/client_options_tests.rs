@@ -814,3 +814,9 @@ fn non_inworld_states_keep_user_ui_scale_only() {
         assert_eq!(registry_screen_size(&app), (2048.0, 1152.0), "{state:?}");
     }
 }
+
+#[test]
+fn fps_overlay_is_opt_in() {
+    assert!(!HudOptions::default().show_fps_overlay);
+    assert!(!HudVisibilityToggles::from_hud_options(&HudOptions::default()).show_fps_overlay);
+}
