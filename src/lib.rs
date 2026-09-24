@@ -58,6 +58,8 @@ pub mod encounter_journal;
 pub mod encounter_journal_data;
 #[path = "game/experience_data.rs"]
 pub mod experience_data;
+#[path = "game/faction_reaction.rs"]
+pub mod faction_reaction;
 #[path = "game/floating_combat_text.rs"]
 pub mod floating_combat_text;
 pub mod friends;

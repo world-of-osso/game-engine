@@ -2,6 +2,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::faction_reaction::Reaction;
 use crate::status::SecondaryResourceEntry;
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
@@ -55,21 +56,13 @@ pub(super) fn dyn_name(name: String) -> DynName {
     DynName(name)
 }
 
-/// Retail reaction buckets; colours are `FACTION_BAR_COLORS` hostile (1), neutral (4), friendly (5).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum UnitReaction {
-    Hostile,
-    Neutral,
-    Friendly,
-}
-
-impl UnitReaction {
-    pub fn health_color(self) -> &'static str {
-        match self {
-            Self::Hostile => "0.8,0.3,0.22,1.0",
-            Self::Neutral => "0.9,0.7,0.0,1.0",
-            Self::Friendly => "0.0,0.6,0.1,1.0",
-        }
+/// Target health fill per reaction: Retail `FACTION_BAR_COLORS` hostile (1), neutral (4),
+/// friendly (5).
+pub fn reaction_health_color(reaction: Reaction) -> &'static str {
+    match reaction {
+        Reaction::Hostile => "0.8,0.3,0.22,1.0",
+        Reaction::Neutral => "0.9,0.7,0.0,1.0",
+        Reaction::Friendly => "0.0,0.6,0.1,1.0",
     }
 }
 
@@ -80,7 +73,7 @@ pub struct UnitFrameState {
     pub health_text: String,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
-    pub reaction: Option<UnitReaction>,
+    pub reaction: Option<Reaction>,
     pub power: Option<PowerBarState>,
     pub secondary_resource: Option<SecondaryResourceEntry>,
     pub show_combat_icon: bool,
@@ -108,7 +101,7 @@ impl UnitFrameState {
 
     fn health_color(&self) -> &'static str {
         self.reaction
-            .map_or(PLAYER_HEALTH_COLOR, UnitReaction::health_color)
+            .map_or(PLAYER_HEALTH_COLOR, reaction_health_color)
     }
 }
 
@@ -117,7 +110,7 @@ impl UnitFrameState {
 pub struct SmallUnitFrameState {
     pub name: String,
     pub health_fraction: f32,
-    pub reaction: Option<UnitReaction>,
+    pub reaction: Option<Reaction>,
 }
 
 impl From<&UnitFrameState> for SmallUnitFrameState {
@@ -367,7 +360,7 @@ fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Ele
     let bar_w = spec.width - 2.0 * BAR_X;
     let color = unit
         .reaction
-        .map_or(PLAYER_HEALTH_COLOR, UnitReaction::health_color);
+        .map_or(PLAYER_HEALTH_COLOR, reaction_health_color);
     rsx! {
         {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, (BAR_X + 2.0, SMALL_NAME_Y), bar_w, NAME_TEXT, "LEFT")}
         {status_bar(BarSpec {
