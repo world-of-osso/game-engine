@@ -301,3 +301,62 @@ fn trivial_quests_show_no_marker_like_retail_default_tracking() {
         QuestIndicator::Unavailable
     );
 }
+
+#[test]
+fn chain_offer_in_the_same_batch_as_the_turn_in_stays_open() {
+    let Fixture { mut app, .. } = fixture();
+    deliver(
+        &mut app,
+        vec![QuestGiverOfferReward {
+            npc: WILLEM_SERVER,
+            quest_id: 783,
+            title: "A Threat Within".into(),
+            reward_text: "Ah, good.".into(),
+            rewards: QuestRewards::default(),
+        }],
+    );
+    app.world_mut()
+        .run_system_once(receive_quest_dialog)
+        .unwrap();
+
+    // Marshal McBride turns in 783 and offers 7 in one network batch.
+    deliver(
+        &mut app,
+        vec![QuestGiverQuestComplete {
+            quest_id: 783,
+            money: 0,
+            items: vec![],
+            xp: 100,
+        }],
+    );
+    deliver(
+        &mut app,
+        vec![QuestGiverQuestDetails {
+            npc: WILLEM_SERVER,
+            quest_id: 7,
+            title: "Kobold Camp Cleanup".into(),
+            description: String::new(),
+            objectives_text: "Kill 8 Kobold Vermin, then return to Marshal McBride.".into(),
+            level: 2,
+            min_level: 1,
+            suggested_group: 0,
+            objectives: vec![],
+            rewards: QuestRewards::default(),
+        }],
+    );
+    app.world_mut()
+        .run_system_once(receive_quest_dialog)
+        .unwrap();
+
+    let dialog = app.world().resource::<QuestRuntime>().dialog.clone();
+    assert!(
+        matches!(dialog.map(|d| d.page), Some(QuestDialogPage::Detail(details)) if details.quest_id == 7)
+    );
+    assert_eq!(
+        chat_lines(&app),
+        vec![
+            "A Threat Within completed.".to_string(),
+            "Experience gained: 100.".to_string()
+        ]
+    );
+}
