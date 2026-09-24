@@ -10,7 +10,7 @@ use super::build::SOURCE_TABLES;
 use super::{CatalogSpell, SPELL_DB2_BUILD};
 
 /// Bump when `CatalogSpell` or the build rules change.
-const CACHE_FORMAT: u32 = 1;
+const CACHE_FORMAT: u32 = 2;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub(super) struct CacheKey {

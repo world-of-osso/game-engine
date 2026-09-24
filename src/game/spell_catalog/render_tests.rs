@@ -42,7 +42,7 @@ fn fixture_catalog() -> SpellCatalogData {
         id: 300,
         ..Default::default()
     };
-    SpellCatalogData::from_sorted(vec![dot, buff, no_data])
+    SpellCatalogData::from_parts(vec![dot, buff, no_data], Default::default())
 }
 
 fn render(id: u32, text: &str) -> String {
@@ -102,11 +102,14 @@ fn tokens_without_data_stay_verbatim() {
 #[test]
 fn durations_humanize_by_unit() {
     let catalog = |duration_ms| {
-        SpellCatalogData::from_sorted(vec![CatalogSpell {
-            id: 1,
-            duration_ms,
-            ..Default::default()
-        }])
+        SpellCatalogData::from_parts(
+            vec![CatalogSpell {
+                id: 1,
+                duration_ms,
+                ..Default::default()
+            }],
+            Default::default(),
+        )
     };
     for (duration_ms, expected) in [
         (1_500, "1.5 sec"),

@@ -29,6 +29,9 @@ pub(super) const SOURCE_TABLES: &[&str] = &[
 
 type SpellMap = HashMap<u32, CatalogSpell>;
 
+/// `SpellMisc.Attributes_0` bit of passive spells.
+const SPELL_ATTR0_PASSIVE: i64 = 0x40;
+
 pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
     let mut spells = load_names(dir)?;
     apply_text(dir, &mut spells)?;
@@ -167,6 +170,7 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         "SchoolMask",
         "SpellIconFileDataID",
         "ActiveIconFileDataID",
+        "Attributes_0",
     ];
     for_each_row(dir, "SpellMisc", &columns, |row| {
         if !row.is_base_difficulty(1)? {
@@ -182,6 +186,7 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         spell.school_mask = row.get(5)?;
         spell.icon_fdid = row.get(6)?;
         spell.active_icon_fdid = row.get(7)?;
+        spell.passive = row.get::<i64>(8)? & SPELL_ATTR0_PASSIVE != 0;
         Ok(())
     })
 }

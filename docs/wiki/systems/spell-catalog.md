@@ -21,6 +21,13 @@ Client-side lookup of static spell data for tooltips, spellbook and action bars.
 
 The crate itself is unoptimized in dev builds, so cold times there are pessimistic. Command: `cargo test --lib spell_catalog_load_probe -- --ignored --nocapture`.
 
+## Passive flag and spellbook tabs
+
+- `CatalogSpell.passive` = `SpellMisc.Attributes_0 & 0x40` (cache format 2).
+- `SpellCatalogData.tabs` (`tabs.rs`) is rebuilt from ChrClasses, ChrSpecialization, SpecializationSpells, SkillLine and SkillLineAbility on every load; it is not cached.
+- Rule: a spell in the active non-Initial spec's `SpecializationSpells` or mastery goes on the spec tab. A spell of a class skill line (`SkillLine` category 7 whose name equals a `ChrClasses` name, e.g. 800 Paladin) goes on the class tab. Everything else is General. Initial-spec (OrderIndex 4) spells go on the class tab.
+- Tab titles: class from the spec's `ClassID`, else from the first known class spell; spec from `ChrSpecialization.Name_lang`.
+
 ## Description tokens
 
 `render_description` / `render_aura_description` substitute from DB rows only:
