@@ -9,8 +9,8 @@ use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
-    QUEST_LOG_BACKGROUND, QUEST_LOG_DIVIDER, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
-    panel_button, window_chrome, wrapped_text_height,
+    QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
+    line_height, panel_button, window_chrome, wrapped_text_height,
 };
 use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
 use crate::ui::strata::FrameStrata;
@@ -22,7 +22,7 @@ const PANE_TOP: f32 = 62.0;
 const PANE_BOTTOM: f32 = FRAME_H - 32.0;
 const LIST_X: f32 = 12.0;
 const LIST_W: f32 = 300.0;
-/// `questlogbackground` 287×510, cropped to the pane.
+/// Details pane on `QuestBG-Parchment`, like the quest giver frame.
 const DETAILS_X: f32 = 330.0;
 const DETAILS_W: f32 = 287.0;
 const DETAILS_INSET: f32 = 12.0;
@@ -281,7 +281,7 @@ fn quest_row(row: &QuestLogRow, y: f32) -> Element {
 fn details_pane(details: Option<&QuestLogDetails>) -> Element {
     let mut elements = atlas_texture(
         "QuestLogDetailsBackground".into(),
-        &QUEST_LOG_BACKGROUND,
+        &QUEST_PARCHMENT,
         (DETAILS_X, PANE_TOP, DETAILS_W, PANE_BOTTOM - PANE_TOP),
     );
     let Some(details) = details else {
@@ -363,14 +363,13 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
 }
 
 fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32) -> Element {
-    let height = wrapped_text_height(text, DETAILS_TEXT_W, font_size);
     let top = *y;
-    *y += height;
+    *y += wrapped_text_height(text, DETAILS_TEXT_W, font_size);
     rsx! {
         fontstring {
             name: {DynName(name.into())},
             width: DETAILS_TEXT_W,
-            height,
+            height: {line_height(font_size)},
             text,
             font: GameFont::FrizQuadrata,
             font_size,

@@ -12,7 +12,8 @@ use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
     DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
     TRACKER_EXPAND_ALL, TRACKER_PRIMARY_HEADER, TRACKER_SECONDARY_COLLAPSE,
-    TRACKER_SECONDARY_EXPAND, TRACKER_SECONDARY_HEADER, atlas_texture, wrapped_text_height,
+    TRACKER_SECONDARY_EXPAND, TRACKER_SECONDARY_HEADER, atlas_texture, line_height,
+    wrapped_text_height,
 };
 
 pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
@@ -288,13 +289,7 @@ fn quest_block(quest: &TrackedQuest, y: &mut f32) -> Element {
     let block_top = *y;
     let title_h = wrapped_text_height(&quest.title, BLOCK_W, LINE_FONT);
     let mut elements = poi_button(&block, quest.complete, &action, block_top);
-    elements.extend(block_title(
-        &block,
-        &quest.title,
-        &action,
-        block_top,
-        title_h,
-    ));
+    elements.extend(block_title(&block, &quest.title, &action, block_top));
     *y += title_h;
     for (index, line) in quest.lines.iter().enumerate() {
         *y += LINE_SPACING;
@@ -347,12 +342,12 @@ fn poi_button(block: &str, complete: bool, action: &str, top: f32) -> Element {
     elements
 }
 
-fn block_title(block: &str, title: &str, action: &str, top: f32, height: f32) -> Element {
+fn block_title(block: &str, title: &str, action: &str, top: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{block}HeaderText"))},
             width: BLOCK_W,
-            height,
+            height: {line_height(LINE_FONT)},
             text: title,
             font: GameFont::FrizQuadrata,
             font_size: LINE_FONT,
@@ -369,7 +364,6 @@ fn block_title(block: &str, title: &str, action: &str, top: f32, height: f32) ->
 }
 
 fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
-    let text_h = wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT);
     let (color, dash) = match line.style {
         ObjectiveLineStyle::InProgress => (NORMAL_COLOR, "- "),
         ObjectiveLineStyle::Completed => (COMPLETE_COLOR, ""),
@@ -394,7 +388,7 @@ fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
         fontstring {
             name: {DynName(format!("{name}Text"))},
             width: {BLOCK_W - DASH_W},
-            height: text_h,
+            height: {line_height(LINE_FONT)},
             text: {line.text.as_str()},
             font: GameFont::FrizQuadrata,
             font_size: LINE_FONT,

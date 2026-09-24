@@ -62,17 +62,9 @@ pub const GOSSIP_IN_PROGRESS_ICON: AtlasArt = art(5_666_025, (64.0, 64.0), (37.0
 
 /// `QuestBG-Parchment` (11502), atlas 1711, 299×407.
 pub const QUEST_PARCHMENT: AtlasArt = art(3_813_080, (1024.0, 1024.0), (1.0, 300.0, 1.0, 408.0));
-/// `questlogbackground` (2119), atlas 103 `questmapframe.blp`, 287×510.
-pub const QUEST_LOG_BACKGROUND: AtlasArt =
-    art(904_010, (2048.0, 1024.0), (1.0, 288.0, 513.0, 1023.0));
-/// `questlog_topdetail` (7578), 260×24: title plate of the details pane.
-pub const QUEST_LOG_TOP_DETAIL: AtlasArt =
-    art(904_010, (2048.0, 1024.0), (290.0, 550.0, 993.0, 1017.0));
 /// `questlog_divider` (7577), 260×37: zone header plate in the quest list.
 pub const QUEST_LOG_DIVIDER: AtlasArt =
     art(904_010, (2048.0, 1024.0), (579.0, 839.0, 986.0, 1023.0));
-/// `questlog-questtypeicon-quest` (21623), atlas 2429, 18×18.
-pub const QUEST_TYPE_ICON: AtlasArt = art(5_151_356, (128.0, 128.0), (41.0, 59.0, 45.0, 63.0));
 
 /// `redbutton-exit` (17625), atlas 2196: the panel close button.
 pub const CLOSE_BUTTON: AtlasArt = art(5_262_907, (128.0, 64.0), (21.0, 39.0, 1.0, 20.0));
@@ -350,5 +342,13 @@ fn paragraph_line_count(paragraph: &str, width: f32, font_size: f32) -> usize {
 
 /// Height of wrapped text at the toolkit's 1.2 line height.
 pub fn wrapped_text_height(text: &str, width: f32, font_size: f32) -> f32 {
-    wrapped_line_count(text, width, font_size) as f32 * font_size * 1.2
+    wrapped_line_count(text, width, font_size) as f32 * line_height(font_size)
+}
+
+/// Frame height for a wrapped fontstring. The toolkit centres the first line in the
+/// frame (`JustifyV::Middle`, no `justify_v` attribute) and lets wrapped lines flow
+/// below it unclipped, so a one-line frame top-aligns the text like Retail's
+/// `justifyV="TOP"`; callers advance their layout by [`wrapped_text_height`].
+pub fn line_height(font_size: f32) -> f32 {
+    font_size * 1.2
 }
