@@ -1,0 +1,25 @@
+# Quest UI
+
+Retail objective tracker, quest log and quest giver frame on the live server quest runtime (quest phase of the [in-game UI plan](../plans/2026-09-23-ingame-ui.md)). Contract: shared-protocol `protocol/quest_messages.rs`, `protocol/interaction_messages.rs`, `QuestLogSnapshot`; server semantics in game-server `docs/specs/quests.md`. How it works: [quest UI](../wiki/systems/quest-ui.md).
+
+## What it must do
+
+- [x] Right-clicking an NPC in range sends `InteractNpc`; `InteractionOpened` opens the quest giver frame (gossip text and options, plus the NPC's quests from `QuestGiverHello` when it has `NPCFlags::QUESTGIVER`); `InteractionFailed` shows its Retail text in `UIErrorsFrame`; `InteractionClosed` closes the frame.
+- [x] Quest giver frame `QuestFrame` (338×496 `ButtonFrameTemplate` chrome, `QuestBG-Parchment`): greeting (Current Quests above Available Quests, gossip options), detail (Accept/Decline), progress (`QuestGiverRequestItems`, Continue disabled until `can_complete`, Cancel), reward (choice required before Complete Quest). NPC-driven Panel in slot L; Escape/eviction sends `CloseInteraction`.
+- [x] Quest text tokens substituted client-side: `$N`/`$n`, `$C`/`$c`, `$R`/`$r`, `$B`, `$Gmale:female;`.
+- [x] Turn-in: `QuestGiverQuestComplete` posts `<title> completed.`, `Experience gained: N.`, `Received <money>.` and item lines to chat; a chain offer (`QuestGiverQuestDetails`) in the same batch stays open. Accepts post `Quest accepted: <title>`.
+- [x] Objective tracker `ObjectiveTrackerFrame` at the Retail default anchor (TOPRIGHT −110, −275): "All Objectives" and "Quests" headers with collapse buttons, one block per watched quest in watch order with POI button, title, `current/required text` lines (dash; finished lines checked and grey), finished quests show only their completion log text or "Ready for turn-in"; hidden with nothing watched; clicking a title or POI opens the quest log on that quest. Edit-mode movable by name.
+- [x] Quest log `QuestLogFrame` (L, Panel): `Quests: n/35`, groups by `QuestSortID` (area name) with collapsible headers, selected quest details (title, objectives text, objective lines, description and rewards when shown by a giver this session), Abandon behind the Retail `ABANDON_QUEST` popup, Track/Untrack via `SetQuestWatched`.
+- [x] Markers: every mirrored NPC with `QUESTGIVER` is queried with `QuestGiverStatusQuery`; `interface/buttons/talktome*.m2` floats above it (yellow `!` Available, yellow `?` Reward, grey `!` Unavailable, grey `?` Incomplete; trivial `LowLevelAvailable` hidden as with Retail's default tracking), animated, facing the camera.
+- [ ] Quest log description and rewards for quests accepted in an earlier session: `QuestEntrySnapshot` carries neither (protocol gap).
+- [ ] Negative `QuestSortID` headers (class/profession sorts) show "Unknown": no `QuestSort` table in `data/`.
+- [ ] NPC portrait in the frame's portrait ring; scroll frames for texts taller than the parchment; POI map blobs; super-tracking.
+
+## Tests asserting this spec
+
+- `src/game/quest_runtime_tests.rs` — log deltas and accept lines, quest list per NPC, reward choice bounds, turn-in lines, token substitution.
+- `src/game/networking/quests_tests.rs` — message handlers through inboxes: gossip → Hello request, turn-in + chain offer in one batch, errors, IPC status, markers.
+- `src/scenes/quest_ui/{actions,view}_tests.rs`, `tests.rs` — click actions → requests, abandon popup, track, window reconcile, view models.
+- `src/ui/screens/{objective_tracker,quest_frame,quest_log_frame}_component_tests.rs` — rendered frames, text, anchors, actions.
+- `tests/unit/target_tests/world_camera.rs` — right-click ray → `NpcInteractionRequest::Interact`.
+- Live evidence: `data/diagnostics/quest-ui-20260924/` (headless client, shared dev server).
