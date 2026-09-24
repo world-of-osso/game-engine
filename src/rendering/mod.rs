@@ -102,3 +102,7 @@ pub mod unit_frames;
 pub mod world_builder;
 #[path = "ui/wow_cursor.rs"]
 pub mod wow_cursor;
+
+#[cfg(test)]
+#[path = "hud_layout_tests.rs"]
+mod hud_layout_tests;
