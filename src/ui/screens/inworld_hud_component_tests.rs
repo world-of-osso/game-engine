@@ -216,18 +216,30 @@ fn coord_bag_slot_spacing() {
     let reg = layout_registry();
     let backpack = rect(&reg, "MainMenuBarBackpackButton");
     let bag0 = rect(&reg, "CharacterBag0Slot");
-    let spacing = bag0.x - backpack.x;
+    let bag1 = rect(&reg, "CharacterBag1Slot");
+    // Retail order: bags to the left of the backpack, bag 0 nearest it.
+    assert!(
+        (backpack.x - (bag0.x + BAG_SLOT_SIZE + BAG_SLOT_GAP)).abs() < 1.0,
+        "bag0 {bag0:?} next to backpack {backpack:?}"
+    );
+    let spacing = bag0.x - bag1.x;
     let expected = BAG_SLOT_SIZE + BAG_SLOT_GAP;
     assert!(
         (spacing - expected).abs() < 1.0,
         "bag slot spacing: expected {expected}, got {spacing}"
     );
+    assert!((backpack.y + backpack.height - (bag0.y + bag0.height)).abs() < 1.0);
 }
 
 #[test]
 fn coord_bag_slot_dimensions() {
     let reg = layout_registry();
-    let slot = rect(&reg, "MainMenuBarBackpackButton");
+    let backpack = rect(&reg, "MainMenuBarBackpackButton");
+    assert_eq!(
+        (backpack.width, backpack.height),
+        (BACKPACK_SIZE, BACKPACK_SIZE)
+    );
+    let slot = rect(&reg, "CharacterBag0Slot");
     assert!(
         (slot.width - BAG_SLOT_SIZE).abs() < 1.0,
         "width: expected {BAG_SLOT_SIZE}, got {}",
