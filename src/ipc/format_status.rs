@@ -591,6 +591,9 @@ fn format_secondary_resource(value: Option<&crate::status::SecondaryResourceEntr
             crate::status::SecondaryResourceKindEntry::HolyPower => "holy_power",
             crate::status::SecondaryResourceKindEntry::Chi => "chi",
             crate::status::SecondaryResourceKindEntry::Essence => "essence",
+            crate::status::SecondaryResourceKindEntry::SoulShards => "soul_shards",
+            crate::status::SecondaryResourceKindEntry::ArcaneCharges => "arcane_charges",
+            crate::status::SecondaryResourceKindEntry::Runes => "runes",
         },
         value.current,
         value.max

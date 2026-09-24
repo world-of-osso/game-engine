@@ -1,33 +1,37 @@
 use bevy::prelude::*;
-use shared::components::{Health as NetHealth, Mana as NetMana, Npc, Player as NetPlayer};
+use bevy::window::PrimaryWindow;
+use shared::components::{
+    Health as NetHealth, Npc, Player as NetPlayer, UnitLevel, UnitPowers, UnitTarget,
+};
 
 use crate::client_options::{GraphicsOptions, HudVisibilityToggles};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
+use crate::ui_input::walk_up_for_onclick;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
-use game_engine::char_create_data::class_by_id;
-use game_engine::status::{CharacterStatsSnapshot, RestAreaKindEntry};
-use game_engine::targeting::CurrentTarget;
+use game_engine::network_runtime::replication::ReplicationMirrorMap;
+use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
+use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
+use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
+use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PLAYER_HEALTH_BAR_W, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W,
-    TargetAuraIconState, UNKNOWN_PORTRAIT_TEXTURE_FILE, UnitFrameState, default_player_frame_state,
-    fallback_target_frame_state, fill_width, format_value_text, inworld_unit_frames_screen,
-    missing_target_name,
+    ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_SET_FOCUS, InWorldUnitFramesState,
+    PowerBarState, SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState,
+    UnitFrameState, UnitReaction, format_value_text, fraction, inworld_unit_frames_screen,
+    unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
-
-#[path = "player_portrait.rs"]
-mod player_portrait;
 
 type UnitComponents<'a> = (
     Option<&'a NetPlayer>,
     Option<&'a NetHealth>,
-    Option<&'a NetMana>,
+    Option<&'a UnitPowers>,
     Option<&'a Npc>,
     Option<&'a Name>,
     Option<&'a UnitAuraState>,
+    Option<&'a UnitLevel>,
 );
 
 struct InWorldUnitFramesRes {
@@ -44,10 +48,41 @@ struct InWorldUnitFramesWrap(InWorldUnitFramesRes);
 #[derive(Resource, Clone, PartialEq)]
 struct InWorldUnitFramesModel(InWorldUnitFramesState);
 
+/// Right-click menu on a unit frame; `unit` is the entity the menu acts on.
+#[derive(Resource, Default, Clone, PartialEq)]
+struct UnitFrameMenu {
+    unit: Option<Entity>,
+    state: UnitFrameMenuState,
+}
+
+/// Entities currently shown by each cluster frame.
+#[derive(Clone, Copy, Default)]
+struct FrameUnits {
+    player: Option<Entity>,
+    target: Option<Entity>,
+    target_of_target: Option<Entity>,
+    focus: Option<Entity>,
+}
+
+impl FrameUnits {
+    fn for_root(&self, root: &str) -> Option<Entity> {
+        match root {
+            "PlayerFrame" => self.player,
+            "TargetFrame" => self.target,
+            "TargetOfTargetFrame" => self.target_of_target,
+            "FocusFrame" => self.focus,
+            _ => None,
+        }
+    }
+}
+
 pub struct InWorldUnitFramesPlugin;
 
 impl Plugin for InWorldUnitFramesPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<FocusTarget>();
+        app.init_resource::<UnitFrameMenu>();
+        app.add_message::<SetFocus>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_inworld_unit_frames_ui.run_if(inworld_scene_stage_allows_ui),
@@ -56,37 +91,66 @@ impl Plugin for InWorldUnitFramesPlugin {
         app.add_systems(
             Update,
             (
+                handle_unit_frame_pointer,
+                apply_set_focus,
                 sync_inworld_unit_frames_root_size,
                 sync_inworld_unit_frames_ui,
             )
+                .chain()
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }
 
+#[derive(bevy::ecs::system::SystemParam)]
+struct FrameUnitSources<'w, 's> {
+    local_player: Query<'w, 's, Entity, With<LocalPlayer>>,
+    unit_targets: Query<'w, 's, &'static UnitTarget>,
+    mirror: Option<Res<'w, ReplicationMirrorMap>>,
+    current_target: Res<'w, CurrentTarget>,
+    focus: Res<'w, FocusTarget>,
+}
+
+impl FrameUnitSources<'_, '_> {
+    /// `UnitTarget` carries server entity bits; map them to the local mirror entity.
+    fn unit_target_of(&self, entity: Entity) -> Option<Entity> {
+        let bits = self.unit_targets.get(entity).ok()?.0?;
+        let server = Entity::try_from_bits(bits)?;
+        self.mirror.as_deref()?.server_to_main(server)
+    }
+
+    fn frame_units(&self) -> FrameUnits {
+        let target = self.current_target.0;
+        FrameUnits {
+            player: self.local_player.iter().next(),
+            target,
+            target_of_target: target.and_then(|entity| self.unit_target_of(entity)),
+            focus: self.focus.0,
+        }
+    }
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct UnitFrameSources<'w, 's> {
+    units: FrameUnitSources<'w, 's>,
+    player_query: Query<'w, 's, UnitComponents<'static>, With<LocalPlayer>>,
+    entity_query: Query<'w, 's, UnitComponents<'static>>,
+    character_stats: Option<Res<'w, CharacterStatsSnapshot>>,
+    aura_state: Option<Res<'w, AuraState>>,
+    menu: Res<'w, UnitFrameMenu>,
+    hud_visibility: Option<Res<'w, HudVisibilityToggles>>,
+    graphics_options: Option<Res<'w, GraphicsOptions>>,
+}
+
 fn build_inworld_unit_frames_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
-    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
-    player_query: Query<(Entity, UnitComponents), With<LocalPlayer>>,
-    entity_query: Query<UnitComponents>,
-    character_stats: Option<Res<CharacterStatsSnapshot>>,
-    aura_state: Option<Res<AuraState>>,
-    current_target: Res<CurrentTarget>,
-    hud_visibility: Option<Res<HudVisibilityToggles>>,
-    graphics_options: Option<Res<GraphicsOptions>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
+    sources: UnitFrameSources,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(
-        character_stats.as_deref(),
-        aura_state.as_deref(),
-        &current_target,
-        &player_query,
-        &entity_query,
-        hud_visibility.as_deref(),
-        graphics_options.as_deref(),
-    );
+    let state = build_state(&sources);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(inworld_unit_frames_screen);
@@ -108,11 +172,12 @@ fn teardown_inworld_unit_frames_ui(
     }
     commands.remove_resource::<InWorldUnitFramesWrap>();
     commands.remove_resource::<InWorldUnitFramesModel>();
+    commands.insert_resource(UnitFrameMenu::default());
 }
 
 fn sync_inworld_unit_frames_root_size(
     mut ui: ResMut<UiState>,
-    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    windows: Query<&Window, With<PrimaryWindow>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
 }
@@ -121,27 +186,13 @@ fn sync_inworld_unit_frames_ui(
     mut ui: ResMut<UiState>,
     mut screen_wrap: Option<ResMut<InWorldUnitFramesWrap>>,
     mut last_model: Option<ResMut<InWorldUnitFramesModel>>,
-    player_query: Query<(Entity, UnitComponents), With<LocalPlayer>>,
-    entity_query: Query<UnitComponents>,
-    character_stats: Option<Res<CharacterStatsSnapshot>>,
-    aura_state: Option<Res<AuraState>>,
-    current_target: Res<CurrentTarget>,
-    hud_visibility: Option<Res<HudVisibilityToggles>>,
-    graphics_options: Option<Res<GraphicsOptions>>,
+    sources: UnitFrameSources,
 ) {
     let (Some(mut screen_wrap), Some(mut last_model)) = (screen_wrap.take(), last_model.take())
     else {
         return;
     };
-    let state = build_state(
-        character_stats.as_deref(),
-        aura_state.as_deref(),
-        &current_target,
-        &player_query,
-        &entity_query,
-        hud_visibility.as_deref(),
-        graphics_options.as_deref(),
-    );
+    let state = build_state(&sources);
     if last_model.0 == state {
         return;
     }
@@ -151,71 +202,90 @@ fn sync_inworld_unit_frames_ui(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
-fn build_state(
-    character_stats: Option<&CharacterStatsSnapshot>,
-    aura_state: Option<&AuraState>,
-    current_target: &CurrentTarget,
-    player_query: &Query<(Entity, UnitComponents), With<LocalPlayer>>,
-    entity_query: &Query<UnitComponents>,
-    hud_visibility: Option<&HudVisibilityToggles>,
-    graphics_options: Option<&GraphicsOptions>,
-) -> InWorldUnitFramesState {
-    let visibility = hud_visibility.cloned().unwrap_or_default();
-    let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    let local_player = player_query
+fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
+    let visibility = sources
+        .hud_visibility
+        .as_deref()
+        .cloned()
+        .unwrap_or_default();
+    let colorblind_mode = sources
+        .graphics_options
+        .as_deref()
+        .is_some_and(|graphics| graphics.colorblind_mode);
+    let stats = sources.character_stats.as_deref();
+    let units = sources.units.frame_units();
+    let player = sources
+        .player_query
         .iter()
         .next()
-        .map(|(entity, unit)| (entity, build_player_state(character_stats, unit)));
-    let player = local_player
-        .as_ref()
-        .map(|(_, state)| state.clone())
-        .unwrap_or_else(default_player_frame_state);
-    let target = current_target
-        .0
-        .and_then(|entity| entity_query.get(entity).ok())
-        .map(|unit| {
-            build_target_state(
-                current_target.0,
-                local_player.as_ref().map(|(entity, _)| *entity),
-                unit,
-                aura_state,
-                colorblind_mode,
-            )
-        });
+        .map(|unit| build_player_state(stats, unit))
+        .unwrap_or_else(|| UnitFrameState::named("Player"));
+    let player_level = local_player_level(sources, stats);
+    let unit_state = |entity: Option<Entity>| {
+        let entity = entity?;
+        let unit = sources.entity_query.get(entity).ok()?;
+        Some(build_target_state(player_level, unit))
+    };
+    let mut target = unit_state(units.target);
+    if let (Some(target), Some(entity)) = (target.as_mut(), units.target) {
+        let unit_auras = sources
+            .entity_query
+            .get(entity)
+            .ok()
+            .and_then(|unit| unit.5);
+        populate_target_auras(
+            target,
+            Some(entity),
+            units.player,
+            unit_auras,
+            sources.aura_state.as_deref(),
+            colorblind_mode,
+        );
+    }
     InWorldUnitFramesState {
         show_player_frame: visibility.show_player_frame,
         show_target_frame: visibility.show_target_frame,
         player,
         target,
+        target_of_target: unit_state(units.target_of_target)
+            .as_ref()
+            .map(SmallUnitFrameState::from),
+        focus: unit_state(units.focus)
+            .as_ref()
+            .map(SmallUnitFrameState::from),
+        menu: sources.menu.state.clone(),
     }
+}
+
+/// `UnitLevel` once the server sends it for players; until then the character list level.
+fn local_player_level(
+    sources: &UnitFrameSources,
+    stats: Option<&CharacterStatsSnapshot>,
+) -> Option<u16> {
+    let replicated = sources
+        .player_query
+        .iter()
+        .next()
+        .and_then(|unit| unit.6)
+        .map(|level| u16::from(level.0));
+    replicated.or_else(|| stats.and_then(|stats| stats.level))
 }
 
 fn build_player_state(
     character_stats: Option<&CharacterStatsSnapshot>,
-    (player, health, mana, _npc, name, _auras): UnitComponents,
+    (player, health, powers, _npc, name, _auras, level): UnitComponents,
 ) -> UnitFrameState {
-    let mut state = default_player_frame_state();
-    populate_player_identity(&mut state, player, character_stats, name);
-    populate_player_resources(&mut state, health, mana);
-    state
-}
-
-fn populate_player_identity(
-    state: &mut UnitFrameState,
-    player: Option<&NetPlayer>,
-    character_stats: Option<&CharacterStatsSnapshot>,
-    name: Option<&Name>,
-) {
-    state.portrait_texture_file = portrait_texture_for_player(player, character_stats);
-    state.secondary_resource = character_stats.and_then(|stats| stats.secondary_resource.clone());
-    state.name = resolve_player_name(player, character_stats, name);
-    state.level_text = character_stats
-        .and_then(|stats| stats.level)
+    let mut state = UnitFrameState::named(resolve_player_name(player, character_stats, name));
+    state.level_text = level
+        .map(|level| u16::from(level.0))
+        .or_else(|| character_stats.and_then(|stats| stats.level))
         .map(|level| level.to_string())
         .unwrap_or_default();
-    state.resting_text = character_stats.map(resting_text).unwrap_or_default();
     state.show_combat_icon = character_stats.is_some_and(|stats| stats.in_combat);
     state.show_resting_icon = character_stats.is_some_and(|stats| stats.in_rest_area);
+    state.secondary_resource = powers.and_then(SecondaryResourceEntry::from_unit_powers);
+    populate_resources(&mut state, health, powers);
+    state
 }
 
 fn resolve_player_name(
@@ -230,49 +300,15 @@ fn resolve_player_name(
         .unwrap_or_else(|| "Player".to_string())
 }
 
-fn populate_player_resources(
-    state: &mut UnitFrameState,
-    health: Option<&NetHealth>,
-    mana: Option<&NetMana>,
-) {
-    populate_resource_bars(
-        state,
-        health,
-        mana,
-        PLAYER_HEALTH_BAR_W,
-        PLAYER_HEALTH_BAR_W,
-    );
-}
-
 fn build_target_state(
-    target_entity: Option<Entity>,
-    local_player_entity: Option<Entity>,
-    (player, health, mana, npc, name, unit_auras): UnitComponents,
-    local_auras: Option<&AuraState>,
-    colorblind_mode: bool,
+    player_level: Option<u16>,
+    (player, health, powers, npc, name, _auras, level): UnitComponents,
 ) -> UnitFrameState {
-    let mut state = fallback_target_frame_state();
-    populate_target_identity(&mut state, player, npc, name);
-    populate_target_resources(&mut state, health, mana);
-    populate_target_auras(
-        &mut state,
-        target_entity,
-        local_player_entity,
-        unit_auras,
-        local_auras,
-        colorblind_mode,
-    );
+    let mut state = UnitFrameState::named(resolve_target_name(player, npc, name));
+    state.level_text = target_level_text(level.map(|level| level.0), player_level);
+    state.reaction = Some(unit_reaction(player));
+    populate_resources(&mut state, health, powers);
     state
-}
-
-fn populate_target_identity(
-    state: &mut UnitFrameState,
-    player: Option<&NetPlayer>,
-    npc: Option<&Npc>,
-    name: Option<&Name>,
-) {
-    state.portrait_texture_file = portrait_texture_for_target(player);
-    state.name = resolve_target_name(player, npc, name);
 }
 
 fn resolve_target_name(
@@ -282,71 +318,164 @@ fn resolve_target_name(
 ) -> String {
     player
         .map(|player| player.name.clone())
-        .or_else(|| npc.map(|npc| format!("Creature {}", npc.template_id)))
+        .or_else(|| npc.map(|npc| npc.name.clone()))
         .or_else(|| name.map(|name| name.as_str().to_string()))
-        .unwrap_or_else(|| missing_target_name().to_string())
+        .unwrap_or_else(|| "Unknown".to_string())
 }
 
-fn populate_target_resources(
+/// Retail hides the level of units 10 or more levels above the player behind "??".
+fn target_level_text(level: Option<u8>, player_level: Option<u16>) -> String {
+    match (level, player_level) {
+        (Some(level), Some(player)) if u16::from(level) >= player + 10 => "??".into(),
+        (Some(level), _) => level.to_string(),
+        (None, _) => String::new(),
+    }
+}
+
+/// Interim reaction: the client has no FactionTemplate/Faction data yet, and the server gives
+/// every NPC a `UnitFactionTemplate`, so its presence says nothing about hostility. Players are
+/// friendly (no PvP); NPCs neutral. Retire when FactionTemplate rows reach the client.
+fn unit_reaction(player: Option<&NetPlayer>) -> UnitReaction {
+    if player.is_some() {
+        UnitReaction::Friendly
+    } else {
+        UnitReaction::Neutral
+    }
+}
+
+fn populate_resources(
     state: &mut UnitFrameState,
     health: Option<&NetHealth>,
-    mana: Option<&NetMana>,
+    powers: Option<&UnitPowers>,
 ) {
-    populate_resource_bars(state, health, mana, TARGET_HEALTH_BAR_W, TARGET_MANA_BAR_W);
+    if let Some(health) = health {
+        state.health_text = format_value_text(health.current, health.max);
+        state.health_fraction = fraction(health.current, health.max);
+    }
+    state.power = powers.and_then(PowerBarState::primary);
 }
 
-fn populate_resource_bars(
-    state: &mut UnitFrameState,
-    health: Option<&NetHealth>,
-    mana: Option<&NetMana>,
-    health_bar_width: f32,
-    mana_bar_width: f32,
+fn handle_unit_frame_pointer(
+    windows: Query<&Window, With<PrimaryWindow>>,
+    mouse: Option<Res<ButtonInput<MouseButton>>>,
+    ui: Res<UiState>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    model: Option<Res<InWorldUnitFramesModel>>,
+    sources: FrameUnitSources,
+    mut menu: ResMut<UnitFrameMenu>,
+    mut set_focus: MessageWriter<SetFocus>,
 ) {
-    state.health_text = format_value_text(
-        health.map(|health| health.current),
-        health.map(|health| health.max),
-    );
-    state.mana_text = format_value_text(mana.map(|mana| mana.current), mana.map(|mana| mana.max));
-    state.health_fill_width = fill_width(
-        health_bar_width,
-        health.map(|health| health.current),
-        health.map(|health| health.max),
-    );
-    state.mana_fill_width = fill_width(
-        mana_bar_width,
-        mana.map(|mana| mana.current),
-        mana.map(|mana| mana.max),
-    );
-    state.has_mana = mana.is_some();
-}
-
-fn portrait_texture_for_player(
-    player: Option<&NetPlayer>,
-    character_stats: Option<&CharacterStatsSnapshot>,
-) -> String {
-    let class_id = player
-        .map(|player| player.class)
-        .or_else(|| character_stats.and_then(|stats| stats.class));
-    player_portrait::load_player_portrait(class_id)
-}
-
-fn portrait_texture_for_target(player: Option<&NetPlayer>) -> String {
-    portrait_texture_for_class(player.map(|player| player.class))
-}
-
-fn portrait_texture_for_class(class_id: Option<u8>) -> String {
-    let Some(class) = class_id.and_then(class_by_id) else {
-        return UNKNOWN_PORTRAIT_TEXTURE_FILE.to_string();
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
+        return;
+    }
+    let (Some(mouse), Some(model)) = (mouse, model) else {
+        return;
     };
-    match game_engine::asset::asset_cache::texture(class.icon_fdid) {
-        Some(path) => path.to_string_lossy().into_owned(),
-        None => {
-            warn!(
-                "Cannot resolve target portrait icon {} from local CASC",
-                class.icon_fdid
-            );
-            String::new()
+    let button = if mouse.just_pressed(MouseButton::Right) {
+        MouseButton::Right
+    } else if mouse.just_pressed(MouseButton::Left) {
+        MouseButton::Left
+    } else {
+        return;
+    };
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
+        return;
+    };
+    let units = sources.frame_units();
+    let click = UnitFrameClick {
+        registry: &ui.registry,
+        model: &model.0,
+        units: &units,
+    };
+    if let Some(request) = click.handle(cursor, button, &mut menu) {
+        set_focus.write(request);
+    }
+}
+
+struct UnitFrameClick<'a> {
+    registry: &'a FrameRegistry,
+    model: &'a InWorldUnitFramesState,
+    units: &'a FrameUnits,
+}
+
+impl UnitFrameClick<'_> {
+    /// Right-click on a cluster frame opens the menu for its unit; a left-click on a menu
+    /// entry runs it. Any other click closes the menu.
+    fn handle(
+        &self,
+        cursor: Vec2,
+        button: MouseButton,
+        menu: &mut UnitFrameMenu,
+    ) -> Option<SetFocus> {
+        let frame = find_frame_at(self.registry, cursor.x, cursor.y);
+        if button == MouseButton::Right {
+            *menu = frame
+                .and_then(|frame| self.menu_for(frame, cursor))
+                .unwrap_or_default();
+            return None;
         }
+        let action = frame.and_then(|frame| walk_up_for_onclick(self.registry, frame));
+        let request = match action.as_deref() {
+            Some(ACTION_UNIT_MENU_SET_FOCUS) => menu.unit.map(SetFocus::Unit),
+            Some(ACTION_UNIT_MENU_CLEAR_FOCUS) => Some(SetFocus::Clear),
+            _ => None,
+        };
+        if menu.state.visible {
+            *menu = UnitFrameMenu::default();
+        }
+        request
+    }
+
+    fn menu_for(&self, frame: u64, cursor: Vec2) -> Option<UnitFrameMenu> {
+        let root = cluster_root_name(self.registry, frame)?;
+        let unit = self.units.for_root(root)?;
+        let max_x = (self.registry.screen_width - UNIT_MENU_W).max(0.0);
+        let max_y = (self.registry.screen_height - unit_menu_height()).max(0.0);
+        Some(UnitFrameMenu {
+            unit: Some(unit),
+            state: UnitFrameMenuState {
+                visible: true,
+                title: self.unit_name(root),
+                x: cursor.x.clamp(0.0, max_x),
+                y: cursor.y.clamp(0.0, max_y),
+            },
+        })
+    }
+
+    fn unit_name(&self, root: &str) -> String {
+        let model = self.model;
+        match root {
+            "PlayerFrame" => Some(model.player.name.clone()),
+            "TargetFrame" => model.target.as_ref().map(|unit| unit.name.clone()),
+            "TargetOfTargetFrame" => model
+                .target_of_target
+                .as_ref()
+                .map(|unit| unit.name.clone()),
+            "FocusFrame" => model.focus.as_ref().map(|unit| unit.name.clone()),
+            _ => None,
+        }
+        .unwrap_or_default()
+    }
+}
+
+fn cluster_root_name(registry: &FrameRegistry, mut frame: u64) -> Option<&'static str> {
+    const ROOTS: [&str; 4] = [
+        "PlayerFrame",
+        "TargetFrame",
+        "TargetOfTargetFrame",
+        "FocusFrame",
+    ];
+    loop {
+        let data = registry.get(frame)?;
+        if let Some(root) = ROOTS
+            .into_iter()
+            .find(|root| data.name.as_deref() == Some(*root))
+        {
+            return Some(root);
+        }
+        frame = data.parent_id?;
     }
 }
 
@@ -404,284 +533,21 @@ fn target_aura_icon(aura: &AuraInstance, colorblind_mode: bool) -> TargetAuraIco
     }
 }
 
-fn resting_text(stats: &CharacterStatsSnapshot) -> String {
-    if stats.in_rest_area {
-        return "Resting".into();
-    }
-    if stats.rested_xp > 0 {
-        return match stats.rest_area_kind {
-            Some(RestAreaKindEntry::City) => "Rested (city)".into(),
-            Some(RestAreaKindEntry::Inn) => "Rested (inn)".into(),
-            None => "Rested".into(),
-        };
-    }
-    String::new()
-}
-
 #[cfg(test)]
-#[path = "unit_frames_gpu_tests.rs"]
-mod gpu_tests;
+#[path = "../../ui/screens/menu_character_layout_test_support.rs"]
+mod layout_test_support;
 
 #[cfg(test)]
 mod tests {
+    use super::layout_test_support::compute_layout;
     use super::*;
+    use game_engine::buff_data::{self, DebuffType, textures};
+    use game_engine::ui::event::EventBus;
+    use game_engine::ui::frame::{Dimension, WidgetData};
+    use game_engine::ui::screens::inworld_unit_frames_component::{BAR_W, power_bar_color};
+    use shared::components::{PowerEntry, PowerType, UnitFactionTemplate};
 
-    #[test]
-    fn player_portrait_loads_cached_artwork_with_transparent_corners() {
-        let player = NetPlayer {
-            name: "Theron".into(),
-            race: 1,
-            class: 1,
-            appearance: default(),
-        };
-        let path = portrait_texture_for_player(Some(&player), None);
-        assert!(
-            std::path::Path::new(&path).is_file(),
-            "player portrait must resolve to a real cached image: {path}"
-        );
-        let image = image::open(&path)
-            .expect("load prepared portrait")
-            .to_rgba8();
-        assert_eq!(
-            (image.width(), image.height()),
-            (111, 113),
-            "use the actual artwork aperture, not a smaller circle"
-        );
-        for (x, y) in [(0, 0), (image.width() - 1, 0), (0, image.height() - 1)] {
-            assert_eq!(
-                image.get_pixel(x, y)[3],
-                0,
-                "portrait corners must fit inside the gold aperture"
-            );
-        }
-        assert!(image.get_pixel(image.width() / 2, image.height() / 2)[3] > 0);
-        assert!(
-            image.get_pixel(image.width() * 9 / 10, image.height() * 9 / 10)[3] > 0,
-            "portrait must fill the artwork's square lower-right opening"
-        );
-    }
-    use bevy::window::PrimaryWindow;
-    use game_engine::buff_data::{self, DebuffType, UnitAuraState, textures};
-    use game_engine::targeting::CurrentTarget;
-    use game_engine::ui::plugin::UiState;
-    use game_engine::ui::{event::EventBus, registry::FrameRegistry};
-
-    #[test]
-    fn target_state_uses_player_name_when_available() {
-        let player = NetPlayer {
-            name: "Thrall".to_string(),
-            race: 0,
-            class: 7,
-            appearance: default(),
-        };
-        let state = build_target_state(
-            None,
-            None,
-            (Some(&player), None, None, None, None, None),
-            None,
-            false,
-        );
-        assert_eq!(state.name, "Thrall");
-        assert!(
-            state
-                .portrait_texture_file
-                .ends_with("ClassIcon_Shaman.blp")
-        );
-    }
-
-    #[test]
-    fn target_state_falls_back_to_npc_template_label() {
-        let npc = Npc {
-            template_id: 42,
-            name: "Fixture wolf".into(),
-        };
-        let state = build_target_state(
-            None,
-            None,
-            (None, None, None, Some(&npc), None, None),
-            None,
-            false,
-        );
-        assert_eq!(state.name, "Creature 42");
-        assert_eq!(state.portrait_texture_file, UNKNOWN_PORTRAIT_TEXTURE_FILE);
-    }
-
-    #[test]
-    fn player_state_uses_class_icon_from_character_stats() {
-        let stats = CharacterStatsSnapshot {
-            class: Some(2),
-            ..CharacterStatsSnapshot::default()
-        };
-        let state = build_player_state(Some(&stats), (None, None, None, None, None, None));
-        assert!(state.portrait_texture_file.ends_with("-aperture-v1.png"));
-    }
-
-    #[test]
-    fn player_state_uses_secondary_resource_from_character_stats() {
-        let stats = CharacterStatsSnapshot {
-            class: Some(2),
-            secondary_resource: Some(game_engine::status::SecondaryResourceEntry {
-                kind: game_engine::status::SecondaryResourceKindEntry::HolyPower,
-                current: 3,
-                max: 5,
-            }),
-            ..CharacterStatsSnapshot::default()
-        };
-        let state = build_player_state(Some(&stats), (None, None, None, None, None, None));
-        assert_eq!(
-            state.secondary_resource,
-            Some(game_engine::status::SecondaryResourceEntry {
-                kind: game_engine::status::SecondaryResourceKindEntry::HolyPower,
-                current: 3,
-                max: 5,
-            })
-        );
-    }
-
-    #[test]
-    fn target_state_uses_unit_aura_component_for_target_icons() {
-        let name = Name::new("Target");
-        let auras = UnitAuraState {
-            auras: vec![
-                buff_data::AuraInstance {
-                    spell_id: 1,
-                    name: "Fortitude".into(),
-                    description: String::new(),
-                    icon_fdid: textures::FORTITUDE,
-                    source: "Priest".into(),
-                    duration: 120.0,
-                    remaining: 25.2,
-                    stacks: 1,
-                    is_debuff: false,
-                    debuff_type: DebuffType::None,
-                },
-                buff_data::AuraInstance {
-                    spell_id: 2,
-                    name: "Pain".into(),
-                    description: String::new(),
-                    icon_fdid: textures::SHADOW_WORD_PAIN,
-                    source: "Priest".into(),
-                    duration: 18.0,
-                    remaining: 4.4,
-                    stacks: 3,
-                    is_debuff: true,
-                    debuff_type: DebuffType::Magic,
-                },
-            ],
-        };
-
-        let state = build_target_state(
-            None,
-            None,
-            (None, None, None, None, Some(&name), Some(&auras)),
-            None,
-            false,
-        );
-
-        assert_eq!(state.target_buffs.len(), 1);
-        assert_eq!(state.target_buffs[0].icon_fdid, textures::FORTITUDE);
-        assert_eq!(state.target_buffs[0].timer_text, "26s");
-        assert_eq!(state.target_debuffs.len(), 1);
-        assert_eq!(
-            state.target_debuffs[0].icon_fdid,
-            textures::SHADOW_WORD_PAIN
-        );
-        assert_eq!(state.target_debuffs[0].stacks, 3);
-        assert_eq!(
-            state.target_debuffs[0].border_color,
-            DebuffType::Magic.border_color()
-        );
-    }
-
-    #[test]
-    fn target_state_uses_colorblind_debuff_borders_when_enabled() {
-        let name = Name::new("Target");
-        let auras = UnitAuraState {
-            auras: vec![buff_data::AuraInstance {
-                spell_id: 2,
-                name: "Poison".into(),
-                description: String::new(),
-                icon_fdid: textures::NULLIFY_POISON,
-                source: "Rogue".into(),
-                duration: 12.0,
-                remaining: 6.2,
-                stacks: 1,
-                is_debuff: true,
-                debuff_type: DebuffType::Poison,
-            }],
-        };
-
-        let state = build_target_state(
-            None,
-            None,
-            (None, None, None, None, Some(&name), Some(&auras)),
-            None,
-            true,
-        );
-
-        assert_eq!(
-            state.target_debuffs[0].border_color,
-            DebuffType::Poison.border_color_for_mode(true)
-        );
-    }
-
-    #[test]
-    fn target_state_uses_local_aura_state_when_targeting_self() {
-        let local_auras = AuraState {
-            auras: vec![buff_data::AuraInstance {
-                spell_id: 3,
-                name: "Mark".into(),
-                description: String::new(),
-                icon_fdid: textures::MARK_OF_WILD,
-                source: "Druid".into(),
-                duration: 3600.0,
-                remaining: 3600.0,
-                stacks: 1,
-                is_debuff: false,
-                debuff_type: DebuffType::None,
-            }],
-        };
-
-        let state = build_target_state(
-            Some(Entity::from_bits(1)),
-            Some(Entity::from_bits(1)),
-            (None, None, None, None, None, None),
-            Some(&local_auras),
-            false,
-        );
-
-        assert_eq!(state.target_buffs.len(), 1);
-        assert_eq!(state.target_buffs[0].icon_fdid, textures::MARK_OF_WILD);
-        assert!(state.target_debuffs.is_empty());
-    }
-
-    #[test]
-    fn player_state_shows_combat_icon_when_snapshot_is_in_combat() {
-        let player = NetPlayer {
-            name: "Thrall".to_string(),
-            race: 0,
-            class: 0,
-            appearance: default(),
-        };
-        let health = NetHealth {
-            current: 100.0,
-            max: 100.0,
-        };
-        let stats = CharacterStatsSnapshot {
-            in_combat: true,
-            ..Default::default()
-        };
-
-        let state = build_player_state(
-            Some(&stats),
-            (Some(&player), Some(&health), None, None, None, None),
-        );
-
-        assert!(state.show_combat_icon);
-    }
-
-    #[test]
-    fn inworld_target_frame_unhides_for_self_target() {
+    fn unit_frames_app() -> App {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
         app.init_state::<GameState>();
@@ -693,25 +559,8 @@ mod tests {
         });
         app.insert_resource(CurrentTarget::default());
         app.insert_resource(HudVisibilityToggles::default());
+        app.insert_resource(ButtonInput::<MouseButton>::default());
         app.add_plugins(InWorldUnitFramesPlugin);
-        let player = app
-            .world_mut()
-            .spawn((
-                LocalPlayer,
-                NetPlayer {
-                    name: "Theron".to_string(),
-                    race: 0,
-                    class: 0,
-                    appearance: default(),
-                },
-                NetHealth {
-                    current: 100.0,
-                    max: 100.0,
-                },
-                Name::new("Theron"),
-                UnitAuraState::default(),
-            ))
-            .id();
         app.world_mut().spawn((
             Window {
                 resolution: (1920, 1080).into(),
@@ -719,41 +568,291 @@ mod tests {
             },
             PrimaryWindow,
         ));
+        app
+    }
 
+    fn spawn_local_player(app: &mut App, powers: Vec<PowerEntry>) -> Entity {
+        app.world_mut()
+            .spawn((
+                LocalPlayer,
+                NetPlayer {
+                    name: "Theron".to_string(),
+                    race: 1,
+                    class: 2,
+                    appearance: default(),
+                },
+                NetHealth {
+                    current: 80.0,
+                    max: 100.0,
+                },
+                UnitPowers { entries: powers },
+            ))
+            .id()
+    }
+
+    fn spawn_npc(app: &mut App, name: &str, level: u8) -> Entity {
+        app.world_mut()
+            .spawn((
+                Npc {
+                    template_id: 299,
+                    name: name.into(),
+                },
+                NetHealth {
+                    current: 30.0,
+                    max: 120.0,
+                },
+                UnitLevel(level),
+                UnitFactionTemplate(14),
+            ))
+            .id()
+    }
+
+    fn power(power: PowerType, current: i32, max: i32) -> PowerEntry {
+        PowerEntry {
+            power,
+            current,
+            max,
+        }
+    }
+
+    fn frame<'a>(app: &'a App, name: &str) -> &'a game_engine::ui::frame::Frame {
+        let registry = &app.world().resource::<UiState>().registry;
+        registry
+            .get(registry.get_by_name(name).expect(name))
+            .expect(name)
+    }
+
+    fn text(app: &App, name: &str) -> String {
+        match frame(app, name).widget_data.as_ref() {
+            Some(WidgetData::FontString(text)) => text.text.clone(),
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    fn rgba(color: &str) -> [f32; 4] {
+        let parts: Vec<f32> = color.split(',').map(|part| part.parse().unwrap()).collect();
+        [parts[0], parts[1], parts[2], parts[3]]
+    }
+
+    fn layout(app: &mut App) {
+        compute_layout(&mut app.world_mut().resource_mut::<UiState>().registry);
+    }
+
+    fn click(app: &mut App, name: &str, button: MouseButton) {
+        layout(app);
+        let rect = frame(app, name).layout_rect.clone().expect(name);
+        let centre = Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
+        let mut windows = app
+            .world_mut()
+            .query_filtered::<&mut Window, With<PrimaryWindow>>();
+        windows
+            .single_mut(app.world_mut())
+            .unwrap()
+            .set_cursor_position(Some(centre));
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(button);
         app.update();
-        assert!(
-            target_frame_hidden(&app),
-            "target frame should start hidden"
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .reset_all();
+    }
+
+    #[test]
+    fn rage_raw_units_show_as_display_units_with_rage_colour() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, vec![power(PowerType::Rage, 350, 1000)]);
+        app.update();
+
+        assert_eq!(text(&app, "PlayerManaBarText"), "35 / 100");
+        let fill = frame(&app, "PlayerManaBarFill");
+        assert_eq!(fill.width, Dimension::Fixed(BAR_W * 0.35));
+        assert_eq!(
+            fill.background_color,
+            Some(rgba(power_bar_color(PowerType::Rage)))
         );
+        assert_eq!(fill.background_color, Some([1.0, 0.0, 0.0, 1.0]));
+    }
+
+    #[test]
+    fn holy_power_lights_one_pip_per_point() {
+        let mut app = unit_frames_app();
+        spawn_local_player(
+            &mut app,
+            vec![
+                power(PowerType::Mana, 5000, 10000),
+                power(PowerType::HolyPower, 3, 5),
+            ],
+        );
+        app.update();
+
+        let pip = |index: usize| {
+            frame(&app, &format!("PlayerSecondaryResourcePip{index}")).background_color
+        };
+        let lit = Some([0.95, 0.9, 0.6, 1.0]);
+        assert_eq!([pip(0), pip(1), pip(2)], [lit; 3]);
+        assert_ne!(pip(3), lit);
+        assert_ne!(pip(4), lit);
+        assert!(
+            app.world()
+                .resource::<UiState>()
+                .registry
+                .get_by_name("PlayerSecondaryResourcePip5")
+                .is_none()
+        );
+        assert_eq!(text(&app, "PlayerManaBarText"), "5000 / 10000");
+    }
+
+    #[test]
+    fn target_npc_shows_replicated_name_level_and_neutral_reaction() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(wolf);
+        app.update();
+
+        assert!(!frame(&app, "TargetFrame").hidden);
+        assert_eq!(text(&app, "TargetName"), "Timber Wolf");
+        assert_eq!(text(&app, "TargetLevelText"), "7");
+        assert_eq!(text(&app, "TargetHealthBarText"), "30 / 120");
+        assert_eq!(
+            frame(&app, "TargetHealthBarFill").background_color,
+            Some(rgba(UnitReaction::Neutral.health_color()))
+        );
+        assert!(frame(&app, "TargetManaBar").hidden, "NPC has no powers");
+    }
+
+    #[test]
+    fn target_ten_levels_above_player_shows_question_marks() {
+        let mut app = unit_frames_app();
+        app.insert_resource(CharacterStatsSnapshot {
+            level: Some(70),
+            ..default()
+        });
+        spawn_local_player(&mut app, Vec::new());
+        let boss = spawn_npc(&mut app, "Onyxia", 90);
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(boss);
+        app.update();
+
+        assert_eq!(text(&app, "PlayerLevelText"), "70");
+        assert_eq!(text(&app, "TargetLevelText"), "??");
+    }
+
+    #[test]
+    fn set_focus_message_shows_focus_frame_with_unit_name() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
+        app.update();
+        assert!(frame(&app, "FocusFrame").hidden);
+
+        app.world_mut().write_message(SetFocus::Unit(wolf));
+        app.update();
+
+        assert!(!frame(&app, "FocusFrame").hidden);
+        assert_eq!(text(&app, "FocusName"), "Timber Wolf");
+
+        app.world_mut().write_message(SetFocus::Clear);
+        app.update();
+        assert!(frame(&app, "FocusFrame").hidden);
+    }
+
+    #[test]
+    fn right_click_target_frame_set_focus_focuses_target() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(wolf);
+        app.update();
+
+        click(&mut app, "TargetFrame", MouseButton::Right);
+        app.update();
+        assert!(!frame(&app, "UnitFrameContextMenu").hidden);
+        assert_eq!(text(&app, "UnitFrameContextMenuTitle"), "Timber Wolf");
+
+        click(&mut app, "UnitFrameContextMenuSetFocus", MouseButton::Left);
+        app.update();
+        assert_eq!(app.world().resource::<FocusTarget>().0, Some(wolf));
+        assert!(frame(&app, "UnitFrameContextMenu").hidden);
+        assert_eq!(text(&app, "FocusName"), "Timber Wolf");
+    }
+
+    #[test]
+    fn target_of_target_frame_follows_target_unit_target() {
+        let mut app = unit_frames_app();
+        let player = spawn_local_player(&mut app, Vec::new());
+        let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
+        let server_player = Entity::from_bits(0x0000_0001_0000_002A);
+        let mut mirror = ReplicationMirrorMap::default();
+        mirror.insert(server_player, player);
+        app.insert_resource(mirror);
+        app.world_mut()
+            .entity_mut(wolf)
+            .insert(UnitTarget(Some(server_player.to_bits())));
+        app.update();
+        assert!(frame(&app, "TargetOfTargetFrame").hidden);
+
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(wolf);
+        app.update();
+        assert!(!frame(&app, "TargetOfTargetFrame").hidden);
+        assert_eq!(text(&app, "TargetOfTargetName"), "Theron");
+    }
+
+    #[test]
+    fn target_frame_unhides_for_self_target_and_obeys_hud_toggle() {
+        let mut app = unit_frames_app();
+        let player = spawn_local_player(&mut app, Vec::new());
+        app.update();
+        assert!(frame(&app, "TargetFrame").hidden);
 
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(player);
         app.update();
-
-        assert!(
-            !target_frame_hidden(&app),
-            "target frame should unhide after self-targeting the local player"
-        );
+        assert!(!frame(&app, "TargetFrame").hidden);
+        assert_eq!(text(&app, "TargetName"), "Theron");
 
         app.world_mut()
             .resource_mut::<HudVisibilityToggles>()
             .show_target_frame = false;
         app.update();
-
-        assert!(
-            target_frame_hidden(&app),
-            "target frame should hide when HUD toggle is off"
-        );
+        assert!(frame(&app, "TargetFrame").hidden);
     }
 
-    fn target_frame_hidden(app: &App) -> bool {
-        let ui = app.world().resource::<UiState>();
-        let target_frame = ui
-            .registry
-            .get_by_name("TargetFrame")
-            .expect("TargetFrame should exist");
-        ui.registry
-            .get(target_frame)
-            .expect("TargetFrame should resolve")
-            .hidden
+    #[test]
+    fn target_icons_use_unit_aura_component_with_colorblind_borders() {
+        let mut app = unit_frames_app();
+        app.insert_resource(GraphicsOptions {
+            colorblind_mode: true,
+            ..default()
+        });
+        spawn_local_player(&mut app, Vec::new());
+        let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
+        app.world_mut().entity_mut(wolf).insert(UnitAuraState {
+            auras: vec![buff_data::AuraInstance {
+                spell_id: 2,
+                name: "Poison".into(),
+                description: String::new(),
+                icon_fdid: textures::NULLIFY_POISON,
+                source: "Rogue".into(),
+                duration: 12.0,
+                remaining: 6.2,
+                stacks: 3,
+                is_debuff: true,
+                debuff_type: DebuffType::Poison,
+            }],
+        });
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(wolf);
+        app.update();
+
+        assert!(!frame(&app, "TargetDebuffRow").hidden);
+        assert!(frame(&app, "TargetBuffRow").hidden);
+        assert_eq!(text(&app, "TargetDebuffIcon0Stack"), "3");
+        assert_eq!(
+            frame(&app, "TargetDebuffIcon0").background_color,
+            Some(rgba(DebuffType::Poison.border_color_for_mode(true)))
+        );
     }
 }

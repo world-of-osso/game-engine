@@ -894,3 +894,8 @@ Updated [[ui-system]] (Spellbook and action bars) and [[spell-catalog]] (passive
 ## [2026-09-23] ui | Window manager, movable windows, HUD edit mode
 
 Updated [[ui-system]] (Windows and HUD Edit Mode) and added the [window manager](../specs/window-manager.md) and [HUD edit mode](../specs/hud-edit-mode.md) specs. `WindowManager` replaces per-scene open flags and `InWorldEscapeStack`. Window positions (per character) and edit-mode layouts (account-wide, active per character) persist in `ui_layout.ron`. No native run.
+||||||| parent of 37a601f4 (Combat cluster unit frames: no portraits, UnitPowers bars/pips, focus and target-of-target)
+
+## [2026-09-23] ui | Combat cluster unit frames
+
+Updated [[ui-system]] (Unit Frames). Portrait artwork frames replaced by the accepted combat cluster: compact player/target frames flank the docked `PlayerCastingBarFrame`; target-of-target and focus sit right of the target; party frames left of the player frame. Powers come from replicated `UnitPowers` with `DisplayModifier` scaling; NPC names/levels from `Npc`/`UnitLevel`; focus via `SetFocus`; ToT via replicated `UnitTarget`. Reaction is interim (no client FactionTemplate data). Focused lib (56) and bin (11) tests pass. No native run.

@@ -631,3 +631,31 @@ fn malformed_chat_message_wrong_channel_type() {
     );
     assert!(result.is_err());
 }
+
+#[test]
+fn secondary_resource_reads_first_pip_power_in_display_units() {
+    use shared::components::{PowerEntry, PowerType, UnitPowers};
+    let entry = |power, current, max| PowerEntry {
+        power,
+        current,
+        max,
+    };
+    let warlock = UnitPowers {
+        entries: vec![
+            entry(PowerType::Mana, 5000, 10000),
+            entry(PowerType::SoulShards, 35, 50),
+        ],
+    };
+    assert_eq!(
+        SecondaryResourceEntry::from_unit_powers(&warlock),
+        Some(SecondaryResourceEntry {
+            kind: SecondaryResourceKindEntry::SoulShards,
+            current: 3,
+            max: 5,
+        })
+    );
+    let warrior = UnitPowers {
+        entries: vec![entry(PowerType::Rage, 350, 1000)],
+    };
+    assert_eq!(SecondaryResourceEntry::from_unit_powers(&warrior), None);
+}

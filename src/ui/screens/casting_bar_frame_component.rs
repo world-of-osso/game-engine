@@ -2,11 +2,14 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::ui::screens::inworld_unit_frames_component::{CAST_DOCK_W, CLUSTER_BOTTOM};
+
 #[cfg(test)]
 #[path = "menu_character_layout_test_support.rs"]
 mod layout_test_support;
 
-pub const BAR_W: f32 = 195.0;
+/// The bar fills the combat cluster's cast dock between the player and target frames.
+pub const BAR_W: f32 = CAST_DOCK_W - 8.0;
 pub const BAR_H: f32 = 20.0;
 const BORDER_W: f32 = BAR_W + 8.0;
 const BORDER_H: f32 = BAR_H + 8.0;
@@ -75,14 +78,14 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
     let spark_x = fill_w - SPARK_W / 2.0;
     rsx! {
         r#frame {
-            name: "CastingBarFrame",
+            name: "PlayerCastingBarFrame",
             width: {BORDER_W},
             height: {BORDER_H},
             background_color: BORDER_BG,
             hidden: hide,
             pos_type: "absolute",
             left: "50%",
-            bottom: 150.0,
+            bottom: CLUSTER_BOTTOM,
             translate_x: "-50%",
             {bar_background(fill_w, fill_color, spark_x, &state.spell_name, &state.timer_text)}
         }
@@ -233,7 +236,7 @@ mod tests {
     #[test]
     fn builds_all_elements() {
         let reg = build_registry(0.5);
-        assert!(reg.get_by_name("CastingBarFrame").is_some());
+        assert!(reg.get_by_name("PlayerCastingBarFrame").is_some());
         assert!(reg.get_by_name("CastingBarBackground").is_some());
         assert!(reg.get_by_name("CastingBarFill").is_some());
         assert!(reg.get_by_name("CastingBarSpark").is_some());
@@ -247,7 +250,7 @@ mod tests {
         let mut shared = SharedContext::new();
         shared.insert(CastingBarState::default());
         Screen::new(casting_bar_frame_screen).sync(&shared, &mut reg);
-        let id = reg.get_by_name("CastingBarFrame").expect("frame");
+        let id = reg.get_by_name("PlayerCastingBarFrame").expect("frame");
         assert!(reg.get(id).expect("data").hidden);
     }
 
@@ -288,13 +291,13 @@ mod tests {
     // --- Coord validation ---
 
     #[test]
-    fn coord_frame_centered_bottom() {
+    fn coord_frame_docked_in_cluster_cast_area() {
         let reg = layout_reg(0.5);
-        let r = rect(&reg, "CastingBarFrame");
+        let r = rect(&reg, "PlayerCastingBarFrame");
         let expected_x = (1920.0 - BORDER_W) / 2.0;
         assert!((r.x - expected_x).abs() < 1.0);
-        assert!((r.y + r.height - (1080.0 - 150.0)).abs() < 1.0);
-        assert!((r.width - BORDER_W).abs() < 1.0);
+        assert!((r.y + r.height - (1080.0 - CLUSTER_BOTTOM)).abs() < 1.0);
+        assert!((r.width - CAST_DOCK_W).abs() < 1.0);
         assert!((r.height - BORDER_H).abs() < 1.0);
     }
 
