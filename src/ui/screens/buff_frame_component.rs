@@ -32,8 +32,9 @@ const DURATION_H: f32 = 12.0;
 const ROW_H: f32 = ICON_SIZE + DURATION_H + 2.0;
 const DEBUFF_GAP: f32 = 6.0;
 const FRAME_W: f32 = BUFFS_PER_ROW as f32 * (ICON_SIZE + ICON_GAP) - ICON_GAP;
-/// Minimap cluster (200 wide, 5 from the edge) plus a gap.
-const FRAME_RIGHT: f32 = 215.0;
+/// Retail BuffFrame default `TOPRIGHT` offset -255 (EditModePresetLayouts.lua); clears the
+/// 215-wide minimap cluster 12 from the edge.
+const FRAME_RIGHT: f32 = 255.0;
 const FRAME_TOP: f32 = 10.0;
 
 /// Thin metal edge around buff icons; debuffs use their dispel colour.

@@ -3,7 +3,10 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::guild_frame_component::ACTION_GUILD_TOGGLE;
 
-use super::{DynName, MICRO_BTN_BG, MICRO_BTN_GAP, MICRO_BTN_H, MICRO_BTN_W, MICRO_BUTTONS};
+use super::{
+    DynName, MICRO_BTN_BG, MICRO_BTN_GAP, MICRO_BTN_H, MICRO_BTN_W, MICRO_BUTTONS,
+    MICRO_MENU_BOTTOM, MICRO_MENU_RIGHT,
+};
 
 pub(super) fn micro_menu_bar() -> Element {
     let total_w = micro_menu_bar_width();
@@ -18,8 +21,8 @@ pub(super) fn micro_menu_bar() -> Element {
             width: {total_w},
             height: {MICRO_BTN_H},
             pos_type: "absolute",
-            right: 230.0,
-            bottom: 55.0,
+            right: {MICRO_MENU_RIGHT},
+            bottom: {MICRO_MENU_BOTTOM},
             {buttons}
         }
     }
