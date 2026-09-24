@@ -103,21 +103,50 @@ fn mounts_buffs_and_debuffs_from_aura_state() {
     assert!(registry.get_by_name("BuffButton0").is_some());
     assert!(registry.get_by_name("BuffButton1").is_none());
     assert!(registry.get_by_name("DebuffButton0").is_some());
+    assert!(registry.get_by_name("DebuffFrame").is_some());
     let border = registry.get_by_name("DebuffButton0Border").unwrap();
-    assert_eq!(
-        registry.get(border).unwrap().background_color,
-        Some([0.6, 0.0, 1.0, 1.0])
-    );
+    // ui-debuff-border-curse-icon in the 256x128 atlas.
+    match &registry.get(border).unwrap().widget_data {
+        Some(ui_toolkit::frame::WidgetData::Texture(texture)) => assert_eq!(
+            texture.tex_coords,
+            [1.0 / 256.0, 41.0 / 256.0, 85.0 / 128.0, 125.0 / 128.0]
+        ),
+        other => panic!("border is not a texture: {other:?}"),
+    }
     assert_eq!(text(&app, "BuffButton0Duration"), "5 m");
 }
 
 #[test]
 fn duration_text_follows_the_ticking_aura_state() {
-    let (mut app, _) = app(vec![aura(21562, false, 61.0)]);
+    let (mut app, _) = app(vec![aura(21562, false, 100.0)]);
     assert_eq!(text(&app, "BuffButton0Duration"), "2 m");
-    app.world_mut().resource_mut::<AuraState>().tick(2.0);
+    app.world_mut().resource_mut::<AuraState>().tick(20.0);
     app.update();
-    assert_eq!(text(&app, "BuffButton0Duration"), "59 s");
+    assert_eq!(text(&app, "BuffButton0Duration"), "80 s");
+}
+
+#[test]
+fn only_buttons_of_auras_about_to_expire_flash() {
+    let (mut app, _) = app(vec![
+        aura(21562, false, 300.0),
+        aura(1126, false, 12.0),
+        aura(980, true, 20.0),
+    ]);
+    app.update();
+    let clock = app.world().resource::<Time>().elapsed_secs();
+    let alpha = |name: &str| {
+        let registry = &app.world().resource::<UiState>().registry;
+        registry
+            .get(registry.get_by_name(name).expect(name))
+            .unwrap()
+            .alpha
+    };
+    assert_eq!(alpha("BuffButton0"), 1.0);
+    assert_eq!(alpha("BuffButton1"), aura_warning_alpha(clock, Some(12.0)));
+    assert_eq!(
+        alpha("DebuffButton0"),
+        aura_warning_alpha(clock, Some(20.0))
+    );
 }
 
 #[test]

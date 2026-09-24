@@ -1,4 +1,5 @@
-//! Mounts the player buff frame from `AuraState`; right-click cancels a buff.
+//! Mounts the player BuffFrame/DebuffFrame from `AuraState`; expiring auras flash and
+//! right-click cancels a buff.
 
 #[cfg(test)]
 #[path = "../../ui/screens/menu_character_layout_test_support.rs"]
@@ -11,7 +12,7 @@ use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::{
-    BuffFrameState, buff_button_at, buff_frame_screen,
+    BuffFrameState, aura_button_name, aura_warning_alpha, buff_button_at, buff_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -45,7 +46,10 @@ impl Plugin for BuffFramePlugin {
         app.add_systems(OnExit(GameState::InWorld), teardown_buff_frame_ui);
         app.add_systems(
             Update,
-            (sync_buff_frame_ui, cancel_buff_on_right_click)
+            (
+                (sync_buff_frame_ui, flash_expiring_auras).chain(),
+                cancel_buff_on_right_click,
+            )
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
@@ -106,6 +110,35 @@ fn sync_buff_frame_ui(
     let res = &mut wrap.0;
     res.shared.insert(state);
     res.screen.sync(&res.shared, &mut ui.registry);
+}
+
+/// Buttons of timed auras under `BUFF_WARNING_TIME` pulse on the shared fader clock.
+fn flash_expiring_auras(
+    time: Res<Time>,
+    mut ui: ResMut<UiState>,
+    wrap: Option<Res<BuffFrameWrap>>,
+    auras: Option<Res<AuraState>>,
+) {
+    let (Some(_), Some(auras)) = (wrap, auras) else {
+        return;
+    };
+    let clock = time.elapsed_secs();
+    let buttons = (auras.buffs().enumerate().map(|(i, aura)| (false, i, aura)))
+        .chain(auras.debuffs().enumerate().map(|(i, aura)| (true, i, aura)));
+    for (is_debuff, index, aura) in buttons {
+        let Some(id) = ui.registry.get_by_name(&aura_button_name(is_debuff, index)) else {
+            continue;
+        };
+        let time_left = (!aura.is_permanent()).then_some(aura.remaining);
+        let alpha = aura_warning_alpha(clock, time_left);
+        if ui
+            .registry
+            .get(id)
+            .is_some_and(|frame| frame.alpha != alpha)
+        {
+            ui.registry.set_alpha(id, alpha);
+        }
+    }
 }
 
 fn cancel_buff_on_right_click(

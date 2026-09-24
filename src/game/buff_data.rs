@@ -79,14 +79,15 @@ impl AuraInstance {
         self.duration <= 0.0
     }
 
-    /// Retail `SecondsToTimeAbbrev` text ("1 h", "5 m", "59 s"); empty when permanent.
+    /// Retail `SecondsToTimeAbbrev` text ("2 h", "5 m", "89 s"): a unit is used from 1.5 of
+    /// it and rounds up (TimeUtil.lua:463-483); empty when permanent.
     pub fn timer_text(&self) -> String {
         if self.is_permanent() {
             return String::new();
         }
         let secs = self.remaining.max(0.0);
         for (unit, label) in [(86_400.0, "d"), (3_600.0, "h"), (60.0, "m")] {
-            if secs >= unit {
+            if secs >= unit * 1.5 {
                 return format!("{} {label}", (secs / unit).ceil() as u32);
             }
         }
@@ -308,11 +309,14 @@ mod tests {
         assert_eq!(make_buff("Perm", 0.0, 0.0).timer_text(), "");
         assert_eq!(text(59.9), "59 s");
         assert_eq!(text(0.4), "0 s");
-        assert_eq!(text(60.0), "1 m");
+        assert_eq!(text(60.0), "60 s");
+        assert_eq!(text(89.9), "89 s");
+        assert_eq!(text(90.0), "2 m");
         assert_eq!(text(125.0), "3 m");
-        assert_eq!(text(3600.0), "1 h");
-        assert_eq!(text(3700.0), "2 h");
-        assert_eq!(text(90_000.0), "2 d");
+        assert_eq!(text(3600.0), "60 m");
+        assert_eq!(text(5400.0), "2 h");
+        assert_eq!(text(90_000.0), "25 h");
+        assert_eq!(text(129_600.0), "2 d");
     }
 
     #[test]
