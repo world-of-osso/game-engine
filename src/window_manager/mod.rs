@@ -38,6 +38,7 @@ impl Command for ResetWindowPositionsCommand {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum WindowId {
     Achievements,
+    AuctionHouse,
     Bag(usize),
     Calendar,
     Character,
@@ -66,9 +67,11 @@ pub enum WindowClass {
 impl WindowId {
     pub fn class(self) -> WindowClass {
         match self {
-            Self::Achievements | Self::EncounterJournal | Self::Talents | Self::WorldMap => {
-                WindowClass::Wide
-            }
+            Self::Achievements
+            | Self::AuctionHouse
+            | Self::EncounterJournal
+            | Self::Talents
+            | Self::WorldMap => WindowClass::Wide,
             Self::Bag(_) => WindowClass::Container,
             Self::Calendar
             | Self::Character
@@ -94,6 +97,7 @@ impl WindowId {
     pub fn root_frame_name(self) -> String {
         let name = match self {
             Self::Achievements => "AchievementFrame",
+            Self::AuctionHouse => "AuctionHouseFrame",
             Self::Bag(index) => return format!("ContainerFrame{index}"),
             Self::Calendar => "CalendarFrame",
             Self::Character => "CharacterFrame",

@@ -1,28 +1,50 @@
 use super::*;
 use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+use crate::ui::screens::screen_test_helpers::fontstring_text;
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
-fn make_test_state() -> AuctionHouseFrameState {
-    AuctionHouseFrameState {
-        visible: true,
-        ..Default::default()
-    }
-}
-
-fn build_registry() -> FrameRegistry {
+fn registry(state: AuctionHouseFrameState) -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
-    shared.insert(make_test_state());
+    shared.insert(state);
     Screen::new(auction_house_frame_screen).sync(&shared, &mut reg);
     reg
 }
 
-fn layout_registry() -> FrameRegistry {
-    let mut reg = build_registry();
-    compute_layout(&mut reg);
-    reg
+fn visible(tab: AuctionHouseTab) -> AuctionHouseFrameState {
+    AuctionHouseFrameState {
+        visible: true,
+        tab,
+        search_empty: true,
+        ..Default::default()
+    }
+}
+
+fn shown(reg: &FrameRegistry, name: &str) -> bool {
+    let mut id = reg.get_by_name(name);
+    while let Some(frame) = id.and_then(|id| reg.get(id)) {
+        if frame.hidden {
+            return false;
+        }
+        id = frame.parent_id;
+    }
+    reg.get_by_name(name).is_some()
+}
+
+fn onclick(reg: &FrameRegistry, name: &str) -> Option<String> {
+    let id = reg.get_by_name(name).expect(name);
+    reg.get(id).and_then(|frame| frame.onclick.clone())
+}
+
+fn text_color(reg: &FrameRegistry, name: &str) -> [f32; 4] {
+    let id = reg.get_by_name(name).expect(name);
+    match reg.get(id).and_then(|frame| frame.widget_data.as_ref()) {
+        Some(WidgetData::FontString(fs)) => fs.color,
+        _ => panic!("{name} is not a FontString"),
+    }
 }
 
 fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
@@ -31,369 +53,329 @@ fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
         .unwrap_or_else(|| panic!("{name} has no layout_rect"))
 }
 
-fn make_browse_state() -> AuctionHouseFrameState {
-    let mut state = make_test_state();
-    state.browse_categories = vec![
-        BrowseCategory {
-            name: "Weapons".into(),
+fn linen() -> ItemLine {
+    ItemLine {
+        name: "Linen Cloth".into(),
+        quality: 1,
+        icon_fdid: 132_889,
+    }
+}
+
+fn rare_sword() -> ItemLine {
+    ItemLine {
+        name: "Blade of the Keeper".into(),
+        quality: 3,
+        icon_fdid: 135_274,
+    }
+}
+
+#[test]
+fn hidden_until_the_auction_house_opens() {
+    let reg = registry(AuctionHouseFrameState::default());
+
+    assert!(!shown(&reg, ROOT_FRAME));
+}
+
+#[test]
+fn title_follows_the_selected_tab() {
+    for (tab, title) in [
+        (AuctionHouseTab::Buy, "Browse Auctions"),
+        (AuctionHouseTab::Sell, "Post Auctions"),
+        (AuctionHouseTab::Auctions, "Auctions"),
+    ] {
+        let reg = registry(visible(tab));
+        assert_eq!(fontstring_text(&reg, "AuctionHouseFrameTitleText"), title);
+    }
+}
+
+#[test]
+fn only_the_selected_tab_content_shows() {
+    let reg = registry(visible(AuctionHouseTab::Sell));
+
+    assert!(shown(&reg, "AuctionHouseFrameSellMode"));
+    assert!(!shown(&reg, "AuctionHouseFrameBuyMode"));
+    assert!(!shown(&reg, "AuctionHouseFrameAuctionsFrame"));
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameTab3").as_deref(),
+        Some("auction_tab:auctions")
+    );
+}
+
+#[test]
+fn browse_rows_show_the_lowest_price_name_quality_and_available() {
+    let mut state = visible(AuctionHouseTab::Buy);
+    state.browse = vec![
+        BrowseRow {
+            item_id: 2589,
+            item: linen(),
+            price: 1_234_567,
+            available: 40,
+        },
+        BrowseRow {
+            item_id: 25,
+            item: rare_sword(),
+            price: 305,
+            available: 1,
+        },
+    ];
+
+    let reg = registry(state);
+
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1ItemName"),
+        "Linen Cloth"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1PriceGoldText"),
+        "123"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1PriceSilverText"),
+        "45"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1PriceCopperText"),
+        "67"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1AvailableText"),
+        "40"
+    );
+    // 3s 5c: no gold denomination.
+    assert!(
+        reg.get_by_name("AuctionHouseFrameBrowseResultsRow2PriceGoldText")
+            .is_none()
+    );
+    assert_eq!(
+        text_color(&reg, "AuctionHouseFrameBrowseResultsRow2ItemName"),
+        [0.0, 0.44, 0.87, 1.0]
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameBrowseResultsRow2").as_deref(),
+        Some("auction_browse_item:25")
+    );
+}
+
+#[test]
+fn item_buy_frame_lists_each_auction_with_bid_buyout_and_time_left() {
+    let mut state = visible(AuctionHouseTab::Buy);
+    state.item_buy = Some(ItemBuyView {
+        item: linen(),
+        rows: vec![ListingRow {
+            auction_id: 42,
+            item: linen(),
+            quantity: 20,
+            bid: Some(200),
+            buyout: Some(10_000),
+            time_left: "Very Long".into(),
             selected: true,
-        },
-        BrowseCategory {
-            name: "Armor".into(),
-            selected: false,
-        },
-        BrowseCategory {
-            name: "Consumables".into(),
-            selected: false,
-        },
-    ];
-    state.browse_results = vec![
-        BrowseResultRow {
-            name: "Arcanite Reaper".into(),
-            level: "58".into(),
-            time_left: "Long".into(),
-            seller: "Arthas".into(),
-            bid: "50g".into(),
-            buyout: "80g".into(),
-        },
-        BrowseResultRow {
-            name: "Thunderfury".into(),
-            level: "60".into(),
-            time_left: "Medium".into(),
-            seller: "Illidan".into(),
-            bid: "500g".into(),
-            buyout: "1000g".into(),
-        },
-    ];
-    state
-}
+        }],
+        can_bid: true,
+        can_buyout: false,
+    });
 
-fn browse_registry() -> FrameRegistry {
-    let mut reg = FrameRegistry::new(1920.0, 1080.0);
-    let mut shared = SharedContext::new();
-    shared.insert(make_browse_state());
-    Screen::new(auction_house_frame_screen).sync(&shared, &mut reg);
-    reg
-}
+    let reg = registry(state);
 
-#[test]
-fn builds_expected_frames() {
-    let reg = build_registry();
-    assert!(reg.get_by_name("AuctionHouseFrame").is_some());
-    assert!(reg.get_by_name("AuctionHouseFrameTitle").is_some());
-    assert!(reg.get_by_name("AuctionHouseContentArea").is_some());
-}
-
-#[test]
-fn browse_tab_builds_search_bar() {
-    let reg = build_registry();
-    assert!(reg.get_by_name("AuctionHouseBrowseSearchBar").is_some());
-    assert!(reg.get_by_name("AuctionHouseBrowseSearchText").is_some());
-}
-
-#[test]
-fn browse_tab_builds_category_sidebar() {
-    let reg = browse_registry();
-    assert!(
-        reg.get_by_name("AuctionHouseBrowseCategorySidebar")
-            .is_some()
+    assert!(shown(&reg, "AuctionHouseFrameItemBuyFrameBackButton"));
+    assert!(!shown(&reg, "AuctionHouseFrameBrowseResultsRow1"));
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1QuantityText"),
+        "20"
     );
-    for i in 0..3 {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseBrowseCat{i}"))
-                .is_some(),
-            "AuctionHouseBrowseCat{i} missing"
-        );
-    }
-}
-
-#[test]
-fn browse_tab_builds_results_header() {
-    let reg = browse_registry();
-    assert!(reg.get_by_name("AuctionHouseBrowseResults").is_some());
-    assert!(reg.get_by_name("AuctionHouseBrowseResultsHeader").is_some());
-    for i in 0..RESULT_COLUMNS.len() {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseResultsCol{i}"))
-                .is_some(),
-            "AuctionHouseResultsCol{i} missing"
-        );
-    }
-}
-
-#[test]
-fn browse_tab_builds_result_rows() {
-    let reg = browse_registry();
-    for i in 0..2 {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseResult{i}")).is_some(),
-            "AuctionHouseResult{i} missing"
-        );
-        for col in 0..RESULT_COLUMNS.len() {
-            assert!(
-                reg.get_by_name(&format!("AuctionHouseResult{i}Col{col}"))
-                    .is_some(),
-                "AuctionHouseResult{i}Col{col} missing"
-            );
-        }
-    }
-}
-
-#[test]
-fn builds_three_tabs() {
-    let reg = build_registry();
-    for i in 0..3 {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseTab{i}")).is_some(),
-            "AuctionHouseTab{i} missing"
-        );
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseTab{i}Label"))
-                .is_some(),
-            "AuctionHouseTab{i}Label missing"
-        );
-    }
-}
-
-#[test]
-fn hidden_when_not_visible() {
-    let mut reg = FrameRegistry::new(1920.0, 1080.0);
-    let mut shared = SharedContext::new();
-    let mut state = make_test_state();
-    state.visible = false;
-    shared.insert(state);
-    Screen::new(auction_house_frame_screen).sync(&shared, &mut reg);
-
-    let id = reg.get_by_name("AuctionHouseFrame").expect("frame");
-    let frame = reg.get(id).expect("data");
-    assert!(frame.hidden);
-}
-
-// --- Coord validation ---
-
-const FRAME_X: f32 = 100.0;
-const FRAME_Y: f32 = 80.0;
-
-#[test]
-fn coord_main_frame() {
-    let reg = layout_registry();
-    let r = rect(&reg, "AuctionHouseFrame");
-    assert!((r.x - FRAME_X).abs() < 1.0);
-    assert!((r.y - FRAME_Y).abs() < 1.0);
-    assert!((r.width - FRAME_W).abs() < 1.0);
-    assert!((r.height - FRAME_H).abs() < 1.0);
-}
-
-#[test]
-fn coord_tabs() {
-    let reg = layout_registry();
-    let tab_count = 3.0_f32;
-    let tab_w = (FRAME_W - 2.0 * TAB_INSET - (tab_count - 1.0) * TAB_GAP) / tab_count;
-    let tab_y = FRAME_Y + HEADER_H + TAB_GAP;
-    let tab0 = rect(&reg, "AuctionHouseTab0");
-    assert!((tab0.x - (FRAME_X + TAB_INSET)).abs() < 1.0);
-    assert!((tab0.y - tab_y).abs() < 1.0);
-    assert!((tab0.width - tab_w).abs() < 1.0);
-    let tab2 = rect(&reg, "AuctionHouseTab2");
-    let expected_x2 = FRAME_X + TAB_INSET + 2.0 * (tab_w + TAB_GAP);
-    assert!((tab2.x - expected_x2).abs() < 1.0);
-}
-
-#[test]
-fn coord_content_area() {
-    let reg = layout_registry();
-    let r = rect(&reg, "AuctionHouseContentArea");
-    assert!((r.x - (FRAME_X + CONTENT_INSET)).abs() < 1.0);
-    assert!((r.y - (FRAME_Y + CONTENT_TOP)).abs() < 1.0);
-    let expected_w = FRAME_W - 2.0 * CONTENT_INSET;
-    let expected_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
-    assert!((r.width - expected_w).abs() < 1.0);
-    assert!((r.height - expected_h).abs() < 1.0);
-}
-
-// --- Sell tab tests ---
-
-#[test]
-fn sell_tab_builds_item_slot_and_name() {
-    let reg = build_registry();
-    assert!(reg.get_by_name("AuctionHouseSellTab").is_some());
-    assert!(reg.get_by_name("AuctionHouseSellItemSlot").is_some());
-    assert!(reg.get_by_name("AuctionHouseSellItemName").is_some());
-}
-
-#[test]
-fn sell_tab_builds_price_inputs() {
-    let reg = build_registry();
-    assert!(reg.get_by_name("AuctionHouseSellBidRow").is_some());
-    assert!(reg.get_by_name("AuctionHouseSellBidInput").is_some());
-    assert!(reg.get_by_name("AuctionHouseSellBuyoutRow").is_some());
-    assert!(reg.get_by_name("AuctionHouseSellBuyoutInput").is_some());
-}
-
-#[test]
-fn sell_tab_builds_duration_dropdown() {
-    let reg = build_registry();
-    assert!(reg.get_by_name("AuctionHouseSellDurationRow").is_some());
-    assert!(
-        reg.get_by_name("AuctionHouseSellDurationDropdown")
-            .is_some()
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1TimeLeftText"),
+        "Very Long"
     );
-    assert!(reg.get_by_name("AuctionHouseSellDurationValue").is_some());
-}
-
-#[test]
-fn sell_tab_builds_post_button() {
-    let reg = build_registry();
-    assert!(reg.get_by_name("AuctionHouseSellPostButton").is_some());
-    assert!(reg.get_by_name("AuctionHouseSellPostButtonText").is_some());
-}
-
-// --- Auctions tab tests ---
-
-fn make_auctions_state() -> AuctionHouseFrameState {
-    let mut state = make_test_state();
-    state.my_auctions = vec![
-        AuctionListingRow {
-            name: "Arcanite Reaper".into(),
-            time_left: "Long".into(),
-            bid: "50g".into(),
-            buyout: "80g".into(),
-            status: "Active".into(),
-        },
-        AuctionListingRow {
-            name: "Lionheart Helm".into(),
-            time_left: "Short".into(),
-            bid: "200g".into(),
-            buyout: "350g".into(),
-            status: "Sold".into(),
-        },
-    ];
-    state
-}
-
-fn auctions_registry() -> FrameRegistry {
-    let mut reg = FrameRegistry::new(1920.0, 1080.0);
-    let mut shared = SharedContext::new();
-    shared.insert(make_auctions_state());
-    Screen::new(auction_house_frame_screen).sync(&shared, &mut reg);
-    reg
-}
-
-#[test]
-fn auctions_tab_builds_root_and_header() {
-    let reg = auctions_registry();
-    assert!(reg.get_by_name("AuctionHouseAuctionsTab").is_some());
-    assert!(reg.get_by_name("AuctionHouseListingHeader").is_some());
-    for i in 0..LISTING_COLUMNS.len() {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseListingCol{i}"))
-                .is_some(),
-            "AuctionHouseListingCol{i} missing"
-        );
-    }
-}
-
-#[test]
-fn auctions_tab_builds_listing_rows() {
-    let reg = auctions_registry();
-    for i in 0..2 {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseListing{i}"))
-                .is_some(),
-            "AuctionHouseListing{i} missing"
-        );
-        for col in 0..5 {
-            assert!(
-                reg.get_by_name(&format!("AuctionHouseListing{i}Col{col}"))
-                    .is_some(),
-                "AuctionHouseListing{i}Col{col} missing"
-            );
-        }
-    }
-}
-
-#[test]
-fn auctions_tab_builds_cancel_buttons() {
-    let reg = auctions_registry();
-    for i in 0..2 {
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseListing{i}Cancel"))
-                .is_some(),
-            "AuctionHouseListing{i}Cancel missing"
-        );
-        assert!(
-            reg.get_by_name(&format!("AuctionHouseListing{i}CancelText"))
-                .is_some(),
-            "AuctionHouseListing{i}CancelText missing"
-        );
-    }
-}
-
-// --- Additional coord validation ---
-
-#[test]
-fn coord_browse_search_bar() {
-    let reg = layout_registry();
-    let content_x = FRAME_X + CONTENT_INSET;
-    let content_y = FRAME_Y + CONTENT_TOP;
-    let r = rect(&reg, "AuctionHouseBrowseSearchBar");
-    assert!((r.x - (content_x + SEARCH_BAR_INSET)).abs() < 1.0);
-    assert!((r.y - (content_y + SEARCH_BAR_INSET)).abs() < 1.0);
-    let expected_w = FRAME_W - 2.0 * CONTENT_INSET - 2.0 * SEARCH_BAR_INSET;
-    assert!((r.width - expected_w).abs() < 1.0);
-    assert!((r.height - SEARCH_BAR_H).abs() < 1.0);
-}
-
-#[test]
-fn coord_browse_category_sidebar() {
-    let reg = layout_registry();
-    let content_x = FRAME_X + CONTENT_INSET;
-    let content_y = FRAME_Y + CONTENT_TOP;
-    let r = rect(&reg, "AuctionHouseBrowseCategorySidebar");
-    assert!((r.x - (content_x + SEARCH_BAR_INSET)).abs() < 1.0);
-    let expected_y = content_y + SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP;
-    assert!((r.y - expected_y).abs() < 1.0);
-    assert!((r.width - SIDEBAR_W).abs() < 1.0);
-}
-
-#[test]
-fn coord_browse_results_panel() {
-    let reg = layout_registry();
-    let content_x = FRAME_X + CONTENT_INSET;
-    let content_y = FRAME_Y + CONTENT_TOP;
-    let r = rect(&reg, "AuctionHouseBrowseResults");
-    let expected_x = content_x + SEARCH_BAR_INSET + SIDEBAR_W + SIDEBAR_GAP;
-    let expected_y = content_y + SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP;
-    assert!(
-        (r.x - expected_x).abs() < 1.0,
-        "x: expected {expected_x}, got {}",
-        r.x
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1BuyoutGoldText"),
+        "1"
     );
-    assert!(
-        (r.y - expected_y).abs() < 1.0,
-        "y: expected {expected_y}, got {}",
-        r.y
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameItemBuyFrameRow1").as_deref(),
+        Some("auction_select:42")
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameBidButton").as_deref(),
+        Some("auction_bid")
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameItemBuyFrameBuyoutButton").as_deref(),
+        Some("")
     );
 }
 
 #[test]
-fn coord_sell_item_slot() {
-    let mut reg = build_registry();
-    let tab = reg.get_by_name("AuctionHouseSellTab").unwrap();
-    reg.set_hidden(tab, false);
+fn money_frame_shows_the_player_gold() {
+    let mut state = visible(AuctionHouseTab::Buy);
+    state.money = 100_000;
+
+    let reg = registry(state);
+
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameMoneyFrameGoldText"),
+        "10"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameMoneyFrameSilverText"),
+        "0"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameMoneyFrameCopperText"),
+        "0"
+    );
+}
+
+#[test]
+fn sell_frame_lists_sellable_items_until_one_is_chosen() {
+    let mut state = visible(AuctionHouseTab::Sell);
+    state.sell.inventory = vec![SellInventoryRow {
+        item_guid: 77,
+        item: linen(),
+        count: 20,
+        selected: false,
+    }];
+
+    let reg = registry(state.clone());
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameItemSellListItem1").as_deref(),
+        Some("auction_sell_item:77")
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameItemSellFramePostButton").as_deref(),
+        Some("")
+    );
+
+    state.sell.item = Some(SellItemView {
+        item: linen(),
+        count: 20,
+    });
+    state.sell.deposit = 520;
+    state.sell.can_post = true;
+    let reg = registry(state);
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameItemSellFrameItemDisplayName"),
+        "Linen Cloth"
+    );
+    assert_eq!(
+        fontstring_text(
+            &reg,
+            "AuctionHouseFrameItemSellFrameDepositMoneyDisplayFrameSilverText"
+        ),
+        "5"
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameItemSellFramePostButton").as_deref(),
+        Some("auction_post")
+    );
+    assert!(
+        reg.get_by_name("AuctionHouseFrameItemSellListItem1")
+            .is_none()
+    );
+}
+
+#[test]
+fn unchecking_buyout_mode_adds_the_bid_price_input() {
+    let mut state = visible(AuctionHouseTab::Sell);
+    assert!(
+        registry(state.clone())
+            .get_by_name(SELL_BID_BOXES.gold)
+            .is_none()
+    );
+
+    state.sell.buyout_mode = false;
+    let reg = registry(state);
+
+    assert!(shown(&reg, SELL_BID_BOXES.gold));
+    assert_eq!(
+        fontstring_text(
+            &reg,
+            "AuctionHouseFrameItemSellFrameSecondaryPriceInputLabel"
+        ),
+        "Bid Price"
+    );
+}
+
+#[test]
+fn auctions_tab_lists_owned_auctions_with_cancel() {
+    let mut state = visible(AuctionHouseTab::Auctions);
+    state.auctions.rows = vec![ListingRow {
+        auction_id: 9,
+        item: linen(),
+        quantity: 5,
+        bid: Some(500),
+        buyout: Some(1_000),
+        time_left: "24h".into(),
+        selected: true,
+    }];
+    state.auctions.can_cancel = true;
+
+    let reg = registry(state);
+
+    assert_eq!(
+        fontstring_text(
+            &reg,
+            "AuctionHouseFrameAuctionsFrameAllAuctionsListRow1ItemName"
+        ),
+        "Linen Cloth x5"
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameAuctionsFrameCancelAuctionButton").as_deref(),
+        Some("auction_cancel")
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameAuctionsFrameSummaryLine1Text"),
+        "All Auctions"
+    );
+}
+
+#[test]
+fn buy_dialog_shows_the_buyout_price() {
+    let mut state = visible(AuctionHouseTab::Buy);
+    state.dialog = Some(BuyDialogView {
+        item_text: "Linen Cloth  x20".into(),
+        price: 10_000,
+    });
+
+    let reg = registry(state);
+
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBuyDialogItemText"),
+        "Linen Cloth  x20"
+    );
+    assert_eq!(
+        fontstring_text(&reg, "AuctionHouseFrameBuyDialogPriceGoldText"),
+        "1"
+    );
+    assert_eq!(
+        onclick(&reg, "AuctionHouseFrameBuyDialogBuyNowButton").as_deref(),
+        Some("auction_dialog_buy")
+    );
+}
+
+#[test]
+fn retail_layout_places_the_frame_search_bar_and_lists() {
+    let mut state = visible(AuctionHouseTab::Buy);
+    state.categories = vec![CategoryRow {
+        name: "Weapons".into(),
+        selected: true,
+    }];
+    let mut reg = registry(state);
     compute_layout(&mut reg);
-    let r = rect(&reg, "AuctionHouseSellItemSlot");
-    assert!((r.width - SELL_ITEM_SLOT_SIZE).abs() < 1.0);
-    assert!((r.height - SELL_ITEM_SLOT_SIZE).abs() < 1.0);
-}
 
-#[test]
-fn coord_sell_post_button() {
-    let mut reg = build_registry();
-    let tab = reg.get_by_name("AuctionHouseSellTab").unwrap();
-    reg.set_hidden(tab, false);
-    compute_layout(&mut reg);
-    let r = rect(&reg, "AuctionHouseSellPostButton");
-    assert!((r.width - SELL_BUTTON_W).abs() < 1.0);
-    assert!((r.height - SELL_BUTTON_H).abs() < 1.0);
+    let frame = rect(&reg, ROOT_FRAME);
+    assert_eq!((frame.width, frame.height), (800.0, 538.0));
+    let at = |name: &str| {
+        let r = rect(&reg, name);
+        (r.x - frame.x, r.y - frame.y, r.width, r.height)
+    };
+    assert_eq!(at(SEARCH_BOX), (211.0, 38.0, 241.0, 22.0));
+    assert_eq!(
+        at("AuctionHouseFrameSearchButton"),
+        (656.0, 38.0, 132.0, 22.0)
+    );
+    assert_eq!(
+        at("AuctionHouseFrameCategoriesListButton1"),
+        (7.0, 79.0, 132.0, 21.0)
+    );
+    assert_eq!(at("AuctionHouseFrameTab1"), (20.0, 534.0, 70.0, 32.0));
 }

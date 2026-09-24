@@ -620,6 +620,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(scenes::mail_frame::MailFramePlugin);
     app.add_plugins(scenes::quest_ui::QuestUiPlugin);
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
+    app.add_plugins(scenes::auction_house_frame::AuctionHouseFramePlugin);
     app.add_plugins(scenes::group_frames::GroupFramesPlugin);
     app.add_plugins(scenes::loot_rules_frame::LootRulesFramePlugin);
     app.add_plugins(scenes::static_popup::StaticPopupPlugin);

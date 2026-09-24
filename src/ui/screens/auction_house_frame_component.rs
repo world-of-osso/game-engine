@@ -1,181 +1,271 @@
-use std::fmt;
+//! Retail `AuctionHouseFrame` (Blizzard_AuctionHouseUI, see `docs/specs/auction-house-ui.md`):
+//! Buy / Sell / Auctions tabs, search bar, category list, browse and item buy lists,
+//! buy confirmation dialog, item sell frame, auctions and bids lists, money display.
+//! Every position is the absolute result of the Retail anchors cited next to it.
 
+use shared::protocol::AuctionDuration;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
+use crate::ui::screens::quest_art::window_chrome;
 use crate::ui::strata::FrameStrata;
 
+#[path = "auction_house_frame_art.rs"]
+mod art;
 #[path = "auction_house_frame_component_auctions.rs"]
 mod auctions_tab;
+#[path = "auction_house_frame_component_buy.rs"]
+mod buy_tab;
 #[path = "auction_house_frame_component_sell.rs"]
 mod sell_tab;
 
-use auctions_tab::auctions_tab_content;
-use sell_tab::sell_tab_content;
+pub use art::money_parts;
+use art::*;
 
-#[cfg(test)]
-use auctions_tab::LISTING_COLUMNS;
+/// `AuctionHouseFrame` size (Blizzard_AuctionHouseFrame.xml:5).
+pub const FRAME_W: f32 = 800.0;
+pub const FRAME_H: f32 = 538.0;
+pub const ROOT_FRAME: &str = "AuctionHouseFrame";
 
-struct DynName(String);
+pub const ACTION_CLOSE: &str = "auction_close";
+pub const ACTION_TAB_PREFIX: &str = "auction_tab:";
+pub const ACTION_SEARCH: &str = "auction_search";
+pub const ACTION_CATEGORY_PREFIX: &str = "auction_category:";
+pub const ACTION_BROWSE_ITEM_PREFIX: &str = "auction_browse_item:";
+pub const ACTION_BACK: &str = "auction_back";
+pub const ACTION_SELECT_AUCTION_PREFIX: &str = "auction_select:";
+pub const ACTION_BID: &str = "auction_bid";
+pub const ACTION_BUYOUT: &str = "auction_buyout";
+pub const ACTION_DIALOG_BUY: &str = "auction_dialog_buy";
+pub const ACTION_DIALOG_CANCEL: &str = "auction_dialog_cancel";
+pub const ACTION_SELL_ITEM_PREFIX: &str = "auction_sell_item:";
+pub const ACTION_SELL_CLEAR: &str = "auction_sell_clear";
+pub const ACTION_MAX_QUANTITY: &str = "auction_max_quantity";
+pub const ACTION_BUYOUT_MODE: &str = "auction_buyout_mode";
+pub const ACTION_DURATION_MENU: &str = "auction_duration_menu";
+pub const ACTION_DURATION_PREFIX: &str = "auction_duration:";
+pub const ACTION_POST: &str = "auction_post";
+pub const ACTION_AUCTIONS_TAB_PREFIX: &str = "auction_auctions_tab:";
+pub const ACTION_CANCEL_AUCTION: &str = "auction_cancel";
 
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+/// Edit boxes; the frame registry owns their text.
+pub const SEARCH_BOX: &str = "AuctionHouseFrameSearchBox";
+pub const QUANTITY_BOX: &str = "AuctionHouseFrameItemSellFrameQuantityInputBox";
+pub const SELL_BUYOUT_BOXES: MoneyBoxes = MoneyBoxes {
+    gold: "AuctionHouseFrameItemSellFramePriceInputGold",
+    silver: "AuctionHouseFrameItemSellFramePriceInputSilver",
+    copper: "AuctionHouseFrameItemSellFramePriceInputCopper",
+};
+pub const SELL_BID_BOXES: MoneyBoxes = MoneyBoxes {
+    gold: "AuctionHouseFrameItemSellFrameSecondaryPriceInputGold",
+    silver: "AuctionHouseFrameItemSellFrameSecondaryPriceInputSilver",
+    copper: "AuctionHouseFrameItemSellFrameSecondaryPriceInputCopper",
+};
+pub const BID_BOXES: MoneyBoxes = MoneyBoxes {
+    gold: "AuctionHouseFrameBidAmountGold",
+    silver: "AuctionHouseFrameBidAmountSilver",
+    copper: "AuctionHouseFrameBidAmountCopper",
+};
+
+/// Gold / silver / copper edit box names of one money input.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MoneyBoxes {
+    pub gold: &'static str,
+    pub silver: &'static str,
+    pub copper: &'static str,
+}
+
+impl MoneyBoxes {
+    pub fn names(self) -> [&'static str; 3] {
+        [self.gold, self.silver, self.copper]
     }
 }
 
-pub const FRAME_W: f32 = 608.0;
-pub const FRAME_H: f32 = 486.0;
-const HEADER_H: f32 = 30.0;
-const TAB_H: f32 = 28.0;
-const TAB_GAP: f32 = 4.0;
-const TAB_INSET: f32 = 12.0;
-const CONTENT_INSET: f32 = 8.0;
-const CONTENT_TOP: f32 = HEADER_H + TAB_GAP + TAB_H + TAB_GAP;
-
-const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
-const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const TAB_BG_ACTIVE: &str = "0.2,0.15,0.05,0.95";
-const TAB_BG_INACTIVE: &str = "0.08,0.07,0.06,0.88";
-const TAB_TEXT_ACTIVE: &str = "1.0,0.82,0.0,1.0";
-const TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
-const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
-
-// Browse tab layout
-const SEARCH_BAR_H: f32 = 28.0;
-const SEARCH_BAR_INSET: f32 = 4.0;
-const SIDEBAR_W: f32 = 160.0;
-const SIDEBAR_GAP: f32 = 4.0;
-const RESULTS_HEADER_H: f32 = 22.0;
-const RESULT_ROW_H: f32 = 24.0;
-const RESULT_ROW_GAP: f32 = 1.0;
-
-const SEARCH_BAR_BG: &str = "0.1,0.1,0.1,0.9";
-const SEARCH_BAR_TEXT: &str = "0.5,0.5,0.5,0.8";
-const SIDEBAR_BG: &str = "0.0,0.0,0.0,0.4";
-const CAT_ROW_H: f32 = 18.0;
-const CAT_ROW_GAP: f32 = 1.0;
-const CAT_SELECTED_BG: &str = "0.2,0.15,0.05,0.95";
-const CAT_NORMAL_BG: &str = "0.0,0.0,0.0,0.0";
-const CAT_SELECTED_COLOR: &str = "1.0,0.82,0.0,1.0";
-const CAT_NORMAL_COLOR: &str = "1.0,1.0,1.0,1.0";
-const HEADER_BG: &str = "0.12,0.1,0.08,0.9";
-const HEADER_TEXT_COLOR: &str = "0.8,0.8,0.8,1.0";
-const ROW_BG_EVEN: &str = "0.04,0.04,0.04,0.6";
-const ROW_BG_ODD: &str = "0.06,0.06,0.06,0.6";
-const ROW_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
-const GOLD_COLOR: &str = "1.0,0.82,0.0,1.0";
-
-// Sell tab layout
-const SELL_INSET: f32 = 12.0;
-const SELL_ITEM_SLOT_SIZE: f32 = 48.0;
-const SELL_INPUT_H: f32 = 26.0;
-const SELL_INPUT_W: f32 = 120.0;
-const SELL_LABEL_W: f32 = 80.0;
-const SELL_ROW_GAP: f32 = 8.0;
-const SELL_DROPDOWN_W: f32 = 140.0;
-const SELL_BUTTON_W: f32 = 100.0;
-const SELL_BUTTON_H: f32 = 28.0;
-const SELL_ITEM_SLOT_BG: &str = "0.08,0.07,0.06,0.88";
-const SELL_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
-const SELL_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
-const SELL_INPUT_TEXT: &str = "1.0,1.0,1.0,1.0";
-const SELL_BUTTON_BG: &str = "0.2,0.15,0.05,0.95";
-const SELL_BUTTON_TEXT: &str = "1.0,0.82,0.0,1.0";
-
-pub const MAX_BROWSE_CATEGORIES: usize = 12;
-pub const MAX_RESULT_ROWS: usize = 8;
-pub const RESULT_COLUMNS: &[(&str, f32)] = &[
-    ("Name", 0.40),
-    ("Level", 0.10),
-    ("Time Left", 0.15),
-    ("Seller", 0.15),
-    ("Bid", 0.10),
-    ("Buyout", 0.10),
-];
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct AuctionTab {
-    pub name: String,
-    pub active: bool,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum AuctionHouseTab {
+    #[default]
+    Buy,
+    Sell,
+    Auctions,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct BrowseCategory {
+impl AuctionHouseTab {
+    pub const ALL: [Self; 3] = [Self::Buy, Self::Sell, Self::Auctions];
+
+    pub fn token(self) -> &'static str {
+        match self {
+            Self::Buy => "buy",
+            Self::Sell => "sell",
+            Self::Auctions => "auctions",
+        }
+    }
+
+    pub fn from_token(token: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|tab| tab.token() == token)
+    }
+
+    /// `AUCTION_HOUSE_BUY_TAB`, `AUCTION_HOUSE_SELL_TAB`, `AUCTION_HOUSE_AUCTIONS_SUB_TAB`.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Buy => "Buy",
+            Self::Sell => "Sell",
+            Self::Auctions => "Auctions",
+        }
+    }
+
+    /// `AuctionHouseFrameMixin:UpdateTitle` (Blizzard_AuctionHouseFrame.lua:640).
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::Buy => "Browse Auctions",
+            Self::Sell => "Post Auctions",
+            Self::Auctions => "Auctions",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum AuctionsSubTab {
+    #[default]
+    Auctions,
+    Bids,
+}
+
+impl AuctionsSubTab {
+    pub fn token(self) -> &'static str {
+        match self {
+            Self::Auctions => "auctions",
+            Self::Bids => "bids",
+        }
+    }
+
+    pub fn from_token(token: &str) -> Option<Self> {
+        [Self::Auctions, Self::Bids]
+            .into_iter()
+            .find(|tab| tab.token() == token)
+    }
+}
+
+/// Name, quality and icon of an item as the lists show it.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct ItemLine {
+    pub name: String,
+    pub quality: u8,
+    pub icon_fdid: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CategoryRow {
     pub name: String,
     pub selected: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct BrowseResultRow {
-    pub name: String,
-    pub level: String,
+/// One item of the browse list (`GetBrowseListLayout`): lowest price and total available.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BrowseRow {
+    pub item_id: u32,
+    pub item: ItemLine,
+    pub price: u64,
+    pub available: u32,
+}
+
+/// One auction: item buy list, all auctions and bids lists.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ListingRow {
+    pub auction_id: u64,
+    pub item: ItemLine,
+    pub quantity: u32,
+    pub bid: Option<u64>,
+    pub buyout: Option<u64>,
     pub time_left: String,
-    pub seller: String,
-    pub bid: String,
-    pub buyout: String,
+    pub selected: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct SellTabState {
-    /// Name of the item placed in the sell slot (empty = no item).
-    pub item_name: String,
-    /// Starting bid price text.
-    pub bid_price: String,
-    /// Buyout price text.
-    pub buyout_price: String,
-    /// Selected duration label (e.g. "12 Hours", "24 Hours", "48 Hours").
-    pub duration: String,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ItemBuyView {
+    pub item: ItemLine,
+    pub rows: Vec<ListingRow>,
+    pub can_bid: bool,
+    pub can_buyout: bool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct AuctionListingRow {
-    pub name: String,
-    pub time_left: String,
-    pub bid: String,
-    pub buyout: String,
-    pub status: String,
+/// `AuctionHouseBuyDialog`: confirm a buyout.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BuyDialogView {
+    pub item_text: String,
+    pub price: u64,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct AuctionHouseFrameState {
-    pub visible: bool,
-    pub tabs: Vec<AuctionTab>,
-    pub browse_categories: Vec<BrowseCategory>,
-    pub browse_results: Vec<BrowseResultRow>,
-    pub sell: SellTabState,
-    pub my_auctions: Vec<AuctionListingRow>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SellItemView {
+    pub item: ItemLine,
+    pub count: u32,
 }
 
-impl Default for AuctionHouseFrameState {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SellInventoryRow {
+    pub item_guid: u64,
+    pub item: ItemLine,
+    pub count: u32,
+    pub selected: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SellView {
+    pub item: Option<SellItemView>,
+    pub inventory: Vec<SellInventoryRow>,
+    /// Current auctions of the selected item (right-hand list).
+    pub listings: Vec<ListingRow>,
+    pub buyout_mode: bool,
+    pub duration: AuctionDuration,
+    pub duration_menu_open: bool,
+    pub deposit: u64,
+    pub total: u64,
+    pub can_post: bool,
+}
+
+impl Default for SellView {
     fn default() -> Self {
         Self {
-            visible: false,
-            tabs: vec![
-                AuctionTab {
-                    name: "Browse".into(),
-                    active: true,
-                },
-                AuctionTab {
-                    name: "Sell".into(),
-                    active: false,
-                },
-                AuctionTab {
-                    name: "Auctions".into(),
-                    active: false,
-                },
-            ],
-            browse_categories: vec![],
-            browse_results: vec![],
-            sell: SellTabState {
-                duration: "24 Hours".into(),
-                ..Default::default()
-            },
-            my_auctions: vec![],
+            item: None,
+            inventory: Vec::new(),
+            listings: Vec::new(),
+            buyout_mode: true,
+            duration: AuctionDuration::Medium,
+            duration_menu_open: false,
+            deposit: 0,
+            total: 0,
+            can_post: false,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct AuctionsView {
+    pub tab: AuctionsSubTab,
+    pub rows: Vec<ListingRow>,
+    pub can_cancel: bool,
+    pub can_bid: bool,
+    pub can_buyout: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct AuctionHouseFrameState {
+    pub visible: bool,
+    pub tab: AuctionHouseTab,
+    pub money: u64,
+    /// The search box holds no text: its "Search" instructions show.
+    pub search_empty: bool,
+    pub categories: Vec<CategoryRow>,
+    pub browse: Vec<BrowseRow>,
+    /// `BROWSE_NO_RESULTS` after a search that found nothing.
+    pub browse_empty_text: Option<String>,
+    pub item_buy: Option<ItemBuyView>,
+    pub dialog: Option<BuyDialogView>,
+    pub sell: SellView,
+    pub auctions: AuctionsView,
 }
 
 pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
@@ -185,356 +275,479 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
     let hide = !state.visible;
     rsx! {
         r#frame {
-            name: "AuctionHouseFrame",
-            width: {FRAME_W},
-            height: {FRAME_H},
-            strata: FrameStrata::Dialog,
+            name: ROOT_FRAME,
+            width: FRAME_W,
+            height: FRAME_H,
+            strata: FrameStrata::High,
             hidden: hide,
-            background_color: FRAME_BG,
-            pos_type: "absolute",
-            left: 100.0,
-            top: 80.0,
-            {title_bar()}
-            {tab_row(&state.tabs)}
-            {browse_tab_content(&state.browse_categories, &state.browse_results)}
-            {sell_tab_content(&state.sell)}
-            {auctions_tab_content(&state.my_auctions)}
-        }
-    }
-}
-
-fn title_bar() -> Element {
-    rsx! {
-        fontstring {
-            name: "AuctionHouseFrameTitle",
-            width: {FRAME_W},
-            height: {HEADER_H},
-            text: "Auction House",
-            font_size: 16.0,
-            font_color: TITLE_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-        }
-    }
-}
-
-fn tab_row(tabs: &[AuctionTab]) -> Element {
-    let count = tabs.len().max(1) as f32;
-    let tab_w = (FRAME_W - 2.0 * TAB_INSET - (count - 1.0) * TAB_GAP) / count;
-    tabs.iter()
-        .enumerate()
-        .flat_map(|(i, tab)| {
-            let x = TAB_INSET + i as f32 * (tab_w + TAB_GAP);
-            let y = -(HEADER_H + TAB_GAP);
-            tab_button(i, tab, tab_w, x, y)
-        })
-        .collect()
-}
-
-fn tab_button(i: usize, tab: &AuctionTab, tab_w: f32, x: f32, y: f32) -> Element {
-    let tab_id = DynName(format!("AuctionHouseTab{i}"));
-    let label_id = DynName(format!("AuctionHouseTab{i}Label"));
-    let (bg, color) = if tab.active {
-        (TAB_BG_ACTIVE, TAB_TEXT_ACTIVE)
-    } else {
-        (TAB_BG_INACTIVE, TAB_TEXT_INACTIVE)
-    };
-    rsx! {
-        r#frame {
-            name: tab_id,
-            width: {tab_w},
-            height: {TAB_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-            {auction_tab_label(label_id, &tab.name, tab_w, color)}
-        }
-    }
-}
-
-fn auction_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {w},
-            height: {TAB_H},
-            text: text,
-            font_size: 11.0,
-            font_color: color,
-            justify_h: "CENTER",
             pos_type: "absolute",
             left: 0.0,
-            top: -0.0,
+            top: 0.0,
+            {window_chrome(ROOT_FRAME, (FRAME_W, FRAME_H), state.tab.title(), ACTION_CLOSE)}
+            {money_frame(state.money)}
+            {tabs(state.tab)}
+            {buy_tab::buy_content(state)}
+            {sell_tab::sell_content(state)}
+            {auctions_tab::auctions_content(state)}
+            {buy_tab::buy_dialog(state.dialog.as_ref())}
         }
     }
 }
 
-fn browse_tab_content(categories: &[BrowseCategory], results: &[BrowseResultRow]) -> Element {
-    let content_y = -CONTENT_TOP;
-    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
-    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
-    rsx! {
-        r#frame {
-            name: "AuctionHouseContentArea",
-            width: {content_w},
-            height: {content_h},
-            background_color: CONTENT_BG,
-            pos_type: "absolute",
-            left: {CONTENT_INSET},
-            top: {-(content_y)},
-            {browse_search_bar(content_w)}
-            {browse_category_sidebar(categories)}
-            {browse_results_panel(results, content_w)}
-        }
-    }
+/// `MoneyFrameInset` (2,-27..167,-3 from the bottom) and `MoneyFrameBorder` 158×19 at
+/// BOTTOMLEFT (5,6) holding the player's money right-aligned 6 px in
+/// (Blizzard_AuctionHouseFrame.xml:11-40).
+fn money_frame(money: u64) -> Element {
+    let mut out = inset_border(
+        "AuctionHouseFrameMoneyFrameInset",
+        (2.0, 511.0, 165.0, 24.0),
+    );
+    out.extend(three_slice(
+        "AuctionHouseFrameMoneyFrameBorder",
+        [GOLD_EDGE_LEFT, GOLD_EDGE_MIDDLE, GOLD_EDGE_RIGHT],
+        7.0,
+        (5.0, 513.0, 158.0, 19.0),
+    ));
+    out.extend(money_display(
+        "AuctionHouseFrameMoneyFrame",
+        money,
+        157.0,
+        522.5,
+    ));
+    out
 }
 
-fn browse_search_bar(parent_w: f32) -> Element {
-    let bar_w = parent_w - 2.0 * SEARCH_BAR_INSET;
+/// `AuctionHouseFrameDisplayModeTabTemplate` tabs: Buy at BOTTOMLEFT (20,-28), each next
+/// tab LEFT of the previous RIGHT (-15, 0); 32 tall (Blizzard_AuctionHouseFrame.xml:44-67).
+fn tabs(active: AuctionHouseTab) -> Element {
+    let mut x = 20.0;
+    let mut out = Vec::new();
+    for (index, tab) in AuctionHouseTab::ALL.into_iter().enumerate() {
+        let width = tab_width(tab.label());
+        let action = format!("{ACTION_TAB_PREFIX}{}", tab.token());
+        out.extend(panel_tab(
+            &format!("AuctionHouseFrameTab{}", index + 1),
+            tab.label(),
+            &action,
+            tab == active,
+            (x, 534.0, width),
+            false,
+        ));
+        x += width - 15.0;
+    }
+    out
+}
+
+/// `PanelTemplates_TabResize(tab, TAB_PADDING = 20, nil, MIN_TAB_WIDTH = 70)`
+/// (Blizzard_AuctionHouseTab.lua:2-11): text width + `TAB_SIDES_PADDING` (20) + 20.
+pub(super) fn tab_width(label: &str) -> f32 {
+    let text = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(0.0, |(w, _)| w);
+    (text + 40.0).max(70.0)
+}
+
+/// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): left cap at x -3 (active -1),
+/// right cap ending 7 (active 8) past the tab, 36 (active 42) tall; the label
+/// `GameFontNormalSmall` 2 px above centre, white while selected. `flipped` draws the
+/// `PanelTopTabButtonTemplate` art upside down.
+pub(super) fn panel_tab(
+    name: &str,
+    label: &str,
+    action: &str,
+    active: bool,
+    (x, y, width): (f32, f32, f32),
+    flipped: bool,
+) -> Element {
+    let (caps, left_x, right_x, art_h) = if active {
+        (
+            [TAB_ACTIVE_LEFT, TAB_ACTIVE_MIDDLE, TAB_ACTIVE_RIGHT],
+            -1.0,
+            8.0,
+            42.0,
+        )
+    } else {
+        ([TAB_LEFT, TAB_MIDDLE, TAB_RIGHT], -3.0, 7.0, 36.0)
+    };
+    let [left, middle, right] = caps.map(|crop| if flipped { crop.flipped() } else { crop });
+    let art_y = if flipped { 32.0 - art_h } else { 0.0 };
+    let left_rect = (left_x, art_y, 35.0, art_h);
+    let right_rect = (width + right_x - 37.0, art_y, 37.0, art_h);
+    let middle_rect = (left_x + 35.0, art_y, right_rect.0 - left_x - 35.0, art_h);
+    let text_color = if active {
+        HIGHLIGHT_FONT_COLOR
+    } else {
+        NORMAL_FONT_COLOR
+    };
+    let label_y = if flipped { 2.0 } else { -2.0 };
+    let mut art = crop_texture(format!("{name}Left"), left, left_rect);
+    art.extend(crop_texture(format!("{name}Middle"), middle, middle_rect));
+    art.extend(crop_texture(format!("{name}Right"), right, right_rect));
     rsx! {
-        r#frame {
-            name: "AuctionHouseBrowseSearchBar",
-            width: {bar_w},
-            height: {SEARCH_BAR_H},
-            background_color: SEARCH_BAR_BG,
+        button {
+            name: {DynName(name.to_string())},
+            width,
+            height: 32.0,
+            onclick: action,
             pos_type: "absolute",
-            left: {SEARCH_BAR_INSET},
-            top: {-(-SEARCH_BAR_INSET)},
+            left: x,
+            top: y,
+            {art}
             fontstring {
-                name: "AuctionHouseBrowseSearchText",
-                width: {bar_w - 8.0},
-                height: {SEARCH_BAR_H},
-                text: "Search...",
+                name: {DynName(format!("{name}Text"))},
+                width,
+                height: 32.0,
+                text: label,
+                font: GameFont::FrizQuadrata,
                 font_size: 10.0,
-                font_color: SEARCH_BAR_TEXT,
-                justify_h: "LEFT",
+                font_color: text_color,
+                shadow_color: SHADOW_COLOR,
+                shadow_offset: "1,-1",
+                justify_h: "CENTER",
                 pos_type: "absolute",
-                left: 4.0,
-                top: -0.0,
+                left: 0.0,
+                top: label_y,
             }
         }
     }
 }
 
-fn browse_category_sidebar(categories: &[BrowseCategory]) -> Element {
-    let top_y = -(SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP);
-    let sidebar_h = FRAME_H
-        - CONTENT_TOP
-        - CONTENT_INSET
-        - SEARCH_BAR_INSET
-        - SEARCH_BAR_H
-        - SIDEBAR_GAP
-        - SEARCH_BAR_INSET;
-    let rows: Element = categories
-        .iter()
-        .enumerate()
-        .take(MAX_BROWSE_CATEGORIES)
-        .flat_map(|(i, cat)| browse_category_row(i, cat))
-        .collect();
-    rsx! {
-        r#frame {
-            name: "AuctionHouseBrowseCategorySidebar",
-            width: {SIDEBAR_W},
-            height: {sidebar_h},
-            background_color: SIDEBAR_BG,
-            pos_type: "absolute",
-            left: {SEARCH_BAR_INSET},
-            top: {-(top_y)},
-            {rows}
-        }
-    }
+/// One list column: header label, left edge, width, left and right cell padding.
+#[derive(Clone, Copy)]
+pub(super) struct Column {
+    pub label: &'static str,
+    pub x: f32,
+    pub w: f32,
+    pub pad_left: f32,
+    pub pad_right: f32,
 }
 
-fn browse_category_row(idx: usize, cat: &BrowseCategory) -> Element {
-    let row_id = DynName(format!("AuctionHouseBrowseCat{idx}"));
-    let label_id = DynName(format!("AuctionHouseBrowseCat{idx}Label"));
-    let (bg, color) = if cat.selected {
-        (CAT_SELECTED_BG, CAT_SELECTED_COLOR)
-    } else {
-        (CAT_NORMAL_BG, CAT_NORMAL_COLOR)
-    };
-    let y = -(idx as f32 * (CAT_ROW_H + CAT_ROW_GAP));
-    rsx! {
-        r#frame {
-            name: row_id,
-            width: {SIDEBAR_W},
-            height: {CAT_ROW_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: 0.0,
-            top: {-(y)},
-            {browse_cat_label(label_id, &cat.name, color)}
-        }
-    }
+/// Lays out `AuctionHouseTableBuilder` columns (relative to the header container) across
+/// `width` from `x`: fixed widths as
+/// given, the single fill column (`w < 0`) takes the rest.
+pub(super) fn layout_columns<const N: usize>(
+    x: f32,
+    width: f32,
+    specs: [(&'static str, f32, f32, f32); N],
+) -> [Column; N] {
+    let fixed: f32 = specs.iter().map(|spec| spec.1.max(0.0)).sum();
+    let mut left = x;
+    specs.map(|(label, w, pad_left, pad_right)| {
+        let w = if w < 0.0 { width - fixed } else { w };
+        let column = Column {
+            label,
+            x: left,
+            w,
+            pad_left,
+            pad_right,
+        };
+        left += w;
+        column
+    })
 }
 
-fn browse_cat_label(id: DynName, text: &str, color: &str) -> Element {
+/// `AuctionHouseItemListTemplate` (Blizzard_AuctionHouseItemList.xml:58): the inset
+/// NineSlice and background start `backgroundYOffset` (19) below the list top, the header
+/// container sits at (4,-1)..(-26,-1), 19 tall.
+pub(super) fn item_list_frame(
+    prefix: &str,
+    rect: (f32, f32, f32, f32),
+    background: Crop,
+    columns: &[Column],
+) -> Element {
+    let (x, y, w, h) = rect;
+    let (bg_w, bg_h) = background.size();
+    let mut out = crop_texture(
+        format!("{prefix}Background"),
+        background,
+        (x + 3.0, y + 22.0, bg_w.min(w - 6.0), bg_h.min(h - 25.0)),
+    );
+    out.extend(inset_border(
+        &format!("{prefix}NineSlice"),
+        (x, y + 19.0, w, h - 19.0),
+    ));
+    for (index, column) in columns.iter().enumerate() {
+        if column.label.is_empty() {
+            continue;
+        }
+        out.extend(list_header(
+            &format!("{prefix}Header{index}"),
+            column,
+            (x + 4.0, y + 1.0),
+        ));
+    }
+    out
+}
+
+/// `AuctionHouseTableHeaderStringTemplate` label (`GameFontHighlightSmall`); columns are
+/// relative to the header container at `origin`.
+fn list_header(name: &str, column: &Column, (x, y): (f32, f32)) -> Element {
     rsx! {
         fontstring {
-            name: id,
-            width: {SIDEBAR_W - 8.0},
-            height: {CAT_ROW_H},
-            text: text,
-            font_size: 9.0,
-            font_color: color,
+            name: {DynName(name.to_string())},
+            width: {column.w - column.pad_left - column.pad_right},
+            height: 19.0,
+            text: {column.label},
+            font: GameFont::FrizQuadrata,
+            font_size: 10.0,
+            font_color: HIGHLIGHT_FONT_COLOR,
+            shadow_color: SHADOW_COLOR,
+            shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: 4.0,
-            top: -0.0,
+            left: {x + column.x + column.pad_left},
+            top: y,
         }
     }
 }
 
-fn browse_results_panel(results: &[BrowseResultRow], parent_w: f32) -> Element {
-    let panel_x = SEARCH_BAR_INSET + SIDEBAR_W + SIDEBAR_GAP;
-    let panel_y = -(SEARCH_BAR_INSET + SEARCH_BAR_H + SIDEBAR_GAP);
-    let panel_w = parent_w - panel_x - SEARCH_BAR_INSET;
-    let panel_h = FRAME_H
-        - CONTENT_TOP
-        - CONTENT_INSET
-        - SEARCH_BAR_INSET
-        - SEARCH_BAR_H
-        - SIDEBAR_GAP
-        - SEARCH_BAR_INSET;
-    let header = results_header(panel_w);
-    let rows: Element = results
-        .iter()
-        .enumerate()
-        .take(MAX_RESULT_ROWS)
-        .flat_map(|(i, row)| result_row(i, row, panel_w))
-        .collect();
-    rsx! {
-        r#frame {
-            name: "AuctionHouseBrowseResults",
-            width: {panel_w},
-            height: {panel_h},
-            pos_type: "absolute",
-            left: {panel_x},
-            top: {-(panel_y)},
-            {header}
-            {rows}
-        }
-    }
-}
+/// Rows start 6 below the header container (`ScrollBox` TOPLEFT (0,-6)); 20 tall
+/// (`AuctionHouseItemListLineTemplate`).
+pub(super) const ROW_H: f32 = 20.0;
 
-fn results_header(panel_w: f32) -> Element {
-    let cols: Element = RESULT_COLUMNS
-        .iter()
-        .enumerate()
-        .flat_map(|(i, (name, _))| {
-            let x = column_x(panel_w, i);
-            let w = column_w(panel_w, i);
-            results_header_cell(i, name, x, w)
-        })
-        .collect();
-    rsx! {
-        r#frame {
-            name: "AuctionHouseBrowseResultsHeader",
-            width: {panel_w},
-            height: {RESULTS_HEADER_H},
-            background_color: HEADER_BG,
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-            {cols}
-        }
+/// A clickable list line: row stripe on odd rows (`auctionhouse-rowstripe-1`), the
+/// `auctionhouse-ui-row-select` highlight when selected.
+pub(super) fn list_row(
+    name: &str,
+    rect: (f32, f32, f32, f32),
+    index: usize,
+    stripes: bool,
+    selected: bool,
+    action: &str,
+    cells: Element,
+) -> Element {
+    let (x, y, w, h) = rect;
+    let mut art = Vec::new();
+    if stripes && index % 2 == 1 {
+        art.extend(crop_texture(
+            format!("{name}Stripe"),
+            ROW_STRIPE,
+            (0.0, 0.0, w, h),
+        ));
     }
-}
-
-fn results_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
-    let cell_id = DynName(format!("AuctionHouseResultsCol{idx}"));
-    rsx! {
-        fontstring {
-            name: cell_id,
-            width: {w},
-            height: {RESULTS_HEADER_H},
-            text,
-            font_size: 9.0,
-            font_color: HEADER_TEXT_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {x},
-            top: -0.0,
-        }
+    if selected {
+        art.extend(crop_texture(
+            format!("{name}Selected"),
+            ROW_SELECT,
+            (0.0, 0.0, w, h),
+        ));
     }
-}
-
-fn result_row(idx: usize, row: &BrowseResultRow, panel_w: f32) -> Element {
-    let row_id = DynName(format!("AuctionHouseResult{idx}"));
-    let y = -(RESULTS_HEADER_H + idx as f32 * (RESULT_ROW_H + RESULT_ROW_GAP));
-    let bg = if idx.is_multiple_of(2) {
-        ROW_BG_EVEN
-    } else {
-        ROW_BG_ODD
-    };
-    let cells = result_row_cells(idx, row, panel_w);
     rsx! {
-        r#frame {
-            name: row_id,
-            width: {panel_w},
-            height: {RESULT_ROW_H},
-            background_color: bg,
+        button {
+            name: {DynName(name.to_string())},
+            width: w,
+            height: h,
+            onclick: action,
             pos_type: "absolute",
-            left: 0.0,
-            top: {-(y)},
+            left: x,
+            top: y,
+            {art}
             {cells}
         }
     }
 }
 
-fn result_row_cells(idx: usize, row: &BrowseResultRow, panel_w: f32) -> Element {
-    let values = [
-        &row.name,
-        &row.level,
-        &row.time_left,
-        &row.seller,
-        &row.bid,
-        &row.buyout,
-    ];
-    values
-        .iter()
-        .enumerate()
-        .flat_map(|(col, text)| {
-            let cell_id = DynName(format!("AuctionHouseResult{idx}Col{col}"));
-            let x = column_x(panel_w, col);
-            let w = column_w(panel_w, col);
-            let color = if col >= 4 { GOLD_COLOR } else { ROW_TEXT_COLOR };
-            result_cell(cell_id, text, x, w, color)
-        })
-        .collect()
+/// `AuctionHouseTableCellItemDisplayTemplate`: 14×14 icon with the 16×16
+/// `auctionhouse-itemicon-small-border`, name in the item's quality colour, `xN` stacks.
+pub(super) fn item_cell(name: &str, item: &ItemLine, quantity: u32, column: &Column) -> Element {
+    let x = column.x + column.pad_left;
+    let mut out = icon_texture(
+        format!("{name}Icon"),
+        item.icon_fdid,
+        (x + 1.0, 3.0, 14.0, 14.0),
+    );
+    out.extend(crop_texture(
+        format!("{name}IconBorder"),
+        ITEM_ICON_SMALL_BORDER,
+        (x, 2.0, 16.0, 16.0),
+    ));
+    let text = if quantity > 1 {
+        format!("{} x{quantity}", item.name)
+    } else {
+        item.name.clone()
+    };
+    out.extend(text_cell(
+        &format!("{name}Name"),
+        &text,
+        quality_color(item.quality),
+        (
+            x + 20.0,
+            column.w - column.pad_left - column.pad_right - 20.0,
+        ),
+        "LEFT",
+    ));
+    out
 }
 
-fn result_cell(name: DynName, text: &str, x: f32, w: f32, color: &str) -> Element {
+/// `AuctionHouseTableCellTextTemplate` (`Number14FontWhite`), 16 tall, row-centred.
+pub(super) fn text_cell(
+    name: &str,
+    text: &str,
+    color: &str,
+    (x, w): (f32, f32),
+    justify: &str,
+) -> Element {
     rsx! {
         fontstring {
-            name,
-            width: {w},
-            height: {RESULT_ROW_H},
+            name: {DynName(name.to_string())},
+            width: {w.max(1.0)},
+            height: 16.0,
             text,
-            font_size: 9.0,
+            font: GameFont::ArialNarrow,
+            font_size: 14.0,
             font_color: color,
-            justify_h: "LEFT",
+            shadow_color: SHADOW_COLOR,
+            shadow_offset: "1,-1",
+            justify_h: justify,
             pos_type: "absolute",
-            left: {x},
-            top: -0.0,
+            left: x,
+            top: 2.0,
         }
     }
 }
 
-fn column_x(panel_w: f32, col: usize) -> f32 {
-    let mut x = 4.0;
-    for (_, width_frac) in RESULT_COLUMNS.iter().take(col) {
-        x += width_frac * panel_w;
-    }
-    x
+/// A money cell right-aligned inside `column` (`AuctionHouseTableMoneyDisplayTemplate`).
+pub(super) fn money_cell(name: &str, copper: Option<u64>, column: &Column) -> Element {
+    let Some(copper) = copper else {
+        return Vec::new();
+    };
+    money_display(name, copper, column.x + column.w - column.pad_right, 10.0)
 }
 
-fn column_w(panel_w: f32, col: usize) -> f32 {
-    RESULT_COLUMNS[col].1 * panel_w
+/// `UIPanelButtonTemplate` (`defaultbutton-nineslice-*`); disabled buttons carry no action.
+pub(super) fn panel_button(
+    name: &str,
+    text: &str,
+    action: &str,
+    enabled: bool,
+    rect: (f32, f32, f32, f32),
+) -> Element {
+    crate::ui::screens::quest_art::panel_button(name.to_string(), text, action, enabled, rect)
+}
+
+/// A `GameFontNormal` label (gold, shadowed).
+pub(super) fn label(name: &str, text: &str, rect: (f32, f32, f32, f32), justify: &str) -> Element {
+    let (x, y, w, h) = rect;
+    rsx! {
+        fontstring {
+            name: {DynName(name.to_string())},
+            width: w,
+            height: h,
+            text,
+            font: GameFont::FrizQuadrata,
+            font_size: 12.0,
+            font_color: NORMAL_FONT_COLOR,
+            shadow_color: SHADOW_COLOR,
+            shadow_offset: "1,-1",
+            justify_h: justify,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
+/// An edit box without text: the registry keeps what the player typed across rebuilds.
+pub(super) fn edit_box(name: &'static str, rect: (f32, f32, f32, f32), insets: &str) -> Element {
+    let (x, y, w, h) = rect;
+    rsx! {
+        editbox {
+            name,
+            width: w,
+            height: h,
+            font: GameFont::ArialNarrow,
+            font_size: 14.0,
+            font_color: HIGHLIGHT_FONT_COLOR,
+            text_insets: insets,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
+/// `LargeMoneyInputFrameTemplate` 190×33 (Blizzard_MoneyFrame/Shared/MoneyInputFrame.xml:33):
+/// copper 50 wide at the right, silver 50 six to its left, gold filling the rest; each a
+/// `LargeInputBoxTemplate` with its coin 12×14 at RIGHT (-10, 2).
+pub(super) fn large_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
+    let parts = [
+        (boxes.gold, x, 78.0, COIN_GOLD),
+        (boxes.silver, x + 84.0, 50.0, COIN_SILVER),
+        (boxes.copper, x + 140.0, 50.0, COIN_COPPER),
+    ];
+    parts
+        .into_iter()
+        .flat_map(|(name, bx, w, coin)| {
+            let mut out = large_input_art(name, (bx, y, w, 33.0));
+            out.extend(edit_box(name, (bx, y, w - 22.0, 33.0), "10,0,0,5"));
+            out.extend(crop_texture(
+                format!("{name}Icon"),
+                coin,
+                (bx + w - 22.0, y + 7.5, 12.0, 14.0),
+            ));
+            out
+        })
+        .collect()
+}
+
+/// `LargeInputBoxTemplate` art: `auctionhouse-ui-inputfield-*` caps (8 wide at this
+/// 33 px height) and middle (InputBoxTemplates.xml:13).
+pub(super) fn large_input_art(name: &str, rect: (f32, f32, f32, f32)) -> Element {
+    three_slice(
+        &format!("{name}Art"),
+        [INPUT_LEFT, INPUT_MIDDLE, INPUT_RIGHT],
+        8.0,
+        rect,
+    )
+}
+
+/// `MoneyInputFrameTemplate` 176×18 (Blizzard_MoneyFrame/Mainline/MoneyInputFrame.xml:72):
+/// gold 70, silver and copper 48 wide, 10 apart; `InputBoxVisualTemplate` borders with the
+/// coin at the right.
+pub(super) fn small_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
+    let parts = [
+        (boxes.gold, x, 70.0, COIN_GOLD),
+        (boxes.silver, x + 80.0, 48.0, COIN_SILVER),
+        (boxes.copper, x + 138.0, 48.0, COIN_COPPER),
+    ];
+    parts
+        .into_iter()
+        .flat_map(|(name, bx, w, coin)| {
+            let mut out = search_border(name, (bx, y, w, 20.0));
+            out.extend(edit_box(name, (bx, y, w - 14.0, 20.0), "0,0,0,0"));
+            out.extend(crop_texture(
+                format!("{name}Icon"),
+                coin,
+                (bx + w - 13.0, y + 3.0, 12.0, 14.0),
+            ));
+            out
+        })
+        .collect()
+}
+
+/// `InputBoxVisualTemplate` (InputBoxTemplates.xml:43): 8×20 caps, left one 5 px outside.
+pub(super) fn search_border(name: &str, (x, y, w, h): (f32, f32, f32, f32)) -> Element {
+    three_slice(
+        &format!("{name}Border"),
+        [SEARCH_LEFT, SEARCH_MIDDLE, SEARCH_RIGHT],
+        8.0,
+        (x - 5.0, y + (h - 20.0) / 2.0, w + 5.0, 20.0),
+    )
+}
+
+/// Retail's AuctionHouse `C_AuctionHouse` duration labels (`AUCTION_DURATION_ONE..THREE`).
+pub fn duration_label(duration: AuctionDuration) -> &'static str {
+    match duration {
+        AuctionDuration::Short => "12 Hours",
+        AuctionDuration::Medium => "24 Hours",
+        AuctionDuration::Long => "48 Hours",
+    }
+}
+
+pub fn duration_token(duration: AuctionDuration) -> &'static str {
+    match duration {
+        AuctionDuration::Short => "12",
+        AuctionDuration::Medium => "24",
+        AuctionDuration::Long => "48",
+    }
 }
 
 #[cfg(test)]
