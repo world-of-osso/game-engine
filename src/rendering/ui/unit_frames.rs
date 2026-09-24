@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use shared::components::{
-    Health as NetHealth, Npc, Player as NetPlayer, UnitLevel, UnitPowers, UnitTarget,
+    Health as NetHealth, Npc, Player as NetPlayer, UnitFactionTemplate, UnitLevel, UnitPowers,
+    UnitTarget,
 };
 
 use crate::client_options::{GraphicsOptions, HudVisibilityToggles};
@@ -10,6 +13,9 @@ use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use crate::ui_input::walk_up_for_onclick;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
+use game_engine::faction_reaction::{
+    FactionTemplateRow, Reaction, parse_faction_template_csv, reaction,
+};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
 use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
@@ -19,8 +25,7 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_SET_FOCUS, InWorldUnitFramesState,
     PowerBarState, SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState,
-    UnitFrameState, UnitReaction, format_value_text, fraction, inworld_unit_frames_screen,
-    unit_menu_height,
+    UnitFrameState, format_value_text, fraction, inworld_unit_frames_screen, unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -32,7 +37,39 @@ type UnitComponents<'a> = (
     Option<&'a Name>,
     Option<&'a UnitAuraState>,
     Option<&'a UnitLevel>,
+    Option<&'a UnitFactionTemplate>,
 );
+
+const FACTION_TEMPLATE_CSV: &str = "data/db2/12.1.0.69933/FactionTemplate.csv";
+
+/// `FactionTemplate.csv` rows by id, for target reaction colours.
+#[derive(Resource, Default)]
+struct FactionTemplates(HashMap<u32, FactionTemplateRow>);
+
+impl FactionTemplates {
+    fn load() -> Self {
+        let rows = std::fs::read_to_string(FACTION_TEMPLATE_CSV)
+            .map_err(|err| format!("read {FACTION_TEMPLATE_CSV}: {err}"))
+            .and_then(|text| parse_faction_template_csv(&text));
+        match rows {
+            Ok(rows) => Self(rows),
+            Err(err) => {
+                error!("Unit frame reactions stay neutral: {err}");
+                Self::default()
+            }
+        }
+    }
+
+    fn row(&self, template: Option<&UnitFactionTemplate>) -> Option<&FactionTemplateRow> {
+        self.0.get(&template?.0)
+    }
+}
+
+/// What the local player brings to a target's level text and reaction.
+struct Viewer<'a> {
+    level: Option<u16>,
+    template: Option<&'a FactionTemplateRow>,
+}
 
 struct InWorldUnitFramesRes {
     screen: Screen,
@@ -82,6 +119,7 @@ impl Plugin for InWorldUnitFramesPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FocusTarget>();
         app.init_resource::<UnitFrameMenu>();
+        app.insert_resource(FactionTemplates::load());
         app.add_message::<SetFocus>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -141,6 +179,7 @@ struct UnitFrameSources<'w, 's> {
     menu: Res<'w, UnitFrameMenu>,
     hud_visibility: Option<Res<'w, HudVisibilityToggles>>,
     graphics_options: Option<Res<'w, GraphicsOptions>>,
+    faction_templates: Res<'w, FactionTemplates>,
 }
 
 fn build_inworld_unit_frames_ui(
@@ -220,11 +259,19 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
         .next()
         .map(|unit| build_player_state(stats, unit))
         .unwrap_or_else(|| UnitFrameState::named("Player"));
-    let player_level = local_player_level(sources, stats);
+    let local = sources.player_query.iter().next();
+    let viewer = Viewer {
+        level: local_player_level(local, stats),
+        template: sources.faction_templates.row(local.and_then(|unit| unit.7)),
+    };
     let unit_state = |entity: Option<Entity>| {
         let entity = entity?;
         let unit = sources.entity_query.get(entity).ok()?;
-        Some(build_target_state(player_level, unit))
+        Some(build_target_state(
+            &viewer,
+            &sources.faction_templates,
+            unit,
+        ))
     };
     let mut target = unit_state(units.target);
     if let (Some(target), Some(entity)) = (target.as_mut(), units.target) {
@@ -259,13 +306,10 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
 
 /// `UnitLevel` once the server sends it for players; until then the character list level.
 fn local_player_level(
-    sources: &UnitFrameSources,
+    local: Option<UnitComponents>,
     stats: Option<&CharacterStatsSnapshot>,
 ) -> Option<u16> {
-    let replicated = sources
-        .player_query
-        .iter()
-        .next()
+    let replicated = local
         .and_then(|unit| unit.6)
         .map(|level| u16::from(level.0));
     replicated.or_else(|| stats.and_then(|stats| stats.level))
@@ -273,7 +317,7 @@ fn local_player_level(
 
 fn build_player_state(
     character_stats: Option<&CharacterStatsSnapshot>,
-    (player, health, powers, _npc, name, _auras, level): UnitComponents,
+    (player, health, powers, _npc, name, _auras, level, _faction): UnitComponents,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_player_name(player, character_stats, name));
     state.level_text = level
@@ -301,12 +345,13 @@ fn resolve_player_name(
 }
 
 fn build_target_state(
-    player_level: Option<u16>,
-    (player, health, powers, npc, name, _auras, level): UnitComponents,
+    viewer: &Viewer,
+    templates: &FactionTemplates,
+    (player, health, powers, npc, name, _auras, level, faction): UnitComponents,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_target_name(player, npc, name));
-    state.level_text = target_level_text(level.map(|level| level.0), player_level);
-    state.reaction = Some(unit_reaction(player));
+    state.level_text = target_level_text(level.map(|level| level.0), viewer.level);
+    state.reaction = Some(target_reaction(templates.row(faction), viewer.template));
     populate_resources(&mut state, health, powers);
     state
 }
@@ -332,14 +377,15 @@ fn target_level_text(level: Option<u8>, player_level: Option<u16>) -> String {
     }
 }
 
-/// Interim reaction: the client has no FactionTemplate/Faction data yet, and the server gives
-/// every NPC a `UnitFactionTemplate`, so its presence says nothing about hostility. Players are
-/// friendly (no PvP); NPCs neutral. Retire when FactionTemplate rows reach the client.
-fn unit_reaction(player: Option<&NetPlayer>) -> UnitReaction {
-    if player.is_some() {
-        UnitReaction::Friendly
-    } else {
-        UnitReaction::Neutral
+/// How the target regards the player (Retail colours the target by its reaction to you).
+/// Neutral when either side has no known template.
+fn target_reaction(
+    target: Option<&FactionTemplateRow>,
+    player: Option<&FactionTemplateRow>,
+) -> Reaction {
+    match (target, player) {
+        (Some(target), Some(player)) => reaction(target, player),
+        _ => Reaction::Neutral,
     }
 }
 
@@ -544,8 +590,9 @@ mod tests {
     use game_engine::buff_data::{self, DebuffType, textures};
     use game_engine::ui::event::EventBus;
     use game_engine::ui::frame::{Dimension, WidgetData};
+    use game_engine::ui::screens::inworld_unit_frames_component::reaction_health_color;
     use game_engine::ui::screens::inworld_unit_frames_component::{BAR_W, power_bar_color};
-    use shared::components::{PowerEntry, PowerType, UnitFactionTemplate};
+    use shared::components::{PowerEntry, PowerType};
 
     fn unit_frames_app() -> App {
         let mut app = App::new();
@@ -571,6 +618,13 @@ mod tests {
         app
     }
 
+    // FactionTemplate.csv (build 12.1.0.69933) ids: 1 Human player, 2 Orc player,
+    // 11 Stormwind guard (Faction 72), 14 Monster.
+    const HUMAN_TEMPLATE: u32 = 1;
+    const ORC_TEMPLATE: u32 = 2;
+    const STORMWIND_GUARD_TEMPLATE: u32 = 11;
+    const MONSTER_TEMPLATE: u32 = 14;
+
     fn spawn_local_player(app: &mut App, powers: Vec<PowerEntry>) -> Entity {
         app.world_mut()
             .spawn((
@@ -586,6 +640,7 @@ mod tests {
                     max: 100.0,
                 },
                 UnitPowers { entries: powers },
+                UnitFactionTemplate(HUMAN_TEMPLATE),
             ))
             .id()
     }
@@ -602,7 +657,7 @@ mod tests {
                     max: 120.0,
                 },
                 UnitLevel(level),
-                UnitFactionTemplate(14),
+                UnitFactionTemplate(MONSTER_TEMPLATE),
             ))
             .id()
     }
@@ -704,7 +759,7 @@ mod tests {
     }
 
     #[test]
-    fn target_npc_shows_replicated_name_level_and_neutral_reaction() {
+    fn target_npc_shows_replicated_name_level_and_hostile_reaction() {
         let mut app = unit_frames_app();
         spawn_local_player(&mut app, Vec::new());
         let wolf = spawn_npc(&mut app, "Timber Wolf", 7);
@@ -718,9 +773,57 @@ mod tests {
         assert_eq!(text(&app, "TargetHealthBarText"), "30 / 120");
         assert_eq!(
             frame(&app, "TargetHealthBarFill").background_color,
-            Some(rgba(UnitReaction::Neutral.health_color()))
+            Some(rgba(reaction_health_color(Reaction::Hostile)))
         );
         assert!(frame(&app, "TargetManaBar").hidden, "NPC has no powers");
+    }
+
+    fn target_health_color(app: &mut App, unit: Entity) -> Option<[f32; 4]> {
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(unit);
+        app.update();
+        frame(app, "TargetHealthBarFill").background_color
+    }
+
+    #[test]
+    fn target_reaction_follows_faction_templates_toward_local_player() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let guard = spawn_npc(&mut app, "Stormwind City Guard", 30);
+        app.world_mut()
+            .entity_mut(guard)
+            .insert(UnitFactionTemplate(STORMWIND_GUARD_TEMPLATE));
+        let orc = app
+            .world_mut()
+            .spawn((
+                NetPlayer {
+                    name: "Grommash".into(),
+                    race: 2,
+                    class: 1,
+                    appearance: default(),
+                },
+                NetHealth {
+                    current: 50.0,
+                    max: 100.0,
+                },
+                UnitFactionTemplate(ORC_TEMPLATE),
+            ))
+            .id();
+        let untagged = spawn_npc(&mut app, "Old Critter", 1);
+        app.world_mut()
+            .entity_mut(untagged)
+            .remove::<UnitFactionTemplate>();
+        app.update();
+
+        let color = |reaction| Some(rgba(reaction_health_color(reaction)));
+        assert_eq!(
+            target_health_color(&mut app, guard),
+            color(Reaction::Friendly)
+        );
+        assert_eq!(target_health_color(&mut app, orc), color(Reaction::Hostile));
+        assert_eq!(
+            target_health_color(&mut app, untagged),
+            color(Reaction::Neutral)
+        );
     }
 
     #[test]

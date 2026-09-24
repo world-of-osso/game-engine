@@ -187,7 +187,7 @@ fn sample_player_frame_state() -> UnitFrameState {
 fn sample_target_frame_state() -> UnitFrameState {
     UnitFrameState {
         level_text: "7".into(),
-        reaction: Some(UnitReaction::Hostile),
+        reaction: Some(crate::faction_reaction::Reaction::Hostile),
         target_buffs: vec![TargetAuraIconState {
             icon_fdid: 136078,
             timer_text: "5m".to_string(),
