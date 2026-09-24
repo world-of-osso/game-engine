@@ -8,6 +8,7 @@ use game_engine::talent_tree::session::{TalentSession, commit_entries};
 use game_engine::talent_tree::{TalentTrees, TalentTreesState};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
+use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::talent_frame_component::{
     ACTION_TALENT_APPLY, ACTION_TALENT_CHOICE_PREFIX, ACTION_TALENT_NODE_PREFIX,
@@ -26,6 +27,9 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 use crate::ui_input::walk_up_for_onclick;
+
+/// `PopupStack` key of the Apply confirmation.
+const APPLY_POPUP_KEY: &str = "TALENT_APPLY_CHANGES";
 
 /// Tracks whether the talent window (`PlayerSpellsFrame`) is open.
 #[derive(Resource, Default)]
@@ -61,6 +65,7 @@ impl Plugin for TalentFramePlugin {
             (
                 toggle_talent_frame,
                 handle_talent_frame_input,
+                apply_on_confirmation,
                 sync_talent_frame_state,
             )
                 .chain()
@@ -249,6 +254,7 @@ fn handle_talent_frame_input(
     open: Res<TalentFrameOpen>,
     trees: Res<TalentTrees>,
     mut state: ResMut<TalentState>,
+    mut popups: ResMut<PopupStack>,
     levels: Query<&UnitLevel, With<LocalPlayer>>,
 ) {
     if !open.0 || !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
@@ -272,7 +278,8 @@ fn handle_talent_frame_input(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    dispatch_action(&action, button, &trees, local_level(&levels), &mut state);
+    let level = local_level(&levels);
+    dispatch_action(&action, button, &trees, level, &mut state, &mut popups);
 }
 
 enum TalentAction {
@@ -305,13 +312,14 @@ fn parse_action(action: &str) -> Option<TalentAction> {
 }
 
 /// Left click buys a rank, right click refunds one; both only when the
-/// mirrored rules accept the result. Apply sends the pending config.
+/// mirrored rules accept the result. Apply asks for confirmation first.
 fn dispatch_action(
     action: &str,
     button: MouseButton,
     trees: &TalentTrees,
     level: Option<u8>,
     state: &mut TalentState,
+    popups: &mut PopupStack,
 ) {
     let Some(action) = parse_action(action) else {
         return;
@@ -319,10 +327,33 @@ fn dispatch_action(
     match action {
         TalentAction::Reset => state.pending = None,
         TalentAction::Spec(spec_id) => state.queue_set_spec(spec_id),
-        TalentAction::Apply => queue_apply(state),
+        TalentAction::Apply => confirm_apply(state, popups),
         TalentAction::Node(node_id) => edit_rank(trees, level, state, node_id, None, button),
         TalentAction::Choice(node_id, entry_id) => {
             edit_rank(trees, level, state, node_id, Some(entry_id), button)
+        }
+    }
+}
+
+/// Plan rule 11: talent changes need a confirmation before they are sent.
+fn confirm_apply(state: &TalentState, popups: &mut PopupStack) {
+    if state.pending.is_none() {
+        return;
+    }
+    popups.push(PopupSpec {
+        key: APPLY_POPUP_KEY.to_string(),
+        text: "Apply talent changes?".to_string(),
+        accept_label: "Accept".to_string(),
+        cancel_label: Some("Cancel".to_string()),
+        timeout: None,
+    });
+}
+
+/// Sends the pending config when the Apply confirmation is accepted.
+fn apply_on_confirmation(mut results: MessageReader<PopupResult>, mut state: ResMut<TalentState>) {
+    for result in results.read() {
+        if result.key == APPLY_POPUP_KEY && result.outcome == PopupOutcome::Accepted {
+            queue_apply(&mut state);
         }
     }
 }
