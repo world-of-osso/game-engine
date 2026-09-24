@@ -189,7 +189,7 @@ fn container_header(collapsed: bool) -> Element {
     elements.extend(header_text(
         "ObjectiveTrackerFrameHeaderText",
         "All Objectives",
-        (CONTAINER_HEADER_H - HEADER_FONT * 1.2) / 2.0,
+        (CONTAINER_HEADER_H - line_height(HEADER_FONT)) / 2.0,
     ));
     elements.extend(header_button(
         "ObjectiveTrackerFrameHeaderMinimizeButton",
@@ -220,7 +220,7 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32) -> Element {
     elements.extend(header_text(
         "QuestObjectiveTrackerHeaderText",
         "Quests",
-        top + (MODULE_HEADER_H - HEADER_FONT * 1.2) / 2.0,
+        top + (MODULE_HEADER_H - line_height(HEADER_FONT)) / 2.0,
     ));
     elements.extend(header_button(
         "QuestObjectiveTrackerHeaderMinimizeButton",
@@ -246,7 +246,7 @@ fn header_text(name: &str, text: &str, top: f32) -> Element {
         fontstring {
             name: {DynName(name.into())},
             width: 208.0,
-            height: {HEADER_FONT * 1.2},
+            height: {line_height(HEADER_FONT)},
             text,
             font: GameFont::FrizQuadrata,
             font_size: HEADER_FONT,
@@ -373,7 +373,7 @@ fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
         fontstring {
             name: {DynName(format!("{name}Dash"))},
             width: DASH_W,
-            height: {LINE_FONT * 1.2},
+            height: {line_height(LINE_FONT)},
             text: dash,
             font: GameFont::FrizQuadrata,
             font_size: LINE_FONT,

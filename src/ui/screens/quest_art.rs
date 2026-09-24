@@ -316,31 +316,39 @@ pub fn wrapped_line_count(text: &str, width: f32, font_size: f32) -> usize {
         .sum()
 }
 
+/// Greedy word wrap measuring the original text between breaks, so runs of spaces
+/// (quest texts use two after a full stop) count like the renderer lays them out.
 fn paragraph_line_count(paragraph: &str, width: f32, font_size: f32) -> usize {
     let measure = |s: &str| {
         measure_text(s, GameFont::FrizQuadrata, font_size)
             .expect("FrizQuadrata text measurement")
             .0
     };
+    let word_ends: Vec<usize> = paragraph
+        .char_indices()
+        .filter(|(_, c)| *c == ' ')
+        .map(|(i, _)| i)
+        .chain(std::iter::once(paragraph.len()))
+        .collect();
     let mut lines = 1;
-    let mut current = String::new();
-    for word in paragraph.split_whitespace() {
-        let candidate = if current.is_empty() {
-            word.to_string()
-        } else {
-            format!("{current} {word}")
-        };
-        if !current.is_empty() && measure(&candidate) > width {
+    let mut line_start = 0;
+    let mut last_fit: Option<usize> = None;
+    for end in word_ends {
+        if paragraph[line_start..end].trim().is_empty() {
+            continue;
+        }
+        if measure(paragraph[line_start..end].trim_start()) <= width {
+            last_fit = Some(end);
+        } else if let Some(fit) = last_fit {
             lines += 1;
-            current = word.to_string();
-        } else {
-            current = candidate;
+            line_start = fit;
+            last_fit = Some(end);
         }
     }
     lines
 }
 
-/// Height of wrapped text at the toolkit's 1.2 line height.
+/// Height of wrapped text at the font's measured line height.
 pub fn wrapped_text_height(text: &str, width: f32, font_size: f32) -> f32 {
     wrapped_line_count(text, width, font_size) as f32 * line_height(font_size)
 }
@@ -350,5 +358,7 @@ pub fn wrapped_text_height(text: &str, width: f32, font_size: f32) -> f32 {
 /// below it unclipped, so a one-line frame top-aligns the text like Retail's
 /// `justifyV="TOP"`; callers advance their layout by [`wrapped_text_height`].
 pub fn line_height(font_size: f32) -> f32 {
-    font_size * 1.2
+    measure_text("Ag", GameFont::FrizQuadrata, font_size)
+        .expect("FrizQuadrata text measurement")
+        .1
 }

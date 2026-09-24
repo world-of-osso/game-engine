@@ -257,3 +257,18 @@ fn wrapped_greeting_reserves_its_lines_before_the_quest_list() {
         "quest list starts below the sixth greeting line"
     );
 }
+
+#[test]
+fn quest_description_wraps_like_the_live_frame() {
+    // Kobold Camp Cleanup (7) QuestDescription for Elara: six lines at 280 px, as the
+    // live frame wraps it ("...Elara.  A" / ... / "Northshire.").
+    let text = "Your first task is one of cleansing, Elara.  A clan of kobolds have infested the woods to the north.  Go there and fight the kobold vermin you find.  Reduce their numbers so that we may one day drive them from Northshire.";
+    assert_eq!(
+        crate::ui::screens::quest_art::wrapped_line_count(text, 280.0, 13.0),
+        6
+    );
+    assert!(
+        crate::ui::screens::quest_art::line_height(13.0) >= 13.0 * 1.2,
+        "line pitch at least the toolkit's 1.2 em"
+    );
+}
