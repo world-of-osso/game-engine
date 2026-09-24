@@ -224,7 +224,7 @@ fn load_wmo_group_with_root_fixes_mocv_vertex_alpha_for_exterior_batches() {
 
     assert_eq!(colors.len(), 1);
     assert!((colors[0][0] - 0.1254902).abs() < 0.001);
-    assert!((colors[0][3] - 0.5019608).abs() < 0.001);
+    assert_eq!(colors[0][3], 1.0);
 
     let colors = match group.batches[1].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
         Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
@@ -291,7 +291,7 @@ fn load_wmo_group_with_root_honors_do_not_fix_vertex_color_alpha_flag() {
 
     assert_eq!(colors.len(), 1);
     assert!((colors[0][0] - 0.2509804).abs() < 0.001);
-    assert_eq!(colors[0][3], 0.0);
+    assert_eq!(colors[0][3], 1.0);
 }
 
 #[test]

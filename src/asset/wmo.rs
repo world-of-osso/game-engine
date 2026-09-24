@@ -92,6 +92,7 @@ fn build_group_batches(
     root: Option<&WmoRootData>,
 ) -> Result<WmoGroupData, String> {
     apply_mocv_vertex_color_fix(&mut raw.colors, &raw.batches, &header, root);
+    make_vertex_colors_opaque(&mut raw.colors);
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     let batches = if raw.batches.is_empty() {
         vec![build_whole_group_batch(
@@ -235,7 +236,6 @@ fn apply_mocv_vertex_color_fix(
 
     let root_flags = root.map(|root| root.flags).unwrap_or_default();
     let int_batch_start = first_interior_vertex_index(header, batches);
-    let fixed_alpha = fixed_vertex_alpha(header);
     for (vertex_index, color) in colors.iter_mut().enumerate() {
         if vertex_index < int_batch_start {
             if !root_flags.do_not_fix_vertex_color_alpha {
@@ -257,7 +257,15 @@ fn apply_mocv_vertex_color_fix(
                 .min(255.0)
                 / 510.0;
         }
-        color[3] = fixed_alpha;
+    }
+}
+
+/// MOCV alpha is WoW's indoor/outdoor lighting blend, not opacity. Bevy multiplies
+/// vertex alpha into material alpha, so leaving it in makes masked interior walls
+/// discard their color while the depth prepass still writes their depth.
+fn make_vertex_colors_opaque(colors: &mut [[f32; 4]]) {
+    for color in colors {
+        color[3] = 1.0;
     }
 }
 
@@ -270,14 +278,6 @@ fn first_interior_vertex_index(header: &WmoGroupHeader, batches: &[RawBatch]) ->
         .get(last_transparent_batch)
         .map(|batch| batch.max_index as usize + 1)
         .unwrap_or(0)
-}
-
-fn fixed_vertex_alpha(header: &WmoGroupHeader) -> f32 {
-    if header.group_flags.exterior {
-        1.0
-    } else {
-        0.0
-    }
 }
 
 fn build_whole_group_mesh(raw: &RawGroupData, uses_generated_tangents: bool) -> Mesh {
