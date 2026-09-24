@@ -17,26 +17,32 @@ pub const CHAT_BACKGROUND: FrameName = FrameName("ChatFrame1Background");
 pub const CHAT_TABS: &str = "ChatFrame1Tabs";
 pub const CHAT_MESSAGES: &str = "ChatFrame1Messages";
 
-/// Plan layout: 430x200 reference units, 16 from the left and bottom edges.
+/// Retail default ChatFrame1: 430x170 message area at BOTTOMLEFT (35, 50)
+/// (Blizzard_EditMode/Standard/EditModePresetLayouts.lua ChatFrame); tabs above it, the
+/// edit box below it.
 const FRAME_W: f32 = 430.0;
-const FRAME_H: f32 = 200.0;
-const FRAME_INSET: f32 = 16.0;
+const RETAIL_MESSAGES_H: f32 = 170.0;
+const FRAME_LEFT: f32 = 35.0;
+const RETAIL_MESSAGES_BOTTOM: f32 = 50.0;
 const TAB_W: f32 = 96.0;
 const TAB_H: f32 = 22.0;
 const TAB_GAP: f32 = 2.0;
 const PAD: f32 = 4.0;
 const INPUT_H: f32 = 22.0;
-const MESSAGES_TOP: f32 = TAB_H + PAD;
+const MESSAGES_TOP: f32 = TAB_H;
 const MESSAGES_W: f32 = FRAME_W - 2.0 * PAD;
-const MESSAGES_H: f32 = FRAME_H - MESSAGES_TOP - INPUT_H - PAD;
+const MESSAGES_H: f32 = RETAIL_MESSAGES_H;
+const FRAME_H: f32 = TAB_H + RETAIL_MESSAGES_H + PAD + INPUT_H;
+const FRAME_BOTTOM: f32 = RETAIL_MESSAGES_BOTTOM - PAD - INPUT_H;
 const TRACK_W: f32 = 8.0;
 pub const CHAT_ROW_H: f32 = 16.0;
 pub const CHAT_FONT: GameFont = GameFont::ArialNarrow;
 pub const CHAT_FONT_SIZE: f32 = 14.0;
 /// Width available to message text; lines wrap to it.
 pub const CHAT_TEXT_W: f32 = MESSAGES_W - TRACK_W - PAD;
-/// Background alpha while the frame is in use; it fades to 0 when idle.
-pub const CHAT_BACKGROUND_ALPHA: f32 = 0.4;
+/// Retail `DEFAULT_CHATFRAME_ALPHA` (FloatingChatFrame.lua): the background stays at it
+/// idle and in use.
+const CHAT_BACKGROUND_COLOR: &str = "0,0,0,0.25";
 /// Dark plate behind the selected tab so its gold label stays legible over the world.
 const SELECTED_TAB_BG: &str = "0,0,0,0.5";
 const LINK_PREFIX: &str = "ChatFrame1Link";
@@ -48,14 +54,12 @@ pub struct ChatFrameView {
     pub tab: ChatTab,
     pub rows: Vec<ChatRow>,
     pub input_open: bool,
-    pub background_alpha: f32,
 }
 
 pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     let view = ctx
         .get::<ChatFrameView>()
         .expect("ChatFrameView must be in SharedContext");
-    let background = format!("0,0,0,{}", view.background_alpha);
     let hide_input = !view.input_open;
     rsx! {
         r#frame {
@@ -63,13 +67,13 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
             width: FRAME_W,
             height: FRAME_H,
             pos_type: "absolute",
-            left: FRAME_INSET,
-            bottom: FRAME_INSET,
+            left: FRAME_LEFT,
+            bottom: FRAME_BOTTOM,
             r#frame {
                 name: CHAT_BACKGROUND,
                 width: FRAME_W,
-                height: {FRAME_H - TAB_H},
-                background_color: {background},
+                height: MESSAGES_H,
+                background_color: CHAT_BACKGROUND_COLOR,
                 pos_type: "absolute",
                 left: 0.0,
                 top: TAB_H,
@@ -242,7 +246,6 @@ mod tests {
             tab: ChatTab::CombatLog,
             rows,
             input_open: false,
-            background_alpha: 0.0,
         });
         Screen::new(chat_frame_screen).sync(&shared, &mut reg);
         reg

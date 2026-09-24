@@ -75,7 +75,6 @@ fn mount_hud(width: f32, height: f32) -> FrameRegistry {
         tab: ChatTab::General,
         rows: Vec::new(),
         input_open: false,
-        background_alpha: 0.0,
     });
     shared.insert(UiErrors::default());
     for build in [
