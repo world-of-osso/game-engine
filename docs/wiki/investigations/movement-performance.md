@@ -4,6 +4,46 @@ Verified September 5, 2026 on local dev client code `4a503876`. Repeatable, coll
 
 Current CPU baseline: the [additive empty-window investigation](empty-window-baseline.md#native-instruction-attribution) locates the first substantial increase at continuous blank-frame processing, before project services, and maps decoded blank CPU to task dispatch, queue, and synchronization instructions. The [isolated dirty-tree removal](empty-window-baseline.md#isolated-dirty-tree-removal) stopped that callback and its worker spans without a bulk CPU drop. Full-game per-frame CPU ownership remains unresolved. A temporary application-only opt1 build has one matched native pair with lower CPU, but no adoption or visual-equivalence decision; see [[compile-latency]]. Separately, [foreground firmware-clamp evidence](#foreground-firmware-clamp-evidence) explains a captured class of FPS collapses; the thermal-policy/cooling cause and original tile hitch remain unresolved.
 
+## Release in-world FPS profile (2026-09-24)
+
+These are the first measurements on a **distribution build** (`--release --no-default-features --features ipc,casc`, based on master `bff94c42`). Earlier sections here used dev builds. Setup:
+- Headless cage at 1280×685 with `focused=true`, account `npc_anim`, standing at spawn `(-8936.3, 158.7, -78.5)`.
+- 9 Elwynn/Northshire tiles loaded (about 9,900 doodads, 81 WMOs, about 67k entities).
+- Default options: `vsync_enabled` gives `PresentMode::Mailbox`, the frame limiter is off (144 when enabled), MSAA 4×, SSAO/TAA/bloom off, 4 shadow cascades on a 4096² map.
+- Samples: 20 s at 1 Hz from IPC `performance`, `/proc` thread CPU and schedstat, per-process DRM `drm-engine-gfx`, and gpu_metrics clocks.
+
+**Baseline.** 9–24 FPS (42–112 ms smoothed frame time), 140–340% process CPU, at host load 7–42 from concurrent agent builds.
+- The client kept the GPU busy 45–98% on its own, with gfx clocks firmware-limited to 600–1,400 MHz.
+- No thread saturates. The render thread runs about 20–38% of a core and the main thread is mostly parked in the schedule scope. Compute-pool workers sum to 110–275%.
+- The frame therefore serializes CPU chains with GPU work: GPU time plus the render/main critical path.
+- FPS inside one run oscillates between 7 and 31. Run-to-run GPU time for the same binary spans 26–80 ms per frame, because other clients and builds share the GPU and memory bandwidth.
+
+**Profile.** From the named-span profile (`cpu-system-profile`, `WOO_CPU_PROFILE_START_SECS=150`, 5 s at 13 FPS), per frame:
+- `ui_toolkit::native_render::sync_registry`: 10–24 ms. It is a serial main-world system that reconciles the whole registry every frame with no dirty gate.
+- Directional-shadow batching: 7.9 ms, plus 1.7 ms instance writes and 1.65 ms `check_dir_light_mesh_visibility`.
+- Prepass batching: 5.6 ms, plus 2.6 ms writes and 1.4 ms `early_prepass`.
+- `prepare_erased_assets<M2EffectMaterial>`: 5.8 ms. Every doodad instance owns its UV-animated effect material, and each is re-prepared every frame.
+- Skins: 4.3 ms. `bevy_ui` layout: 3.8 ms. `player_movement`: 1.5 ms (it rebuilds a `HashSet` of WMO collision meshes every frame). World-map model rebuild: 1.6 ms.
+
+An adjacent `--no-directional-shadows` pair measured **26.3 → 14.8 ms GPU per frame** at the same clocks, so shadows are about 44% of GPU frame time.
+
+**Fixes.**
+- `3f0d6ecb`: `WowCamera` keeps prepasses only for their consumers. SSAO needs depth+normal. TAA needs depth+motion plus `TemporalJitter`/`MipBias`.
+  - Before this, the camera spawned with SSAO+TAA, so their required components stayed on after they were removed. Default MSAA ran a depth+normal+motion prepass at 4× that nothing read, and kept TAA's projection jitter and mip bias with no TAA resolve.
+  - Removing jitter and mip bias is the one intended visual change. Screenshots otherwise match within a mean channel difference of about 2.5/255.
+  - Prepass phases disappear from the render-world profile.
+  - Five interleaved base/fix pairs: GPU time per frame **65.6 → 50.9 ms** (−22%, lower in 5/5 pairs; −24% in clock-weighted cycles). Mean FPS 12.8 → 13.7 (+7%, but only 3/5 pairs higher under drifting load and clocks). Process CPU per frame unchanged.
+- `6e34121f`: the world-map frame returns before building its model unless `WorldMapState`, `CurrentZone` or `WindowManager` changed. The system drops out of the profile. This is about 1.6 ms of main-world CPU, too small to resolve in FPS.
+- `d069ed8f`: `WOO_CPU_PROFILE_START_SECS` lets the span profiler capture a settled InWorld.
+
+**Remaining, ranked.**
+1. `sync_registry` dirty gating in ui-toolkit.
+2. Shadow cost, which is a visual trade-off: cascade count, map size, the caster set. `M2EffectMaterial` shadow draws are no-ops because its pipeline disables depth writes in every pass.
+3. Sharing per-instance doodad materials and meshes. This removes the per-frame effect re-prepare and allows instancing.
+4. Collider collection in `player_movement`.
+
+Raw captures live in ephemeral `/tmp/claude/perf-agent/runs/`, not `data/`.
+
 ## UI reconciliation mutation batch (2026-09-10)
 
 Toolkit commits `c8fa209`/`c3a518a`, `3e6951d`, `eebcf28`, `67413da`, `2b3c1f3`, `f041c0e`, `e25eecc`, `598ded9`, and `924ca23` remove unchanged renderer-owned component writes, settled button nine-slice invalidation, clean render-dirty resource mutation, settled button-input mutation, and settled primary-window resource mutation. Exact behavior and retained reconciliation boundaries are the [UI system record](../systems/ui-system.md). Separate focused integration runs establish 43 distinct new tests: text 3, shadow 3, button nine-slice 3, nine-slice 4, tiled 4, render-dirty clearing 4, button input 5, remaining sprites 12, and actual UiPlugin 5. One existing adapted hover unit test also passed: 44 distinct executed tests across separate scoped runs, not one combined suite. Proof: [text](../../../data/diagnostics/unchanged-writes-20260909/text-components/verification/final-report.md), [shadow](../../../data/diagnostics/unchanged-writes-20260909/shadow-components/verification/final-report.md), [button nine-slice](../../../data/diagnostics/unchanged-writes-20260909/button-nine-slice/verification/final-report.md), [nine-slice](../../../data/diagnostics/unchanged-writes-20260909/nine-slice-components/verification/report.md), [tiled](../../../data/diagnostics/unchanged-writes-20260909/tiled-components/verification/report.md), [render-dirty clearing](../../../data/diagnostics/unchanged-writes-20260909/render-dirty-clear/verification/report.md), [button input](../../../data/diagnostics/unchanged-writes-20260909/button-input/verification/report.md), [remaining sprites](../../../data/diagnostics/unchanged-writes-20260909/remaining-sprites/verification/report.md), and [actual UiPlugin](../../../data/diagnostics/unchanged-writes-20260909/ui-plugin-integration/verification/final-integration-report.md). The final shared engine dev-feature test compilation launched but intentionally failed an equipment assertion (exit 101); it closes toolkit integration compilation only, not engine test/check or screenshot-fix completion. No native or CPU-savings claim.

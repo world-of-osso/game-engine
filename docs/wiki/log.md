@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-24] performance | Release in-world FPS profile and prepass policy
+
+A distribution build at the Northshire spawn (headless, 1280×685) ran 9–24 FPS. The GPU was 45–98% busy with clocks firmware-limited to 0.6–1.4 GHz, and no CPU thread saturated.
+- Shadows take about 44% of GPU frame time.
+- `ui_toolkit::native_render::sync_registry` is the largest CPU span, at 10–24 ms per frame.
+- `3f0d6ecb` keeps `WowCamera` prepasses, jitter and mip bias only for SSAO/TAA. GPU time per frame fell 22% over five interleaved pairs.
+- `6e34121f` gates the world-map model rebuild.
+
+See [[movement-performance]] and [[rendering-pipeline]].
+
 ## [2026-09-23] talents ui | Retail trait-tree window
 
 `PlayerSpellsFrame` replaces the legacy 28-talent frame, whose messages the server no longer answers. The client loads the ten class trait trees and the `talents-*` atlas members from the 12.1.0.69933 CSVs (cold 1.49 s, warm 7.4 ms from a 151 KB cache in the dev test profile). It mirrors the server `trait_config` rules to decide which edits it keeps, and sends `CommitTraitConfig` / `SetSpecialization`. The legacy talent status snapshot and the IPC/CLI `talent` commands are removed. 17 targeted tests pass (7 lib, 10 bin) on the real Paladin tree 790. No native capture yet. See [[talents-ui]].
