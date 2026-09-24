@@ -343,15 +343,12 @@ impl TalentTreePaths {
 pub fn load_talent_trees(paths: &TalentTreePaths) -> Result<TalentTreeData, String> {
     let source_dir = talent_source_dir(&paths.data_dir);
     let key = cache::cache_key(&paths.data_dir, &source_dir)?;
-    if let Some(data) = cache::read_cache(&paths.cache_path, &key)? {
-        return Ok(data);
-    }
-    let trees = load::load_trees(&source_dir)?;
-    let art = load::load_atlas_crops(&paths.data_dir, "talents-")?;
-    let classes = load::load_class_names(&source_dir)?;
-    let data = TalentTreeData::new(trees, art, classes);
-    cache::write_cache(&paths.cache_path, &key, &data)?;
-    Ok(data)
+    crate::db2_cache::load_or_build(&paths.cache_path, &key, || {
+        let trees = load::load_trees(&source_dir)?;
+        let art = load::load_atlas_crops(&paths.data_dir, "talents-")?;
+        let classes = load::load_class_names(&source_dir)?;
+        Ok(TalentTreeData::new(trees, art, classes))
+    })
 }
 
 #[derive(Resource)]
