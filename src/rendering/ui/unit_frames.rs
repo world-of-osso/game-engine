@@ -591,8 +591,11 @@ mod tests {
     use game_engine::buff_data::{self, DebuffType};
     use game_engine::ui::event::EventBus;
     use game_engine::ui::frame::{Dimension, WidgetData};
-    use game_engine::ui::screens::inworld_unit_frames_component::reaction_health_color;
-    use game_engine::ui::screens::inworld_unit_frames_component::{BAR_W, power_bar_color};
+    use game_engine::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::{
+        AtlasArt, HEALTH_BAR, power_bar_art,
+    };
+    use game_engine::ui::screens::inworld_unit_frames_component::{BAR_W, reaction_color};
+    use game_engine::ui::widgets::texture::{TextureData, TextureSource};
     use shared::components::{PowerEntry, PowerType};
 
     fn unit_frames_app() -> App {
@@ -685,6 +688,20 @@ mod tests {
         }
     }
 
+    fn texture<'a>(app: &'a App, name: &str) -> &'a TextureData {
+        match frame(app, name).widget_data.as_ref() {
+            Some(WidgetData::Texture(texture)) => texture,
+            _ => panic!("{name} is not a Texture"),
+        }
+    }
+
+    /// The bar texture shows `art`, revealed up to `fraction` of its width.
+    fn assert_bar_art(app: &App, name: &str, art: &AtlasArt, fraction: f32) {
+        let fill = texture(app, name);
+        assert_eq!(fill.source, TextureSource::FileDataId(art.fdid), "{name}");
+        assert_eq!(fill.tex_coords, rgba(&art.tex_coords(fraction)), "{name}");
+    }
+
     fn rgba(color: &str) -> [f32; 4] {
         let parts: Vec<f32> = color.split(',').map(|part| part.parse().unwrap()).collect();
         [parts[0], parts[1], parts[2], parts[3]]
@@ -723,11 +740,10 @@ mod tests {
         assert_eq!(text(&app, "PlayerManaBarText"), "35 / 100");
         let fill = frame(&app, "PlayerManaBarFill");
         assert_eq!(fill.width, Dimension::Fixed(BAR_W * 0.35));
-        assert_eq!(
-            fill.background_color,
-            Some(rgba(power_bar_color(PowerType::Rage)))
-        );
-        assert_eq!(fill.background_color, Some([1.0, 0.0, 0.0, 1.0]));
+        let rage = power_bar_art(PowerType::Rage).expect("rage bar art");
+        // UI-HUD-UnitFrame-Player-PortraitOff-Bar-Rage in interface/hud/uiunitframe.blp
+        assert_eq!(rage.fdid, 4_631_591);
+        assert_bar_art(&app, "PlayerManaBarFill", &rage, 0.35);
     }
 
     #[test]
@@ -742,13 +758,12 @@ mod tests {
         );
         app.update();
 
-        let pip = |index: usize| {
-            frame(&app, &format!("PlayerSecondaryResourcePip{index}")).background_color
-        };
-        let lit = Some([0.95, 0.9, 0.6, 1.0]);
-        assert_eq!([pip(0), pip(1), pip(2)], [lit; 3]);
-        assert_ne!(pip(3), lit);
-        assert_ne!(pip(4), lit);
+        let lit = |index: usize| !frame(&app, &format!("PlayerSecondaryResourcePip{index}")).hidden;
+        assert_eq!(
+            [lit(0), lit(1), lit(2), lit(3), lit(4)],
+            [true, true, true, false, false]
+        );
+        assert!(!frame(&app, "PlayerSecondaryResourceHolder").hidden);
         assert!(
             app.world()
                 .resource::<UiState>()
@@ -757,6 +772,39 @@ mod tests {
                 .is_none()
         );
         assert_eq!(text(&app, "PlayerManaBarText"), "5000 / 10000");
+    }
+
+    #[test]
+    fn combo_points_light_the_retail_point_icon_over_each_slot() {
+        let mut app = unit_frames_app();
+        spawn_local_player(
+            &mut app,
+            vec![
+                power(PowerType::Energy, 60, 100),
+                power(PowerType::ComboPoints, 2, 5),
+            ],
+        );
+        app.update();
+
+        let shown = |part: &str, index: usize| {
+            !frame(&app, &format!("PlayerSecondaryResourcePip{index}{part}")).hidden
+        };
+        assert_eq!(
+            (0..5).map(|index| shown("Lit", index)).collect::<Vec<_>>(),
+            [true, true, false, false, false]
+        );
+        assert!((0..5).all(|index| shown("Background", index)));
+        let rogue_points = 4_902_605; // interface/hud/uiroguecombpoints.blp
+        assert_eq!(
+            texture(&app, "PlayerSecondaryResourcePip0Lit").source,
+            TextureSource::FileDataId(rogue_points)
+        );
+        assert_bar_art(
+            &app,
+            "PlayerManaBarFill",
+            &power_bar_art(PowerType::Energy).unwrap(),
+            0.6,
+        );
     }
 
     #[test]
@@ -773,16 +821,17 @@ mod tests {
         assert_eq!(text(&app, "TargetLevelText"), "7");
         assert_eq!(text(&app, "TargetHealthBarText"), "30 / 120");
         assert_eq!(
-            frame(&app, "TargetHealthBarFill").background_color,
-            Some(rgba(reaction_health_color(Reaction::Hostile)))
+            texture(&app, "TargetReputationColor").vertex_color,
+            rgba(reaction_color(Reaction::Hostile))
         );
+        assert_bar_art(&app, "TargetHealthBarFill", &HEALTH_BAR, 0.25);
         assert!(frame(&app, "TargetManaBar").hidden, "NPC has no powers");
     }
 
-    fn target_health_color(app: &mut App, unit: Entity) -> Option<[f32; 4]> {
+    fn target_reaction_color(app: &mut App, unit: Entity) -> [f32; 4] {
         app.world_mut().resource_mut::<CurrentTarget>().0 = Some(unit);
         app.update();
-        frame(app, "TargetHealthBarFill").background_color
+        texture(app, "TargetReputationColor").vertex_color
     }
 
     #[test]
@@ -815,14 +864,17 @@ mod tests {
             .remove::<UnitFactionTemplate>();
         app.update();
 
-        let color = |reaction| Some(rgba(reaction_health_color(reaction)));
+        let color = |reaction| rgba(reaction_color(reaction));
         assert_eq!(
-            target_health_color(&mut app, guard),
+            target_reaction_color(&mut app, guard),
             color(Reaction::Friendly)
         );
-        assert_eq!(target_health_color(&mut app, orc), color(Reaction::Hostile));
         assert_eq!(
-            target_health_color(&mut app, untagged),
+            target_reaction_color(&mut app, orc),
+            color(Reaction::Hostile)
+        );
+        assert_eq!(
+            target_reaction_color(&mut app, untagged),
             color(Reaction::Neutral)
         );
     }

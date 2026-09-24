@@ -5,6 +5,9 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::raid_party_data::{GroupRole, health_fraction as unit_health_fraction};
+use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::{
+    AtlasArt, FRAME_PORTRAIT_OFF, HEALTH_BAR,
+};
 use crate::ui::screens::inworld_unit_frames_component::{
     PARTY_BOTTOM, PARTY_GAP, PLAYER_FRAME_LEFT,
 };
@@ -20,38 +23,42 @@ impl fmt::Display for DynName {
 
 // --- Layout constants ---
 
-pub const UNIT_W: f32 = 160.0;
-pub const UNIT_H: f32 = 46.0;
-const UNIT_GAP: f32 = 4.0;
+/// Party members draw the Retail portrait-off unit frame art
+/// (`UI-HUD-UnitFrame-Player-PortraitOff`, 133×51) at 0.9 scale, about Retail's 120-wide
+/// party frame; slot offsets are the art's pixels times the scale.
+const ART_SCALE: f32 = 0.9;
+pub const UNIT_W: f32 = 133.0 * ART_SCALE;
+pub const UNIT_H: f32 = 51.0 * ART_SCALE;
+/// Room under each member for its debuff row.
+const UNIT_GAP: f32 = DEBUFF_ICON_SIZE + 3.0;
 
-const ROLE_ICON_SIZE: f32 = 14.0;
-const ROLE_ICON_INSET: f32 = 4.0;
+const ROLE_ICON_SIZE: f32 = 11.0;
+const ROLE_ICON_INSET: f32 = 5.0;
 
-const NAME_H: f32 = 14.0;
-const NAME_INSET_X: f32 = ROLE_ICON_INSET + ROLE_ICON_SIZE + 4.0;
-const NAME_W: f32 = UNIT_W - NAME_INSET_X - 4.0;
+const NAME_H: f32 = 12.0 * ART_SCALE;
+const NAME_INSET_X: f32 = ROLE_ICON_INSET + ROLE_ICON_SIZE + 2.0;
+const NAME_W: f32 = UNIT_W - NAME_INSET_X - 6.0;
 
-const BAR_H: f32 = 12.0;
-const BAR_INSET: f32 = 4.0;
-const BAR_W: f32 = UNIT_W - 2.0 * BAR_INSET;
-const BAR_Y: f32 = NAME_H + 2.0;
+const BAR_H: f32 = 20.0 * ART_SCALE;
+const BAR_INSET: f32 = 3.0 * ART_SCALE;
+const BAR_W: f32 = 124.0 * ART_SCALE;
+const BAR_Y: f32 = 14.0 * ART_SCALE;
 
 const DEBUFF_ICON_SIZE: f32 = 14.0;
 const DEBUFF_GAP: f32 = 2.0;
-const DEBUFF_Y: f32 = BAR_Y + BAR_H + 2.0;
+const DEBUFF_Y: f32 = UNIT_H + 1.0;
 const MAX_DEBUFFS: usize = 4;
 
-const READY_CHECK_SIZE: f32 = 14.0;
+const READY_CHECK_SIZE: f32 = 11.0;
 const INCOMING_HEAL_COLOR: &str = "0.3,0.8,0.3,0.45";
 
 // --- Colors ---
 
-const FRAME_BG: &str = "0.04,0.04,0.04,0.85";
-const NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
-const HEALTH_BG: &str = "0.15,0.15,0.15,0.9";
-const HEALTH_FILL: &str = "0.1,0.7,0.1,0.95";
+/// `GameFontNormalSmall` gold, as Retail party names.
+const NAME_COLOR: &str = "1.0,0.82,0.0,1.0";
 const HEALTH_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
-const ROLE_BG: &str = "0.1,0.1,0.1,0.8";
+const UNIT_FONT: &str = "FrizQuadrata";
+const ROLE_BG: &str = "0.0,0.0,0.0,0.0";
 const DEBUFF_BG: &str = "0.2,0.0,0.0,0.8";
 const RANGE_FADE_BG: &str = "0.0,0.0,0.0,0.55";
 const READY_ACCEPTED_COLOR: &str = "0.0,1.0,0.0,1.0";
@@ -193,20 +200,19 @@ pub fn party_frame_screen(ctx: &SharedContext) -> Element {
 
 fn party_unit_frame(idx: usize, member: &PartyMemberState, y: f32) -> Element {
     let frame_id = DynName(format!("PartyMember{idx}"));
-    let health_fill_w = member.health_fraction() * BAR_W;
     rsx! {
         r#frame {
             name: frame_id,
             width: {UNIT_W},
             height: {UNIT_H},
             mouse_enabled: true,
-            background_color: FRAME_BG,
             pos_type: "absolute",
             left: 0.0,
             top: {-(y)},
+            {art_texture(DynName(format!("PartyMember{idx}Art")), &FRAME_PORTRAIT_OFF, (UNIT_W, UNIT_H), 1.0)}
             {role_icon(idx, &member.role)}
             {member_name(idx, &member.name)}
-            {health_bar(idx, health_fill_w, member)}
+            {health_bar(idx, member)}
             {incoming_heals_overlay(idx, member)}
             {debuff_row(idx, &member.debuffs)}
             {ready_check_icon(idx, member.ready_check)}
@@ -251,8 +257,11 @@ fn member_name(idx: usize, name: &str) -> Element {
             width: {NAME_W},
             height: {NAME_H},
             text: name,
-            font_size: 10.0,
+            font: UNIT_FONT,
+            font_size: 9.0,
             font_color: NAME_COLOR,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
             left: {NAME_INSET_X},
@@ -261,13 +270,18 @@ fn member_name(idx: usize, name: &str) -> Element {
     }
 }
 
-fn health_fill(id: DynName, w: f32) -> Element {
+/// The leftmost `fraction` of an atlas crop at `fraction` of `width`, like a Retail
+/// `StatusBar` texture.
+fn art_texture(id: DynName, art: &AtlasArt, (width, height): (f32, f32), fraction: f32) -> Element {
+    let coords = art.tex_coords(fraction);
     rsx! {
-        r#frame {
+        texture {
             name: id,
-            width: {w},
-            height: {BAR_H},
-            background_color: HEALTH_FILL,
+            width: {width * fraction},
+            height: {height},
+            hidden: {fraction <= 0.0},
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
             pos_type: "absolute",
             left: 0.0,
             top: -0.0,
@@ -282,8 +296,10 @@ fn health_text_overlay(id: DynName, text: &str) -> Element {
             width: {BAR_W},
             height: {BAR_H},
             text: text,
+            font: UNIT_FONT,
             font_size: 8.0,
             font_color: HEALTH_TEXT_COLOR,
+            outline: "OUTLINE",
             justify_h: "CENTER",
             pos_type: "absolute",
             left: 0.0,
@@ -292,7 +308,7 @@ fn health_text_overlay(id: DynName, text: &str) -> Element {
     }
 }
 
-fn health_bar(idx: usize, fill_w: f32, member: &PartyMemberState) -> Element {
+fn health_bar(idx: usize, member: &PartyMemberState) -> Element {
     let bar_id = DynName(format!("PartyMember{idx}HealthBg"));
     let health_text = member.health_text();
     rsx! {
@@ -300,11 +316,10 @@ fn health_bar(idx: usize, fill_w: f32, member: &PartyMemberState) -> Element {
             name: bar_id,
             width: {BAR_W},
             height: {BAR_H},
-            background_color: HEALTH_BG,
             pos_type: "absolute",
             left: {BAR_INSET},
             top: {-(-BAR_Y)},
-            {health_fill(DynName(format!("PartyMember{idx}HealthFill")), fill_w)}
+            {art_texture(DynName(format!("PartyMember{idx}HealthFill")), &HEALTH_BAR, (BAR_W, BAR_H), member.health_fraction())}
             {health_text_overlay(DynName(format!("PartyMember{idx}HealthText")), &health_text)}
         }
     }
