@@ -448,11 +448,12 @@ fn quest_marker_yaws_toward_camera_without_pitch_under_a_turned_npc() {
     // Camera above and to the south-east of the marker.
     let camera = Vec3::new(10.0, 20.0, 8.0);
     let local = indicator_facing(camera, marker, parent).expect("camera not overhead");
-    let world_forward = (parent * local) * Vec3::NEG_Z;
-    assert!(world_forward.y.abs() < 1e-5, "no pitch: {world_forward:?}");
+    // The glyph's face (+X) points at the camera on the ground plane.
+    let world_face = (parent * local) * Vec3::X;
+    assert!(world_face.y.abs() < 1e-5, "no pitch: {world_face:?}");
     assert!(
-        world_forward.distance(Vec3::Z) < 1e-5,
-        "faces the camera on the ground plane: {world_forward:?}"
+        world_face.distance(Vec3::Z) < 1e-5,
+        "faces the camera on the ground plane: {world_face:?}"
     );
     assert_eq!(
         indicator_facing(marker + Vec3::Y * 5.0, marker, parent),

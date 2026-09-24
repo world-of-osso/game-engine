@@ -466,11 +466,14 @@ fn billboard_nameplates(
 }
 
 /// Local rotation that yaws a marker at `marker` toward `camera` under a parent with
-/// world rotation `parent`; `None` when the camera is straight above.
+/// world rotation `parent`; `None` when the camera is straight above. The talktome
+/// glyphs face M2 +X (Bevy +X): a flat `?` seen along any other axis reads as `!`.
 fn indicator_facing(camera: Vec3, marker: Vec3, parent: Quat) -> Option<Quat> {
     let flat = Vec3::new(camera.x - marker.x, 0.0, camera.z - marker.z);
     let dir = Dir3::new(flat).ok()?;
-    let world = Transform::IDENTITY.looking_to(dir, Dir3::Y).rotation;
+    // looking_to turns -Z toward the camera; a quarter turn about Y brings +X there.
+    let world = Transform::IDENTITY.looking_to(dir, Dir3::Y).rotation
+        * Quat::from_rotation_y(std::f32::consts::FRAC_PI_2);
     Some(parent.inverse() * world)
 }
 
