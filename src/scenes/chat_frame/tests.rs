@@ -406,3 +406,29 @@ fn enter_with_a_popup_accepts_the_popup_and_does_not_open_chat() {
     press_enter(&mut app);
     assert!(chat_focused(&app), "with no popup, Enter opens chat");
 }
+
+#[test]
+fn message_rows_arriving_after_login_are_visible() {
+    let mut app = chat_app();
+    app.init_resource::<crate::networking::ChatLog>();
+    app.init_resource::<IgnoreListStatusSnapshot>();
+    app.init_resource::<SelectedCharacterId>();
+    app.update();
+    app.insert_resource(Inbox::new(vec![received(
+        "Elara",
+        "hello azeroth",
+        ChatType::Say,
+    )]));
+    app.world_mut()
+        .run_system_once(crate::networking_messages::receive_chat_messages)
+        .unwrap();
+    app.update();
+
+    let reg = &app.world().resource::<UiState>().registry;
+    let row = reg
+        .get_by_name(&format!("{CHAT_MESSAGES}Row0"))
+        .expect("row 0");
+    let run = reg.children_of(row)[0];
+    assert!(reg.get(row).unwrap().visible, "row hidden");
+    assert!(reg.get(run).unwrap().visible, "row text hidden");
+}
