@@ -154,7 +154,7 @@ fn reset_core_world_resources(world: &mut World) {
         t.0 = None;
     }
     if let Some(mut zone) = world.get_resource_mut::<CurrentZone>() {
-        zone.zone_id = 0;
+        *zone = CurrentZone::default();
     }
     if let Some(mut alive) = world.get_resource_mut::<LocalAliveState>() {
         alive.0 = true;
@@ -560,7 +560,10 @@ mod tests {
     #[test]
     fn reset_world_resources_clears_zone_and_chat() {
         let mut world = World::default();
-        world.insert_resource(CurrentZone { zone_id: 42 });
+        world.insert_resource(CurrentZone {
+            zone_id: 42,
+            ..Default::default()
+        });
         world.insert_resource(game_engine::world_map_data::WorldMapState {
             fog: game_engine::world_map_data::FogOfWar {
                 explored_zones: vec![12, 1519],
@@ -638,7 +641,10 @@ mod tests {
     #[test]
     fn rapid_reset_world_resources_no_accumulation() {
         let mut world = World::default();
-        world.insert_resource(CurrentZone { zone_id: 0 });
+        world.insert_resource(CurrentZone {
+            zone_id: 0,
+            ..Default::default()
+        });
         world.insert_resource(ChatLog { messages: vec![] });
         world.insert_resource(LocalAliveState(true));
 

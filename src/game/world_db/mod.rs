@@ -168,6 +168,10 @@ pub fn load_zone_name(id: u32) -> Result<Option<String>, String> {
     zone_name_cache::load_zone_name(id)
 }
 
+pub fn load_area_parents() -> Result<HashMap<u32, u32>, String> {
+    zone_name_cache::load_area_parents()
+}
+
 fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,

@@ -625,7 +625,8 @@ fn update_zone_name(
         return;
     }
     let Some(frames) = frames else { return };
-    let name = zone_id_to_name(zone.zone_id);
+    // Retail GetMinimapZoneText: the subzone, or the zone when there is none.
+    let name = zone_id_to_name(zone.area_id);
     if let Some(frame) = ui.registry.get_mut(frames.zone_name) {
         if let Some(WidgetData::FontString(fs)) = &mut frame.widget_data {
             fs.text = name;
