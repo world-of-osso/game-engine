@@ -269,7 +269,7 @@ fn post_notices(notices: Vec<String>, chat: &mut ChatState) {
             channel_name: String::new(),
             sender: String::new(),
             text,
-            timestamp: crate::networking_messages::current_chat_timestamp(),
+            timestamp: game_engine::chat_data::now_timestamp(),
         });
     }
 }

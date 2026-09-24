@@ -59,6 +59,14 @@ pub struct JoinedChannel {
     pub channel_type: ChatChannelType,
 }
 
+/// Current time as a chat timestamp (Unix seconds).
+pub fn now_timestamp() -> f64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock is after the Unix epoch")
+        .as_secs_f64()
+}
+
 /// A single chat message in the chat log.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChatMessage {
@@ -93,11 +101,14 @@ pub struct ChatState {
     pub joined_channels: Vec<JoinedChannel>,
     pub messages: Vec<ChatMessage>,
     pub max_messages: usize,
+    /// Messages ever added, so newly arrived ones are known after old ones are trimmed.
+    pub received: u64,
 }
 
 impl ChatState {
     pub fn add_message(&mut self, msg: ChatMessage) {
         self.messages.push(msg);
+        self.received += 1;
         if self.max_messages > 0 && self.messages.len() > self.max_messages {
             self.messages.remove(0);
         }

@@ -216,10 +216,11 @@ fn combat_lines_name_both_units_and_link_the_spell() {
 fn combat_log_keeps_newest_lines() {
     let mut log = CombatLogChat::default();
     for index in 0..MAX_COMBAT_LINES + 5 {
-        log.push(ChatLine::plain(COMBAT_LOG_COLOR, index.to_string()));
+        log.push(0.0, ChatLine::plain(COMBAT_LOG_COLOR, index.to_string()));
     }
     assert_eq!(log.lines.len(), MAX_COMBAT_LINES);
-    assert_eq!(log.lines[0].plain_text(|_| String::new()), "5");
+    assert_eq!(log.lines[0].line.plain_text(|_| String::new()), "5");
+    assert_eq!(log.received, MAX_COMBAT_LINES as u64 + 5);
 }
 
 /// Every character is 10 units wide.
@@ -261,4 +262,101 @@ fn sent_history_cycles_up_and_down() {
     assert_eq!(state.history_next(), Some("three"));
     assert_eq!(state.history_next(), Some(""));
     assert_eq!(state.history_next(), None);
+}
+
+fn received(channel_type: ChatChannelType, channel_name: &str, text: &str) -> ChatMessage {
+    ChatMessage {
+        channel_type,
+        channel_name: channel_name.to_string(),
+        sender: "Bob".to_string(),
+        text: text.to_string(),
+        timestamp: 0.0,
+    }
+}
+
+#[test]
+fn timestamps_use_the_clock_time_format() {
+    let utc_plus_one = chrono::FixedOffset::east_opt(3600).unwrap();
+    // 2023-11-14 22:13:20 UTC.
+    assert_eq!(format_timestamp(1_700_000_000.7, &utc_plus_one), "23:13:20");
+    assert_eq!(format_timestamp(0.0, &chrono::Utc), "00:00:00");
+}
+
+#[test]
+fn new_messages_flash_matching_tabs_unless_the_selected_tab_shows_them() {
+    let say = received(ChatChannelType::Say, "", "hi");
+    let whisper = received(ChatChannelType::Whisper, "", "psst");
+    let outgoing = received(ChatChannelType::Whisper, "Alice", "hello");
+    assert_eq!(
+        tabs_to_flash(ChatTab::Whispers, std::slice::from_ref(&say)),
+        [ChatTab::General]
+    );
+    assert_eq!(
+        tabs_to_flash(ChatTab::CombatLog, std::slice::from_ref(&whisper)),
+        [ChatTab::General, ChatTab::Whispers]
+    );
+    assert!(tabs_to_flash(ChatTab::General, std::slice::from_ref(&whisper)).is_empty());
+    assert!(tabs_to_flash(ChatTab::CombatLog, &[outgoing]).is_empty());
+}
+
+#[test]
+fn selecting_a_tab_clears_every_flash_and_returns_to_the_newest_message() {
+    let mut state = ChatFrameState {
+        tab: ChatTab::Whispers,
+        flashing: vec![ChatTab::General, ChatTab::CombatLog],
+        scroll: 4,
+        ..default()
+    };
+    state.select_tab(ChatTab::General);
+    assert_eq!(state.tab, ChatTab::General);
+    assert!(state.flashing.is_empty());
+    assert_eq!(state.scroll, 0);
+}
+
+#[test]
+fn scrolling_stays_between_the_newest_and_the_oldest_message() {
+    let mut state = ChatFrameState::default();
+    state.scroll_by(3, 10);
+    assert_eq!(state.scroll, 3);
+    state.scroll_by(1000, 10);
+    assert_eq!(state.scroll, 9);
+    state.scroll_by(-20, 10);
+    assert_eq!(state.scroll, 0);
+    state.scroll_by(1, 0);
+    assert_eq!(state.scroll, 0);
+}
+
+#[test]
+fn messages_fill_the_area_from_the_newest_and_drop_partial_ones() {
+    // Heights newest first; 5 between messages.
+    assert_eq!(messages_that_fit(&[14.0, 28.0, 14.0], 60.0, 5.0), 2);
+    assert_eq!(messages_that_fit(&[14.0, 28.0, 14.0], 71.0, 5.0), 3);
+    assert_eq!(messages_that_fit(&[80.0], 60.0, 5.0), 0);
+}
+
+#[test]
+fn copied_chat_lists_timestamped_lines_oldest_first() {
+    let entries = vec![
+        ChatEntry {
+            timestamp: 60.0,
+            line: ChatLine::plain(COMBAT_LOG_COLOR, "first"),
+        },
+        ChatEntry {
+            timestamp: 3661.0,
+            line: ChatLine {
+                color: COMBAT_LOG_COLOR,
+                spans: vec![text("Al casts "), ChatSpan::SpellLink(133), text(".")],
+            },
+        },
+    ];
+    assert_eq!(
+        copy_chat_text(&entries, |_| "Fireball".to_string(), &chrono::Utc),
+        "[00:01:00] first\n[01:01:01] Al casts [Fireball]."
+    );
+}
+
+#[test]
+fn tab_flash_bounces_between_hidden_and_full_every_half_second() {
+    let samples = [0.0, 0.25, 0.5, 0.75, 1.0].map(flash_alpha);
+    assert_eq!(samples, [0.0, 0.5, 1.0, 0.5, 0.0]);
 }

@@ -8,6 +8,12 @@ use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupSpec};
 use shared::components::{CharacterAppearance, Npc, Player as NetPlayer};
 use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind};
 
+use bevy::input::mouse::AccumulatedMouseScroll;
+use game_engine::ui::screens::chat_frame_component::{
+    CHAT_COPY_BUTTON, CHAT_SCROLL_TO_BOTTOM_BUTTON, tab_flash_name, tab_name,
+};
+
+use super::native_layout_support::compute_layout;
 use super::*;
 use crate::networking_auth::SelectedCharacterId;
 use crate::scenes::static_popup::StaticPopupPlugin;
@@ -431,4 +437,228 @@ fn message_rows_arriving_after_login_are_visible() {
     let run = reg.children_of(row)[0];
     assert!(reg.get(row).unwrap().visible, "row hidden");
     assert!(reg.get(run).unwrap().visible, "row text hidden");
+}
+
+fn add_chat(app: &mut App, channel_type: ChatChannelType, text: &str, timestamp: f64) {
+    app.world_mut()
+        .resource_mut::<ChatState>()
+        .add_message(RuntimeChatMessage {
+            channel_type,
+            channel_name: String::new(),
+            sender: "Bob".to_string(),
+            text: text.to_string(),
+            timestamp,
+        });
+    app.update();
+}
+
+fn frame_rect(app: &mut App, name: &str) -> game_engine::ui::layout::LayoutRect {
+    compute_layout(&mut app.world_mut().resource_mut::<UiState>().registry);
+    let reg = &app.world().resource::<UiState>().registry;
+    let frame = reg.get(reg.get_by_name(name).expect(name)).unwrap();
+    frame.layout_rect.clone().expect("laid out")
+}
+
+fn move_cursor_to(app: &mut App, name: &str) {
+    let rect = frame_rect(app, name);
+    let window = window(app);
+    app.world_mut()
+        .get_mut::<Window>(window)
+        .unwrap()
+        .set_cursor_position(Some(Vec2::new(
+            rect.x + rect.width / 2.0,
+            rect.y + rect.height / 2.0,
+        )));
+}
+
+fn click(app: &mut App, name: &str) {
+    move_cursor_to(app, name);
+    let mut mouse = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+    mouse.release_all();
+    mouse.clear();
+    mouse.press(MouseButton::Left);
+    app.update();
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .clear();
+    app.update();
+}
+
+/// One wheel notch up (towards older messages) over the message area.
+fn wheel_up(app: &mut App) {
+    move_cursor_to(app, CHAT_MESSAGES);
+    app.insert_resource(AccumulatedMouseScroll {
+        unit: MouseScrollUnit::Line,
+        delta: Vec2::new(0.0, 1.0),
+    });
+    app.update();
+    app.insert_resource(AccumulatedMouseScroll::default());
+    app.update();
+}
+
+fn is_shown(app: &App, name: &str) -> bool {
+    let reg = &app.world().resource::<UiState>().registry;
+    let id = reg.get_by_name(name).expect(name);
+    !reg.get(id).unwrap().hidden
+}
+
+fn shown_texts(app: &App) -> Vec<String> {
+    shown_rows(app).into_iter().map(|row| row.0).collect()
+}
+
+#[test]
+fn clicking_a_tab_selects_it_and_lists_only_its_messages() {
+    let mut app = chat_app();
+    add_chat(&mut app, ChatChannelType::Say, "hello", 10.0);
+    add_chat(&mut app, ChatChannelType::Whisper, "psst", 20.0);
+    assert_eq!(
+        shown_texts(&app),
+        ["[Bob] says: hello", "[Bob] whispers: psst"]
+    );
+
+    click(&mut app, &tab_name(ChatTab::Whispers.index()));
+
+    assert_eq!(
+        app.world().resource::<ChatFrameState>().tab,
+        ChatTab::Whispers
+    );
+    assert_eq!(shown_texts(&app), ["[Bob] whispers: psst"]);
+    let reg = &app.world().resource::<UiState>().registry;
+    let alpha = |tab: ChatTab| {
+        reg.get(reg.get_by_name(&tab_name(tab.index())).unwrap())
+            .unwrap()
+            .alpha
+    };
+    assert_eq!(alpha(ChatTab::Whispers), 1.0, "selected tab is opaque");
+    assert_eq!(alpha(ChatTab::General), 0.5, "unselected tab is dimmed");
+}
+
+#[test]
+fn a_message_for_an_unselected_tab_flashes_it_until_a_tab_is_clicked() {
+    let mut app = chat_app();
+    click(&mut app, &tab_name(ChatTab::Whispers.index()));
+    let general_flash = tab_flash_name(ChatTab::General.index());
+    let whispers_flash = tab_flash_name(ChatTab::Whispers.index());
+    assert!(!is_shown(&app, &general_flash));
+
+    add_chat(&mut app, ChatChannelType::Say, "anyone here?", 10.0);
+
+    assert!(is_shown(&app, &general_flash), "General flashes for a say");
+    assert!(!is_shown(&app, &whispers_flash));
+
+    click(&mut app, &tab_name(ChatTab::General.index()));
+    assert!(
+        !is_shown(&app, &general_flash),
+        "selecting a tab stops the flash"
+    );
+    assert_eq!(shown_texts(&app), ["[Bob] says: anyone here?"]);
+}
+
+#[test]
+fn a_message_shown_in_the_selected_tab_flashes_nothing() {
+    let mut app = chat_app();
+    add_chat(&mut app, ChatChannelType::Whisper, "psst", 10.0);
+    for tab in ChatTab::ALL {
+        assert!(!is_shown(&app, &tab_flash_name(tab.index())), "{tab:?}");
+    }
+}
+
+#[test]
+fn scrolling_up_shows_scroll_to_bottom_and_holds_the_view_until_clicked() {
+    let mut app = chat_app();
+    for index in 0..40 {
+        add_chat(
+            &mut app,
+            ChatChannelType::Say,
+            &format!("line {index}"),
+            10.0,
+        );
+    }
+    assert!(!is_shown(&app, CHAT_SCROLL_TO_BOTTOM_BUTTON));
+    assert_eq!(shown_texts(&app).last().unwrap(), "[Bob] says: line 39");
+
+    wheel_up(&mut app);
+
+    assert!(is_shown(&app, CHAT_SCROLL_TO_BOTTOM_BUTTON));
+    assert_eq!(shown_texts(&app).last().unwrap(), "[Bob] says: line 38");
+    add_chat(&mut app, ChatChannelType::Say, "line 40", 10.0);
+    assert_eq!(
+        shown_texts(&app).last().unwrap(),
+        "[Bob] says: line 38",
+        "a new line does not move a scrolled-up view"
+    );
+
+    click(&mut app, CHAT_SCROLL_TO_BOTTOM_BUTTON);
+
+    assert!(!is_shown(&app, CHAT_SCROLL_TO_BOTTOM_BUTTON));
+    assert_eq!(shown_texts(&app).last().unwrap(), "[Bob] says: line 40");
+}
+
+#[test]
+fn chat_messages_show_their_arrival_time_and_combat_lines_do_not() {
+    let mut app = chat_app();
+    add_chat(&mut app, ChatChannelType::Say, "hello", 1_700_000_000.0);
+    assert_eq!(
+        fontstring_text(&app, "ChatFrame1Message0Time"),
+        local_timestamp(1_700_000_000.0)
+    );
+
+    app.world_mut().resource_mut::<CombatLogChat>().push(
+        1_700_000_000.0,
+        game_engine::ui::chat_frame::ChatLine::plain([1.0; 4], "Bob dies."),
+    );
+    click(&mut app, &tab_name(ChatTab::CombatLog.index()));
+    assert_eq!(shown_texts(&app), ["Bob dies."]);
+    let reg = &app.world().resource::<UiState>().registry;
+    assert!(reg.get_by_name("ChatFrame1Message0Time").is_none());
+}
+
+fn fontstring_text(app: &App, name: &str) -> String {
+    let reg = &app.world().resource::<UiState>().registry;
+    match reg
+        .get(reg.get_by_name(name).expect(name))
+        .unwrap()
+        .widget_data
+        .as_ref()
+    {
+        Some(WidgetData::FontString(fs)) => fs.text.clone(),
+        other => panic!("{name} is not a fontstring: {other:?}"),
+    }
+}
+
+#[test]
+fn copy_chat_puts_the_selected_tabs_timestamped_lines_on_the_clipboard() {
+    let mut app = chat_app();
+    let copied = Arc::new(Mutex::new(Vec::<String>::new()));
+    let sink = copied.clone();
+    app.insert_resource(ChatClipboard(Arc::new(move |text| {
+        sink.lock().unwrap().push(text.to_string());
+        Ok(())
+    })));
+    add_chat(&mut app, ChatChannelType::Say, "hello", 1_700_000_000.0);
+    add_chat(&mut app, ChatChannelType::Whisper, "psst", 1_700_000_060.0);
+
+    click(&mut app, CHAT_COPY_BUTTON);
+
+    let expected = format!(
+        "[{}] [Bob] says: hello\n[{}] [Bob] whispers: psst",
+        local_timestamp(1_700_000_000.0),
+        local_timestamp(1_700_000_060.0)
+    );
+    assert_eq!(*copied.lock().unwrap(), [expected]);
+}
+
+#[test]
+fn a_failed_copy_reports_why_in_chat() {
+    let mut app = chat_app();
+    app.insert_resource(ChatClipboard(Arc::new(|_| {
+        Err("clipboard init: no display".to_string())
+    })));
+
+    click(&mut app, CHAT_COPY_BUTTON);
+
+    assert_eq!(
+        shown_texts(&app),
+        ["Copy Chat failed: clipboard init: no display"]
+    );
 }
