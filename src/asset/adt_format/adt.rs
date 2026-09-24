@@ -227,6 +227,7 @@ pub struct BlendMeshVertex {
     pub color: [[u8; 4]; 3],
 }
 
+/// SMChunk header (wowdev.wiki ADT/v18 MCNK); offsets relative to the header start.
 #[derive(BinRead)]
 #[br(little)]
 struct McnkHeader {
@@ -235,22 +236,27 @@ struct McnkHeader {
     index_y: u32,
     _n_layers: u32,
     _n_doodad_refs: u32,
+    /// 0x14: high-res holes when flagged, else ofsHeight/ofsNormal.
     _holes_high_res: u64,
-    _ofs_mcvt: u32,
-    _ofs_mcnr: u32,
     _ofs_mcly: u32,
     _ofs_mcrf: u32,
     _ofs_mcal: u32,
     _size_mcal: u32,
     _ofs_mcsh: u32,
     _size_mcsh: u32,
+    /// 0x34
     _area_id: u32,
     _n_map_obj_refs: u32,
+    /// 0x3C
     _holes_low_res: u16,
     _unknown_but_used: u16,
-    _low_quality_texture_map: u64,
+    _low_quality_texture_map: [u8; 16],
     _no_effect_doodad: u64,
-    _unknown_tail: [u8; 16],
+    _ofs_mcse: u32,
+    _n_sound_emitters: u32,
+    _ofs_mclq: u32,
+    _size_mclq: u32,
+    /// 0x68
     pos_y: f32,
     pos_x: f32,
     pos_z: f32,
