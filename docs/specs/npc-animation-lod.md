@@ -9,6 +9,7 @@ Replicated NPC models sample their bone animation at a rate chosen from camera d
 - [ ] NPC models within 30 yd of the camera and on screen sample every frame.
 - [ ] NPC models between 30 yd and 60 yd and on screen sample every other frame, staggered by entity so roughly half sample each frame.
 - [ ] NPC models beyond 60 yd, or with no mesh visible in the previous frame, do not sample; their joints keep the last written pose.
+- [x] A new binding samples until Bevy has evaluated it once, so an NPC frozen since spawn holds an authored pose, not the bind pose.
 - [ ] A skipped frame writes no joint transform, so the NPC's transform subtree is not dirtied.
 - [ ] Models not parented to an NPC visual root (the local player, doodads, debug scenes) are never rate-limited.
 - [ ] Without a `WowCamera` in the world, no model is rate-limited.
@@ -26,7 +27,7 @@ Replicated NPC models sample their bone animation at a rate chosen from camera d
 
 ## Tests asserting this spec
 
-- `tests/unit/animation_tests/lod.rs`: threshold table, alternate-frame sampling, and App-level joint-write behavior for near, mid, far, off-screen, non-NPC, and camera-less cases.
+- `tests/unit/animation_tests/lod.rs`: threshold table, alternate-frame sampling, and App-level joint-write behavior for near, mid, far, off-screen, non-NPC, and camera-less cases, plus first-sample authored pose for NPCs frozen since spawn.
 - `src/rendering/model/animation/lod_tests.rs`: nested grounded-root visibility plus near/mid/far and visibility-loss transitions.
 - `src/game/networking/npc_animation_tests.rs`: actual sheep and HumanMaleHD attachment/playback, display texture pixels, logical-facing basis, and non-player/equipment isolation.
 

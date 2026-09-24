@@ -194,3 +194,27 @@ fn npc_without_camera_keeps_full_rate() {
     assert!(app.world().get::<AnimationLod>(model).is_none());
     assert!(joint_written(&app, joint));
 }
+
+#[test]
+fn frozen_npc_holds_authored_pose_instead_of_bind_pose() {
+    let mut app = inworld_app();
+    spawn_camera(&mut app);
+    let (far_model, far_joint) = spawn_npc(&mut app, 80.0, ViewVisibility::VISIBLE);
+    let (_, hidden_joint) = spawn_npc(&mut app, 10.0, ViewVisibility::HIDDEN);
+
+    app.update();
+    app.update();
+    assert_eq!(
+        app.world().get::<AnimationLod>(far_model),
+        Some(&AnimationLod::Frozen)
+    );
+    assert!(joint_written(&app, far_joint));
+    assert!(joint_written(&app, hidden_joint));
+
+    reset_joint(&mut app, far_joint);
+    reset_joint(&mut app, hidden_joint);
+    app.update();
+    app.update();
+    assert!(!joint_written(&app, far_joint));
+    assert!(!joint_written(&app, hidden_joint));
+}

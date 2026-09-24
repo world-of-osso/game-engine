@@ -22,6 +22,8 @@ pub(crate) struct M2BevyAnimation {
     outgoing_node: AnimationNodeIndex,
     snapshot_node: AnimationNodeIndex,
     snapshot_clip: Handle<AnimationClip>,
+    /// Joints hold the bind pose until Bevy first evaluates this graph; LOD skips only later frames.
+    sampled: bool,
 }
 
 /// Stable current/outgoing nodes retain independent seek times, including same-sequence blends.
@@ -75,6 +77,7 @@ fn build_animation_graph(
             outgoing_node,
             snapshot_node,
             snapshot_clip,
+            sampled: false,
         },
     )
 }
@@ -128,14 +131,15 @@ pub(crate) fn remove_m2_animation_player(
 /// Paused Bevy clips sample controller times exactly once; Bevy does not advance a second clock.
 /// This must also run in inactive states, where it stops previously selected clips.
 /// An owner whose `AnimationLod` skips this frame keeps its clips stopped, so Bevy neither
-/// samples its curves nor writes its joints.
+/// samples its curves nor writes its joints. A new binding samples until Bevy has evaluated it once,
+/// so a frozen owner holds an authored pose rather than the bind pose.
 pub(crate) fn sync_m2_animation_players(
     state: Option<Res<State<GameState>>>,
     frame: Res<FrameCount>,
     mut players: Query<(
         Entity,
         &mut M2AnimPlayer,
-        &M2BevyAnimation,
+        &mut M2BevyAnimation,
         &AnimationGraphHandle,
         &mut AnimationPlayer,
         Option<&AnimationLod>,
@@ -145,12 +149,18 @@ pub(crate) fn sync_m2_animation_players(
     mut graphs: ResMut<Assets<AnimationGraph>>,
 ) {
     let active = animation_active_state(state);
-    for (owner, mut controller, binding, graph, mut player, lod) in &mut players {
+    for (owner, mut controller, mut binding, graph, mut player, lod) in &mut players {
         player.stop_all();
-        let samples_this_frame = lod.is_none_or(|lod| lod.samples_frame(frame.0, owner));
+        let samples_this_frame =
+            !binding.sampled || lod.is_none_or(|lod| lod.samples_frame(frame.0, owner));
         if !active || !samples_this_frame {
             continue;
         }
+        // Bevy threads a graph the frame after it is added, so the binding frame writes no joints.
+        if !binding.sampled && !binding.is_added() {
+            binding.sampled = true;
+        }
+        let binding = &*binding;
         sync_graph_clips(&controller, binding, graph, &mut graphs);
         capture_interrupted_pose(&mut controller, binding, &poses, &mut clips);
         let current_weight = apply_outgoing_transition(&controller, binding, &mut player);
