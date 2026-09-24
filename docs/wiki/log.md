@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-23] talents ui | Retail trait-tree window
+
+`PlayerSpellsFrame` replaces the legacy 28-talent frame, whose messages the server no longer answers. The client loads the ten class trait trees and the `talents-*` atlas members from the 12.1.0.69933 CSVs (cold 1.49 s, warm 7.4 ms from a 151 KB cache in the dev test profile). It mirrors the server `trait_config` rules to decide which edits it keeps, and sends `CommitTraitConfig` / `SetSpecialization`. The legacy talent status snapshot and the IPC/CLI `talent` commands are removed. 17 targeted tests pass (7 lib, 10 bin) on the real Paladin tree 790. No native capture yet. See [[talents-ui]].
+
 ## [2026-09-23] spell catalog | Add client spell catalog
 
 At `77eadcf8`, `SpellCatalog` loads all 414,027 spells from the 12.1.0.69933 CSVs on a background task. It writes a keyed bincode cache under `data/cache/`. Dev-profile load takes 10.7 s cold and 0.89 s warm, with about 114 MB of heap. 16 `spell_catalog` lib tests pass: token fixtures, plus real-CSV rendering for Fireball, Crusader Strike, Shadow Word: Pain and 7 other spells. The app runtime load was not exercised. See [[spell-catalog]].

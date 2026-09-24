@@ -4,6 +4,7 @@
 //! needs. The rules in [`rules`] mirror game-server `trait_config` for display;
 //! the server stays authoritative (`CommitTraitConfig`).
 
+mod cache;
 mod load;
 pub mod rules;
 pub mod session;
@@ -16,6 +17,7 @@ use std::path::{Path, PathBuf};
 
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task, futures::check_ready};
+use serde::{Deserialize, Serialize};
 
 use crate::spell_catalog::SPELL_DB2_BUILD;
 
@@ -34,7 +36,7 @@ pub const CLASS_SKILL_LINES: [(u8, u32); 10] = [
 ];
 
 /// `TraitNode.Type`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NodeKind {
     Single,
     /// Entries are ranked one after another (apex talents).
@@ -46,14 +48,14 @@ pub enum NodeKind {
 }
 
 /// `TraitEdge.Type`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EdgeKind {
     SufficientForAvailability,
     RequiredForAvailability,
 }
 
 /// `TraitCond.CondType`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CondKind {
     Available,
     Visible,
@@ -72,7 +74,7 @@ pub const CURRENCY_FLAG_CLASS: u32 = 0x4;
 /// `TraitCurrency.Flags` spec-icon: spec points.
 pub const CURRENCY_FLAG_SPEC: u32 = 0x8;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TraitCond {
     pub id: u32,
     pub kind: CondKind,
@@ -91,13 +93,13 @@ pub struct TraitCond {
     pub required_level: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TraitCost {
     pub currency_id: u32,
     pub amount: u32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TalentEntry {
     pub id: u32,
     /// `TraitDefinition.SpellID`; 0 when the definition has none.
@@ -115,7 +117,7 @@ pub struct TalentEntry {
     pub costs: Vec<TraitCost>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TalentNode {
     pub id: u32,
     pub pos_x: i32,
@@ -139,27 +141,27 @@ impl TalentNode {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TalentGroup {
     pub id: u32,
     pub conds: Vec<TraitCond>,
     pub costs: Vec<TraitCost>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TalentCurrency {
     pub id: u32,
     pub flags: u32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TalentSubTree {
     pub id: u32,
     pub name: String,
 }
 
 /// A `ChrSpecialization` row of the tree's class.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TalentSpec {
     pub id: u32,
     pub name: String,
@@ -178,7 +180,7 @@ const INITIAL_SPEC_ORDER_INDEX: u32 = 4;
 /// Server `SPEC_UNLOCK_LEVEL`: `SetSpecialization` is rejected below it.
 pub const SPEC_UNLOCK_LEVEL: u8 = 10;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TalentTree {
     pub class_id: u8,
     pub tree_id: u32,
@@ -226,7 +228,7 @@ impl TalentTree {
 }
 
 /// A `UiTextureAtlasMember` crop of its atlas texture.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AtlasCrop {
     pub fdid: u32,
     /// Normalized (left, right, top, bottom).
@@ -236,7 +238,7 @@ pub struct AtlasCrop {
 }
 
 /// `ChrClasses` `Filename` (e.g. `PALADIN`) and `Name_lang`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ClassNames {
     pub file: String,
     pub name: String,
@@ -244,7 +246,7 @@ pub struct ClassNames {
 
 /// The ten character-creation class trees, sorted by tree ID, plus the Retail
 /// `talents-*` atlas members (`UiTextureAtlasMember.CommittedName`).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct TalentTreeData {
     trees: Vec<TalentTree>,
     art: HashMap<String, AtlasCrop>,
@@ -320,13 +322,36 @@ pub fn talent_source_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("db2").join(SPELL_DB2_BUILD)
 }
 
-/// Trees from `data/db2/<build>/`, art from `data/UiTextureAtlas*.csv`.
-pub fn load_talent_trees(data_dir: &Path) -> Result<TalentTreeData, String> {
-    let source_dir = talent_source_dir(data_dir);
+pub struct TalentTreePaths {
+    pub data_dir: PathBuf,
+    pub cache_path: PathBuf,
+}
+
+impl TalentTreePaths {
+    pub fn for_data_dir(data_dir: &Path) -> Self {
+        Self {
+            data_dir: data_dir.to_path_buf(),
+            cache_path: data_dir
+                .join("cache")
+                .join(format!("talent_trees-{SPELL_DB2_BUILD}.bin")),
+        }
+    }
+}
+
+/// Trees from `data/db2/<build>/`, art from `data/UiTextureAtlas*.csv`; read
+/// from the cache when it is fresh, otherwise rebuilt and cached.
+pub fn load_talent_trees(paths: &TalentTreePaths) -> Result<TalentTreeData, String> {
+    let source_dir = talent_source_dir(&paths.data_dir);
+    let key = cache::cache_key(&paths.data_dir, &source_dir)?;
+    if let Some(data) = cache::read_cache(&paths.cache_path, &key)? {
+        return Ok(data);
+    }
     let trees = load::load_trees(&source_dir)?;
-    let art = load::load_atlas_crops(data_dir, "talents-")?;
+    let art = load::load_atlas_crops(&paths.data_dir, "talents-")?;
     let classes = load::load_class_names(&source_dir)?;
-    Ok(TalentTreeData::new(trees, art, classes))
+    let data = TalentTreeData::new(trees, art, classes);
+    cache::write_cache(&paths.cache_path, &key, &data)?;
+    Ok(data)
 }
 
 #[derive(Resource)]
@@ -348,7 +373,7 @@ impl Plugin for TalentTreePlugin {
 fn spawn_talent_tree_load(mut commands: Commands) {
     let task = AsyncComputeTaskPool::get().spawn(async move {
         let started = std::time::Instant::now();
-        let result = load_talent_trees(Path::new("data"));
+        let result = load_talent_trees(&TalentTreePaths::for_data_dir(Path::new("data")));
         if let Ok(data) = &result {
             info!(
                 "Talent trees loaded {} class trees in {:?}",

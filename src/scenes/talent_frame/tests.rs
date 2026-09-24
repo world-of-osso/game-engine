@@ -11,7 +11,9 @@ use game_engine::network_runtime::messages::{ConnectionSender, Inbox};
 use game_engine::network_runtime::worker::NetworkCommand;
 use game_engine::talent::TalentPlugin;
 use game_engine::talent_tree::rules::{TraitContext, granted_entries};
-use game_engine::talent_tree::{TalentTreeData, load_talent_trees, talent_source_dir};
+use game_engine::talent_tree::{
+    TalentTreeData, TalentTreePaths, load_talent_trees, talent_source_dir,
+};
 use game_engine::ui::screens::talent_frame_component::{
     TALENT_APPLY_BUTTON, TALENT_RESET_BUTTON, TALENT_STATE_PANEL, talent_node_name,
     talent_spec_button_name,
@@ -45,7 +47,14 @@ fn trees() -> Option<&'static TalentTreeData> {
                 eprintln!("skipping: trait DB2 CSVs not present");
                 return None;
             }
-            Some(load_talent_trees(Path::new("data")).expect("load talent trees"))
+            let mut paths = TalentTreePaths::for_data_dir(Path::new("data"));
+            paths.cache_path = std::env::temp_dir().join(format!(
+                "talent_trees_frame_test_{}.bin",
+                std::process::id()
+            ));
+            let data = load_talent_trees(&paths).expect("load talent trees");
+            std::fs::remove_file(&paths.cache_path).expect("remove test cache");
+            Some(data)
         })
         .as_ref()
 }
