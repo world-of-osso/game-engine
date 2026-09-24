@@ -243,11 +243,14 @@ mod tests {
             ..Default::default()
         };
         SpellCatalog {
-            state: SpellCatalogState::Ready(SpellCatalogData::from_spells(vec![
-                spell(589, "Shadow Word: Pain", 136207, "Suffering Shadow damage."),
-                spell(21562, "Power Word: Fortitude", 135987, "Stamina increased."),
-                spell(172, "Corruption", 136118, ""),
-            ])),
+            state: SpellCatalogState::Ready(SpellCatalogData::from_parts(
+                vec![
+                    spell(589, "Shadow Word: Pain", 136207, "Suffering Shadow damage."),
+                    spell(21562, "Power Word: Fortitude", 135987, "Stamina increased."),
+                    spell(172, "Corruption", 136118, ""),
+                ],
+                Default::default(),
+            )),
         }
     }
 

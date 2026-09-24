@@ -21,11 +21,14 @@ fn catalog() -> SpellCatalog {
         ..Default::default()
     };
     SpellCatalog {
-        state: SpellCatalogState::Ready(SpellCatalogData::from_spells(vec![
-            spell(21562, "Power Word: Fortitude", 135987),
-            spell(589, "Shadow Word: Pain", 136207),
-            spell(20217, "Blessing of Kings", 135995),
-        ])),
+        state: SpellCatalogState::Ready(SpellCatalogData::from_parts(
+            vec![
+                spell(21562, "Power Word: Fortitude", 135987),
+                spell(589, "Shadow Word: Pain", 136207),
+                spell(20217, "Blessing of Kings", 135995),
+            ],
+            Default::default(),
+        )),
     }
 }
 
