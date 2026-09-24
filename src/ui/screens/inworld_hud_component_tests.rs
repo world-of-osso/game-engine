@@ -228,7 +228,8 @@ fn coord_bag_slot_spacing() {
         (spacing - expected).abs() < 1.0,
         "bag slot spacing: expected {expected}, got {spacing}"
     );
-    assert!((backpack.y + backpack.height - (bag0.y + bag0.height)).abs() < 1.0);
+    let centre = |r: &LayoutRect| r.y + r.height / 2.0;
+    assert!((centre(&backpack) - centre(&bag0)).abs() < 1.0);
 }
 
 #[test]
