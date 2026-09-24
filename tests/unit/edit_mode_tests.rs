@@ -231,12 +231,12 @@ fn drag(app: &mut App, from: Vec2, to: Vec2) {
 }
 
 /// Publishes the layout readback for a panel button at its authored rect.
-fn click_panel_button(app: &mut App, name: &str, left: f32, top: f32) {
+fn click_panel_button(app: &mut App, name: &str, left: f32, top: f32, width: f32) {
     let panel_x = (SCREEN.x - PANEL_W) / 2.0;
     let rect = LayoutRect {
         x: panel_x + left,
         y: PANEL_TOP + top,
-        width: 104.0,
+        width,
         height: 26.0,
     };
     {
@@ -301,7 +301,7 @@ fn edit_mode_moves_the_target_frame_saves_and_survives_restart() {
         assert_eq!(target_position(&app), Vec2::new(1400.0, 496.0));
         assert!(edit_mode(&app).is_dirty());
 
-        click_panel_button(&mut app, "EditModeManagerFrameSave", 138.0, 140.0);
+        click_panel_button(&mut app, "EditModeManagerFrameSave", 138.0, 140.0, 104.0);
 
         assert!(!edit_mode(&app).is_dirty());
         assert_eq!(edit_mode(&app).layout_name(), "Layout 1");
@@ -323,7 +323,7 @@ fn active_layout_is_chosen_per_character_and_layouts_are_account_wide() {
         let mut app = edit_mode_app(&path, 11);
         tap_key(&mut app, KeyCode::F10);
         drag_target_to_1400_496(&mut app);
-        click_panel_button(&mut app, "EditModeManagerFrameSave", 138.0, 140.0);
+        click_panel_button(&mut app, "EditModeManagerFrameSave", 138.0, 140.0, 104.0);
     }
 
     let mut other = edit_mode_app(&path, 22);
@@ -331,7 +331,13 @@ fn active_layout_is_chosen_per_character_and_layouts_are_account_wide() {
     assert_eq!(target_position(&other), TARGET_AUTHORED);
 
     tap_key(&mut other, KeyCode::F10);
-    click_panel_button(&mut other, "EditModeManagerFrameNext", PANEL_W - 50.0, 36.0);
+    click_panel_button(
+        &mut other,
+        "EditModeManagerFrameNext",
+        PANEL_W - 50.0,
+        36.0,
+        30.0,
+    );
     assert_eq!(edit_mode(&other).layout_name(), "Layout 1");
     other.update();
     assert_eq!(target_position(&other), Vec2::new(1400.0, 496.0));

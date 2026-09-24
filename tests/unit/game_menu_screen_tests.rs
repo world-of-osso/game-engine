@@ -1,3 +1,6 @@
+#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
+mod layout_support;
+
 use super::*;
 use crate::scenes::game_menu::options::HudDraft;
 use crate::window_manager::WindowId;
@@ -277,4 +280,86 @@ fn escape_closes_bags_with_wide_window_in_one_press() {
 
     assert!(!app.world().resource::<WindowManager>().any_open());
     assert!(!game_menu_open(&app));
+}
+
+fn click_at(app: &mut App, cursor: Vec2) {
+    let mut windows = app
+        .world_mut()
+        .query_filtered::<&mut Window, With<bevy::window::PrimaryWindow>>();
+    windows
+        .single_mut(app.world_mut())
+        .unwrap()
+        .set_cursor_position(Some(cursor));
+    let mut mouse = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+    mouse.clear();
+    mouse.press(MouseButton::Left);
+    app.update();
+    let mut mouse = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+    mouse.clear();
+    mouse.release(MouseButton::Left);
+    app.update();
+}
+
+#[test]
+fn interface_reset_window_positions_button_clears_saved_positions() {
+    use crate::ui_layout_store::UiLayoutStore;
+    let path =
+        std::env::temp_dir().join(format!("ui-layout-reset-button-{}.ron", std::process::id()));
+    let mut app = inworld_escape_app(empty_ui());
+    app.world_mut().spawn((
+        Window {
+            resolution: (1920, 1080).into(),
+            ..default()
+        },
+        bevy::window::PrimaryWindow,
+    ));
+    app.insert_resource(ButtonInput::<MouseButton>::default());
+    let mut store = UiLayoutStore::load(path.clone());
+    store.set_window_position("11", "CharacterFrame", Vec2::new(300.0, 300.0));
+    store.save();
+    app.insert_resource(store);
+    app.insert_resource(crate::networking::SelectedCharacterId {
+        character_id: Some(11),
+        character_name: Some("Theron".into()),
+    });
+    press_escape(&mut app);
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .clear();
+    app.world_mut()
+        .resource_scope(|world, mut overlay: Mut<GameMenuOverlay>| {
+            overlay.model.view = GameMenuView::Options;
+            overlay.model.category = OptionsCategory::Interface;
+            let mut ui = world.resource_mut::<UiState>();
+            sync_overlay_model_only(&mut overlay, &mut ui.registry);
+            layout_support::compute_layout(&mut ui.registry);
+        });
+    let button = {
+        let registry = &app.world().resource::<UiState>().registry;
+        let id = registry
+            .get_by_name("ActionButtonreset_window_positions")
+            .expect("reset button");
+        registry
+            .get(id)
+            .unwrap()
+            .layout_rect
+            .clone()
+            .expect("layout")
+    };
+
+    click_at(
+        &mut app,
+        Vec2::new(
+            button.x + button.width / 2.0,
+            button.y + button.height / 2.0,
+        ),
+    );
+
+    let store = app.world().resource::<UiLayoutStore>();
+    assert_eq!(store.window_position("11", "CharacterFrame"), None);
+    assert_eq!(
+        UiLayoutStore::load(path.clone()).window_position("11", "CharacterFrame"),
+        None
+    );
+    std::fs::remove_file(&path).unwrap();
 }
