@@ -285,7 +285,9 @@ fn leaving_world_clears_death_popup_and_state() {
     set_death_state(&mut app, DeathStateEntry::Dead, None);
     assert_eq!(popup_keys(&app), [DEATH_POPUP]);
 
-    app.insert_state(GameState::Login);
+    app.world_mut()
+        .resource_mut::<NextState<GameState>>()
+        .set(GameState::Login);
     app.update();
 
     assert!(!app.world().resource::<PopupStack>().is_open());

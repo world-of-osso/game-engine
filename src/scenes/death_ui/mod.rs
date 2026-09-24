@@ -22,6 +22,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
+use crate::scenes::static_popup::StaticPopupSystems;
 
 pub const DEATH_POPUP: &str = "DEATH";
 pub const RECOVER_CORPSE_POPUP: &str = "RECOVER_CORPSE";
@@ -71,6 +72,7 @@ impl Plugin for DeathUiPlugin {
                 sync_ghost_hint_ui,
             )
                 .chain()
+                .after(StaticPopupSystems)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );

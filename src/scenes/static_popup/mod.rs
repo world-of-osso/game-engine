@@ -26,6 +26,11 @@ struct StaticPopupWrap(StaticPopupRes);
 #[derive(Resource, PartialEq)]
 struct StaticPopupModel(StaticPopupState);
 
+/// Popup input, timeouts and `PopupResult` emission; consumers reading results this frame
+/// order after it.
+#[derive(SystemSet, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct StaticPopupSystems;
+
 pub struct StaticPopupPlugin;
 
 impl Plugin for StaticPopupPlugin {
@@ -47,6 +52,7 @@ impl Plugin for StaticPopupPlugin {
                 sync_static_popup_ui,
             )
                 .chain()
+                .in_set(StaticPopupSystems)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
