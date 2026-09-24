@@ -1,32 +1,37 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{
-    BAR_BG, BAR_X, BORDER, DARK_BACKING, DynName, METAL_BORDER, UNIT_FONT, UNIT_FONT_SIZE,
-    VALUE_TEXT, dyn_name,
-};
+use super::inworld_unit_frames_art::{AtlasArt, FRAME_PORTRAIT_OFF};
+use super::{DynName, UNIT_FONT, VALUE_TEXT, dyn_name};
+
+/// Rect `(x, y, width, height)` from the parent's top-left.
+pub(super) type Rect = (f32, f32, f32, f32);
 
 pub(super) struct BarSpec<'a> {
     pub(super) name: String,
-    pub(super) y: f32,
-    pub(super) width: f32,
-    pub(super) height: f32,
+    pub(super) rect: Rect,
     pub(super) fraction: f32,
-    pub(super) color: &'a str,
+    pub(super) art: Option<AtlasArt>,
     pub(super) text: &'a str,
+    pub(super) font_size: f32,
     pub(super) hidden: bool,
 }
 
-/// Cluster frame: thin metal border around a dark backing, anchored from the screen's
+/// Cluster frame: the Retail portrait-off art filling the root, anchored from the screen's
 /// bottom centre (`left` is the offset of the frame's left edge from the centre line).
-pub(super) fn bordered_root(
+pub(super) fn art_root(
     name: DynName,
     (width, height): (f32, f32),
     (left, bottom): (f32, f32),
     hidden: bool,
     content: Element,
 ) -> Element {
-    let backing = dyn_name(format!("{}Backing", name.0));
+    let art = art_texture(
+        dyn_name(format!("{}Art", name.0)),
+        &FRAME_PORTRAIT_OFF,
+        (0.0, 0.0, width, height),
+        false,
+    );
     rsx! {
         r#frame {
             name,
@@ -34,21 +39,41 @@ pub(super) fn bordered_root(
             height,
             hidden,
             mouse_enabled: true,
-            background_color: METAL_BORDER,
             pos_type: "absolute",
             left: "50%",
             margin_left: left,
             bottom,
-            r#frame {
-                name: backing,
-                width: {width - 2.0 * BORDER},
-                height: {height - 2.0 * BORDER},
-                background_color: DARK_BACKING,
-                pos_type: "absolute",
-                pos_x: BORDER,
-                pos_y: BORDER,
-            }
+            {art}
             {content}
+        }
+    }
+}
+
+/// One atlas crop stretched over `rect`.
+pub(super) fn art_texture(name: DynName, art: &AtlasArt, rect: Rect, hidden: bool) -> Element {
+    tinted_art_texture(name, art, rect, "1.0,1.0,1.0,1.0", hidden)
+}
+
+pub(super) fn tinted_art_texture(
+    name: DynName,
+    art: &AtlasArt,
+    (x, y, width, height): Rect,
+    vertex_color: &str,
+    hidden: bool,
+) -> Element {
+    let coords = art.tex_coords(1.0);
+    rsx! {
+        texture {
+            name,
+            width,
+            height,
+            hidden,
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
+            vertex_color,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
         }
     }
 }
@@ -56,19 +81,18 @@ pub(super) fn bordered_root(
 pub(super) fn unit_label(
     name: DynName,
     text: &str,
-    (x, y): (f32, f32),
-    width: f32,
-    color: &str,
+    (x, y, width, height): Rect,
+    (color, font_size): (&str, f32),
     justify_h: &str,
 ) -> Element {
     rsx! {
         fontstring {
             name,
             width,
-            height: 12.0,
+            height,
             text,
             font: UNIT_FONT,
-            font_size: UNIT_FONT_SIZE,
+            font_size,
             font_color: color,
             shadow_color: "0.0,0.0,0.0,1.0",
             shadow_offset: "1,-1",
@@ -80,37 +104,39 @@ pub(super) fn unit_label(
     }
 }
 
+/// Retail `StatusBar`: the bar texture revealed left to right by `fraction`, value text
+/// centred on top (`TextStatusBarText`).
 pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
-    let fill_w = spec.width * spec.fraction.clamp(0.0, 1.0);
-    let fill = dyn_name(format!("{}Fill", spec.name));
+    let (x, y, width, height) = spec.rect;
+    let fill = spec
+        .art
+        .map(|art| {
+            bar_fill(
+                format!("{}Fill", spec.name),
+                &art,
+                (width, height),
+                spec.fraction,
+            )
+        })
+        .unwrap_or_default();
     let text = dyn_name(format!("{}Text", spec.name));
     rsx! {
         r#frame {
             name: {dyn_name(spec.name.clone())},
-            width: spec.width,
-            height: spec.height,
+            width,
+            height,
             hidden: spec.hidden,
-            background_color: BAR_BG,
             pos_type: "absolute",
-            pos_x: BAR_X,
-            pos_y: spec.y,
-            r#frame {
-                name: fill,
-                width: fill_w,
-                height: spec.height,
-                hidden: {fill_w <= 0.0},
-                background_color: spec.color,
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: 0.0,
-            }
+            pos_x: x,
+            pos_y: y,
+            {fill}
             fontstring {
                 name: text,
-                width: spec.width,
-                height: spec.height,
+                width,
+                height,
                 text: spec.text,
                 font: UNIT_FONT,
-                font_size: UNIT_FONT_SIZE,
+                font_size: spec.font_size,
                 font_color: VALUE_TEXT,
                 outline: "OUTLINE",
                 justify_h: "CENTER",
@@ -118,6 +144,25 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
                 pos_x: 0.0,
                 pos_y: 0.0,
             }
+        }
+    }
+}
+
+fn bar_fill(name: String, art: &AtlasArt, (width, height): (f32, f32), fraction: f32) -> Element {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let fill_w = width * fraction;
+    let coords = art.tex_coords(fraction);
+    rsx! {
+        texture {
+            name: {dyn_name(name)},
+            width: fill_w,
+            height,
+            hidden: {fill_w <= 0.0},
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
         }
     }
 }

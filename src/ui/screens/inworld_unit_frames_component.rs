@@ -8,6 +8,8 @@ use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
 use crate::ui::strata::FrameStrata;
+#[path = "inworld_unit_frames_art.rs"]
+pub mod inworld_unit_frames_art;
 #[path = "inworld_unit_frames_aura.rs"]
 mod inworld_unit_frames_aura;
 #[path = "inworld_unit_frames_layout.rs"]
@@ -16,10 +18,16 @@ mod inworld_unit_frames_layout;
 mod inworld_unit_frames_parts;
 #[path = "inworld_unit_frames_power.rs"]
 mod inworld_unit_frames_power;
+use inworld_unit_frames_art::{
+    AtlasArt, COMBAT_ICON, HEALTH_BAR, HolyPowerArt, PipArt, REACTION_STRIP, REST_ICON, pip_art,
+    power_bar_art,
+};
 use inworld_unit_frames_aura::target_aura_row;
 pub use inworld_unit_frames_layout::*;
-use inworld_unit_frames_parts::{BarSpec, bordered_root, status_bar, unit_label};
-pub use inworld_unit_frames_power::{PowerBarState, power_bar_color};
+use inworld_unit_frames_parts::{
+    BarSpec, Rect, art_root, art_texture, status_bar, tinted_art_texture, unit_label,
+};
+pub use inworld_unit_frames_power::PowerBarState;
 
 pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
 pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
@@ -47,8 +55,6 @@ pub fn unit_menu_height() -> f32 {
     menu_height_for_items(UNIT_MENU_ITEMS.len())
 }
 
-const PLAYER_HEALTH_COLOR: &str = "0.11,0.65,0.20,1.0";
-
 #[derive(Clone)]
 pub(super) struct DynName(pub(super) String);
 
@@ -56,13 +62,14 @@ pub(super) fn dyn_name(name: String) -> DynName {
     DynName(name)
 }
 
-/// Target health fill per reaction: Retail `FACTION_BAR_COLORS` hostile (1), neutral (4),
-/// friendly (5).
-pub fn reaction_health_color(reaction: Reaction) -> &'static str {
+/// Reaction strip tint behind the unit name: Retail `TargetFrame` sets
+/// `ReputationColor:SetVertexColor(UnitSelectionColor(unit))`, which is red, yellow or green
+/// for hostile, neutral and friendly NPCs. Health bars keep their green art (`lockColor`).
+pub fn reaction_color(reaction: Reaction) -> &'static str {
     match reaction {
-        Reaction::Hostile => "0.8,0.3,0.22,1.0",
-        Reaction::Neutral => "0.9,0.7,0.0,1.0",
-        Reaction::Friendly => "0.0,0.6,0.1,1.0",
+        Reaction::Hostile => "1.0,0.0,0.0,1.0",
+        Reaction::Neutral => "1.0,1.0,0.0,1.0",
+        Reaction::Friendly => "0.0,1.0,0.0,1.0",
     }
 }
 
@@ -97,11 +104,6 @@ impl UnitFrameState {
             target_buffs: Vec::new(),
             target_debuffs: Vec::new(),
         }
-    }
-
-    fn health_color(&self) -> &'static str {
-        self.reaction
-            .map_or(PLAYER_HEALTH_COLOR, reaction_health_color)
     }
 }
 
@@ -197,7 +199,7 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
         {secondary_resource_row(state.secondary_resource.as_ref())}
         {status_icons(state)}
     };
-    bordered_root(
+    art_root(
         dyn_name("PlayerFrame".into()),
         (FRAME_W, FRAME_H),
         (PLAYER_FRAME_LEFT, CLUSTER_BOTTOM),
@@ -208,7 +210,7 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
 
 fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
     let content = target.map(target_frame_contents).unwrap_or_default();
-    bordered_root(
+    art_root(
         dyn_name("TargetFrame".into()),
         (FRAME_W, FRAME_H),
         (TARGET_FRAME_LEFT, CLUSTER_BOTTOM),
@@ -219,10 +221,37 @@ fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
 
 fn target_frame_contents(state: &UnitFrameState) -> Element {
     rsx! {
+        {reaction_strip("Target", state.reaction, 1.0)}
         {unit_frame_contents("Target", state)}
-        {target_aura_row("TargetBuff", &state.target_buffs, -22.0)}
-        {target_aura_row("TargetDebuff", &state.target_debuffs, -42.0)}
+        {target_aura_row("TargetBuff", &state.target_buffs, TARGET_BUFF_Y)}
+        {target_aura_row("TargetDebuff", &state.target_debuffs, TARGET_DEBUFF_Y)}
     }
+}
+
+/// `scale` maps the authored 133×51 art slots onto smaller frames.
+fn scaled((x, y, width, height): Rect, scale: f32) -> Rect {
+    (x * scale, y * scale, width * scale, height * scale)
+}
+
+fn name_rect(scale: f32) -> Rect {
+    scaled((NAME_X, NAME_Y, BAR_W - LEVEL_W, NAME_H), scale)
+}
+
+fn health_rect(scale: f32) -> Rect {
+    scaled((BAR_X, HEALTH_Y, BAR_W, HEALTH_H), scale)
+}
+
+fn reaction_strip(prefix: &str, reaction: Option<Reaction>, scale: f32) -> Element {
+    let Some(reaction) = reaction else {
+        return Element::default();
+    };
+    tinted_art_texture(
+        dyn_name(format!("{prefix}ReputationColor")),
+        &REACTION_STRIP,
+        scaled((BAR_X, NAME_Y, BAR_W, NAME_H + 1.0), scale),
+        reaction_color(reaction),
+        false,
+    )
 }
 
 fn unit_frame_contents(prefix: &str, state: &UnitFrameState) -> Element {
@@ -230,27 +259,26 @@ fn unit_frame_contents(prefix: &str, state: &UnitFrameState) -> Element {
     let power_fraction = state.power.as_ref().map_or(0.0, |power| {
         fraction(power.current as f32, power.max as f32)
     });
+    let level_x = FRAME_W - LEVEL_RIGHT - LEVEL_W;
     rsx! {
-        {unit_label(dyn_name(format!("{prefix}Name")), &state.name, (BAR_X + 2.0, NAME_Y), BAR_W - LEVEL_W, NAME_TEXT, "LEFT")}
-        {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, (FRAME_W - BAR_X - LEVEL_W, NAME_Y), LEVEL_W, GOLD_TEXT, "RIGHT")}
+        {unit_label(dyn_name(format!("{prefix}Name")), &state.name, name_rect(1.0), (GOLD_TEXT, UNIT_FONT_SIZE), "LEFT")}
+        {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, (level_x, NAME_Y, LEVEL_W, NAME_H), (GOLD_TEXT, UNIT_FONT_SIZE), "RIGHT")}
         {status_bar(BarSpec {
             name: format!("{prefix}HealthBar"),
-            y: HEALTH_Y,
-            width: BAR_W,
-            height: HEALTH_H,
+            rect: health_rect(1.0),
             fraction: state.health_fraction,
-            color: state.health_color(),
+            art: Some(HEALTH_BAR),
             text: &state.health_text,
+            font_size: UNIT_FONT_SIZE,
             hidden: false,
         })}
         {status_bar(BarSpec {
             name: format!("{prefix}ManaBar"),
-            y: POWER_Y,
-            width: BAR_W,
-            height: POWER_H,
+            rect: (BAR_X, POWER_Y, BAR_W, POWER_H),
             fraction: power_fraction,
-            color: state.power.as_ref().map_or("0,0,0,0", |power| power_bar_color(power.power)),
+            art: state.power.as_ref().and_then(|power| power_bar_art(power.power)),
             text: power_text.as_deref().unwrap_or_default(),
+            font_size: UNIT_FONT_SIZE - 1.0,
             hidden: state.power.is_none(),
         })}
     }
@@ -260,88 +288,143 @@ fn secondary_resource_row(resource: Option<&SecondaryResourceEntry>) -> Element 
     let Some(resource) = resource.filter(|resource| resource.max > 0) else {
         return Element::default();
     };
-    let count = resource.max as f32;
-    let pip_w = (BAR_W - PIP_GAP * (count - 1.0)) / count;
+    match pip_art(&resource.kind) {
+        Some(art) => class_pip_row(resource, &art),
+        None => holy_power_row(resource),
+    }
+}
+
+/// Pips laid out left to right and centred under the player frame, like Retail's
+/// `ClassResourceBarTemplate` horizontal layout.
+fn class_pip_row(resource: &SecondaryResourceEntry, art: &PipArt) -> Element {
+    let (cell_w, cell_h) = art.cell;
+    let count = f32::from(resource.max);
+    let row_w = count * cell_w + (count - 1.0) * art.spacing;
     let pips: Element = (0..resource.max)
         .flat_map(|index| {
-            let lit = index < resource.current;
-            rsx! {
-                r#frame {
-                    name: {dyn_name(format!("PlayerSecondaryResourcePip{index}"))},
-                    width: pip_w,
-                    height: PIPS_H,
-                    background_color: {inworld_unit_frames_power::pip_color(&resource.kind, lit)},
-                    pos_type: "absolute",
-                    pos_x: {index as f32 * (pip_w + PIP_GAP)},
-                    pos_y: 0.0,
-                }
-            }
+            let x = f32::from(index) * (cell_w + art.spacing);
+            class_pip(index, index < resource.current, art, x)
         })
         .collect();
+    class_bar_frame(row_w, cell_h, pips)
+}
+
+fn class_pip(index: u8, lit: bool, art: &PipArt, x: f32) -> Element {
+    let (cell_w, cell_h) = art.cell;
+    let background = if lit {
+        art.background
+    } else {
+        art.unlit.unwrap_or(art.background)
+    };
+    rsx! {
+        r#frame {
+            name: {dyn_name(format!("PlayerSecondaryResourcePip{index}"))},
+            width: cell_w,
+            height: cell_h,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: 0.0,
+            {centred_art(format!("PlayerSecondaryResourcePip{index}Background"), &background, art.cell, false)}
+            {centred_art(format!("PlayerSecondaryResourcePip{index}Lit"), &art.lit, art.cell, !lit)}
+        }
+    }
+}
+
+/// An atlas crop at its authored size, centred in a `cell`.
+fn centred_art(
+    name: String,
+    art: &AtlasArt,
+    (cell_w, cell_h): (f32, f32),
+    hidden: bool,
+) -> Element {
+    let (width, height) = art.size();
+    art_texture(
+        dyn_name(name),
+        art,
+        (
+            (cell_w - width) / 2.0,
+            (cell_h - height) / 2.0,
+            width,
+            height,
+        ),
+        hidden,
+    )
+}
+
+/// Paladin holy power: one rune holder with five authored rune slots.
+fn holy_power_row(resource: &SecondaryResourceEntry) -> Element {
+    let holder = HolyPowerArt::HOLDER;
+    let (holder_w, holder_h) = holder.size();
+    let runes: Element = HolyPowerArt::RUNES
+        .iter()
+        .zip(0..resource.max)
+        .flat_map(|((active, (x, y, width, _)), index)| {
+            let (active_w, active_h) = active.size();
+            let centre = (x + width / 2.0, holder_h / 2.0 - y);
+            let rect = (
+                centre.0 - active_w / 2.0,
+                centre.1 - active_h / 2.0,
+                active_w,
+                active_h,
+            );
+            let name = dyn_name(format!("PlayerSecondaryResourcePip{index}"));
+            art_texture(name, active, rect, index >= resource.current)
+        })
+        .collect();
+    let content = rsx! {
+        {art_texture(dyn_name("PlayerSecondaryResourceHolder".into()), &holder, (0.0, 0.0, holder_w, holder_h), false)}
+        {runes}
+    };
+    class_bar_frame(holder_w, holder_h, content)
+}
+
+fn class_bar_frame(width: f32, height: f32, content: Element) -> Element {
     rsx! {
         r#frame {
             name: "PlayerSecondaryResourceRow",
-            width: BAR_W,
-            height: PIPS_H,
+            width,
+            height,
             pos_type: "absolute",
-            pos_x: BAR_X,
-            pos_y: PIPS_Y,
-            {pips}
+            pos_x: {(FRAME_W - width) / 2.0},
+            pos_y: CLASS_BAR_Y,
+            {content}
         }
     }
 }
 
+/// No portrait to carry Retail's `AttackIcon` and rest flipbook, so both sit on the name tab
+/// left of the level text.
 fn status_icons(state: &UnitFrameState) -> Element {
-    let icon_x = FRAME_W - BAR_X - LEVEL_W - 20.0;
+    let (combat_w, combat_h) = COMBAT_ICON.size();
+    let combat_x = FRAME_W - LEVEL_RIGHT - LEVEL_W - combat_w;
+    let rest_size = 20.0;
     rsx! {
-        {status_icon("PlayerCombatIcon", "⚔", "1.0,0.2,0.15,1.0", icon_x, !state.show_combat_icon)}
-        {status_icon("PlayerRestingIcon", "zzz", "1.0,0.85,0.35,1.0", icon_x - 22.0, !state.show_resting_icon)}
-    }
-}
-
-fn status_icon(name: &str, text: &str, color: &str, x: f32, hidden: bool) -> Element {
-    rsx! {
-        fontstring {
-            name: {dyn_name(name.into())},
-            width: 20.0,
-            height: NAME_H,
-            text,
-            hidden,
-            font: UNIT_FONT,
-            font_size: 11.0,
-            font_color: color,
-            shadow_color: "0.0,0.0,0.0,1.0",
-            shadow_offset: "1,-1",
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            pos_x: x,
-            pos_y: NAME_Y,
-        }
+        {art_texture(dyn_name("PlayerCombatIcon".into()), &COMBAT_ICON, (combat_x, NAME_Y - 2.0, combat_w, combat_h), !state.show_combat_icon)}
+        {art_texture(dyn_name("PlayerRestingIcon".into()), &REST_ICON, (combat_x - rest_size, NAME_Y - 6.0, rest_size, rest_size), !state.show_resting_icon)}
     }
 }
 
 struct SmallFrameSpec {
     root: &'static str,
     prefix: &'static str,
-    width: f32,
-    height: f32,
     left: f32,
+    /// Retail's focus frame is a `TargetFrameTemplate` with the reaction strip; target of
+    /// target has none.
+    reaction_strip: bool,
 }
 
 impl SmallFrameSpec {
     const TARGET_OF_TARGET: Self = Self {
         root: "TargetOfTargetFrame",
         prefix: "TargetOfTarget",
-        width: TOT_W,
-        height: TOT_H,
         left: TOT_LEFT,
+        reaction_strip: false,
     };
     const FOCUS: Self = Self {
         root: "FocusFrame",
         prefix: "Focus",
-        width: FOCUS_W,
-        height: FOCUS_H,
         left: FOCUS_LEFT,
+        reaction_strip: true,
     };
 }
 
@@ -349,9 +432,9 @@ fn small_unit_frame(spec: SmallFrameSpec, state: Option<&SmallUnitFrameState>) -
     let content = state
         .map(|unit| small_unit_contents(&spec, unit))
         .unwrap_or_default();
-    bordered_root(
+    art_root(
         dyn_name(spec.root.into()),
-        (spec.width, spec.height),
+        (TOT_W, TOT_H),
         (spec.left, SMALL_FRAME_BOTTOM),
         state.is_none(),
         content,
@@ -359,20 +442,18 @@ fn small_unit_frame(spec: SmallFrameSpec, state: Option<&SmallUnitFrameState>) -
 }
 
 fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Element {
-    let bar_w = spec.width - 2.0 * BAR_X;
-    let color = unit
-        .reaction
-        .map_or(PLAYER_HEALTH_COLOR, reaction_health_color);
+    let scale = SMALL_ART_SCALE;
+    let strip = unit.reaction.filter(|_| spec.reaction_strip);
     rsx! {
-        {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, (BAR_X + 2.0, SMALL_NAME_Y), bar_w, NAME_TEXT, "LEFT")}
+        {reaction_strip(spec.prefix, strip, scale)}
+        {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, name_rect(scale), (GOLD_TEXT, UNIT_FONT_SIZE * scale), "LEFT")}
         {status_bar(BarSpec {
             name: format!("{}HealthBar", spec.prefix),
-            y: SMALL_BAR_Y,
-            width: bar_w,
-            height: SMALL_BAR_H,
+            rect: health_rect(scale),
             fraction: unit.health_fraction,
-            color,
+            art: Some(HEALTH_BAR),
             text: "",
+            font_size: UNIT_FONT_SIZE * scale,
             hidden: false,
         })}
     }

@@ -4,6 +4,8 @@ use crate::ui::registry::FrameRegistry;
 use crate::ui::screens::casting_bar_frame_component::{CastingBarState, casting_bar_frame_screen};
 #[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
 mod layout_test_support;
+use crate::ui::widgets::texture::{TextureData, TextureSource};
+use inworld_unit_frames_art::FRAME_PORTRAIT_OFF;
 use layout_test_support::compute_layout;
 use ui_toolkit::screen::Screen;
 
@@ -20,19 +22,19 @@ fn cluster_flanks_docked_cast_bar_above_action_bars_at_1080p() {
     assert_eq!(
         player,
         LayoutRect {
-            x: 580.0,
-            y: 868.0,
-            width: 232.0,
-            height: 60.0,
+            x: 679.0,
+            y: 877.0,
+            width: 133.0,
+            height: 51.0,
         }
     );
     assert_eq!(
         target,
         LayoutRect {
             x: 1108.0,
-            y: 868.0,
-            width: 232.0,
-            height: 60.0,
+            y: 877.0,
+            width: 133.0,
+            height: 51.0,
         }
     );
     assert_eq!(cast.x, player.x + player.width + CAST_DOCK_GAP);
@@ -68,21 +70,65 @@ fn small_frames_sit_right_of_target_top_aligned() {
 }
 
 #[test]
-fn frames_have_thin_border_around_dark_backing() {
+fn frames_draw_portrait_off_art_with_bars_in_its_slots() {
     let reg = cluster_registry();
+    for root in [
+        "PlayerFrame",
+        "TargetFrame",
+        "TargetOfTargetFrame",
+        "FocusFrame",
+    ] {
+        let frame = rect_by_name(&reg, root);
+        let art_name = format!("{root}Art");
+        assert_eq!(
+            rect_by_name(&reg, &art_name),
+            frame,
+            "{art_name} fills {root}"
+        );
+        let art = texture(&reg, &art_name);
+        assert_eq!(
+            art.source,
+            TextureSource::FileDataId(FRAME_PORTRAIT_OFF.fdid),
+            "{art_name}"
+        );
+    }
+    // Health and power sit in the 124×20 and 124×10 slots of the 133×51 art.
     let frame = rect_by_name(&reg, "TargetFrame");
-    let backing = rect_by_name(&reg, "TargetFrameBacking");
+    let health = rect_by_name(&reg, "TargetHealthBar");
     assert_eq!(
-        backing,
-        LayoutRect {
-            x: frame.x + 1.0,
-            y: frame.y + 1.0,
-            width: frame.width - 2.0,
-            height: frame.height - 2.0,
-        }
+        (
+            health.x - frame.x,
+            health.y - frame.y,
+            health.width,
+            health.height
+        ),
+        (3.0, 14.0, 124.0, 20.0)
     );
-    let bars = rect_by_name(&reg, "TargetHealthBar");
-    assert!(bars.x >= backing.x && bars.x + bars.width <= backing.x + backing.width);
+    assert!(
+        reg.get_by_name("TargetFrameBacking").is_none(),
+        "no flat backing behind the art"
+    );
+}
+
+#[test]
+fn target_auras_hang_below_the_frame() {
+    let reg = unit_frames_registry();
+    let frame = rect_by_name(&reg, "TargetFrame");
+    let buffs = rect_by_name(&reg, "TargetBuffRow");
+    let debuffs = rect_by_name(&reg, "TargetDebuffRow");
+    assert!(buffs.y >= frame.y + frame.height);
+    assert!(debuffs.y >= buffs.y + buffs.height);
+}
+
+#[test]
+fn only_focus_of_the_small_frames_carries_a_reaction_strip() {
+    let reg = unit_frames_registry();
+    let strip = texture(&reg, "FocusReputationColor");
+    assert_eq!(
+        strip.vertex_color,
+        rgba(reaction_color(crate::faction_reaction::Reaction::Hostile))
+    );
+    assert!(reg.get_by_name("TargetOfTargetReputationColor").is_none());
 }
 
 #[test]
@@ -239,6 +285,21 @@ fn sample_unit_frames_context() -> SharedContext {
         menu: UnitFrameMenuState::default(),
     });
     shared
+}
+
+fn texture<'a>(reg: &'a FrameRegistry, name: &str) -> &'a TextureData {
+    match reg
+        .get(reg.get_by_name(name).expect(name))
+        .and_then(|frame| frame.widget_data.as_ref())
+    {
+        Some(ui_toolkit::frame::WidgetData::Texture(texture)) => texture,
+        _ => panic!("{name} is not a texture"),
+    }
+}
+
+fn rgba(color: &str) -> [f32; 4] {
+    let parts: Vec<f32> = color.split(',').map(|part| part.parse().unwrap()).collect();
+    [parts[0], parts[1], parts[2], parts[3]]
 }
 
 fn rect_by_name(reg: &FrameRegistry, name: &str) -> LayoutRect {
