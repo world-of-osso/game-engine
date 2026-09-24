@@ -477,6 +477,61 @@ mod tests {
     use super::*;
 
     #[test]
+    fn spellbook_open_state_follows_the_window_manager() {
+        use crate::window_manager::{WindowId, WindowManager};
+        use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
+        let mut app = App::new();
+        app.add_plugins((MinimalPlugins, bevy::state::app::StatesPlugin));
+        app.insert_state(GameState::InWorld);
+        app.init_resource::<ButtonInput<KeyCode>>();
+        app.init_resource::<ButtonInput<MouseButton>>();
+        app.init_resource::<game_engine::input_bindings::InputBindings>();
+        app.init_resource::<crate::ui_input_mode::UiInputMode>();
+        app.insert_resource(game_engine::ui::plugin::UiState {
+            registry: game_engine::ui::registry::FrameRegistry::new(1920.0, 1080.0),
+            event_bus: game_engine::ui::event::EventBus::new(),
+            focused_frame: None,
+        });
+        app.insert_non_send(SpellbookUiRuntime::new());
+        app.add_plugins(crate::window_manager::WindowManagerPlugin);
+        app.add_systems(
+            Update,
+            (toggle_spellbook_frame, sync_spellbook_window).chain(),
+        );
+
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyP);
+        app.update();
+        assert!(
+            app.world()
+                .resource::<WindowManager>()
+                .is_open(WindowId::Spellbook)
+        );
+        assert!(
+            app.world()
+                .non_send_resource::<SpellbookUiRuntime>()
+                .is_open()
+        );
+
+        {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.release_all();
+            keys.clear();
+        }
+        let mut windows = app.world_mut().resource_mut::<WindowManager>();
+        windows.open(WindowId::Character);
+        windows.open(WindowId::Friends);
+        app.update();
+        assert!(
+            !app.world()
+                .non_send_resource::<SpellbookUiRuntime>()
+                .is_open(),
+            "the oldest of three panels (spellbook) closes"
+        );
+    }
+
+    #[test]
     fn test_default_state_is_login() {
         assert_eq!(GameState::default(), GameState::Login);
     }
