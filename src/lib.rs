@@ -82,6 +82,8 @@ pub mod ignore_list;
 pub mod input_bindings;
 pub mod inspect;
 pub mod ipc;
+#[path = "game/item_catalog.rs"]
+pub mod item_catalog;
 #[path = "game/item_icons.rs"]
 pub mod item_icons;
 #[path = "game/equipment/item_info.rs"]
