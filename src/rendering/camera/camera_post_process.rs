@@ -100,6 +100,9 @@ pub(super) struct CameraPostProcessQuery {
     has_ssao: Has<ScreenSpaceAmbientOcclusion>,
     has_depth_prepass: Has<DepthPrepass>,
     has_normal_prepass: Has<NormalPrepass>,
+    has_motion_vector_prepass: Has<MotionVectorPrepass>,
+    has_temporal_jitter: Has<TemporalJitter>,
+    has_mip_bias: Has<MipBias>,
     is_wow_camera: Has<WowCamera>,
 }
 
@@ -183,28 +186,32 @@ fn sync_camera_render_bundle(
         remove_wow_camera_render_bundle(commands, camera.entity);
         return;
     }
+    let anti_alias = effective_anti_alias(graphics, msaa_disabled);
     if camera.is_wow_camera {
-        restore_wow_camera_prepasses(
+        sync_wow_camera_prepasses(
             commands,
-            camera.entity,
-            camera.has_depth_prepass,
-            camera.has_normal_prepass,
+            camera,
+            anti_alias == AntiAliasMode::Taa,
+            graphics.ssao_enabled,
         );
     }
-    sync_camera_anti_aliasing_and_ssao(graphics, msaa_disabled, commands, camera);
+    sync_camera_anti_aliasing_and_ssao(graphics, anti_alias, commands, camera);
+}
+
+fn effective_anti_alias(graphics: &GraphicsOptions, msaa_disabled: bool) -> AntiAliasMode {
+    if msaa_disabled && graphics.anti_alias == AntiAliasMode::Msaa4x {
+        AntiAliasMode::None
+    } else {
+        graphics.anti_alias
+    }
 }
 
 fn sync_camera_anti_aliasing_and_ssao(
     graphics: &GraphicsOptions,
-    msaa_disabled: bool,
+    anti_alias: AntiAliasMode,
     commands: &mut Commands,
     camera: &CameraPostProcessQueryItem<'_, '_>,
 ) {
-    let anti_alias = if msaa_disabled && graphics.anti_alias == AntiAliasMode::Msaa4x {
-        AntiAliasMode::None
-    } else {
-        graphics.anti_alias
-    };
     sync_anti_alias(commands, camera.entity, anti_alias, camera.msaa, camera.taa);
     sync_ssao_compatibility(
         commands,
@@ -227,25 +234,53 @@ fn remove_wow_camera_render_bundle(commands: &mut Commands, entity: Entity) {
     )>();
 }
 
-fn restore_wow_camera_prepasses(
+/// Prepasses and temporal state exist only for their consumers: SSAO reads depth and
+/// normals, TAA reads depth and motion vectors and jitters the projection. The MSAA main
+/// pass reads none of them, and a leftover prepass redraws every opaque mesh.
+fn sync_wow_camera_prepasses(
     commands: &mut Commands,
-    entity: Entity,
-    has_depth_prepass: bool,
-    has_normal_prepass: bool,
+    camera: &CameraPostProcessQueryItem<'_, '_>,
+    taa: bool,
+    ssao: bool,
 ) {
-    match (has_depth_prepass, has_normal_prepass) {
-        (false, false) => {
-            commands
-                .entity(entity)
-                .insert((DepthPrepass, NormalPrepass));
+    let mut entity = commands.entity(camera.entity);
+    sync_marker(
+        &mut entity,
+        camera.has_depth_prepass,
+        taa || ssao,
+        DepthPrepass,
+    );
+    sync_marker(&mut entity, camera.has_normal_prepass, ssao, NormalPrepass);
+    sync_marker(
+        &mut entity,
+        camera.has_motion_vector_prepass,
+        taa,
+        MotionVectorPrepass,
+    );
+    if !taa {
+        if camera.has_temporal_jitter {
+            entity.remove::<TemporalJitter>();
         }
+        if camera.has_mip_bias {
+            entity.remove::<MipBias>();
+        }
+    }
+}
+
+fn sync_marker<C: Component>(
+    entity: &mut bevy::ecs::system::EntityCommands,
+    present: bool,
+    wanted: bool,
+    component: C,
+) {
+    match (present, wanted) {
         (false, true) => {
-            commands.entity(entity).insert(DepthPrepass);
+            entity.insert(component);
         }
         (true, false) => {
-            commands.entity(entity).insert(NormalPrepass);
+            entity.remove::<C>();
         }
-        (true, true) => {}
+        _ => {}
     }
 }
 
