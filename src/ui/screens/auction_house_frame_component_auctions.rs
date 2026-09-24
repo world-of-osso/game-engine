@@ -1,181 +1,189 @@
+//! Auctions mode: `AuctionsFrame` with its Auctions / Bids top tabs, summary list, the
+//! all-auctions or bids list, Cancel Auction and the bid / buyout controls.
+
 use super::*;
 
-const AUCTION_INSET: f32 = 4.0;
-const LISTING_ROW_H: f32 = 24.0;
-const LISTING_ROW_GAP: f32 = 1.0;
-const LISTING_HEADER_H: f32 = 22.0;
-const CANCEL_BUTTON_W: f32 = 80.0;
-const CANCEL_BUTTON_H: f32 = 24.0;
-const CANCEL_BUTTON_BG: &str = "0.25,0.08,0.08,0.95";
-const CANCEL_BUTTON_TEXT_COLOR: &str = "1.0,0.4,0.4,1.0";
+/// Rows that fit the list `ScrollBox` (98..508).
+pub const AUCTIONS_ROWS: usize = 20;
 
-pub(super) const MAX_LISTING_ROWS: usize = 10;
-pub(super) const LISTING_COLUMNS: &[(&str, f32)] = &[
-    ("Item", 0.30),
-    ("Time Left", 0.15),
-    ("Bid", 0.15),
-    ("Buyout", 0.15),
-    ("Status", 0.15),
-    ("", 0.10),
-];
-
-pub(super) fn auctions_tab_content(listings: &[AuctionListingRow]) -> Element {
-    let content_y = -CONTENT_TOP;
-    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
-    let content_h = FRAME_H - CONTENT_TOP - CONTENT_INSET;
-    let panel_w = content_w - 2.0 * AUCTION_INSET;
-    let header = listing_header(panel_w);
-    let rows: Element = listings
-        .iter()
-        .enumerate()
-        .take(MAX_LISTING_ROWS)
-        .flat_map(|(i, row)| listing_row(i, row, panel_w))
-        .collect();
+pub(super) fn auctions_content(state: &AuctionHouseFrameState) -> Element {
+    let hide = state.tab != AuctionHouseTab::Auctions;
+    let view = &state.auctions;
+    let mut body = top_tabs(view.tab);
+    body.extend(summary_list(view.tab));
+    body.extend(auctions_list(view));
+    if !hide {
+        // Shares the bid inputs with the item buy frame: only the visible mode builds them.
+        body.extend(controls(view));
+    }
     rsx! {
         r#frame {
-            name: "AuctionHouseAuctionsTab",
-            width: {content_w},
-            height: {content_h},
-            hidden: true,
+            name: "AuctionHouseFrameAuctionsFrame",
+            width: FRAME_W,
+            height: FRAME_H,
+            hidden: hide,
             pos_type: "absolute",
-            left: {CONTENT_INSET},
-            top: {-(content_y)},
-            {header}
-            {rows}
+            left: 0.0,
+            top: 0.0,
+            {body}
         }
     }
 }
 
-fn listing_header(panel_w: f32) -> Element {
-    let cols: Element = LISTING_COLUMNS
-        .iter()
-        .enumerate()
-        .flat_map(|(i, (name, _))| {
-            let x = listing_col_x(panel_w, i);
-            let w = listing_col_w(panel_w, i);
-            listing_header_cell(i, name, x, w)
-        })
-        .collect();
-    rsx! {
-        r#frame {
-            name: "AuctionHouseListingHeader",
-            width: {panel_w},
-            height: {LISTING_HEADER_H},
-            background_color: HEADER_BG,
-            pos_type: "absolute",
-            left: {AUCTION_INSET},
-            top: {-(-AUCTION_INSET)},
-            {cols}
-        }
-    }
+/// `AuctionsTab` (PanelTopTabButtonTemplate) at TOPLEFT (47,-1) of the frame's (5,42) origin,
+/// `BidsTab` 3 right of it (`PanelTemplates_AnchorTabs`)
+/// (Mainline/Blizzard_AuctionHouseAuctionsFrame.xml:56-62).
+fn top_tabs(active: AuctionsSubTab) -> Element {
+    let auctions_w = tab_width("Auctions");
+    let mut out = panel_tab(
+        "AuctionHouseFrameAuctionsFrameAuctionsTab",
+        "Auctions",
+        &format!("{ACTION_AUCTIONS_TAB_PREFIX}auctions"),
+        active == AuctionsSubTab::Auctions,
+        (52.0, 43.0, auctions_w),
+        true,
+    );
+    out.extend(panel_tab(
+        "AuctionHouseFrameAuctionsFrameBidsTab",
+        "Bids",
+        &format!("{ACTION_AUCTIONS_TAB_PREFIX}bids"),
+        active == AuctionsSubTab::Bids,
+        (52.0 + auctions_w + 3.0, 43.0, tab_width("Bids")),
+        true,
+    ));
+    out
 }
 
-fn listing_header_cell(idx: usize, text: &str, x: f32, w: f32) -> Element {
-    let cell_id = DynName(format!("AuctionHouseListingCol{idx}"));
-    rsx! {
-        fontstring {
-            name: cell_id,
-            width: {w},
-            height: {LISTING_HEADER_H},
-            text,
-            font_size: 9.0,
-            font_color: HEADER_TEXT_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {x},
-            top: -0.0,
-        }
-    }
-}
-
-fn listing_row(idx: usize, row: &AuctionListingRow, panel_w: f32) -> Element {
-    let row_id = DynName(format!("AuctionHouseListing{idx}"));
-    let header_offset = AUCTION_INSET + LISTING_HEADER_H;
-    let y = -(header_offset + idx as f32 * (LISTING_ROW_H + LISTING_ROW_GAP));
-    let bg = if idx.is_multiple_of(2) {
-        ROW_BG_EVEN
-    } else {
-        ROW_BG_ODD
+/// `SummaryList` 168 wide, 2 into the tab bottom down to the Cancel button, LEFT -1 →
+/// (4,73)..(172,511), with its one `AUCTION_HOUSE_ALL_AUCTIONS` / `_ALL_BIDS` line selected.
+fn summary_list(tab: AuctionsSubTab) -> Element {
+    let (x, y, w, h) = (4.0, 73.0, 168.0, 438.0);
+    let mut out = crop_texture(
+        "AuctionHouseFrameAuctionsFrameSummaryListBackground".into(),
+        BG_SUMMARY_LIST,
+        (x + 3.0, y + 3.0, 138.0, 433.0),
+    );
+    out.extend(inset_border(
+        "AuctionHouseFrameAuctionsFrameSummaryListNineSlice",
+        (x, y, w, h),
+    ));
+    let text = match tab {
+        AuctionsSubTab::Auctions => "All Auctions",
+        AuctionsSubTab::Bids => "All Bids",
     };
-    let cells = listing_row_cells(idx, row, panel_w);
-    let cancel = listing_cancel_button(idx, panel_w);
-    rsx! {
-        r#frame {
-            name: row_id,
-            width: {panel_w},
-            height: {LISTING_ROW_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: {AUCTION_INSET},
-            top: {-(y)},
-            {cells}
-            {cancel}
+    out.extend(crop_texture(
+        "AuctionHouseFrameAuctionsFrameSummaryLine1Selected".into(),
+        ROW_SELECT,
+        (x + 3.0, y + 3.0, 148.0, 21.0),
+    ));
+    out.extend(label(
+        "AuctionHouseFrameAuctionsFrameSummaryLine1Text",
+        text,
+        (x + 7.0, y + 3.0, 140.0, 21.0),
+        "LEFT",
+    ));
+    out
+}
+
+/// `GetAllAuctionsLayout` (Blizzard_AuctionHouseTableBuilder.lua:969): Name fill, Bid 120,
+/// Buyout 120, time left 50.
+pub(super) fn all_auctions_columns() -> [Column; 4] {
+    layout_columns(
+        0.0,
+        593.0,
+        [
+            ("Item", -1.0, 10.0, 0.0),
+            ("Bid Price", 120.0, 10.0, 0.0),
+            ("Buyout Price", 120.0, 10.0, 0.0),
+            ("", 50.0, 0.0, 10.0),
+        ],
+    )
+}
+
+/// `GetBidsListLayout` (…TableBuilder.lua:983): Name fill, Bid 120, Buyout 120, band 140.
+pub(super) fn bids_columns() -> [Column; 4] {
+    layout_columns(
+        0.0,
+        593.0,
+        [
+            ("Item", -1.0, 10.0, 0.0),
+            ("Bid Price", 120.0, 10.0, 0.0),
+            ("Buyout Price", 120.0, 10.0, 0.0),
+            ("", 140.0, 0.0, 10.0),
+        ],
+    )
+}
+
+/// `AllAuctionsList` / `BidsList` from the summary list's right to RIGHT -5 → (172,72) 623×439
+/// on `auctionhouse-background-index` (Mainline/Blizzard_AuctionHouseAuctionsFrame.xml:129-153).
+fn auctions_list(view: &AuctionsView) -> Element {
+    let columns = match view.tab {
+        AuctionsSubTab::Auctions => all_auctions_columns(),
+        AuctionsSubTab::Bids => bids_columns(),
+    };
+    let prefix = match view.tab {
+        AuctionsSubTab::Auctions => "AuctionHouseFrameAuctionsFrameAllAuctionsList",
+        AuctionsSubTab::Bids => "AuctionHouseFrameAuctionsFrameBidsList",
+    };
+    let mut out = item_list_frame(prefix, (172.0, 72.0, 623.0, 439.0), BG_INDEX, &columns);
+    out.extend(crop_texture(
+        format!("{prefix}TimeLeftHeader"),
+        CLOCK_ICON,
+        (176.0 + columns[3].x + 10.0, 74.0, 16.0, 16.0),
+    ));
+    for (index, row) in view.rows.iter().take(AUCTIONS_ROWS).enumerate() {
+        let name = format!("{prefix}Row{}", index + 1);
+        let cells = [
+            item_cell(&format!("{name}Item"), &row.item, row.quantity, &columns[0]),
+            money_cell(&format!("{name}Bid"), row.bid, &columns[1]),
+            money_cell(&format!("{name}Buyout"), row.buyout, &columns[2]),
+            text_cell(
+                &format!("{name}TimeLeft"),
+                &row.time_left,
+                HIGHLIGHT_FONT_COLOR,
+                (
+                    columns[3].x + columns[3].pad_left,
+                    columns[3].w - columns[3].pad_right,
+                ),
+                "LEFT",
+            ),
+        ]
+        .concat();
+        let action = format!("{ACTION_SELECT_AUCTION_PREFIX}{}", row.auction_id);
+        out.extend(list_row(
+            &name,
+            (176.0, 98.0 + index as f32 * ROW_H, 593.0, ROW_H),
+            index,
+            true,
+            row.selected,
+            &action,
+            cells,
+        ));
+    }
+    out
+}
+
+/// Auctions tab: `CancelAuctionButton` 158×22 at BOTTOMRIGHT (-3,-22) → (639,511). Bids tab:
+/// `BuyoutFrame` right-aligned with it and `BidFrame` 60 left of that.
+fn controls(view: &AuctionsView) -> Element {
+    match view.tab {
+        AuctionsSubTab::Auctions => panel_button(
+            "AuctionHouseFrameAuctionsFrameCancelAuctionButton",
+            "Cancel Auction",
+            ACTION_CANCEL_AUCTION,
+            view.can_cancel,
+            (639.0, 511.0, 158.0, 22.0),
+        ),
+        AuctionsSubTab::Bids => {
+            let mut out = buy_tab::bid_frame((387.0, 511.0), view.can_bid);
+            out.extend(panel_button(
+                "AuctionHouseFrameAuctionsFrameBuyoutButton",
+                "Buyout",
+                ACTION_BUYOUT,
+                view.can_buyout,
+                (687.0, 511.0, 110.0, 22.0),
+            ));
+            out
         }
     }
-}
-
-fn listing_row_cells(idx: usize, row: &AuctionListingRow, panel_w: f32) -> Element {
-    let values = [
-        &row.name,
-        &row.time_left,
-        &row.bid,
-        &row.buyout,
-        &row.status,
-    ];
-    values
-        .iter()
-        .enumerate()
-        .flat_map(|(col, text)| {
-            let cell_id = DynName(format!("AuctionHouseListing{idx}Col{col}"));
-            let x = listing_col_x(panel_w, col);
-            let w = listing_col_w(panel_w, col);
-            let color = if (2..=3).contains(&col) {
-                GOLD_COLOR
-            } else {
-                ROW_TEXT_COLOR
-            };
-            result_cell(cell_id, text, x, w, color)
-        })
-        .collect()
-}
-
-fn listing_cancel_button(idx: usize, panel_w: f32) -> Element {
-    let btn_id = DynName(format!("AuctionHouseListing{idx}Cancel"));
-    let txt_id = DynName(format!("AuctionHouseListing{idx}CancelText"));
-    let x = panel_w - CANCEL_BUTTON_W - 4.0;
-    rsx! {
-        r#frame {
-            name: btn_id,
-            width: {CANCEL_BUTTON_W},
-            height: {CANCEL_BUTTON_H},
-            background_color: CANCEL_BUTTON_BG,
-            pos_type: "absolute",
-            left: {x},
-            top: -0.0,
-            fontstring {
-                name: txt_id,
-                width: {CANCEL_BUTTON_W},
-                height: {CANCEL_BUTTON_H},
-                text: "Cancel",
-                font_size: 9.0,
-                font_color: CANCEL_BUTTON_TEXT_COLOR,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn listing_col_x(panel_w: f32, col: usize) -> f32 {
-    let mut x = 4.0;
-    for (_, width_frac) in LISTING_COLUMNS.iter().take(col) {
-        x += width_frac * panel_w;
-    }
-    x
-}
-
-fn listing_col_w(panel_w: f32, col: usize) -> f32 {
-    LISTING_COLUMNS[col].1 * panel_w
 }
