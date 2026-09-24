@@ -272,3 +272,28 @@ fn quest_description_wraps_like_the_live_frame() {
         "line pitch at least the toolkit's 1.2 em"
     );
 }
+
+#[test]
+fn metal_frame_style_frame_wraps_the_window_at_the_retail_offsets() {
+    let reg = build(frame(
+        "Deputy Willem",
+        QuestFramePage::Greeting {
+            text: String::new(),
+            options: vec![],
+            quests: vec![],
+        },
+    ));
+    let rect = |name: &str| {
+        reg.get(reg.get_by_name(name).unwrap())
+            .unwrap()
+            .layout_rect
+            .clone()
+            .unwrap()
+    };
+    let (root, border) = (rect(QUEST_FRAME), rect("QuestFrameNineSlice"));
+    // PortraitFrameTemplate corners: TL (-13, +16), BR (+4, -3).
+    assert!((border.x - (root.x - 13.0)).abs() < 1.0);
+    assert!((border.y - (root.y - 16.0)).abs() < 1.0);
+    assert!((border.width - (FRAME_W + 17.0)).abs() < 1.0);
+    assert!((border.height - (FRAME_H + 19.0)).abs() < 1.0);
+}
