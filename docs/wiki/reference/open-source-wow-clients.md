@@ -8,6 +8,7 @@ Reference catalog of open-source projects that reimplement or render WoW client 
 |---------|------|--------|--------|
 | [Whoa](https://github.com/whoahq/whoa) | C++ | 3.3.5a | Active (1,300+ commits, 2026) — login, animations, char select |
 | [WoWee](https://github.com/Kelsidavis/WoWee) | C++ / OpenGL | Vanilla–WotLK | Stalled — MIT, reportedly AI-generated; good collision reference |
+| [solarityclient](https://github.com/isekaishy-jpg/solarityclient) | Rust / Vulkan (ash) | 3.3.5a | 1,000+ commits — shipyard ECS, SDL3, egui, mlua; [rendering crate](https://github.com/isekaishy-jpg/solarityclient/tree/main/crates/rendering/src) covers terrain, models, particles, liquid, lighting, weather, minimap |
 | [Thunderbrew](https://github.com/openwow-org/thunderbrew) | C++ | — | Stalled — clean-room reimplementation |
 | [OpenWow](https://github.com/World0fWarcraft/OpenWow) | C++ | 1.12 | Abandoned |
 | [Wowser](https://github.com/wowserhq/client) | TypeScript / WebGL 2 | 3.3.5a | Stalled — browser-based, MIT |
