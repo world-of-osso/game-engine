@@ -911,3 +911,7 @@ Created [[solarityclient-performance-comparison]]: their frame cost comes from f
 ## [2026-09-24] investigation | Abbey interior black world
 
 Added [[abbey-interior-black-world]]: WMO vertex alpha forced opaque; GPU prepass regression RED/GREEN recorded.
+
+## [2026-09-24] ui | Quest UI
+
+Created [[quest-ui]]. Client `QuestRuntime` on the server quest and NPC interaction messages; Retail objective tracker, quest log (L, Panel) and QuestFrame (greeting/detail/progress/reward), `$N`/`$C`/`$B`/`$G` substitution, talktome markers. Right-click sends `InteractNpc`. Live headless proof on the shared server: A Threat Within accepted from Deputy Willem and turned in at Marshal McBride (Theron, Elara), chain offer of Kobold Camp Cleanup, XP chat line.
