@@ -193,12 +193,14 @@ fn sample_target_frame_state() -> UnitFrameState {
             timer_text: "5m".to_string(),
             stacks: 1,
             border_color: "0.85,0.75,0.35,1.0".to_string(),
+            mine: false,
         }],
         target_debuffs: vec![TargetAuraIconState {
             icon_fdid: 136207,
             timer_text: "12s".to_string(),
             stacks: 3,
             border_color: "0.2,0.6,1.0,1.0".to_string(),
+            mine: false,
         }],
         ..UnitFrameState::named("Timber Wolf")
     }
