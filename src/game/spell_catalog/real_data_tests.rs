@@ -225,3 +225,24 @@ fn heap_bytes(data: &SpellCatalogData) -> usize {
             })
             .sum::<usize>()
 }
+
+#[test]
+fn passive_flag_and_spellbook_tabs() {
+    let Some(data) = catalog() else { return };
+    assert!(data.get(76671).unwrap().passive, "Mastery: Divine Bulwark");
+    assert!(!data.get(35395).unwrap().passive, "Crusader Strike");
+    let tabs = &data.tabs;
+    let protection = Some(66);
+    assert_eq!(tabs.classify(35395, protection), SpellbookTabKind::Class);
+    assert_eq!(tabs.classify(275779, protection), SpellbookTabKind::Spec);
+    assert_eq!(tabs.classify(76671, protection), SpellbookTabKind::Spec);
+    assert_eq!(tabs.classify(6603, protection), SpellbookTabKind::General);
+    assert_eq!(tabs.class_name(protection, &[]), Some("Paladin"));
+    assert_eq!(tabs.spec_name(protection), Some("Protection"));
+    assert_eq!(
+        tabs.spec_name(Some(1451)),
+        None,
+        "Initial Paladin has no tab"
+    );
+    assert_eq!(tabs.class_name(None, &[6603, 35395]), Some("Paladin"));
+}

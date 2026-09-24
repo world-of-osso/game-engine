@@ -8,6 +8,7 @@ mod build;
 mod cache;
 mod csv_records;
 mod render;
+mod tabs;
 
 #[cfg(test)]
 mod real_data_tests;
@@ -19,6 +20,8 @@ use std::path::{Path, PathBuf};
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task, futures::check_ready};
 use serde::{Deserialize, Serialize};
+
+pub use tabs::{SpecTabInfo, SpellbookTabIndex, SpellbookTabKind};
 
 pub const SPELL_DB2_BUILD: &str = "12.1.0.69933";
 
@@ -77,6 +80,8 @@ pub struct CatalogSpell {
     /// Raw DB value; one row holds -1.
     pub active_icon_fdid: i32,
     pub school_mask: u32,
+    /// `SpellMisc.Attributes_0 & 0x40`.
+    pub passive: bool,
     pub cast_time_ms: i32,
     pub range: SpellRange,
     /// `SpellDuration.Duration`; 0 = no duration, negative = until cancelled.
@@ -102,13 +107,20 @@ impl CatalogSpell {
 #[derive(Debug, Default)]
 pub struct SpellCatalogData {
     spells: Vec<CatalogSpell>,
+    pub tabs: SpellbookTabIndex,
 }
 
 impl SpellCatalogData {
-    fn from_sorted(mut spells: Vec<CatalogSpell>) -> Self {
+    fn from_sorted(mut spells: Vec<CatalogSpell>, tabs: SpellbookTabIndex) -> Self {
         // Deserialized Vecs grow by doubling; ~50 MB of slack otherwise.
         spells.shrink_to_fit();
-        Self { spells }
+        Self { spells, tabs }
+    }
+
+    /// Catalog from unsorted rows, for fixtures.
+    pub fn from_parts(mut spells: Vec<CatalogSpell>, tabs: SpellbookTabIndex) -> Self {
+        spells.sort_unstable_by_key(|spell| spell.id);
+        Self::from_sorted(spells, tabs)
     }
 
     pub fn len(&self) -> usize {
@@ -156,6 +168,12 @@ pub struct SpellCatalog {
 }
 
 impl SpellCatalog {
+    pub fn ready(data: SpellCatalogData) -> Self {
+        Self {
+            state: SpellCatalogState::Ready(data),
+        }
+    }
+
     pub fn is_ready(&self) -> bool {
         matches!(self.state, SpellCatalogState::Ready(_))
     }
@@ -197,14 +215,16 @@ impl SpellCatalogPaths {
 }
 
 /// Loads from the cache when fresh, otherwise rebuilds from CSV and rewrites the cache.
+/// The spellbook tab index is small and always rebuilt from CSV.
 pub fn load_spell_catalog(paths: &SpellCatalogPaths) -> Result<SpellCatalogData, String> {
+    let tabs = tabs::load_tab_index(&paths.source_dir)?;
     let key = cache::cache_key(&paths.source_dir)?;
     if let Some(spells) = cache::read_cache(&paths.cache_path, &key)? {
-        return Ok(SpellCatalogData::from_sorted(spells));
+        return Ok(SpellCatalogData::from_sorted(spells, tabs));
     }
     let spells = build::build_spells(&paths.source_dir)?;
     cache::write_cache(&paths.cache_path, &key, &spells)?;
-    Ok(SpellCatalogData::from_sorted(spells))
+    Ok(SpellCatalogData::from_sorted(spells, tabs))
 }
 
 #[derive(Resource)]
