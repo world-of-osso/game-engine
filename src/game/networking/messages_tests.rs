@@ -222,3 +222,28 @@ fn ignored_sender_message_is_not_added_to_chat_log() {
     assert!(chat_state.messages.is_empty());
     assert_eq!(whisper_state.reply_target, None);
 }
+
+#[test]
+fn player_zone_comes_from_the_terrain_chunk_underfoot() {
+    let data = std::fs::read("data/terrain/azeroth_32_48.adt").expect("azeroth_32_48.adt");
+    let adt = crate::asset::adt::load_adt(&data).expect("parse ADT");
+    let mut heightmap = TerrainHeightmap::default();
+    heightmap.insert_tile(32, 48, &adt);
+    // Northshire Abbey steps, the human starting position.
+    let [bx, _, bz] = crate::asset::m2::wow_to_bevy(-8949.0, -132.0, 83.0);
+    let mut world = World::new();
+    world.insert_resource(heightmap);
+    world.insert_resource(CurrentZone::default());
+    world.spawn((Player, Transform::from_xyz(bx, 0.0, bz)));
+
+    world.run_system_once(track_player_zone).unwrap();
+
+    let zone = world.resource::<CurrentZone>();
+    assert_eq!(zone.zone_id, 12, "Elwynn Forest");
+    let area = crate::zone_names::zone_id_to_name(zone.area_id);
+    assert!(
+        area.starts_with("Northshire"),
+        "area {} = {area}",
+        zone.area_id
+    );
+}

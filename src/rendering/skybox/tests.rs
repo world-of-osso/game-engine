@@ -420,7 +420,10 @@ fn weather_change_updates_world_fog_without_time_advance() {
 fn resolve_inworld_map_id_prefers_map_name_when_present() {
     let mut adt_manager = AdtManager::default();
     adt_manager.map_name = "azeroth".to_string();
-    let current_zone = CurrentZone { zone_id: 999 };
+    let current_zone = CurrentZone {
+        zone_id: 999,
+        ..Default::default()
+    };
 
     assert_eq!(resolve_inworld_map_id(&adt_manager, &current_zone), 0);
 }
@@ -428,7 +431,10 @@ fn resolve_inworld_map_id_prefers_map_name_when_present() {
 #[test]
 fn resolve_inworld_map_id_uses_current_zone_when_map_name_is_empty() {
     let adt_manager = AdtManager::default();
-    let current_zone = CurrentZone { zone_id: 42 };
+    let current_zone = CurrentZone {
+        zone_id: 42,
+        ..Default::default()
+    };
 
     assert_eq!(resolve_inworld_map_id(&adt_manager, &current_zone), 42);
 }

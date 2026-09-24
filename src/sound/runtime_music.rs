@@ -195,7 +195,10 @@ mod tests {
 
     #[test]
     fn desired_zone_id_ignores_zero() {
-        let zone = crate::networking::CurrentZone { zone_id: 0 };
+        let zone = crate::networking::CurrentZone {
+            zone_id: 0,
+            ..Default::default()
+        };
         assert_eq!(desired_zone_id(Some(&zone)), None);
     }
 

@@ -114,7 +114,10 @@ fn maintenance_idle_does_not_acquire_sound_assets() {
 #[test]
 fn maintenance_unlisted_zone_keeps_playback_through_idle_and_volume_changes() {
     let mut app = maintenance_test_app();
-    app.insert_resource(crate::networking::CurrentZone { zone_id: 99 });
+    app.insert_resource(crate::networking::CurrentZone {
+        zone_id: 99,
+        ..Default::default()
+    });
     sound_update(&mut app);
     let ambient = sound_entity::<AmbientSound>(&mut app);
     let music = sound_entity::<MusicSound>(&mut app);
@@ -132,7 +135,10 @@ fn maintenance_unlisted_zone_keeps_playback_through_idle_and_volume_changes() {
 #[test]
 fn maintenance_completion_removal_advances_zone_tracks_and_recovers() {
     let mut app = maintenance_test_app();
-    app.insert_resource(crate::networking::CurrentZone { zone_id: 5 });
+    app.insert_resource(crate::networking::CurrentZone {
+        zone_id: 5,
+        ..Default::default()
+    });
     sound_update(&mut app);
     let ambient = sound_entity::<AmbientSound>(&mut app);
     let music = sound_entity::<MusicSound>(&mut app);
@@ -191,7 +197,10 @@ fn maintenance_completion_removal_advances_zone_tracks_and_recovers() {
 #[test]
 fn maintenance_zone_removal_replaces_tracks_then_stays_idle() {
     let mut app = maintenance_test_app();
-    app.insert_resource(crate::networking::CurrentZone { zone_id: 5 });
+    app.insert_resource(crate::networking::CurrentZone {
+        zone_id: 5,
+        ..Default::default()
+    });
     sound_update(&mut app);
     let previous = sound_entity::<AmbientSound>(&mut app);
     app.world_mut()

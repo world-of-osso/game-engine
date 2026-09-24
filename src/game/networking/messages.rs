@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
-use shared::components::Zone;
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CombatChannel, DuelStateUpdate,
     DurabilityStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse, GroupRoleSnapshot,
@@ -612,17 +611,25 @@ fn target_server_bits(target: Option<Entity>, mirror: &ReplicationMirrorMap) -> 
         .map(Entity::to_bits)
 }
 
-/// Watch for Zone component changes on the local player and update the CurrentZone resource.
+/// Zone from the MCNK area id under the local player, as the Retail client computes it.
 pub(crate) fn track_player_zone(
-    player_q: Query<&Zone, (With<Player>, Changed<Zone>)>,
+    player_q: Query<&Transform, With<Player>>,
+    heightmap: Res<TerrainHeightmap>,
     mut current_zone: ResMut<CurrentZone>,
 ) {
-    if let Ok(zone) = player_q.single()
-        && current_zone.zone_id != zone.id
-    {
-        info!("Entered zone {}", zone.id);
-        current_zone.zone_id = zone.id;
+    let Ok(transform) = player_q.single() else {
+        return;
+    };
+    let Some(area_id) = heightmap.area_id_at(transform.translation.x, transform.translation.z)
+    else {
+        return;
+    };
+    if current_zone.area_id == area_id {
+        return;
     }
+    let zone_id = crate::zone_names::zone_of_area(area_id);
+    info!("Entered area {area_id} (zone {zone_id})");
+    *current_zone = CurrentZone { zone_id, area_id };
 }
 
 /// Send movement input to the server every frame.

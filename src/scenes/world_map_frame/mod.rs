@@ -368,7 +368,14 @@ mod tests {
 
     #[test]
     fn build_state_adds_fog_for_unexplored_zone() {
-        let state = build_state(&sample_world_map(false), &CurrentZone { zone_id: 12 }, true);
+        let state = build_state(
+            &sample_world_map(false),
+            &CurrentZone {
+                zone_id: 12,
+                ..Default::default()
+            },
+            true,
+        );
 
         assert!(state.visible);
         assert_eq!(state.zone_name, "Elwynn Forest");
@@ -379,7 +386,14 @@ mod tests {
 
     #[test]
     fn build_state_uses_live_exploration_to_clear_fog() {
-        let state = build_state(&sample_world_map(true), &CurrentZone { zone_id: 12 }, true);
+        let state = build_state(
+            &sample_world_map(true),
+            &CurrentZone {
+                zone_id: 12,
+                ..Default::default()
+            },
+            true,
+        );
 
         assert!(state.fog_overlays.is_empty());
         assert_eq!(state.zone_overlays.len(), 1);
@@ -391,7 +405,14 @@ mod tests {
 
     #[test]
     fn build_state_uses_current_zone_texture_for_map_canvas() {
-        let state = build_state(&sample_world_map(true), &CurrentZone { zone_id: 12 }, true);
+        let state = build_state(
+            &sample_world_map(true),
+            &CurrentZone {
+                zone_id: 12,
+                ..Default::default()
+            },
+            true,
+        );
 
         assert_eq!(state.map_texture_fdid, 654321);
     }

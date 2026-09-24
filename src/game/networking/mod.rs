@@ -64,10 +64,13 @@ pub(crate) struct ResolvedModelAssetInfo {
 /// Maximum number of messages stored in the chat log.
 pub(crate) const MAX_CHAT_LOG: usize = 100;
 
-/// Tracks the zone the local player is currently in (replicated from server).
+/// Zone (Retail GetZoneText) and area (GetMinimapZoneText) under the local player, from the
+/// terrain chunk it stands on; see `track_player_zone`.
 #[derive(Resource, Default)]
 pub struct CurrentZone {
     pub zone_id: u32,
+    /// AreaTable id of the chunk itself: a subzone, or the zone when it has none.
+    pub area_id: u32,
 }
 
 /// Whether the local player is currently alive according to replicated health.

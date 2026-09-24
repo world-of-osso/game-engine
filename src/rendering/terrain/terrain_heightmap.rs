@@ -35,6 +35,8 @@ pub struct TerrainHeightmap {
     surfaces: HashMap<(u32, u32), Vec<FootstepSurface>>,
     /// Per-tile water layers for cheap swim/depth queries.
     water_layers: HashMap<(u32, u32), Vec<WaterLayerSurface>>,
+    /// Per-tile MCNK AreaTable ids, indexed like `tiles`.
+    areas: HashMap<(u32, u32), Vec<u32>>,
 }
 
 impl TerrainHeightmap {
@@ -48,6 +50,14 @@ impl TerrainHeightmap {
             }
         }
         self.tiles.insert((tile_y, tile_x), grids);
+        let mut areas = vec![0; 256];
+        for chunk in &adt_data.chunks {
+            let idx = (chunk.index_y * 16 + chunk.index_x) as usize;
+            if idx < 256 {
+                areas[idx] = chunk.area_id;
+            }
+        }
+        self.areas.insert((tile_y, tile_x), areas);
     }
 
     /// Get all loaded tile coordinate keys.
@@ -66,6 +76,18 @@ impl TerrainHeightmap {
         self.effects.remove(&(tile_y, tile_x));
         self.surfaces.remove(&(tile_y, tile_x));
         self.water_layers.remove(&(tile_y, tile_x));
+        self.areas.remove(&(tile_y, tile_x));
+    }
+
+    /// AreaTable id of the terrain chunk under a Bevy-space (x, z) position.
+    pub fn area_id_at(&self, bx: f32, bz: f32) -> Option<u32> {
+        let (tile_y, tile_x) = bevy_to_tile_coords(bx, bz);
+        let chunk_idx = self.chunk_index_at(tile_y, tile_x, bx, bz)?;
+        self.areas
+            .get(&(tile_y, tile_x))
+            .and_then(|areas| areas.get(chunk_idx))
+            .copied()
+            .filter(|&id| id != 0)
     }
 
     /// Look up terrain height at a Bevy-space (x, z) position across all loaded tiles.
