@@ -225,3 +225,35 @@ fn hidden_frame_keeps_root_for_window_manager() {
     let root = reg.get(reg.get_by_name(QUEST_FRAME).unwrap()).unwrap();
     assert!(!root.visible);
 }
+
+#[test]
+fn wrapped_greeting_reserves_its_lines_before_the_quest_list() {
+    // Deputy Willem's gossip text (npc_text 50016): six lines at 280 px.
+    let greeting = "Hello there, warrior.  Normally I'd be out on the beat looking after the folk of Stormwind, but a lot of the Stormwind guards are fighting in the other lands.  So here I am, deputized and offering bounties when I'd rather be on patrol...";
+    let reg = build(frame(
+        "Deputy Willem",
+        QuestFramePage::Greeting {
+            text: greeting.into(),
+            options: vec![],
+            quests: vec![GreetingQuest {
+                index: 0,
+                title: "A Threat Within".into(),
+                kind: GreetingQuestKind::Available,
+            }],
+        },
+    ));
+    let y = |name: &str| {
+        reg.get(reg.get_by_name(name).unwrap())
+            .unwrap()
+            .layout_rect
+            .as_ref()
+            .unwrap()
+            .y
+    };
+    let lines = crate::ui::screens::quest_art::wrapped_line_count(greeting, 280.0, 13.0);
+    assert_eq!(lines, 6);
+    assert!(
+        y("AvailableQuestsText") >= y("GreetingText") + 6.0 * 13.0 * 1.2,
+        "quest list starts below the sixth greeting line"
+    );
+}
