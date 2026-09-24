@@ -9,6 +9,7 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::ui::panel_styles::{METAL_FRAME_OUTSET, METAL_FRAME_PANEL_STYLE};
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
 
@@ -73,31 +74,6 @@ const WINDOW_BACKGROUND: u32 = 374_155;
 /// `_UI-Frame-TopTileStreaks` (6977), atlas 950, 256×43.
 const TOP_TILE_STREAKS: AtlasArt = art(1_723_833, (256.0, 128.0), (0.0, 256.0, 1.0, 44.0));
 
-/// `PortraitFrameTemplate` NineSlice pieces (`NineSliceLayouts.lua`): 2x atlases shown
-/// at half size, offsets relative to the frame edges.
-const METAL: (u32, (f32, f32)) = (2_406_979, (512.0, 512.0));
-/// `ui-frame-portraitmetal-cornertopleft-2x` (8504), 75×75 at (-13, +16).
-const METAL_PORTRAIT_TOP_LEFT: AtlasArt = art(METAL.0, METAL.1, (1.0, 151.0, 153.0, 303.0));
-/// `ui-frame-metal-cornertopright-2x` (8502), 75×75 at (+4, +16).
-const METAL_TOP_RIGHT: AtlasArt = art(METAL.0, METAL.1, (153.0, 303.0, 1.0, 151.0));
-/// `ui-frame-metal-cornerbottomleft-2x` (8499), 32×32 at (-13, -3).
-const METAL_BOTTOM_LEFT: AtlasArt = art(METAL.0, METAL.1, (153.0, 217.0, 153.0, 217.0));
-/// `ui-frame-metal-cornerbottomright-2x` (8500), 32×32 at (+4, -3).
-const METAL_BOTTOM_RIGHT: AtlasArt = art(METAL.0, METAL.1, (219.0, 283.0, 153.0, 217.0));
-/// `!ui-frame-metal-edgeleft-2x` (8514) / `edgeright` (8515), atlas 1394, 75 wide.
-const METAL_EDGE_LEFT: AtlasArt = art(2_406_984, (512.0, 32.0), (1.0, 151.0, 0.0, 32.0));
-const METAL_EDGE_RIGHT: AtlasArt = art(2_406_984, (512.0, 32.0), (153.0, 303.0, 0.0, 32.0));
-/// `_ui-frame-metal-edgetop-2x` (8517) 75 tall / `edgebottom` (8516) 32 tall, atlas 1395.
-const METAL_EDGE_TOP: AtlasArt = art(2_406_987, (64.0, 256.0), (0.0, 64.0, 1.0, 151.0));
-const METAL_EDGE_BOTTOM: AtlasArt = art(2_406_987, (64.0, 256.0), (0.0, 32.0, 153.0, 217.0));
-
-const CORNER_BIG: f32 = 75.0;
-const CORNER_SMALL: f32 = 32.0;
-const CORNER_LEFT_X: f32 = -13.0;
-const CORNER_RIGHT_X: f32 = 4.0;
-const CORNER_TOP_Y: f32 = -16.0;
-const CORNER_BOTTOM_Y: f32 = 3.0;
-
 /// `NORMAL_FONT_COLOR`.
 pub const NORMAL_FONT_COLOR: &str = "1.0,0.82,0.0,1.0";
 /// `HIGHLIGHT_FONT_COLOR`.
@@ -126,7 +102,7 @@ pub fn atlas_texture(name: String, art: &AtlasArt, rect: (f32, f32, f32, f32)) -
 }
 
 /// Retail `ButtonFrameTemplate` chrome for a window of `width`×`height`: rock background,
-/// top tile streaks, metal NineSlice with the portrait ring, title text and close button
+/// top tile streaks, the `metal_frame` NineSlice with the portrait ring, title text and close button
 /// (`<prefix>CloseButton`, `onclick = close_action`).
 pub fn window_chrome(
     prefix: &str,
@@ -161,69 +137,20 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
     elements
 }
 
+/// The shared `metal_frame` panel style on a frame `METAL_FRAME_OUTSET` larger.
 fn metal_border(prefix: &str, width: f32, height: f32) -> Element {
-    let right_big = width + CORNER_RIGHT_X - CORNER_BIG;
-    let right_small = width + CORNER_RIGHT_X - CORNER_SMALL;
-    let bottom = height + CORNER_BOTTOM_Y - CORNER_SMALL;
-    let edge_top = CORNER_TOP_Y + CORNER_BIG;
-    let pieces = [
-        (
-            "TopLeftCorner",
-            METAL_PORTRAIT_TOP_LEFT,
-            (CORNER_LEFT_X, CORNER_TOP_Y, CORNER_BIG, CORNER_BIG),
-        ),
-        (
-            "TopRightCorner",
-            METAL_TOP_RIGHT,
-            (right_big, CORNER_TOP_Y, CORNER_BIG, CORNER_BIG),
-        ),
-        (
-            "BottomLeftCorner",
-            METAL_BOTTOM_LEFT,
-            (CORNER_LEFT_X, bottom, CORNER_SMALL, CORNER_SMALL),
-        ),
-        (
-            "BottomRightCorner",
-            METAL_BOTTOM_RIGHT,
-            (right_small, bottom, CORNER_SMALL, CORNER_SMALL),
-        ),
-        (
-            "TopEdge",
-            METAL_EDGE_TOP,
-            (
-                CORNER_LEFT_X + CORNER_BIG,
-                CORNER_TOP_Y,
-                right_big - (CORNER_LEFT_X + CORNER_BIG),
-                CORNER_BIG,
-            ),
-        ),
-        (
-            "BottomEdge",
-            METAL_EDGE_BOTTOM,
-            (
-                CORNER_LEFT_X + CORNER_SMALL,
-                bottom,
-                right_small - (CORNER_LEFT_X + CORNER_SMALL),
-                CORNER_SMALL,
-            ),
-        ),
-        (
-            "LeftEdge",
-            METAL_EDGE_LEFT,
-            (CORNER_LEFT_X, edge_top, CORNER_BIG, bottom - edge_top),
-        ),
-        (
-            "RightEdge",
-            METAL_EDGE_RIGHT,
-            (right_big, edge_top, CORNER_BIG, bottom - edge_top),
-        ),
-    ];
-    pieces
-        .into_iter()
-        .flat_map(|(piece, art, rect)| {
-            atlas_texture(format!("{prefix}NineSlice{piece}"), &art, rect)
-        })
-        .collect()
+    let [left, top, right, bottom] = METAL_FRAME_OUTSET;
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{prefix}NineSlice"))},
+            width: {width + left + right},
+            height: {height + top + bottom},
+            style: METAL_FRAME_PANEL_STYLE,
+            pos_type: "absolute",
+            left: {-left},
+            top: {-top},
+        }
+    }
 }
 
 /// `TitleContainer` (58, -1)..(-24, -1), `GameFontNormal` centred 5 below its top.
