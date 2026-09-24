@@ -907,3 +907,7 @@ Merged `docs/open-source-wow-clients.md` into [[open-source-wow-clients]] (added
 ## [2026-09-24] query | solarityclient performance comparison
 
 Created [[solarityclient-performance-comparison]]: their frame cost comes from few objects and no per-frame churn, not instancing. Our gaps: per-instance bone entities and assets (including static doodads), 256 terrain materials per tile, global chunk-index culling key, O(WMOs x groups) portal culling. Read-only; nothing measured.
+
+## [2026-09-24] investigation | Abbey interior black world
+
+Added [[abbey-interior-black-world]]: WMO vertex alpha forced opaque; GPU prepass regression RED/GREEN recorded.
