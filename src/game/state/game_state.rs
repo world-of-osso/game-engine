@@ -152,21 +152,15 @@ fn register_state_update_transitions(app: &mut App) {
 }
 
 fn register_in_world_systems(app: &mut App) {
-    use game_engine::ui::game_plugin::{SpellbookUiSystems, register_spellbook_frame_systems};
+    use game_engine::ui::game_plugin::{
+        SpellbookUiSystems, register_spellbook_frame_systems, teardown_spellbook_ui,
+    };
     register_spellbook_frame_systems(app);
     app.configure_sets(
         Update,
         SpellbookUiSystems::Sync
             .run_if(in_state(GameState::InWorld))
             .run_if(inworld_scene_stage_allows_ui),
-    );
-    app.add_systems(
-        game_engine::network_tick::NetworkTick,
-        game_engine::ui::game_plugin::tick_spellbook_cooldowns
-            .in_set(game_engine::network_tick::NetworkTickSystems::Apply)
-            .run_if(in_state(GameState::InWorld))
-            .run_if(inworld_scene_stage_allows_ui)
-            .run_if(game_engine::ui::game_plugin::spellbook_cooldowns_active),
     );
     app.configure_sets(
         Update,
@@ -176,6 +170,22 @@ fn register_in_world_systems(app: &mut App) {
             )
             .run_if(inworld_scene_stage_allows_ui),
     );
+    app.add_systems(
+        Update,
+        toggle_spellbook_frame
+            .before(SpellbookUiSystems::Sync)
+            .run_if(in_state(GameState::InWorld)),
+    );
+    app.add_systems(OnExit(GameState::InWorld), teardown_spellbook_ui);
+}
+
+fn toggle_spellbook_frame(
+    keybinds: crate::ui_input_mode::WorldKeybinds,
+    mut open: ResMut<game_engine::ui::game_plugin::SpellbookFrameOpen>,
+) {
+    if keybinds.just_pressed(game_engine::input_bindings::InputAction::ToggleSpellbook) {
+        open.0 = !open.0;
+    }
 }
 
 fn on_enter_connecting(
@@ -447,10 +457,6 @@ fn should_enter_loading_for_zone_change(tracker: &mut ZoneTransitionTracker, zon
 
     previous_zone_id != 0 && zone_id != 0 && zone_id != previous_zone_id
 }
-
-#[cfg(test)]
-#[path = "../../../tests/unit/spellbook_cooldown_schedule_tests.rs"]
-mod cooldown_schedule_tests;
 
 #[cfg(test)]
 mod tests {

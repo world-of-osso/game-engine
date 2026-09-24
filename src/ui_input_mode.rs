@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::input_bindings::{InputAction, InputBindings};
+use game_engine::player_spells::ActionDrag;
 use game_engine::ui::plugin::UiState;
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 
@@ -20,7 +21,7 @@ pub enum UiInputMode {
     Text,
     /// The game menu / options overlay owns input.
     Modal,
-    /// Something is on the cursor. Reserved: no producer exists yet.
+    /// An action is on the cursor ([`ActionDrag`]).
     Drag,
 }
 
@@ -46,10 +47,13 @@ pub fn derive_ui_input_mode(
     modal: Option<Res<UiModalOpen>>,
     ui: Res<UiState>,
     spellbook: Option<NonSend<SpellbookUiRuntime>>,
+    drag: Option<Res<ActionDrag>>,
     mut mode: ResMut<UiInputMode>,
 ) {
     let next = if modal.is_some() {
         UiInputMode::Modal
+    } else if drag.is_some_and(|drag| drag.0.is_some()) {
+        UiInputMode::Drag
     } else if editbox_has_focus(&ui) || spellbook.is_some_and(|runtime| runtime.has_focus()) {
         UiInputMode::Text
     } else {

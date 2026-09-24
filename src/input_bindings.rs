@@ -123,6 +123,7 @@ pub enum InputAction {
     ActionSlot12,
     ToggleMute,
     ToggleCharacter,
+    ToggleSpellbook,
     ToggleProfessions,
     ToggleAchievements,
     ToggleTalents,
@@ -134,7 +135,7 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 38] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -164,6 +165,7 @@ impl InputAction {
         Self::ActionSlot12,
         Self::ToggleMute,
         Self::ToggleCharacter,
+        Self::ToggleSpellbook,
         Self::ToggleProfessions,
         Self::ToggleAchievements,
         Self::ToggleTalents,
@@ -215,6 +217,11 @@ impl InputAction {
                 "toggle_character",
                 "Character Info",
                 Some(keyboard(KeyCode::KeyC)),
+            ),
+            Self::ToggleSpellbook => (
+                "toggle_spellbook",
+                "Spellbook",
+                Some(keyboard(KeyCode::KeyP)),
             ),
             Self::ToggleProfessions => (
                 "toggle_professions",
@@ -278,6 +285,7 @@ impl InputAction {
                 Some(InputBinding::CtrlKeyboard(KeyCode::KeyS)),
             ),
             Self::ToggleCharacter
+            | Self::ToggleSpellbook
             | Self::ToggleProfessions
             | Self::ToggleAchievements
             | Self::ToggleTalents
@@ -701,6 +709,7 @@ fn action_slot_from_key(key: &str) -> Option<InputAction> {
 fn interface_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
         "toggle_character" => InputAction::ToggleCharacter,
+        "toggle_spellbook" => InputAction::ToggleSpellbook,
         "toggle_professions" => InputAction::ToggleProfessions,
         "toggle_achievements" => InputAction::ToggleAchievements,
         "toggle_talents" => InputAction::ToggleTalents,
@@ -796,6 +805,7 @@ fn audio_section_actions() -> &'static [InputAction] {
 fn interface_section_actions() -> &'static [InputAction] {
     &[
         InputAction::ToggleCharacter,
+        InputAction::ToggleSpellbook,
         InputAction::ToggleProfessions,
         InputAction::ToggleAchievements,
         InputAction::ToggleTalents,

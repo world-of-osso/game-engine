@@ -1,12 +1,17 @@
 use bevy::prelude::*;
 use game_engine::bag_data::{InventorySlot, InventoryState, ItemQuality};
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
+use game_engine::player_spells::{ActionBarSlots, parse_action_button_name};
+use game_engine::spell_catalog::CatalogSpell;
+use game_engine::spell_catalog::SpellCatalog;
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
-use game_engine::ui::spellbook_data::SpellbookSpell;
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
+use game_engine::ui::ui_errors::power_display_name;
+use shared::components::PowerType;
+use shared::protocol::ActionRef;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
@@ -31,6 +36,10 @@ const TOOLTIP_TEXT_COLOR: [f32; 4] = [0.92, 0.89, 0.82, 1.0];
 const TOOLTIP_LABEL_COLOR: [f32; 4] = [0.72, 0.72, 0.72, 1.0];
 const TOOLTIP_BUFF_COLOR: [f32; 4] = [1.0, 0.82, 0.32, 1.0];
 const TOOLTIP_SPELL_COLOR: [f32; 4] = [0.98, 0.88, 0.54, 1.0];
+const TOOLTIP_WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+const TOOLTIP_DESCRIPTION_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
+/// Characters per wrapped description line at the 10 px tooltip font.
+const TOOLTIP_WRAP_CHARS: usize = 46;
 
 struct DynName(String);
 
@@ -55,6 +64,22 @@ impl TooltipLineState {
             right_text: String::new(),
             left_color: TOOLTIP_TEXT_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
+        }
+    }
+
+    fn colored(text: impl Into<String>, color: [f32; 4]) -> Self {
+        Self {
+            left_color: color,
+            ..Self::new(text)
+        }
+    }
+
+    fn pair(left: impl Into<String>, right: impl Into<String>) -> Self {
+        Self {
+            left_text: left.into(),
+            right_text: right.into(),
+            left_color: TOOLTIP_WHITE,
+            right_color: TOOLTIP_WHITE,
         }
     }
 
@@ -173,7 +198,7 @@ fn sync_tooltip_frame_state(
     target_auras: Query<&UnitAuraState>,
     aura_state: Option<Res<AuraState>>,
     graphics_options: Option<Res<GraphicsOptions>>,
-    spellbook_runtime: Option<NonSend<SpellbookUiRuntime>>,
+    spells: HoveredSpellSources,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
@@ -188,7 +213,7 @@ fn sync_tooltip_frame_state(
         &target_auras,
         aura_state.as_deref(),
         graphics_options.as_deref(),
-        spellbook_runtime.as_deref(),
+        &spells,
     );
     if last_model.0 == state {
         return;
@@ -208,7 +233,7 @@ fn build_state(
     target_auras: &Query<&UnitAuraState>,
     aura_state: Option<&AuraState>,
     graphics_options: Option<&GraphicsOptions>,
-    spellbook_runtime: Option<&SpellbookUiRuntime>,
+    spells: &HoveredSpellSources,
 ) -> TooltipFrameState {
     let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
@@ -216,7 +241,7 @@ fn build_state(
     let Some(frame_id) = find_frame_at(registry, cursor.x, cursor.y) else {
         return TooltipFrameState::hidden();
     };
-    let Some(content) = hovered_spell_tooltip(registry, frame_id, spellbook_runtime)
+    let Some(content) = hovered_spell_tooltip(registry, frame_id, spells)
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
         .or_else(|| {
             hovered_target_aura_tooltip(
@@ -235,13 +260,44 @@ fn build_state(
     place_tooltip(content, cursor, registry)
 }
 
+#[derive(bevy::ecs::system::SystemParam)]
+struct HoveredSpellSources<'w> {
+    spellbook: Option<NonSend<'w, SpellbookUiRuntime>>,
+    action_slots: Option<Res<'w, ActionBarSlots>>,
+    catalog: Option<Res<'w, SpellCatalog>>,
+}
+
 fn hovered_spell_tooltip(
     registry: &FrameRegistry,
     frame_id: u64,
-    spellbook_runtime: Option<&SpellbookUiRuntime>,
+    sources: &HoveredSpellSources,
 ) -> Option<TooltipFrameState> {
-    let spell = spellbook_runtime?.spell_for_frame(registry, frame_id)?;
-    Some(spell_tooltip(spell))
+    let from_spellbook = sources
+        .spellbook
+        .as_deref()
+        .and_then(|runtime| runtime.spell_for_frame(registry, frame_id));
+    let spell_id = from_spellbook.or_else(|| {
+        let slot = hovered_action_slot(registry, frame_id)?;
+        match sources.action_slots.as_deref()?.get(slot)? {
+            ActionRef::Spell(id) => Some(id),
+            ActionRef::Item(_) | ActionRef::Macro(_) => None,
+        }
+    })?;
+    let catalog = sources.catalog.as_deref();
+    Some(match catalog.and_then(|catalog| catalog.get(spell_id)) {
+        Some(spell) => spell_tooltip(spell, catalog.and_then(|c| c.render_description(spell_id))),
+        None => unknown_spell_tooltip(spell_id),
+    })
+}
+
+fn hovered_action_slot(registry: &FrameRegistry, mut frame_id: u64) -> Option<usize> {
+    loop {
+        let frame = registry.get(frame_id)?;
+        if let Some(slot) = frame.name.as_deref().and_then(parse_action_button_name) {
+            return Some(slot);
+        }
+        frame_id = frame.parent_id?;
+    }
 }
 
 fn hovered_item_tooltip(
@@ -309,30 +365,178 @@ fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
     }
 }
 
-fn spell_tooltip(spell: SpellbookSpell) -> TooltipFrameState {
-    let mut lines = vec![TooltipLineState::new(if spell.passive {
-        "Passive ability"
-    } else {
-        "Active ability"
-    })];
-    if spell.cooldown_seconds > 0.0 {
-        lines.push(TooltipLineState::key_value(
-            "Cooldown",
-            format_spell_duration(spell.cooldown_seconds),
-        ));
+fn spell_tooltip(spell: &CatalogSpell, description: Option<String>) -> TooltipFrameState {
+    let mut lines = Vec::new();
+    if !spell.subtext.is_empty() {
+        lines.push(TooltipLineState::new(spell.subtext.to_string()));
     }
-    lines.push(TooltipLineState::key_value(
-        "Spell ID",
-        spell.id.to_string(),
+    let (cost, range) = (spell_cost_text(spell), spell_range_text(spell));
+    if !cost.is_empty() || !range.is_empty() {
+        lines.push(TooltipLineState::pair(cost, range));
+    }
+    lines.push(TooltipLineState::pair(
+        spell_cast_text(spell),
+        spell_cooldown_text(spell),
     ));
+    let description = description.unwrap_or_default();
+    for line in wrap_text(&description, TOOLTIP_WRAP_CHARS) {
+        lines.push(TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR));
+    }
     TooltipFrameState {
         visible: true,
         x: 0.0,
         y: 0.0,
         title: spell.name.to_string(),
-        title_color: TOOLTIP_SPELL_COLOR,
+        title_color: TOOLTIP_WHITE,
         lines,
     }
+}
+
+fn unknown_spell_tooltip(spell_id: u32) -> TooltipFrameState {
+    TooltipFrameState {
+        visible: true,
+        x: 0.0,
+        y: 0.0,
+        title: format!("Spell {spell_id}"),
+        title_color: TOOLTIP_SPELL_COLOR,
+        lines: Vec::new(),
+    }
+}
+
+/// First unconditional cost: "30 Rage", "1% of base mana".
+fn spell_cost_text(spell: &CatalogSpell) -> String {
+    let Some(cost) = spell
+        .powers
+        .iter()
+        .find(|cost| cost.required_aura_spell_id == 0)
+    else {
+        return String::new();
+    };
+    let Some(power) = PowerType::from_db(cost.power_type.into()) else {
+        return String::new();
+    };
+    let name = power_display_name(power).unwrap_or("power");
+    if cost.flat > 0 {
+        let amount = cost.flat as f32 / power_display_divisor(power);
+        return format!("{} {}", trim_number(amount), title_case(name));
+    }
+    if cost.pct > 0.0 {
+        let base = if power == PowerType::Mana {
+            "base"
+        } else {
+            "maximum"
+        };
+        return format!("{}% of {base} {name}", trim_number(cost.pct));
+    }
+    String::new()
+}
+
+/// Raw pool units per displayed point (server `PowerType.DisplayModifier`).
+fn power_display_divisor(power: PowerType) -> f32 {
+    match power {
+        PowerType::Rage
+        | PowerType::RunicPower
+        | PowerType::SoulShards
+        | PowerType::LunarPower
+        | PowerType::Pain => 10.0,
+        PowerType::Insanity => 100.0,
+        _ => 1.0,
+    }
+}
+
+/// Hostile range when set, else friendly; none for self-only spells.
+fn spell_range_text(spell: &CatalogSpell) -> String {
+    let max = if spell.range.max_yd[0] > 0.0 {
+        spell.range.max_yd[0]
+    } else {
+        spell.range.max_yd[1]
+    };
+    if max <= 0.0 {
+        String::new()
+    } else if max <= 5.0 {
+        "Melee Range".to_string()
+    } else {
+        format!("{} yd range", trim_number(max))
+    }
+}
+
+fn spell_cast_text(spell: &CatalogSpell) -> String {
+    if spell.passive {
+        "Passive".to_string()
+    } else if spell.cast_time_ms <= 0 {
+        "Instant".to_string()
+    } else {
+        format!(
+            "{} sec cast",
+            trim_number(spell.cast_time_ms as f32 / 1000.0)
+        )
+    }
+}
+
+fn spell_cooldown_text(spell: &CatalogSpell) -> String {
+    if let Some(charges) = spell.charges.filter(|charges| charges.max_charges > 1) {
+        return format!(
+            "{} charges, {} recharge",
+            charges.max_charges,
+            duration_text(charges.recovery_ms)
+        );
+    }
+    let recovery = spell
+        .cooldown
+        .recovery_ms
+        .max(spell.cooldown.category_recovery_ms);
+    if recovery == 0 {
+        return String::new();
+    }
+    format!("{} cooldown", duration_text(recovery))
+}
+
+fn duration_text(ms: u32) -> String {
+    let secs = ms as f32 / 1000.0;
+    if secs >= 60.0 {
+        format!("{} min", trim_number(secs / 60.0))
+    } else {
+        format!("{} sec", trim_number(secs))
+    }
+}
+
+fn trim_number(value: f32) -> String {
+    let text = format!("{value:.1}");
+    text.strip_suffix(".0").map(str::to_string).unwrap_or(text)
+}
+
+fn title_case(text: &str) -> String {
+    text.split(' ')
+        .map(|word| {
+            let mut chars = word.chars();
+            chars.next().map_or_else(String::new, |first| {
+                first.to_uppercase().chain(chars).collect()
+            })
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Greedy word wrap; blank source lines are kept as paragraph breaks.
+fn wrap_text(text: &str, width: usize) -> Vec<String> {
+    let mut lines = Vec::new();
+    for paragraph in text.lines().map(str::trim) {
+        let mut line = String::new();
+        for word in paragraph.split_whitespace() {
+            if !line.is_empty() && line.len() + 1 + word.len() > width {
+                lines.push(std::mem::take(&mut line));
+            }
+            if !line.is_empty() {
+                line.push(' ');
+            }
+            line.push_str(word);
+        }
+        lines.push(line);
+    }
+    while lines.last().is_some_and(String::is_empty) {
+        lines.pop();
+    }
+    lines
 }
 
 fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState {
@@ -473,15 +677,6 @@ fn item_quality_label(quality: ItemQuality) -> &'static str {
         ItemQuality::Rare => "Rare",
         ItemQuality::Epic => "Epic",
         ItemQuality::Legendary => "Legendary",
-    }
-}
-
-fn format_spell_duration(seconds: f32) -> String {
-    let secs = seconds.round() as u32;
-    if secs >= 60 {
-        format!("{}m {}s", secs / 60, secs % 60)
-    } else {
-        format!("{secs}s")
     }
 }
 
@@ -644,19 +839,99 @@ mod tests {
         assert_eq!(tooltip.lines[1].right_text, "20");
     }
 
+    fn judgment() -> CatalogSpell {
+        CatalogSpell {
+            id: 20271,
+            name: "Judgment".into(),
+            subtext: "Rank 2".into(),
+            range: game_engine::spell_catalog::SpellRange {
+                min_yd: [0.0, 0.0],
+                max_yd: [30.0, 30.0],
+            },
+            cooldown: game_engine::spell_catalog::SpellCooldown {
+                recovery_ms: 12_000,
+                category_recovery_ms: 0,
+                gcd_ms: 1500,
+            },
+            powers: vec![game_engine::spell_catalog::SpellPowerCost {
+                power_type: 0,
+                flat: 0,
+                pct: 3.0,
+                required_aura_spell_id: 0,
+            }]
+            .into(),
+            ..Default::default()
+        }
+    }
+
+    fn texts(tooltip: &TooltipFrameState) -> Vec<(String, String)> {
+        tooltip
+            .lines
+            .iter()
+            .map(|line| (line.left_text.clone(), line.right_text.clone()))
+            .collect()
+    }
+
     #[test]
-    fn spell_tooltip_shows_passive_and_cooldown_details() {
-        let tooltip = spell_tooltip(SpellbookSpell {
-            id: 642,
-            name: "Divine Shield",
-            passive: false,
-            icon_file_data_id: 1,
-            cooldown_seconds: 300.0,
-        });
-        assert_eq!(tooltip.title, "Divine Shield");
-        assert_eq!(tooltip.lines[0].left_text, "Active ability");
-        assert_eq!(tooltip.lines[1].left_text, "Cooldown");
-        assert_eq!(tooltip.lines[1].right_text, "5m 0s");
+    fn spell_tooltip_shows_rank_cost_range_cast_cooldown_and_description() {
+        let description = "Judges the target, dealing 0 Holy damage and causing them to take 20% \
+                           increased damage from your next Holy Power ability.";
+        let tooltip = spell_tooltip(&judgment(), Some(description.to_string()));
+        assert_eq!(tooltip.title, "Judgment");
+        let pair = |left: &str, right: &str| (left.to_string(), right.to_string());
+        assert_eq!(
+            texts(&tooltip),
+            [
+                pair("Rank 2", ""),
+                pair("3% of base mana", "30 yd range"),
+                pair("Instant", "12 sec cooldown"),
+                pair("Judges the target, dealing 0 Holy damage and", ""),
+                pair("causing them to take 20% increased damage from", ""),
+                pair("your next Holy Power ability.", ""),
+            ]
+        );
+    }
+
+    #[test]
+    fn spell_tooltip_scales_rage_costs_and_shows_melee_charges() {
+        let strike = CatalogSpell {
+            id: 1,
+            name: "Strike".into(),
+            cast_time_ms: 1500,
+            range: game_engine::spell_catalog::SpellRange {
+                min_yd: [0.0, 0.0],
+                max_yd: [5.0, 5.0],
+            },
+            charges: Some(game_engine::spell_catalog::SpellCharges {
+                max_charges: 2,
+                recovery_ms: 6000,
+            }),
+            powers: vec![game_engine::spell_catalog::SpellPowerCost {
+                power_type: 1,
+                flat: 300,
+                pct: 0.0,
+                required_aura_spell_id: 0,
+            }]
+            .into(),
+            ..Default::default()
+        };
+        let tooltip = spell_tooltip(&strike, None);
+        let pair = |left: &str, right: &str| (left.to_string(), right.to_string());
+        assert_eq!(
+            texts(&tooltip),
+            [
+                pair("30 Rage", "Melee Range"),
+                pair("1.5 sec cast", "2 charges, 6 sec recharge"),
+            ]
+        );
+    }
+
+    #[test]
+    fn hovered_action_slot_resolves_from_button_children() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let button = registry.create_frame("ActionButton1_2", None);
+        let icon = registry.create_frame("ActionButton1_2Icon", Some(button));
+        assert_eq!(hovered_action_slot(&registry, icon), Some(1));
     }
 
     #[test]

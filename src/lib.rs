@@ -119,6 +119,8 @@ pub mod paths;
 pub mod profession;
 #[path = "game/professions_data.rs"]
 pub mod professions_data;
+#[path = "game/player_spells.rs"]
+pub mod player_spells;
 pub mod pvp;
 #[path = "game/pvp_data.rs"]
 pub mod pvp_data;
@@ -139,8 +141,6 @@ pub mod screenshot;
 pub mod sound_music_zone_cache;
 #[path = "game/spell_catalog/mod.rs"]
 pub mod spell_catalog;
-#[path = "game/spell_list_data.rs"]
-pub mod spell_list_data;
 #[path = "game/spell_visual_data.rs"]
 pub mod spell_visual_data;
 pub mod sqlite_util;

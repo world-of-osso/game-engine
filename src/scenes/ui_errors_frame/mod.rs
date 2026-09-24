@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::network_runtime::messages::MessageReceivers;
+use game_engine::spell_catalog::SpellCatalog;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::ui_errors_frame_component::ui_errors_frame_screen;
 use game_engine::ui::ui_errors::{UiErrors, cast_failed_text};
+use shared::components::PowerType;
 use shared::protocol::CastFailed;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -44,17 +46,29 @@ impl Plugin for UiErrorsFramePlugin {
     }
 }
 
-/// The spell's power type is not known client-side yet, so resource errors use the
-/// generic wording unless the server supplies `detail`.
+/// Resource errors name the power of the failed spell's first unconditional cost.
 pub(crate) fn receive_cast_failed(
     mut receivers: MessageReceivers<CastFailed>,
     mut errors: ResMut<UiErrors>,
+    catalog: Option<Res<SpellCatalog>>,
 ) {
     for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
-            errors.add(cast_failed_text(msg.reason, msg.detail.as_deref(), None));
+            let power = catalog
+                .as_deref()
+                .and_then(|catalog| spell_power_type(catalog, msg.spell_id));
+            errors.add(cast_failed_text(msg.reason, msg.detail.as_deref(), power));
         }
     }
+}
+
+fn spell_power_type(catalog: &SpellCatalog, spell_id: u32) -> Option<PowerType> {
+    catalog
+        .get(spell_id)?
+        .powers
+        .iter()
+        .find(|cost| cost.required_aura_spell_id == 0)
+        .and_then(|cost| PowerType::from_db(cost.power_type.into()))
 }
 
 fn build_ui_errors_ui(
@@ -210,5 +224,31 @@ mod tests {
                 "Invalid target"
             ]
         );
+    }
+
+    #[test]
+    fn not_enough_resource_names_the_spells_power() {
+        use game_engine::spell_catalog::{CatalogSpell, SpellCatalogData, SpellPowerCost};
+        let cost = |power_type, required_aura_spell_id| SpellPowerCost {
+            power_type,
+            flat: 300,
+            pct: 0.0,
+            required_aura_spell_id,
+        };
+        let mortal_strike = CatalogSpell {
+            id: 12294,
+            name: "Mortal Strike".into(),
+            powers: vec![cost(0, 1234), cost(1, 0)].into(),
+            ..Default::default()
+        };
+        let mut app = errors_app();
+        app.insert_resource(SpellCatalog::ready(SpellCatalogData::from_parts(
+            vec![mortal_strike],
+            Default::default(),
+        )));
+        let mut msg = failed(CastFailReason::NotEnoughResource);
+        msg.spell_id = 12294;
+        deliver(&mut app, vec![msg]);
+        assert_eq!(shown_lines(&app), ["Not enough rage."]);
     }
 }

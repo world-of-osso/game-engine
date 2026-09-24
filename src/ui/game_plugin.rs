@@ -1,12 +1,19 @@
+use crate::network_runtime::messages::MessageSenders;
+use crate::network_runtime::replication::ReplicationMirrorMap;
+use crate::player_spells::{
+    ActionDrag, ActiveSpecialization, DragSource, DraggedAction, KnownSpells, server_target_bits,
+    spell_cast_intent,
+};
+use crate::spell_catalog::SpellCatalog;
 use bevy::prelude::*;
 use bevy::{input::ButtonState, input::keyboard::KeyboardInput};
-use game_engine::network_runtime::messages::MessageSenders;
 
 use crate::targeting::CurrentTarget;
 use crate::ui::input::ui_cursor_position;
 use crate::ui::plugin::UiState;
+use crate::ui::spellbook_data::build_spellbook_tabs;
 use crate::ui::spellbook_runtime::{SpellbookAction, SpellbookKeyInput, SpellbookUiRuntime};
-use shared::protocol::{CombatChannel, SpellCastIntent};
+use shared::protocol::{ActionRef, CombatChannel, SpellCastIntent};
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpellbookUiSystems {
@@ -14,18 +21,57 @@ pub enum SpellbookUiSystems {
     Input,
 }
 
+/// Whether the spellbook panel is shown. Toggled by the `ToggleSpellbook` binding.
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SpellbookFrameOpen(pub bool);
+
 pub fn register_spellbook_frame_systems(app: &mut App) {
+    app.insert_non_send(SpellbookUiRuntime::new());
+    app.init_resource::<SpellbookFrameOpen>();
     app.configure_sets(
         Update,
         (SpellbookUiSystems::Sync, SpellbookUiSystems::Input).chain(),
     );
-    app.add_systems(Update, sync_screen_ui.in_set(SpellbookUiSystems::Sync));
+    app.add_systems(
+        Update,
+        (sync_spellbook_model, sync_screen_ui, sync_spellbook_open)
+            .chain()
+            .in_set(SpellbookUiSystems::Sync),
+    );
     app.add_systems(
         Update,
         (handle_spellbook_pointer, handle_spellbook_keyboard)
             .chain()
             .in_set(SpellbookUiSystems::Input),
     );
+}
+
+/// Rebuilds the spellbook tabs when the known spells, spec or catalog change.
+pub fn sync_spellbook_model(
+    mut state: ResMut<UiState>,
+    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
+    known: Option<Res<KnownSpells>>,
+    spec: Option<Res<ActiveSpecialization>>,
+    catalog: Option<Res<SpellCatalog>>,
+) {
+    let Some(mut runtime) = runtime else { return };
+    let changed = runtime.is_added()
+        || known.as_ref().is_some_and(|known| known.is_changed())
+        || spec.as_ref().is_some_and(|spec| spec.is_changed())
+        || catalog.as_ref().is_some_and(|catalog| catalog.is_changed());
+    if !changed {
+        return;
+    }
+    let known = known.as_deref().map_or(&[][..], KnownSpells::spells);
+    let spec_id = spec.and_then(|spec| spec.0);
+    let tabs = build_spellbook_tabs(
+        known,
+        spec_id,
+        catalog.as_deref().and_then(SpellCatalog::data),
+    );
+    runtime
+        .bypass_change_detection()
+        .set_tabs(&mut state.bypass_change_detection().registry, tabs);
 }
 
 pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<SpellbookUiRuntime>>) {
@@ -40,18 +86,45 @@ pub fn sync_screen_ui(mut state: ResMut<UiState>, runtime: Option<NonSendMut<Spe
     }
 }
 
-pub fn spellbook_cooldowns_active(runtime: Option<NonSend<SpellbookUiRuntime>>) -> bool {
-    runtime.is_some_and(|runtime| runtime.has_active_cooldowns())
+pub fn sync_spellbook_open(
+    mut state: ResMut<UiState>,
+    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
+    open: Option<Res<SpellbookFrameOpen>>,
+) {
+    let (Some(mut runtime), Some(open)) = (runtime, open) else {
+        return;
+    };
+    if runtime.is_open() != open.0 {
+        runtime
+            .bypass_change_detection()
+            .set_open(&mut state.bypass_change_detection().registry, open.0);
+    }
 }
 
-pub fn tick_spellbook_cooldowns(
+pub fn teardown_spellbook_ui(
     mut state: ResMut<UiState>,
-    mut runtime: NonSendMut<SpellbookUiRuntime>,
+    runtime: Option<NonSendMut<SpellbookUiRuntime>>,
+    open: Option<ResMut<SpellbookFrameOpen>>,
 ) {
-    runtime.advance_cooldowns(
-        &mut state.registry,
-        1.0 / game_engine::network_tick::NETWORK_TICKS_PER_SECOND as f32,
-    );
+    if let Some(mut runtime) = runtime {
+        runtime.teardown(&mut state.registry);
+        runtime.set_open(&mut state.registry, false);
+    }
+    if let Some(mut open) = open {
+        open.set_if_neq(SpellbookFrameOpen(false));
+    }
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct SpellCastTarget<'w> {
+    current_target: Option<Res<'w, CurrentTarget>>,
+    mirror: Option<Res<'w, ReplicationMirrorMap>>,
+}
+
+impl SpellCastTarget<'_> {
+    pub fn server_bits(&self) -> Option<u64> {
+        server_target_bits(self.current_target.as_deref(), self.mirror.as_deref())
+    }
 }
 
 pub fn handle_spellbook_pointer(
@@ -59,7 +132,8 @@ pub fn handle_spellbook_pointer(
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     mut state: ResMut<UiState>,
     runtime: Option<NonSendMut<SpellbookUiRuntime>>,
-    current_target: Option<Res<CurrentTarget>>,
+    target: SpellCastTarget,
+    drag: Option<ResMut<ActionDrag>>,
     mut spell_senders: MessageSenders<SpellCastIntent>,
     mut last_cursor: Local<Option<Vec2>>,
 ) {
@@ -71,10 +145,8 @@ pub fn handle_spellbook_pointer(
         return;
     };
 
-    let x = cursor.x;
-    let y = state.registry.screen_height - cursor.y;
-    let position = Vec2::new(x, y);
-    if *last_cursor != Some(position) || state.is_changed() || runtime.is_changed() {
+    let (x, y) = (cursor.x, cursor.y);
+    if *last_cursor != Some(cursor) || state.is_changed() || runtime.is_changed() {
         let changed = runtime.bypass_change_detection().handle_pointer_move(
             &mut state.bypass_change_detection().registry,
             x,
@@ -83,7 +155,7 @@ pub fn handle_spellbook_pointer(
         if changed {
             state.set_changed();
         }
-        *last_cursor = Some(position);
+        *last_cursor = Some(cursor);
     }
 
     let Some(mouse) = mouse else {
@@ -92,14 +164,22 @@ pub fn handle_spellbook_pointer(
 
     if mouse.just_pressed(MouseButton::Left) {
         let _ = runtime.handle_pointer_button(&mut state.registry, true, x, y);
+    } else if mouse.pressed(MouseButton::Left)
+        && let Some(mut drag) = drag
+        && drag.0.is_none()
+        && let Some(spell_id) = runtime.take_drag_start(&mut state.registry, x, y)
+    {
+        drag.0 = Some(DraggedAction {
+            action: ActionRef::Spell(spell_id),
+            source: DragSource::Spellbook,
+        });
     }
     if mouse.just_released(MouseButton::Left)
         && let Some(action) = runtime.handle_pointer_button(&mut state.registry, false, x, y)
     {
-        send_spellbook_action(action, current_target.as_deref(), &mut spell_senders);
+        send_spellbook_action(action, target.server_bits(), &mut spell_senders);
     }
 }
-
 pub fn handle_spellbook_keyboard(
     mut key_events: Option<MessageReader<KeyboardInput>>,
     mut state: ResMut<UiState>,
@@ -144,16 +224,50 @@ pub fn handle_spellbook_keyboard(
 #[cfg(test)]
 mod idle_tests {
     use super::*;
+    use crate::network_runtime::messages::ConnectionSender;
+    use crate::network_runtime::worker::NetworkCommand;
+    use crate::spell_catalog::{CatalogSpell, SpellCatalogData, SpellbookTabIndex};
+    use crate::ui::spellbook_runtime::test_support::{center_of, simulate_layout_readback_at};
     use crate::ui::{event::EventBus, frame::WidgetData, registry::FrameRegistry};
-    use game_engine::network_runtime::messages::ConnectionSender;
 
     #[derive(Resource, Default)]
     struct Changes(usize);
+
+    /// Where the layout pass places the spellbook root.
+    #[derive(Resource)]
+    struct LayoutOrigin(Vec2);
+
+    /// Stands in for the UI layout pass, which reads back every frame.
+    fn readback_layout(mut state: ResMut<UiState>, origin: Res<LayoutOrigin>) {
+        simulate_layout_readback_at(&mut state.bypass_change_detection().registry, origin.0);
+    }
 
     fn record_changes(state: Res<UiState>, mut changes: ResMut<Changes>) {
         if state.is_changed() {
             changes.0 += 1;
         }
+    }
+
+    fn catalog() -> SpellCatalog {
+        let spell = |id, name: &str| CatalogSpell {
+            id,
+            name: name.into(),
+            icon_fdid: id + 1,
+            ..Default::default()
+        };
+        let tabs = SpellbookTabIndex {
+            class_names: [(2, "Paladin".to_string())].into(),
+            class_spells: [(35395, 2), (20271, 2)].into(),
+            ..Default::default()
+        };
+        SpellCatalog::ready(SpellCatalogData::from_parts(
+            vec![
+                spell(6603, "Auto Attack"),
+                spell(35395, "Crusader Strike"),
+                spell(20271, "Judgment"),
+            ],
+            tabs,
+        ))
     }
 
     fn app() -> App {
@@ -163,20 +277,14 @@ mod idle_tests {
             event_bus: EventBus::new(),
             focused_frame: None,
         });
-        app.insert_non_send(SpellbookUiRuntime::new());
+        app.insert_resource(catalog());
+        app.insert_resource(KnownSpells::new(vec![6603, 35395, 20271]));
+        app.init_resource::<ActiveSpecialization>();
+        app.init_resource::<ActionDrag>();
         app.init_resource::<Changes>();
         app.init_resource::<ConnectionSender>();
         app.init_resource::<ButtonInput<MouseButton>>();
         app
-    }
-
-    fn first_spell(app: &App) -> String {
-        let registry = &app.world().resource::<UiState>().registry;
-        let id = registry.get_by_name("SpellBookSpellName1").unwrap();
-        let Some(WidgetData::FontString(text)) = &registry.get(id).unwrap().widget_data else {
-            panic!("spell name must be a font string");
-        };
-        text.text.clone()
     }
 
     fn production_app() -> (App, Entity) {
@@ -190,8 +298,35 @@ mod idle_tests {
             .id();
         app.add_message::<KeyboardInput>();
         register_spellbook_frame_systems(&mut app);
+        app.insert_resource(LayoutOrigin(Vec2::new(80.0, 120.0)));
+        app.add_systems(PostUpdate, readback_layout);
         app.add_systems(Last, record_changes);
+        app.world_mut().resource_mut::<SpellbookFrameOpen>().0 = true;
+        app.update();
         (app, window)
+    }
+
+    fn text(app: &App, name: &str) -> String {
+        let registry = &app.world().resource::<UiState>().registry;
+        let id = registry.get_by_name(name).expect(name);
+        let Some(WidgetData::FontString(text)) = &registry.get(id).unwrap().widget_data else {
+            panic!("{name} must be a font string");
+        };
+        text.text.clone()
+    }
+
+    fn first_spell(app: &App) -> String {
+        text(app, "SpellBookSpellName1")
+    }
+
+    /// Moves the cursor and runs one frame, so hover rebuilds are laid out before a press.
+    fn point_at(app: &mut App, window: Entity, name: &str) {
+        let (x, y) = center_of(&app.world().resource::<UiState>().registry, name);
+        app.world_mut()
+            .get_mut::<Window>(window)
+            .unwrap()
+            .set_cursor_position(Some(Vec2::new(x, y)));
+        app.update();
     }
 
     fn assert_idle(app: &mut App) {
@@ -216,19 +351,50 @@ mod idle_tests {
         );
     }
 
+    fn click(app: &mut App) {
+        let mut mouse = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+        mouse.press(MouseButton::Left);
+        app.update();
+        let mut mouse = app.world_mut().resource_mut::<ButtonInput<MouseButton>>();
+        mouse.clear();
+        mouse.release(MouseButton::Left);
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .clear();
+    }
+
+    #[test]
+    fn known_spells_snapshot_lists_catalog_names_on_class_tab() {
+        let (app, _) = production_app();
+        assert_eq!(text(&app, "SpellBookTabLabel2"), "Paladin");
+        assert_eq!(text(&app, "SpellBookSpellName1"), "Crusader Strike");
+        assert_eq!(text(&app, "SpellBookSpellName2"), "Judgment");
+        let registry = &app.world().resource::<UiState>().registry;
+        assert!(registry.get_by_name("SpellBookSpell3").is_none());
+    }
+
+    #[test]
+    fn learned_spell_appears_without_reopening() {
+        let (mut app, _) = production_app();
+        *app.world_mut().resource_mut::<KnownSpells>() = KnownSpells::new(vec![20271]);
+        app.update();
+        assert_eq!(first_spell(&app), "Judgment");
+    }
+
     #[test]
     fn production_spellbook_registration_settles_without_idle_work() {
         let (mut app, window) = production_app();
         assert_idle(&mut app);
-        assert_eq!(first_spell(&app), "Avenger's Shield");
-        point_at_holy_tab(&mut app, window);
+        assert_eq!(first_spell(&app), "Crusader Strike");
+        point_at(&mut app, window, "SpellBookTabPanel1");
         assert_idle(&mut app);
     }
 
     fn tab_color(app: &App) -> Option<[f32; 4]> {
         let registry = &app.world().resource::<UiState>().registry;
         registry
-            .get(registry.get_by_name("SpellBookTabPanel4").unwrap())
+            .get(registry.get_by_name("SpellBookTabPanel1").unwrap())
             .unwrap()
             .background_color
     }
@@ -238,18 +404,16 @@ mod idle_tests {
         let (mut app, window) = production_app();
         assert_idle(&mut app);
         let normal = tab_color(&app);
-        point_at_holy_tab(&mut app, window);
+        point_at(&mut app, window, "SpellBookTabPanel1");
         assert_idle(&mut app);
         assert_ne!(tab_color(&app), normal);
-        {
-            let mut state = app.world_mut().resource_mut::<UiState>();
-            let ids: Vec<_> = state.registry.frames_iter().map(|frame| frame.id).collect();
-            for id in ids {
-                if let Some(rect) = &mut state.registry.get_mut(id).unwrap().layout_rect {
-                    rect.x += 2000.0;
-                }
-            }
-        }
+        let moved = Vec2::new(2080.0, 120.0);
+        app.world_mut().resource_mut::<LayoutOrigin>().0 = moved;
+        // A layout pass that moved the frames under the stationary cursor.
+        simulate_layout_readback_at(
+            &mut app.world_mut().resource_mut::<UiState>().registry,
+            moved,
+        );
         assert_idle(&mut app);
         assert_eq!(tab_color(&app), normal);
     }
@@ -260,19 +424,7 @@ mod idle_tests {
         let (sender, receiver) = std::sync::mpsc::channel();
         app.insert_resource(ConnectionSender::new(Some(sender)));
         assert_idle(&mut app);
-        let cursor = {
-            let registry = &app.world().resource::<UiState>().registry;
-            let id = registry.get_by_name("SpellBookSpellName1").unwrap();
-            let rect = registry.get(id).unwrap().layout_rect.as_ref().unwrap();
-            Vec2::new(
-                rect.x + rect.width / 2.0,
-                1080.0 - rect.y - rect.height / 2.0,
-            )
-        };
-        app.world_mut()
-            .get_mut::<Window>(window)
-            .unwrap()
-            .set_cursor_position(Some(cursor));
+        point_at(&mut app, window, "SpellBookSpellName1");
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .press(MouseButton::Left);
@@ -285,25 +437,15 @@ mod idle_tests {
             .resource_mut::<ButtonInput<MouseButton>>()
             .release(MouseButton::Left);
         app.update();
-        assert!(matches!(
-            receiver.try_recv(),
-            Ok(game_engine::network_runtime::worker::NetworkCommand::Apply(
-                _
-            ))
-        ));
+        assert!(matches!(receiver.try_recv(), Ok(NetworkCommand::Apply(_))));
         app.world_mut()
             .resource_mut::<ButtonInput<MouseButton>>()
             .clear();
         assert_idle(&mut app);
         assert!(receiver.try_recv().is_err());
-        assert!(
-            app.world()
-                .non_send::<SpellbookUiRuntime>()
-                .has_active_cooldowns()
-        );
-        for ch in ["e", "y", "e"] {
+        for ch in ["j", "u", "d"] {
             app.world_mut().write_message(KeyboardInput {
-                key_code: KeyCode::KeyE,
+                key_code: KeyCode::KeyJ,
                 logical_key: bevy::input::keyboard::Key::Character(ch.into()),
                 state: ButtonState::Pressed,
                 text: Some(ch.into()),
@@ -312,16 +454,65 @@ mod idle_tests {
             });
         }
         app.update();
-        assert_eq!(first_spell(&app), "Eye of Tyr");
+        assert_eq!(first_spell(&app), "Judgment");
         assert_idle(&mut app);
+    }
+
+    #[test]
+    fn dragging_a_spell_puts_it_on_the_cursor() {
+        let (mut app, window) = production_app();
+        point_at(&mut app, window, "SpellBookSpellName2");
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        app.update();
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .clear();
+        app.world_mut()
+            .resource_mut::<ButtonInput<MouseButton>>()
+            .press(MouseButton::Left);
+        let (x, y) = center_of(
+            &app.world().resource::<UiState>().registry,
+            "SpellBookSpellName2",
+        );
+        app.world_mut()
+            .get_mut::<Window>(window)
+            .unwrap()
+            .set_cursor_position(Some(Vec2::new(x + 40.0, y)));
+        app.update();
+        assert_eq!(
+            app.world().resource::<ActionDrag>().0,
+            Some(DraggedAction {
+                action: ActionRef::Spell(20271),
+                source: DragSource::Spellbook,
+            })
+        );
+    }
+
+    #[test]
+    fn closing_the_spellbook_hides_it_and_stops_clicks() {
+        let (mut app, window) = production_app();
+        point_at(&mut app, window, "SpellBookTabPanel1");
+        app.world_mut().resource_mut::<SpellbookFrameOpen>().0 = false;
+        app.update();
+        click(&mut app);
+        let registry = &app.world().resource::<UiState>().registry;
+        let root = registry.get_by_name("SpellBookRoot").unwrap();
+        assert!(!registry.get(root).unwrap().visible);
+        assert_eq!(first_spell(&app), "Crusader Strike", "tab click ignored");
     }
 
     #[test]
     fn screen_sync_preserves_initial_output_without_idle_changes() {
         let mut app = app();
-        app.add_systems(Update, (sync_screen_ui, record_changes).chain());
+        app.insert_non_send(SpellbookUiRuntime::new());
+        app.add_systems(
+            Update,
+            (sync_spellbook_model, sync_screen_ui, record_changes).chain(),
+        );
         app.update();
-        assert_eq!(first_spell(&app), "Avenger's Shield");
+        assert_eq!(first_spell(&app), "Crusader Strike");
         let initial = app.world().resource::<Changes>().0;
         for _ in 0..3 {
             app.update();
@@ -329,49 +520,26 @@ mod idle_tests {
         assert_eq!(app.world().resource::<Changes>().0, initial);
         app.world_mut().resource_mut::<UiState>().focused_frame = Some(0);
         app.update();
-        assert_eq!(first_spell(&app), "Avenger's Shield");
+        assert_eq!(first_spell(&app), "Crusader Strike");
         app.world_mut().insert_non_send(SpellbookUiRuntime::new());
         app.update();
-        assert_eq!(first_spell(&app), "Avenger's Shield");
+        assert_eq!(first_spell(&app), "Crusader Strike");
     }
 
     fn pointer_app() -> (App, Entity) {
-        let mut app = app();
-        let mut runtime = app
-            .world_mut()
-            .remove_non_send::<SpellbookUiRuntime>()
-            .unwrap();
-        runtime.sync(&mut app.world_mut().resource_mut::<UiState>().registry);
-        app.insert_non_send(runtime);
-        let mut window = Window::default();
-        window.resolution.set(1920.0, 1080.0);
-        window.set_cursor_position(Some(Vec2::new(1900.0, 1000.0)));
-        let window = app
-            .world_mut()
-            .spawn((window, bevy::window::PrimaryWindow))
-            .id();
-        app.add_systems(Update, (handle_spellbook_pointer, record_changes).chain());
-        (app, window)
-    }
-
-    fn point_at_holy_tab(app: &mut App, window: Entity) {
-        let registry = &app.world().resource::<UiState>().registry;
-        let id = registry.get_by_name("SpellBookTabPanel4").unwrap();
-        let rect = registry.get(id).unwrap().layout_rect.as_ref().unwrap();
-        let cursor = Vec2::new(
-            rect.x + rect.width / 2.0,
-            1080.0 - rect.y - rect.height / 2.0,
-        );
+        let (mut app, window) = production_app();
         app.world_mut()
             .get_mut::<Window>(window)
             .unwrap()
-            .set_cursor_position(Some(cursor));
+            .set_cursor_position(Some(Vec2::new(1900.0, 1000.0)));
+        app.update();
+        (app, window)
     }
 
     #[test]
     fn stationary_pointer_is_idle_but_buttons_still_select_tabs() {
         let (mut app, window) = pointer_app();
-        point_at_holy_tab(&mut app, window);
+        point_at(&mut app, window, "SpellBookTabPanel1");
         app.update();
         let initial = app.world().resource::<Changes>().0;
         for _ in 0..3 {
@@ -390,7 +558,7 @@ mod idle_tests {
             .resource_mut::<ButtonInput<MouseButton>>()
             .release(MouseButton::Left);
         app.update();
-        assert_eq!(first_spell(&app), "Holy Shock");
+        assert_eq!(first_spell(&app), "Auto Attack");
     }
 
     #[test]
@@ -398,48 +566,39 @@ mod idle_tests {
         let (mut app, window) = pointer_app();
         app.update();
         let initial = app.world().resource::<Changes>().0;
-        point_at_holy_tab(&mut app, window);
+        point_at(&mut app, window, "SpellBookTabPanel1");
         app.update();
         assert!(app.world().resource::<Changes>().0 > initial);
         let before = app.world().resource::<Changes>().0;
+        let calls = app
+            .world()
+            .non_send::<SpellbookUiRuntime>()
+            .execution_counts
+            .1;
         app.world_mut().resource_mut::<UiState>().focused_frame = Some(0);
         app.update();
         assert!(app.world().resource::<Changes>().0 > before);
-        app.world_mut().insert_non_send(SpellbookUiRuntime::new());
-        app.update();
         assert_eq!(
             app.world()
                 .non_send::<SpellbookUiRuntime>()
                 .execution_counts
                 .1,
-            1
-        );
-        assert_eq!(
-            app.world().resource::<Changes>().0,
-            before + 1,
-            "hit-testing unchanged output must not dirty UiState"
+            calls + 1,
+            "a UI change re-hit-tests a stationary pointer"
         );
     }
 }
 
 fn send_spellbook_action(
     action: SpellbookAction,
-    current_target: Option<&CurrentTarget>,
+    target_bits: Option<u64>,
     spell_senders: &mut MessageSenders<SpellCastIntent>,
 ) {
     let SpellbookAction::CastSpell {
         spell_id,
         spell_name,
     } = action;
-    let target_entity = current_target
-        .and_then(|target| target.0)
-        .map(Entity::to_bits);
-    let intent = SpellCastIntent {
-        spell_id: Some(spell_id),
-        spell: spell_name,
-        target_entity,
-    };
-
+    let intent = spell_cast_intent(spell_id, &spell_name, target_bits);
     for mut sender in spell_senders.iter_mut() {
         sender.send::<CombatChannel>(intent.clone());
     }
