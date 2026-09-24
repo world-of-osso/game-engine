@@ -122,7 +122,7 @@ fn press_action(
 ) -> Result<HeldInput, String> {
     match action {
         UiAutomationAction::ClickFrame(name) => {
-            window.set_cursor_position(Some(clickable_frame_center(registry, name)?));
+            window.set_cursor_position(Some(click_window_position(registry, name)?));
             writers
                 .mouse
                 .write(mouse_input(ButtonState::Pressed, window_entity));
@@ -168,7 +168,13 @@ fn write_release(held: &HeldInput, window_entity: Entity, writers: &mut InputWri
     }
 }
 
-/// Center of the named frame in window coordinates, verified to be the topmost hit
+/// Window (logical) cursor position for clicking the named frame: its UI-space center
+/// times `ui_scale`, the inverse of `ui_cursor_position`.
+fn click_window_position(registry: &FrameRegistry, name: &str) -> Result<Vec2, String> {
+    Ok(clickable_frame_center(registry, name)? * registry.ui_scale)
+}
+
+/// Center of the named frame in UI coordinates, verified to be the topmost hit
 /// there (or covered only by its own descendants), as a real click would require.
 fn clickable_frame_center(registry: &FrameRegistry, name: &str) -> Result<Vec2, String> {
     let id = registry
@@ -280,4 +286,41 @@ fn logical_key(key: KeyCode, shift: bool) -> (Key, Option<String>) {
         _ => Key::Unidentified(NativeKey::Unidentified),
     };
     (named, None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
+    use ui_toolkit::rsx;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    use ui_toolkit::widget_def::Element;
+
+    fn button_screen(_: &SharedContext) -> Element {
+        rsx! {
+            r#frame {
+                name: "ClickTarget",
+                width: 40.0,
+                height: 20.0,
+                onclick: "noop",
+                pos_type: "absolute",
+                left: 300.0,
+                top: 150.0,
+            }
+        }
+    }
+
+    #[test]
+    fn click_position_scales_ui_coordinates_to_the_window() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(button_screen).sync(&SharedContext::new(), &mut registry);
+        compute_layout(&mut registry);
+        registry.ui_scale = 2.0 / 3.0;
+
+        let window = click_window_position(&registry, "ClickTarget").unwrap();
+
+        assert!(window.distance(Vec2::new(320.0, 160.0) * (2.0 / 3.0)) < 0.01);
+        // ui_cursor_position divides by ui_scale: the click lands on the frame center.
+        assert!((window / registry.ui_scale).distance(Vec2::new(320.0, 160.0)) < 0.01);
+    }
 }

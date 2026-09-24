@@ -17,7 +17,8 @@ pub fn apply(
         Some(GameState::CharSelect | GameState::CharCreate | GameState::InWorld) => *initial_state,
         _ => return,
     };
-    if !actions.is_empty() {
+    // In-world scripts run after the auto-login; other screens' scripts drive login.
+    if !actions.is_empty() && target != Some(GameState::InWorld) {
         return;
     }
     // CharCreate can run standalone without a server — skip auto-login if no server is set.
@@ -111,6 +112,30 @@ mod tests {
         assert!(actions.is_empty());
         assert_eq!(startup_login, None);
         assert!(!auto_enter);
+    }
+
+    #[test]
+    fn inworld_script_keeps_its_actions_and_still_auto_enters_the_world() {
+        let script = vec![UiAutomationAction::WaitForState(GameState::InWorld, 180.0)];
+        let mut actions = script.clone();
+        let mut server_addr = Some(test_server());
+        let mut initial_state = Some(GameState::InWorld);
+        let mut auto_enter = false;
+        let mut startup_login = None;
+
+        apply(
+            &mut actions,
+            &mut server_addr,
+            &mut initial_state,
+            &mut auto_enter,
+            &mut startup_login,
+            true,
+            None,
+        );
+
+        assert_eq!(initial_state, Some(GameState::Connecting));
+        assert_eq!(actions, script);
+        assert!(auto_enter);
     }
 
     #[test]
