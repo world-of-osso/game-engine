@@ -37,7 +37,7 @@ type CullState = SystemState<(
 type PortalCullState = SystemState<(
     Query<'static, 'static, (&'static GlobalTransform, &'static Frustum), With<Camera3d>>,
     Query<'static, 'static, (Entity, &'static GlobalTransform, &'static WmoPortalGraph), With<Wmo>>,
-    Query<'static, 'static, (&'static WmoGroup, &'static mut Visibility, &'static ChildOf)>,
+    WmoGroupCullQuery<'static, 'static>,
 )>;
 
 fn setup_world(cam_pos: Vec3, threshold_sq: f32) -> (World, CullState) {
@@ -74,6 +74,7 @@ fn unit_test_frustum() -> Frustum {
     Frustum(ViewFrustum::from_clip_from_world(&Mat4::IDENTITY))
 }
 
+/// Interior group 0 around the origin camera, portal 0 to group 1 beside it.
 fn spawn_portal_test_wmo(world: &mut World, portal_verts: Vec<Vec3>) -> (Entity, Entity, Entity) {
     let root = world
         .spawn((
@@ -85,12 +86,14 @@ fn spawn_portal_test_wmo(world: &mut World, portal_verts: Vec<Vec3>) -> (Entity,
             },
         ))
         .id();
-    let group0 = spawn_portal_test_group(world, 0, Vec3::splat(-0.5), Vec3::splat(0.5));
+    let group0 = spawn_portal_test_group(world, 0, Vec3::splat(-0.5), Vec3::splat(0.5), false);
+    world.entity_mut(group0).insert(floor_below_origin());
     let group1 = spawn_portal_test_group(
         world,
         1,
         Vec3::new(2.0, -0.5, -0.5),
         Vec3::new(3.0, 0.5, 0.5),
+        false,
     );
     world.entity_mut(root).add_children(&[group0, group1]);
     (root, group0, group1)
@@ -101,6 +104,7 @@ fn spawn_portal_test_group(
     group_index: u16,
     bbox_min: Vec3,
     bbox_max: Vec3,
+    is_exterior: bool,
 ) -> Entity {
     world
         .spawn((
@@ -108,11 +112,35 @@ fn spawn_portal_test_group(
                 group_index,
                 bbox_min,
                 bbox_max,
+                is_exterior,
                 is_antiportal: false,
             },
             Visibility::Visible,
         ))
         .id()
+}
+
+/// One floor triangle 0.4 below the origin.
+fn floor_below_origin() -> WmoInteriorFloor {
+    WmoInteriorFloor {
+        triangles: vec![[
+            Vec3::new(-0.5, -0.4, -0.5),
+            Vec3::new(0.5, -0.4, -0.5),
+            Vec3::new(0.0, -0.4, 0.5),
+        ]],
+    }
+}
+
+fn spawn_portal_test_camera(world: &mut World) {
+    world.spawn((
+        Camera3d::default(),
+        GlobalTransform::IDENTITY,
+        unit_test_frustum(),
+    ));
+}
+
+fn visibility_of(world: &World, entity: Entity) -> Visibility {
+    *world.get::<Visibility>(entity).unwrap()
 }
 
 #[test]
@@ -383,66 +411,46 @@ fn wmo_stays_visible_when_any_referenced_chunk_is_visible() {
 #[test]
 fn portal_culling_hides_groups_behind_non_visible_portals() {
     let mut world = World::default();
-    world.spawn((
-        Camera3d::default(),
-        GlobalTransform::IDENTITY,
-        unit_test_frustum(),
-    ));
+    spawn_portal_test_camera(&mut world);
     let (_root, group0, group1) = spawn_portal_test_wmo(&mut world, vec![Vec3::new(5.0, 5.0, 5.0)]);
     let mut state = PortalCullState::new(&mut world);
 
     run_portal_cull(&mut world, &mut state);
 
-    assert_eq!(
-        *world.get::<Visibility>(group0).unwrap(),
-        Visibility::Visible
-    );
-    assert_eq!(
-        *world.get::<Visibility>(group1).unwrap(),
-        Visibility::Hidden
-    );
+    assert_eq!(visibility_of(&world, group0), Visibility::Visible);
+    assert_eq!(visibility_of(&world, group1), Visibility::Hidden);
 }
 
 #[test]
 fn portal_culling_keeps_groups_visible_through_visible_portals() {
     let mut world = World::default();
-    world.spawn((
-        Camera3d::default(),
-        GlobalTransform::IDENTITY,
-        unit_test_frustum(),
-    ));
+    spawn_portal_test_camera(&mut world);
     let (_root, group0, group1) =
         spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
     let mut state = PortalCullState::new(&mut world);
 
     run_portal_cull(&mut world, &mut state);
 
-    assert_eq!(
-        *world.get::<Visibility>(group0).unwrap(),
-        Visibility::Visible
-    );
-    assert_eq!(
-        *world.get::<Visibility>(group1).unwrap(),
-        Visibility::Visible
-    );
+    assert_eq!(visibility_of(&world, group0), Visibility::Visible);
+    assert_eq!(visibility_of(&world, group1), Visibility::Visible);
 }
 
+/// A camera inside an interior group's box but with no floor of it below stands outside:
+/// exterior groups are drawn, the interior only through a visible portal, antiportals never.
 #[test]
-fn antiportal_groups_occlude_groups_behind_them() {
+fn camera_outside_interiors_draws_exterior_groups() {
     let mut world = World::default();
-    world.spawn((
-        Camera3d::default(),
-        GlobalTransform::IDENTITY,
-        unit_test_frustum(),
-    ));
-    let (root, group0, group1) =
-        spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
+    spawn_portal_test_camera(&mut world);
+    let (root, group0, group1) = spawn_portal_test_wmo(&mut world, vec![Vec3::new(5.0, 5.0, 5.0)]);
+    world.entity_mut(group0).remove::<WmoInteriorFloor>();
+    world.get_mut::<WmoGroup>(group1).unwrap().is_exterior = true;
     let antiportal = world
         .spawn((
             WmoGroup {
                 group_index: 2,
-                bbox_min: Vec3::new(1.0, -0.25, -0.25),
-                bbox_max: Vec3::new(1.5, 0.25, 0.25),
+                bbox_min: Vec3::splat(-10.0),
+                bbox_max: Vec3::splat(10.0),
+                is_exterior: false,
                 is_antiportal: true,
             },
             Visibility::Visible,
@@ -453,18 +461,35 @@ fn antiportal_groups_occlude_groups_behind_them() {
 
     run_portal_cull(&mut world, &mut state);
 
-    assert_eq!(
-        *world.get::<Visibility>(group0).unwrap(),
-        Visibility::Visible
-    );
-    assert_eq!(
-        *world.get::<Visibility>(group1).unwrap(),
-        Visibility::Hidden
-    );
-    assert_eq!(
-        *world.get::<Visibility>(antiportal).unwrap(),
-        Visibility::Hidden
-    );
+    assert_eq!(visibility_of(&world, group0), Visibility::Hidden);
+    assert_eq!(visibility_of(&world, group1), Visibility::Visible);
+    assert_eq!(visibility_of(&world, antiportal), Visibility::Hidden);
+}
+
+/// Once an interior portal opens onto an exterior group the whole exterior is drawn,
+/// including exterior groups with no portal to the camera's group.
+#[test]
+fn interior_portal_onto_exterior_draws_every_exterior_group() {
+    let mut world = World::default();
+    spawn_portal_test_camera(&mut world);
+    let (root, group0, group1) =
+        spawn_portal_test_wmo(&mut world, vec![Vec3::new(0.25, 0.25, 0.25)]);
+    world.get_mut::<WmoGroup>(group1).unwrap().is_exterior = true;
+    let far_exterior =
+        spawn_portal_test_group(&mut world, 2, Vec3::splat(50.0), Vec3::splat(60.0), true);
+    world.entity_mut(root).add_child(far_exterior);
+    world
+        .get_mut::<WmoPortalGraph>(root)
+        .unwrap()
+        .adjacency
+        .push(Vec::new());
+    let mut state = PortalCullState::new(&mut world);
+
+    run_portal_cull(&mut world, &mut state);
+
+    assert_eq!(visibility_of(&world, group0), Visibility::Visible);
+    assert_eq!(visibility_of(&world, group1), Visibility::Visible);
+    assert_eq!(visibility_of(&world, far_exterior), Visibility::Visible);
 }
 
 // --- Pure function tests ---

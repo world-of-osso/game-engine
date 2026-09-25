@@ -12,6 +12,7 @@ mod interior_gpu;
 mod interior_light_gpu;
 mod liquid;
 mod metal_gpu;
+mod portal_culling;
 mod root_runtime;
 mod two_layer_gpu;
 mod unified_gpu;

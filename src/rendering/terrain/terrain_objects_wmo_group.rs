@@ -574,6 +574,7 @@ pub(super) fn group_bbox(
         group_index,
         bbox_min,
         bbox_max,
+        is_exterior: group_header.group_flags.exterior,
         is_antiportal: group_is_antiportal(root, group_header),
     }
 }
