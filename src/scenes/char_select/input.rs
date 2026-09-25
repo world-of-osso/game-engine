@@ -261,6 +261,9 @@ fn run_automation_action(
             }
             return Err(format!("unsupported char select key press: {key:?}"));
         }
+        UiAutomationAction::RightClickFrame(name) => {
+            return Err(format!("ui.rightClick('{name}') is only supported InWorld"));
+        }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)
         | UiAutomationAction::DumpTree

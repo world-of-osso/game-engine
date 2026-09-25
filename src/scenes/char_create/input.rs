@@ -383,6 +383,9 @@ fn run_char_create_automation_action(
                 .ok_or("automation key press requires a focused frame")?;
             handle_char_create_key(key, focused_id, ctx.ui);
         }
+        UiAutomationAction::RightClickFrame(name) => {
+            return Err(format!("ui.rightClick('{name}') is only supported InWorld"));
+        }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)
         | UiAutomationAction::DumpTree

@@ -52,6 +52,11 @@ fn register_action_callbacks(ctx: &Context) -> Result<(), String> {
         true
     })
     .map_err(|err| format!("failed to register click callback: {err}"))?;
+    ctx.add_callback("__rightClick", |name: String| -> bool {
+        push_action(UiAutomationAction::RightClickFrame(name));
+        true
+    })
+    .map_err(|err| format!("failed to register rightClick callback: {err}"))?;
     ctx.add_callback("__type", |text: String| -> bool {
         push_action(UiAutomationAction::TypeText(text));
         true
@@ -153,6 +158,7 @@ fn parse_state(value: &str) -> Result<GameState, String> {
 const PRELUDE: &str = r#"
 globalThis.ui = {
   click: (name) => __click(name),
+  rightClick: (name) => __rightClick(name),
   type: (text) => __type(text),
   key: (key) => __key(key),
   waitForState: (state, timeoutSecs) => __waitForState(state, timeoutSecs),
@@ -176,6 +182,7 @@ mod tests {
             ui.type("alice");
             ui.click("PasswordInput");
             ui.type("secret");
+            ui.rightClick("BuffButton0");
         "#;
         let actions = run_js_to_actions(script).expect("JS actions should parse");
         assert_eq!(
@@ -185,6 +192,7 @@ mod tests {
                 UiAutomationAction::TypeText("alice".into()),
                 UiAutomationAction::ClickFrame("PasswordInput".into()),
                 UiAutomationAction::TypeText("secret".into()),
+                UiAutomationAction::RightClickFrame("BuffButton0".into()),
             ]
         );
     }

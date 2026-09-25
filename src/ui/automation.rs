@@ -9,6 +9,8 @@ use crate::ui::plugin::UiState;
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiAutomationAction {
     ClickFrame(String),
+    /// Right mouse button on a frame; InWorld only.
+    RightClickFrame(String),
     TypeText(String),
     PressKey(KeyChord),
     WaitForState(GameState, f32),
@@ -82,7 +84,7 @@ impl UiAutomationAction {
     pub fn is_input_action(&self) -> bool {
         matches!(
             self,
-            Self::ClickFrame(_) | Self::TypeText(_) | Self::PressKey(_)
+            Self::ClickFrame(_) | Self::RightClickFrame(_) | Self::TypeText(_) | Self::PressKey(_)
         )
     }
 }

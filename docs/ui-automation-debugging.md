@@ -18,6 +18,7 @@ LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0
 Available globals:
 
 - `ui.click(name)`
+- `ui.rightClick(name)` (InWorld only: right mouse button at the frame centre)
 - `ui.type(text)`
 - `ui.key(name)`
 - `ui.waitForState(name, timeoutSecs)`
