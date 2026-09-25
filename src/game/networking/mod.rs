@@ -27,10 +27,10 @@ use crate::camera::{CharacterFacing, MovementState};
 use game_engine::status::{
     AchievementsStatusSnapshot, BarberShopStatusSnapshot, CalendarStatusSnapshot,
     CollectionStatusSnapshot, CombatLogStatusSnapshot, CurrenciesStatusSnapshot,
-    DeathStatusSnapshot, FriendsStatusSnapshot, GroupStatusSnapshot, GuildStatusSnapshot,
-    GuildVaultStatusSnapshot, IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot,
-    MapStatusSnapshot, ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot,
-    ReputationsStatusSnapshot, WarbankStatusSnapshot, WhoStatusSnapshot,
+    DeathStatusSnapshot, FriendsStatusSnapshot, GuildStatusSnapshot, GuildVaultStatusSnapshot,
+    IgnoreListStatusSnapshot, InventorySearchSnapshot, LfgStatusSnapshot, MapStatusSnapshot,
+    ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
+    WarbankStatusSnapshot, WhoStatusSnapshot,
 };
 
 /// Marker for entities spawned from server replication.
@@ -217,7 +217,6 @@ fn register_auth_resources(app: &mut App) {
 
 fn register_status_resources(app: &mut App) {
     app.init_resource::<QuestLogStatusSnapshot>();
-    app.init_resource::<GroupStatusSnapshot>();
     app.init_resource::<CombatLogStatusSnapshot>();
     app.init_resource::<AchievementsStatusSnapshot>();
     app.init_resource::<BarberShopStatusSnapshot>();
@@ -282,7 +281,7 @@ fn register_gameplay_net_systems(app: &mut App) {
     use crate::networking_messages as msg;
     use game_engine::network_events::{register_message_handler, register_outgoing_handler};
     use game_engine::network_tick::{NetworkTick, NetworkTickSystems};
-    use shared::protocol::{EmoteEvent, GroupRosterSnapshot};
+    use shared::protocol::EmoteEvent;
 
     register_message_handler::<ChatMessage, _>(
         app,
@@ -290,11 +289,6 @@ fn register_gameplay_net_systems(app: &mut App) {
         application_in_world,
     );
     register_message_handler::<EmoteEvent, _>(app, msg::receive_emote_events, application_in_world);
-    register_message_handler::<GroupRosterSnapshot, _>(
-        app,
-        msg::receive_group_roster_snapshot,
-        application_in_world,
-    );
     register_outgoing_handler(app, msg::send_chat_message, |world| {
         application_in_world(world) && world.resource::<ChatInput>().0.is_some()
     });
@@ -338,11 +332,6 @@ fn register_inworld_snapshot_systems(app: &mut App) {
     use crate::networking_messages as msg;
     use game_engine::network_events::register_message_handler;
     use shared::protocol::*;
-    register_message_handler::<GroupCommandResponse, _>(
-        app,
-        msg::receive_group_command_response,
-        application_in_world,
-    );
     register_message_handler::<CombatLogSnapshot, _>(
         app,
         msg::receive_combat_log_snapshot,

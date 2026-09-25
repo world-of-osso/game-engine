@@ -100,10 +100,15 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
     element(
         "party_frames",
         "Party Frames",
-        "PartyFrame",
-        HudAnchor::Left,
+        "CompactPartyFrame",
+        HudAnchor::Bottom,
     ),
-    element("raid_frames", "Raid Frames", "RaidFrame", HudAnchor::Left),
+    element(
+        "raid_frames",
+        "Raid Frames",
+        "CompactRaidFrameContainer",
+        HudAnchor::Bottom,
+    ),
     element("ui_errors", "Error Text", "UIErrorsFrame", HudAnchor::Top),
     element(
         "chat_frame",

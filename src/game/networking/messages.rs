@@ -2,10 +2,10 @@ use bevy::prelude::*;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CombatChannel, DuelStateUpdate,
-    DurabilityStateUpdate, EmoteEvent, EmoteIntent, GroupCommandResponse, GroupRoleSnapshot,
-    GroupRosterSnapshot, InputChannel, InspectStateUpdate, LoadTerrain, PlayerInput,
-    ProfessionSnapshot, ProfessionStateUpdate, QuestRepeatability as QuestRepeatabilitySnapshot,
-    ReputationStateUpdate, RestAreaKindSnapshot, RestStateUpdate, SetTarget, WorldMapStateUpdate,
+    DurabilityStateUpdate, EmoteEvent, EmoteIntent, InputChannel, InspectStateUpdate, LoadTerrain,
+    PlayerInput, ProfessionSnapshot, ProfessionStateUpdate,
+    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, RestAreaKindSnapshot,
+    RestStateUpdate, SetTarget, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -27,11 +27,10 @@ use game_engine::inspect::apply_inspect_state_update as map_inspect_state_update
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::reputation::{ReputationToastState, map_reputation_state_update};
 use game_engine::status::{
-    AchievementsStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot, GroupMemberEntry,
-    GroupRole, GroupStatusSnapshot, IgnoreListStatusSnapshot, InspectStatusSnapshot,
-    ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
-    QuestEntry, QuestObjectiveEntry, QuestRepeatability, ReputationEntry,
-    ReputationsStatusSnapshot, RestAreaKindEntry,
+    AchievementsStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot,
+    IgnoreListStatusSnapshot, InspectStatusSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry,
+    ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry, QuestObjectiveEntry,
+    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, RestAreaKindEntry,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -385,46 +384,6 @@ fn map_repeatability(value: QuestRepeatabilitySnapshot) -> QuestRepeatability {
         QuestRepeatabilitySnapshot::Normal => QuestRepeatability::Normal,
         QuestRepeatabilitySnapshot::Daily => QuestRepeatability::Daily,
         QuestRepeatabilitySnapshot::Weekly => QuestRepeatability::Weekly,
-    }
-}
-
-pub(crate) fn receive_group_roster_snapshot(
-    mut receivers: MessageReceivers<GroupRosterSnapshot>,
-    mut snapshot: ResMut<GroupStatusSnapshot>,
-) {
-    for receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.is_raid = msg.is_raid;
-            snapshot.ready_count = msg.ready_count;
-            snapshot.total_count = msg.total_count;
-            snapshot.members = msg.members.into_iter().map(map_group_member).collect();
-        }
-    }
-}
-
-fn map_group_member(member: shared::protocol::GroupMemberSnapshot) -> GroupMemberEntry {
-    GroupMemberEntry {
-        name: member.name,
-        role: match member.role {
-            GroupRoleSnapshot::Tank => GroupRole::Tank,
-            GroupRoleSnapshot::Healer => GroupRole::Healer,
-            GroupRoleSnapshot::Damage => GroupRole::Damage,
-            GroupRoleSnapshot::None => GroupRole::None,
-        },
-        is_leader: member.is_leader,
-        online: member.online,
-        subgroup: member.subgroup,
-    }
-}
-
-pub(crate) fn receive_group_command_response(
-    mut receivers: MessageReceivers<GroupCommandResponse>,
-    mut snapshot: ResMut<GroupStatusSnapshot>,
-) {
-    for receiver in receivers.iter_mut() {
-        for msg in receiver.receive() {
-            snapshot.last_server_message = Some(msg.message);
-        }
     }
 }
 

@@ -54,10 +54,10 @@ use crate::status::{
     CharacterRosterStatusSnapshot, CharacterStatsSnapshot, CollectionStatusSnapshot,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, DeathStatusSnapshot, DuelStatusSnapshot,
     EncounterJournalStatusSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearStatusSnapshot,
-    FriendsStatusSnapshot, GroupStatusSnapshot, GuildStatusSnapshot, GuildVaultStatusSnapshot,
-    IgnoreListStatusSnapshot, LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot,
-    ProfessionStatusSnapshot, PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot,
-    SoundStatusSnapshot, TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint, WhoStatusSnapshot,
+    FriendsStatusSnapshot, GuildStatusSnapshot, GuildVaultStatusSnapshot, IgnoreListStatusSnapshot,
+    LfgStatusSnapshot, MapStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot,
+    PvpStatusSnapshot, QuestLogStatusSnapshot, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    TerrainStatusSnapshot, WarbankStatusSnapshot, Waypoint, WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use crate::trade::{TradeClientState, queue_ipc_request as queue_trade_ipc_request};
@@ -207,7 +207,7 @@ struct StatusSnapshotParams<'w> {
     equipped_gear: Res<'w, EquippedGearStatusSnapshot>,
     equipment_appearance: Res<'w, EquipmentAppearanceStatusSnapshot>,
     quest_log: Res<'w, QuestLogStatusSnapshot>,
-    group: Res<'w, GroupStatusSnapshot>,
+    group: Res<'w, crate::group_state::GroupState>,
     combat_log: Res<'w, CombatLogStatusSnapshot>,
     collection: Res<'w, CollectionStatusSnapshot>,
     friends: Res<'w, FriendsStatusSnapshot>,
@@ -238,7 +238,7 @@ pub(crate) struct DispatchContext<'a> {
     pub equipped_gear_status: &'a EquippedGearStatusSnapshot,
     pub equipment_appearance_status: &'a EquipmentAppearanceStatusSnapshot,
     pub quest_status: &'a QuestLogStatusSnapshot,
-    pub group_status: &'a GroupStatusSnapshot,
+    pub group_status: &'a crate::group_state::GroupState,
     pub combat_log_status: &'a CombatLogStatusSnapshot,
     pub collection_status: &'a CollectionStatusSnapshot,
     pub friends_status: &'a FriendsStatusSnapshot,

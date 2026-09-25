@@ -1,6 +1,5 @@
 use std::fmt;
 
-use game_engine::raid_party_data::{LootMethod, LootThreshold};
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -29,6 +28,70 @@ const INACTIVE_TEXT: &str = "0.72,0.72,0.72,1.0";
 pub const ACTION_CLOSE: &str = "loot_rules_close";
 pub const ACTION_METHOD_PREFIX: &str = "loot_rules_method:";
 pub const ACTION_THRESHOLD_PREFIX: &str = "loot_rules_threshold:";
+
+// --- Loot distribution (client-side settings; the loot system does not read them) ---
+
+/// How loot is distributed among group members.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LootMethod {
+    /// Anyone can loot any corpse.
+    FreeForAll,
+    /// Members take turns looting.
+    RoundRobin,
+    /// Leader assigns loot manually.
+    MasterLooter,
+    /// Roll on items above threshold (need/greed/pass).
+    #[default]
+    GroupLoot,
+    /// Need before greed rolls on items above threshold.
+    NeedBeforeGreed,
+    /// Client-side personal loot presentation.
+    PersonalLoot,
+}
+
+impl LootMethod {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::FreeForAll => "Free For All",
+            Self::RoundRobin => "Round Robin",
+            Self::MasterLooter => "Master Looter",
+            Self::GroupLoot => "Group Loot",
+            Self::NeedBeforeGreed => "Need Before Greed",
+            Self::PersonalLoot => "Personal Loot",
+        }
+    }
+}
+
+/// Minimum item quality that triggers the loot roll popup.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum LootThreshold {
+    /// Gray (poor) — rolls on everything.
+    Poor,
+    /// White (common).
+    Common,
+    /// Green (uncommon) — WoW default.
+    #[default]
+    Uncommon,
+    /// Blue (rare).
+    Rare,
+    /// Purple (epic).
+    Epic,
+    /// Orange (legendary).
+    Legendary,
+}
+
+impl LootThreshold {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Poor => "Poor",
+            Self::Common => "Common",
+            Self::Uncommon => "Uncommon",
+            Self::Rare => "Rare",
+            Self::Epic => "Epic",
+            Self::Legendary => "Legendary",
+        }
+    }
+}
 
 struct DynName(String);
 

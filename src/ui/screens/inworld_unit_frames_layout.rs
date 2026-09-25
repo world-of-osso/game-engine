@@ -1,6 +1,6 @@
 //! Combat cluster geometry at the 1920×1080 reference: player frame, cast dock and target frame
-//! centred above the action bars; target-of-target and focus to the target's right; party
-//! frames left of the player frame, above chat.
+//! centred above the action bars; target-of-target and focus to the target's right. Party and
+//! raid frames (`group_frames_component`) sit left of and above the cluster.
 
 /// Width of the shared resource/cast area between the player and target frames.
 pub const CAST_DOCK_W: f32 = 264.0;
@@ -26,10 +26,6 @@ pub const FOCUS_H: f32 = TOT_H;
 pub const FOCUS_LEFT: f32 = TOT_LEFT + TOT_W + SMALL_FRAME_GAP;
 /// Small frames align with the target frame's top edge.
 pub const SMALL_FRAME_BOTTOM: f32 = CLUSTER_BOTTOM + FRAME_H - TOT_H;
-
-/// Party frames: right edge `PARTY_GAP` left of the player frame, bottom raised above chat.
-pub const PARTY_GAP: f32 = 12.0;
-pub const PARTY_BOTTOM: f32 = 232.0;
 
 /// Slots inside the portrait-off art (pixels of the 133×51 crop): name tab on rows 0..12,
 /// health slot inside the top border and divider, power slot below the divider.

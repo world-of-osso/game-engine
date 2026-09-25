@@ -332,7 +332,7 @@ fn reset_social_status_snapshots(world: &mut World) {
     reset_resource::<game_engine::status::GuildStatusSnapshot>(world);
     reset_resource::<game_engine::status::WhoStatusSnapshot>(world);
     reset_resource::<game_engine::status::IgnoreListStatusSnapshot>(world);
-    reset_resource::<game_engine::status::GroupStatusSnapshot>(world);
+    reset_resource::<game_engine::group_state::GroupState>(world);
     reset_resource::<game_engine::status::GuildVaultStatusSnapshot>(world);
     reset_resource::<game_engine::status::LfgStatusSnapshot>(world);
     reset_resource::<game_engine::status::PvpStatusSnapshot>(world);

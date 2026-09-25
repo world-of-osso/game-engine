@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::group_state::GroupState;
 use game_engine::input_bindings::InputAction;
-use game_engine::raid_party_data::{GroupIntentQueue, LootMethod, LootThreshold, PartyState};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::loot_rules_frame_component::{
-    ACTION_CLOSE, ACTION_METHOD_PREFIX, ACTION_THRESHOLD_PREFIX, LootRulesFrameState,
-    loot_rules_frame_screen,
+    ACTION_CLOSE, ACTION_METHOD_PREFIX, ACTION_THRESHOLD_PREFIX, LootMethod, LootRulesFrameState,
+    LootThreshold, loot_rules_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -29,12 +29,18 @@ struct LootRulesFrameWrap(LootRulesFrameRes);
 #[derive(Resource, Clone, PartialEq)]
 struct LootRulesFrameModel(LootRulesFrameState);
 
+/// The window's selections. Client-side only: nothing sends them to the server.
+#[derive(Resource, Clone, Copy, Debug, PartialEq, Eq, Default)]
+struct LootSettings {
+    method: LootMethod,
+    threshold: LootThreshold,
+}
+
 pub struct LootRulesFramePlugin;
 
 impl Plugin for LootRulesFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<PartyState>();
-        app.init_resource::<GroupIntentQueue>();
+        app.init_resource::<LootSettings>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_loot_rules_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -58,10 +64,11 @@ fn build_loot_rules_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
     window_manager: Res<WindowManager>,
-    party: Res<PartyState>,
+    loot: Res<LootSettings>,
+    group: Res<GroupState>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(window_manager.is_open(WindowId::LootRules), &party);
+    let state = build_state(window_manager.is_open(WindowId::LootRules), &loot, &group);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(loot_rules_frame_screen);
@@ -96,12 +103,13 @@ fn sync_loot_rules_frame_state(
     mut wrap: Option<ResMut<LootRulesFrameWrap>>,
     mut last_model: Option<ResMut<LootRulesFrameModel>>,
     window_manager: Res<WindowManager>,
-    party: Res<PartyState>,
+    loot: Res<LootSettings>,
+    group: Res<GroupState>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(window_manager.is_open(WindowId::LootRules), &party);
+    let state = build_state(window_manager.is_open(WindowId::LootRules), &loot, &group);
     if last_model.0 == state {
         return;
     }
@@ -111,24 +119,24 @@ fn sync_loot_rules_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
-fn build_state(open: bool, party: &PartyState) -> LootRulesFrameState {
+fn build_state(open: bool, loot: &LootSettings, group: &GroupState) -> LootRulesFrameState {
     LootRulesFrameState {
         visible: open,
-        group_summary: build_group_summary(party),
-        current_method: party.loot.method,
-        current_threshold: party.loot.threshold,
+        group_summary: build_group_summary(loot, group),
+        current_method: loot.method,
+        current_threshold: loot.threshold,
     }
 }
 
-fn build_group_summary(party: &PartyState) -> String {
-    let count = party.member_count() + 1;
-    if party.member_count() == 0 {
+fn build_group_summary(loot: &LootSettings, group: &GroupState) -> String {
+    if !group.in_group() {
         return "Solo: changes stay local until group sync exists".into();
     }
     format!(
-        "Party of {count} • method: {} • threshold: {}",
-        party.loot.method.label(),
-        party.loot.threshold.label()
+        "Party of {} • method: {} • threshold: {}",
+        group.members.len(),
+        loot.method.label(),
+        loot.threshold.label()
     )
 }
 
@@ -139,8 +147,7 @@ fn handle_loot_rules_input(
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
     mut window_manager: ResMut<WindowManager>,
-    mut party: ResMut<PartyState>,
-    mut queue: ResMut<GroupIntentQueue>,
+    mut loot: ResMut<LootSettings>,
 ) {
     if !window_manager.is_open(WindowId::LootRules)
         || !crate::networking::gameplay_input_allowed(reconnect)
@@ -162,27 +169,20 @@ fn handle_loot_rules_input(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    dispatch_action(&action, &mut window_manager, &mut party, &mut queue);
+    dispatch_action(&action, &mut window_manager, &mut loot);
 }
 
-fn dispatch_action(
-    action: &str,
-    window_manager: &mut WindowManager,
-    party: &mut PartyState,
-    queue: &mut GroupIntentQueue,
-) {
+fn dispatch_action(action: &str, window_manager: &mut WindowManager, loot: &mut LootSettings) {
     if action == ACTION_CLOSE {
         window_manager.close(WindowId::LootRules);
         return;
     }
     if let Some(method) = parse_loot_method_action(action) {
-        party.loot.method = method;
-        queue.set_loot_method(method);
+        loot.method = method;
         return;
     }
     if let Some(threshold) = parse_loot_threshold_action(action) {
-        party.loot.threshold = threshold;
-        queue.set_loot_threshold(threshold);
+        loot.threshold = threshold;
     }
 }
 
@@ -215,15 +215,41 @@ fn parse_loot_threshold_action(action: &str) -> Option<LootThreshold> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shared::loot::LootMode;
+    use shared::protocol::{GroupMemberSnapshot, GroupRoleSnapshot, GroupRosterSnapshot};
+
+    fn group_of(names: &[&str]) -> GroupState {
+        let mut group = GroupState::default();
+        group.apply_roster(GroupRosterSnapshot {
+            is_raid: false,
+            ready_count: 0,
+            total_count: 0,
+            members: names
+                .iter()
+                .map(|name| GroupMemberSnapshot {
+                    name: (*name).into(),
+                    role: GroupRoleSnapshot::None,
+                    is_leader: false,
+                    online: true,
+                    subgroup: 1,
+                    class: 4,
+                    level: 10,
+                    entity: None,
+                })
+                .collect(),
+            loot_method: LootMode::PersonalLoot,
+        });
+        group
+    }
 
     #[test]
     fn build_state_formats_group_summary() {
-        let mut party = PartyState::default();
-        party.members = vec![sample_member(), sample_member()];
-        party.loot.method = LootMethod::MasterLooter;
-        party.loot.threshold = LootThreshold::Epic;
+        let loot = LootSettings {
+            method: LootMethod::MasterLooter,
+            threshold: LootThreshold::Epic,
+        };
 
-        let state = build_state(true, &party);
+        let state = build_state(true, &loot, &group_of(&["Ann", "Bob", "Valeera"]));
 
         assert!(state.visible);
         assert_eq!(state.current_method, LootMethod::MasterLooter);
@@ -232,13 +258,16 @@ mod tests {
             state.group_summary,
             "Party of 3 • method: Master Looter • threshold: Epic"
         );
+        assert_eq!(
+            build_state(true, &loot, &GroupState::default()).group_summary,
+            "Solo: changes stay local until group sync exists"
+        );
     }
 
     #[test]
-    fn dispatch_personal_loot_updates_party_and_queue() {
+    fn dispatch_method_and_threshold_update_settings() {
         let mut window_manager = WindowManager::default();
-        let mut party = PartyState::default();
-        let mut queue = GroupIntentQueue::default();
+        let mut loot = LootSettings::default();
 
         dispatch_action(
             &format!(
@@ -248,26 +277,8 @@ mod tests {
                 )
             ),
             &mut window_manager,
-            &mut party,
-            &mut queue,
+            &mut loot,
         );
-
-        assert_eq!(party.loot.method, LootMethod::PersonalLoot);
-        assert_eq!(queue.pending.len(), 1);
-        assert!(matches!(
-            queue.pending[0],
-            game_engine::raid_party_data::GroupIntent::SetLootMethod {
-                method: LootMethod::PersonalLoot
-            }
-        ));
-    }
-
-    #[test]
-    fn dispatch_threshold_updates_party_and_queue() {
-        let mut window_manager = WindowManager::default();
-        let mut party = PartyState::default();
-        let mut queue = GroupIntentQueue::default();
-
         dispatch_action(
             &format!(
                 "{ACTION_THRESHOLD_PREFIX}{}",
@@ -276,35 +287,15 @@ mod tests {
                 )
             ),
             &mut window_manager,
-            &mut party,
-            &mut queue,
+            &mut loot,
         );
 
-        assert_eq!(party.loot.threshold, LootThreshold::Epic);
-        assert_eq!(queue.pending.len(), 1);
-        assert!(matches!(
-            queue.pending[0],
-            game_engine::raid_party_data::GroupIntent::SetLootThreshold {
-                threshold: LootThreshold::Epic
+        assert_eq!(
+            loot,
+            LootSettings {
+                method: LootMethod::PersonalLoot,
+                threshold: LootThreshold::Epic,
             }
-        ));
-    }
-
-    fn sample_member() -> game_engine::raid_party_data::GroupUnitState {
-        game_engine::raid_party_data::GroupUnitState {
-            name: "Valeera".into(),
-            health_current: 100,
-            health_max: 100,
-            power_current: 100,
-            power_max: 100,
-            power_type: game_engine::raid_party_data::PowerType::Mana,
-            role: game_engine::raid_party_data::GroupRole::Dps,
-            debuffs: Vec::new(),
-            in_range: true,
-            alive: true,
-            online: true,
-            ready_check: game_engine::raid_party_data::ReadyCheck::None,
-            incoming_heals: 0,
-        }
+        );
     }
 }

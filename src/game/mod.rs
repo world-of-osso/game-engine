@@ -25,6 +25,8 @@ pub(crate) mod networking_auth;
 pub(crate) mod networking_bank;
 #[path = "networking/game_objects.rs"]
 pub(crate) mod networking_game_objects;
+#[path = "networking/group.rs"]
+pub(crate) mod networking_group;
 #[path = "networking/inventory.rs"]
 pub(crate) mod networking_inventory;
 #[path = "networking/merchant.rs"]

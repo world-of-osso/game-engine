@@ -581,24 +581,6 @@ pub enum GroupRole {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct GroupMemberEntry {
-    pub name: String,
-    pub role: GroupRole,
-    pub is_leader: bool,
-    pub online: bool,
-    pub subgroup: u8,
-}
-
-#[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
-pub struct GroupStatusSnapshot {
-    pub is_raid: bool,
-    pub members: Vec<GroupMemberEntry>,
-    pub ready_count: u16,
-    pub total_count: u16,
-    pub last_server_message: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CombatLogEventKind {
     Damage,
     Heal,

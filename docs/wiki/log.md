@@ -941,3 +941,7 @@ Created [[merchant-frame]]. Retail MerchantFrame on the server vendor protocol; 
 ## [2026-09-25] ui | Banks
 
 Created [[banks]]: BankFrame at bankers (character + Warband bank), GuildBankFrame at replicated Guild Vault game objects (GameObjectInfo mirror, GameObjectDisplayInfo model, ServerObject pick → UseGameObject).
+
+## [2026-09-25] ui | Group frames
+
+Created [[group-frames]]. Raid-style CompactPartyFrame and CompactRaidFrameContainer driven by `GroupState` (roster + server `GroupMemberStates` for all members regardless of interest range), `PARTY_INVITE` popup, unit/group menu entries (invite, promote, uninvite, convert, roles, ready check, leave), ReadyCheckFrame. Replaced the placeholder party/raid components and `raid_party_data.rs`.
