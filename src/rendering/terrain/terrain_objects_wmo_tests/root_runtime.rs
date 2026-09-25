@@ -201,6 +201,7 @@ fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
                 &mut commands,
                 &mut assets,
                 &root,
+                &minimal_group_header(),
                 None,
                 group_entity,
                 vec![wmo::WmoGroupBatch {

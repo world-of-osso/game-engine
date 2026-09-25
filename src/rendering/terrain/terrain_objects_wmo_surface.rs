@@ -6,6 +6,7 @@ pub(super) struct WmoMaterialProps {
     pub(super) texture_3_fdid: u32,
     pub(super) blend_mode: u32,
     pub(super) unculled: bool,
+    pub(super) unlit: bool,
     pub(super) shader: u32,
     pub(super) sidn_glow: Option<WmoSidnGlow>,
 }
@@ -18,6 +19,7 @@ pub(super) fn wmo_material_props(root: &wmo::WmoRootData, material_index: u16) -
         texture_3_fdid: mat_def.map(|m| m.texture_3_fdid).unwrap_or(0),
         blend_mode: mat_def.map(|m| m.blend_mode).unwrap_or(0),
         unculled: mat_def.map(|m| m.material_flags.unculled).unwrap_or(false),
+        unlit: mat_def.map(|m| m.material_flags.unlit).unwrap_or(false),
         shader: mat_def.map(|m| m.shader).unwrap_or(0),
         sidn_glow: mat_def.and_then(build_wmo_sidn_glow),
     }
@@ -217,16 +219,30 @@ fn wmo_cull_mode(double_sided: bool) -> Option<bevy::render::render_resource::Fa
     }
 }
 
-pub(crate) fn sync_wmo_sidn_emissive(
+/// A WMO batch material whose emissive carries the SIDN night glow.
+pub(crate) trait WmoSidnMaterial: Material {
+    fn emissive_mut(&mut self) -> &mut LinearRgba;
+}
+
+impl WmoSidnMaterial for StandardMaterial {
+    fn emissive_mut(&mut self) -> &mut LinearRgba {
+        &mut self.emissive
+    }
+}
+
+impl WmoSidnMaterial for WmoUnifiedMaterial {
+    fn emissive_mut(&mut self) -> &mut LinearRgba {
+        &mut self.base.emissive
+    }
+}
+
+pub(crate) fn sync_wmo_sidn_emissive<M: WmoSidnMaterial>(
     game_time: Res<GameTime>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    query: Query<(&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow)>,
+    mut materials: ResMut<Assets<M>>,
+    query: Query<(&MeshMaterial3d<M>, &WmoSidnGlow)>,
     new_glow_query: Query<
-        (&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow),
-        Or<(
-            Added<WmoSidnGlow>,
-            Changed<MeshMaterial3d<StandardMaterial>>,
-        )>,
+        (&MeshMaterial3d<M>, &WmoSidnGlow),
+        Or<(Added<WmoSidnGlow>, Changed<MeshMaterial3d<M>>)>,
     >,
     mut last_strength: Local<Option<f32>>,
 ) {
@@ -240,16 +256,16 @@ pub(crate) fn sync_wmo_sidn_emissive(
     apply_sidn_emissive_updates(&mut materials, &query, strength);
 }
 
-pub(super) fn apply_sidn_emissive_updates<F: QueryFilter>(
-    materials: &mut Assets<StandardMaterial>,
-    query: &Query<(&MeshMaterial3d<StandardMaterial>, &WmoSidnGlow), F>,
+pub(super) fn apply_sidn_emissive_updates<M: WmoSidnMaterial, F: QueryFilter>(
+    materials: &mut Assets<M>,
+    query: &Query<(&MeshMaterial3d<M>, &WmoSidnGlow), F>,
     strength: f32,
 ) {
     for (material_handle, glow) in query.iter() {
         let Some(mut material) = materials.get_mut(material_handle) else {
             continue;
         };
-        material.emissive = sidn_emissive_color(glow.base_sidn_color, strength);
+        *material.emissive_mut() = sidn_emissive_color(glow.base_sidn_color, strength);
     }
 }
 

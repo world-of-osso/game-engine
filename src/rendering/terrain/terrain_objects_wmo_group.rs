@@ -5,33 +5,65 @@ pub(super) fn spawn_wmo_group_batches(
     commands: &mut Commands,
     assets: &mut WmoAssets<'_>,
     root: &wmo::WmoRootData,
+    group_header: &wmo::WmoGroupHeader,
     interior_ambient: Option<[f32; 4]>,
     group_entity: Entity,
     batches: Vec<wmo::WmoGroupBatch>,
 ) {
     for batch in batches {
         let material_props = wmo_material_props(root, batch.material_index);
-        let mat = wmo_batch_material(
-            assets.materials,
-            assets.images,
-            batch.material_index,
-            &material_props,
-            interior_ambient,
-            batch.has_vertex_color,
-        );
         let mut child = commands.spawn((
             Mesh3d(assets.meshes.add(batch.mesh)),
-            MeshMaterial3d(mat),
             Transform::default(),
             Visibility::default(),
             WmoCollisionMesh,
         ));
+        if root.flags.use_unified_render_path {
+            let mode = wmo_unified_lighting_mode(
+                group_header.flags,
+                batch.batch_type,
+                material_props.unlit,
+            );
+            let base = wmo_batch_standard_material(
+                assets.images,
+                batch.material_index,
+                &material_props,
+                None,
+                false,
+            );
+            insert_wmo_unified_material(
+                &mut child,
+                wmo_unified_material(base, mode, root.ambient_color),
+            );
+        } else {
+            child.insert(MeshMaterial3d(wmo_batch_material(
+                assets.materials,
+                assets.images,
+                batch.material_index,
+                &material_props,
+                interior_ambient,
+                batch.has_vertex_color,
+            )));
+        }
         if let Some(glow) = material_props.sidn_glow {
             child.insert(glow);
         }
         let child = child.id();
         commands.entity(group_entity).add_child(child);
     }
+}
+
+/// WMO spawning only holds `Assets<StandardMaterial>`; the unified material is added
+/// when the spawn commands apply.
+fn insert_wmo_unified_material(child: &mut EntityCommands, material: WmoUnifiedMaterial) {
+    child.queue(move |mut entity: EntityWorldMut| {
+        let handle = entity.world_scope(|world| {
+            world
+                .resource_mut::<Assets<WmoUnifiedMaterial>>()
+                .add(material)
+        });
+        entity.insert(MeshMaterial3d(handle));
+    });
 }
 
 pub(super) fn spawn_wmo_group_lights(
@@ -547,8 +579,24 @@ pub(super) fn wmo_batch_material(
     interior_ambient: Option<[f32; 4]>,
     has_vertex_color: bool,
 ) -> Handle<StandardMaterial> {
-    let image = load_wmo_batch_material_image(images, material_index, &material_props);
-    materials.add(wmo_standard_material(
+    materials.add(wmo_batch_standard_material(
+        images,
+        material_index,
+        material_props,
+        interior_ambient,
+        has_vertex_color,
+    ))
+}
+
+fn wmo_batch_standard_material(
+    images: &mut Assets<Image>,
+    material_index: u16,
+    material_props: &WmoMaterialProps,
+    interior_ambient: Option<[f32; 4]>,
+    has_vertex_color: bool,
+) -> StandardMaterial {
+    let image = load_wmo_batch_material_image(images, material_index, material_props);
+    wmo_standard_material(
         image,
         material_props.blend_mode,
         material_props.unculled,
@@ -556,7 +604,7 @@ pub(super) fn wmo_batch_material(
         interior_ambient,
         has_vertex_color,
         material_props.sidn_glow,
-    ))
+    )
 }
 
 pub(super) fn build_wmo_interior_ambient(

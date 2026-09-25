@@ -22,7 +22,9 @@ use crate::terrain_tile::TILE_SIZE;
 pub use terrain_objects_fog::{load_map_fogs_wdt, spawn_map_fog_volumes};
 pub use terrain_objects_wmo::WmoFootstepSurface;
 use terrain_objects_wmo::spawn_wmos_filtered;
-pub(crate) use terrain_objects_wmo::sync_wmo_sidn_emissive;
+pub(crate) use terrain_objects_wmo::{
+    WmoUnifiedMaterial, WmoUnifiedMaterialPlugin, sync_wmo_sidn_emissive,
+};
 pub(crate) use terrain_objects_wmo::{ensure_wmo_asset, resolve_wmo_fdid, resolve_wmo_group_fdids};
 
 #[derive(Default)]

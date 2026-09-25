@@ -89,7 +89,7 @@ fn render_abbey_wall_center(prepass: bool) -> [u8; 4] {
     capture_center_until_wall(&mut app, target)
 }
 
-fn gpu_app() -> App {
+pub(super) fn gpu_app() -> App {
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -102,12 +102,13 @@ fn gpu_app() -> App {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
+    app.add_plugins(WmoUnifiedMaterialPlugin);
     app.finish();
     app.cleanup();
     app
 }
 
-fn largest_triangle(mesh: &Mesh) -> (Vec3, Vec3) {
+pub(super) fn largest_triangle(mesh: &Mesh) -> (Vec3, Vec3) {
     let Some(VertexAttributeValues::Float32x3(positions)) =
         mesh.attribute(Mesh::ATTRIBUTE_POSITION)
     else {
