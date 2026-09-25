@@ -908,43 +908,6 @@ Updated [[ui-system]] (Spellbook and action bars) and [[spell-catalog]] (passive
 ## [2026-09-23] ui | Window manager, movable windows, HUD edit mode
 
 Updated [[ui-system]] (Windows and HUD Edit Mode) and added the [window manager](../specs/window-manager.md) and [HUD edit mode](../specs/hud-edit-mode.md) specs. `WindowManager` replaces per-scene open flags and `InWorldEscapeStack`. Window positions (per character) and edit-mode layouts (account-wide, active per character) persist in `ui_layout.ron`. No native run.
-||||||| parent of 37a601f4 (Combat cluster unit frames: no portraits, UnitPowers bars/pips, focus and target-of-target)
-
-## [2026-09-23] ui | Combat cluster unit frames
-
-Updated [[ui-system]] (Unit Frames). Portrait artwork frames replaced by the accepted combat cluster: compact player/target frames flank the docked `PlayerCastingBarFrame`; target-of-target and focus sit right of the target; party frames left of the player frame. Powers come from replicated `UnitPowers` with `DisplayModifier` scaling; NPC names/levels from `Npc`/`UnitLevel`; focus via `SetFocus`; ToT via replicated `UnitTarget`. Reaction from FactionTemplate.csv via the pure `faction_reaction` module. Focused lib (59) and bin (12) tests pass. No native run.
-
-## [2026-09-24] reference | Merge WoW clients list
-
-Merged `docs/open-source-wow-clients.md` into [[open-source-wow-clients]] (added solarityclient, idewave-cli, forge, worgen-rs, Rust servers/libraries, extra format crates) and deleted the top-level copy. AGENTS.md now points at the wiki page.
-
-## [2026-09-24] query | solarityclient performance comparison
-
-Created [[solarityclient-performance-comparison]]: their frame cost comes from few objects and no per-frame churn, not instancing. Our gaps: per-instance bone entities and assets (including static doodads), 256 terrain materials per tile, global chunk-index culling key, O(WMOs x groups) portal culling. Read-only; nothing measured.
-
-## [2026-09-24] investigation | Abbey interior black world
-
-Added [[abbey-interior-black-world]]: WMO vertex alpha forced opaque; GPU prepass regression RED/GREEN recorded.
-
-## [2026-09-24] ui | Quest UI
-
-Created [[quest-ui]]. Client `QuestRuntime` on the server quest and NPC interaction messages; Retail objective tracker, quest log (L, Panel) and QuestFrame (greeting/detail/progress/reward), `$N`/`$C`/`$B`/`$G` substitution, talktome markers. Right-click sends `InteractNpc`. Live headless proof on the shared server: A Threat Within accepted from Deputy Willem and turned in at Marshal McBride (Theron, Elara), chain offer of Kobold Camp Cleanup, XP chat line.
-
-## [2026-09-24] ui | Auction house UI
-
-Created [[auction-house-ui]]. Retail AuctionHouseFrame (Wide) opened from `NpcFrameEvent::Opened { role: AuctionHouse }`; search, categories, browse, item buy, bid, buyout dialog, item sell frame with deposit, auctions/bids with cancel. Live proof: see the spec's verified scope.
-
-## [2026-09-24] ui | Merchant frame
-
-Created [[merchant-frame]]. Retail MerchantFrame on the server vendor protocol; bags now show server contents. Live headless proof on an isolated server (:5056) at Godric Rothgar: buy vest −89c, sell +17c, buy back −17c, Repair All −36c (data/diagnostics/merchant-20260924/run/).
-
-## [2026-09-25] ui | Banks
-
-Created [[banks]]: BankFrame at bankers (character + Warband bank), GuildBankFrame at replicated Guild Vault game objects (GameObjectInfo mirror, GameObjectDisplayInfo model, ServerObject pick → UseGameObject).
-
-## [2026-09-25] ui | Group frames
-
-Created [[group-frames]]. Raid-style CompactPartyFrame and CompactRaidFrameContainer driven by `GroupState` (roster + server `GroupMemberStates` for all members regardless of interest range), `PARTY_INVITE` popup, unit/group menu entries (invite, promote, uninvite, convert, roles, ready check, leave), ReadyCheckFrame. Replaced the placeholder party/raid components and `raid_party_data.rs`.
 
 ## [2026-09-25] ui | Professions
 
@@ -953,3 +916,8 @@ Created [[professions-ui]]. Retail ClassTrainerFrame, ProfessionsBook and Profes
 ## [2026-09-25] investigation | Stormwind dark render
 
 Created [[stormwind-dark-render]]. Stormwind district WMOs take the unified MapObj path (MOHD `0x02`), where MOCV is additive light. The engine drew them unlit as texture×MOCV, so near-zero MOCV turned them black. `WmoUnifiedMaterial` adds MOCV to daylight or MOHD ambient. Updated [[wmo-format]].
+
+## [2026-09-25] ui | Loot and flight masters
+
+Created [[loot-and-flight]]: corpses stay replicated, `Lootable` sparkle/cursor, right-click loot with auto-loot XOR Shift, Retail LootFrame; Retail FlightMapFrame on the UiMap continent art; `MovementControl` epoch snap and controlled follow for flights and server teleports. Removed the client-only `taxi.rs` preview and `loot_data.rs`.
+
