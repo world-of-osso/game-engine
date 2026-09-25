@@ -11,6 +11,8 @@ pub mod auction_house;
 pub mod auction_house_data;
 #[path = "game/bag_data.rs"]
 pub mod bag_data;
+#[path = "game/bank_data.rs"]
+pub mod bank_data;
 pub mod barber_shop;
 #[path = "game/barber_shop_data.rs"]
 pub mod barber_shop_data;
@@ -68,8 +70,6 @@ pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
 pub mod guild;
-#[path = "game/guild_bank_data.rs"]
-pub mod guild_bank_data;
 #[path = "game/guild_control_data.rs"]
 pub mod guild_control_data;
 #[path = "game/guild_roster_data.rs"]

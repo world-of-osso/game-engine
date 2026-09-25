@@ -1,6 +1,5 @@
 pub(super) use super::*;
 
-mod bank;
 mod drag_drop;
 mod inventory;
 mod mutations;

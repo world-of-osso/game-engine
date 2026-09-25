@@ -74,15 +74,6 @@ fn texture_fdids_are_nonzero() {
 }
 
 #[test]
-fn bank_texture_fdids_are_nonzero() {
-    assert_ne!(bank_textures::FRAME_CHROME, 0);
-    assert_ne!(bank_textures::CORNER_TOP_LEFT, 0);
-    assert_ne!(bank_textures::BACKGROUND, 0);
-    assert_ne!(bank_textures::SLOT_BACKGROUND, 0);
-    assert_ne!(bank_textures::LOCK_ICON, 0);
-}
-
-#[test]
 fn bag_background_selects_correct_size() {
     assert_eq!(bag_background_for_rows(1), textures::BAG_BG_1X4);
     assert_eq!(bag_background_for_rows(2), textures::BAG_BG_2X4);

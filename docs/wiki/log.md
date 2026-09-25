@@ -937,3 +937,7 @@ Created [[auction-house-ui]]. Retail AuctionHouseFrame (Wide) opened from `NpcFr
 ## [2026-09-24] ui | Merchant frame
 
 Created [[merchant-frame]]. Retail MerchantFrame on the server vendor protocol; bags now show server contents. Live headless proof on an isolated server (:5056) at Godric Rothgar: buy vest −89c, sell +17c, buy back −17c, Repair All −36c (data/diagnostics/merchant-20260924/run/).
+
+## [2026-09-25] ui | Banks
+
+Created [[banks]]: BankFrame at bankers (character + Warband bank), GuildBankFrame at replicated Guild Vault game objects (GameObjectInfo mirror, GameObjectDisplayInfo model, ServerObject pick → UseGameObject).

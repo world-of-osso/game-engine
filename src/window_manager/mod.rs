@@ -40,11 +40,13 @@ pub enum WindowId {
     Achievements,
     AuctionHouse,
     Bag(usize),
+    Bank,
     Calendar,
     Character,
     EncounterJournal,
     Friends,
     Guild,
+    GuildBank,
     Inspect,
     LootRules,
     Mail,
@@ -69,7 +71,9 @@ impl WindowId {
         match self {
             Self::Achievements
             | Self::AuctionHouse
+            | Self::Bank
             | Self::EncounterJournal
+            | Self::GuildBank
             | Self::Talents
             | Self::WorldMap => WindowClass::Wide,
             Self::Bag(_) => WindowClass::Container,
@@ -99,11 +103,13 @@ impl WindowId {
             Self::Achievements => "AchievementFrame",
             Self::AuctionHouse => "AuctionHouseFrame",
             Self::Bag(index) => return format!("ContainerFrame{index}"),
+            Self::Bank => "BankFrame",
             Self::Calendar => "CalendarFrame",
             Self::Character => "CharacterFrame",
             Self::EncounterJournal => "EncounterJournal",
             Self::Friends => "FriendsFrame",
             Self::Guild => "GuildFrame",
+            Self::GuildBank => "GuildBankFrame",
             Self::Inspect => "InspectFrame",
             Self::LootRules => "LootRulesFrame",
             Self::Mail => "MailFrame",

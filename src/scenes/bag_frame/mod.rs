@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use game_engine::bag_data::InventoryState;
+use game_engine::bank_data::{BankRequest, BankState, GuildBankRequest, GuildBankState};
 use game_engine::merchant_data::{MerchantRequest, MerchantState, MerchantTab};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -35,7 +36,11 @@ impl Plugin for BagFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InventoryState>()
             .init_resource::<MerchantState>()
-            .add_message::<MerchantRequest>();
+            .init_resource::<BankState>()
+            .init_resource::<GuildBankState>()
+            .add_message::<MerchantRequest>()
+            .add_message::<BankRequest>()
+            .add_message::<GuildBankRequest>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_bag_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -43,7 +48,7 @@ impl Plugin for BagFramePlugin {
         app.add_systems(OnExit(GameState::InWorld), teardown_bag_frame_ui);
         app.add_systems(
             Update,
-            (toggle_bag_frame, sell_bag_item, sync_bag_frame_state)
+            (toggle_bag_frame, use_bag_item, sync_bag_frame_state)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
@@ -134,20 +139,42 @@ fn toggle_bag_frame(
     );
 }
 
-/// Retail `ContainerFrameItemButton_OnClick`: right-clicking a bag item while the
-/// merchant tab is shown sells it (`C_Container.UseContainerItem`); on the buyback
-/// tab it does nothing. Other right-click uses are not built.
-fn sell_bag_item(
+/// NPC frames a right-clicked bag item goes to.
+#[derive(bevy::ecs::system::SystemParam)]
+struct BagItemTargets<'w> {
+    merchant: Res<'w, MerchantState>,
+    bank: Res<'w, BankState>,
+    guild: Res<'w, GuildBankState>,
+}
+
+impl BagItemTargets<'_> {
+    fn any_open(&self) -> bool {
+        self.merchant.is_open() || self.bank.is_open() || self.guild.is_open()
+    }
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct BagItemRequests<'w> {
+    merchant: MessageWriter<'w, MerchantRequest>,
+    bank: MessageWriter<'w, BankRequest>,
+    guild: MessageWriter<'w, GuildBankRequest>,
+}
+
+/// Retail `ContainerFrameItemButton_OnClick` (`C_Container.UseContainerItem`):
+/// right-clicking a bag item while the merchant tab is shown sells it; while a bank
+/// frame is open it deposits it into the shown bank tab. Other right-click uses are
+/// not built.
+fn use_bag_item(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
     inventory: Res<InventoryState>,
-    merchant: Res<MerchantState>,
-    mut requests: MessageWriter<MerchantRequest>,
+    targets: BagItemTargets,
+    mut requests: BagItemRequests,
 ) {
-    if !merchant.is_open()
+    if !targets.any_open()
         || !crate::networking::gameplay_input_allowed(reconnect)
         || modal_open.is_some()
     {
@@ -167,9 +194,50 @@ fn sell_bag_item(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
-    if let Some(request) = sell_request(&action, &inventory, &merchant) {
-        requests.write(request);
+    if let Some(request) = sell_request(&action, &inventory, &targets.merchant) {
+        requests.merchant.write(request);
+    } else if let Some(request) = bank_deposit_request(&action, &inventory, &targets.bank) {
+        requests.bank.write(request);
+    } else if let Some(request) = guild_deposit_request(&action, &inventory, &targets.guild) {
+        requests.guild.write(request);
     }
+}
+
+fn clicked_item_guid(action: &str, inventory: &InventoryState) -> Option<u64> {
+    let (bag, slot) = parse_bag_slot_action(action)?;
+    Some(inventory.slot(bag, slot)?.item_guid).filter(|guid| *guid != 0)
+}
+
+/// Deposit into the shown bank's selected tab (Retail `UseContainerItem` with the
+/// bank open); nothing while its purchase prompt shows.
+fn bank_deposit_request(
+    action: &str,
+    inventory: &InventoryState,
+    bank: &BankState,
+) -> Option<BankRequest> {
+    if !bank.is_open() || bank.shows_purchase_prompt() {
+        return None;
+    }
+    Some(BankRequest::Deposit {
+        bank: bank.shown,
+        tab: bank.selected_tab(bank.shown) as u8,
+        item_guid: clicked_item_guid(action, inventory)?,
+    })
+}
+
+fn guild_deposit_request(
+    action: &str,
+    inventory: &InventoryState,
+    guild: &GuildBankState,
+) -> Option<GuildBankRequest> {
+    let purchased = guild.contents.as_ref().map_or(0, |c| c.tabs.len());
+    if !guild.is_open() || guild.tab >= purchased {
+        return None;
+    }
+    Some(GuildBankRequest::Deposit {
+        tab: guild.tab as u8,
+        item_guid: clicked_item_guid(action, inventory)?,
+    })
 }
 
 fn sell_request(
@@ -180,10 +248,8 @@ fn sell_request(
     if !merchant.is_open() || merchant.tab != MerchantTab::Merchant {
         return None;
     }
-    let (bag, slot) = parse_bag_slot_action(action)?;
-    let item_guid = inventory.slot(bag, slot)?.item_guid;
-    (item_guid != 0).then_some(MerchantRequest::Sell {
-        item_guid,
+    Some(MerchantRequest::Sell {
+        item_guid: clicked_item_guid(action, inventory)?,
         count: 0,
     })
 }
@@ -277,6 +343,87 @@ mod tests {
         merchant.set_tab(MerchantTab::Buyback);
         assert_eq!(sell_request("bag_slot:0:3", &inventory, &merchant), None);
     }
+    #[test]
+    fn right_clicking_a_bag_item_deposits_into_the_open_bank_tab() {
+        use shared::protocol::{BankContents, BankTabView, BankType};
+        let mut inventory = InventoryState::default();
+        inventory.set_item(
+            0,
+            3,
+            InventorySlot {
+                icon_fdid: 132_889,
+                count: 20,
+                item_guid: 41,
+                item_id: 2589,
+                ..Default::default()
+            },
+        );
+        let mut bank = BankState::default();
+        assert_eq!(
+            bank_deposit_request("bag_slot:0:3", &inventory, &bank),
+            None
+        );
+        bank.open(0x0000_0001_0000_0990);
+        let tab = BankTabView {
+            name: "Tab 1".into(),
+            icon: 134_400,
+            deposit_flags: 0,
+            slots: vec![None; 98],
+        };
+        bank.apply(BankContents {
+            bank: BankType::Account,
+            tabs: vec![tab.clone(), tab],
+            next_tab_cost: None,
+            money: Some(0),
+        });
+        bank.show(BankType::Account);
+        bank.select_tab(1);
+        assert_eq!(
+            bank_deposit_request("bag_slot:0:3", &inventory, &bank),
+            Some(BankRequest::Deposit {
+                bank: BankType::Account,
+                tab: 1,
+                item_guid: 41
+            })
+        );
+        assert_eq!(
+            bank_deposit_request("bag_slot:0:4", &inventory, &bank),
+            None
+        );
+        // The character bank has no tab yet: its purchase prompt shows.
+        bank.apply(BankContents {
+            bank: BankType::Character,
+            tabs: Vec::new(),
+            next_tab_cost: Some(10_000),
+            money: None,
+        });
+        bank.show(BankType::Character);
+        assert_eq!(
+            bank_deposit_request("bag_slot:0:3", &inventory, &bank),
+            None
+        );
+
+        let mut guild = GuildBankState::default();
+        assert_eq!(
+            guild_deposit_request("bag_slot:0:3", &inventory, &guild),
+            None
+        );
+        guild.open(9);
+        guild.apply(shared::protocol::GuildBankContents {
+            object: 9,
+            guild_name: "Bank Testers".into(),
+            tabs: Vec::new(),
+            money: 0,
+            withdraw_money_remaining: None,
+            next_tab_cost: Some(1_000_000),
+            is_leader: true,
+        });
+        assert_eq!(
+            guild_deposit_request("bag_slot:0:3", &inventory, &guild),
+            None
+        );
+    }
+
     use game_engine::bag_data::{BagInfo, InventorySlot, ItemQuality};
 
     #[test]
