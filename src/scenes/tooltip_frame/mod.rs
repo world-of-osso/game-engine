@@ -344,9 +344,10 @@ fn hovered_talent_tooltip(
 
 fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
     let mut lines = vec![TooltipLineState::new(tooltip.rank.clone())];
-    for line in wrap_text(&tooltip.description) {
-        lines.push(TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR));
-    }
+    lines.extend(description_lines(
+        &tooltip.description,
+        TOOLTIP_DESCRIPTION_COLOR,
+    ));
     TooltipFrameState {
         visible: true,
         x: 0.0,
@@ -499,9 +500,7 @@ fn spell_tooltip(spell: &CatalogSpell, description: Option<String>) -> TooltipFr
         spell_cooldown_text(spell),
     ));
     let description = description.unwrap_or_default();
-    for line in wrap_text(&description) {
-        lines.push(TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR));
-    }
+    lines.extend(description_lines(&description, TOOLTIP_DESCRIPTION_COLOR));
     TooltipFrameState {
         visible: true,
         x: 0.0,
@@ -637,9 +636,66 @@ fn title_case(text: &str) -> String {
         .join(" ")
 }
 
-/// Greedy word wrap to the measured text width of a tooltip line; blank source lines
-/// are kept as paragraph breaks.
-fn wrap_text(text: &str) -> Vec<String> {
+/// Description paragraphs word-wrapped to the tooltip text width. A paragraph that
+/// opens with a `|cAARRGGBB` colour escape takes that colour; colour escapes and `|r`
+/// are not shown. Blank source lines are kept as paragraph breaks.
+fn description_lines(text: &str, color: [f32; 4]) -> Vec<TooltipLineState> {
+    let mut lines = Vec::new();
+    for paragraph in text.lines().map(str::trim) {
+        let color = leading_color_escape(paragraph).unwrap_or(color);
+        let plain = strip_color_escapes(paragraph);
+        let wrapped = wrap_paragraph(&plain);
+        if wrapped.is_empty() {
+            lines.push(TooltipLineState::colored(String::new(), color));
+        }
+        lines.extend(
+            wrapped
+                .into_iter()
+                .map(|line| TooltipLineState::colored(line, color)),
+        );
+    }
+    while lines.last().is_some_and(|line| line.left_text.is_empty()) {
+        lines.pop();
+    }
+    lines
+}
+
+/// Colour of a `|cAARRGGBB` escape at the start of `text`.
+fn leading_color_escape(text: &str) -> Option<[f32; 4]> {
+    let hex = text
+        .strip_prefix("|c")
+        .or_else(|| text.strip_prefix("|C"))?
+        .get(..8)?;
+    let channel = |at: usize| {
+        u8::from_str_radix(&hex[at..at + 2], 16)
+            .ok()
+            .map(|v| f32::from(v) / 255.0)
+    };
+    Some([channel(2)?, channel(4)?, channel(6)?, channel(0)?])
+}
+
+fn strip_color_escapes(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(pos) = rest.find('|') {
+        out.push_str(&rest[..pos]);
+        let escape = &rest[pos..];
+        let skip = if leading_color_escape(escape).is_some() {
+            10
+        } else if escape.starts_with("|r") || escape.starts_with("|R") {
+            2
+        } else {
+            out.push('|');
+            1
+        };
+        rest = &escape[skip..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Greedy word wrap to the measured text width of a tooltip line.
+fn wrap_paragraph(paragraph: &str) -> Vec<String> {
     let fits = |line: &str| {
         measure_text(line, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE)
             .expect("FrizQuadrata text measurement")
@@ -647,30 +703,24 @@ fn wrap_text(text: &str) -> Vec<String> {
             <= TOOLTIP_TEXT_W
     };
     let mut lines = Vec::new();
-    for paragraph in text.lines().map(str::trim) {
-        let mut line = String::new();
-        for word in paragraph.split_whitespace() {
-            if !line.is_empty() && !fits(&format!("{line} {word}")) {
-                lines.push(std::mem::take(&mut line));
-            }
-            if !line.is_empty() {
-                line.push(' ');
-            }
-            line.push_str(word);
+    let mut line = String::new();
+    for word in paragraph.split_whitespace() {
+        if !line.is_empty() && !fits(&format!("{line} {word}")) {
+            lines.push(std::mem::take(&mut line));
         }
-        lines.push(line);
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
     }
-    while lines.last().is_some_and(String::is_empty) {
-        lines.pop();
+    if !line.is_empty() {
+        lines.push(line);
     }
     lines
 }
 
 fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState {
-    let mut lines: Vec<TooltipLineState> = wrap_text(&aura.description)
-        .into_iter()
-        .map(TooltipLineState::new)
-        .collect();
+    let mut lines = description_lines(&aura.description, TOOLTIP_TEXT_COLOR);
     lines.push(TooltipLineState::key_value(
         "Duration",
         if aura.duration <= 0.0 {
@@ -1165,7 +1215,7 @@ mod tests {
 
     #[test]
     fn description_lines_fit_the_tooltip_text_width() {
-        // Live Slam tooltip text, previously elided after "Physic".
+        // Live Slam tooltip text plus a second sentence, several lines long.
         let text = "Slams an opponent, causing {?$s1} Physical damage. Hits up to 3 \
                     additional targets within 8 yards for 45% of the damage dealt.";
         let tooltip = spell_tooltip(&judgment(), Some(text.into()));
@@ -1180,6 +1230,29 @@ mod tests {
             let (width, _) = measure_text(line, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE).unwrap();
             assert!(width <= TOOLTIP_TEXT_W, "{line:?} is {width}px");
         }
+    }
+
+    #[test]
+    fn description_colour_escapes_colour_their_paragraph_and_are_not_shown() {
+        // Rendered Crusader Strike (35395) description.
+        let text = "Strike the target for 12 Physical damage.\r\n\r\n\
+                    |cFFFFFFFFGenerates 1 Holy Power.|r";
+        let lines = description_lines(text, TOOLTIP_DESCRIPTION_COLOR);
+        let shown: Vec<(&str, [f32; 4])> = lines
+            .iter()
+            .map(|line| (line.left_text.as_str(), line.left_color))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                (
+                    "Strike the target for 12 Physical damage.",
+                    TOOLTIP_DESCRIPTION_COLOR
+                ),
+                ("", TOOLTIP_DESCRIPTION_COLOR),
+                ("Generates 1 Holy Power.", [1.0, 1.0, 1.0, 1.0]),
+            ]
+        );
     }
 
     #[test]
