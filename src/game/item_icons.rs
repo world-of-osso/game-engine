@@ -21,6 +21,11 @@ pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
         })
         .get(&item_id)
         .copied()
+        .or_else(|| {
+            crate::item_catalog::item_catalog_entry(item_id)
+                .map(|entry| entry.icon_fdid)
+                .filter(|icon| *icon != 0)
+        })
 }
 
 fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
@@ -36,17 +41,7 @@ fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
         &crate::paths::resolve_data_path("ItemModifiedAppearance.csv"),
         ["ItemID", "ItemAppearanceID", "OrderIndex"],
     )?;
-    let mut icons = item_icons(modified, &appearance_icon);
-    let items = read_columns(
-        &crate::paths::resolve_data_path("db2/12.1.0.69933/Item.csv"),
-        ["ID", "IconFileDataID", "ID"],
-    )?;
-    for [item_id, icon, _] in items {
-        if icon != 0 {
-            icons.entry(item_id).or_insert(icon);
-        }
-    }
-    Ok(icons)
+    Ok(item_icons(modified, &appearance_icon))
 }
 
 /// Keeps each item's lowest-`OrderIndex` appearance that has an icon.
