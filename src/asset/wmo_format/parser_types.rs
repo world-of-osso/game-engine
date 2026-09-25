@@ -426,6 +426,7 @@ pub struct MohdHeader {
     pub _n_lod: u16,
 }
 
+/// SMOMaterial (wowdev WMO MOMT), 64 bytes.
 #[derive(BinRead)]
 #[br(little)]
 pub struct RawWmoMaterialDef {
@@ -434,14 +435,14 @@ pub struct RawWmoMaterialDef {
     pub blend_mode: u32,
     pub texture_fdid: u32,
     pub _sidn_emissive_color: u32,
-    pub _frame_sidn_runtime_data: [u32; 2],
+    pub _frame_sidn_color: u32,
     pub texture_2_fdid: u32,
     pub _diff_color: u32,
+    pub _terrain_type: u32,
     pub texture_3_fdid: u32,
     pub _color_2: u32,
-    pub _terrain_type: u32,
-    pub _texture_3_flags: u32,
-    pub _run_time_data: [u32; 3],
+    pub _flags_2: u32,
+    pub _run_time_data: [u32; 4],
 }
 
 #[derive(BinRead)]
