@@ -32,6 +32,7 @@ pub use inworld_unit_frames_power::PowerBarState;
 pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
 pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
 pub const ACTION_UNIT_MENU_CLOSE: &str = "unit_menu_close";
+pub const ACTION_UNIT_MENU_INSPECT: &str = "unit_menu_inspect";
 pub const UNIT_MENU_W: f32 = 140.0;
 const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
     ContextMenuItem {
@@ -51,9 +52,9 @@ const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
     },
 ];
 
-/// Menu height with `group_items` extra group entries.
-pub fn unit_menu_height(group_items: usize) -> f32 {
-    menu_height_for_items(UNIT_MENU_ITEMS.len() + group_items)
+/// Menu height with `player_items` extra player entries.
+pub fn unit_menu_height(player_items: usize) -> f32 {
+    menu_height_for_items(UNIT_MENU_ITEMS.len() + player_items)
 }
 
 #[derive(Clone)]
@@ -132,8 +133,9 @@ pub struct UnitFrameMenuState {
     pub title: String,
     pub x: f32,
     pub y: f32,
-    /// Group entries (`UnitPopup` Invite / Promote / Leave …), shown before Close.
-    pub group_items: Vec<UnitMenuItem>,
+    /// Player-unit entries (`UnitPopup` Invite / Promote / Leave … then Inspect), shown
+    /// before Close.
+    pub player_items: Vec<UnitMenuItem>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -475,7 +477,7 @@ fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
         .split_last()
         .expect("unit menu ends with Close");
     let mut items: Vec<ContextMenuItem<'_>> = focus.to_vec();
-    items.extend(state.group_items.iter().map(|item| ContextMenuItem {
+    items.extend(state.player_items.iter().map(|item| ContextMenuItem {
         name: &item.name,
         label: &item.label,
         action: &item.action,
