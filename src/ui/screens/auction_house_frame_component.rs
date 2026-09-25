@@ -278,7 +278,9 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             name: {DynName(ROOT_FRAME.to_string())},
             width: FRAME_W,
             height: FRAME_H,
-            strata: FrameStrata::Dialog,
+            // Below `UIErrorsFrame` (`frameStrata="DIALOG"`, Blizzard_UIErrorsFrame/Mainline/UIErrorsFrame.xml) like every Retail
+            // UIParent panel, so server errors show over the frame.
+            strata: FrameStrata::High,
             hidden: hide,
             pos_type: "absolute",
             left: 0.0,
