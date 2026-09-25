@@ -4,15 +4,12 @@ use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, Ra
 use bevy::prelude::*;
 
 use crate::sky::SkyDome;
-use crate::taxi::TaxiCameraTarget;
 use crate::terrain_heightmap::TerrainHeightmap;
 
 use super::{COLLISION_OFFSET, COLLISION_RECOVERY_SPEED, EYE_HEIGHT, GROUND_Y, Player, WowCamera};
 
 type FollowPlayerQuery<'w, 's> =
     Query<'w, 's, (Entity, &'static Transform), (With<Player>, Without<WowCamera>)>;
-type FollowTaxiQuery<'w, 's> =
-    Query<'w, 's, (Entity, &'static Transform), (With<TaxiCameraTarget>, Without<WowCamera>)>;
 type FollowCameraQuery<'w, 's> =
     Query<'w, 's, (&'static mut WowCamera, &'static mut Transform), Without<Player>>;
 
@@ -134,13 +131,7 @@ fn compute_effective_distance(
     cam.distance
 }
 
-fn follow_target(
-    taxi_q: &FollowTaxiQuery<'_, '_>,
-    player_q: &FollowPlayerQuery<'_, '_>,
-) -> Option<(Entity, Vec3)> {
-    if let Ok((entity, transform)) = taxi_q.single() {
-        return Some((entity, transform.translation));
-    }
+fn follow_target(player_q: &FollowPlayerQuery<'_, '_>) -> Option<(Entity, Vec3)> {
     let Ok((entity, transform)) = player_q.single() else {
         return None;
     };
@@ -150,14 +141,13 @@ fn follow_target(
 pub(super) fn camera_follow(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
-    taxi_q: FollowTaxiQuery<'_, '_>,
     player_q: FollowPlayerQuery<'_, '_>,
     mut camera_q: FollowCameraQuery<'_, '_>,
     mut ray_cast: MeshRayCast,
     sky_q: Query<Entity, With<SkyDome>>,
     children_q: Query<&Children>,
 ) {
-    let Some((player_entity, target_translation)) = follow_target(&taxi_q, &player_q) else {
+    let Some((player_entity, target_translation)) = follow_target(&player_q) else {
         return;
     };
     let Ok((mut cam, mut cam_tf)) = camera_q.single_mut() else {

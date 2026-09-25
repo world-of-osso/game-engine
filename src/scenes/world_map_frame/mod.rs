@@ -4,8 +4,8 @@ use game_engine::input_bindings::InputAction;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::world_map_frame_component::{
-    ACTION_WORLD_MAP_CLOSE, ACTION_WORLD_MAP_TAXI_PIN_PREFIX, FlightPathSegment, MapPin,
-    MapPinType, WorldMapFrameState, ZoneOverlay, world_map_frame_screen,
+    ACTION_WORLD_MAP_CLOSE, FlightPathSegment, MapPin, MapPinType, WorldMapFrameState, ZoneOverlay,
+    world_map_frame_screen,
 };
 use game_engine::world_map_data::{PinType, WorldMapState};
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -137,7 +137,6 @@ fn handle_world_map_frame_input(
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     ui: Res<UiState>,
     mut window_manager: ResMut<WindowManager>,
-    mut taxi: ResMut<crate::taxi::TaxiState>,
 ) {
     if !window_manager.is_open(WindowId::WorldMap)
         || !crate::networking::gameplay_input_allowed(reconnect)
@@ -161,19 +160,7 @@ fn handle_world_map_frame_input(
     };
     if action == ACTION_WORLD_MAP_CLOSE {
         window_manager.close(WindowId::WorldMap);
-        return;
     }
-    if let Some(pin_index) = parse_taxi_pin_action(&action) {
-        taxi.queue_pin(pin_index);
-        window_manager.close(WindowId::WorldMap);
-    }
-}
-
-fn parse_taxi_pin_action(action: &str) -> Option<usize> {
-    action
-        .strip_prefix(ACTION_WORLD_MAP_TAXI_PIN_PREFIX)?
-        .parse()
-        .ok()
 }
 
 fn build_state(
@@ -419,11 +406,5 @@ mod tests {
         );
 
         assert_eq!(state.map_texture_fdid, 654321);
-    }
-
-    #[test]
-    fn parse_taxi_pin_action_extracts_pin_index() {
-        assert_eq!(parse_taxi_pin_action("world_map_taxi_pin:7"), Some(7));
-        assert_eq!(parse_taxi_pin_action("world_map_close"), None);
     }
 }

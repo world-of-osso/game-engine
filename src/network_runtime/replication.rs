@@ -11,8 +11,8 @@ use lightyear::prelude::client::Remote;
 use shared::casting::CastState;
 use shared::components::{
     CombatStatus, EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
-    MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate,
-    UnitLevel, UnitPowers, UnitTarget, Zone,
+    MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras,
+    UnitFactionTemplate, UnitLevel, UnitPowers, UnitTarget, Zone,
 };
 use shared::protocol::{GameObjectInfo, NpcFlags};
 
@@ -170,6 +170,7 @@ struct EntitySnapshot {
     movement_speed: Option<MovementSpeed>,
     combat_status: Option<CombatStatus>,
     mounted: Option<Mounted>,
+    movement_control: Option<MovementControl>,
     zone: Option<Zone>,
     guild_membership: Option<GuildMembership>,
     presence_status: Option<PresenceStatus>,
@@ -200,6 +201,7 @@ impl EntitySnapshot {
             movement_speed: entity.get::<MovementSpeed>().copied(),
             combat_status: entity.get::<CombatStatus>().copied(),
             mounted: entity.get::<Mounted>().cloned(),
+            movement_control: entity.get::<MovementControl>().copied(),
             zone: entity.get::<Zone>().copied(),
             guild_membership: entity.get::<GuildMembership>().cloned(),
             presence_status: entity.get::<PresenceStatus>().copied(),
@@ -226,6 +228,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.movement_speed);
             apply_component(&mut entity, self.combat_status);
             apply_component(&mut entity, self.mounted);
+            apply_component(&mut entity, self.movement_control);
             apply_component(&mut entity, self.zone);
             apply_component(&mut entity, self.guild_membership);
             apply_component(&mut entity, self.presence_status);
@@ -326,6 +329,25 @@ mod tests {
             snapshots: vec![snapshot],
         }
         .apply(world);
+    }
+
+    #[test]
+    fn movement_control_snapshot_carries_teleports_and_server_control() {
+        let mut worker = World::new();
+        let source = source_player(&mut worker);
+        let control = MovementControl {
+            epoch: 4,
+            controlled: true,
+        };
+        worker.entity_mut(source).insert(control);
+        let mut main = main_app();
+        apply(main.world_mut(), snapshot(&worker, source, source, 1));
+        let mirror = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        assert_eq!(main.world().get::<MovementControl>(mirror), Some(&control));
     }
 
     #[test]
