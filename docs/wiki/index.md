@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-09-23.
+Last updated: 2026-09-25.
 
 ## Systems
 
@@ -56,6 +56,7 @@ Architecture decisions and feature designs.
 - [solarityclient-performance-comparison](investigations/solarityclient-performance-comparison.md) — What solarityclient does for frame cost vs our entity-heavy M2/terrain spawning; ranked candidates, none measured yet.
 - [empty-window-baseline](investigations/empty-window-baseline.md) — Native/core/reactive blank-renderer stages remain low-cost; continuous blank rendering reaches 216.31478% process CPU before project services. Independent runtime audit passes the bounded attribution.
 - [abbey-interior-black-world](investigations/abbey-interior-black-world.md) — MOCV lighting alpha used as vertex opacity discarded interior WMO color while the depth prepass occluded the world
+- [stormwind-dark-render](investigations/stormwind-dark-render.md) — unified MapObj (MOHD 0x02) district WMOs drawn unlit as texture×MOCV turned black; MOCV is now added to daylight/MOHD ambient
 - [npc-motion-validation](investigations/npc-motion-validation.md) — Revision-pinned Northshire NPC idle/facing, landing, fog, picking, WMO basis, and terrain-streaming evidence with explicit remaining boundaries.
 
 Root cause analyses and debug findings.
