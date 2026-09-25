@@ -400,11 +400,19 @@ pub(super) fn buy_dialog(dialog: Option<&BuyDialogView>) -> Element {
             height: h,
             strata: FrameStrata::Dialog,
             frame_level: 200.0,
-            background_color: "0.0,0.0,0.0,0.85",
             style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
             pos_type: "absolute",
             left: x,
             top: y,
+            r#frame {
+                name: "AuctionHouseFrameBuyDialogBg",
+                width: {w - 2.0 * 8.0},
+                height: {h - 2.0 * 8.0},
+                background_color: "0.0,0.0,0.0,0.9",
+                pos_type: "absolute",
+                left: 8.0,
+                top: 8.0,
+            }
             fontstring {
                 name: "AuctionHouseFrameBuyDialogItemText",
                 width: {w - 40.0},
