@@ -49,8 +49,11 @@ pub(super) fn sync_ui_camera_msaa(
     }
 }
 
-pub(crate) fn additive_particle_glow_tonemapping() -> Tonemapping {
-    Tonemapping::TonyMcMapface
+/// Retail shaders output the final authored-space colour; any tonemapping curve
+/// changes it (TonyMcMapface turns a 250-level texel into 195, see
+/// `retail_m2_material_gpu_tests::production_tonemapping_changes_retail_output`).
+pub(crate) fn world_camera_tonemapping() -> Tonemapping {
+    Tonemapping::None
 }
 
 pub(super) fn additive_particle_glow_bloom(graphics: &GraphicsOptions) -> Option<Bloom> {

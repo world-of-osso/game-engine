@@ -9,7 +9,7 @@ use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
-use crate::camera::additive_particle_glow_tonemapping;
+use crate::camera::world_camera_tonemapping;
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -373,7 +373,7 @@ fn debug_scene_camera_bundle(
             clear_color: ClearColorConfig::Custom(composition.clear_color),
             ..default()
         },
-        additive_particle_glow_tonemapping(),
+        world_camera_tonemapping(),
         Projection::Perspective(PerspectiveProjection {
             fov: fov_degrees.to_radians(),
             ..default()
