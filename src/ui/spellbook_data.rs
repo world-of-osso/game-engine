@@ -99,6 +99,7 @@ mod tests {
                 SpecTabInfo {
                     name: "Protection".into(),
                     class_id: 2,
+                    order_index: 1,
                     initial: false,
                     spells: [76671].into(),
                 },

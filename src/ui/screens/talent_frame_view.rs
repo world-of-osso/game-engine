@@ -11,7 +11,7 @@ use super::talent_frame_component::{
     SectionLabel, SpecButtonView, TREE_BOTTOM, TREE_INSET, TREE_TOP, TalentTreeView,
     talent_choice_name, talent_node_name,
 };
-use crate::spell_catalog::SpellCatalog;
+use crate::spell_catalog::{SpellCatalog, SpellTextContext};
 use crate::talent_tree::rules::{self, ConfigEntry};
 use crate::talent_tree::session::{TalentSession, is_choice, total_ranks};
 use crate::talent_tree::{
@@ -43,6 +43,7 @@ pub struct TalentViewInput<'a> {
     pub session: &'a TalentSession<'a>,
     pub config: &'a [ConfigEntry],
     pub catalog: &'a SpellCatalog,
+    pub text_ctx: &'a SpellTextContext,
     pub has_pending: bool,
 }
 
@@ -333,12 +334,13 @@ fn border_art_name(shape: NodeShape, look: NodeLook) -> String {
     format!("talents-node-{shape}-{color}")
 }
 
-fn tooltip(entry: &TalentEntry, held: u32, catalog: &SpellCatalog) -> TalentTooltip {
+fn tooltip(entry: &TalentEntry, held: u32, input: &TalentViewInput) -> TalentTooltip {
     TalentTooltip {
-        title: entry_name(entry, catalog),
+        title: entry_name(entry, input.catalog),
         rank: format!("Rank {held}/{}", entry.max_ranks),
-        description: catalog
-            .render_description(entry.spell_id)
+        description: input
+            .catalog
+            .render_description(entry.spell_id, input.text_ctx)
             .unwrap_or_default(),
     }
 }
@@ -374,17 +376,16 @@ fn node_view(
         .or(node.entries.first());
     if let Some(entry) = shown {
         let entry_held = total_ranks(config, node.id, entry.id);
-        tooltips.by_frame.insert(
-            talent_node_name(node.id),
-            tooltip(entry, entry_held, input.catalog),
-        );
+        tooltips
+            .by_frame
+            .insert(talent_node_name(node.id), tooltip(entry, entry_held, input));
     }
     if is_choice(node) {
         for entry in &icon_entries {
             let entry_held = total_ranks(config, node.id, entry.id);
             tooltips.by_frame.insert(
                 talent_choice_name(node.id, entry.id),
-                tooltip(entry, entry_held, input.catalog),
+                tooltip(entry, entry_held, input),
             );
         }
     }

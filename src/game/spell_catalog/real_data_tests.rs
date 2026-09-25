@@ -54,8 +54,19 @@ fn catalog() -> Option<&'static SpellCatalogData> {
 }
 
 fn description(id: u32) -> String {
-    let data = catalog().unwrap();
-    data.render_description(id).unwrap()
+    description_for(id, &SpellTextContext::default())
+}
+
+fn description_for(id: u32, ctx: &SpellTextContext) -> String {
+    catalog().unwrap().render_description(id, ctx).unwrap()
+}
+
+fn aura_description(id: u32) -> String {
+    let ctx = SpellTextContext::default();
+    catalog()
+        .unwrap()
+        .render_aura_description(id, &ctx)
+        .unwrap()
 }
 
 #[test]
@@ -80,9 +91,7 @@ fn fireball_fields_and_description() {
     );
     assert_eq!(
         description(133),
-        "Throws a fiery ball that causes 0 Fire damage.$?a157642[\r\n\r\nEach time your Fireball \
-         fails to critically strike a target, it gains a stacking 20% increased critical strike \
-         chance. Effect ends when Fireball critically strikes.][]"
+        "Throws a fiery ball that causes {?$s1} Fire damage."
     );
 }
 
@@ -101,8 +110,7 @@ fn crusader_strike_charges_and_description() {
     assert_eq!(strike.powers.len(), 4);
     assert_eq!(
         description(35395),
-        "Strike the target for $<damage> $?s403664 [Holystrike][Physical] damage.$?a196926[\r\n\
-         \r\nReduces the cooldown of Judgment by ${$196926m1/-1000}.1 sec.][]\r\n\r\n\
+        "Strike the target for {?$<damage>} Physical damage.\r\n\r\n\
          |cFFFFFFFFGenerates 1 Holy Power."
     );
 }
@@ -112,13 +120,45 @@ fn shadow_word_pain_description_and_aura() {
     let Some(data) = catalog() else { return };
     assert_eq!(
         description(589),
-        "A word of darkness that causes $?a390707[${$s1*(1+$390707s1/100)}][0] Shadow damage \
-         instantly, and an additional $?a390707[${$o2*(1+$390707s1/100)}][0] Shadow damage over \
-         16 sec.$?s137033[\r\n\r\n|cFFFFFFFFGenerates ${$m3/100} Insanity.|r][]"
+        "A word of darkness that causes {?$s1} Shadow damage instantly, and an additional {?$o2} \
+         Shadow damage over 16 sec."
+    );
+    // Shadow priests know 137033 (Shadow Priest spec passive).
+    let shadow = SpellTextContext {
+        known_spells: vec![137033],
+        ..Default::default()
+    };
+    assert!(
+        description_for(589, &shadow)
+            .ends_with("over 16 sec.\r\n\r\n|cFFFFFFFFGenerates 3 Insanity.|r")
     );
     assert_eq!(
-        data.render_aura_description(589).unwrap(),
-        "Suffering 0 Shadow damage every 2 sec."
+        data.render_aura_description(589, &shadow).unwrap(),
+        "Suffering {?$w2} Shadow damage every 2 sec."
+    );
+}
+
+#[test]
+fn buff_auras_drop_zero_valued_conditional_lines() {
+    if catalog().is_none() {
+        return;
+    }
+    // Battle Shout: "Attack power increased by $w1%.$?$w3>0[..Stamina increased by $w3%.][]"
+    // with effect 3 at 0 points.
+    assert_eq!(aura_description(6673), "Attack power increased by 5%.");
+    // Power Word: Fortitude: "$?$w2>0[..Magic damage taken reduced by $w2%.][]".
+    assert_eq!(aura_description(21562), "Stamina increased by 5%.");
+}
+
+#[test]
+fn mortal_strike_resolves_the_healing_debuff_by_reference() {
+    if catalog().is_none() {
+        return;
+    }
+    assert_eq!(
+        description(12294),
+        "A vicious strike that deals {?$s1} Physical damage and reduces the effectiveness of \
+         healing on the target by 50% for 10 sec."
     );
 }
 
@@ -137,7 +177,8 @@ fn token_coverage_on_real_spells() {
          1 hour."
     );
     assert!(
-        description(6254).ends_with("affects up to 3 targets, causing 5.19 Nature damage to each.")
+        description(6254)
+            .ends_with("affects up to 3 targets, causing {?$s1} Nature damage to each.")
     );
     assert_eq!(
         description(15572),

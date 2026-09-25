@@ -1,143 +1,518 @@
-//! Static `$token` substitution for spell descriptions.
+//! Retail `$token` substitution for spell descriptions; grammar notes and
+//! sources in `docs/reference/spell-description-tokens.md`.
 //!
-//! Supported: `$s`/`$w`/`$m`/`$t`/`$a`/`$o`/`$x` with a 1-9 effect index, `$d`,
-//! `$u`, `$n`, `$h`, each optionally prefixed by a spell id (`$12345s1`).
-//! Values come from the DB rows alone: no caster stats, so spell-power scaled
-//! effects render their stored base points. Anything else (`${expr}`,
-//! `$?cond`, `$<var>`, `$@name`, `$/n;s1`, `$l`/`$g` plurals) and tokens whose
-//! data is absent stay verbatim.
+//! Resolved from the local DB2 rows and the viewing player's [`SpellTextContext`]:
+//! effect tokens (`$s1`, `$m1`, `$w1`, `$t1`, `$a1`, `$o1`, `$x1`, upper-case
+//! variants), `$d`, `$u`, `$n`, `$h`, `$r`, each optionally prefixed by a spell id;
+//! `$?cond[..][..]` chains over known spells (`s`), player auras (`a`), the spec
+//! index (`c`) and numeric comparisons; `${expr}.N`; `$/N;tok` and `$*N;tok`;
+//! `$lsingular:plural;`; `$@spelldesc`/`$@spelltooltip`/`$@spellaura`/
+//! `$@auradesc`/`$@spellname` references.
+//!
+//! Anything else (caster stats such as `$AP`, spell-power or level scaled effect
+//! points, `$<var>` description variables, `$g` gender forms, inline icons) renders
+//! as the visible marker `{?<token>}` and logs one warning per spell and token.
 
-use super::{CatalogSpell, SpellCatalogData};
+use std::collections::HashSet;
+use std::sync::{Mutex, OnceLock};
+
+use bevy::log::warn;
+
+use super::render_eval::{Expr, eval_condition, parse_expr};
+use super::{CatalogSpell, SpellCatalogData, SpellTextContext};
+
+/// `$@spelldesc` nesting beyond this renders a marker (reference cycles exist).
+const MAX_REFERENCE_DEPTH: u8 = 4;
 
 pub(super) fn render_spell_text(
     text: &str,
     spell: &CatalogSpell,
     catalog: &SpellCatalogData,
+    ctx: &SpellTextContext,
 ) -> String {
-    let mut out = String::with_capacity(text.len());
-    let mut rest = text;
-    while let Some(pos) = rest.find('$') {
-        out.push_str(&rest[..pos]);
-        rest = &rest[pos..];
-        let consumed = render_token(rest, spell, catalog, &mut out);
-        rest = &rest[consumed..];
-    }
-    out.push_str(rest);
-    out
+    let renderer = Renderer {
+        catalog,
+        ctx,
+        depth: 0,
+    };
+    renderer.render(text, spell)
 }
 
-/// `text` starts with `$`. Appends the rendering and returns the bytes consumed.
-fn render_token(
-    text: &str,
-    spell: &CatalogSpell,
-    catalog: &SpellCatalogData,
-    out: &mut String,
-) -> usize {
-    let body = &text[1..];
-    if body.starts_with('{') {
-        let len = 1 + braced_len(body);
-        out.push_str(&text[..len]);
-        return len;
-    }
-    let Some(token) = parse_token(body) else {
-        out.push('$');
-        return 1;
-    };
-    let len = 1 + token.len;
-    let source = match token.spell_id {
-        Some(id) => catalog.get(id),
-        None => Some(spell),
-    };
-    match source.and_then(|source| token_value(source, token.letter, token.index)) {
-        Some(value) => out.push_str(&value),
-        None => out.push_str(&text[..len]),
-    }
-    len
+pub(super) struct Renderer<'a> {
+    pub catalog: &'a SpellCatalogData,
+    pub ctx: &'a SpellTextContext,
+    depth: u8,
 }
 
-/// Length of a `{...}` group including nested braces; unterminated groups run to the end.
-fn braced_len(body: &str) -> usize {
-    let mut depth = 0usize;
-    for (pos, ch) in body.char_indices() {
-        match ch {
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    return pos + 1;
-                }
+/// A token whose value the local data cannot supply.
+#[derive(Debug, PartialEq)]
+pub(super) struct Unresolved;
+
+/// Output under construction; `last_number` feeds `$l` plural forms.
+struct Out {
+    text: String,
+    last_number: Option<f64>,
+}
+
+impl Renderer<'_> {
+    fn render(&self, text: &str, spell: &CatalogSpell) -> String {
+        let mut out = Out {
+            text: String::with_capacity(text.len()),
+            last_number: None,
+        };
+        self.render_into(text, spell, &mut out);
+        out.text
+    }
+
+    fn render_into(&self, text: &str, spell: &CatalogSpell, out: &mut Out) {
+        let mut rest = text;
+        while let Some(pos) = rest.find('$') {
+            out.text.push_str(&rest[..pos]);
+            rest = &rest[pos..];
+            let consumed = self.render_token(rest, spell, out);
+            rest = &rest[consumed..];
+        }
+        out.text.push_str(rest);
+    }
+
+    /// `text` starts with `$`. Appends the rendering and returns the bytes consumed.
+    fn render_token(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let body = &text[1..];
+        match body.chars().next() {
+            Some('?') => self.render_conditional(text, spell, out),
+            Some('{') => self.render_expression(text, spell, out),
+            Some('@') => self.render_reference(text, spell, out),
+            Some('<') => {
+                let len = body.find('>').map_or(text.len(), |end| end + 2);
+                self.unresolved(spell, &text[..len], out);
+                len
             }
-            _ => {}
+            Some(op @ ('/' | '*')) => self.render_scaled(text, op, spell, out),
+            _ => self.render_simple(text, spell, out),
         }
     }
-    body.len()
+
+    fn render_simple(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let Some(token) = parse_value_token(&text[1..]) else {
+            out.text.push('$');
+            return 1;
+        };
+        let len = 1 + token.len;
+        let raw = &text[..len];
+        if let Some(form_len) = word_form_len(&text[1..], &token) {
+            let len = 1 + form_len;
+            self.render_word_form(&text[..len], spell, out);
+            return len;
+        }
+        if let Some(target) = token.reference_target() {
+            self.render_description_of(target, raw, false, spell, out);
+            return len;
+        }
+        if token.name.eq_ignore_ascii_case("d") {
+            match self.source(&token, spell).and_then(duration_text) {
+                Some(value) => out.text.push_str(&value),
+                None => self.unresolved(spell, raw, out),
+            }
+            return len;
+        }
+        match self.value(&token, spell) {
+            Ok(value) => push_number(out, value, None),
+            Err(Unresolved) => self.unresolved(spell, raw, out),
+        }
+        len
+    }
+
+    /// `$/1000;s1` and `$*2;s1`: the token scaled by a constant.
+    fn render_scaled(&self, text: &str, op: char, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let after_op = &text[2..];
+        let parsed = after_op.split_once(';').and_then(|(factor, token_text)| {
+            let factor: f64 = factor.parse().ok()?;
+            let token = parse_value_token(token_text)?;
+            let len = factor_len(after_op) + token.len;
+            Some((factor, token, len))
+        });
+        let Some((factor, token, len)) = parsed else {
+            out.text.push('$');
+            return 1;
+        };
+        let len = 2 + len;
+        match self.value(&token, spell) {
+            Ok(value) if op == '/' && factor != 0.0 => push_number(out, value / factor, None),
+            Ok(value) if op == '*' => push_number(out, value * factor, None),
+            _ => self.unresolved(spell, &text[..len], out),
+        }
+        len
+    }
+
+    fn render_expression(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let braced = braced_len(&text[1..], '{', '}');
+        let mut len = 1 + braced;
+        let precision = decimal_suffix(&text[len..]);
+        if precision.is_some() {
+            len += 2;
+        }
+        let inner = text.get(2..braced).unwrap_or_default();
+        let value = parse_expr(inner).and_then(|expr| self.evaluate(&expr, spell));
+        match value {
+            Ok(value) => push_number(out, value, Some(precision.unwrap_or(0))),
+            Err(Unresolved) => self.unresolved(spell, &text[..len], out),
+        }
+        len
+    }
+
+    /// `$?c1[a]?c2[b][else]`, whitespace allowed between a condition and its branch.
+    fn render_conditional(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let chain = parse_conditional_chain(text);
+        if chain.arms.is_empty() {
+            self.unresolved(spell, "$?", out);
+            return 2;
+        }
+        let mut chosen = None;
+        for arm in &chain.arms {
+            match eval_condition(arm.condition, self, spell) {
+                Ok(true) => {
+                    chosen = Some(arm.branch);
+                    break;
+                }
+                Ok(false) => {}
+                Err(Unresolved) => {
+                    let raw = format!("$?{}", arm.condition.trim());
+                    self.unresolved(spell, &raw, out);
+                    return chain.len;
+                }
+            }
+        }
+        if let Some(branch) = chosen.or(chain.otherwise) {
+            self.render_into(branch, spell, out);
+        }
+        chain.len
+    }
+
+    fn render_reference(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let body = &text[2..];
+        let name_len = body.bytes().take_while(u8::is_ascii_alphabetic).count();
+        let digits = body[name_len..]
+            .bytes()
+            .take_while(u8::is_ascii_digit)
+            .count();
+        let len = 2 + name_len + digits;
+        let raw = &text[..len];
+        let target = body[name_len..name_len + digits].parse::<u32>().ok();
+        match (&body[..name_len], target) {
+            ("spelldesc" | "spelltooltip", Some(id)) => {
+                self.render_description_of(id, raw, false, spell, out)
+            }
+            ("spellaura" | "auradesc", Some(id)) => {
+                self.render_description_of(id, raw, true, spell, out)
+            }
+            ("spellname", Some(id)) => match self.catalog.get(id) {
+                Some(target) => out.text.push_str(&target.name),
+                None => self.unresolved(spell, raw, out),
+            },
+            _ => self.unresolved(spell, raw, out),
+        }
+        len
+    }
+
+    fn render_description_of(
+        &self,
+        id: u32,
+        raw: &str,
+        aura: bool,
+        spell: &CatalogSpell,
+        out: &mut Out,
+    ) {
+        let target = self.catalog.get(id);
+        let (Some(target), true) = (target, self.depth < MAX_REFERENCE_DEPTH) else {
+            self.unresolved(spell, raw, out);
+            return;
+        };
+        let nested = Renderer {
+            catalog: self.catalog,
+            ctx: self.ctx,
+            depth: self.depth + 1,
+        };
+        let text = if aura {
+            &target.aura_description
+        } else {
+            &target.description
+        };
+        out.text.push_str(&nested.render(text, target));
+    }
+
+    /// `$lpoint:points;` picks by the last number shown.
+    fn render_word_form(&self, raw: &str, spell: &CatalogSpell, out: &mut Out) {
+        let is_plural_form = raw[1..].starts_with(['l', 'L']);
+        let forms = &raw[2..raw.len() - 1];
+        match (is_plural_form, out.last_number, forms.split_once(':')) {
+            (true, Some(number), Some((singular, plural))) => {
+                let word = if number == 1.0 { singular } else { plural };
+                out.text.push_str(word);
+            }
+            _ => self.unresolved(spell, raw, out),
+        }
+    }
+
+    fn source<'s>(
+        &'s self,
+        token: &ValueToken,
+        spell: &'s CatalogSpell,
+    ) -> Option<&'s CatalogSpell> {
+        match token.spell_id {
+            Some(id) => self.catalog.get(id),
+            None => Some(spell),
+        }
+    }
+
+    /// Numeric value of a letter token (`$d` in seconds).
+    pub(super) fn value(
+        &self,
+        token: &ValueToken,
+        spell: &CatalogSpell,
+    ) -> Result<f64, Unresolved> {
+        let source = self.source(token, spell).ok_or(Unresolved)?;
+        letter_value(source, token).ok_or(Unresolved)
+    }
+
+    pub(super) fn evaluate(&self, expr: &Expr, spell: &CatalogSpell) -> Result<f64, Unresolved> {
+        expr.eval(&|token| self.value(token, spell))
+    }
+
+    fn unresolved(&self, spell: &CatalogSpell, raw: &str, out: &mut Out) {
+        warn_unresolved(spell.id, raw);
+        out.text.push_str("{?");
+        out.text.push_str(raw.trim());
+        out.text.push('}');
+        out.last_number = None;
+    }
 }
 
-struct Token {
-    spell_id: Option<u32>,
-    letter: char,
+fn warn_unresolved(spell_id: u32, raw: &str) {
+    static WARNED: OnceLock<Mutex<HashSet<(u32, String)>>> = OnceLock::new();
+    let warned = WARNED.get_or_init(Default::default);
+    let first = warned
+        .lock()
+        .map(|mut set| set.insert((spell_id, raw.to_string())))
+        .unwrap_or(true);
+    if first {
+        warn!("spell {spell_id} description: unresolved token {raw:?}");
+    }
+}
+
+fn push_number(out: &mut Out, value: f64, decimals: Option<usize>) {
+    out.text.push_str(&match decimals {
+        Some(decimals) => format_fixed(value, decimals),
+        None => format_number(value),
+    });
+    out.last_number = Some(value);
+}
+
+/// `[digits]name[index]` after a `$`.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct ValueToken {
+    pub spell_id: Option<u32>,
+    pub name: String,
     /// Zero-based effect index.
-    index: Option<u8>,
-    len: usize,
+    pub index: Option<u8>,
+    pub len: usize,
 }
 
-fn parse_token(body: &str) -> Option<Token> {
+impl ValueToken {
+    /// `$spelldesc123` without the `@`.
+    fn reference_target(&self) -> Option<u32> {
+        self.name.strip_prefix("spelldesc")?.parse().ok()
+    }
+}
+
+pub(super) fn parse_value_token(body: &str) -> Option<ValueToken> {
     let digits = body.bytes().take_while(u8::is_ascii_digit).count();
     let spell_id = match digits {
         0 => None,
         _ => Some(body[..digits].parse().ok()?),
     };
-    let letter = body[digits..]
-        .chars()
-        .next()
-        .filter(char::is_ascii_alphabetic)?
-        .to_ascii_lowercase();
-    let after_letter = digits + 1;
-    let index = body[after_letter..]
+    let letters = body[digits..]
+        .bytes()
+        .take_while(u8::is_ascii_alphabetic)
+        .count();
+    if letters == 0 {
+        return None;
+    }
+    let mut name = body[digits..digits + letters].to_string();
+    let mut len = digits + letters;
+    if name == "spelldesc" {
+        let id_len = body[len..].bytes().take_while(u8::is_ascii_digit).count();
+        name.push_str(&body[len..len + id_len]);
+        len += id_len;
+        return Some(ValueToken {
+            spell_id,
+            name,
+            index: None,
+            len,
+        });
+    }
+    let index = body[len..]
         .bytes()
         .next()
         .filter(|byte| (b'1'..=b'9').contains(byte))
         .map(|byte| byte - b'1');
-    Some(Token {
+    len += usize::from(index.is_some());
+    Some(ValueToken {
         spell_id,
-        letter,
+        name,
         index,
-        len: after_letter + usize::from(index.is_some()),
+        len,
     })
 }
 
-fn token_value(spell: &CatalogSpell, letter: char, index: Option<u8>) -> Option<String> {
-    let effect = || index.and_then(|index| spell.effect(index));
-    match letter {
-        's' | 'w' => Some(format_number(effect()?.base_points.abs())),
-        'm' => Some(format_number(effect()?.base_points)),
-        't' => positive(effect()?.aura_period_ms).map(|ms| format_number(ms as f32 / 1000.0)),
-        'a' => Some(effect()?.radius_yd)
-            .filter(|radius| *radius > 0.0)
-            .map(format_number),
-        'o' => periodic_total(spell, effect()?.base_points, effect()?.aura_period_ms),
-        'x' => positive(effect()?.chain_targets).map(|targets| targets.to_string()),
-        'd' => positive(spell.duration_ms).map(format_duration),
-        'u' => positive(spell.max_stacks).map(|stacks| stacks.to_string()),
-        'n' => positive(spell.proc_charges).map(|charges| charges.to_string()),
-        'h' => positive(spell.proc_chance).map(|chance| chance.to_string()),
-        _ => None,
+/// Length after `$` of `$lsingular:plural;` / `$gmale:female;`, if `token` starts one.
+fn word_form_len(body: &str, token: &ValueToken) -> Option<usize> {
+    if token.spell_id.is_some() || !token.name.starts_with(['l', 'L', 'g', 'G']) {
+        return None;
     }
+    let end = body.find(';')?;
+    let form = &body[1..end];
+    let plain = !form.contains(['$', '\n', '[', ']']);
+    (plain && form.contains(':')).then_some(end + 1)
+}
+
+fn factor_len(after_op: &str) -> usize {
+    after_op.find(';').map_or(0, |pos| pos + 1)
+}
+
+fn letter_value(spell: &CatalogSpell, token: &ValueToken) -> Option<f64> {
+    let effect = || spell.effect(token.index.unwrap_or(0));
+    let points = || effect().filter(|effect| !effect.caster_scaled);
+    let value = match token.name.as_str() {
+        "s" | "S" | "w" | "W" => f64::from(points()?.base_points.abs()),
+        "m" | "M" => f64::from(points()?.base_points),
+        "t" | "T" => positive(effect()?.aura_period_ms)? as f64 / 1000.0,
+        "a" | "A" => Some(f64::from(effect()?.radius_yd)).filter(|radius| *radius > 0.0)?,
+        "o" | "O" => periodic_total(spell, points()?)?,
+        "x" | "X" => positive(effect()?.chain_targets)? as f64,
+        "d" | "D" => positive(spell.duration_ms)? as f64 / 1000.0,
+        "u" | "U" => positive(spell.max_stacks)? as f64,
+        "n" | "N" => positive(spell.proc_charges)? as f64,
+        "h" | "H" => positive(spell.proc_chance)? as f64,
+        "r" | "R" => max_range(spell)?,
+        _ => return None,
+    };
+    Some(value)
 }
 
 fn positive<T: PartialOrd + Default>(value: T) -> Option<T> {
     (value > T::default()).then_some(value)
 }
 
-fn periodic_total(spell: &CatalogSpell, base_points: f32, period_ms: u32) -> Option<String> {
-    let period_ms = positive(period_ms)?;
+fn max_range(spell: &CatalogSpell) -> Option<f64> {
+    let [hostile, friendly] = spell.range.max_yd;
+    let range = if hostile > 0.0 { hostile } else { friendly };
+    (range > 0.0).then_some(f64::from(range))
+}
+
+fn periodic_total(spell: &CatalogSpell, effect: &super::CatalogEffect) -> Option<f64> {
+    let period_ms = positive(effect.aura_period_ms)?;
     let duration_ms = positive(spell.duration_ms)?;
     let ticks = duration_ms as u32 / period_ms;
-    Some(format_number((base_points * ticks as f32).abs()))
+    Some(f64::from(effect.base_points.abs()) * f64::from(ticks))
+}
+
+fn duration_text(spell: &CatalogSpell) -> Option<String> {
+    positive(spell.duration_ms).map(format_duration)
+}
+
+/// `{`...`}` length including nested groups; unterminated groups run to the end.
+pub(super) fn braced_len(body: &str, open: char, close: char) -> usize {
+    let mut depth = 0usize;
+    for (pos, ch) in body.char_indices() {
+        if ch == open {
+            depth += 1;
+        } else if ch == close {
+            depth = depth.saturating_sub(1);
+            if depth == 0 {
+                return pos + ch.len_utf8();
+            }
+        }
+    }
+    body.len()
+}
+
+/// `.N` precision right after `${...}`.
+fn decimal_suffix(after: &str) -> Option<usize> {
+    let mut chars = after.chars();
+    (chars.next() == Some('.'))
+        .then(|| chars.next()?.to_digit(10))
+        .flatten()
+        .map(|digits| digits as usize)
+}
+
+struct ConditionalArm<'t> {
+    condition: &'t str,
+    branch: &'t str,
+}
+
+struct ConditionalChain<'t> {
+    arms: Vec<ConditionalArm<'t>>,
+    otherwise: Option<&'t str>,
+    len: usize,
+}
+
+/// `text` starts with `$?`.
+fn parse_conditional_chain(text: &str) -> ConditionalChain<'_> {
+    let mut arms = Vec::new();
+    let mut pos = 1;
+    while text[pos..].starts_with('?') {
+        let condition_start = pos + 1;
+        let Some(open) = condition_end(&text[condition_start..]) else {
+            break;
+        };
+        let condition = &text[condition_start..condition_start + open];
+        let branch_start = condition_start + open;
+        let (branch, len) = bracket_group(&text[branch_start..]);
+        arms.push(ConditionalArm { condition, branch });
+        pos = branch_start + len;
+    }
+    let otherwise = text[pos..].starts_with('[').then(|| {
+        let (branch, len) = bracket_group(&text[pos..]);
+        pos += len;
+        branch
+    });
+    ConditionalChain {
+        arms,
+        otherwise,
+        len: pos,
+    }
+}
+
+/// Offset of the `[` that opens the branch; parentheses group sub-conditions.
+/// `None` when a character outside the condition grammar comes first.
+fn condition_end(text: &str) -> Option<usize> {
+    let mut depth = 0usize;
+    for (pos, ch) in text.char_indices() {
+        match ch {
+            '(' => depth += 1,
+            ')' => depth = depth.checked_sub(1)?,
+            '[' if depth == 0 => return Some(pos),
+            ch if ch.is_ascii_alphanumeric() || ch.is_ascii_whitespace() => {}
+            '$' | '!' | '&' | '|' | '<' | '>' | '=' | '.' | '-' => {}
+            _ => return None,
+        }
+    }
+    None
+}
+
+/// `text` starts with `[`: the inner text and the group length.
+fn bracket_group(text: &str) -> (&str, usize) {
+    let len = braced_len(text, '[', ']');
+    let inner_end = if text[..len].ends_with(']') {
+        len - 1
+    } else {
+        len
+    };
+    (&text[1..inner_end], len)
 }
 
 /// Up to two decimals, trailing zeros trimmed.
-fn format_number(value: f32) -> String {
+pub(super) fn format_number(value: f64) -> String {
     let text = format!("{value:.2}");
     let text = text.trim_end_matches('0').trim_end_matches('.');
     match text {
@@ -146,8 +521,16 @@ fn format_number(value: f32) -> String {
     }
 }
 
+fn format_fixed(value: f64, decimals: usize) -> String {
+    let text = format!("{value:.decimals$}");
+    match text.trim_start_matches('-').trim_matches(['0', '.']) {
+        "" => format!("{:.decimals$}", 0.0),
+        _ => text,
+    }
+}
+
 fn format_duration(ms: i32) -> String {
-    let secs = ms as f32 / 1000.0;
+    let secs = f64::from(ms) / 1000.0;
     let (amount, singular, plural) = match secs {
         s if s < 60.0 => (s, "sec", "sec"),
         s if s < 3600.0 => (s / 60.0, "min", "min"),

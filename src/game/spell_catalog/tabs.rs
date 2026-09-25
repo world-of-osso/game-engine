@@ -26,6 +26,8 @@ pub enum SpellbookTabKind {
 pub struct SpecTabInfo {
     pub name: String,
     pub class_id: u32,
+    /// `ChrSpecialization.OrderIndex`: 0 for the class's first spec.
+    pub order_index: u32,
     pub initial: bool,
     pub spells: HashSet<u32>,
 }
@@ -135,10 +137,12 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
     for_each_record(dir, "ChrSpecialization", &columns, |row| {
         let table = "ChrSpecialization";
         let mastery = [parse_u32(table, row[4])?, parse_u32(table, row[5])?];
+        let order_index = parse_u32(table, row[3])?;
         let spec = SpecTabInfo {
             name: row[1].to_string(),
             class_id: parse_u32(table, row[2])?,
-            initial: parse_u32(table, row[3])? == INITIAL_SPEC_ORDER,
+            order_index,
+            initial: order_index == INITIAL_SPEC_ORDER,
             spells: mastery.into_iter().filter(|&id| id != 0).collect(),
         };
         specs.insert(parse_u32(table, row[0])?, spec);

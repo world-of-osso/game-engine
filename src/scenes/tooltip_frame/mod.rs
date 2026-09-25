@@ -4,7 +4,7 @@ use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
 use game_engine::merchant_data::{MerchantState, quality_color};
 use game_engine::player_spells::{ActionBarSlots, parse_action_button_name};
 use game_engine::spell_catalog::CatalogSpell;
-use game_engine::spell_catalog::SpellCatalog;
+use game_engine::spell_catalog::{SpellCatalog, SpellTextSources};
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
@@ -278,6 +278,7 @@ struct HoveredSpellSources<'w> {
     spellbook: Option<NonSend<'w, SpellbookUiRuntime>>,
     action_slots: Option<Res<'w, ActionBarSlots>>,
     catalog: Option<Res<'w, SpellCatalog>>,
+    text: SpellTextSources<'w>,
 }
 
 fn hovered_spell_tooltip(
@@ -299,8 +300,12 @@ fn hovered_spell_tooltip(
         })
         .or_else(|| chat_spell_link_at(registry, frame_id))?;
     let catalog = sources.catalog.as_deref();
+    let ctx = sources.text.context();
     Some(match catalog.and_then(|catalog| catalog.get(spell_id)) {
-        Some(spell) => spell_tooltip(spell, catalog.and_then(|c| c.render_description(spell_id))),
+        Some(spell) => spell_tooltip(
+            spell,
+            catalog.and_then(|c| c.render_description(spell_id, &ctx)),
+        ),
         None => unknown_spell_tooltip(spell_id),
     })
 }
@@ -653,10 +658,10 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 }
 
 fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState {
-    let mut lines = Vec::new();
-    if !aura.description.is_empty() {
-        lines.push(TooltipLineState::new(aura.description.clone()));
-    }
+    let mut lines: Vec<TooltipLineState> = wrap_text(&aura.description, TOOLTIP_WRAP_CHARS)
+        .into_iter()
+        .map(TooltipLineState::new)
+        .collect();
     lines.push(TooltipLineState::key_value(
         "Duration",
         if aura.duration <= 0.0 {
@@ -1121,6 +1126,32 @@ mod tests {
         assert_eq!(tooltip.lines[0].left_text, "Increases all stats.");
         let root = registry.get_by_name("BuffFrame").unwrap();
         assert!(hovered_player_aura_tooltip(&registry, root, Some(&auras), None).is_none());
+    }
+
+    #[test]
+    fn aura_tooltip_wraps_multiline_descriptions_inside_the_background() {
+        let mut aura = sample_aura();
+        // Power Word: Fortitude with its Magic damage line shown.
+        aura.description = "Stamina increased by 5%.\r\nMagic damage taken reduced by 3% while \
+                            the caster's Fortitude remains on you."
+            .into();
+        let tooltip = aura_tooltip(&aura, false);
+        let texts: Vec<&str> = tooltip
+            .lines
+            .iter()
+            .map(|line| line.left_text.as_str())
+            .collect();
+        assert_eq!(
+            texts[..3],
+            [
+                "Stamina increased by 5%.",
+                "Magic damage taken reduced by 3% while the",
+                "caster's Fortitude remains on you."
+            ]
+        );
+        let text_bottom =
+            TOOLTIP_INSET + TOOLTIP_TITLE_H + tooltip.lines.len() as f32 * TOOLTIP_LINE_H;
+        assert!(tooltip.height() >= text_bottom + TOOLTIP_INSET);
     }
 
     #[test]

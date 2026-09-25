@@ -6,7 +6,8 @@ use bevy::prelude::*;
 use game_engine::buff_data::{AuraCasterLookup, AuraState, UnitAuraState, aura_instances};
 use game_engine::network_runtime::messages::MessageSenders;
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
-use game_engine::spell_catalog::SpellCatalog;
+use game_engine::player_spells::{ActiveSpecialization, KnownSpells};
+use game_engine::spell_catalog::{SpellCatalog, SpellTextContext};
 use shared::components::{Npc, Player as NetPlayer, UnitAuras};
 use shared::protocol::{CancelAura, CombatChannel};
 
@@ -58,6 +59,7 @@ fn sync_unit_auras(
     units: AuraUnits,
     local: Query<Entity, With<LocalPlayer>>,
     names: Query<(Option<&NetPlayer>, Option<&Npc>)>,
+    player: PlayerTextState,
 ) {
     let name_of = |caster: u64| caster_name(caster, &mirrors, &names);
     let casters = AuraCasterLookup {
@@ -68,12 +70,13 @@ fn sync_unit_auras(
             .map(Entity::to_bits),
         name_of: &name_of,
     };
+    let text_ctx = player.context(&units);
     for (entity, auras, local_marker, has_unit_state) in &units {
         let local_added = local_marker.as_ref().is_some_and(Ref::is_added);
-        if !auras.is_changed() && !local_added && !catalog.is_changed() {
+        if !auras.is_changed() && !local_added && !catalog.is_changed() && !player.is_changed() {
             continue;
         }
-        let instances = aura_instances(&auras.auras, &catalog, &casters);
+        let instances = aura_instances(&auras.auras, &catalog, &casters, &text_ctx);
         if local_marker.is_some() {
             aura_state.auras = instances;
             if has_unit_state {
@@ -84,6 +87,32 @@ fn sync_unit_auras(
                 .entity(entity)
                 .insert(UnitAuraState { auras: instances });
         }
+    }
+}
+
+/// What description conditions test: the player's spells, spec and own auras.
+#[derive(bevy::ecs::system::SystemParam)]
+struct PlayerTextState<'w> {
+    known: Option<Res<'w, KnownSpells>>,
+    spec: Option<Res<'w, ActiveSpecialization>>,
+}
+
+impl PlayerTextState<'_> {
+    fn is_changed(&self) -> bool {
+        self.known.as_ref().is_some_and(|res| res.is_changed())
+            || self.spec.as_ref().is_some_and(|res| res.is_changed())
+    }
+
+    fn context(&self, units: &AuraUnits) -> SpellTextContext {
+        let local_auras = units
+            .iter()
+            .find(|(_, _, local, _)| local.is_some())
+            .map(|(_, auras, _, _)| auras.auras.iter().map(|view| view.spell_id).collect());
+        SpellTextContext::for_player(
+            self.known.as_deref(),
+            self.spec.as_deref(),
+            local_auras.unwrap_or_default(),
+        )
     }
 }
 
