@@ -47,6 +47,16 @@ Profile builds, 2 interleaved pairs:
 
 The UI screenshots match. A settled InWorld registry publishes no dirty marks, so the gate skips nearly every frame.
 
+Final distribution A/B on master `0f1cd975`: toolkit `fa5b675` (before the gate) against merged `86d2639`, 3 interleaved pairs, 2026-09-25:
+
+| Pair | FPS | GPU ms/frame | Process CPU ms/frame |
+|---|---|---|---|
+| 1 | 22.5 → 23.8 | 35.6 → 38.8 | 116 → 109 |
+| 2 | 13.0 → 36.0 | 57.8 → 24.6 | 240 → 70 |
+| 3 | 11.5 → 21.7 | 59.1 → 43.9 | 265 → 122 |
+
+FPS rose in 3/3 pairs. Two of the three pre-gate runs sat at the 600 MHz GPU firmware limit, so the size of the FPS gain is confounded with clocks. The CPU drop is consistent across pairs.
+
 `M2EffectMaterial::enable_shadows() -> false` was tried and reverted: both effect fog GPU tests then rendered black. The cause was not investigated.
 
 **Remaining, ranked.**
