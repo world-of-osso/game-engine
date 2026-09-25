@@ -20,7 +20,6 @@ pub(crate) struct WmoShaderDescriptor {
 pub(crate) struct WmoSurfaceParams {
     pub roughness: f32,
     pub reflectance: f32,
-    pub metallic: f32,
 }
 
 pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
@@ -112,7 +111,6 @@ const ENV_ROUGHNESS: f32 = 0.35;
 const ENV_REFLECTANCE: f32 = 0.45;
 const METAL_ROUGHNESS: f32 = 0.25;
 const METAL_REFLECTANCE: f32 = 0.5;
-const METAL_METALLIC: f32 = 0.85;
 
 pub(crate) fn wmo_surface_params(
     has_texture: bool,
@@ -135,7 +133,6 @@ fn metal_surface_params() -> WmoSurfaceParams {
     WmoSurfaceParams {
         roughness: METAL_ROUGHNESS,
         reflectance: METAL_REFLECTANCE,
-        metallic: METAL_METALLIC,
     }
 }
 
@@ -143,7 +140,6 @@ fn env_surface_params() -> WmoSurfaceParams {
     WmoSurfaceParams {
         roughness: ENV_ROUGHNESS,
         reflectance: ENV_REFLECTANCE,
-        metallic: 0.0,
     }
 }
 
@@ -161,7 +157,6 @@ fn default_surface_params(prop_like_surface: bool) -> WmoSurfaceParams {
     WmoSurfaceParams {
         roughness,
         reflectance,
-        metallic: 0.0,
     }
 }
 
@@ -354,7 +349,6 @@ mod tests {
             WmoSurfaceParams {
                 roughness: 0.25,
                 reflectance: 0.5,
-                metallic: 0.85,
             }
         );
         assert_eq!(
@@ -362,7 +356,6 @@ mod tests {
             WmoSurfaceParams {
                 roughness: 0.88,
                 reflectance: 0.18,
-                metallic: 0.0,
             }
         );
     }

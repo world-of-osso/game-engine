@@ -181,7 +181,7 @@ fn env_metal_wmo_materials_gain_reflective_surface_params() {
 
     assert!((material.perceptual_roughness - 0.25).abs() < 0.001);
     assert!((material.reflectance - 0.5).abs() < 0.001);
-    assert!((material.metallic - 0.85).abs() < 0.001);
+    assert_eq!(material.metallic, 0.0);
 }
 
 #[test]
