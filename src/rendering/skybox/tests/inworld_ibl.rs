@@ -1,42 +1,38 @@
-use bevy::light::EnvironmentMapLight;
+use bevy::light::GeneratedEnvironmentMapLight;
 
 use super::*;
 use crate::camera::WowCamera;
 use crate::game::inworld_scene_stage::InWorldSceneStage;
 
 #[test]
-fn inworld_camera_gets_current_generated_ibl_at_fixed_time() {
+fn active_inworld_camera_gets_the_sky_cubemap_without_pbr_image_lighting() {
     let mut app = lighting_app();
     let camera = spawn_world_camera(&mut app, true);
-    assert!(
-        app.world()
-            .get::<GeneratedEnvironmentMapLight>(camera)
-            .is_none()
-    );
     assert!(!app.world().contains_resource::<SkyEnvMapHandle>());
 
     app.update();
 
-    assert_current_ibl(&app, camera);
-    assert_eq!(app.world().resource::<GlobalAmbientLight>().brightness, 0.0);
-    assert!(app.world().get::<DistanceFog>(camera).is_none());
-}
-
-#[test]
-fn inworld_ibl_initializes_late_active_camera_only_once() {
-    let mut app = lighting_app();
-    app.update();
-    let camera = spawn_world_camera(&mut app, false);
-    app.update();
+    assert_current_sky_cubemap(&app);
+    // World materials shade with RetailSceneLight: no Bevy image-based lighting.
     assert!(
         app.world()
             .get::<GeneratedEnvironmentMapLight>(camera)
             .is_none()
     );
+    assert!(app.world().get::<DistanceFog>(camera).is_none());
+}
+
+#[test]
+fn sky_cubemap_initializes_for_a_late_active_camera_only_once() {
+    let mut app = lighting_app();
+    app.update();
+    let camera = spawn_world_camera(&mut app, false);
+    app.update();
+    assert!(!app.world().contains_resource::<SkyEnvMapHandle>());
 
     app.world_mut().get_mut::<Camera>(camera).unwrap().is_active = true;
     app.update();
-    assert_current_ibl(&app, camera);
+    assert_current_sky_cubemap(&app);
     let handle = app.world().resource::<SkyEnvMapHandle>().0.clone();
     let image_count = app.world().resource::<Assets<Image>>().len();
 
@@ -47,92 +43,22 @@ fn inworld_ibl_initializes_late_active_camera_only_once() {
     assert_eq!(app.world().resource::<GameTime>().minutes, 1440.0);
     assert_eq!(app.world().resource::<SkyEnvMapHandle>().0, handle);
     assert_eq!(app.world().resource::<Assets<Image>>().len(), image_count);
-    assert_eq!(
-        app.world()
-            .get::<GeneratedEnvironmentMapLight>(camera)
-            .unwrap()
-            .environment_map,
-        handle,
-    );
 }
 
 #[test]
-fn disabled_skybox_visuals_preserve_inworld_ibl() {
+fn disabled_skybox_visuals_keep_the_sky_cubemap() {
     let mut app = lighting_app();
     app.insert_resource(SkyboxVisualsDisabled);
     app.add_systems(PostUpdate, remove_disabled_sky_domes);
-    let camera = spawn_world_camera(&mut app, true);
+    spawn_world_camera(&mut app, true);
     let dome = app.world_mut().spawn(SkyDome).id();
 
     app.update();
 
-    assert_current_ibl(&app, camera);
+    assert_current_sky_cubemap(&app);
     assert!(app.world().get_entity(dome).is_err());
     let mut domes = app.world_mut().query_filtered::<Entity, With<SkyDome>>();
     assert_eq!(domes.iter(app.world()).count(), 0);
-}
-
-#[test]
-fn inworld_ibl_preserves_camera_environment_overrides() {
-    let mut app = lighting_app();
-    let custom_map = app
-        .world_mut()
-        .resource_mut::<Assets<Image>>()
-        .add(build_sky_cubemap(&default_sky_colors()));
-    let generated_camera = spawn_world_camera(&mut app, true);
-    let rotation = Quat::from_rotation_y(0.35);
-    app.world_mut()
-        .entity_mut(generated_camera)
-        .insert(GeneratedEnvironmentMapLight {
-            environment_map: custom_map.clone(),
-            intensity: 19.0,
-            rotation,
-            affects_lightmapped_mesh_diffuse: false,
-        });
-    let baked_camera = spawn_world_camera(&mut app, true);
-    app.world_mut()
-        .entity_mut(baked_camera)
-        .insert(EnvironmentMapLight {
-            diffuse_map: custom_map.clone(),
-            specular_map: custom_map.clone(),
-            intensity: 23.0,
-            rotation,
-            affects_lightmapped_mesh_diffuse: false,
-        });
-    let unrelated_camera = app.world_mut().spawn(Camera3d::default()).id();
-    let image_count = app.world().resource::<Assets<Image>>().len();
-
-    app.update();
-
-    let generated = app
-        .world()
-        .get::<GeneratedEnvironmentMapLight>(generated_camera)
-        .unwrap();
-    assert_eq!(generated.environment_map, custom_map);
-    assert_eq!(generated.intensity, 19.0);
-    assert_eq!(generated.rotation, rotation);
-    assert!(!generated.affects_lightmapped_mesh_diffuse);
-    let baked = app
-        .world()
-        .get::<EnvironmentMapLight>(baked_camera)
-        .unwrap();
-    assert_eq!(baked.diffuse_map, custom_map);
-    assert_eq!(baked.specular_map, custom_map);
-    assert_eq!(baked.intensity, 23.0);
-    assert_eq!(baked.rotation, rotation);
-    assert!(!baked.affects_lightmapped_mesh_diffuse);
-    assert!(
-        app.world()
-            .get::<GeneratedEnvironmentMapLight>(baked_camera)
-            .is_none()
-    );
-    assert!(
-        app.world()
-            .get::<GeneratedEnvironmentMapLight>(unrelated_camera)
-            .is_none()
-    );
-    assert_eq!(app.world().resource::<Assets<Image>>().len(), image_count);
-    assert!(!app.world().contains_resource::<SkyEnvMapHandle>());
 }
 
 #[test]
@@ -144,13 +70,8 @@ fn inworld_ibl_respects_scene_state_and_lighting_stage() {
         let mut app = lighting_app();
         app.insert_resource(State::new(state));
         app.insert_resource(stage);
-        let camera = spawn_world_camera(&mut app, true);
+        spawn_world_camera(&mut app, true);
         app.update();
-        assert!(
-            app.world()
-                .get::<GeneratedEnvironmentMapLight>(camera)
-                .is_none()
-        );
         assert!(!app.world().contains_resource::<SkyEnvMapHandle>());
     }
 }
@@ -200,10 +121,6 @@ fn lighting_app() -> App {
     app.insert_resource(Assets::<Image>::default());
     app.insert_resource(Assets::<SkyMaterial>::default());
     app.insert_resource(Assets::<crate::water_material::WaterMaterial>::default());
-    app.insert_resource(GlobalAmbientLight {
-        brightness: 0.0,
-        ..default()
-    });
     register_shared_sky_visual_systems(&mut app);
     app
 }
@@ -221,19 +138,12 @@ fn spawn_world_camera(app: &mut App, active: bool) -> Entity {
         .id()
 }
 
-fn assert_current_ibl(app: &App, camera: Entity) {
+fn assert_current_sky_cubemap(app: &App) {
     let world = app.world();
-    let light = world
-        .get::<GeneratedEnvironmentMapLight>(camera)
-        .expect("active InWorld camera must have generated environment lighting");
-    assert_eq!(light.intensity, 300.0);
-    assert_eq!(light.rotation, Quat::IDENTITY);
-    assert!(light.affects_lightmapped_mesh_diffuse);
-    assert_eq!(world.resource::<SkyEnvMapHandle>().0, light.environment_map);
     let image = world
         .resource::<Assets<Image>>()
-        .get(&light.environment_map)
-        .expect("generated lighting source cubemap must exist");
+        .get(&world.resource::<SkyEnvMapHandle>().0)
+        .expect("sky cubemap must exist");
     assert_valid_ibl_cube(image);
     let colors = world
         .resource::<LightKeyframes>()

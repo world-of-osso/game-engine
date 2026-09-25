@@ -3,7 +3,6 @@ use std::f32::consts::{FRAC_PI_2, TAU};
 
 use bevy::asset::RenderAssetUsages;
 use bevy::ecs::system::SystemParam;
-use bevy::light::{EnvironmentMapLight, GeneratedEnvironmentMapLight};
 use bevy::pbr::{DistanceFog, FogFalloff, MaterialPlugin};
 use bevy::prelude::*;
 use bevy::render::render_resource::{
@@ -202,7 +201,8 @@ fn fog_falloff_from_colors(colors: &SkyColorSet) -> FogFalloff {
     FogFalloff::Linear { start, end }
 }
 
-/// Spawn the sky dome as a child of the camera entity and set up fog + IBL.
+/// Spawn the sky dome as a child of the camera entity and set up fog and the
+/// sky cubemap.
 pub fn spawn_sky_dome(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
@@ -220,7 +220,7 @@ pub fn spawn_sky_dome(
     );
     let default_colors = default_sky_colors();
     insert_default_sky_fog(commands, camera_entity, &default_colors);
-    insert_default_sky_env_map(commands, images, camera_entity, &default_colors);
+    insert_sky_env_map(commands, images, &default_colors);
     dome
 }
 
@@ -261,54 +261,37 @@ fn insert_default_sky_fog(commands: &mut Commands, camera_entity: Entity, colors
     });
 }
 
-pub(crate) fn insert_default_sky_env_map(
+/// Sky gradient cubemap sampled by terrain layers with cube-map reflection.
+pub(crate) fn insert_sky_env_map(
     commands: &mut Commands,
     images: &mut Assets<Image>,
-    camera_entity: Entity,
     colors: &SkyColorSet,
 ) {
-    let cubemap = build_sky_cubemap(colors);
-    let cubemap_handle = images.add(cubemap);
-    commands.insert_resource(SkyEnvMapHandle(cubemap_handle.clone()));
-    commands
-        .entity(camera_entity)
-        .insert(GeneratedEnvironmentMapLight {
-            environment_map: cubemap_handle,
-            intensity: 300.0,
-            rotation: Quat::IDENTITY,
-            affects_lightmapped_mesh_diffuse: true,
-        });
+    let cubemap_handle = images.add(build_sky_cubemap(colors));
+    commands.insert_resource(SkyEnvMapHandle(cubemap_handle));
 }
 
 // ---------------------------------------------------------------------------
 // Systems
 // ---------------------------------------------------------------------------
 
-type CamerasWithoutEnvironment<'w, 's> = Query<
-    'w,
-    's,
-    (Entity, &'static Camera),
-    (
-        Or<(With<crate::camera::WowCamera>, With<CharSelectScene>)>,
-        Without<GeneratedEnvironmentMapLight>,
-        Without<EnvironmentMapLight>,
-    ),
->;
+type SceneCameras<'w, 's> =
+    Query<'w, 's, &'static Camera, Or<(With<crate::camera::WowCamera>, With<CharSelectScene>)>>;
 
-fn initialize_scene_camera_ibl(
+/// Create the sky cubemap once a world or character-select camera is active.
+fn initialize_sky_env_map(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
-    cameras: CamerasWithoutEnvironment,
+    env_map: Option<Res<SkyEnvMapHandle>>,
+    cameras: SceneCameras,
 ) {
-    for (entity, camera) in &cameras {
-        if !camera.is_active {
-            continue;
-        }
-        let colors = keyframes.sample(game_time.minutes);
-        insert_default_sky_env_map(&mut commands, &mut images, entity, &colors);
+    if env_map.is_some() || !cameras.iter().any(|camera| camera.is_active) {
+        return;
     }
+    let colors = keyframes.sample(game_time.minutes);
+    insert_sky_env_map(&mut commands, &mut images, &colors);
 }
 
 fn advance_game_time(time: Res<Time>, mut game_time: ResMut<GameTime>) {
@@ -327,9 +310,6 @@ fn color_to_vec4(c: Color) -> Vec4 {
 struct SkyVisualParams<'w, 's> {
     sky_dome_q: Query<'w, 's, Ref<'static, MeshMaterial3d<SkyMaterial>>, With<SkyDome>>,
     sky_materials: ResMut<'w, Assets<SkyMaterial>>,
-    dir_lights: Query<'w, 's, &'static mut DirectionalLight, With<SkySun>>,
-    new_suns: Query<'w, 's, Entity, Added<SkySun>>,
-    ambient_q: Query<'w, 's, &'static mut AmbientLight>,
     water_materials: ResMut<'w, Assets<crate::water_material::WaterMaterial>>,
 }
 
@@ -343,9 +323,8 @@ fn update_sky_colors(
         .sky_dome_q
         .iter()
         .any(|material| material.is_added());
-    let has_new_sun = !visuals.new_suns.is_empty();
     let time_changed = (game_time.minutes - *last_minutes).abs() >= 0.01;
-    let needs_update = time_changed || keyframes.is_changed() || has_new_dome || has_new_sun;
+    let needs_update = time_changed || keyframes.is_changed() || has_new_dome;
     if !needs_update {
         return;
     }
@@ -357,7 +336,6 @@ fn update_sky_colors(
         &colors,
         game_time.minutes,
     );
-    sync_lights(&mut visuals.dir_lights, &mut visuals.ambient_q, &colors);
     sync_water_sky_color(&mut visuals.water_materials, &colors);
 }
 
@@ -396,19 +374,6 @@ fn write_sky_gradient_uniforms(uniforms: &mut SkyUniforms, colors: &SkyColorSet)
     uniforms.sky_fog = color_to_vec4(colors.fog_color);
 }
 
-fn sync_lights(
-    dir_lights: &mut Query<&mut DirectionalLight, With<SkySun>>,
-    ambient_q: &mut Query<&mut AmbientLight>,
-    colors: &SkyColorSet,
-) {
-    for mut light in dir_lights.iter_mut() {
-        light.color = colors.direct_color;
-    }
-    for mut amb in ambient_q.iter_mut() {
-        amb.color = colors.ambient_color;
-    }
-}
-
 fn sync_water_sky_color(
     water_materials: &mut Assets<crate::water_material::WaterMaterial>,
     colors: &SkyColorSet,
@@ -427,35 +392,24 @@ fn init_procedural_cloud_maps(mut commands: Commands, mut images: ResMut<Assets<
 // Sun direction
 // ---------------------------------------------------------------------------
 
-fn sun_elevation(minutes: f32) -> f32 {
-    (minutes / 2880.0 * TAU - FRAC_PI_2).sin()
-}
-
 fn sun_rotation(minutes: f32) -> Quat {
     let pitch = FRAC_PI_2 - (minutes / 2880.0) * TAU;
     Quat::from_rotation_y(0.3) * Quat::from_rotation_x(pitch)
 }
 
+/// Point the SkySun shadow caster along the Retail sun direction. Its colour and
+/// illuminance shade nothing: world materials read `RetailSceneLight`.
 fn update_sun_direction(
-    game_time: Res<GameTime>,
-    mut dir_lights: Query<(&mut Transform, &mut DirectionalLight), With<SkySun>>,
+    scene_light: Res<RetailSceneLight>,
+    mut suns: Query<&mut Transform, With<SkySun>>,
     new_suns: Query<Entity, Added<SkySun>>,
-    mut last_minutes: Local<f32>,
 ) {
-    if (game_time.minutes - *last_minutes).abs() < 0.01 && new_suns.is_empty() {
+    if !scene_light.is_changed() && new_suns.is_empty() {
         return;
     }
-    *last_minutes = game_time.minutes;
-    let elev = sun_elevation(game_time.minutes);
-    let rotation = sun_rotation(game_time.minutes);
-    let intensity = if elev > 0.0 {
-        light_consts::lux::OVERCAST_DAY * elev.sqrt()
-    } else {
-        light_consts::lux::OVERCAST_DAY * 0.02
-    };
-    for (mut transform, mut light) in dir_lights.iter_mut() {
+    let rotation = Quat::from_rotation_arc(Vec3::NEG_Z, scene_light.sun_direction.normalize());
+    for mut transform in &mut suns {
         transform.rotation = rotation;
-        light.illuminance = intensity;
     }
 }
 
@@ -686,7 +640,7 @@ fn register_inworld_systems(app: &mut App) {
             .before(update_sky_colors)
             .before(update_scene_light)
             .before(update_sky_env_map)
-            .before(initialize_scene_camera_ibl)
+            .before(initialize_sky_env_map)
             .run_if(in_state(GameState::InWorld))
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );
@@ -713,7 +667,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
     let sky_active = sky_scene_active;
     app.add_systems(
         Update,
-        initialize_scene_camera_ibl
+        initialize_sky_env_map
             .after(advance_game_time)
             .run_if(in_state(GameState::InWorld).or_else(in_state(GameState::CharSelect)))
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
@@ -729,7 +683,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
     .add_systems(
         Update,
         update_sun_direction
-            .after(advance_game_time)
+            .after(update_scene_light)
             .run_if(sky_scene_active)
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     )
@@ -744,7 +698,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
         Update,
         update_sky_env_map
             .after(advance_game_time)
-            .after(initialize_scene_camera_ibl)
+            .after(initialize_sky_env_map)
             .run_if(sky_scene_active)
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );
