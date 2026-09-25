@@ -11,6 +11,7 @@ mod interior_gpu;
 mod interior_light_gpu;
 mod liquid;
 mod root_runtime;
+mod two_layer_gpu;
 mod unified_gpu;
 
 pub(super) fn minimal_mat() -> wmo::WmoMaterialDef {

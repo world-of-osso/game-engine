@@ -7,6 +7,7 @@ pub(super) struct WmoMaterialProps {
     pub(super) blend_mode: u32,
     pub(super) unculled: bool,
     pub(super) unlit: bool,
+    pub(super) blends_layers_by_second_mocv: bool,
     pub(super) shader: u32,
     pub(super) sidn_glow: Option<WmoSidnGlow>,
 }
@@ -20,6 +21,8 @@ pub(super) fn wmo_material_props(root: &wmo::WmoRootData, material_index: u16) -
         blend_mode: mat_def.map(|m| m.blend_mode).unwrap_or(0),
         unculled: mat_def.map(|m| m.material_flags.unculled).unwrap_or(false),
         unlit: mat_def.map(|m| m.material_flags.unlit).unwrap_or(false),
+        blends_layers_by_second_mocv: mat_def
+            .is_some_and(wmo::WmoMaterialDef::blends_layers_by_second_mocv),
         shader: mat_def.map(|m| m.shader).unwrap_or(0),
         sidn_glow: mat_def.and_then(build_wmo_sidn_glow),
     }

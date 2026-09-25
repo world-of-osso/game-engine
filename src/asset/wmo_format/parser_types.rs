@@ -122,12 +122,20 @@ impl WmoMaterialDef {
     const SECOND_UV_FLAG: u32 = 0x0200_0000;
     const THIRD_UV_FLAG: u32 = 0x4000_0000;
 
+    /// Retail two-layer shaders that blend their second texture by the second MOCV
+    /// alpha whatever the MOMT flags (WebWowViewerCpp `caclWMOFragMat`): MOMT 6
+    /// TwoLayerDiffuse and 13 TwoLayerDiffuseOpaque.
+    pub fn blends_layers_by_second_mocv(&self) -> bool {
+        matches!(self.shader, 6 | 13)
+    }
+
     pub fn uses_second_color_blend_alpha(&self) -> bool {
-        self.flags & Self::SECOND_COLOR_FLAG != 0
+        self.flags & Self::SECOND_COLOR_FLAG != 0 || self.blends_layers_by_second_mocv()
     }
 
     pub fn uses_second_uv_set(&self) -> bool {
-        self.flags & Self::SECOND_UV_FLAG != 0 && matches!(self.shader, 6..=9 | 11..=15)
+        (self.flags & Self::SECOND_UV_FLAG != 0 && matches!(self.shader, 6..=9 | 11..=15))
+            || self.blends_layers_by_second_mocv()
     }
 
     pub fn uses_generated_tangents(&self) -> bool {

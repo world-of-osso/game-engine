@@ -12,6 +12,11 @@ pub(super) fn spawn_wmo_group_batches(
 ) {
     for batch in batches {
         let material_props = wmo_material_props(root, batch.material_index);
+        let second_layer = batch
+            .mesh
+            .contains_attribute(wmo::WMO_BLEND_ALPHA_ATTRIBUTE)
+            .then(|| load_wmo_second_layer(assets.images, &material_props))
+            .flatten();
         let mut child = commands.spawn((
             Mesh3d(assets.meshes.add(batch.mesh)),
             Transform::default(),
@@ -20,7 +25,10 @@ pub(super) fn spawn_wmo_group_batches(
         ));
         let base =
             wmo_batch_standard_material(assets.images, batch.material_index, &material_props);
-        if batch.has_vertex_color || !wmo_group_is_exterior_lit(group_header.flags) {
+        if batch.has_vertex_color
+            || second_layer.is_some()
+            || !wmo_group_is_exterior_lit(group_header.flags)
+        {
             insert_wmo_lit_material(
                 &mut child,
                 wmo_lit_material(
@@ -28,6 +36,7 @@ pub(super) fn spawn_wmo_group_batches(
                     group_header.flags,
                     material_props.unlit,
                     interior_ambient,
+                    second_layer,
                 ),
             );
         } else {
@@ -43,6 +52,33 @@ pub(super) fn spawn_wmo_group_batches(
         }
         let child = child.id();
         commands.entity(group_entity).add_child(child);
+    }
+}
+
+/// The raw second texture of a two-layer shader; `wmo_lighting.wgsl` blends it.
+fn load_wmo_second_layer(
+    images: &mut Assets<Image>,
+    material_props: &WmoMaterialProps,
+) -> Option<WmoSecondLayer> {
+    if !material_props.blends_layers_by_second_mocv || material_props.texture_2_fdid == 0 {
+        return None;
+    }
+    let Some(path) = crate::asset::asset_cache::texture(material_props.texture_2_fdid) else {
+        log_wmo_texture_extract_failure(material_props.texture_2_fdid);
+        return None;
+    };
+    match load_wmo_material_image(&path, 0, 0, 0, images) {
+        Ok(texture) => Some(WmoSecondLayer {
+            shader: material_props.shader,
+            texture,
+        }),
+        Err(err) => {
+            eprintln!(
+                "WMO second texture decode failed for FDID {}: {err}",
+                material_props.texture_2_fdid
+            );
+            None
+        }
     }
 }
 
