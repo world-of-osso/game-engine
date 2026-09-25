@@ -1,75 +1,92 @@
 # WMO Retail Lighting
 
-This work follows up [[stormwind-dark-render]] and brings WMO lighting, alpha testing, two-layer shaders and placement in line with Retail. The reference is WebWowViewerCpp (Deamon87), whose shaders reproduce Retail's MapObj shaders. solarityclient, the first reference, replays the 3.3.5 client. Our assets are Retail 12.x, so 3.3.5 semantics (the multiplicative ordinary path and the 224/255 AlphaKey) were the wrong target and were replaced.
+This page follows up [[stormwind-dark-render]]. WMO lighting, alpha testing, two-layer shaders and placement now follow Retail. Every WMO batch renders through one material, `WmoLitMaterial` (`terrain_objects_wmo_lighting.rs`, `assets/shaders/wmo_lighting.wgsl`), with one light model. The earlier solarityclient-based modes (unified Exterior/RootAmbient/Authored and the ordinary multiplicative path) are gone.
 
-## Evidence
+## Reference
 
-WebWowViewerCpp sources, read via `gh api` (`wowViewerLib/shaders/slang/...`, `wowViewerLib/src/engine/...`):
+The reference is WebWowViewerCpp (Deamon87), whose shaders follow Retail's MapObj shaders. It was read at commit `1a8cccbeffc46231c6497e6b3f5bfbf3507d8071` (2026-09-14) via `gh api`. Our assets are Retail 12.x, and solarityclient (`~/Repos/solarityclient`) replays the 3.3.5 client, so its semantics are superseded.
 
-- **`commonLightFunctions.slang` `calcLight` / `applyAndMixAmbients`.**
-  - The light is `matDiffuse * (ambient + precomputedLight + sun * NdotL)`.
-  - The interior and exterior parts are mixed by `interiorExteriorBlend`.
-- **`wmoshader_text.slang`.**
-  - `precomputedLight = vColor.rgb * 2.0`. This is the ×2 on MOCV, which settles the ×2 question in favour of keeping it.
-  - The blend is `mix(vColor.w, 1, isExteriorLit)`.
-- **`wmoGroupGeom.cpp` `fixColorVertexAlpha`.**
-  - `flag_lighten_interiors` (MOHD `0x08`) only sets the alpha.
-  - `flag_skip_base_color` (MOHD `0x02`) skips the ambient subtraction.
-  - Transition vertices get `(c - amb) * (1 - a) / 2`. Later vertices get `(c * a / 64 + c - amb) / 2`, with alpha `EXTERIOR | EXTERIOR_LIT ? 255 : 0`.
-  - Without MOCV the color is 0 and the alpha 0. Without MOCV2 the value is `(0, 0, 0, 255)`.
-- **`wmoGroupObject.h` `isInteriorLightingLit`.** A group is exterior-lit if it has `EXTERIOR` or `EXTERIOR_LIT`, or lacks `INTERIOR`.
-- **`wmoObject.cpp` `calculateAmbient`.** The interior ambient is the first MAVG for an active doodad set, else the first MAVD, else the MOHD ambient.
-- **`commonWMOMaterial.slang` `caclWMOFragMat` and `iWmoApi.h` `wmoMaterialShader`.**
-  - MOMT 13 maps to TwoLayerDiffuseOpaque: `mix(tex2, tex, vColor2.a)`.
-  - MOMT 6 is `mix(mix(tex, tex2, tex2.a), tex, vColor2.a)`.
-  - MOMT 21 maps to MapObjLod: `tex`.
-  - Metal/EnvMetal keep `matDiffuse = tex.rgb`.
-  - With a blend mode above 0, texels with `tex.a < 0.50196` (128/255) are discarded.
+Files used:
 
-## Changes (branch `wmo-parity`)
+- **`wowViewerLib/shaders/slang/common/commonLightFunctions.slang`**
+  - `calcLight`: `matDiffuse * (ambient + precomputedLight + sun * NdotL)`. The interior and exterior parts are mixed by `interiorExteriorBlend`.
+  - `applyAndMixAmbients`: adds `precomputedLight` to the ambient, horizon and ground ambient.
+- **`wowViewerLib/shaders/slang/bindless/wmo/wmoshader_text.slang`**
+  - `precomputedLight = vColor.rgb * 2.0`. This is the ×2 on MOCV.
+  - `interiorExteriorBlend = mix(vColor.w, 1, isExteriorLit)`.
+- **`wowViewerLib/shaders/slang/common/commonWMOMaterial.slang`** (`caclWMOFragMat`)
+  - With a blend mode above 0, `tex.a < 0.50196` (128/255) is discarded.
+  - The per-pixel-shader diffuse is chosen here: MOMT 6 TwoLayerDiffuse, MOMT 13 → TwoLayerDiffuseOpaque, MOMT 21 → MapObjLod, Metal/EnvMetal keep `matDiffuse = tex.rgb`.
+- **`wowViewerLib/src/engine/objects/iWmoApi.h`**: `wmoMaterialShader`, the MOMT shader → vertex/pixel shader table.
+- **`wowViewerLib/src/engine/geometry/wmoGroupGeom.cpp`**
+  - `fixColorVertexAlpha`: the MOCV fixup.
+  - `getVBO`: defaults. Missing MOCV is `(0,0,0,0)`; missing MOCV2 is `(0,0,0,255)`.
+- **`wowViewerLib/src/engine/objects/wmo/wmoGroupObject.h`**: `isInteriorLightingLit`.
+- **`wowViewerLib/src/engine/objects/wmo/wmoObject.cpp`**: `calculateAmbient` (MAVG, then MAVD, then MOHD).
+- **`wowViewerLib/src/engine/persistance/header/wmoFileHeader.h`**: the MOHD flag names.
+
+## solarityclient (3.3.5) vs Retail
+
+| | solarityclient (3.3.5 replay) | Retail (WebWowViewerCpp), implemented |
+|---|---|---|
+| Light model | Two families. The ordinary path multiplies: `tex * 2*MOCV * daylight`, and interior batches are `tex * 2*MOCV`. The unified path (MOHD `0x02`) adds: `tex * (2*MOCV + light)`, where light is Exterior, RootAmbient or Authored per group or batch. | One model: `tex * (ambient + 2*MOCV + sun)`. Interior and exterior light are blended per vertex by the fixed MOCV alpha, in gamma space. Exterior-lit groups are forced exterior. `F_UNLIT` shows the texture alone. |
+| ×2 on MOCV | `diffuse * lighting * 2` in the fragment shader | `precomputedLight = vColor.rgb * 2.0` |
+| Interior ambient | MOHD ambient (RootAmbient) | MAVG for the active doodad set, else the first MAVD, else MOHD |
+| MOCV fixup | Transition vertices `>>1`. The rest `(c + c*a>>6) >> 1`, with alpha 255. No ambient subtraction. | Subtracts the MOHD ambient unless MOHD `0x02` (skip base color). Transition vertices get `(c-amb)*(1-a)/2` and keep their alpha. The rest get `(c*a/64 + c - amb)/2`, with alpha 255 in exterior groups and 0 in interior groups. MOHD `0x08` (lighten interiors) keeps the color raw. |
+| Transition batches | Two-pass crossfade (SourceAlphaOpaque, then InverseSourceAlphaAdd) | Single pass, per-vertex blend by transition-vertex alpha |
+| AlphaKey (blend 1) | test at 224/255 | discard below 128/255 |
+| Two-layer shaders | 3.3.5 shader ids only (MOMT 6: `mix(t2, t1, MOCV2.a)`) | MOMT 6: `mix(mix(t1,t2,t2.a), t1, MOCV2.a)`. MOMT 13: `mix(t2, t1, MOCV2.a)`, opaque. MOMT 21 MapObjLod: `t1`. MOTV2 and MOCV2 are used whatever the MOMT flags. |
+| Metal / EnvMetal | — | diffuse kept, specular/env added (this engine used PBR metallic 0.85 before) |
+
+## Changes (branch `wmo-parity`, rebased on master `319417de`)
 
 | Commit | Change |
 |---|---|
-| `54539726` | Retail light model and fixup, in `WmoLitMaterial`. Every MOCV batch, and every batch in an interior-lit group, uses it. Replaces `848493ad`, the 3.3.5 multiplicative ordinary path. |
-| `f526cf4e`, `9f2ed3f6` | Blend 0 has no alpha test. AlphaKey tests at 128/255: `9f2ed3f6` replaces the 224/255 from 3.3.5. |
-| `0b533bb0`, `0c44a2b5` | MOMT 6/13 blend in the shader by MOCV2 alpha. A custom vertex stage carries MOCV2 at location 8. Prepass pipelines keep Bevy's vertex stage. |
-| `2b06d354` | Metal/EnvMetal are no longer PBR-metallic 0.85. |
-| `a8a64f75` | The interior/exterior crossfade is blended in gamma space. |
-| `c7e2e0a2` | A MODF uniqueId placed by several tiles is spawned once (`AdtManager.shared_wmos`). |
+| `039fc0a9`, `dd14f370` | 3.3.5 multiplicative ordinary path and 224/255 AlphaKey. Superseded by the next two rows. |
+| `9e332314` | Retail light model and MOCV fixup. |
+| `65557f4f` | AlphaKey at 128/255. Blend 0 has no test. |
+| `4461f67b`, `c416c1ce` | MOMT 6/13 blend by MOCV2 in the shader. A custom vertex stage carries MOCV2 at location 8. Prepass pipelines keep Bevy's vertex stage. |
+| `c20756c7` | Metal/EnvMetal are no longer metallic. |
+| `fed04b3a` | Interior/exterior blend in gamma space (transition crossfade). |
+| `6f5d8dc6` | Char-select test apps register `Assets<WmoLitMaterial>`. |
+| `64063d33` | A MODF uniqueId placed by several tiles spawns once (`AdtManager.shared_wmos`). |
+| `c102fc02` | One material path: every WMO batch uses `WmoLitMaterial`. The scene light is read only through `scene_daylight()` in `wmo_lighting.wgsl`, currently Bevy PBR sun and ambient. That is where the shared Retail scene light (sky branch) will plug in. |
 
 ## Proof
 
-**GPU tests** (`src/rendering/terrain/terrain_objects_wmo_tests/`):
+**GPU tests.** `cargo test --bin game-engine terrain_objects_wmo -- --ignored --test-threads=1` passes 12/12 at `c102fc02`. Expected values come from the Retail equation or from an independent StandardMaterial reference, not from old pixels.
 
-- `interior_light_gpu`: the Abbey interior and exterior batches match a `texture * (ambient + 2*MOCV)` reference, `[29,11,11]` vs `[30,11,11]` and `[85,151,179]` vs `[85,151,179]`.
-- `alpha_gpu`: an opaque texel at alpha 60 is kept. AlphaKey discards alpha 100 and keeps 160. RED under 224/255: the alpha-160 texel was discarded.
-- `two_layer_gpu`: MOMT 13 gives blue at MOCV2 alpha 0 and red at 1. MOMT 6 gives `[127,0,128]`. RED: the second layer was ignored and the result stayed red. The test also passes with a prepass camera. Before `0c44a2b5` the prepass pipeline failed validation (location 7).
-- `metal_gpu`: RED `[72,71,72]` vs diffuse `[127,126,127]`. GREEN `[128,127,128]`.
+- `unified_gpu`: the Trade District wall is not darker than daylight: `[102,94,88]` vs `[102,93,86]`.
+- `interior_gpu`: both Abbey prepass tests pass.
+- `interior_light_gpu`: Abbey batches 0 and 13 match `tex*(ambient + 2*MOCV)`.
+- `alpha_gpu`: AlphaKey discards alpha 100 and keeps 160 (RED under 224). Opaque keeps alpha 60.
+- `two_layer_gpu`: MOMT 13 blue/red at MOCV2 alpha 0/1; MOMT 6 `[127,0,128]`; also with a prepass camera. RED: the second layer was ignored, and the prepass pipeline failed validation.
+- `metal_gpu`: RED `[72,71,72]` vs `[127,126,127]`.
 - `crossfade_gpu`: interior 11, half 79, exterior 147. RED 107 with a linear-space mix.
 
-**Unit tests:** the lib `mocv_fixup_*` tests, 4 RED against the old fixup; `load_wmo_group_with_root_adds_blend_alpha_for_two_layer_shaders`; `terrain_shared_wmos` lifecycle.
+**Unit tests.**
+- Lib `wmo`: 126, including 4 `mocv_fixup_*` tests that were RED against the old fixup.
+- Bin filters: `terrain` 160, `wmo` 47, `lod` 21, `sidn` 3, `terrain_shared_wmos` 1, `char_select` 121, `char_create` 60.
+- Three failures also fail on master:
+  - `terrain_shader_uses_height_maps_for_layer_blending`
+  - `setup_char_select_scene_proves_render_path_via_runtime_scene_snapshot`
+  - `char_create_shared_request_uses_live_name_after_next_and_category_changes`
 
-**Live, headless.** Files are in `data/diagnostics/wmo-parity-20260925/`.
+**Live, headless.** Files are in `data/diagnostics/wmo-parity-20260925/`. Every run had 0 wgpu validation errors.
 
-- Abbey interior: `1-before-abbey-interior.webp` is dark blue; `R-after-abbey-interior.webp` is lit with warm baked light.
-- Northshire steps: unchanged.
-- Trade District, alpha test: roofs return (`2-before/after-trade.webp`).
-- Trade District, placement: `7-before/after-trade-tree.txt`. The `sw_*` district roots drop from 4 instances to 1, and WMO roots from 89 to 62.
-- No wgpu validation errors after `0c44a2b5`.
+- Abbey interior: `1-before-abbey-interior.webp` (master, dark blue) vs `F-after-abbey-interior.webp` (lit with warm baked light).
+- Northshire steps: `1-before` vs `F-after`. The WMO is unchanged; the terrain differs because of master's terrain blend work.
+- Trade District roofs return: `2-before/after-trade.webp`.
+- Placement dedup: `7-before/after-trade-tree.txt`. The `sw_*` district roots drop from 4 to 1, and WMO roots from 89 to 62.
 
 ## Still open
 
-- The exterior daylight is Bevy PBR (sun plus ambient), not Retail's horizon/ground ambient mix. The additive MOCV term is linearized on its own.
+- The scene light is still Bevy PBR, not the Retail ambient/horizon/ground mix. It moves to the shared Retail scene light through `scene_daylight()`.
 - MAVG/MAVD horizon and ground colors (flag 1) are not used.
-- Other MOCV2 shaders (7, 8, 9, 15, 18, 19) keep the CPU texel-alpha compositing. Blend modes above 1 do not use the 128/255 discard.
-- `reset_streamed_terrain` clears `shared_wmos` (like `tile_doodad_entities`) without despawning them.
-- No live before/after for the Metal shaders: no WMO in the captured areas uses MOMT 2 or 5.
-- Many Trade District groups are `hidden` in `dump-tree` from outside. That is portal culling, and was not investigated.
-
-## Sources
-
-- WebWowViewerCpp, github.com/Deamon87/WebWowViewerCpp, files listed above.
-- `~/Repos/solarityclient` (3.3.5 replay, superseded here).
+- MOCV2 shaders 7, 8, 9, 15, 18 and 19 still use CPU texel-alpha compositing. Blend modes above 1 do not get the 128/255 discard.
+- `reset_streamed_terrain` clears `shared_wmos` without despawning, like `tile_doodad_entities`.
+- No live Metal before/after: no captured area uses MOMT 2 or 5.
+- Portal culling hides many Trade District groups from outside. Not investigated.
 
 ## See Also
 
