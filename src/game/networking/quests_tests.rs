@@ -411,3 +411,45 @@ fn chain_offer_in_the_same_batch_as_the_turn_in_stays_open() {
         ]
     );
 }
+
+#[test]
+fn using_a_mirrored_game_object_sends_use_game_object_and_its_role_opens_a_frame() {
+    use game_engine::network_runtime::messages::ConnectionSender;
+    use game_engine::network_runtime::worker::NetworkCommand;
+    const VAULT_SERVER: u64 = 0x0000_0001_0000_1D01;
+    let Fixture { mut app, .. } = fixture();
+    let (sender, commands) = std::sync::mpsc::channel();
+    app.insert_resource(ConnectionSender::new(Some(sender)));
+    let vault = app.world_mut().spawn_empty().id();
+    let unmapped = app.world_mut().spawn_empty().id();
+    app.world_mut()
+        .resource_mut::<ReplicationMirrorMap>()
+        .insert(Entity::from_bits(VAULT_SERVER), vault);
+    app.world_mut()
+        .write_message(NpcInteractionRequest::UseObject(unmapped));
+    app.world_mut()
+        .write_message(NpcInteractionRequest::UseObject(vault));
+    app.world_mut()
+        .run_system_once(send_interaction_requests)
+        .unwrap();
+    assert!(matches!(commands.try_recv(), Ok(NetworkCommand::Apply(_))));
+    assert!(commands.try_recv().is_err());
+
+    deliver(
+        &mut app,
+        vec![InteractionOpened {
+            npc: VAULT_SERVER,
+            kind: InteractionKind::Role(NpcRole::GuildBanker),
+        }],
+    );
+    app.world_mut()
+        .run_system_once(receive_quest_dialog)
+        .unwrap();
+    assert_eq!(
+        frame_events(&mut app),
+        vec![NpcFrameEvent::Opened {
+            npc: VAULT_SERVER,
+            role: NpcRole::GuildBanker,
+        }]
+    );
+}

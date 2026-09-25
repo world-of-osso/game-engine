@@ -21,26 +21,6 @@ pub mod textures {
     pub const BAG_ICON_MEDIUM: u32 = 133625;
 }
 
-/// Texture FDIDs for the bank frame.
-pub mod bank_textures {
-    /// Bank frame main chrome texture.
-    pub const FRAME_CHROME: u32 = 130703;
-    /// Bank frame top-left corner.
-    pub const CORNER_TOP_LEFT: u32 = 130701;
-    /// Bank frame top-right corner.
-    pub const CORNER_TOP_RIGHT: u32 = 130702;
-    /// Bank frame bottom-left corner.
-    pub const CORNER_BOTTOM_LEFT: u32 = 130699;
-    /// Bank frame bottom-right corner.
-    pub const CORNER_BOTTOM_RIGHT: u32 = 130700;
-    /// Bank background fill.
-    pub const BACKGROUND: u32 = 590155;
-    /// Item slot background texture.
-    pub const SLOT_BACKGROUND: u32 = 130862;
-    /// Lock icon for locked/unpurchased slots.
-    pub const LOCK_ICON: u32 = 130944;
-}
-
 /// Returns the appropriate container background FDID for a given row count.
 pub fn bag_background_for_rows(rows: usize) -> u32 {
     match rows {
@@ -106,7 +86,7 @@ impl InventorySlot {
 
 /// A server stack shown in a bag slot. The server sends ids and counts only, so
 /// the name stays empty and the quality common.
-fn stack_slot(stack: &ItemStack) -> InventorySlot {
+pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
     InventorySlot {
         icon_fdid: crate::item_icons::item_icon_fdid(stack.item_id).unwrap_or(UNKNOWN_ICON_FDID),
         count: stack.count,
@@ -339,61 +319,6 @@ impl InventoryState {
         self.slots[to_bag][to_slot].count = combined;
         self.clear_slot(from_bag, from_slot);
         true
-    }
-}
-
-/// A bank bag slot that may or may not be purchased.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct BankBagSlot {
-    pub purchased: bool,
-    pub bag_name: String,
-    pub bag_size: usize,
-    pub icon_fdid: u32,
-}
-
-/// Runtime state for the player's bank.
-#[derive(Resource, Clone, Debug, PartialEq)]
-pub struct BankState {
-    /// Main bank slots (28).
-    pub slots: Vec<InventorySlot>,
-    /// Bank bag slots (7), each may be purchased or locked.
-    pub bag_slots: Vec<BankBagSlot>,
-    /// Reagent bank slots (98), only `reagent_unlocked` are usable.
-    pub reagent_slots: Vec<InventorySlot>,
-    /// Number of reagent slots the player has purchased.
-    pub reagent_unlocked: usize,
-}
-
-impl Default for BankState {
-    fn default() -> Self {
-        Self {
-            slots: vec![InventorySlot::default(); 28],
-            bag_slots: vec![BankBagSlot::default(); 7],
-            reagent_slots: vec![InventorySlot::default(); 98],
-            reagent_unlocked: 0,
-        }
-    }
-}
-
-impl BankState {
-    pub fn main_slot(&self, index: usize) -> Option<&InventorySlot> {
-        self.slots.get(index)
-    }
-
-    pub fn reagent_slot(&self, index: usize) -> Option<&InventorySlot> {
-        self.reagent_slots.get(index)
-    }
-
-    pub fn is_reagent_slot_locked(&self, index: usize) -> bool {
-        index >= self.reagent_unlocked
-    }
-
-    pub fn is_bag_slot_purchased(&self, index: usize) -> bool {
-        self.bag_slots.get(index).is_some_and(|s| s.purchased)
-    }
-
-    pub fn purchased_bag_count(&self) -> usize {
-        self.bag_slots.iter().filter(|s| s.purchased).count()
     }
 }
 

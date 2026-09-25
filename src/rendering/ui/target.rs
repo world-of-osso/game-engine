@@ -83,6 +83,9 @@ pub enum WorldObjectInteractionKind {
     GatherNode(GatherNodeKind),
     ZoneTransition,
     QuestObject,
+    /// A replicated server game object (`GameObjectInfo`); using it sends
+    /// `UseGameObject` and the server checks the reach.
+    ServerObject,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -555,6 +558,14 @@ fn interact_with_clicked_object(
     player_position: Vec3,
     state: &mut RightClickInteractionState<'_, '_>,
 ) -> bool {
+    if kind == WorldObjectInteractionKind::ServerObject {
+        state
+            .interactions
+            .write(crate::networking_quests::NpcInteractionRequest::UseObject(
+                target_entity,
+            ));
+        return true;
+    }
     let Ok(object_tf) = state.object_tf_q.get(target_entity) else {
         return true;
     };
@@ -659,7 +670,7 @@ fn interact_with_object(
             start_gather_cast(node, profession_runtime, casting_state)
         }
         WorldObjectInteractionKind::ZoneTransition => true,
-        WorldObjectInteractionKind::QuestObject => false,
+        WorldObjectInteractionKind::QuestObject | WorldObjectInteractionKind::ServerObject => false,
     }
 }
 

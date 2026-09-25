@@ -21,7 +21,7 @@ use shared::protocol::{
     QuestGiverHello, QuestGiverOfferReward, QuestGiverQueryQuest, QuestGiverQuestComplete,
     QuestGiverQuestDetails, QuestGiverQuestList, QuestGiverRequestItems, QuestGiverStatus,
     QuestGiverStatusMultiple, QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate,
-    SelectGossipOption, SetQuestWatched,
+    SelectGossipOption, SetQuestWatched, UseGameObject,
 };
 
 use crate::game_state::GameState;
@@ -301,6 +301,7 @@ fn query_new_quest_givers(
 #[derive(SystemParam)]
 struct InteractionSenders<'w, 's> {
     interact: MessageSenders<'w, 's, InteractNpc>,
+    use_object: MessageSenders<'w, 's, UseGameObject>,
     gossip: MessageSenders<'w, 's, SelectGossipOption>,
     close: MessageSenders<'w, 's, CloseInteraction>,
     hello: MessageSenders<'w, 's, QuestGiverHello>,
@@ -338,6 +339,18 @@ fn send_request(
                 &mut senders.interact,
                 InteractNpc {
                     npc: server.to_bits(),
+                },
+            );
+        }
+        R::UseObject(entity) => {
+            let Some(server) = mirror.main_to_server(entity) else {
+                warn!("right-clicked game object {entity} has no server entity");
+                return;
+            };
+            send::<InteractionChannel, _>(
+                &mut senders.use_object,
+                UseGameObject {
+                    object: server.to_bits(),
                 },
             );
         }

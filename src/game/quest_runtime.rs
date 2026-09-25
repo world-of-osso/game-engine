@@ -39,6 +39,8 @@ pub enum NpcFrameEvent {
 pub enum NpcInteractionRequest {
     /// Right-click on an NPC (main-world entity).
     Interact(Entity),
+    /// Right-click on a server game object (main-world entity).
+    UseObject(Entity),
     Hello {
         npc: u64,
     },

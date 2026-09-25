@@ -528,6 +528,8 @@ fn register_net_observers(app: &mut App) {
     app.add_observer(handle_client_disconnected);
     app.add_observer(crate::networking_player::spawn_replicated_player);
     app.add_observer(crate::networking_npc::spawn_replicated_npc);
+    app.insert_resource(crate::game::networking_game_objects::GameObjectDisplays::load());
+    app.add_observer(crate::game::networking_game_objects::spawn_replicated_game_object);
     app.add_observer(cleanup_disconnected_player);
 }
 

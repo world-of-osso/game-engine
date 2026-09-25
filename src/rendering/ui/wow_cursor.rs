@@ -137,6 +137,10 @@ fn cursor_for_interaction(target: crate::target::InteractionTarget) -> ActiveWow
         | crate::target::InteractionTarget::Object(
             _,
             crate::target::WorldObjectInteractionKind::ZoneTransition,
+        )
+        | crate::target::InteractionTarget::Object(
+            _,
+            crate::target::WorldObjectInteractionKind::ServerObject,
         ) => ActiveWowCursor::Interact,
     }
 }

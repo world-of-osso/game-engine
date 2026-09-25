@@ -648,7 +648,7 @@ fn money_bar(copper: u64) -> Element {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum MoneyAlign {
+pub(crate) enum MoneyAlign {
     Left,
     Right,
 }
@@ -677,7 +677,13 @@ fn coins(copper: u64) -> Vec<(u64, &'static AtlasArt)> {
 
 /// Amount + coin pairs, 4 px apart; `anchor` is the bottom-left (Left) or
 /// bottom-right (Right) corner in parent space.
-fn money(prefix: &str, copper: u64, anchor: (f32, f32), align: MoneyAlign, gray: bool) -> Element {
+pub(crate) fn money(
+    prefix: &str,
+    copper: u64,
+    anchor: (f32, f32),
+    align: MoneyAlign,
+    gray: bool,
+) -> Element {
     let color = if gray {
         GRAY_FONT_COLOR
     } else {
@@ -754,14 +760,14 @@ fn tabs(buyback_tab: bool) -> Element {
     }
 }
 
-fn tab_width(label: &str) -> f32 {
+pub(crate) fn tab_width(label: &str) -> f32 {
     let text_w = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(50.0, |(w, _)| w);
     (text_w + 20.0)
         .max(TAB_INACTIVE[0].size().0 + TAB_INACTIVE[2].size().0)
         .ceil()
 }
 
-fn tab(
+pub(crate) fn tab(
     name: &str,
     label: &str,
     (x, y, width): (f32, f32, f32),

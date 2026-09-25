@@ -14,7 +14,7 @@ use shared::components::{
     MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras, UnitFactionTemplate,
     UnitLevel, UnitPowers, UnitTarget, Zone,
 };
-use shared::protocol::NpcFlags;
+use shared::protocol::{GameObjectInfo, NpcFlags};
 
 use super::worker::MainUpdate;
 
@@ -164,6 +164,7 @@ struct EntitySnapshot {
     player: Option<Player>,
     npc: Option<Npc>,
     npc_flags: Option<NpcFlags>,
+    game_object: Option<GameObjectInfo>,
     model_display: Option<ModelDisplay>,
     rotation: Option<Rotation>,
     movement_speed: Option<MovementSpeed>,
@@ -193,6 +194,7 @@ impl EntitySnapshot {
             player: entity.get::<Player>().cloned(),
             npc: entity.get::<Npc>().cloned(),
             npc_flags: entity.get::<NpcFlags>().copied(),
+            game_object: entity.get::<GameObjectInfo>().cloned(),
             model_display: entity.get::<ModelDisplay>().copied(),
             rotation: entity.get::<Rotation>().copied(),
             movement_speed: entity.get::<MovementSpeed>().copied(),
@@ -237,6 +239,7 @@ impl EntitySnapshot {
             // Add observers immediately query support components: insert identities last.
             apply_component(&mut entity, self.player);
             apply_component(&mut entity, self.npc);
+            apply_component(&mut entity, self.game_object);
         }
         world.write_message(EntityReplicated {
             entity: main,
@@ -445,6 +448,33 @@ mod tests {
             .unwrap();
         let flags = main.world().get::<NpcFlags>(mirror).copied();
         assert!(flags.is_some_and(|flags| flags.contains(NpcFlags::QUESTGIVER)));
+    }
+
+    #[test]
+    fn game_objects_mirror_with_their_position() {
+        let mut worker = World::new();
+        let info = GameObjectInfo {
+            entry: 187329,
+            go_type: shared::protocol::GAMEOBJECT_TYPE_GUILD_BANK,
+            display_id: 7607,
+            name: "Guild Vault".into(),
+            scale: 1.0,
+        };
+        let position = Position {
+            x: -8934.91,
+            y: 100.589,
+            z: -618.273,
+        };
+        let source = worker.spawn((Remote, info.clone(), position)).id();
+        let mut main = main_app();
+        apply(main.world_mut(), snapshot(&worker, source, source, 1));
+        let mirror = main
+            .world()
+            .resource::<ReplicationMirrorMap>()
+            .server_to_main(source)
+            .unwrap();
+        assert_eq!(main.world().get::<GameObjectInfo>(mirror), Some(&info));
+        assert_eq!(main.world().get::<Position>(mirror), Some(&position));
     }
 
     #[derive(Resource, Default)]
