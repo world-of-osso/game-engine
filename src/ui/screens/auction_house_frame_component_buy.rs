@@ -122,6 +122,7 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
             width: 132.0,
             height: 21.0,
             onclick: {action.as_str()},
+            button_default_skin: false,
             pos_type: "absolute",
             left: x,
             top: y,
