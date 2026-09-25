@@ -39,10 +39,10 @@ pub(super) enum WallShading {
     Wmo,
     /// Lit StandardMaterial with the batch texture and no vertex color.
     DaylightOnly,
-    /// Stock ordinary MapObj: texture * 2 * fixed MOCV, times daylight when `lit`.
-    /// Bevy multiplies linear vertex color into the base color, so the reference
-    /// carries `srgb_to_linear(2 * MOCV)`.
-    StockMocv { lit: bool },
+    /// Retail interior light: unlit `texture * (ambient + 2 * fixed MOCV)`. Bevy
+    /// multiplies linear vertex color into the base color, so the reference carries
+    /// `srgb_to_linear(ambient + 2 * MOCV)`.
+    RetailInterior { ambient: [f32; 3] },
 }
 
 fn load_trade_district_exterior_group() -> (wmo::WmoRootData, wmo::WmoGroupData) {
@@ -112,7 +112,9 @@ pub(super) fn render_batch_center(
     match shading {
         WallShading::Wmo => spawn_production_batch(&mut app, root, group, batch),
         WallShading::DaylightOnly => spawn_daylight_reference(&mut app, root, batch),
-        WallShading::StockMocv { lit } => spawn_stock_mocv_reference(&mut app, root, batch, lit),
+        WallShading::RetailInterior { ambient } => {
+            spawn_retail_interior_reference(&mut app, root, batch, ambient)
+        }
     }
     capture_center_until_drawn(&mut app, target)
 }
@@ -127,7 +129,7 @@ pub(super) fn spawn_production_batch(
         .world_mut()
         .spawn((Transform::default(), Visibility::default()))
         .id();
-    let interior_ambient = build_wmo_interior_ambient(root, group);
+    let interior_ambient = wmo_interior_ambient(root, 0);
     app.world_mut()
         .resource_scope(|world, mut meshes: Mut<Assets<Mesh>>| {
             world.resource_scope(|world, mut materials: Mut<Assets<StandardMaterial>>| {
@@ -169,11 +171,11 @@ fn spawn_daylight_reference(app: &mut App, root: &wmo::WmoRootData, mut batch: w
     spawn_reference(app, root, batch, false);
 }
 
-fn spawn_stock_mocv_reference(
+fn spawn_retail_interior_reference(
     app: &mut App,
     root: &wmo::WmoRootData,
     mut batch: wmo::WmoGroupBatch,
-    lit: bool,
+    ambient: [f32; 3],
 ) {
     let Some(bevy::mesh::VertexAttributeValues::Float32x4(colors)) =
         batch.mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR)
@@ -181,10 +183,11 @@ fn spawn_stock_mocv_reference(
         panic!("batch has no MOCV");
     };
     for color in colors.iter_mut() {
-        let light = Color::srgb(2.0 * color[0], 2.0 * color[1], 2.0 * color[2]).to_linear();
+        let [r, g, b] = [0, 1, 2].map(|channel| ambient[channel] + 2.0 * color[channel]);
+        let light = Color::srgb(r, g, b).to_linear();
         *color = [light.red, light.green, light.blue, 1.0];
     }
-    spawn_reference(app, root, batch, !lit);
+    spawn_reference(app, root, batch, true);
 }
 
 fn spawn_reference(app: &mut App, root: &wmo::WmoRootData, batch: wmo::WmoGroupBatch, unlit: bool) {

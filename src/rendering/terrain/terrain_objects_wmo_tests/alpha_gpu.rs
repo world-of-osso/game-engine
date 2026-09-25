@@ -68,7 +68,7 @@ fn render_surface_center(blend_mode: u32, alpha: u8) -> [u8; 4] {
             TextureFormat::Rgba8UnormSrgb,
             default(),
         ));
-    let mut wmo = wmo_standard_material(Some(texel), blend_mode, false, 0, None, None);
+    let mut wmo = wmo_standard_material(Some(texel), blend_mode, false, 0, None);
     wmo.unlit = true;
     let background = StandardMaterial {
         base_color: Color::srgb(0.0, 1.0, 0.0),

@@ -92,7 +92,6 @@ fn build_group_batches(
     root: Option<&WmoRootData>,
 ) -> Result<WmoGroupData, String> {
     apply_mocv_vertex_color_fix(&mut raw.colors, &raw.batches, &header, root);
-    make_vertex_colors_opaque(&mut raw.colors);
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
     let batches = if raw.batches.is_empty() {
         vec![build_whole_group_batch(
@@ -224,6 +223,13 @@ fn batch_uses_generated_tangents(root: Option<&WmoRootData>, material_index: u16
         .is_some_and(WmoMaterialDef::uses_generated_tangents)
 }
 
+const GROUP_EXTERIOR: u32 = 0x8;
+const GROUP_EXTERIOR_LIT: u32 = 0x40;
+
+/// Retail `CMapObjGroup::FixColorVertexAlpha`, per WebWowViewerCpp
+/// `WmoGroupGeom::fixColorVertexAlpha`. The alpha it leaves is the interior/exterior
+/// lighting blend (0 interior, 1 exterior), not opacity; transition-batch vertices keep
+/// their authored alpha, which cross-fades the two.
 fn apply_mocv_vertex_color_fix(
     colors: &mut [[f32; 4]],
     batches: &[RawBatch],
@@ -235,38 +241,44 @@ fn apply_mocv_vertex_color_fix(
     }
 
     let root_flags = root.map(|root| root.flags).unwrap_or_default();
-    let int_batch_start = first_interior_vertex_index(header, batches);
-    for (vertex_index, color) in colors.iter_mut().enumerate() {
-        if vertex_index < int_batch_start {
-            if !root_flags.do_not_fix_vertex_color_alpha {
-                color[0] *= 0.5;
-                color[1] *= 0.5;
-                color[2] *= 0.5;
-            }
-            continue;
+    let exterior_alpha = if header.flags & (GROUP_EXTERIOR | GROUP_EXTERIOR_LIT) != 0 {
+        1.0
+    } else {
+        0.0
+    };
+    let int_batch_start = first_interior_vertex_index(header, batches).min(colors.len());
+    if root_flags.do_not_fix_vertex_color_alpha {
+        for color in &mut colors[int_batch_start..] {
+            color[3] = exterior_alpha;
         }
+        return;
+    }
 
-        if !root_flags.do_not_fix_vertex_color_alpha {
-            color[0] = ((color[0] * 255.0) + ((color[3] * 255.0) * (color[0] * 255.0) / 64.0))
-                .min(255.0)
-                / 510.0;
-            color[1] = ((color[1] * 255.0) + ((color[3] * 255.0) * (color[1] * 255.0) / 64.0))
-                .min(255.0)
-                / 510.0;
-            color[2] = ((color[2] * 255.0) + ((color[3] * 255.0) * (color[2] * 255.0) / 64.0))
-                .min(255.0)
-                / 510.0;
+    let ambient = match root {
+        Some(root) if !root_flags.use_unified_render_path => root.ambient_color.map(to_byte),
+        _ => [0.0; 4],
+    };
+    let (transition, rest) = colors.split_at_mut(int_batch_start);
+    for color in transition {
+        let alpha = color[3];
+        for channel in 0..3 {
+            let lit = (to_byte(color[channel]) - ambient[channel]).max(0.0);
+            color[channel] = ((lit - alpha * lit) / 2.0).floor().max(0.0) / 255.0;
         }
+    }
+    for color in rest {
+        let alpha = to_byte(color[3]);
+        for channel in 0..3 {
+            let value = to_byte(color[channel]);
+            let lit = (value * alpha / 64.0).floor() + value - ambient[channel];
+            color[channel] = (lit / 2.0).clamp(0.0, 255.0).floor() / 255.0;
+        }
+        color[3] = exterior_alpha;
     }
 }
 
-/// MOCV alpha is WoW's indoor/outdoor lighting blend, not opacity. Bevy multiplies
-/// vertex alpha into material alpha, so leaving it in makes masked interior walls
-/// discard their color while the depth prepass still writes their depth.
-fn make_vertex_colors_opaque(colors: &mut [[f32; 4]]) {
-    for color in colors {
-        color[3] = 1.0;
-    }
+fn to_byte(channel: f32) -> f32 {
+    (channel * 255.0).round()
 }
 
 fn first_interior_vertex_index(header: &WmoGroupHeader, batches: &[RawBatch]) -> usize {

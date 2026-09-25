@@ -171,8 +171,9 @@ fn load_wmo_group_classifies_batches_from_header_ranges() {
     assert_eq!(group.batches[3].batch_type, WmoBatchType::Exterior);
 }
 
-#[test]
-fn load_wmo_group_with_root_fixes_mocv_vertex_alpha_for_exterior_batches() {
+/// One transition batch (vertex 0) and one interior batch (vertex 1), both with
+/// MOCV `(64, 64, 64, 128)`.
+fn two_batch_mocv_group(group_flags: u32) -> Vec<u8> {
     let mut data = Vec::new();
     let moba_size = 24_u32 * 2;
     let mocv_size = 4_u32 * 2;
@@ -180,71 +181,7 @@ fn load_wmo_group_with_root_fixes_mocv_vertex_alpha_for_exterior_batches() {
     data.extend_from_slice(b"PGOM");
     data.extend_from_slice(&mogp_size.to_le_bytes());
     let mut header = [0_u8; MOGP_HEADER_SIZE];
-    header[8..12].copy_from_slice(&0x8_u32.to_le_bytes());
-    header[40..42].copy_from_slice(&1_u16.to_le_bytes());
-    header[44..46].copy_from_slice(&1_u16.to_le_bytes());
-    data.extend_from_slice(&header);
-
-    data.extend_from_slice(b"ABOM");
-    data.extend_from_slice(&moba_size.to_le_bytes());
-    for (start_index, max_index) in [(0_u32, 0_u16), (3_u32, 1_u16)] {
-        data.extend_from_slice(&[0_u8; 10]);
-        data.extend_from_slice(&0_u16.to_le_bytes());
-        data.extend_from_slice(&start_index.to_le_bytes());
-        data.extend_from_slice(&3_u16.to_le_bytes());
-        data.extend_from_slice(&max_index.to_le_bytes());
-        data.extend_from_slice(&max_index.to_le_bytes());
-        data.push(0);
-        data.push(0);
-    }
-
-    data.extend_from_slice(b"VCOM");
-    data.extend_from_slice(&mocv_size.to_le_bytes());
-    data.extend_from_slice(&[64_u8, 64, 64, 128]);
-    data.extend_from_slice(&[64_u8, 64, 64, 128]);
-
-    data.extend_from_slice(b"TVOM");
-    data.extend_from_slice(&(24_u32).to_le_bytes());
-    for value in [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0] {
-        data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    data.extend_from_slice(b"IVOM");
-    data.extend_from_slice(&(6_u32).to_le_bytes());
-    for value in [0_u16, 0, 0] {
-        data.extend_from_slice(&value.to_le_bytes());
-    }
-
-    let root = empty_root(WmoRootFlags::default());
-    let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
-    let colors = match group.batches[0].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
-        Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
-        _ => panic!("missing colors"),
-    };
-
-    assert_eq!(colors.len(), 1);
-    assert!((colors[0][0] - 0.1254902).abs() < 0.001);
-    assert_eq!(colors[0][3], 1.0);
-
-    let colors = match group.batches[1].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
-        Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
-        _ => panic!("missing colors"),
-    };
-
-    assert_eq!(colors.len(), 1);
-    assert!((colors[0][0] - 0.3764706).abs() < 0.001);
-    assert_eq!(colors[0][3], 1.0);
-}
-
-#[test]
-fn load_wmo_group_with_root_honors_do_not_fix_vertex_color_alpha_flag() {
-    let mut data = Vec::new();
-    let moba_size = 24_u32 * 2;
-    let mocv_size = 4_u32 * 2;
-    let mogp_size = MOGP_HEADER_SIZE as u32 + 8 + moba_size + 8 + mocv_size + 8 + 24 + 8 + 6;
-    data.extend_from_slice(b"PGOM");
-    data.extend_from_slice(&mogp_size.to_le_bytes());
-    let mut header = [0_u8; MOGP_HEADER_SIZE];
+    header[8..12].copy_from_slice(&group_flags.to_le_bytes());
     header[40..42].copy_from_slice(&1_u16.to_le_bytes());
     header[42..44].copy_from_slice(&1_u16.to_le_bytes());
     data.extend_from_slice(&header);
@@ -278,20 +215,83 @@ fn load_wmo_group_with_root_honors_do_not_fix_vertex_color_alpha_flag() {
     for value in [0_u16, 0, 0] {
         data.extend_from_slice(&value.to_le_bytes());
     }
+    data
+}
 
+/// The single vertex color of each batch, as bytes.
+fn batch_vertex_colors(group: &WmoGroupData) -> Vec<[u8; 4]> {
+    group
+        .batches
+        .iter()
+        .map(|batch| match batch.mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
+            Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => {
+                assert_eq!(values.len(), 1);
+                values[0].map(|channel| (channel * 255.0).round() as u8)
+            }
+            _ => panic!("missing colors"),
+        })
+        .collect()
+}
+
+const GROUP_EXTERIOR: u32 = 0x8;
+const GROUP_INTERIOR: u32 = 0x2000;
+
+/// Retail FixColorVertexAlpha (WebWowViewerCpp `WmoGroupGeom::fixColorVertexAlpha`):
+/// transition vertices keep their alpha and get `(c - ambient) * (1 - a) / 2`; later
+/// vertices get `(c * a / 64 + c - ambient) / 2` and alpha 255 in exterior groups.
+#[test]
+fn mocv_fixup_follows_retail_for_exterior_group() {
+    let root = empty_root(WmoRootFlags::default());
+    let group = load_wmo_group_with_root(&two_batch_mocv_group(GROUP_EXTERIOR), Some(&root))
+        .expect("parse WMO group");
+    assert_eq!(
+        batch_vertex_colors(&group),
+        vec![[15, 15, 15, 128], [96, 96, 96, 255]]
+    );
+}
+
+/// The MOHD ambient is subtracted, and interior groups get alpha 0 (interior light).
+#[test]
+fn mocv_fixup_subtracts_mohd_ambient_in_interior_group() {
+    let mut root = empty_root(WmoRootFlags::default());
+    root.ambient_color = [16.0 / 255.0, 16.0 / 255.0, 16.0 / 255.0, 1.0];
+    let group = load_wmo_group_with_root(&two_batch_mocv_group(GROUP_INTERIOR), Some(&root))
+        .expect("parse WMO group");
+    assert_eq!(
+        batch_vertex_colors(&group),
+        vec![[11, 11, 11, 128], [88, 88, 88, 0]]
+    );
+}
+
+/// MOHD 0x02 (skip base color) leaves the ambient out of the fixup.
+#[test]
+fn mocv_fixup_skips_mohd_ambient_with_skip_base_color_flag() {
+    let mut root = empty_root(WmoRootFlags {
+        use_unified_render_path: true,
+        ..WmoRootFlags::default()
+    });
+    root.ambient_color = [16.0 / 255.0, 16.0 / 255.0, 16.0 / 255.0, 1.0];
+    let group = load_wmo_group_with_root(&two_batch_mocv_group(GROUP_INTERIOR), Some(&root))
+        .expect("parse WMO group");
+    assert_eq!(
+        batch_vertex_colors(&group),
+        vec![[15, 15, 15, 128], [96, 96, 96, 0]]
+    );
+}
+
+/// MOHD 0x08 (lighten interiors) keeps MOCV color raw and only sets the lighting alpha.
+#[test]
+fn mocv_fixup_keeps_raw_color_with_lighten_interiors_flag() {
     let root = empty_root(WmoRootFlags {
         do_not_fix_vertex_color_alpha: true,
         ..WmoRootFlags::default()
     });
-    let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
-    let colors = match group.batches[1].mesh.attribute(Mesh::ATTRIBUTE_COLOR) {
-        Some(bevy::mesh::VertexAttributeValues::Float32x4(values)) => values,
-        _ => panic!("missing colors"),
-    };
-
-    assert_eq!(colors.len(), 1);
-    assert!((colors[0][0] - 0.2509804).abs() < 0.001);
-    assert_eq!(colors[0][3], 1.0);
+    let group = load_wmo_group_with_root(&two_batch_mocv_group(GROUP_INTERIOR), Some(&root))
+        .expect("parse WMO group");
+    assert_eq!(
+        batch_vertex_colors(&group),
+        vec![[64, 64, 64, 128], [64, 64, 64, 0]]
+    );
 }
 
 #[test]
