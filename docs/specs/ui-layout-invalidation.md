@@ -10,6 +10,7 @@ The shared `ui-toolkit` resolves frame geometry only when layout inputs are dirt
 - [x] Flex child changes reflow the parent and anchored dependents.
 - [x] Text/editbox auto-sizing and resolved named anchors invalidate affected geometry; explicit unanchored rectangles retain existing semantics.
 - [x] Addon size changes use the same invalidation contract while preserving frame ownership checks.
+- [x] A settled registry is not reconciled into native entities each frame. `prepare_ui_frame_order` rebuilds only when render/rect dirty marks exist or the frame count changed, and `sync_registry` runs only when that order changed, the text-render toggle changed, or a projected native component was removed (ui-toolkit `sync-gate`). Visibility, text, texture, anchor, rename and removal still reach the projection on the next update.
 
 ## How it works
 
