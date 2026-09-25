@@ -101,7 +101,6 @@ struct StatusRefreshes {
     network: bool,
     terrain: bool,
     sound: bool,
-    character_stats: bool,
     equipped_gear: bool,
     equipment_appearance: bool,
     character_roster: bool,
@@ -114,10 +113,8 @@ impl StatusRefreshes {
             Request::NetworkStatus => self.network = true,
             Request::TerrainStatus => self.terrain = true,
             Request::SoundStatus => self.sound = true,
-            Request::CharacterStatsStatus => self.character_stats = true,
             Request::EquippedGearStatus => self.equipped_gear = true,
             Request::ExportCharacter { .. } => {
-                self.character_stats = true;
                 self.equipped_gear = true;
                 self.equipment_appearance = true;
                 self.character_roster = true;
@@ -160,10 +157,6 @@ impl PendingIpcCommands {
 
     pub fn needs_sound_status(&self) -> bool {
         self.refreshes.sound
-    }
-
-    pub fn needs_character_stats(&self) -> bool {
-        self.refreshes.character_stats
     }
 
     pub fn needs_equipped_gear(&self) -> bool {
@@ -1041,7 +1034,6 @@ mod tests {
             character_name: None,
             character_id: None,
         });
-        assert!(export.needs_character_stats());
         assert!(export.needs_equipped_gear());
         assert!(export.needs_equipment_appearance());
         assert!(export.needs_character_roster());
@@ -1049,7 +1041,6 @@ mod tests {
 
         let map = pending_request(Request::MapWaypointAdd { x: 1.0, y: 2.0 });
         assert!(map.needs_map_status());
-        assert!(!map.needs_character_stats());
 
         let performance = pending_request(Request::Performance);
         assert!(!performance.needs_any_status_refresh());

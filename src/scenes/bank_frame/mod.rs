@@ -83,18 +83,16 @@ impl Plugin for BankFramePlugin {
 
 /// Everything the frames show besides their own state.
 #[derive(SystemParam)]
-struct BankView<'w, 's> {
+struct BankView<'w> {
     bank: Res<'w, BankState>,
     guild: Res<'w, GuildBankState>,
     manager: Res<'w, WindowManager>,
-    /// The local player's replicated money (the IPC `CharacterStatsSnapshot` only
-    /// refreshes on IPC requests).
-    gold: Query<'w, 's, &'static shared::components::Gold, With<crate::networking::LocalPlayer>>,
+    stats: Option<Res<'w, game_engine::status::CharacterStatsSnapshot>>,
 }
 
-impl BankView<'_, '_> {
+impl BankView<'_> {
     fn money(&self) -> u64 {
-        self.gold.iter().next().map_or(0, |gold| gold.0)
+        self.stats.as_ref().map_or(0, |stats| stats.gold)
     }
 
     fn bank_state(&self) -> BankFrameState {

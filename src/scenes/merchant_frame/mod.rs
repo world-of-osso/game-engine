@@ -88,7 +88,7 @@ impl MerchantView<'_> {
         build_state(
             &self.merchant,
             self.manager.is_open(WindowId::Merchant),
-            u64::from(money),
+            money,
             u64::from(repair_cost),
         )
     }
