@@ -1,4 +1,4 @@
-//! InWorld automation input: `ClickFrame` / `PressKey` actions are injected as real
+//! InWorld automation input: `ClickFrame` / `RightClickFrame` / `PressKey` actions are injected as real
 //! mouse/keyboard input (cursor position + `MouseButtonInput` / `KeyboardInput`
 //! messages) so in-world panels react through their production input systems.
 //!
@@ -28,7 +28,7 @@ pub(crate) enum InWorldAutomationInput {
 
 #[derive(Debug, Clone)]
 pub(crate) enum HeldInput {
-    Mouse,
+    Mouse(MouseButton),
     Keys(KeyChord),
 }
 
@@ -121,13 +121,22 @@ fn press_action(
     writers: &mut InputWriters,
 ) -> Result<HeldInput, String> {
     match action {
-        UiAutomationAction::ClickFrame(name) => {
-            window.set_cursor_position(Some(click_window_position(registry, name)?));
-            writers
-                .mouse
-                .write(mouse_input(ButtonState::Pressed, window_entity));
-            Ok(HeldInput::Mouse)
-        }
+        UiAutomationAction::ClickFrame(name) => press_frame(
+            MouseButton::Left,
+            name,
+            registry,
+            window_entity,
+            window,
+            writers,
+        ),
+        UiAutomationAction::RightClickFrame(name) => press_frame(
+            MouseButton::Right,
+            name,
+            registry,
+            window_entity,
+            window,
+            writers,
+        ),
         UiAutomationAction::PressKey(chord) => {
             let shift = chord_has_shift(chord);
             for &key in chord.modifiers.iter().chain(std::iter::once(&chord.key)) {
@@ -147,12 +156,27 @@ fn press_action(
     }
 }
 
+fn press_frame(
+    button: MouseButton,
+    name: &str,
+    registry: &FrameRegistry,
+    window_entity: Entity,
+    window: &mut Window,
+    writers: &mut InputWriters,
+) -> Result<HeldInput, String> {
+    window.set_cursor_position(Some(click_window_position(registry, name)?));
+    writers
+        .mouse
+        .write(mouse_input(button, ButtonState::Pressed, window_entity));
+    Ok(HeldInput::Mouse(button))
+}
+
 fn write_release(held: &HeldInput, window_entity: Entity, writers: &mut InputWriters) {
     match held {
-        HeldInput::Mouse => {
+        HeldInput::Mouse(button) => {
             writers
                 .mouse
-                .write(mouse_input(ButtonState::Released, window_entity));
+                .write(mouse_input(*button, ButtonState::Released, window_entity));
         }
         HeldInput::Keys(chord) => {
             let shift = chord_has_shift(chord);
@@ -220,9 +244,9 @@ fn chord_has_shift(chord: &KeyChord) -> bool {
         .any(|key| matches!(key, KeyCode::ShiftLeft | KeyCode::ShiftRight))
 }
 
-fn mouse_input(state: ButtonState, window: Entity) -> MouseButtonInput {
+fn mouse_input(button: MouseButton, state: ButtonState, window: Entity) -> MouseButtonInput {
     MouseButtonInput {
-        button: MouseButton::Left,
+        button,
         state,
         window,
     }

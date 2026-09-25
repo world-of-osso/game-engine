@@ -151,6 +151,9 @@ pub fn run_login_automation_action(
         UiAutomationAction::PressKey(chord) => {
             press_login_automation_key(ctx, chord.unmodified_key()?)
         }
+        UiAutomationAction::RightClickFrame(name) => {
+            Err(format!("ui.rightClick('{name}') is only supported InWorld"))
+        }
         _ => Ok(()),
     }
 }
