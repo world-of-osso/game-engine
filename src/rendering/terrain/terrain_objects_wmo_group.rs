@@ -6,7 +6,7 @@ pub(super) fn spawn_wmo_group_batches(
     assets: &mut WmoAssets<'_>,
     root: &wmo::WmoRootData,
     group_header: &wmo::WmoGroupHeader,
-    interior_ambient: Option<[f32; 4]>,
+    interior_ambient: [f32; 3],
     group_entity: Entity,
     batches: Vec<wmo::WmoGroupBatch>,
 ) {
@@ -18,28 +18,25 @@ pub(super) fn spawn_wmo_group_batches(
             Visibility::default(),
             WmoCollisionMesh,
         ));
-        if root.flags.use_unified_render_path || batch.has_vertex_color {
-            let mode = wmo_lighting_mode(
-                root.flags.use_unified_render_path,
-                group_header.flags,
-                batch.batch_type,
-                material_props.unlit,
+        let base =
+            wmo_batch_standard_material(assets.images, batch.material_index, &material_props);
+        if batch.has_vertex_color || !wmo_group_is_exterior_lit(group_header.flags) {
+            insert_wmo_lit_material(
+                &mut child,
+                wmo_lit_material(
+                    base,
+                    group_header.flags,
+                    material_props.unlit,
+                    interior_ambient,
+                ),
             );
-            let base = wmo_batch_standard_material(
-                assets.images,
-                batch.material_index,
-                &material_props,
-                None,
-            );
-            insert_wmo_lit_material(&mut child, wmo_lit_material(base, mode, root.ambient_color));
         } else {
-            child.insert(MeshMaterial3d(wmo_batch_material(
-                assets.materials,
-                assets.images,
-                batch.material_index,
-                &material_props,
-                interior_ambient,
-            )));
+            // Exterior light alone: StandardMaterial's own daylight (or unlit texture).
+            let base = StandardMaterial {
+                unlit: material_props.unlit,
+                ..base
+            };
+            child.insert(MeshMaterial3d(assets.materials.add(base)));
         }
         if let Some(glow) = material_props.sidn_glow {
             child.insert(glow);
@@ -564,26 +561,10 @@ pub(super) fn group_is_antiportal(
     })
 }
 
-pub(super) fn wmo_batch_material(
-    materials: &mut Assets<StandardMaterial>,
-    images: &mut Assets<Image>,
-    material_index: u16,
-    material_props: &WmoMaterialProps,
-    interior_ambient: Option<[f32; 4]>,
-) -> Handle<StandardMaterial> {
-    materials.add(wmo_batch_standard_material(
-        images,
-        material_index,
-        material_props,
-        interior_ambient,
-    ))
-}
-
 fn wmo_batch_standard_material(
     images: &mut Assets<Image>,
     material_index: u16,
     material_props: &WmoMaterialProps,
-    interior_ambient: Option<[f32; 4]>,
 ) -> StandardMaterial {
     let image = load_wmo_batch_material_image(images, material_index, material_props);
     wmo_standard_material(
@@ -591,16 +572,6 @@ fn wmo_batch_standard_material(
         material_props.blend_mode,
         material_props.unculled,
         material_props.shader,
-        interior_ambient,
         material_props.sidn_glow,
     )
-}
-
-pub(super) fn build_wmo_interior_ambient(
-    root: &wmo::WmoRootData,
-    group: &wmo::WmoGroupData,
-) -> Option<[f32; 4]> {
-    let rgb = &root.ambient_color[..3];
-    (group.header.group_flags.interior && rgb.iter().any(|channel| *channel > 0.0))
-        .then_some(root.ambient_color)
 }

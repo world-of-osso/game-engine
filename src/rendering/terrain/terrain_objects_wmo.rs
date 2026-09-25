@@ -295,7 +295,14 @@ fn spawn_wmo_group_from_data(
         active_doodad_set,
     );
     spawn_wmo_group_liquid(commands, assets, group, group_entity);
-    spawn_wmo_group_geometry(commands, assets, root, group, group_entity);
+    spawn_wmo_group_geometry(
+        commands,
+        assets,
+        root,
+        group,
+        group_entity,
+        active_doodad_set,
+    );
     true
 }
 
@@ -305,8 +312,9 @@ fn spawn_wmo_group_geometry(
     root: &wmo::WmoRootData,
     group: &wmo::WmoGroupData,
     group_entity: Entity,
+    active_doodad_set: u16,
 ) {
-    let interior_ambient = build_wmo_interior_ambient(root, group);
+    let interior_ambient = wmo_interior_ambient(root, active_doodad_set);
     spawn_wmo_group_batches(
         commands,
         assets,

@@ -1,7 +1,9 @@
-//! WMO materials that light with MOCV. MOCV is light, not albedo: stock multiplies
-//! the doubled MOCV into daylight on the ordinary MapObj path and adds it to the scene
-//! light on the unified one (MOHD 0x02). Selection per solarityclient
-//! `WorldModelSurfacePassPlan` (`lighting_mode`).
+//! Retail WMO lighting, per WebWowViewerCpp (`commonLightFunctions.slang` `calcLight`,
+//! `wmoshader_text.slang`). MOCV is light, not albedo: the doubled fixed MOCV is added
+//! to the ambient, `texture * (ambient + 2 * MOCV + sun)`. Exterior light uses the scene
+//! sun and ambient, interior light the WMO interior ambient without a sun; the fixed
+//! MOCV alpha blends the two per vertex. StandardMaterial vertex color multiplies base
+//! color, so these batches need their own fragment shader.
 
 use bevy::pbr::{ExtendedMaterial, MaterialExtension};
 use bevy::prelude::*;
@@ -20,9 +22,12 @@ pub struct WmoLighting {
 
 #[derive(ShaderType, Debug, Clone, Copy, PartialEq)]
 pub struct WmoLightingParams {
-    /// MOHD ambient, sRGB-encoded like MOCV.
-    pub root_ambient: Vec4,
-    pub mode: u32,
+    /// Interior ambient, sRGB-encoded like MOCV.
+    pub interior_ambient: Vec4,
+    /// 1 when the group always takes exterior light, overriding the MOCV alpha.
+    pub exterior_lit: u32,
+    /// 1 for MOMT `F_UNLIT`: the texture alone.
+    pub unlit: u32,
 }
 
 impl MaterialExtension for WmoLighting {
@@ -31,56 +36,45 @@ impl MaterialExtension for WmoLighting {
     }
 }
 
-/// How MOCV lights a batch; mirrored as constants in `wmo_lighting.wgsl`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WmoLightingMode {
-    /// Unlit material or ordinary interior batch: `2 * MOCV` alone.
-    Authored = 0,
-    /// Unified exterior: daylight (scene sun and ambient) plus `2 * MOCV`.
-    DaylightPlusMocv = 1,
-    /// Unified interior: MOHD ambient plus `2 * MOCV`, no sun.
-    RootAmbientPlusMocv = 2,
-    /// Ordinary exterior or transition batch: daylight times `2 * MOCV`.
-    DaylightTimesMocv = 3,
-}
-
 const GROUP_EXTERIOR: u32 = 0x08;
 const GROUP_EXTERIOR_LIT: u32 = 0x40;
+const GROUP_INTERIOR: u32 = 0x2000;
 
-pub(crate) fn wmo_lighting_mode(
-    unified: bool,
-    group_flags: u32,
-    batch_type: wmo::WmoBatchType,
-    material_unlit: bool,
-) -> WmoLightingMode {
-    if material_unlit {
-        WmoLightingMode::Authored
-    } else if !unified {
-        if batch_type == wmo::WmoBatchType::Interior {
-            WmoLightingMode::Authored
-        } else {
-            WmoLightingMode::DaylightTimesMocv
-        }
-    } else if batch_type == wmo::WmoBatchType::Transparent
-        || group_flags & (GROUP_EXTERIOR | GROUP_EXTERIOR_LIT) != 0
-    {
-        WmoLightingMode::DaylightPlusMocv
-    } else {
-        WmoLightingMode::RootAmbientPlusMocv
-    }
+/// WebWowViewerCpp `WmoGroupObject::isInteriorLightingLit`, negated.
+pub(crate) fn wmo_group_is_exterior_lit(group_flags: u32) -> bool {
+    group_flags & (GROUP_EXTERIOR | GROUP_EXTERIOR_LIT) != 0 || group_flags & GROUP_INTERIOR == 0
+}
+
+/// WebWowViewerCpp `WmoObject::calculateAmbient`: the first MAVG record for an active
+/// doodad set, else the first MAVD, else the MOHD ambient. Only the base color (not
+/// the horizon/ground colors of flag-1 records) is used.
+pub(crate) fn wmo_interior_ambient(root: &wmo::WmoRootData, active_doodad_set: u16) -> [f32; 3] {
+    let global = root
+        .global_ambient_volumes
+        .iter()
+        .find(|volume| volume.doodad_set_id == 0 || volume.doodad_set_id == active_doodad_set)
+        .or(root.global_ambient_volumes.first());
+    let color = global
+        .or(root.ambient_volumes.first())
+        .map(|volume| volume.color_1)
+        .unwrap_or(root.ambient_color);
+    [color[0], color[1], color[2]]
 }
 
 pub(crate) fn wmo_lit_material(
     base: StandardMaterial,
-    mode: WmoLightingMode,
-    root_ambient: [f32; 4],
+    group_flags: u32,
+    material_unlit: bool,
+    interior_ambient: [f32; 3],
 ) -> WmoLitMaterial {
+    let [r, g, b] = interior_ambient;
     WmoLitMaterial {
         base,
         extension: WmoLighting {
             params: WmoLightingParams {
-                root_ambient: Vec4::from_array(root_ambient),
-                mode: mode as u32,
+                interior_ambient: Vec4::new(r, g, b, 1.0),
+                exterior_lit: wmo_group_is_exterior_lit(group_flags) as u32,
+                unlit: material_unlit as u32,
             },
         },
     }

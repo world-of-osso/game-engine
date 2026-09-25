@@ -160,7 +160,6 @@ pub(crate) fn wmo_standard_material(
     blend_mode: u32,
     unculled: bool,
     shader: u32,
-    interior_ambient: Option<[f32; 4]>,
     sidn_glow: Option<WmoSidnGlow>,
 ) -> StandardMaterial {
     let alpha_mode = wmo_alpha_mode(blend_mode);
@@ -169,7 +168,7 @@ pub(crate) fn wmo_standard_material(
         double_sided || texture.is_some() || matches!(alpha_mode, AlphaMode::Blend);
     let surface = wmo_surface_params(texture.is_some(), prop_like_surface, shader);
     StandardMaterial {
-        base_color: wmo_base_color(interior_ambient, texture.is_some()),
+        base_color: wmo_base_color(texture.is_some()),
         base_color_texture: texture,
         perceptual_roughness: surface.roughness,
         reflectance: surface.reflectance,
@@ -191,13 +190,11 @@ fn wmo_alpha_mode(blend_mode: u32) -> AlphaMode {
     }
 }
 
-fn wmo_base_color(interior_ambient: Option<[f32; 4]>, has_texture: bool) -> Color {
-    if let Some(ambient) = interior_ambient {
-        Color::linear_rgba(ambient[0], ambient[1], ambient[2], 1.0)
-    } else if !has_texture {
-        Color::srgb(0.6, 0.6, 0.6)
-    } else {
+fn wmo_base_color(has_texture: bool) -> Color {
+    if has_texture {
         Color::WHITE
+    } else {
+        Color::srgb(0.6, 0.6, 0.6)
     }
 }
 

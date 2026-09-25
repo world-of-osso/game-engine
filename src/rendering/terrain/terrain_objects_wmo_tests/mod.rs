@@ -4,12 +4,12 @@ pub(super) use crate::asset::wmo_format::parser::{
 };
 pub(super) use bevy::ecs::system::RunSystemOnce;
 
+mod alpha_gpu;
 mod doodads;
 mod group_runtime;
 mod interior_gpu;
+mod interior_light_gpu;
 mod liquid;
-mod alpha_gpu;
-mod ordinary_gpu;
 mod root_runtime;
 mod unified_gpu;
 
