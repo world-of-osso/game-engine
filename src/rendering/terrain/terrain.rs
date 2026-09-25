@@ -133,8 +133,10 @@ pub struct AdtManager {
     pub server_requested: HashSet<(u32, u32)>,
     /// Current doodad LOD level per loaded tile.
     pub(crate) tile_lod: HashMap<(u32, u32), DoodadLod>,
-    /// Doodad/WMO entities per tile, for despawning on LOD swap.
+    /// Doodad entities per tile, for despawning on LOD swap and unload.
     pub(crate) tile_doodad_entities: HashMap<(u32, u32), Vec<Entity>>,
+    /// WMOs, spawned once for all the tiles whose MODF places them.
+    pub(crate) shared_wmos: crate::rendering::terrain_shared_wmos::SharedWmos,
     /// Receiver for completed background tile loads (Mutex for Sync).
     tile_rx: Mutex<mpsc::Receiver<TileLoadResult>>,
     /// Sender cloned into background threads.
@@ -166,6 +168,7 @@ impl Default for AdtManager {
             server_requested: HashSet::new(),
             tile_lod: HashMap::new(),
             tile_doodad_entities: HashMap::new(),
+            shared_wmos: Default::default(),
             tile_rx: Mutex::new(tile_rx),
             tile_tx,
             load_radius: 1,
@@ -200,6 +203,7 @@ pub(crate) fn reset_streamed_terrain(
     adt_manager.server_requested.clear();
     adt_manager.tile_lod.clear();
     adt_manager.tile_doodad_entities.clear();
+    adt_manager.shared_wmos.clear();
     adt_manager.initial_tile = (0, 0);
     adt_manager.initial_load_reported = false;
     adt_manager.clear_completed_tile_results();
@@ -425,6 +429,7 @@ fn spawn_adt_objects(
         inputs.tile_y,
         inputs.tile_x,
         obj,
+        &HashSet::new(),
     )
 }
 

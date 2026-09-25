@@ -104,18 +104,21 @@ fn record_loaded_tile_entities(
     key: (u32, u32),
     parsed: &ParsedTile,
 ) {
-    let (root, doodad_entities) = spawn_parsed_tile(
+    let (root, objects) = spawn_parsed_tile(
         refs,
         heightmap,
         parsed,
         adt_manager.render_textures,
         adt_manager.render_terrain,
+        &adt_manager.shared_wmos.spawned_unique_ids(),
     );
     adt_manager.loaded.insert(key, root);
     adt_manager.tile_lod.insert(key, parsed.lod);
-    adt_manager
-        .tile_doodad_entities
-        .insert(key, doodad_entities);
+    let placements = parsed
+        .obj_data
+        .as_ref()
+        .map_or(&[][..], |obj| &obj.wmos[..]);
+    crate::terrain_lod::record_tile_objects(adt_manager, key, placements, objects);
     if adt_manager.render_terrain {
         log_adt_spawn(&parsed.adt_data, &parsed.adt_path);
     } else {
