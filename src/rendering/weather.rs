@@ -367,8 +367,8 @@ pub(crate) fn weather_adjusted_fog(
 ) -> (Color, Color, FogFalloff) {
     let Some(weather) = weather.filter(|weather| !weather.is_clear()) else {
         return (
-            colors.sky_smog,
-            colors.sky_band2,
+            colors.fog_color,
+            Color::NONE,
             fog_falloff(colors.fog_start, colors.fog_end),
         );
     };
@@ -380,9 +380,9 @@ pub(crate) fn weather_adjusted_fog(
     let fog_end = colors.fog_end * weather.fog_distance_scale;
 
     (
-        lerp_color(colors.sky_smog, weather.tint_color(), tint_factor),
+        lerp_color(colors.fog_color, weather.tint_color(), tint_factor),
         lerp_color(
-            colors.sky_band2,
+            Color::NONE,
             weather.directional_tint_color(),
             directional_tint_factor,
         ),

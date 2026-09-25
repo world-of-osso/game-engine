@@ -241,6 +241,7 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
     let initial_world_fog = Color::BLACK;
     let sky_smog = Color::srgb(0.7, 0.8, 0.9);
     let sky_band2 = Color::srgb(0.4, 0.5, 0.6);
+    let sky_fog = Color::linear_rgb(0.07, 0.19, 0.27);
 
     app.insert_resource(GameTime {
         minutes: 100.0,
@@ -255,7 +256,7 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
         sky_band1: Color::WHITE,
         sky_band2,
         sky_smog,
-        fog_color: Color::WHITE,
+        fog_color: sky_fog,
         sun_color: Color::WHITE,
         sun_halo_color: Color::WHITE,
         cloud_emissive_color: Color::WHITE,
@@ -323,14 +324,13 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
         charselect_fog.directional_light_color.to_srgba(),
         initial_charselect_fog.to_srgba()
     );
-    assert_eq!(world_fog.color.to_srgba(), sky_smog.to_srgba());
-    assert_eq!(
-        world_fog.directional_light_color.to_srgba(),
-        sky_band2.to_srgba()
-    );
+    // World fog is SkyFogColor without a sun glow; LightData distances are yards × 36.
+    assert_eq!(world_fog.color.to_srgba(), sky_fog.to_srgba());
+    assert_eq!(world_fog.directional_light_color, Color::NONE);
     assert!(matches!(
         world_fog.falloff,
-        FogFalloff::Linear { start, end } if (start - 300.0).abs() < 0.01 && (end - 1200.0).abs() < 0.01
+        FogFalloff::Linear { start, end }
+            if (start - 300.0 / 36.0).abs() < 0.01 && (end - 1200.0 / 36.0).abs() < 0.01
     ));
 }
 
@@ -339,6 +339,7 @@ fn weather_change_updates_world_fog_without_time_advance() {
     let mut app = App::new();
     let sky_smog = Color::srgb(0.7, 0.8, 0.9);
     let sky_band2 = Color::srgb(0.4, 0.5, 0.6);
+    let sky_fog = Color::linear_rgb(0.07, 0.19, 0.27);
 
     app.insert_resource(GameTime {
         minutes: 100.0,
@@ -353,7 +354,7 @@ fn weather_change_updates_world_fog_without_time_advance() {
         sky_band1: Color::WHITE,
         sky_band2,
         sky_smog,
-        fog_color: Color::WHITE,
+        fog_color: sky_fog,
         sun_color: Color::WHITE,
         sun_halo_color: Color::WHITE,
         cloud_emissive_color: Color::WHITE,
@@ -392,7 +393,8 @@ fn weather_change_updates_world_fog_without_time_advance() {
         .get::<DistanceFog>()
         .expect("clear fog")
         .clone();
-    assert_eq!(clear_fog.color.to_srgba(), sky_smog.to_srgba());
+    assert_eq!(clear_fog.color.to_srgba(), sky_fog.to_srgba());
+    assert_eq!(clear_fog.directional_light_color, Color::NONE);
 
     app.insert_resource(crate::weather::ActiveWeather::preset(
         crate::weather::WeatherKind::Sandstorm,
@@ -412,7 +414,7 @@ fn weather_change_updates_world_fog_without_time_advance() {
     assert!(matches!(
         weather_fog.falloff,
         FogFalloff::Linear { start, end }
-        if start < 300.0 && end < 1200.0
+        if start < 300.0 / 36.0 && end < 1200.0 / 36.0
     ));
 }
 
