@@ -35,6 +35,10 @@ Non-unified roots are unchanged: they keep the StandardMaterial path, including 
 - **GPU test.** `trade_district_exterior_wall_is_not_darker_than_daylight` (`src/rendering/terrain/terrain_objects_wmo_tests/unified_gpu.rs`) renders the real group-37 batch 0 through `spawn_wmo_group_batches` under a 2500 lx sun. It compares the result against the same texture on a lit StandardMaterial with no vertex color. RED: wall `[23,31,28]` vs daylight `[102,93,86]`. GREEN: `[102,94,88]` vs `[102,93,86]`.
 - **Live, headless.** Screenshots on the shared :5000 server as `Stormlight` (`sw_ui`), taken from the same spot with the default camera: `before-trade.webp` (buildings black) and `after-trade.webp` (stone textures lit). `northshire-before.webp` and `northshire-after.webp` are identical apart from a passing guard.
 
+## Follow-up
+
+The unified-only material and its 3.3.5-derived factors were superseded by [[wmo-retail-lighting]]. Every WMO now uses the Retail light model. WebWowViewerCpp's Retail shaders (`precomputedLight = vColor.rgb * 2.0`) confirm the ×2. The duplicate placements are fixed there too.
+
 ## Still open
 
 - **MOCV scale is not verified against Retail.** The `2 * MOCV` factor follows solarityclient. noggit and WebWowViewerCpp use a factor of 1. The additive term is linearized separately from the daylight, so exterior vertices with MOCV 127 may be brighter than in Retail. No Retail capture was compared.

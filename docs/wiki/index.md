@@ -58,6 +58,7 @@ Architecture decisions and feature designs.
 - [empty-window-baseline](investigations/empty-window-baseline.md) — Native/core/reactive blank-renderer stages remain low-cost; continuous blank rendering reaches 216.31478% process CPU before project services. Independent runtime audit passes the bounded attribution.
 - [abbey-interior-black-world](investigations/abbey-interior-black-world.md) — MOCV lighting alpha used as vertex opacity discarded interior WMO color while the depth prepass occluded the world
 - [stormwind-dark-render](investigations/stormwind-dark-render.md) — unified MapObj (MOHD 0x02) district WMOs drawn unlit as texture×MOCV turned black; MOCV is now added to daylight/MOHD ambient
+- [wmo-retail-lighting](investigations/wmo-retail-lighting.md) — Retail WMO light model (ambient + 2×MOCV + sun, interior/exterior blend by MOCV alpha), fixup, two-layer MOCV2 shaders, alpha test, metal and uniqueId placement dedup, per WebWowViewerCpp
 - [npc-motion-validation](investigations/npc-motion-validation.md) — Revision-pinned Northshire NPC idle/facing, landing, fog, picking, WMO basis, and terrain-streaming evidence with explicit remaining boundaries.
 
 Root cause analyses and debug findings.

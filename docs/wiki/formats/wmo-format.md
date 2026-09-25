@@ -21,10 +21,26 @@ Commit `965f6f9e` makes WMO-local vertices, bounds, portals, lights, liquids, an
 
 ## Vertex Color Lighting
 
-MOCV is light, not albedo. How it combines depends on the MOHD root flags:
+Retail lights every WMO the same way; the source here is WebWowViewerCpp's Retail shaders (`calcLight`, `caclWMOFragMat`, `fixColorVertexAlpha`). MOCV is light, not albedo. The engine implementation is `WmoLitMaterial` (`terrain_objects_wmo_lighting.rs`, `wmo_lighting.wgsl`). See [[wmo-retail-lighting]] for the evidence and tests.
 
-- **Unified MapObj (MOHD `0x02`).** Stormwind districts use this path, and it lights batches as `texture * (2 * MOCV + light)`. MOHD `0x08` keeps MOCV raw instead of applying the fixup. Rendered by `WmoUnifiedMaterial`; see [[stormwind-dark-render]].
-- **Other roots.** Still drawn unlit as `texture * fixed MOCV`, with vertex alpha forced opaque (see [[abbey-interior-black-world]]).
+- **Light.** `texture * (ambient + 2 * fixed MOCV + sun)`.
+  - Exterior light is the scene daylight.
+  - Interior light is the WMO ambient without a sun. It comes from MAVG for the active doodad set, else the first MAVD, else the MOHD ambient.
+  - The fixed MOCV alpha blends interior and exterior light per vertex, in gamma space.
+  - Exterior-lit groups take full exterior light. A group is exterior-lit if it has EXTERIOR (`0x08`) or EXTERIOR_LIT (`0x40`), or lacks INTERIOR (`0x2000`).
+  - `F_UNLIT` materials show the texture alone.
+- **Fixup.**
+  - MOHD `0x08` ("lighten interiors") keeps MOCV color raw.
+  - Otherwise the MOHD ambient is subtracted, unless MOHD `0x02` (skip base color) is set.
+  - Transition-batch vertices become `(c - amb) * (1 - a) / 2` and keep their alpha, which cross-fades interior and exterior light.
+  - Later vertices become `(c * a / 64 + c - amb) / 2`, with alpha 255 in exterior groups and 0 in interior groups.
+- **Two-layer.**
+  - MOMT 13 is `mix(tex2, tex1, MOCV2.a)`.
+  - MOMT 6 is `mix(mix(tex1, tex2, tex2.a), tex1, MOCV2.a)`.
+  - Both read MOTV2 and MOCV2 whatever the MOMT flags.
+  - MOMT 21 (MapObjLod) is texture 1 alone.
+- **Alpha test.** None for blend 0 (Opaque). AlphaKey (blend 1) discards texture alpha below 128/255.
+- **Placement.** A WMO listed under the same MODF uniqueId by several tiles is spawned once and lives while any of those tiles is loaded.
 
 ## Parser Location
 
@@ -42,6 +58,7 @@ The WMO parser is less complete than the M2 or ADT parsers. Rendering of WMO int
 ## See Also
 
 - [[stormwind-dark-render]] — unified MapObj MOCV lighting
+- [[wmo-retail-lighting]] — Retail WMO lighting, two-layer, alpha test and placement dedup
 
 - [[adt-format]] — MODF records that place WMOs in the world
 - [[m2-format]] — M2 doodads embedded inside WMO doodad sets
