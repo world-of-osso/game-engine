@@ -32,6 +32,12 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [x] `GuildBankFailed` shows its Retail error text.
 - [x] The IPC `guild_vault` status lists the vault contents.
 
+## Live proof
+- `data/diagnostics/banks-20260924/`:
+  - Bankone, the Guild Master, uses the Stormwind Guild Vault, buys tab 1 (100g), and deposits Peacebloom and 50g.
+  - Banktwo, rank Member with tab 1 set to view, deposit and 2 stacks a day, plus 5g a day in gold, withdraws the Peacebloom and 5g.
+  - The item log reads "Bankone deposited Peacebloom x 10" and "Banktwo withdrew Peacebloom x 10". The money log shows the tab purchase, the 50g deposit and the 5g withdrawal.
+
 ## How it works
 - [banks](../wiki/systems/banks.md)
 
@@ -55,6 +61,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - `src/ui/screens/guild_bank_frame_component_tests.rs`
 
 ## Known gaps (current cycle)
+- [ ] The selected tab uses the same gold marker as the bank frame, because there is no additive blending.
 - [ ] Emblem, outer and inner corner tiling of the Retail frame are not drawn (the metal_frame chrome replaces BasicFrameTemplate).
 - [ ] The info edit box is single-line: the ui-toolkit edit box has no multi-line attribute.
 - [ ] The log is not a scrolling message frame: only the last 21 lines show.

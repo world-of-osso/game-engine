@@ -19,7 +19,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
   - Slot backgrounds are `bags-item-slot64` (4701874) in the character bank. The Warband bank uses `warband-bank-slot`, grown −6,5 / 6,−7.
   - Stack counts show above 1.
 - [x] Side tabs: 32×32 with the SpellBook-SkillLineTab border (136831). The first is at TOPRIGHT +2,−25, and each next one 17 px below the previous (BF.lua:907-924).
-  - The selected tab shows CheckButtonHilight.
+  - The selected tab shows a gold UI-Quickslot2 marker (see Known gaps).
   - The purchase tab (`bags-icon-addslots`) comes last while a tab can be bought.
 - [x] Header: the tab name in a 300×20 box at TOP −36.
 - [x] Bottom tabs `Bank` / `Warband Bank` hang at the frame's BOTTOMLEFT 22,2 (PanelTab art).
@@ -38,6 +38,12 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - [x] Right-clicking a side tab opens the tab settings: the name box (15 letters) and the Equipment / Consumables / Profession Goods / Reagents / Junk assignments. Okay sends `BankUpdateTabSettings`.
 - [x] `BankFailed` shows its Retail error text in UIErrors.
 - [x] The IPC `warbank` status lists the Warband bank contents.
+
+## Live proof
+- `data/diagnostics/banks-20260924/`: isolated server on :5058.
+  - Bankone buys a character tab (1g), deposits Linen and withdraws it, then buys Warband tabs 1 and 2 (1000g and 25,000g).
+  - Bankone deposits Copper Ore and 100g into the Warband bank.
+  - Banktwo, on the same account, sees the ore, withdraws it, and withdraws 10g.
 
 ## How it works
 - [banks](../wiki/systems/banks.md)
@@ -60,6 +66,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - `src/scenes/bag_frame/mod.rs` (`right_clicking_a_bag_item_deposits_into_the_open_bank_tab`)
 
 ## Known gaps (current cycle)
+- [ ] Selected-tab highlight: Retail blends `CheckButtonHilight` additively (ADD). The ui-toolkit texture renderer has no additive blending, so a gold-tinted UI-Quickslot2 marks the selected tab instead.
 - [ ] Background and edge shadows are stretched, not tiled (the ui-toolkit has no tiling attribute for FDID textures); the edge shadow atlases are not drawn.
 
 ## Out of scope
