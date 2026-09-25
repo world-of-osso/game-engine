@@ -261,6 +261,7 @@ mod tests {
         app.init_resource::<Assets<M2EffectMaterial>>();
         app.init_resource::<Assets<TerrainMaterial>>();
         app.init_resource::<Assets<WaterMaterial>>();
+        app.init_resource::<Assets<crate::rendering::terrain_objects::WmoUnifiedMaterial>>();
         app.init_resource::<Assets<Image>>();
         app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
         app.init_resource::<TerrainHeightmap>();
