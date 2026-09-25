@@ -925,3 +925,7 @@ Added [[abbey-interior-black-world]]: WMO vertex alpha forced opaque; GPU prepas
 ## [2026-09-24] ui | Quest UI
 
 Created [[quest-ui]]. Client `QuestRuntime` on the server quest and NPC interaction messages; Retail objective tracker, quest log (L, Panel) and QuestFrame (greeting/detail/progress/reward), `$N`/`$C`/`$B`/`$G` substitution, talktome markers. Right-click sends `InteractNpc`. Live headless proof on the shared server: A Threat Within accepted from Deputy Willem and turned in at Marshal McBride (Theron, Elara), chain offer of Kobold Camp Cleanup, XP chat line.
+
+## [2026-09-24] ui | Auction house UI
+
+Created [[auction-house-ui]]. Retail AuctionHouseFrame (Wide) opened from `NpcFrameEvent::Opened { role: AuctionHouse }`; search, categories, browse, item buy, bid, buyout dialog, item sell frame with deposit, auctions/bids with cancel. Live proof: see the spec's verified scope.
