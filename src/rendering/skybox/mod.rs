@@ -13,6 +13,7 @@ use bevy::render::render_resource::{
 use super::weather::{ActiveWeather, weather_adjusted_fog};
 use crate::game_state::GameState;
 use crate::light_lookup::WeightedLightParams;
+use crate::retail_light::RetailSceneLight;
 use crate::scenes::char_select::scene::CharSelectScene;
 use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, load_light_data, sample_light_blend,
@@ -462,10 +463,13 @@ fn update_sun_direction(
 // Distance fog
 // ---------------------------------------------------------------------------
 
-fn update_fog(
+/// Sample the light blend into the Retail scene light and the world cameras'
+/// `DistanceFog` (the fog source the Retail shaders read per camera).
+fn update_scene_light(
     game_time: Res<GameTime>,
     keyframes: Res<LightKeyframes>,
     weather: Option<Res<ActiveWeather>>,
+    mut scene_light: ResMut<RetailSceneLight>,
     mut fog_q: Query<&mut DistanceFog, Without<CharSelectScene>>,
     mut last_minutes: Local<f32>,
 ) {
@@ -479,6 +483,14 @@ fn update_fog(
     *last_minutes = game_time.minutes;
     let colors = keyframes.sample(game_time.minutes);
     let (fog_color, directional_color, falloff) = weather_adjusted_fog(&colors, weather.as_deref());
+    let mut light = RetailSceneLight::from_sky_colors(&colors, game_time.minutes);
+    let srgba = fog_color.to_srgba();
+    light.fog_color = Vec3::new(srgba.red, srgba.green, srgba.blue);
+    if let FogFalloff::Linear { start, end } = falloff {
+        light.fog_start = start;
+        light.fog_end = end;
+    }
+    scene_light.set_if_neq(light);
     for mut fog in fog_q.iter_mut() {
         fog.color = fog_color;
         fog.directional_light_color = directional_color;
@@ -672,7 +684,7 @@ fn register_inworld_systems(app: &mut App) {
         Update,
         update_inworld_light_blend
             .before(update_sky_colors)
-            .before(update_fog)
+            .before(update_scene_light)
             .before(update_sky_env_map)
             .before(initialize_scene_camera_ibl)
             .run_if(in_state(GameState::InWorld))
@@ -723,7 +735,7 @@ fn register_shared_sky_visual_systems(app: &mut App) {
     )
     .add_systems(
         Update,
-        update_fog
+        update_scene_light
             .after(advance_game_time)
             .run_if(sky_scene_active)
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
@@ -756,6 +768,8 @@ impl Plugin for SkyPlugin {
             "Loaded {} sky keyframes for LightParamID {PRE_WORLD_LIGHT_PARAMS_ID}",
             keyframes.len()
         );
+        let keyframes_for_pre_world =
+            LightKeyframes::for_params(PRE_WORLD_LIGHT_PARAMS_ID, keyframes);
         let empty = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
             == crate::game::inworld_scene_stage::InWorldSceneStage::Empty;
         if empty {
@@ -765,10 +779,11 @@ impl Plugin for SkyPlugin {
         }
         app.add_systems(PostUpdate, remove_disabled_sky_domes)
             .insert_resource(GameTime::default())
-            .insert_resource(LightKeyframes::for_params(
-                PRE_WORLD_LIGHT_PARAMS_ID,
-                keyframes,
+            .insert_resource(RetailSceneLight::from_sky_colors(
+                &keyframes_for_pre_world.sample(GameTime::default().minutes),
+                GameTime::default().minutes,
             ))
+            .insert_resource(keyframes_for_pre_world)
             .add_systems(Startup, init_procedural_cloud_maps);
         register_inworld_systems(app);
     }

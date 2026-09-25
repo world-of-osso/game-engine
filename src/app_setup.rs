@@ -85,6 +85,7 @@ pub(crate) fn run_screenshot_regression_app(
         water_material::WaterMaterialPlugin,
         terrain_objects::WmoLitMaterialPlugin,
         sky::SkyPlugin,
+        crate::retail_light::RetailLightingPlugin,
     ));
     app.insert_resource(screenshot);
     app.add_systems(Startup, log_window_backend);
@@ -359,7 +360,7 @@ fn register_render_plugins(app: &mut App) {
             .add_plugins(water_material::WaterMaterialPlugin)
             .add_plugins(terrain_objects::WmoLitMaterialPlugin);
     }
-    app.add_plugins(sky::SkyPlugin);
+    app.add_plugins((sky::SkyPlugin, crate::retail_light::RetailLightingPlugin));
     register_particle_plugin(app);
     app.add_plugins(weather::WeatherPlugin).add_systems(
         Update,

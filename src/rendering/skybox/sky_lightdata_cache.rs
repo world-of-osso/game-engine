@@ -8,7 +8,7 @@ use rusqlite::{Connection, OpenFlags, params_from_iter};
 
 use crate::sky_lightdata::{LightDataRow, decode_light_color};
 
-const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback_v3.sqlite";
+const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback_v4.sqlite";
 
 pub(crate) fn load_light_data_csv_fallback(
     path: &Path,
@@ -80,7 +80,8 @@ fn load_rows_from_sqlite(cache_path: &Path, param_id: u32) -> Result<Vec<LightDa
                     cloud_layer1_ambient_color, cloud_layer2_ambient_color,
                     ocean_close_color, ocean_far_color,
                     river_close_color, river_far_color, horizon_ambient_color,
-                    fog_end, fog_start, glow, cloud_density, unk1, unk2
+                    fog_end, fog_start, glow, cloud_density, unk1, unk2,
+                    ground_ambient_color
              FROM light_data_rows
              WHERE param_id = ?1
              ORDER BY time",
@@ -152,6 +153,7 @@ fn decode_light_data_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightDataR
         river_close_color: decode_light_color(colors[RIVER_CLOSE_COLOR_SLOT]),
         river_far_color: decode_light_color(colors[RIVER_FAR_COLOR_SLOT]),
         horizon_ambient_color: decode_light_color(colors[HORIZON_AMBIENT_COLOR_SLOT]),
+        ground_ambient_color: decode_light_color(row.get(25)?),
         fog_end: scalars.fog_end,
         fog_start: scalars.fog_start,
         glow: scalars.glow,
@@ -257,6 +259,7 @@ const fn create_light_data_rows_table_sql() -> &'static str {
          cloud_density REAL NOT NULL,
          unk1 REAL NOT NULL,
          unk2 REAL NOT NULL,
+         ground_ambient_color INTEGER NOT NULL,
          PRIMARY KEY (param_id, time)
      );"
 }
@@ -272,7 +275,7 @@ fn import_rows(conn: &Connection, source_path: &Path) -> Result<(), String> {
 fn read_import_columns<R: BufRead>(
     reader: &mut R,
     source_path: &Path,
-) -> Result<[usize; 26], String> {
+) -> Result<[usize; 27], String> {
     let mut header = String::new();
     reader
         .read_line(&mut header)
@@ -291,8 +294,8 @@ fn prepare_row_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, Stri
           cloud_layer1_ambient_color, cloud_layer2_ambient_color,
           ocean_close_color, ocean_far_color,
           river_close_color, river_far_color, horizon_ambient_color,
-          fog_end, fog_start, glow, cloud_density, unk1, unk2)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)",
+          fog_end, fog_start, glow, cloud_density, unk1, unk2, ground_ambient_color)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)",
     )
     .map_err(|err| format!("prepare light_data_rows insert: {err}"))
 }
@@ -300,7 +303,7 @@ fn prepare_row_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, Stri
 fn import_reader_rows<R: BufRead>(
     reader: &mut R,
     insert: &mut rusqlite::Statement<'_>,
-    columns: &[usize; 26],
+    columns: &[usize; 27],
     source_path: &Path,
 ) -> Result<(), String> {
     let mut line = String::new();
@@ -326,7 +329,7 @@ fn import_reader_rows<R: BufRead>(
 fn insert_row(
     insert: &mut rusqlite::Statement<'_>,
     line: &str,
-    columns: &[usize; 26],
+    columns: &[usize; 27],
     source_path: &Path,
 ) -> Result<(), String> {
     let fields: Vec<&str> = line.split(',').collect();
@@ -343,7 +346,7 @@ fn insert_row(
 
 fn parse_row_identity(
     fields: &[&str],
-    columns: &[usize; 26],
+    columns: &[usize; 27],
     line: &str,
     source_path: &Path,
 ) -> Result<(u32, f32), String> {
@@ -361,7 +364,7 @@ fn parse_row_identity(
 
 fn build_insert_row_values<'a>(
     fields: &'a [&'a str],
-    columns: &[usize; 26],
+    columns: &[usize; 27],
     param_id: u32,
     time: f32,
 ) -> Vec<rusqlite::types::Value> {
@@ -379,6 +382,7 @@ fn build_insert_row_values<'a>(
     };
     let mut values = build_insert_identity_and_color_values(&p, param_id, time);
     values.extend(build_insert_fog_and_aux_values(&pf));
+    values.push(p(26).into());
     values
 }
 
@@ -443,6 +447,7 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::prelude::Color;
     use rusqlite::Connection;
 
     // LightData colours are 0x00RRGGBB values.
@@ -456,7 +461,7 @@ mod tests {
         let csv_path = dir.join("LightData.csv");
         std::fs::write(
             &csv_path,
-            "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,ShadowOpacity,FogEnd,FogScaler,FogDensity,FogHeight,FogHeightScaler,FogHeightDensity,FogZScalar,MainFogStartDist,MainFogEndDist,SunFogAngle,CloudDensity,ColorGradingFileDataID,DarkerColorGradingFileDataID,HorizonAmbientColor,GroundAmbientColor,EndFogColor,EndFogColorDistance,FogStartOffset,SunFogColor,SunFogStrength,FogHeightColor,EndFogHeightColor,Field_10_0_0_44649_042,Field_12_0_0_63854_043,FogHeightCoefficients_0,FogHeightCoefficients_1,FogHeightCoefficients_2,FogHeightCoefficients_3,MainFogCoefficients_0,MainFogCoefficients_1,MainFogCoefficients_2,MainFogCoefficients_3,HeightDensityFogCoeff_0,HeightDensityFogCoeff_1,HeightDensityFogCoeff_2,HeightDensityFogCoeff_3\n1,77,100,255,65280,16711680,255,255,255,255,255,111,222,333,444,555,666,777,888,999,0,1000,0.25,0,0,0,0,0,0,0,0,0.5,0,0,1234,0,0,0,0,0,1.5,0,0,2.5,3.5,0,0,0,0,0,0,0,0,0,0,0,0\n2,77,200,1,2,3,4,5,6,7,8,12,23,34,45,56,67,78,89,90,0,2000,0.5,0,0,0,0,0,0,0,0,0.75,0,0,2345,0,0,0,0,0,2.0,0,0,4.5,5.5,0,0,0,0,0,0,0,0,0,0,0,0\n3,88,300,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,0,3000,0.75,0,0,0,0,0,0,0,0,1.0,0,0,3456,0,0,0,0,0,2.5,0,0,6.5,7.5,0,0,0,0,0,0,0,0,0,0,0,0\n",
+            "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,ShadowOpacity,FogEnd,FogScaler,FogDensity,FogHeight,FogHeightScaler,FogHeightDensity,FogZScalar,MainFogStartDist,MainFogEndDist,SunFogAngle,CloudDensity,ColorGradingFileDataID,DarkerColorGradingFileDataID,HorizonAmbientColor,GroundAmbientColor,EndFogColor,EndFogColorDistance,FogStartOffset,SunFogColor,SunFogStrength,FogHeightColor,EndFogHeightColor,Field_10_0_0_44649_042,Field_12_0_0_63854_043,FogHeightCoefficients_0,FogHeightCoefficients_1,FogHeightCoefficients_2,FogHeightCoefficients_3,MainFogCoefficients_0,MainFogCoefficients_1,MainFogCoefficients_2,MainFogCoefficients_3,HeightDensityFogCoeff_0,HeightDensityFogCoeff_1,HeightDensityFogCoeff_2,HeightDensityFogCoeff_3\n1,77,100,255,65280,16711680,255,255,255,255,255,111,222,333,444,555,666,777,888,999,0,1000,0.25,0,0,0,0,0,0,0,0,0.5,0,0,1234,8009,0,0,0,0,1.5,0,0,2.5,3.5,0,0,0,0,0,0,0,0,0,0,0,0\n2,77,200,1,2,3,4,5,6,7,8,12,23,34,45,56,67,78,89,90,0,2000,0.5,0,0,0,0,0,0,0,0,0.75,0,0,2345,0,0,0,0,0,2.0,0,0,4.5,5.5,0,0,0,0,0,0,0,0,0,0,0,0\n3,88,300,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,0,3000,0.75,0,0,0,0,0,0,0,0,1.0,0,0,3456,0,0,0,0,0,2.5,0,0,6.5,7.5,0,0,0,0,0,0,0,0,0,0,0,0\n",
         )
         .unwrap();
 
@@ -474,6 +479,11 @@ mod tests {
         assert_eq!(rows[0].fog_end, 1000.0);
         assert_eq!(rows[0].fog_start, 250.0);
         assert_eq!(rows[0].glow, 1.5);
+        // GroundAmbientColor 8009 = 0x001F49.
+        assert_eq!(
+            rows[0].ground_ambient_color.to_srgba(),
+            Color::srgb_u8(0, 31, 73).to_srgba()
+        );
 
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -486,7 +496,7 @@ mod tests {
                 "SELECT
                     321.0, ?1, ?2, ?3, 4, 5, 6, 7, 8,
                     9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-                    900.0, 450.0, 1.5, 0.25, 2.0, 3.0",
+                    900.0, 450.0, 1.5, 0.25, 2.0, 3.0, 8009",
             )
             .unwrap();
         let decoded = stmt
@@ -510,6 +520,12 @@ mod tests {
         assert!(ambient.red < 0.01);
         assert!((ambient.green - 1.0).abs() < 0.01);
         assert!(ambient.blue < 0.01);
+
+        // Column 25: GroundAmbientColor 8009 = 0x001F49.
+        assert_eq!(
+            decoded.ground_ambient_color.to_srgba(),
+            Color::srgb_u8(0, 31, 73).to_srgba()
+        );
 
         let sky_top = decoded.sky_top.to_linear();
         assert!(sky_top.red < 0.01);
