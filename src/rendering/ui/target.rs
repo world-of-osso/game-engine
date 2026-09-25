@@ -95,8 +95,6 @@ struct RightClickInteractionState<'w, 's> {
     mail_queue: ResMut<'w, MailIntentQueue>,
     window_manager: Option<ResMut<'w, crate::window_manager::WindowManager>>,
     emote_input: Option<ResMut<'w, crate::networking::EmoteInput>>,
-    profession_runtime: Option<ResMut<'w, game_engine::profession::ProfessionRuntimeState>>,
-    casting_state: Option<ResMut<'w, game_engine::casting_data::CastingState>>,
     corpses: Query<'w, 's, (&'static NetHealth, Has<Lootable>)>,
     loot: MessageWriter<'w, LootRequest>,
     keys: Res<'w, ButtonInput<KeyCode>>,
