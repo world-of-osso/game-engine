@@ -183,6 +183,8 @@ fn fill_local_player_stats(
     }
 }
 
+/// Runs every in-world frame so gameplay frames never read a stale value; the
+/// resource is only marked changed when a field actually changes.
 pub fn sync_character_stats_snapshot(
     mut snapshot: ResMut<CharacterStatsSnapshot>,
     character_list: Res<networking::CharacterList>,
@@ -190,26 +192,28 @@ pub fn sync_character_stats_snapshot(
     current_zone: Res<networking::CurrentZone>,
     local_player_query: Query<LocalPlayerComponents, With<networking::LocalPlayer>>,
 ) {
+    let mut next = snapshot.clone();
     let selected_character = selected_character_id.character_id.and_then(|character_id| {
         character_list
             .0
             .iter()
             .find(|entry| entry.character_id == character_id)
     });
-    snapshot.character_id = selected_character.map(|entry| entry.character_id);
-    snapshot.name = selected_character
+    next.character_id = selected_character.map(|entry| entry.character_id);
+    next.name = selected_character
         .map(|entry| entry.name.clone())
         .or_else(|| {
             local_player_query
                 .iter()
                 .find_map(|(player, _, _, _, _, _, _, _)| player.map(|player| player.name.clone()))
         });
-    snapshot.level = selected_character.map(|entry| entry.level);
-    snapshot.race = selected_character.map(|entry| entry.race);
-    snapshot.class = selected_character.map(|entry| entry.class);
-    snapshot.appearance = selected_character.map(|entry| entry.appearance.clone());
-    snapshot.zone_id = current_zone.zone_id;
-    fill_local_player_stats(&mut snapshot, &local_player_query);
+    next.level = selected_character.map(|entry| entry.level);
+    next.race = selected_character.map(|entry| entry.race);
+    next.class = selected_character.map(|entry| entry.class);
+    next.appearance = selected_character.map(|entry| entry.appearance.clone());
+    next.zone_id = current_zone.zone_id;
+    fill_local_player_stats(&mut next, &local_player_query);
+    snapshot.set_if_neq(next);
 }
 
 fn map_presence_state(state: NetPresenceStatus) -> PresenceStateEntry {
@@ -394,8 +398,13 @@ fn pending_sound_status_refresh(pending: Option<Res<PendingIpcCommands>>) -> boo
     pending.is_some_and(|pending| pending.needs_sound_status())
 }
 
-fn pending_character_stats_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
-    pending.is_some_and(|pending| pending.needs_character_stats())
+/// Gameplay frames (money, combat/rest icons, character frame) read this snapshot, so
+/// it follows the replicated components (applied in `First`) before any `Update` system.
+pub(crate) fn register_character_stats_sync(app: &mut App) {
+    app.add_systems(
+        PreUpdate,
+        sync_character_stats_snapshot.run_if(in_state(crate::game_state::GameState::InWorld)),
+    );
 }
 
 fn pending_equipped_gear_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool {
@@ -415,6 +424,7 @@ fn pending_map_status_refresh(pending: Option<Res<PendingIpcCommands>>) -> bool 
 }
 
 pub(crate) fn register_status_sync_systems(app: &mut App) {
+    register_character_stats_sync(app);
     app.add_systems(
         Update,
         apply_equipment_ipc_commands
@@ -434,7 +444,6 @@ pub(crate) fn register_status_sync_systems(app: &mut App) {
             sync_network_status_snapshot.run_if(pending_network_status_refresh),
             sync_terrain_status_snapshot.run_if(pending_terrain_status_refresh),
             sync_sound_status_snapshot.run_if(pending_sound_status_refresh),
-            sync_character_stats_snapshot.run_if(pending_character_stats_refresh),
             sync_equipped_gear_status_snapshot.run_if(pending_equipped_gear_refresh),
             sync_equipment_appearance_status_snapshot.run_if(pending_equipment_appearance_refresh),
             sync_map_status_snapshot.run_if(pending_map_status_refresh),

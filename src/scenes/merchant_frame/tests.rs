@@ -225,3 +225,42 @@ fn the_server_ending_the_interaction_closes_the_window_without_a_request() {
     );
     assert!(close_requests(&mut app).is_empty());
 }
+
+#[test]
+fn merchant_money_follows_replicated_gold_on_the_next_frame() {
+    use bevy::state::app::StatesPlugin;
+
+    let mut app = App::new();
+    app.add_plugins((MinimalPlugins, StatesPlugin))
+        .insert_state(GameState::InWorld)
+        .init_resource::<MerchantState>()
+        .init_resource::<WindowManager>()
+        .init_resource::<CharacterStatsSnapshot>()
+        .init_resource::<crate::networking::CharacterList>()
+        .init_resource::<crate::networking::SelectedCharacterId>()
+        .init_resource::<crate::networking::CurrentZone>();
+    crate::status_sync::register_character_stats_sync(&mut app);
+    *app.world_mut().resource_mut::<MerchantState>() = tharynn();
+    let player = app
+        .world_mut()
+        .spawn((
+            crate::networking::LocalPlayer,
+            shared::components::Gold(250),
+        ))
+        .id();
+    let money = |app: &mut App| {
+        app.world_mut()
+            .run_system_cached(|view: MerchantView| view.state().money)
+            .unwrap()
+    };
+    app.update();
+    assert_eq!(money(&mut app), 250);
+
+    // Buying spends 2s 40c.
+    app.world_mut()
+        .get_mut::<shared::components::Gold>(player)
+        .unwrap()
+        .0 = 10;
+    app.update();
+    assert_eq!(money(&mut app), 10);
+}

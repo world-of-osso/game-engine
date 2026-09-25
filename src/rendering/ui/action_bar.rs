@@ -596,6 +596,42 @@ mod tests {
     }
 
     #[test]
+    fn money_display_follows_replicated_gold_without_ipc_request() {
+        let mut app =
+            action_bar_plugin_app(crate::game::inworld_scene_stage::InWorldSceneStage::Ui);
+        app.init_resource::<CharacterStatsSnapshot>()
+            .init_resource::<game_engine::ipc::plugin::PendingIpcCommands>()
+            .init_resource::<crate::networking::CharacterList>()
+            .init_resource::<crate::networking::SelectedCharacterId>()
+            .init_resource::<crate::networking::CurrentZone>();
+        crate::status_sync::register_character_stats_sync(&mut app);
+        let player = app
+            .world_mut()
+            .spawn((crate::networking::LocalPlayer, shared::components::Gold(0)))
+            .id();
+        app.update();
+        let money = |app: &App| {
+            fontstring_text(
+                &app.world().resource::<UiState>().registry,
+                "BagsBarMoneyDisplay",
+            )
+        };
+        assert_eq!(money(&app), "0c");
+
+        // A sale credits 12g 34s 56c; the display shows it on the next frame.
+        app.world_mut()
+            .get_mut::<shared::components::Gold>(player)
+            .unwrap()
+            .0 = 123_456;
+        app.update();
+        assert_eq!(money(&app), "12g 34s 56c");
+        assert_eq!(
+            app.world().resource::<CharacterStatsSnapshot>().gold,
+            123_456
+        );
+    }
+
+    #[test]
     fn money_display_uses_character_gold() {
         let mut registry = FrameRegistry::new(1600.0, 1200.0);
         let bars = create_action_bars(&mut registry);
