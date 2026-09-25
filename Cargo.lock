@@ -2568,7 +2568,7 @@ dependencies = [
 [[package]]
 name = "cascette-client-storage"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=d8ec31f4dabaaff80af64b2510c54104a1871fec#d8ec31f4dabaaff80af64b2510c54104a1871fec"
+source = "git+https://github.com/Osso/cascette-rs?rev=758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48#758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48"
 dependencies = [
  "binrw",
  "cascette-crypto",
@@ -2581,6 +2581,7 @@ dependencies = [
  "md5",
  "memmap2",
  "parking_lot",
+ "prost",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -2592,7 +2593,7 @@ dependencies = [
 [[package]]
 name = "cascette-crypto"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=d8ec31f4dabaaff80af64b2510c54104a1871fec#d8ec31f4dabaaff80af64b2510c54104a1871fec"
+source = "git+https://github.com/Osso/cascette-rs?rev=758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48#758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48"
 dependencies = [
  "binrw",
  "cipher",
@@ -2605,7 +2606,7 @@ dependencies = [
 [[package]]
 name = "cascette-formats"
 version = "0.2.0"
-source = "git+https://github.com/Osso/cascette-rs?rev=d8ec31f4dabaaff80af64b2510c54104a1871fec#d8ec31f4dabaaff80af64b2510c54104a1871fec"
+source = "git+https://github.com/Osso/cascette-rs?rev=758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48#758d8dbfbc64d500b2f8f5b5c133d9f82fa79a48"
 dependencies = [
  "binrw",
  "cascette-crypto",
@@ -7431,6 +7432,29 @@ dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
  "syn 0.15.44",
+]
+
+[[package]]
+name = "prost"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "528ac67416ff8646872a3c02cad9cc4ee5dc9f9540c9b10771855c95cb2e5ae1"
+dependencies = [
+ "bytes",
+ "prost-derive",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.14.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
+dependencies = [
+ "anyhow",
+ "itertools 0.10.5",
+ "proc-macro2 1.0.106",
+ "quote 1.0.46",
+ "syn 2.0.118",
 ]
 
 [[package]]
