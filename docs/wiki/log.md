@@ -921,7 +921,6 @@ Created [[stormwind-dark-render]]. Stormwind district WMOs take the unified MapO
 
 Created [[loot-and-flight]]: corpses stay replicated, `Lootable` sparkle/cursor, right-click loot with auto-loot XOR Shift, Retail LootFrame; Retail FlightMapFrame on the UiMap continent art; `MovementControl` epoch snap and controlled follow for flights and server teleports. Removed the client-only `taxi.rs` preview and `loot_data.rs`.
 
-||||||| parent of a5d0298c (docs: terrain blend steps investigation (sRGB alpha map, diffuse-alpha height blend, MPHD-driven MCAL decode and blend modes))
 
 ## [2026-09-25] investigation | Terrain blend steps
 
