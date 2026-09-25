@@ -36,11 +36,23 @@ An adjacent `--no-directional-shadows` pair measured **26.3 → 14.8 ms GPU per 
 - `6e34121f`: the world-map frame returns before building its model unless `WorldMapState`, `CurrentZone` or `WindowManager` changed. The system drops out of the profile. This is about 1.6 ms of main-world CPU, too small to resolve in FPS.
 - `d069ed8f`: `WOO_CPU_PROFILE_START_SECS` lets the span profiler capture a settled InWorld.
 
+**ui-toolkit settled-registry gate (branch `sync-gate`, `9a3c0a5`/`86d2639`).** The gate is built on the registry's existing `render_dirty`/`rect_dirty` marks plus the frame count, which catches removals. Removed native components still trigger a repair.
+
+Profile builds, 2 interleaved pairs:
+
+| Metric | Before | After |
+|---|---|---|
+| `sync_registry` | **32.6 / 32.5 ms per frame** | **0.04 ms per frame** |
+| Frames per 5 s capture | 47 / 43 | 89 / 54 |
+
+The UI screenshots match. A settled InWorld registry publishes no dirty marks, so the gate skips nearly every frame.
+
+`M2EffectMaterial::enable_shadows() -> false` was tried and reverted: both effect fog GPU tests then rendered black. The cause was not investigated.
+
 **Remaining, ranked.**
-1. `sync_registry` dirty gating in ui-toolkit.
-2. Shadow cost, which is a visual trade-off: cascade count, map size, the caster set. `M2EffectMaterial` shadow draws are no-ops because its pipeline disables depth writes in every pass.
-3. Sharing per-instance doodad materials and meshes. This removes the per-frame effect re-prepare and allows instancing.
-4. Collider collection in `player_movement`.
+1. Shadow cost, which is a visual trade-off: cascade count, map size, the caster set. `M2EffectMaterial` shadow draws are no-ops because its pipeline disables depth writes in every pass.
+2. Sharing per-instance doodad materials and meshes. This removes the per-frame effect re-prepare and allows instancing.
+3. Collider collection in `player_movement`.
 
 Raw captures live in ephemeral `/tmp/claude/perf-agent/runs/`, not `data/`.
 
