@@ -945,3 +945,7 @@ Created [[banks]]: BankFrame at bankers (character + Warband bank), GuildBankFra
 ## [2026-09-25] ui | Group frames
 
 Created [[group-frames]]. Raid-style CompactPartyFrame and CompactRaidFrameContainer driven by `GroupState` (roster + server `GroupMemberStates` for all members regardless of interest range), `PARTY_INVITE` popup, unit/group menu entries (invite, promote, uninvite, convert, roles, ready check, leave), ReadyCheckFrame. Replaced the placeholder party/raid components and `raid_party_data.rs`.
+
+## [2026-09-25] ui | Professions
+
+Created [[professions-ui]]. Retail ClassTrainerFrame, ProfessionsBook and ProfessionsFrame on the new trainer/profession protocol; the AzerothCore-era professions placeholder and the client-only gather cast are gone.

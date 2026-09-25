@@ -158,6 +158,8 @@ pub mod test_harness;
 pub mod trade;
 #[path = "game/trade_data.rs"]
 pub mod trade_data;
+#[path = "game/trainer_data.rs"]
+pub mod trainer_data;
 pub mod ui;
 pub mod who;
 #[path = "game/world_db/mod.rs"]

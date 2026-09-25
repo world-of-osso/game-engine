@@ -51,11 +51,16 @@ pub enum WindowId {
     LootRules,
     Mail,
     Merchant,
+    /// Retail `ProfessionsFrame` (the trade skill window of one profession).
     Professions,
+    /// Retail `ProfessionsBookFrame` (K): the learned professions.
+    ProfessionsBook,
     QuestGiver,
     QuestLog,
     Spellbook,
     Talents,
+    /// Retail `ClassTrainerFrame`, opened by a trainer interaction.
+    Trainer,
     WorldMap,
 }
 
@@ -74,6 +79,7 @@ impl WindowId {
             | Self::Bank
             | Self::EncounterJournal
             | Self::GuildBank
+            | Self::Professions
             | Self::Talents
             | Self::WorldMap => WindowClass::Wide,
             Self::Bag(_) => WindowClass::Container,
@@ -85,16 +91,20 @@ impl WindowId {
             | Self::LootRules
             | Self::Mail
             | Self::Merchant
-            | Self::Professions
+            | Self::ProfessionsBook
             | Self::QuestGiver
             | Self::QuestLog
-            | Self::Spellbook => WindowClass::Panel,
+            | Self::Spellbook
+            | Self::Trainer => WindowClass::Panel,
         }
     }
 
     /// NPC-driven panels take slot L and push the others right.
     pub fn npc_driven(self) -> bool {
-        matches!(self, Self::Mail | Self::Merchant | Self::QuestGiver)
+        matches!(
+            self,
+            Self::Mail | Self::Merchant | Self::QuestGiver | Self::Trainer
+        )
     }
 
     /// Registry name of the window's root frame; also its saved-position key.
@@ -115,10 +125,12 @@ impl WindowId {
             Self::Mail => "MailFrame",
             Self::Merchant => "MerchantFrame",
             Self::Professions => "ProfessionsFrame",
+            Self::ProfessionsBook => "ProfessionsBookFrame",
             Self::QuestGiver => "QuestFrame",
             Self::QuestLog => "QuestLogFrame",
             Self::Spellbook => "SpellBookRoot",
             Self::Talents => "PlayerSpellsFrame",
+            Self::Trainer => "ClassTrainerFrame",
             Self::WorldMap => "WorldMapFrame",
         };
         name.to_string()

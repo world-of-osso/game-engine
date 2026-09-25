@@ -39,5 +39,6 @@ pub mod static_popup;
 pub mod talent_frame;
 pub mod teardown;
 pub mod tooltip_frame;
+pub mod trainer_frame;
 pub mod ui_errors_frame;
 pub mod world_map_frame;

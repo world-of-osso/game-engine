@@ -39,6 +39,8 @@ pub(crate) mod networking_npc;
 pub(crate) mod networking_player;
 #[path = "networking/quests.rs"]
 pub(crate) mod networking_quests;
+#[path = "networking/trainer.rs"]
+pub(crate) mod networking_trainer;
 
 #[path = "world_db/zone_names.rs"]
 pub(crate) mod zone_names;

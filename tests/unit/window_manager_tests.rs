@@ -93,7 +93,7 @@ fn window_classes_follow_the_plan_table() {
     for id in [
         WindowId::Character,
         WindowId::Spellbook,
-        WindowId::Professions,
+        WindowId::ProfessionsBook,
         WindowId::Friends,
         WindowId::Guild,
         WindowId::Mail,
@@ -101,6 +101,7 @@ fn window_classes_follow_the_plan_table() {
         WindowId::Calendar,
         WindowId::Inspect,
         WindowId::Merchant,
+        WindowId::Trainer,
     ] {
         assert_eq!(id.class(), WindowClass::Panel, "{id:?}");
     }
@@ -109,6 +110,8 @@ fn window_classes_follow_the_plan_table() {
         WindowId::Talents,
         WindowId::Achievements,
         WindowId::EncounterJournal,
+        // ProfessionsFrame is 942 wide (Blizzard_ProfessionsCrafting.lua:344-351).
+        WindowId::Professions,
     ] {
         assert_eq!(id.class(), WindowClass::Wide, "{id:?}");
     }

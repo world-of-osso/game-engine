@@ -1,56 +1,45 @@
-use std::collections::VecDeque;
+//! Client professions runtime: the owner's learned lines and spells
+//! ([`ProfessionStatusSnapshot`], filled from `ProfessionSnapshot` by
+//! `networking::messages`), Retail skill-up and learn chat lines, and
+//! [`CraftRequest`]s sent as `CraftRecipe` (the ProfessionsFrame Create buttons and
+//! the `profession craft` IPC command).
+
 use std::sync::mpsc;
 
-use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
-use shared::protocol::{
-    CraftProfessionRecipe, GatherProfessionNode, ProfessionChannel, ProfessionSkillSnapshot,
-    ProfessionStateUpdate, QueryProfessions,
-};
+use game_engine::network_runtime::messages::MessageSenders;
+use shared::protocol::{CraftRecipe, ProfessionChannel, ProfessionSnapshot};
 
 use crate::ipc::{Request, Response};
-use crate::network_events::{register_message_handler, register_outgoing_handler};
-use crate::status::{
-    ProfessionRecipeEntry, ProfessionSkillEntry, ProfessionSkillUpEntry, ProfessionStatusSnapshot,
-};
+use crate::network_events::register_outgoing_handler;
+use crate::professions_data::ProfessionCatalog;
+use crate::status::ProfessionStatusSnapshot;
 
-const KNOWN_GATHER_NODES: &[(u32, &str)] = &[(1, "Copper Vein")];
+/// Cast a known recipe `casts` times (`C_TradeSkillUI.CraftRecipe`).
+#[derive(Message, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CraftRequest {
+    pub spell_id: u32,
+    pub casts: u16,
+}
 
 #[derive(Resource, Default)]
 pub struct ProfessionRuntimeState {
-    pending_actions: VecDeque<Action>,
-    pending_replies: VecDeque<mpsc::Sender<Response>>,
-    queried_inworld: bool,
-}
-
-#[derive(Debug)]
-enum Action {
-    Craft(u32),
-    Gather(u32),
+    pending: Vec<(CraftRequest, Option<mpsc::Sender<Response>>)>,
 }
 
 pub struct ProfessionPlugin;
 
 impl Plugin for ProfessionPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ProfessionRuntimeState>();
-        register_outgoing_handler(
-            app,
-            request_professions_on_enter_world,
-            profession_query_pending,
-        );
-        register_outgoing_handler(app, send_pending_actions, |world| {
+        app.init_resource::<ProfessionRuntimeState>()
+            .add_message::<CraftRequest>()
+            .add_systems(Update, queue_craft_requests);
+        register_outgoing_handler(app, send_craft_requests, |world| {
             !world
                 .resource::<ProfessionRuntimeState>()
-                .pending_actions
+                .pending
                 .is_empty()
         });
-        register_message_handler::<ProfessionStateUpdate, _>(
-            app,
-            receive_profession_updates,
-            |_| true,
-        );
     }
 }
 
@@ -62,147 +51,53 @@ pub fn queue_ipc_request(
 ) -> bool {
     match request {
         Request::ProfessionStatus => {
-            let _ = respond.send(Response::Text(format_status(snapshot)));
+            let _ = respond.send(Response::Text(format_status(
+                snapshot,
+                crate::professions_data::profession_catalog(),
+            )));
             true
         }
-        Request::ProfessionCraft { recipe_id } => {
-            queue_craft_action(runtime, *recipe_id);
-            runtime.pending_replies.push_back(respond);
-            true
-        }
-        Request::ProfessionGather { node_id } => {
-            runtime.pending_actions.push_back(Action::Gather(*node_id));
-            runtime.pending_replies.push_back(respond);
+        Request::ProfessionCraft { recipe_id, casts } => {
+            let request = CraftRequest {
+                spell_id: *recipe_id,
+                casts: (*casts).max(1),
+            };
+            runtime.pending.push((request, Some(respond)));
             true
         }
         _ => false,
     }
 }
 
-pub fn queue_craft_action(runtime: &mut ProfessionRuntimeState, recipe_id: u32) {
-    runtime.pending_actions.push_back(Action::Craft(recipe_id));
-}
-
-pub fn queue_gather_action(runtime: &mut ProfessionRuntimeState, node_id: u32) {
-    runtime.pending_actions.push_back(Action::Gather(node_id));
-}
-
-fn profession_query_pending(world: &World) -> bool {
-    if world.resource::<ProfessionRuntimeState>().queried_inworld {
-        return false;
-    }
-    let snapshot = world.resource::<ProfessionStatusSnapshot>();
-    snapshot.skills.is_empty() && snapshot.recipes.is_empty()
-}
-
-fn request_professions_on_enter_world(
+fn queue_craft_requests(
+    mut requests: MessageReader<CraftRequest>,
     mut runtime: ResMut<ProfessionRuntimeState>,
-    mut senders: MessageSenders<QueryProfessions>,
 ) {
-    if send_all(&mut senders, QueryProfessions) {
-        runtime.queried_inworld = true;
+    for request in requests.read() {
+        runtime.pending.push((*request, None));
     }
 }
 
-#[derive(SystemParam)]
-struct ProfessionSenders<'w, 's> {
-    craft: MessageSenders<'w, 's, CraftProfessionRecipe>,
-    gather: MessageSenders<'w, 's, GatherProfessionNode>,
-}
-
-fn send_pending_actions(
+fn send_craft_requests(
     mut runtime: ResMut<ProfessionRuntimeState>,
-    mut senders: ProfessionSenders,
+    mut senders: MessageSenders<CraftRecipe>,
 ) {
-    while let Some(action) = runtime.pending_actions.pop_front() {
-        let sent = match action {
-            Action::Craft(recipe_id) => {
-                send_all(&mut senders.craft, CraftProfessionRecipe { recipe_id })
-            }
-            Action::Gather(node_id) => {
-                send_all(&mut senders.gather, GatherProfessionNode { node_id })
-            }
-        };
-        if !sent && let Some(reply) = runtime.pending_replies.pop_front() {
-            let _ = reply.send(Response::Error(
-                "professions are unavailable: not connected".into(),
-            ));
+    for (request, reply) in std::mem::take(&mut runtime.pending) {
+        let mut sent = false;
+        for mut sender in senders.iter_mut() {
+            sender.send::<ProfessionChannel>(CraftRecipe {
+                spell_id: request.spell_id,
+                casts: request.casts,
+            });
+            sent = true;
         }
-    }
-}
-
-fn send_all<T: Clone + lightyear::prelude::Message>(
-    senders: &mut MessageSenders<T>,
-    message: T,
-) -> bool {
-    let mut sent = false;
-    for mut sender in senders.iter_mut() {
-        sender.send::<ProfessionChannel>(message.clone());
-        sent = true;
-    }
-    sent
-}
-
-fn receive_profession_updates(
-    mut runtime: ResMut<ProfessionRuntimeState>,
-    mut snapshot: ResMut<ProfessionStatusSnapshot>,
-    mut receivers: MessageReceivers<ProfessionStateUpdate>,
-) {
-    for receiver in receivers.iter_mut() {
-        for update in receiver.receive() {
-            apply_profession_state_update(&mut snapshot, update);
-            if let Some(reply) = runtime.pending_replies.pop_front() {
-                let response = if let Some(error) = &snapshot.last_error {
-                    Response::Error(error.clone())
-                } else {
-                    Response::Text(format_status(&snapshot))
-                };
-                let _ = reply.send(response);
-            }
+        if let Some(reply) = reply {
+            let _ = reply.send(if sent {
+                Response::Text(format!("craft {} x{}", request.spell_id, request.casts))
+            } else {
+                Response::Error("professions are unavailable: not connected".into())
+            });
         }
-    }
-}
-
-fn apply_profession_state_update(
-    snapshot: &mut ProfessionStatusSnapshot,
-    update: ProfessionStateUpdate,
-) {
-    if let Some(profession_snapshot) = update.snapshot {
-        snapshot.skills = profession_snapshot
-            .skills
-            .into_iter()
-            .map(map_skill_snapshot)
-            .collect();
-        snapshot.recipes = profession_snapshot
-            .recipes
-            .into_iter()
-            .map(|recipe| ProfessionRecipeEntry {
-                spell_id: recipe.spell_id,
-                profession: recipe.profession,
-                name: recipe.name,
-                craftable: recipe.craftable,
-                cooldown: recipe.cooldown,
-            })
-            .collect();
-    }
-    snapshot.last_server_message = update.message;
-    snapshot.last_skill_up = update.skill_up.map(map_skill_up_snapshot);
-    snapshot.last_error = update.error;
-}
-
-fn map_skill_snapshot(skill: ProfessionSkillSnapshot) -> ProfessionSkillEntry {
-    ProfessionSkillEntry {
-        profession: skill.profession,
-        current: skill.current,
-        max: skill.max,
-    }
-}
-
-fn map_skill_up_snapshot(skill: ProfessionSkillSnapshot) -> ProfessionSkillUpEntry {
-    ProfessionSkillUpEntry {
-        profession: skill.profession,
-        current: skill.current,
-        max: skill.max,
     }
 }
 
@@ -210,168 +105,110 @@ pub fn reset_runtime(runtime: &mut ProfessionRuntimeState) {
     *runtime = ProfessionRuntimeState::default();
 }
 
-fn format_status(snapshot: &ProfessionStatusSnapshot) -> String {
-    let mut lines = Vec::new();
-    lines.push(format!("professions: {}", format_skill_list(snapshot)));
-    lines.push(format!("recipes: {}", snapshot.recipes.len()));
-    lines.push(format!("gather_nodes: {}", format_known_gather_nodes()));
-    push_optional_line(
-        &mut lines,
-        "message",
-        snapshot.last_server_message.as_deref(),
+/// Store `snapshot`; returns the Retail chat lines for what changed: new lines
+/// (`ERR_SKILL_GAINED_S`), rank increases (`ERR_SKILL_UP_SI`) and new recipes
+/// (`ERR_LEARN_RECIPE_S`). The first snapshot after entering the world is silent.
+pub fn apply_snapshot(
+    status: &mut ProfessionStatusSnapshot,
+    snapshot: ProfessionSnapshot,
+    catalog: &ProfessionCatalog,
+) -> Vec<String> {
+    let first = !status.received;
+    let old = std::mem::replace(
+        status,
+        ProfessionStatusSnapshot {
+            lines: snapshot.lines,
+            spells: snapshot.spells,
+            received: true,
+        },
     );
-    push_optional_skill_up_line(&mut lines, snapshot.last_skill_up.as_ref());
-    push_optional_line(&mut lines, "error", snapshot.last_error.as_deref());
-    lines.join("\n")
+    if first {
+        return Vec::new();
+    }
+    let mut messages = Vec::new();
+    for line in &status.lines {
+        let Some(info) = catalog.line(line.skill_line) else {
+            continue;
+        };
+        match old
+            .lines
+            .iter()
+            .find(|known| known.skill_line == line.skill_line)
+        {
+            None => messages.push(format!("You have gained the {} skill.", info.name)),
+            Some(known) if line.rank > known.rank && info.parent != 0 => messages.push(format!(
+                "Your skill in {} has increased to {}.",
+                info.name, line.rank
+            )),
+            Some(_) => {}
+        }
+    }
+    for spell in status
+        .spells
+        .iter()
+        .filter(|spell| !old.spells.contains(spell))
+    {
+        if let Some(recipe) = catalog.recipe(*spell) {
+            messages.push(format!(
+                "You have learned how to create a new item: {}.",
+                recipe.name
+            ));
+        }
+    }
+    messages
 }
 
-fn format_skill_list(snapshot: &ProfessionStatusSnapshot) -> String {
-    let skills = snapshot
-        .skills
+fn format_status(snapshot: &ProfessionStatusSnapshot, catalog: &ProfessionCatalog) -> String {
+    let lines = snapshot
+        .lines
         .iter()
-        .map(format_skill_entry)
+        .map(|line| {
+            let name = catalog
+                .line(line.skill_line)
+                .map_or_else(|| line.skill_line.to_string(), |info| info.name.clone());
+            format!("{name} {}/{}", line.rank, line.max_rank)
+        })
         .collect::<Vec<_>>();
-    if skills.is_empty() {
-        "none".into()
-    } else {
-        skills.join(", ")
-    }
-}
-
-fn format_skill_entry(skill: &ProfessionSkillEntry) -> String {
-    format!("{} {}/{}", skill.profession, skill.current, skill.max)
-}
-
-fn push_optional_skill_up_line(lines: &mut Vec<String>, skill_up: Option<&ProfessionSkillUpEntry>) {
-    if let Some(skill_up) = skill_up {
-        lines.push(format!(
-            "skill_up: {} {}/{}",
-            skill_up.profession, skill_up.current, skill_up.max
-        ));
-    }
-}
-
-fn push_optional_line(lines: &mut Vec<String>, label: &str, value: Option<&str>) {
-    if let Some(value) = value {
-        lines.push(format!("{label}: {value}"));
-    }
-}
-
-fn format_known_gather_nodes() -> String {
-    KNOWN_GATHER_NODES
+    let recipes = snapshot
+        .spells
         .iter()
-        .map(|(id, name)| format!("{id}:{name}"))
-        .collect::<Vec<_>>()
-        .join(", ")
+        .filter(|spell| catalog.recipe(**spell).is_some())
+        .count();
+    format!(
+        "professions: {}\nrecipes: {recipes}",
+        if lines.is_empty() {
+            "none".to_string()
+        } else {
+            lines.join(", ")
+        }
+    )
+}
+
+/// `profession recipes --text`: known recipes whose name contains `text`.
+pub fn format_recipes(
+    snapshot: &ProfessionStatusSnapshot,
+    catalog: &ProfessionCatalog,
+    text: &str,
+) -> String {
+    let needle = text.trim().to_ascii_lowercase();
+    let recipes: Vec<String> = snapshot
+        .spells
+        .iter()
+        .filter_map(|spell| catalog.recipe(*spell))
+        .filter(|recipe| needle.is_empty() || recipe.name.to_ascii_lowercase().contains(&needle))
+        .map(|recipe| format!("{} {}", recipe.spell_id, recipe.name))
+        .collect();
+    format!(
+        "recipes text={text}: {}\n{}",
+        recipes.len(),
+        if recipes.is_empty() {
+            "-".to_string()
+        } else {
+            recipes.join("\n")
+        }
+    )
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn idle_dispatch_skips_profession_snapshot_parameters() {
-        let mut app = App::new();
-        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
-        app.add_plugins(ProfessionPlugin);
-        app.world_mut()
-            .resource_mut::<ProfessionRuntimeState>()
-            .queried_inworld = true;
-
-        app.update();
-        crate::network_events::dispatch_outgoing(app.world_mut());
-        crate::network_events::dispatch_incoming(app.world_mut());
-    }
-
-    #[test]
-    fn queued_actions_wait_for_dispatch_and_report_disconnection() {
-        let mut app = App::new();
-        app.init_resource::<game_engine::network_runtime::messages::ConnectionSender>();
-        app.add_plugins(ProfessionPlugin)
-            .init_resource::<ProfessionStatusSnapshot>();
-        let (reply, responses) = mpsc::channel();
-        {
-            let mut runtime = app.world_mut().resource_mut::<ProfessionRuntimeState>();
-            runtime.queried_inworld = true;
-            queue_craft_action(&mut runtime, 5001);
-            queue_gather_action(&mut runtime, 1);
-            runtime.pending_replies.extend([reply.clone(), reply]);
-        }
-
-        app.update();
-        assert_eq!(
-            app.world()
-                .resource::<ProfessionRuntimeState>()
-                .pending_actions
-                .len(),
-            2
-        );
-        assert!(responses.try_recv().is_err());
-        crate::network_events::dispatch_outgoing(app.world_mut());
-        for _ in 0..2 {
-            let Response::Error(error) = responses.try_recv().unwrap() else {
-                panic!("expected disconnected profession error");
-            };
-            assert_eq!(error, "professions are unavailable: not connected");
-        }
-        let runtime = app.world().resource::<ProfessionRuntimeState>();
-        assert!(runtime.pending_actions.is_empty());
-        assert!(runtime.pending_replies.is_empty());
-    }
-
-    #[test]
-    fn format_status_reports_profession_skills() {
-        let snapshot = ProfessionStatusSnapshot {
-            skills: vec![ProfessionSkillEntry {
-                profession: "Mining".into(),
-                current: 12,
-                max: 75,
-            }],
-            recipes: vec![ProfessionRecipeEntry {
-                spell_id: 5001,
-                profession: "Blacksmithing".into(),
-                name: "Copper Bracers".into(),
-                craftable: true,
-                cooldown: None,
-            }],
-            last_server_message: Some("crafted Copper Bracers".into()),
-            last_skill_up: Some(ProfessionSkillUpEntry {
-                profession: "Blacksmithing".into(),
-                current: 13,
-                max: 75,
-            }),
-            last_error: None,
-        };
-
-        let text = format_status(&snapshot);
-
-        assert!(text.contains("Mining 12/75"));
-        assert!(text.contains("recipes: 1"));
-        assert!(text.contains("crafted Copper Bracers"));
-        assert!(text.contains("skill_up: Blacksmithing 13/75"));
-    }
-
-    #[test]
-    fn queue_gather_action_enqueues_node_request() {
-        let mut runtime = ProfessionRuntimeState::default();
-
-        queue_gather_action(&mut runtime, 1);
-
-        match runtime.pending_actions.front() {
-            Some(Action::Gather(node_id)) => assert_eq!(*node_id, 1),
-            other => panic!("expected queued gather action, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn queue_craft_action_enqueues_recipe_request() {
-        let mut runtime = ProfessionRuntimeState::default();
-
-        queue_craft_action(&mut runtime, 5001);
-
-        match runtime.pending_actions.front() {
-            Some(Action::Craft(recipe_id)) => assert_eq!(*recipe_id, 5001),
-            other => panic!("expected queued craft action, got {other:?}"),
-        }
-    }
-}
+#[path = "profession_tests.rs"]
+mod tests;

@@ -1,432 +1,445 @@
+//! Professions scenes: the Retail ProfessionsBook (K) and ProfessionsFrame, built from
+//! the owner's professions, the profession catalog and the bags. The book's spell
+//! buttons open the frame on that profession; recipe clicks select, category clicks
+//! collapse, Create / Create All send [`CraftRequest`]s, the search box filters by name.
+
+mod view;
+
+use bevy::ecs::system::SystemParam;
+use bevy::input::ButtonState;
+use bevy::input::keyboard::KeyboardInput;
+use bevy::input::mouse::AccumulatedMouseScroll;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::bag_data::InventoryState;
 use game_engine::input_bindings::InputAction;
-use game_engine::profession::{ProfessionRuntimeState, queue_craft_action};
-use game_engine::status::{ProfessionRecipeEntry, ProfessionStatusSnapshot};
+use game_engine::item_icons::item_icon_fdid;
+use game_engine::profession::CraftRequest;
+use game_engine::professions_data::profession_catalog;
+use game_engine::spell_catalog::SpellCatalog;
+use game_engine::status::ProfessionStatusSnapshot;
+use game_engine::ui::frame::WidgetData;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
+use game_engine::ui::screens::professions_book_component::{
+    ACTION_CLOSE as ACTION_BOOK_CLOSE, ACTION_OPEN_PREFIX, ProfessionsBookState,
+    professions_book_screen,
+};
 use game_engine::ui::screens::professions_frame_component::{
-    ACTION_PROFESSION_CRAFT, ACTION_PROFESSION_RECIPE_PREFIX, ACTION_PROFESSION_TAB_PREFIX,
-    CraftingDetail, ProfessionTab, ProfessionsFrameState, RecipeState, professions_frame_screen,
+    ACTION_CLOSE, ACTION_COUNT_DOWN, ACTION_COUNT_UP, ACTION_CREATE, ACTION_CREATE_ALL,
+    ACTION_ROW_PREFIX, ACTION_SEARCH, LIST_NAME, ProfessionsFrameState, SEARCH_NAME,
+    professions_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widget_def::Element;
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
+use crate::scenes::trainer_frame::wheel_notches_over;
 use crate::ui_input::walk_up_for_onclick;
 use crate::window_manager::{WindowId, WindowManager};
+pub use view::ProfessionsFrameSelection;
+use view::{FrameView, Inputs, RowTarget, build_book, build_frame};
 
-#[derive(Resource, Default, Clone, PartialEq)]
-struct ProfessionsFrameSelection {
-    active_profession: Option<String>,
-    selected_recipe_id: Option<u32>,
-}
-
-struct ProfessionsFrameRes {
+struct ScreenRes {
     screen: Screen,
     shared: SharedContext,
 }
 
-unsafe impl Send for ProfessionsFrameRes {}
-unsafe impl Sync for ProfessionsFrameRes {}
+unsafe impl Send for ScreenRes {}
+unsafe impl Sync for ScreenRes {}
 
 #[derive(Resource)]
-struct ProfessionsFrameWrap(ProfessionsFrameRes);
+struct ProfessionScreens {
+    frame: ScreenRes,
+    book: ScreenRes,
+}
 
-#[derive(Resource, Clone, PartialEq)]
-struct ProfessionsFrameModel(ProfessionsFrameState);
+#[derive(Resource, Clone, PartialEq, Default)]
+struct ProfessionModels {
+    frame: ProfessionsFrameState,
+    book: ProfessionsBookState,
+}
 
 pub struct ProfessionsFramePlugin;
 
 impl Plugin for ProfessionsFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<ProfessionsFrameSelection>();
+        app.init_resource::<ProfessionsFrameSelection>()
+            .add_message::<CraftRequest>();
         app.add_systems(
             OnEnter(GameState::InWorld),
-            build_professions_frame_ui.run_if(inworld_scene_stage_allows_ui),
+            build_profession_screens.run_if(inworld_scene_stage_allows_ui),
         );
-        app.add_systems(OnExit(GameState::InWorld), teardown_professions_frame_ui);
+        app.add_systems(OnExit(GameState::InWorld), teardown_profession_screens);
         app.add_systems(
             Update,
             (
-                toggle_professions_frame,
-                sync_professions_frame_state,
-                handle_professions_frame_input,
+                toggle_professions_book,
+                handle_profession_clicks,
+                handle_recipe_wheel,
+                handle_search_keys,
+                sync_profession_screens,
             )
+                .chain()
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
     }
 }
 
-fn build_professions_frame_ui(
+/// What the two screens are built from besides the window state and selection.
+#[derive(SystemParam)]
+struct ProfessionSources<'w> {
+    status: Option<Res<'w, ProfessionStatusSnapshot>>,
+    bags: Option<Res<'w, InventoryState>>,
+    spells: Option<Res<'w, SpellCatalog>>,
+}
+
+fn bag_count(bags: Option<&InventoryState>, item_id: u32) -> u32 {
+    bags.map_or(0, |bags| {
+        bags.slots
+            .iter()
+            .flatten()
+            .filter(|slot| slot.item_id == item_id)
+            .map(|slot| slot.count.max(1))
+            .sum()
+    })
+}
+
+impl ProfessionSources<'_> {
+    fn with_inputs<R>(&self, apply: impl FnOnce(&Inputs) -> R) -> R {
+        let empty = ProfessionStatusSnapshot::default();
+        let bags = self.bags.as_deref();
+        let count = |item: u32| bag_count(bags, item);
+        let inputs = Inputs {
+            catalog: profession_catalog(),
+            status: self.status.as_deref().unwrap_or(&empty),
+            bag_count: &count,
+            item_icon: &item_icon_fdid,
+        };
+        apply(&inputs)
+    }
+
+    fn frame(&self, selection: &ProfessionsFrameSelection, open: bool) -> FrameView {
+        self.with_inputs(|inputs| build_frame(inputs, selection, open))
+    }
+
+    fn models(
+        &self,
+        manager: &WindowManager,
+        selection: &ProfessionsFrameSelection,
+    ) -> ProfessionModels {
+        let spell_name_icon = |spell: u32| {
+            self.spells
+                .as_ref()
+                .and_then(|catalog| catalog.get(spell))
+                .map(|spell| (spell.name.to_string(), spell.icon_fdid))
+        };
+        ProfessionModels {
+            frame: self
+                .frame(selection, manager.is_open(WindowId::Professions))
+                .state,
+            book: self.with_inputs(|inputs| {
+                build_book(
+                    inputs,
+                    manager.is_open(WindowId::ProfessionsBook),
+                    &spell_name_icon,
+                )
+            }),
+        }
+    }
+}
+
+fn screen_res(
+    ui: &mut UiState,
+    build: fn(&SharedContext) -> Element,
+    insert: impl FnOnce(&mut SharedContext),
+) -> ScreenRes {
+    let mut shared = SharedContext::new();
+    insert(&mut shared);
+    let mut screen = Screen::new(build);
+    screen.sync(&shared, &mut ui.registry);
+    ScreenRes { screen, shared }
+}
+
+fn build_profession_screens(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
-    snapshot: Option<Res<ProfessionStatusSnapshot>>,
-    window_manager: Res<WindowManager>,
-    selection: Res<ProfessionsFrameSelection>,
+    (sources, manager, selection): (
+        ProfessionSources,
+        Res<WindowManager>,
+        Res<ProfessionsFrameSelection>,
+    ),
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(
-        snapshot.as_deref(),
-        window_manager.is_open(WindowId::Professions),
-        &selection,
-    );
-    let mut shared = SharedContext::new();
-    shared.insert(state.clone());
-    let mut screen = Screen::new(professions_frame_screen);
-    screen.sync(&shared, &mut ui.registry);
-    commands.insert_resource(ProfessionsFrameWrap(ProfessionsFrameRes { screen, shared }));
-    commands.insert_resource(ProfessionsFrameModel(state));
+    let models = sources.models(&manager, &selection);
+    let frame = screen_res(&mut ui, professions_frame_screen, |shared| {
+        shared.insert(models.frame.clone())
+    });
+    let book = screen_res(&mut ui, professions_book_screen, |shared| {
+        shared.insert(models.book.clone())
+    });
+    commands.insert_resource(ProfessionScreens { frame, book });
+    commands.insert_resource(models);
 }
 
-fn teardown_professions_frame_ui(
+fn teardown_profession_screens(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
-    mut wrap: Option<ResMut<ProfessionsFrameWrap>>,
+    mut screens: Option<ResMut<ProfessionScreens>>,
 ) {
-    if let Some(res) = wrap.as_mut() {
-        res.0.screen.teardown(&mut ui.registry);
+    if let Some(screens) = screens.as_mut() {
+        screens.frame.screen.teardown(&mut ui.registry);
+        screens.book.screen.teardown(&mut ui.registry);
     }
-    commands.remove_resource::<ProfessionsFrameWrap>();
-    commands.remove_resource::<ProfessionsFrameModel>();
+    commands.remove_resource::<ProfessionScreens>();
+    commands.remove_resource::<ProfessionModels>();
 }
 
-fn toggle_professions_frame(
+fn sync_profession_screens(
+    mut ui: ResMut<UiState>,
+    screens: Option<ResMut<ProfessionScreens>>,
+    models: Option<ResMut<ProfessionModels>>,
+    (sources, manager, selection): (
+        ProfessionSources,
+        Res<WindowManager>,
+        Res<ProfessionsFrameSelection>,
+    ),
+) {
+    let (Some(mut screens), Some(mut models)) = (screens, models) else {
+        return;
+    };
+    let next = sources.models(&manager, &selection);
+    if next.frame != models.frame {
+        let res = &mut screens.frame;
+        res.shared.insert(next.frame.clone());
+        res.screen.sync(&res.shared, &mut ui.registry);
+    }
+    if next.book != models.book {
+        let res = &mut screens.book;
+        res.shared.insert(next.book.clone());
+        res.screen.sync(&res.shared, &mut ui.registry);
+    }
+    *models = next;
+}
+
+/// K (`TOGGLEPROFESSIONBOOK`, Bindings_Standard.xml:1238) toggles the book.
+fn toggle_professions_book(
     keybinds: crate::ui_input_mode::WorldKeybinds,
-    mut window_manager: ResMut<WindowManager>,
+    mut manager: ResMut<WindowManager>,
 ) {
     if keybinds.just_pressed(InputAction::ToggleProfessions) {
-        window_manager.toggle(WindowId::Professions);
+        manager.toggle(WindowId::ProfessionsBook);
     }
 }
 
-fn sync_professions_frame_state(
+#[derive(SystemParam)]
+struct Pointer<'w, 's> {
+    windows: Query<'w, 's, &'static Window, With<PrimaryWindow>>,
+    mouse: Option<Res<'w, ButtonInput<MouseButton>>>,
+    reconnect: Option<Res<'w, crate::networking::ReconnectState>>,
+    modal_open: Option<Res<'w, crate::scenes::game_menu::UiModalOpen>>,
+}
+
+impl Pointer<'_, '_> {
+    /// The `onclick` action under the cursor on a left click this frame (`Some("")`
+    /// for a click on a frame without one).
+    fn click(self, ui: &UiState) -> Option<String> {
+        if !self.mouse.as_ref()?.just_pressed(MouseButton::Left)
+            || self.modal_open.is_some()
+            || !crate::networking::gameplay_input_allowed(self.reconnect)
+        {
+            return None;
+        }
+        let window = self.windows.single().ok()?;
+        let cursor = ui_cursor_position(&ui.registry, window)?;
+        let frame_id = find_frame_at(&ui.registry, cursor.x, cursor.y)?;
+        Some(walk_up_for_onclick(&ui.registry, frame_id).unwrap_or_default())
+    }
+}
+
+fn handle_profession_clicks(
+    pointer: Pointer,
     mut ui: ResMut<UiState>,
-    mut wrap: Option<ResMut<ProfessionsFrameWrap>>,
-    mut last_model: Option<ResMut<ProfessionsFrameModel>>,
-    snapshot: Option<Res<ProfessionStatusSnapshot>>,
-    window_manager: Res<WindowManager>,
-    selection: Res<ProfessionsFrameSelection>,
-) {
-    let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
-        return;
-    };
-    let state = build_state(
-        snapshot.as_deref(),
-        window_manager.is_open(WindowId::Professions),
-        &selection,
-    );
-    if last_model.0 == state {
-        return;
-    }
-    last_model.0 = state.clone();
-    let res = &mut wrap.0;
-    res.shared.insert(state);
-    res.screen.sync(&res.shared, &mut ui.registry);
-}
-
-fn handle_professions_frame_input(
-    windows: Query<&Window, With<PrimaryWindow>>,
-    mouse: Option<Res<ButtonInput<MouseButton>>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
-    ui: Res<UiState>,
-    window_manager: Res<WindowManager>,
-    snapshot: Option<Res<ProfessionStatusSnapshot>>,
+    mut manager: ResMut<WindowManager>,
     mut selection: ResMut<ProfessionsFrameSelection>,
-    mut runtime: ResMut<ProfessionRuntimeState>,
+    mut crafts: MessageWriter<CraftRequest>,
+    sources: ProfessionSources,
 ) {
-    if !window_manager.is_open(WindowId::Professions)
-        || !crate::networking::gameplay_input_allowed(reconnect)
-        || modal_open.is_some()
+    if !manager.is_open(WindowId::Professions) && !manager.is_open(WindowId::ProfessionsBook) {
+        return;
+    }
+    let Some(action) = pointer.click(&ui) else {
+        return;
+    };
+    if action != ACTION_SEARCH && selection.search_focused {
+        set_search_focus(&mut ui, &mut selection, false);
+    }
+    if let Some(line) = action
+        .strip_prefix(ACTION_OPEN_PREFIX)
+        .and_then(|line| line.parse::<u32>().ok())
     {
+        if selection.profession != Some(line) {
+            *selection = ProfessionsFrameSelection {
+                profession: Some(line),
+                ..Default::default()
+            };
+        }
+        manager.open(WindowId::Professions);
         return;
     }
-    let Some(mouse) = mouse else { return };
-    if !mouse.just_pressed(MouseButton::Left) {
-        return;
-    }
-    let Ok(window) = windows.single() else { return };
-    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
-        return;
-    };
-    let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {
-        return;
-    };
-    let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
-        return;
-    };
-    dispatch_action(&action, snapshot.as_deref(), &mut selection, &mut runtime);
-}
-
-fn build_state(
-    snapshot: Option<&ProfessionStatusSnapshot>,
-    open: bool,
-    selection: &ProfessionsFrameSelection,
-) -> ProfessionsFrameState {
-    let active_profession = resolve_active_profession(snapshot, selection);
-    let recipes = filtered_recipes(snapshot, active_profession.as_deref());
-    let selected_recipe = resolve_selected_recipe(&recipes, selection.selected_recipe_id);
-    ProfessionsFrameState {
-        visible: open,
-        tabs: build_tabs(snapshot, active_profession.as_deref()),
-        recipes: recipes
-            .iter()
-            .map(|recipe| recipe_entry_to_state(recipe, selected_recipe.map(|r| r.spell_id)))
-            .collect(),
-        crafting: build_crafting_detail(selected_recipe),
-        book_recipes: Vec::new(),
-    }
-}
-
-fn resolve_active_profession(
-    snapshot: Option<&ProfessionStatusSnapshot>,
-    selection: &ProfessionsFrameSelection,
-) -> Option<String> {
-    let Some(snapshot) = snapshot else {
-        return None;
-    };
-    if let Some(active) = &selection.active_profession
-        && snapshot
-            .skills
-            .iter()
-            .any(|skill| skill.profession == *active)
-    {
-        return Some(active.clone());
-    }
-    snapshot
-        .skills
-        .first()
-        .map(|skill| skill.profession.clone())
-}
-
-fn filtered_recipes<'a>(
-    snapshot: Option<&'a ProfessionStatusSnapshot>,
-    active_profession: Option<&str>,
-) -> Vec<&'a ProfessionRecipeEntry> {
-    let Some(snapshot) = snapshot else {
-        return Vec::new();
-    };
-    snapshot
-        .recipes
-        .iter()
-        .filter(|recipe| {
-            active_profession
-                .map(|profession| recipe.profession == profession)
-                .unwrap_or(true)
-        })
-        .collect()
-}
-
-fn resolve_selected_recipe<'a>(
-    recipes: &'a [&'a ProfessionRecipeEntry],
-    selected_recipe_id: Option<u32>,
-) -> Option<&'a ProfessionRecipeEntry> {
-    selected_recipe_id
-        .and_then(|recipe_id| {
-            recipes
-                .iter()
-                .find(|recipe| recipe.spell_id == recipe_id)
-                .copied()
-        })
-        .or_else(|| recipes.first().copied())
-}
-
-fn build_tabs(
-    snapshot: Option<&ProfessionStatusSnapshot>,
-    active_profession: Option<&str>,
-) -> Vec<ProfessionTab> {
-    snapshot
-        .map(|snapshot| {
-            snapshot
-                .skills
-                .iter()
-                .map(|skill| ProfessionTab {
-                    name: format!("{} {}/{}", skill.profession, skill.current, skill.max),
-                    active: Some(skill.profession.as_str()) == active_profession,
-                    action: format!("{ACTION_PROFESSION_TAB_PREFIX}{}", skill.profession),
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-fn build_crafting_detail(selected_recipe: Option<&ProfessionRecipeEntry>) -> CraftingDetail {
-    let Some(recipe) = selected_recipe else {
-        return CraftingDetail::default();
-    };
-    CraftingDetail {
-        recipe_name: recipe.name.clone(),
-        reagent_count: 0,
-        quality: if recipe.craftable { 1.0 } else { 0.0 },
-        quality_text: recipe.cooldown.clone().unwrap_or_else(|| {
-            if recipe.craftable {
-                "Ready".into()
-            } else {
-                "Not Ready".into()
+    let frame = sources.frame(&selection, manager.is_open(WindowId::Professions));
+    match action.as_str() {
+        ACTION_BOOK_CLOSE => {
+            manager.close(WindowId::ProfessionsBook);
+        }
+        ACTION_CLOSE => {
+            manager.close(WindowId::Professions);
+        }
+        ACTION_SEARCH => set_search_focus(&mut ui, &mut selection, true),
+        ACTION_COUNT_DOWN => {
+            selection.craft_count = frame.state.craft_count.saturating_sub(1).max(1)
+        }
+        ACTION_COUNT_UP => {
+            selection.craft_count =
+                (frame.state.craft_count + 1).min(frame.state.create_all_count.max(1) as u16)
+        }
+        ACTION_CREATE | ACTION_CREATE_ALL => {
+            if let Some(spell_id) = frame.selected {
+                let casts = if action == ACTION_CREATE_ALL {
+                    frame.state.create_all_count as u16
+                } else {
+                    frame.state.craft_count
+                };
+                crafts.write(CraftRequest { spell_id, casts });
             }
-        }),
+        }
+        _ => {
+            if let Some(target) = action
+                .strip_prefix(ACTION_ROW_PREFIX)
+                .and_then(|index| index.parse::<usize>().ok())
+                .and_then(|index| frame.targets.get(index))
+            {
+                match *target {
+                    RowTarget::Category(category) => {
+                        if !selection.collapsed.remove(&category) {
+                            selection.collapsed.insert(category);
+                        }
+                    }
+                    RowTarget::Recipe(spell) => {
+                        selection.recipe = Some(spell);
+                        selection.craft_count = 1;
+                    }
+                }
+            }
+        }
     }
 }
 
-fn recipe_entry_to_state(
-    entry: &ProfessionRecipeEntry,
-    selected_recipe_id: Option<u32>,
-) -> RecipeState {
-    RecipeState {
-        recipe_id: entry.spell_id,
-        name: entry.name.clone(),
-        profession: entry.profession.clone(),
-        craftable: entry.craftable,
-        cooldown: entry.cooldown.clone().unwrap_or_default(),
-        active: Some(entry.spell_id) == selected_recipe_id,
-        action: format!("{ACTION_PROFESSION_RECIPE_PREFIX}{}", entry.spell_id),
+fn search_editbox(ui: &UiState) -> Option<u64> {
+    ui.registry.get_by_name(&format!("{SEARCH_NAME}Edit"))
+}
+
+/// Focus moves keyboard input to the search edit box (`UiInputMode::Text`), which
+/// starts with the current search text.
+fn set_search_focus(ui: &mut UiState, selection: &mut ProfessionsFrameSelection, focused: bool) {
+    selection.search_focused = focused;
+    let Some(editbox) = search_editbox(ui) else {
+        return;
+    };
+    if focused {
+        if let Some(WidgetData::EditBox(data)) = ui
+            .registry
+            .get_mut(editbox)
+            .and_then(|frame| frame.widget_data.as_mut())
+        {
+            data.replace_range(0, data.text.len(), &selection.search);
+            data.cursor_end();
+        }
+        ui.registry.focused_frame = Some(editbox);
+        ui.focused_frame = Some(editbox);
+    } else {
+        if ui.focused_frame == Some(editbox) {
+            ui.focused_frame = None;
+        }
+        if ui.registry.focused_frame == Some(editbox) {
+            ui.registry.focused_frame = None;
+        }
     }
 }
 
-fn dispatch_action(
-    action: &str,
-    snapshot: Option<&ProfessionStatusSnapshot>,
-    selection: &mut ProfessionsFrameSelection,
-    runtime: &mut ProfessionRuntimeState,
+/// Typing edits the search text; Enter and Escape end the search focus.
+fn handle_search_keys(
+    mut keys: MessageReader<KeyboardInput>,
+    mut ui: ResMut<UiState>,
+    mut selection: ResMut<ProfessionsFrameSelection>,
 ) {
-    if let Some(profession) = parse_tab_action(action) {
-        selection.active_profession = Some(profession);
-        selection.selected_recipe_id = None;
+    if !selection.search_focused {
+        keys.clear();
         return;
     }
-    if let Some(recipe_id) = parse_recipe_action(action) {
-        selection.selected_recipe_id = Some(recipe_id);
+    let Some(editbox) = search_editbox(&ui) else {
+        return;
+    };
+    for event in keys.read() {
+        if event.state != ButtonState::Pressed {
+            continue;
+        }
+        if matches!(event.key_code, KeyCode::Enter | KeyCode::Escape) {
+            set_search_focus(&mut ui, &mut selection, false);
+            return;
+        }
+        let Some(WidgetData::EditBox(data)) = ui
+            .registry
+            .get_mut(editbox)
+            .and_then(|frame| frame.widget_data.as_mut())
+        else {
+            return;
+        };
+        match event.key_code {
+            KeyCode::Backspace => data.backspace(),
+            KeyCode::Delete => data.delete_forward(),
+            KeyCode::ArrowLeft => data.cursor_left(),
+            KeyCode::ArrowRight => data.cursor_right(),
+            _ => {
+                if let Some(typed) = event.text.as_deref()
+                    && !typed.chars().any(char::is_control)
+                {
+                    data.insert_at_cursor(typed);
+                }
+            }
+        }
+        if data.text != selection.search {
+            selection.search = data.text.clone();
+            selection.scroll = 0;
+        }
+    }
+}
+
+/// The wheel over the recipe list scrolls one row per notch.
+fn handle_recipe_wheel(
+    windows: Query<&Window, With<PrimaryWindow>>,
+    wheel: Option<Res<AccumulatedMouseScroll>>,
+    ui: Res<UiState>,
+    manager: Res<WindowManager>,
+    mut selection: ResMut<ProfessionsFrameSelection>,
+    sources: ProfessionSources,
+) {
+    if !manager.is_open(WindowId::Professions) {
         return;
     }
-    if action == ACTION_PROFESSION_CRAFT
-        && let Some(recipe_id) = selected_recipe_id(snapshot, selection)
-    {
-        queue_craft_action(runtime, recipe_id);
+    let notches = wheel_notches_over(&windows, wheel.as_deref(), &ui, LIST_NAME, 20.0);
+    if notches == 0 {
+        return;
     }
-}
-
-fn selected_recipe_id(
-    snapshot: Option<&ProfessionStatusSnapshot>,
-    selection: &ProfessionsFrameSelection,
-) -> Option<u32> {
-    let active_profession = resolve_active_profession(snapshot, selection);
-    let recipes = filtered_recipes(snapshot, active_profession.as_deref());
-    resolve_selected_recipe(&recipes, selection.selected_recipe_id).map(|recipe| recipe.spell_id)
-}
-
-fn parse_tab_action(action: &str) -> Option<String> {
-    Some(
-        action
-            .strip_prefix(ACTION_PROFESSION_TAB_PREFIX)?
-            .to_string(),
-    )
-}
-
-fn parse_recipe_action(action: &str) -> Option<u32> {
-    action
-        .strip_prefix(ACTION_PROFESSION_RECIPE_PREFIX)?
-        .parse()
-        .ok()
+    let total = sources.frame(&selection, true).total_rows;
+    selection.scroll = selection
+        .scroll
+        .saturating_add_signed(-notches)
+        .min(total.saturating_sub(1));
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use game_engine::status::{ProfessionSkillEntry, ProfessionSkillUpEntry};
-
-    fn snapshot() -> ProfessionStatusSnapshot {
-        ProfessionStatusSnapshot {
-            skills: sample_skills(),
-            recipes: sample_recipes(),
-            last_server_message: None,
-            last_skill_up: Some(sample_skill_up()),
-            last_error: None,
-        }
-    }
-
-    fn sample_skills() -> Vec<ProfessionSkillEntry> {
-        vec![
-            ProfessionSkillEntry {
-                profession: "Alchemy".into(),
-                current: 25,
-                max: 75,
-            },
-            ProfessionSkillEntry {
-                profession: "Mining".into(),
-                current: 42,
-                max: 75,
-            },
-        ]
-    }
-
-    fn sample_recipes() -> Vec<ProfessionRecipeEntry> {
-        vec![
-            ProfessionRecipeEntry {
-                spell_id: 1001,
-                profession: "Alchemy".into(),
-                name: "Minor Healing Potion".into(),
-                craftable: true,
-                cooldown: None,
-            },
-            ProfessionRecipeEntry {
-                spell_id: 2001,
-                profession: "Mining".into(),
-                name: "Smelt Copper".into(),
-                craftable: false,
-                cooldown: Some("On Cooldown".into()),
-            },
-        ]
-    }
-
-    fn sample_skill_up() -> ProfessionSkillUpEntry {
-        ProfessionSkillUpEntry {
-            profession: "Alchemy".into(),
-            current: 26,
-            max: 75,
-        }
-    }
-
-    #[test]
-    fn build_state_filters_recipes_by_selected_profession() {
-        let state = build_state(
-            Some(&snapshot()),
-            true,
-            &ProfessionsFrameSelection {
-                active_profession: Some("Mining".into()),
-                selected_recipe_id: None,
-            },
-        );
-
-        assert_eq!(state.recipes.len(), 1);
-        assert_eq!(state.recipes[0].name, "Smelt Copper");
-        assert!(state.tabs[1].active);
-    }
-
-    #[test]
-    fn build_state_marks_selected_recipe_and_detail() {
-        let state = build_state(
-            Some(&snapshot()),
-            true,
-            &ProfessionsFrameSelection {
-                active_profession: Some("Alchemy".into()),
-                selected_recipe_id: Some(1001),
-            },
-        );
-
-        assert!(state.recipes[0].active);
-        assert_eq!(state.crafting.recipe_name, "Minor Healing Potion");
-        assert_eq!(state.crafting.quality_text, "Ready");
-    }
-
-    #[test]
-    fn parse_actions_extract_profession_and_recipe() {
-        assert_eq!(
-            parse_tab_action("profession_tab:Alchemy").as_deref(),
-            Some("Alchemy")
-        );
-        assert_eq!(parse_recipe_action("profession_recipe:1001"), Some(1001));
-    }
-}
+mod tests;
