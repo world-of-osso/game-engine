@@ -38,23 +38,23 @@ Files used:
 | Two-layer shaders | 3.3.5 shader ids only (MOMT 6: `mix(t2, t1, MOCV2.a)`) | MOMT 6: `mix(mix(t1,t2,t2.a), t1, MOCV2.a)`. MOMT 13: `mix(t2, t1, MOCV2.a)`, opaque. MOMT 21 MapObjLod: `t1`. MOTV2 and MOCV2 are used whatever the MOMT flags. |
 | Metal / EnvMetal | — | diffuse kept, specular/env added (this engine used PBR metallic 0.85 before) |
 
-## Changes (branch `wmo-parity`, rebased on master `319417de`)
+## Changes (branch `wmo-parity`, rebased on master `9de26672`)
 
 | Commit | Change |
 |---|---|
-| `039fc0a9`, `dd14f370` | 3.3.5 multiplicative ordinary path and 224/255 AlphaKey. Superseded by the next two rows. |
-| `9e332314` | Retail light model and MOCV fixup. |
-| `65557f4f` | AlphaKey at 128/255. Blend 0 has no test. |
-| `4461f67b`, `c416c1ce` | MOMT 6/13 blend by MOCV2 in the shader. A custom vertex stage carries MOCV2 at location 8. Prepass pipelines keep Bevy's vertex stage. |
-| `c20756c7` | Metal/EnvMetal are no longer metallic. |
-| `fed04b3a` | Interior/exterior blend in gamma space (transition crossfade). |
-| `6f5d8dc6` | Char-select test apps register `Assets<WmoLitMaterial>`. |
-| `64063d33` | A MODF uniqueId placed by several tiles spawns once (`AdtManager.shared_wmos`). |
-| `c102fc02` | One material path: every WMO batch uses `WmoLitMaterial`. The scene light is read only through `scene_daylight()` in `wmo_lighting.wgsl`, currently Bevy PBR sun and ambient. That is where the shared Retail scene light (sky branch) will plug in. |
+| `4f1acdc8`, `a0fc5294` | 3.3.5 multiplicative ordinary path and 224/255 AlphaKey. Superseded by the next two rows. |
+| `e11479f1` | Retail light model and MOCV fixup. |
+| `d7d9e166` | AlphaKey at 128/255. Blend 0 has no test. |
+| `7e8648a1`, `3180025b` | MOMT 6/13 blend by MOCV2 in the shader. A custom vertex stage carries MOCV2 at location 8. Prepass pipelines keep Bevy's vertex stage. |
+| `ca3f3b94` | Metal/EnvMetal are no longer metallic. |
+| `e43aaeec` | Interior/exterior blend in gamma space (transition crossfade). |
+| `dec4bc29` | Char-select test apps register `Assets<WmoLitMaterial>`. |
+| `15041289` | A MODF uniqueId placed by several tiles spawns once (`AdtManager.shared_wmos`). |
+| `f2b5b508` | One material path: every WMO batch uses `WmoLitMaterial`. The scene light is read only through `scene_daylight()` in `wmo_lighting.wgsl`, currently Bevy PBR sun and ambient. That is where the shared Retail scene light (sky branch) will plug in. |
 
 ## Proof
 
-**GPU tests.** `cargo test --bin game-engine terrain_objects_wmo -- --ignored --test-threads=1` passes 12/12 at `c102fc02`. Expected values come from the Retail equation or from an independent StandardMaterial reference, not from old pixels.
+**GPU tests.** `cargo test --bin game-engine terrain_objects_wmo -- --ignored --test-threads=1` passes 12/12 at `f2b5b508`. Expected values come from the Retail equation or from an independent StandardMaterial reference, not from old pixels.
 
 - `unified_gpu`: the Trade District wall is not darker than daylight: `[102,94,88]` vs `[102,93,86]`.
 - `interior_gpu`: both Abbey prepass tests pass.
@@ -67,8 +67,7 @@ Files used:
 **Unit tests.**
 - Lib `wmo`: 126, including 4 `mocv_fixup_*` tests that were RED against the old fixup.
 - Bin filters: `terrain` 160, `wmo` 47, `lod` 21, `sidn` 3, `terrain_shared_wmos` 1, `char_select` 121, `char_create` 60.
-- Three failures also fail on master:
-  - `terrain_shader_uses_height_maps_for_layer_blending`
+- Two failures also fail on master:
   - `setup_char_select_scene_proves_render_path_via_runtime_scene_snapshot`
   - `char_create_shared_request_uses_live_name_after_next_and_category_changes`
 
