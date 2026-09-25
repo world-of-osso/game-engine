@@ -19,3 +19,6 @@ Requirements: [auction house UI spec](../../specs/auction-house-ui.md). Server s
 - Item icons and categories come from `data/db2/12.1.0.69933/Item.csv` (`item_catalog`); `item_icons` (ItemModifiedAppearance) has no rows for trade goods.
 - The bid inputs are shared by the item buy frame and the Bids tab: only the visible mode builds them, or two frames would share a name.
 - Category filtering is client-side over the fetched page (≤ 50 results).
+- JS automation `ui.dumpUiTree()` exits the app after dumping; live runs end without it and read the tree over IPC (`data/diagnostics/auction-ui-20260924/run.sh`).
+- Toolkit buttons draw a default skin unless `button_default_skin: false`; list rows, categories, tabs and the item display turn it off.
+- Children share their parent's frame level, so a child added on a later rebuild draws over earlier siblings: row selection and stripes are the row's siblings, drawn before it.
