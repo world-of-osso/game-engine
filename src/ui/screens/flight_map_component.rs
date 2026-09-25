@@ -125,11 +125,12 @@ pub struct FlightMapLine {
     pub highlight: bool,
 }
 
-/// A map art tile in frame space.
+/// A map art tile in frame space; `uv` is the `left,right,top,bottom` crop.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FlightMapTile {
     pub fdid: u32,
     pub rect: (f32, f32, f32, f32),
+    pub uv: (f32, f32, f32, f32),
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -137,6 +138,9 @@ pub struct FlightMapFrameState {
     pub visible: bool,
     pub left: f32,
     pub top: f32,
+    /// `AdventureMap_TileBg` tiled under the art (MapCanvas.xml:33-37): it shows
+    /// where a map tile is missing.
+    pub background: Vec<FlightMapTile>,
     pub tiles: Vec<FlightMapTile>,
     pub lines: Vec<FlightMapLine>,
     pub pins: Vec<FlightMapPin>,
@@ -160,8 +164,11 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
             top: 0.0,
         }
     };
+    for (index, tile) in state.background.iter().enumerate() {
+        children.extend(tile_texture("TiledBackground", index, tile));
+    }
     for (index, tile) in state.tiles.iter().enumerate() {
-        children.extend(tile_texture(index, tile));
+        children.extend(tile_texture("Tile", index, tile));
     }
     children.extend(atlas_texture(
         format!("{FRAME_NAME}TopBorder"),
@@ -199,14 +206,17 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn tile_texture(index: usize, tile: &FlightMapTile) -> Element {
+fn tile_texture(kind: &str, index: usize, tile: &FlightMapTile) -> Element {
     let (x, y, width, height) = tile.rect;
+    let (left, right, top, bottom) = tile.uv;
+    let coords = format!("{left},{right},{top},{bottom}");
     rsx! {
         texture {
-            name: {DynName(format!("{FRAME_NAME}Tile{index}"))},
+            name: {DynName(format!("{FRAME_NAME}{kind}{index}"))},
             width,
             height,
             texture_fdid: {tile.fdid},
+            tex_coords: {coords.as_str()},
             pos_type: "absolute",
             left: x,
             top: y,

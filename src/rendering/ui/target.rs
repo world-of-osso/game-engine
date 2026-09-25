@@ -2,7 +2,7 @@ use bevy::ecs::system::SystemParam;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use game_engine::loot_state::{LootRequest, Lootable, auto_loot};
+use game_engine::loot_state::{LootRequest, Lootable, NpcRightClick, auto_loot, npc_right_click};
 use game_engine::mail_data::MailIntentQueue;
 use game_engine::quest_tracking::QuestTrackedItem;
 use game_engine::targeting::CurrentTarget;
@@ -544,20 +544,20 @@ fn interact_or_loot(npc: Entity, state: &mut RightClickInteractionState<'_, '_>)
         .map_or((false, false), |(health, lootable)| {
             (health.current <= 0.0, lootable)
         });
-    if lootable {
-        let default = state.hud.as_ref().is_some_and(|hud| hud.auto_loot);
-        let shift =
-            state.keys.pressed(KeyCode::ShiftLeft) || state.keys.pressed(KeyCode::ShiftRight);
-        state.loot.write(LootRequest::Open {
-            corpse: npc,
-            auto: auto_loot(default, shift),
-        });
-    } else if !dead {
-        state
-            .interactions
-            .write(crate::networking_quests::NpcInteractionRequest::Interact(
-                npc,
-            ));
+    let default = state.hud.as_ref().is_some_and(|hud| hud.auto_loot);
+    let shift = state.keys.pressed(KeyCode::ShiftLeft) || state.keys.pressed(KeyCode::ShiftRight);
+    match npc_right_click(dead, lootable, auto_loot(default, shift)) {
+        NpcRightClick::Loot { auto } => {
+            state.loot.write(LootRequest::Open { corpse: npc, auto });
+        }
+        NpcRightClick::Target => {}
+        NpcRightClick::Interact => {
+            state
+                .interactions
+                .write(crate::networking_quests::NpcInteractionRequest::Interact(
+                    npc,
+                ));
+        }
     }
 }
 

@@ -89,7 +89,18 @@ fn the_map_fills_the_canvas_and_pins_sit_on_their_nodes() {
     assert_eq!((state.left, state.top), (458.0, 195.5));
     assert_eq!(state.tiles.len(), 150);
     let first = &state.tiles[0].rect;
-    assert!((first.0 - 1.0).abs() < 0.01 && (first.1 - 20.0).abs() < 0.01);
+    assert_eq!((first.0, first.1), (1.0, 20.0));
+    // Whole-pixel tiles meet edge to edge across the 1002-wide canvas.
+    for pair in state.tiles[..15].windows(2) {
+        assert_eq!(pair[0].rect.0 + pair[0].rect.2, pair[1].rect.0);
+    }
+    let last = &state.tiles[14].rect;
+    assert_eq!(last.0 + last.2, 1003.0);
+    // The tiled background covers the canvas: 8 x 5 cells of 133.6 px, cropped.
+    assert_eq!(state.background.len(), 40);
+    let corner = state.background.last().unwrap();
+    assert_eq!(corner.rect.0 + corner.rect.2, 1003.0);
+    assert_eq!(corner.rect.1 + corner.rect.3, 688.0);
     let stormwind = state.pins.iter().find(|pin| pin.node == 2).unwrap();
     assert!(
         (stormwind.x - (1.0 + 0.4435 * 1002.0)).abs() < 1.0,

@@ -110,18 +110,54 @@ impl Canvas {
     }
 }
 
+/// `AdventureMap_TileBg` (5350), atlas 723 (1270720) 512×512, tiled at canvas scale.
+const TILE_BACKGROUND: u32 = 1_270_720;
+const TILE_BACKGROUND_SIZE: f32 = 512.0;
+const FULL_UV: (f32, f32, f32, f32) = (0.0, 1.0, 0.0, 1.0);
+
+/// Whole-pixel edges of cell `index` of `size`, so neighbours meet without seams.
+fn snapped(origin: f32, size: f32, index: u32) -> (f32, f32) {
+    let start = (origin + index as f32 * size).round();
+    let end = (origin + (index + 1) as f32 * size).round();
+    (start, end - start)
+}
+
 fn tiles(art: &FlightMapArt, canvas: &Canvas) -> Vec<FlightMapTile> {
     let tile = art.tile * canvas.scale;
     art.tiles
         .iter()
-        .map(|entry| FlightMapTile {
-            fdid: entry.fdid,
-            rect: (
-                canvas.origin.x + entry.col as f32 * tile.x,
-                canvas.origin.y + entry.row as f32 * tile.y,
-                tile.x,
-                tile.y,
-            ),
+        .map(|entry| {
+            let (x, width) = snapped(canvas.origin.x, tile.x, entry.col);
+            let (y, height) = snapped(canvas.origin.y, tile.y, entry.row);
+            FlightMapTile {
+                fdid: entry.fdid,
+                rect: (x, y, width, height),
+                uv: FULL_UV,
+            }
+        })
+        .collect()
+}
+
+/// The background texture repeated over the canvas, the last row and column cropped.
+fn background(canvas: &Canvas) -> Vec<FlightMapTile> {
+    let size = TILE_BACKGROUND_SIZE * canvas.scale;
+    let end = canvas.origin + canvas.size;
+    let (cols, rows) = (
+        (canvas.size.x / size).ceil() as u32,
+        (canvas.size.y / size).ceil() as u32,
+    );
+    (0..rows)
+        .flat_map(|row| (0..cols).map(move |col| (row, col)))
+        .map(|(row, col)| {
+            let (x, width) = snapped(canvas.origin.x, size, col);
+            let (y, height) = snapped(canvas.origin.y, size, row);
+            let width = width.min(end.x.round() - x);
+            let height = height.min(end.y.round() - y);
+            FlightMapTile {
+                fdid: TILE_BACKGROUND,
+                rect: (x, y, width, height),
+                uv: (0.0, width / size.round(), 0.0, height / size.round()),
+            }
         })
         .collect()
 }
@@ -222,6 +258,7 @@ pub(crate) fn build_state(
         visible: true,
         left,
         top,
+        background: background(&canvas),
         tiles: tiles(art, &canvas),
         lines: lines(taxi, art, &canvas),
         pins,

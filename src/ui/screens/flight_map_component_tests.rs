@@ -34,9 +34,11 @@ fn stormwind_map() -> FlightMapFrameState {
         visible: true,
         left: 458.0,
         top: 195.0,
+        background: vec![],
         tiles: vec![FlightMapTile {
             fdid: 2_353_944,
-            rect: (1.0, 20.0, 66.8, 66.8),
+            rect: (1.0, 20.0, 67.0, 67.0),
+            uv: (0.0, 1.0, 0.0, 1.0),
         }],
         lines: vec![FlightMapLine {
             from: (445.0, 531.0),
