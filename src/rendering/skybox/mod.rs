@@ -15,8 +15,7 @@ use crate::game_state::GameState;
 use crate::light_lookup::WeightedLightParams;
 use crate::scenes::char_select::scene::CharSelectScene;
 use crate::sky_lightdata::{
-    LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
-    sample_light_blend,
+    LightDataRow, SkyColorSet, default_sky_colors, load_light_data, sample_light_blend,
 };
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::plugin::UiState;

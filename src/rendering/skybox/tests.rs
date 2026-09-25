@@ -10,6 +10,7 @@ use super::inworld_skybox::{
 };
 use super::*;
 use crate::networking::CurrentZone;
+use crate::sky_lightdata::interpolate_colors;
 use crate::terrain::AdtManager;
 use crate::terrain_objects::WmoLocalSkybox;
 use game_engine::culling::{Wmo, WmoGroup};
