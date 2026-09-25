@@ -68,10 +68,14 @@ impl BankState {
         self.npc.is_some()
     }
 
-    /// The banker role opened: a fresh frame on the character bank.
+    /// The banker role opened: a fresh frame on the character bank. Contents the
+    /// server sent for this opening may already be here (they can arrive in the same
+    /// network batch as `InteractionOpened`), so they are kept.
     pub fn open(&mut self, npc: u64) {
         *self = Self {
             npc: Some(npc),
+            character: self.character.take(),
+            account: self.account.take(),
             include_reagents: self.include_reagents,
             ..Self::default()
         };
@@ -198,9 +202,12 @@ impl GuildBankState {
         self.object.is_some()
     }
 
+    /// The Guild Vault role opened; contents of this vault that arrived first are kept.
     pub fn open(&mut self, object: u64) {
+        let contents = self.contents.take().filter(|c| c.object == object);
         *self = Self {
             object: Some(object),
+            contents,
             ..Self::default()
         };
     }
@@ -209,8 +216,9 @@ impl GuildBankState {
         *self = Self::default();
     }
 
+    /// Contents of another vault than the open one are ignored.
     pub fn apply(&mut self, contents: GuildBankContents) {
-        if self.object != Some(contents.object) {
+        if self.object.is_some_and(|object| object != contents.object) {
             return;
         }
         let last = last_selectable(contents.tabs.len(), contents.next_tab_cost.is_some());

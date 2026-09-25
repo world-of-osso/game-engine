@@ -13,7 +13,6 @@ use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::bank_data::{BankRequest, BankState, GuildBankRequest, GuildBankState};
-use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupStack};
@@ -84,16 +83,18 @@ impl Plugin for BankFramePlugin {
 
 /// Everything the frames show besides their own state.
 #[derive(SystemParam)]
-struct BankView<'w> {
+struct BankView<'w, 's> {
     bank: Res<'w, BankState>,
     guild: Res<'w, GuildBankState>,
     manager: Res<'w, WindowManager>,
-    stats: Option<Res<'w, CharacterStatsSnapshot>>,
+    /// The local player's replicated money (the IPC `CharacterStatsSnapshot` only
+    /// refreshes on IPC requests).
+    gold: Query<'w, 's, &'static shared::components::Gold, With<crate::networking::LocalPlayer>>,
 }
 
-impl BankView<'_> {
+impl BankView<'_, '_> {
     fn money(&self) -> u64 {
-        self.stats.as_ref().map_or(0, |stats| stats.gold)
+        self.gold.iter().next().map_or(0, |gold| gold.0)
     }
 
     fn bank_state(&self) -> BankFrameState {

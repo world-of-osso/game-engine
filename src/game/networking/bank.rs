@@ -77,9 +77,7 @@ fn receive_banks(
 ) {
     for inbox in receivers.contents.iter_mut() {
         for contents in inbox.receive() {
-            if bank.is_open() {
-                bank.apply(contents);
-            }
+            bank.apply(contents);
         }
     }
     for inbox in receivers.guild_contents.iter_mut() {

@@ -51,8 +51,26 @@ fn a_new_banker_opens_on_the_character_bank_and_keeps_the_reagent_choice() {
     state.open(9);
     assert_eq!(state.npc, Some(9));
     assert_eq!(state.shown, BankType::Character);
-    assert!(state.character.is_none());
     assert!(state.include_reagents);
+    state.close();
+    assert!(state.character.is_none());
+}
+
+#[test]
+fn contents_that_arrive_before_the_opening_are_kept() {
+    let mut state = BankState::default();
+    state.apply(bank(BankType::Account, 1));
+    state.open(7);
+    assert_eq!(state.account.as_ref().unwrap().tabs.len(), 1);
+
+    let mut guild_state = GuildBankState::default();
+    guild_state.apply(guild(9, 2));
+    guild_state.open(9);
+    assert_eq!(guild_state.contents.as_ref().unwrap().tabs.len(), 2);
+    guild_state.close();
+    guild_state.apply(guild(9, 2));
+    guild_state.open(11);
+    assert!(guild_state.contents.is_none());
 }
 
 #[test]

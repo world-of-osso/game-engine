@@ -21,8 +21,23 @@ pub const ITEM_BUTTON: f32 = 37.0;
 pub const QUICKSLOT: u32 = 130_841;
 /// `Interface\Icons\INV_Misc_QuestionMark`.
 pub const UNKNOWN_ICON: u32 = 134_400;
-/// `Interface\Buttons\CheckButtonHilight` (ADD highlight of a selected tab).
-pub const CHECK_BUTTON_HILIGHT: u32 = 130_724;
+/// Selected-tab marker: UI-Quickslot2 tinted gold. Retail draws
+/// `Interface\Buttons\CheckButtonHilight` with ADD blending, which the ui-toolkit
+/// texture renderer does not do (alpha-blended it is a black square).
+pub fn selected_marker(name: String, (x, y, size): (f32, f32, f32)) -> Element {
+    let quick = size * 64.0 / 37.0;
+    texture(
+        name,
+        QUICKSLOT,
+        (
+            x + (size - quick) / 2.0,
+            y + (size - quick) / 2.0,
+            quick,
+            quick,
+        ),
+        "1.0,0.82,0.0,1.0",
+    )
+}
 /// `Interface\Buttons\UI-CheckBox-Up` / `-Check`.
 pub const CHECKBOX_UP: u32 = 130_755;
 pub const CHECKBOX_CHECK: u32 = 130_751;
@@ -266,8 +281,8 @@ pub fn money_prompt(prompt: &MoneyPrompt, (x, y): (f32, f32)) -> Element {
             width: 320.0,
             height: 116.0,
             style: STATIC_POPUP_PANEL_STYLE,
-            strata: FrameStrata::FullscreenDialog,
-            mouse_enabled: true,
+            strata: FrameStrata::Dialog,
+            frame_level: 200.0,
             pos_type: "absolute",
             left: x,
             top: y,

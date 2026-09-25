@@ -76,17 +76,14 @@ fn vault_contents() -> GuildBankContents {
 #[test]
 fn the_banker_role_opens_the_bank_and_its_contents_fill_it() {
     let mut app = fixture();
-    // Contents before the frame opens are dropped.
+    // Contents can arrive in the same batch as InteractionOpened, before the frame opens.
     deliver(&mut app, vec![warband(vec![None; 98])]);
     run(&mut app, receive_banks);
-    assert!(app.world().resource::<BankState>().account.is_none());
-
     app.world_mut().write_message(NpcFrameEvent::Opened {
         npc: BANKER,
         role: NpcRole::Banker,
     });
     run(&mut app, follow_interactions);
-    deliver(&mut app, vec![warband(vec![None; 98])]);
     deliver(
         &mut app,
         vec![BankFailed {
