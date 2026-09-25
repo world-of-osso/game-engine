@@ -405,14 +405,20 @@ fn sync_auction_screen(
     let (Some(mut screen), Some(mut model)) = (screen, model) else {
         return;
     };
-    let texts = read_input_texts(&ui.registry);
-    let state = view::build_view(&ViewInputs {
-        net: &net,
-        ui: &frame_ui,
-        texts: &texts,
-        catalog: &item_catalog_entry,
-        visible: net.is_open && manager.is_open(WindowId::AuctionHouse),
-    });
+    // A closed frame shows nothing, so it builds (and loads the item catalog for) nothing.
+    let visible = net.is_open && manager.is_open(WindowId::AuctionHouse);
+    let state = if visible {
+        let texts = read_input_texts(&ui.registry);
+        view::build_view(&ViewInputs {
+            net: &net,
+            ui: &frame_ui,
+            texts: &texts,
+            catalog: &item_catalog_entry,
+            visible,
+        })
+    } else {
+        AuctionHouseFrameState::default()
+    };
     if model.0 == state {
         return;
     }
