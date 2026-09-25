@@ -30,7 +30,11 @@ pub(super) fn spawn_wmo_group_batches(
             wmo_lit_material(
                 base,
                 group_header.flags,
-                material_props.unlit,
+                WmoLitSurface {
+                    unlit: material_props.unlit,
+                    unfogged: material_props.unfogged,
+                    blend_mode: material_props.blend_mode,
+                },
                 interior_ambient,
                 second_layer,
             ),

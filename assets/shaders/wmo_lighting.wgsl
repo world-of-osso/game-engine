@@ -1,17 +1,21 @@
-// Retail WMO lighting (see terrain_objects_wmo_lighting.rs): with fixed, sRGB-encoded
-// MOCV `m` and alpha `a`,
-//   exterior = texture * (scene daylight + 2 * m)
-//   interior = texture * (interior ambient + 2 * m)
-//   out      = mix(interior, exterior, exterior_lit ? 1 : a), in gamma space
+// Retail WMO lighting (see terrain_objects_wmo_lighting.rs), all in authored (gamma)
+// space. With fixed MOCV `m` and alpha `a`, and `2 * m` added to every ambient as
+// WebWowViewerCpp's precomputedLight:
+//   exterior = retail_shade(scene light, texture) (scene ambients, sun)
+//   interior = retail_shade(interior ambient, texture) (no direct light)
+//   out      = mix(interior, exterior, exterior_lit ? 1 : a), then Retail fog
 // and an unlit material shows the texture alone. Two-layer shaders (MOMT 6, 13)
 // blend a second texture by the second MOCV alpha, which needs its own vertex input.
 #import bevy_pbr::{
     forward_io::{VertexOutput, FragmentOutput},
     mesh_functions,
     pbr_fragment::pbr_input_from_standard_material,
-    pbr_functions::{alpha_discard, apply_pbr_lighting, main_pass_post_lighting_processing},
-    pbr_types,
+    pbr_functions::{alpha_discard, main_pass_post_lighting_processing},
     view_transformations::position_world_to_clip,
+}
+#import "shaders/retail_lighting.wgsl"::{
+    RetailSceneLight, gamma_to_linear, linear_to_gamma, retail_apply_fog, retail_shade,
+    retail_sun_visibility,
 }
 
 // MOMT shader, mirrors terrain_objects_wmo_lighting.rs; the other one is 6
@@ -23,11 +27,18 @@ struct WmoLighting {
     exterior_lit: u32,
     unlit: u32,
     two_layer_shader: u32,
+    blend_mode: u32,
+    unfogged: u32,
 }
+
+// WebWowViewerCpp's default uInteriorSunDir (-0.30822, -0.30822, -0.9), WoW z-up,
+// the direction the interior light travels, in Bevy axes.
+const INTERIOR_SUN_DIRECTION: vec3<f32> = vec3(-0.30822, -0.9, 0.30822);
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(100) var<uniform> lighting: WmoLighting;
 @group(#{MATERIAL_BIND_GROUP}) @binding(101) var second_texture: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(102) var second_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(103) var<storage, read> scene_light: RetailSceneLight;
 
 // forward_io's Vertex/VertexOutput plus the second MOCV alpha.
 struct WmoVertex {
@@ -149,35 +160,31 @@ fn forward_vertex_output(wmo: WmoVertexOutput) -> VertexOutput {
     return out;
 }
 
-// WoW sums MOCV and ambient in gamma space; the Bevy scene is linear.
-fn srgb_to_linear(color: vec3<f32>) -> vec3<f32> {
-    let low = color / 12.92;
-    let high = pow((max(color, vec3(0.0)) + 0.055) / 1.055, vec3(2.4));
-    return select(high, low, color <= vec3(0.04045));
-}
-
-fn linear_to_srgb(color: vec3<f32>) -> vec3<f32> {
-    let low = color * 12.92;
-    let high = 1.055 * pow(max(color, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
-    return select(high, low, color <= vec3(0.0031308));
-}
-
 // Retail two-layer diffuse (WebWowViewerCpp caclWMOFragMat), mixed in gamma space.
 fn two_layer_diffuse(first: vec4<f32>, uv: vec2<f32>, second_mocv_alpha: f32) -> vec4<f32> {
     let second = textureSample(second_texture, second_sampler, uv);
-    let layer1 = linear_to_srgb(first.rgb);
-    let layer2 = linear_to_srgb(second.rgb);
+    let layer1 = linear_to_gamma(first.rgb);
+    let layer2 = linear_to_gamma(second.rgb);
     if lighting.two_layer_shader == TWO_LAYER_DIFFUSE_OPAQUE {
-        return vec4(srgb_to_linear(mix(layer2, layer1, second_mocv_alpha)), 1.0);
+        return vec4(gamma_to_linear(mix(layer2, layer1, second_mocv_alpha)), 1.0);
     }
     let under = mix(layer1, layer2, second.a);
-    return vec4(srgb_to_linear(mix(under, layer1, second_mocv_alpha)), first.a);
+    return vec4(gamma_to_linear(mix(under, layer1, second_mocv_alpha)), first.a);
 }
 
-// The scene light (sun and ambient) is read here only, so it can be swapped for the
-// shared Retail scene light in one place.
-fn scene_daylight(pbr_input: pbr_types::PbrInput) -> vec4<f32> {
-    return apply_pbr_lighting(pbr_input);
+// A light whose three ambients all carry `precomputed` (applyAndMixAmbients).
+fn with_precomputed_light(light: RetailSceneLight, precomputed: vec3<f32>) -> RetailSceneLight {
+    var lit = light;
+    lit.ambient = vec4(light.ambient.rgb + precomputed, 1.0);
+    lit.horizon_ambient = vec4(light.horizon_ambient.rgb + precomputed, 1.0);
+    lit.ground_ambient = vec4(light.ground_ambient.rgb + precomputed, 1.0);
+    return lit;
+}
+
+// calcLight's interior branch: the WMO interior ambient, no direct light.
+fn interior_light() -> RetailSceneLight {
+    let ambient = vec4(lighting.interior_ambient.rgb, 1.0);
+    return RetailSceneLight(ambient, ambient, ambient, vec4(0.0), vec4(INTERIOR_SUN_DIRECTION, 0.0));
 }
 
 @fragment
@@ -208,20 +215,32 @@ fn fragment(wmo: WmoVertexOutput, @builtin(front_facing) is_front: bool) -> Frag
     }
     pbr_input.material.base_color = alpha_discard(pbr_input.material, pbr_input.material.base_color);
     let albedo = pbr_input.material.base_color;
-    let emissive = pbr_input.material.emissive.rgb;
+    let diffuse = linear_to_gamma(albedo.rgb);
+    let emissive = linear_to_gamma(pbr_input.material.emissive.rgb);
 
-    var out: FragmentOutput;
-    if lighting.unlit != 0u {
-        out.color = vec4(albedo.rgb + emissive, albedo.a);
-    } else {
-        let daylight = scene_daylight(pbr_input);
-        let exterior = daylight.rgb + albedo.rgb * srgb_to_linear(authored);
-        let interior =
-            albedo.rgb * srgb_to_linear(lighting.interior_ambient.rgb + authored) + emissive;
-        // Retail blends the two lights in gamma space.
-        let blended = mix(linear_to_srgb(interior), linear_to_srgb(exterior), exterior_blend);
-        out.color = vec4(srgb_to_linear(blended), daylight.a);
+    var color = diffuse + emissive;
+    if lighting.unlit == 0u {
+        let normal = pbr_input.N;
+        let sun_visibility = retail_sun_visibility(
+            pbr_input.world_position,
+            pbr_input.world_normal,
+            pbr_input.frag_coord.xy,
+            pbr_input.flags,
+        );
+        let exterior = retail_shade(
+            with_precomputed_light(scene_light, authored),
+            diffuse,
+            normal,
+            sun_visibility,
+        );
+        let interior = retail_shade(with_precomputed_light(interior_light(), authored), diffuse, normal, 1.0);
+        color = mix(interior, exterior, exterior_blend) + emissive;
     }
+    if lighting.unfogged == 0u {
+        color = retail_apply_fog(color, pbr_input.world_position.xyz, lighting.blend_mode);
+    }
+    var out: FragmentOutput;
+    out.color = vec4(gamma_to_linear(color), albedo.a);
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
     return out;
 }

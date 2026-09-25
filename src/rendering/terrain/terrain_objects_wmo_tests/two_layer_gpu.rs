@@ -92,7 +92,10 @@ fn render_two_layer_with(
     let material = wmo_lit_material(
         base,
         GROUP_EXTERIOR,
-        true,
+        WmoLitSurface {
+            unlit: true,
+            ..default()
+        },
         [0.0; 3],
         Some(WmoSecondLayer {
             shader,

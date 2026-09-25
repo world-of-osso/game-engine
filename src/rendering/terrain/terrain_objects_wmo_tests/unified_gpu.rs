@@ -1,4 +1,4 @@
-use super::interior_gpu::{gpu_app, largest_triangle};
+use super::interior_gpu::{gpu_app, largest_triangle, set_sun};
 use super::*;
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::retail_m2_material::M2Material;
@@ -16,7 +16,6 @@ use std::time::{Duration, Instant};
 const TRADE_DISTRICT_ROOT_FDID: u32 = 322057;
 const TRADE_DISTRICT_EXTERIOR_GROUP: usize = 37;
 const CLEAR: [u8; 4] = [255, 0, 255, 255];
-const SUN_ILLUMINANCE: f32 = 2500.0;
 
 /// The Trade District buildings rendered as black silhouettes because the group's
 /// MOCV was the whole (unlit) light. A wall facing the sun must be at least as bright
@@ -38,12 +37,10 @@ fn trade_district_exterior_wall_is_not_darker_than_daylight() {
 pub(super) enum WallShading {
     /// The production WMO group batch spawn.
     Wmo,
-    /// Lit StandardMaterial with the batch texture and no vertex color.
+    /// The production spawn of the batch without its MOCV: daylight alone.
     DaylightOnly,
-    /// Retail interior light: unlit `texture * (ambient + 2 * fixed MOCV)`. Bevy
-    /// multiplies linear vertex color into the base color, so the reference carries
-    /// `srgb_to_linear(ambient + 2 * MOCV)`.
-    RetailInterior { ambient: [f32; 3] },
+    /// The batch texture alone, through an unlit WMO material: the texel as sampled.
+    Albedo,
 }
 
 fn load_trade_district_exterior_group() -> (wmo::WmoRootData, wmo::WmoGroupData) {
@@ -102,20 +99,15 @@ pub(super) fn render_batch_center(
         Msaa::Sample4,
         Tonemapping::None,
     ));
-    app.world_mut().spawn((
-        DirectionalLight {
-            illuminance: SUN_ILLUMINANCE,
-            shadow_maps_enabled: false,
-            ..default()
-        },
-        Transform::default().looking_to(-normal, up),
-    ));
+    set_sun(&mut app, -normal);
     match shading {
         WallShading::Wmo => spawn_production_batch(&mut app, root, group, batch),
-        WallShading::DaylightOnly => spawn_daylight_reference(&mut app, root, batch),
-        WallShading::RetailInterior { ambient } => {
-            spawn_retail_interior_reference(&mut app, root, batch, ambient)
+        WallShading::DaylightOnly => {
+            let mut batch = batch;
+            batch.mesh.remove_attribute(Mesh::ATTRIBUTE_COLOR);
+            spawn_production_batch(&mut app, root, group, batch)
         }
+        WallShading::Albedo => spawn_albedo_batch(&mut app, root, batch),
     }
     capture_center_until_drawn(&mut app, target)
 }
@@ -167,48 +159,27 @@ pub(super) fn spawn_production_batch(
     app.world_mut().flush();
 }
 
-fn spawn_daylight_reference(app: &mut App, root: &wmo::WmoRootData, mut batch: wmo::WmoGroupBatch) {
-    batch.mesh.remove_attribute(Mesh::ATTRIBUTE_COLOR);
-    spawn_reference(app, root, batch, false);
-}
-
-fn spawn_retail_interior_reference(
-    app: &mut App,
-    root: &wmo::WmoRootData,
-    mut batch: wmo::WmoGroupBatch,
-    ambient: [f32; 3],
-) {
-    let Some(bevy::mesh::VertexAttributeValues::Float32x4(colors)) =
-        batch.mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR)
-    else {
-        panic!("batch has no MOCV");
-    };
-    for color in colors.iter_mut() {
-        let [r, g, b] = [0, 1, 2].map(|channel| ambient[channel] + 2.0 * color[channel]);
-        let light = Color::srgb(r, g, b).to_linear();
-        *color = [light.red, light.green, light.blue, 1.0];
-    }
-    spawn_reference(app, root, batch, true);
-}
-
-fn spawn_reference(app: &mut App, root: &wmo::WmoRootData, batch: wmo::WmoGroupBatch, unlit: bool) {
+fn spawn_albedo_batch(app: &mut App, root: &wmo::WmoRootData, batch: wmo::WmoGroupBatch) {
     let props = wmo_material_props(root, batch.material_index);
     let texture = {
         let mut images = app.world_mut().resource_mut::<Assets<Image>>();
         load_wmo_batch_material_image(&mut images, batch.material_index, &props)
-            .expect("batch texture")
+    };
+    let base = wmo_standard_material(
+        texture,
+        props.blend_mode,
+        props.unculled,
+        props.shader,
+        None,
+    );
+    let unlit = WmoLitSurface {
+        unlit: true,
+        ..default()
     };
     let material = app
         .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
-        .add(StandardMaterial {
-            base_color_texture: Some(texture),
-            perceptual_roughness: 1.0,
-            reflectance: 0.0,
-            alpha_mode: AlphaMode::Mask(0.5),
-            unlit,
-            ..default()
-        });
+        .resource_mut::<Assets<WmoLitMaterial>>()
+        .add(wmo_lit_material(base, 0, unlit, [0.0; 3], None));
     let mesh = app
         .world_mut()
         .resource_mut::<Assets<Mesh>>()

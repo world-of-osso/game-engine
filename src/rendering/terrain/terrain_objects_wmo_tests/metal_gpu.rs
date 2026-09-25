@@ -1,4 +1,4 @@
-use super::interior_gpu::gpu_app;
+use super::interior_gpu::{gpu_app, set_sun};
 use super::unified_gpu::{capture_center_until_drawn, luminance};
 use super::*;
 use bevy::camera::RenderTarget;
@@ -29,6 +29,27 @@ fn metal_shaders_keep_the_diffuse_term() {
     }
 }
 
+/// An exterior-lit WMO surface shades with the shared RetailSceneLight through
+/// WebWowViewerCpp `calcLight`: `texel * (applyAndMixAmbients + direct * N.L)`.
+#[test]
+#[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
+fn exterior_surface_shades_with_retail_scene_light() {
+    let pixel = render_lit_texel(MAP_OBJ_DIFFUSE);
+    let light = super::interior_gpu::test_scene_light(SUN_DIRECTION);
+    let shaded =
+        crate::retail_light::retail_shade(&light, Vec3::splat(160.0 / 255.0), Vec3::Z, 1.0);
+    let expected = (shaded.x * 255.0).round() as u8;
+    println!("pixel {pixel:?}, retail {expected}");
+    assert!(
+        pixel[..3]
+            .iter()
+            .all(|channel| channel.abs_diff(expected) <= 2),
+        "pixel {pixel:?} != retail {expected}"
+    );
+}
+
+const SUN_DIRECTION: Vec3 = Vec3::new(1.0, 0.0, -1.0);
+
 /// A grey texel on a lit WMO quad, sun at 45 degrees off the view axis.
 fn render_lit_texel(shader: u32) -> [u8; 4] {
     let mut app = gpu_app();
@@ -52,14 +73,7 @@ fn render_lit_texel(shader: u32) -> [u8; 4] {
         Msaa::Sample4,
         Tonemapping::None,
     ));
-    app.world_mut().spawn((
-        DirectionalLight {
-            illuminance: 2500.0,
-            shadow_maps_enabled: false,
-            ..default()
-        },
-        Transform::default().looking_to(Vec3::new(1.0, 0.0, -1.0), Vec3::Y),
-    ));
+    set_sun(&mut app, SUN_DIRECTION);
     let texel = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
@@ -77,7 +91,7 @@ fn render_lit_texel(shader: u32) -> [u8; 4] {
         .add(wmo_lit_material(
             base,
             GROUP_EXTERIOR,
-            false,
+            WmoLitSurface::default(),
             [0.0; 3],
             None,
         ));
