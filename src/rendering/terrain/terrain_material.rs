@@ -19,13 +19,12 @@ mod terrain_material_systems;
 #[path = "shared_material_clock_gpu_tests.rs"]
 mod shared_material_clock_gpu_tests;
 
-/// Custom terrain material: ground texture layers + alpha blending + hex tiling.
-/// Replaces CPU compositing with GPU-side sampling for anti-tiling.
-/// Uses height-based blending (ground texture alpha = height channel)
-/// for more natural transitions between terrain layers.
+/// Custom terrain material: ground texture layers blended by MCAL alpha maps on the GPU.
+/// The map's WDT MPHD flags select the blend: layered (4-bit alpha), weighted (big alpha),
+/// or Retail height-weighted with `_h` textures scaled by MTXP.
 #[derive(bevy::render::render_resource::ShaderType, Clone)]
 pub struct TerrainMaterialSettings {
-    /// x = layer_count (1-4), y = global_height_blend_strength,
+    /// x = layer_count (1-4), y = TerrainBlendMode,
     /// z = texture_repeat, w = unused
     pub config: Vec4,
     /// x = perceptual_roughness, y = reflectance
@@ -367,7 +366,8 @@ pub fn pack_alpha_map_raw(layers: &[adt::TextureLayer]) -> Image {
         },
         TextureDimension::D2,
         rgba,
-        TextureFormat::Rgba8UnormSrgb,
+        // Blend weights are linear data; an sRGB format would gamma-decode them into steps.
+        TextureFormat::Rgba8Unorm,
         RenderAssetUsages::default(),
     );
     img.sampler = clamp_linear_sampler();
@@ -530,25 +530,47 @@ fn build_fallback_materials(
         .collect()
 }
 
-/// Height blend strength: how much the texture alpha channel influences
-/// layer transitions. 0 = flat alpha blending, 2-4 = natural rocky edges.
-const HEIGHT_BLEND_STRENGTH: f32 = 3.0;
+/// Shader blend selected by the map's WDT MPHD flags (`config.y`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TerrainBlendMode {
+    /// 4-bit alpha maps: each layer mixes over the result below it.
+    Layered = 0,
+    /// MPHD 0x4 big alpha: base weight is `1 - saturate(sum)`, layers add by their alpha.
+    Weighted = 1,
+    /// MPHD 0x80 height texturing: weighted, then re-weighted by `_h` heights (wowdev ADT/v18 MTXP).
+    HeightWeighted = 2,
+}
+
+pub fn terrain_blend_mode(map_flags: adt::MphdFlags) -> TerrainBlendMode {
+    if map_flags.height_texturing() {
+        TerrainBlendMode::HeightWeighted
+    } else if map_flags.big_alpha() {
+        TerrainBlendMode::Weighted
+    } else {
+        TerrainBlendMode::Layered
+    }
+}
+
+/// wowdev ADT/v18 MTXP defaults; with these the client loads no `_h` texture.
+const DEFAULT_HEIGHT_SCALE: f32 = 0.0;
+const DEFAULT_HEIGHT_OFFSET: f32 = 1.0;
 const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
 pub(crate) const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
 pub(crate) const TERRAIN_REFLECTANCE: f32 = 0.2;
 const TERRAIN_OVERBRIGHT_MULTIPLIER: f32 = 2.0;
-const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(1.0, 0.0, 0.0, 1.0);
+const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(DEFAULT_HEIGHT_SCALE, DEFAULT_HEIGHT_OFFSET, 0.0, 1.0);
 const TERRAIN_ANIMATION_SPEEDS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0];
 const TERRAIN_ANIMATION_BASE_SPEED: f32 = 0.176_776_69;
 
 fn terrain_settings(
     layer_count: f32,
+    blend_mode: TerrainBlendMode,
     texture_repeat: f32,
     layer_params: [Vec4; 4],
     animation_params: [Vec4; 4],
 ) -> TerrainMaterialSettings {
     TerrainMaterialSettings {
-        config: Vec4::new(layer_count, HEIGHT_BLEND_STRENGTH, texture_repeat, 0.0),
+        config: Vec4::new(layer_count, blend_mode as u32 as f32, texture_repeat, 0.0),
         surface: Vec4::new(TERRAIN_PERCEPTUAL_ROUGHNESS, TERRAIN_REFLECTANCE, 0.0, 0.0),
         layer_params_0: layer_params[0],
         layer_params_1: layer_params[1],
@@ -570,6 +592,7 @@ fn fallback_material(
     TerrainMaterial {
         settings: terrain_settings(
             0.0,
+            TerrainBlendMode::Layered,
             BASE_TERRAIN_TEXTURE_REPEAT,
             [DEFAULT_LAYER_PARAMS; 4],
             [Vec4::ZERO; 4],
@@ -608,13 +631,21 @@ fn build_chunk_material(
 
     let layer_count = chunk_tex.layers.len().min(4) as f32;
     let ground_handles = resolve_chunk_ground_images(chunk_tex, ground_images, ph);
-    let height_handles = resolve_chunk_height_images(chunk_tex, &ground_handles, height_images);
-    let layer_params = texture_layer_params(tex_data, &chunk_tex.layers);
+    let height_images = resolve_chunk_height_images(chunk_tex, height_images);
+    let has_height_texture = height_images.each_ref().map(Option::is_some);
+    let height_handles = height_images.map(|image| image.unwrap_or_else(|| ph.alpha.clone()));
+    let layer_params = texture_layer_params(tex_data, &chunk_tex.layers, has_height_texture);
     let animation_params = terrain_layer_animation_params(&chunk_tex.layers);
     let texture_repeat = terrain_texture_repeat(tex_data.texture_amplifier);
 
     terrain_materials.add(TerrainMaterial {
-        settings: terrain_settings(layer_count, texture_repeat, layer_params, animation_params),
+        settings: terrain_settings(
+            layer_count,
+            terrain_blend_mode(tex_data.map_flags),
+            texture_repeat,
+            layer_params,
+            animation_params,
+        ),
         ground_0: ground_handles[0].clone(),
         ground_1: ground_handles[1].clone(),
         ground_2: ground_handles[2].clone(),
@@ -655,31 +686,15 @@ fn resolve_chunk_ground_image(
         .unwrap_or_else(|| ph.image.clone())
 }
 
+/// MHID `_h` textures per layer; the diffuse alpha is a specular mask, never a height.
 fn resolve_chunk_height_images(
     chunk_tex: &adt::ChunkTexLayers,
-    ground_handles: &[Handle<Image>; 4],
     height_images: Option<&[Option<Handle<Image>>]>,
-) -> [Handle<Image>; 4] {
+) -> [Option<Handle<Image>>; 4] {
     std::array::from_fn(|idx| {
-        resolve_chunk_height_image(chunk_tex, ground_handles, height_images, idx)
+        let layer = chunk_tex.layers.get(idx)?;
+        height_images?.get(layer.texture_index as usize)?.clone()
     })
-}
-
-fn resolve_chunk_height_image(
-    chunk_tex: &adt::ChunkTexLayers,
-    ground_handles: &[Handle<Image>; 4],
-    height_images: Option<&[Option<Handle<Image>>]>,
-    idx: usize,
-) -> Handle<Image> {
-    chunk_tex
-        .layers
-        .get(idx)
-        .and_then(|layer| {
-            height_images
-                .and_then(|images| images.get(layer.texture_index as usize))
-                .and_then(|image| image.clone())
-        })
-        .unwrap_or_else(|| ground_handles[idx].clone())
 }
 
 fn terrain_texture_repeat(texture_amplifier: Option<u32>) -> f32 {
@@ -687,7 +702,11 @@ fn terrain_texture_repeat(texture_amplifier: Option<u32>) -> f32 {
     BASE_TERRAIN_TEXTURE_REPEAT * 2.0f32.powi(exponent)
 }
 
-fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]) -> [Vec4; 4] {
+fn texture_layer_params(
+    tex_data: &adt::AdtTexData,
+    layers: &[adt::TextureLayer],
+    has_height_texture: [bool; 4],
+) -> [Vec4; 4] {
     let mut params = [DEFAULT_LAYER_PARAMS; 4];
     for (slot, layer) in layers.iter().take(4).enumerate() {
         let overbright_multiplier = if layer.flags.overbright() {
@@ -695,25 +714,31 @@ fn texture_layer_params(tex_data: &adt::AdtTexData, layers: &[adt::TextureLayer]
         } else {
             1.0
         };
-        params[slot] = tex_data
-            .texture_params
-            .get(layer.texture_index as usize)
-            .map(|param| {
-                Vec4::new(
-                    param.height_scale,
-                    param.height_offset,
-                    f32::from(layer.material_id),
-                    overbright_multiplier,
-                )
-            })
-            .unwrap_or(Vec4::new(
-                1.0,
-                0.0,
-                f32::from(layer.material_id),
-                overbright_multiplier,
-            ));
+        let height = layer_height_params(tex_data, layer.texture_index, has_height_texture[slot]);
+        params[slot] = Vec4::new(
+            height.x,
+            height.y,
+            f32::from(layer.material_id),
+            overbright_multiplier,
+        );
     }
     params
+}
+
+/// Height term `h * scale + offset` inputs; a layer without an `_h` texture has only its offset.
+fn layer_height_params(
+    tex_data: &adt::AdtTexData,
+    texture_index: u32,
+    has_height_texture: bool,
+) -> Vec2 {
+    let (scale, offset) = tex_data
+        .texture_params
+        .get(texture_index as usize)
+        .map_or((DEFAULT_HEIGHT_SCALE, DEFAULT_HEIGHT_OFFSET), |param| {
+            (param.height_scale, param.height_offset)
+        });
+    let scale = if has_height_texture { scale } else { 0.0 };
+    Vec2::new(scale, offset)
 }
 
 fn terrain_layer_animation_params(layers: &[adt::TextureLayer]) -> [Vec4; 4] {

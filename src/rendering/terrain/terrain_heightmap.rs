@@ -505,6 +505,7 @@ mod tests {
     #[test]
     fn dominant_texture_prefers_highest_alpha_layer() {
         let tex = adt::AdtTexData {
+            map_flags: adt::MphdFlags::default(),
             texture_amplifier: None,
             texture_fdids: vec![1, 2],
             height_texture_fdids: Vec::new(),
@@ -560,6 +561,7 @@ mod tests {
     #[test]
     fn dominant_surface_uses_effect_id_override_before_texture_path() {
         let tex = adt::AdtTexData {
+            map_flags: adt::MphdFlags::default(),
             texture_amplifier: None,
             texture_fdids: vec![1],
             height_texture_fdids: Vec::new(),

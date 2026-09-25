@@ -1,6 +1,5 @@
 // Terrain shader with direct repeated sampling.
-// Height-based blending uses dedicated height textures when available
-// to make transitions between terrain layers look more natural.
+// Layers blend by MCAL alpha; height-textured maps re-weight by MHID `_h` textures.
 
 #import bevy_pbr::{
     forward_io::VertexOutput,
@@ -22,7 +21,7 @@ struct TerrainSettings {
     animation_params_3: vec4<f32>,
 }
 
-// settings.config.x = layer_count (1-4), settings.config.y = global height blend strength
+// settings.config.x = layer_count (1-4), settings.config.y = blend mode (see Layer blend)
 // settings.config.z = texture repeat, settings.config.w = unused
 // settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
@@ -240,12 +239,16 @@ fn hex_sample(idx: u32, uv: vec2<f32>) -> vec4<f32> {
     return color;
 }
 
-// ── Height-based blend ──────────────────────────────────────────────────────
-// WoW-style layer stacking still starts from alpha-painted order (base -> 1 -> 2 -> 3),
-// but we re-weight each layer by its texture height channel and normalize.
-// This keeps paint masks authoritative while letting rocky/high texels win locally.
+// ── Layer blend ──────────────────────────────────────────────────────────────
+// settings.config.y selects the blend from the map's WDT MPHD flags:
+// 0 = layered (4-bit alpha): each layer mixes over the result below it.
+// 1 = weighted (big alpha): base = 1 - saturate(a1 + a2 + a3), layer N = aN.
+// 2 = height-weighted (MPHD 0x80, wowdev ADT/v18 MTXP shader): weighted, times
+//     (_h alpha * heightScale + heightOffset), keep layers within 1 of the highest, normalize.
+const BLEND_LAYERED: u32 = 0u;
+const BLEND_HEIGHT_WEIGHTED: u32 = 2u;
 
-fn paint_weights(alpha: vec3<f32>, layer_count: u32) -> vec4<f32> {
+fn layered_weights(alpha: vec3<f32>, layer_count: u32) -> vec4<f32> {
     var w0 = 1.0;
     var w1 = 0.0;
     var w2 = 0.0;
@@ -272,11 +275,25 @@ fn paint_weights(alpha: vec3<f32>, layer_count: u32) -> vec4<f32> {
     return vec4<f32>(w0, w1, w2, w3);
 }
 
-fn height_weight(height: f32, params: vec4<f32>, strength: f32) -> f32 {
-    // strength=0 -> no height influence. Positive strength amplifies highs,
-    // de-emphasizes lows, while remaining stable for textures with flat alpha.
-    let adjusted_height = height * params.x + params.y;
-    return exp2((adjusted_height - 0.5) * max(strength, 0.0));
+// Channels of layers a chunk does not have are packed as zero.
+fn weighted_weights(alpha: vec3<f32>) -> vec4<f32> {
+    return vec4<f32>(1.0 - clamp(alpha.r + alpha.g + alpha.b, 0.0, 1.0), alpha);
+}
+
+fn height_weighted(weights: vec4<f32>, heights: vec4<f32>) -> vec4<f32> {
+    let pct = weights * heights;
+    let pct_max = max(max(pct.x, pct.y), max(pct.z, pct.w));
+    let kept = pct * (vec4<f32>(1.0) - clamp(vec4<f32>(pct_max) - pct, vec4<f32>(0.0), vec4<f32>(1.0)));
+    let sum = kept.x + kept.y + kept.z + kept.w;
+    if sum > 1e-6 {
+        return kept / sum;
+    }
+    return weights;
+}
+
+fn layer_height(idx: u32, uv: vec2<f32>) -> f32 {
+    let params = layer_params(idx);
+    return sample_height_tiled(idx, uv).a * params.x + params.y;
 }
 
 // ── Fragment entry ───────────────────────────────────────────────────────────
@@ -285,14 +302,12 @@ fn height_weight(height: f32, params: vec4<f32>, strength: f32) -> f32 {
 fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @location(0) vec4<f32> {
     let uv = in.uv;
     let layer_count = u32(settings.config.x);
-    let blend_strength = settings.config.y;
+    let blend_mode = u32(settings.config.y);
     let perceptual_roughness = settings.surface.x;
     let reflectance = settings.surface.y;
 
     let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
-    let paint = paint_weights(alpha, layer_count);
 
-    // Sample each potential layer once; height comes from MHID when available.
     let uv0 = animated_layer_uv(0u, uv);
     let uv1 = animated_layer_uv(1u, uv);
     let uv2 = animated_layer_uv(2u, uv);
@@ -301,22 +316,18 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let c1 = apply_layer_overbright(1u, sample_ground_tiled(1u, uv1));
     let c2 = apply_layer_overbright(2u, sample_ground_tiled(2u, uv2));
     let c3 = apply_layer_overbright(3u, sample_ground_tiled(3u, uv3));
-    let h0 = sample_height_tiled(0u, uv0).a;
-    let h1 = sample_height_tiled(1u, uv1).a;
-    let h2 = sample_height_tiled(2u, uv2).a;
-    let h3 = sample_height_tiled(3u, uv3).a;
 
-    var weights = vec4<f32>(
-        paint.x * height_weight(h0, layer_params(0u), blend_strength),
-        paint.y * height_weight(h1, layer_params(1u), blend_strength),
-        paint.z * height_weight(h2, layer_params(2u), blend_strength),
-        paint.w * height_weight(h3, layer_params(3u), blend_strength),
-    );
-    let wsum = weights.x + weights.y + weights.z + weights.w;
-    if wsum > 1e-6 {
-        weights = weights / wsum;
-    } else {
-        weights = paint;
+    var weights = weighted_weights(alpha);
+    if blend_mode == BLEND_LAYERED {
+        weights = layered_weights(alpha, layer_count);
+    } else if blend_mode == BLEND_HEIGHT_WEIGHTED {
+        let heights = vec4<f32>(
+            layer_height(0u, uv0),
+            layer_height(1u, uv1),
+            layer_height(2u, uv2),
+            layer_height(3u, uv3),
+        );
+        weights = height_weighted(weights, heights);
     }
 
     let color = vec4<f32>(
