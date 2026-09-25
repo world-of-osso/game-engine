@@ -297,8 +297,6 @@ fn spawn_flat_terrain_chunks(
     let flat_material = materials.add(crate::retail_m2_material::retail_m2_material(
         StandardMaterial {
             base_color: Color::srgb(0.5, 0.5, 0.5),
-            perceptual_roughness: terrain_material::TERRAIN_PERCEPTUAL_ROUGHNESS,
-            reflectance: terrain_material::TERRAIN_REFLECTANCE,
             double_sided: true,
             cull_mode: None,
             ..default()

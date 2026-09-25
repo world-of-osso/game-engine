@@ -1,16 +1,27 @@
 // Terrain shader with direct repeated sampling.
 // Layers blend by MCAL alpha; height-textured maps re-weight by MHID `_h` textures.
+// Lighting is Retail's (WebWowViewerCpp 1a8cccbe bindless/adt/adtShader_text.slang):
+// matDiffuse = blended layers * MCCV, calcLight, plus the layer-alpha specular
+// term, then fog, all in authored (gamma) space.
 
 #import bevy_pbr::{
     forward_io::VertexOutput,
+    mesh_bindings::mesh,
     mesh_view_bindings::{view, globals},
     pbr_functions,
     pbr_types,
 }
+#import "shaders/retail_lighting.wgsl"::{
+    RetailSceneLight,
+    gamma_to_linear,
+    linear_to_gamma,
+    retail_apply_fog,
+    retail_shade,
+    retail_sun_visibility,
+}
 
 struct TerrainSettings {
     config: vec4<f32>,
-    surface: vec4<f32>,
     layer_params_0: vec4<f32>,
     layer_params_1: vec4<f32>,
     layer_params_2: vec4<f32>,
@@ -23,7 +34,6 @@ struct TerrainSettings {
 
 // settings.config.x = layer_count (1-4), settings.config.y = blend mode (see Layer blend)
 // settings.config.z = texture repeat, settings.config.w = unused
-// settings.surface.x = perceptual_roughness, settings.surface.y = reflectance
 // settings.layer_params_N.x = height_scale, settings.layer_params_N.y = height_offset
 // settings.layer_params_N.z = MCMT terrain material id, settings.layer_params_N.w = overbright multiplier
 // settings.animation_params_N.xy = per-layer UV velocity, settings.animation_params_N.z = reflection multiplier
@@ -60,9 +70,11 @@ struct TerrainSettings {
 @group(#{MATERIAL_BIND_GROUP}) @binding(20) var shadow_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(21) var environment_map: texture_cube<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(22) var environment_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(23) var<storage, read> scene_light: RetailSceneLight;
 
-const STATIC_SHADOW_MIN_BRIGHTNESS: f32 = 0.55;
 const TERRAIN_REFLECTION_FRESNEL_POWER: f32 = 4.0;
+// WebWowViewerCpp config adtSpecMult.
+const ADT_SPEC_MULT: f32 = 1.0;
 
 // ── Hash: deterministic pseudo-random from grid cell ─────────────────────────
 
@@ -303,8 +315,6 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let uv = in.uv;
     let layer_count = u32(settings.config.x);
     let blend_mode = u32(settings.config.y);
-    let perceptual_roughness = settings.surface.x;
-    let reflectance = settings.surface.y;
 
     let alpha = textureSample(alpha_packed, alpha_sampler, uv).rgb;
 
@@ -312,10 +322,10 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
     let uv1 = animated_layer_uv(1u, uv);
     let uv2 = animated_layer_uv(2u, uv);
     let uv3 = animated_layer_uv(3u, uv);
-    let c0 = apply_layer_overbright(0u, sample_ground_tiled(0u, uv0));
-    let c1 = apply_layer_overbright(1u, sample_ground_tiled(1u, uv1));
-    let c2 = apply_layer_overbright(2u, sample_ground_tiled(2u, uv2));
-    let c3 = apply_layer_overbright(3u, sample_ground_tiled(3u, uv3));
+    let c0 = apply_layer_overbright(0u, gamma_layer(sample_ground_tiled(0u, uv0)));
+    let c1 = apply_layer_overbright(1u, gamma_layer(sample_ground_tiled(1u, uv1)));
+    let c2 = apply_layer_overbright(2u, gamma_layer(sample_ground_tiled(2u, uv2)));
+    let c3 = apply_layer_overbright(3u, gamma_layer(sample_ground_tiled(3u, uv3)));
 
     var weights = weighted_weights(alpha);
     if blend_mode == BLEND_LAYERED {
@@ -330,40 +340,43 @@ fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @locatio
         weights = height_weighted(weights, heights);
     }
 
-    let color = vec4<f32>(
-        c0.rgb * weights.x + c1.rgb * weights.y + c2.rgb * weights.z + c3.rgb * weights.w,
-        1.0,
+    let blended = c0 * weights.x + c1 * weights.y + c2 * weights.z + c3 * weights.w;
+    // MCCV is decoded as byte / 127, which is the client's `vColor * 2`.
+    var diffuse = blended.rgb * in.color.rgb;
+    let spec_blend = blended.a;
+
+    let normal = pbr_functions::prepare_world_normal(in.world_normal, true, is_front);
+    let n = normalize(normal);
+    let view_dir = pbr_functions::calculate_view(in.world_position, view.clip_from_view[3].w == 1.0);
+    let reflection = linear_to_gamma(sample_environment_reflection(n, view_dir));
+    let reflective_weight = dot(weights, reflection_mask());
+    let fresnel = pow(1.0 - max(dot(n, view_dir), 0.0), TERRAIN_REFLECTION_FRESNEL_POWER);
+    diffuse = mix(diffuse, reflection, clamp(reflective_weight * fresnel, 0.0, 1.0));
+
+    let sun = retail_sun_visibility(
+        in.world_position,
+        n,
+        in.position.xy,
+        mesh[in.instance_index].flags,
     );
-    let vertex_color = in.color.rgb * 2.0;
-    let static_shadow = textureSample(shadow_map, shadow_sampler, uv).r;
-    let shadow_light = mix(STATIC_SHADOW_MIN_BRIGHTNESS, 1.0, static_shadow);
-    let shaded_color = vec4<f32>(color.rgb * vertex_color * shadow_light, color.a);
+    var color = retail_shade(scene_light, diffuse, n, sun);
+    // adtShader_text.slang specular: the layer alpha masks a direct-light highlight.
+    let half_vector = -normalize(scene_light.sun_direction.xyz - view_dir);
+    let highlight = pow(max(0.0, dot(half_vector, n)), 20.0);
+    color += spec_blend * scene_light.direct.rgb * highlight * ADT_SPEC_MULT * sun;
+    color = retail_apply_fog(color, in.world_position.xyz, 0u);
 
     var pbr_input = pbr_types::pbr_input_new();
-    pbr_input.material.base_color = shaded_color;
-    pbr_input.material.perceptual_roughness = perceptual_roughness;
-    pbr_input.material.reflectance = vec3<f32>(reflectance);
-    pbr_input.material.flags = pbr_types::STANDARD_MATERIAL_FLAGS_FOG_ENABLED_BIT;
     pbr_input.frag_coord = in.position;
     pbr_input.world_position = in.world_position;
-    pbr_input.world_normal = pbr_functions::prepare_world_normal(in.world_normal, true, is_front);
-    pbr_input.N = normalize(pbr_input.world_normal);
-    pbr_input.is_orthographic = view.clip_from_view[3].w == 1.0;
-    pbr_input.V = pbr_functions::calculate_view(
-        in.world_position,
-        pbr_input.is_orthographic,
+    // Fog is applied above in authored space; only post-processing runs here.
+    pbr_input.material.flags = 0u;
+    return pbr_functions::main_pass_post_lighting_processing(
+        pbr_input,
+        vec4<f32>(gamma_to_linear(color), 1.0),
     );
-    let reflection = sample_environment_reflection(pbr_input.N, pbr_input.V);
-    let reflection_mask = reflection_mask();
-    let reflective_weight = dot(weights, reflection_mask);
-    let fresnel = pow(1.0 - max(dot(pbr_input.N, pbr_input.V), 0.0), TERRAIN_REFLECTION_FRESNEL_POWER);
-    let reflective_color = mix(
-        shaded_color.rgb,
-        reflection,
-        clamp(reflective_weight * fresnel, 0.0, 1.0),
-    );
-    pbr_input.material.base_color = vec4<f32>(reflective_color, shaded_color.a);
+}
 
-    let lit = pbr_functions::apply_pbr_lighting(pbr_input);
-    return pbr_functions::main_pass_post_lighting_processing(pbr_input, lit);
+fn gamma_layer(color: vec4<f32>) -> vec4<f32> {
+    return vec4<f32>(linear_to_gamma(color.rgb), color.a);
 }

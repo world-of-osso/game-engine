@@ -42,7 +42,12 @@ fn test_app() -> App {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
-    app.add_plugins((TerrainMaterialPlugin, WaterMaterialPlugin));
+    app.add_plugins((
+        TerrainMaterialPlugin,
+        WaterMaterialPlugin,
+        crate::retail_light::RetailLightingPlugin,
+    ));
+    app.insert_resource(crate::retail_light::RetailSceneLight::m2_scene(Vec3::ONE));
     app.insert_resource(FixtureClock(Duration::ZERO));
     app.add_systems(Last, set_shared_clock);
     app.finish();
@@ -143,7 +148,6 @@ fn create_terrain(app: &mut App) -> Handle<TerrainMaterial> {
         .add(TerrainMaterial {
             settings: TerrainMaterialSettings {
                 config: Vec4::new(1.0, 0.0, 1.0, 0.0),
-                surface: Vec4::new(1.0, 0.0, 0.0, 0.0),
                 layer_params_0: Vec4::new(1.0, 0.0, 0.0, 1.0),
                 layer_params_1: Vec4::new(1.0, 0.0, 0.0, 1.0),
                 layer_params_2: Vec4::new(1.0, 0.0, 0.0, 1.0),
@@ -164,6 +168,7 @@ fn create_terrain(app: &mut App) -> Handle<TerrainMaterial> {
             alpha_packed: white.clone(),
             shadow_map: white,
             environment_map: environment,
+            scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
         })
 }
 

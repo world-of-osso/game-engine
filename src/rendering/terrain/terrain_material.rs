@@ -6,6 +6,7 @@ use bevy::render::render_resource::{
     AsBindGroup, Extent3d, TextureDimension, TextureFormat, TextureViewDescriptor,
     TextureViewDimension,
 };
+use bevy::render::storage::ShaderBuffer;
 use bevy::shader::ShaderRef;
 use std::f32::consts::FRAC_PI_4;
 
@@ -19,6 +20,10 @@ mod terrain_material_systems;
 #[path = "shared_material_clock_gpu_tests.rs"]
 mod shared_material_clock_gpu_tests;
 
+#[cfg(test)]
+#[path = "terrain_retail_gpu_tests.rs"]
+mod retail_gpu_tests;
+
 /// Custom terrain material: ground texture layers blended by MCAL alpha maps on the GPU.
 /// The map's WDT MPHD flags select the blend: layered (4-bit alpha), weighted (big alpha),
 /// or Retail height-weighted with `_h` textures scaled by MTXP.
@@ -27,8 +32,6 @@ pub struct TerrainMaterialSettings {
     /// x = layer_count (1-4), y = TerrainBlendMode,
     /// z = texture_repeat, w = unused
     pub config: Vec4,
-    /// x = perceptual_roughness, y = reflectance
-    pub surface: Vec4,
     /// x = height_scale, y = height_offset, z = material_id, w = overbright multiplier
     pub layer_params_0: Vec4,
     pub layer_params_1: Vec4,
@@ -91,6 +94,10 @@ pub struct TerrainMaterial {
     #[texture(21, dimension = "cube")]
     #[sampler(22)]
     pub environment_map: Handle<Image>,
+
+    /// Shared Retail scene light (`RETAIL_SCENE_LIGHT_BUFFER`).
+    #[storage(23, read_only)]
+    pub scene_light: Handle<ShaderBuffer>,
 }
 
 impl Material for TerrainMaterial {
@@ -555,8 +562,6 @@ pub fn terrain_blend_mode(map_flags: adt::MphdFlags) -> TerrainBlendMode {
 const DEFAULT_HEIGHT_SCALE: f32 = 0.0;
 const DEFAULT_HEIGHT_OFFSET: f32 = 1.0;
 const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
-pub(crate) const TERRAIN_PERCEPTUAL_ROUGHNESS: f32 = 0.95;
-pub(crate) const TERRAIN_REFLECTANCE: f32 = 0.2;
 const TERRAIN_OVERBRIGHT_MULTIPLIER: f32 = 2.0;
 const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(DEFAULT_HEIGHT_SCALE, DEFAULT_HEIGHT_OFFSET, 0.0, 1.0);
 const TERRAIN_ANIMATION_SPEEDS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0];
@@ -571,7 +576,6 @@ fn terrain_settings(
 ) -> TerrainMaterialSettings {
     TerrainMaterialSettings {
         config: Vec4::new(layer_count, blend_mode as u32 as f32, texture_repeat, 0.0),
-        surface: Vec4::new(TERRAIN_PERCEPTUAL_ROUGHNESS, TERRAIN_REFLECTANCE, 0.0, 0.0),
         layer_params_0: layer_params[0],
         layer_params_1: layer_params[1],
         layer_params_2: layer_params[2],
@@ -610,6 +614,7 @@ fn fallback_material(
             .cloned()
             .unwrap_or_else(|| pack_shadow_map(images, shadow_map)),
         environment_map: ph.cubemap.clone(),
+        scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
     }
 }
 
@@ -661,6 +666,7 @@ fn build_chunk_material(
             .cloned()
             .unwrap_or_else(|| pack_shadow_map(images, shadow_map)),
         environment_map: ph.cubemap.clone(),
+        scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
     })
 }
 
