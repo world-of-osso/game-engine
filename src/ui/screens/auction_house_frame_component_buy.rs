@@ -175,7 +175,7 @@ fn browse_results(rows: &[BrowseRow], empty_text: Option<&str>) -> Element {
     );
     for (index, row) in rows.iter().take(BROWSE_ROWS).enumerate() {
         let name = format!("AuctionHouseFrameBrowseResultsRow{}", index + 1);
-        let cells = [
+        let cells = join([
             money_cell(&format!("{name}Price"), Some(row.price), &columns[0]),
             item_cell(&format!("{name}Item"), &row.item, 1, &columns[1]),
             text_cell(
@@ -188,8 +188,7 @@ fn browse_results(rows: &[BrowseRow], empty_text: Option<&str>) -> Element {
                 ),
                 "LEFT",
             ),
-        ]
-        .concat();
+        ]);
         let action = format!("{ACTION_BROWSE_ITEM_PREFIX}{}", row.item_id);
         out.extend(list_row(
             &name,
@@ -295,7 +294,7 @@ fn listing_line(
     index: usize,
     columns: &[Column; 5],
 ) -> Element {
-    let cells = [
+    let cells = join([
         money_cell(&format!("{name}Bid"), row.bid, &columns[0]),
         money_cell(&format!("{name}Buyout"), row.buyout, &columns[1]),
         text_cell(
@@ -312,8 +311,7 @@ fn listing_line(
             (columns[4].x + 10.0, columns[4].w - 20.0),
             "LEFT",
         ),
-    ]
-    .concat();
+    ]);
     let action = format!("{ACTION_SELECT_AUCTION_PREFIX}{}", row.auction_id);
     list_row(
         name,
@@ -400,6 +398,7 @@ pub(super) fn buy_dialog(dialog: Option<&BuyDialogView>) -> Element {
             width: w,
             height: h,
             strata: FrameStrata::Dialog,
+            frame_level: 200.0,
             background_color: "0.0,0.0,0.0,0.85",
             style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
             pos_type: "absolute",

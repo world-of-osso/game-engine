@@ -275,10 +275,10 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
     let hide = !state.visible;
     rsx! {
         r#frame {
-            name: ROOT_FRAME,
+            name: {DynName(ROOT_FRAME.to_string())},
             width: FRAME_W,
             height: FRAME_H,
-            strata: FrameStrata::High,
+            strata: FrameStrata::Dialog,
             hidden: hide,
             pos_type: "absolute",
             left: 0.0,
@@ -340,7 +340,7 @@ fn tabs(active: AuctionHouseTab) -> Element {
 
 /// `PanelTemplates_TabResize(tab, TAB_PADDING = 20, nil, MIN_TAB_WIDTH = 70)`
 /// (Blizzard_AuctionHouseTab.lua:2-11): text width + `TAB_SIDES_PADDING` (20) + 20.
-pub(super) fn tab_width(label: &str) -> f32 {
+fn tab_width(label: &str) -> f32 {
     let text = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(0.0, |(w, _)| w);
     (text + 40.0).max(70.0)
 }
@@ -349,7 +349,7 @@ pub(super) fn tab_width(label: &str) -> f32 {
 /// right cap ending 7 (active 8) past the tab, 36 (active 42) tall; the label
 /// `GameFontNormalSmall` 2 px above centre, white while selected. `flipped` draws the
 /// `PanelTopTabButtonTemplate` art upside down.
-pub(super) fn panel_tab(
+fn panel_tab(
     name: &str,
     label: &str,
     action: &str,
@@ -410,9 +410,14 @@ pub(super) fn panel_tab(
     }
 }
 
+/// Concatenates cell elements.
+fn join<const N: usize>(parts: [Element; N]) -> Element {
+    parts.into_iter().flatten().collect()
+}
+
 /// One list column: header label, left edge, width, left and right cell padding.
 #[derive(Clone, Copy)]
-pub(super) struct Column {
+struct Column {
     pub label: &'static str,
     pub x: f32,
     pub w: f32,
@@ -423,7 +428,7 @@ pub(super) struct Column {
 /// Lays out `AuctionHouseTableBuilder` columns (relative to the header container) across
 /// `width` from `x`: fixed widths as
 /// given, the single fill column (`w < 0`) takes the rest.
-pub(super) fn layout_columns<const N: usize>(
+fn layout_columns<const N: usize>(
     x: f32,
     width: f32,
     specs: [(&'static str, f32, f32, f32); N],
@@ -447,7 +452,7 @@ pub(super) fn layout_columns<const N: usize>(
 /// `AuctionHouseItemListTemplate` (Blizzard_AuctionHouseItemList.xml:58): the inset
 /// NineSlice and background start `backgroundYOffset` (19) below the list top, the header
 /// container sits at (4,-1)..(-26,-1), 19 tall.
-pub(super) fn item_list_frame(
+fn item_list_frame(
     prefix: &str,
     rect: (f32, f32, f32, f32),
     background: Crop,
@@ -501,11 +506,11 @@ fn list_header(name: &str, column: &Column, (x, y): (f32, f32)) -> Element {
 
 /// Rows start 6 below the header container (`ScrollBox` TOPLEFT (0,-6)); 20 tall
 /// (`AuctionHouseItemListLineTemplate`).
-pub(super) const ROW_H: f32 = 20.0;
+const ROW_H: f32 = 20.0;
 
 /// A clickable list line: row stripe on odd rows (`auctionhouse-rowstripe-1`), the
 /// `auctionhouse-ui-row-select` highlight when selected.
-pub(super) fn list_row(
+fn list_row(
     name: &str,
     rect: (f32, f32, f32, f32),
     index: usize,
@@ -547,7 +552,7 @@ pub(super) fn list_row(
 
 /// `AuctionHouseTableCellItemDisplayTemplate`: 14×14 icon with the 16×16
 /// `auctionhouse-itemicon-small-border`, name in the item's quality colour, `xN` stacks.
-pub(super) fn item_cell(name: &str, item: &ItemLine, quantity: u32, column: &Column) -> Element {
+fn item_cell(name: &str, item: &ItemLine, quantity: u32, column: &Column) -> Element {
     let x = column.x + column.pad_left;
     let mut out = icon_texture(
         format!("{name}Icon"),
@@ -578,13 +583,7 @@ pub(super) fn item_cell(name: &str, item: &ItemLine, quantity: u32, column: &Col
 }
 
 /// `AuctionHouseTableCellTextTemplate` (`Number14FontWhite`), 16 tall, row-centred.
-pub(super) fn text_cell(
-    name: &str,
-    text: &str,
-    color: &str,
-    (x, w): (f32, f32),
-    justify: &str,
-) -> Element {
+fn text_cell(name: &str, text: &str, color: &str, (x, w): (f32, f32), justify: &str) -> Element {
     rsx! {
         fontstring {
             name: {DynName(name.to_string())},
@@ -605,7 +604,7 @@ pub(super) fn text_cell(
 }
 
 /// A money cell right-aligned inside `column` (`AuctionHouseTableMoneyDisplayTemplate`).
-pub(super) fn money_cell(name: &str, copper: Option<u64>, column: &Column) -> Element {
+fn money_cell(name: &str, copper: Option<u64>, column: &Column) -> Element {
     let Some(copper) = copper else {
         return Vec::new();
     };
@@ -613,7 +612,7 @@ pub(super) fn money_cell(name: &str, copper: Option<u64>, column: &Column) -> El
 }
 
 /// `UIPanelButtonTemplate` (`defaultbutton-nineslice-*`); disabled buttons carry no action.
-pub(super) fn panel_button(
+fn panel_button(
     name: &str,
     text: &str,
     action: &str,
@@ -624,7 +623,7 @@ pub(super) fn panel_button(
 }
 
 /// A `GameFontNormal` label (gold, shadowed).
-pub(super) fn label(name: &str, text: &str, rect: (f32, f32, f32, f32), justify: &str) -> Element {
+fn label(name: &str, text: &str, rect: (f32, f32, f32, f32), justify: &str) -> Element {
     let (x, y, w, h) = rect;
     rsx! {
         fontstring {
@@ -646,11 +645,11 @@ pub(super) fn label(name: &str, text: &str, rect: (f32, f32, f32, f32), justify:
 }
 
 /// An edit box without text: the registry keeps what the player typed across rebuilds.
-pub(super) fn edit_box(name: &'static str, rect: (f32, f32, f32, f32), insets: &str) -> Element {
+fn edit_box(name: &'static str, rect: (f32, f32, f32, f32), insets: &str) -> Element {
     let (x, y, w, h) = rect;
     rsx! {
         editbox {
-            name,
+            name: {DynName(name.to_string())},
             width: w,
             height: h,
             font: GameFont::ArialNarrow,
@@ -667,7 +666,7 @@ pub(super) fn edit_box(name: &'static str, rect: (f32, f32, f32, f32), insets: &
 /// `LargeMoneyInputFrameTemplate` 190×33 (Blizzard_MoneyFrame/Shared/MoneyInputFrame.xml:33):
 /// copper 50 wide at the right, silver 50 six to its left, gold filling the rest; each a
 /// `LargeInputBoxTemplate` with its coin 12×14 at RIGHT (-10, 2).
-pub(super) fn large_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
+fn large_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
     let parts = [
         (boxes.gold, x, 78.0, COIN_GOLD),
         (boxes.silver, x + 84.0, 50.0, COIN_SILVER),
@@ -690,7 +689,7 @@ pub(super) fn large_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Elemen
 
 /// `LargeInputBoxTemplate` art: `auctionhouse-ui-inputfield-*` caps (8 wide at this
 /// 33 px height) and middle (InputBoxTemplates.xml:13).
-pub(super) fn large_input_art(name: &str, rect: (f32, f32, f32, f32)) -> Element {
+fn large_input_art(name: &str, rect: (f32, f32, f32, f32)) -> Element {
     three_slice(
         &format!("{name}Art"),
         [INPUT_LEFT, INPUT_MIDDLE, INPUT_RIGHT],
@@ -702,7 +701,7 @@ pub(super) fn large_input_art(name: &str, rect: (f32, f32, f32, f32)) -> Element
 /// `MoneyInputFrameTemplate` 176×18 (Blizzard_MoneyFrame/Mainline/MoneyInputFrame.xml:72):
 /// gold 70, silver and copper 48 wide, 10 apart; `InputBoxVisualTemplate` borders with the
 /// coin at the right.
-pub(super) fn small_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
+fn small_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
     let parts = [
         (boxes.gold, x, 70.0, COIN_GOLD),
         (boxes.silver, x + 80.0, 48.0, COIN_SILVER),
@@ -724,7 +723,7 @@ pub(super) fn small_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Elemen
 }
 
 /// `InputBoxVisualTemplate` (InputBoxTemplates.xml:43): 8×20 caps, left one 5 px outside.
-pub(super) fn search_border(name: &str, (x, y, w, h): (f32, f32, f32, f32)) -> Element {
+fn search_border(name: &str, (x, y, w, h): (f32, f32, f32, f32)) -> Element {
     three_slice(
         &format!("{name}Border"),
         [SEARCH_LEFT, SEARCH_MIDDLE, SEARCH_RIGHT],
