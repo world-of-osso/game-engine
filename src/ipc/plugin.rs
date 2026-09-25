@@ -548,6 +548,7 @@ fn dispatch_character_runtime_request(
     ) || queue_inspect_ipc_request(
         &mut world.inspect,
         &world.inspect_status,
+        ctx.current_target,
         request,
         respond.clone(),
     ) || queue_trade_ipc_request(&mut world.trade, request, respond.clone())

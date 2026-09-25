@@ -4,7 +4,6 @@ use std::sync::mpsc;
 use bevy::prelude::*;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
-use shared::components::Player as NetPlayer;
 use shared::protocol::{InspectChannel, InspectStateUpdate, QueryInspectTarget};
 
 use crate::ipc::{Request, Response};
@@ -24,7 +23,7 @@ pub struct InspectPlugin;
 impl Plugin for InspectPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InspectRuntimeState>();
-        app.add_systems(Update, sync_target_change);
+        app.add_systems(Update, end_inspect_on_target_change);
         register_outgoing_handler(app, send_pending_queries, |world| {
             world.resource::<InspectRuntimeState>().pending_query
         });
@@ -35,6 +34,7 @@ impl Plugin for InspectPlugin {
 pub fn queue_ipc_request(
     runtime: &mut InspectRuntimeState,
     snapshot: &InspectStatusSnapshot,
+    current_target: &CurrentTarget,
     request: &Request,
     respond: mpsc::Sender<Response>,
 ) -> bool {
@@ -44,6 +44,7 @@ pub fn queue_ipc_request(
             true
         }
         Request::InspectQuery => {
+            runtime.current_target = current_target.0;
             runtime.pending_query = true;
             runtime.pending_replies.push_back(respond);
             true
@@ -52,26 +53,23 @@ pub fn queue_ipc_request(
     }
 }
 
-fn sync_target_change(
+/// Targeting never inspects; Retail only inspects from the unit menu or keybind
+/// (`InspectUnit`). Changing target away from the inspected unit hides the frame
+/// (`Blizzard_InspectUI.lua` `PLAYER_TARGET_CHANGED`).
+fn end_inspect_on_target_change(
     current_target: Res<CurrentTarget>,
-    inspectable_targets: Query<(), With<NetPlayer>>,
     mut runtime: ResMut<InspectRuntimeState>,
     mut snapshot: ResMut<InspectStatusSnapshot>,
 ) {
-    if !current_target.is_changed() {
+    if !current_target.is_changed() || runtime.current_target.is_none() {
         return;
     }
-
-    let inspectable_target = current_target
-        .0
-        .filter(|entity| inspectable_targets.contains(*entity));
     if runtime.current_target == current_target.0 {
         return;
     }
-
-    runtime.current_target = current_target.0;
+    runtime.current_target = None;
+    runtime.pending_query = false;
     clear_snapshot(&mut snapshot);
-    runtime.pending_query = inspectable_target.is_some();
 }
 
 fn clear_snapshot(snapshot: &mut InspectStatusSnapshot) {
@@ -147,6 +145,12 @@ fn receive_inspect_updates(
                 let _ = reply.send(response);
             }
         }
+    }
+}
+
+impl InspectRuntimeState {
+    pub fn pending_query(&self) -> bool {
+        self.pending_query
     }
 }
 
@@ -284,6 +288,39 @@ mod tests {
         assert_eq!(error, "inspect target is no longer replicated");
         assert!(pending_commands.try_recv().is_err());
         assert!(!app.world().resource::<InspectRuntimeState>().pending_query);
+    }
+
+    #[test]
+    fn targeting_another_unit_ends_the_inspection_of_the_old_target() {
+        let mut app = App::new();
+        app.init_resource::<ReplicationMirrorMap>()
+            .init_resource::<CurrentTarget>()
+            .init_resource::<InspectStatusSnapshot>()
+            .add_plugins(InspectPlugin);
+        let alice = app.world_mut().spawn_empty().id();
+        let bob = app.world_mut().spawn_empty().id();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(alice);
+        request_query_for_target(
+            &mut app.world_mut().resource_mut::<InspectRuntimeState>(),
+            Some(alice),
+        );
+        app.update();
+        assert!(app.world().resource::<InspectRuntimeState>().pending_query);
+        app.world_mut()
+            .resource_mut::<InspectStatusSnapshot>()
+            .target_name = Some("Alice".into());
+
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(bob);
+        app.update();
+
+        let runtime = app.world().resource::<InspectRuntimeState>();
+        assert!(!runtime.pending_query, "targeting Bob must not inspect him");
+        assert_eq!(runtime.current_target, None);
+        assert_eq!(
+            app.world().resource::<InspectStatusSnapshot>().target_name,
+            None,
+            "the Alice inspection closes"
+        );
     }
 
     #[test]

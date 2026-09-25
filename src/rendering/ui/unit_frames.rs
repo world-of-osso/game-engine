@@ -24,10 +24,10 @@ use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
-    ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_SET_FOCUS, InWorldUnitFramesState,
-    PowerBarState, SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState,
-    UnitFrameState, UnitMenuItem, format_value_text, fraction, inworld_unit_frames_screen,
-    unit_menu_height,
+    ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_INSPECT, ACTION_UNIT_MENU_SET_FOCUS,
+    InWorldUnitFramesState, PowerBarState, SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W,
+    UnitFrameMenuState, UnitFrameState, UnitMenuItem, format_value_text, fraction,
+    inworld_unit_frames_screen, unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -404,6 +404,7 @@ fn handle_unit_frame_pointer(
     mut menu: ResMut<UnitFrameMenu>,
     mut set_focus: MessageWriter<SetFocus>,
     mut group_commands: MessageWriter<GroupCommand>,
+    mut inspect: Option<ResMut<game_engine::inspect::InspectRuntimeState>>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
@@ -440,6 +441,11 @@ fn handle_unit_frame_pointer(
         Some(MenuRequest::Group(command)) => {
             group_commands.write(command);
         }
+        Some(MenuRequest::Inspect(unit)) => {
+            if let Some(runtime) = inspect.as_deref_mut() {
+                game_engine::inspect::request_query_for_target(runtime, Some(unit));
+            }
+        }
         None => {}
     }
 }
@@ -454,6 +460,7 @@ struct GroupMenuSources<'w, 's> {
 enum MenuRequest {
     Focus(SetFocus),
     Group(GroupCommand),
+    Inspect(Entity),
 }
 
 struct UnitFrameClick<'a> {
@@ -487,6 +494,7 @@ impl UnitFrameClick<'_> {
                 menu.unit.map(SetFocus::Unit).map(MenuRequest::Focus)
             }
             Some(ACTION_UNIT_MENU_CLEAR_FOCUS) => Some(MenuRequest::Focus(SetFocus::Clear)),
+            Some(ACTION_UNIT_MENU_INSPECT) => menu.unit.map(MenuRequest::Inspect),
             Some(action) => GroupMenuEntry::from_action(action)
                 .zip(menu.player_name.as_deref())
                 .map(|(entry, name)| MenuRequest::Group(entry.command(name))),
@@ -502,9 +510,9 @@ impl UnitFrameClick<'_> {
         let root = cluster_root_name(self.registry, frame)?;
         let unit = self.units.for_root(root)?;
         let player_name = (self.player_name)(unit);
-        let group_items = self.group_items(player_name.as_deref());
+        let player_items = self.player_items(player_name.as_deref());
         let max_x = (self.registry.screen_width - UNIT_MENU_W).max(0.0);
-        let max_y = (self.registry.screen_height - unit_menu_height(group_items.len())).max(0.0);
+        let max_y = (self.registry.screen_height - unit_menu_height(player_items.len())).max(0.0);
         Some(UnitFrameMenu {
             unit: Some(unit),
             player_name,
@@ -513,24 +521,33 @@ impl UnitFrameClick<'_> {
                 title: self.unit_name(root),
                 x: cursor.x.clamp(0.0, max_x),
                 y: cursor.y.clamp(0.0, max_y),
-                group_items,
+                player_items,
             },
         })
     }
 
-    /// Group entries for a player unit (Retail `UnitPopup` SELF / PARTY / PLAYER).
-    fn group_items(&self, player_name: Option<&str>) -> Vec<UnitMenuItem> {
+    /// Entries for a player unit (Retail `UnitPopup` SELF / PARTY / PLAYER): group entries,
+    /// then Inspect for other players (`UnitPopupInspectButtonMixin`).
+    fn player_items(&self, player_name: Option<&str>) -> Vec<UnitMenuItem> {
         let (Some(local), Some(unit)) = (self.local_name, player_name) else {
             return Vec::new();
         };
-        group_menu_entries(self.group, local, unit)
+        let mut items: Vec<UnitMenuItem> = group_menu_entries(self.group, local, unit)
             .into_iter()
             .map(|entry| UnitMenuItem {
                 name: format!("UnitFrameContextMenu{}", entry.frame_key()),
                 label: entry.label().into(),
                 action: entry.action().into(),
             })
-            .collect()
+            .collect();
+        if unit != local {
+            items.push(UnitMenuItem {
+                name: "UnitFrameContextMenuInspect".into(),
+                label: "Inspect".into(),
+                action: ACTION_UNIT_MENU_INSPECT.into(),
+            });
+        }
+        items
     }
 
     fn unit_name(&self, root: &str) -> String {
@@ -1038,6 +1055,73 @@ mod tests {
         app.update();
         assert!(!frame(&app, "UnitFrameContextMenuLeave").hidden);
         assert!(!frame(&app, "UnitFrameContextMenuConvertToRaid").hidden);
+    }
+
+    #[test]
+    fn targeting_a_player_never_inspects_but_the_target_menu_inspect_entry_does() {
+        use game_engine::inspect::{InspectPlugin, InspectRuntimeState};
+        use game_engine::network_runtime::messages::ConnectionSender;
+
+        let mut app = unit_frames_app();
+        let (commands, sent_commands) = std::sync::mpsc::channel();
+        app.insert_resource(ConnectionSender::new(Some(commands)))
+            .init_resource::<ReplicationMirrorMap>()
+            .init_resource::<game_engine::status::InspectStatusSnapshot>()
+            .add_plugins(InspectPlugin);
+        spawn_local_player(&mut app, Vec::new());
+        let valeera = app
+            .world_mut()
+            .spawn(NetPlayer {
+                name: "Valeera".to_string(),
+                race: 4,
+                class: 4,
+                appearance: default(),
+            })
+            .id();
+        let server_valeera = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .resource_mut::<ReplicationMirrorMap>()
+            .insert(server_valeera, valeera);
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(valeera);
+        app.update();
+        app.update();
+        game_engine::network_events::dispatch_outgoing(app.world_mut());
+        assert!(
+            !app.world()
+                .resource::<InspectRuntimeState>()
+                .pending_query()
+        );
+        assert!(
+            sent_commands.try_recv().is_err(),
+            "targeting sent an inspect query"
+        );
+
+        click(&mut app, "PlayerFrame", MouseButton::Right);
+        app.update();
+        let registry = &app.world().resource::<UiState>().registry;
+        assert!(
+            registry
+                .get_by_name("UnitFrameContextMenuInspect")
+                .is_none(),
+            "no Inspect on self"
+        );
+
+        click(&mut app, "TargetFrame", MouseButton::Right);
+        app.update();
+        assert!(!frame(&app, "UnitFrameContextMenuInspect").hidden);
+        click(&mut app, "UnitFrameContextMenuInspect", MouseButton::Left);
+        assert!(
+            app.world()
+                .resource::<InspectRuntimeState>()
+                .pending_query()
+        );
+        game_engine::network_events::dispatch_outgoing(app.world_mut());
+        assert!(
+            sent_commands.try_recv().is_ok(),
+            "menu Inspect sent no query"
+        );
+        assert!(frame(&app, "UnitFrameContextMenu").hidden);
     }
 
     #[test]
