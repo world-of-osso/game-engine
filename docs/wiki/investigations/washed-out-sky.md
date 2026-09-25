@@ -35,7 +35,7 @@ TonyMcMapface stays. In the corrected Trade District capture, rendered sky pixel
 - **Sun-facing highlight.** The client's azimuthal sky highlight (`update_packed` `DAY`/`AROUND` curves) is not implemented.
 - **Retail ZoneLight.** Retail also has polygon ZoneLight rows. Only `Light` volumes are blended.
 - **Byte-space interpolation.** The client interpolates LightData bytes (sRGB space). The engine interpolates keyframes and light blends in linear space.
-- **Darker world.** Direct and ambient light colours also decode correctly now. Noon ambient (127,149,170) is linear (0.21, 0.30, 0.40), not the old swapped linear (0.67, 0.58, 0.50), so characters and foliage render noticeably darker. The illuminance and exposure calibration was tuned against the wrong colours. It was not retuned here.
+- **Darker world (resolved).** With correct direct and ambient colours, Bevy PBR rendered characters and foliage dark: its illuminance/exposure calibration had been tuned against the wrong colours. World materials now use Retail's light model instead; see [[retail-lighting]].
 
 ## Sources
 

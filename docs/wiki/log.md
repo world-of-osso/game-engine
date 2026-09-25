@@ -933,3 +933,7 @@ Created [[wmo-retail-lighting]]. WMO lighting, fixup, two-layer shaders, alpha t
 ## [2026-09-25] investigation | Washed-out sky
 
 Created [[washed-out-sky]]. LightData colours decode as `0x00RRGGBB` sRGB bytes; the procedural dome uses the client ring profile (SkyTop/Middle above 16°, SkyFogColor below the horizon); world fog uses FogEnd/36 yards and SkyFogColor; sky and fog blend the global and local Light rows around the local player. Updated [[skybox]].
+
+## [2026-09-25] system | Retail lighting
+
+Created [[retail-lighting]]. RetailSceneLight (ambient/horizon/ground ambient, direct, WWV sun direction, fog) is one GPU buffer that terrain, M2 and M2 effect shaders read; they apply WebWowViewerCpp calcLight and fog in authored space. PBR light calibration, camera IBL and TonyMcMapface are gone for world cameras. Updated [[washed-out-sky]] and [[skybox]].

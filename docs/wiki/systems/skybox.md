@@ -40,11 +40,7 @@ InWorld sky, fog, lights and IBL sample a blend of LightParams: the map's global
 
 ## Environmental lighting ownership
 
-Authored skybox geometry does not itself initialize scene IBL. Active InWorld and character-select cameras lacking both `GeneratedEnvironmentMapLight` and `EnvironmentMapLight` use the existing generated-map setup at intensity300, derived from current `LightKeyframes`; the component filters make it idempotent and preserve explicit overrides.
-
-`SkySun` marks the sole environmental directional light owned by sky color and time systems. Every environment spawn site marks its directional light explicitly; sky systems query only `With<SkySun>`, leaving unrelated directional lights and M2 type-1 point lights untouched. Character selection removes its fabricated `TerrainFillLight`/`CampfireLight` pair, uses one `SkySun`, and sets global ambient brightness to 0. Newly added suns force their current color, rotation, and illuminance initialization even when `GameTime` has not advanced.
-
-This does not establish an exact Retail brightness, exposure, or map-light record. See [[character-select-lighting-overwrite]] and [character-selection visibility](../../specs/character-selection-visibility.md).
+World materials shade with `RetailSceneLight` ([[retail-lighting]]), not Bevy lights. `SkySun` marks the one environmental `DirectionalLight`. The sky systems only rotate it along the Retail sun direction so it casts the shadow map; its colour and illuminance are not updated. Cameras get no Bevy image-based lighting. The sky gradient cubemap (`SkyEnvMapHandle`) is created once a world or character-select camera is active, and terrain layers flagged for cube-map reflection sample it.
 
 ## Light.csv Lookup Chain
 
