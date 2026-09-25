@@ -26,12 +26,13 @@ pub(super) struct Crop {
 }
 
 impl Crop {
-    /// `PanelTopTabButtonMixin:OnLoad` (SharedUIPanelTemplates.lua:280-286):
-    /// `SetTexCoord(0, 1, 1, 0.25)`, the art upside down and cut to its lower 75 %.
+    /// `PanelTopTabButtonMixin:OnLoad` (SharedUIPanelTemplates.lua:280-286) shows the lower
+    /// 75 % of the art (`SetTexCoord(0, 1, 1, 0.25)`) upside down. The toolkit rejects
+    /// reversed `tex_coords`, so this keeps the same rows unflipped.
     pub fn top_tab(self) -> Self {
         let (l, r, t, b) = self.rect;
         Self {
-            rect: (l, r, b, t + 0.25 * (b - t)),
+            rect: (l, r, t + 0.25 * (b - t), b),
             ..self
         }
     }
