@@ -86,8 +86,8 @@ fn weather_adjusted_fog_tints_and_shortens_base_fog() {
 
     let (fog_color, directional_color, falloff) = weather_adjusted_fog(&colors, Some(&weather));
 
-    assert_ne!(fog_color.to_srgba(), colors.sky_smog.to_srgba());
-    assert_ne!(directional_color.to_srgba(), colors.sky_band2.to_srgba());
+    assert_ne!(fog_color.to_srgba(), colors.fog_color.to_srgba());
+    assert_ne!(directional_color, Color::NONE);
     assert!(matches!(
         falloff,
         FogFalloff::Linear { start, end }

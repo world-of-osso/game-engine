@@ -202,9 +202,11 @@ pub(crate) fn spawn_sky_dome_entity(
 }
 
 fn insert_default_sky_fog(commands: &mut Commands, camera_entity: Entity, colors: &SkyColorSet) {
+    // SkyFogColor, the same colour as the dome's horizon ring; LightData
+    // authors no sun glow for the world fog.
     commands.entity(camera_entity).insert(DistanceFog {
-        color: colors.sky_smog,
-        directional_light_color: colors.sky_band2,
+        color: colors.fog_color,
+        directional_light_color: Color::NONE,
         directional_light_exponent: 8.0,
         falloff: fog_falloff_from_colors(colors),
     });

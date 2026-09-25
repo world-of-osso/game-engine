@@ -118,6 +118,7 @@ pub struct SkyColorSet {
     pub river_close_color: Color,
     pub river_far_color: Color,
     pub horizon_ambient_color: Color,
+    /// World fog end and start in yards.
     pub fog_end: f32,
     pub fog_start: f32,
     pub glow: f32,
@@ -125,6 +126,10 @@ pub struct SkyColorSet {
     pub unk1: f32,
     pub unk2: f32,
 }
+
+/// LightData FogEnd is the fog distance multiplied by 36 (wowdev DB/LightData);
+/// solarityclient scales it by 1/36 (`CLIENT_COORDINATE_SCALE`).
+const LIGHT_DATA_FOG_UNITS_PER_YARD: f32 = 36.0;
 
 fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
     LightDataRow {
@@ -371,8 +376,8 @@ pub fn default_sky_colors() -> SkyColorSet {
         river_close_color: Color::linear_rgb(0.08, 0.16, 0.22),
         river_far_color: Color::linear_rgb(0.04, 0.08, 0.14),
         horizon_ambient_color: Color::linear_rgb(0.2, 0.25, 0.3),
-        fog_end: 18000.0,
-        fog_start: 4500.0,
+        fog_end: 500.0,
+        fog_start: 125.0,
         glow: 1.0,
         cloud_density: 0.0,
         unk1: 0.0,
@@ -381,13 +386,40 @@ pub fn default_sky_colors() -> SkyColorSet {
 }
 
 fn lerp_rows(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
-    let mut colors = lerp_sky_and_light_colors(a, b, t);
-    fill_lerped_water_and_cloud_colors(&mut colors, a, b, t);
-    fill_lerped_row_scalars(&mut colors, a, b, t);
-    colors
+    lerp_color_sets(&row_colors(a), &row_colors(b), t)
 }
 
-fn lerp_sky_and_light_colors(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
+fn row_colors(row: &LightDataRow) -> SkyColorSet {
+    SkyColorSet {
+        sky_top: row.sky_top,
+        sky_middle: row.sky_middle,
+        sky_band1: row.sky_band1,
+        sky_band2: row.sky_band2,
+        sky_smog: row.sky_smog,
+        direct_color: row.direct_color,
+        ambient_color: row.ambient_color,
+        fog_color: row.fog_color,
+        sun_color: row.sun_color,
+        sun_halo_color: row.sun_halo_color,
+        cloud_emissive_color: row.cloud_emissive_color,
+        cloud_layer1_ambient_color: row.cloud_layer1_ambient_color,
+        cloud_layer2_ambient_color: row.cloud_layer2_ambient_color,
+        ocean_close_color: row.ocean_close_color,
+        ocean_far_color: row.ocean_far_color,
+        river_close_color: row.river_close_color,
+        river_far_color: row.river_far_color,
+        horizon_ambient_color: row.horizon_ambient_color,
+        fog_end: row.fog_end / LIGHT_DATA_FOG_UNITS_PER_YARD,
+        fog_start: row.fog_start / LIGHT_DATA_FOG_UNITS_PER_YARD,
+        glow: row.glow,
+        cloud_density: row.cloud_density,
+        unk1: row.unk1,
+        unk2: row.unk2,
+    }
+}
+
+/// Interpolate every channel from `a` towards `b`.
+pub fn lerp_color_sets(a: &SkyColorSet, b: &SkyColorSet, t: f32) -> SkyColorSet {
     SkyColorSet {
         sky_top: lerp_color(a.sky_top, b.sky_top, t),
         sky_middle: lerp_color(a.sky_middle, b.sky_middle, t),
@@ -399,54 +431,29 @@ fn lerp_sky_and_light_colors(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyC
         fog_color: lerp_color(a.fog_color, b.fog_color, t),
         sun_color: lerp_color(a.sun_color, b.sun_color, t),
         sun_halo_color: lerp_color(a.sun_halo_color, b.sun_halo_color, t),
-        cloud_emissive_color: Color::BLACK,
-        cloud_layer1_ambient_color: Color::BLACK,
-        cloud_layer2_ambient_color: Color::BLACK,
-        ocean_close_color: Color::BLACK,
-        ocean_far_color: Color::BLACK,
-        river_close_color: Color::BLACK,
-        river_far_color: Color::BLACK,
-        horizon_ambient_color: Color::BLACK,
-        fog_end: 0.0,
-        fog_start: 0.0,
-        glow: 0.0,
-        cloud_density: 0.0,
-        unk1: 0.0,
-        unk2: 0.0,
+        cloud_emissive_color: lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t),
+        cloud_layer1_ambient_color: lerp_color(
+            a.cloud_layer1_ambient_color,
+            b.cloud_layer1_ambient_color,
+            t,
+        ),
+        cloud_layer2_ambient_color: lerp_color(
+            a.cloud_layer2_ambient_color,
+            b.cloud_layer2_ambient_color,
+            t,
+        ),
+        ocean_close_color: lerp_color(a.ocean_close_color, b.ocean_close_color, t),
+        ocean_far_color: lerp_color(a.ocean_far_color, b.ocean_far_color, t),
+        river_close_color: lerp_color(a.river_close_color, b.river_close_color, t),
+        river_far_color: lerp_color(a.river_far_color, b.river_far_color, t),
+        horizon_ambient_color: lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t),
+        fog_end: lerp_scalar(a.fog_end, b.fog_end, t),
+        fog_start: lerp_scalar(a.fog_start, b.fog_start, t),
+        glow: lerp_scalar(a.glow, b.glow, t),
+        cloud_density: lerp_scalar(a.cloud_density, b.cloud_density, t),
+        unk1: lerp_scalar(a.unk1, b.unk1, t),
+        unk2: lerp_scalar(a.unk2, b.unk2, t),
     }
-}
-
-fn fill_lerped_water_and_cloud_colors(
-    colors: &mut SkyColorSet,
-    a: &LightDataRow,
-    b: &LightDataRow,
-    t: f32,
-) {
-    colors.cloud_emissive_color = lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t);
-    colors.cloud_layer1_ambient_color = lerp_color(
-        a.cloud_layer1_ambient_color,
-        b.cloud_layer1_ambient_color,
-        t,
-    );
-    colors.cloud_layer2_ambient_color = lerp_color(
-        a.cloud_layer2_ambient_color,
-        b.cloud_layer2_ambient_color,
-        t,
-    );
-    colors.ocean_close_color = lerp_color(a.ocean_close_color, b.ocean_close_color, t);
-    colors.ocean_far_color = lerp_color(a.ocean_far_color, b.ocean_far_color, t);
-    colors.river_close_color = lerp_color(a.river_close_color, b.river_close_color, t);
-    colors.river_far_color = lerp_color(a.river_far_color, b.river_far_color, t);
-    colors.horizon_ambient_color = lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t);
-}
-
-fn fill_lerped_row_scalars(colors: &mut SkyColorSet, a: &LightDataRow, b: &LightDataRow, t: f32) {
-    colors.fog_end = lerp_scalar(a.fog_end, b.fog_end, t);
-    colors.fog_start = lerp_scalar(a.fog_start, b.fog_start, t);
-    colors.glow = lerp_scalar(a.glow, b.glow, t);
-    colors.cloud_density = lerp_scalar(a.cloud_density, b.cloud_density, t);
-    colors.unk1 = lerp_scalar(a.unk1, b.unk1, t);
-    colors.unk2 = lerp_scalar(a.unk2, b.unk2, t);
 }
 
 fn lerp_scalar(a: f32, b: f32, t: f32) -> f32 {
@@ -599,8 +606,8 @@ mod tests {
             result.sun_color.to_srgba(),
             Color::linear_rgb(0.5, 0.5, 0.5).to_srgba()
         );
-        assert!((result.fog_end - 1500.0).abs() < 0.01);
-        assert!((result.fog_start - 150.0).abs() < 0.01);
+        assert!((result.fog_end - 1500.0 / 36.0).abs() < 0.01);
+        assert!((result.fog_start - 150.0 / 36.0).abs() < 0.01);
     }
 
     #[test]
@@ -666,6 +673,23 @@ mod tests {
         assert!((top.red - 0.5).abs() < 0.05);
         assert!((top.green - 0.5).abs() < 0.05);
         assert!((top.blue - 0.5).abs() < 0.05);
+    }
+
+    #[test]
+    fn noon_light_params_12_fog_range_is_in_yards() {
+        // Noon FogEnd 18000 (yards × 36) with FogScaler 0.25.
+        let rows = load_light_data("data/LightData.ron", 12);
+        let noon = interpolate_colors(&rows, 1440.0);
+        assert!(
+            (noon.fog_end - 500.0).abs() < 0.01,
+            "fog end {}",
+            noon.fog_end
+        );
+        assert!(
+            (noon.fog_start - 125.0).abs() < 0.01,
+            "fog start {}",
+            noon.fog_start
+        );
     }
 
     #[test]
