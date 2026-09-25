@@ -181,10 +181,10 @@ fn collection_snapshot_defaults_to_empty_lists() {
 }
 
 #[test]
-fn profession_snapshot_defaults_to_empty_recipes() {
+fn profession_snapshot_defaults_to_nothing_learned() {
     let snapshot = ProfessionStatusSnapshot::default();
 
-    assert!(snapshot.recipes.is_empty());
+    assert!(snapshot.lines.is_empty() && snapshot.spells.is_empty() && !snapshot.received);
 }
 
 #[test]

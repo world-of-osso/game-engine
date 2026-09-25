@@ -1,0 +1,64 @@
+# Professions Frame
+
+The Retail profession trainer, ProfessionsBook and ProfessionsFrame running against the live server. The contract is shared-protocol `profession.rs`, `protocol/trainer_messages.rs` (`TrainerList`, `TrainerBuySpell`, `TrainerBuyFailed`), `ProfessionSnapshot` and `CraftRecipe`; server rules are in game-server `docs/specs/professions.md`.
+
+References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
+- TUI.xml / TUI.lua = `Blizzard_TrainerUI/Mainline/Blizzard_TrainerUI.xml` / `.lua`
+- PB.xml / PB.lua = `Blizzard_ProfessionsBook/Blizzard_ProfessionsBook.xml` / `.lua`
+- PF.xml = `Blizzard_Professions/Blizzard_ProfessionsFrame.xml`; PC.xml / PC.lua = `Blizzard_ProfessionsCrafting.xml` / `.lua`
+- RL.xml / RL.lua = `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml` / `.lua`; SF.xml = `Blizzard_ProfessionsRecipeSchematicForm.xml`
+- strings: wow-ui-sim `data/global_strings_wowforever.rs` (build 12.1); colours: GlobalColor DB2 (`data/db2/12.1.0.69933/GlobalColor.csv`)
+- atlas crops: `data/UiTextureAtlasMember.csv` (member id cited next to each constant)
+
+## Data
+
+- [x] Recipe data comes from the pinned DB2 CSVs (`src/game/professions_data.rs`): profession `SkillLine` rows (CategoryID 9/11) with `SpellBookSpellID`, `SkillLineAbility` rows with a `SkillupSkillLineID`, `SpellReagents`, the `SpellEffect` CREATE_ITEM (24) output, `TradeSkillCategory`, `SpellName`/`SpellMisc` names and icons, and `ItemSparse` names/qualities of the involved items. Cached in `data/cache/profession_catalog-<build>.bin`.
+- [x] `ProfessionSnapshot` (learned lines and spells) is stored in `ProfessionStatusSnapshot` by its single reader (`networking::messages::receive_profession_snapshot`). Changes after the first snapshot post Retail chat lines: `ERR_SKILL_GAINED_S` "You have gained the %s skill.", `ERR_SKILL_UP_SI` "Your skill in %s has increased to %d." (tier lines) and `ERR_LEARN_RECIPE_S` "You have learned how to create a new item: %s."
+- [x] Bag counts come from `InventoryState` (all bag stacks of the item).
+
+## Trainer frame (`ClassTrainerFrame`)
+
+- [x] `TrainerList` opens it as an NPC-driven Panel (slot L); closing it sends `CloseInteraction`; `InteractionClosed` for the trainer closes it. `TrainerList` again after a purchase refreshes it and keeps the selection and scroll position.
+- [x] 338×424 `ButtonFrameTemplate` (TUI.xml:110, SharedUIPanelTemplates.xml:548) with the `metal_frame` chrome; the title is the NPC name (TUI.lua:69).
+- [x] `TrainerTextures` (404984) background fitted to the ScrollBox −3,+4 / +3,−4 (TUI.lua:44-45); ScrollBox 302×330 at the Inset TOPRIGHT −5,+5 (TUI.xml:201-205), rows 298×47 with 1 px padding (TUI.lua:47), 7 rows (`CLASS_TRAINER_SKILLS_DISPLAYED`), mouse wheel scrolls one row.
+- [x] Row (TUI.xml:28-105): row texture, icon 36×36 at LEFT 6 (desaturated and the 0.55 grey `disabledBG` when unavailable), name `GameFontNormal` at icon TOPRIGHT +6,−1, sub text 240×30 19 below it, `SmallMoneyFrame` at TOPRIGHT 5,−7 (red when unaffordable, TUI.lua:273-280), selected texture.
+- [x] Sub text (TUI.lua:208-266): `REQUIRES_LABEL` "Requires:" and the level (`TRAINER_REQ_LEVEL` "Level %d"), skill (`TRAINER_REQ_SKILL_RANK` "%s (%d)") and abilities joined by ", "; "Already known" (`ITEM_SPELL_KNOWN`) without money for known services. Service names and icons come from the spell catalog; a missing spell shows "Unknown".
+- [x] Rank bar `ClassTrainerStatusBar` 136×18 at 64,36 (TUI.xml:127-176) with `TRADESKILL_RANK` "%d/%d" for the tier line most services require, hidden until that line is learned.
+- [x] Train (`MagicButtonTemplate` 80×22 at BOTTOMRIGHT) is enabled for an available, affordable service; a profession also needs a free primary slot (TUI.lua:273-307). Money frame over `UI-MoneyFrame-Border` (237619) at BOTTOMLEFT 5,−9.
+- [x] Training a service that adds a primary profession (`TrainerService.profession`) first shows `CONFIRM_PROFESSION` (TUI.lua:11-33): "You may only know two professions at any one time.  Would you like to learn %s as your first/second one?" with Accept / Cancel; Accept sends `TrainerBuySpell`.
+- [x] `TrainerBuyFailed { NotEnoughMoney }` shows "You don't have enough money." in `UIErrorsFrame`.
+- [ ] Filter dropdown (available / unavailable / used), NPC portrait, `SkillStepButton`, service tooltips, hover highlight.
+
+## ProfessionsBook (`ProfessionsBookFrame`, K)
+
+- [x] K (`TOGGLEPROFESSIONBOOK`, Bindings_Standard.xml:1238; our `toggle_professions`) toggles it as a Panel. 550×525 `ButtonFrameTemplate` titled "Professions" (`TRADE_SKILLS`) with `Professions-Book-Left/-Right` (383588/383589) at 7,25.
+- [x] PrimaryProfession1/2 (437×81) at 80,67 and 12 below; SecondaryProfession1-3 (437×46) 40 and then 30 apart (PB.xml:359-398).
+- [x] Learned primary: icon in the 72×72 `ProfessionsBook` (383591) border at 7,7, name at 100,2, rank title = the tier line name (`skillLineName`, PB.lua:405-413), `ProfessionStatusBarTemplate` 95×16 with `Professions-Progress-Fill` (383590) and `TRADESKILL_RANK`, right cap at max rank (PB.lua:420-447).
+- [x] Missing primary: "First Profession" / "Second Profession" (0.85,0.7,0.6) and `PROFESSIONS_MISSING_PROFESSION` (0.1,0.05,0.05).
+- [x] The profession spell button (`SpellBookSpellID`, e.g. 3908 Tailoring) at TOPRIGHT −109,−3 opens the ProfessionsFrame on that profession.
+- [ ] Unlearn button (unlearning is not supported), the second spell button, flyouts.
+
+## ProfessionsFrame (Recipes page)
+
+- [x] Wide window (942×658, `GetDesiredPageWidth`, PC.lua:344-351; PF.xml:7-8), title = profession name (`TRADE_SKILL_TITLE`), `metal_frame` chrome; tab 1 "Recipes" (`PROFESSIONS_RECIPES_TAB_NAME`) at the frame BOTTOMLEFT 22,2 (PF.xml:16-25).
+- [x] The tier line shown is the learned child of the profession with the highest `ParentTierIndex`. Rank bar 453×18 at 280,40 (PC.xml:199-202): `Professions-skillbar-bg`/`-frame` (15729/15730), `Skillbar_Fill_Flipbook_DefaultBlue` fill 441×18 at 5,3, `TRADESKILL_NAME_RANK` "%s %d/%d" (`Number12FontOutline`).
+- [x] RecipeList 274 wide at 5,72 (PC.xml:136-142) on `Professions-background-summarylist` (21219). SearchBox at 13,8 (RL.xml:40-45) with Common-Input-Border caps, the magnifying glass and "Search" while empty; clicking focuses it (keyboard goes to it), typing filters recipe names, Enter/Escape or clicking elsewhere ends focus.
+- [x] ScrollBox at the SearchBox BOTTOMLEFT −5,−7 to BOTTOMRIGHT −20,5 (RL.xml:48-53); tree indent 10, 5 px padding, 1 px spacing (RL.lua:16-20); category rows 25, recipe rows 20 (RL.lua:96-109); mouse wheel scrolls one row.
+- [x] Category row: `Professions-recipe-header-left/-middle/-right` (16623-16625), label `GameFontNormal_NoShadow` at LEFT 10,+2, collapse/expand icon (19542/19541) at RIGHT −10,+2 (RL.xml:94-146); a click collapses it. Recipes are grouped under their own `TradeSkillCategory`, categories by `OrderIndex`, recipes by name.
+- [x] Recipe row (RL.xml:149-217, RL.lua:236-301): skill-up icon `Professions-Icon-Skill-High/-Medium/-Low` for orange/yellow/green (none when grey or at max rank), label in `PROFESSION_RECIPE_COLOR` (0xffe2dcd6), " [%d] " craftable count when above 0, `Professions_Recipe_Active` selected overlay. Difficulty uses shared `recipe_difficulty` (TrinityCore `SkillGainChance` thresholds).
+- [x] SchematicForm at the RecipeList TOPRIGHT +2 (655×553, PC.lua:912-923) on `Professions-Recipe-Background-<profession>` (21205-21218, fallback 21206): output icon 47×47 at 28,33 with the item ring, `OutputText` at its RIGHT +14,+17 (SF.lua:443); "Reagents:" label and slots 180×50 (4 per column, 5 apart) below the icon +75,−65 (SF.xml:63-69, SchematicForm.lua:1286-1290).
+- [x] Reagent slot (ReagentSlotBase.xml:6-27, ReagentSlot.lua:238-252): `Professions-Slot-bg` (15182) button with the item icon, name "have/need Name" (`TRADESKILL_REAGENT_COUNT` "%s/%d") in white, or `DISABLED_REAGENT_COLOR` (0xffa0a0a0) while short.
+- [x] Create (80×22 at BOTTOMRIGHT −9,7), the `NumericInputSpinner` 30 left of it and Create All ("Create All [%d]", `PROFESSIONS_CREATE_ALL_FORMAT`) 30 left of that (PC.xml:205-224). Enabled while the bags hold the reagents for one craft. Create sends `CraftRecipe { casts: spinner }`, Create All `CraftRecipe { casts: craftable count }`; the spinner stays within 1..craftable.
+- [x] The cast shows on the player cast bar (the server's replicated `CastState`); reagents, the created item and the skill-up arrive as `InventoryDelta` and `ProfessionSnapshot`.
+- [ ] Filter dropdown, expansion dropdown on the rank bar, favourites, unlearned recipes, tooltips, recipe description, Specializations and Crafting Orders tabs, minimized mode, the cast bar moved onto the page (PC.lua:1282-1296), quality/concentration (Dragonflight systems are out of scope).
+
+## Tests asserting this spec
+
+- `src/game/professions_data_tests.rs`: Bolt of Linen Cloth reagents/output/trivial ranks/category, Tailoring and its Classic tier from the pinned CSVs.
+- `src/profession_tests.rs`: snapshot storage and the gained / skill-up / learned-recipe chat lines, IPC status and recipes text.
+- `src/game/trainer_data.rs` tests: selection of the first available service, refresh keeps selection and scroll, scroll limits.
+- `src/ui/screens/trainer_frame_component_tests.rs`: row texts, red cost, disabled background, row geometry, Train action, rank bar.
+- `src/scenes/trainer_frame/tests.rs`: Georgio's rows and requirements, Train enabling with money and the primary limit, known services, the profession confirmation.
+- `src/ui/screens/professions_book_component_tests.rs`: learned and missing entries, spell button action, entry layout.
+- `src/ui/screens/professions_frame_component_tests.rs`: list rows, counts and geometry, schematic, reagent colours, Create buttons, search box.
+- `src/scenes/professions_frame/view_tests.rs`: grouping, craftable counts, selection, difficulty, search, collapse, the book entries; `tests.rs`: bag counts.

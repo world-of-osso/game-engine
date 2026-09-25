@@ -259,9 +259,7 @@ pub enum Request {
     ProfessionStatus,
     ProfessionCraft {
         recipe_id: u32,
-    },
-    ProfessionGather {
-        node_id: u32,
+        casts: u16,
     },
     EquipmentSet {
         slot: String,

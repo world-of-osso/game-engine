@@ -525,30 +525,11 @@ where
 }
 
 pub fn format_profession_recipes(snapshot: &ProfessionStatusSnapshot, text: &str) -> String {
-    let needle = text.trim().to_ascii_lowercase();
-    let filtered = snapshot
-        .recipes
-        .iter()
-        .filter(|e| needle.is_empty() || e.name.to_ascii_lowercase().contains(&needle))
-        .collect::<Vec<_>>();
-    if filtered.is_empty() {
-        return format!("recipes text={text}: 0\n-");
-    }
-    let lines = filtered
-        .iter()
-        .map(|e| {
-            format!(
-                "{} {} profession={} craftable={} cooldown={}",
-                e.spell_id,
-                e.name,
-                e.profession,
-                e.craftable,
-                e.cooldown.as_deref().unwrap_or("-")
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("recipes text={text}: {}\n{lines}", filtered.len())
+    crate::profession::format_recipes(
+        snapshot,
+        crate::professions_data::profession_catalog(),
+        text,
+    )
 }
 
 pub fn format_map_position(snapshot: &MapStatusSnapshot) -> String {

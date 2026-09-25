@@ -3,9 +3,8 @@ use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AchievementStateUpdate, ChatChannel, ChatMessage, CombatChannel, DuelStateUpdate,
     DurabilityStateUpdate, EmoteEvent, EmoteIntent, InputChannel, InspectStateUpdate, LoadTerrain,
-    PlayerInput, ProfessionSnapshot, ProfessionStateUpdate,
-    QuestRepeatability as QuestRepeatabilitySnapshot, ReputationStateUpdate, RestAreaKindSnapshot,
-    RestStateUpdate, SetTarget, WorldMapStateUpdate,
+    PlayerInput, ProfessionSnapshot, QuestRepeatability as QuestRepeatabilitySnapshot,
+    ReputationStateUpdate, RestAreaKindSnapshot, RestStateUpdate, SetTarget, WorldMapStateUpdate,
 };
 
 use crate::camera::{CharacterFacing, MovementState, Player};
@@ -28,9 +27,9 @@ use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::reputation::{ReputationToastState, map_reputation_state_update};
 use game_engine::status::{
     AchievementsStatusSnapshot, DuelStatusSnapshot, DurabilityStatusSnapshot,
-    IgnoreListStatusSnapshot, InspectStatusSnapshot, ProfessionRecipeEntry, ProfessionSkillEntry,
-    ProfessionSkillUpEntry, ProfessionStatusSnapshot, QuestEntry, QuestObjectiveEntry,
-    QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot, RestAreaKindEntry,
+    IgnoreListStatusSnapshot, InspectStatusSnapshot, ProfessionStatusSnapshot, QuestEntry,
+    QuestObjectiveEntry, QuestRepeatability, ReputationEntry, ReputationsStatusSnapshot,
+    RestAreaKindEntry,
 };
 use game_engine::targeting::CurrentTarget;
 use game_engine::world_map::apply_world_map_state_update as map_world_map_state_update;
@@ -400,14 +399,25 @@ pub(crate) fn receive_achievement_state_update(
     }
 }
 
+/// The single reader of `ProfessionSnapshot`: stores it and posts the Retail
+/// skill-up and learn lines to chat.
 pub(crate) fn receive_profession_snapshot(
     mut receivers: MessageReceivers<ProfessionSnapshot>,
     mut snapshot: ResMut<ProfessionStatusSnapshot>,
+    mut chat: ResMut<game_engine::chat_data::ChatState>,
 ) {
     for receiver in receivers.iter_mut() {
         for msg in receiver.receive() {
-            snapshot.skills = msg.skills.into_iter().map(map_profession_skill).collect();
-            snapshot.recipes = msg.recipes.into_iter().map(map_profession_recipe).collect();
+            let catalog = game_engine::professions_data::profession_catalog();
+            for text in game_engine::profession::apply_snapshot(&mut snapshot, msg, catalog) {
+                chat.add_message(game_engine::chat_data::ChatMessage {
+                    channel_type: game_engine::chat_data::ChatChannelType::System,
+                    channel_name: String::new(),
+                    sender: String::new(),
+                    text,
+                    timestamp: game_engine::chat_data::now_timestamp(),
+                });
+            }
         }
     }
 }
@@ -431,51 +441,6 @@ pub(crate) fn receive_durability_state_update(
         for update in receiver.receive() {
             map_durability_state_update(&mut snapshot, update);
         }
-    }
-}
-
-pub(crate) fn apply_profession_state_update(
-    snapshot: &mut ProfessionStatusSnapshot,
-    update: ProfessionStateUpdate,
-) {
-    if let Some(profession_snapshot) = update.snapshot {
-        snapshot.skills = profession_snapshot
-            .skills
-            .into_iter()
-            .map(map_profession_skill)
-            .collect();
-        snapshot.recipes = profession_snapshot
-            .recipes
-            .into_iter()
-            .map(map_profession_recipe)
-            .collect();
-    }
-    snapshot.last_server_message = update.message;
-    snapshot.last_skill_up = update.skill_up.map(|skill| ProfessionSkillUpEntry {
-        profession: skill.profession,
-        current: skill.current,
-        max: skill.max,
-    });
-    snapshot.last_error = update.error;
-}
-
-fn map_profession_skill(skill: shared::protocol::ProfessionSkillSnapshot) -> ProfessionSkillEntry {
-    ProfessionSkillEntry {
-        profession: skill.profession,
-        current: skill.current,
-        max: skill.max,
-    }
-}
-
-fn map_profession_recipe(
-    recipe: shared::protocol::ProfessionRecipeSnapshot,
-) -> ProfessionRecipeEntry {
-    ProfessionRecipeEntry {
-        spell_id: recipe.spell_id,
-        profession: recipe.profession,
-        name: recipe.name,
-        craftable: recipe.craftable,
-        cooldown: recipe.cooldown,
     }
 }
 

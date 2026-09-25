@@ -653,10 +653,8 @@ pub(crate) enum ProfessionCmd {
     Craft {
         #[arg(long)]
         recipe_id: u32,
-    },
-    Gather {
-        #[arg(long)]
-        node_id: u32,
+        #[arg(long, default_value_t = 1)]
+        casts: u16,
     },
 }
 

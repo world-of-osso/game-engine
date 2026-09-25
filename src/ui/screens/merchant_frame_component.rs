@@ -689,6 +689,17 @@ pub(crate) fn money(
     } else {
         HIGHLIGHT_FONT_COLOR
     };
+    money_colored(prefix, copper, anchor, align, color)
+}
+
+/// [`money`] with the amounts in `color` (the trainer's red unaffordable cost).
+pub(crate) fn money_colored(
+    prefix: &str,
+    copper: u64,
+    anchor: (f32, f32),
+    align: MoneyAlign,
+    color: &str,
+) -> Element {
     let parts: Vec<(String, f32, &AtlasArt)> = coins(copper)
         .into_iter()
         .map(|(amount, art)| {

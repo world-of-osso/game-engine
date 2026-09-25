@@ -94,6 +94,12 @@ pub fn cast_failed_text(
         CastFailReason::Silenced => "Can't do that while silenced",
         // SPELL_FAILED_PACIFIED
         CastFailReason::Pacified => "Can't do that while pacified",
+        // Not Retail strings: the server's detail carries the Retail text with the item
+        // name ("Missing reagent: %s" SPELL_FAILED_REAGENTS, "Requires %s" SPELL_FAILED_TOTEMS).
+        CastFailReason::Reagents => "Missing reagent",
+        CastFailReason::Totems => "Requires a tool",
+        // ERR_INV_FULL
+        CastFailReason::InventoryFull => "Inventory is full.",
     };
     text.to_string()
 }

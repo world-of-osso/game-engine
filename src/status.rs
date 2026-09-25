@@ -653,36 +653,13 @@ pub struct CollectionStatusSnapshot {
     pub last_error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ProfessionSkillEntry {
-    pub profession: String,
-    pub current: u16,
-    pub max: u16,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ProfessionRecipeEntry {
-    pub spell_id: u32,
-    pub profession: String,
-    pub name: String,
-    pub craftable: bool,
-    pub cooldown: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ProfessionSkillUpEntry {
-    pub profession: String,
-    pub current: u16,
-    pub max: u16,
-}
-
+/// The owner's professions from the last `ProfessionSnapshot`.
 #[derive(bevy::prelude::Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ProfessionStatusSnapshot {
-    pub skills: Vec<ProfessionSkillEntry>,
-    pub recipes: Vec<ProfessionRecipeEntry>,
-    pub last_server_message: Option<String>,
-    pub last_skill_up: Option<ProfessionSkillUpEntry>,
-    pub last_error: Option<String>,
+    pub lines: Vec<shared::profession::ProfessionSkillLine>,
+    pub spells: Vec<u32>,
+    /// A snapshot arrived since entering the world.
+    pub received: bool,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

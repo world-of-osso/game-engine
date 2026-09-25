@@ -8,9 +8,9 @@ use crate::status::{
     EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot, GroupRole, GuildMemberEntry,
     GuildStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
     LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry, LfgStatusSnapshot,
-    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpBracketEntry, PvpStatusSnapshot,
-    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
-    TerrainStatusSnapshot, WhoEntry, WhoStatusSnapshot,
+    NetworkStatusSnapshot, PvpBracketEntry, PvpStatusSnapshot, QuestLogStatusSnapshot,
+    QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot, TerrainStatusSnapshot,
+    WhoEntry, WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -741,25 +741,6 @@ fn collection_mounts_format_marks_active_mount_and_message() {
 
     assert!(text.contains("message: summoned Swift Brown Steed"));
     assert!(text.contains("101 Swift Brown Steed known=true active=true"));
-}
-
-#[test]
-fn profession_recipes_filters_by_text() {
-    let snapshot = ProfessionStatusSnapshot {
-        skills: Vec::new(),
-        recipes: vec![crate::status::ProfessionRecipeEntry {
-            spell_id: 100,
-            profession: "Alchemy".into(),
-            name: "Major Healing Potion".into(),
-            craftable: true,
-            cooldown: None,
-        }],
-        last_server_message: None,
-        last_skill_up: None,
-        last_error: None,
-    };
-    let text = format_profession_recipes(&snapshot, "potion");
-    assert!(text.contains("Major Healing Potion"));
 }
 
 #[test]

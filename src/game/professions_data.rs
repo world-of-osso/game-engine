@@ -1,279 +1,448 @@
-use bevy::prelude::*;
+//! Retail profession data for the professions UI, from the build-pinned DB2 CSVs the
+//! server imports (as the Retail client reads its own DB2 tables): skill lines,
+//! `SkillLineAbility` recipes with `SpellReagents`, the `CREATE_ITEM` output, the
+//! `TradeSkillCategory` tree and the item names/qualities involved. The server sends
+//! only learned lines and spells (`ProfessionSnapshot`).
+//!
+//! Built once and cached as bincode under `data/cache/` (key: build + CSV stamps).
 
-pub mod textures {
-    pub const ICON_ALCHEMY: u32 = 136240;
-    pub const ICON_BLACKSMITHING: u32 = 136241;
-    pub const ICON_MINING: u32 = 136248;
-    /// Professions book frame (left page).
-    pub const BOOK_LEFT: u32 = 383588;
-    /// Skill progress bar fill.
-    pub const PROGRESS_FILL: u32 = 383590;
-    /// Item slot border (shared).
-    pub const SLOT_BORDER: u32 = 130862;
-}
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct ReagentRequirement {
-    pub item_name: String,
-    pub icon_fdid: u32,
-    pub required: u32,
-    pub have: u32,
-}
+use serde::{Deserialize, Serialize};
 
-impl ReagentRequirement {
-    pub fn is_satisfied(&self) -> bool {
-        self.have >= self.required
-    }
-}
+use crate::db2_cache::CacheKey;
+use crate::spell_catalog::SPELL_DB2_BUILD;
+use crate::spell_catalog::csv_records::CsvTable;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct RecipeDef {
-    pub id: u32,
+/// `SkillLine.CategoryID` of secondary and primary professions.
+const SKILL_CATEGORY_SECONDARY: u32 = 9;
+pub const SKILL_CATEGORY_PROFESSION: u32 = 11;
+/// SpellEffect `CREATE_ITEM`.
+const EFFECT_CREATE_ITEM: u32 = 24;
+/// Bump when the cached types or the load rules change.
+const CACHE_FORMAT: u32 = 1;
+const TABLES: &[&str] = &[
+    "SkillLine",
+    "SkillLineAbility",
+    "SpellReagents",
+    "TradeSkillCategory",
+    "SpellEffect",
+    "SpellName",
+    "SpellMisc",
+    "ItemSparse",
+];
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SkillLineInfo {
     pub name: String,
-    pub profession: String,
-    pub skill_required: u32,
-    pub reagents: Vec<ReagentRequirement>,
-    pub learned: bool,
+    pub category: u32,
+    pub parent: u32,
+    pub parent_tier_index: u16,
+    pub icon_fdid: u32,
+    /// `SpellBookSpellID`: the profession spell (3908 Tailoring).
+    pub spell_book_spell: u32,
 }
 
-impl RecipeDef {
-    pub fn can_craft(&self, skill_level: u32) -> bool {
-        self.learned
-            && skill_level >= self.skill_required
-            && self.reagents.iter().all(|r| r.is_satisfied())
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Reagent {
+    pub item_id: u32,
+    pub count: u32,
+}
+
+/// One recipe: a `SkillLineAbility` row with a skill-up line.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RecipeInfo {
+    pub spell_id: u32,
+    pub name: String,
+    pub icon_fdid: u32,
+    /// Parent profession line (197 Tailoring).
+    pub skill_line: u32,
+    /// Tier line the recipe raises (2540 Classic Tailoring).
+    pub skillup_line: u32,
+    pub category: u32,
+    pub trivial_low: u16,
+    pub trivial_high: u16,
+    pub num_skill_ups: u16,
+    pub reagents: Vec<Reagent>,
+    /// `CREATE_ITEM` item and count.
+    pub output: Option<(u32, u32)>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CategoryInfo {
+    pub name: String,
+    pub parent: u32,
+    pub order_index: i32,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ItemInfo {
+    pub name: String,
+    pub quality: u8,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProfessionCatalog {
+    pub lines: HashMap<u32, SkillLineInfo>,
+    pub recipes: HashMap<u32, RecipeInfo>,
+    pub categories: HashMap<u32, CategoryInfo>,
+    pub items: HashMap<u32, ItemInfo>,
+}
+
+impl ProfessionCatalog {
+    pub fn line(&self, id: u32) -> Option<&SkillLineInfo> {
+        self.lines.get(&id)
+    }
+
+    pub fn recipe(&self, spell_id: u32) -> Option<&RecipeInfo> {
+        self.recipes.get(&spell_id)
+    }
+
+    pub fn item(&self, item_id: u32) -> Option<&ItemInfo> {
+        self.items.get(&item_id)
+    }
+
+    pub fn category(&self, id: u32) -> Option<&CategoryInfo> {
+        self.categories.get(&id)
+    }
+
+    pub fn is_primary(&self, line: u32) -> bool {
+        self.line(line)
+            .is_some_and(|info| info.category == SKILL_CATEGORY_PROFESSION && info.parent == 0)
+    }
+
+    /// Parent profession lines (primary or secondary).
+    pub fn is_profession(&self, line: u32) -> bool {
+        self.line(line).is_some_and(|info| {
+            info.parent == 0
+                && matches!(
+                    info.category,
+                    SKILL_CATEGORY_PROFESSION | SKILL_CATEGORY_SECONDARY
+                )
+        })
     }
 }
 
-/// Runtime professions state.
-#[derive(Resource, Clone, Debug, PartialEq, Default)]
-pub struct ProfessionsState {
-    pub recipes: Vec<RecipeDef>,
-    pub skill_level: u32,
-    pub skill_max: u32,
-    pub craft_queue: Vec<u32>,
+/// The catalog from `data/`; loaded on first use.
+pub fn profession_catalog() -> &'static ProfessionCatalog {
+    static CATALOG: OnceLock<ProfessionCatalog> = OnceLock::new();
+    CATALOG.get_or_init(|| {
+        let source = crate::paths::resolve_data_path(Path::new("db2").join(SPELL_DB2_BUILD));
+        let cache = crate::paths::resolve_data_path("cache")
+            .join(format!("profession_catalog-{SPELL_DB2_BUILD}.bin"));
+        load_profession_catalog(&source, &cache).unwrap_or_else(|err| {
+            bevy::log::error!("profession catalog unavailable: {err}");
+            ProfessionCatalog::default()
+        })
+    })
 }
 
-impl ProfessionsState {
-    pub fn learned_count(&self) -> usize {
-        self.recipes.iter().filter(|r| r.learned).count()
-    }
+pub fn load_profession_catalog(
+    source_dir: &Path,
+    cache_path: &Path,
+) -> Result<ProfessionCatalog, String> {
+    let sources = TABLES.iter().map(|table| {
+        (
+            format!("db2/{table}"),
+            source_dir.join(format!("{table}.csv")),
+        )
+    });
+    let key = CacheKey::new(CACHE_FORMAT, SPELL_DB2_BUILD, sources)?;
+    crate::db2_cache::load_or_build(cache_path, &key, || build_catalog(source_dir))
+}
 
-    pub fn craftable_count(&self) -> usize {
-        self.recipes
+struct Table {
+    csv: CsvTable,
+    columns: Vec<usize>,
+}
+
+impl Table {
+    fn open(dir: &Path, name: &str, columns: &[&str]) -> Result<Self, String> {
+        let csv = CsvTable::read(&dir.join(format!("{name}.csv")))?;
+        let columns = columns
             .iter()
-            .filter(|r| r.can_craft(self.skill_level))
-            .count()
+            .map(|column| csv.column(column))
+            .collect::<Result<_, _>>()?;
+        Ok(Self { csv, columns })
     }
 
-    pub fn skill_text(&self) -> String {
-        format!("{}/{}", self.skill_level, self.skill_max)
+    fn rows(&self, mut visit: impl FnMut(&Fields) -> Result<(), String>) -> Result<(), String> {
+        for record in self.csv.records() {
+            visit(&Fields {
+                record: &record,
+                columns: &self.columns,
+                path: self.csv.path(),
+            })?;
+        }
+        Ok(())
+    }
+}
+
+struct Fields<'r> {
+    record: &'r [Cow<'r, str>],
+    columns: &'r [usize],
+    path: &'r Path,
+}
+
+impl Fields<'_> {
+    fn text(&self, column: usize) -> Result<&str, String> {
+        self.record
+            .get(self.columns[column])
+            .map(|field| field.as_ref())
+            .ok_or_else(|| format!("{} has a short record", self.path.display()))
     }
 
-    pub fn is_crafting(&self) -> bool {
-        !self.craft_queue.is_empty()
+    fn num(&self, column: usize) -> Result<i64, String> {
+        let raw = self.text(column)?;
+        raw.parse::<i64>()
+            .or_else(|_| raw.parse::<f64>().map(|value| value as i64))
+            .map_err(|_| format!("{}: bad number {raw:?}", self.path.display()))
     }
 
-    /// Filter recipes by name (case-insensitive substring).
-    pub fn filter_by_name(&self, query: &str) -> Vec<&RecipeDef> {
-        let q = query.to_lowercase();
-        self.recipes
-            .iter()
-            .filter(|r| r.name.to_lowercase().contains(&q))
-            .collect()
+    fn uint(&self, column: usize) -> Result<u32, String> {
+        Ok(self.num(column)? as u32)
     }
 
-    /// Filter to only craftable recipes (learned + skill + reagents).
-    pub fn craftable_recipes(&self) -> Vec<&RecipeDef> {
-        self.recipes
-            .iter()
-            .filter(|r| r.can_craft(self.skill_level))
-            .collect()
+    fn small(&self, column: usize) -> Result<u16, String> {
+        Ok(self.num(column)?.clamp(0, i64::from(u16::MAX)) as u16)
     }
+}
+
+fn build_catalog(dir: &Path) -> Result<ProfessionCatalog, String> {
+    let lines = load_lines(dir)?;
+    let mut recipes = load_recipes(dir, &lines)?;
+    let spells: HashSet<u32> = recipes.keys().copied().collect();
+    fill_spell_names(dir, &mut recipes)?;
+    fill_spell_icons(dir, &mut recipes)?;
+    fill_reagents(dir, &mut recipes)?;
+    fill_outputs(dir, &mut recipes, &spells)?;
+    let items: HashSet<u32> = recipes
+        .values()
+        .flat_map(|recipe| {
+            let reagents = recipe.reagents.iter().map(|reagent| reagent.item_id);
+            reagents.chain(recipe.output.map(|(item, _)| item))
+        })
+        .collect();
+    Ok(ProfessionCatalog {
+        lines,
+        recipes,
+        categories: load_categories(dir)?,
+        items: load_items(dir, &items)?,
+    })
+}
+
+fn load_lines(dir: &Path) -> Result<HashMap<u32, SkillLineInfo>, String> {
+    let table = Table::open(
+        dir,
+        "SkillLine",
+        &[
+            "ID",
+            "DisplayName_lang",
+            "CategoryID",
+            "ParentSkillLineID",
+            "ParentTierIndex",
+            "SpellIconFileID",
+            "SpellBookSpellID",
+        ],
+    )?;
+    let mut lines = HashMap::new();
+    table.rows(|row| {
+        let category = row.uint(2)?;
+        if matches!(
+            category,
+            SKILL_CATEGORY_PROFESSION | SKILL_CATEGORY_SECONDARY
+        ) {
+            lines.insert(
+                row.uint(0)?,
+                SkillLineInfo {
+                    name: row.text(1)?.to_string(),
+                    category,
+                    parent: row.uint(3)?,
+                    parent_tier_index: row.small(4)?,
+                    icon_fdid: row.uint(5)?,
+                    spell_book_spell: row.uint(6)?,
+                },
+            );
+        }
+        Ok(())
+    })?;
+    Ok(lines)
+}
+
+fn load_recipes(
+    dir: &Path,
+    lines: &HashMap<u32, SkillLineInfo>,
+) -> Result<HashMap<u32, RecipeInfo>, String> {
+    let table = Table::open(
+        dir,
+        "SkillLineAbility",
+        &[
+            "Spell",
+            "SkillLine",
+            "SkillupSkillLineID",
+            "TradeSkillCategoryID",
+            "TrivialSkillLineRankLow",
+            "TrivialSkillLineRankHigh",
+            "NumSkillUps",
+        ],
+    )?;
+    let mut recipes = HashMap::new();
+    table.rows(|row| {
+        let (skill_line, skillup_line) = (row.uint(1)?, row.uint(2)?);
+        if skillup_line == 0 || !lines.contains_key(&skill_line) {
+            return Ok(());
+        }
+        recipes.entry(row.uint(0)?).or_insert(RecipeInfo {
+            spell_id: row.uint(0)?,
+            skill_line,
+            skillup_line,
+            category: row.uint(3)?,
+            trivial_low: row.small(4)?,
+            trivial_high: row.small(5)?,
+            num_skill_ups: row.small(6)?,
+            ..Default::default()
+        });
+        Ok(())
+    })?;
+    Ok(recipes)
+}
+
+fn fill_spell_names(dir: &Path, recipes: &mut HashMap<u32, RecipeInfo>) -> Result<(), String> {
+    Table::open(dir, "SpellName", &["ID", "Name_lang"])?.rows(|row| {
+        if let Some(recipe) = recipes.get_mut(&row.uint(0)?) {
+            recipe.name = row.text(1)?.to_string();
+        }
+        Ok(())
+    })
+}
+
+fn fill_spell_icons(dir: &Path, recipes: &mut HashMap<u32, RecipeInfo>) -> Result<(), String> {
+    Table::open(
+        dir,
+        "SpellMisc",
+        &["SpellID", "DifficultyID", "SpellIconFileDataID"],
+    )?
+    .rows(|row| {
+        if row.uint(1)? == 0
+            && let Some(recipe) = recipes.get_mut(&row.uint(0)?)
+        {
+            recipe.icon_fdid = row.uint(2)?;
+        }
+        Ok(())
+    })
+}
+
+fn fill_reagents(dir: &Path, recipes: &mut HashMap<u32, RecipeInfo>) -> Result<(), String> {
+    let mut columns = vec!["SpellID".to_string()];
+    columns.extend((0..8).map(|i| format!("Reagent_{i}")));
+    columns.extend((0..8).map(|i| format!("ReagentCount_{i}")));
+    let columns: Vec<&str> = columns.iter().map(String::as_str).collect();
+    Table::open(dir, "SpellReagents", &columns)?.rows(|row| {
+        let Some(recipe) = recipes.get_mut(&row.uint(0)?) else {
+            return Ok(());
+        };
+        for slot in 0..8 {
+            let (item, count) = (row.num(1 + slot)?, row.num(9 + slot)?);
+            if item > 0 && count > 0 {
+                recipe.reagents.push(Reagent {
+                    item_id: item as u32,
+                    count: count as u32,
+                });
+            }
+        }
+        Ok(())
+    })
+}
+
+fn fill_outputs(
+    dir: &Path,
+    recipes: &mut HashMap<u32, RecipeInfo>,
+    spells: &HashSet<u32>,
+) -> Result<(), String> {
+    Table::open(
+        dir,
+        "SpellEffect",
+        &[
+            "SpellID",
+            "DifficultyID",
+            "Effect",
+            "EffectItemType",
+            "EffectBasePointsF",
+        ],
+    )?
+    .rows(|row| {
+        let spell = row.uint(0)?;
+        if !spells.contains(&spell) || row.uint(1)? != 0 || row.uint(2)? != EFFECT_CREATE_ITEM {
+            return Ok(());
+        }
+        let item = row.uint(3)?;
+        if let Some(recipe) = recipes.get_mut(&spell)
+            && item != 0
+            && recipe.output.is_none()
+        {
+            recipe.output = Some((item, row.num(4)?.max(1) as u32));
+        }
+        Ok(())
+    })
+}
+
+fn load_categories(dir: &Path) -> Result<HashMap<u32, CategoryInfo>, String> {
+    let mut categories = HashMap::new();
+    Table::open(
+        dir,
+        "TradeSkillCategory",
+        &[
+            "ID",
+            "Name_lang",
+            "ParentTradeSkillCategoryID",
+            "OrderIndex",
+        ],
+    )?
+    .rows(|row| {
+        categories.insert(
+            row.uint(0)?,
+            CategoryInfo {
+                name: row.text(1)?.to_string(),
+                parent: row.uint(2)?,
+                order_index: row.num(3)? as i32,
+            },
+        );
+        Ok(())
+    })?;
+    Ok(categories)
+}
+
+fn load_items(dir: &Path, wanted: &HashSet<u32>) -> Result<HashMap<u32, ItemInfo>, String> {
+    let mut items = HashMap::new();
+    Table::open(
+        dir,
+        "ItemSparse",
+        &["ID", "Display_lang", "OverallQualityID"],
+    )?
+    .rows(|row| {
+        let id = row.uint(0)?;
+        if wanted.contains(&id) {
+            items.insert(
+                id,
+                ItemInfo {
+                    name: row.text(1)?.to_string(),
+                    quality: row.num(2)?.clamp(0, 8) as u8,
+                },
+            );
+        }
+        Ok(())
+    })?;
+    Ok(items)
+}
+
+/// Path of the pinned CSV directory under `data_dir`.
+pub fn db2_dir(data_dir: &Path) -> PathBuf {
+    data_dir.join("db2").join(SPELL_DB2_BUILD)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn reagent(name: &str, required: u32, have: u32) -> ReagentRequirement {
-        ReagentRequirement {
-            item_name: name.into(),
-            icon_fdid: 0,
-            required,
-            have,
-        }
-    }
-
-    fn recipe(
-        name: &str,
-        skill: u32,
-        learned: bool,
-        reagents: Vec<ReagentRequirement>,
-    ) -> RecipeDef {
-        RecipeDef {
-            id: 1,
-            name: name.into(),
-            profession: "Alchemy".into(),
-            skill_required: skill,
-            reagents,
-            learned,
-        }
-    }
-
-    #[test]
-    fn reagent_satisfied() {
-        assert!(reagent("Herb", 2, 5).is_satisfied());
-        assert!(!reagent("Herb", 5, 2).is_satisfied());
-    }
-
-    #[test]
-    fn can_craft_checks() {
-        let r = recipe("Potion", 50, true, vec![reagent("Herb", 2, 5)]);
-        assert!(r.can_craft(100));
-        assert!(!r.can_craft(30));
-        let unlearned = recipe("Potion", 50, false, vec![]);
-        assert!(!unlearned.can_craft(100));
-    }
-
-    #[test]
-    fn learned_and_craftable_counts() {
-        let state = ProfessionsState {
-            recipes: vec![
-                recipe("A", 10, true, vec![reagent("X", 1, 1)]),
-                recipe("B", 10, true, vec![reagent("X", 5, 1)]),
-                recipe("C", 10, false, vec![]),
-            ],
-            skill_level: 100,
-            skill_max: 300,
-            craft_queue: vec![],
-        };
-        assert_eq!(state.learned_count(), 2);
-        assert_eq!(state.craftable_count(), 1);
-    }
-
-    #[test]
-    fn skill_text_format() {
-        let state = ProfessionsState {
-            skill_level: 150,
-            skill_max: 300,
-            ..Default::default()
-        };
-        assert_eq!(state.skill_text(), "150/300");
-    }
-
-    #[test]
-    fn craft_queue() {
-        let mut state = ProfessionsState::default();
-        assert!(!state.is_crafting());
-        state.craft_queue.push(1);
-        assert!(state.is_crafting());
-    }
-
-    #[test]
-    fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::ICON_ALCHEMY, 0);
-        assert_ne!(textures::ICON_BLACKSMITHING, 0);
-        assert_ne!(textures::BOOK_LEFT, 0);
-        assert_ne!(textures::PROGRESS_FILL, 0);
-    }
-
-    // --- Recipe filtering ---
-
-    fn make_state() -> ProfessionsState {
-        ProfessionsState {
-            recipes: vec![
-                recipe(
-                    "Minor Healing Potion",
-                    1,
-                    true,
-                    vec![reagent("Peacebloom", 1, 5), reagent("Silverleaf", 1, 3)],
-                ),
-                recipe("Healing Potion", 55, true, vec![reagent("Liferoot", 1, 0)]),
-                recipe(
-                    "Greater Healing Potion",
-                    155,
-                    true,
-                    vec![reagent("Sungrass", 1, 2)],
-                ),
-                recipe("Flask of Titans", 300, false, vec![]),
-            ],
-            skill_level: 200,
-            skill_max: 300,
-            craft_queue: vec![],
-        }
-    }
-
-    #[test]
-    fn filter_by_name_finds_matches() {
-        let state = make_state();
-        let results = state.filter_by_name("healing");
-        assert_eq!(results.len(), 3);
-    }
-
-    #[test]
-    fn filter_by_name_case_insensitive() {
-        let state = make_state();
-        let results = state.filter_by_name("FLASK");
-        assert_eq!(results.len(), 1);
-        assert_eq!(results[0].name, "Flask of Titans");
-    }
-
-    #[test]
-    fn filter_by_name_no_match() {
-        let state = make_state();
-        assert!(state.filter_by_name("Elixir").is_empty());
-    }
-
-    #[test]
-    fn craftable_recipes_filters_correctly() {
-        let state = make_state();
-        let craftable = state.craftable_recipes();
-        // Minor Healing: learned, skill 1 <= 200, reagents satisfied → YES
-        // Healing: learned, skill 55 <= 200, but Liferoot 0/1 → NO
-        // Greater Healing: learned, skill 155 <= 200, reagents satisfied → YES
-        // Flask: not learned → NO
-        assert_eq!(craftable.len(), 2);
-        assert_eq!(craftable[0].name, "Minor Healing Potion");
-        assert_eq!(craftable[1].name, "Greater Healing Potion");
-    }
-
-    // --- Reagent availability ---
-
-    #[test]
-    fn reagent_exact_match() {
-        assert!(reagent("X", 5, 5).is_satisfied());
-    }
-
-    #[test]
-    fn reagent_zero_required() {
-        assert!(reagent("X", 0, 0).is_satisfied());
-    }
-
-    #[test]
-    fn multiple_reagents_all_must_satisfy() {
-        let r = recipe(
-            "Complex",
-            1,
-            true,
-            vec![
-                reagent("A", 2, 5),
-                reagent("B", 3, 3),
-                reagent("C", 1, 0), // not satisfied
-            ],
-        );
-        assert!(!r.can_craft(100));
-    }
-
-    #[test]
-    fn can_craft_at_exact_skill_level() {
-        let r = recipe("Exact", 100, true, vec![reagent("A", 1, 1)]);
-        assert!(r.can_craft(100));
-        assert!(!r.can_craft(99));
-    }
-
-    #[test]
-    fn craftable_count_matches_filter() {
-        let state = make_state();
-        assert_eq!(state.craftable_count(), state.craftable_recipes().len());
-    }
-}
+#[path = "professions_data_tests.rs"]
+mod tests;

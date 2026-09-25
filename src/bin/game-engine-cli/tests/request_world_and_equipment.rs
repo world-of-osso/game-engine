@@ -193,16 +193,15 @@ fn profession_status_command_maps_to_request() {
 #[test]
 fn profession_craft_command_maps_to_request() {
     assert_eq!(
-        profession_request(ProfessionCmd::Craft { recipe_id: 5001 }).unwrap(),
-        Request::ProfessionCraft { recipe_id: 5001 }
-    );
-}
-
-#[test]
-fn profession_gather_command_maps_to_request() {
-    assert_eq!(
-        profession_request(ProfessionCmd::Gather { node_id: 1 }).unwrap(),
-        Request::ProfessionGather { node_id: 1 }
+        profession_request(ProfessionCmd::Craft {
+            recipe_id: 2963,
+            casts: 2
+        })
+        .unwrap(),
+        Request::ProfessionCraft {
+            recipe_id: 2963,
+            casts: 2
+        }
     );
 }
 
