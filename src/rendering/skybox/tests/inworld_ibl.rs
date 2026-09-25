@@ -193,6 +193,10 @@ fn lighting_app() -> App {
             light_row(2880.0, Color::linear_rgb(0.5, 0.6, 0.7)),
         ],
     ));
+    app.insert_resource(crate::retail_light::RetailSceneLight::from_sky_colors(
+        &default_sky_colors(),
+        0.0,
+    ));
     app.insert_resource(Assets::<Image>::default());
     app.insert_resource(Assets::<SkyMaterial>::default());
     app.insert_resource(Assets::<crate::water_material::WaterMaterial>::default());
@@ -280,6 +284,7 @@ fn light_row(time: f32, tint: Color) -> LightDataRow {
         river_close_color: tint,
         river_far_color: tint,
         horizon_ambient_color: tint,
+        ground_ambient_color: tint,
         fog_end: 1200.0,
         fog_start: 300.0,
         glow: 1.0,

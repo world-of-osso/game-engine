@@ -31,6 +31,7 @@ pub struct LightDataRow {
     pub river_close_color: Color,
     pub river_far_color: Color,
     pub horizon_ambient_color: Color,
+    pub ground_ambient_color: Color,
     pub fog_end: f32,
     pub fog_start: f32,
     pub glow: f32,
@@ -77,6 +78,8 @@ struct LightDataSerializedRow {
     #[serde(default)]
     horizon_ambient_color: u32,
     #[serde(default)]
+    ground_ambient_color: u32,
+    #[serde(default)]
     fog_end: f32,
     #[serde(default)]
     fog_start: f32,
@@ -118,6 +121,7 @@ pub struct SkyColorSet {
     pub river_close_color: Color,
     pub river_far_color: Color,
     pub horizon_ambient_color: Color,
+    pub ground_ambient_color: Color,
     /// World fog end and start in yards.
     pub fog_end: f32,
     pub fog_start: f32,
@@ -152,6 +156,7 @@ fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
         river_close_color: decode_light_color(row.river_close_color),
         river_far_color: decode_light_color(row.river_far_color),
         horizon_ambient_color: decode_light_color(row.horizon_ambient_color),
+        ground_ambient_color: decode_light_color(row.ground_ambient_color),
         fog_end: row.fog_end,
         fog_start: row.fog_start,
         glow: row.glow,
@@ -177,13 +182,14 @@ fn load_light_data_ron(path: &str, param_id: u32) -> Result<Vec<LightDataRow>, S
 }
 
 /// Resolve CSV column indices for legacy LightData.csv fallback.
-fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 26] {
+fn resolve_csv_fallback_column_indices(header: &str) -> [usize; 27] {
     let cols: Vec<&str> = header.split(',').collect();
     let idx =
         |name: &str, fallback: usize| cols.iter().position(|c| *c == name).unwrap_or(fallback);
-    let mut indices = [0usize; 26];
+    let mut indices = [0usize; 27];
     indices[..20].copy_from_slice(&resolve_csv_fallback_color_column_indices(&idx));
-    indices[20..].copy_from_slice(&resolve_csv_fallback_fog_and_aux_column_indices(&idx));
+    indices[20..26].copy_from_slice(&resolve_csv_fallback_fog_and_aux_column_indices(&idx));
+    indices[26] = idx("GroundAmbientColor", 35);
     indices
 }
 
@@ -227,7 +233,7 @@ fn resolve_csv_fallback_fog_and_aux_column_indices(
 
 fn parse_csv_fallback_light_row(
     line: &str,
-    ci: &[usize; 26],
+    ci: &[usize; 27],
     param_id: u32,
 ) -> Option<LightDataRow> {
     let fields: Vec<&str> = line.split(',').collect();
@@ -268,6 +274,7 @@ fn parse_csv_fallback_color_row(p: &impl Fn(usize) -> u32) -> LightDataRow {
         river_close_color: decode_light_color(p(17)),
         river_far_color: decode_light_color(p(18)),
         horizon_ambient_color: decode_light_color(p(19)),
+        ground_ambient_color: decode_light_color(p(26)),
         fog_end: 0.0,
         fog_start: 0.0,
         glow: 0.0,
@@ -308,6 +315,7 @@ fn rows_have_extended_color_data(rows: &[LightDataRow]) -> bool {
             || row.river_close_color.to_srgba() != Color::BLACK.to_srgba()
             || row.river_far_color.to_srgba() != Color::BLACK.to_srgba()
             || row.horizon_ambient_color.to_srgba() != Color::BLACK.to_srgba()
+            || row.ground_ambient_color.to_srgba() != Color::BLACK.to_srgba()
     })
 }
 
@@ -376,6 +384,7 @@ pub fn default_sky_colors() -> SkyColorSet {
         river_close_color: Color::linear_rgb(0.08, 0.16, 0.22),
         river_far_color: Color::linear_rgb(0.04, 0.08, 0.14),
         horizon_ambient_color: Color::linear_rgb(0.2, 0.25, 0.3),
+        ground_ambient_color: Color::linear_rgb(0.2, 0.25, 0.3),
         fog_end: 500.0,
         fog_start: 125.0,
         glow: 1.0,
@@ -409,6 +418,7 @@ fn row_colors(row: &LightDataRow) -> SkyColorSet {
         river_close_color: row.river_close_color,
         river_far_color: row.river_far_color,
         horizon_ambient_color: row.horizon_ambient_color,
+        ground_ambient_color: row.ground_ambient_color,
         fog_end: row.fog_end / LIGHT_DATA_FOG_UNITS_PER_YARD,
         fog_start: row.fog_start / LIGHT_DATA_FOG_UNITS_PER_YARD,
         glow: row.glow,
@@ -447,6 +457,7 @@ pub fn lerp_color_sets(a: &SkyColorSet, b: &SkyColorSet, t: f32) -> SkyColorSet 
         river_close_color: lerp_color(a.river_close_color, b.river_close_color, t),
         river_far_color: lerp_color(a.river_far_color, b.river_far_color, t),
         horizon_ambient_color: lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t),
+        ground_ambient_color: lerp_color(a.ground_ambient_color, b.ground_ambient_color, t),
         fog_end: lerp_scalar(a.fog_end, b.fog_end, t),
         fog_start: lerp_scalar(a.fog_start, b.fog_start, t),
         glow: lerp_scalar(a.glow, b.glow, t),
@@ -587,6 +598,7 @@ mod tests {
                 river_close_color: Color::BLACK,
                 river_far_color: Color::BLACK,
                 horizon_ambient_color: Color::BLACK,
+                ground_ambient_color: Color::BLACK,
                 fog_end: 1000.0,
                 fog_start: 100.0,
                 glow: 0.0,
@@ -614,6 +626,7 @@ mod tests {
                 river_close_color: Color::WHITE,
                 river_far_color: Color::WHITE,
                 horizon_ambient_color: Color::WHITE,
+                ground_ambient_color: Color::WHITE,
                 fog_end: 2000.0,
                 fog_start: 200.0,
                 glow: 1.0,
@@ -656,6 +669,7 @@ mod tests {
                 river_close_color: Color::BLACK,
                 river_far_color: Color::BLACK,
                 horizon_ambient_color: Color::BLACK,
+                ground_ambient_color: Color::BLACK,
                 fog_end: 0.0,
                 fog_start: 0.0,
                 glow: 0.0,
@@ -683,6 +697,7 @@ mod tests {
                 river_close_color: Color::WHITE,
                 river_far_color: Color::WHITE,
                 horizon_ambient_color: Color::WHITE,
+                ground_ambient_color: Color::WHITE,
                 fog_end: 0.0,
                 fog_start: 0.0,
                 glow: 0.0,
@@ -737,6 +752,7 @@ mod tests {
             river_close_color: colors.river_close_color,
             river_far_color: colors.river_far_color,
             horizon_ambient_color: colors.horizon_ambient_color,
+            ground_ambient_color: colors.ground_ambient_color,
             fog_end,
             fog_start: 0.0,
             glow: 0.0,
@@ -750,9 +766,18 @@ mod tests {
     fn light_blend_overlays_each_local_on_the_result_so_far() {
         use crate::light_lookup::WeightedLightParams;
         let rows = HashMap::from([
-            (12, vec![constant_row(Color::linear_rgb(0.0, 0.0, 0.0), 3600.0)]),
-            (30, vec![constant_row(Color::linear_rgb(1.0, 1.0, 1.0), 7200.0)]),
-            (31, vec![constant_row(Color::linear_rgb(0.0, 0.0, 1.0), 0.0)]),
+            (
+                12,
+                vec![constant_row(Color::linear_rgb(0.0, 0.0, 0.0), 3600.0)],
+            ),
+            (
+                30,
+                vec![constant_row(Color::linear_rgb(1.0, 1.0, 1.0), 7200.0)],
+            ),
+            (
+                31,
+                vec![constant_row(Color::linear_rgb(0.0, 0.0, 1.0), 0.0)],
+            ),
         ]);
         let weighted = |light_params_id, weight| WeightedLightParams {
             light_params_id,

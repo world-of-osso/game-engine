@@ -16,6 +16,8 @@ pub(crate) mod db2_path;
 pub mod image_sampler;
 #[path = "lighting/light_lookup.rs"]
 pub mod light_lookup;
+#[path = "lighting/retail_light.rs"]
+pub mod retail_light;
 #[path = "lighting/shadow_config.rs"]
 pub mod shadow_config;
 

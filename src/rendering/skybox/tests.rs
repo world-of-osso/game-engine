@@ -144,6 +144,7 @@ fn elapsed_cloud_regeneration_preserves_active_texture_while_scroll_advances() {
             river_close_color: Color::WHITE,
             river_far_color: Color::WHITE,
             horizon_ambient_color: Color::WHITE,
+            ground_ambient_color: Color::WHITE,
             fog_end: 1200.0,
             fog_start: 300.0,
             glow: 1.0,
@@ -151,6 +152,10 @@ fn elapsed_cloud_regeneration_preserves_active_texture_while_scroll_advances() {
             unk1: 0.0,
             unk2: 0.0,
         }],
+    ));
+    app.insert_resource(RetailSceneLight::from_sky_colors(
+        &default_sky_colors(),
+        0.0,
     ));
     app.insert_resource(Assets::<Image>::default());
     app.insert_resource(Assets::<SkyMaterial>::default());
@@ -273,6 +278,7 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
             river_close_color: Color::WHITE,
             river_far_color: Color::WHITE,
             horizon_ambient_color: Color::WHITE,
+            ground_ambient_color: Color::WHITE,
             fog_end: 1200.0,
             fog_start: 300.0,
             glow: 1.0,
@@ -308,7 +314,11 @@ fn char_select_fog_is_not_overwritten_by_sky_updates() {
             },
         })
         .id();
-    app.add_systems(Update, update_fog);
+    app.insert_resource(RetailSceneLight::from_sky_colors(
+        &default_sky_colors(),
+        0.0,
+    ));
+    app.add_systems(Update, update_scene_light);
 
     app.update();
 
@@ -374,6 +384,7 @@ fn weather_change_updates_world_fog_without_time_advance() {
             river_close_color: Color::WHITE,
             river_far_color: Color::WHITE,
             horizon_ambient_color: Color::WHITE,
+            ground_ambient_color: Color::WHITE,
             fog_end: 1200.0,
             fog_start: 300.0,
             glow: 1.0,
@@ -394,7 +405,11 @@ fn weather_change_updates_world_fog_without_time_advance() {
             },
         })
         .id();
-    app.add_systems(Update, update_fog);
+    app.insert_resource(RetailSceneLight::from_sky_colors(
+        &default_sky_colors(),
+        0.0,
+    ));
+    app.add_systems(Update, update_scene_light);
 
     app.update();
     let clear_fog = app
@@ -405,6 +420,16 @@ fn weather_change_updates_world_fog_without_time_advance() {
         .clone();
     assert_eq!(clear_fog.color.to_srgba(), sky_fog.to_srgba());
     assert_eq!(clear_fog.directional_light_color, Color::NONE);
+    // The Retail scene light carries the same fog the camera received.
+    let scene_light = app.world().resource::<RetailSceneLight>().clone();
+    let fog_srgb = sky_fog.to_srgba();
+    assert!(
+        scene_light
+            .fog_color
+            .abs_diff_eq(Vec3::new(fog_srgb.red, fog_srgb.green, fog_srgb.blue), 1e-5)
+    );
+    assert!((scene_light.fog_start - 300.0 / 36.0).abs() < 1e-3);
+    assert!((scene_light.fog_end - 1200.0 / 36.0).abs() < 1e-3);
 
     app.insert_resource(crate::weather::ActiveWeather::preset(
         crate::weather::WeatherKind::Sandstorm,
