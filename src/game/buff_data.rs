@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use shared::components::AuraView;
 
-use crate::spell_catalog::SpellCatalog;
+use crate::spell_catalog::{SpellCatalog, SpellTextContext};
 
 /// Debuff dispel type, determines border color.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -156,11 +156,12 @@ pub fn aura_instances(
     views: &[AuraView],
     catalog: &SpellCatalog,
     casters: &AuraCasterLookup,
+    text_ctx: &SpellTextContext,
 ) -> Vec<AuraInstance> {
     let mut auras: Vec<AuraInstance> = views
         .iter()
         .filter(|view| view.flags & (AuraView::FLAG_HIDDEN | AuraView::FLAG_PASSIVE) == 0)
-        .map(|view| aura_instance(view, catalog, casters))
+        .map(|view| aura_instance(view, catalog, casters, text_ctx))
         .collect();
     auras.sort_by_key(|aura| (aura.is_debuff, !aura.from_local_player || !aura.is_debuff));
     auras
@@ -170,6 +171,7 @@ fn aura_instance(
     view: &AuraView,
     catalog: &SpellCatalog,
     casters: &AuraCasterLookup,
+    text_ctx: &SpellTextContext,
 ) -> AuraInstance {
     let spell = catalog.get(view.spell_id);
     AuraInstance {
@@ -179,7 +181,7 @@ fn aura_instance(
             .map(|spell| spell.name.to_string())
             .unwrap_or_default(),
         description: catalog
-            .render_aura_description(view.spell_id)
+            .render_aura_description(view.spell_id, text_ctx)
             .unwrap_or_default(),
         icon_fdid: spell.map_or(0, |spell| spell.icon_fdid),
         source: view
@@ -264,7 +266,7 @@ mod tests {
             local_player: Some(LOCAL),
             name_of: &lookup,
         };
-        aura_instances(views, &catalog(), &casters)
+        aura_instances(views, &catalog(), &casters, &SpellTextContext::default())
     }
 
     #[test]

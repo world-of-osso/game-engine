@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::input_bindings::InputAction;
-use game_engine::spell_catalog::SpellCatalog;
+use game_engine::spell_catalog::{SpellCatalog, SpellTextContext, SpellTextSources};
 use game_engine::talent::TalentState;
 use game_engine::talent_tree::rules::ConfigEntry;
 use game_engine::talent_tree::session::{TalentSession, commit_entries};
@@ -78,6 +78,7 @@ struct TalentInputs<'a> {
     trees: &'a TalentTrees,
     state: &'a TalentState,
     catalog: &'a SpellCatalog,
+    text_ctx: &'a SpellTextContext,
     level: Option<u8>,
 }
 
@@ -93,6 +94,7 @@ fn build_talent_frame_ui(
     trees: Res<TalentTrees>,
     state: Res<TalentState>,
     catalog: Res<SpellCatalog>,
+    text: SpellTextSources,
     levels: Query<&UnitLevel, With<LocalPlayer>>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
@@ -101,6 +103,7 @@ fn build_talent_frame_ui(
         trees: &trees,
         state: &state,
         catalog: &catalog,
+        text_ctx: &text.context(),
         level: local_level(&levels),
     });
     let mut shared = SharedContext::new();
@@ -144,6 +147,7 @@ fn sync_talent_frame_state(
     trees: Res<TalentTrees>,
     state: Res<TalentState>,
     catalog: Res<SpellCatalog>,
+    text: SpellTextSources,
     levels: Query<&UnitLevel, With<LocalPlayer>>,
     level_changes: Query<(), (With<LocalPlayer>, Changed<UnitLevel>)>,
 ) {
@@ -154,6 +158,7 @@ fn sync_talent_frame_state(
         || trees.is_changed()
         || state.is_changed()
         || catalog.is_changed()
+        || text.is_changed()
         || !level_changes.is_empty();
     if !inputs_changed {
         return;
@@ -163,6 +168,7 @@ fn sync_talent_frame_state(
         trees: &trees,
         state: &state,
         catalog: &catalog,
+        text_ctx: &text.context(),
         level: local_level(&levels),
     });
     if *tooltips != next_tooltips {
@@ -236,6 +242,7 @@ fn build_state(inputs: &TalentInputs) -> (TalentFrameState, TalentTooltips) {
         session: &session,
         config,
         catalog: inputs.catalog,
+        text_ctx: inputs.text_ctx,
         has_pending: inputs.state.pending.is_some(),
     });
     let body = TalentBody::Tree(view);

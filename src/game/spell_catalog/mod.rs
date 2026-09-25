@@ -8,6 +8,7 @@ mod build;
 mod cache;
 pub(crate) mod csv_records;
 mod render;
+mod render_eval;
 mod tabs;
 
 #[cfg(test)]
@@ -66,6 +67,10 @@ pub struct CatalogEffect {
     /// Raw DB value; a few rows hold negative counts.
     pub chain_targets: i32,
     pub radius_yd: f32,
+    /// Points scale with caster spell/attack power (`EffectBonusCoefficient`,
+    /// `BonusCoefficientFromAP`; see `build::DAMAGE_OR_HEAL_EFFECTS`) or level
+    /// (`ScalingClass` + `Coefficient`), so `base_points` alone is not the tooltip value.
+    pub caster_scaled: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -139,18 +144,71 @@ impl SpellCatalogData {
         Some(&self.spells[index])
     }
 
-    pub fn render_description(&self, id: u32) -> Option<String> {
+    pub fn render_description(&self, id: u32, ctx: &SpellTextContext) -> Option<String> {
         let spell = self.get(id)?;
-        Some(render::render_spell_text(&spell.description, spell, self))
+        Some(render::render_spell_text(
+            &spell.description,
+            spell,
+            self,
+            ctx,
+        ))
     }
 
-    pub fn render_aura_description(&self, id: u32) -> Option<String> {
+    pub fn render_aura_description(&self, id: u32, ctx: &SpellTextContext) -> Option<String> {
         let spell = self.get(id)?;
         Some(render::render_spell_text(
             &spell.aura_description,
             spell,
             self,
+            ctx,
         ))
+    }
+}
+
+/// The viewing player's state that description `$?` conditions test.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SpellTextContext {
+    pub known_spells: Vec<u32>,
+    /// Spell ids of the auras on the player.
+    pub auras: Vec<u32>,
+    /// Active `ChrSpecialization` id.
+    pub spec_id: Option<u32>,
+}
+
+impl SpellTextContext {
+    pub fn for_player(
+        known: Option<&crate::player_spells::KnownSpells>,
+        spec: Option<&crate::player_spells::ActiveSpecialization>,
+        auras: Vec<u32>,
+    ) -> Self {
+        Self {
+            known_spells: known.map_or_else(Vec::new, |known| known.spells().to_vec()),
+            auras,
+            spec_id: spec.and_then(|spec| spec.0),
+        }
+    }
+}
+
+/// Local player state for [`SpellTextContext`].
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct SpellTextSources<'w> {
+    known: Option<Res<'w, crate::player_spells::KnownSpells>>,
+    auras: Option<Res<'w, crate::buff_data::AuraState>>,
+    spec: Option<Res<'w, crate::player_spells::ActiveSpecialization>>,
+}
+
+impl SpellTextSources<'_> {
+    pub fn is_changed(&self) -> bool {
+        self.known.as_ref().is_some_and(|res| res.is_changed())
+            || self.auras.as_ref().is_some_and(|res| res.is_changed())
+            || self.spec.as_ref().is_some_and(|res| res.is_changed())
+    }
+
+    pub fn context(&self) -> SpellTextContext {
+        let auras = self.auras.as_ref().map_or_else(Vec::new, |state| {
+            state.auras.iter().map(|aura| aura.spell_id).collect()
+        });
+        SpellTextContext::for_player(self.known.as_deref(), self.spec.as_deref(), auras)
     }
 }
 
@@ -189,12 +247,12 @@ impl SpellCatalog {
         self.data()?.get(id)
     }
 
-    pub fn render_description(&self, id: u32) -> Option<String> {
-        self.data()?.render_description(id)
+    pub fn render_description(&self, id: u32, ctx: &SpellTextContext) -> Option<String> {
+        self.data()?.render_description(id, ctx)
     }
 
-    pub fn render_aura_description(&self, id: u32) -> Option<String> {
-        self.data()?.render_aura_description(id)
+    pub fn render_aura_description(&self, id: u32, ctx: &SpellTextContext) -> Option<String> {
+        self.data()?.render_aura_description(id, ctx)
     }
 }
 

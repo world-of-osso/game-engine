@@ -29,6 +29,13 @@ pub(super) const SOURCE_TABLES: &[&str] = &[
 
 type SpellMap = HashMap<u32, CatalogSpell>;
 
+/// `SpellEffect.Effect` SCHOOL_DAMAGE and HEAL, and `EffectAura` PERIODIC_DAMAGE and
+/// PERIODIC_HEAL: their points always add the power coefficient term. Other effects
+/// (e.g. Bloodlust's haste, 30 points with a 0.25 coefficient) count as scaled only
+/// when their stored points are 0.
+const DAMAGE_OR_HEAL_EFFECTS: [u16; 2] = [2, 10];
+const DAMAGE_OR_HEAL_AURAS: [u16; 2] = [3, 8];
+
 /// `SpellMisc.Attributes_0` bit of passive spells.
 const SPELL_ATTR0_PASSIVE: i64 = 0x40;
 
@@ -205,6 +212,10 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         "EffectChainTargets",
         "EffectRadiusIndex_0",
         "EffectRadiusIndex_1",
+        "EffectBonusCoefficient",
+        "BonusCoefficientFromAP",
+        "ScalingClass",
+        "Coefficient",
     ];
     let mut effects: HashMap<u32, Vec<CatalogEffect>> = HashMap::new();
     for_each_row(dir, "SpellEffect", &columns, |row| {
@@ -217,14 +228,21 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         } else {
             radius(row.get(9)?)
         };
+        let base_points: f32 = row.get(5)?;
+        let has_power_coefficient = row.get::<f32>(10)? != 0.0 || row.get::<f32>(11)? != 0.0;
+        let damage_or_heal = DAMAGE_OR_HEAL_EFFECTS.contains(&row.get(3)?)
+            || DAMAGE_OR_HEAL_AURAS.contains(&row.get(4)?);
+        let spell_power_scaled = has_power_coefficient && (damage_or_heal || base_points == 0.0);
+        let level_scaled = row.get::<i32>(12)? != 0 && row.get::<f32>(13)? != 0.0;
         effects.entry(row.get(0)?).or_default().push(CatalogEffect {
             index: row.get(2)?,
             effect: row.get(3)?,
             aura: row.get(4)?,
-            base_points: row.get(5)?,
+            base_points,
             aura_period_ms: row.get(6)?,
             chain_targets: row.get(7)?,
             radius_yd,
+            caster_scaled: spell_power_scaled || level_scaled,
         });
         Ok(())
     })?;
