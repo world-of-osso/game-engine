@@ -58,6 +58,27 @@ pub enum LootRequest {
     Release,
 }
 
+/// What a right-click on an NPC does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NpcRightClick {
+    /// A corpse with loot for the player opens it.
+    Loot { auto: bool },
+    /// Any other corpse is only targeted.
+    Target,
+    /// A living NPC is interacted with (gossip, vendor, ...).
+    Interact,
+}
+
+pub fn npc_right_click(dead: bool, lootable: bool, auto: bool) -> NpcRightClick {
+    if lootable {
+        NpcRightClick::Loot { auto }
+    } else if dead {
+        NpcRightClick::Target
+    } else {
+        NpcRightClick::Interact
+    }
+}
+
 /// Retail `AUTOLOOTTOGGLE` (default Shift) inverts `autoLootDefault`.
 pub fn auto_loot(auto_loot_default: bool, toggle_held: bool) -> bool {
     auto_loot_default != toggle_held
@@ -150,6 +171,19 @@ mod tests {
         assert!(state.is_open());
         state.close(42);
         assert_eq!(state, LootState::default());
+    }
+
+    #[test]
+    fn right_clicks_loot_corpses_with_loot_and_leave_empty_ones_targeted() {
+        assert_eq!(
+            npc_right_click(true, true, true),
+            NpcRightClick::Loot { auto: true }
+        );
+        assert_eq!(npc_right_click(true, false, false), NpcRightClick::Target);
+        assert_eq!(
+            npc_right_click(false, false, false),
+            NpcRightClick::Interact
+        );
     }
 
     #[test]

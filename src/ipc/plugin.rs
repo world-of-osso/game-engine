@@ -318,7 +318,19 @@ struct IpcSenderParams<'w, 's> {
     game_state: Res<'w, State<crate::game_state_enum::GameState>>,
     connected_query: Query<'w, 's, Entity, With<Connected>>,
     npc_interactions: MessageWriter<'w, game_engine::quest_runtime::NpcInteractionRequest>,
-    npcs: Query<'w, 's, (Entity, &'static shared::components::Npc)>,
+    loot_requests: MessageWriter<'w, crate::loot_state::LootRequest>,
+    current_target: ResMut<'w, CurrentTarget>,
+    npcs: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static shared::components::Npc,
+            &'static GlobalTransform,
+            Option<&'static shared::components::Health>,
+            Has<crate::loot_state::Lootable>,
+        ),
+    >,
     game_objects: Query<
         'w,
         's,
@@ -336,6 +348,7 @@ impl Plugin for IpcPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EquipmentControlQueue>()
             .add_message::<game_engine::quest_runtime::NpcInteractionRequest>()
+            .add_message::<crate::loot_state::LootRequest>()
             .init_resource::<ScriptedMovement>()
             .init_resource::<PendingIpcCommands>()
             .configure_sets(
@@ -389,11 +402,11 @@ fn dispatch_ipc_commands(
     mut scene: SceneParams,
     mut world: WorldParams,
     mut snapshots: StatusSnapshotParams,
-    current_target: Res<CurrentTarget>,
     mut sender_params: IpcSenderParams,
 ) {
     let connected = !sender_params.connected_query.is_empty();
     for command in pending.take_commands() {
+        let current_target = CurrentTarget(sender_params.current_target.0);
         let ctx = build_dispatch_context(&mut snapshots, &current_target, connected);
         dispatch(command, &mut scene, &mut world, ctx, &mut sender_params);
     }
@@ -701,18 +714,31 @@ fn dispatch_map_and_equipment_request(
     }
 }
 
-/// Queues the right-click interaction for the NPC named `name`; the server checks range.
+/// A right-click on the nearest NPC named `name`: it becomes the target and is
+/// looted, only targeted (a corpse without loot) or interacted with, as
+/// `loot_state::npc_right_click` decides (auto-loot off). The server checks range.
 fn handle_quest_interact(
     respond: mpsc::Sender<Response>,
     params: &mut IpcSenderParams,
     name: &str,
     player: Vec2,
 ) {
+    use crate::loot_state::{LootRequest, NpcRightClick, npc_right_click};
     use game_engine::quest_runtime::NpcInteractionRequest;
+    let distance = |t: &GlobalTransform| t.translation().xz().distance_squared(player);
     let npc = params
         .npcs
         .iter()
-        .find(|(_, npc)| npc.name.eq_ignore_ascii_case(name));
+        .filter(|(_, npc, ..)| npc.name.eq_ignore_ascii_case(name))
+        .min_by(|a, b| distance(a.2).total_cmp(&distance(b.2)))
+        .map(|(entity, npc, _, health, lootable)| {
+            let dead = health.is_some_and(|health| health.current <= 0.0);
+            (
+                entity,
+                npc.name.clone(),
+                npc_right_click(dead, lootable, false),
+            )
+        });
     // A game object (Guild Vault) is used like a right-click on it; the nearest wins.
     let object = || {
         params
@@ -725,12 +751,26 @@ fn handle_quest_interact(
             })
             .map(|(entity, info, _)| (entity, info))
     };
-    let response = match (npc, npc.is_none().then(object).flatten()) {
-        (Some((entity, npc)), _) => {
-            params
-                .npc_interactions
-                .write(NpcInteractionRequest::Interact(entity));
-            Response::Text(format!("interact {}", npc.name))
+    let object = if npc.is_none() { object() } else { None };
+    let response = match (npc, object) {
+        (Some((entity, npc, click)), _) => {
+            params.current_target.0 = Some(entity);
+            match click {
+                NpcRightClick::Loot { auto } => {
+                    params.loot_requests.write(LootRequest::Open {
+                        corpse: entity,
+                        auto,
+                    });
+                    Response::Text(format!("loot {npc}"))
+                }
+                NpcRightClick::Target => Response::Text(format!("target {npc}")),
+                NpcRightClick::Interact => {
+                    params
+                        .npc_interactions
+                        .write(NpcInteractionRequest::Interact(entity));
+                    Response::Text(format!("interact {npc}"))
+                }
+            }
         }
         (None, Some((entity, info))) => {
             let text = format!("use {}", info.name);
