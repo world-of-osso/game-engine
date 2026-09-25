@@ -10,8 +10,8 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::bank_art::{
-    CHECK_BUTTON_HILIGHT, HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, SlotItem,
-    WHITE, atlas, checkbox, cropped, edit_box, item_slot, label, money_display, money_prompt,
+    HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, SlotItem, WHITE, atlas,
+    checkbox, cropped, edit_box, item_slot, label, money_display, money_prompt, selected_marker,
     texture,
 };
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -287,12 +287,7 @@ fn side_tab(
         SideTabIcon::Atlas(art) => atlas(format!("{name}Icon"), art, (0.0, 0.0, 32.0, 32.0)),
     });
     if selected {
-        children.extend(texture(
-            format!("{name}Selected"),
-            CHECK_BUTTON_HILIGHT,
-            (0.0, 0.0, 32.0, 32.0),
-            WHITE,
-        ));
+        children.extend(selected_marker(format!("{name}Selected"), (0.0, 0.0, 32.0)));
     }
     rsx! {
         r#frame {
@@ -364,18 +359,18 @@ fn purchase_prompt(prompt: &PurchasePromptView) -> Element {
     children.extend(label(
         format!("{name}Title"),
         &prompt.title,
-        ((FRAME_W - 384.0) / 2.0, mid - 70.0, 384.0, 30.0),
+        ((FRAME_W - 384.0) / 2.0, mid - 90.0, 384.0, 30.0),
         (26.0, NORMAL_FONT_COLOR, "CENTER"),
     ));
     children.extend(label(
         format!("{name}Text"),
         &prompt.text,
-        ((FRAME_W - 300.0) / 2.0, mid - 30.0, 300.0, 60.0),
+        ((FRAME_W - 300.0) / 2.0, mid - 50.0, 300.0, 100.0),
         (16.0, HIGHLIGHT_FONT_COLOR, "CENTER"),
     ));
     // `TabCostFrame` 15 below the text: money CENTER -30, "Cost:" 10 left of it, the
     // Purchase button 12 right of it.
-    let cost_y = mid + 45.0;
+    let cost_y = mid + 70.0;
     let money_right = FRAME_W / 2.0 + 10.0;
     children.extend(label(
         format!("{name}Cost"),
@@ -562,7 +557,8 @@ fn tab_settings(flags: u32, name_prompt: &str) -> Element {
             width,
             height,
             style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
-            mouse_enabled: true,
+            strata: FrameStrata::Dialog,
+            frame_level: 200.0,
             pos_type: "absolute",
             left: {FRAME_W + 40.0},
             top: -5.0,

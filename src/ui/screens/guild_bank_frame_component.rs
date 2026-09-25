@@ -10,8 +10,8 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::bank_art::{
-    CHECK_BUTTON_HILIGHT, HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT,
-    SlotItem, WHITE, cropped, item_slot, label, money_display, money_prompt, texture,
+    HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, QUICKSLOT, SlotItem, WHITE,
+    cropped, item_slot, label, money_display, money_prompt, selected_marker, texture,
 };
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
@@ -521,12 +521,7 @@ fn side_tab(index: usize, icon: u32, selected: bool, action: &str) -> Element {
         WHITE,
     ));
     if selected {
-        children.extend(texture(
-            format!("{name}Checked"),
-            CHECK_BUTTON_HILIGHT,
-            (2.0, 8.0, 36.0, 34.0),
-            WHITE,
-        ));
+        children.extend(selected_marker(format!("{name}Checked"), (2.0, 8.0, 35.0)));
     }
     rsx! {
         r#frame {

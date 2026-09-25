@@ -125,7 +125,9 @@ impl StatusRefreshes {
             Request::MapPosition
             | Request::MapTarget
             | Request::MapWaypointAdd { .. }
-            | Request::MapWaypointClear => self.map = true,
+            | Request::MapWaypointClear
+            // The nearest game object of that name is picked by the player position.
+            | Request::QuestInteract { .. } => self.map = true,
             _ => {}
         }
     }
@@ -324,6 +326,15 @@ struct IpcSenderParams<'w, 's> {
     connected_query: Query<'w, 's, Entity, With<Connected>>,
     npc_interactions: MessageWriter<'w, game_engine::quest_runtime::NpcInteractionRequest>,
     npcs: Query<'w, 's, (Entity, &'static shared::components::Npc)>,
+    game_objects: Query<
+        'w,
+        's,
+        (
+            Entity,
+            &'static shared::protocol::GameObjectInfo,
+            &'static GlobalTransform,
+        ),
+    >,
 }
 
 pub struct IpcPlugin;
@@ -669,7 +680,10 @@ fn dispatch_map_and_equipment_request(
         Request::ScriptedMovementStop => {
             handle_scripted_movement_stop(cmd.respond, &mut sender_params.scripted_movement);
         }
-        Request::QuestInteract { npc } => handle_quest_interact(cmd.respond, sender_params, &npc),
+        Request::QuestInteract { npc } => {
+            let player = Vec2::new(ctx.map_status.player_x, ctx.map_status.player_z);
+            handle_quest_interact(cmd.respond, sender_params, &npc, player)
+        }
         Request::EquipmentSet { .. } => {
             dispatch_equipment_set_request(cmd, &mut sender_params.equipment_control);
         }
@@ -698,19 +712,40 @@ fn handle_quest_interact(
     respond: mpsc::Sender<Response>,
     params: &mut IpcSenderParams,
     name: &str,
+    player: Vec2,
 ) {
+    use game_engine::quest_runtime::NpcInteractionRequest;
     let npc = params
         .npcs
         .iter()
         .find(|(_, npc)| npc.name.eq_ignore_ascii_case(name));
-    let response = match npc {
-        Some((entity, npc)) => {
-            params.npc_interactions.write(
-                game_engine::quest_runtime::NpcInteractionRequest::Interact(entity),
-            );
+    // A game object (Guild Vault) is used like a right-click on it; the nearest wins.
+    let object = || {
+        params
+            .game_objects
+            .iter()
+            .filter(|(_, info, _)| info.name.eq_ignore_ascii_case(name))
+            .min_by(|a, b| {
+                let distance = |t: &GlobalTransform| t.translation().xz().distance_squared(player);
+                distance(a.2).total_cmp(&distance(b.2))
+            })
+            .map(|(entity, info, _)| (entity, info))
+    };
+    let response = match (npc, npc.is_none().then(object).flatten()) {
+        (Some((entity, npc)), _) => {
+            params
+                .npc_interactions
+                .write(NpcInteractionRequest::Interact(entity));
             Response::Text(format!("interact {}", npc.name))
         }
-        None => Response::Error(format!("no NPC named {name}")),
+        (None, Some((entity, info))) => {
+            let text = format!("use {}", info.name);
+            params
+                .npc_interactions
+                .write(NpcInteractionRequest::UseObject(entity));
+            Response::Text(text)
+        }
+        (None, None) => Response::Error(format!("no NPC or game object named {name}")),
     };
     let _ = respond.send(response);
 }
