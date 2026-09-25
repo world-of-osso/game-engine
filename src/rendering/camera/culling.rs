@@ -74,7 +74,16 @@ pub struct WmoGroup {
     pub group_index: u16,
     pub bbox_min: Vec3,
     pub bbox_max: Vec3,
+    /// MOGP `EXTERIOR` (0x8). Groups without it are interiors.
+    pub is_exterior: bool,
     pub is_antiportal: bool,
+}
+
+/// Render triangles of an interior WMO group in WMO-local Bevy space. Portal culling uses
+/// them to tell whether the camera stands inside the group or only inside its bounding box.
+#[derive(Component, Clone, Debug, Default, PartialEq)]
+pub struct WmoInteriorFloor {
+    pub triangles: Vec<[Vec3; 3]>,
 }
 
 /// Portal culling data stored on the WMO root entity.
@@ -256,17 +265,26 @@ fn apply_visibility(visible: bool, vis: &mut Visibility) {
 
 // ── WMO portal culling ──────────────────────────────────────────────────────
 
-/// BFS from camera group through portals visible in the frustum.
+type WmoGroupCullQuery<'w, 's> = Query<
+    'w,
+    's,
+    (
+        &'static WmoGroup,
+        Option<&'static WmoInteriorFloor>,
+        &'static mut Visibility,
+        &'static ChildOf,
+    ),
+>;
+
+/// BFS from the start groups through portals visible in the frustum.
 fn bfs_visible_groups(
-    start_group: u16,
+    start_groups: &[u16],
     graph: &WmoPortalGraph,
     frustum: &Frustum,
     wmo_transform: &GlobalTransform,
 ) -> HashSet<u16> {
-    let mut visible = HashSet::new();
-    visible.insert(start_group);
-    let mut queue = VecDeque::new();
-    queue.push_back(start_group);
+    let mut visible: HashSet<u16> = start_groups.iter().copied().collect();
+    let mut queue: VecDeque<u16> = start_groups.iter().copied().collect();
 
     while let Some(current) = queue.pop_front() {
         let Some(neighbors) = graph.adjacency.get(current as usize) else {
@@ -322,66 +340,38 @@ fn point_in_frustum(point: Vec3, frustum: &Frustum) -> bool {
     true
 }
 
-fn group_center(group: &WmoGroup) -> Vec3 {
-    (group.bbox_min + group.bbox_max) * 0.5
+/// Height of the highest floor triangle directly below `point` (WMO-local Bevy space, Y up).
+fn floor_height_below(floor: &WmoInteriorFloor, point: Vec3) -> Option<f32> {
+    floor
+        .triangles
+        .iter()
+        .filter_map(|triangle| triangle_height_at(triangle, point.x, point.z))
+        .filter(|height| *height <= point.y)
+        .reduce(f32::max)
 }
 
-fn antiportal_occludes_group(
-    camera_local: Vec3,
-    group: &WmoGroup,
-    antiportal_groups: &[WmoGroup],
-) -> bool {
-    let group_center = group_center(group);
-    antiportal_groups.iter().any(|antiportal| {
-        antiportal.group_index != group.group_index
-            && segment_intersects_aabb(
-                camera_local,
-                group_center,
-                antiportal.bbox_min,
-                antiportal.bbox_max,
-            )
-    })
-}
-
-fn segment_intersects_aabb(start: Vec3, end: Vec3, min: Vec3, max: Vec3) -> bool {
-    let delta = end - start;
-    let mut t_min: f32 = 0.0;
-    let mut t_max: f32 = 1.0;
-
-    for axis in 0..3 {
-        let start_axis = start[axis];
-        let delta_axis = delta[axis];
-        let min_axis = min[axis];
-        let max_axis = max[axis];
-
-        if delta_axis.abs() <= f32::EPSILON {
-            if start_axis < min_axis || start_axis > max_axis {
-                return false;
-            }
-            continue;
-        }
-
-        let inv_delta = delta_axis.recip();
-        let mut axis_t0 = (min_axis - start_axis) * inv_delta;
-        let mut axis_t1 = (max_axis - start_axis) * inv_delta;
-        if axis_t0 > axis_t1 {
-            std::mem::swap(&mut axis_t0, &mut axis_t1);
-        }
-        t_min = t_min.max(axis_t0);
-        t_max = t_max.min(axis_t1);
-        if t_min > t_max {
-            return false;
-        }
+/// Height of the triangle's plane at (x, z) when that point lies inside its XZ projection.
+fn triangle_height_at(triangle: &[Vec3; 3], x: f32, z: f32) -> Option<f32> {
+    let [a, b, c] = *triangle;
+    let det = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+    if det.abs() <= f32::EPSILON {
+        return None;
     }
-
-    true
+    let wa = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / det;
+    let wb = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / det;
+    let wc = 1.0 - wa - wb;
+    (wa >= 0.0 && wb >= 0.0 && wc >= 0.0).then_some(wa * a.y + wb * b.y + wc * c.y)
 }
 
-/// Portal-based visibility culling for WMO interiors.
+fn bbox_contains(group: &WmoGroup, point: Vec3) -> bool {
+    point.cmpge(group.bbox_min).all() && point.cmple(group.bbox_max).all()
+}
+
+/// Portal-based visibility culling for WMO groups.
 fn wmo_portal_cull_system(
     camera_q: Query<(&GlobalTransform, &Frustum), With<Camera3d>>,
     wmo_q: Query<(Entity, &GlobalTransform, &WmoPortalGraph), With<Wmo>>,
-    mut group_q: Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+    mut group_q: WmoGroupCullQuery,
 ) {
     let Ok((cam_gtf, frustum)) = camera_q.single() else {
         return;
@@ -393,86 +383,78 @@ fn wmo_portal_cull_system(
     }
 }
 
+/// Retail/WebWowViewerCpp traversal: inside an interior group, draw what its portals reach and
+/// the whole exterior once a portal opens onto it; otherwise draw every exterior group and the
+/// interiors whose portals are in view.
 fn cull_wmo_portal_visibility(
     wmo_entity: Entity,
     wmo_gtf: &GlobalTransform,
     graph: &WmoPortalGraph,
     frustum: &Frustum,
     cam_pos: Vec3,
-    group_q: &mut Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+    group_q: &mut WmoGroupCullQuery,
 ) {
     let local_cam = wmo_gtf.affine().inverse().transform_point3(cam_pos);
+    let exterior_groups = exterior_groups_from_query(wmo_entity, group_q);
 
-    // Collect group info for camera detection (immutable pass)
-    let camera_group = find_camera_group_from_query(local_cam, wmo_entity, group_q);
-    let antiportal_groups = antiportal_groups_from_query(wmo_entity, group_q);
-
-    // Not inside any group = outside the WMO, skip portal culling
-    let Some(cam_group) = camera_group else {
-        return;
+    let visible_set = match find_camera_interior_group(local_cam, wmo_entity, group_q) {
+        Some(cam_group) => {
+            let mut visible = bfs_visible_groups(&[cam_group], graph, frustum, wmo_gtf);
+            if exterior_groups.iter().any(|group| visible.contains(group)) {
+                visible.extend(bfs_visible_groups(
+                    &exterior_groups,
+                    graph,
+                    frustum,
+                    wmo_gtf,
+                ));
+            }
+            visible
+        }
+        None => bfs_visible_groups(&exterior_groups, graph, frustum, wmo_gtf),
     };
-
-    let visible_set = bfs_visible_groups(cam_group, graph, frustum, wmo_gtf);
-    apply_portal_group_visibility(
-        wmo_entity,
-        local_cam,
-        &visible_set,
-        &antiportal_groups,
-        group_q,
-    );
+    apply_portal_group_visibility(wmo_entity, &visible_set, group_q);
 }
 
 fn apply_portal_group_visibility(
     wmo_entity: Entity,
-    local_cam: Vec3,
     visible_set: &HashSet<u16>,
-    antiportal_groups: &[WmoGroup],
-    group_q: &mut Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+    group_q: &mut WmoGroupCullQuery,
 ) {
-    for (group, mut vis, child_of) in group_q {
+    for (group, _, mut vis, child_of) in group_q {
         if child_of.parent() != wmo_entity {
             continue;
         }
-        let visible_through_portals = visible_set.contains(&group.group_index);
-        let hidden_by_antiportal = antiportal_occludes_group(local_cam, group, antiportal_groups);
-        let should_show_group =
-            !group.is_antiportal && visible_through_portals && !hidden_by_antiportal;
+        let should_show_group = !group.is_antiportal && visible_set.contains(&group.group_index);
         apply_visibility(should_show_group, &mut vis);
     }
 }
 
-/// Find which group the camera is in, filtering by WMO parent.
-fn find_camera_group_from_query(
+/// The interior group the camera stands in: its bounding box contains the camera and it has
+/// a floor below it. Among several, the closest floor wins (WebWowViewerCpp
+/// `getGroupWmoThatCameraIsInside`).
+fn find_camera_interior_group(
     local_cam: Vec3,
     wmo_entity: Entity,
-    group_q: &Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
+    group_q: &WmoGroupCullQuery,
 ) -> Option<u16> {
-    for (group, _, child_of) in group_q.iter() {
-        if child_of.parent() != wmo_entity {
-            continue;
-        }
-        if local_cam.x >= group.bbox_min.x
-            && local_cam.y >= group.bbox_min.y
-            && local_cam.z >= group.bbox_min.z
-            && local_cam.x <= group.bbox_max.x
-            && local_cam.y <= group.bbox_max.y
-            && local_cam.z <= group.bbox_max.z
-        {
-            return Some(group.group_index);
-        }
-    }
-    None
-}
-
-fn antiportal_groups_from_query(
-    wmo_entity: Entity,
-    group_q: &Query<(&WmoGroup, &mut Visibility, &ChildOf)>,
-) -> Vec<WmoGroup> {
     group_q
         .iter()
-        .filter_map(|(group, _, child_of)| {
-            (child_of.parent() == wmo_entity && group.is_antiportal).then_some(*group)
+        .filter(|(group, _, _, child_of)| {
+            child_of.parent() == wmo_entity && bbox_contains(group, local_cam)
         })
+        .filter_map(|(group, floor, _, _)| {
+            let floor_height = floor_height_below(floor?, local_cam)?;
+            Some((group.group_index, floor_height))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(group_index, _)| group_index)
+}
+
+fn exterior_groups_from_query(wmo_entity: Entity, group_q: &WmoGroupCullQuery) -> Vec<u16> {
+    group_q
+        .iter()
+        .filter(|(group, _, _, child_of)| child_of.parent() == wmo_entity && group.is_exterior)
+        .map(|(group, _, _, _)| group.group_index)
         .collect()
 }
 

@@ -289,8 +289,7 @@ fn spawn_wmo_group_from_data(
     group_index: u16,
     active_doodad_set: u16,
 ) -> bool {
-    let bbox = group_bbox(root, group_index, &group.header);
-    let group_entity = spawn_wmo_group_entity(commands, group_index, bbox);
+    let group_entity = spawn_wmo_group_entity(commands, root, group, group_index);
     commands.entity(root_entity).add_child(group_entity);
     spawn_wmo_group_lights(commands, root, group, group_entity);
     spawn_wmo_group_fogs(commands, root, group, group_entity);
@@ -663,15 +662,45 @@ fn spawn_wmo_group(
 
 fn spawn_wmo_group_entity(
     commands: &mut Commands,
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
     group_index: u16,
-    bbox: game_engine::culling::WmoGroup,
 ) -> Entity {
-    commands
-        .spawn((
-            Name::new(format!("wmo_group_{group_index}")),
-            Transform::default(),
-            Visibility::default(),
-            bbox,
-        ))
-        .id()
+    let bbox = group_bbox(root, group_index, &group.header);
+    let mut entity = commands.spawn((
+        Name::new(format!("wmo_group_{group_index}")),
+        Transform::default(),
+        Visibility::default(),
+        bbox,
+    ));
+    if !bbox.is_exterior && !bbox.is_antiportal {
+        entity.insert(wmo_interior_floor(group));
+    }
+    entity.id()
+}
+
+fn wmo_interior_floor(group: &wmo::WmoGroupData) -> game_engine::culling::WmoInteriorFloor {
+    let triangles = group
+        .batches
+        .iter()
+        .flat_map(|batch| mesh_triangles(&batch.mesh))
+        .collect();
+    game_engine::culling::WmoInteriorFloor { triangles }
+}
+
+fn mesh_triangles(mesh: &Mesh) -> Vec<[Vec3; 3]> {
+    let Some(positions) = mesh
+        .attribute(Mesh::ATTRIBUTE_POSITION)
+        .and_then(|attribute| attribute.as_float3())
+    else {
+        return Vec::new();
+    };
+    let Some(indices) = mesh.indices() else {
+        return Vec::new();
+    };
+    let indices: Vec<usize> = indices.iter().collect();
+    indices
+        .chunks_exact(3)
+        .map(|triangle| [0, 1, 2].map(|corner| Vec3::from(positions[triangle[corner]])))
+        .collect()
 }

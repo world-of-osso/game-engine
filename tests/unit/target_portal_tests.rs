@@ -61,6 +61,7 @@ fn player_inside_zone_transition_accepts_wmo_group_bounds() {
         group_index: 7,
         bbox_min: Vec3::new(-1.0, 0.0, -2.0),
         bbox_max: Vec3::new(1.0, 4.0, 2.0),
+        is_exterior: false,
         is_antiportal: false,
     };
 
