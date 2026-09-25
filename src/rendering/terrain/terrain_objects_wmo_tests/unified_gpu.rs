@@ -219,7 +219,7 @@ pub(super) fn luminance(pixel: [u8; 4]) -> u32 {
 
 /// Recaptures until the center pixel is no longer the clear color (pipelines compile
 /// asynchronously), then returns it.
-fn capture_center_until_drawn(app: &mut App, target: Handle<Image>) -> [u8; 4] {
+pub(super) fn capture_center_until_drawn(app: &mut App, target: Handle<Image>) -> [u8; 4] {
     let (sender, receiver) = mpsc::channel();
     let deadline = Instant::now() + Duration::from_secs(20);
     let mut frames = 0;

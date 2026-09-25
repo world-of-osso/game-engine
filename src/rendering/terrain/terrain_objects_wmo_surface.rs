@@ -163,13 +163,10 @@ pub(crate) fn wmo_standard_material(
     interior_ambient: Option<[f32; 4]>,
     sidn_glow: Option<WmoSidnGlow>,
 ) -> StandardMaterial {
-    let alpha_mode = match blend_mode {
-        2 | 3 => AlphaMode::Blend,
-        _ if texture.is_some() => AlphaMode::Mask(0.5),
-        _ => AlphaMode::Opaque,
-    };
+    let alpha_mode = wmo_alpha_mode(blend_mode);
     let double_sided = unculled;
-    let prop_like_surface = double_sided || !matches!(alpha_mode, AlphaMode::Opaque);
+    let prop_like_surface =
+        double_sided || texture.is_some() || matches!(alpha_mode, AlphaMode::Blend);
     let surface = wmo_surface_params(texture.is_some(), prop_like_surface, shader);
     StandardMaterial {
         base_color: wmo_base_color(interior_ambient, texture.is_some()),
@@ -182,6 +179,15 @@ pub(crate) fn wmo_standard_material(
         cull_mode: wmo_cull_mode(double_sided),
         alpha_mode,
         ..default()
+    }
+}
+
+/// Stock alpha test per MOMT blend (GxBlend index): Opaque none, AlphaKey 224/255.
+fn wmo_alpha_mode(blend_mode: u32) -> AlphaMode {
+    match blend_mode {
+        1 => AlphaMode::Mask(224.0 / 255.0),
+        2 | 3 => AlphaMode::Blend,
+        _ => AlphaMode::Opaque,
     }
 }
 
