@@ -23,6 +23,8 @@ Each MCNK is a 33×33 vertex heightmap (inner 9×9 grid + outer ring, interleave
 | `MCLY` | Up to 4 texture layer definitions (FDID reference, flags, alpha map offset) |
 | `MCAL` | Alpha maps for layers 1–3 (layer 0 is fully opaque base) |
 
+MCAL storage follows the map's WDT MPHD flags. With 0x4 or 0x80 (big alpha), a layer is RLE if MCLY 0x200 is set and otherwise 4096 bytes; without them it is 2048 4-bit bytes. Each layer ends at the next alpha-mapped layer's offset. Retail Azeroth's MPHD is `0x3ca` (0x80 without 0x4). See [terrain-blend-steps](../investigations/terrain-blend-steps.md) for blend modes and MTXP height defaults.
+
 MCNK header records the chunk's world-space origin. The 33×33 grid spans one chunk: 16 inner quads × 8 units = 128 units per side, plus a shared border row/column with neighbors.
 
 ## Coordinate System

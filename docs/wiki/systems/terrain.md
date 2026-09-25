@@ -12,7 +12,7 @@ Official tile requests resolve their listfile FDID and call the existing `AssetR
 
 Each tile is three files:
 - Root `.adt` — MCNK chunks with heightmaps and normals
-- `_tex0.adt` — texture layer compositing (MDID/MHID for diffuse/height FDIDs)
+- `_tex0.adt` — texture layer compositing (MDID/MHID for diffuse/height FDIDs); decoding and the shader blend mode follow the map WDT's MPHD flags ([terrain-blend-steps](../investigations/terrain-blend-steps.md))
 - `_obj0.adt` — MDDF doodad placements and MODF WMO placements
 
 The engine loads all three. Finding companion files uses the community listfile (path-based sibling lookup).
