@@ -4,6 +4,8 @@ pub(crate) mod bevy_curves;
 mod bevy_player;
 #[path = "animation/billboard.rs"]
 pub mod billboard;
+#[path = "animation/death.rs"]
+pub(crate) mod death;
 #[path = "animation/lod.rs"]
 pub(crate) mod lod;
 #[path = "animation/runtime.rs"]
@@ -590,9 +592,11 @@ impl Plugin for AnimationPlugin {
                 (
                     bevy_player::bind_m2_animation_players,
                     (
+                        death::mark_dead_npc_models,
                         sync_turn_in_place_state,
                         apply_emote_animation,
                         switch_animation,
+                        death::play_death_animation,
                         tick_animation,
                     )
                         .chain()

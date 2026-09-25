@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
+use game_engine::loot_state::Lootable;
 use game_engine::quest_data::QuestLogState;
 use game_engine::quest_tracking::{QuestTrackedItem, should_sparkle};
 
@@ -11,7 +12,7 @@ impl Plugin for QuestSparklePlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            sync_quest_sparkles
+            (sync_quest_sparkles, sync_loot_sparkles)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
@@ -48,6 +49,40 @@ fn sync_quest_sparkles(
         match (needs_sparkle, sparkle) {
             (true, None) => add_sparkle(&mut commands, &mut meshes, &mut materials, entity),
             (false, Some(s)) => remove_sparkle(&mut commands, entity, s),
+            _ => {}
+        }
+    }
+}
+
+/// Marker on a corpse showing the lootable sparkle.
+#[derive(Component)]
+pub struct LootSparkle {
+    effect_entity: Entity,
+}
+
+/// A corpse sparkles while it has loot for the local player ([`Lootable`]).
+fn sync_loot_sparkles(
+    mut commands: Commands,
+    corpses: Query<
+        (Entity, Has<Lootable>, Option<&LootSparkle>),
+        Or<(With<Lootable>, With<LootSparkle>)>,
+    >,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for (entity, lootable, sparkle) in &corpses {
+        match (lootable, sparkle) {
+            (true, None) => {
+                let effect = spawn_sparkle_effect(&mut commands, &mut meshes, &mut materials);
+                commands.entity(entity).add_child(effect);
+                commands.entity(entity).insert(LootSparkle {
+                    effect_entity: effect,
+                });
+            }
+            (false, Some(sparkle)) => {
+                commands.entity(sparkle.effect_entity).despawn();
+                commands.entity(entity).remove::<LootSparkle>();
+            }
             _ => {}
         }
     }
@@ -121,5 +156,30 @@ mod tests {
     #[test]
     fn sparkle_emissive_exceeds_unit_for_bloom() {
         assert!(SPARKLE_EMISSIVE_STRENGTH > 1.0);
+    }
+
+    #[test]
+    fn a_corpse_sparkles_while_it_has_loot() {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.init_resource::<Assets<Mesh>>()
+            .init_resource::<Assets<StandardMaterial>>();
+        app.add_systems(Update, sync_loot_sparkles);
+        let corpse = app.world_mut().spawn((Transform::default(), Lootable)).id();
+        app.update();
+        let effect = app
+            .world()
+            .get::<LootSparkle>(corpse)
+            .unwrap()
+            .effect_entity;
+        assert_eq!(
+            app.world().get::<ChildOf>(effect).map(ChildOf::parent),
+            Some(corpse)
+        );
+
+        app.world_mut().entity_mut(corpse).remove::<Lootable>();
+        app.update();
+        assert!(app.world().get::<LootSparkle>(corpse).is_none());
+        assert!(app.world().get_entity(effect).is_err(), "sparkle despawned");
     }
 }

@@ -188,6 +188,7 @@ pub struct HudOptionsView {
     pub nameplate_spellbar_thickness: NameplateBarThickness,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
+    pub auto_loot: bool,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }

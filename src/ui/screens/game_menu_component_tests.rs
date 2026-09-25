@@ -83,6 +83,7 @@ fn hud_view() -> HudOptionsView {
             crate::ui::screens::options_menu_component::NameplateBarThickness::Thin,
         show_health_bars: true,
         show_target_marker: true,
+        auto_loot: false,
         show_fps_overlay: true,
         chat_font_size: 10.0,
     }

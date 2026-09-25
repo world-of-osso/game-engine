@@ -6,6 +6,7 @@ mod billboard;
 mod billboard_invalidation;
 mod cast_attack;
 mod core;
+mod death_pose;
 mod emote;
 mod lod;
 mod model_lights;

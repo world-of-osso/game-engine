@@ -1,12 +1,15 @@
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::{CursorIcon, CursorOptions, CustomCursor, CustomCursorImage, PrimaryWindow};
+use game_engine::faction_reaction::Reaction;
+use game_engine::loot_state::Lootable;
 use game_engine::quest_tracking::QuestTrackedItem;
-use shared::components::Npc;
+use shared::components::{Health as NetHealth, Npc, UnitFactionTemplate};
+use shared::protocol::NpcFlags;
 
 use crate::asset;
 use crate::camera::{Player, WowCamera};
-use crate::networking::RemoteEntity;
+use crate::networking::{LocalPlayer, RemoteEntity};
 use crate::target::WorldObjectInteraction;
 
 #[derive(Resource)]
@@ -17,6 +20,10 @@ pub struct WowCursorAssets {
     pub quest: Handle<Image>,
     pub loot: Handle<Image>,
     pub mail: Handle<Image>,
+    pub speak: Handle<Image>,
+    pub taxi: Handle<Image>,
+    pub buy: Handle<Image>,
+    pub trainer: Handle<Image>,
 }
 
 #[derive(Resource, Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,6 +34,10 @@ pub enum ActiveWowCursor {
     Quest,
     Loot,
     Mail,
+    Speak,
+    Taxi,
+    Buy,
+    Trainer,
 }
 
 impl WowCursorAssets {
@@ -38,6 +49,10 @@ impl WowCursorAssets {
             ActiveWowCursor::Quest => self.quest.clone(),
             ActiveWowCursor::Loot => self.loot.clone(),
             ActiveWowCursor::Mail => self.mail.clone(),
+            ActiveWowCursor::Speak => self.speak.clone(),
+            ActiveWowCursor::Taxi => self.taxi.clone(),
+            ActiveWowCursor::Buy => self.buy.clone(),
+            ActiveWowCursor::Trainer => self.trainer.clone(),
         }
     }
 }
@@ -81,6 +96,22 @@ fn load_cursor_assets(images: &mut Assets<Image>) -> Option<WowCursorAssets> {
             images,
             "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Mail.blp",
         )?,
+        speak: load_cursor_image(
+            images,
+            "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Speak.blp",
+        )?,
+        taxi: load_cursor_image(
+            images,
+            "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Taxi.blp",
+        )?,
+        buy: load_cursor_image(
+            images,
+            "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Buy.blp",
+        )?,
+        trainer: load_cursor_image(
+            images,
+            "/syncthing/Sync/Projects/wow/Interface/CURSOR/Crosshair/Trainer.blp",
+        )?,
     })
 }
 
@@ -107,9 +138,52 @@ pub fn install_wow_cursor(
         })));
 }
 
-fn cursor_for_interaction(target: crate::target::InteractionTarget) -> ActiveWowCursor {
+/// What the cursor reads from the NPC under it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct NpcCursorView {
+    pub flags: NpcFlags,
+    pub dead: bool,
+    pub lootable: bool,
+    /// How the NPC regards the local player.
+    pub reaction: Reaction,
+}
+
+/// Retail unit cursors: a corpse with loot for you shows `LootAll`, other corpses
+/// the pointer; a hostile unit, or a neutral one with nothing to offer, `Attack`;
+/// otherwise the NPC's service: flight master `Taxi`, vendor `Buy`, trainer
+/// `Trainer`, any other service (gossip, quests, banker, ...) `Speak`, none the pointer.
+pub(crate) fn npc_cursor(view: NpcCursorView) -> ActiveWowCursor {
+    if view.lootable {
+        return ActiveWowCursor::Loot;
+    }
+    if view.dead {
+        return ActiveWowCursor::Default;
+    }
+    let services = view.flags.0 != 0;
+    match view.reaction {
+        Reaction::Hostile => return ActiveWowCursor::Attack,
+        Reaction::Neutral if !services => return ActiveWowCursor::Attack,
+        _ => {}
+    }
+    if view.flags.contains(NpcFlags::FLIGHTMASTER) {
+        ActiveWowCursor::Taxi
+    } else if view.flags.contains(NpcFlags::VENDOR) {
+        ActiveWowCursor::Buy
+    } else if view.flags.contains(NpcFlags::TRAINER) {
+        ActiveWowCursor::Trainer
+    } else if services {
+        ActiveWowCursor::Speak
+    } else {
+        ActiveWowCursor::Default
+    }
+}
+
+fn cursor_for_interaction(
+    target: crate::target::InteractionTarget,
+    npc_view: impl Fn(Entity) -> NpcCursorView,
+) -> ActiveWowCursor {
     match target {
-        crate::target::InteractionTarget::Npc(_) => ActiveWowCursor::Attack,
+        crate::target::InteractionTarget::Npc(npc) => npc_cursor(npc_view(npc)),
         crate::target::InteractionTarget::Object(
             _,
             crate::target::WorldObjectInteractionKind::Mailbox,
@@ -155,6 +229,7 @@ fn pick_desired_cursor(
     quest_q: &Query<(), With<QuestTrackedItem>>,
     visibility_q: &Query<&Visibility>,
     ray_cast: &mut MeshRayCast,
+    npc_view: impl Fn(Entity) -> NpcCursorView,
 ) -> Option<ActiveWowCursor> {
     let cursor = window.cursor_position()?;
     let (cam, cam_tf) = camera;
@@ -168,10 +243,46 @@ fn pick_desired_cursor(
             quest_q,
             visibility_q,
         ) {
-            return Some(cursor_for_interaction(target));
+            return Some(cursor_for_interaction(target, npc_view));
         }
     }
     Some(ActiveWowCursor::Default)
+}
+
+/// NPC state the cursor reads, and the local player's faction for its reaction.
+#[derive(bevy::ecs::system::SystemParam)]
+pub struct NpcCursorQuery<'w, 's> {
+    npcs: Query<
+        'w,
+        's,
+        (
+            Option<&'static NpcFlags>,
+            Option<&'static NetHealth>,
+            Has<Lootable>,
+            Option<&'static UnitFactionTemplate>,
+        ),
+    >,
+    local: Query<'w, 's, Option<&'static UnitFactionTemplate>, With<LocalPlayer>>,
+    templates: Option<Res<'w, crate::unit_frames::FactionTemplates>>,
+}
+
+impl NpcCursorQuery<'_, '_> {
+    fn view(&self, npc: Entity) -> NpcCursorView {
+        let (flags, health, lootable, faction) = self.npcs.get(npc).unwrap_or_default();
+        let reaction = self
+            .templates
+            .as_deref()
+            .map_or(Reaction::Neutral, |templates| {
+                let player = self.local.single().ok().flatten();
+                crate::unit_frames::target_reaction(templates.row(faction), templates.row(player))
+            });
+        NpcCursorView {
+            flags: flags.copied().unwrap_or(NpcFlags(0)),
+            dead: health.is_some_and(|health| health.current <= 0.0),
+            lootable,
+            reaction,
+        }
+    }
 }
 
 pub fn update_wow_cursor_style(
@@ -182,6 +293,7 @@ pub fn update_wow_cursor_style(
     object_q: Query<&WorldObjectInteraction>,
     quest_q: Query<(), With<QuestTrackedItem>>,
     visibility_q: Query<&Visibility>,
+    npcs: NpcCursorQuery,
     assets: Option<Res<WowCursorAssets>>,
     active: Option<ResMut<ActiveWowCursor>>,
     mut ray_cast: MeshRayCast,
@@ -207,6 +319,7 @@ pub fn update_wow_cursor_style(
         &quest_q,
         &visibility_q,
         &mut ray_cast,
+        |npc| npcs.view(npc),
     )
     .unwrap_or(ActiveWowCursor::Default);
     if *active == desired {
@@ -228,21 +341,80 @@ mod tests {
     use super::*;
     use crate::target::{GatherNodeKind, InteractionTarget, WorldObjectInteractionKind};
 
+    fn view(flags: u64, reaction: Reaction) -> NpcCursorView {
+        NpcCursorView {
+            flags: NpcFlags(flags),
+            dead: false,
+            lootable: false,
+            reaction,
+        }
+    }
+
+    fn no_npc(_: Entity) -> NpcCursorView {
+        view(0, Reaction::Hostile)
+    }
+
     #[test]
-    fn cursor_modes_map_npc_to_attack() {
+    fn cursor_follows_the_npc_under_it() {
         assert_eq!(
-            cursor_for_interaction(InteractionTarget::Npc(Entity::PLACEHOLDER)),
+            cursor_for_interaction(InteractionTarget::Npc(Entity::PLACEHOLDER), no_npc),
             ActiveWowCursor::Attack
         );
+        // Kobold Vermin (hostile), Young Wolf (neutral, no services).
+        assert_eq!(
+            npc_cursor(view(0, Reaction::Hostile)),
+            ActiveWowCursor::Attack
+        );
+        assert_eq!(
+            npc_cursor(view(0, Reaction::Neutral)),
+            ActiveWowCursor::Attack
+        );
+        // Dungar Longdrink: gossip | quest giver | flight master.
+        let dungar = NpcFlags::GOSSIP | NpcFlags::QUESTGIVER | NpcFlags::FLIGHTMASTER;
+        assert_eq!(
+            npc_cursor(view(dungar, Reaction::Friendly)),
+            ActiveWowCursor::Taxi
+        );
+        // Godric Rothgar: vendor | repair.
+        let godric = NpcFlags::VENDOR | NpcFlags::REPAIR;
+        assert_eq!(
+            npc_cursor(view(godric, Reaction::Friendly)),
+            ActiveWowCursor::Buy
+        );
+        assert_eq!(
+            npc_cursor(view(
+                NpcFlags::TRAINER | NpcFlags::GOSSIP,
+                Reaction::Friendly
+            )),
+            ActiveWowCursor::Trainer
+        );
+        // Deputy Willem: quest giver.
+        assert_eq!(
+            npc_cursor(view(NpcFlags::QUESTGIVER, Reaction::Friendly)),
+            ActiveWowCursor::Speak
+        );
+        assert_eq!(
+            npc_cursor(view(0, Reaction::Friendly)),
+            ActiveWowCursor::Default
+        );
+    }
+
+    #[test]
+    fn corpses_show_the_loot_cursor_only_with_loot() {
+        let mut corpse = view(0, Reaction::Hostile);
+        corpse.dead = true;
+        assert_eq!(npc_cursor(corpse), ActiveWowCursor::Default);
+        corpse.lootable = true;
+        assert_eq!(npc_cursor(corpse), ActiveWowCursor::Loot);
     }
 
     #[test]
     fn cursor_modes_map_mailbox_to_mail() {
         assert_eq!(
-            cursor_for_interaction(InteractionTarget::Object(
-                Entity::PLACEHOLDER,
-                WorldObjectInteractionKind::Mailbox,
-            )),
+            cursor_for_interaction(
+                InteractionTarget::Object(Entity::PLACEHOLDER, WorldObjectInteractionKind::Mailbox,),
+                no_npc
+            ),
             ActiveWowCursor::Mail
         );
     }
@@ -250,10 +422,13 @@ mod tests {
     #[test]
     fn cursor_modes_map_gather_node_to_loot() {
         assert_eq!(
-            cursor_for_interaction(InteractionTarget::Object(
-                Entity::PLACEHOLDER,
-                WorldObjectInteractionKind::GatherNode(GatherNodeKind::CopperVein),
-            )),
+            cursor_for_interaction(
+                InteractionTarget::Object(
+                    Entity::PLACEHOLDER,
+                    WorldObjectInteractionKind::GatherNode(GatherNodeKind::CopperVein)
+                ),
+                no_npc,
+            ),
             ActiveWowCursor::Loot
         );
     }
@@ -261,10 +436,13 @@ mod tests {
     #[test]
     fn cursor_modes_map_quest_object_to_quest() {
         assert_eq!(
-            cursor_for_interaction(InteractionTarget::Object(
-                Entity::PLACEHOLDER,
-                WorldObjectInteractionKind::QuestObject,
-            )),
+            cursor_for_interaction(
+                InteractionTarget::Object(
+                    Entity::PLACEHOLDER,
+                    WorldObjectInteractionKind::QuestObject
+                ),
+                no_npc,
+            ),
             ActiveWowCursor::Quest
         );
     }
@@ -278,7 +456,10 @@ mod tests {
             WorldObjectInteractionKind::ZoneTransition,
         ] {
             assert_eq!(
-                cursor_for_interaction(InteractionTarget::Object(Entity::PLACEHOLDER, kind)),
+                cursor_for_interaction(
+                    InteractionTarget::Object(Entity::PLACEHOLDER, kind),
+                    no_npc
+                ),
                 ActiveWowCursor::Interact
             );
         }

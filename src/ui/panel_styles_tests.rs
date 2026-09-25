@@ -44,7 +44,7 @@ fn uv_rects_resolve_the_three_by_three_metal_grid() {
 
 #[test]
 fn composed_sheet_takes_each_cell_from_its_retail_atlas_member() {
-    let sheet = compose_metal_sheet(tagged_source).unwrap();
+    let sheet = compose_metal_sheet(MetalTopLeft::Portrait, tagged_source).unwrap();
     // TL cell (10, 20) ← ui-frame-portraitmetal-cornertopleft-2x at (1, 153).
     assert_eq!(pixel(&sheet, 10, 20), [1, 11, 173, 255]);
     // Top edge (160, 5) ← _ui-frame-metal-edgetop-2x at (0, 1).
@@ -63,7 +63,8 @@ fn composed_sheet_takes_each_cell_from_its_retail_atlas_member() {
 
 #[test]
 fn real_metal_atlases_compose_with_opaque_border_art() {
-    let sheet = compose_metal_sheet(load_blp_pixels).expect("metal frame atlases from CASC");
+    let sheet = compose_metal_sheet(MetalTopLeft::Portrait, load_blp_pixels)
+        .expect("metal frame atlases from CASC");
     let opaque_in = |x0: u32, y0: u32, w: u32, h: u32| {
         (y0..y0 + h)
             .flat_map(|y| (x0..x0 + w).map(move |x| (x, y)))
@@ -74,4 +75,15 @@ fn real_metal_atlases_compose_with_opaque_border_art() {
     assert!(opaque_in(0, 150, 150, 32) > 50, "left edge line");
     assert!(opaque_in(150, 182, 64, 64) > 100, "bottom edge");
     assert_eq!(opaque_in(150, 150, 64, 32), 0, "transparent centre");
+}
+
+#[test]
+fn the_no_portrait_layout_swaps_only_the_top_left_corner() {
+    let portrait = compose_metal_sheet(MetalTopLeft::Portrait, tagged_source).unwrap();
+    let plain = compose_metal_sheet(MetalTopLeft::Plain, tagged_source).unwrap();
+    // TL cell (10, 20) <- ui-frame-metal-cornertopleft-2x at (1, 1).
+    assert_eq!(pixel(&plain, 10, 20), [1, 11, 21, 255]);
+    for (x, y) in [(160, 5), (220, 160), (5, 190), (310, 190)] {
+        assert_eq!(pixel(&plain, x, y), pixel(&portrait, x, y), "({x}, {y})");
+    }
 }

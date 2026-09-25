@@ -233,6 +233,7 @@ pub struct HudOptions {
     pub nameplate_spellbar_thickness: NameplateBarThickness,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
+    pub auto_loot: bool,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
@@ -248,6 +249,7 @@ impl Default for HudOptions {
             nameplate_spellbar_thickness: default_nameplate_spellbar_thickness(),
             show_health_bars: true,
             show_target_marker: true,
+            auto_loot: false,
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
         }
@@ -267,6 +269,7 @@ impl HudOptions {
             nameplate_spellbar_thickness: file.nameplate_spellbar_thickness,
             show_health_bars: file.show_health_bars,
             show_target_marker: file.show_target_marker,
+            auto_loot: file.auto_loot,
             show_fps_overlay: file.show_fps_overlay,
             chat_font_size: file
                 .chat_font_size

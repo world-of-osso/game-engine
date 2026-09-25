@@ -184,6 +184,8 @@ pub(super) struct HudOptionsFile {
     pub(super) nameplate_spellbar_thickness: NameplateBarThickness,
     pub(super) show_health_bars: bool,
     pub(super) show_target_marker: bool,
+    #[serde(default, rename = "autoLoot")]
+    pub(super) auto_loot: bool,
     pub(super) show_fps_overlay: bool,
     #[serde(default = "default_chat_font_size", rename = "chatFontSize")]
     pub(super) chat_font_size: f32,
@@ -201,6 +203,7 @@ impl Default for HudOptionsFile {
             nameplate_spellbar_thickness: defaults.nameplate_spellbar_thickness,
             show_health_bars: defaults.show_health_bars,
             show_target_marker: defaults.show_target_marker,
+            auto_loot: defaults.auto_loot,
             show_fps_overlay: defaults.show_fps_overlay,
             chat_font_size: defaults.chat_font_size,
         }
@@ -328,6 +331,7 @@ fn build_hud_options_file(hud: &HudOptions) -> HudOptionsFile {
         nameplate_spellbar_thickness: hud.nameplate_spellbar_thickness,
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
+        auto_loot: hud.auto_loot,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud
             .chat_font_size

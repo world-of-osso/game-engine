@@ -46,7 +46,7 @@ const FACTION_TEMPLATE_CSV: &str = "data/db2/12.1.0.69933/FactionTemplate.csv";
 
 /// `FactionTemplate.csv` rows by id, for target reaction colours.
 #[derive(Resource, Default)]
-struct FactionTemplates(HashMap<u32, FactionTemplateRow>);
+pub(crate) struct FactionTemplates(HashMap<u32, FactionTemplateRow>);
 
 impl FactionTemplates {
     fn load() -> Self {
@@ -62,7 +62,10 @@ impl FactionTemplates {
         }
     }
 
-    fn row(&self, template: Option<&UnitFactionTemplate>) -> Option<&FactionTemplateRow> {
+    pub(crate) fn row(
+        &self,
+        template: Option<&UnitFactionTemplate>,
+    ) -> Option<&FactionTemplateRow> {
         self.0.get(&template?.0)
     }
 }
@@ -370,7 +373,7 @@ fn target_level_text(level: Option<u8>, player_level: Option<u8>) -> String {
 
 /// How the target regards the player (Retail colours the target by its reaction to you).
 /// Neutral when either side has no known template.
-fn target_reaction(
+pub(crate) fn target_reaction(
     target: Option<&FactionTemplateRow>,
     player: Option<&FactionTemplateRow>,
 ) -> Reaction {

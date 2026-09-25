@@ -13,11 +13,15 @@ use crate::ui::widgets::texture::TextureSource;
 /// `PortraitFrameTemplate` metal border (Retail `ButtonFrameTemplate` windows). Put it
 /// on a frame [`METAL_FRAME_OUTSET`] larger than the window.
 pub const METAL_FRAME_PANEL_STYLE: &str = "metal_frame";
+/// `ButtonFrameTemplateNoPortrait` metal border (flat panels such as `LootFrame`). Put
+/// it on a frame [`METAL_FRAME_NO_PORTRAIT_OUTSET`] larger than the window.
+pub const METAL_FRAME_NO_PORTRAIT_PANEL_STYLE: &str = "metal_frame_no_portrait";
 
 /// Register built-in panel styles on startup.
 pub fn register_panel_styles(mut ui: ResMut<UiState>, mut images: ResMut<Assets<Image>>) {
     register_nine_slice_styles(&mut ui);
-    register_metal_frame_style(&mut ui, &mut images);
+    register_metal_frame_style(&mut ui, &mut images, MetalTopLeft::Portrait);
+    register_metal_frame_style(&mut ui, &mut images, MetalTopLeft::Plain);
     register_three_slice_styles(&mut ui);
     // Apply to any frames created before styles were registered.
     ui.registry.refresh_panel_styles();
@@ -82,6 +86,33 @@ fn static_popup_border() -> NineSlice {
 /// (display units): `[left, top, right, bottom]` outward. The styled frame sits at
 /// `(-left, -top)` and is `left + right` wider and `top + bottom` taller than the window.
 pub const METAL_FRAME_OUTSET: [f32; 4] = [13.0, 16.0, 4.0, 3.0];
+/// `NineSliceLayouts.ButtonFrameTemplateNoPortrait` corner offsets, same convention.
+pub const METAL_FRAME_NO_PORTRAIT_OUTSET: [f32; 4] = [8.0, 16.0, 4.0, 3.0];
+
+/// The top-left corner that tells the two metal layouts apart.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum MetalTopLeft {
+    /// `ui-frame-portraitmetal-cornertopleft-2x` (8504): `PortraitFrameTemplate`.
+    Portrait,
+    /// `ui-frame-metal-cornertopleft-2x` (8501): `ButtonFrameTemplateNoPortrait`.
+    Plain,
+}
+
+impl MetalTopLeft {
+    fn source(self) -> PixelRect {
+        match self {
+            Self::Portrait => (1, 153, 150, 150),
+            Self::Plain => (1, 1, 150, 150),
+        }
+    }
+
+    fn style_name(self) -> &'static str {
+        match self {
+            Self::Portrait => METAL_FRAME_PANEL_STYLE,
+            Self::Plain => METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
+        }
+    }
+}
 
 /// A pixel rect `(x, y, width, height)`.
 type PixelRect = (u32, u32, u32, u32);
@@ -113,12 +144,11 @@ const METAL_EDGE_SIZES: [f32; 4] = [75.0, 75.0, 75.0, 32.0];
 /// `_ui-frame-metal-edgebottom-2x` (8516): a 32×64 strip tiled along the bottom.
 const EDGE_BOTTOM: PixelRect = (0, 153, 32, 64);
 
-fn metal_frame_blits() -> Vec<MetalBlit> {
+fn metal_frame_blits(top_left: MetalTopLeft) -> Vec<MetalBlit> {
     let blit = |fdid, source, dest| MetalBlit { fdid, source, dest };
     let bottom_y = METAL_ROWS[0] + METAL_ROWS[1];
     let mut blits = vec![
-        // ui-frame-portraitmetal-cornertopleft-2x (8504)
-        blit(METAL_CORNERS, (1, 153, 150, 150), (0, 0, 150, 150)),
+        blit(METAL_CORNERS, top_left.source(), (0, 0, 150, 150)),
         // _ui-frame-metal-edgetop-2x (8517)
         blit(METAL_TOP_BOTTOM_EDGES, (0, 1, 64, 150), (150, 0, 64, 150)),
         // ui-frame-metal-cornertopright-2x (8502)
@@ -169,12 +199,13 @@ fn metal_frame_uv_rects() -> [[f32; 4]; 9] {
 
 /// RGBA sheet from the blits; `source` returns `(pixels, width)` of a texture.
 fn compose_metal_sheet(
+    top_left: MetalTopLeft,
     mut source: impl FnMut(u32) -> Result<(Vec<u8>, u32), String>,
 ) -> Result<Vec<u8>, String> {
     let (sheet_w, sheet_h) = METAL_SHEET;
     let mut sheet = vec![0u8; (sheet_w * sheet_h * 4) as usize];
     let mut loaded: Vec<(u32, (Vec<u8>, u32))> = Vec::new();
-    for blit in metal_frame_blits() {
+    for blit in metal_frame_blits(top_left) {
         if !loaded.iter().any(|(fdid, _)| *fdid == blit.fdid) {
             loaded.push((blit.fdid, source(blit.fdid)?));
         }
@@ -217,11 +248,16 @@ fn metal_frame_style(sheet: Handle<Image>) -> NineSlice {
     }
 }
 
-fn register_metal_frame_style(ui: &mut UiState, images: &mut Assets<Image>) {
-    let pixels = match compose_metal_sheet(load_blp_pixels) {
+fn register_metal_frame_style(
+    ui: &mut UiState,
+    images: &mut Assets<Image>,
+    top_left: MetalTopLeft,
+) {
+    let name = top_left.style_name();
+    let pixels = match compose_metal_sheet(top_left, load_blp_pixels) {
         Ok(pixels) => pixels,
         Err(err) => {
-            error!("{METAL_FRAME_PANEL_STYLE} panel style not registered: {err}");
+            error!("{name} panel style not registered: {err}");
             return;
         }
     };
@@ -238,7 +274,7 @@ fn register_metal_frame_style(ui: &mut UiState, images: &mut Assets<Image>) {
         RenderAssetUsages::default(),
     ));
     ui.registry
-        .register_panel_style(METAL_FRAME_PANEL_STYLE, metal_frame_style(sheet));
+        .register_panel_style(name, metal_frame_style(sheet));
 }
 
 fn register_three_slice_styles(ui: &mut UiState) {

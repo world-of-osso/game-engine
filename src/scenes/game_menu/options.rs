@@ -110,6 +110,7 @@ pub struct HudDraft {
     pub nameplate_spellbar_thickness: crate::client_options::NameplateBarThickness,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
+    pub auto_loot: bool,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
@@ -180,6 +181,7 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
         nameplate_spellbar_thickness: hud.nameplate_spellbar_thickness,
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
+        auto_loot: hud.auto_loot,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud.chat_font_size,
     }
@@ -233,6 +235,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         nameplate_spellbar_thickness: h.nameplate_spellbar_thickness,
         show_health_bars: h.show_health_bars,
         show_target_marker: h.show_target_marker,
+        auto_loot: h.auto_loot,
         show_fps_overlay: h.show_fps_overlay,
         chat_font_size: h.chat_font_size,
     }
@@ -600,6 +603,7 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
         "show_nameplates" => hud.show_nameplates = !hud.show_nameplates,
         "show_health_bars" => hud.show_health_bars = !hud.show_health_bars,
         "show_target_marker" => hud.show_target_marker = !hud.show_target_marker,
+        "auto_loot" => hud.auto_loot = !hud.auto_loot,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
         _ => return false,
     }
@@ -696,6 +700,7 @@ pub fn apply_hud_snapshot(h: &mut HudOptions, d: &HudDraft) {
         .round();
     h.show_health_bars = d.show_health_bars;
     h.show_target_marker = d.show_target_marker;
+    h.auto_loot = d.auto_loot;
     h.show_fps_overlay = d.show_fps_overlay;
     h.chat_font_size = d
         .chat_font_size

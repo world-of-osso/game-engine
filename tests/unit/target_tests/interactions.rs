@@ -118,3 +118,85 @@ fn interact_with_object_zone_transition_consumes_click() {
     ));
     assert!(queue.pending.is_empty());
 }
+
+fn corpse_app(health: f32, lootable: bool, auto_loot: bool, shift: bool) -> (App, Entity) {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    app.init_resource::<CurrentTarget>()
+        .init_resource::<MailIntentQueue>()
+        .init_resource::<ButtonInput<KeyCode>>()
+        .add_message::<crate::networking_quests::NpcInteractionRequest>()
+        .add_message::<LootRequest>();
+    app.insert_resource(crate::client_options::HudOptions {
+        auto_loot,
+        ..Default::default()
+    });
+    if shift {
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::ShiftLeft);
+    }
+    let npc = app
+        .world_mut()
+        .spawn((
+            Npc {
+                template_id: 6,
+                name: "Kobold Vermin".into(),
+            },
+            GlobalTransform::from_translation(Vec3::new(2.0, 0.0, 0.0)),
+            NetHealth {
+                current: health,
+                max: 100.0,
+            },
+        ))
+        .id();
+    if lootable {
+        app.world_mut().entity_mut(npc).insert(Lootable);
+    }
+    app.world_mut().resource_mut::<CurrentTarget>().0 = Some(npc);
+    (app, npc)
+}
+
+fn right_click_current_target(app: &mut App) -> (Vec<LootRequest>, usize) {
+    use bevy::ecs::system::RunSystemOnce;
+    app.world_mut()
+        .run_system_once(|mut state: RightClickInteractionState| {
+            interact_with_current_npc_target(Vec3::ZERO, &mut state);
+        })
+        .unwrap();
+    let loot = app
+        .world_mut()
+        .resource_mut::<Messages<LootRequest>>()
+        .drain()
+        .collect();
+    let interactions = app
+        .world_mut()
+        .resource_mut::<Messages<crate::networking_quests::NpcInteractionRequest>>()
+        .drain()
+        .count();
+    (loot, interactions)
+}
+
+#[test]
+fn right_clicking_a_lootable_corpse_opens_its_loot_with_shift_inverting_auto_loot() {
+    for (auto_loot, shift, auto) in [
+        (false, false, false),
+        (false, true, true),
+        (true, false, true),
+        (true, true, false),
+    ] {
+        let (mut app, corpse) = corpse_app(0.0, true, auto_loot, shift);
+        assert_eq!(
+            right_click_current_target(&mut app),
+            (vec![LootRequest::Open { corpse, auto }], 0)
+        );
+    }
+}
+
+#[test]
+fn right_clicking_an_empty_corpse_does_nothing_and_a_living_npc_is_interacted_with() {
+    let (mut app, _) = corpse_app(0.0, false, false, false);
+    assert_eq!(right_click_current_target(&mut app), (vec![], 0));
+    let (mut app, _) = corpse_app(100.0, false, false, false);
+    assert_eq!(right_click_current_target(&mut app), (vec![], 1));
+}
