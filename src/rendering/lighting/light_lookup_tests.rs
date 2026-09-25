@@ -1,5 +1,5 @@
 use super::{
-    LightParamsFlags, LightParamsSlot, LightSkyboxFlags, ensure_skybox_model_fdid,
+    LightEntry, LightParamsFlags, LightParamsSlot, LightSkyboxFlags, ensure_skybox_model_fdid,
     ensure_skybox_model_wow_path, map_name_to_id, resolve_light_params_flags,
     resolve_light_params_id, resolve_light_params_ids, resolve_light_params_skybox_model,
     resolve_light_skybox_fdid, resolve_light_skybox_flags, resolve_light_skybox_id,
@@ -9,6 +9,7 @@ use super::{
     resolve_skybox_light_params_id, resolve_skybox_light_params_id_for_slot,
     resolve_skybox_model_for_zone,
 };
+use super::{WeightedLightParams, light_params_blend, resolve_clear_light_params_blend};
 
 #[test]
 fn inworld_procedural_sky_uses_explicit_zero_skybox_at_live_azeroth_position() {
@@ -318,4 +319,107 @@ fn common_world_map_names_map_to_expected_ids() {
     assert_eq!(map_name_to_id("Khaz Algar"), Some(2552));
     assert_eq!(map_name_to_id("2703"), Some(2703));
     assert_eq!(map_name_to_id("unknown_map_name"), None);
+}
+
+fn light(id: u32, map_id: u32, position: [f32; 3], falloff: [f32; 2], clear: u32) -> LightEntry {
+    LightEntry {
+        id,
+        map_id,
+        position,
+        falloff_start: falloff[0],
+        falloff_end: falloff[1],
+        light_params_ids: [clear, 0, 0, 0, 0, 0, 0, 0],
+    }
+}
+
+fn blend_ids_and_weights(blend: &[WeightedLightParams]) -> Vec<(u32, f32)> {
+    blend
+        .iter()
+        .map(|light| (light.light_params_id, light.weight))
+        .collect()
+}
+
+fn assert_blend(actual: &[WeightedLightParams], expected: &[(u32, f32)]) {
+    let actual = blend_ids_and_weights(actual);
+    assert_eq!(actual.len(), expected.len(), "{actual:?} vs {expected:?}");
+    for ((id, weight), (expected_id, expected_weight)) in actual.iter().zip(expected) {
+        assert_eq!(id, expected_id, "{actual:?} vs {expected:?}");
+        assert!(
+            (weight - expected_weight).abs() < 1e-3,
+            "{actual:?} vs {expected:?}"
+        );
+    }
+}
+
+#[test]
+fn local_light_weight_is_full_inside_inner_radius_and_fades_to_outer() {
+    let lights = [
+        light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
+        light(2, 0, [100.0, 0.0, 0.0], [10.0, 20.0], 40),
+    ];
+    let at = |x: f32| light_params_blend(&lights, 0, [x, 0.0, 0.0], LightParamsSlot::Clear);
+    assert_blend(&at(105.0), &[(12, 1.0), (40, 1.0)]);
+    assert_blend(&at(115.0), &[(12, 1.0), (40, 0.5)]);
+    assert_blend(&at(118.0), &[(12, 1.0), (40, 0.2)]);
+    assert_blend(&at(121.0), &[(12, 1.0)]);
+}
+
+#[test]
+fn local_lights_overlay_farthest_first_and_skip_other_maps_and_empty_slots() {
+    let lights = [
+        light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
+        light(2, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 13),
+        light(3, 0, [10.0, 0.0, 0.0], [5.0, 50.0], 30),
+        light(4, 0, [30.0, 0.0, 0.0], [5.0, 50.0], 31),
+        light(5, 1, [20.0, 0.0, 0.0], [5.0, 50.0], 32),
+        light(6, 0, [20.0, 0.0, 0.0], [5.0, 50.0], 0),
+    ];
+    let blend = light_params_blend(&lights, 0, [25.0, 0.0, 0.0], LightParamsSlot::Clear);
+    // Map 0's last global row wins; light 3 (15 yd) overlays before light 4 (5 yd).
+    assert_blend(&blend, &[(13, 1.0), (30, 1.0 - 10.0 / 45.0), (31, 1.0)]);
+}
+
+#[test]
+fn coincident_local_lights_overlay_larger_inner_radius_first() {
+    let lights = [
+        light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
+        light(2, 0, [50.0, 0.0, 0.0], [2.0, 40.0], 21),
+        light(3, 0, [50.1, 0.0, 0.0], [8.0, 40.0], 22),
+    ];
+    let blend = light_params_blend(&lights, 0, [60.0, 0.0, 0.0], LightParamsSlot::Clear);
+    let ids: Vec<u32> = blend.iter().map(|light| light.light_params_id).collect();
+    assert_eq!(ids, [12, 22, 21]);
+}
+
+#[test]
+fn map_without_global_row_uses_light_id_1() {
+    let lights = [
+        light(1, 0, [0.0, 0.0, 0.0], [0.0, 0.0], 12),
+        light(7, 530, [10.0, 0.0, 0.0], [5.0, 50.0], 70),
+    ];
+    let blend = light_params_blend(&lights, 530, [500.0, 0.0, 0.0], LightParamsSlot::Clear);
+    assert_blend(&blend, &[(12, 1.0)]);
+}
+
+#[test]
+fn northshire_and_trade_district_are_lit_by_azeroth_global_light_only() {
+    // No map 0 local Light row reaches either spot, so both use Light 1 -> LightParams 12.
+    let northshire = [-8949.95, -132.49, 83.53];
+    let trade_district = [-8830.0, 630.0, 94.5];
+    assert_blend(
+        &resolve_clear_light_params_blend(0, northshire),
+        &[(12, 1.0)],
+    );
+    assert_blend(
+        &resolve_clear_light_params_blend(0, trade_district),
+        &[(12, 1.0)],
+    );
+}
+
+#[test]
+fn overlapping_stormwind_lights_51_and_52_blend_by_falloff() {
+    // Light 51 (-8480.4, 548.3, 80.9; 65.6-84.5 yd) and Light 52 (-8405.5, 620.9, 70.9;
+    // 62.6-89.6 yd) both reach this point from inside their fade bands.
+    let blend = resolve_clear_light_params_blend(0, [-8405.36, 548.28, 80.92]);
+    assert_blend(&blend, &[(12, 1.0), (62, 0.5043), (62, 0.6053)]);
 }

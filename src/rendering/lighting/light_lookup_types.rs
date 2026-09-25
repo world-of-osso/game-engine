@@ -24,6 +24,13 @@ impl LightParamsSlot {
     }
 }
 
+/// One LightParams contributing to a position, with its overlay weight.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct WeightedLightParams {
+    pub light_params_id: u32,
+    pub weight: f32,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct LightParamsFlags(u32);
 

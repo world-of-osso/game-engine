@@ -9,7 +9,8 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::light_lookup::LightEntry;
 
-const LIGHT_CACHE_PATH: &str = "cache/light_lookup.sqlite";
+// v2 adds falloff_start.
+const LIGHT_CACHE_PATH: &str = "cache/light_lookup_v2.sqlite";
 
 pub(crate) fn load_light_entries(path: &Path) -> Result<Vec<LightEntry>, String> {
     let cache_path = ensure_light_cache(path)?;
@@ -63,7 +64,7 @@ fn load_light_entries_from_sqlite(cache_path: &Path) -> Result<Vec<LightEntry>, 
 
 fn prepare_light_query(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
-        "SELECT id, map_id, pos_x, pos_y, pos_z, falloff_end,
+        "SELECT id, map_id, pos_x, pos_y, pos_z, falloff_start, falloff_end,
                 light_params_0, light_params_1, light_params_2, light_params_3,
                 light_params_4, light_params_5, light_params_6, light_params_7
          FROM lights",
@@ -83,9 +84,9 @@ fn decode_light_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightEntry> {
         id: row.get(0)?,
         map_id: row.get(1)?,
         position: [row.get(2)?, row.get(3)?, row.get(4)?],
-        falloff_end: row.get(5)?,
+        falloff_start: row.get(5)?,
+        falloff_end: row.get(6)?,
         light_params_ids: [
-            row.get(6)?,
             row.get(7)?,
             row.get(8)?,
             row.get(9)?,
@@ -93,6 +94,7 @@ fn decode_light_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightEntry> {
             row.get(11)?,
             row.get(12)?,
             row.get(13)?,
+            row.get(14)?,
         ],
     })
 }
@@ -131,6 +133,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              pos_x REAL NOT NULL,
              pos_y REAL NOT NULL,
              pos_z REAL NOT NULL,
+             falloff_start REAL NOT NULL,
              falloff_end REAL NOT NULL,
              light_params_0 INTEGER NOT NULL,
              light_params_1 INTEGER NOT NULL,
@@ -151,10 +154,10 @@ fn import_light_rows(conn: &Connection, source_path: &Path) -> Result<(), String
     let mut insert = conn
         .prepare(
             "INSERT OR REPLACE INTO lights
-             (id, map_id, pos_x, pos_y, pos_z, falloff_end,
+             (id, map_id, pos_x, pos_y, pos_z, falloff_start, falloff_end,
               light_params_0, light_params_1, light_params_2, light_params_3,
               light_params_4, light_params_5, light_params_6, light_params_7)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         )
         .map_err(|err| format!("prepare lights insert: {err}"))?;
     let mut line = String::new();
@@ -183,6 +186,7 @@ fn insert_light_row(insert: &mut rusqlite::Statement<'_>, line: &str) -> Result<
             entry.position[0],
             entry.position[1],
             entry.position[2],
+            entry.falloff_start,
             entry.falloff_end,
             entry.light_params_ids[0],
             entry.light_params_ids[1],
@@ -221,6 +225,7 @@ fn parse_light_line(line: &str) -> Option<LightEntry> {
             fields[2].parse().ok()?,
             fields[3].parse().ok()?,
         ],
+        falloff_start: fields[4].parse().ok()?,
         falloff_end: fields[5].parse().ok()?,
         map_id: fields[6].parse().ok()?,
         light_params_ids: [
@@ -252,7 +257,7 @@ mod tests {
         let csv_path = dir.join("Light.csv");
         std::fs::write(
             &csv_path,
-            "ID,GameCoords_0,GameCoords_1,GameCoords_2,GameFalloffStart,GameFalloffEnd,ContinentID,LightParamsID_0,LightParamsID_1,LightParamsID_2,LightParamsID_3,LightParamsID_4,LightParamsID_5,LightParamsID_6,LightParamsID_7\n1,10,20,30,0,40,1643,11,12,13,14,15,16,17,18\n",
+            "ID,GameCoords_0,GameCoords_1,GameCoords_2,GameFalloffStart,GameFalloffEnd,ContinentID,LightParamsID_0,LightParamsID_1,LightParamsID_2,LightParamsID_3,LightParamsID_4,LightParamsID_5,LightParamsID_6,LightParamsID_7\n1,10,20,30,25,40,1643,11,12,13,14,15,16,17,18\n",
         )
         .unwrap();
 
@@ -265,6 +270,7 @@ mod tests {
                 id: 1,
                 map_id: 1643,
                 position: [10.0, 20.0, 30.0],
+                falloff_start: 25.0,
                 falloff_end: 40.0,
                 light_params_ids: [11, 12, 13, 14, 15, 16, 17, 18],
             }
