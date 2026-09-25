@@ -22,7 +22,7 @@ pub const ACTION_CLOSE: &str = "professions_book_close";
 /// `professions_book_open:<parent skill line>`: the entry's spell button.
 pub const ACTION_OPEN_PREFIX: &str = "professions_book_open:";
 
-/// `Interface\Spellbook\Professions-Book-Left` (512×512) and `-Right`.
+/// `Interface\Spellbook\Professions-Book-Left` (512×512) and `-Right` (32×512).
 const BOOK_LEFT: u32 = 383_588;
 const BOOK_RIGHT: u32 = 383_589;
 /// `Interface\Spellbook\ProfessionsBook` (256×128) and `Professions-Progress-Fill`.

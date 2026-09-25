@@ -120,8 +120,19 @@ const SKILL_LOW: AtlasArt = professions_art((458.0, 471.0, 1221.0, 1236.0));
 /// `Professions-skillbar-bg` / `-frame` (15729, 15730), 451×29.
 const SKILLBAR_BG: AtlasArt = professions_art((1360.0, 1811.0, 396.0, 425.0));
 const SKILLBAR_FRAME: AtlasArt = professions_art((478.0, 929.0, 587.0, 616.0));
-/// `Skillbar_Fill_Flipbook_DefaultBlue` (18397), first 440-wide frame.
-const SKILLBAR_FILL: AtlasArt = professions_art((478.0, 918.0, 396.0, 429.0));
+/// `Skillbar_Fill_Flipbook_DefaultBlue` (18397), first 440-wide frame: the fill of a
+/// profession without its own `Skillbar_Fill_Flipbook_<kit>` (Blizzard_ProfessionsRankBar.lua:109-116).
+pub const DEFAULT_SKILLBAR_FILL: AtlasArt = professions_art((478.0, 918.0, 396.0, 429.0));
+
+/// First frame of `Skillbar_Fill_Flipbook_<kit>`: the 1712-wide member at (1,1) holds a
+/// 2-column flipbook of 34-high rows (Blizzard_ProfessionsRankBar.xml:95), so 856×34.
+pub const fn kit_skillbar_fill(fdid: u32, atlas: (f32, f32)) -> AtlasArt {
+    AtlasArt {
+        fdid,
+        atlas,
+        rect: (1.0, 857.0, 1.0, 35.0),
+    }
+}
 /// `Professions-Slot-bg` (15182), 43×43.
 const SLOT_BG: AtlasArt = professions_art((401.0, 444.0, 742.0, 785.0));
 /// `auctionhouse-itemicon-border-white` (9495), atlas 1495: the output icon ring.
@@ -199,13 +210,21 @@ pub struct Schematic {
     pub reagents: Vec<ReagentSlot>,
 }
 
+/// `ProfessionsRankBarTemplate` contents.
+#[derive(Clone, Debug, PartialEq)]
+pub struct RankBar {
+    /// `TRADESKILL_NAME_RANK` "%s %d/%d".
+    pub text: String,
+    pub fraction: f32,
+    pub fill: AtlasArt,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ProfessionsFrameState {
     pub visible: bool,
     /// `TRADE_SKILL_TITLE` "%s" of the profession name.
     pub title: String,
-    /// `TRADESKILL_NAME_RANK` "%s %d/%d" and the fill fraction.
-    pub rank: Option<(String, f32)>,
+    pub rank: Option<RankBar>,
     pub background_fdid: u32,
     pub search_text: String,
     pub search_focused: bool,
@@ -226,8 +245,8 @@ pub fn professions_frame_screen(ctx: &SharedContext) -> Element {
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
     children.extend(recipe_list(state));
     children.extend(schematic_form(state));
-    if let Some((text, fraction)) = &state.rank {
-        children.extend(rank_bar(text, *fraction));
+    if let Some(rank) = &state.rank {
+        children.extend(rank_bar(rank));
     }
     children.extend(create_buttons(state));
     // TabSystem TOPLEFT at the frame's BOTTOMLEFT 22,2 (PF.xml:16-25); the Recipes tab
@@ -701,22 +720,22 @@ fn reagent_slot(index: usize, slot: &ReagentSlot, (x, y): (f32, f32)) -> Element
 
 /// Background, the fill masked to its 441×18 rect at 5,−3, border, and the
 /// `Number12FontOutline` rank text centred 2 below (Blizzard_ProfessionsRankBar.xml:5-60).
-fn rank_bar(rank_text: &str, fraction: f32) -> Element {
+fn rank_bar(rank: &RankBar) -> Element {
     let prefix = "ProfessionsFrameRankBar";
     let mut children = atlas_texture(
         format!("{prefix}Background"),
         &SKILLBAR_BG,
         (RANK_X, RANK_Y, 451.0, 29.0),
     );
-    let fraction = fraction.clamp(0.0, 1.0);
+    let fraction = rank.fraction.clamp(0.0, 1.0);
     if fraction > 0.0 {
-        let coords = SKILLBAR_FILL.tex_coords(fraction);
+        let coords = rank.fill.tex_coords(fraction);
         children.extend(rsx! {
             texture {
                 name: {DynName(format!("{prefix}Fill"))},
                 width: {441.0 * fraction},
                 height: 18.0,
-                texture_fdid: {SKILLBAR_FILL.fdid},
+                texture_fdid: {rank.fill.fdid},
                 tex_coords: {coords.as_str()},
                 pos_type: "absolute",
                 left: {RANK_X + 5.0},
@@ -731,7 +750,7 @@ fn rank_bar(rank_text: &str, fraction: f32) -> Element {
     ));
     children.extend(text(Text {
         name: format!("{prefix}RankText"),
-        text: rank_text,
+        text: &rank.text,
         rect: (
             RANK_X + (453.0 - 300.0) / 2.0,
             RANK_Y + 2.0 + 3.0,
