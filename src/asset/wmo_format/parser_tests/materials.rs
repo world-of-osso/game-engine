@@ -60,8 +60,8 @@ fn parse_momt_reads_sidn_color() {
 #[test]
 fn parse_momt_reads_diff_color_and_ground_type() {
     let mut data = vec![0_u8; MOMT_ENTRY_SIZE];
-    data[32..36].copy_from_slice(&[0x11, 0x22, 0x33, 0x44]);
-    data[44..48].copy_from_slice(&7_u32.to_le_bytes());
+    data[28..32].copy_from_slice(&[0x11, 0x22, 0x33, 0x44]);
+    data[32..36].copy_from_slice(&7_u32.to_le_bytes());
 
     let mats = parse_momt(&data).expect("parse MOMT");
 
@@ -76,6 +76,34 @@ fn parse_momt_reads_diff_color_and_ground_type() {
         ]
     );
     assert_eq!(mats[0].ground_type, 7);
+}
+
+/// SMOMaterial (wowdev WMO MOMT): flags, shader, blendMode, texture_1, sidnColor,
+/// frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2,
+/// runTimeData[4]. `sw_tradedistrict` two-layer materials name their second texture in
+/// texture_2; diffColor right after it is 0xFF959595.
+#[test]
+fn trade_district_momt_reads_texture_2_before_diff_color() {
+    let data = std::fs::read("data/models/322057.wmo").expect("sw_tradedistrict root WMO");
+    let root = crate::asset::wmo::load_wmo_root(&data).expect("parse sw_tradedistrict root");
+
+    let floor = &root.materials[8];
+    assert_eq!(floor.shader, 13);
+    assert_eq!(floor.texture_fdid, 127980); // mm_strmwnd_int_floor_02.blp
+    assert_eq!(floor.texture_2_fdid, 465176); // mm_strmwnd_int_floor_02_burn.blp
+    let crenellation = &root.materials[46];
+    assert_eq!(crenellation.texture_fdid, 358469); // strmwnd_crenlatn.blp
+    assert_eq!(crenellation.texture_2_fdid, 464811); // strmwnd_crenlatn_burned.blp
+    assert_eq!(
+        crenellation.diff_color,
+        [
+            0x95 as f32 / 255.0,
+            0x95 as f32 / 255.0,
+            0x95 as f32 / 255.0,
+            1.0
+        ]
+    );
+    assert_eq!(root.materials[4].texture_2_fdid, 0);
 }
 
 #[test]
@@ -145,8 +173,8 @@ fn load_wmo_root_reads_momt_sidn_color() {
 fn load_wmo_root_reads_momt_diff_color_and_ground_type() {
     let mut data = Vec::new();
     let mut momt = vec![0_u8; MOMT_ENTRY_SIZE];
-    momt[32..36].copy_from_slice(&[0x50, 0x60, 0x70, 0x80]);
-    momt[44..48].copy_from_slice(&19_u32.to_le_bytes());
+    momt[28..32].copy_from_slice(&[0x50, 0x60, 0x70, 0x80]);
+    momt[32..36].copy_from_slice(&19_u32.to_le_bytes());
     append_chunk(&mut data, b"TMOM", &momt);
 
     let root = load_wmo_root(&data).expect("parse WMO root");
