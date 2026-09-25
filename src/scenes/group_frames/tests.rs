@@ -246,7 +246,7 @@ fn click(
 }
 
 #[test]
-fn party_frames_sit_left_of_the_player_frame_bottom_aligned_with_it() {
+fn party_frames_sit_left_of_the_player_frame_bottom_aligned_with_it_growing_upward() {
     let (group, _) = party_fixture();
     let registry = registry_for(&views(&group, "Ann", None));
     let id = registry.get_by_name(PARTY_FRAME_NAME).unwrap();
@@ -255,7 +255,33 @@ fn party_frames_sit_left_of_the_player_frame_bottom_aligned_with_it() {
     // PlayerFrame left edge is 281 left of centre; the column ends 12 before it.
     assert_eq!(rect.x + rect.width, 960.0 - 281.0 - 12.0);
     assert_eq!(rect.y + rect.height, 1080.0 - 152.0);
-    assert_eq!((rect.width, rect.height), (98.0, 14.0 + 5.0 * 44.0));
+    assert_eq!((rect.width, rect.height), (98.0, 14.0 + 2.0 * 44.0));
+}
+
+#[test]
+fn raid_grid_is_centred_above_the_cluster_and_as_tall_as_its_fullest_group() {
+    let group = group_with(
+        true,
+        vec![
+            member("Ann", true, true, 1),
+            member("Bob", false, true, 1),
+            member("Cid", false, true, 4),
+        ],
+    );
+    let registry = registry_for(&views(&group, "Ann", None));
+    let id = registry.get_by_name("CompactRaidFrameContainer").unwrap();
+    let rect = registry.get(id).unwrap().layout_rect.clone().unwrap();
+
+    assert_eq!((rect.x, rect.width), (960.0 - 288.0, 576.0));
+    assert_eq!(rect.y + rect.height, 1080.0 - 215.0);
+    assert_eq!(rect.height, 14.0 + 2.0 * 36.0);
+    let cid = registry.get_by_name("CompactRaidGroup4Member1").unwrap();
+    let cid_rect = registry.get(cid).unwrap().layout_rect.clone().unwrap();
+    assert_eq!(
+        (cid_rect.x, cid_rect.width),
+        (960.0 - 288.0 + 3.0 * 72.0, 72.0)
+    );
+    assert!(registry.get_by_name("CompactRaidGroup2Title").is_none());
 }
 
 #[test]

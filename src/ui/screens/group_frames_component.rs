@@ -35,9 +35,22 @@ const TITLE_H: f32 = 14.0;
 pub const PARTY_GAP: f32 = 12.0;
 pub const PARTY_LEFT: f32 = PLAYER_FRAME_LEFT - PARTY_GAP - PARTY_MEMBER_W;
 pub const PARTY_BOTTOM: f32 = CLUSTER_BOTTOM;
-pub const PARTY_H: f32 = TITLE_H + MAX_PARTY_MEMBERS as f32 * PARTY_MEMBER_H;
+/// Party column height for `members` frames; the column is bottom-anchored, so it grows
+/// upward as members join and its last frame always sits level with the cluster.
+pub fn party_height(members: usize) -> f32 {
+    TITLE_H + members.min(MAX_PARTY_MEMBERS) as f32 * PARTY_MEMBER_H
+}
 pub const RAID_W: f32 = RAID_GROUPS as f32 * RAID_MEMBER_W;
-pub const RAID_H: f32 = TITLE_H + GROUP_SIZE as f32 * RAID_MEMBER_H;
+/// Raid grid height for the fullest group; bottom-anchored like the party column.
+pub fn raid_height(groups: &[Vec<CompactUnitView>]) -> f32 {
+    let rows = groups
+        .iter()
+        .map(Vec::len)
+        .max()
+        .unwrap_or(0)
+        .min(GROUP_SIZE);
+    TITLE_H + rows as f32 * RAID_MEMBER_H
+}
 pub const RAID_BOTTOM: f32 = 215.0;
 /// `GameFontNormalSmall`.
 const TITLE_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
@@ -115,7 +128,7 @@ fn party_frame(members: &[CompactUnitView]) -> Element {
         r#frame {
             name: {DynName(PARTY_FRAME.to_string())},
             width: PARTY_MEMBER_W,
-            height: PARTY_H,
+            height: {party_height(members.len())},
             strata: FrameStrata::Low,
             hidden: {members.is_empty()},
             pos_type: "absolute",
@@ -140,7 +153,7 @@ fn raid_frame(groups: &[Vec<CompactUnitView>]) -> Element {
         r#frame {
             name: {DynName(RAID_FRAME.to_string())},
             width: RAID_W,
-            height: RAID_H,
+            height: {raid_height(groups)},
             strata: FrameStrata::Low,
             hidden: {groups.iter().all(Vec::is_empty)},
             pos_type: "absolute",
