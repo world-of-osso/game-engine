@@ -27,6 +27,7 @@ fn clicking_non_selected_character_switches_model_and_highlights_card() {
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
     app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
     app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<crate::terrain_objects::WmoLitMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
     app.insert_resource(crate::creature_display::CreatureDisplayMap);
@@ -333,6 +334,7 @@ fn sync_char_select_model_leaves_camera_unchanged_when_character_is_already_disp
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
     app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
     app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<crate::terrain_objects::WmoLitMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
     app.insert_resource(crate::creature_display::CreatureDisplayMap);
@@ -412,6 +414,7 @@ fn sync_char_select_model_respawns_when_selected_character_changes() {
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
     app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
     app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<crate::terrain_objects::WmoLitMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
     app.insert_resource(crate::creature_display::CreatureDisplayMap);
