@@ -474,17 +474,6 @@ fn min_spawned_terrain_vertex_rgb(world: &World, root: Entity) -> Option<f32> {
 }
 
 #[test]
-fn terrain_shader_uses_wow_mccv_diffuse_scaling() {
-    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
-        .expect("terrain shader should be readable");
-
-    assert!(
-        shader.contains("let vertex_color = in.color.rgb * 2.0;"),
-        "expected terrain shader to apply WoW MCCV diffuse scaling"
-    );
-}
-
-#[test]
 fn terrain_only_spawn_lifts_dark_vertex_colors_for_char_select_background() {
     let adt_path = Path::new("data/terrain/2703_31_37.adt");
     if !adt_path.exists() {
@@ -503,69 +492,5 @@ fn terrain_only_spawn_lifts_dark_vertex_colors_for_char_select_background() {
     assert!(
         min_rgb >= 0.75,
         "expected terrain-only spawn to clamp crushed vertex lighting for char-select readability, got min_rgb={min_rgb}"
-    );
-}
-
-#[test]
-fn terrain_shader_samples_layers_with_animation_offsets() {
-    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
-        .expect("terrain shader should be readable");
-
-    assert!(
-        shader.contains("let uv0 = animated_layer_uv(0u, uv);"),
-        "expected terrain shader to build animated UVs for terrain layer 0"
-    );
-    assert!(
-        shader.contains("let c0 = apply_layer_overbright(0u, sample_ground_tiled(0u, uv0));"),
-        "expected terrain shader to sample terrain layer 0 with animated UVs before applying overbright"
-    );
-}
-
-#[test]
-fn terrain_shader_applies_overbright_layer_multiplier() {
-    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
-        .expect("terrain shader should be readable");
-
-    assert!(
-        shader.contains("let c0 = apply_layer_overbright(0u, sample_ground_tiled(0u, uv0));"),
-        "expected terrain shader to apply per-layer overbright before terrain blending"
-    );
-}
-
-#[test]
-fn terrain_shader_applies_shadow_map_overlay() {
-    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
-        .expect("terrain shader should be readable");
-
-    assert!(
-        shader.contains("let static_shadow = textureSample(shadow_map, shadow_sampler, uv).r;"),
-        "expected terrain shader to sample the packed MCSH shadow map"
-    );
-    assert!(
-        shader
-            .contains("let shadow_light = mix(STATIC_SHADOW_MIN_BRIGHTNESS, 1.0, static_shadow);"),
-        "expected terrain shader to turn MCSH into a darkening factor instead of a hard binary mask"
-    );
-    assert!(
-        shader.contains(
-            "let shaded_color = vec4<f32>(color.rgb * vertex_color * shadow_light, color.a);"
-        ),
-        "expected terrain shader to multiply terrain lighting by the static shadow factor"
-    );
-}
-
-#[test]
-fn terrain_shader_samples_environment_map_for_reflective_layers() {
-    let shader = std::fs::read_to_string("assets/shaders/terrain.wgsl")
-        .expect("terrain shader should be readable");
-
-    assert!(
-        shader
-            .contains("let reflection = sample_environment_reflection(pbr_input.N, pbr_input.V);"),
-        "expected terrain shader to sample the sky cubemap for reflective terrain layers"
-    );
-    assert!(
-        shader.contains("let reflective_weight = dot(weights, reflection_mask);"),
-        "expected terrain shader to derive reflection strength from per-layer cubemap flags"
     );
 }

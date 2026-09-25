@@ -197,7 +197,6 @@ fn test_material() -> TerrainMaterial {
     TerrainMaterial {
         settings: super::super::TerrainMaterialSettings {
             config: Vec4::ZERO,
-            surface: Vec4::ZERO,
             layer_params_0: Vec4::ZERO,
             layer_params_1: Vec4::ZERO,
             layer_params_2: Vec4::ZERO,
@@ -218,5 +217,6 @@ fn test_material() -> TerrainMaterial {
         alpha_packed: Handle::default(),
         shadow_map: Handle::default(),
         environment_map: Handle::default(),
+        scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
     }
 }
