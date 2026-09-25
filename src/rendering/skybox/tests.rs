@@ -546,18 +546,40 @@ fn sync_inworld_skybox_to_camera_moves_skybox_without_query_conflict() {
     assert_eq!(transform.translation, Vec3::new(4.0, 5.0, 6.0));
 }
 
-#[test]
-fn sky_dome_uses_wow_client_latitude_angles() {
-    let latitudes: Vec<f32> = sky_dome_latitudes_radians()
-        .map(|angle| angle.to_degrees())
-        .collect();
-    let expected = [90.0, 55.0, 40.0, 25.0, 15.0, 4.0, 3.5, 0.0, -2.25, -90.0];
+fn read_rgba16f(data: &[u8], face: u32, x: u32, y: u32) -> [f32; 3] {
+    let face_bytes = (ENV_MAP_SIZE * ENV_MAP_SIZE) as usize * 8;
+    let offset = face as usize * face_bytes + ((y * ENV_MAP_SIZE + x) as usize) * 8;
+    std::array::from_fn(|channel| {
+        let at = offset + channel * 2;
+        half::f16::from_le_bytes([data[at], data[at + 1]]).to_f32()
+    })
+}
 
-    assert_eq!(latitudes.len(), expected.len());
-    for (actual, expected) in latitudes.iter().zip(expected) {
-        assert!(
-            (actual - expected).abs() <= 0.001,
-            "expected latitude {expected}, got {actual}"
-        );
+#[test]
+fn environment_map_follows_dome_bands_for_noon_light_params_12() {
+    let rows = load_light_data("data/LightData.ron", 12);
+    let noon = interpolate_colors(&rows, 1440.0);
+    let cubemap = build_sky_cubemap(&noon);
+    let data = cubemap.data.as_ref().expect("cubemap pixels");
+    // +Z face, centre column: rows run from about 44° above to 44° below the horizon.
+    for y in [0, 6, 12, 14, 15, 16, 20, 31] {
+        let direction = cubemap_direction(4, 16, y);
+        let band = super::sky_gradient::sky_band_at_elevation(direction.y.asin());
+        let expected = super::sky_gradient::sky_gradient_color(&noon, band);
+        let actual = read_rgba16f(data, 4, 16, y);
+        let expected = [expected.red, expected.green, expected.blue];
+        for channel in 0..3 {
+            assert!(
+                (actual[channel] - expected[channel]).abs() < 2e-3,
+                "row {y} (elevation {:.2}°): {actual:?} vs dome {expected:?}",
+                direction.y.asin().to_degrees()
+            );
+        }
     }
+    // Noon sky above the rings is deep blue, not near-white.
+    let zenith_side = read_rgba16f(data, 4, 16, 0);
+    assert!(
+        zenith_side[2] > zenith_side[0] * 3.0,
+        "44° noon sky must be blue-dominant: {zenith_side:?}"
+    );
 }
