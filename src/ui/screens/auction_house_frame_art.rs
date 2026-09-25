@@ -26,11 +26,12 @@ pub(super) struct Crop {
 }
 
 impl Crop {
-    /// The same crop drawn upside down.
-    pub fn flipped(self) -> Self {
+    /// `PanelTopTabButtonMixin:OnLoad` (SharedUIPanelTemplates.lua:280-286):
+    /// `SetTexCoord(0, 1, 1, 0.25)`, the art upside down and cut to its lower 75 %.
+    pub fn top_tab(self) -> Self {
         let (l, r, t, b) = self.rect;
         Self {
-            rect: (l, r, b, t),
+            rect: (l, r, b, t + 0.25 * (b - t)),
             ..self
         }
     }
