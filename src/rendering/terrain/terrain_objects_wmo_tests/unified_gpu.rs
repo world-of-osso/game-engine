@@ -34,11 +34,15 @@ fn trade_district_exterior_wall_is_not_darker_than_daylight() {
 }
 
 #[derive(Clone, Copy)]
-enum WallShading {
+pub(super) enum WallShading {
     /// The production WMO group batch spawn.
     Wmo,
     /// Lit StandardMaterial with the batch texture and no vertex color.
     DaylightOnly,
+    /// Stock ordinary MapObj: texture * 2 * fixed MOCV, times daylight when `lit`.
+    /// Bevy multiplies linear vertex color into the base color, so the reference
+    /// carries `srgb_to_linear(2 * MOCV)`.
+    StockMocv { lit: bool },
 }
 
 fn load_trade_district_exterior_group() -> (wmo::WmoRootData, wmo::WmoGroupData) {
@@ -60,7 +64,16 @@ fn render_wall_center(
     group: &wmo::WmoGroupData,
     shading: WallShading,
 ) -> [u8; 4] {
-    let batch = group.batches[0].clone();
+    render_batch_center(root, group, 0, shading)
+}
+
+pub(super) fn render_batch_center(
+    root: &wmo::WmoRootData,
+    group: &wmo::WmoGroupData,
+    batch_index: usize,
+    shading: WallShading,
+) -> [u8; 4] {
+    let batch = group.batches[batch_index].clone();
     let (centroid, normal) = largest_triangle(&batch.mesh);
     let up = if normal.y.abs() > 0.9 {
         Vec3::X
@@ -68,8 +81,6 @@ fn render_wall_center(
         Vec3::Y
     };
     let mut app = gpu_app();
-    app.init_asset::<WaterMaterial>()
-        .init_asset::<M2EffectMaterial>();
     let target = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
@@ -101,11 +112,12 @@ fn render_wall_center(
     match shading {
         WallShading::Wmo => spawn_production_batch(&mut app, root, group, batch),
         WallShading::DaylightOnly => spawn_daylight_reference(&mut app, root, batch),
+        WallShading::StockMocv { lit } => spawn_stock_mocv_reference(&mut app, root, batch, lit),
     }
     capture_center_until_drawn(&mut app, target)
 }
 
-fn spawn_production_batch(
+pub(super) fn spawn_production_batch(
     app: &mut App,
     root: &wmo::WmoRootData,
     group: &wmo::WmoGroupData,
@@ -154,6 +166,28 @@ fn spawn_production_batch(
 
 fn spawn_daylight_reference(app: &mut App, root: &wmo::WmoRootData, mut batch: wmo::WmoGroupBatch) {
     batch.mesh.remove_attribute(Mesh::ATTRIBUTE_COLOR);
+    spawn_reference(app, root, batch, false);
+}
+
+fn spawn_stock_mocv_reference(
+    app: &mut App,
+    root: &wmo::WmoRootData,
+    mut batch: wmo::WmoGroupBatch,
+    lit: bool,
+) {
+    let Some(bevy::mesh::VertexAttributeValues::Float32x4(colors)) =
+        batch.mesh.attribute_mut(Mesh::ATTRIBUTE_COLOR)
+    else {
+        panic!("batch has no MOCV");
+    };
+    for color in colors.iter_mut() {
+        let light = Color::srgb(2.0 * color[0], 2.0 * color[1], 2.0 * color[2]).to_linear();
+        *color = [light.red, light.green, light.blue, 1.0];
+    }
+    spawn_reference(app, root, batch, !lit);
+}
+
+fn spawn_reference(app: &mut App, root: &wmo::WmoRootData, batch: wmo::WmoGroupBatch, unlit: bool) {
     let props = wmo_material_props(root, batch.material_index);
     let texture = {
         let mut images = app.world_mut().resource_mut::<Assets<Image>>();
@@ -168,6 +202,7 @@ fn spawn_daylight_reference(app: &mut App, root: &wmo::WmoRootData, mut batch: w
             perceptual_roughness: 1.0,
             reflectance: 0.0,
             alpha_mode: AlphaMode::Mask(0.5),
+            unlit,
             ..default()
         });
     let mesh = app
@@ -178,7 +213,7 @@ fn spawn_daylight_reference(app: &mut App, root: &wmo::WmoRootData, mut batch: w
         .spawn((Mesh3d(mesh), MeshMaterial3d(material), Transform::default()));
 }
 
-fn luminance(pixel: [u8; 4]) -> u32 {
+pub(super) fn luminance(pixel: [u8; 4]) -> u32 {
     (pixel[0] as u32 * 2126 + pixel[1] as u32 * 7152 + pixel[2] as u32 * 722) / 10000
 }
 

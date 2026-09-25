@@ -161,7 +161,6 @@ pub(crate) fn wmo_standard_material(
     unculled: bool,
     shader: u32,
     interior_ambient: Option<[f32; 4]>,
-    has_vertex_color: bool,
     sidn_glow: Option<WmoSidnGlow>,
 ) -> StandardMaterial {
     let alpha_mode = match blend_mode {
@@ -179,7 +178,6 @@ pub(crate) fn wmo_standard_material(
         reflectance: surface.reflectance,
         metallic: surface.metallic,
         emissive: wmo_emissive(shader, sidn_glow),
-        unlit: has_vertex_color,
         double_sided,
         cull_mode: wmo_cull_mode(double_sided),
         alpha_mode,
@@ -230,7 +228,7 @@ impl WmoSidnMaterial for StandardMaterial {
     }
 }
 
-impl WmoSidnMaterial for WmoUnifiedMaterial {
+impl WmoSidnMaterial for WmoLitMaterial {
     fn emissive_mut(&mut self) -> &mut LinearRgba {
         &mut self.base.emissive
     }
