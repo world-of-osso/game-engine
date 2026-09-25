@@ -74,8 +74,8 @@ fn load_wmo_second_layer(
     }
 }
 
-/// WMO spawning only holds `Assets<StandardMaterial>`; the WMO material is added when
-/// the spawn commands apply.
+/// WMO spawning holds no `Assets<WmoLitMaterial>`; the material is added when the
+/// spawn commands apply.
 fn insert_wmo_lit_material(child: &mut EntityCommands, material: WmoLitMaterial) {
     child.queue(move |mut entity: EntityWorldMut| {
         let handle = entity
