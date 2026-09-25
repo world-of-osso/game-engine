@@ -71,7 +71,17 @@ fn render_surface_center(blend_mode: u32, alpha: u8) -> [u8; 4] {
             default(),
         ));
     let base = wmo_standard_material(Some(texel), blend_mode, false, 0, None);
-    let wmo = wmo_lit_material(base, GROUP_EXTERIOR, true, [0.0; 3], None);
+    let wmo = wmo_lit_material(
+        base,
+        GROUP_EXTERIOR,
+        WmoLitSurface {
+            unlit: true,
+            blend_mode,
+            ..default()
+        },
+        [0.0; 3],
+        None,
+    );
     let background = StandardMaterial {
         base_color: Color::srgb(0.0, 1.0, 0.0),
         unlit: true,

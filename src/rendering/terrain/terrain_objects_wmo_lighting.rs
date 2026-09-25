@@ -1,9 +1,9 @@
 //! Retail WMO lighting, per WebWowViewerCpp (`commonLightFunctions.slang` `calcLight`,
 //! `wmoshader_text.slang`). MOCV is light, not albedo: the doubled fixed MOCV is added
-//! to the ambient, `texture * (ambient + 2 * MOCV + sun)`. Exterior light uses the scene
-//! sun and ambient, interior light the WMO interior ambient without a sun; the fixed
-//! MOCV alpha blends the two per vertex. StandardMaterial vertex color multiplies base
-//! color, so these batches need their own fragment shader.
+//! to the ambient, `texture * (ambient + 2 * MOCV + sun)`. Exterior light is the shared
+//! `RetailSceneLight`, interior light the WMO interior ambient without direct light;
+//! the fixed MOCV alpha blends the two per vertex. StandardMaterial vertex color
+//! multiplies base color, so these batches need their own fragment shader.
 
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::pbr::{
@@ -13,6 +13,7 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{
     AsBindGroup, RenderPipelineDescriptor, ShaderType, SpecializedMeshPipelineError,
 };
+use bevy::render::storage::ShaderBuffer;
 use bevy::shader::ShaderRef;
 
 use crate::asset::wmo;
@@ -27,6 +28,9 @@ pub struct WmoLighting {
     #[texture(101)]
     #[sampler(102)]
     pub second_texture: Option<Handle<Image>>,
+    /// The shared exterior light, `crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER`.
+    #[storage(103, read_only)]
+    pub scene_light: Handle<ShaderBuffer>,
 }
 
 #[derive(ShaderType, Debug, Clone, Copy, PartialEq)]
@@ -39,6 +43,18 @@ pub struct WmoLightingParams {
     pub unlit: u32,
     /// MOMT shader of a two-layer blend by second MOCV alpha (6 or 13), else 0.
     pub two_layer_shader: u32,
+    /// MOMT blend (GxBlend index), for the fog colour.
+    pub blend_mode: u32,
+    /// 1 for MOMT `F_UNFOGGED`.
+    pub unfogged: u32,
+}
+
+/// Per-material MOMT state the lighting reads.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct WmoLitSurface {
+    pub unlit: bool,
+    pub unfogged: bool,
+    pub blend_mode: u32,
 }
 
 /// Second layer of a Retail two-layer shader (see `WmoMaterialDef::blends_layers_by_second_mocv`).
@@ -124,7 +140,7 @@ pub(crate) fn wmo_interior_ambient(root: &wmo::WmoRootData, active_doodad_set: u
 pub(crate) fn wmo_lit_material(
     base: StandardMaterial,
     group_flags: u32,
-    material_unlit: bool,
+    surface: WmoLitSurface,
     interior_ambient: [f32; 3],
     second_layer: Option<WmoSecondLayer>,
 ) -> WmoLitMaterial {
@@ -134,15 +150,22 @@ pub(crate) fn wmo_lit_material(
         None => (0, None),
     };
     WmoLitMaterial {
-        base,
+        // Fogged in authored space by the WMO shader.
+        base: StandardMaterial {
+            fog_enabled: false,
+            ..base
+        },
         extension: WmoLighting {
             params: WmoLightingParams {
                 interior_ambient: Vec4::new(r, g, b, 1.0),
                 exterior_lit: wmo_group_is_exterior_lit(group_flags) as u32,
-                unlit: material_unlit as u32,
+                unlit: surface.unlit as u32,
                 two_layer_shader,
+                blend_mode: surface.blend_mode,
+                unfogged: surface.unfogged as u32,
             },
             second_texture,
+            scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
         },
     }
 }

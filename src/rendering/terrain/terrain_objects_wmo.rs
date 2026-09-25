@@ -42,7 +42,7 @@ mod tests;
 use self::terrain_objects_wmo_group::*;
 use self::terrain_objects_wmo_lighting::*;
 pub(crate) use self::terrain_objects_wmo_lighting::{
-    WmoLitMaterial, WmoLitMaterialPlugin, wmo_lit_material,
+    WmoLitMaterial, WmoLitMaterialPlugin, WmoLitSurface, wmo_lit_material,
 };
 use self::terrain_objects_wmo_surface::*;
 pub(crate) use self::terrain_objects_wmo_surface::{sync_wmo_sidn_emissive, wmo_standard_material};

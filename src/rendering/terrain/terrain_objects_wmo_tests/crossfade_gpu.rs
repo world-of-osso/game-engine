@@ -1,4 +1,4 @@
-use super::interior_gpu::gpu_app;
+use super::interior_gpu::{gpu_app, set_sun};
 use super::unified_gpu::{capture_center_until_drawn, luminance};
 use super::*;
 use bevy::camera::RenderTarget;
@@ -54,14 +54,7 @@ fn render_interior_group_texel(alpha: f32) -> [u8; 4] {
         Msaa::Sample4,
         Tonemapping::None,
     ));
-    app.world_mut().spawn((
-        DirectionalLight {
-            illuminance: 2500.0,
-            shadow_maps_enabled: false,
-            ..default()
-        },
-        Transform::default().looking_to(Vec3::NEG_Z, Vec3::Y),
-    ));
+    set_sun(&mut app, Vec3::NEG_Z);
     let texel = app
         .world_mut()
         .resource_mut::<Assets<Image>>()
@@ -73,7 +66,13 @@ fn render_interior_group_texel(alpha: f32) -> [u8; 4] {
             default(),
         ));
     let base = wmo_standard_material(Some(texel), 0, false, 0, None);
-    let material = wmo_lit_material(base, GROUP_INTERIOR, false, INTERIOR_AMBIENT, None);
+    let material = wmo_lit_material(
+        base,
+        GROUP_INTERIOR,
+        WmoLitSurface::default(),
+        INTERIOR_AMBIENT,
+        None,
+    );
     let material = app
         .world_mut()
         .resource_mut::<Assets<WmoLitMaterial>>()

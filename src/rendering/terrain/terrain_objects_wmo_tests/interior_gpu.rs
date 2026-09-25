@@ -102,13 +102,36 @@ pub(super) fn gpu_app() -> App {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
-    app.add_plugins(WmoLitMaterialPlugin)
-        .init_asset::<crate::water_material::WaterMaterial>()
-        .init_asset::<crate::m2_effect_material::M2EffectMaterial>()
-        .init_asset::<crate::retail_m2_material::M2Material>();
+    app.add_plugins((
+        WmoLitMaterialPlugin,
+        crate::retail_light::RetailLightingPlugin,
+    ))
+    .init_asset::<crate::water_material::WaterMaterial>()
+    .init_asset::<crate::m2_effect_material::M2EffectMaterial>()
+    .init_asset::<crate::retail_m2_material::M2Material>()
+    .insert_resource(test_scene_light(Vec3::NEG_Y));
     app.finish();
     app.cleanup();
     app
+}
+
+/// Grey Retail scene light with the sun travelling along `sun_direction`.
+pub(super) fn test_scene_light(sun_direction: Vec3) -> crate::retail_light::RetailSceneLight {
+    let ambient = Vec3::splat(0.3);
+    crate::retail_light::RetailSceneLight {
+        ambient,
+        horizon_ambient: ambient,
+        ground_ambient: ambient,
+        direct: Vec3::splat(0.5),
+        sun_direction: sun_direction.normalize(),
+        fog_color: Vec3::ZERO,
+        fog_start: 0.0,
+        fog_end: 0.0,
+    }
+}
+
+pub(super) fn set_sun(app: &mut App, sun_direction: Vec3) {
+    app.insert_resource(test_scene_light(sun_direction));
 }
 
 pub(super) fn largest_triangle(mesh: &Mesh) -> (Vec3, Vec3) {

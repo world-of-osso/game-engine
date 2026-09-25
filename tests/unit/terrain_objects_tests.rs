@@ -196,7 +196,7 @@ fn glow_test_material() -> super::terrain_objects_wmo::WmoLitMaterial {
     super::terrain_objects_wmo::wmo_lit_material(
         StandardMaterial::default(),
         0,
-        false,
+        super::terrain_objects_wmo::WmoLitSurface::default(),
         [0.0; 3],
         None,
     )
