@@ -1,5 +1,4 @@
 use bevy::window::PrimaryWindow;
-use game_engine::merchant_data::MerchantState;
 use game_engine::status::InspectStatusSnapshot;
 use game_engine::ui::event::EventBus;
 use game_engine::ui::frame::Dimension;
@@ -262,32 +261,6 @@ fn clicking_the_lower_window_raises_it_above_the_other() {
     assert!(
         frame_level(&app, "FriendsFrameChild") < character,
         "the lower window's whole subtree sinks below the raised root"
-    );
-}
-
-#[test]
-fn merchant_session_opens_its_window_and_closing_the_window_ends_it() {
-    let mut app = window_app(Vec2::new(1920.0, 1080.0), 1.0);
-    app.init_resource::<MerchantState>();
-    app.update();
-
-    app.world_mut()
-        .resource_mut::<MerchantState>()
-        .npc_entity_id = Some(7);
-    app.update();
-    assert!(
-        app.world()
-            .resource::<WindowManager>()
-            .is_open(WindowId::Merchant)
-    );
-
-    app.world_mut().resource_mut::<WindowManager>().close_all();
-    app.update();
-    assert!(!app.world().resource::<MerchantState>().is_open());
-    assert!(
-        !app.world()
-            .resource::<WindowManager>()
-            .is_open(WindowId::Merchant)
     );
 }
 

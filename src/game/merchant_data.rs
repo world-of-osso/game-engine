@@ -1,571 +1,200 @@
+//! Client vendor state: the server's `VendorInventory` / `BuybackList` for the open
+//! vendor NPC, the Retail MerchantFrame tab and page, and the player actions the
+//! frame asks the network layer to send (`MerchantRequest`).
+
 use bevy::prelude::*;
+use shared::protocol::{BuybackItem, VendorInventory, VendorItem};
 
-use crate::auction_house_data::Money;
-
-pub mod textures {
-    /// Frame chrome bottom-left.
-    pub const FRAME_BOTTOM_LEFT: u32 = 136420;
-    /// Repair icons sheet.
-    pub const REPAIR_ICONS: u32 = 136424;
-    /// Repair ability icon.
-    pub const REPAIR_ABILITY: u32 = 132281;
-    /// Buyback icon.
-    pub const BUYBACK_ICON: u32 = 136417;
-    /// Item slot border (shared).
-    pub const SLOT_BORDER: u32 = 130862;
-    /// Gold coin (shared).
-    pub const GOLD_ICON: u32 = 237618;
-    /// Silver coin (shared).
-    pub const SILVER_ICON: u32 = 237620;
-    /// Copper coin (shared).
-    pub const COPPER_ICON: u32 = 237617;
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MerchantItemDef {
-    pub item_id: u32,
-    pub name: String,
-    pub icon_fdid: u32,
-    pub buy_price: Money,
-    pub sell_price: Money,
-    pub max_stack: u32,
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct MerchantBuybackItemDef {
-    pub slot: u8,
-    pub item_id: u32,
-    pub name: String,
-    pub icon_fdid: u32,
-    pub buyback_price: Money,
-}
+/// Retail `MERCHANT_ITEMS_PER_PAGE` (MerchantFrame.lua:1).
+pub const MERCHANT_ITEMS_PER_PAGE: usize = 10;
+/// Retail `BUYBACK_ITEMS_PER_PAGE` (MerchantFrame.lua:2).
+pub const BUYBACK_ITEMS_PER_PAGE: usize = 12;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum MerchantTabKind {
+pub enum MerchantTab {
     #[default]
-    Buy,
-    Sell,
+    Merchant,
     Buyback,
 }
 
-/// Runtime merchant state.
+/// The open vendor frame (`npc` = server entity bits; `None` = closed).
 #[derive(Resource, Clone, Debug, PartialEq, Default)]
 pub struct MerchantState {
-    pub inventory: Vec<MerchantItemDef>,
-    pub buyback_inventory: Vec<MerchantBuybackItemDef>,
-    pub player_money: Money,
-    pub repair_cost: Money,
+    pub npc: Option<u64>,
+    pub vendor_name: String,
+    pub can_repair: bool,
+    pub items: Vec<VendorItem>,
+    pub buyback: Vec<BuybackItem>,
+    pub tab: MerchantTab,
+    /// Zero-based page of the merchant tab.
     pub page: usize,
-    pub items_per_page: usize,
-    pub active_tab: MerchantTabKind,
-    /// The server-side entity ID of the vendor NPC (None = window closed).
-    pub npc_entity_id: Option<u64>,
 }
 
 impl MerchantState {
     pub fn is_open(&self) -> bool {
-        self.npc_entity_id.is_some()
+        self.npc.is_some()
     }
 
-    /// Open the merchant window for a specific NPC vendor.
-    pub fn open(
-        &mut self,
-        npc_entity_id: u64,
-        inventory: Vec<MerchantItemDef>,
-        buyback_inventory: Vec<MerchantBuybackItemDef>,
-        player_money: Money,
-        repair_cost: Money,
-    ) {
-        self.npc_entity_id = Some(npc_entity_id);
-        self.inventory = inventory;
-        self.buyback_inventory = buyback_inventory;
-        self.player_money = player_money;
-        self.repair_cost = repair_cost;
-        self.active_tab = MerchantTabKind::Buy;
-        self.page = 0;
+    /// A vendor list from the server: opens the frame on the merchant tab, or
+    /// refreshes the open frame of the same vendor (limited stock changed).
+    pub fn apply_inventory(&mut self, inventory: VendorInventory, vendor_name: String) {
+        if self.npc != Some(inventory.npc) {
+            *self = Self {
+                npc: Some(inventory.npc),
+                vendor_name,
+                ..Self::default()
+            };
+        }
+        self.can_repair = inventory.can_repair;
+        self.items = inventory.items;
+        self.page = self.page.min(self.page_count() - 1);
     }
 
-    /// Close the merchant window and clear all state.
     pub fn close(&mut self) {
-        self.npc_entity_id = None;
-        self.inventory.clear();
-        self.buyback_inventory.clear();
-        self.player_money = Money::default();
-        self.repair_cost = Money::default();
-        self.active_tab = MerchantTabKind::Buy;
-        self.page = 0;
+        *self = Self::default();
     }
 
+    /// Merchant-tab pages (`math.ceil(numMerchantItems / MERCHANT_ITEMS_PER_PAGE)`), at least 1.
     pub fn page_count(&self) -> usize {
-        let item_count = self.active_item_count();
-        if item_count == 0 {
-            return 1;
-        }
-        if self.items_per_page == 0 {
-            return 1;
-        }
-        item_count.div_ceil(self.items_per_page).max(1)
+        self.items.len().div_ceil(MERCHANT_ITEMS_PER_PAGE).max(1)
     }
 
-    pub fn current_page_items(&self) -> &[MerchantItemDef] {
-        self.page_slice(&self.inventory)
+    pub fn page_items(&self) -> &[VendorItem] {
+        let start = (self.page * MERCHANT_ITEMS_PER_PAGE).min(self.items.len());
+        let end = (start + MERCHANT_ITEMS_PER_PAGE).min(self.items.len());
+        &self.items[start..end]
     }
 
-    pub fn current_page_buyback_items(&self) -> &[MerchantBuybackItemDef] {
-        self.page_slice(&self.buyback_inventory)
-    }
-
-    pub fn can_afford(&self, item: &MerchantItemDef) -> bool {
-        self.player_money.0 >= item.buy_price.0
-    }
-
-    pub fn can_afford_buyback(&self, item: &MerchantBuybackItemDef) -> bool {
-        self.player_money.0 >= item.buyback_price.0
-    }
-
-    pub fn can_repair(&self) -> bool {
-        self.repair_cost.0 > 0 && self.player_money.0 >= self.repair_cost.0
-    }
-
-    /// Total cost to buy `quantity` of an item.
-    pub fn buy_cost(item: &MerchantItemDef, quantity: u32) -> Money {
-        Money(item.buy_price.0 * quantity as u64)
-    }
-
-    /// Whether the player can afford `quantity` of an item.
-    pub fn can_afford_quantity(&self, item: &MerchantItemDef, quantity: u32) -> bool {
-        self.player_money.0 >= Self::buy_cost(item, quantity).0
-    }
-
-    /// Navigate to next page (clamped).
     pub fn next_page(&mut self) {
-        let max = self.page_count().saturating_sub(1);
-        self.page = (self.page + 1).min(max);
+        self.page = (self.page + 1).min(self.page_count() - 1);
     }
 
-    /// Navigate to previous page (clamped).
     pub fn prev_page(&mut self) {
         self.page = self.page.saturating_sub(1);
     }
 
-    pub fn current_tab(&self) -> MerchantTabKind {
-        self.active_tab
+    /// Retail tab clicks keep the merchant page (`MerchantFrame.page`).
+    pub fn set_tab(&mut self, tab: MerchantTab) {
+        self.tab = tab;
     }
 
-    pub fn set_tab(&mut self, tab: MerchantTabKind) {
-        if self.active_tab != tab {
-            self.active_tab = tab;
-            self.page = 0;
-        }
+    /// The most recent sale, shown in the merchant tab's `MerchantBuyBackItem`.
+    pub fn last_buyback(&self) -> Option<&BuybackItem> {
+        self.buyback.last()
     }
 
-    fn active_item_count(&self) -> usize {
-        match self.active_tab {
-            MerchantTabKind::Buy => self.inventory.len(),
-            MerchantTabKind::Sell => 0,
-            MerchantTabKind::Buyback => self.buyback_inventory.len(),
+    /// Name, quality, stack count and stock of the item in cell `index` of the
+    /// shown tab.
+    pub fn cell_item(&self, index: usize) -> Option<(&str, u8, u32, Option<u32>)> {
+        match self.tab {
+            MerchantTab::Merchant => self.page_items().get(index).map(|item| {
+                (
+                    item.name.as_str(),
+                    item.quality,
+                    item.stack_count,
+                    item.num_available,
+                )
+            }),
+            MerchantTab::Buyback => self
+                .buyback
+                .get(index)
+                .map(|item| (item.name.as_str(), item.quality, item.count, None)),
         }
-    }
-
-    fn page_slice<'a, T>(&self, items: &'a [T]) -> &'a [T] {
-        if self.items_per_page == 0 {
-            return items;
-        }
-        let start = self.page * self.items_per_page;
-        let end = (start + self.items_per_page).min(items.len());
-        if start >= items.len() {
-            return &[];
-        }
-        &items[start..end]
     }
 }
 
-// --- Client → server intents ---
-
-/// A pending merchant transaction to send to the server.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum MerchantIntent {
-    /// Buy an item from the vendor.
-    Buy { item_id: u32, quantity: u32 },
-    /// Sell an item from the player's inventory.
-    Sell { bag: u8, slot: u8 },
-    /// Buy back a recently sold item.
-    Buyback { slot: u8 },
-    /// Repair all equipped items.
-    RepairAll,
-    /// Repair a single item.
-    RepairSingle { bag: u8, slot: u8 },
+/// Retail `ITEM_QUALITY_COLORS`.
+pub fn quality_color(quality: u8) -> &'static str {
+    match quality {
+        0 => "0.62,0.62,0.62,1.0",
+        2 => "0.12,1.0,0.0,1.0",
+        3 => "0.0,0.44,0.87,1.0",
+        4 => "0.64,0.21,0.93,1.0",
+        5 => "1.0,0.5,0.0,1.0",
+        6 | 7 => "0.9,0.8,0.5,1.0",
+        _ => "1.0,1.0,1.0,1.0",
+    }
 }
 
-/// Queue of merchant intents waiting to be sent to the server.
-#[derive(Resource, Default)]
-pub struct MerchantIntentQueue {
-    pub pending: Vec<MerchantIntent>,
-}
-
-impl MerchantIntentQueue {
-    pub fn buy(&mut self, item_id: u32, quantity: u32) {
-        self.pending.push(MerchantIntent::Buy { item_id, quantity });
-    }
-
-    pub fn sell(&mut self, bag: u8, slot: u8) {
-        self.pending.push(MerchantIntent::Sell { bag, slot });
-    }
-
-    pub fn buyback(&mut self, slot: u8) {
-        self.pending.push(MerchantIntent::Buyback { slot });
-    }
-
-    pub fn repair_all(&mut self) {
-        self.pending.push(MerchantIntent::RepairAll);
-    }
-
-    pub fn repair_single(&mut self, bag: u8, slot: u8) {
-        self.pending
-            .push(MerchantIntent::RepairSingle { bag, slot });
-    }
-
-    pub fn drain(&mut self) -> Vec<MerchantIntent> {
-        std::mem::take(&mut self.pending)
-    }
+/// A MerchantFrame action for the server, sent to the open vendor.
+#[derive(Message, Clone, Debug, PartialEq, Eq)]
+pub enum MerchantRequest {
+    /// `count` purchases of the vendor slot.
+    Buy {
+        slot: u32,
+        item_id: u32,
+        count: u32,
+    },
+    /// Sell a bag stack (`count` 0 = all of it).
+    Sell {
+        item_guid: u64,
+        count: u32,
+    },
+    Buyback {
+        slot: u8,
+    },
+    /// Repair one item, or all when `item_guid` is `None`.
+    Repair {
+        item_guid: Option<u64>,
+    },
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn make_item(name: &str, price_copper: u64) -> MerchantItemDef {
-        MerchantItemDef {
-            item_id: 1,
-            name: name.into(),
-            icon_fdid: 0,
-            buy_price: Money(price_copper),
-            sell_price: Money(price_copper / 4),
-            max_stack: 20,
-        }
-    }
-
-    fn make_buyback_item(slot: u8, name: &str, price_copper: u64) -> MerchantBuybackItemDef {
-        MerchantBuybackItemDef {
+    fn item(slot: u32) -> VendorItem {
+        VendorItem {
             slot,
-            item_id: u32::from(slot) + 1000,
-            name: name.into(),
-            icon_fdid: 0,
-            buyback_price: Money(price_copper),
+            item_id: 2320 + slot,
+            name: format!("Item {slot}"),
+            quality: 1,
+            price: 10,
+            stack_count: 1,
+            max_stack: 1,
+            num_available: None,
+            usable: true,
+        }
+    }
+
+    fn inventory(npc: u64, count: u32) -> VendorInventory {
+        VendorInventory {
+            npc,
+            can_repair: false,
+            items: (0..count).map(item).collect(),
         }
     }
 
     #[test]
-    fn page_count_and_items() {
-        let mut state = MerchantState {
-            inventory: (0..25)
-                .map(|i| make_item(&format!("Item{i}"), 100))
-                .collect(),
-            items_per_page: 10,
-            ..Default::default()
-        };
-        assert_eq!(state.page_count(), 3);
-        assert_eq!(state.current_page_items().len(), 10);
-        state.page = 2;
-        assert_eq!(state.current_page_items().len(), 5);
-    }
-
-    #[test]
-    fn can_afford() {
-        let state = MerchantState {
-            player_money: Money(500),
-            ..Default::default()
-        };
-        assert!(state.can_afford(&make_item("Cheap", 100)));
-        assert!(!state.can_afford(&make_item("Expensive", 1000)));
-    }
-
-    #[test]
-    fn can_repair() {
-        let state = MerchantState {
-            player_money: Money(500),
-            repair_cost: Money(200),
-            ..Default::default()
-        };
-        assert!(state.can_repair());
-        let broke = MerchantState {
-            player_money: Money(50),
-            repair_cost: Money(200),
-            ..Default::default()
-        };
-        assert!(!broke.can_repair());
-    }
-
-    #[test]
-    fn empty_inventory_one_page() {
-        let state = MerchantState {
-            items_per_page: 10,
-            ..Default::default()
-        };
-        assert_eq!(state.page_count(), 1);
-        assert!(state.current_page_items().is_empty());
-    }
-
-    #[test]
-    fn texture_fdids_are_nonzero() {
-        assert_ne!(textures::FRAME_BOTTOM_LEFT, 0);
-        assert_ne!(textures::REPAIR_ICONS, 0);
-        assert_ne!(textures::REPAIR_ABILITY, 0);
-        assert_ne!(textures::BUYBACK_ICON, 0);
-        assert_ne!(textures::SLOT_BORDER, 0);
-        assert_ne!(textures::GOLD_ICON, 0);
-    }
-
-    // --- Inventory paging ---
-
-    #[test]
-    fn page_beyond_range_returns_empty() {
-        let state = MerchantState {
-            inventory: vec![make_item("A", 100)],
-            items_per_page: 10,
-            page: 5,
-            ..Default::default()
-        };
-        assert!(state.current_page_items().is_empty());
-    }
-
-    #[test]
-    fn exact_page_boundary() {
-        let state = MerchantState {
-            inventory: (0..20).map(|i| make_item(&format!("I{i}"), 100)).collect(),
-            items_per_page: 10,
-            page: 0,
-            ..Default::default()
-        };
-        assert_eq!(state.page_count(), 2);
-        assert_eq!(state.current_page_items().len(), 10);
-    }
-
-    #[test]
-    fn next_page_navigation() {
-        let mut state = MerchantState {
-            inventory: (0..25).map(|i| make_item(&format!("I{i}"), 100)).collect(),
-            items_per_page: 10,
-            page: 0,
-            ..Default::default()
-        };
-        state.next_page();
-        assert_eq!(state.page, 1);
-        state.next_page();
-        assert_eq!(state.page, 2);
-        state.next_page(); // clamped at last page
-        assert_eq!(state.page, 2);
-    }
-
-    #[test]
-    fn prev_page_navigation() {
-        let mut state = MerchantState {
-            inventory: (0..25).map(|i| make_item(&format!("I{i}"), 100)).collect(),
-            items_per_page: 10,
-            page: 2,
-            ..Default::default()
-        };
-        state.prev_page();
-        assert_eq!(state.page, 1);
-        state.prev_page();
-        assert_eq!(state.page, 0);
-        state.prev_page(); // clamped at 0
-        assert_eq!(state.page, 0);
-    }
-
-    // --- Price calculation ---
-
-    #[test]
-    fn buy_cost_single() {
-        let item = make_item("Arrow", 10);
-        assert_eq!(MerchantState::buy_cost(&item, 1), Money(10));
-    }
-
-    #[test]
-    fn buy_cost_stack() {
-        let item = make_item("Arrow", 10);
-        assert_eq!(MerchantState::buy_cost(&item, 20), Money(200));
-    }
-
-    #[test]
-    fn can_afford_quantity() {
-        let state = MerchantState {
-            player_money: Money(500),
-            ..Default::default()
-        };
-        let item = make_item("Arrow", 10);
-        assert!(state.can_afford_quantity(&item, 20)); // 200 <= 500
-        assert!(state.can_afford_quantity(&item, 50)); // 500 <= 500
-        assert!(!state.can_afford_quantity(&item, 51)); // 510 > 500
-    }
-
-    #[test]
-    fn sell_price_is_quarter_of_buy() {
-        let item = make_item("Sword", 10000);
-        assert_eq!(item.sell_price, Money(2500));
-    }
-
-    #[test]
-    fn repair_zero_cost_cannot_repair() {
-        let state = MerchantState {
-            player_money: Money(10000),
-            repair_cost: Money(0),
-            ..Default::default()
-        };
-        assert!(!state.can_repair());
-    }
-
-    #[test]
-    fn items_per_page_zero_shows_all() {
-        let state = MerchantState {
-            inventory: (0..5).map(|i| make_item(&format!("I{i}"), 100)).collect(),
-            items_per_page: 0,
-            ..Default::default()
-        };
-        assert_eq!(state.page_count(), 1);
-        assert_eq!(state.current_page_items().len(), 5);
-    }
-
-    // --- Open / close lifecycle ---
-
-    #[test]
-    fn state_starts_closed() {
-        let state = MerchantState::default();
-        assert!(!state.is_open());
-        assert!(state.npc_entity_id.is_none());
-    }
-
-    #[test]
-    fn open_and_close() {
-        let mut state = MerchantState {
-            items_per_page: 10,
-            ..Default::default()
-        };
-        let items = vec![make_item("Sword", 5000), make_item("Shield", 3000)];
-        state.open(42, items, vec![], Money(10000), Money(500));
-
-        assert!(state.is_open());
-        assert_eq!(state.npc_entity_id, Some(42));
-        assert_eq!(state.inventory.len(), 2);
-        assert!(state.buyback_inventory.is_empty());
-        assert_eq!(state.player_money, Money(10000));
-        assert_eq!(state.repair_cost, Money(500));
-        assert_eq!(state.page, 0);
-
-        state.close();
-        assert!(!state.is_open());
-        assert!(state.inventory.is_empty());
-        assert!(state.buyback_inventory.is_empty());
-        assert_eq!(state.player_money, Money(0));
-    }
-
-    #[test]
-    fn open_resets_page() {
-        let mut state = MerchantState {
-            page: 3,
-            items_per_page: 10,
-            ..Default::default()
-        };
-        state.open(1, vec![], vec![], Money(0), Money(0));
-        assert_eq!(state.page, 0);
-    }
-
-    #[test]
-    fn buyback_tab_uses_buyback_inventory_for_paging() {
-        let mut state = MerchantState {
-            buyback_inventory: vec![
-                make_buyback_item(0, "Bent Sword", 2500),
-                make_buyback_item(1, "Cracked Shield", 1800),
-                make_buyback_item(2, "Torn Cloak", 900),
-            ],
-            items_per_page: 2,
-            ..Default::default()
-        };
-
-        state.set_tab(MerchantTabKind::Buyback);
+    fn nineteen_items_make_two_pages_of_ten_and_nine() {
+        let mut state = MerchantState::default();
+        state.apply_inventory(inventory(66, 19), "Tharynn Bouden".into());
 
         assert_eq!(state.page_count(), 2);
-        assert_eq!(state.current_page_buyback_items().len(), 2);
-        assert_eq!(state.current_page_buyback_items()[0].slot, 0);
-
+        assert_eq!(state.page_items().len(), 10);
         state.next_page();
-
-        assert_eq!(state.current_page_buyback_items().len(), 1);
-        assert_eq!(state.current_page_buyback_items()[0].slot, 2);
-    }
-
-    #[test]
-    fn switching_to_buyback_resets_page() {
-        let mut state = MerchantState {
-            inventory: (0..20).map(|i| make_item(&format!("I{i}"), 100)).collect(),
-            buyback_inventory: vec![make_buyback_item(0, "Bent Sword", 2500)],
-            items_per_page: 10,
-            page: 1,
-            ..Default::default()
-        };
-
-        state.set_tab(MerchantTabKind::Buyback);
-
+        state.next_page();
+        assert_eq!(state.page, 1);
+        assert_eq!(state.page_items()[0].name, "Item 10");
+        assert_eq!(state.page_items().len(), 9);
+        state.prev_page();
+        state.prev_page();
         assert_eq!(state.page, 0);
-        assert_eq!(state.current_tab(), MerchantTabKind::Buyback);
-    }
-
-    // --- MerchantIntentQueue ---
-
-    #[test]
-    fn intent_buy() {
-        let mut queue = MerchantIntentQueue::default();
-        queue.buy(100, 5);
-        let drained = queue.drain();
-        assert_eq!(drained.len(), 1);
-        assert_eq!(
-            drained[0],
-            MerchantIntent::Buy {
-                item_id: 100,
-                quantity: 5
-            }
-        );
     }
 
     #[test]
-    fn intent_sell() {
-        let mut queue = MerchantIntentQueue::default();
-        queue.sell(0, 3);
-        let drained = queue.drain();
-        assert_eq!(drained[0], MerchantIntent::Sell { bag: 0, slot: 3 });
-    }
+    fn a_stock_refresh_keeps_the_page_and_a_new_vendor_resets_it() {
+        let mut state = MerchantState::default();
+        state.apply_inventory(inventory(66, 19), "Tharynn Bouden".into());
+        state.next_page();
+        state.set_tab(MerchantTab::Buyback);
 
-    #[test]
-    fn intent_buyback() {
-        let mut queue = MerchantIntentQueue::default();
-        queue.buyback(2);
-        let drained = queue.drain();
-        assert_eq!(drained[0], MerchantIntent::Buyback { slot: 2 });
-    }
+        state.apply_inventory(inventory(66, 18), String::new());
+        assert_eq!((state.page, state.tab), (1, MerchantTab::Buyback));
+        assert_eq!(state.vendor_name, "Tharynn Bouden");
 
-    #[test]
-    fn intent_repair_all() {
-        let mut queue = MerchantIntentQueue::default();
-        queue.repair_all();
-        let drained = queue.drain();
-        assert_eq!(drained[0], MerchantIntent::RepairAll);
-    }
-
-    #[test]
-    fn intent_repair_single() {
-        let mut queue = MerchantIntentQueue::default();
-        queue.repair_single(1, 5);
-        let drained = queue.drain();
-        assert_eq!(drained[0], MerchantIntent::RepairSingle { bag: 1, slot: 5 });
-    }
-
-    #[test]
-    fn intent_drain_clears() {
-        let mut queue = MerchantIntentQueue::default();
-        queue.buy(1, 1);
-        queue.sell(0, 0);
-        queue.repair_all();
-        assert_eq!(queue.drain().len(), 3);
-        assert!(queue.pending.is_empty());
+        state.apply_inventory(inventory(1213, 8), "Godric Rothgar".into());
+        assert_eq!((state.page, state.tab), (0, MerchantTab::Merchant));
+        assert_eq!(state.vendor_name, "Godric Rothgar");
     }
 }

@@ -1,6 +1,7 @@
 //! Item icon FileDataIDs: `ItemModifiedAppearance` (item → appearance, lowest
 //! `OrderIndex`) joined with `ItemAppearance.DefaultIconFileDataID`, as Retail
-//! `C_Item.GetItemIconByID` resolves the base appearance.
+//! `C_Item.GetItemIconByID` resolves the base appearance. Items without an
+//! appearance (trade goods, consumables) use `Item.IconFileDataID`.
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -35,7 +36,17 @@ fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
         &crate::paths::resolve_data_path("ItemModifiedAppearance.csv"),
         ["ItemID", "ItemAppearanceID", "OrderIndex"],
     )?;
-    Ok(item_icons(modified, &appearance_icon))
+    let mut icons = item_icons(modified, &appearance_icon);
+    let items = read_columns(
+        &crate::paths::resolve_data_path("db2/12.1.0.69933/Item.csv"),
+        ["ID", "IconFileDataID", "ID"],
+    )?;
+    for [item_id, icon, _] in items {
+        if icon != 0 {
+            icons.entry(item_id).or_insert(icon);
+        }
+    }
+    Ok(icons)
 }
 
 /// Keeps each item's lowest-`OrderIndex` appearance that has an icon.
@@ -110,5 +121,11 @@ mod tests {
         // Brotherhood of Thieves (18) choice reward 5580.
         // ItemModifiedAppearance 2132 → ItemAppearance 1885.
         assert_eq!(item_icon_fdid(5580), Some(133_057));
+    }
+
+    #[test]
+    fn items_without_an_appearance_use_the_item_icon() {
+        // Linen Cloth 2589 has no ItemModifiedAppearance row; Item.IconFileDataID 132889.
+        assert_eq!(item_icon_fdid(2589), Some(132_889));
     }
 }

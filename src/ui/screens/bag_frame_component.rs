@@ -25,6 +25,15 @@ const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const SLOT_BG: &str = "0.08,0.07,0.06,0.88";
 
 pub const ACTION_BAG_TOGGLE_PREFIX: &str = "bag_toggle:";
+/// `bag_slot:<bag>:<slot>` on every bag slot.
+pub const ACTION_BAG_SLOT_PREFIX: &str = "bag_slot:";
+
+pub fn parse_bag_slot_action(action: &str) -> Option<(usize, usize)> {
+    let (bag, slot) = action
+        .strip_prefix(ACTION_BAG_SLOT_PREFIX)?
+        .split_once(':')?;
+    Some((bag.parse().ok()?, slot.parse().ok()?))
+}
 
 pub fn bag_toggle_action(index: usize) -> String {
     format!("{ACTION_BAG_TOGGLE_PREFIX}{index}")
@@ -118,29 +127,76 @@ fn bag_slot_grid(bag_index: usize, slots: &[BagSlotState]) -> Element {
     slots
         .iter()
         .enumerate()
-        .flat_map(|(i, _slot)| {
+        .flat_map(|(i, slot)| {
             let col = i % GRID_COLS;
             let row = i / GRID_COLS;
             let x = INSET + col as f32 * (SLOT_SIZE + SLOT_GAP);
             let y = -(TITLE_H + INSET + row as f32 * (SLOT_SIZE + SLOT_GAP));
-            bag_slot_frame(bag_index, i, x, y)
+            bag_slot_frame(bag_index, i, slot, (x, y))
         })
         .collect()
 }
 
-fn bag_slot_frame(bag_index: usize, slot_index: usize, x: f32, y: f32) -> Element {
-    let slot_name = DynName(format!("ContainerFrame{}Slot{slot_index}", bag_index));
+fn bag_slot_frame(
+    bag_index: usize,
+    slot_index: usize,
+    slot: &BagSlotState,
+    (x, y): (f32, f32),
+) -> Element {
+    let prefix = format!("ContainerFrame{bag_index}Slot{slot_index}");
+    let action = format!("{ACTION_BAG_SLOT_PREFIX}{bag_index}:{slot_index}");
+    let contents = if slot.icon_fdid == 0 {
+        Element::default()
+    } else {
+        slot_contents(&prefix, slot)
+    };
     rsx! {
         r#frame {
-            name: slot_name,
+            name: {DynName(prefix)},
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             background_color: SLOT_BG,
+            onclick: {action.as_str()},
+            mouse_enabled: true,
             pos_type: "absolute",
             left: {x},
             top: {-(y)},
+            {contents}
         }
     }
+}
+
+/// Item icon and, above 1, the stack count at the bottom right.
+fn slot_contents(prefix: &str, slot: &BagSlotState) -> Element {
+    let mut children = rsx! {
+        texture {
+            name: {DynName(format!("{prefix}Icon"))},
+            width: {SLOT_SIZE},
+            height: {SLOT_SIZE},
+            texture_fdid: {slot.icon_fdid},
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    };
+    if slot.count > 1 {
+        let count = slot.count.to_string();
+        children.extend(rsx! {
+            fontstring {
+                name: {DynName(format!("{prefix}Count"))},
+                width: {SLOT_SIZE - 3.0},
+                height: 14.0,
+                text: {count.as_str()},
+                font_size: 12.0,
+                font_color: "1.0,1.0,1.0,1.0",
+                justify_h: "RIGHT",
+                pos_type: "absolute",
+                left: 0.0,
+                top: {SLOT_SIZE - 15.0},
+            }
+        });
+    }
+    children
 }
 
 #[cfg(test)]
@@ -313,5 +369,34 @@ mod tests {
         let (_, h16) = BagFrameState::bag_dimensions(16);
         assert!((r8.height - h8).abs() < 1.0);
         assert!((r16.height - h16).abs() < 1.0);
+    }
+
+    #[test]
+    fn filled_slots_draw_icon_and_stack_count_and_every_slot_is_clickable() {
+        let mut bag = make_bag(0, 16);
+        bag.slots[0] = BagSlotState {
+            icon_fdid: 132_889,
+            count: 20,
+            quality_border: String::new(),
+        };
+        bag.slots[1].icon_fdid = 134_582;
+        bag.slots[1].count = 1;
+        let reg = build_registry(vec![bag]);
+
+        assert!(reg.get_by_name("ContainerFrame0Slot0Icon").is_some());
+        assert_eq!(
+            crate::ui::screens::screen_test_helpers::fontstring_text(
+                &reg,
+                "ContainerFrame0Slot0Count"
+            ),
+            "20"
+        );
+        assert!(reg.get_by_name("ContainerFrame0Slot1Count").is_none());
+        assert!(reg.get_by_name("ContainerFrame0Slot2Icon").is_none());
+        let slot = reg
+            .get(reg.get_by_name("ContainerFrame0Slot2").unwrap())
+            .unwrap();
+        let action = slot.onclick.as_deref().unwrap();
+        assert_eq!(parse_bag_slot_action(action), Some((0, 2)));
     }
 }

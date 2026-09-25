@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use game_engine::bag_data::InventoryState;
+use game_engine::merchant_data::{MerchantRequest, MerchantState, MerchantTab};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::bag_frame_component::{
     ACTION_BAG_TOGGLE_PREFIX, BagContainerState, BagFrameState, BagSlotState, bag_frame_screen,
+    parse_bag_slot_action,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -31,7 +33,9 @@ pub struct BagFramePlugin;
 
 impl Plugin for BagFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<InventoryState>();
+        app.init_resource::<InventoryState>()
+            .init_resource::<MerchantState>()
+            .add_message::<MerchantRequest>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_bag_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -39,7 +43,7 @@ impl Plugin for BagFramePlugin {
         app.add_systems(OnExit(GameState::InWorld), teardown_bag_frame_ui);
         app.add_systems(
             Update,
-            (toggle_bag_frame, sync_bag_frame_state)
+            (toggle_bag_frame, sell_bag_item, sync_bag_frame_state)
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
@@ -130,6 +134,60 @@ fn toggle_bag_frame(
     );
 }
 
+/// Retail `ContainerFrameItemButton_OnClick`: right-clicking a bag item while the
+/// merchant tab is shown sells it (`C_Container.UseContainerItem`); on the buyback
+/// tab it does nothing. Other right-click uses are not built.
+fn sell_bag_item(
+    windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
+    mouse: Option<Res<ButtonInput<MouseButton>>>,
+    reconnect: Option<Res<crate::networking::ReconnectState>>,
+    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    ui: Res<UiState>,
+    inventory: Res<InventoryState>,
+    merchant: Res<MerchantState>,
+    mut requests: MessageWriter<MerchantRequest>,
+) {
+    if !merchant.is_open()
+        || !crate::networking::gameplay_input_allowed(reconnect)
+        || modal_open.is_some()
+    {
+        return;
+    }
+    let Some(mouse) = mouse else { return };
+    if !mouse.just_pressed(MouseButton::Right) {
+        return;
+    }
+    let Ok(window) = windows.single() else { return };
+    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
+        return;
+    };
+    let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {
+        return;
+    };
+    let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
+        return;
+    };
+    if let Some(request) = sell_request(&action, &inventory, &merchant) {
+        requests.write(request);
+    }
+}
+
+fn sell_request(
+    action: &str,
+    inventory: &InventoryState,
+    merchant: &MerchantState,
+) -> Option<MerchantRequest> {
+    if !merchant.is_open() || merchant.tab != MerchantTab::Merchant {
+        return None;
+    }
+    let (bag, slot) = parse_bag_slot_action(action)?;
+    let item_guid = inventory.slot(bag, slot)?.item_guid;
+    (item_guid != 0).then_some(MerchantRequest::Sell {
+        item_guid,
+        count: 0,
+    })
+}
+
 fn build_state(inventory: &InventoryState, window_manager: &WindowManager) -> BagFrameState {
     BagFrameState {
         bags: inventory
@@ -187,6 +245,38 @@ fn parse_bag_toggle_action(action: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn right_clicking_a_bag_item_sells_the_stack_only_on_the_merchant_tab() {
+        let mut inventory = InventoryState::default();
+        inventory.set_item(
+            0,
+            3,
+            InventorySlot {
+                icon_fdid: 132_889,
+                count: 20,
+                item_guid: 41,
+                item_id: 2589,
+                ..Default::default()
+            },
+        );
+        let mut merchant = MerchantState::default();
+        assert_eq!(sell_request("bag_slot:0:3", &inventory, &merchant), None);
+
+        merchant.npc = Some(0x0000_0001_0000_04BD);
+        assert_eq!(
+            sell_request("bag_slot:0:3", &inventory, &merchant),
+            Some(MerchantRequest::Sell {
+                item_guid: 41,
+                count: 0
+            })
+        );
+        assert_eq!(sell_request("bag_slot:0:4", &inventory, &merchant), None);
+        assert_eq!(sell_request("bag_toggle:0", &inventory, &merchant), None);
+
+        merchant.set_tab(MerchantTab::Buyback);
+        assert_eq!(sell_request("bag_slot:0:3", &inventory, &merchant), None);
+    }
     use game_engine::bag_data::{BagInfo, InventorySlot, ItemQuality};
 
     #[test]
@@ -238,6 +328,7 @@ mod tests {
                     count: 3,
                     quality: ItemQuality::Rare,
                     name: "Potion".into(),
+                    ..Default::default()
                 },
                 InventorySlot::default(),
             ]],

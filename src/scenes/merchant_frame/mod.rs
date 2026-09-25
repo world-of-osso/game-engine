@@ -1,23 +1,33 @@
+//! MerchantFrame scene: builds the Retail frame from [`MerchantState`], the player's
+//! money and repair cost; opens and closes its window with the vendor interaction;
+//! turns clicks into [`MerchantRequest`]s. Retail clicks (MerchantFrame.lua:632-669):
+//! right-click an item buys one purchase, a buyback item buys it back.
+
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use game_engine::merchant_data::{MerchantIntentQueue, MerchantState, MerchantTabKind};
+use game_engine::item_icons::item_icon_fdid;
+use game_engine::merchant_data::{
+    BUYBACK_ITEMS_PER_PAGE, MerchantRequest, MerchantState, MerchantTab, quality_color,
+};
+use game_engine::status::{CharacterStatsSnapshot, DurabilityStatusSnapshot};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::merchant_frame_component::{
-    ACTION_BUY_PREFIX, ACTION_BUYBACK_PREFIX, ACTION_CLOSE, ACTION_GUILD_REPAIR, ACTION_PAGE_NEXT,
-    ACTION_PAGE_PREV, ACTION_REPAIR_ALL, ACTION_TAB_PREFIX, MerchantFrameState, MerchantItem,
-    MerchantTab, merchant_frame_screen,
+    ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_ITEM_PREFIX, ACTION_PAGE_NEXT, ACTION_PAGE_PREV,
+    ACTION_REPAIR_ALL, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint, MerchantCell,
+    MerchantFrameState, merchant_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
+use crate::networking_quests::NpcInteractionRequest;
 use crate::ui_input::walk_up_for_onclick;
 use crate::window_manager::{WindowId, WindowManager};
 
-const SELL_TAB_EMPTY_TEXT: &str = "Sell items from your bags to populate buyback.";
-const BUYBACK_TAB_EMPTY_TEXT: &str = "No items available for buyback.";
-const BUY_TAB_EMPTY_TEXT: &str = "This vendor has no items for sale.";
+/// `INV_Misc_QuestionMark`, Retail's icon for an item without one.
+const UNKNOWN_ICON_FDID: u32 = 134_400;
 
 struct MerchantFrameRes {
     screen: Screen,
@@ -37,8 +47,9 @@ pub struct MerchantFramePlugin;
 
 impl Plugin for MerchantFramePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<MerchantState>();
-        app.init_resource::<MerchantIntentQueue>();
+        app.init_resource::<MerchantState>()
+            .add_message::<MerchantRequest>()
+            .add_message::<NpcInteractionRequest>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_merchant_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -46,10 +57,40 @@ impl Plugin for MerchantFramePlugin {
         app.add_systems(OnExit(GameState::InWorld), teardown_merchant_frame_ui);
         app.add_systems(
             Update,
-            (sync_merchant_frame_state, handle_merchant_frame_input)
+            (
+                handle_merchant_frame_input,
+                sync_merchant_window,
+                sync_merchant_frame_state,
+            )
+                .chain()
                 .run_if(in_state(GameState::InWorld))
                 .run_if(inworld_scene_stage_allows_ui),
         );
+    }
+}
+
+/// Everything the frame shows.
+#[derive(SystemParam)]
+struct MerchantView<'w> {
+    merchant: Res<'w, MerchantState>,
+    manager: Res<'w, WindowManager>,
+    stats: Option<Res<'w, CharacterStatsSnapshot>>,
+    durability: Option<Res<'w, DurabilityStatusSnapshot>>,
+}
+
+impl MerchantView<'_> {
+    fn state(&self) -> MerchantFrameState {
+        let money = self.stats.as_ref().map_or(0, |stats| stats.gold);
+        let repair_cost = self
+            .durability
+            .as_ref()
+            .map_or(0, |durability| durability.total_repair_cost);
+        build_state(
+            &self.merchant,
+            self.manager.is_open(WindowId::Merchant),
+            u64::from(money),
+            u64::from(repair_cost),
+        )
     }
 }
 
@@ -57,11 +98,10 @@ fn build_merchant_frame_ui(
     mut ui: ResMut<UiState>,
     mut commands: Commands,
     windows: Query<&Window, With<PrimaryWindow>>,
-    merchant: Res<MerchantState>,
-    window_manager: Res<WindowManager>,
+    view: MerchantView,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&merchant, window_manager.is_open(WindowId::Merchant));
+    let state = view.state();
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(merchant_frame_screen);
@@ -84,15 +124,14 @@ fn teardown_merchant_frame_ui(
 
 fn sync_merchant_frame_state(
     mut ui: ResMut<UiState>,
-    mut wrap: Option<ResMut<MerchantFrameWrap>>,
-    mut last_model: Option<ResMut<MerchantFrameModel>>,
-    merchant: Res<MerchantState>,
-    window_manager: Res<WindowManager>,
+    wrap: Option<ResMut<MerchantFrameWrap>>,
+    last_model: Option<ResMut<MerchantFrameModel>>,
+    view: MerchantView,
 ) {
-    let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
+    let (Some(mut wrap), Some(mut last_model)) = (wrap, last_model) else {
         return;
     };
-    let state = build_state(&merchant, window_manager.is_open(WindowId::Merchant));
+    let state = view.state();
     if last_model.0 == state {
         return;
     }
@@ -102,253 +141,210 @@ fn sync_merchant_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
+/// A vendor list opens the Merchant window and the backpack (`OpenAllBags`,
+/// MerchantFrame.lua OnShow); the window manager closing it (close button, Escape,
+/// eviction) ends the interaction with `CloseInteraction`; the server ending it
+/// closes the window. Either way the backpack closes (`CloseAllBags`, OnHide).
+fn sync_merchant_window(
+    mut manager: ResMut<WindowManager>,
+    mut merchant: ResMut<MerchantState>,
+    mut requests: MessageWriter<NpcInteractionRequest>,
+    mut open_npc: Local<Option<u64>>,
+) {
+    let window_open = manager.is_open(WindowId::Merchant);
+    if merchant.npc.is_some() && *open_npc != merchant.npc {
+        manager.open(WindowId::Merchant);
+        manager.open(WindowId::Bag(0));
+    } else if let Some(npc) = merchant.npc.filter(|_| !window_open) {
+        merchant.close();
+        requests.write(NpcInteractionRequest::Close { npc });
+        manager.close(WindowId::Bag(0));
+    } else if merchant.npc.is_none() && window_open {
+        manager.close(WindowId::Merchant);
+        manager.close(WindowId::Bag(0));
+    }
+    *open_npc = merchant.npc;
+}
+
+fn build_state(
+    merchant: &MerchantState,
+    window_open: bool,
+    money: u64,
+    repair_cost: u64,
+) -> MerchantFrameState {
+    let buyback_tab = merchant.tab == MerchantTab::Buyback;
+    let cells = if buyback_tab {
+        buyback_cells(merchant, money)
+    } else {
+        merchant_cells(merchant, money)
+    };
+    let paged = !buyback_tab && merchant.page_count() > 1;
+    MerchantFrameState {
+        visible: window_open && merchant.is_open(),
+        title: if buyback_tab {
+            "Merchant Buyback".into() // MERCHANT_BUYBACK
+        } else {
+            merchant.vendor_name.clone()
+        },
+        buyback_tab,
+        cells,
+        // MERCHANT_PAGE_NUMBER "Page %s of %s".
+        page_text: paged
+            .then(|| format!("Page {} of {}", merchant.page + 1, merchant.page_count())),
+        prev_enabled: merchant.page > 0,
+        next_enabled: merchant.page + 1 < merchant.page_count(),
+        // `GetRepairAllCost()` enables Repair All while anything is damaged.
+        repair: merchant.can_repair.then_some(repair_cost > 0),
+        last_buyback: merchant.last_buyback().map(|item| MerchantCell {
+            action: ACTION_BUYBACK_LAST.into(),
+            ..buyback_cell(item, money, 0)
+        }),
+        money,
+    }
+}
+
+fn merchant_cells(merchant: &MerchantState, money: u64) -> Vec<MerchantCell> {
+    merchant
+        .page_items()
+        .iter()
+        .enumerate()
+        .map(|(index, item)| MerchantCell {
+            name: item.name.clone(),
+            name_color: quality_color(item.quality),
+            icon_fdid: item_icon_fdid(item.item_id).unwrap_or(UNKNOWN_ICON_FDID),
+            count: item.stack_count,
+            stock: item.num_available,
+            price: u64::from(item.price),
+            price_gray: money < u64::from(item.price),
+            tint: if item.usable {
+                CellTint::Normal
+            } else {
+                CellTint::Unusable
+            },
+            action: format!("{ACTION_ITEM_PREFIX}{index}"),
+        })
+        .collect()
+}
+
+fn buyback_cells(merchant: &MerchantState, money: u64) -> Vec<MerchantCell> {
+    merchant
+        .buyback
+        .iter()
+        .take(BUYBACK_ITEMS_PER_PAGE)
+        .enumerate()
+        .map(|(index, item)| buyback_cell(item, money, index))
+        .collect()
+}
+
+fn buyback_cell(item: &shared::protocol::BuybackItem, money: u64, index: usize) -> MerchantCell {
+    MerchantCell {
+        name: item.name.clone(),
+        name_color: quality_color(item.quality),
+        icon_fdid: item_icon_fdid(item.item_id).unwrap_or(UNKNOWN_ICON_FDID),
+        count: item.count,
+        stock: None,
+        price: u64::from(item.price),
+        price_gray: money < u64::from(item.price),
+        tint: CellTint::Normal,
+        action: format!("{ACTION_ITEM_PREFIX}{index}"),
+    }
+}
+
+#[derive(SystemParam)]
+struct Pointer<'w, 's> {
+    windows: Query<'w, 's, &'static Window, With<PrimaryWindow>>,
+    mouse: Option<Res<'w, ButtonInput<MouseButton>>>,
+    reconnect: Option<Res<'w, crate::networking::ReconnectState>>,
+    modal_open: Option<Res<'w, crate::scenes::game_menu::UiModalOpen>>,
+}
+
+impl Pointer<'_, '_> {
+    /// The button pressed this frame and the `onclick` action under the cursor.
+    fn click(self, ui: &UiState) -> Option<(MouseButton, String)> {
+        let mouse = self.mouse.as_ref()?;
+        let button = [MouseButton::Left, MouseButton::Right]
+            .into_iter()
+            .find(|button| mouse.just_pressed(*button))?;
+        if self.modal_open.is_some() || !crate::networking::gameplay_input_allowed(self.reconnect) {
+            return None;
+        }
+        let window = self.windows.single().ok()?;
+        let cursor = ui_cursor_position(&ui.registry, window)?;
+        let frame_id = find_frame_at(&ui.registry, cursor.x, cursor.y)?;
+        Some((button, walk_up_for_onclick(&ui.registry, frame_id)?))
+    }
+}
+
 fn handle_merchant_frame_input(
-    windows: Query<&Window, With<PrimaryWindow>>,
-    mouse: Option<Res<ButtonInput<MouseButton>>>,
-    reconnect: Option<Res<crate::networking::ReconnectState>>,
-    modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
+    pointer: Pointer,
     ui: Res<UiState>,
     mut merchant: ResMut<MerchantState>,
-    mut intents: ResMut<MerchantIntentQueue>,
+    mut manager: ResMut<WindowManager>,
+    mut requests: MessageWriter<MerchantRequest>,
 ) {
-    if !merchant.is_open()
-        || !crate::networking::gameplay_input_allowed(reconnect)
-        || modal_open.is_some()
-    {
-        return;
-    }
-    let Some(mouse) = mouse else { return };
-    if !mouse.just_pressed(MouseButton::Left) {
-        return;
-    }
-    let Ok(window) = windows.single() else { return };
-    let Some(cursor) = ui_cursor_position(&ui.registry, window) else {
-        return;
-    };
-    let Some(frame_id) = find_frame_at(&ui.registry, cursor.x, cursor.y) else {
-        return;
-    };
-    let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
-        return;
-    };
-    dispatch_action(&action, &mut merchant, &mut intents);
-}
-
-fn build_state(merchant: &MerchantState, open: bool) -> MerchantFrameState {
-    MerchantFrameState {
-        visible: open && merchant.is_open(),
-        tabs: build_tabs(merchant.current_tab()),
-        items: build_items(merchant),
-        page: merchant.page + 1,
-        total_pages: merchant.page_count(),
-        player_money: merchant.player_money.display(),
-        empty_text: build_empty_text(merchant),
-    }
-}
-
-fn build_tabs(active_tab: MerchantTabKind) -> Vec<MerchantTab> {
-    vec![
-        build_tab("Buy", MerchantTabKind::Buy, active_tab),
-        build_tab("Sell", MerchantTabKind::Sell, active_tab),
-        build_tab("Buyback", MerchantTabKind::Buyback, active_tab),
-    ]
-}
-
-fn build_tab(name: &str, tab: MerchantTabKind, active_tab: MerchantTabKind) -> MerchantTab {
-    MerchantTab {
-        name: name.into(),
-        active: tab == active_tab,
-        action: format!("{ACTION_TAB_PREFIX}{}", tab_token(tab)),
-    }
-}
-
-fn build_items(merchant: &MerchantState) -> Vec<MerchantItem> {
-    match merchant.current_tab() {
-        MerchantTabKind::Buy => merchant
-            .current_page_items()
-            .iter()
-            .map(|item| MerchantItem {
-                name: item.name.clone(),
-                price: item.buy_price.display_short(),
-                icon_fdid: item.icon_fdid,
-                action: format!("{ACTION_BUY_PREFIX}{}", item.item_id),
-            })
-            .collect(),
-        MerchantTabKind::Sell => Vec::new(),
-        MerchantTabKind::Buyback => merchant
-            .current_page_buyback_items()
-            .iter()
-            .map(|item| MerchantItem {
-                name: item.name.clone(),
-                price: item.buyback_price.display_short(),
-                icon_fdid: item.icon_fdid,
-                action: format!("{ACTION_BUYBACK_PREFIX}{}", item.slot),
-            })
-            .collect(),
-    }
-}
-
-fn build_empty_text(merchant: &MerchantState) -> Option<String> {
     if !merchant.is_open() {
-        return None;
+        return;
     }
-    let has_items = match merchant.current_tab() {
-        MerchantTabKind::Buy => !merchant.inventory.is_empty(),
-        MerchantTabKind::Sell => false,
-        MerchantTabKind::Buyback => !merchant.buyback_inventory.is_empty(),
+    let Some((button, action)) = pointer.click(&ui) else {
+        return;
     };
-    if has_items {
+    if let Some(request) = dispatch_action(&action, button, &mut merchant, &mut manager) {
+        requests.write(request);
+    }
+}
+
+/// Apply a frame click; returns the request it sends to the server.
+fn dispatch_action(
+    action: &str,
+    button: MouseButton,
+    merchant: &mut MerchantState,
+    manager: &mut WindowManager,
+) -> Option<MerchantRequest> {
+    match action {
+        ACTION_CLOSE => {
+            manager.close(WindowId::Merchant);
+        }
+        ACTION_PAGE_PREV => merchant.prev_page(),
+        ACTION_PAGE_NEXT => merchant.next_page(),
+        ACTION_TAB_MERCHANT => merchant.set_tab(MerchantTab::Merchant),
+        ACTION_TAB_BUYBACK => merchant.set_tab(MerchantTab::Buyback),
+        ACTION_REPAIR_ALL => return Some(MerchantRequest::Repair { item_guid: None }),
+        ACTION_BUYBACK_LAST => {
+            let slot = merchant.last_buyback()?.slot;
+            return Some(MerchantRequest::Buyback { slot });
+        }
+        _ => {
+            let index: usize = action.strip_prefix(ACTION_ITEM_PREFIX)?.parse().ok()?;
+            return item_request(merchant, index, button);
+        }
+    }
+    None
+}
+
+/// Right-click buys (`BuyMerchantItem`) or buys back (`BuybackItem`); a left click
+/// would pick the item up, which needs the cursor item Retail has and we don't.
+fn item_request(
+    merchant: &MerchantState,
+    index: usize,
+    button: MouseButton,
+) -> Option<MerchantRequest> {
+    if button != MouseButton::Right {
         return None;
     }
-    Some(
-        match merchant.current_tab() {
-            MerchantTabKind::Buy => BUY_TAB_EMPTY_TEXT,
-            MerchantTabKind::Sell => SELL_TAB_EMPTY_TEXT,
-            MerchantTabKind::Buyback => BUYBACK_TAB_EMPTY_TEXT,
+    match merchant.tab {
+        MerchantTab::Merchant => {
+            let item = merchant.page_items().get(index)?;
+            Some(MerchantRequest::Buy {
+                slot: item.slot,
+                item_id: item.item_id,
+                count: 1,
+            })
         }
-        .into(),
-    )
-}
-
-fn dispatch_action(action: &str, merchant: &mut MerchantState, intents: &mut MerchantIntentQueue) {
-    if action == ACTION_CLOSE {
-        merchant.close();
-        return;
-    }
-    if action == ACTION_PAGE_PREV {
-        merchant.prev_page();
-        return;
-    }
-    if action == ACTION_PAGE_NEXT {
-        merchant.next_page();
-        return;
-    }
-    if action == ACTION_REPAIR_ALL {
-        intents.repair_all();
-        return;
-    }
-    if action == ACTION_GUILD_REPAIR {
-        return;
-    }
-    if let Some(tab) = parse_tab_action(action) {
-        merchant.set_tab(tab);
-        return;
-    }
-    if let Some(item_id) = parse_u32_action(action, ACTION_BUY_PREFIX) {
-        intents.buy(item_id, 1);
-        return;
-    }
-    if let Some(slot) = parse_u8_action(action, ACTION_BUYBACK_PREFIX) {
-        intents.buyback(slot);
-    }
-}
-
-fn parse_tab_action(action: &str) -> Option<MerchantTabKind> {
-    let token = action.strip_prefix(ACTION_TAB_PREFIX)?;
-    match token {
-        "buy" => Some(MerchantTabKind::Buy),
-        "sell" => Some(MerchantTabKind::Sell),
-        "buyback" => Some(MerchantTabKind::Buyback),
-        _ => None,
-    }
-}
-
-fn parse_u32_action(action: &str, prefix: &str) -> Option<u32> {
-    action.strip_prefix(prefix)?.parse().ok()
-}
-
-fn parse_u8_action(action: &str, prefix: &str) -> Option<u8> {
-    action.strip_prefix(prefix)?.parse().ok()
-}
-
-fn tab_token(tab: MerchantTabKind) -> &'static str {
-    match tab {
-        MerchantTabKind::Buy => "buy",
-        MerchantTabKind::Sell => "sell",
-        MerchantTabKind::Buyback => "buyback",
+        MerchantTab::Buyback => Some(MerchantRequest::Buyback {
+            slot: merchant.buyback.get(index)?.slot,
+        }),
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use game_engine::auction_house_data::Money;
-    use game_engine::merchant_data::{MerchantBuybackItemDef, MerchantItemDef};
-
-    fn merchant_state() -> MerchantState {
-        MerchantState {
-            npc_entity_id: Some(77),
-            inventory: vec![MerchantItemDef {
-                item_id: 100,
-                name: "Arrow".into(),
-                icon_fdid: 0,
-                buy_price: Money(10),
-                sell_price: Money(2),
-                max_stack: 200,
-            }],
-            buyback_inventory: vec![MerchantBuybackItemDef {
-                slot: 3,
-                item_id: 700,
-                name: "Bent Sword".into(),
-                icon_fdid: 0,
-                buyback_price: Money(2500),
-            }],
-            player_money: Money(5000),
-            repair_cost: Money(300),
-            items_per_page: 10,
-            active_tab: MerchantTabKind::Buy,
-            ..Default::default()
-        }
-    }
-
-    #[test]
-    fn build_state_uses_buyback_items_for_buyback_tab() {
-        let mut merchant = merchant_state();
-        merchant.set_tab(MerchantTabKind::Buyback);
-
-        let state = build_state(&merchant, true);
-
-        assert!(state.visible);
-        assert!(state.tabs[2].active);
-        assert_eq!(state.items.len(), 1);
-        assert_eq!(state.items[0].name, "Bent Sword");
-        assert_eq!(state.items[0].price, "25s");
-        assert_eq!(state.items[0].action, "merchant_buyback:3");
-    }
-
-    #[test]
-    fn build_state_shows_buyback_empty_text() {
-        let mut merchant = merchant_state();
-        merchant.buyback_inventory.clear();
-        merchant.set_tab(MerchantTabKind::Buyback);
-
-        let state = build_state(&merchant, true);
-
-        assert_eq!(state.empty_text.as_deref(), Some(BUYBACK_TAB_EMPTY_TEXT));
-    }
-
-    #[test]
-    fn dispatch_action_switches_to_buyback_tab() {
-        let mut merchant = merchant_state();
-        let mut intents = MerchantIntentQueue::default();
-
-        dispatch_action("merchant_tab:buyback", &mut merchant, &mut intents);
-
-        assert_eq!(merchant.current_tab(), MerchantTabKind::Buyback);
-        assert_eq!(merchant.page, 0);
-    }
-
-    #[test]
-    fn dispatch_action_queues_buyback_purchase() {
-        let mut merchant = merchant_state();
-        let mut intents = MerchantIntentQueue::default();
-
-        dispatch_action("merchant_buyback:3", &mut merchant, &mut intents);
-
-        assert_eq!(intents.pending.len(), 1);
-        assert!(matches!(
-            intents.pending[0],
-            game_engine::merchant_data::MerchantIntent::Buyback { slot: 3 }
-        ));
-    }
-}
+mod tests;

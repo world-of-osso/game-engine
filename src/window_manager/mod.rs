@@ -275,7 +275,6 @@ impl Plugin for WindowManagerPlugin {
         app.add_systems(
             Update,
             (
-                sessions::sync_merchant_window,
                 sessions::sync_inspect_window,
                 (input::raise_window_on_click, input::drag_window_by_title).chain(),
             ),

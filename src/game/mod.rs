@@ -21,6 +21,10 @@ pub(crate) mod networking;
 pub(crate) mod networking_auras;
 #[path = "networking/auth.rs"]
 pub(crate) mod networking_auth;
+#[path = "networking/inventory.rs"]
+pub(crate) mod networking_inventory;
+#[path = "networking/merchant.rs"]
+pub(crate) mod networking_merchant;
 #[path = "networking/messages.rs"]
 pub(crate) mod networking_messages;
 #[path = "networking/npc.rs"]

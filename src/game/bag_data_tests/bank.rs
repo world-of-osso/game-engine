@@ -47,12 +47,14 @@ fn main_and_reagent_slots_are_independent() {
         name: "Ore".into(),
         count: 20,
         quality: ItemQuality::Common,
+        ..Default::default()
     };
     bank.reagent_slots[0] = InventorySlot {
         icon_fdid: 200,
         name: "Herb".into(),
         count: 5,
         quality: ItemQuality::Uncommon,
+        ..Default::default()
     };
     assert_eq!(bank.main_slot(0).unwrap().name, "Ore");
     assert_eq!(bank.reagent_slot(0).unwrap().name, "Herb");
@@ -86,6 +88,7 @@ fn reagent_slot_content_when_unlocked() {
         name: "Flask".into(),
         count: 3,
         quality: ItemQuality::Rare,
+        ..Default::default()
     };
     let slot = bank.reagent_slot(5).unwrap();
     assert!(!slot.is_empty());

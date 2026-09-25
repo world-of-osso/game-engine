@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use game_engine::bag_data::{InventorySlot, InventoryState, ItemQuality};
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
+use game_engine::merchant_data::{MerchantState, quality_color};
 use game_engine::player_spells::{ActionBarSlots, parse_action_button_name};
 use game_engine::spell_catalog::CatalogSpell;
 use game_engine::spell_catalog::SpellCatalog;
@@ -196,6 +197,7 @@ fn sync_tooltip_frame_state(
     mut wrap: Option<ResMut<TooltipFrameWrap>>,
     mut last_model: Option<ResMut<TooltipFrameModel>>,
     inventory: Res<InventoryState>,
+    merchant: Option<Res<MerchantState>>,
     current_target: Res<CurrentTarget>,
     local_player: Query<Entity, With<LocalPlayer>>,
     target_auras: Query<&UnitAuraState>,
@@ -212,6 +214,7 @@ fn sync_tooltip_frame_state(
         &ui.registry,
         window,
         &inventory,
+        merchant.as_deref(),
         &current_target,
         local_player.iter().next(),
         &target_auras,
@@ -233,6 +236,7 @@ fn build_state(
     registry: &FrameRegistry,
     window: &Window,
     inventory: &InventoryState,
+    merchant: Option<&MerchantState>,
     current_target: &CurrentTarget,
     local_player: Option<Entity>,
     target_auras: &Query<&UnitAuraState>,
@@ -250,6 +254,7 @@ fn build_state(
     let Some(content) = hovered_spell_tooltip(registry, frame_id, spells)
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
+        .or_else(|| hovered_merchant_tooltip(registry, frame_id, merchant))
         .or_else(|| hovered_player_aura_tooltip(registry, frame_id, aura_state, graphics_options))
         .or_else(|| {
             hovered_target_aura_tooltip(
@@ -353,6 +358,52 @@ fn hovered_item_tooltip(
     let (bag_index, slot_index) = hovered_bag_slot(registry, frame_id)?;
     let slot = inventory.slot(bag_index, slot_index)?;
     (!slot.is_empty()).then(|| item_tooltip(slot))
+}
+
+/// `GameTooltip:SetMerchantItem` / `SetBuybackItem` for a `MerchantItem<n>` cell.
+/// The server sends name, quality and counts only, so that is what it shows.
+fn hovered_merchant_tooltip(
+    registry: &FrameRegistry,
+    mut frame_id: u64,
+    merchant: Option<&MerchantState>,
+) -> Option<TooltipFrameState> {
+    let merchant = merchant.filter(|merchant| merchant.is_open())?;
+    let index = loop {
+        let frame = registry.get(frame_id)?;
+        if let Some(index) = frame.name.as_deref().and_then(parse_merchant_cell_name) {
+            break index;
+        }
+        frame_id = frame.parent_id?;
+    };
+    let (name, quality, count, stock) = merchant.cell_item(index)?;
+    Some(merchant_tooltip(name, quality, count, stock))
+}
+
+/// `MerchantItem<n>` (1-based) exactly; its children carry longer names.
+fn parse_merchant_cell_name(name: &str) -> Option<usize> {
+    let index: usize = name.strip_prefix("MerchantItem")?.parse().ok()?;
+    index.checked_sub(1)
+}
+
+fn merchant_tooltip(name: &str, quality: u8, count: u32, stock: Option<u32>) -> TooltipFrameState {
+    let mut lines = Vec::new();
+    if count > 1 {
+        lines.push(TooltipLineState::key_value(
+            "Stack Count",
+            count.to_string(),
+        ));
+    }
+    if let Some(stock) = stock {
+        lines.push(TooltipLineState::key_value("In Stock", stock.to_string()));
+    }
+    TooltipFrameState {
+        visible: true,
+        x: 0.0,
+        y: 0.0,
+        title: name.to_string(),
+        title_color: parse_rgba(quality_color(quality)),
+        lines,
+    }
 }
 
 fn hovered_target_aura_tooltip(
@@ -890,12 +941,27 @@ mod tests {
     }
 
     #[test]
+    fn merchant_cells_show_the_item_name_in_quality_color_with_stack_and_stock() {
+        assert_eq!(parse_merchant_cell_name("MerchantItem2"), Some(1));
+        assert_eq!(parse_merchant_cell_name("MerchantItem2Name"), None);
+        let tooltip = merchant_tooltip("Refreshing Spring Water", 1, 5, Some(3));
+        assert_eq!(tooltip.title, "Refreshing Spring Water");
+        assert_eq!(tooltip.title_color, [1.0, 1.0, 1.0, 1.0]);
+        assert_eq!(tooltip.lines[0].right_text, "5");
+        assert_eq!(tooltip.lines[1].left_text, "In Stock");
+        let uncommon = merchant_tooltip("Pattern: Blue Linen Vest", 2, 1, None);
+        assert_eq!(uncommon.title_color, [0.12, 1.0, 0.0, 1.0]);
+        assert!(uncommon.lines.is_empty());
+    }
+
+    #[test]
     fn item_tooltip_includes_quality_and_stack_count() {
         let tooltip = item_tooltip(&InventorySlot {
             icon_fdid: 1,
             count: 20,
             quality: ItemQuality::Rare,
             name: "Iron Ore".into(),
+            ..Default::default()
         });
         assert_eq!(tooltip.title, "Iron Ore");
         assert_eq!(tooltip.lines[0].left_text, "Quality");
