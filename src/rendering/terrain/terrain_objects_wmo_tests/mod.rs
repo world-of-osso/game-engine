@@ -5,6 +5,7 @@ pub(super) use crate::asset::wmo_format::parser::{
 pub(super) use bevy::ecs::system::RunSystemOnce;
 
 mod alpha_gpu;
+mod crossfade_gpu;
 mod doodads;
 mod group_runtime;
 mod interior_gpu;
