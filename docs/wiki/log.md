@@ -925,3 +925,7 @@ Created [[loot-and-flight]]: corpses stay replicated, `Lootable` sparkle/cursor,
 ## [2026-09-25] investigation | Terrain blend steps
 
 Created [[terrain-blend-steps]]. The alpha map is now linear `Rgba8Unorm`. WDT MPHD flags select MCAL storage and the terrain blend (layered, weighted, or Retail height-weighted with MTXP defaults). The diffuse alpha is no longer used as height. MCAL layers are bounded by the next offset, and the edge fix applies to every format. Updated [[adt-format]] and [[terrain]].
+
+## [2026-09-25] investigation | WMO Retail lighting
+
+Created [[wmo-retail-lighting]]. WMO lighting, fixup, two-layer shaders, alpha test, metal and placement now follow WebWowViewerCpp's Retail shaders, replacing the 3.3.5 (solarityclient) semantics. Updated [[wmo-format]] and [[stormwind-dark-render]].
