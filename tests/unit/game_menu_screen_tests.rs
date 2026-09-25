@@ -66,6 +66,7 @@ fn charselect_options_do_not_show_inworld_hud_frames() {
         nameplate_spellbar_thickness: client_options::NameplateBarThickness::Thin,
         show_health_bars: true,
         show_target_marker: true,
+        auto_loot: false,
         show_fps_overlay: true,
         chat_font_size: 10.0,
     };
@@ -94,6 +95,7 @@ fn inworld_options_can_show_inworld_hud_frames() {
         nameplate_spellbar_thickness: client_options::NameplateBarThickness::Thin,
         show_health_bars: true,
         show_target_marker: true,
+        auto_loot: false,
         show_fps_overlay: true,
         chat_font_size: 10.0,
     };

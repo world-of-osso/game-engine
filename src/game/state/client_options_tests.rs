@@ -99,6 +99,7 @@ fn hud_visibility_toggles_follow_hud_options() {
         nameplate_spellbar_thickness: NameplateBarThickness::Thin,
         show_health_bars: false,
         show_target_marker: true,
+        auto_loot: false,
         show_fps_overlay: false,
         chat_font_size: default_chat_font_size(),
     });
@@ -468,6 +469,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
             nameplate_spellbar_thickness: NameplateBarThickness::Thick,
             show_health_bars: true,
             show_target_marker: false,
+            auto_loot: true,
             show_fps_overlay: false,
             chat_font_size: 13.0,
         },

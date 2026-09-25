@@ -9,7 +9,10 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::ui::panel_styles::{METAL_FRAME_OUTSET, METAL_FRAME_PANEL_STYLE};
+use crate::ui::panel_styles::{
+    METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE, METAL_FRAME_OUTSET,
+    METAL_FRAME_PANEL_STYLE,
+};
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
 
@@ -111,9 +114,114 @@ pub fn window_chrome(
     close_action: &str,
 ) -> Element {
     let mut elements = window_background(prefix, width, height);
-    elements.extend(metal_border(prefix, width, height));
-    elements.extend(window_title(prefix, width, title));
+    elements.extend(portrait_border(
+        prefix,
+        (width, height),
+        title,
+        close_action,
+    ));
+    elements
+}
+
+/// `PortraitFrameTemplate` without a background (the window draws its own, like
+/// `FlightMapFrame`): the portrait `metal_frame` border, title and close button.
+pub fn portrait_border(
+    prefix: &str,
+    (width, height): (f32, f32),
+    title: &str,
+    close_action: &str,
+) -> Element {
+    let mut elements = metal_border(
+        prefix,
+        width,
+        height,
+        METAL_FRAME_PANEL_STYLE,
+        METAL_FRAME_OUTSET,
+    );
+    elements.extend(window_title(prefix, width, title, PORTRAIT_TITLE_LEFT));
     elements.extend(close_button(prefix, width, close_action));
+    elements
+}
+
+/// `PANEL_BACKGROUND_COLOR` (GlobalColor 191, ARGB 0xCC1F1E21).
+const PANEL_BACKGROUND_COLOR: &str = "0.122,0.118,0.129,0.8";
+/// `uiframebackground-nineslice-cornerbottomleft` (17053) / `-cornerbottomright`
+/// (17054), atlas 2120 `4700695` 64×32, 16×16.
+const FLAT_CORNER_BOTTOM_LEFT: AtlasArt = art(4_700_695, (64.0, 32.0), (1.0, 17.0, 1.0, 17.0));
+const FLAT_CORNER_BOTTOM_RIGHT: AtlasArt = art(4_700_695, (64.0, 32.0), (19.0, 35.0, 1.0, 17.0));
+
+/// Retail `DefaultPanelFlatTemplate` (SharedUIPanelTemplates.xml:527-536): the
+/// `FlatPanelBackgroundTemplate` (:404-436) tinted `PANEL_BACKGROUND_COLOR` at
+/// TOPLEFT 6,-20 / BOTTOMRIGHT -2,2, the `ButtonFrameTemplateNoPortrait` metal border,
+/// `TitleContainer` (30,-1)..(-24,-1) and the close button.
+pub fn flat_panel_chrome(
+    prefix: &str,
+    (width, height): (f32, f32),
+    title: &str,
+    close_action: &str,
+) -> Element {
+    let mut elements = flat_background(prefix, width, height);
+    elements.extend(metal_border(
+        prefix,
+        width,
+        height,
+        METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
+        METAL_FRAME_NO_PORTRAIT_OUTSET,
+    ));
+    elements.extend(window_title(prefix, width, title, FLAT_TITLE_LEFT));
+    elements.extend(close_button(prefix, width, close_action));
+    elements
+}
+
+fn flat_background(prefix: &str, width: f32, height: f32) -> Element {
+    let (left, top, right, bottom) = (6.0, 20.0, width - 2.0, height - 2.0);
+    let corner = 16.0;
+    let fill = |name: &str, rect: (f32, f32, f32, f32)| {
+        let (x, y, w, h) = rect;
+        rsx! {
+            r#frame {
+                name: {DynName(format!("{prefix}Bg{name}"))},
+                width: w,
+                height: h,
+                background_color: PANEL_BACKGROUND_COLOR,
+                pos_type: "absolute",
+                left: x,
+                top: y,
+            }
+        }
+    };
+    let mut elements = fill(
+        "TopSection",
+        (left, top, right - left, bottom - corner - top),
+    );
+    elements.extend(fill(
+        "BottomEdge",
+        (
+            left + corner,
+            bottom - corner,
+            right - left - 2.0 * corner,
+            corner,
+        ),
+    ));
+    for (name, art, x) in [
+        ("BottomLeft", &FLAT_CORNER_BOTTOM_LEFT, left),
+        ("BottomRight", &FLAT_CORNER_BOTTOM_RIGHT, right - corner),
+    ] {
+        let coords = art.tex_coords(1.0);
+        elements.extend(rsx! {
+            texture {
+                name: {DynName(format!("{prefix}Bg{name}"))},
+                width: corner,
+                height: corner,
+                texture_fdid: {art.fdid},
+                tex_coords: {coords.as_str()},
+                vertex_color: PANEL_BACKGROUND_COLOR,
+                pos_type: "absolute",
+                left: x,
+                top: {bottom - corner},
+            }
+        });
+    }
     elements
 }
 
@@ -137,15 +245,15 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
     elements
 }
 
-/// The shared `metal_frame` panel style on a frame `METAL_FRAME_OUTSET` larger.
-fn metal_border(prefix: &str, width: f32, height: f32) -> Element {
-    let [left, top, right, bottom] = METAL_FRAME_OUTSET;
+/// A metal panel style on a frame `outset` larger than the window.
+fn metal_border(prefix: &str, width: f32, height: f32, style: &str, outset: [f32; 4]) -> Element {
+    let [left, top, right, bottom] = outset;
     rsx! {
         r#frame {
             name: {DynName(format!("{prefix}NineSlice"))},
             width: {width + left + right},
             height: {height + top + bottom},
-            style: METAL_FRAME_PANEL_STYLE,
+            style: style,
             pos_type: "absolute",
             left: {-left},
             top: {-top},
@@ -153,12 +261,16 @@ fn metal_border(prefix: &str, width: f32, height: f32) -> Element {
     }
 }
 
-/// `TitleContainer` (58, -1)..(-24, -1), `GameFontNormal` centred 5 below its top.
-fn window_title(prefix: &str, width: f32, title: &str) -> Element {
+/// `TitleContainer` left inset: 58 beside a portrait, 30 without.
+const PORTRAIT_TITLE_LEFT: f32 = 58.0;
+const FLAT_TITLE_LEFT: f32 = 30.0;
+
+/// `TitleContainer` (left, -1)..(-24, -1), `GameFontNormal` centred 5 below its top.
+fn window_title(prefix: &str, width: f32, title: &str, left: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{prefix}TitleText"))},
-            width: {width - 82.0},
+            width: {width - left - 24.0},
             height: 14.0,
             text: title,
             font: GameFont::FrizQuadrata,
@@ -168,7 +280,7 @@ fn window_title(prefix: &str, width: f32, title: &str) -> Element {
             shadow_offset: "1,-1",
             justify_h: "CENTER",
             pos_type: "absolute",
-            left: 58.0,
+            left: left,
             top: 6.0,
         }
     }

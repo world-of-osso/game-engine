@@ -431,6 +431,7 @@ fn snapshot_hud_options(snapshot: &ApplySnapshot) -> HudOptions {
         nameplate_spellbar_thickness: snapshot.hud.nameplate_spellbar_thickness,
         show_health_bars: snapshot.hud.show_health_bars,
         show_target_marker: snapshot.hud.show_target_marker,
+        auto_loot: snapshot.hud.auto_loot,
         show_fps_overlay: snapshot.hud.show_fps_overlay,
         chat_font_size: snapshot.hud.chat_font_size,
     }

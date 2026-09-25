@@ -194,7 +194,7 @@ fn find_seq_idx(sequences: &[M2AnimSequence], anim_id: u16) -> Option<usize> {
 
 /// Start a crossfade transition to a new sequence.
 /// If already mid-transition, blends from the current blended pose (not the raw source).
-fn start_transition(player: &mut M2AnimPlayer, target_idx: usize, blend_ms: f32) {
+pub(super) fn start_transition(player: &mut M2AnimPlayer, target_idx: usize, blend_ms: f32) {
     let blend_duration = blend_ms.max(MIN_MOVEMENT_BLEND_MS);
 
     let source = if player.transition.is_some() {
@@ -231,13 +231,16 @@ fn landing_jump_anim_id(movement: &MovementState, sequences: &[M2AnimSequence]) 
 }
 
 pub(crate) fn switch_animation(
-    mut players: Query<(
-        &mut M2AnimPlayer,
-        Option<&MovementState>,
-        Option<&TurnInPlaceState>,
-        &M2AnimData,
-        Option<&EmoteAnimState>,
-    )>,
+    mut players: Query<
+        (
+            &mut M2AnimPlayer,
+            Option<&MovementState>,
+            Option<&TurnInPlaceState>,
+            &M2AnimData,
+            Option<&EmoteAnimState>,
+        ),
+        Without<super::death::DeathPose>,
+    >,
 ) {
     for (mut player, movement, turn_in_place, data, emote) in &mut players {
         if emote.is_some() {
@@ -267,14 +270,17 @@ pub(crate) fn switch_animation(
 
 pub(crate) fn apply_emote_animation(
     mut commands: Commands,
-    mut players: Query<(
-        Entity,
-        &mut M2AnimPlayer,
-        &M2AnimData,
-        Option<&MovementState>,
-        Option<&TurnInPlaceState>,
-        &mut EmoteAnimState,
-    )>,
+    mut players: Query<
+        (
+            Entity,
+            &mut M2AnimPlayer,
+            &M2AnimData,
+            Option<&MovementState>,
+            Option<&TurnInPlaceState>,
+            &mut EmoteAnimState,
+        ),
+        Without<super::death::DeathPose>,
+    >,
 ) {
     for (entity, mut player, data, movement, turn_in_place, mut emote) in &mut players {
         let Some(emote_idx) = find_seq_idx(&data.sequences, emote.anim_id()) else {

@@ -188,6 +188,8 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
                 "Show Target Marker",
                 hud.show_target_marker,
             ),
+            // `autoLootDefault` (Controls: Auto Loot); Shift inverts it.
+            toggle_row("auto_loot", "Auto Loot", hud.auto_loot),
         ]
         .into_iter()
         .flatten()

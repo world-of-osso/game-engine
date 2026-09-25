@@ -565,6 +565,8 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
 fn add_core_screen_plugins(app: &mut App) {
     app.add_plugins((
         crate::game::networking_merchant::MerchantNetworkPlugin,
+        crate::game::networking_loot::LootNetworkPlugin,
+        crate::game::networking_taxi::TaxiNetworkPlugin,
         crate::game::networking_group::GroupNetworkPlugin,
         crate::game::networking_inventory::InventoryNetworkPlugin,
         crate::game::networking_bank::BankNetworkPlugin,
@@ -632,6 +634,8 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(scenes::mail_frame::MailFramePlugin);
     app.add_plugins(scenes::quest_ui::QuestUiPlugin);
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
+    app.add_plugins(scenes::loot_frame::LootFramePlugin);
+    app.add_plugins(scenes::flight_map::FlightMapPlugin);
     app.add_plugins(scenes::bank_frame::BankFramePlugin);
     app.add_plugins(scenes::trainer_frame::TrainerFramePlugin);
     app.add_plugins(scenes::auction_house_frame::AuctionHouseFramePlugin);

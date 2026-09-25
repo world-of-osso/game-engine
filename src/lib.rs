@@ -97,8 +97,8 @@ pub mod lfg;
 pub mod lfg_data;
 pub mod listfile;
 pub mod little_endian;
-#[path = "game/loot_data.rs"]
-pub mod loot_data;
+#[path = "game/loot_state.rs"]
+pub mod loot_state;
 #[path = "game/loss_of_control_data.rs"]
 pub mod loss_of_control_data;
 pub mod mail;
@@ -154,6 +154,8 @@ pub mod status;
 pub mod talent;
 #[path = "game/talent_tree/mod.rs"]
 pub mod talent_tree;
+#[path = "game/taxi_state.rs"]
+pub mod taxi_state;
 pub mod test_harness;
 pub mod trade;
 #[path = "game/trade_data.rs"]

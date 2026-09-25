@@ -2,12 +2,13 @@ use bevy::ecs::system::SystemParam;
 use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::loot_state::{LootRequest, Lootable, auto_loot};
 use game_engine::mail_data::MailIntentQueue;
 use game_engine::quest_tracking::QuestTrackedItem;
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::UiState;
-use shared::components::Npc;
+use shared::components::{Health as NetHealth, Npc};
 use shared::protocol::{EmoteIntent, EmoteKind};
 
 use crate::camera::Player;
@@ -94,6 +95,12 @@ struct RightClickInteractionState<'w, 's> {
     mail_queue: ResMut<'w, MailIntentQueue>,
     window_manager: Option<ResMut<'w, crate::window_manager::WindowManager>>,
     emote_input: Option<ResMut<'w, crate::networking::EmoteInput>>,
+    profession_runtime: Option<ResMut<'w, game_engine::profession::ProfessionRuntimeState>>,
+    casting_state: Option<ResMut<'w, game_engine::casting_data::CastingState>>,
+    corpses: Query<'w, 's, (&'static NetHealth, Has<Lootable>)>,
+    loot: MessageWriter<'w, LootRequest>,
+    keys: Res<'w, ButtonInput<KeyCode>>,
+    hud: Option<Res<'w, crate::client_options::HudOptions>>,
 }
 
 /// Which visual style the target selection circle uses.
@@ -172,6 +179,7 @@ impl Plugin for TargetPlugin {
         app.init_resource::<CurrentTarget>();
         app.init_resource::<TargetCircleStyle>();
         app.add_message::<crate::networking_quests::NpcInteractionRequest>();
+        app.add_message::<LootRequest>();
         app.init_resource::<MailIntentQueue>();
         app.init_resource::<ZoneTransitionContactState>();
         let stage = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
@@ -522,12 +530,35 @@ fn interact_with_clicked_npc(
     if player_position.distance(npc_tf.translation()) > INTERACT_RANGE {
         return true;
     }
-    state
-        .interactions
-        .write(crate::networking_quests::NpcInteractionRequest::Interact(
-            target_entity,
-        ));
+    interact_or_loot(target_entity, state);
     true
+}
+
+/// A lootable corpse opens its loot (`autoLootDefault` inverted by Shift, the
+/// `AUTOLOOTTOGGLE` default); any other corpse is only targeted; a living NPC is
+/// interacted with.
+fn interact_or_loot(npc: Entity, state: &mut RightClickInteractionState<'_, '_>) {
+    let (dead, lootable) = state
+        .corpses
+        .get(npc)
+        .map_or((false, false), |(health, lootable)| {
+            (health.current <= 0.0, lootable)
+        });
+    if lootable {
+        let default = state.hud.as_ref().is_some_and(|hud| hud.auto_loot);
+        let shift =
+            state.keys.pressed(KeyCode::ShiftLeft) || state.keys.pressed(KeyCode::ShiftRight);
+        state.loot.write(LootRequest::Open {
+            corpse: npc,
+            auto: auto_loot(default, shift),
+        });
+    } else if !dead {
+        state
+            .interactions
+            .write(crate::networking_quests::NpcInteractionRequest::Interact(
+                npc,
+            ));
+    }
 }
 
 fn interact_with_clicked_object(
@@ -572,11 +603,7 @@ fn interact_with_current_npc_target(
     if player_position.distance(npc_tf.translation()) > INTERACT_RANGE {
         return false;
     }
-    state
-        .interactions
-        .write(crate::networking_quests::NpcInteractionRequest::Interact(
-            target_entity,
-        ));
+    interact_or_loot(target_entity, state);
     true
 }
 
