@@ -206,7 +206,7 @@ fn sell_item_display(item: Option<&SellItemView>, (x, y): (f32, f32)) -> Element
     };
     rsx! {
         button {
-            name: prefix,
+            name: {DynName(prefix.to_string())},
             width: 342.0,
             height: 72.0,
             onclick: action,
@@ -384,6 +384,7 @@ fn duration_menu(current: AuctionDuration, y: f32) -> Element {
             width: w,
             height: 68.0,
             strata: FrameStrata::Dialog,
+            frame_level: 200.0,
             background_color: "0.05,0.05,0.05,0.95",
             style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
             pos_type: "absolute",
@@ -437,7 +438,7 @@ fn buyout_mode_check(checked: bool, (x, y): (f32, f32)) -> Element {
     }
     let mut out = rsx! {
         button {
-            name,
+            name: {DynName(name.to_string())},
             width: 36.0,
             height: 36.0,
             onclick: ACTION_BUYOUT_MODE,
@@ -490,7 +491,7 @@ fn item_sell_list(sell: &SellView) -> Element {
         let mut out = item_list_frame(prefix, rect, BG_SELL_RIGHT, &columns);
         for (index, row) in sell.inventory.iter().take(SELL_LIST_ROWS).enumerate() {
             let name = format!("AuctionHouseFrameItemSellListItem{}", index + 1);
-            let cells = [
+            let cells = join([
                 item_cell(&format!("{name}Item"), &row.item, 1, &columns[0]),
                 text_cell(
                     &format!("{name}Available"),
@@ -499,8 +500,7 @@ fn item_sell_list(sell: &SellView) -> Element {
                     (columns[1].x + 10.0, columns[1].w - 10.0),
                     "LEFT",
                 ),
-            ]
-            .concat();
+            ]);
             let action = format!("{ACTION_SELL_ITEM_PREFIX}{}", row.item_guid);
             out.extend(list_row(
                 &name,
@@ -523,7 +523,7 @@ fn item_sell_list(sell: &SellView) -> Element {
     ));
     for (index, row) in sell.listings.iter().take(SELL_LIST_ROWS).enumerate() {
         let name = format!("AuctionHouseFrameItemSellListRow{}", index + 1);
-        let cells = [
+        let cells = join([
             money_cell(&format!("{name}Bid"), row.bid, &columns[0]),
             money_cell(&format!("{name}Buyout"), row.buyout, &columns[1]),
             text_cell(
@@ -540,8 +540,7 @@ fn item_sell_list(sell: &SellView) -> Element {
                 (columns[3].x + 10.0, columns[3].w - 20.0),
                 "LEFT",
             ),
-        ]
-        .concat();
+        ]);
         out.extend(list_row(
             &name,
             (372.0, 95.0 + index as f32 * ROW_H, 397.0, ROW_H),

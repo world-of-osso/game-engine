@@ -138,7 +138,7 @@ fn browse_rows_show_the_lowest_price_name_quality_and_available() {
         "67"
     );
     assert_eq!(
-        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1AvailableText"),
+        fontstring_text(&reg, "AuctionHouseFrameBrowseResultsRow1Available"),
         "40"
     );
     // 3s 5c: no gold denomination.
@@ -179,11 +179,11 @@ fn item_buy_frame_lists_each_auction_with_bid_buyout_and_time_left() {
     assert!(shown(&reg, "AuctionHouseFrameItemBuyFrameBackButton"));
     assert!(!shown(&reg, "AuctionHouseFrameBrowseResultsRow1"));
     assert_eq!(
-        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1QuantityText"),
+        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1Quantity"),
         "20"
     );
     assert_eq!(
-        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1TimeLeftText"),
+        fontstring_text(&reg, "AuctionHouseFrameItemBuyFrameRow1TimeLeft"),
         "Very Long"
     );
     assert_eq!(

@@ -133,7 +133,7 @@ fn auctions_list(view: &AuctionsView) -> Element {
     ));
     for (index, row) in view.rows.iter().take(AUCTIONS_ROWS).enumerate() {
         let name = format!("{prefix}Row{}", index + 1);
-        let cells = [
+        let cells = join([
             item_cell(&format!("{name}Item"), &row.item, row.quantity, &columns[0]),
             money_cell(&format!("{name}Bid"), row.bid, &columns[1]),
             money_cell(&format!("{name}Buyout"), row.buyout, &columns[2]),
@@ -147,8 +147,7 @@ fn auctions_list(view: &AuctionsView) -> Element {
                 ),
                 "LEFT",
             ),
-        ]
-        .concat();
+        ]);
         let action = format!("{ACTION_SELECT_AUCTION_PREFIX}{}", row.auction_id);
         out.extend(list_row(
             &name,
