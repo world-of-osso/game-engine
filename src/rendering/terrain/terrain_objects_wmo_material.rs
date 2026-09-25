@@ -28,7 +28,9 @@ pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
         2 => base_shader_descriptor(true),
         3 | 10 | 14 => static_layer_shader_descriptor(true, false),
         5 => static_layer_shader_descriptor(true, true),
-        6 | 8 | 13 | 20 => alpha_blend_shader_descriptor(),
+        // Blended per vertex by WmoLitMaterial (`blends_layers_by_second_mocv`).
+        6 | 13 => base_shader_descriptor(false),
+        8 | 20 => alpha_blend_shader_descriptor(),
         7 => env_add_shader_descriptor(),
         9 | 15 => single_overlay_shader_descriptor(false, false, true, WmoLayerCombine::Add),
         11 => layered_env_shader_descriptor(),

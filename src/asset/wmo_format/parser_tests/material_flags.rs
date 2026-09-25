@@ -22,7 +22,10 @@ fn uses_second_uv_requires_flag_and_shader() {
     assert!(mat_with_shader(9, SECOND_UV_FLAG).uses_second_uv_set());
     assert!(mat_with_shader(15, SECOND_UV_FLAG).uses_second_uv_set());
     assert!(!mat_with_shader(10, SECOND_UV_FLAG).uses_second_uv_set());
-    assert!(!mat_with_shader(6, 0).uses_second_uv_set());
+    assert!(!mat_with_shader(7, 0).uses_second_uv_set());
+    // Retail two-layer blends by second MOCV sample MOTV2 without the flag.
+    assert!(mat_with_shader(6, 0).uses_second_uv_set());
+    assert!(mat_with_shader(13, 0).uses_second_uv_set());
 }
 
 #[test]

@@ -92,8 +92,8 @@ fn load_wmo_group_with_root_skips_third_uv_attribute_for_non_shader_18_materials
     assert!(!group.batches[0].uses_third_uv_set);
 }
 
-#[test]
-fn load_wmo_group_with_root_adds_blend_alpha_for_second_mocv_materials() {
+/// One-vertex group with two MOCV chunks; the second one's alpha is 128.
+fn two_mocv_group_data() -> Vec<u8> {
     let mut data = Vec::new();
     let moba_size = 24_u32;
     let mocv_size = 4_u32;
@@ -133,31 +133,53 @@ fn load_wmo_group_with_root_adds_blend_alpha_for_second_mocv_materials() {
     for value in [0_u16, 0, 0] {
         data.extend_from_slice(&value.to_le_bytes());
     }
+    data
+}
 
-    let root = empty_root_with_material(
-        WmoRootFlags::default(),
-        WmoMaterialDef {
-            texture_fdid: 0,
-            texture_2_fdid: 0,
-            texture_3_fdid: 0,
-            flags: 0x0100_0000,
-            material_flags: WmoMaterialFlags::default(),
-            sidn_color: [0.0; 4],
-            diff_color: [0.0; 4],
-            ground_type: 0,
-            blend_mode: 0,
-            shader: 0,
-            uv_translation_speed: None,
-        },
-    );
-    let group = load_wmo_group_with_root(&data, Some(&root)).expect("parse WMO group");
+fn material_with(flags: u32, shader: u32) -> WmoMaterialDef {
+    WmoMaterialDef {
+        texture_fdid: 0,
+        texture_2_fdid: 0,
+        texture_3_fdid: 0,
+        flags,
+        material_flags: WmoMaterialFlags::default(),
+        sidn_color: [0.0; 4],
+        diff_color: [0.0; 4],
+        ground_type: 0,
+        blend_mode: 0,
+        shader,
+        uv_translation_speed: None,
+    }
+}
 
+fn assert_second_mocv_blend_alpha(group: &WmoGroupData) {
     assert!(matches!(
         group.batches[0].mesh.attribute(WMO_BLEND_ALPHA_ATTRIBUTE),
         Some(bevy::mesh::VertexAttributeValues::Float32(values))
             if values == &vec![128.0 / 255.0]
     ));
     assert!(group.batches[0].uses_second_color_blend_alpha);
+}
+
+#[test]
+fn load_wmo_group_with_root_adds_blend_alpha_for_second_mocv_materials() {
+    let root = empty_root_with_material(WmoRootFlags::default(), material_with(0x0100_0000, 0));
+    let group =
+        load_wmo_group_with_root(&two_mocv_group_data(), Some(&root)).expect("parse WMO group");
+    assert_second_mocv_blend_alpha(&group);
+}
+
+/// Retail two-layer shaders (MOMT 6 TwoLayerDiffuse, 13 TwoLayerDiffuseOpaque) blend
+/// their layers by the second MOCV alpha whatever the MOMT flags (WebWowViewerCpp
+/// `caclWMOFragMat`, `vColor2.a`).
+#[test]
+fn load_wmo_group_with_root_adds_blend_alpha_for_two_layer_shaders() {
+    for shader in [6, 13] {
+        let root = empty_root_with_material(WmoRootFlags::default(), material_with(0, shader));
+        let group =
+            load_wmo_group_with_root(&two_mocv_group_data(), Some(&root)).expect("parse WMO group");
+        assert_second_mocv_blend_alpha(&group);
+    }
 }
 
 #[test]
