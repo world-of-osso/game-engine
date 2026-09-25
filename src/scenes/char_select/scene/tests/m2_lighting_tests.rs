@@ -412,20 +412,22 @@ fn m2_lighting_recreated_sun_uses_current_sky_without_clock_change() {
 }
 
 #[test]
-fn m2_lighting_charselect_camera_has_generated_environment_map() {
+fn m2_lighting_charselect_camera_gets_sky_cubemap_without_pbr_image_lighting() {
     let (mut app, _, _) = headless_lighting_app();
     app.update();
     let camera = app.world().resource::<FixtureCamera>().0;
-    let environment = app
-        .world()
-        .get::<GeneratedEnvironmentMapLight>(camera)
-        .expect("character-select camera needs generated environmental lighting");
-    assert!(environment.intensity.is_finite() && environment.intensity > 0.0);
+    assert!(
+        app.world()
+            .get::<GeneratedEnvironmentMapLight>(camera)
+            .is_none(),
+        "Retail-lit scenes use no Bevy image-based lighting"
+    );
+    let handle = &app.world().resource::<crate::sky::SkyEnvMapHandle>().0;
     let image = app
         .world()
         .resource::<Assets<Image>>()
-        .get(&environment.environment_map)
-        .expect("environment map must refer to a populated image asset");
+        .get(handle)
+        .expect("sky cubemap must refer to a populated image asset");
     assert_eq!(image.texture_descriptor.size.depth_or_array_layers, 6);
     assert!(image.data.as_ref().is_some_and(|data| !data.is_empty()));
 }
@@ -462,15 +464,22 @@ fn m2_lighting_environment_time_updates_preserve_authored_point_lights() {
     );
     let environment = scene_directional_entities(&mut app, unrelated);
     assert_eq!(environment.len(), 1);
-    let daylight = directional_state(app.world(), environment[0]);
+    let noon = directional_state(app.world(), environment[0]);
+    // Dawn: the client's directional-light table lowers the sun to 20°.
     app.world_mut()
         .resource_mut::<crate::sky::GameTime>()
-        .minutes = 0.0;
+        .minutes = 720.0;
     app.update();
-    let night = directional_state(app.world(), environment[0]);
-    assert!(night.illuminance < daylight.illuminance);
-    assert_ne!(night.rotation, daylight.rotation);
-    assert_ne!(night.color, daylight.color);
+    let dawn = directional_state(app.world(), environment[0]);
+    assert_ne!(dawn.rotation, noon.rotation);
+    let dawn_forward = dawn.rotation * Vec3::NEG_Z;
+    assert!(
+        dawn_forward.abs_diff_eq(crate::retail_light::retail_sun_direction(720.0), 1e-4),
+        "the shadow-casting sun follows the Retail sun direction: {dawn_forward:?}"
+    );
+    // Its colour and illuminance shade nothing and are no longer recalibrated.
+    assert_eq!(dawn.illuminance, noon.illuminance);
+    assert_eq!(dawn.color, noon.color);
     assert_eq!(
         point_states(&mut app),
         points_before,
