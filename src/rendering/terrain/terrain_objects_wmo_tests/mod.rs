@@ -8,6 +8,7 @@ mod doodads;
 mod group_runtime;
 mod interior_gpu;
 mod liquid;
+mod ordinary_gpu;
 mod root_runtime;
 mod unified_gpu;
 

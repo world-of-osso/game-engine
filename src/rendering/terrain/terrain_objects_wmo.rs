@@ -29,19 +29,19 @@ use super::{
 
 #[path = "terrain_objects_wmo_group.rs"]
 mod terrain_objects_wmo_group;
+#[path = "terrain_objects_wmo_lighting.rs"]
+mod terrain_objects_wmo_lighting;
 #[path = "terrain_objects_wmo_surface.rs"]
 mod terrain_objects_wmo_surface;
-#[path = "terrain_objects_wmo_unified.rs"]
-mod terrain_objects_wmo_unified;
 #[cfg(test)]
 #[path = "terrain_objects_wmo_tests/mod.rs"]
 mod tests;
 
 use self::terrain_objects_wmo_group::*;
+use self::terrain_objects_wmo_lighting::*;
+pub(crate) use self::terrain_objects_wmo_lighting::{WmoLitMaterial, WmoLitMaterialPlugin};
 use self::terrain_objects_wmo_surface::*;
 pub(crate) use self::terrain_objects_wmo_surface::{sync_wmo_sidn_emissive, wmo_standard_material};
-use self::terrain_objects_wmo_unified::*;
-pub(crate) use self::terrain_objects_wmo_unified::{WmoUnifiedMaterial, WmoUnifiedMaterialPlugin};
 
 pub(crate) fn sidn_glow_strength(minutes: f32) -> f32 {
     terrain_objects_wmo_surface::sidn_glow_strength(minutes)

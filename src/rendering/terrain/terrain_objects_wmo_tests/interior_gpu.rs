@@ -102,7 +102,9 @@ pub(super) fn gpu_app() -> App {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
-    app.add_plugins(WmoUnifiedMaterialPlugin);
+    app.add_plugins(WmoLitMaterialPlugin)
+        .init_asset::<crate::water_material::WaterMaterial>()
+        .init_asset::<crate::m2_effect_material::M2EffectMaterial>();
     app.finish();
     app.cleanup();
     app
@@ -153,26 +155,7 @@ fn spawn_wmo_batch(
     group: &wmo::WmoGroupData,
     batch: wmo::WmoGroupBatch,
 ) {
-    let props = wmo_material_props(root, batch.material_index);
-    let material =
-        app.world_mut()
-            .resource_scope(|world, mut materials: Mut<Assets<StandardMaterial>>| {
-                let mut images = world.resource_mut::<Assets<Image>>();
-                wmo_batch_material(
-                    &mut materials,
-                    &mut images,
-                    batch.material_index,
-                    &props,
-                    build_wmo_interior_ambient(root, group),
-                    batch.has_vertex_color,
-                )
-            });
-    let mesh = app
-        .world_mut()
-        .resource_mut::<Assets<Mesh>>()
-        .add(batch.mesh);
-    app.world_mut()
-        .spawn((Mesh3d(mesh), MeshMaterial3d(material), Transform::default()));
+    super::unified_gpu::spawn_production_batch(app, root, group, batch);
 }
 
 fn is_background(pixel: [u8; 4]) -> bool {

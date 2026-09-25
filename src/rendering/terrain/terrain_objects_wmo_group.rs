@@ -18,8 +18,9 @@ pub(super) fn spawn_wmo_group_batches(
             Visibility::default(),
             WmoCollisionMesh,
         ));
-        if root.flags.use_unified_render_path {
-            let mode = wmo_unified_lighting_mode(
+        if root.flags.use_unified_render_path || batch.has_vertex_color {
+            let mode = wmo_lighting_mode(
+                root.flags.use_unified_render_path,
                 group_header.flags,
                 batch.batch_type,
                 material_props.unlit,
@@ -29,12 +30,8 @@ pub(super) fn spawn_wmo_group_batches(
                 batch.material_index,
                 &material_props,
                 None,
-                false,
             );
-            insert_wmo_unified_material(
-                &mut child,
-                wmo_unified_material(base, mode, root.ambient_color),
-            );
+            insert_wmo_lit_material(&mut child, wmo_lit_material(base, mode, root.ambient_color));
         } else {
             child.insert(MeshMaterial3d(wmo_batch_material(
                 assets.materials,
@@ -42,7 +39,6 @@ pub(super) fn spawn_wmo_group_batches(
                 batch.material_index,
                 &material_props,
                 interior_ambient,
-                batch.has_vertex_color,
             )));
         }
         if let Some(glow) = material_props.sidn_glow {
@@ -53,15 +49,12 @@ pub(super) fn spawn_wmo_group_batches(
     }
 }
 
-/// WMO spawning only holds `Assets<StandardMaterial>`; the unified material is added
+/// WMO spawning only holds `Assets<StandardMaterial>`; the MOCV-lit material is added
 /// when the spawn commands apply.
-fn insert_wmo_unified_material(child: &mut EntityCommands, material: WmoUnifiedMaterial) {
+fn insert_wmo_lit_material(child: &mut EntityCommands, material: WmoLitMaterial) {
     child.queue(move |mut entity: EntityWorldMut| {
-        let handle = entity.world_scope(|world| {
-            world
-                .resource_mut::<Assets<WmoUnifiedMaterial>>()
-                .add(material)
-        });
+        let handle = entity
+            .world_scope(|world| world.resource_mut::<Assets<WmoLitMaterial>>().add(material));
         entity.insert(MeshMaterial3d(handle));
     });
 }
@@ -577,14 +570,12 @@ pub(super) fn wmo_batch_material(
     material_index: u16,
     material_props: &WmoMaterialProps,
     interior_ambient: Option<[f32; 4]>,
-    has_vertex_color: bool,
 ) -> Handle<StandardMaterial> {
     materials.add(wmo_batch_standard_material(
         images,
         material_index,
         material_props,
         interior_ambient,
-        has_vertex_color,
     ))
 }
 
@@ -593,7 +584,6 @@ fn wmo_batch_standard_material(
     material_index: u16,
     material_props: &WmoMaterialProps,
     interior_ambient: Option<[f32; 4]>,
-    has_vertex_color: bool,
 ) -> StandardMaterial {
     let image = load_wmo_batch_material_image(images, material_index, material_props);
     wmo_standard_material(
@@ -602,7 +592,6 @@ fn wmo_batch_standard_material(
         material_props.unculled,
         material_props.shader,
         interior_ambient,
-        has_vertex_color,
         material_props.sidn_glow,
     )
 }
