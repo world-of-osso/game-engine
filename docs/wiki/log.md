@@ -949,3 +949,7 @@ Created [[group-frames]]. Raid-style CompactPartyFrame and CompactRaidFrameConta
 ## [2026-09-25] ui | Professions
 
 Created [[professions-ui]]. Retail ClassTrainerFrame, ProfessionsBook and ProfessionsFrame on the new trainer/profession protocol; the AzerothCore-era professions placeholder and the client-only gather cast are gone.
+
+## [2026-09-25] investigation | Stormwind dark render
+
+Created [[stormwind-dark-render]]. Stormwind district WMOs take the unified MapObj path (MOHD `0x02`), where MOCV is additive light. The engine drew them unlit as texture×MOCV, so near-zero MOCV turned them black. `WmoUnifiedMaterial` adds MOCV to daylight or MOHD ambient. Updated [[wmo-format]].

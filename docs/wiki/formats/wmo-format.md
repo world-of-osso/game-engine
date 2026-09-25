@@ -19,6 +19,13 @@ WMOs are placed in the world via MODF records in ADT `_obj0` files. Each MODF re
 
 Commit `965f6f9e` makes WMO-local vertices, bounds, portals, lights, liquids, and embedded doodad positions use `[x, z, -y]` before placement. The former `[-x, z, y]` conversion added an extra180° rotation. All seven Northshire MOHD→MODF bounds match within0.002units after correction. Northshire Abbey is FDID107074 (not bridge FDID108121); its former maximum mismatch was21.75units. The regression checks actual Abbey header/placement coordinates, not a per-building offset. This proves placement basis only: WMO floor support, the reported free-fall, and native hole/visibility verification remain open.
 
+## Vertex Color Lighting
+
+MOCV is light, not albedo. How it combines depends on the MOHD root flags:
+
+- **Unified MapObj (MOHD `0x02`).** Stormwind districts use this path, and it lights batches as `texture * (2 * MOCV + light)`. MOHD `0x08` keeps MOCV raw instead of applying the fixup. Rendered by `WmoUnifiedMaterial`; see [[stormwind-dark-render]].
+- **Other roots.** Still drawn unlit as `texture * fixed MOCV`, with vertex alpha forced opaque (see [[abbey-interior-black-world]]).
+
 ## Parser Location
 
 Pure parser (no Bevy dependencies): `src/asset/wmo_format/`
@@ -33,6 +40,8 @@ The WMO parser is less complete than the M2 or ADT parsers. Rendering of WMO int
 - `../../data/diagnostics/npc-motion-20260909/wmo-basis-proof.json` — seven corrected MOHD→MODF extent comparisons
 
 ## See Also
+
+- [[stormwind-dark-render]] — unified MapObj MOCV lighting
 
 - [[adt-format]] — MODF records that place WMOs in the world
 - [[m2-format]] — M2 doodads embedded inside WMO doodad sets
