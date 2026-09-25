@@ -285,3 +285,38 @@ fn enter_is_ignored_while_an_editbox_has_focus() {
     assert!(results(&mut app).is_empty());
     assert!(frame_exists(&app, "StaticPopup1"));
 }
+
+#[test]
+fn clicks_hit_the_button_under_a_scaled_ui() {
+    // A 1280-wide window over the 1920-wide UI (ui_scale 2/3): the window cursor at
+    // the button's scaled centre must resolve to that button.
+    let mut app = popup_app();
+    let duel = push(&mut app, spec("duel"));
+    let center = {
+        let mut ui = app.world_mut().resource_mut::<UiState>();
+        layout_support::compute_layout(&mut ui.registry);
+        let id = ui.registry.get_by_name("StaticPopup1Button1").unwrap();
+        let rect = ui.registry.get(id).unwrap().layout_rect.clone().unwrap();
+        ui.registry.ui_scale = 2.0 / 3.0;
+        Vec2::new(rect.x + rect.width / 2.0, rect.y + rect.height / 2.0) * (2.0 / 3.0)
+    };
+    let mut windows = app
+        .world_mut()
+        .query_filtered::<&mut Window, With<PrimaryWindow>>();
+    windows
+        .single_mut(app.world_mut())
+        .unwrap()
+        .set_cursor_position(Some(center));
+    app.world_mut()
+        .resource_mut::<ButtonInput<MouseButton>>()
+        .press(MouseButton::Left);
+    app.update();
+    assert_eq!(
+        results(&mut app),
+        vec![PopupResult {
+            id: duel,
+            key: "duel".to_string(),
+            outcome: PopupOutcome::Accepted,
+        }]
+    );
+}
