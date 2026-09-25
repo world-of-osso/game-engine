@@ -37,6 +37,9 @@ const READY_SIZE: f32 = 20.0;
 pub const OUT_OF_RANGE_ALPHA: f32 = 0.5;
 /// Offline health colour (`CompactUnitFrame_UpdateHealthColor`, :656-658).
 const OFFLINE_RGB: [f32; 3] = [0.5, 0.5, 0.5];
+/// Background tint `COMPACT_UNIT_FRAME_FRIENDLY_HEALTH_COLOR_BG` (GlobalColor 379,
+/// 0xFF141414), applied to the white `raidframe-hp-bg-white` (CUF:709-711).
+const BACKGROUND_RGB: [f32; 3] = [20.0 / 255.0, 20.0 / 255.0, 20.0 / 255.0];
 
 const NAME_COLOR: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
 /// `GameFontDisable`.
@@ -69,7 +72,7 @@ const READY_READY: AtlasArt = lfg((1947.0, 2011.0, 391.0, 455.0));
 const READY_WAITING: AtlasArt = lfg((1947.0, 2011.0, 325.0, 389.0));
 const READY_NOT_READY: AtlasArt = lfg((1947.0, 2011.0, 259.0, 323.0));
 /// `Interface\Buttons\UI-Debuff-Overlays` border crop of `CompactDebuffTemplate`,
-/// vertex-coloured by `DebuffTypeColor`.
+/// vertex-coloured by the debuff type (`debuff_border_rgb`).
 const DEBUFF_BORDER_FDID: u32 = 130_759;
 const DEBUFF_BORDER_COORDS: &str = "0.296875,0.5703125,0,0.515625";
 
@@ -126,7 +129,7 @@ pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Ele
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
-            {art_texture(format!("{name}Background"), &BACKGROUND, (0.0, 0.0, width, height), [1.0; 3], false)}
+            {art_texture(format!("{name}Background"), &BACKGROUND, (0.0, 0.0, width, height), BACKGROUND_RGB, false)}
             {health_bar(name, view, (width, height))}
             {power_bar(name, view, (width, height))}
             {role_icon(name, view.role)}
@@ -293,6 +296,7 @@ fn debuffs(name: &str, debuffs: &[CompactDebuffView], height: f32) -> Element {
 }
 
 fn debuff_icon(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> Element {
+    let border_color = rgba(debuff_border_rgb(debuff.dispel));
     rsx! {
         texture {
             name: {DynName(name.to_string())},
@@ -309,7 +313,7 @@ fn debuff_icon(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> El
             height: AURA_SIZE,
             texture_fdid: DEBUFF_BORDER_FDID,
             tex_coords: DEBUFF_BORDER_COORDS,
-            vertex_color: {debuff.dispel.border_color()},
+            vertex_color: {border_color.as_str()},
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
@@ -317,11 +321,27 @@ fn debuff_icon(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> El
     }
 }
 
+/// `DEBUFF_TYPE_<TYPE>_COLOR` GlobalColors 365-370 (AuraUtil.lua `DEBUFF_DISPLAY_INFO`).
+fn debuff_border_rgb(dispel: DebuffType) -> [f32; 3] {
+    let argb: u32 = match dispel {
+        DebuffType::Magic => 0xFF00_81FF,
+        DebuffType::Curse => 0xFF9F_06E4,
+        DebuffType::Disease => 0xFFF1_6A09,
+        DebuffType::Poison => 0xFF7B_C700,
+        DebuffType::None => 0xFFCC_0000,
+    };
+    let channel = |shift: u32| ((argb >> shift) & 0xFF) as f32 / 255.0;
+    [channel(16), channel(8), channel(0)]
+}
+
+fn rgba([r, g, b]: [f32; 3]) -> String {
+    format!("{r},{g},{b},1.0")
+}
+
 fn art_texture(name: String, art: &AtlasArt, rect: Rect, rgb: [f32; 3], hidden: bool) -> Element {
     let (x, y, width, height) = rect;
     let coords = art.tex_coords(1.0);
-    let [r, g, b] = rgb;
-    let vertex_color = format!("{r},{g},{b},1.0");
+    let vertex_color = rgba(rgb);
     rsx! {
         texture {
             name: {DynName(name)},
