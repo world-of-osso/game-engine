@@ -12,7 +12,7 @@ use bevy::window::PrimaryWindow;
 use game_engine::chat_data::{
     ChatChannelType, ChatMessage as RuntimeChatMessage, ChatState, WhisperState, now_timestamp,
 };
-use game_engine::network_runtime::messages::MessageSenders;
+use game_engine::group_state::GroupCommand;
 use game_engine::spell_catalog::SpellCatalog;
 use game_engine::ui::chat_frame::{
     ChatCommand, ChatEntry, ChatFrameState, ChatTab, CombatLogChat, chat_message_line,
@@ -30,7 +30,7 @@ use game_engine::ui::screens::chat_frame_component::{
     chat_text_area, tab_flash_name,
 };
 use game_engine::who::{WhoRuntimeState, queue_query};
-use shared::protocol::{ChatMessage, CombatChannel, EmoteIntent, GroupInviteIntent};
+use shared::protocol::{ChatMessage, EmoteIntent};
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::text_measure::measure_text;
 
@@ -68,6 +68,7 @@ impl Plugin for ChatFramePlugin {
         app.init_resource::<ChatFrameState>();
         app.init_resource::<CombatLogChat>();
         app.init_resource::<ChatClipboard>();
+        app.add_message::<GroupCommand>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_chat_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -130,11 +131,11 @@ fn teardown_chat_frame_ui(
 
 /// Where a submitted line goes.
 #[derive(SystemParam)]
-struct ChatOutputs<'w, 's> {
+struct ChatOutputs<'w> {
     chat_input: ResMut<'w, ChatInput>,
     emote_input: ResMut<'w, EmoteInput>,
     who: Option<ResMut<'w, WhoRuntimeState>>,
-    invites: MessageSenders<'w, 's, GroupInviteIntent>,
+    group: MessageWriter<'w, GroupCommand>,
     chat: ResMut<'w, ChatState>,
 }
 
@@ -274,15 +275,8 @@ fn dispatch(command: ChatCommand, out: &mut ChatOutputs) {
             Some(who) => queue_query(who, query),
             None => add_system_line(&mut out.chat, "Who is unavailable."),
         },
-        ChatCommand::Invite(name) => {
-            let mut sent = false;
-            for mut sender in out.invites.iter_mut() {
-                sender.send::<CombatChannel>(GroupInviteIntent { name: name.clone() });
-                sent = true;
-            }
-            if !sent {
-                add_system_line(&mut out.chat, "You are not connected.");
-            }
+        ChatCommand::Group(command) => {
+            out.group.write(command);
         }
         ChatCommand::System(lines) => {
             for line in lines {

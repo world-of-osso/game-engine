@@ -7,6 +7,7 @@ use chrono::TimeZone;
 use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind, MissKind};
 
 use crate::chat_data::{ChatChannelType, ChatMessage};
+use crate::group_state::GroupCommand;
 
 pub const MAX_COMBAT_LINES: usize = 200;
 /// Retail `ChatEdit` history depth.
@@ -24,7 +25,7 @@ pub const HELP_LINES: [&str; 6] = [
     "Chat: /s /say, /y /yell, /p /party, /g /guild, /e /emote",
     "Whisper: /w /whisper <name> <message>, /r /reply <message>",
     "Emotes: /dance /wave /sit /sleep /kneel",
-    "Social: /who <query>, /invite <name>",
+    "Social: /who <query>; Group: /invite /uninvite /promote <name>, /readycheck",
     "Keys: Enter opens chat, / starts a command, R replies to the last whisper",
     "Up/Down recall sent lines; Escape closes the chat box",
 ];
@@ -363,7 +364,7 @@ pub enum ChatCommand {
     },
     Emote(EmoteKind),
     Who(String),
-    Invite(String),
+    Group(GroupCommand),
     /// Local system lines, shown only to this client.
     System(Vec<String>),
     None,
@@ -388,15 +389,23 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
             None => ChatCommand::None,
         },
         "who" => ChatCommand::Who(rest.to_string()),
-        "invite" | "inv" => match split_word(rest).0 {
-            "" => ChatCommand::None,
-            name => ChatCommand::Invite(name.to_string()),
-        },
+        // Retail SLASH_INVITE/UNINVITE/PROMOTE/READYCHECK aliases.
+        "invite" | "inv" => named_group_command(rest, GroupCommand::Invite),
+        "uninvite" | "un" | "u" | "kick" => named_group_command(rest, GroupCommand::Uninvite),
+        "promote" | "pr" => named_group_command(rest, GroupCommand::Promote),
+        "readycheck" | "rc" => ChatCommand::Group(GroupCommand::StartReadyCheck),
         "help" | "h" | "?" => ChatCommand::System(HELP_LINES.map(String::from).to_vec()),
         other => match emote_command(other) {
             Some(emote) => ChatCommand::Emote(emote),
             None => ChatCommand::System(vec![UNKNOWN_COMMAND_TEXT.to_string()]),
         },
+    }
+}
+
+fn named_group_command(rest: &str, command: fn(String) -> GroupCommand) -> ChatCommand {
+    match split_word(rest).0 {
+        "" => ChatCommand::None,
+        name => ChatCommand::Group(command(name.to_string())),
     }
 }
 

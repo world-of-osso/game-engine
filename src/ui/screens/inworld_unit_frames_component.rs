@@ -51,8 +51,9 @@ const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
     },
 ];
 
-pub fn unit_menu_height() -> f32 {
-    menu_height_for_items(UNIT_MENU_ITEMS.len())
+/// Menu height with `group_items` extra group entries.
+pub fn unit_menu_height(group_items: usize) -> f32 {
+    menu_height_for_items(UNIT_MENU_ITEMS.len() + group_items)
 }
 
 #[derive(Clone)]
@@ -131,6 +132,15 @@ pub struct UnitFrameMenuState {
     pub title: String,
     pub x: f32,
     pub y: f32,
+    /// Group entries (`UnitPopup` Invite / Promote / Leave …), shown before Close.
+    pub group_items: Vec<UnitMenuItem>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnitMenuItem {
+    pub name: String,
+    pub label: String,
+    pub action: String,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -461,6 +471,16 @@ fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Ele
 }
 
 fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
+    let (close, focus) = UNIT_MENU_ITEMS
+        .split_last()
+        .expect("unit menu ends with Close");
+    let mut items: Vec<ContextMenuItem<'_>> = focus.to_vec();
+    items.extend(state.group_items.iter().map(|item| ContextMenuItem {
+        name: &item.name,
+        label: &item.label,
+        action: &item.action,
+    }));
+    items.push(*close);
     context_menu(ContextMenu {
         frame_name: "UnitFrameContextMenu",
         title_name: "UnitFrameContextMenuTitle",
@@ -470,7 +490,7 @@ fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
         width: UNIT_MENU_W,
         x: state.x,
         y: state.y,
-        items: UNIT_MENU_ITEMS,
+        items: &items,
     })
 }
 

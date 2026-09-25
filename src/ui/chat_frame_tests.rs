@@ -71,8 +71,21 @@ fn emote_who_invite_help_and_unknown_commands() {
     );
     assert_eq!(
         parse_chat_input("/invite Bob", None),
-        ChatCommand::Invite("Bob".to_string())
+        ChatCommand::Group(GroupCommand::Invite("Bob".to_string()))
     );
+    assert_eq!(
+        parse_chat_input("/kick Bob extra", None),
+        ChatCommand::Group(GroupCommand::Uninvite("Bob".to_string()))
+    );
+    assert_eq!(
+        parse_chat_input("/pr Cid", None),
+        ChatCommand::Group(GroupCommand::Promote("Cid".to_string()))
+    );
+    assert_eq!(
+        parse_chat_input("/rc", None),
+        ChatCommand::Group(GroupCommand::StartReadyCheck)
+    );
+    assert_eq!(parse_chat_input("/promote", None), ChatCommand::None);
     let ChatCommand::System(help) = parse_chat_input("/help", None) else {
         panic!("help prints system lines");
     };

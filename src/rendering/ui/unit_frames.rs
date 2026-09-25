@@ -16,6 +16,7 @@ use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
 use game_engine::faction_reaction::{
     FactionTemplateRow, Reaction, parse_faction_template_csv, reaction,
 };
+use game_engine::group_state::{GroupCommand, GroupMenuEntry, GroupState, group_menu_entries};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use game_engine::status::{CharacterStatsSnapshot, SecondaryResourceEntry};
 use game_engine::targeting::{CurrentTarget, FocusTarget, SetFocus, apply_set_focus};
@@ -25,7 +26,8 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_SET_FOCUS, InWorldUnitFramesState,
     PowerBarState, SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState,
-    UnitFrameState, format_value_text, fraction, inworld_unit_frames_screen, unit_menu_height,
+    UnitFrameState, UnitMenuItem, format_value_text, fraction, inworld_unit_frames_screen,
+    unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -89,6 +91,8 @@ struct InWorldUnitFramesModel(InWorldUnitFramesState);
 #[derive(Resource, Default, Clone, PartialEq)]
 struct UnitFrameMenu {
     unit: Option<Entity>,
+    /// Player name of `unit`, for its group entries.
+    player_name: Option<String>,
     state: UnitFrameMenuState,
 }
 
@@ -119,6 +123,8 @@ impl Plugin for InWorldUnitFramesPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<FocusTarget>();
         app.init_resource::<UnitFrameMenu>();
+        app.init_resource::<GroupState>();
+        app.add_message::<GroupCommand>();
         app.insert_resource(FactionTemplates::load());
         app.add_message::<SetFocus>();
         app.add_systems(
@@ -394,8 +400,10 @@ fn handle_unit_frame_pointer(
     modal_open: Option<Res<crate::scenes::game_menu::UiModalOpen>>,
     model: Option<Res<InWorldUnitFramesModel>>,
     sources: FrameUnitSources,
+    group: GroupMenuSources,
     mut menu: ResMut<UnitFrameMenu>,
     mut set_focus: MessageWriter<SetFocus>,
+    mut group_commands: MessageWriter<GroupCommand>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
@@ -415,20 +423,46 @@ fn handle_unit_frame_pointer(
         return;
     };
     let units = sources.frame_units();
+    let player_name = |entity: Entity| group.players.get(entity).ok().map(|p| p.name.clone());
+    let local_name = units.player.and_then(player_name);
     let click = UnitFrameClick {
         registry: &ui.registry,
         model: &model.0,
         units: &units,
+        group: &group.state,
+        local_name: local_name.as_deref(),
+        player_name: &player_name,
     };
-    if let Some(request) = click.handle(cursor, button, &mut menu) {
-        set_focus.write(request);
+    match click.handle(cursor, button, &mut menu) {
+        Some(MenuRequest::Focus(request)) => {
+            set_focus.write(request);
+        }
+        Some(MenuRequest::Group(command)) => {
+            group_commands.write(command);
+        }
+        None => {}
     }
+}
+
+#[derive(bevy::ecs::system::SystemParam)]
+struct GroupMenuSources<'w, 's> {
+    state: Res<'w, GroupState>,
+    players: Query<'w, 's, &'static NetPlayer>,
+}
+
+#[derive(Debug, PartialEq)]
+enum MenuRequest {
+    Focus(SetFocus),
+    Group(GroupCommand),
 }
 
 struct UnitFrameClick<'a> {
     registry: &'a FrameRegistry,
     model: &'a InWorldUnitFramesState,
     units: &'a FrameUnits,
+    group: &'a GroupState,
+    local_name: Option<&'a str>,
+    player_name: &'a dyn Fn(Entity) -> Option<String>,
 }
 
 impl UnitFrameClick<'_> {
@@ -439,7 +473,7 @@ impl UnitFrameClick<'_> {
         cursor: Vec2,
         button: MouseButton,
         menu: &mut UnitFrameMenu,
-    ) -> Option<SetFocus> {
+    ) -> Option<MenuRequest> {
         let frame = find_frame_at(self.registry, cursor.x, cursor.y);
         if button == MouseButton::Right {
             *menu = frame
@@ -449,9 +483,14 @@ impl UnitFrameClick<'_> {
         }
         let action = frame.and_then(|frame| walk_up_for_onclick(self.registry, frame));
         let request = match action.as_deref() {
-            Some(ACTION_UNIT_MENU_SET_FOCUS) => menu.unit.map(SetFocus::Unit),
-            Some(ACTION_UNIT_MENU_CLEAR_FOCUS) => Some(SetFocus::Clear),
-            _ => None,
+            Some(ACTION_UNIT_MENU_SET_FOCUS) => {
+                menu.unit.map(SetFocus::Unit).map(MenuRequest::Focus)
+            }
+            Some(ACTION_UNIT_MENU_CLEAR_FOCUS) => Some(MenuRequest::Focus(SetFocus::Clear)),
+            Some(action) => GroupMenuEntry::from_action(action)
+                .zip(menu.player_name.as_deref())
+                .map(|(entry, name)| MenuRequest::Group(entry.command(name))),
+            None => None,
         };
         if menu.state.visible {
             *menu = UnitFrameMenu::default();
@@ -462,17 +501,36 @@ impl UnitFrameClick<'_> {
     fn menu_for(&self, frame: u64, cursor: Vec2) -> Option<UnitFrameMenu> {
         let root = cluster_root_name(self.registry, frame)?;
         let unit = self.units.for_root(root)?;
+        let player_name = (self.player_name)(unit);
+        let group_items = self.group_items(player_name.as_deref());
         let max_x = (self.registry.screen_width - UNIT_MENU_W).max(0.0);
-        let max_y = (self.registry.screen_height - unit_menu_height()).max(0.0);
+        let max_y = (self.registry.screen_height - unit_menu_height(group_items.len())).max(0.0);
         Some(UnitFrameMenu {
             unit: Some(unit),
+            player_name,
             state: UnitFrameMenuState {
                 visible: true,
                 title: self.unit_name(root),
                 x: cursor.x.clamp(0.0, max_x),
                 y: cursor.y.clamp(0.0, max_y),
+                group_items,
             },
         })
+    }
+
+    /// Group entries for a player unit (Retail `UnitPopup` SELF / PARTY / PLAYER).
+    fn group_items(&self, player_name: Option<&str>) -> Vec<UnitMenuItem> {
+        let (Some(local), Some(unit)) = (self.local_name, player_name) else {
+            return Vec::new();
+        };
+        group_menu_entries(self.group, local, unit)
+            .into_iter()
+            .map(|entry| UnitMenuItem {
+                name: format!("UnitFrameContextMenu{}", entry.frame_key()),
+                label: entry.label().into(),
+                action: entry.action().into(),
+            })
+            .collect()
     }
 
     fn unit_name(&self, root: &str) -> String {
@@ -916,6 +974,70 @@ mod tests {
         assert_eq!(app.world().resource::<FocusTarget>().0, Some(wolf));
         assert!(frame(&app, "UnitFrameContextMenu").hidden);
         assert_eq!(text(&app, "FocusName"), "Timber Wolf");
+    }
+
+    #[test]
+    fn right_click_player_target_invites_it_and_player_frame_offers_leave() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let valeera = app
+            .world_mut()
+            .spawn((
+                NetPlayer {
+                    name: "Valeera".to_string(),
+                    race: 4,
+                    class: 4,
+                    appearance: default(),
+                },
+                NetHealth {
+                    current: 90.0,
+                    max: 90.0,
+                },
+            ))
+            .id();
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(valeera);
+        app.update();
+
+        click(&mut app, "TargetFrame", MouseButton::Right);
+        app.update();
+        assert!(!frame(&app, "UnitFrameContextMenuInvite").hidden);
+        click(&mut app, "UnitFrameContextMenuInvite", MouseButton::Left);
+        app.update();
+
+        let sent: Vec<GroupCommand> = app
+            .world_mut()
+            .resource_mut::<Messages<GroupCommand>>()
+            .drain()
+            .collect();
+        assert_eq!(sent, [GroupCommand::Invite("Valeera".into())]);
+        assert!(frame(&app, "UnitFrameContextMenu").hidden);
+
+        app.world_mut().resource_mut::<GroupState>().apply_roster(
+            shared::protocol::GroupRosterSnapshot {
+                is_raid: false,
+                ready_count: 0,
+                total_count: 0,
+                members: ["Theron", "Valeera"]
+                    .into_iter()
+                    .map(|name| shared::protocol::GroupMemberSnapshot {
+                        name: name.into(),
+                        role: shared::protocol::GroupRoleSnapshot::None,
+                        is_leader: name == "Theron",
+                        online: true,
+                        subgroup: 1,
+                        class: 2,
+                        level: 10,
+                        entity: None,
+                    })
+                    .collect(),
+                loot_method: shared::loot::LootMode::PersonalLoot,
+            },
+        );
+        click(&mut app, "PlayerFrame", MouseButton::Right);
+        app.update();
+        assert!(!frame(&app, "UnitFrameContextMenuLeave").hidden);
+        assert!(!frame(&app, "UnitFrameContextMenuConvertToRaid").hidden);
     }
 
     #[test]

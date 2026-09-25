@@ -69,6 +69,8 @@ pub mod friends;
 pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
+#[path = "game/group_state.rs"]
+pub mod group_state;
 pub mod guild;
 #[path = "game/guild_control_data.rs"]
 pub mod guild_control_data;
@@ -134,8 +136,6 @@ pub mod quest_data;
 pub mod quest_runtime;
 #[path = "game/quest_tracking.rs"]
 pub mod quest_tracking;
-#[path = "game/raid_party_data.rs"]
-pub mod raid_party_data;
 pub mod reputation;
 #[path = "game/reputation_data.rs"]
 pub mod reputation_data;

@@ -99,15 +99,6 @@ fn quest_log_snapshot_defaults_to_empty_entries() {
 }
 
 #[test]
-fn group_status_snapshot_defaults_to_empty_members() {
-    let snapshot = GroupStatusSnapshot::default();
-
-    assert!(snapshot.members.is_empty());
-    assert_eq!(snapshot.ready_count, 0);
-    assert_eq!(snapshot.total_count, 0);
-}
-
-#[test]
 fn friends_status_snapshot_defaults_to_empty_entries() {
     let snapshot = FriendsStatusSnapshot::default();
 
@@ -332,24 +323,6 @@ fn quest_log_round_trip() {
 }
 
 #[test]
-fn group_status_round_trip() {
-    let snapshot = GroupStatusSnapshot {
-        is_raid: false,
-        members: vec![GroupMemberEntry {
-            name: "Bob".into(),
-            role: GroupRole::Damage,
-            is_leader: false,
-            online: true,
-            subgroup: 1,
-        }],
-        ready_count: 1,
-        total_count: 1,
-        last_server_message: None,
-    };
-    round_trip(&snapshot);
-}
-
-#[test]
 fn friends_status_round_trip() {
     let snapshot = FriendsStatusSnapshot {
         entries: vec![FriendEntry {
@@ -534,7 +507,6 @@ fn default_snapshots_round_trip() {
     round_trip(&GuildVaultStatusSnapshot::default());
     round_trip(&WarbankStatusSnapshot::default());
     round_trip(&QuestLogStatusSnapshot::default());
-    round_trip(&GroupStatusSnapshot::default());
     round_trip(&FriendsStatusSnapshot::default());
     round_trip(&GuildStatusSnapshot::default());
     round_trip(&IgnoreListStatusSnapshot::default());

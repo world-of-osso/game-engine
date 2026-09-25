@@ -1,0 +1,345 @@
+//! Retail `CompactUnitFrame` (raid-style party and raid member frames), the default
+//! "Legacy" layout of `DefaultCompactUnitFrameSetup` (CompactUnitFrame.lua:1941-2069).
+//! Atlas rects are `UiTextureAtlasMember` entries of build 12.1.0.69933.
+
+use ui_toolkit::rsx;
+use ui_toolkit::widget_def::Element;
+
+use crate::buff_data::DebuffType;
+use crate::group_state::ReadyMark;
+use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use crate::ui::strata::FrameStrata;
+use crate::ui::widgets::font_string::{FontColor, GameFont};
+use shared::protocol::GroupRoleSnapshot;
+
+/// `NATIVE_UNIT_FRAME_WIDTH/HEIGHT` (CompactUnitFrame.lua:11-12): component scale base.
+const NATIVE_W: f32 = 72.0;
+const NATIVE_H: f32 = 36.0;
+/// Power bar height reserved under the health bar (`powerBarUsedHeight`, :1981).
+const POWER_H: f32 = 8.0;
+/// Role icon `Size x=17 y=17` (CompactUnitFrame.xml), TOPLEFT (3, -2) (:1884-1889).
+const ROLE_SIZE: f32 = 17.0;
+const ROLE_X: f32 = 3.0;
+const ROLE_Y: f32 = 2.0;
+/// `GameFontHighlightSmall` / `GameFontDisable` sizes; status text scales (:2023-2033).
+const NAME_FONT_SIZE: f32 = 10.0;
+const STATUS_FONT_SIZE: f32 = 12.0;
+/// `NATIVE_UNIT_FRAME_AURA_SIZE` (:13); Legacy debuffs BOTTOMLEFT (3, 2 + power), three
+/// per row growing up (Blizzard_PrivateAurasUI.lua:876-906), at most 5 (:2045).
+const AURA_SIZE: f32 = 11.0;
+const AURA_X: f32 = 3.0;
+const AURA_BOTTOM: f32 = 2.0;
+const AURAS_PER_ROW: usize = 3;
+pub const MAX_DEBUFFS: usize = 5;
+/// Ready check icon 20 × component scale at BOTTOM (0, h/3 - 4) (:2038-2041).
+const READY_SIZE: f32 = 20.0;
+/// `CompactUnitFrame_GetRangeAlpha` (:1071).
+pub const OUT_OF_RANGE_ALPHA: f32 = 0.5;
+/// Offline health colour (`CompactUnitFrame_UpdateHealthColor`, :656-658).
+const OFFLINE_RGB: [f32; 3] = [0.5, 0.5, 0.5];
+
+const NAME_COLOR: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
+/// `GameFontDisable`.
+const STATUS_COLOR: FontColor = FontColor::new(0.5, 0.5, 0.5, 1.0);
+
+const fn art(fdid: u32, atlas: (f32, f32), rect: (f32, f32, f32, f32)) -> AtlasArt {
+    AtlasArt { fdid, atlas, rect }
+}
+
+/// `raidframe-hp-bg-white` (atlas 7658229).
+const BACKGROUND: AtlasArt = art(7_658_229, (32.0, 32.0), (0.0, 32.0, 0.0, 32.0));
+/// `RaidFrame-Hp-Fill` (atlas 7539072), tinted by class colour.
+const HEALTH_FILL: AtlasArt = art(7_539_072, (32.0, 32.0), (0.0, 32.0, 0.0, 32.0));
+/// `_RaidFrame-Resource-Fill` / `_RaidFrame-Resource-Background` (atlas 7539067).
+const POWER_FILL: AtlasArt = art(7_539_067, (16.0, 64.0), (0.0, 16.0, 51.0, 57.0));
+const POWER_BACKGROUND: AtlasArt = art(7_539_067, (16.0, 64.0), (0.0, 16.0, 43.0, 49.0));
+/// `RaidFrame-TargetFrame` (atlas 7526019): selection highlight.
+const SELECTION: AtlasArt = art(7_526_019, (256.0, 128.0), (145.0, 215.0, 1.0, 35.0));
+/// Group finder sheet 5171843 (2048²).
+const LFG_SHEET: (u32, (f32, f32)) = (5_171_843, (2048.0, 2048.0));
+const fn lfg(rect: (f32, f32, f32, f32)) -> AtlasArt {
+    art(LFG_SHEET.0, LFG_SHEET.1, rect)
+}
+/// `UI-LFG-RoleIcon-<Role>-Micro-GroupFinder` (`GetMicroIconForRole`).
+const ROLE_TANK: AtlasArt = lfg((2026.0, 2047.0, 47.0, 68.0));
+const ROLE_HEALER: AtlasArt = lfg((2003.0, 2024.0, 24.0, 45.0));
+const ROLE_DAMAGE: AtlasArt = lfg((2003.0, 2024.0, 1.0, 22.0));
+/// `READY_CHECK_*_TEXTURE_RAID` (ReadyCheck.lua:1-10).
+const READY_READY: AtlasArt = lfg((1947.0, 2011.0, 391.0, 455.0));
+const READY_WAITING: AtlasArt = lfg((1947.0, 2011.0, 325.0, 389.0));
+const READY_NOT_READY: AtlasArt = lfg((1947.0, 2011.0, 259.0, 323.0));
+/// `Interface\Buttons\UI-Debuff-Overlays` border crop of `CompactDebuffTemplate`,
+/// vertex-coloured by `DebuffTypeColor`.
+const DEBUFF_BORDER_FDID: u32 = 130_759;
+const DEBUFF_BORDER_COORDS: &str = "0.296875,0.5703125,0,0.515625";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum UnitStatus {
+    Online,
+    Offline,
+    /// Dead or ghost: Retail shows `DEAD` for both (`UnitIsDeadOrGhost`, :1103).
+    Dead,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompactDebuffView {
+    pub icon_fdid: u32,
+    pub dispel: DebuffType,
+}
+
+/// One member frame; `None` bar fractions mean no live state has arrived yet.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompactUnitView {
+    pub name: String,
+    pub class_rgb: [f32; 3],
+    pub health_fraction: Option<f32>,
+    /// Fill fraction and `PowerBarColor` of the primary power.
+    pub power: Option<(f32, [f32; 3])>,
+    pub role: GroupRoleSnapshot,
+    pub status: UnitStatus,
+    pub in_range: bool,
+    pub selected: bool,
+    pub ready: Option<ReadyMark>,
+    pub debuffs: Vec<CompactDebuffView>,
+}
+
+struct DynName(String);
+
+/// Rect `(x, y, width, height)` from the parent's top-left.
+type Rect = (f32, f32, f32, f32);
+
+pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Element {
+    let (x, y, width, height) = rect;
+    let alpha = if view.in_range {
+        1.0
+    } else {
+        OUT_OF_RANGE_ALPHA
+    };
+    rsx! {
+        r#frame {
+            name: {DynName(name.to_string())},
+            width,
+            height,
+            alpha,
+            strata: FrameStrata::Low,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+            {art_texture(format!("{name}Background"), &BACKGROUND, (0.0, 0.0, width, height), [1.0; 3], false)}
+            {health_bar(name, view, (width, height))}
+            {power_bar(name, view, (width, height))}
+            {role_icon(name, view.role)}
+            {name_text(name, view, width)}
+            {status_text(name, view.status, (width, height))}
+            {ready_icon(name, view.ready, (width, height))}
+            {debuffs(name, &view.debuffs, height)}
+            {art_texture(format!("{name}SelectionHighlight"), &SELECTION, (0.0, 0.0, width, height), [1.0; 3], !view.selected)}
+        }
+    }
+}
+
+fn component_scale((width, height): (f32, f32)) -> f32 {
+    (height / NATIVE_H).min(width / NATIVE_W)
+}
+
+fn health_bar(name: &str, view: &CompactUnitView, (width, height): (f32, f32)) -> Element {
+    let bar_w = width - 2.0;
+    let bar_h = height - 2.0 - POWER_H;
+    let rgb = if view.status == UnitStatus::Offline {
+        OFFLINE_RGB
+    } else {
+        view.class_rgb
+    };
+    let fraction = match view.status {
+        UnitStatus::Offline => Some(1.0),
+        _ => view.health_fraction,
+    };
+    let fill_w = bar_w * fraction.unwrap_or(0.0).clamp(0.0, 1.0);
+    art_texture(
+        format!("{name}HealthBar"),
+        &HEALTH_FILL,
+        (1.0, 1.0, fill_w, bar_h),
+        rgb,
+        fill_w <= 0.0,
+    )
+}
+
+fn power_bar(name: &str, view: &CompactUnitView, (width, height): (f32, f32)) -> Element {
+    let bar_w = width - 2.0;
+    let y = height - 1.0 - POWER_H;
+    let (fraction, rgb) = match (view.status, view.power) {
+        (UnitStatus::Offline, _) => (1.0, OFFLINE_RGB),
+        (_, Some(power)) => power,
+        (_, None) => (0.0, OFFLINE_RGB),
+    };
+    let fill_w = bar_w * fraction.clamp(0.0, 1.0);
+    let mut bar = art_texture(
+        format!("{name}PowerBarBackground"),
+        &POWER_BACKGROUND,
+        (1.0, y, bar_w, POWER_H),
+        [1.0; 3],
+        false,
+    );
+    bar.extend(art_texture(
+        format!("{name}PowerBar"),
+        &POWER_FILL,
+        (1.0, y, fill_w, POWER_H),
+        rgb,
+        fill_w <= 0.0,
+    ));
+    bar
+}
+
+fn role_icon(name: &str, role: GroupRoleSnapshot) -> Element {
+    let art = match role {
+        GroupRoleSnapshot::Tank => ROLE_TANK,
+        GroupRoleSnapshot::Healer => ROLE_HEALER,
+        GroupRoleSnapshot::Damage => ROLE_DAMAGE,
+        GroupRoleSnapshot::None => ROLE_DAMAGE,
+    };
+    art_texture(
+        format!("{name}RoleIcon"),
+        &art,
+        (ROLE_X, ROLE_Y, ROLE_SIZE, ROLE_SIZE),
+        [1.0; 3],
+        role == GroupRoleSnapshot::None,
+    )
+}
+
+/// Name TOPLEFT at the role icon's TOPRIGHT (0, -1), right edge (-3, -3) (:1878-1882).
+/// A hidden role icon keeps 1 px of width (`CompactUnitFrame_UpdateRoleIcon`).
+fn name_text(name: &str, view: &CompactUnitView, width: f32) -> Element {
+    let role_w = if view.role == GroupRoleSnapshot::None {
+        1.0
+    } else {
+        ROLE_SIZE
+    };
+    let x = ROLE_X + role_w;
+    rsx! {
+        fontstring {
+            name: {DynName(format!("{name}Name"))},
+            width: {width - x - 3.0},
+            height: 12.0,
+            text: view.name.as_str(),
+            font: GameFont::FrizQuadrata,
+            font_size: NAME_FONT_SIZE,
+            font_color: NAME_COLOR,
+            justify_h: "LEFT",
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: {ROLE_Y + 1.0},
+        }
+    }
+}
+
+/// Status text BOTTOMLEFT (3, h/3 - 2) to BOTTOMRIGHT (-3, h/3 - 2) (:2035-2036).
+fn status_text(name: &str, status: UnitStatus, (width, height): (f32, f32)) -> Element {
+    let text = match status {
+        UnitStatus::Online => "",
+        UnitStatus::Offline => "Offline",
+        UnitStatus::Dead => "Dead",
+    };
+    let font_size = STATUS_FONT_SIZE * component_scale((width, height));
+    let bottom = height / 3.0 - 2.0;
+    rsx! {
+        fontstring {
+            name: {DynName(format!("{name}StatusText"))},
+            width: {width - 6.0},
+            height: font_size,
+            text,
+            hidden: {status == UnitStatus::Online},
+            font: GameFont::FrizQuadrata,
+            font_size,
+            font_color: STATUS_COLOR,
+            justify_h: "CENTER",
+            pos_type: "absolute",
+            pos_x: 3.0,
+            pos_y: {height - bottom - font_size},
+        }
+    }
+}
+
+fn ready_icon(name: &str, ready: Option<ReadyMark>, (width, height): (f32, f32)) -> Element {
+    let size = READY_SIZE * component_scale((width, height));
+    let art = match ready {
+        Some(ReadyMark::Ready) => READY_READY,
+        Some(ReadyMark::NotReady) => READY_NOT_READY,
+        Some(ReadyMark::Waiting) | None => READY_WAITING,
+    };
+    let bottom = height / 3.0 - 4.0;
+    art_texture(
+        format!("{name}ReadyCheckIcon"),
+        &art,
+        ((width - size) / 2.0, height - bottom - size, size, size),
+        [1.0; 3],
+        ready.is_none(),
+    )
+}
+
+fn debuffs(name: &str, debuffs: &[CompactDebuffView], height: f32) -> Element {
+    debuffs
+        .iter()
+        .take(MAX_DEBUFFS)
+        .enumerate()
+        .flat_map(|(index, debuff)| {
+            let column = (index % AURAS_PER_ROW) as f32;
+            let row = (index / AURAS_PER_ROW) as f32;
+            let x = AURA_X + column * AURA_SIZE;
+            let y = height - AURA_BOTTOM - POWER_H - (row + 1.0) * AURA_SIZE;
+            debuff_icon(&format!("{name}Debuff{}", index + 1), debuff, (x, y))
+        })
+        .collect()
+}
+
+fn debuff_icon(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> Element {
+    rsx! {
+        texture {
+            name: {DynName(name.to_string())},
+            width: AURA_SIZE,
+            height: AURA_SIZE,
+            texture_fdid: {debuff.icon_fdid},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+        texture {
+            name: {DynName(format!("{name}Border"))},
+            width: AURA_SIZE,
+            height: AURA_SIZE,
+            texture_fdid: DEBUFF_BORDER_FDID,
+            tex_coords: DEBUFF_BORDER_COORDS,
+            vertex_color: {debuff.dispel.border_color()},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    }
+}
+
+fn art_texture(name: String, art: &AtlasArt, rect: Rect, rgb: [f32; 3], hidden: bool) -> Element {
+    let (x, y, width, height) = rect;
+    let coords = art.tex_coords(1.0);
+    let [r, g, b] = rgb;
+    let vertex_color = format!("{r},{g},{b},1.0");
+    rsx! {
+        texture {
+            name: {DynName(name)},
+            width,
+            height,
+            hidden,
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
+            vertex_color: {vertex_color.as_str()},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    }
+}
+
+impl std::fmt::Display for DynName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}

@@ -6,11 +6,11 @@ mod format_status;
 #[path = "format_terrain.rs"]
 mod format_terrain;
 
+use crate::group_state::GroupState;
 use crate::status::{
     CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind, CombatLogStatusSnapshot,
-    EquippedGearStatusSnapshot, GroupRole, GroupStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, MapStatusSnapshot, ProfessionStatusSnapshot, QuestLogStatusSnapshot,
-    QuestRepeatability,
+    EquippedGearStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot, MapStatusSnapshot,
+    ProfessionStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::AuctionInventorySnapshot;
@@ -306,46 +306,91 @@ fn quest_repeatability_label(value: &QuestRepeatability) -> &'static str {
     }
 }
 
-pub fn format_group_roster(snapshot: &GroupStatusSnapshot) -> String {
-    if snapshot.members.is_empty() {
+pub fn format_group_roster(group: &GroupState) -> String {
+    if group.members.is_empty() {
         return "group_roster: 0\n-".into();
     }
-    let lines = snapshot
+    let lines = group
         .members
         .iter()
         .map(|m| {
             format!(
-                "{} leader={} role={} online={} subgroup={}",
+                "{} leader={} role={} online={} subgroup={} level={}{}{}",
                 m.name,
                 m.is_leader,
-                group_role_label(&m.role),
+                group_snapshot_role_label(&m.role),
                 m.online,
-                m.subgroup
+                m.subgroup,
+                m.level,
+                group
+                    .live
+                    .get(&m.name)
+                    .map(format_member_live)
+                    .unwrap_or_default(),
+                group
+                    .ready_mark(&m.name)
+                    .map(|mark| format!(" ready={mark:?}"))
+                    .unwrap_or_default(),
             )
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("group_roster: {}\n{lines}", snapshot.members.len())
+    format!("group_roster: {}\n{lines}", group.members.len())
 }
 
-pub fn format_group_status(snapshot: &GroupStatusSnapshot) -> String {
+fn format_member_live(live: &shared::protocol::GroupMemberState) -> String {
+    let power = live
+        .power
+        .as_ref()
+        .map(|p| format!(" power={:?}:{}/{}", p.power, p.current, p.max))
+        .unwrap_or_default();
+    let debuffs = live
+        .debuffs
+        .iter()
+        .map(|d| format!("{}:{}", d.spell_id, d.dispel_type))
+        .collect::<Vec<_>>()
+        .join(",");
     format!(
-        "in_group: {}\nis_raid: {}\nmembers: {}\nready: {}/{}\nlast_message: {}",
-        !snapshot.members.is_empty(),
-        snapshot.is_raid,
-        snapshot.members.len(),
-        snapshot.ready_count,
-        snapshot.total_count,
-        snapshot.last_server_message.as_deref().unwrap_or("-")
+        " hp={}/{}{power} death={:?} pos={:.1},{:.1},{:.1} debuffs=[{debuffs}]",
+        live.health, live.max_health, live.death, live.position.x, live.position.y, live.position.z
     )
 }
 
-fn group_role_label(role: &GroupRole) -> &'static str {
+pub fn format_group_status(group: &GroupState) -> String {
+    let ready = group
+        .ready_check
+        .as_ref()
+        .map(|view| {
+            let answered = view
+                .update
+                .members
+                .iter()
+                .filter(|m| m.answer == shared::protocol::ReadyCheckAnswer::Ready)
+                .count();
+            format!(
+                "{answered}/{} finished={}",
+                view.update.members.len(),
+                view.update.finished
+            )
+        })
+        .unwrap_or_else(|| "-".into());
+    format!(
+        "in_group: {}\nis_raid: {}\nmembers: {}\nready_check: {ready}\npending_invite: {}\nlast_message: {}",
+        group.in_group(),
+        group.is_raid,
+        group.members.len(),
+        group.pending_invite.as_deref().unwrap_or("-"),
+        group.last_server_message.as_deref().unwrap_or("-")
+    )
+}
+
+fn group_snapshot_role_label(role: &shared::protocol::GroupRoleSnapshot) -> &'static str {
+    use shared::protocol::GroupRoleSnapshot;
     match role {
-        GroupRole::Tank => "tank",
-        GroupRole::Healer => "healer",
-        GroupRole::Damage => "damage",
-        GroupRole::None => "none",
+        GroupRoleSnapshot::Tank => "tank",
+        GroupRoleSnapshot::Healer => "healer",
+        GroupRoleSnapshot::Damage => "damage",
+        GroupRoleSnapshot::None => "none",
     }
 }
 

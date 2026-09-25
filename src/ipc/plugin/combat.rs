@@ -1,7 +1,7 @@
 use game_engine::network_runtime::messages::{MessageSenders, WorkerMessageSender};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
 use shared::protocol::{
-    ChatChannel, CombatChannel, EmoteIntent, GroupInviteIntent, GroupUninviteIntent,
+    ChatChannel, CombatChannel, EmoteIntent, GroupChannel, GroupInviteIntent, GroupUninviteIntent,
     SpellCastIntent, StopSpellCast,
 };
 
@@ -163,7 +163,7 @@ fn handle_group_invite(
         let _ = cmd.respond.send(Response::Error(
             "group invite is unavailable: not connected".into(),
         ));
-    } else if send_combat_message(senders, GroupInviteIntent { name: name.clone() }) {
+    } else if send_group_message(senders, GroupInviteIntent { name: name.clone() }) {
         let _ = cmd
             .respond
             .send(Response::Text(format!("group invite submitted for {name}")));
@@ -184,7 +184,7 @@ fn handle_group_uninvite(
         let _ = cmd.respond.send(Response::Error(
             "group uninvite is unavailable: not connected".into(),
         ));
-    } else if send_combat_message(senders, GroupUninviteIntent { name: name.clone() }) {
+    } else if send_group_message(senders, GroupUninviteIntent { name: name.clone() }) {
         let _ = cmd.respond.send(Response::Text(format!(
             "group uninvite submitted for {name}"
         )));
@@ -296,6 +296,15 @@ fn send_combat_message<T: Clone + lightyear::prelude::Message>(
 ) -> bool {
     send_channel_message(senders, message, |sender, message| {
         sender.send::<CombatChannel>(message);
+    })
+}
+
+fn send_group_message<T: Clone + lightyear::prelude::Message>(
+    senders: &mut MessageSenders<T>,
+    message: T,
+) -> bool {
+    send_channel_message(senders, message, |sender, message| {
+        sender.send::<GroupChannel>(message);
     })
 }
 

@@ -13,6 +13,7 @@ Engine subsystems and how they work.
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame opened by the auctioneer interaction: Buy/Sell/Auctions on the server auction protocol, Item.csv icons and categories
 - [banks](systems/banks.md) — Retail BankFrame (character + Warband bank) at bankers and GuildBankFrame at replicated Guild Vault objects; right-click deposit/withdraw, money entry, tab purchase, guild logs
+- [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
 - [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All
 - [quest-ui](systems/quest-ui.md) — client quest runtime, objective tracker, quest log (L), quest giver frame and talktome markers on the server quest/interaction protocol
 - [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits

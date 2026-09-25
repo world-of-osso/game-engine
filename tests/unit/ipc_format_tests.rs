@@ -5,12 +5,12 @@ use crate::status::{
     CalendarStatusSnapshot, CollectionStatusSnapshot, CombatLogEntry, CombatLogEventKind,
     CombatLogStatusSnapshot, CurrenciesStatusSnapshot, EncounterJournalBossEntry,
     EncounterJournalInstanceEntry, EncounterJournalStatusSnapshot, EquippedGearEntry,
-    EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot, GroupRole, GroupStatusSnapshot,
-    GuildMemberEntry, GuildStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry,
-    InventorySearchSnapshot, LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry,
-    LfgStatusSnapshot, NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpBracketEntry,
-    PvpStatusSnapshot, QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot,
-    SoundStatusSnapshot, TerrainStatusSnapshot, WhoEntry, WhoStatusSnapshot,
+    EquippedGearStatusSnapshot, FriendEntry, FriendsStatusSnapshot, GroupRole, GuildMemberEntry,
+    GuildStatusSnapshot, IgnoreListStatusSnapshot, InventoryItemEntry, InventorySearchSnapshot,
+    LfgMatchFoundEntry, LfgMatchMemberEntry, LfgRoleCheckEntry, LfgStatusSnapshot,
+    NetworkStatusSnapshot, ProfessionStatusSnapshot, PvpBracketEntry, PvpStatusSnapshot,
+    QuestLogStatusSnapshot, QuestRepeatability, ReputationsStatusSnapshot, SoundStatusSnapshot,
+    TerrainStatusSnapshot, WhoEntry, WhoStatusSnapshot,
 };
 use crate::targeting::CurrentTarget;
 use shared::protocol::{AuctionInventoryItem, AuctionInventorySnapshot};
@@ -590,25 +590,47 @@ fn quest_list_formats_daily_and_objective_counters() {
 }
 
 #[test]
-fn group_roster_formatter_shows_leader_role_online_and_subgroup() {
-    let snapshot = GroupStatusSnapshot {
+fn group_roster_formatter_shows_roster_and_live_member_state() {
+    use shared::protocol::{GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot};
+    let mut group = crate::group_state::GroupState::default();
+    group.apply_roster(shared::protocol::GroupRosterSnapshot {
         is_raid: false,
-        members: vec![crate::status::GroupMemberEntry {
+        ready_count: 0,
+        total_count: 0,
+        members: vec![GroupMemberSnapshot {
             name: "Thrall".into(),
-            role: GroupRole::Healer,
+            role: GroupRoleSnapshot::Healer,
             is_leader: true,
             online: true,
             subgroup: 1,
+            class: 7,
+            level: 60,
+            entity: Some(5),
         }],
-        ready_count: 1,
-        total_count: 1,
-        last_server_message: None,
-    };
-    let text = format_group_roster(&snapshot);
-    assert!(text.contains("leader=true"));
-    assert!(text.contains("role=healer"));
-    assert!(text.contains("online=true"));
-    assert!(text.contains("subgroup=1"));
+        loot_method: shared::loot::LootMode::PersonalLoot,
+    });
+    group.apply_member_states(vec![GroupMemberState {
+        name: "Thrall".into(),
+        health: 640,
+        max_health: 800,
+        power: None,
+        death: shared::death::DeathState::Alive,
+        position: shared::components::Position {
+            x: 1.0,
+            y: 2.0,
+            z: 3.0,
+        },
+        debuffs: Vec::new(),
+    }]);
+
+    let text = format_group_roster(&group);
+
+    assert_eq!(
+        text,
+        "group_roster: 1\nThrall leader=true role=healer online=true subgroup=1 level=60 \
+         hp=640/800 death=Alive pos=1.0,2.0,3.0 debuffs=[]"
+    );
+    assert!(format_group_status(&group).contains("in_group: true"));
 }
 
 fn make_combat_entry(kind: CombatLogEventKind, text: &str) -> CombatLogEntry {
