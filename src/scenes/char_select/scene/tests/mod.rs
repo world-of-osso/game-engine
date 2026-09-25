@@ -50,6 +50,7 @@ pub(super) fn render_path_test_app() -> App {
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
     app.init_resource::<Assets<crate::terrain_material::TerrainMaterial>>();
     app.init_resource::<Assets<crate::water_material::WaterMaterial>>();
+    app.init_resource::<Assets<crate::rendering::terrain_objects::WmoUnifiedMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();
     app.init_resource::<crate::terrain_heightmap::TerrainHeightmap>();
