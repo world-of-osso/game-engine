@@ -601,15 +601,42 @@ fn buyback_slot(last: Option<&MerchantCell>) -> Element {
     }
 }
 
-/// `MerchantMoneyInset`/`MerchantMoneyBg` (ThinGoldEdgeTemplate) and
-/// `MerchantMoneyFrame` at BOTTOMRIGHT -4,8 when the vendor sells for no currency.
+/// `MerchantMoneyBg` (ThinGoldEdgeTemplate, UIPanelTemplates.xml:1314: 7 px caps and a
+/// stretched middle cut from Interface\Common\Moneyframe) at BOTTOMRIGHT −7,6 ..
+/// −166,25, and `MerchantMoneyFrame` at BOTTOMRIGHT −4,8 when the vendor sells for no
+/// currency.
 fn money_bar(copper: u64) -> Element {
-    let mut children = texture(
-        format!("{FRAME_NAME}MoneyBg"),
-        MONEY_EDGE,
-        (FRAME_W - 166.0, FRAME_H - 25.0, 159.0, 19.0),
-        WHITE,
+    let (x, y, width, height) = (FRAME_W - 166.0, FRAME_H - 25.0, 159.0, 19.0);
+    let piece = |name: &str, coords: &str, rect: (f32, f32, f32, f32)| {
+        let (px, py, pw, ph) = rect;
+        rsx! {
+            texture {
+                name: {DynName(format!("MerchantMoneyBg{name}"))},
+                width: pw,
+                height: ph,
+                texture_fdid: MONEY_EDGE,
+                tex_coords: coords,
+                pos_type: "absolute",
+                left: px,
+                top: py,
+            }
+        }
+    };
+    let mut children = piece(
+        "Left",
+        "0.953125,0.9921875,0.0,0.296875",
+        (x, y, 7.0, height),
     );
+    children.extend(piece(
+        "Middle",
+        "0.0,0.9921875,0.3125,0.609375",
+        (x + 7.0, y, width - 14.0, height),
+    ));
+    children.extend(piece(
+        "Right",
+        "0.0,0.0546875,0.0,0.296875",
+        (x + width - 7.0, y, 7.0, height),
+    ));
     children.extend(money(
         "MerchantMoneyFrame",
         copper,
@@ -705,21 +732,26 @@ fn tabs(buyback_tab: bool) -> Element {
     let tab2_w = tab_width("Buyback");
     let top = FRAME_H + 15.0 - 16.0;
     let tab1_x = 50.0 - tab1_w / 2.0;
-    let mut children = tab(
+    let merchant = tab(
         "MerchantFrameTab1",
         "Merchant",
         (tab1_x, top, tab1_w),
         !buyback_tab,
         ACTION_TAB_MERCHANT,
     );
-    children.extend(tab(
+    let buyback = tab(
         "MerchantFrameTab2",
         "Buyback",
         (tab1_x + tab1_w - 16.0, top, tab2_w),
         buyback_tab,
         ACTION_TAB_BUYBACK,
-    ));
-    children
+    );
+    // The tabs overlap by 16 px; the selected one is drawn over the other.
+    if buyback_tab {
+        merchant.into_iter().chain(buyback).collect()
+    } else {
+        buyback.into_iter().chain(merchant).collect()
+    }
 }
 
 fn tab_width(label: &str) -> f32 {
