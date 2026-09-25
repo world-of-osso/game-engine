@@ -82,7 +82,7 @@ pub fn format_barber_shop_status(snapshot: &BarberShopStatusSnapshot) -> String 
     let mut lines = vec![
         format!(
             "barber_gold: {}",
-            crate::auction_house_data::Money(snapshot.gold as u64).display()
+            crate::auction_house_data::Money(snapshot.gold).display()
         ),
         format!(
             "pending_cost: {}",
@@ -513,7 +513,7 @@ pub fn format_character_stats_status(snapshot: &CharacterStatsSnapshot) -> Strin
         opt_float0(snapshot.mana_max),
         format_secondary_resource(snapshot.secondary_resource.as_ref()),
         opt_float2(snapshot.movement_speed),
-        crate::auction_house_data::Money(snapshot.gold as u64).display(),
+        crate::auction_house_data::Money(snapshot.gold).display(),
         snapshot
             .presence
             .as_ref()

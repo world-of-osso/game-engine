@@ -263,7 +263,7 @@ pub struct CharacterStatsSnapshot {
     pub mana_max: Option<f32>,
     pub secondary_resource: Option<SecondaryResourceEntry>,
     pub movement_speed: Option<f32>,
-    pub gold: u32,
+    pub gold: u64,
     pub presence: Option<PresenceStateEntry>,
     pub in_combat: bool,
     pub in_rest_area: bool,
@@ -462,7 +462,7 @@ pub struct LfgStatusSnapshot {
 pub struct BarberShopStatusSnapshot {
     pub current_appearance: CharacterAppearance,
     pub pending_appearance: CharacterAppearance,
-    pub gold: u32,
+    pub gold: u64,
     pub pending_cost: u32,
     pub last_server_message: Option<String>,
     pub last_error: Option<String>,

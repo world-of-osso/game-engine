@@ -415,11 +415,11 @@ fn update_root_backgrounds(reg: &mut FrameRegistry, bars: &ActionBarsUi, enabled
     }
 }
 
-fn update_money_display(reg: &mut FrameRegistry, bars: &ActionBarsUi, gold: u32) {
+fn update_money_display(reg: &mut FrameRegistry, bars: &ActionBarsUi, gold: u64) {
     set_font_string_with_justify(
         reg,
         bars.money_display,
-        &Money(gold as u64).display(),
+        &Money(gold).display(),
         11.0,
         [1.0, 0.82, 0.0, 1.0],
         JustifyH::Right,
