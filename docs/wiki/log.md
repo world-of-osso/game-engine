@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-25] performance | ui-toolkit settled-registry gate
+
+Merged ui-toolkit `86d2639` stops reconciling a settled registry into native entities. Profiled `sync_registry` went from 32.5 ms to 0.04 ms per frame. On a distribution master build, FPS rose in all 3 interleaved pairs (22.5→23.8, 13.0→36.0, 11.5→21.7), but two pre-gate runs were GPU-clock-limited. See [[movement-performance]].
+
 ## [2026-09-24] performance | Release in-world FPS profile and prepass policy
 
 A distribution build at the Northshire spawn (headless, 1280×685) ran 9–24 FPS. The GPU was 45–98% busy with clocks firmware-limited to 0.6–1.4 GHz, and no CPU thread saturated.
