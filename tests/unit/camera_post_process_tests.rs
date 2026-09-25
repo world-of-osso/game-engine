@@ -119,7 +119,7 @@ fn no_msaa_keeps_composited_ui_sampling_in_sync_without_changing_its_render_bund
 }
 
 #[test]
-fn spawn_wow_camera_uses_particle_glow_tonemapping() {
+fn spawn_wow_camera_shows_retail_output_without_tonemapping() {
     let mut world = World::new();
     let entity = spawn_wow_camera(&mut world.commands());
     world.flush();
@@ -129,7 +129,7 @@ fn spawn_wow_camera_uses_particle_glow_tonemapping() {
         .get::<Tonemapping>()
         .copied()
         .expect("expected tonemapping on wow camera");
-    assert_eq!(tonemapping, Tonemapping::TonyMcMapface);
+    assert_eq!(tonemapping, Tonemapping::None);
 }
 
 #[test]

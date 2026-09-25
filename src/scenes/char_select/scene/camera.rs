@@ -6,7 +6,7 @@ use bevy::pbr::{DistanceFog, FogFalloff};
 use bevy::prelude::*;
 use game_engine::customization_data::ModelPresentation;
 
-use crate::camera::additive_particle_glow_tonemapping;
+use crate::camera::world_camera_tonemapping;
 use crate::orbit_camera::scaled_orbit_delta;
 use crate::terrain_heightmap::TerrainHeightmap;
 
@@ -179,7 +179,7 @@ pub(super) fn spawn_char_select_camera(
             Name::new("CharSelectCamera"),
             CharSelectScene,
             Camera3d::default(),
-            additive_particle_glow_tonemapping(),
+            world_camera_tonemapping(),
             Camera {
                 clear_color: ClearColorConfig::Custom(CHAR_SELECT_CLEAR_COLOR),
                 ..default()

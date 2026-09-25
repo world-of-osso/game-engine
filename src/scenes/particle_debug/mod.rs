@@ -10,7 +10,7 @@ use bevy::prelude::*;
 use game_engine::outfit_data::OutfitData;
 
 use crate::asset;
-use crate::camera::additive_particle_glow_tonemapping;
+use crate::camera::world_camera_tonemapping;
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -416,7 +416,7 @@ fn spawn_camera(commands: &mut Commands) {
         Name::new("ParticleDebugCamera"),
         ParticleDebugScene,
         Camera3d::default(),
-        additive_particle_glow_tonemapping(),
+        world_camera_tonemapping(),
         Transform::from_translation(eye).looking_at(focus, Vec3::Y),
         orbit,
     ));

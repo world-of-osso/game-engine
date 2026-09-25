@@ -26,7 +26,7 @@ mod camera_post_process;
 
 use camera_controls::{apply_keyboard_camera, camera_pitch_delta};
 use camera_follow::camera_follow;
-pub(crate) use camera_post_process::{MsaaDisabled, additive_particle_glow_tonemapping};
+pub(crate) use camera_post_process::{MsaaDisabled, world_camera_tonemapping};
 use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
 
 pub struct WowCameraPlugin;
@@ -131,7 +131,7 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
             NormalPrepass,
             ScreenSpaceAmbientOcclusion::default(),
             TemporalAntiAliasing::default(),
-            additive_particle_glow_tonemapping(),
+            world_camera_tonemapping(),
             Transform::default(),
             WowCamera::default(),
             SpatialListener::new(0.3),

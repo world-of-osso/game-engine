@@ -9,7 +9,7 @@ use bevy::prelude::*;
 use bevy::render::view::Msaa;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
-use crate::camera::additive_particle_glow_tonemapping;
+use crate::camera::world_camera_tonemapping;
 use crate::creature_display;
 use crate::game_state::GameState;
 use crate::m2_effect_material::M2EffectMaterial;
@@ -90,7 +90,7 @@ fn spawn_m2_debug_camera(commands: &mut Commands, focus: Vec3) -> Entity {
             M2DebugScene,
             Camera3d::default(),
             DepthPrepass,
-            additive_particle_glow_tonemapping(),
+            world_camera_tonemapping(),
             orbit,
             Transform::from_translation(eye).looking_at(focus, Vec3::Y),
         ))

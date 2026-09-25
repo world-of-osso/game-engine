@@ -42,6 +42,8 @@ fn render_app() -> App {
 struct Case {
     render_flags: u16,
     fog: Option<DistanceFog>,
+    tonemapping: Tonemapping,
+    texel: [u8; 3],
 }
 
 fn spawn_case(app: &mut App, index: usize, case: &Case) -> Handle<Image> {
@@ -49,7 +51,7 @@ fn spawn_case(app: &mut App, index: usize, case: &Case) -> Handle<Image> {
         .world_mut()
         .resource_mut::<Assets<Image>>()
         .add(crate::rgba_image(
-            vec![TEXEL[0], TEXEL[1], TEXEL[2], 255],
+            vec![case.texel[0], case.texel[1], case.texel[2], 255],
             1,
             1,
         ));
@@ -95,7 +97,7 @@ fn spawn_case(app: &mut App, index: usize, case: &Case) -> Handle<Image> {
         Transform::from_xyz(0.0, 5.0, 0.0).looking_at(Vec3::ZERO, Vec3::Z),
         RenderLayers::layer(index),
         Msaa::Off,
-        Tonemapping::None,
+        case.tonemapping,
         DebandDither::Disabled,
     ));
     if let Some(fog) = case.fog.clone() {
@@ -179,10 +181,14 @@ fn m2_batches_render_the_retail_equation_on_a_concrete_texel() {
         Case {
             render_flags: 0,
             fog: None,
+            tonemapping: Tonemapping::None,
+            texel: TEXEL,
         },
         Case {
             render_flags: 0x01,
             fog: None,
+            tonemapping: Tonemapping::None,
+            texel: TEXEL,
         },
         // The quad centre is 5 yards away: halfway through a 0–10 yard fog.
         Case {
@@ -195,6 +201,8 @@ fn m2_batches_render_the_retail_equation_on_a_concrete_texel() {
                 },
                 ..default()
             }),
+            tonemapping: Tonemapping::None,
+            texel: TEXEL,
         },
         Case {
             render_flags: 0x02,
@@ -206,6 +214,8 @@ fn m2_batches_render_the_retail_equation_on_a_concrete_texel() {
                 },
                 ..default()
             }),
+            tonemapping: Tonemapping::None,
+            texel: TEXEL,
         },
     ];
     let targets: Vec<_> = cases
@@ -228,5 +238,44 @@ fn m2_batches_render_the_retail_equation_on_a_concrete_texel() {
     for ((label, expected), actual) in expected.into_iter().zip(pixels) {
         println!("{label}: rendered {actual:?}, expected {expected:?}");
         assert_close(actual, expected, label);
+    }
+}
+
+/// The world camera's tonemapping must leave Retail's authored-space output
+/// unchanged. Measured before the switch to `Tonemapping::None`: TonyMcMapface
+/// rendered texels 200/180/150 as 173/158/135 and 250/245/235 as 195/192/186.
+#[test]
+#[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
+fn world_camera_tonemapping_keeps_retail_output() {
+    let mut app = render_app();
+    let production = crate::camera::world_camera_tonemapping();
+    let texels = [[60, 45, 30], TEXEL, [200, 180, 150], [250, 245, 235]];
+    let cases: Vec<_> = texels
+        .iter()
+        .flat_map(|texel| {
+            [production, Tonemapping::None].map(|tonemapping| Case {
+                render_flags: 0x01,
+                fog: None,
+                tonemapping,
+                texel: *texel,
+            })
+        })
+        .collect();
+    let targets: Vec<_> = cases
+        .iter()
+        .enumerate()
+        .map(|(index, case)| spawn_case(&mut app, index, case))
+        .collect();
+    let pixels = capture_centres(&mut app, &targets);
+    for (texel, pair) in texels.iter().zip(pixels.chunks(2)) {
+        println!(
+            "unlit texel {texel:?}: {production:?} {:?}, None {:?}",
+            pair[0], pair[1]
+        );
+        assert_eq!(
+            pair[1], *texel,
+            "without tonemapping the texel is unchanged"
+        );
+        assert_eq!(pair[0], *texel, "the production camera must not tonemap");
     }
 }
