@@ -36,7 +36,8 @@ impl TrainerState {
     /// A list from the server: opens the frame, or refreshes the open frame of the
     /// same trainer after a purchase (keeping the scroll position).
     pub fn apply_list(&mut self, list: TrainerList, npc_name: String) {
-        if self.npc != Some(list.npc) {
+        let opening = self.npc != Some(list.npc);
+        if opening {
             *self = Self {
                 npc: Some(list.npc),
                 npc_name,
@@ -52,6 +53,9 @@ impl TrainerState {
             .is_none_or(|spell| self.service(spell).is_none())
         {
             self.selected = self.nearest_learnable();
+        }
+        if opening {
+            self.scroll_to_selected();
         }
     }
 
@@ -73,6 +77,17 @@ impl TrainerState {
             .find(|service| service.state == TrainerServiceState::Available)
             .or(self.services.first())
             .map(|service| service.spell_id)
+    }
+
+    /// `ClassTrainer_SelectNearestLearnableSkill` scrolls the selection into view.
+    fn scroll_to_selected(&mut self) {
+        if let Some(index) = self
+            .selected
+            .and_then(|spell| self.services.iter().position(|s| s.spell_id == spell))
+            && !(self.scroll..self.scroll + TRAINER_SKILLS_DISPLAYED).contains(&index)
+        {
+            self.scroll = index.min(self.max_scroll());
+        }
     }
 
     pub fn max_scroll(&self) -> usize {
@@ -132,6 +147,19 @@ mod tests {
         assert_eq!(state.npc, Some(42));
         assert_eq!(state.npc_name, "Georgio Bolero");
         assert_eq!(state.selected, Some(264617));
+    }
+
+    #[test]
+    fn opening_scrolls_the_selected_service_into_view() {
+        let mut services: Vec<_> = (0..9)
+            .map(|i| service(1000 + i, TrainerServiceState::Unavailable))
+            .collect();
+        services.push(service(264617, TrainerServiceState::Available));
+        let mut state = TrainerState::default();
+        state.apply_list(list(services), "Georgio Bolero".into());
+        assert_eq!(state.selected, Some(264617));
+        assert_eq!(state.scroll, 3);
+        assert_eq!(state.visible_services().last().unwrap().spell_id, 264617);
     }
 
     #[test]
