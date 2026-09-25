@@ -18,7 +18,9 @@ use shared::components::PowerType;
 use shared::protocol::ActionRef;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::client_options::GraphicsOptions;
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
@@ -42,8 +44,8 @@ const TOOLTIP_BUFF_COLOR: [f32; 4] = [1.0, 0.82, 0.32, 1.0];
 const TOOLTIP_SPELL_COLOR: [f32; 4] = [0.98, 0.88, 0.54, 1.0];
 const TOOLTIP_WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const TOOLTIP_DESCRIPTION_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
-/// Characters per wrapped description line at the 10 px tooltip font.
-const TOOLTIP_WRAP_CHARS: usize = 46;
+const TOOLTIP_FONT_SIZE: f32 = 10.0;
+const TOOLTIP_TEXT_W: f32 = TOOLTIP_W - 2.0 * TOOLTIP_INSET;
 
 struct DynName(String);
 
@@ -342,7 +344,7 @@ fn hovered_talent_tooltip(
 
 fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
     let mut lines = vec![TooltipLineState::new(tooltip.rank.clone())];
-    for line in wrap_text(&tooltip.description, TOOLTIP_WRAP_CHARS) {
+    for line in wrap_text(&tooltip.description) {
         lines.push(TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR));
     }
     TooltipFrameState {
@@ -497,7 +499,7 @@ fn spell_tooltip(spell: &CatalogSpell, description: Option<String>) -> TooltipFr
         spell_cooldown_text(spell),
     ));
     let description = description.unwrap_or_default();
-    for line in wrap_text(&description, TOOLTIP_WRAP_CHARS) {
+    for line in wrap_text(&description) {
         lines.push(TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR));
     }
     TooltipFrameState {
@@ -635,13 +637,20 @@ fn title_case(text: &str) -> String {
         .join(" ")
 }
 
-/// Greedy word wrap; blank source lines are kept as paragraph breaks.
-fn wrap_text(text: &str, width: usize) -> Vec<String> {
+/// Greedy word wrap to the measured text width of a tooltip line; blank source lines
+/// are kept as paragraph breaks.
+fn wrap_text(text: &str) -> Vec<String> {
+    let fits = |line: &str| {
+        measure_text(line, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE)
+            .expect("FrizQuadrata text measurement")
+            .0
+            <= TOOLTIP_TEXT_W
+    };
     let mut lines = Vec::new();
     for paragraph in text.lines().map(str::trim) {
         let mut line = String::new();
         for word in paragraph.split_whitespace() {
-            if !line.is_empty() && line.len() + 1 + word.len() > width {
+            if !line.is_empty() && !fits(&format!("{line} {word}")) {
                 lines.push(std::mem::take(&mut line));
             }
             if !line.is_empty() {
@@ -658,7 +667,7 @@ fn wrap_text(text: &str, width: usize) -> Vec<String> {
 }
 
 fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState {
-    let mut lines: Vec<TooltipLineState> = wrap_text(&aura.description, TOOLTIP_WRAP_CHARS)
+    let mut lines: Vec<TooltipLineState> = wrap_text(&aura.description)
         .into_iter()
         .map(TooltipLineState::new)
         .collect();
@@ -840,7 +849,7 @@ fn tooltip_title(state: &TooltipFrameState) -> Element {
     rsx! {
         fontstring {
             name: "TooltipTitle",
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            width: {TOOLTIP_TEXT_W},
             height: {TOOLTIP_TITLE_H},
             text: {state.title.as_str()},
             font: "FrizQuadrata",
@@ -867,11 +876,11 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("TooltipLine{index}Left"))},
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            width: {TOOLTIP_TEXT_W},
             height: {TOOLTIP_LINE_H},
             text: {line.left_text.as_str()},
             font: "FrizQuadrata",
-            font_size: 10.0,
+            font_size: {TOOLTIP_FONT_SIZE},
             font_color: {rgba_string(line.left_color)},
             justify_h: "LEFT",
             pos_type: "absolute",
@@ -880,11 +889,11 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
         }
         fontstring {
             name: {DynName(format!("TooltipLine{index}Right"))},
-            width: {TOOLTIP_W - 2.0 * TOOLTIP_INSET},
+            width: {TOOLTIP_TEXT_W},
             height: {TOOLTIP_LINE_H},
             text: {line.right_text.as_str()},
             font: "FrizQuadrata",
-            font_size: 10.0,
+            font_size: {TOOLTIP_FONT_SIZE},
             font_color: {rgba_string(line.right_color)},
             justify_h: "RIGHT",
             pos_type: "absolute",
@@ -1093,8 +1102,8 @@ mod tests {
             lines,
             [
                 "Rank 0/1",
-                "Pierce an enemy with a blade of light, dealing",
-                "Holy damage and generating 1 Holy Power.",
+                "Pierce an enemy with a blade of light, dealing Holy",
+                "damage and generating 1 Holy Power.",
             ]
         );
     }
@@ -1152,6 +1161,25 @@ mod tests {
         let text_bottom =
             TOOLTIP_INSET + TOOLTIP_TITLE_H + tooltip.lines.len() as f32 * TOOLTIP_LINE_H;
         assert!(tooltip.height() >= text_bottom + TOOLTIP_INSET);
+    }
+
+    #[test]
+    fn description_lines_fit_the_tooltip_text_width() {
+        // Live Slam tooltip text, previously elided after "Physic".
+        let text = "Slams an opponent, causing {?$s1} Physical damage. Hits up to 3 \
+                    additional targets within 8 yards for 45% of the damage dealt.";
+        let tooltip = spell_tooltip(&judgment(), Some(text.into()));
+        let description: Vec<&str> = tooltip
+            .lines
+            .iter()
+            .map(|line| line.left_text.as_str())
+            .skip_while(|line| !line.starts_with("Slams"))
+            .collect();
+        assert_eq!(description.join(" "), text);
+        for line in description {
+            let (width, _) = measure_text(line, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE).unwrap();
+            assert!(width <= TOOLTIP_TEXT_W, "{line:?} is {width}px");
+        }
     }
 
     #[test]
