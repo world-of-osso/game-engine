@@ -929,3 +929,7 @@ Created [[quest-ui]]. Client `QuestRuntime` on the server quest and NPC interact
 ## [2026-09-24] ui | Auction house UI
 
 Created [[auction-house-ui]]. Retail AuctionHouseFrame (Wide) opened from `NpcFrameEvent::Opened { role: AuctionHouse }`; search, categories, browse, item buy, bid, buyout dialog, item sell frame with deposit, auctions/bids with cancel. Live proof: see the spec's verified scope.
+
+## [2026-09-24] ui | Merchant frame
+
+Created [[merchant-frame]]. Retail MerchantFrame on the server vendor protocol; bags now show server contents. Live headless proof on an isolated server (:5056) at Godric Rothgar: buy vest −89c, sell +17c, buy back −17c, Repair All −36c (data/diagnostics/merchant-20260924/run/).

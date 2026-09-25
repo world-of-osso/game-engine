@@ -12,6 +12,7 @@ Engine subsystems and how they work.
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame opened by the auctioneer interaction: Buy/Sell/Auctions on the server auction protocol, Item.csv icons and categories
+- [merchant-frame](systems/merchant-frame.md) — Retail MerchantFrame on the server vendor, bag contents from InventorySnapshot/Delta, right-click buy/sell/buyback, Repair All
 - [quest-ui](systems/quest-ui.md) — client quest runtime, objective tracker, quest log (L), quest giver frame and talktome markers on the server quest/interaction protocol
 - [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits
 - [talents-ui](systems/talents-ui.md) — Retail trait-tree window `PlayerSpellsFrame`: CSV tree load, mirrored server rules, local pending config, Apply/Reset/spec, authored `talents-*` atlas art
