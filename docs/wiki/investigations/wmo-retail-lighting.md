@@ -78,9 +78,24 @@ Files used:
 - Trade District roofs return: `2-before/after-trade.webp`.
 - Placement dedup: `7-before/after-trade-tree.txt`. The `sw_*` district roots drop from 4 to 1, and WMO roots from 89 to 62.
 
+## Shared Retail scene light (branch `wmo-scene-light`)
+
+Commit `1ce8befa` (on master `8fcbeecc` + sky `0e446d62`) removes Bevy PBR from WMO shading:
+
+- `wmo_lighting.wgsl` binds `crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER`, a storage buffer at 103. It shades in authored (gamma) space with `retail_lighting.wgsl`:
+  - exterior: `retail_shade(scene light with 2*MOCV added to ambient/horizon/ground, texel, N, sun shadow)`;
+  - interior: `retail_shade(WMO interior ambient + 2*MOCV, no direct light, WWV's default interior sun direction (-0.30822, -0.30822, -0.9) for the sky/ground mix)`.
+- The two are mixed by the MOCV alpha. `retail_apply_fog` fogs per MOMT blend unless `F_UNFOGGED`; the base material's Bevy fog is off.
+
+GPU tests set a fixed `RetailSceneLight`, and their expected values are the Retail equation:
+
+- `exterior_surface_shades_with_retail_scene_light` gives `107`, against `retail_light::retail_shade` = `107`.
+- The Abbey batches give `[35,19,19]` vs `[35,19,19]` and `[82,145,172]` vs `[82,144,172]`, computed on the CPU from the GPU-sampled texel.
+
+All 13 WMO GPU tests pass. Live captures in `data/diagnostics/wmo-scene-light-20260925/`: `before-*` is master, `after-*` is this branch, 0 validation errors.
+
 ## Still open
 
-- The scene light is still Bevy PBR, not the Retail ambient/horizon/ground mix. It moves to the shared Retail scene light through `scene_daylight()`.
 - MAVG/MAVD horizon and ground colors (flag 1) are not used.
 - MOCV2 shaders 7, 8, 9, 15, 18 and 19 still use CPU texel-alpha compositing. Blend modes above 1 do not get the 128/255 discard.
 - `reset_streamed_terrain` clears `shared_wmos` without despawning, like `tile_doodad_entities`.
