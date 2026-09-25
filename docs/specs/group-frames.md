@@ -111,6 +111,18 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [ ] Targeting a member outside replication range: no client entity exists.
 - [ ] Role enums: `shared::group::GroupRole`, `GroupRoleSnapshot` and `class_spec::Role` are still three separate types.
 
+## Verified scope
+
+- [x] Live (2026-09-25), three headless clients on an isolated server (:5060); evidence in `data/diagnostics/groups-20260925/` (final run at the top level, driver `run.sh`, scripts `a.js`/`b.js`/`c.js`):
+  - `/invite` from IPC → `PARTY_INVITE` popup on Partyb (01), clicked Accept → party of two and three (02, 03).
+  - Partyb targeted Partya by clicking her party frame (selection highlight, 05-b).
+  - Partya dead at the graveyard ~60 yd away: "Dead", alpha 0.5 on b/c (04).
+  - Partyc's fall damage 153 → 13 shown live on a/b (05).
+  - Convert To Raid from the player frame menu → raid grid (06).
+  - Ready Check from the menu → ReadyCheckFrame on b/c (07); answers Ready / Not Ready drawn as marks (08).
+  - Promote from the raid frame menu (09); Partyc left via the player frame menu (10).
+- [x] Out of interest range: in `run7-white-background/04-out-of-range-*`, Partya ~103 yd away (beyond the 100 yd interest radius) kept her live health and position on b/c.
+
 ## Tests asserting this spec
 
 - shared-protocol:
