@@ -118,15 +118,17 @@ fn spawned_helm_mesh_uses_textured_material_when_skin_fdid_present() {
     app.update();
 
     let descendants = descendant_entities(app.world(), owner);
-    let materials = app.world().resource::<Assets<StandardMaterial>>();
+    let materials = app
+        .world()
+        .resource::<Assets<crate::retail_m2_material::M2Material>>();
     let textured_meshes = descendants
         .into_iter()
         .filter_map(|entity| {
             let material = app
                 .world()
-                .get::<MeshMaterial3d<StandardMaterial>>(entity)?;
+                .get::<MeshMaterial3d<crate::retail_m2_material::M2Material>>(entity)?;
             let material = materials.get(&material.0)?;
-            material.base_color_texture.as_ref()
+            material.base.base_color_texture.as_ref()
         })
         .count();
 
@@ -172,7 +174,7 @@ fn wow_vec3(pivot: [f32; 3]) -> Vec3 {
 pub(super) fn configure_equipment_test_app(app: &mut App) {
     app.add_plugins((MinimalPlugins, TransformPlugin));
     app.insert_resource(Assets::<Mesh>::default());
-    app.insert_resource(Assets::<StandardMaterial>::default());
+    app.insert_resource(Assets::<crate::retail_m2_material::M2Material>::default());
     app.insert_resource(Assets::<Image>::default());
     app.insert_resource(Assets::<M2EffectMaterial>::default());
     app.insert_resource(Assets::<SkinnedMeshInverseBindposes>::default());

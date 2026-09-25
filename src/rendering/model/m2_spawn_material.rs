@@ -6,6 +6,7 @@ use bevy::prelude::*;
 
 use crate::asset;
 use crate::m2_effect_material::{self, M2EffectMaterial, M2EffectSettings};
+use crate::retail_m2_material::{M2Material, retail_m2_material};
 use crate::skybox_m2_material::{SkyboxM2Material, SkyboxM2Settings};
 
 use super::{BatchMaterial, PLACEHOLDER_COLORS};
@@ -18,7 +19,7 @@ pub(super) fn load_batch_material(
     batch: &asset::m2::M2RenderBatch,
     index: usize,
     images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     skybox_materials: Option<&mut Assets<SkyboxM2Material>>,
     force_skybox_material: bool,
@@ -85,8 +86,8 @@ fn try_load_textured_material(
     batch: &asset::m2::M2RenderBatch,
     texture_dir: &Path,
     images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
-) -> Option<Handle<StandardMaterial>> {
+    materials: &mut Assets<M2Material>,
+) -> Option<Handle<M2Material>> {
     if !blp_path.exists() {
         return None;
     }
@@ -306,14 +307,14 @@ fn load_repeat_texture(
     Some(handle)
 }
 
-/// Build a StandardMaterial from M2 render flags (two-sided, unlit, blend mode).
+/// Build the Retail-lit M2 material from render flags (two-sided, unlit, unfogged)
+/// and blend mode.
 pub(super) fn m2_material(
     texture: Option<Handle<Image>>,
     color: Option<Color>,
     batch: &asset::m2::M2RenderBatch,
-) -> StandardMaterial {
+) -> M2Material {
     let two_sided = batch.render_flags & 0x04 != 0;
-    let unlit = batch.render_flags & 0x01 != 0;
     let cull_mode = if two_sided {
         None
     } else {
@@ -329,15 +330,18 @@ pub(super) fn m2_material(
     } else {
         m2_effect_material::alpha_mode_for_blend(batch.blend_mode)
     };
-    StandardMaterial {
-        base_color_texture: texture,
-        base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
-        unlit,
-        cull_mode,
-        double_sided: two_sided,
-        alpha_mode,
-        ..default()
-    }
+    retail_m2_material(
+        StandardMaterial {
+            base_color_texture: texture,
+            base_color: color.unwrap_or(Color::srgba(1.0, 1.0, 1.0, batch.transparency)),
+            cull_mode,
+            double_sided: two_sided,
+            alpha_mode,
+            ..default()
+        },
+        batch.render_flags,
+        batch.blend_mode,
+    )
 }
 
 pub(crate) fn skybox_m2_material(

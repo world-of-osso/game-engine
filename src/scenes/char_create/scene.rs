@@ -2,6 +2,7 @@
 //!
 //! Preloads both sex models for the selected race so toggling sex is instant.
 
+use crate::retail_m2_material::M2Material;
 use std::f32::consts::{PI, TAU};
 
 use bevy::ecs::system::SystemParam;
@@ -296,7 +297,7 @@ fn model_transform() -> Transform {
 struct CharCreateSpawnParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
@@ -309,7 +310,7 @@ struct CharCreateAppearanceParams<'w, 's> {
     cust_db: Res<'w, CustomizationDb>,
     char_tex: Res<'w, CharTextureData>,
     images: ResMut<'w, Assets<Image>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     parent_query: Query<'w, 's, &'static ChildOf>,
     geoset_query: Query<'w, 's, (Entity, &'static GeosetMesh, &'static ChildOf)>,
     visibility_query: Query<'w, 's, &'static mut Visibility>,
@@ -319,7 +320,7 @@ struct CharCreateAppearanceParams<'w, 's> {
         's,
         (
             Entity,
-            &'static MeshMaterial3d<StandardMaterial>,
+            &'static MeshMaterial3d<M2Material>,
             Option<&'static crate::m2_spawn::GeosetMesh>,
             Option<&'static crate::m2_spawn::BatchTextureType>,
             &'static ChildOf,
@@ -349,7 +350,7 @@ impl CharCreateAppearanceParams<'_, '_> {
 struct CharCreateSpawnContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
     images: &'a mut Assets<Image>,
     inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,

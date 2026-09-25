@@ -5,6 +5,7 @@
 
 mod scene_types;
 
+use crate::retail_m2_material::M2Material;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -417,7 +418,7 @@ fn character_root_ready_for_appearance_sync(
     geoset_query: &Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
     material_query: &Query<(
         Entity,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<M2Material>,
         Option<&crate::m2_spawn::GeosetMesh>,
         Option<&crate::m2_spawn::BatchTextureType>,
         &ChildOf,

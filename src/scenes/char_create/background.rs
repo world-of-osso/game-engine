@@ -1,4 +1,5 @@
 use super::*;
+use crate::retail_light::RetailSceneLight;
 use game_engine::asset::m2_format::m2_camera::parse_camera_snapshot;
 
 #[derive(Clone, Copy)]
@@ -31,21 +32,15 @@ pub(super) fn spawn(
         .find(|point| point.id == 0)
         .ok_or_else(|| format!("creation scene {fdid}: attachment 0 missing"))?;
     let (transform, framing) = normalize_scene(&camera, anchor.position);
-    let ambient = authored_ambient(&model)?;
+    let ambient = authored_ambient(&model);
     let root = spawn_model(ctx, &path, model, transform)?;
     ctx.commands.entity(root).insert((
         CharCreateScene,
         Name::new(format!("CharCreateBackdrop_{fdid}")),
     ));
+    // Retail lights a standalone model scene with the model's own ambient.
     ctx.commands
-        .queue(move |world: &mut World| apply_ui_model_material_lighting(world, root));
-    ctx.commands.insert_resource(GlobalAmbientLight {
-        color: Color::linear_rgb(ambient[0], ambient[1], ambient[2]),
-        // M2 ambient is a dimensionless shader multiplier, not illuminance.
-        // Convert to Bevy's pre-exposure units without changing camera exposure.
-        brightness: bevy::camera::Exposure::default().exposure().recip(),
-        ..default()
-    });
+        .insert_resource(RetailSceneLight::m2_scene(Vec3::from_array(ambient)));
     Ok(Backdrop {
         fdid,
         root,
@@ -53,46 +48,26 @@ pub(super) fn spawn(
     })
 }
 
-fn apply_ui_model_material_lighting(world: &mut World, root: Entity) {
-    let handles = backdrop_material_handles(world, root);
-    let mut materials = world.resource_mut::<Assets<StandardMaterial>>();
-    for handle in handles {
-        let mut material = materials
-            .get_mut(&handle)
-            .expect("loaded backdrop material");
-        if !material.unlit {
-            // UIModel supplies zero scene specular. Match the existing M2 effect
-            // shader rather than introducing StandardMaterial's plastic sheen.
-            material.reflectance = 0.0;
-            material.perceptual_roughness = 1.0;
-        }
-    }
-}
-
-fn backdrop_material_handles(
-    world: &World,
-    root: Entity,
-) -> std::collections::HashSet<Handle<StandardMaterial>> {
-    let mut pending = vec![root];
-    let mut handles = std::collections::HashSet::new();
-    while let Some(entity) = pending.pop() {
-        if let Some(children) = world.get::<Children>(entity) {
-            pending.extend(children.iter());
-        }
-        if let Some(material) = world.get::<MeshMaterial3d<StandardMaterial>>(entity) {
-            handles.insert(material.0.clone());
-        }
-    }
-    handles
-}
-
-fn authored_ambient(model: &asset::m2::M2Model) -> Result<[f32; 3], String> {
-    let light = model
+/// `M2Object::getM2SceneAmbientLight`: the sum of every light's ambient term,
+/// white when the model authors none.
+fn authored_ambient(model: &asset::m2::M2Model) -> [f32; 3] {
+    let ambient = model
         .lights
         .iter()
-        .find(|light| light.light_type == 0)
-        .ok_or("creation scene has no authored ambient light")?;
-    Ok(asset::m2_light::evaluate_light(light, 0, 0, 0, &model.global_sequences).color)
+        .map(|light| {
+            Vec3::from_array(asset::m2_light::evaluate_light_ambient(
+                light,
+                0,
+                0,
+                0,
+                &model.global_sequences,
+            ))
+        })
+        .sum::<Vec3>();
+    if ambient.length() < 0.0001 {
+        return [1.0; 3];
+    }
+    ambient.to_array()
 }
 
 fn spawn_model(

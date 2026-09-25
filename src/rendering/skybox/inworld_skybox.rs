@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::query::QueryFilter;
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -157,7 +158,7 @@ pub(super) fn should_replace_skybox(current: Option<&Path>, desired: Option<&Pat
 fn spawn_inworld_skybox(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     skybox_materials: &mut Assets<SkyboxM2Material>,
     images: &mut Assets<Image>,
@@ -193,7 +194,7 @@ fn spawn_inworld_skybox(
 pub(super) struct InWorldSkyboxParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
     sky_materials: ResMut<'w, Assets<super::SkyMaterial>>,

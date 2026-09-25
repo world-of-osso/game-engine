@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, mpsc};
@@ -249,7 +250,7 @@ pub struct AdtSpawnResult {
 pub struct AdtSpawnAssets<'a, 'w, 's> {
     pub commands: &'a mut Commands<'w, 's>,
     pub meshes: &'a mut Assets<Mesh>,
-    pub materials: &'a mut Assets<StandardMaterial>,
+    pub materials: &'a mut Assets<M2Material>,
     pub effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub terrain_materials: &'a mut Assets<TerrainMaterial>,
     pub water_materials: &'a mut Assets<WaterMaterial>,
@@ -271,7 +272,7 @@ const TERRAIN_ONLY_VERTEX_COLOR_FLOOR: f32 = 0.75;
 struct LoadedTileSpawnParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     terrain_mats: ResMut<'w, Assets<TerrainMaterial>>,
     water_mats: ResMut<'w, Assets<WaterMaterial>>,

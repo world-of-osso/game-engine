@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::f32::consts::PI;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
@@ -98,7 +99,7 @@ fn log_first_frames(
 #[derive(SystemParam)]
 struct ParticleDebugSceneParams<'w, 's> {
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
@@ -443,18 +444,22 @@ fn spawn_lighting(commands: &mut Commands) {
 fn spawn_ground(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
 ) {
     commands.spawn((
         Name::new("ParticleDebugGround"),
         ParticleDebugScene,
         Mesh3d(meshes.add(Plane3d::default().mesh().size(18.0, 18.0).build())),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.08, 0.09, 0.11),
-            perceptual_roughness: 0.96,
-            metallic: 0.02,
-            ..default()
-        })),
+        MeshMaterial3d(materials.add(crate::retail_m2_material::retail_m2_material(
+            StandardMaterial {
+                base_color: Color::srgb(0.08, 0.09, 0.11),
+                perceptual_roughness: 0.96,
+                metallic: 0.02,
+                ..default()
+            },
+            0,
+            0,
+        ))),
     ));
 }
 

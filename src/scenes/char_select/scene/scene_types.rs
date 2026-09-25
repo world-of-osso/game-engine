@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -52,7 +53,7 @@ pub(super) struct AppliedCharacterAppearance {
 #[derive(SystemParam)]
 pub(super) struct CharSelectRenderAssets<'w> {
     pub(super) meshes: ResMut<'w, Assets<Mesh>>,
-    pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
+    pub(super) materials: ResMut<'w, Assets<M2Material>>,
     pub(super) sky_materials: ResMut<'w, Assets<SkyMaterial>>,
     pub(super) effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     pub(super) skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
@@ -166,7 +167,7 @@ pub(super) struct CharSelectAppearanceSyncParams<'w, 's> {
         's,
         (
             Entity,
-            &'static MeshMaterial3d<StandardMaterial>,
+            &'static MeshMaterial3d<M2Material>,
             Option<&'static crate::m2_spawn::GeosetMesh>,
             Option<&'static crate::m2_spawn::BatchTextureType>,
             &'static ChildOf,
@@ -174,5 +175,5 @@ pub(super) struct CharSelectAppearanceSyncParams<'w, 's> {
     >,
     pub(super) equipment_query: Query<'w, 's, &'static mut crate::equipment::Equipment>,
     pub(super) images: ResMut<'w, Assets<Image>>,
-    pub(super) materials: ResMut<'w, Assets<StandardMaterial>>,
+    pub(super) materials: ResMut<'w, Assets<M2Material>>,
 }

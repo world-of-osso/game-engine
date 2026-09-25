@@ -4,6 +4,8 @@ fn model_particle_test_app() -> App {
     let mut app = App::new();
     app.world_mut().init_resource::<Assets<Mesh>>();
     app.world_mut().init_resource::<Assets<StandardMaterial>>();
+    app.world_mut()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
     app.world_mut().init_resource::<Assets<Image>>();
     app.world_mut()

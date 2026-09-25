@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::input::ButtonState;
 use bevy::input::keyboard::KeyboardInput;
@@ -141,7 +142,7 @@ fn build_inworld_selection_debug_ui(
 fn setup_inworld_selection_debug_scene(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<M2Material>>,
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
@@ -208,25 +209,29 @@ fn spawn_debug_light(commands: &mut Commands) {
 fn spawn_debug_ground(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
 ) {
     commands.spawn((
         Name::new("InWorldSelectionDebugGround"),
         InWorldSelectionDebugScene,
         Mesh3d(meshes.add(Plane3d::default().mesh().size(20.0, 20.0).build())),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(0.12, 0.14, 0.17),
-            perceptual_roughness: 0.95,
-            metallic: 0.05,
-            ..default()
-        })),
+        MeshMaterial3d(materials.add(crate::retail_m2_material::retail_m2_material(
+            StandardMaterial {
+                base_color: Color::srgb(0.12, 0.14, 0.17),
+                perceptual_roughness: 0.95,
+                metallic: 0.05,
+                ..default()
+            },
+            0,
+            0,
+        ))),
     ));
 }
 
 fn spawn_debug_skybox(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     skybox_materials: &mut Assets<SkyboxM2Material>,
     images: &mut Assets<Image>,
@@ -280,7 +285,7 @@ fn bevy_to_wow_position(pos: Vec3) -> [f32; 3] {
 fn spawn_debug_wolf(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,

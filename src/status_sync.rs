@@ -94,7 +94,7 @@ pub fn sync_terrain_status_snapshot(
     heightmap: Res<TerrainHeightmap>,
     images: Res<Assets<Image>>,
     meshes: Res<Assets<Mesh>>,
-    standard_materials: Res<Assets<StandardMaterial>>,
+    m2_materials: Res<Assets<crate::retail_m2_material::M2Material>>,
     terrain_materials: Res<Assets<TerrainMaterial>>,
     water_materials: Res<Assets<WaterMaterial>>,
     m2_effect_materials: Res<Assets<crate::m2_effect_material::M2EffectMaterial>>,
@@ -105,7 +105,7 @@ pub fn sync_terrain_status_snapshot(
     let asset_stats = status_asset_stats::collect_asset_store_stats(
         &images,
         &meshes,
-        &standard_materials,
+        &m2_materials,
         &terrain_materials,
         &water_materials,
         &m2_effect_materials,
@@ -129,7 +129,7 @@ pub fn sync_terrain_status_snapshot(
     snapshot.image_asset_cpu_bytes = asset_stats.image_asset_cpu_bytes;
     snapshot.mesh_assets = asset_stats.mesh_assets;
     snapshot.mesh_asset_est_cpu_bytes = asset_stats.mesh_asset_est_cpu_bytes;
-    snapshot.standard_material_assets = asset_stats.standard_material_assets;
+    snapshot.m2_material_assets = asset_stats.m2_material_assets;
     snapshot.terrain_material_assets = asset_stats.terrain_material_assets;
     snapshot.water_material_assets = asset_stats.water_material_assets;
     snapshot.m2_effect_material_assets = asset_stats.m2_effect_material_assets;

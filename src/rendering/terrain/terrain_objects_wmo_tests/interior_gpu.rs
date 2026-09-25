@@ -104,7 +104,8 @@ pub(super) fn gpu_app() -> App {
     );
     app.add_plugins(WmoLitMaterialPlugin)
         .init_asset::<crate::water_material::WaterMaterial>()
-        .init_asset::<crate::m2_effect_material::M2EffectMaterial>();
+        .init_asset::<crate::m2_effect_material::M2EffectMaterial>()
+        .init_asset::<crate::retail_m2_material::M2Material>();
     app.finish();
     app.cleanup();
     app

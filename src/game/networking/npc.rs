@@ -1,6 +1,7 @@
 #[path = "../../rendering/character/npc_appearance.rs"]
 mod npc_appearance;
 
+use crate::retail_m2_material::M2Material;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use lightyear::prelude::*;
@@ -582,7 +583,7 @@ type NpcReplicatedQuery<'w, 's> = Query<
 #[derive(bevy::ecs::system::SystemParam)]
 pub(crate) struct NpcSpawnAssets<'w> {
     pub meshes: ResMut<'w, Assets<Mesh>>,
-    pub materials: ResMut<'w, Assets<StandardMaterial>>,
+    pub materials: ResMut<'w, Assets<M2Material>>,
     pub effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     pub images: ResMut<'w, Assets<Image>>,
     pub inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
@@ -798,14 +799,18 @@ fn spawn_animated_npc_model(
 fn spawn_npc_capsule(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     entity: Entity,
 ) {
     let capsule = meshes.add(Capsule3d::new(0.3, 1.2));
-    let material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.8, 0.3, 0.2),
-        ..default()
-    });
+    let material = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color: Color::srgb(0.8, 0.3, 0.2),
+            ..default()
+        },
+        0,
+        0,
+    ));
     commands
         .entity(entity)
         .insert((Mesh3d(capsule), MeshMaterial3d(material)));

@@ -1,4 +1,5 @@
 use super::*;
+use crate::retail_m2_material::M2Material;
 use game_engine::asset::m2_format::m2_camera::parse_camera_snapshot;
 use std::collections::HashSet;
 
@@ -10,7 +11,8 @@ fn scene_app() -> App {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<M2Material>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -22,46 +24,29 @@ fn scene_app() -> App {
 }
 
 #[test]
-fn creation_backdrop_materials_do_not_add_pbr_specular_to_authored_diffuse() {
+fn creation_backdrop_batches_shade_with_retail_lighting() {
     let mut app = scene_app();
-    let outside = app
-        .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
-        .add(StandardMaterial::default());
     select_race(&mut app, 2);
     let root = backdrop_root(app.world());
-    let meshes = descendants_with::<MeshMaterial3d<StandardMaterial>>(app.world_mut(), root);
-    let mut lit = 0;
-    for entity in meshes {
-        let handle = &app
-            .world()
-            .get::<MeshMaterial3d<StandardMaterial>>(entity)
-            .unwrap()
-            .0;
-        let material = app
-            .world()
-            .resource::<Assets<StandardMaterial>>()
-            .get(handle)
-            .unwrap();
-        if !material.unlit {
-            lit += 1;
-            assert_eq!(
-                material.reflectance, 0.0,
-                "UI-model scene lighting has zero specular, like the M2 effect path"
+    let meshes = descendants_with::<MeshMaterial3d<M2Material>>(app.world_mut(), root);
+    let materials = app.world().resource::<Assets<M2Material>>();
+    let lit = meshes
+        .iter()
+        .filter(|entity| {
+            let handle = &app
+                .world()
+                .get::<MeshMaterial3d<M2Material>>(**entity)
+                .unwrap()
+                .0;
+            let material = materials.get(handle).unwrap();
+            assert!(
+                !material.base.fog_enabled,
+                "Retail fog replaces Bevy's linear fog"
             );
-            assert_eq!(material.perceptual_roughness, 1.0);
-        }
-    }
-    assert!(lit > 0, "actual scene must exercise lit standard batches");
-    assert_eq!(
-        app.world()
-            .resource::<Assets<StandardMaterial>>()
-            .get(&outside)
-            .unwrap()
-            .reflectance,
-        StandardMaterial::default().reflectance,
-        "non-backdrop materials remain unchanged"
-    );
+            material.extension.params.flags & crate::retail_m2_material::RETAIL_UNLIT == 0
+        })
+        .count();
+    assert!(lit > 0, "the scene must exercise lit Retail batches");
 }
 
 fn backdrop_root(world: &World) -> Entity {
@@ -116,10 +101,10 @@ fn assert_renderable_backdrop(
             "scene {fdid} has empty geometry"
         );
         let standard = world
-            .get::<MeshMaterial3d<StandardMaterial>>(*entity)
+            .get::<MeshMaterial3d<M2Material>>(*entity)
             .is_some_and(|material| {
                 world
-                    .resource::<Assets<StandardMaterial>>()
+                    .resource::<Assets<M2Material>>()
                     .get(&material.0)
                     .is_some()
             });

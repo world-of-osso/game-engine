@@ -1,10 +1,11 @@
 use bevy::asset::RenderAssetUsages;
 use bevy::image::Image;
 use bevy::mesh::Mesh;
-use bevy::prelude::{Asset, Assets, StandardMaterial};
+use bevy::prelude::{Asset, Assets};
 
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::mesh_asset_stats::{estimate_indices_bytes, estimate_vertex_attribute_bytes};
+use crate::retail_m2_material::M2Material;
 use crate::terrain_material::TerrainMaterial;
 use crate::water_material::WaterMaterial;
 
@@ -14,7 +15,7 @@ pub struct AssetStoreStats {
     pub image_asset_cpu_bytes: u64,
     pub mesh_assets: usize,
     pub mesh_asset_est_cpu_bytes: u64,
-    pub standard_material_assets: usize,
+    pub m2_material_assets: usize,
     pub terrain_material_assets: usize,
     pub water_material_assets: usize,
     pub m2_effect_material_assets: usize,
@@ -23,7 +24,7 @@ pub struct AssetStoreStats {
 pub fn collect_asset_store_stats(
     images: &Assets<Image>,
     meshes: &Assets<Mesh>,
-    standard_materials: &Assets<StandardMaterial>,
+    m2_materials: &Assets<M2Material>,
     terrain_materials: &Assets<TerrainMaterial>,
     water_materials: &Assets<WaterMaterial>,
     m2_effect_materials: &Assets<M2EffectMaterial>,
@@ -33,7 +34,7 @@ pub fn collect_asset_store_stats(
         image_asset_cpu_bytes: image_bytes(images),
         mesh_assets: asset_count(meshes),
         mesh_asset_est_cpu_bytes: mesh_bytes(meshes),
-        standard_material_assets: asset_count(standard_materials),
+        m2_material_assets: asset_count(m2_materials),
         terrain_material_assets: asset_count(terrain_materials),
         water_material_assets: asset_count(water_materials),
         m2_effect_material_assets: asset_count(m2_effect_materials),

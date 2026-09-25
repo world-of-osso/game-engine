@@ -21,7 +21,8 @@ fn clicking_non_selected_character_switches_model_and_highlights_card() {
     app.insert_resource(ButtonInput::<MouseButton>::default());
     app.init_resource::<scene_types::DisplayedCharacterId>();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
     app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
@@ -328,7 +329,8 @@ fn char_select_ui_click_handling_does_not_block_orbit_camera() {
 fn sync_char_select_model_leaves_camera_unchanged_when_character_is_already_displayed() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
     app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
@@ -408,7 +410,8 @@ fn sync_char_select_model_leaves_camera_unchanged_when_character_is_already_disp
 fn sync_char_select_model_respawns_when_selected_character_changes() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
     app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();

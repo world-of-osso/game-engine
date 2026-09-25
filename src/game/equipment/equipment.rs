@@ -8,6 +8,7 @@
 
 mod transforms;
 
+use crate::retail_m2_material::M2Material;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -213,7 +214,7 @@ fn rendered_equipment_matches(
 pub struct EquipmentSyncParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
@@ -302,7 +303,7 @@ fn sync_equipment_owner(params: &mut EquipmentSyncParams, entity: Entity) {
 fn sync_rendered_equipment_owner<'w, 's>(
     commands: &mut Commands<'w, 's>,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -346,7 +347,7 @@ fn sync_rendered_equipment_owner<'w, 's>(
 fn sync_desired_equipment_slot<'w, 's>(
     commands: &mut Commands<'w, 's>,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inv_bp: &mut Assets<SkinnedMeshInverseBindposes>,

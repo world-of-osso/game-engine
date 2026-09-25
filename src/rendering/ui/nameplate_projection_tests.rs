@@ -144,7 +144,8 @@ pub(crate) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     ));
     app.init_state::<GameState>();
     app.insert_resource(State::new(GameState::InWorld));
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
     app.init_resource::<bevy::render::texture::ManualTextureViews>();

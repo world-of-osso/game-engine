@@ -143,7 +143,7 @@ fn sync_model_detects_race_change_and_respawns() {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -188,7 +188,7 @@ fn setup_scene_loads_the_authored_alliance_backdrop() {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -236,7 +236,7 @@ fn setup_scene_does_not_create_an_unused_procedural_sky_map() {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -263,7 +263,7 @@ fn setup_scene_creates_camera_and_lighting_standalone() {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -283,31 +283,37 @@ fn setup_scene_creates_camera_and_lighting_standalone() {
         > 0;
     assert!(has_camera, "char create scene should spawn a camera");
 
-    let ambient = app.world().resource::<GlobalAmbientLight>();
-    assert!(
-        ambient.brightness > 0.0,
-        "ambient light should have positive brightness"
-    );
+    // Retail M2 scene light: the backdrop's summed ambient terms, no direct light.
+    let scene_light = app
+        .world()
+        .resource::<crate::retail_light::RetailSceneLight>()
+        .clone();
     let source_model = asset::m2::load_m2(Path::new("data/models/623712.m2"), &[0; 3]).unwrap();
-    let source_light = asset::m2_light::evaluate_light(
-        &source_model.lights[0],
-        0,
-        0,
-        0,
-        &source_model.global_sequences,
-    );
-    let color = ambient.color.to_linear();
-    let exposed = Vec3::new(color.red, color.green, color.blue)
-        * ambient.brightness
-        * bevy::camera::Exposure::default().exposure();
+    let expected_ambient: Vec3 = source_model
+        .lights
+        .iter()
+        .map(|light| {
+            Vec3::from_array(asset::m2_light::evaluate_light_ambient(
+                light,
+                0,
+                0,
+                0,
+                &source_model.global_sequences,
+            ))
+        })
+        .sum();
     assert!(
-        (exposed - Vec3::from_array(source_light.color))
-            .abs()
-            .max_element()
-            < 0.0001,
-        "authored ambient multiplier must survive renderer exposure: {exposed:?} vs {:?}",
-        source_light.color
+        expected_ambient.length() > 0.0001,
+        "backdrop authors an ambient"
     );
+    assert!(
+        scene_light.ambient.abs_diff_eq(expected_ambient, 1e-5),
+        "{:?} vs {expected_ambient:?}",
+        scene_light.ambient
+    );
+    assert_eq!(scene_light.horizon_ambient, expected_ambient);
+    assert_eq!(scene_light.ground_ambient, expected_ambient);
+    assert_eq!(scene_light.direct, Vec3::ZERO);
 
     let has_directional = app
         .world_mut()
@@ -358,7 +364,7 @@ fn setup_scene_creates_camera_and_lighting_standalone() {
     );
     let material_count = app
         .world_mut()
-        .query::<&MeshMaterial3d<StandardMaterial>>()
+        .query::<&MeshMaterial3d<crate::retail_m2_material::M2Material>>()
         .iter(app.world())
         .count();
     assert!(
@@ -372,7 +378,7 @@ fn changing_race_replaces_model_entities_in_bevy_tree() {
     let mut app = App::new();
     app.insert_resource(CreationSceneCatalog::load(Path::new("data/ChrRaces.csv")).unwrap());
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -464,7 +470,7 @@ fn geosets_visible_after_two_updates_with_full_plugin() {
     app.add_plugins(bevy::transform::TransformPlugin);
     app.add_plugins(bevy::state::app::StatesPlugin);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -528,7 +534,7 @@ fn direct_entry_has_initial_appearance_by_end_of_first_update() {
     app.insert_resource(CharTextureData::load(Path::new("data")));
     app.insert_resource(crate::creature_display::CreatureDisplayMap);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -577,7 +583,7 @@ fn sync_appearance_unhides_geoset_meshes() {
     app.add_plugins(bevy::MinimalPlugins);
     app.add_plugins(bevy::transform::TransformPlugin);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -632,7 +638,7 @@ fn camera_ray_hits_character_model() {
     app.add_plugins(bevy::camera::visibility::VisibilityPlugin);
     app.add_plugins(bevy::picking::PickingPlugin);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();

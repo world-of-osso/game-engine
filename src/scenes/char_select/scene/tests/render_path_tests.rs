@@ -305,7 +305,8 @@ fn despawning_model_wrapper_removes_model_root_child() {
 fn appearance_sync_waits_until_model_has_geosets_and_materials() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     let root = app.world_mut().spawn_empty().id();
     let child = app.world_mut().spawn_empty().id();
     app.world_mut().entity_mut(root).add_child(child);
@@ -317,7 +318,7 @@ fn appearance_sync_waits_until_model_has_geosets_and_materials() {
                   geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
                   material_query: Query<(
                 Entity,
-                &MeshMaterial3d<StandardMaterial>,
+                &MeshMaterial3d<crate::retail_m2_material::M2Material>,
                 Option<&crate::m2_spawn::GeosetMesh>,
                 Option<&crate::m2_spawn::BatchTextureType>,
                 &ChildOf,
@@ -339,8 +340,8 @@ fn appearance_sync_waits_until_model_has_geosets_and_materials() {
         .add(Sphere::new(1.0));
     let material = app
         .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
-        .add(StandardMaterial::default());
+        .resource_mut::<Assets<crate::retail_m2_material::M2Material>>()
+        .add(crate::retail_m2_material::M2Material::default());
     app.world_mut().entity_mut(child).insert((
         crate::m2_spawn::GeosetMesh(101),
         Mesh3d(mesh),
@@ -354,7 +355,7 @@ fn appearance_sync_waits_until_model_has_geosets_and_materials() {
                   geoset_query: Query<(Entity, &crate::m2_spawn::GeosetMesh, &ChildOf)>,
                   material_query: Query<(
                 Entity,
-                &MeshMaterial3d<StandardMaterial>,
+                &MeshMaterial3d<crate::retail_m2_material::M2Material>,
                 Option<&crate::m2_spawn::GeosetMesh>,
                 Option<&crate::m2_spawn::BatchTextureType>,
                 &ChildOf,

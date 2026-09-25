@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -18,7 +19,7 @@ const HERB_MODELS: &[&str] = &[
 pub fn spawn_ground_plane(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) {
     let _ = spawn_ground_plane_entity(commands, meshes, materials, images);
@@ -28,7 +29,7 @@ pub fn spawn_ground_plane(
 pub fn spawn_ground_plane_entity(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) -> Entity {
     use std::path::PathBuf;
@@ -44,11 +45,15 @@ pub fn spawn_ground_plane_entity(
             address_mode_v: bevy::image::ImageAddressMode::Repeat,
             ..bevy::image::ImageSamplerDescriptor::linear()
         });
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(grass_image)),
-        perceptual_roughness: 0.9,
-        ..default()
-    });
+    let material = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color_texture: Some(images.add(grass_image)),
+            perceptual_roughness: 0.9,
+            ..default()
+        },
+        0,
+        0,
+    ));
     let mut mesh = Plane3d::default().mesh().size(100.0, 100.0).build();
     scale_mesh_uvs(&mut mesh, 20.0);
     commands
@@ -110,7 +115,7 @@ pub fn scatter_position(i: u32) -> Option<(f32, f32, u32, u32)> {
 pub fn spawn_ground_clutter(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -131,19 +136,27 @@ pub fn spawn_ground_clutter(
 fn spawn_rock_clutter(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
 ) {
     let rock_mesh = meshes.add(Sphere::new(0.15).mesh().ico(2).unwrap());
-    let rock_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.45, 0.42, 0.38),
-        perceptual_roughness: 0.95,
-        ..default()
-    });
-    let dark_mat = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.35, 0.33, 0.30),
-        perceptual_roughness: 0.95,
-        ..default()
-    });
+    let rock_mat = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color: Color::srgb(0.45, 0.42, 0.38),
+            perceptual_roughness: 0.95,
+            ..default()
+        },
+        0,
+        0,
+    ));
+    let dark_mat = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color: Color::srgb(0.35, 0.33, 0.30),
+            perceptual_roughness: 0.95,
+            ..default()
+        },
+        0,
+        0,
+    ));
     for i in 0u32..30 {
         let Some((x, z, hash1, hash2)) = scatter_position(i) else {
             continue;
@@ -167,7 +180,7 @@ fn spawn_rock_clutter(
 fn spawn_herb_clutter(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,

@@ -6,6 +6,7 @@ use super::{
 };
 use crate::client_options::CameraOptions;
 use crate::orbit_camera::OrbitCamera;
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::prelude::*;
 use game_engine::scene_tree::NodeProps;
@@ -102,7 +103,7 @@ fn debug_skybox_sync_uses_orbit_focus() {
 fn default_mode_spawns_procedural_baseline_sky_and_fog() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<M2Material>>();
     app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
     app.init_resource::<Assets<Image>>();
 
@@ -152,13 +153,13 @@ fn default_mode_spawns_procedural_baseline_sky_and_fog() {
 fn verification_mode_skips_debug_reference_objects() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<M2Material>>();
     app.init_resource::<Assets<Image>>();
 
     let _ = app.world_mut().run_system_once(
         |mut commands: Commands,
          mut meshes: ResMut<Assets<Mesh>>,
-         mut materials: ResMut<Assets<StandardMaterial>>,
+         mut materials: ResMut<Assets<M2Material>>,
          mut images: ResMut<Assets<Image>>| {
             spawn_skybox_debug_reference_objects(
                 &mut commands,
@@ -185,13 +186,13 @@ fn verification_mode_skips_debug_reference_objects() {
 fn default_mode_spawns_grass_ground_plane() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<M2Material>>();
     app.init_resource::<Assets<Image>>();
 
     let _ = app.world_mut().run_system_once(
         |mut commands: Commands,
          mut meshes: ResMut<Assets<Mesh>>,
-         mut materials: ResMut<Assets<StandardMaterial>>,
+         mut materials: ResMut<Assets<M2Material>>,
          mut images: ResMut<Assets<Image>>| {
             spawn_skybox_debug_reference_objects(
                 &mut commands,
@@ -279,7 +280,7 @@ fn skyboxdebug_camera_sync_updates_projection_from_camera_options() {
 fn verification_mode_spawns_black_background_without_procedural_sky() {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<M2Material>>();
     app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
     app.init_resource::<Assets<Image>>();
 

@@ -1,4 +1,5 @@
 use super::*;
+use crate::retail_m2_material::M2Material;
 
 #[test]
 fn build_wmo_adt_metadata_preserves_modf_sets() {
@@ -169,7 +170,7 @@ fn build_wmo_footstep_surface_prefers_ground_typed_materials() {
 fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
     let mut app = App::new();
     app.world_mut().init_resource::<Assets<Mesh>>();
-    app.world_mut().init_resource::<Assets<StandardMaterial>>();
+    app.world_mut().init_resource::<Assets<M2Material>>();
     app.world_mut().init_resource::<Assets<WaterMaterial>>();
     app.world_mut().init_resource::<Assets<WmoLitMaterial>>();
     app.world_mut().init_resource::<Assets<Image>>();
@@ -181,7 +182,7 @@ fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
     let _ = app.world_mut().run_system_once(
         move |mut commands: Commands,
               mut meshes: ResMut<Assets<Mesh>>,
-              mut materials: ResMut<Assets<StandardMaterial>>,
+              mut materials: ResMut<Assets<M2Material>>,
               mut water_materials: ResMut<Assets<WaterMaterial>>,
               mut images: ResMut<Assets<Image>>,
               mut effect_materials: ResMut<Assets<M2EffectMaterial>>,

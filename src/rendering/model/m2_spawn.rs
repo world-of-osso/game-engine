@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use crate::asset;
 use crate::asset::{m2_anim, m2_bone_names, m2_light};
 use crate::m2_effect_material::M2EffectMaterial;
+use crate::retail_m2_material::M2Material;
 use crate::skybox_m2_material::SkyboxM2Material;
 
 #[path = "m2_spawn_cache_stats.rs"]
@@ -32,7 +33,7 @@ pub struct BatchTextureType(pub u32);
 /// Grouped asset params for M2 spawning.
 pub struct SpawnAssets<'a> {
     pub meshes: &'a mut Assets<Mesh>,
-    pub materials: &'a mut Assets<StandardMaterial>,
+    pub materials: &'a mut Assets<M2Material>,
     pub effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub skybox_materials: Option<&'a mut Assets<SkyboxM2Material>>,
     pub images: &'a mut Assets<Image>,
@@ -364,7 +365,7 @@ pub fn spawn_model_point_lights(
 }
 
 enum BatchMaterial {
-    Standard(Handle<StandardMaterial>),
+    Standard(Handle<M2Material>),
     Effect(Handle<M2EffectMaterial>),
     Skybox(Handle<SkyboxM2Material>),
 }
@@ -586,7 +587,7 @@ fn spawn_common_mesh_components(cmd: &mut EntityCommands, context: &MeshComponen
 fn spawn_skinned_mesh_standard(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    material: Handle<StandardMaterial>,
+    material: Handle<M2Material>,
     batch: asset::m2::M2RenderBatch,
     spawn: &MeshSpawnContext<'_>,
 ) {

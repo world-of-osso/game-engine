@@ -213,6 +213,32 @@ pub fn evaluate_light(
     }
 }
 
+/// Ambient term of an M2 light: `ambient_color * ambient_intensity`.
+pub fn evaluate_light_ambient(
+    light: &M2Light,
+    seq_idx: usize,
+    time_ms: u32,
+    global_time_ms: u64,
+    global_sequences: &[u32],
+) -> [f32; 3] {
+    let time = LightTrackTime {
+        sequence_index: seq_idx,
+        local_ms: time_ms,
+        global_ms: global_time_ms,
+        global_sequences,
+    };
+    let ambient_color = time
+        .sample(&light.ambient_color, evaluate_vec3_track)
+        .unwrap_or([0.0; 3]);
+    let ambient_intensity = time
+        .sample(&light.ambient_intensity, evaluate_f32_track)
+        .unwrap_or(0.0);
+    if ambient_intensity <= 0.0 {
+        return [0.0; 3];
+    }
+    ambient_color.map(|channel| channel * ambient_intensity)
+}
+
 fn evaluate_light_color(light: &M2Light, time: &LightTrackTime<'_>) -> [f32; 3] {
     let ambient_color = time
         .sample(&light.ambient_color, evaluate_vec3_track)

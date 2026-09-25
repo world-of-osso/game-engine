@@ -29,6 +29,8 @@ pub mod m2_effect_material;
 pub mod m2_scene;
 #[path = "model/m2_spawn.rs"]
 pub mod m2_spawn;
+#[path = "model/retail_m2_material.rs"]
+pub mod retail_m2_material;
 
 #[path = "particles/mod.rs"]
 pub mod particle;

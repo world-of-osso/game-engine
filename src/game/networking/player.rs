@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::{RunSystemOnce, SystemParam};
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -41,7 +42,7 @@ pub(crate) struct MountedVisualRoot;
 struct PlayerModelSpawnContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
     images: &'a mut Assets<Image>,
     inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
@@ -88,7 +89,7 @@ pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
         's,
         (
             Entity,
-            &'static MeshMaterial3d<StandardMaterial>,
+            &'static MeshMaterial3d<M2Material>,
             Option<&'static crate::m2_spawn::GeosetMesh>,
             Option<&'static crate::m2_spawn::BatchTextureType>,
             &'static ChildOf,
@@ -100,7 +101,7 @@ pub(crate) struct ReplicatedPlayerCustomizationParams<'w, 's> {
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -151,7 +152,7 @@ pub(crate) fn spawn_replicated_player(
     trigger: On<Add, NetPlayer>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<M2Material>>,
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inv_bp: ResMut<Assets<SkinnedMeshInverseBindposes>>,
@@ -294,19 +295,23 @@ fn try_spawn_mounted_player_model(
 
 fn build_player_capsule(
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     is_local: bool,
-) -> (Handle<Mesh>, Handle<StandardMaterial>) {
+) -> (Handle<Mesh>, Handle<M2Material>) {
     let capsule = meshes.add(Capsule3d::new(0.4, 1.6));
     let color = if is_local {
         Color::srgb(0.2, 1.0, 0.3)
     } else {
         Color::srgb(0.2, 0.6, 1.0)
     };
-    let material = materials.add(StandardMaterial {
-        base_color: color,
-        ..default()
-    });
+    let material = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color: color,
+            ..default()
+        },
+        0,
+        0,
+    ));
     (capsule, material)
 }
 
@@ -398,7 +403,7 @@ fn clear_player_visual_components(commands: &mut Commands, entity: Entity) {
         crate::animation::M2AnimPlayer,
         crate::equipment::AttachmentPoints,
         Mesh3d,
-        MeshMaterial3d<StandardMaterial>,
+        MeshMaterial3d<M2Material>,
         ResolvedModelAssetInfo,
     )>();
 }

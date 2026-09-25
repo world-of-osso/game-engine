@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::f32::consts::PI;
 use std::marker::PhantomData;
 
@@ -98,7 +99,7 @@ impl Plugin for SkyboxDebugScenePlugin {
 #[derive(SystemParam)]
 struct SkyboxDebugSceneParams<'w, 's> {
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     sky_materials: ResMut<'w, Assets<crate::sky_material::SkyMaterial>>,
     skybox_materials: ResMut<'w, Assets<SkyboxM2Material>>,
@@ -402,7 +403,7 @@ fn insert_debug_scene_env_map(commands: &mut Commands, images: &mut Assets<Image
 fn spawn_skybox_debug_reference_objects(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
     view_mode: SkyboxDebugViewMode,
 ) {
@@ -419,7 +420,7 @@ fn should_spawn_skybox_debug_reference_objects(view_mode: SkyboxDebugViewMode) -
 fn spawn_default_skybox_debug_reference_objects(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) {
     spawn_debug_reference_plane(commands, meshes, materials, images);
@@ -428,7 +429,7 @@ fn spawn_default_skybox_debug_reference_objects(
 fn spawn_debug_reference_plane(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) {
     let ground = crate::ground::spawn_ground_plane_entity(commands, meshes, materials, images);

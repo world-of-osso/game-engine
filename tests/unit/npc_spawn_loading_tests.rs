@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -53,7 +54,7 @@ struct SpawnPath(PathBuf);
 fn spawn_fixture_model(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<M2Material>>,
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut images: ResMut<Assets<Image>>,
     mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>,
@@ -105,7 +106,7 @@ fn repeated_npc_model_spawn_reuses_loaded_model_after_source_is_removed() {
     let fixture = ModelFixture::copy();
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>()
-        .init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<M2Material>>()
         .init_resource::<Assets<M2EffectMaterial>>()
         .init_resource::<Assets<Image>>()
         .init_resource::<Assets<SkinnedMeshInverseBindposes>>()

@@ -9,6 +9,7 @@ fn sky_app(active: bool) -> (App, Entity) {
     app.add_plugins((bevy::app::TaskPoolPlugin::default(), TransformPlugin))
         .init_resource::<Assets<Mesh>>()
         .init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>()
         .init_resource::<Assets<M2EffectMaterial>>()
         .init_resource::<Assets<SkyboxM2Material>>()
         .init_resource::<Assets<SkyMaterial>>()

@@ -22,7 +22,8 @@ fn creation_scene_projection_tracks_authored_vertical_fov_after_window_resize() 
     app.add_plugins(bevy::transform::TransformPlugin);
     app.add_plugins(StatesPlugin);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();

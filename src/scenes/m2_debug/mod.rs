@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use crate::retail_m2_material::M2Material;
 use bevy::anti_alias::taa::TemporalAntiAliasing;
 use bevy::core_pipeline::prepass::DepthPrepass;
 use bevy::ecs::system::SystemParam;
@@ -46,7 +47,7 @@ impl Plugin for M2DebugScenePlugin {
 #[derive(SystemParam)]
 struct M2DebugSceneParams<'w, 's> {
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inverse_bindposes: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,
@@ -114,7 +115,7 @@ fn spawn_m2_debug_light(commands: &mut Commands) -> Entity {
 fn spawn_m2_debug_ground(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) -> Entity {
     let ground = crate::ground::spawn_ground_plane_entity(commands, meshes, materials, images);
@@ -325,7 +326,7 @@ mod tests {
         app.add_plugins(MinimalPlugins);
         app.add_plugins(bevy::state::app::StatesPlugin);
         app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<crate::retail_m2_material::M2Material>>();
         app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
         app.init_resource::<Assets<Image>>();
         app.init_resource::<Assets<bevy::mesh::skinning::SkinnedMeshInverseBindposes>>();

@@ -25,6 +25,12 @@ fn foliage_cutouts_do_not_occlude_background_in_depth_prepass() {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
+    app.add_plugins(crate::retail_light::RetailLightingPlugin);
+    // White ambient and a sun behind the camera: the opaque red texel stays red.
+    app.insert_resource(crate::retail_light::RetailSceneLight {
+        sun_direction: Vec3::NEG_Z,
+        ..crate::retail_light::RetailSceneLight::m2_scene(Vec3::ONE)
+    });
     app.finish();
     app.cleanup();
     let target = app
@@ -74,7 +80,7 @@ fn foliage_cutouts_do_not_occlude_background_in_depth_prepass() {
     let batch = foliage_batch();
     let foreground = app
         .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
+        .resource_mut::<Assets<crate::retail_m2_material::M2Material>>()
         .add(m2_material(Some(texture), None, &batch));
     app.world_mut().spawn((
         Mesh3d(mesh),
