@@ -4,6 +4,7 @@ mod terrain_objects_fog;
 mod terrain_objects_wmo;
 mod terrain_objects_wmo_material;
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use bevy::image::Image;
@@ -36,6 +37,8 @@ pub struct SpawnedTerrainObjects {
 pub struct SpawnedWmoRoot {
     pub entity: Entity,
     pub model: String,
+    /// MODF uniqueId, shared by every tile that places this WMO.
+    pub unique_id: u32,
 }
 
 #[derive(Component, Clone)]
@@ -127,6 +130,7 @@ pub(super) fn spawn_obj_entities_preloaded(
     obj_data: &adt_obj::AdtObjData,
     preloaded_doodads: &[Option<crate::terrain::PreloadedDoodad>],
     preloaded_wmos: &[Option<crate::terrain::PreloadedWmo>],
+    spawned_wmo_unique_ids: &HashSet<u32>,
 ) -> SpawnedTerrainObjects {
     let mut timings = crate::terrain::TileSpawnTimings::start((tile_y, tile_x), "objects");
     let mut spawned = SpawnedTerrainObjects::default();
@@ -174,6 +178,7 @@ pub(super) fn spawn_obj_entities_preloaded(
         obj_data,
         &wmo_chunk_refs,
         preloaded_wmos,
+        spawned_wmo_unique_ids,
         &mut spawned.wmos,
     );
     timings.record_stage("wmos");
@@ -194,6 +199,7 @@ pub fn spawn_obj_entities(
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
+    spawned_wmo_unique_ids: &HashSet<u32>,
 ) -> SpawnedTerrainObjects {
     let mut spawned = SpawnedTerrainObjects::default();
     let doodad_chunk_refs = build_object_chunk_refs(
@@ -229,6 +235,7 @@ pub fn spawn_obj_entities(
         tile_y,
         tile_x,
         obj_data,
+        spawned_wmo_unique_ids,
         &mut spawned.wmos,
     );
     spawned
@@ -720,6 +727,7 @@ fn spawn_wmos(
     tile_y: u32,
     tile_x: u32,
     obj_data: &adt_obj::AdtObjData,
+    spawned_unique_ids: &HashSet<u32>,
     entities: &mut Vec<SpawnedWmoRoot>,
 ) {
     let wmo_chunk_refs = build_object_chunk_refs(
@@ -741,7 +749,7 @@ fn spawn_wmos(
         tile_x,
         obj_data,
         &wmo_chunk_refs,
-        |_| true,
+        |placement| !spawned_unique_ids.contains(&placement.unique_id),
         entities,
     );
 }

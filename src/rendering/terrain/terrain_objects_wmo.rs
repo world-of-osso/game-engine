@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
@@ -154,10 +155,14 @@ pub(super) fn spawn_wmos_preloaded(
     obj_data: &adt_obj::AdtObjData,
     chunk_refs: &[Vec<u16>],
     preloaded: &[Option<crate::terrain::PreloadedWmo>],
+    spawned_unique_ids: &HashSet<u32>,
     entities: &mut Vec<SpawnedWmoRoot>,
 ) {
     let mut spawned_count = 0u32;
     for (index, placement) in obj_data.wmos.iter().enumerate() {
+        if spawned_unique_ids.contains(&placement.unique_id) {
+            continue;
+        }
         let preloaded_wmo = preloaded.get(index).and_then(|p| p.as_ref());
         let mut assets = WmoAssets {
             meshes,
@@ -380,6 +385,7 @@ fn build_spawned_wmo_root(
         SpawnedWmoRoot {
             entity: root_entity,
             model: wmo_debug_label(model, placement.name_set),
+            unique_id: placement.unique_id,
         }
     })
 }

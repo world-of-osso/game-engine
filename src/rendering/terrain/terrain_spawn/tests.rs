@@ -163,6 +163,7 @@ fn spawn_fixture_without_terrain_textures(
         &fixture.0,
         false,
         params.adt_manager.render_terrain,
+        &std::collections::HashSet::new(),
     );
     spawned_root.0 = Some(root);
 }

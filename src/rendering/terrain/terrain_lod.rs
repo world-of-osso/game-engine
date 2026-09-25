@@ -106,22 +106,54 @@ fn swap_tile_lod(
         return;
     };
     despawn_tile_doodad_entities(refs.commands, adt_manager, key);
-    let new_entities = spawn_lod_doodads(refs, heightmap, &adt_path, new_lod);
+    let obj = load_obj_for_lod(&adt_path, new_lod);
+    let objects = obj.as_ref().map_or_else(Default::default, |obj| {
+        spawn_lod_objects(
+            refs,
+            heightmap,
+            key,
+            obj,
+            &adt_manager.shared_wmos.spawned_unique_ids(),
+        )
+    });
     adt_manager.tile_lod.insert(key, new_lod);
-    adt_manager.tile_doodad_entities.insert(key, new_entities);
+    let placements = obj.as_ref().map_or(&[][..], |obj| &obj.wmos[..]);
+    record_tile_objects(adt_manager, key, placements, objects);
     eprintln!("LOD swap tile ({}, {}): {:?}", key.0, key.1, new_lod);
 }
 
-/// Despawn doodad/WMO entities for a tile (without removing LOD tracking).
+/// Records a tile's spawned doodads and its share of the WMOs its MODF places.
+pub(crate) fn record_tile_objects(
+    adt_manager: &mut AdtManager,
+    key: (u32, u32),
+    placements: &[adt_obj::WmoPlacement],
+    objects: crate::terrain_objects::SpawnedTerrainObjects,
+) {
+    let spawned_wmos = objects.wmos.iter().map(|wmo| (wmo.unique_id, wmo.entity));
+    adt_manager
+        .shared_wmos
+        .record_tile(key, placements, spawned_wmos);
+    adt_manager
+        .tile_doodad_entities
+        .insert(key, objects.doodads);
+}
+
+/// Despawn a tile's doodads and the WMOs no other loaded tile places (without
+/// removing LOD tracking).
 pub(crate) fn despawn_tile_doodad_entities(
     commands: &mut Commands,
     adt_manager: &mut AdtManager,
     key: (u32, u32),
 ) {
-    if let Some(entities) = adt_manager.tile_doodad_entities.remove(&key) {
-        for e in entities {
-            commands.entity(e).despawn();
-        }
+    let doodads = adt_manager
+        .tile_doodad_entities
+        .remove(&key)
+        .unwrap_or_default();
+    for e in doodads
+        .into_iter()
+        .chain(adt_manager.shared_wmos.release_tile(key))
+    {
+        commands.entity(e).despawn();
     }
 }
 
@@ -137,32 +169,26 @@ pub(crate) fn load_obj_for_lod(
     }
 }
 
-/// Load and spawn doodads/WMOs for a given LOD level.
-fn spawn_lod_doodads(
+/// Spawn a tile's doodads/WMOs from its LOD obj file.
+fn spawn_lod_objects(
     refs: &mut LodSpawnRefs,
     heightmap: &TerrainHeightmap,
-    adt_path: &std::path::Path,
-    lod: DoodadLod,
-) -> Vec<Entity> {
-    match load_obj_for_lod(adt_path, lod) {
-        Some(ref obj) => terrain_objects::spawn_obj_entities(
-            refs.commands,
-            refs.meshes,
-            refs.materials,
-            refs.effect_materials,
-            refs.water_materials,
-            refs.images,
-            refs.inverse_bp,
-            Some(heightmap),
-            crate::terrain_tile::parse_tile_coords_from_path(adt_path)
-                .map(|(_, ty, _)| ty)
-                .unwrap_or(0),
-            crate::terrain_tile::parse_tile_coords_from_path(adt_path)
-                .map(|(_, _, tx)| tx)
-                .unwrap_or(0),
-            obj,
-        )
-        .all_entities(),
-        None => Vec::new(),
-    }
+    key: (u32, u32),
+    obj: &crate::asset::adt_format::adt_obj::AdtObjData,
+    spawned_wmo_unique_ids: &std::collections::HashSet<u32>,
+) -> crate::terrain_objects::SpawnedTerrainObjects {
+    terrain_objects::spawn_obj_entities(
+        refs.commands,
+        refs.meshes,
+        refs.materials,
+        refs.effect_materials,
+        refs.water_materials,
+        refs.images,
+        refs.inverse_bp,
+        Some(heightmap),
+        key.0,
+        key.1,
+        obj,
+        spawned_wmo_unique_ids,
+    )
 }

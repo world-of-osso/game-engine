@@ -109,7 +109,8 @@ pub(super) fn spawn_parsed_tile(
     parsed: &ParsedTile,
     render_textures: bool,
     render_terrain: bool,
-) -> (Entity, Vec<Entity>) {
+    spawned_wmo_unique_ids: &HashSet<u32>,
+) -> (Entity, terrain_objects::SpawnedTerrainObjects) {
     let mut timings = super::TileSpawnTimings::start((parsed.tile_y, parsed.tile_x), "tile");
     let tile = parsed_adt_tile(parsed);
     log_parsed_tile(parsed);
@@ -140,10 +141,10 @@ pub(super) fn spawn_parsed_tile(
         &parsed.adt_data,
     );
     timings.record_stage("water");
-    let doodad_entities = spawn_parsed_tile_doodads(refs, heightmap, parsed);
+    let objects = spawn_parsed_tile_objects(refs, heightmap, parsed, spawned_wmo_unique_ids);
     timings.record_stage("objects");
     timings.finish();
-    (root, doodad_entities)
+    (root, objects)
 }
 
 fn spawn_textured_tile_chunks(
@@ -245,13 +246,14 @@ fn log_parsed_tile(parsed: &ParsedTile) {
     );
 }
 
-fn spawn_parsed_tile_doodads(
+fn spawn_parsed_tile_objects(
     refs: &mut SpawnRefs,
     heightmap: &TerrainHeightmap,
     parsed: &ParsedTile,
-) -> Vec<Entity> {
+    spawned_wmo_unique_ids: &HashSet<u32>,
+) -> terrain_objects::SpawnedTerrainObjects {
     let Some(ref obj_data) = parsed.obj_data else {
-        return Vec::new();
+        return Default::default();
     };
 
     terrain_objects::spawn_obj_entities_preloaded(
@@ -268,8 +270,8 @@ fn spawn_parsed_tile_doodads(
         obj_data,
         &parsed.preloaded_doodads,
         &parsed.preloaded_wmos,
+        spawned_wmo_unique_ids,
     )
-    .all_entities()
 }
 
 pub(super) fn log_adt_spawn(adt_data: &adt::AdtData, adt_path: &Path) {
