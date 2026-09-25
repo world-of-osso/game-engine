@@ -80,7 +80,7 @@ Files used:
 
 ## Shared Retail scene light (branch `wmo-scene-light`)
 
-Commit `1ce8befa` (on master `8fcbeecc` + sky `0e446d62`) removes Bevy PBR from WMO shading:
+Commit `ebde0ef7` (on sky `98196cd8`, which includes the Retail scene light `5d6ba82f`) removes Bevy PBR from WMO shading:
 
 - `wmo_lighting.wgsl` binds `crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER`, a storage buffer at 103. It shades in authored (gamma) space with `retail_lighting.wgsl`:
   - exterior: `retail_shade(scene light with 2*MOCV added to ambient/horizon/ground, texel, N, sun shadow)`;
