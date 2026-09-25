@@ -19,6 +19,11 @@ This spec defines the player BuffFrame and DebuffFrame at their Retail defaults.
 - [ ] Retail tooltip content (`GameTooltip:SetUnitAura`: name, dispel type, description, time remaining). The shared tooltip shows name, description, duration, stacks and source instead.
 - [ ] Temporary weapon enchants, consolidated buffs, private aura anchors and the deadly-debuff warning.
 - [ ] Bleed borders: the protocol has no Bleed dispel type.
+- [ ] Live debuff proof: creatures never cast and no Northshire creature aura reaches the player, so debuff layout, borders and symbols are proven by screen tests only.
+
+## Live proof
+
+`data/diagnostics/buffs-20260924/` (2026-09-24, level-10 Warrior InviteTarget): Battle Shout (6673) shows "60 m" under its icon at BuffButton0 x=1620 y=10, the hover tooltip shows it, and `ui.rightClick("BuffButton0")` removes it (`buff-proof.js`).
 
 ## Implementation inventory
 
