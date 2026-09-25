@@ -363,10 +363,7 @@ fn register_render_plugins(app: &mut App) {
     register_particle_plugin(app);
     app.add_plugins(weather::WeatherPlugin).add_systems(
         Update,
-        (
-            terrain_objects::sync_wmo_sidn_emissive::<StandardMaterial>,
-            terrain_objects::sync_wmo_sidn_emissive::<terrain_objects::WmoLitMaterial>,
-        )
+        terrain_objects::sync_wmo_sidn_emissive
             .run_if(in_state(game_state::GameState::InWorld))
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );

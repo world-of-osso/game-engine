@@ -171,6 +171,7 @@ fn spawn_wmo_group_batches_marks_mesh_children_for_collision() {
     app.world_mut().init_resource::<Assets<Mesh>>();
     app.world_mut().init_resource::<Assets<StandardMaterial>>();
     app.world_mut().init_resource::<Assets<WaterMaterial>>();
+    app.world_mut().init_resource::<Assets<WmoLitMaterial>>();
     app.world_mut().init_resource::<Assets<Image>>();
     app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
     app.world_mut()

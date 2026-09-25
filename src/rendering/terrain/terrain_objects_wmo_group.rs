@@ -25,28 +25,16 @@ pub(super) fn spawn_wmo_group_batches(
         ));
         let base =
             wmo_batch_standard_material(assets.images, batch.material_index, &material_props);
-        if batch.has_vertex_color
-            || second_layer.is_some()
-            || !wmo_group_is_exterior_lit(group_header.flags)
-        {
-            insert_wmo_lit_material(
-                &mut child,
-                wmo_lit_material(
-                    base,
-                    group_header.flags,
-                    material_props.unlit,
-                    interior_ambient,
-                    second_layer,
-                ),
-            );
-        } else {
-            // Exterior light alone: StandardMaterial's own daylight (or unlit texture).
-            let base = StandardMaterial {
-                unlit: material_props.unlit,
-                ..base
-            };
-            child.insert(MeshMaterial3d(assets.materials.add(base)));
-        }
+        insert_wmo_lit_material(
+            &mut child,
+            wmo_lit_material(
+                base,
+                group_header.flags,
+                material_props.unlit,
+                interior_ambient,
+                second_layer,
+            ),
+        );
         if let Some(glow) = material_props.sidn_glow {
             child.insert(glow);
         }
@@ -82,8 +70,8 @@ fn load_wmo_second_layer(
     }
 }
 
-/// WMO spawning only holds `Assets<StandardMaterial>`; the MOCV-lit material is added
-/// when the spawn commands apply.
+/// WMO spawning only holds `Assets<StandardMaterial>`; the WMO material is added when
+/// the spawn commands apply.
 fn insert_wmo_lit_material(child: &mut EntityCommands, material: WmoLitMaterial) {
     child.queue(move |mut entity: EntityWorldMut| {
         let handle = entity

@@ -223,30 +223,13 @@ fn wmo_cull_mode(double_sided: bool) -> Option<bevy::render::render_resource::Fa
     }
 }
 
-/// A WMO batch material whose emissive carries the SIDN night glow.
-pub(crate) trait WmoSidnMaterial: Material {
-    fn emissive_mut(&mut self) -> &mut LinearRgba;
-}
-
-impl WmoSidnMaterial for StandardMaterial {
-    fn emissive_mut(&mut self) -> &mut LinearRgba {
-        &mut self.emissive
-    }
-}
-
-impl WmoSidnMaterial for WmoLitMaterial {
-    fn emissive_mut(&mut self) -> &mut LinearRgba {
-        &mut self.base.emissive
-    }
-}
-
-pub(crate) fn sync_wmo_sidn_emissive<M: WmoSidnMaterial>(
+pub(crate) fn sync_wmo_sidn_emissive(
     game_time: Res<GameTime>,
-    mut materials: ResMut<Assets<M>>,
-    query: Query<(&MeshMaterial3d<M>, &WmoSidnGlow)>,
+    mut materials: ResMut<Assets<WmoLitMaterial>>,
+    query: Query<(&MeshMaterial3d<WmoLitMaterial>, &WmoSidnGlow)>,
     new_glow_query: Query<
-        (&MeshMaterial3d<M>, &WmoSidnGlow),
-        Or<(Added<WmoSidnGlow>, Changed<MeshMaterial3d<M>>)>,
+        (&MeshMaterial3d<WmoLitMaterial>, &WmoSidnGlow),
+        Or<(Added<WmoSidnGlow>, Changed<MeshMaterial3d<WmoLitMaterial>>)>,
     >,
     mut last_strength: Local<Option<f32>>,
 ) {
@@ -260,16 +243,16 @@ pub(crate) fn sync_wmo_sidn_emissive<M: WmoSidnMaterial>(
     apply_sidn_emissive_updates(&mut materials, &query, strength);
 }
 
-pub(super) fn apply_sidn_emissive_updates<M: WmoSidnMaterial, F: QueryFilter>(
-    materials: &mut Assets<M>,
-    query: &Query<(&MeshMaterial3d<M>, &WmoSidnGlow), F>,
+pub(super) fn apply_sidn_emissive_updates<F: QueryFilter>(
+    materials: &mut Assets<WmoLitMaterial>,
+    query: &Query<(&MeshMaterial3d<WmoLitMaterial>, &WmoSidnGlow), F>,
     strength: f32,
 ) {
     for (material_handle, glow) in query.iter() {
         let Some(mut material) = materials.get_mut(material_handle) else {
             continue;
         };
-        *material.emissive_mut() = sidn_emissive_color(glow.base_sidn_color, strength);
+        material.base.emissive = sidn_emissive_color(glow.base_sidn_color, strength);
     }
 }
 

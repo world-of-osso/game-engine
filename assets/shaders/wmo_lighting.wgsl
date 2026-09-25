@@ -10,6 +10,7 @@
     mesh_functions,
     pbr_fragment::pbr_input_from_standard_material,
     pbr_functions::{alpha_discard, apply_pbr_lighting, main_pass_post_lighting_processing},
+    pbr_types,
     view_transformations::position_world_to_clip,
 }
 
@@ -173,6 +174,12 @@ fn two_layer_diffuse(first: vec4<f32>, uv: vec2<f32>, second_mocv_alpha: f32) ->
     return vec4(srgb_to_linear(mix(under, layer1, second_mocv_alpha)), first.a);
 }
 
+// The scene light (sun and ambient) is read here only, so it can be swapped for the
+// shared Retail scene light in one place.
+fn scene_daylight(pbr_input: pbr_types::PbrInput) -> vec4<f32> {
+    return apply_pbr_lighting(pbr_input);
+}
+
 @fragment
 fn fragment(wmo: WmoVertexOutput, @builtin(front_facing) is_front: bool) -> FragmentOutput {
     let vertex = forward_vertex_output(wmo);
@@ -207,7 +214,7 @@ fn fragment(wmo: WmoVertexOutput, @builtin(front_facing) is_front: bool) -> Frag
     if lighting.unlit != 0u {
         out.color = vec4(albedo.rgb + emissive, albedo.a);
     } else {
-        let daylight = apply_pbr_lighting(pbr_input);
+        let daylight = scene_daylight(pbr_input);
         let exterior = daylight.rgb + albedo.rgb * srgb_to_linear(authored);
         let interior =
             albedo.rgb * srgb_to_linear(lighting.interior_ambient.rgb + authored) + emissive;
