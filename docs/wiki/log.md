@@ -937,3 +937,7 @@ Created [[washed-out-sky]]. LightData colours decode as `0x00RRGGBB` sRGB bytes;
 ## [2026-09-25] system | Retail lighting
 
 Created [[retail-lighting]]. RetailSceneLight (ambient/horizon/ground ambient, direct, WWV sun direction, fog) is one GPU buffer that terrain, M2 and M2 effect shaders read; they apply WebWowViewerCpp calcLight and fog in authored space. PBR light calibration, camera IBL and TonyMcMapface are gone for world cameras. Updated [[washed-out-sky]] and [[skybox]].
+
+## [2026-09-25] investigation | Stormwind hilly plaza
+
+Created [[stormwind-hilly-plaza]]. The hilly cobblestone in the Trade District was the authored ADT terrain under a district WMO that portal culling fully hid. Antiportal AABB occlusion and bbox-only camera-group detection caused it. Portal culling now draws every exterior group from outside, enters an interior only when a floor of that group is below the camera, and no longer uses antiportals as occluders. Updated [[wmo-format]].

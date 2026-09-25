@@ -60,6 +60,7 @@ Architecture decisions and feature designs.
 - [abbey-interior-black-world](investigations/abbey-interior-black-world.md) — MOCV lighting alpha used as vertex opacity discarded interior WMO color while the depth prepass occluded the world
 - [stormwind-dark-render](investigations/stormwind-dark-render.md) — unified MapObj (MOHD 0x02) district WMOs drawn unlit as texture×MOCV turned black; MOCV is now added to daylight/MOHD ambient
 - [wmo-retail-lighting](investigations/wmo-retail-lighting.md) — Retail WMO light model (ambient + 2×MOCV + sun, interior/exterior blend by MOCV alpha), fixup, two-layer MOCV2 shaders, alpha test, metal and uniqueId placement dedup, per WebWowViewerCpp
+- [stormwind-hilly-plaza](investigations/stormwind-hilly-plaza.md) — Trade District drawn as bare hilly terrain: antiportal AABB occlusion and bbox-only camera group hid every `sw_tradedistrict` group; portal culling now follows the Retail interior/exterior traversal
 - [npc-motion-validation](investigations/npc-motion-validation.md) — Revision-pinned Northshire NPC idle/facing, landing, fog, picking, WMO basis, and terrain-streaming evidence with explicit remaining boundaries.
 
 Root cause analyses and debug findings.
