@@ -347,15 +347,15 @@ fn tab_width(label: &str) -> f32 {
 
 /// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): left cap at x -3 (active -1),
 /// right cap ending 7 (active 8) past the tab, 36 (active 42) tall; the label
-/// `GameFontNormalSmall` 2 px above centre, white while selected. `flipped` draws the
-/// `PanelTopTabButtonTemplate` art upside down.
+/// `GameFontNormalSmall` 2 px above centre, white while selected. `top` draws the
+/// `PanelTopTabButtonTemplate` art: upside down, 75 % tall, anchored to the tab bottom.
 fn panel_tab(
     name: &str,
     label: &str,
     action: &str,
     active: bool,
     (x, y, width): (f32, f32, f32),
-    flipped: bool,
+    top: bool,
 ) -> Element {
     let (caps, left_x, right_x, art_h) = if active {
         (
@@ -367,8 +367,9 @@ fn panel_tab(
     } else {
         ([TAB_LEFT, TAB_MIDDLE, TAB_RIGHT], -3.0, 7.0, 36.0)
     };
-    let [left, middle, right] = caps.map(|crop| if flipped { crop.flipped() } else { crop });
-    let art_y = if flipped { 32.0 - art_h } else { 0.0 };
+    let [left, middle, right] = caps.map(|crop| if top { crop.top_tab() } else { crop });
+    let art_h = if top { art_h * 0.75 } else { art_h };
+    let art_y = if top { 32.0 - art_h } else { 0.0 };
     let left_rect = (left_x, art_y, 35.0, art_h);
     let right_rect = (width + right_x - 37.0, art_y, 37.0, art_h);
     let middle_rect = (left_x + 35.0, art_y, right_rect.0 - left_x - 35.0, art_h);
@@ -377,7 +378,7 @@ fn panel_tab(
     } else {
         NORMAL_FONT_COLOR
     };
-    let label_y = if flipped { 2.0 } else { -2.0 };
+    let label_y = if top { 2.0 } else { -2.0 };
     let mut art = crop_texture(format!("{name}Left"), left, left_rect);
     art.extend(crop_texture(format!("{name}Middle"), middle, middle_rect));
     art.extend(crop_texture(format!("{name}Right"), right, right_rect));
@@ -520,22 +521,16 @@ fn list_row(
     cells: Element,
 ) -> Element {
     let (x, y, w, h) = rect;
-    let mut art = Vec::new();
+    // Stripe and selection are siblings drawn before the row: children of the row share
+    // the cells' frame level and a later-added selection would cover the text.
+    let mut out = Vec::new();
     if stripes && index % 2 == 1 {
-        art.extend(crop_texture(
-            format!("{name}Stripe"),
-            ROW_STRIPE,
-            (0.0, 0.0, w, h),
-        ));
+        out.extend(crop_texture(format!("{name}Stripe"), ROW_STRIPE, rect));
     }
     if selected {
-        art.extend(crop_texture(
-            format!("{name}Selected"),
-            ROW_SELECT,
-            (0.0, 0.0, w, h),
-        ));
+        out.extend(crop_texture(format!("{name}Selected"), ROW_SELECT, rect));
     }
-    rsx! {
+    out.extend(rsx! {
         button {
             name: {DynName(name.to_string())},
             width: w,
@@ -544,10 +539,10 @@ fn list_row(
             pos_type: "absolute",
             left: x,
             top: y,
-            {art}
             {cells}
         }
-    }
+    });
+    out
 }
 
 /// `AuctionHouseTableCellItemDisplayTemplate`: 14×14 icon with the 16×16
