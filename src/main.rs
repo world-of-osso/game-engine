@@ -63,7 +63,6 @@ mod status_asset_stats;
 mod status_map_sync;
 mod status_sync;
 mod system_isolation;
-mod taxi;
 mod trash_button_screen;
 mod ui_input;
 mod ui_input_mode;

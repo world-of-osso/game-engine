@@ -30,7 +30,6 @@ fn inworld_app() -> App {
     });
     app.init_resource::<WorldMapState>();
     app.init_resource::<CurrentZone>();
-    app.init_resource::<crate::taxi::TaxiState>();
     app.init_resource::<WindowManager>();
     app.init_resource::<game_engine::input_bindings::InputBindings>();
     app.insert_state(GameState::InWorld);

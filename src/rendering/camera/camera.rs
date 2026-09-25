@@ -12,7 +12,6 @@ use std::time::{Duration, Instant};
 use crate::collision::{self, CharacterPhysics};
 use crate::game_state::GameState;
 use crate::pathing::PathingState;
-use crate::taxi::TaxiState;
 use crate::terrain_heightmap::TerrainHeightmap;
 use crate::ui_input_mode::{UiInputMode, gameplay_keys};
 use game_engine::input_bindings::{InputAction, InputBindings};
@@ -48,6 +47,7 @@ impl Plugin for WowCameraPlugin {
                 camera_input,
                 cursor_grab,
                 player_movement,
+                crate::game::networking_server_movement::follow_server_movement,
                 camera_follow,
             )
                 .chain()
@@ -162,16 +162,12 @@ fn camera_input(
     mouse_buttons: Res<ButtonInput<MouseButton>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mode: Res<UiInputMode>,
-    taxi: Option<Res<TaxiState>>,
     options: Res<crate::client_options::CameraOptions>,
     bindings: Res<InputBindings>,
     mut camera_q: Query<&mut WowCamera>,
     mut facing_q: Query<&mut CharacterFacing, With<Player>>,
 ) {
-    if !crate::networking::gameplay_input_allowed(reconnect)
-        || *mode == UiInputMode::Modal
-        || taxi.as_deref().is_some_and(TaxiState::is_active)
-    {
+    if !crate::networking::gameplay_input_allowed(reconnect) || *mode == UiInputMode::Modal {
         return;
     }
     let keys = gameplay_keys(*mode, &keys);
@@ -294,7 +290,6 @@ fn player_movement(
     terrain: Option<Res<TerrainHeightmap>>,
     reconnect: Option<Res<crate::networking::ReconnectState>>,
     mode: Res<UiInputMode>,
-    taxi: Option<Res<TaxiState>>,
     mut map_status: ResMut<game_engine::status::MapStatusSnapshot>,
     bindings: Res<InputBindings>,
     mut pathing: ResMut<PathingState>,
@@ -309,6 +304,7 @@ fn player_movement(
             &mut MovementState,
             &mut CharacterFacing,
             &mut CharacterPhysics,
+            Option<&shared::components::MovementControl>,
         ),
         With<Player>,
     >,
@@ -317,14 +313,17 @@ fn player_movement(
         scripted.stop();
         return;
     }
-    let Ok((mut transform, mut movement, mut facing, mut physics)) = player_q.single_mut() else {
+    let Ok((mut transform, mut movement, mut facing, mut physics, control)) = player_q.single_mut()
+    else {
         scripted.stop();
         return;
     };
-    if taxi.as_deref().is_some_and(TaxiState::is_active) {
+    // The server moves a controlled player (taxi flight): no input, no local physics.
+    if control.is_some_and(|control| control.controlled) {
         scripted.stop();
         movement.autorun = false;
         movement.direction = MoveDirection::None;
+        movement.jumping = false;
         return;
     }
 
