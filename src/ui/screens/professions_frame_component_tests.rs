@@ -52,7 +52,11 @@ fn tailoring() -> ProfessionsFrameState {
     ProfessionsFrameState {
         visible: true,
         title: "Tailoring".into(),
-        rank: Some(("Classic Tailoring 1/300".into(), 1.0 / 300.0)),
+        rank: Some(RankBar {
+            text: "Classic Tailoring 1/300".into(),
+            fraction: 1.0 / 300.0,
+            fill: kit_skillbar_fill(4_693_230, (2048.0, 2048.0)),
+        }),
         background_fdid: 4_627_497,
         rows: vec![
             RecipeListRow::Category {
@@ -202,5 +206,27 @@ fn search_box_shows_the_instructions_until_text_is_typed() {
     assert_eq!(
         fontstring_text(&reg, "ProfessionsFrameRecipeListSearchBoxText"),
         "bolt"
+    );
+}
+
+#[test]
+fn rank_fill_shows_the_rank_share_of_the_first_tailoring_flipbook_frame() {
+    let mut state = tailoring();
+    state.rank.as_mut().unwrap().fraction = 0.25;
+    let reg = build(state);
+    let fill = reg
+        .get(reg.get_by_name("ProfessionsFrameRankBarFill").unwrap())
+        .unwrap();
+    let Some(WidgetData::Texture(texture)) = fill.widget_data.as_ref() else {
+        panic!("ProfessionsFrameRankBarFill is not a texture");
+    };
+    assert!(matches!(
+        texture.source,
+        crate::ui::widgets::texture::TextureSource::FileDataId(4_693_230)
+    ));
+    // 856×34 frame at (1,1) of the 2048×2048 atlas, a quarter wide.
+    assert_eq!(
+        texture.tex_coords,
+        [1.0 / 2048.0, 215.0 / 2048.0, 1.0 / 2048.0, 35.0 / 2048.0]
     );
 }

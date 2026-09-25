@@ -8,8 +8,8 @@ use game_engine::professions_data::{ProfessionCatalog, RecipeInfo};
 use game_engine::status::ProfessionStatusSnapshot;
 use game_engine::ui::screens::professions_book_component::{BookEntry, ProfessionsBookState};
 use game_engine::ui::screens::professions_frame_component::{
-    DEFAULT_RECIPE_BACKGROUND, ProfessionsFrameState, ROW_SPACING, ReagentSlot, RecipeListRow,
-    SCROLL_H, Schematic,
+    DEFAULT_RECIPE_BACKGROUND, DEFAULT_SKILLBAR_FILL, ProfessionsFrameState, ROW_SPACING, RankBar,
+    ReagentSlot, RecipeListRow, SCROLL_H, Schematic, kit_skillbar_fill,
 };
 use shared::profession::{ProfessionSkillLine, RecipeDifficulty, recipe_difficulty};
 
@@ -18,22 +18,37 @@ const UNKNOWN_ICON_FDID: u32 = 134_400;
 /// Tree view top and bottom padding (Blizzard_ProfessionsRecipeList.lua:16-20).
 const TREE_PAD: f32 = 5.0;
 
-/// `Professions-Recipe-Background-<kit>` FileDataIDs by parent skill line
-/// (UiTextureAtlasMember 21205-21218).
-const KIT_BACKGROUNDS: &[(u32, u32)] = &[
-    (171, 4_625_450), // Alchemy
-    (164, 4_625_448), // Blacksmithing
-    (185, 4_671_747), // Cooking
-    (333, 4_723_320), // Enchanting
-    (202, 4_722_478), // Engineering
-    (356, 4_723_316), // Fishing
-    (182, 4_723_159), // Herbalism
-    (773, 4_723_119), // Inscription
-    (755, 4_723_112), // Jewelcrafting
-    (165, 4_723_154), // Leatherworking
-    (186, 4_723_189), // Mining
-    (393, 4_723_308), // Skinning
-    (197, 4_627_497), // Tailoring
+/// Per-profession art (Blizzard_Professions.lua:1244 `GetAtlasKitSpecifier`): the
+/// `Professions-Recipe-Background-<kit>` FileDataID (UiTextureAtlasMember 21205-21218) and
+/// the `Skillbar_Fill_Flipbook_<kit>` atlas (UiTextureAtlas FileDataID and size).
+struct Kit {
+    skill_line: u32,
+    background: u32,
+    skillbar_atlas: (u32, (f32, f32)),
+}
+
+const fn kit(skill_line: u32, background: u32, fill_fdid: u32, fill_height: f32) -> Kit {
+    Kit {
+        skill_line,
+        background,
+        skillbar_atlas: (fill_fdid, (2048.0, fill_height)),
+    }
+}
+
+const KITS: &[Kit] = &[
+    kit(171, 4_625_450, 4_696_956, 2048.0), // Alchemy (atlas 2109)
+    kit(164, 4_625_448, 4_683_154, 2048.0), // Blacksmithing (2089)
+    kit(185, 4_671_747, 4_872_261, 1024.0), // Cooking (2267)
+    kit(333, 4_723_320, 4_693_223, 2048.0), // Enchanting (2100)
+    kit(202, 4_722_478, 4_881_558, 2048.0), // Engineering (2277)
+    kit(356, 4_723_316, 4_881_612, 1024.0), // Fishing (2280)
+    kit(182, 4_723_159, 4_872_270, 2048.0), // Herbalism (2270)
+    kit(773, 4_723_119, 4_872_264, 2048.0), // Inscription (2268)
+    kit(755, 4_723_112, 4_693_237, 2048.0), // Jewelcrafting (2104)
+    kit(165, 4_723_154, 4_696_971, 2048.0), // Leatherworking (2111)
+    kit(186, 4_723_189, 4_872_225, 2048.0), // Mining (2265)
+    kit(393, 4_723_308, 4_872_267, 2048.0), // Skinning (2269)
+    kit(197, 4_627_497, 4_693_230, 2048.0), // Tailoring (2102)
 ];
 
 /// What the player picked in the frame.
@@ -173,20 +188,21 @@ pub fn build_frame(
     view.state.title = catalog
         .line(profession)
         .map_or_else(String::new, |info| info.name.clone());
-    view.state.background_fdid = KIT_BACKGROUNDS
-        .iter()
-        .find(|(line, _)| *line == profession)
-        .map_or(DEFAULT_RECIPE_BACKGROUND, |(_, fdid)| *fdid);
+    let kit = KITS.iter().find(|kit| kit.skill_line == profession);
+    view.state.background_fdid = kit.map_or(DEFAULT_RECIPE_BACKGROUND, |kit| kit.background);
     let Some(tier) = tier_line(inputs, profession) else {
         return view;
     };
     let tier_name = catalog
         .line(tier.skill_line)
         .map_or_else(String::new, |info| info.name.clone());
-    view.state.rank = Some((
-        format!("{tier_name} {}/{}", tier.rank, tier.max_rank),
-        f32::from(tier.rank) / f32::from(tier.max_rank.max(1)),
-    ));
+    view.state.rank = Some(RankBar {
+        text: format!("{tier_name} {}/{}", tier.rank, tier.max_rank),
+        fraction: f32::from(tier.rank) / f32::from(tier.max_rank.max(1)),
+        fill: kit.map_or(DEFAULT_SKILLBAR_FILL, |kit| {
+            kit_skillbar_fill(kit.skillbar_atlas.0, kit.skillbar_atlas.1)
+        }),
+    });
     let groups = grouped_recipes(inputs, tier.skill_line, &selection.search);
     let selected = selection
         .recipe

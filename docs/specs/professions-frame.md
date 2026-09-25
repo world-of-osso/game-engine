@@ -41,7 +41,7 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 ## ProfessionsFrame (Recipes page)
 
 - [x] Wide window (942×658, `GetDesiredPageWidth`, PC.lua:344-351; PF.xml:7-8), title = profession name (`TRADE_SKILL_TITLE`), `metal_frame` chrome; tab 1 "Recipes" (`PROFESSIONS_RECIPES_TAB_NAME`) at the frame BOTTOMLEFT 22,2 (PF.xml:16-25).
-- [x] The tier line shown is the learned child of the profession with the highest `ParentTierIndex`. Rank bar 453×18 at 280,40 (PC.xml:199-202): `Professions-skillbar-bg`/`-frame` (15729/15730), `Skillbar_Fill_Flipbook_DefaultBlue` fill 441×18 at 5,3, `TRADESKILL_NAME_RANK` "%s %d/%d" (`Number12FontOutline`).
+- [x] The tier line shown is the learned child of the profession with the highest `ParentTierIndex`. Rank bar 453×18 at 280,40 (PC.xml:199-202): `Professions-skillbar-bg`/`-frame` (15729/15730), fill 441×18 at 5,3 from the first 856×34 frame of `Skillbar_Fill_Flipbook_<kit>` (Tailoring 4693230), `Skillbar_Fill_Flipbook_DefaultBlue` for a profession without kit art (PRB.lua:109-116), `TRADESKILL_NAME_RANK` "%s %d/%d" (`Number12FontOutline`).
 - [x] RecipeList 274 wide at 5,72 (PC.xml:136-142) on `Professions-background-summarylist` (21219). SearchBox at 13,8 (RL.xml:40-45) with Common-Input-Border caps, the magnifying glass and "Search" while empty; clicking focuses it (keyboard goes to it), typing filters recipe names, Enter/Escape or clicking elsewhere ends focus.
 - [x] ScrollBox at the SearchBox BOTTOMLEFT −5,−7 to BOTTOMRIGHT −20,5 (RL.xml:48-53); tree indent 10, 5 px padding, 1 px spacing (RL.lua:16-20); category rows 25, recipe rows 20 (RL.lua:96-109); mouse wheel scrolls one row.
 - [x] Category row: `Professions-recipe-header-left/-middle/-right` (16623-16625), label `GameFontNormal_NoShadow` at LEFT 10,+2, collapse/expand icon (19542/19541) at RIGHT −10,+2 (RL.xml:94-146); a click collapses it. Recipes are grouped under their own `TradeSkillCategory`, categories by `OrderIndex`, recipes by name.
@@ -51,6 +51,7 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Create (80×22 at BOTTOMRIGHT −9,7), the `NumericInputSpinner` 30 left of it and Create All ("Create All [%d]", `PROFESSIONS_CREATE_ALL_FORMAT`) 30 left of that (PC.xml:205-224). Enabled while the bags hold the reagents for one craft. Create sends `CraftRecipe { casts: spinner }`, Create All `CraftRecipe { casts: craftable count }`; the spinner stays within 1..craftable.
 - [x] The cast shows on the player cast bar (the server's replicated `CastState`); reagents, the created item and the skill-up arrive as `InventoryDelta` and `ProfessionSnapshot`.
 - [ ] Filter dropdown, expansion dropdown on the rank bar, favourites, unlearned recipes, tooltips, recipe description, Specializations and Crafting Orders tabs, minimized mode, the cast bar moved onto the page (PC.lua:1282-1296), quality/concentration (Dragonflight systems are out of scope).
+- [ ] Rank-bar `BarAnimation` flipbook playback and the `Skillbar_Flare_<kit>` fade (PRB.xml:94-99); the fill shows the first frame. The Tailoring kit fill is unit-tested only; the live proof showed DefaultBlue before this change.
 
 ## Tests asserting this spec
 

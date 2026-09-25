@@ -142,10 +142,13 @@ fn recipes_group_under_their_categories_with_craftable_counts() {
     let view = build(&tailor(1), &tailoring());
     assert_eq!(view.state.title, "Tailoring");
     assert_eq!(view.state.background_fdid, 4_627_497);
+    let rank = view.state.rank.as_ref().unwrap();
     assert_eq!(
-        view.state.rank,
-        Some(("Classic Tailoring 1/300".into(), 1.0 / 300.0))
+        (rank.text.as_str(), rank.fraction),
+        ("Classic Tailoring 1/300", 1.0 / 300.0)
     );
+    // Skillbar_Fill_Flipbook_Tailoring: UiTextureAtlas 2102.
+    assert_eq!(rank.fill.fdid, 4_693_230);
     assert_eq!(
         view.state.rows,
         vec![
