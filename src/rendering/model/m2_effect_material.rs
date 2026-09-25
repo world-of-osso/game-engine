@@ -2,6 +2,7 @@ use bevy::image::{ImageAddressMode, ImageSampler, ImageSamplerDescriptor};
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, Face, RenderPipelineDescriptor, ShaderType};
+use bevy::render::storage::ShaderBuffer;
 use bevy::shader::ShaderRef;
 
 use crate::asset::m2_anim::{AnimTrack, evaluate_vec3_track};
@@ -15,6 +16,8 @@ pub struct M2EffectSettings {
     pub uv_mode_1: u32,
     pub uv_mode_2: u32,
     pub render_flags: u32,
+    /// `EGxBlend` of `blend_mode`, for the blend-mode fog colour.
+    pub gx_blend: u32,
     pub uv_offset_1: Vec2,
     pub uv_offset_2: Vec2,
 }
@@ -29,6 +32,9 @@ pub struct M2EffectMaterial {
     #[texture(3)]
     #[sampler(4)]
     pub second_texture: Handle<Image>,
+    /// Shared Retail scene light (`RETAIL_SCENE_LIGHT_BUFFER`).
+    #[storage(5, read_only)]
+    pub scene_light: Handle<ShaderBuffer>,
     pub blend_mode: u16,
     pub two_sided: bool,
     pub global_sequences: Vec<u32>,
@@ -369,11 +375,13 @@ mod tests {
                 uv_mode_1: 0,
                 uv_mode_2: 0,
                 render_flags: 0,
+                gx_blend: 0,
                 uv_offset_1: SENTINEL_UV_OFFSET_1,
                 uv_offset_2: SENTINEL_UV_OFFSET_2,
             },
             base_texture: Handle::default(),
             second_texture: Handle::default(),
+            scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
             blend_mode: 0,
             two_sided: false,
             global_sequences: Vec::new(),
