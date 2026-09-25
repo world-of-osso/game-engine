@@ -91,6 +91,16 @@ fn register_wait_callbacks(ctx: &Context) -> Result<(), String> {
         },
     )
     .map_err(|err| format!("failed to register waitForFrame callback: {err}"))?;
+    ctx.add_callback("__wait", |args: Arguments| -> Result<bool, String> {
+        let secs = match args.into_vec().into_iter().next() {
+            Some(JsValue::Int(value)) => value as f32,
+            Some(JsValue::Float(value)) => value as f32,
+            _ => return Err("ui.wait requires a number of seconds".to_string()),
+        };
+        push_action(UiAutomationAction::Wait(secs));
+        Ok(true)
+    })
+    .map_err(|err| format!("failed to register wait callback: {err}"))?;
     Ok(())
 }
 
@@ -163,6 +173,7 @@ globalThis.ui = {
   key: (key) => __key(key),
   waitForState: (state, timeoutSecs) => __waitForState(state, timeoutSecs),
   waitForFrame: (name, timeoutSecs) => __waitForFrame(name, timeoutSecs),
+  wait: (secs) => __wait(secs),
   dumpTree: () => __dumpTree(),
   dumpUiTree: () => __dumpUiTree(),
 };
@@ -229,6 +240,14 @@ mod tests {
     fn js_key_rejects_unknown_key_and_modifier() {
         assert!(run_js_to_actions(r#"ui.key("Hyper+M");"#).is_err());
         assert!(run_js_to_actions(r#"ui.key("NotAKey");"#).is_err());
+    }
+
+    #[test]
+    fn js_wait_emits_a_delay() {
+        assert_eq!(
+            run_js_to_actions("ui.wait(2.5); ui.wait(3);").unwrap(),
+            vec![UiAutomationAction::Wait(2.5), UiAutomationAction::Wait(3.0)]
+        );
     }
 
     #[test]

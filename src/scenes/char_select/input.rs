@@ -266,6 +266,7 @@ fn run_automation_action(
         }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)
+        | UiAutomationAction::Wait(_)
         | UiAutomationAction::DumpTree
         | UiAutomationAction::DumpUiTree => {}
     }
