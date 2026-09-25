@@ -90,12 +90,11 @@ struct LightDataSerializedRow {
     unk2: f32,
 }
 
-/// Decode a BGR32 integer (as stored in LightData exports) to linear Color.
-pub fn decode_bgr32(val: u32) -> Color {
-    let r = (val & 0xFF) as f32 / 255.0;
-    let g = ((val >> 8) & 0xFF) as f32 / 255.0;
-    let b = ((val >> 16) & 0xFF) as f32 / 255.0;
-    Color::linear_rgb(r, g, b)
+/// Decode a LightData colour: the integer value is 0x00RRGGBB, and the bytes are
+/// sRGB-encoded authored colours.
+pub fn decode_light_color(val: u32) -> Color {
+    let [_, r, g, b] = val.to_be_bytes();
+    Color::srgb_u8(r, g, b)
 }
 
 /// Interpolated sky color set for the current time of day.
@@ -130,24 +129,24 @@ pub struct SkyColorSet {
 fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
     LightDataRow {
         time: row.time,
-        direct_color: decode_bgr32(row.direct_color),
-        ambient_color: decode_bgr32(row.ambient_color),
-        sky_top: decode_bgr32(row.sky_top),
-        sky_middle: decode_bgr32(row.sky_middle),
-        sky_band1: decode_bgr32(row.sky_band1),
-        sky_band2: decode_bgr32(row.sky_band2),
-        sky_smog: decode_bgr32(row.sky_smog),
-        fog_color: decode_bgr32(row.fog_color),
-        sun_color: decode_bgr32(row.sun_color),
-        sun_halo_color: decode_bgr32(row.sun_halo_color),
-        cloud_emissive_color: decode_bgr32(row.cloud_emissive_color),
-        cloud_layer1_ambient_color: decode_bgr32(row.cloud_layer1_ambient_color),
-        cloud_layer2_ambient_color: decode_bgr32(row.cloud_layer2_ambient_color),
-        ocean_close_color: decode_bgr32(row.ocean_close_color),
-        ocean_far_color: decode_bgr32(row.ocean_far_color),
-        river_close_color: decode_bgr32(row.river_close_color),
-        river_far_color: decode_bgr32(row.river_far_color),
-        horizon_ambient_color: decode_bgr32(row.horizon_ambient_color),
+        direct_color: decode_light_color(row.direct_color),
+        ambient_color: decode_light_color(row.ambient_color),
+        sky_top: decode_light_color(row.sky_top),
+        sky_middle: decode_light_color(row.sky_middle),
+        sky_band1: decode_light_color(row.sky_band1),
+        sky_band2: decode_light_color(row.sky_band2),
+        sky_smog: decode_light_color(row.sky_smog),
+        fog_color: decode_light_color(row.fog_color),
+        sun_color: decode_light_color(row.sun_color),
+        sun_halo_color: decode_light_color(row.sun_halo_color),
+        cloud_emissive_color: decode_light_color(row.cloud_emissive_color),
+        cloud_layer1_ambient_color: decode_light_color(row.cloud_layer1_ambient_color),
+        cloud_layer2_ambient_color: decode_light_color(row.cloud_layer2_ambient_color),
+        ocean_close_color: decode_light_color(row.ocean_close_color),
+        ocean_far_color: decode_light_color(row.ocean_far_color),
+        river_close_color: decode_light_color(row.river_close_color),
+        river_far_color: decode_light_color(row.river_far_color),
+        horizon_ambient_color: decode_light_color(row.horizon_ambient_color),
         fog_end: row.fog_end,
         fog_start: row.fog_start,
         glow: row.glow,
@@ -246,24 +245,24 @@ fn parse_csv_fallback_light_row(
 fn parse_csv_fallback_color_row(p: &impl Fn(usize) -> u32) -> LightDataRow {
     LightDataRow {
         time: p(1) as f32,
-        direct_color: decode_bgr32(p(2)),
-        ambient_color: decode_bgr32(p(3)),
-        sky_top: decode_bgr32(p(4)),
-        sky_middle: decode_bgr32(p(5)),
-        sky_band1: decode_bgr32(p(6)),
-        sky_band2: decode_bgr32(p(7)),
-        sky_smog: decode_bgr32(p(8)),
-        fog_color: decode_bgr32(p(9)),
-        sun_color: decode_bgr32(p(10)),
-        sun_halo_color: decode_bgr32(p(11)),
-        cloud_emissive_color: decode_bgr32(p(12)),
-        cloud_layer1_ambient_color: decode_bgr32(p(13)),
-        cloud_layer2_ambient_color: decode_bgr32(p(14)),
-        ocean_close_color: decode_bgr32(p(15)),
-        ocean_far_color: decode_bgr32(p(16)),
-        river_close_color: decode_bgr32(p(17)),
-        river_far_color: decode_bgr32(p(18)),
-        horizon_ambient_color: decode_bgr32(p(19)),
+        direct_color: decode_light_color(p(2)),
+        ambient_color: decode_light_color(p(3)),
+        sky_top: decode_light_color(p(4)),
+        sky_middle: decode_light_color(p(5)),
+        sky_band1: decode_light_color(p(6)),
+        sky_band2: decode_light_color(p(7)),
+        sky_smog: decode_light_color(p(8)),
+        fog_color: decode_light_color(p(9)),
+        sun_color: decode_light_color(p(10)),
+        sun_halo_color: decode_light_color(p(11)),
+        cloud_emissive_color: decode_light_color(p(12)),
+        cloud_layer1_ambient_color: decode_light_color(p(13)),
+        cloud_layer2_ambient_color: decode_light_color(p(14)),
+        ocean_close_color: decode_light_color(p(15)),
+        ocean_far_color: decode_light_color(p(16)),
+        river_close_color: decode_light_color(p(17)),
+        river_far_color: decode_light_color(p(18)),
+        horizon_ambient_color: decode_light_color(p(19)),
         fog_end: 0.0,
         fog_start: 0.0,
         glow: 0.0,
@@ -507,35 +506,32 @@ pub fn interpolate_colors(rows: &[LightDataRow], minutes: f32) -> SkyColorSet {
 mod tests {
     use super::*;
 
-    const BGR32_RED: u32 = 0x000000FF;
-    const BGR32_BLUE: u32 = BGR32_RED << 16;
-    const BGR32_WHITE: u32 = 0x00FFFFFF;
-
-    #[test]
-    fn decode_bgr32_red() {
-        let c = decode_bgr32(BGR32_RED);
-        let lin = c.to_linear();
-        assert!((lin.red - 1.0).abs() < 0.01);
-        assert!(lin.green < 0.01);
-        assert!(lin.blue < 0.01);
+    fn srgb_bytes(color: Color) -> [u8; 3] {
+        let srgba = color.to_srgba();
+        [srgba.red, srgba.green, srgba.blue].map(|channel| (channel * 255.0).round() as u8)
     }
 
     #[test]
-    fn decode_bgr32_blue() {
-        let c = decode_bgr32(BGR32_BLUE);
-        let lin = c.to_linear();
-        assert!(lin.red < 0.01);
-        assert!(lin.green < 0.01);
-        assert!((lin.blue - 1.0).abs() < 0.01);
+    fn light_color_decodes_packed_rgb_as_srgb_bytes() {
+        // LightParams 12 noon SkyTopColor: 8009 = 0x001F49.
+        let color = decode_light_color(8009);
+        assert_eq!(srgb_bytes(color), [0, 31, 73]);
+        assert_eq!(color.to_srgba(), Color::srgb_u8(0, 31, 73).to_srgba());
     }
 
     #[test]
-    fn decode_bgr32_white() {
-        let c = decode_bgr32(BGR32_WHITE);
-        let lin = c.to_linear();
-        assert!((lin.red - 1.0).abs() < 0.01);
-        assert!((lin.green - 1.0).abs() < 0.01);
-        assert!((lin.blue - 1.0).abs() < 0.01);
+    fn light_params_12_noon_row_decodes_authored_colors() {
+        let rows = load_light_data("data/LightData.ron", 12);
+        let noon = rows
+            .iter()
+            .find(|row| row.time == 1440.0)
+            .expect("LightParams 12 has a 1440 (noon) keyframe");
+        assert_eq!(srgb_bytes(noon.sky_top), [0, 31, 73]);
+        assert_eq!(srgb_bytes(noon.sky_middle), [82, 127, 167]);
+        assert_eq!(srgb_bytes(noon.sky_band1), [153, 220, 245]);
+        assert_eq!(srgb_bytes(noon.sun_color), [255, 247, 222]);
+        assert_eq!(srgb_bytes(noon.ambient_color), [127, 149, 170]);
+        assert_eq!(srgb_bytes(noon.fog_color), [77, 120, 143]);
     }
 
     #[test]

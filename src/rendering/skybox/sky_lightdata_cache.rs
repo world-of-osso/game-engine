@@ -6,7 +6,7 @@ use crate::cache_source_mtime::csv_mtime;
 use game_engine::paths;
 use rusqlite::{Connection, OpenFlags, params_from_iter};
 
-use crate::sky_lightdata::{LightDataRow, decode_bgr32};
+use crate::sky_lightdata::{LightDataRow, decode_light_color};
 
 const LIGHT_DATA_CACHE_PATH: &str = "cache/light_data_fallback_v3.sqlite";
 
@@ -134,24 +134,24 @@ fn decode_light_data_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<LightDataR
     let scalars = decode_scalar_columns(row)?;
     Ok(LightDataRow {
         time: scalars.time,
-        direct_color: decode_bgr32(colors[DIRECT_COLOR_SLOT]),
-        ambient_color: decode_bgr32(colors[AMBIENT_COLOR_SLOT]),
-        sky_top: decode_bgr32(colors[SKY_TOP_SLOT]),
-        sky_middle: decode_bgr32(colors[SKY_MIDDLE_SLOT]),
-        sky_band1: decode_bgr32(colors[SKY_BAND1_SLOT]),
-        sky_band2: decode_bgr32(colors[SKY_BAND2_SLOT]),
-        sky_smog: decode_bgr32(colors[SKY_SMOG_SLOT]),
-        fog_color: decode_bgr32(colors[FOG_COLOR_SLOT]),
-        sun_color: decode_bgr32(colors[SUN_COLOR_SLOT]),
-        sun_halo_color: decode_bgr32(colors[SUN_HALO_COLOR_SLOT]),
-        cloud_emissive_color: decode_bgr32(colors[CLOUD_EMISSIVE_COLOR_SLOT]),
-        cloud_layer1_ambient_color: decode_bgr32(colors[CLOUD_LAYER1_AMBIENT_COLOR_SLOT]),
-        cloud_layer2_ambient_color: decode_bgr32(colors[CLOUD_LAYER2_AMBIENT_COLOR_SLOT]),
-        ocean_close_color: decode_bgr32(colors[OCEAN_CLOSE_COLOR_SLOT]),
-        ocean_far_color: decode_bgr32(colors[OCEAN_FAR_COLOR_SLOT]),
-        river_close_color: decode_bgr32(colors[RIVER_CLOSE_COLOR_SLOT]),
-        river_far_color: decode_bgr32(colors[RIVER_FAR_COLOR_SLOT]),
-        horizon_ambient_color: decode_bgr32(colors[HORIZON_AMBIENT_COLOR_SLOT]),
+        direct_color: decode_light_color(colors[DIRECT_COLOR_SLOT]),
+        ambient_color: decode_light_color(colors[AMBIENT_COLOR_SLOT]),
+        sky_top: decode_light_color(colors[SKY_TOP_SLOT]),
+        sky_middle: decode_light_color(colors[SKY_MIDDLE_SLOT]),
+        sky_band1: decode_light_color(colors[SKY_BAND1_SLOT]),
+        sky_band2: decode_light_color(colors[SKY_BAND2_SLOT]),
+        sky_smog: decode_light_color(colors[SKY_SMOG_SLOT]),
+        fog_color: decode_light_color(colors[FOG_COLOR_SLOT]),
+        sun_color: decode_light_color(colors[SUN_COLOR_SLOT]),
+        sun_halo_color: decode_light_color(colors[SUN_HALO_COLOR_SLOT]),
+        cloud_emissive_color: decode_light_color(colors[CLOUD_EMISSIVE_COLOR_SLOT]),
+        cloud_layer1_ambient_color: decode_light_color(colors[CLOUD_LAYER1_AMBIENT_COLOR_SLOT]),
+        cloud_layer2_ambient_color: decode_light_color(colors[CLOUD_LAYER2_AMBIENT_COLOR_SLOT]),
+        ocean_close_color: decode_light_color(colors[OCEAN_CLOSE_COLOR_SLOT]),
+        ocean_far_color: decode_light_color(colors[OCEAN_FAR_COLOR_SLOT]),
+        river_close_color: decode_light_color(colors[RIVER_CLOSE_COLOR_SLOT]),
+        river_far_color: decode_light_color(colors[RIVER_FAR_COLOR_SLOT]),
+        horizon_ambient_color: decode_light_color(colors[HORIZON_AMBIENT_COLOR_SLOT]),
         fog_end: scalars.fog_end,
         fog_start: scalars.fog_start,
         glow: scalars.glow,
@@ -445,9 +445,10 @@ mod tests {
     use super::*;
     use rusqlite::Connection;
 
-    const BGR32_RED: u32 = 0x000000FF;
-    const BGR32_GREEN: u32 = 0x0000FF00;
-    const BGR32_BLUE: u32 = 0x00FF0000;
+    // LightData colours are 0x00RRGGBB values.
+    const RGB_RED: u32 = 0x00FF0000;
+    const RGB_GREEN: u32 = 0x0000FF00;
+    const RGB_BLUE: u32 = 0x000000FF;
 
     #[test]
     fn load_light_data_csv_fallback_round_trips_cache() {
@@ -464,8 +465,10 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].time, 100.0);
         assert_eq!(rows[1].time, 200.0);
+        // DirectColor 255 = 0x0000FF: pure blue.
         let direct = rows[0].direct_color.to_linear();
-        assert!((direct.red - 1.0).abs() < 0.01);
+        assert!((direct.blue - 1.0).abs() < 0.01);
+        assert!(direct.red < 0.01);
         let sun = rows[0].sun_color.to_linear();
         assert!(sun.red > 0.0 || sun.green > 0.0 || sun.blue > 0.0);
         assert_eq!(rows[0].fog_end, 1000.0);
@@ -487,7 +490,7 @@ mod tests {
             )
             .unwrap();
         let decoded = stmt
-            .query_row((BGR32_RED, BGR32_GREEN, BGR32_BLUE), decode_light_data_row)
+            .query_row((RGB_RED, RGB_GREEN, RGB_BLUE), decode_light_data_row)
             .unwrap();
 
         assert_eq!(decoded.time, 321.0);
