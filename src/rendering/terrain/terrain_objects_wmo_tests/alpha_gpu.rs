@@ -8,6 +8,7 @@ use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 const CLEAR: [u8; 4] = [255, 0, 255, 255];
 const BLEND_OPAQUE: u32 = 0;
 const BLEND_ALPHA_KEY: u32 = 1;
+const GROUP_EXTERIOR: u32 = 0x8;
 
 /// MOMT blend 0 (GxBlend_Opaque) has no alpha test: a texel with low alpha
 /// still covers what is behind it.
@@ -69,27 +70,31 @@ fn render_surface_center(blend_mode: u32, alpha: u8) -> [u8; 4] {
             TextureFormat::Rgba8UnormSrgb,
             default(),
         ));
-    let mut wmo = wmo_standard_material(Some(texel), blend_mode, false, 0, None);
-    wmo.unlit = true;
+    let base = wmo_standard_material(Some(texel), blend_mode, false, 0, None);
+    let wmo = wmo_lit_material(base, GROUP_EXTERIOR, true, [0.0; 3], None);
     let background = StandardMaterial {
         base_color: Color::srgb(0.0, 1.0, 0.0),
         unlit: true,
         ..default()
     };
+    let wmo = app
+        .world_mut()
+        .resource_mut::<Assets<WmoLitMaterial>>()
+        .add(wmo);
+    let background = app
+        .world_mut()
+        .resource_mut::<Assets<StandardMaterial>>()
+        .add(background);
     spawn_quad(&mut app, wmo, 0.0);
     spawn_quad(&mut app, background, -1.0);
     capture_center_until_drawn(&mut app, target)
 }
 
-fn spawn_quad(app: &mut App, material: StandardMaterial, z: f32) {
+fn spawn_quad<M: Material>(app: &mut App, material: Handle<M>, z: f32) {
     let mesh = app
         .world_mut()
         .resource_mut::<Assets<Mesh>>()
         .add(Rectangle::new(10.0, 10.0));
-    let material = app
-        .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
-        .add(material);
     app.world_mut().spawn((
         Mesh3d(mesh),
         MeshMaterial3d(material),

@@ -192,13 +192,25 @@ fn sidn_glow_strength_is_night_only() {
     assert_eq!(super::terrain_objects_wmo::sidn_glow_strength(2160.0), 0.0);
 }
 
+fn glow_test_material() -> super::terrain_objects_wmo::WmoLitMaterial {
+    super::terrain_objects_wmo::wmo_lit_material(
+        StandardMaterial::default(),
+        0,
+        false,
+        [0.0; 3],
+        None,
+    )
+}
+
 #[test]
 fn wmo_sidn_emissive_updates_from_game_time() {
     let mut app = App::new();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>();
     let handle = {
-        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
-        materials.add(StandardMaterial::default())
+        let mut materials = app
+            .world_mut()
+            .resource_mut::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>();
+        materials.add(glow_test_material())
     };
     app.insert_resource(crate::sky::GameTime {
         minutes: 0.0,
@@ -213,12 +225,13 @@ fn wmo_sidn_emissive_updates_from_game_time() {
 
     let _ = app
         .world_mut()
-        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive::<StandardMaterial>);
+        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive);
     let emissive = app
         .world()
-        .resource::<Assets<StandardMaterial>>()
+        .resource::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>()
         .get(&handle)
         .expect("material")
+        .base
         .emissive;
     assert!(emissive.red > 0.0);
     assert!(emissive.green > 0.0);
@@ -229,12 +242,13 @@ fn wmo_sidn_emissive_updates_from_game_time() {
         .minutes = 1440.0;
     let _ = app
         .world_mut()
-        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive::<StandardMaterial>);
+        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive);
     let emissive = app
         .world()
-        .resource::<Assets<StandardMaterial>>()
+        .resource::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>()
         .get(&handle)
         .expect("material")
+        .base
         .emissive;
     assert_eq!(emissive, LinearRgba::BLACK);
 }
@@ -242,19 +256,18 @@ fn wmo_sidn_emissive_updates_from_game_time() {
 #[test]
 fn wmo_sidn_emissive_initializes_new_glow_materials_without_time_change() {
     let mut app = App::new();
-    app.init_resource::<Assets<StandardMaterial>>();
-    app.add_systems(
-        Update,
-        super::terrain_objects_wmo::sync_wmo_sidn_emissive::<StandardMaterial>,
-    );
+    app.init_resource::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>();
+    app.add_systems(Update, super::terrain_objects_wmo::sync_wmo_sidn_emissive);
     app.insert_resource(crate::sky::GameTime {
         minutes: 0.0,
         speed: 0.0,
     });
 
     let first_handle = {
-        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
-        materials.add(StandardMaterial::default())
+        let mut materials = app
+            .world_mut()
+            .resource_mut::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>();
+        materials.add(glow_test_material())
     };
     app.world_mut().spawn((
         MeshMaterial3d(first_handle.clone()),
@@ -265,8 +278,10 @@ fn wmo_sidn_emissive_initializes_new_glow_materials_without_time_change() {
     app.update();
 
     let second_handle = {
-        let mut materials = app.world_mut().resource_mut::<Assets<StandardMaterial>>();
-        materials.add(StandardMaterial::default())
+        let mut materials = app
+            .world_mut()
+            .resource_mut::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>();
+        materials.add(glow_test_material())
     };
     app.world_mut().spawn((
         MeshMaterial3d(second_handle.clone()),
@@ -278,9 +293,10 @@ fn wmo_sidn_emissive_initializes_new_glow_materials_without_time_change() {
 
     let second_emissive = app
         .world()
-        .resource::<Assets<StandardMaterial>>()
+        .resource::<Assets<super::terrain_objects_wmo::WmoLitMaterial>>()
         .get(&second_handle)
         .expect("second material")
+        .base
         .emissive;
     assert!(second_emissive.red > 0.0);
     assert!(second_emissive.green > 0.0);

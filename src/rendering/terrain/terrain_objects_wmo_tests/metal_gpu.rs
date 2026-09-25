@@ -9,6 +9,7 @@ const CLEAR: [u8; 4] = [255, 0, 255, 255];
 const MAP_OBJ_DIFFUSE: u32 = 0;
 const MAP_OBJ_METAL: u32 = 2;
 const MAP_OBJ_ENV_METAL: u32 = 5;
+const GROUP_EXTERIOR: u32 = 0x8;
 
 /// Retail MapObjMetal/EnvMetal keep the diffuse term (`matDiffuse = tex.rgb`) and add
 /// specular or environment light on top (WebWowViewerCpp `caclWMOFragMat`); nothing
@@ -69,10 +70,17 @@ fn render_lit_texel(shader: u32) -> [u8; 4] {
             TextureFormat::Rgba8UnormSrgb,
             default(),
         ));
+    let base = wmo_standard_material(Some(texel), 0, false, shader, None);
     let material = app
         .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
-        .add(wmo_standard_material(Some(texel), 0, false, shader, None));
+        .resource_mut::<Assets<WmoLitMaterial>>()
+        .add(wmo_lit_material(
+            base,
+            GROUP_EXTERIOR,
+            false,
+            [0.0; 3],
+            None,
+        ));
     let mesh = app
         .world_mut()
         .resource_mut::<Assets<Mesh>>()
