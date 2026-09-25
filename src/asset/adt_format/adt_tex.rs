@@ -4,6 +4,7 @@ use std::io::Cursor;
 use std::mem::size_of;
 
 use crate::asset::read_bytes::read_u32;
+pub use crate::asset::wdt::MphdFlags;
 use binrw::BinRead;
 
 use super::adt::ChunkIter;
@@ -68,6 +69,7 @@ pub struct TextureParams {
 }
 
 pub struct AdtTexData {
+    pub map_flags: MphdFlags,
     pub texture_amplifier: Option<u32>,
     pub texture_fdids: Vec<u32>,
     pub height_texture_fdids: Vec<u32>,
@@ -77,6 +79,7 @@ pub struct AdtTexData {
 }
 
 struct AdtTexAccumulator {
+    map_flags: MphdFlags,
     texture_amplifier: Option<u32>,
     texture_fdids: Vec<u32>,
     height_texture_fdids: Vec<u32>,
@@ -87,8 +90,9 @@ struct AdtTexAccumulator {
 }
 
 impl AdtTexAccumulator {
-    fn new() -> Self {
+    fn new(map_flags: MphdFlags) -> Self {
         Self {
+            map_flags,
             texture_amplifier: None,
             texture_fdids: Vec::new(),
             height_texture_fdids: Vec::new(),
@@ -105,6 +109,7 @@ impl AdtTexAccumulator {
         }
 
         Ok(AdtTexData {
+            map_flags: self.map_flags,
             texture_amplifier: self.texture_amplifier,
             texture_fdids: self.texture_fdids,
             height_texture_fdids: self.height_texture_fdids,
@@ -222,39 +227,62 @@ const MCLY_FLAG_USE_ALPHA_MAP: u32 = 0x100;
 const MCLY_FLAG_ALPHA_COMPRESSED: u32 = 0x200;
 const MCLY_FLAG_USE_CUBE_MAP_REFLECTION: u32 = 0x400;
 
+/// How MCAL layers of one chunk are stored: WDT MPHD big alpha and MCNK `do_not_fix_alpha_map`.
+#[derive(Debug, Clone, Copy)]
+struct AlphaMapFormat {
+    big_alpha: bool,
+    do_not_fix_alpha_map: bool,
+}
+
+const ALPHA_MAP_TEXELS: usize = 4096;
+const SMALL_ALPHA_MAP_BYTES: usize = ALPHA_MAP_TEXELS / 2;
+
 fn read_layer_alpha_map(
     flags: u32,
-    offset_in_mcal: usize,
-    mcal: &[u8],
+    raw: &[u8],
     layer_idx: usize,
-    do_not_fix_alpha_map: bool,
+    format: AlphaMapFormat,
 ) -> Result<Option<Vec<u8>>, String> {
     if (flags & MCLY_FLAG_USE_ALPHA_MAP) == 0 {
         return Ok(None);
     }
-    let raw = &mcal[offset_in_mcal..];
-    let data = if (flags & MCLY_FLAG_ALPHA_COMPRESSED) != 0 {
+    let mut data = if (flags & MCLY_FLAG_ALPHA_COMPRESSED) != 0 {
         decompress_mcal_rle(raw)?
-    } else if raw.len() >= 4096 {
-        raw[..4096].to_vec()
-    } else if raw.len() >= 2048 {
-        let mut out = vec![0u8; 4096];
-        for i in 0..2048 {
-            let v = raw[i];
-            out[i * 2] = (v & 0x0F) * 17;
-            out[i * 2 + 1] = (v >> 4) * 17;
-        }
-        if !do_not_fix_alpha_map {
-            fix_alpha_map_edges(&mut out);
-        }
-        out
+    } else if format.big_alpha {
+        decode_big_alpha_map(raw, layer_idx)?
     } else {
-        return Err(format!(
-            "MCAL uncompressed layer {layer_idx}: need ≥2048 bytes but only {} remain at offset {offset_in_mcal:#x}",
-            raw.len()
-        ));
+        decode_small_alpha_map(raw, layer_idx)?
     };
+    if !format.do_not_fix_alpha_map {
+        fix_alpha_map_edges(&mut data);
+    }
     Ok(Some(data))
+}
+
+fn decode_big_alpha_map(raw: &[u8], layer_idx: usize) -> Result<Vec<u8>, String> {
+    raw.get(..ALPHA_MAP_TEXELS)
+        .map(<[u8]>::to_vec)
+        .ok_or_else(|| {
+            format!(
+                "MCAL big-alpha layer {layer_idx}: need {ALPHA_MAP_TEXELS} bytes but only {} in its range",
+                raw.len()
+            )
+        })
+}
+
+fn decode_small_alpha_map(raw: &[u8], layer_idx: usize) -> Result<Vec<u8>, String> {
+    let packed = raw.get(..SMALL_ALPHA_MAP_BYTES).ok_or_else(|| {
+        format!(
+            "MCAL 4-bit layer {layer_idx}: need {SMALL_ALPHA_MAP_BYTES} bytes but only {} in its range",
+            raw.len()
+        )
+    })?;
+    let mut out = Vec::with_capacity(ALPHA_MAP_TEXELS);
+    for &v in packed {
+        out.push((v & 0x0F) * 17);
+        out.push((v >> 4) * 17);
+    }
+    Ok(out)
 }
 
 fn fix_alpha_map_edges(alpha_map: &mut [u8]) {
@@ -269,24 +297,55 @@ fn fix_alpha_map_edges(alpha_map: &mut [u8]) {
     }
 }
 
+/// A layer's MCAL bytes end where the next alpha-mapped layer's begin.
+fn layer_alpha_range<'a>(
+    entries: &[MclyEntry],
+    layer_idx: usize,
+    mcal: &'a [u8],
+) -> Result<&'a [u8], String> {
+    let start = entries[layer_idx].offset_in_mcal as usize;
+    let end = entries[layer_idx + 1..]
+        .iter()
+        .find(|next| (next.flags & MCLY_FLAG_USE_ALPHA_MAP) != 0)
+        .map_or(mcal.len(), |next| next.offset_in_mcal as usize);
+    mcal.get(start..end).ok_or_else(|| {
+        format!(
+            "MCAL layer {layer_idx} range {start:#x}..{end:#x} exceeds {} bytes",
+            mcal.len()
+        )
+    })
+}
+
+fn parse_mcly_entries(mcly: &[u8]) -> Result<Vec<MclyEntry>, String> {
+    (0..mcly.len() / size_of::<MclyEntry>())
+        .map(|i| parse_binrw_value(mcly, i * size_of::<MclyEntry>(), "MCLY entry"))
+        .collect()
+}
+
 fn build_texture_layers(
     mcly: &[u8],
     mcal: &[u8],
     mcmt: Option<[u8; 4]>,
+    big_alpha: bool,
     do_not_fix_alpha_map: bool,
 ) -> Result<Vec<TextureLayer>, String> {
-    let layer_count = mcly.len() / size_of::<MclyEntry>();
-    let mut layers = Vec::with_capacity(layer_count);
-    for i in 0..layer_count {
-        let base = i * size_of::<MclyEntry>();
-        let entry: MclyEntry = parse_binrw_value(mcly, base, "MCLY entry")?;
-        let alpha_map = read_layer_alpha_map(
-            entry.flags,
-            entry.offset_in_mcal as usize,
-            mcal,
-            i,
-            do_not_fix_alpha_map,
-        )?;
+    let format = AlphaMapFormat {
+        big_alpha,
+        do_not_fix_alpha_map,
+    };
+    let entries = parse_mcly_entries(mcly)?;
+    let mut layers = Vec::with_capacity(entries.len());
+    for (i, entry) in entries.iter().enumerate() {
+        let alpha_map = if (entry.flags & MCLY_FLAG_USE_ALPHA_MAP) != 0 {
+            read_layer_alpha_map(
+                entry.flags,
+                layer_alpha_range(&entries, i, mcal)?,
+                i,
+                format,
+            )?
+        } else {
+            None
+        };
         layers.push(TextureLayer {
             texture_index: entry.texture_index,
             flags: MclyFlags { raw: entry.flags },
@@ -298,7 +357,7 @@ fn build_texture_layers(
     Ok(layers)
 }
 
-fn parse_tex0_mcnk(payload: &[u8], do_not_fix_alpha_map: bool) -> Result<ChunkTexLayers, String> {
+fn parse_tex0_mcnk(payload: &[u8], format: AlphaMapFormat) -> Result<ChunkTexLayers, String> {
     let mut mcly_payload: Option<&[u8]> = None;
     let mut mcal_payload: Option<&[u8]> = None;
     let mut mcmt_payload: Option<[u8; 4]> = None;
@@ -314,7 +373,13 @@ fn parse_tex0_mcnk(payload: &[u8], do_not_fix_alpha_map: bool) -> Result<ChunkTe
     let mcly = mcly_payload.unwrap_or(&[]);
     let mcal = mcal_payload.unwrap_or(&[]);
     Ok(ChunkTexLayers {
-        layers: build_texture_layers(mcly, mcal, mcmt_payload, do_not_fix_alpha_map)?,
+        layers: build_texture_layers(
+            mcly,
+            mcal,
+            mcmt_payload,
+            format.big_alpha,
+            format.do_not_fix_alpha_map,
+        )?,
     })
 }
 
@@ -365,15 +430,13 @@ fn parse_texture_params(payload: &[u8]) -> Result<Vec<TextureParams>, String> {
     Ok(params)
 }
 
-pub fn load_adt_tex0(data: &[u8]) -> Result<AdtTexData, String> {
-    load_adt_tex0_with_chunk_alpha_flags(data, &[])
-}
-
-pub fn load_adt_tex0_with_chunk_alpha_flags(
+/// Parse `_tex0` with the map's WDT MPHD flags and each root MCNK's `do_not_fix_alpha_map`.
+pub fn load_adt_tex0(
     data: &[u8],
+    map_flags: MphdFlags,
     do_not_fix_alpha_map: &[bool],
 ) -> Result<AdtTexData, String> {
-    let mut accum = AdtTexAccumulator::new();
+    let mut accum = AdtTexAccumulator::new(map_flags);
     for chunk in ChunkIter::new(data) {
         let (tag, payload) = chunk?;
         parse_tex0_chunk(&mut accum, tag, payload, do_not_fix_alpha_map)?;
@@ -408,9 +471,11 @@ fn parse_tex0_mcnk_chunk(
         .get(accum.chunk_index)
         .copied()
         .unwrap_or(false);
-    accum
-        .chunk_layers
-        .push(parse_tex0_mcnk(payload, chunk_do_not_fix_alpha)?);
+    let format = AlphaMapFormat {
+        big_alpha: accum.map_flags.big_alpha(),
+        do_not_fix_alpha_map: chunk_do_not_fix_alpha,
+    };
+    accum.chunk_layers.push(parse_tex0_mcnk(payload, format)?);
     accum.chunk_index += 1;
     Ok(())
 }

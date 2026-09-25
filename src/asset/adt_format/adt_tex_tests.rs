@@ -1,5 +1,9 @@
 use super::*;
 
+const SMALL_ALPHA_MAP: MphdFlags = MphdFlags { raw: 0 };
+const BIG_ALPHA_MAP: MphdFlags = MphdFlags { raw: 0x4 };
+const HEIGHT_TEXTURED_MAP: MphdFlags = MphdFlags { raw: 0x3ca };
+
 const TEST_ROTATION_BITS: u32 = 3;
 const TEST_SPEED_BITS: u32 = 5 << 3;
 const TEST_SECOND_SPEED_BITS: u32 = 2 << 3;
@@ -42,7 +46,7 @@ fn build_texture_layers_exposes_mcly_flags_and_effect_id() {
         99,
     );
 
-    let layers = build_texture_layers(&mcly, &[], Some([12, 0, 0, 0]), false)
+    let layers = build_texture_layers(&mcly, &[], Some([12, 0, 0, 0]), false, false)
         .expect("expected MCLY layer to parse");
     let layer = &layers[0];
 
@@ -72,7 +76,8 @@ fn load_adt_tex0_preserves_parsed_mcly_flags_per_chunk() {
         ),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("expected _tex0 payload to parse");
     let layer = &parsed.chunk_layers[0].layers[0];
 
     assert_eq!(parsed.texture_amplifier, Some(0));
@@ -100,7 +105,8 @@ fn load_adt_tex0_reads_mcmt_material_ids_per_layer() {
         tex0_mcnk_payload(mcly, Some([7, 9, 0, 0]), vec![0x7F; 4096]),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("expected _tex0 payload to parse");
     let layers = &parsed.chunk_layers[0].layers;
 
     assert_eq!(layers[0].material_id, 7);
@@ -119,7 +125,8 @@ fn load_adt_tex0_reads_height_texture_fdids_from_mhid() {
         tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("expected _tex0 payload to parse");
 
     assert_eq!(parsed.texture_fdids, vec![3, 4]);
     assert_eq!(parsed.height_texture_fdids, vec![30, 40]);
@@ -157,7 +164,8 @@ fn load_adt_tex0_reads_texture_flags_and_params() {
         tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("expected _tex0 payload to parse");
 
     assert_eq!(
         parsed.texture_flags,
@@ -204,7 +212,8 @@ fn load_adt_tex0_fixes_uncompressed_alpha_map_edges_by_default() {
         ),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("expected _tex0 payload to parse");
     let alpha = parsed.chunk_layers[0].layers[0]
         .alpha_map
         .as_ref()
@@ -241,8 +250,8 @@ fn load_adt_tex0_preserves_uncompressed_alpha_map_edges_when_flagged() {
         ),
     );
 
-    let parsed = load_adt_tex0_with_chunk_alpha_flags(&payload, &[true])
-        .expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[true]).expect("expected _tex0 payload to parse");
     let alpha = parsed.chunk_layers[0].layers[0]
         .alpha_map
         .as_ref()
@@ -266,7 +275,8 @@ fn load_adt_tex0_reads_mamp_texture_amplifier() {
         tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("expected _tex0 payload to parse");
+    let parsed =
+        load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("expected _tex0 payload to parse");
 
     assert_eq!(parsed.texture_amplifier, Some(2));
 }
@@ -509,6 +519,134 @@ fn alpha_at(alpha: &[u8], x: usize, y: usize) -> u8 {
     alpha[x * 64 + y]
 }
 
+// --- MCAL format selection, layer bounds and edge fix ---
+
+fn big_mcal_payload(alpha: impl Fn(usize, usize) -> u8) -> Vec<u8> {
+    let mut payload = Vec::with_capacity(4096);
+    for x in 0..64usize {
+        for y in 0..64usize {
+            payload.push(alpha(x, y));
+        }
+    }
+    payload
+}
+
+/// RLE copy runs of at most 127 literal bytes covering the whole map.
+fn compressed_mcal_payload(alpha: impl Fn(usize, usize) -> u8) -> Vec<u8> {
+    let raw = big_mcal_payload(alpha);
+    let mut payload = Vec::new();
+    for run in raw.chunks(127) {
+        payload.push(run.len() as u8);
+        payload.extend_from_slice(run);
+    }
+    payload
+}
+
+fn edge_marked(x: usize, y: usize) -> u8 {
+    if x == 63 || y == 63 {
+        200
+    } else if x == 62 || y == 62 {
+        90
+    } else {
+        10
+    }
+}
+
+fn two_blend_layer_tex0(flags: u32, layer_1: Vec<u8>, layer_2: Vec<u8>) -> Vec<u8> {
+    let mut payload = Vec::new();
+    append_subchunk(&mut payload, b"DIDM", u32_array_payload(&[1, 2, 3]));
+    let mcly = [
+        mcly_entry_payload(0, 0, 0, 0),
+        mcly_entry_payload(1, MCLY_FLAG_USE_ALPHA_MAP | flags, 0, 0),
+        mcly_entry_payload(2, MCLY_FLAG_USE_ALPHA_MAP | flags, layer_1.len() as u32, 0),
+    ]
+    .concat();
+    let mcal = [layer_1, layer_2].concat();
+    append_subchunk(&mut payload, b"KNCM", tex0_mcnk_payload(mcly, None, mcal));
+    payload
+}
+
+fn blend_layer_alpha(parsed: &AdtTexData, layer: usize) -> &[u8] {
+    parsed.chunk_layers[0].layers[layer]
+        .alpha_map
+        .as_deref()
+        .expect("expected alpha map")
+}
+
+#[test]
+fn small_alpha_map_decodes_first_of_two_uncompressed_layers_as_4_bit() {
+    // 4096 bytes remain after layer 1's offset, but the WDT has no big-alpha flag.
+    let payload = two_blend_layer_tex0(
+        0,
+        uncompressed_mcal_payload(|_, y| if y % 2 == 0 { 8 } else { 3 }),
+        uncompressed_mcal_payload(|_, _| 3),
+    );
+
+    let parsed = load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[true]).expect("should parse");
+
+    // Read as 8-bit, the packed byte 0x38 would give 56 for both texels.
+    assert_eq!(alpha_at(blend_layer_alpha(&parsed, 1), 20, 20), 136);
+    assert_eq!(alpha_at(blend_layer_alpha(&parsed, 1), 20, 21), 51);
+    assert_eq!(alpha_at(blend_layer_alpha(&parsed, 2), 20, 20), 51);
+}
+
+#[test]
+fn height_textured_map_decodes_uncompressed_layers_as_8_bit() {
+    let payload = two_blend_layer_tex0(
+        0,
+        big_mcal_payload(|x, _| (x * 4) as u8),
+        big_mcal_payload(|_, y| (y * 2) as u8),
+    );
+
+    let parsed = load_adt_tex0(&payload, HEIGHT_TEXTURED_MAP, &[true]).expect("should parse");
+
+    assert_eq!(alpha_at(blend_layer_alpha(&parsed, 1), 33, 5), 132);
+    assert_eq!(alpha_at(blend_layer_alpha(&parsed, 2), 5, 33), 66);
+    assert_eq!(parsed.map_flags, HEIGHT_TEXTURED_MAP);
+}
+
+#[test]
+fn compressed_layer_cannot_read_past_the_next_layers_offset() {
+    let mut truncated = compressed_mcal_payload(|_, _| 40);
+    truncated.truncate(truncated.len() - 128);
+    let payload = two_blend_layer_tex0(
+        MCLY_FLAG_ALPHA_COMPRESSED,
+        truncated,
+        compressed_mcal_payload(|_, _| 70),
+    );
+
+    let error = match load_adt_tex0(&payload, BIG_ALPHA_MAP, &[true]) {
+        Ok(_) => panic!("layer 1 RLE must stop at layer 2's offset"),
+        Err(error) => error,
+    };
+
+    assert!(error.contains("MCAL RLE"), "{error}");
+}
+
+#[test]
+fn edge_fix_applies_to_big_and_compressed_alpha_maps() {
+    for flags in [0, MCLY_FLAG_ALPHA_COMPRESSED] {
+        let layer = if flags == 0 {
+            big_mcal_payload(edge_marked)
+        } else {
+            compressed_mcal_payload(edge_marked)
+        };
+        let payload = two_blend_layer_tex0(flags, layer.clone(), layer);
+
+        let fixed = load_adt_tex0(&payload, BIG_ALPHA_MAP, &[false]).expect("should parse");
+        let kept = load_adt_tex0(&payload, BIG_ALPHA_MAP, &[true]).expect("should parse");
+
+        let fixed = blend_layer_alpha(&fixed, 1);
+        assert_eq!(alpha_at(fixed, 63, 10), 90, "flags {flags:#x}");
+        assert_eq!(alpha_at(fixed, 10, 63), 90, "flags {flags:#x}");
+        assert_eq!(alpha_at(fixed, 63, 63), 90, "flags {flags:#x}");
+        assert_eq!(alpha_at(fixed, 30, 30), 10, "flags {flags:#x}");
+        let kept = blend_layer_alpha(&kept, 1);
+        assert_eq!(alpha_at(kept, 63, 10), 200, "flags {flags:#x}");
+        assert_eq!(alpha_at(kept, 10, 63), 200, "flags {flags:#x}");
+    }
+}
+
 // --- Texture layer blending: additional edge cases ---
 
 #[test]
@@ -527,7 +665,7 @@ fn alpha_map_all_zeros() {
         ),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let parsed = load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("should parse");
     let alpha = parsed.chunk_layers[0].layers[0]
         .alpha_map
         .as_ref()
@@ -553,7 +691,7 @@ fn alpha_map_all_max() {
         ),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let parsed = load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("should parse");
     let alpha = parsed.chunk_layers[0].layers[0]
         .alpha_map
         .as_ref()
@@ -570,6 +708,7 @@ fn no_alpha_map_when_flag_not_set() {
         &mcly_entry_payload(0, 0, 0, 0), // no USE_ALPHA_MAP flag
         &[0x7F; 4096],
         None,
+        false,
         false,
     )
     .expect("should parse");
@@ -590,7 +729,7 @@ fn multiple_layers_independent_alpha() {
     let mcal = uncompressed_mcal_payload(|_, _| 8);
     append_subchunk(&mut payload, b"KNCM", tex0_mcnk_payload(mcly, None, mcal));
 
-    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let parsed = load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("should parse");
     let layers = &parsed.chunk_layers[0].layers;
     assert_eq!(layers.len(), 2);
     assert!(layers[0].alpha_map.is_none());
@@ -621,7 +760,7 @@ fn edge_fix_copies_row_62_to_63() {
         ),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let parsed = load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("should parse");
     let alpha = parsed.chunk_layers[0].layers[0]
         .alpha_map
         .as_ref()
@@ -644,7 +783,7 @@ fn amplifier_zero_is_valid() {
         tex0_mcnk_payload(mcly_entry_payload(0, 0, 0, 0), None, Vec::new()),
     );
 
-    let parsed = load_adt_tex0(&payload).expect("should parse");
+    let parsed = load_adt_tex0(&payload, SMALL_ALPHA_MAP, &[]).expect("should parse");
     assert_eq!(parsed.texture_amplifier, Some(0));
 }
 

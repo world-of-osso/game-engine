@@ -205,6 +205,16 @@ pub(crate) fn load_tex0(
             return None;
         }
     };
+    let map_flags = match load_adt_map_flags(adt_path) {
+        Ok(flags) => flags,
+        Err(error) => {
+            eprintln!(
+                "Failed to read map WDT flags for {}: {error}",
+                adt_path.display()
+            );
+            return None;
+        }
+    };
     let data = match std::fs::read(&tex0_path) {
         Ok(data) => data,
         Err(error) => {
@@ -215,10 +225,36 @@ pub(crate) fn load_tex0(
             return None;
         }
     };
-    parse_tex0_data(&data, adt_data)
+    parse_tex0_data(&data, map_flags, adt_data)
 }
 
-fn parse_tex0_data(data: &[u8], adt_data: Option<&adt::AdtData>) -> Option<adt::AdtTexData> {
+/// Read the WDT MPHD flags of the map an ADT belongs to; they select MCAL storage and blending.
+fn load_adt_map_flags(adt_path: &Path) -> Result<adt::MphdFlags, String> {
+    let (map_name, _, _) = parse_tile_coords_from_path(adt_path)?;
+    load_map_flags_with(resolver(), &paths::shared_data_path("terrain"), &map_name)
+}
+
+fn load_map_flags_with(
+    resolver: &dyn AssetResolver,
+    cache_dir: &Path,
+    map_name: &str,
+) -> Result<adt::MphdFlags, String> {
+    let wow_path = format!("world/maps/{map_name}/{map_name}.wdt");
+    let fdid = resolver
+        .lookup_path(&wow_path)
+        .ok_or_else(|| format!("{wow_path} not in listfile"))?;
+    let path = resolver
+        .ensure_cached(fdid, &cache_dir.join(format!("{fdid}.wdt")))
+        .ok_or_else(|| format!("{wow_path} (FDID {fdid}) could not be extracted"))?;
+    let data = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    crate::asset::wdt::parse_wdt_mphd_flags(&data).map_err(|error| format!("{wow_path}: {error}"))
+}
+
+fn parse_tex0_data(
+    data: &[u8],
+    map_flags: adt::MphdFlags,
+    adt_data: Option<&adt::AdtData>,
+) -> Option<adt::AdtTexData> {
     let chunk_flags = adt_data
         .map(|adt| {
             adt.chunks
@@ -227,12 +263,13 @@ fn parse_tex0_data(data: &[u8], adt_data: Option<&adt::AdtData>) -> Option<adt::
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    match adt::load_adt_tex0_with_chunk_alpha_flags(data, &chunk_flags) {
+    match adt::load_adt_tex0(data, map_flags, &chunk_flags) {
         Ok(td) => {
             eprintln!(
-                "Loaded _tex0: {} textures, {} chunks",
+                "Loaded _tex0: {} textures, {} chunks, MPHD {:#x}",
                 td.texture_fdids.len(),
-                td.chunk_layers.len()
+                td.chunk_layers.len(),
+                map_flags.raw
             );
             Some(td)
         }

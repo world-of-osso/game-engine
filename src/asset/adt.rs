@@ -11,8 +11,8 @@ pub use super::adt_format::adt::{
     ParsedLodData, UNIT_SIZE, vertex_index,
 };
 pub use super::adt_format::adt_tex::{
-    AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, TextureLayer, TextureParams,
-    WaterLayer, load_adt_tex0, load_adt_tex0_with_chunk_alpha_flags, parse_mh2o,
+    AdtTexData, AdtWaterData, ChunkTexLayers, ChunkWater, MclyFlags, MphdFlags, TextureLayer,
+    TextureParams, WaterLayer, load_adt_tex0, parse_mh2o,
 };
 use super::m2::wow_to_bevy;
 

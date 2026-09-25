@@ -9,6 +9,7 @@ pub mod m2;
 pub mod m2_format;
 pub mod m2_texture;
 pub mod read_bytes;
+pub mod wdt;
 pub mod wmo;
 pub mod wmo_format;
 

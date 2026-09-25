@@ -1,12 +1,13 @@
 use super::{
-    PlaceholderImageKind, Placeholders, TerrainMaterial, build_chunk_material, pack_shadow_map,
-    placeholder_image, shadow_bit_is_set, terrain_layer_animation_params, terrain_texture_repeat,
-    texture_layer_params,
+    PlaceholderImageKind, Placeholders, TerrainBlendMode, TerrainMaterial, build_chunk_material,
+    pack_alpha_map_raw, pack_shadow_map, placeholder_image, shadow_bit_is_set, terrain_blend_mode,
+    terrain_layer_animation_params, terrain_texture_repeat, texture_layer_params,
 };
 use crate::asset::adt;
 use bevy::asset::Assets;
 use bevy::image::Image;
 use bevy::math::{Vec2, Vec4};
+use bevy::render::render_resource::TextureFormat;
 
 #[test]
 fn height_texture_zero_slots_stay_absent_even_when_zero_blp_exists() {
@@ -23,6 +24,7 @@ fn height_texture_zero_slots_stay_absent_even_when_zero_blp_exists() {
         "fixture must be a readable texture, not a missing-file false positive"
     );
     let data = adt::AdtTexData {
+        map_flags: adt::MphdFlags::default(),
         texture_amplifier: None,
         texture_fdids: vec![],
         height_texture_fdids: vec![0, 186769, 0],
@@ -102,6 +104,7 @@ fn placeholder_images_use_expected_rgba_values() {
 #[test]
 fn texture_layer_params_use_mtxp_per_texture_index() {
     let tex_data = adt::AdtTexData {
+        map_flags: adt::MphdFlags::default(),
         texture_amplifier: None,
         texture_fdids: vec![11, 22],
         height_texture_fdids: vec![],
@@ -137,7 +140,7 @@ fn texture_layer_params_use_mtxp_per_texture_index() {
         },
     ];
 
-    let params = texture_layer_params(&tex_data, &layers);
+    let params = texture_layer_params(&tex_data, &layers, [true; 4]);
 
     assert_eq!(params[0], Vec4::new(0.75, 0.125, 9.0, 1.0));
     assert_eq!(params[1], Vec4::new(1.25, -0.5, 4.0, 1.0));
@@ -196,6 +199,7 @@ fn chunk_material_uses_mhid_height_textures_per_layer() {
     let height_0 = images.add(Image::default());
     let height_1 = images.add(Image::default());
     let tex_data = adt::AdtTexData {
+        map_flags: adt::MphdFlags::default(),
         texture_amplifier: None,
         texture_fdids: vec![11, 22],
         height_texture_fdids: vec![111, 222],
@@ -247,6 +251,7 @@ fn chunk_material_uses_mhid_height_textures_per_layer() {
 #[test]
 fn texture_layer_params_encode_overbright_multiplier() {
     let tex_data = adt::AdtTexData {
+        map_flags: adt::MphdFlags::default(),
         texture_amplifier: None,
         texture_fdids: vec![11, 22],
         height_texture_fdids: vec![],
@@ -284,7 +289,7 @@ fn texture_layer_params_encode_overbright_multiplier() {
         },
     ];
 
-    let params = texture_layer_params(&tex_data, &layers);
+    let params = texture_layer_params(&tex_data, &layers, [false; 4]);
 
     assert_eq!(params[0].w, 2.0);
     assert_eq!(params[1].w, 1.0);
@@ -315,4 +320,146 @@ fn terrain_layer_animation_params_encode_reflection_flag() {
 
     assert_eq!(params[0].z, 1.0);
     assert_eq!(params[1].z, 0.0);
+}
+
+fn plain_layer(texture_index: u32, alpha_map: Option<Vec<u8>>) -> adt::TextureLayer {
+    adt::TextureLayer {
+        texture_index,
+        flags: adt::MclyFlags::default(),
+        effect_id: 0,
+        material_id: 0,
+        alpha_map,
+    }
+}
+
+fn test_placeholders(images: &mut Assets<Image>) -> Placeholders {
+    Placeholders {
+        image: placeholder_image(images, PlaceholderImageKind::Color),
+        alpha: placeholder_image(images, PlaceholderImageKind::Alpha),
+        cubemap: images.add(Image::default()),
+    }
+}
+
+#[test]
+fn alpha_map_texture_hands_the_shader_authored_mcal_weights_unchanged() {
+    // One big-alpha MCAL row ramps 0..252; the shader must read byte / 255, not an sRGB decode.
+    let ramp: Vec<u8> = (0..4096).map(|i| ((i % 64) * 4) as u8).collect();
+    let layers = vec![plain_layer(0, None), plain_layer(1, Some(ramp))];
+
+    let image = pack_alpha_map_raw(&layers);
+
+    assert_eq!(image.texture_descriptor.format, TextureFormat::Rgba8Unorm);
+    for (x, byte) in [(16u32, 64u8), (32, 128), (48, 192)] {
+        let weight = image
+            .get_color_at(x, 7)
+            .expect("expected alpha texel")
+            .to_linear()
+            .red;
+        assert!(
+            (weight - f32::from(byte) / 255.0).abs() < 1e-6,
+            "texel {x}: shader weight {weight} for authored byte {byte}"
+        );
+    }
+}
+
+#[test]
+fn map_flags_select_the_terrain_blend_mode() {
+    assert_eq!(
+        terrain_blend_mode(adt::MphdFlags { raw: 0 }),
+        TerrainBlendMode::Layered
+    );
+    assert_eq!(
+        terrain_blend_mode(adt::MphdFlags { raw: 0x4 }),
+        TerrainBlendMode::Weighted
+    );
+    // Azeroth retail WDT (FDID 775971) MPHD flags.
+    assert_eq!(
+        terrain_blend_mode(adt::MphdFlags { raw: 0x3ca }),
+        TerrainBlendMode::HeightWeighted
+    );
+}
+
+#[test]
+fn chunk_without_height_textures_has_no_height_influence() {
+    let mut terrain_materials = Assets::<TerrainMaterial>::default();
+    let mut images = Assets::<Image>::default();
+    let placeholder = test_placeholders(&mut images);
+    let diffuse_0 = images.add(Image::default());
+    let diffuse_1 = images.add(Image::default());
+    // Stormwind azeroth_31_48_tex0: MHID all zero, no MTXP, MPHD 0x3ca.
+    let tex_data = adt::AdtTexData {
+        map_flags: adt::MphdFlags { raw: 0x3ca },
+        texture_amplifier: None,
+        texture_fdids: vec![11, 22],
+        height_texture_fdids: vec![0, 0],
+        texture_flags: vec![],
+        texture_params: vec![],
+        chunk_layers: vec![],
+    };
+    let chunk_tex = adt::ChunkTexLayers {
+        layers: vec![plain_layer(0, None), plain_layer(1, Some(vec![128; 4096]))],
+    };
+
+    let handle = build_chunk_material(
+        &mut terrain_materials,
+        &mut images,
+        &tex_data,
+        &chunk_tex,
+        &[Some(diffuse_0.clone()), Some(diffuse_1.clone())],
+        Some(&[None, None]),
+        None,
+        &placeholder,
+        None,
+        None,
+    );
+    let material = terrain_materials.get(&handle).expect("terrain material");
+
+    assert_eq!(
+        material.settings.config.y,
+        TerrainBlendMode::HeightWeighted as u32 as f32
+    );
+    for params in [
+        material.settings.layer_params_0,
+        material.settings.layer_params_1,
+    ] {
+        assert_eq!((params.x, params.y), (0.0, 1.0), "height = h * 0 + 1");
+    }
+    assert_ne!(
+        material.height_0, diffuse_0,
+        "diffuse alpha is not a height"
+    );
+    assert_ne!(
+        material.height_1, diffuse_1,
+        "diffuse alpha is not a height"
+    );
+}
+
+#[test]
+fn layer_with_height_texture_keeps_mtxp_scale_and_one_without_keeps_only_offset() {
+    let tex_data = adt::AdtTexData {
+        map_flags: adt::MphdFlags { raw: 0x80 },
+        texture_amplifier: None,
+        texture_fdids: vec![11, 22],
+        height_texture_fdids: vec![111, 0],
+        texture_flags: vec![0, 0],
+        texture_params: vec![
+            adt::TextureParams {
+                flags: 0,
+                height_scale: 2.5,
+                height_offset: 0.25,
+            },
+            adt::TextureParams {
+                flags: 0,
+                height_scale: 3.0,
+                height_offset: 0.5,
+            },
+        ],
+        chunk_layers: vec![],
+    };
+    let layers = vec![plain_layer(0, None), plain_layer(1, None)];
+
+    let params = texture_layer_params(&tex_data, &layers, [true, false, false, false]);
+
+    assert_eq!((params[0].x, params[0].y), (2.5, 0.25));
+    assert_eq!((params[1].x, params[1].y), (0.0, 0.5));
 }
