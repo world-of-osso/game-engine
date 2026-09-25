@@ -31,6 +31,8 @@ use super::{
 mod terrain_objects_wmo_group;
 #[path = "terrain_objects_wmo_surface.rs"]
 mod terrain_objects_wmo_surface;
+#[path = "terrain_objects_wmo_unified.rs"]
+mod terrain_objects_wmo_unified;
 #[cfg(test)]
 #[path = "terrain_objects_wmo_tests/mod.rs"]
 mod tests;
@@ -38,6 +40,8 @@ mod tests;
 use self::terrain_objects_wmo_group::*;
 use self::terrain_objects_wmo_surface::*;
 pub(crate) use self::terrain_objects_wmo_surface::{sync_wmo_sidn_emissive, wmo_standard_material};
+use self::terrain_objects_wmo_unified::*;
+pub(crate) use self::terrain_objects_wmo_unified::{WmoUnifiedMaterial, WmoUnifiedMaterialPlugin};
 
 pub(crate) fn sidn_glow_strength(minutes: f32) -> f32 {
     terrain_objects_wmo_surface::sidn_glow_strength(minutes)
@@ -307,6 +311,7 @@ fn spawn_wmo_group_geometry(
         commands,
         assets,
         root,
+        &group.header,
         interior_ambient,
         group_entity,
         group.batches.clone(),

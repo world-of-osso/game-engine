@@ -9,6 +9,7 @@ mod group_runtime;
 mod interior_gpu;
 mod liquid;
 mod root_runtime;
+mod unified_gpu;
 
 pub(super) fn minimal_mat() -> wmo::WmoMaterialDef {
     wmo::WmoMaterialDef {

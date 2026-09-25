@@ -83,6 +83,7 @@ pub(crate) fn run_screenshot_regression_app(
         m2_effect_material::M2EffectMaterialPlugin,
         skybox_m2_material::SkyboxM2MaterialPlugin,
         water_material::WaterMaterialPlugin,
+        terrain_objects::WmoUnifiedMaterialPlugin,
         sky::SkyPlugin,
     ));
     app.insert_resource(screenshot);
@@ -351,16 +352,21 @@ fn register_render_plugins(app: &mut App) {
     }
     if empty {
         app.init_asset::<skybox_m2_material::SkyboxM2Material>()
-            .init_asset::<water_material::WaterMaterial>();
+            .init_asset::<water_material::WaterMaterial>()
+            .init_asset::<terrain_objects::WmoUnifiedMaterial>();
     } else {
         app.add_plugins(skybox_m2_material::SkyboxM2MaterialPlugin)
-            .add_plugins(water_material::WaterMaterialPlugin);
+            .add_plugins(water_material::WaterMaterialPlugin)
+            .add_plugins(terrain_objects::WmoUnifiedMaterialPlugin);
     }
     app.add_plugins(sky::SkyPlugin);
     register_particle_plugin(app);
     app.add_plugins(weather::WeatherPlugin).add_systems(
         Update,
-        terrain_objects::sync_wmo_sidn_emissive
+        (
+            terrain_objects::sync_wmo_sidn_emissive::<StandardMaterial>,
+            terrain_objects::sync_wmo_sidn_emissive::<terrain_objects::WmoUnifiedMaterial>,
+        )
             .run_if(in_state(game_state::GameState::InWorld))
             .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
     );

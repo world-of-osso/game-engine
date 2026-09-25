@@ -240,7 +240,7 @@ fn wmo_sidn_emissive_updates_from_game_time() {
 
     let _ = app
         .world_mut()
-        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive);
+        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive::<StandardMaterial>);
     let emissive = app
         .world()
         .resource::<Assets<StandardMaterial>>()
@@ -256,7 +256,7 @@ fn wmo_sidn_emissive_updates_from_game_time() {
         .minutes = 1440.0;
     let _ = app
         .world_mut()
-        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive);
+        .run_system_once(super::terrain_objects_wmo::sync_wmo_sidn_emissive::<StandardMaterial>);
     let emissive = app
         .world()
         .resource::<Assets<StandardMaterial>>()
@@ -270,7 +270,10 @@ fn wmo_sidn_emissive_updates_from_game_time() {
 fn wmo_sidn_emissive_initializes_new_glow_materials_without_time_change() {
     let mut app = App::new();
     app.init_resource::<Assets<StandardMaterial>>();
-    app.add_systems(Update, super::terrain_objects_wmo::sync_wmo_sidn_emissive);
+    app.add_systems(
+        Update,
+        super::terrain_objects_wmo::sync_wmo_sidn_emissive::<StandardMaterial>,
+    );
     app.insert_resource(crate::sky::GameTime {
         minutes: 0.0,
         speed: 0.0,
