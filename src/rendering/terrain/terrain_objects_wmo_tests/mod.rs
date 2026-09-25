@@ -10,6 +10,7 @@ mod group_runtime;
 mod interior_gpu;
 mod interior_light_gpu;
 mod liquid;
+mod metal_gpu;
 mod root_runtime;
 mod two_layer_gpu;
 mod unified_gpu;

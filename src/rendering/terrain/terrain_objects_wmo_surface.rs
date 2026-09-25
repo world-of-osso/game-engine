@@ -175,7 +175,6 @@ pub(crate) fn wmo_standard_material(
         base_color_texture: texture,
         perceptual_roughness: surface.roughness,
         reflectance: surface.reflectance,
-        metallic: surface.metallic,
         emissive: wmo_emissive(shader, sidn_glow),
         double_sided,
         cull_mode: wmo_cull_mode(double_sided),
