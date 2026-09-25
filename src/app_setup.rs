@@ -558,6 +558,10 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
 
 fn add_core_screen_plugins(app: &mut App) {
     app.add_plugins((
+        crate::game::networking_merchant::MerchantNetworkPlugin,
+        crate::game::networking_inventory::InventoryNetworkPlugin,
+    ));
+    app.add_plugins((
         game_state::GameStatePlugin,
         networking::NetworkPlugin,
         crate::networking_auras::AuraSyncPlugin,

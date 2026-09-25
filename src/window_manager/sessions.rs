@@ -1,8 +1,7 @@
-//! Server-driven windows: a merchant or inspect session opens its window, and
+//! Server-driven windows: an inspect session opens its window, and
 //! the window manager closing it (eviction, Escape) ends the session data.
 
 use bevy::prelude::*;
-use game_engine::merchant_data::MerchantState;
 use game_engine::status::InspectStatusSnapshot;
 
 use super::{WindowId, WindowManager};
@@ -25,22 +24,6 @@ fn reconcile_session(
         manager.close(id);
     }
     *was_active = active;
-}
-
-pub fn sync_merchant_window(
-    mut manager: ResMut<WindowManager>,
-    merchant: Option<ResMut<MerchantState>>,
-    mut was_active: Local<bool>,
-) {
-    let Some(mut merchant) = merchant else { return };
-    let active = merchant.is_open();
-    reconcile_session(
-        &mut manager,
-        WindowId::Merchant,
-        active,
-        &mut was_active,
-        || merchant.close(),
-    );
 }
 
 pub fn sync_inspect_window(

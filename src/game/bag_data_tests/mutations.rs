@@ -11,6 +11,7 @@ fn set_item_populates_slot() {
             count: 20,
             quality: ItemQuality::Common,
             name: "Iron Ore".into(),
+            ..Default::default()
         },
     );
     let slot = inv.slot(0, 5).unwrap();

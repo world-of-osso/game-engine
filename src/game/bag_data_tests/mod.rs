@@ -11,5 +11,6 @@ pub(super) fn test_item(name: &str) -> InventorySlot {
         count: 1,
         quality: ItemQuality::Common,
         name: name.into(),
+        ..Default::default()
     }
 }

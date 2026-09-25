@@ -18,6 +18,7 @@ fn empty_slot_detection() {
         count: 1,
         quality: ItemQuality::Rare,
         name: "Hearthstone".into(),
+        ..Default::default()
     };
     assert!(!filled.is_empty());
 }
@@ -105,12 +106,14 @@ fn slot_contents_across_bags() {
         name: "Hearthstone".into(),
         count: 1,
         quality: ItemQuality::Common,
+        ..Default::default()
     };
     inv.slots[1][0] = InventorySlot {
         icon_fdid: 222,
         name: "Ore".into(),
         count: 20,
         quality: ItemQuality::Uncommon,
+        ..Default::default()
     };
     assert_eq!(inv.slot(0, 3).unwrap().name, "Hearthstone");
     assert_eq!(inv.slot(1, 0).unwrap().name, "Ore");
@@ -167,4 +170,83 @@ fn bag_slot_count_nonexistent_bag() {
 #[test]
 fn bag_background_for_zero_rows() {
     assert_eq!(bag_background_for_rows(0), textures::BAG_BG_1X4);
+}
+
+fn stack(item_guid: u64, item_id: u32, count: u32) -> shared::protocol::ItemStack {
+    shared::protocol::ItemStack {
+        item_guid,
+        item_id,
+        count,
+        durability: None,
+        soulbound: false,
+    }
+}
+
+/// A new character's backpack as the server sends it: Linen Cloth x20, Peacebloom x10.
+#[test]
+fn server_snapshot_then_delta_drive_the_backpack() {
+    use shared::protocol::{
+        BagContents, BagSlotItem, InventoryDelta, InventorySlotChange, InventorySnapshot,
+        ItemLocation,
+    };
+    let mut inv = InventoryState::default();
+    inv.apply_snapshot(&InventorySnapshot {
+        bags: vec![
+            BagContents {
+                bag: 0,
+                size: 16,
+                items: vec![
+                    BagSlotItem {
+                        slot: 0,
+                        item: stack(41, 2589, 20),
+                    },
+                    BagSlotItem {
+                        slot: 1,
+                        item: stack(42, 2447, 10),
+                    },
+                ],
+            },
+            BagContents {
+                bag: 1,
+                size: 0,
+                items: vec![],
+            },
+        ],
+    });
+
+    assert_eq!(inv.bags.len(), 1);
+    assert_eq!(inv.bag_slot_count(0), 16);
+    let linen = inv.slot(0, 0).unwrap();
+    assert_eq!(
+        (linen.item_guid, linen.item_id, linen.count),
+        (41, 2589, 20)
+    );
+    assert_eq!(
+        linen.icon_fdid,
+        crate::item_icons::item_icon_fdid(2589).unwrap()
+    );
+    assert_eq!(inv.total_free_slots(), 14);
+
+    // Selling 5 linen leaves 15; a bought vest lands in slot 2; peacebloom sold.
+    inv.apply_delta(&InventoryDelta {
+        changes: vec![
+            InventorySlotChange {
+                location: ItemLocation::Bag { bag: 0, slot: 0 },
+                item: Some(stack(41, 2589, 15)),
+            },
+            InventorySlotChange {
+                location: ItemLocation::Bag { bag: 0, slot: 1 },
+                item: None,
+            },
+            InventorySlotChange {
+                location: ItemLocation::Bag { bag: 0, slot: 2 },
+                item: Some(stack(77, 2379, 1)),
+            },
+        ],
+    });
+
+    assert_eq!(inv.slot(0, 0).unwrap().count, 15);
+    assert!(inv.slot(0, 1).unwrap().is_empty());
+    assert_eq!(inv.slot(0, 2).unwrap().item_guid, 77);
+    assert_eq!(inv.total_free_slots(), 14);
 }

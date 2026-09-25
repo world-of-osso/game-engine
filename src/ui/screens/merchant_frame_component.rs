@@ -1,122 +1,153 @@
-use std::fmt;
+//! Retail `MerchantFrame` (Blizzard_UIPanels_Game/Mainline/MerchantFrame.xml, cited
+//! as MF.xml): 336×444 `ButtonFrameTemplate` window with the 10-item merchant page
+//! (12 on the buyback tab), paging, repair buttons, the last-sold buyback slot, the
+//! player's money and the Merchant/Buyback tabs. Positions are top-left offsets in
+//! frame space converted from the XML anchors; docs/specs/merchant-frame.md lists them.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, atlas_texture, window_chrome};
 use crate::ui::strata::FrameStrata;
 
-struct DynName(String);
+pub const FRAME_NAME: &str = "MerchantFrame";
+/// MF.xml:92 `<Size x="336" y="444"/>`.
+pub const FRAME_W: f32 = 336.0;
+pub const FRAME_H: f32 = 444.0;
 
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-pub const FRAME_W: f32 = 340.0;
-pub const FRAME_H: f32 = 480.0;
-const HEADER_H: f32 = 28.0;
-const TAB_H: f32 = 28.0;
-const TAB_GAP: f32 = 4.0;
-const TAB_INSET: f32 = 8.0;
-const CONTENT_TOP: f32 = HEADER_H + TAB_GAP + TAB_H + TAB_GAP;
-const ITEM_ROW_H: f32 = 32.0;
-const ITEM_ROW_GAP: f32 = 1.0;
-const ITEM_INSET: f32 = 4.0;
-const ITEM_ICON_SIZE: f32 = 24.0;
-const PAGE_BTN_W: f32 = 30.0;
-const PAGE_BTN_H: f32 = 22.0;
-const PAGE_BTN_GAP: f32 = 8.0;
-const CONTENT_INSET: f32 = 8.0;
-
-const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
-const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const TAB_BG_ACTIVE: &str = "0.2,0.15,0.05,0.95";
-const TAB_BG_INACTIVE: &str = "0.08,0.07,0.06,0.88";
-const TAB_TEXT_ACTIVE: &str = "1.0,0.82,0.0,1.0";
-const TAB_TEXT_INACTIVE: &str = "0.6,0.6,0.6,1.0";
-const CONTENT_BG: &str = "0.0,0.0,0.0,0.3";
-const ITEM_ICON_BG: &str = "0.1,0.1,0.1,0.9";
-const ITEM_NAME_COLOR: &str = "1.0,1.0,1.0,1.0";
-const ITEM_PRICE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const PAGE_BTN_BG: &str = "0.15,0.12,0.05,0.95";
-const PAGE_BTN_TEXT: &str = "1.0,0.82,0.0,1.0";
-
-const REPAIR_BTN_W: f32 = 80.0;
-const REPAIR_BTN_H: f32 = 22.0;
-const REPAIR_GAP: f32 = 8.0;
-const MONEY_W: f32 = 120.0;
-const MONEY_H: f32 = 16.0;
-const REPAIR_BTN_BG: &str = "0.15,0.12,0.05,0.95";
-const REPAIR_BTN_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
-const MONEY_COLOR: &str = "1.0,0.82,0.0,1.0";
-const EMPTY_TEXT_COLOR: &str = "0.72,0.72,0.72,1.0";
-
-pub const MERCHANT_ITEM_ROWS: usize = 10;
 pub const ACTION_CLOSE: &str = "merchant_close";
 pub const ACTION_PAGE_PREV: &str = "merchant_page_prev";
 pub const ACTION_PAGE_NEXT: &str = "merchant_page_next";
+pub const ACTION_TAB_MERCHANT: &str = "merchant_tab:merchant";
+pub const ACTION_TAB_BUYBACK: &str = "merchant_tab:buyback";
 pub const ACTION_REPAIR_ALL: &str = "merchant_repair_all";
-pub const ACTION_GUILD_REPAIR: &str = "merchant_guild_repair";
-pub const ACTION_TAB_PREFIX: &str = "merchant_tab:";
-pub const ACTION_BUY_PREFIX: &str = "merchant_buy:";
-pub const ACTION_BUYBACK_PREFIX: &str = "merchant_buyback:";
+pub const ACTION_BUYBACK_LAST: &str = "merchant_buyback_last";
+/// `merchant_item:<index on the page>`.
+pub const ACTION_ITEM_PREFIX: &str = "merchant_item:";
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct MerchantTab {
-    pub name: String,
-    pub active: bool,
-    pub action: String,
+/// `MerchantItemTemplate` 153×44 (MF.xml:3-4).
+const CELL_W: f32 = 153.0;
+const CELL_H: f32 = 44.0;
+/// Item1 TOPLEFT 11,-69; Item2 at Item1 TOPRIGHT +12 (MF.xml:127-186).
+const CELL_LEFT: [f32; 2] = [11.0, 176.0];
+const CELL_TOP: f32 = 69.0;
+/// Rows step by the cell height plus 8 (merchant) or 15 (buyback, MF.lua:516).
+const MERCHANT_ROW_STEP: f32 = CELL_H + 8.0;
+const BUYBACK_ROW_STEP: f32 = CELL_H + 15.0;
+const ITEM_BUTTON: f32 = 37.0;
+
+const EMPTY_SLOT: u32 = 130_766; // Interface\Buttons\UI-EmptySlot
+const LABEL_SLOTS: u32 = 136_423; // Interface\MerchantFrame\UI-Merchant-LabelSlots
+const QUICKSLOT: u32 = 130_841; // Interface\Buttons\UI-Quickslot2
+const PAGE_BUTTON_BG: u32 = 130_822; // Interface\Buttons\UI-PageButton-Background
+const PREV_PAGE_UP: u32 = 130_869; // UI-SpellbookIcon-PrevPage-Up
+const PREV_PAGE_DISABLED: u32 = 130_867;
+const NEXT_PAGE_UP: u32 = 130_866; // UI-SpellbookIcon-NextPage-Up
+const NEXT_PAGE_DISABLED: u32 = 130_864;
+const INSET_BG: u32 = 374_154; // Interface\FrameGeneral\UI-Background-Marble
+const MONEY_EDGE: u32 = 525_911; // Interface\Common\Moneyframe (ThinGoldEdgeTemplate)
+
+/// UiTextureAtlas `interface/merchantframe/merchant.blp` 512×256.
+const MERCHANT_ATLAS: (u32, (f32, f32)) = (5_222_222, (512.0, 256.0));
+const fn merchant_art(rect: (f32, f32, f32, f32)) -> AtlasArt {
+    AtlasArt {
+        fdid: MERCHANT_ATLAS.0,
+        atlas: MERCHANT_ATLAS.1,
+        rect,
+    }
+}
+/// `UI-Merchant-BotFrame` 332×61.
+const BOT_FRAME: AtlasArt = merchant_art((1.0, 333.0, 1.0, 62.0));
+/// `SpellIcon-256x256-RepairAll`.
+const REPAIR_ALL_ICON: AtlasArt = merchant_art((1.0, 73.0, 138.0, 210.0));
+/// `common-icon-undo`, atlas 3487944 2048×1024.
+const UNDO_ICON: AtlasArt = AtlasArt {
+    fdid: 3_487_944,
+    atlas: (2048.0, 1024.0),
+    rect: (775.0, 1031.0, 259.0, 515.0),
+};
+/// `coin-gold/silver/copper` (members `coin-*-20x20`), atlas 1667824 256×128.
+const COIN_ATLAS: (u32, (f32, f32)) = (1_667_824, (256.0, 128.0));
+const fn coin(left: f32) -> AtlasArt {
+    AtlasArt {
+        fdid: COIN_ATLAS.0,
+        atlas: COIN_ATLAS.1,
+        rect: (left, left + 20.0, 1.0, 21.0),
+    }
+}
+const COIN_GOLD: AtlasArt = coin(197.0);
+const COIN_SILVER: AtlasArt = coin(219.0);
+const COIN_COPPER: AtlasArt = coin(175.0);
+
+/// PanelTabButtonTemplate atlas 4707839 64×256 (SharedUIPanelTemplates.xml:905-977).
+const TAB_ATLAS: (u32, (f32, f32)) = (4_707_839, (64.0, 256.0));
+const fn tab_art(rect: (f32, f32, f32, f32)) -> AtlasArt {
+    AtlasArt {
+        fdid: TAB_ATLAS.0,
+        atlas: TAB_ATLAS.1,
+        rect,
+    }
+}
+const TAB_ACTIVE: [AtlasArt; 3] = [
+    tab_art((1.0, 36.0, 127.0, 169.0)),
+    tab_art((0.0, 1.0, 1.0, 43.0)),
+    tab_art((1.0, 38.0, 83.0, 125.0)),
+];
+const TAB_INACTIVE: [AtlasArt; 3] = [
+    tab_art((1.0, 36.0, 209.0, 245.0)),
+    tab_art((0.0, 1.0, 45.0, 81.0)),
+    tab_art((1.0, 38.0, 171.0, 207.0)),
+];
+
+const HIGHLIGHT_FONT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const GRAY_FONT_COLOR: &str = "0.5,0.5,0.5,1.0";
+const WHITE: &str = "1.0,1.0,1.0,1.0";
+
+/// How an item cell is tinted (MerchantFrame.lua:362-390).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum CellTint {
+    #[default]
+    Normal,
+    /// Not usable by the player: red slot and icon.
+    Unusable,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct MerchantItem {
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct MerchantCell {
     pub name: String,
-    pub price: String,
+    pub name_color: &'static str,
     pub icon_fdid: u32,
+    /// Stack count shown on the button when above 1.
+    pub count: u32,
+    /// Limited stock, shown as `(%d)`.
+    pub stock: Option<u32>,
+    /// Copper.
+    pub price: u64,
+    /// `canAfford == false` greys the price (MF.lua:316).
+    pub price_gray: bool,
+    pub tint: CellTint,
     pub action: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct MerchantFrameState {
     pub visible: bool,
-    pub tabs: Vec<MerchantTab>,
-    pub items: Vec<MerchantItem>,
-    pub page: usize,
-    pub total_pages: usize,
-    pub player_money: String,
-    pub empty_text: Option<String>,
-}
-
-impl Default for MerchantFrameState {
-    fn default() -> Self {
-        Self {
-            visible: false,
-            tabs: vec![
-                MerchantTab {
-                    name: "Buy".into(),
-                    active: true,
-                    action: format!("{ACTION_TAB_PREFIX}buy"),
-                },
-                MerchantTab {
-                    name: "Sell".into(),
-                    active: false,
-                    action: format!("{ACTION_TAB_PREFIX}sell"),
-                },
-                MerchantTab {
-                    name: "Buyback".into(),
-                    active: false,
-                    action: format!("{ACTION_TAB_PREFIX}buyback"),
-                },
-            ],
-            items: vec![],
-            page: 1,
-            total_pages: 1,
-            player_money: "0g 0s 0c".into(),
-            empty_text: None,
-        }
-    }
+    pub title: String,
+    pub buyback_tab: bool,
+    pub cells: Vec<MerchantCell>,
+    /// `MERCHANT_PAGE_NUMBER` text; `None` hides paging (10 items or fewer).
+    pub page_text: Option<String>,
+    pub prev_enabled: bool,
+    pub next_enabled: bool,
+    /// Repair buttons: `None` when the NPC can't repair; `Some(enabled)`.
+    pub repair: Option<bool>,
+    /// Most recent sale for `MerchantBuyBackItem` on the merchant tab.
+    pub last_buyback: Option<MerchantCell>,
+    pub money: u64,
 }
 
 pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
@@ -124,335 +155,648 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
         .get::<MerchantFrameState>()
         .expect("MerchantFrameState must be in SharedContext");
     let hide = !state.visible;
+    let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
+    children.extend(inset());
+    children.extend(cells(state));
+    if !state.buyback_tab {
+        children.extend(merchant_tab_extras(state));
+    }
+    children.extend(money_bar(state.money));
+    children.extend(tabs(state.buyback_tab));
     rsx! {
         r#frame {
-            name: "MerchantFrame",
-            width: {FRAME_W},
-            height: {FRAME_H},
+            name: {DynName(FRAME_NAME.into())},
+            width: FRAME_W,
+            height: FRAME_H,
             strata: FrameStrata::Dialog,
             hidden: hide,
-            background_color: FRAME_BG,
+            mouse_enabled: true,
             pos_type: "absolute",
-            left: 50.0,
-            top: 80.0,
-            {title_bar()}
-            {tab_row(&state.tabs)}
-            {item_grid(&state.items, state.empty_text.as_deref())}
-            {repair_buttons()}
-            {money_display(&state.player_money)}
-            {page_buttons(state.page, state.total_pages)}
+            left: 16.0,
+            top: 104.0,
+            {children}
         }
     }
 }
 
-fn title_bar() -> Element {
+fn texture(name: String, fdid: u32, rect: (f32, f32, f32, f32), color: &str) -> Element {
+    let (x, y, width, height) = rect;
+    rsx! {
+        texture {
+            name: {DynName(name)},
+            width,
+            height,
+            texture_fdid: fdid,
+            vertex_color: color,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
+struct Text<'a> {
+    name: String,
+    text: &'a str,
+    rect: (f32, f32, f32, f32),
+    font: GameFont,
+    size: f32,
+    color: &'a str,
+    justify: &'a str,
+}
+
+fn text(t: Text) -> Element {
+    let (x, y, width, height) = t.rect;
     rsx! {
         fontstring {
-            name: "MerchantFrameTitle",
-            width: {FRAME_W},
-            height: {HEADER_H},
-            text: "Merchant",
-            font_size: 16.0,
-            font_color: TITLE_COLOR,
-            justify_h: "CENTER",
+            name: {DynName(t.name)},
+            width,
+            height,
+            text: t.text,
+            font: t.font,
+            font_size: t.size,
+            font_color: t.color,
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h: t.justify,
             pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
+            left: x,
+            top: y,
         }
     }
 }
 
-fn tab_row(tabs: &[MerchantTab]) -> Element {
-    let count = tabs.len().max(1) as f32;
-    let tab_w = (FRAME_W - 2.0 * TAB_INSET - (count - 1.0) * TAB_GAP) / count;
-    tabs.iter()
-        .enumerate()
-        .flat_map(|(i, tab)| {
-            let x = TAB_INSET + i as f32 * (tab_w + TAB_GAP);
-            let y = -(HEADER_H + TAB_GAP);
-            tab_button(i, tab, tab_w, x, y)
+/// `Inset` (InsetFrameTemplate) TOPLEFT 4,-60 / BOTTOMRIGHT -6,26.
+fn inset() -> Element {
+    texture(
+        format!("{FRAME_NAME}InsetBg"),
+        INSET_BG,
+        (4.0, 60.0, FRAME_W - 10.0, FRAME_H - 86.0),
+        WHITE,
+    )
+}
+
+fn cells(state: &MerchantFrameState) -> Element {
+    let step = if state.buyback_tab {
+        BUYBACK_ROW_STEP
+    } else {
+        MERCHANT_ROW_STEP
+    };
+    let slots = if state.buyback_tab { 12 } else { 10 };
+    (0..slots)
+        .flat_map(|index| {
+            let origin = (CELL_LEFT[index % 2], CELL_TOP + (index / 2) as f32 * step);
+            item_cell(index, origin, state.cells.get(index))
         })
         .collect()
 }
 
-fn tab_button(i: usize, tab: &MerchantTab, tab_w: f32, x: f32, y: f32) -> Element {
-    let tab_id = DynName(format!("MerchantTab{i}"));
-    let label_id = DynName(format!("MerchantTab{i}Label"));
-    let (bg, color) = if tab.active {
-        (TAB_BG_ACTIVE, TAB_TEXT_ACTIVE)
+/// One `MerchantItemTemplate`; an empty cell keeps its dimmed slot art (MF.lua:399).
+fn item_cell(index: usize, (x, y): (f32, f32), cell: Option<&MerchantCell>) -> Element {
+    let prefix = format!("MerchantItem{}", index + 1);
+    let (slot_color, label_color) = match cell.map(|cell| cell.tint) {
+        None => ("0.4,0.4,0.4,1.0", "0.5,0.5,0.5,1.0"),
+        Some(CellTint::Unusable) => ("1.0,0.0,0.0,1.0", "1.0,0.0,0.0,1.0"),
+        Some(CellTint::Normal) => (WHITE, "0.5,0.5,0.5,1.0"),
+    };
+    let mut children = texture(
+        format!("{prefix}SlotTexture"),
+        EMPTY_SLOT,
+        (-13.0, -13.0, 64.0, 64.0),
+        slot_color,
+    );
+    children.extend(texture(
+        format!("{prefix}NameFrame"),
+        LABEL_SLOTS,
+        (42.0, -2.0, 128.0, 78.0),
+        label_color,
+    ));
+    if let Some(cell) = cell {
+        children.extend(item_contents(&prefix, cell));
+    }
+    let action = cell.map_or("", |cell| cell.action.as_str());
+    rsx! {
+        r#frame {
+            name: {DynName(prefix)},
+            width: CELL_W,
+            height: CELL_H,
+            onclick: action,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            {children}
+        }
+    }
+}
+
+fn item_contents(prefix: &str, cell: &MerchantCell) -> Element {
+    let icon_color = match cell.tint {
+        CellTint::Unusable => "0.9,0.0,0.0,1.0",
+        CellTint::Normal => WHITE,
+    };
+    let mut children = item_button(&format!("{prefix}ItemButton"), cell, 1.0, icon_color);
+    // `Name` 100×30, LEFT to the slot's RIGHT -5,7 (MF.xml:19-23).
+    children.extend(text(Text {
+        name: format!("{prefix}Name"),
+        text: &cell.name,
+        rect: (46.0, -3.0, 100.0, 30.0),
+        font: GameFont::FrizQuadrata,
+        size: 10.0,
+        color: cell.name_color,
+        justify: "LEFT",
+    }));
+    // `$parentMoneyFrame` BOTTOMLEFT to NameFrame BOTTOMLEFT 2,31 (MF.xml:72-81).
+    children.extend(money(
+        &format!("{prefix}MoneyFrame"),
+        cell.price,
+        (44.0, 45.0),
+        MoneyAlign::Left,
+        cell.price_gray,
+    ));
+    children
+}
+
+/// Intrinsic `ItemButton` 37×37 scaled by `scale`: icon, UI-Quickslot2 normal
+/// texture, `Count` BOTTOMRIGHT -5,2 and `Stock` TOPLEFT 0,-2.
+fn item_button(prefix: &str, cell: &MerchantCell, scale: f32, icon_color: &str) -> Element {
+    let size = ITEM_BUTTON * scale;
+    let mut children = texture(
+        format!("{prefix}Icon"),
+        cell.icon_fdid,
+        (0.0, 0.0, size, size),
+        icon_color,
+    );
+    let quick = 64.0 * scale;
+    children.extend(texture(
+        format!("{prefix}NormalTexture"),
+        QUICKSLOT,
+        (
+            (size - quick) / 2.0,
+            (size - quick) / 2.0 + scale,
+            quick,
+            quick,
+        ),
+        icon_color,
+    ));
+    if cell.count > 1 {
+        children.extend(text(Text {
+            name: format!("{prefix}Count"),
+            text: &cell.count.to_string(),
+            rect: (0.0, size - 16.0, size - 5.0, 14.0),
+            font: GameFont::ArialNarrow,
+            size: 14.0,
+            color: WHITE,
+            justify: "RIGHT",
+        }));
+    }
+    if let Some(stock) = cell.stock {
+        children.extend(text(Text {
+            name: format!("{prefix}Stock"),
+            text: &format!("({stock})"),
+            rect: (0.0, 2.0, size, 14.0),
+            font: GameFont::ArialNarrow,
+            size: 14.0,
+            color: NORMAL_FONT_COLOR,
+            justify: "LEFT",
+        }));
+    }
+    children
+}
+
+/// Paging, repair buttons, the last-sold buyback slot and the bottom border.
+fn merchant_tab_extras(state: &MerchantFrameState) -> Element {
+    // `MerchantFrameBottomLeftBorder` 334×61 at BOTTOMLEFT 1,26 (MF.xml:118-122).
+    let mut children = atlas_texture(
+        format!("{FRAME_NAME}BottomLeftBorder"),
+        &BOT_FRAME,
+        (1.0, FRAME_H - 26.0 - 61.0, 334.0, 61.0),
+    );
+    if let Some(page_text) = &state.page_text {
+        children.extend(paging(page_text, state.prev_enabled, state.next_enabled));
+    }
+    if let Some(enabled) = state.repair {
+        children.extend(repair_buttons(enabled));
+    }
+    children.extend(buyback_slot(state.last_buyback.as_ref()));
+    children
+}
+
+/// Prev/Next 32×32 centred at BOTTOMLEFT 25,96 and 310,96; `MerchantPageText`
+/// BOTTOM 0,86 (MF.xml:110-114, 520-574).
+fn paging(page_text: &str, prev: bool, next: bool) -> Element {
+    let y = FRAME_H - 96.0 - 16.0;
+    let mut children = page_button(
+        "MerchantPrevPageButton",
+        9.0,
+        y,
+        prev,
+        PREV_PAGE_UP,
+        PREV_PAGE_DISABLED,
+        ACTION_PAGE_PREV,
+    );
+    children.extend(page_button(
+        "MerchantNextPageButton",
+        294.0,
+        y,
+        next,
+        NEXT_PAGE_UP,
+        NEXT_PAGE_DISABLED,
+        ACTION_PAGE_NEXT,
+    ));
+    let label = |name: &str, x: f32, justify: &str, value: &str| {
+        text(Text {
+            name: name.into(),
+            text: value,
+            rect: (x, y + 9.0, 40.0, 14.0),
+            font: GameFont::FrizQuadrata,
+            size: 10.0,
+            color: NORMAL_FONT_COLOR,
+            justify,
+        })
+    };
+    children.extend(label("MerchantPrevPageButtonText", 41.0, "LEFT", "Prev"));
+    children.extend(label("MerchantNextPageButtonText", 251.0, "RIGHT", "Next"));
+    children.extend(text(Text {
+        name: "MerchantPageText".into(),
+        text: page_text,
+        rect: (FRAME_W / 2.0 - 52.0, FRAME_H - 86.0 - 14.0, 104.0, 14.0),
+        font: GameFont::FrizQuadrata,
+        size: 12.0,
+        color: NORMAL_FONT_COLOR,
+        justify: "CENTER",
+    }));
+    children
+}
+
+fn page_button(
+    name: &str,
+    x: f32,
+    y: f32,
+    enabled: bool,
+    up: u32,
+    disabled: u32,
+    action: &str,
+) -> Element {
+    let action = if enabled { action } else { "" };
+    let art = if enabled { up } else { disabled };
+    let mut children = texture(
+        format!("{name}Background"),
+        PAGE_BUTTON_BG,
+        (0.0, -1.0, 32.0, 32.0),
+        WHITE,
+    );
+    children.extend(texture(
+        format!("{name}Normal"),
+        art,
+        (0.0, 0.0, 32.0, 32.0),
+        WHITE,
+    ));
+    rsx! {
+        r#frame {
+            name: {DynName(name.into())},
+            width: 32.0,
+            height: 32.0,
+            onclick: action,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            {children}
+        }
+    }
+}
+
+/// `MerchantRepairAllButton` 36×36, BOTTOMRIGHT at BOTTOMLEFT 118,33 (MF.lua:933-967,
+/// no guild bank). `MerchantRepairItemButton` (the per-item repair cursor) is not
+/// built: equipped items have no click targets yet.
+fn repair_buttons(enabled: bool) -> Element {
+    let y = FRAME_H - 33.0 - 36.0;
+    repair_button(
+        "MerchantRepairAllButton",
+        82.0,
+        y,
+        &REPAIR_ALL_ICON,
+        enabled,
+        ACTION_REPAIR_ALL,
+    )
+}
+
+fn repair_button(
+    name: &str,
+    x: f32,
+    y: f32,
+    icon: &AtlasArt,
+    enabled: bool,
+    action: &str,
+) -> Element {
+    let action = if enabled { action } else { "" };
+    // Disabled buttons desaturate their icon (MF.lua:909-931).
+    let icon_color = if enabled { WHITE } else { "0.4,0.4,0.4,1.0" };
+    let mut children = texture(
+        format!("{name}Slot"),
+        EMPTY_SLOT,
+        (-13.0, -14.0, 64.0, 64.0),
+        WHITE,
+    );
+    let coords = icon.tex_coords(1.0);
+    children.extend(rsx! {
+        texture {
+            name: {DynName(format!("{name}Icon"))},
+            width: 36.0,
+            height: 36.0,
+            texture_fdid: {icon.fdid},
+            tex_coords: {coords.as_str()},
+            vertex_color: icon_color,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    });
+    rsx! {
+        r#frame {
+            name: {DynName(name.into())},
+            width: 36.0,
+            height: 36.0,
+            onclick: action,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            {children}
+        }
+    }
+}
+
+/// `MerchantBuyBackItem` 115×37 at MerchantItem10 BOTTOMLEFT 30,-53 (MF.xml:402-486):
+/// the most recent sale on a 0.65-scale button with the undo arrow.
+fn buyback_slot(last: Option<&MerchantCell>) -> Element {
+    let (x, y) = (
+        CELL_LEFT[1] + 30.0,
+        CELL_TOP + 4.0 * MERCHANT_ROW_STEP + CELL_H + 53.0,
+    );
+    let name = "MerchantBuyBackItem";
+    let mut children = texture(
+        format!("{name}SlotTexture"),
+        EMPTY_SLOT,
+        (-13.0, -13.0, 64.0, 64.0),
+        WHITE,
+    );
+    let button = ITEM_BUTTON * 0.65;
+    match last {
+        Some(cell) => {
+            children.extend(item_button(&format!("{name}ItemButton"), cell, 0.65, WHITE));
+            children.extend(text(Text {
+                name: format!("{name}Name"),
+                text: &cell.name,
+                rect: (46.0, 1.0, 70.0, 35.0),
+                font: GameFont::FrizQuadrata,
+                size: 10.0,
+                color: cell.name_color,
+                justify: "LEFT",
+            }));
+            children.extend(money(
+                &format!("{name}MoneyFrame"),
+                cell.price,
+                (42.0, 36.0),
+                MoneyAlign::Left,
+                cell.price_gray,
+            ));
+        }
+        None => {
+            // `UndoFrame.Arrow` desaturated while nothing was sold.
+            let coords = UNDO_ICON.tex_coords(1.0);
+            children.extend(rsx! {
+                texture {
+                    name: {DynName(format!("{name}UndoArrow"))},
+                    width: 20.0,
+                    height: 20.0,
+                    texture_fdid: {UNDO_ICON.fdid},
+                    tex_coords: {coords.as_str()},
+                    vertex_color: "0.5,0.5,0.5,1.0",
+                    pos_type: "absolute",
+                    left: {(button - 20.0) / 2.0},
+                    top: {(button - 20.0) / 2.0 + 1.0},
+                }
+            });
+        }
+    }
+    let action = if last.is_some() {
+        ACTION_BUYBACK_LAST
     } else {
-        (TAB_BG_INACTIVE, TAB_TEXT_INACTIVE)
+        ""
     };
     rsx! {
         r#frame {
-            name: tab_id,
-            width: {tab_w},
-            height: {TAB_H},
-            background_color: bg,
-            onclick: {tab.action.as_str()},
+            name: {DynName(name.into())},
+            width: 115.0,
+            height: 37.0,
+            onclick: action,
+            mouse_enabled: true,
             pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-            {merchant_tab_label(label_id, &tab.name, tab_w, color)}
+            left: x,
+            top: y,
+            {children}
         }
     }
 }
 
-fn merchant_tab_label(id: DynName, text: &str, w: f32, color: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {w},
-            height: {TAB_H},
-            text: text,
-            font_size: 11.0,
-            font_color: color,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-        }
-    }
+/// `MerchantMoneyInset`/`MerchantMoneyBg` (ThinGoldEdgeTemplate) and
+/// `MerchantMoneyFrame` at BOTTOMRIGHT -4,8 when the vendor sells for no currency.
+fn money_bar(copper: u64) -> Element {
+    let mut children = texture(
+        format!("{FRAME_NAME}MoneyBg"),
+        MONEY_EDGE,
+        (FRAME_W - 166.0, FRAME_H - 25.0, 159.0, 19.0),
+        WHITE,
+    );
+    children.extend(money(
+        "MerchantMoneyFrame",
+        copper,
+        (FRAME_W - 4.0 - 6.0, FRAME_H - 8.0),
+        MoneyAlign::Right,
+        false,
+    ));
+    children
 }
 
-fn item_grid(items: &[MerchantItem], empty_text: Option<&str>) -> Element {
-    let content_w = FRAME_W - 2.0 * CONTENT_INSET;
-    let rows: Element = items
-        .iter()
-        .enumerate()
-        .take(MERCHANT_ITEM_ROWS)
-        .flat_map(|(i, item)| merchant_item_row(i, item, content_w))
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum MoneyAlign {
+    Left,
+    Right,
+}
+
+const COIN_SIZE: f32 = 13.0;
+const MONEY_FONT_SIZE: f32 = 12.0;
+const MONEY_H: f32 = 14.0;
+
+/// Denominations a `SmallMoneyFrameTemplate` shows: every non-zero one, or 0 copper.
+fn coins(copper: u64) -> Vec<(u64, &'static AtlasArt)> {
+    let parts = [
+        (copper / 10_000, &COIN_GOLD),
+        (copper / 100 % 100, &COIN_SILVER),
+        (copper % 100, &COIN_COPPER),
+    ];
+    let shown: Vec<_> = parts
+        .into_iter()
+        .filter(|(amount, _)| *amount > 0)
         .collect();
-    let content: Element = if items.is_empty() {
-        empty_text
-            .and_then(empty_state_text)
-            .into_iter()
-            .flatten()
-            .collect()
+    if shown.is_empty() {
+        vec![(0, &COIN_COPPER)]
     } else {
-        rows
+        shown
+    }
+}
+
+/// Amount + coin pairs, 4 px apart; `anchor` is the bottom-left (Left) or
+/// bottom-right (Right) corner in parent space.
+fn money(prefix: &str, copper: u64, anchor: (f32, f32), align: MoneyAlign, gray: bool) -> Element {
+    let color = if gray {
+        GRAY_FONT_COLOR
+    } else {
+        HIGHLIGHT_FONT_COLOR
     };
-    rsx! {
-        r#frame {
-            name: "MerchantItemGrid",
-            width: {content_w},
-            height: {MERCHANT_ITEM_ROWS as f32 * (ITEM_ROW_H + ITEM_ROW_GAP)},
-            background_color: CONTENT_BG,
-            pos_type: "absolute",
-            left: {CONTENT_INSET},
-            top: {-(-CONTENT_TOP)},
-            {content}
-        }
-    }
-}
-
-fn merchant_item_row(idx: usize, item: &MerchantItem, parent_w: f32) -> Element {
-    let row_id = DynName(format!("MerchantItem{idx}"));
-    let y = -(ITEM_INSET + idx as f32 * (ITEM_ROW_H + ITEM_ROW_GAP));
-    let row_w = parent_w - 2.0 * ITEM_INSET;
-    let text_x = ITEM_ICON_SIZE + 8.0;
-    rsx! {
-        r#frame {
-            name: row_id,
-            width: {row_w},
-            height: {ITEM_ROW_H},
-            onclick: {item.action.as_str()},
-            pos_type: "absolute",
-            left: {ITEM_INSET},
-            top: {-(y)},
-            {merchant_item_icon(DynName(format!("MerchantItem{idx}Icon")))}
-            {merchant_item_name(DynName(format!("MerchantItem{idx}Name")), &item.name, row_w - text_x - 60.0, text_x)}
-            {merchant_item_price(DynName(format!("MerchantItem{idx}Price")), &item.price)}
-        }
-    }
-}
-
-fn empty_state_text(text: &str) -> Option<Element> {
-    Some(rsx! {
-        fontstring {
-            name: "MerchantEmptyText",
-            width: {FRAME_W - 2.0 * CONTENT_INSET - 2.0 * ITEM_INSET},
-            height: 18.0,
-            text: text,
-            font_size: 11.0,
-            font_color: EMPTY_TEXT_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: "50%",
-            translate_y: "-50%",
-        }
-    })
-}
-
-fn merchant_item_icon(id: DynName) -> Element {
-    rsx! {
-        r#frame {
-            name: id,
-            width: {ITEM_ICON_SIZE},
-            height: {ITEM_ICON_SIZE},
-            background_color: ITEM_ICON_BG,
-            pos_type: "absolute",
-            left: 0.0,
-            top: {-(-((ITEM_ROW_H - ITEM_ICON_SIZE) / 2.0))},
-        }
-    }
-}
-
-fn merchant_item_name(id: DynName, text: &str, w: f32, x: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {w},
-            height: 16.0,
-            text: text,
-            font_size: 10.0,
-            font_color: ITEM_NAME_COLOR,
-            justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {x},
-            top: {-(-((ITEM_ROW_H - 16.0) / 2.0))},
-        }
-    }
-}
-
-fn merchant_item_price(id: DynName, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: 56.0,
-            height: 16.0,
-            text: text,
-            font_size: 9.0,
-            font_color: ITEM_PRICE_COLOR,
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: -0.0,
-            top: {-(-((ITEM_ROW_H - 16.0) / 2.0))},
-        }
-    }
-}
-
-fn repair_btn(name: &str, label: &str, x: f32, y: f32) -> Element {
-    let btn_id = DynName(name.into());
-    let text_id = DynName(format!("{name}Text"));
-    let action = match name {
-        "MerchantRepairButton" => ACTION_REPAIR_ALL,
-        "MerchantGuildRepairButton" => ACTION_GUILD_REPAIR,
-        _ => "",
+    let parts: Vec<(String, f32, &AtlasArt)> = coins(copper)
+        .into_iter()
+        .map(|(amount, art)| {
+            let digits = amount.to_string();
+            let width = measure_text(&digits, GameFont::ArialNarrow, MONEY_FONT_SIZE)
+                .map_or(7.0 * digits.len() as f32, |(w, _)| w.ceil());
+            (digits, width, art)
+        })
+        .collect();
+    let total: f32 = parts
+        .iter()
+        .map(|(_, w, _)| w + 1.0 + COIN_SIZE)
+        .sum::<f32>()
+        + 4.0 * (parts.len() as f32 - 1.0);
+    let mut x = match align {
+        MoneyAlign::Left => anchor.0,
+        MoneyAlign::Right => anchor.0 - total,
     };
+    let top = anchor.1 - MONEY_H;
+    let mut children = Element::default();
+    for (index, (digits, width, art)) in parts.iter().enumerate() {
+        children.extend(text(Text {
+            name: format!("{prefix}Amount{index}"),
+            text: digits,
+            rect: (x, top, *width + 1.0, MONEY_H),
+            font: GameFont::ArialNarrow,
+            size: MONEY_FONT_SIZE,
+            color,
+            justify: "RIGHT",
+        }));
+        x += width + 1.0;
+        children.extend(atlas_texture(
+            format!("{prefix}Coin{index}"),
+            art,
+            (x, top + (MONEY_H - COIN_SIZE) / 2.0, COIN_SIZE, COIN_SIZE),
+        ));
+        x += COIN_SIZE + 4.0;
+    }
+    children
+}
+
+/// `MerchantFrameTab1` CENTER at BOTTOMLEFT 50,-15 and Tab2 at its RIGHT -16,0
+/// (MF.xml:576-594); PanelTabButtonTemplate 32 high, width = text + 20 but at
+/// least both caps (SharedUIPanelTemplates.lua:393-395).
+fn tabs(buyback_tab: bool) -> Element {
+    let tab1_w = tab_width("Merchant");
+    let tab2_w = tab_width("Buyback");
+    let top = FRAME_H + 15.0 - 16.0;
+    let tab1_x = 50.0 - tab1_w / 2.0;
+    let mut children = tab(
+        "MerchantFrameTab1",
+        "Merchant",
+        (tab1_x, top, tab1_w),
+        !buyback_tab,
+        ACTION_TAB_MERCHANT,
+    );
+    children.extend(tab(
+        "MerchantFrameTab2",
+        "Buyback",
+        (tab1_x + tab1_w - 16.0, top, tab2_w),
+        buyback_tab,
+        ACTION_TAB_BUYBACK,
+    ));
+    children
+}
+
+fn tab_width(label: &str) -> f32 {
+    let text_w = measure_text(label, GameFont::FrizQuadrata, 10.0).map_or(50.0, |(w, _)| w);
+    (text_w + 20.0)
+        .max(TAB_INACTIVE[0].size().0 + TAB_INACTIVE[2].size().0)
+        .ceil()
+}
+
+fn tab(
+    name: &str,
+    label: &str,
+    (x, y, width): (f32, f32, f32),
+    selected: bool,
+    action: &str,
+) -> Element {
+    let art = if selected { &TAB_ACTIVE } else { &TAB_INACTIVE };
+    let height = art[0].size().1;
+    let (left_w, right_w) = (art[0].size().0, art[2].size().0);
+    // Left at TOPLEFT x -1 (active) / -3, Right at TOPRIGHT +8 / +7 (xml:909-935).
+    let (left_x, right_x) = if selected { (-1.0, 8.0) } else { (-3.0, 7.0) };
+    let mut children = atlas_texture(
+        format!("{name}Left"),
+        &art[0],
+        (left_x, 0.0, left_w, height),
+    );
+    children.extend(atlas_texture(
+        format!("{name}Middle"),
+        &art[1],
+        (
+            left_x + left_w,
+            0.0,
+            (width + right_x - right_w) - (left_x + left_w),
+            height,
+        ),
+    ));
+    children.extend(atlas_texture(
+        format!("{name}Right"),
+        &art[2],
+        (width + right_x - right_w, 0.0, right_w, height),
+    ));
+    // Text CENTER (0, 2) deselected, (0, -3) selected (SharedUIPanelTemplates.lua:524-542).
+    let text_y = if selected {
+        16.0 - 5.0 + 3.0
+    } else {
+        16.0 - 5.0 - 2.0
+    };
+    let color = if selected {
+        HIGHLIGHT_FONT_COLOR
+    } else {
+        NORMAL_FONT_COLOR
+    };
+    children.extend(text(Text {
+        name: format!("{name}Text"),
+        text: label,
+        rect: (0.0, text_y, width, 10.0),
+        font: GameFont::FrizQuadrata,
+        size: 10.0,
+        color,
+        justify: "CENTER",
+    }));
+    let action = if selected { "" } else { action };
     rsx! {
         r#frame {
-            name: btn_id,
-            width: {REPAIR_BTN_W},
-            height: {REPAIR_BTN_H},
-            background_color: REPAIR_BTN_BG,
+            name: {DynName(name.into())},
+            width,
+            height: 32.0,
             onclick: action,
+            mouse_enabled: true,
             pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-            fontstring {
-                name: text_id,
-                width: {REPAIR_BTN_W},
-                height: {REPAIR_BTN_H},
-                text: label,
-                font_size: 10.0,
-                font_color: REPAIR_BTN_TEXT_COLOR,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
+            left: x,
+            top: y,
+            {children}
         }
-    }
-}
-
-fn repair_buttons() -> Element {
-    let grid_h = MERCHANT_ITEM_ROWS as f32 * (ITEM_ROW_H + ITEM_ROW_GAP);
-    let y = -(CONTENT_TOP + grid_h + 8.0);
-    rsx! {
-        {repair_btn("MerchantRepairButton", "Repair All", CONTENT_INSET, y)}
-        {repair_btn("MerchantGuildRepairButton", "Guild Repair", CONTENT_INSET + REPAIR_BTN_W + REPAIR_GAP, y)}
-    }
-}
-
-fn money_display(money: &str) -> Element {
-    let grid_h = MERCHANT_ITEM_ROWS as f32 * (ITEM_ROW_H + ITEM_ROW_GAP);
-    let y = -(CONTENT_TOP + grid_h + 8.0);
-    rsx! {
-        fontstring {
-            name: "MerchantMoneyDisplay",
-            width: {MONEY_W},
-            height: {MONEY_H},
-            text: money,
-            font_size: 10.0,
-            font_color: MONEY_COLOR,
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: {-(-CONTENT_INSET)},
-            top: {-(y)},
-        }
-    }
-}
-
-fn page_nav_button(name: &str, label: &str, x: f32, y: f32) -> Element {
-    let btn_id = DynName(name.into());
-    let text_id = DynName(format!("{name}Text"));
-    let action = match name {
-        "MerchantPagePrev" => ACTION_PAGE_PREV,
-        "MerchantPageNext" => ACTION_PAGE_NEXT,
-        _ => "",
-    };
-    rsx! {
-        r#frame {
-            name: btn_id,
-            width: {PAGE_BTN_W},
-            height: {PAGE_BTN_H},
-            background_color: PAGE_BTN_BG,
-            onclick: action,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-            fontstring {
-                name: text_id,
-                width: {PAGE_BTN_W},
-                height: {PAGE_BTN_H},
-                text: label,
-                font_size: 12.0,
-                font_color: PAGE_BTN_TEXT,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn page_buttons(page: usize, total: usize) -> Element {
-    let page_text = format!("Page {page}/{total}");
-    let y = -(FRAME_H - PAGE_BTN_H - 8.0);
-    let center_x = FRAME_W / 2.0;
-    rsx! {
-        {page_nav_button("MerchantPagePrev", "<", center_x - PAGE_BTN_W - PAGE_BTN_GAP - 30.0, y)}
-        fontstring {
-            name: "MerchantPageLabel",
-            width: 60.0,
-            height: {PAGE_BTN_H},
-            text: {page_text.as_str()},
-            font_size: 10.0,
-            font_color: PAGE_BTN_TEXT,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: {center_x - 30.0},
-            top: {-(y)},
-        }
-        {page_nav_button("MerchantPageNext", ">", center_x + 30.0 + PAGE_BTN_GAP, y)}
     }
 }
 
 #[cfg(test)]
-#[path = "../../../tests/unit/merchant_frame_component_tests.rs"]
+#[path = "merchant_frame_component_tests.rs"]
 mod tests;

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use shared::protocol::{BagContents, InventoryDelta, InventorySnapshot, ItemLocation, ItemStack};
 
 /// Texture FDIDs for bag frames and slots.
 pub mod textures {
@@ -92,6 +93,9 @@ pub struct InventorySlot {
     pub quality: ItemQuality,
     /// Item name (for tooltips).
     pub name: String,
+    /// Server item instance (0 = none); what selling sends.
+    pub item_guid: u64,
+    pub item_id: u32,
 }
 
 impl InventorySlot {
@@ -99,6 +103,21 @@ impl InventorySlot {
         self.icon_fdid == 0
     }
 }
+
+/// A server stack shown in a bag slot. The server sends ids and counts only, so
+/// the name stays empty and the quality common.
+fn stack_slot(stack: &ItemStack) -> InventorySlot {
+    InventorySlot {
+        icon_fdid: crate::item_icons::item_icon_fdid(stack.item_id).unwrap_or(UNKNOWN_ICON_FDID),
+        count: stack.count,
+        item_guid: stack.item_guid,
+        item_id: stack.item_id,
+        ..Default::default()
+    }
+}
+
+/// `INV_Misc_QuestionMark`, Retail's icon for an item without one.
+const UNKNOWN_ICON_FDID: u32 = 134_400;
 
 /// A bag in the player's inventory.
 #[derive(Clone, Debug, PartialEq)]
@@ -198,6 +217,53 @@ impl InventoryState {
             .filter(|s| s.name == name)
             .map(|s| s.count.max(1))
             .sum()
+    }
+
+    /// The server's `InventorySnapshot`: bag sizes and every item. Bags of size 0
+    /// (no container support on the server) are left out.
+    pub fn apply_snapshot(&mut self, snapshot: &InventorySnapshot) {
+        let bags: Vec<&BagContents> = snapshot.bags.iter().filter(|bag| bag.size > 0).collect();
+        self.bags = bags
+            .iter()
+            .map(|bag| BagInfo {
+                index: usize::from(bag.bag),
+                name: if bag.bag == 0 {
+                    "Backpack".into()
+                } else {
+                    format!("Bag {}", bag.bag)
+                },
+                size: usize::from(bag.size),
+                icon_fdid: 0,
+            })
+            .collect();
+        let slot_bags = bags
+            .iter()
+            .map(|bag| usize::from(bag.bag))
+            .max()
+            .map_or(0, |max| max + 1);
+        self.slots = vec![Vec::new(); slot_bags];
+        for bag in &bags {
+            self.slots[usize::from(bag.bag)] =
+                vec![InventorySlot::default(); usize::from(bag.size)];
+            for entry in &bag.items {
+                self.set_item(
+                    usize::from(bag.bag),
+                    usize::from(entry.slot),
+                    stack_slot(&entry.item),
+                );
+            }
+        }
+    }
+
+    /// The server's `InventoryDelta`: bag locations that changed (equipment ignored).
+    pub fn apply_delta(&mut self, delta: &InventoryDelta) {
+        for change in &delta.changes {
+            let ItemLocation::Bag { bag, slot } = change.location else {
+                continue;
+            };
+            let item = change.item.as_ref().map(stack_slot).unwrap_or_default();
+            self.set_item(usize::from(bag), usize::from(slot), item);
+        }
     }
 
     /// Replace the entire inventory (bulk sync from server).
