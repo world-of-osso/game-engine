@@ -1,6 +1,6 @@
 //! LightData keyframe loading and sky color interpolation.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 
 use bevy::prelude::Color;
@@ -496,6 +496,29 @@ fn interpolation_factor(start: f32, end: f32, value: f32) -> f32 {
     }
 }
 
+/// Sample a light blend at the given time: the first entry (the map's global
+/// light) is the base and every later LightParams overlays it by its weight.
+/// LightParams without keyframes contribute nothing.
+pub fn sample_light_blend(
+    rows_by_param: &HashMap<u32, Vec<LightDataRow>>,
+    blend: &[crate::light_lookup::WeightedLightParams],
+    minutes: f32,
+) -> SkyColorSet {
+    let mut layers = blend.iter().filter_map(|light| {
+        rows_by_param
+            .get(&light.light_params_id)
+            .filter(|rows| !rows.is_empty())
+            .map(|rows| (interpolate_colors(rows, minutes), light.weight))
+    });
+    let Some((mut colors, _)) = layers.next() else {
+        return default_sky_colors();
+    };
+    for (layer, weight) in layers {
+        colors = lerp_color_sets(&colors, &layer, weight);
+    }
+    colors
+}
+
 /// Interpolate between LightData keyframes at the given time (0–2880).
 pub fn interpolate_colors(rows: &[LightDataRow], minutes: f32) -> SkyColorSet {
     match rows.len() {
@@ -690,6 +713,61 @@ mod tests {
             "fog start {}",
             noon.fog_start
         );
+    }
+
+    fn constant_row(sky_top: Color, fog_end: f32) -> LightDataRow {
+        let colors = default_sky_colors();
+        LightDataRow {
+            time: 0.0,
+            direct_color: colors.direct_color,
+            ambient_color: colors.ambient_color,
+            sky_top,
+            sky_middle: colors.sky_middle,
+            sky_band1: colors.sky_band1,
+            sky_band2: colors.sky_band2,
+            sky_smog: colors.sky_smog,
+            fog_color: colors.fog_color,
+            sun_color: colors.sun_color,
+            sun_halo_color: colors.sun_halo_color,
+            cloud_emissive_color: colors.cloud_emissive_color,
+            cloud_layer1_ambient_color: colors.cloud_layer1_ambient_color,
+            cloud_layer2_ambient_color: colors.cloud_layer2_ambient_color,
+            ocean_close_color: colors.ocean_close_color,
+            ocean_far_color: colors.ocean_far_color,
+            river_close_color: colors.river_close_color,
+            river_far_color: colors.river_far_color,
+            horizon_ambient_color: colors.horizon_ambient_color,
+            fog_end,
+            fog_start: 0.0,
+            glow: 0.0,
+            cloud_density: 0.0,
+            unk1: 0.0,
+            unk2: 0.0,
+        }
+    }
+
+    #[test]
+    fn light_blend_overlays_each_local_on_the_result_so_far() {
+        use crate::light_lookup::WeightedLightParams;
+        let rows = HashMap::from([
+            (12, vec![constant_row(Color::linear_rgb(0.0, 0.0, 0.0), 3600.0)]),
+            (30, vec![constant_row(Color::linear_rgb(1.0, 1.0, 1.0), 7200.0)]),
+            (31, vec![constant_row(Color::linear_rgb(0.0, 0.0, 1.0), 0.0)]),
+        ]);
+        let weighted = |light_params_id, weight| WeightedLightParams {
+            light_params_id,
+            weight,
+        };
+        let blend = [weighted(12, 1.0), weighted(30, 0.5), weighted(31, 0.25)];
+        let colors = sample_light_blend(&rows, &blend, 1440.0);
+        // Global 0 -> local 30 at 0.5 gives 0.5, then local 31 at 0.25 pulls towards (0,0,1).
+        let top = colors.sky_top.to_linear();
+        assert!((top.red - 0.375).abs() < 1e-5, "{top:?}");
+        assert!((top.blue - 0.625).abs() < 1e-5, "{top:?}");
+        // Fog: 100 yd -> 200 yd at 0.5 = 150, then -> 0 at 0.25 = 112.5.
+        assert!((colors.fog_end - 112.5).abs() < 1e-3, "{}", colors.fog_end);
+        let global_only = sample_light_blend(&rows, &blend[..1], 1440.0);
+        assert_eq!(global_only.sky_top.to_linear().red, 0.0);
     }
 
     #[test]

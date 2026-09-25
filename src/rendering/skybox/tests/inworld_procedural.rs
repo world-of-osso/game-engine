@@ -104,10 +104,10 @@ fn inworld_procedural_sky_initializes_colors_after_time_has_settled() {
     let (mut app, camera) = sky_app(false);
     app.init_resource::<Assets<crate::water_material::WaterMaterial>>()
         .insert_resource(crate::sky::GameTime::default())
-        .insert_resource(crate::sky::LightKeyframes(crate::sky::load_light_data(
-            "data/LightData.ron",
+        .insert_resource(crate::sky::LightKeyframes::for_params(
             12,
-        )))
+            crate::sky::load_light_data("data/LightData.ron", 12),
+        ))
         .add_systems(
             Update,
             crate::sky::update_sky_colors.after(sync_inworld_authored_skybox),
@@ -126,10 +126,10 @@ fn inworld_procedural_sky_initializes_colors_after_time_has_settled() {
         .resource::<Assets<SkyMaterial>>()
         .get(handle)
         .unwrap();
-    let expected = crate::sky::interpolate_colors(
-        &app.world().resource::<crate::sky::LightKeyframes>().0,
-        1440.0,
-    );
+    let expected = app
+        .world()
+        .resource::<crate::sky::LightKeyframes>()
+        .sample(1440.0);
     assert_eq!(
         material.uniforms.sky_top,
         crate::sky::color_to_vec4(expected.sky_top)
@@ -184,4 +184,45 @@ fn inworld_procedural_sky_waits_for_active_camera_and_respects_disable() {
     app.insert_resource(SkyboxVisualsDisabled);
     app.update();
     assert!(dome_entities(app.world_mut()).is_empty());
+}
+
+#[test]
+fn inworld_light_blend_follows_the_local_player_into_overlapping_lights() {
+    let (mut app, _camera) = sky_app(true);
+    app.insert_resource(crate::sky::LightKeyframes::for_params(
+        12,
+        crate::sky::load_light_data("data/LightData.ron", 12),
+    ))
+    .add_systems(Update, update_inworld_light_blend);
+    app.update();
+    let ids = |app: &App| -> Vec<u32> {
+        app.world()
+            .resource::<crate::sky::LightKeyframes>()
+            .blend
+            .iter()
+            .map(|light| light.light_params_id)
+            .collect()
+    };
+    assert_eq!(ids(&app), [12], "Elwynn spot is lit by the global light");
+    let global_noon = app
+        .world()
+        .resource::<crate::sky::LightKeyframes>()
+        .sample(1440.0);
+
+    // WoW (-8405.36, 548.28, 80.92): inside the fade bands of Stormwind lights 51 and 52.
+    let mut players = app
+        .world_mut()
+        .query_filtered::<&mut Transform, With<LocalPlayer>>();
+    players.single_mut(app.world_mut()).unwrap().translation = Vec3::new(-8405.36, 80.92, -548.28);
+    app.update();
+
+    assert_eq!(ids(&app), [12, 62, 62]);
+    let keyframes = app.world().resource::<crate::sky::LightKeyframes>();
+    assert!(!keyframes.rows_by_param[&62].is_empty());
+    let blended_noon = keyframes.sample(1440.0);
+    assert_ne!(
+        blended_noon.sky_middle.to_srgba(),
+        global_noon.sky_middle.to_srgba(),
+        "LightParams 62 must change the sampled sky"
+    );
 }

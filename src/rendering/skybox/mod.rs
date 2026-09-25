@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::f32::consts::{FRAC_PI_2, TAU};
 
 use bevy::asset::RenderAssetUsages;
@@ -11,9 +12,11 @@ use bevy::render::render_resource::{
 
 use super::weather::{ActiveWeather, weather_adjusted_fog};
 use crate::game_state::GameState;
+use crate::light_lookup::WeightedLightParams;
 use crate::scenes::char_select::scene::CharSelectScene;
 use crate::sky_lightdata::{
     LightDataRow, SkyColorSet, default_sky_colors, interpolate_colors, load_light_data,
+    sample_light_blend,
 };
 use game_engine::ui::frame::WidgetData;
 use game_engine::ui::plugin::UiState;
@@ -29,7 +32,7 @@ mod sky_gradient;
 
 use self::inworld_skybox::{
     sync_inworld_authored_skybox, sync_inworld_skybox_to_camera, teardown_inworld_skybox,
-    update_inworld_skybox_transition,
+    update_inworld_light_blend, update_inworld_skybox_transition,
 };
 use cloud_texture::create_procedural_cloud_maps;
 use sky_gradient::{
@@ -70,9 +73,55 @@ impl Default for GameTime {
 #[derive(Component)]
 pub struct SkyDome;
 
-/// Resource holding parsed LightData keyframes.
+const LIGHT_DATA_PATH: &str = "data/LightData.ron";
+
+/// Azeroth's global Light row 1, clear slot: the sky light for screens without
+/// a world position (character select, skybox debug) and before InWorld's first
+/// position lookup.
+const PRE_WORLD_LIGHT_PARAMS_ID: u32 = 12;
+
+/// LightData keyframes per LightParams and the weighted LightParams the sky and
+/// fog currently blend.
 #[derive(Resource)]
-struct LightKeyframes(Vec<LightDataRow>);
+struct LightKeyframes {
+    rows_by_param: HashMap<u32, Vec<LightDataRow>>,
+    blend: Vec<WeightedLightParams>,
+}
+
+impl LightKeyframes {
+    fn for_params(light_params_id: u32, rows: Vec<LightDataRow>) -> Self {
+        Self {
+            rows_by_param: HashMap::from([(light_params_id, rows)]),
+            blend: vec![WeightedLightParams {
+                light_params_id,
+                weight: 1.0,
+            }],
+        }
+    }
+
+    fn sample(&self, minutes: f32) -> SkyColorSet {
+        sample_light_blend(&self.rows_by_param, &self.blend, minutes)
+    }
+
+    /// Switch to `blend`, loading keyframes for LightParams seen for the first time.
+    fn set_blend(&mut self, blend: Vec<WeightedLightParams>) {
+        for light in &blend {
+            self.rows_by_param
+                .entry(light.light_params_id)
+                .or_insert_with(|| {
+                    let rows = load_light_data(LIGHT_DATA_PATH, light.light_params_id);
+                    if rows.is_empty() {
+                        warn!(
+                            "No LightData keyframes for LightParams {}",
+                            light.light_params_id
+                        );
+                    }
+                    rows
+                });
+        }
+        self.blend = blend;
+    }
+}
 
 /// Dome radius in yards. The lowered client dome reaches 1.71 radii below the eye,
 /// inside the 900-yard extent of the previous dome and the default far plane.
@@ -257,7 +306,7 @@ fn initialize_scene_camera_ibl(
         if !camera.is_active {
             continue;
         }
-        let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+        let colors = keyframes.sample(game_time.minutes);
         insert_default_sky_env_map(&mut commands, &mut images, entity, &colors);
     }
 }
@@ -296,12 +345,12 @@ fn update_sky_colors(
         .any(|material| material.is_added());
     let has_new_sun = !visuals.new_suns.is_empty();
     let time_changed = (game_time.minutes - *last_minutes).abs() >= 0.01;
-    let needs_update = time_changed || has_new_dome || has_new_sun;
+    let needs_update = time_changed || keyframes.is_changed() || has_new_dome || has_new_sun;
     if !needs_update {
         return;
     }
     *last_minutes = game_time.minutes;
-    let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+    let colors = keyframes.sample(game_time.minutes);
     update_sky_dome_material(
         &visuals.sky_dome_q,
         &mut visuals.sky_materials,
@@ -422,11 +471,14 @@ fn update_fog(
     mut last_minutes: Local<f32>,
 ) {
     let weather_changed = weather.as_ref().is_some_and(|weather| weather.is_changed());
-    if (game_time.minutes - *last_minutes).abs() < 0.01 && !weather_changed {
+    if (game_time.minutes - *last_minutes).abs() < 0.01
+        && !weather_changed
+        && !keyframes.is_changed()
+    {
         return;
     }
     *last_minutes = game_time.minutes;
-    let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+    let colors = keyframes.sample(game_time.minutes);
     let (fog_color, directional_color, falloff) = weather_adjusted_fog(&colors, weather.as_deref());
     for mut fog in fog_q.iter_mut() {
         fog.color = fog_color;
@@ -513,11 +565,11 @@ fn update_sky_env_map(
     mut last: Local<f32>,
 ) {
     let Some(handle) = env_handle else { return };
-    if (game_time.minutes - *last).abs() < 1.0 {
+    if (game_time.minutes - *last).abs() < 1.0 && !keyframes.is_changed() {
         return;
     }
     *last = game_time.minutes;
-    let colors = interpolate_colors(&keyframes.0, game_time.minutes);
+    let colors = keyframes.sample(game_time.minutes);
     if let Some(mut image) = images.get_mut(&handle.0) {
         *image = build_sky_cubemap(&colors);
     }
@@ -619,6 +671,16 @@ fn register_inworld_systems(app: &mut App) {
     register_sky_visual_systems(app);
     app.add_systems(
         Update,
+        update_inworld_light_blend
+            .before(update_sky_colors)
+            .before(update_fog)
+            .before(update_sky_env_map)
+            .before(initialize_scene_camera_ibl)
+            .run_if(in_state(GameState::InWorld))
+            .run_if(crate::game::inworld_scene_stage::inworld_scene_stage_allows_lighting),
+    );
+    app.add_systems(
+        Update,
         (
             sync_inworld_authored_skybox,
             update_inworld_skybox_transition.after(sync_inworld_authored_skybox),
@@ -690,9 +752,9 @@ fn register_inworld_time_display_system(app: &mut App) {
 
 impl Plugin for SkyPlugin {
     fn build(&self, app: &mut App) {
-        let keyframes = load_light_data("data/LightData.ron", 12);
+        let keyframes = load_light_data(LIGHT_DATA_PATH, PRE_WORLD_LIGHT_PARAMS_ID);
         info!(
-            "Loaded {} sky keyframes for LightParamID 12",
+            "Loaded {} sky keyframes for LightParamID {PRE_WORLD_LIGHT_PARAMS_ID}",
             keyframes.len()
         );
         let empty = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
@@ -704,7 +766,10 @@ impl Plugin for SkyPlugin {
         }
         app.add_systems(PostUpdate, remove_disabled_sky_domes)
             .insert_resource(GameTime::default())
-            .insert_resource(LightKeyframes(keyframes))
+            .insert_resource(LightKeyframes::for_params(
+                PRE_WORLD_LIGHT_PARAMS_ID,
+                keyframes,
+            ))
             .add_systems(Startup, init_procedural_cloud_maps);
         register_inworld_systems(app);
     }

@@ -348,6 +348,26 @@ fn spawn_desired_inworld_skybox(
     });
 }
 
+/// Select the clear-weather light blend for the local player's position.
+pub(super) fn update_inworld_light_blend(
+    mut keyframes: ResMut<super::LightKeyframes>,
+    adt_manager: Res<AdtManager>,
+    current_zone: Res<CurrentZone>,
+    player_q: Query<&Transform, (With<crate::camera::Player>, With<LocalPlayer>)>,
+) {
+    let Ok(player) = player_q.single() else {
+        return;
+    };
+    let map_id = resolve_inworld_map_id(&adt_manager, &current_zone);
+    let blend = crate::light_lookup::resolve_clear_light_params_blend(
+        map_id,
+        bevy_to_wow_position(player.translation),
+    );
+    if keyframes.blend != blend {
+        keyframes.set_blend(blend);
+    }
+}
+
 pub(super) fn sync_inworld_skybox_to_camera(
     camera_q: Query<(&Camera, &Transform), (With<Camera3d>, Without<InWorldSkybox>)>,
     mut skybox_q: Query<&mut Transform, With<InWorldSkybox>>,

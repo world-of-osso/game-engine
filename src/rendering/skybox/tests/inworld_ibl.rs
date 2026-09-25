@@ -172,7 +172,7 @@ fn skyboxdebug_registered_sky_updates_initialize_and_refresh_dome_colors() {
         app.world_mut().resource_mut::<GameTime>().minutes = minutes;
         app.update();
         let world = app.world();
-        let colors = interpolate_colors(&world.resource::<LightKeyframes>().0, minutes);
+        let colors = world.resource::<LightKeyframes>().sample(minutes);
         let material = world
             .resource::<Assets<SkyMaterial>>()
             .get(&handle)
@@ -186,10 +186,13 @@ fn lighting_app() -> App {
     let mut app = App::new();
     app.insert_resource(State::new(GameState::InWorld));
     app.insert_resource(GameTime::default());
-    app.insert_resource(LightKeyframes(vec![
-        light_row(0.0, Color::linear_rgb(0.1, 0.2, 0.3)),
-        light_row(2880.0, Color::linear_rgb(0.5, 0.6, 0.7)),
-    ]));
+    app.insert_resource(LightKeyframes::for_params(
+        12,
+        vec![
+            light_row(0.0, Color::linear_rgb(0.1, 0.2, 0.3)),
+            light_row(2880.0, Color::linear_rgb(0.5, 0.6, 0.7)),
+        ],
+    ));
     app.insert_resource(Assets::<Image>::default());
     app.insert_resource(Assets::<SkyMaterial>::default());
     app.insert_resource(Assets::<crate::water_material::WaterMaterial>::default());
@@ -228,10 +231,9 @@ fn assert_current_ibl(app: &App, camera: Entity) {
         .get(&light.environment_map)
         .expect("generated lighting source cubemap must exist");
     assert_valid_ibl_cube(image);
-    let colors = interpolate_colors(
-        &world.resource::<LightKeyframes>().0,
-        world.resource::<GameTime>().minutes,
-    );
+    let colors = world
+        .resource::<LightKeyframes>()
+        .sample(world.resource::<GameTime>().minutes);
     let expected = build_sky_cubemap(&colors);
     assert_eq!(image.data, expected.data);
     assert_ne!(image.data, build_sky_cubemap(&default_sky_colors()).data);
