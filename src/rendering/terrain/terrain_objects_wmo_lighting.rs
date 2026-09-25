@@ -68,7 +68,11 @@ impl MaterialExtension for WmoLighting {
         layout: &MeshVertexBufferLayoutRef,
         _key: MaterialExtensionKey<Self>,
     ) -> Result<(), SpecializedMeshPipelineError> {
-        let is_prepass = descriptor.label.as_deref() == Some("prepass_pipeline");
+        // Bevy labels these `pbr_prepass_pipeline` (depth/normal prepass and shadows).
+        let is_prepass = descriptor
+            .label
+            .as_deref()
+            .is_some_and(|label| label.contains("prepass"));
         if is_prepass || !layout.0.contains(wmo::WMO_BLEND_ALPHA_ATTRIBUTE) {
             return Ok(());
         }
