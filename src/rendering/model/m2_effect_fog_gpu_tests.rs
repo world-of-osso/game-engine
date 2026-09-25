@@ -1,6 +1,6 @@
 //! Compile and render the actual M2 shader with both camera fog specializations.
 use super::{M2EffectMaterial, M2EffectMaterialPlugin, M2EffectSettings};
-use bevy::camera::{Exposure, RenderTarget, visibility::RenderLayers};
+use bevy::camera::{RenderTarget, visibility::RenderLayers};
 use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::prelude::*;
 use bevy::render::RenderApp;
@@ -69,6 +69,7 @@ fn create_effect_material(app: &mut App) -> Handle<M2EffectMaterial> {
             settings: unlit_effect_settings(),
             base_texture: texture.clone(),
             second_texture: texture,
+            scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
             blend_mode: 0,
             two_sided: false,
             global_sequences: Vec::new(),
@@ -85,9 +86,10 @@ fn unlit_effect_settings() -> M2EffectSettings {
         blend_mode: 0,
         uv_mode_1: 0,
         uv_mode_2: 0,
-        // Unlit output makes pixel readiness independent of lighting, while the
-        // real fragment shader must still compile every referenced function.
+        // Unlit output makes the pixel independent of lighting, while the real
+        // fragment shader must still compile every referenced function.
         render_flags: 1,
+        gx_blend: 0,
         uv_offset_1: Vec2::ZERO,
         uv_offset_2: Vec2::ZERO,
     }
@@ -132,7 +134,11 @@ fn m2_effect_shader_renders_with_distance_fog_disabled_and_enabled() {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
-    app.add_plugins(M2EffectMaterialPlugin);
+    app.add_plugins((
+        M2EffectMaterialPlugin,
+        crate::retail_light::RetailLightingPlugin,
+    ));
+    app.insert_resource(crate::retail_light::RetailSceneLight::m2_scene(Vec3::ONE));
     app.finish();
     app.cleanup();
     let targets = [
@@ -168,7 +174,14 @@ fn m2_effect_shader_renders_with_distance_fog_disabled_and_enabled() {
                 .expect("readable GPU image")
                 .to_rgba8();
             let pixel = rgba.get_pixel(16, 16).0;
-            ready[index] = pixel[0] > 180 && pixel[1] < 40 && pixel[2] < 40;
+            // Unlit batches still fog (only render flag 0x2 skips it): halfway
+            // through the 0–10 yard fog, red and fog blue mix in authored space.
+            let expected = if index == 1 {
+                [128, 0, 128]
+            } else {
+                [255, 0, 0]
+            };
+            ready[index] = (0..3).all(|channel| pixel[channel].abs_diff(expected[channel]) <= 3);
             if ready[index] {
                 println!("DISTANCE_FOG={}: rendered {pixel:?}", index == 1);
             }
@@ -191,7 +204,6 @@ fn spawn_lit_comparison_camera(app: &mut App, layer: usize) -> Handle<Image> {
         },
         RenderTarget::Image(target.clone().into()),
         Transform::from_xyz(0.0, 0.0, 5.0).looking_at(Vec3::ZERO, Vec3::Y),
-        Exposure { ev100: 10.0 },
         Msaa::Off,
         Tonemapping::None,
         RenderLayers::layer(layer),
@@ -207,8 +219,9 @@ fn lit_comparison_settings() -> M2EffectSettings {
         blend_mode: 2,
         uv_mode_1: 0,
         uv_mode_2: 0,
-        // Bypass fog without enabling the unlit bit: exercise actual PBR lighting.
+        // Bypass fog without enabling the unlit bit: exercise Retail lighting.
         render_flags: 2,
+        gx_blend: 0,
         uv_offset_1: Vec2::ZERO,
         uv_offset_2: Vec2::ZERO,
     }
@@ -216,7 +229,7 @@ fn lit_comparison_settings() -> M2EffectSettings {
 
 #[test]
 #[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
-fn lit_m2_effect_matches_standard_material_without_fog() {
+fn lit_m2_effect_matches_retail_m2_material_without_fog() {
     let mut app = App::new();
     app.add_plugins(
         DefaultPlugins
@@ -229,24 +242,18 @@ fn lit_m2_effect_matches_standard_material_without_fog() {
             .disable::<bevy::winit::WinitPlugin>()
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
-    app.add_plugins(M2EffectMaterialPlugin);
+    app.add_plugins((
+        M2EffectMaterialPlugin,
+        crate::retail_light::RetailLightingPlugin,
+    ));
+    // Grey ambient, sun from behind the camera: a lit, unsaturated white texel.
+    app.insert_resource(crate::retail_light::RetailSceneLight {
+        direct: Vec3::splat(0.3),
+        sun_direction: Vec3::NEG_Z,
+        ..crate::retail_light::RetailSceneLight::m2_scene(Vec3::splat(0.4))
+    });
     app.finish();
     app.cleanup();
-    app.insert_resource(GlobalAmbientLight {
-        color: Color::WHITE,
-        brightness: 150.0,
-        ..default()
-    });
-    app.world_mut().spawn((
-        DirectionalLight {
-            color: Color::WHITE,
-            illuminance: 1000.0,
-            shadow_maps_enabled: false,
-            ..default()
-        },
-        Transform::IDENTITY,
-        RenderLayers::from_layers(&[0, 1]),
-    ));
     let targets = [
         spawn_lit_comparison_camera(&mut app, 0),
         spawn_lit_comparison_camera(&mut app, 1),
@@ -264,25 +271,25 @@ fn lit_m2_effect_matches_standard_material_without_fog() {
             settings: lit_comparison_settings(),
             base_texture: texture.clone(),
             second_texture: texture.clone(),
+            scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
             blend_mode: 2,
             two_sided: false,
             global_sequences: Vec::new(),
             texture_anim_1: None,
             texture_anim_2: None,
         });
-    let standard = app
+    let retail = app
         .world_mut()
-        .resource_mut::<Assets<StandardMaterial>>()
-        .add(StandardMaterial {
-            base_color: Color::WHITE,
-            base_color_texture: Some(texture),
-            alpha_mode: AlphaMode::Blend,
-            perceptual_roughness: 1.0,
-            reflectance: 0.0,
-            unlit: false,
-            fog_enabled: false,
-            ..default()
-        });
+        .resource_mut::<Assets<crate::retail_m2_material::M2Material>>()
+        .add(crate::retail_m2_material::retail_m2_material(
+            StandardMaterial {
+                base_color_texture: Some(texture),
+                alpha_mode: AlphaMode::Blend,
+                ..default()
+            },
+            0x02,
+            2,
+        ));
     app.world_mut().spawn((
         Mesh3d(mesh.clone()),
         MeshMaterial3d(effect),
@@ -291,13 +298,20 @@ fn lit_m2_effect_matches_standard_material_without_fog() {
     ));
     app.world_mut().spawn((
         Mesh3d(mesh),
-        MeshMaterial3d(standard),
+        MeshMaterial3d(retail),
         Transform::IDENTITY,
         RenderLayers::layer(1),
     ));
 
     let capture = capture_lit_comparison(&mut app, &targets);
     assert_lit_comparison(&capture);
+    // calcLight: white * (0.4 * 1.1 + 0.3) = 0.74 -> 189.
+    for pixel in capture.pixels {
+        assert!(
+            pixel[0].abs_diff(189) <= 2,
+            "Retail-lit white texel: {pixel:?}"
+        );
+    }
 }
 
 #[derive(Default)]
@@ -387,13 +401,10 @@ fn assert_lit_comparison(capture: &LitComparisonCapture) {
     const RGB_TOLERANCE: u8 = 4;
     let pixels = capture.pixels;
     println!(
-        "Lit comparison: M2EffectMaterial={:?}, StandardMaterial={:?}",
+        "Lit comparison: M2EffectMaterial={:?}, M2Material={:?}",
         pixels[0], pixels[1]
     );
-    for (label, pixel) in ["M2EffectMaterial", "StandardMaterial"]
-        .into_iter()
-        .zip(pixels)
-    {
+    for (label, pixel) in ["M2EffectMaterial", "M2Material"].into_iter().zip(pixels) {
         assert_lit_pixel(label, pixel);
     }
     assert!(
@@ -404,7 +415,7 @@ fn assert_lit_comparison(capture: &LitComparisonCapture) {
         let delta = pixels[0][channel].abs_diff(pixels[1][channel]);
         assert!(
             delta <= RGB_TOLERANCE,
-            "lit RGB channel {channel} differs by {delta}: M2={:?}, Standard={:?}",
+            "lit RGB channel {channel} differs by {delta}: effect={:?}, M2Material={:?}",
             pixels[0],
             pixels[1]
         );

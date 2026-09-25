@@ -1,8 +1,18 @@
+// Two-texture M2 batches: texture combiners, then Retail lighting and fog in
+// authored space (WebWowViewerCpp bindless/m2/m2shader_text.slang).
 #import bevy_pbr::{
     forward_io::VertexOutput,
-    mesh_view_bindings as view_bindings,
+    mesh_bindings::mesh,
     pbr_functions,
     pbr_types,
+}
+#import "shaders/retail_lighting.wgsl"::{
+    RetailSceneLight,
+    gamma_to_linear,
+    linear_to_gamma,
+    retail_apply_fog,
+    retail_shade,
+    retail_sun_visibility,
 }
 
 struct M2EffectSettings {
@@ -13,6 +23,7 @@ struct M2EffectSettings {
     uv_mode_1: u32,
     uv_mode_2: u32,
     render_flags: u32,
+    gx_blend: u32,
     uv_offset_1: vec2<f32>,
     uv_offset_2: vec2<f32>,
 }
@@ -22,6 +33,7 @@ struct M2EffectSettings {
 @group(#{MATERIAL_BIND_GROUP}) @binding(2) var base_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(3) var second_texture: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(4) var second_sampler: sampler;
+@group(#{MATERIAL_BIND_GROUP}) @binding(5) var<storage, read> scene_light: RetailSceneLight;
 
 fn combine_textures(texture1: vec4<f32>, texture2: vec4<f32>, shader_id: u32) -> vec4<f32> {
     switch shader_id {
@@ -77,76 +89,43 @@ fn alpha_mode_flags(blend_mode: u32) -> u32 {
     }
 }
 
-#ifdef DISTANCE_FOG
-fn m2_fog_color(blend_mode: u32) -> vec3<f32> {
-    switch blend_mode {
-        case 4u: {
-            return vec3<f32>(0.0);
-        }
-        case 5u: {
-            return vec3<f32>(1.0);
-        }
-        case 6u: {
-            return vec3<f32>(0.5);
-        }
-        default: {
-            return view_bindings::fog.base_color.rgb;
-        }
-    }
-}
-#endif
-
-fn apply_m2_distance_fog(color: vec4<f32>, world_position: vec4<f32>, frag_coord_xy: vec2<f32>) -> vec4<f32> {
-#ifdef DISTANCE_FOG
-    if (settings.render_flags & 0x2u) != 0u {
-        return color;
-    }
-    var fog = view_bindings::fog;
-    fog.base_color = vec4<f32>(m2_fog_color(settings.blend_mode), fog.base_color.a);
-    fog.directional_light_color = vec4<f32>(0.0);
-    return pbr_functions::apply_fog(
-        fog,
-        color,
-        world_position.xyz,
-        view_bindings::view.world_position.xyz,
-        frag_coord_xy,
-    );
-#else
-    return color;
-#endif
+fn gamma_texel(texel: vec4<f32>) -> vec4<f32> {
+    return vec4<f32>(linear_to_gamma(texel.rgb), texel.a);
 }
 
 @fragment
 fn fragment(in: VertexOutput, @builtin(front_facing) is_front: bool) -> @location(0) vec4<f32> {
     let uv1 = select(in.uv, in.uv_b, settings.uv_mode_1 == 1u) + settings.uv_offset_1;
     let uv2 = select(in.uv, in.uv_b, settings.uv_mode_2 == 1u) + settings.uv_offset_2;
-    let texture1 = textureSample(base_texture, base_sampler, uv1);
-    let texture2 = textureSample(second_texture, second_sampler, uv2);
+    let texture1 = gamma_texel(textureSample(base_texture, base_sampler, uv1));
+    let texture2 = gamma_texel(textureSample(second_texture, second_sampler, uv2));
     var color = combine_textures(texture1, texture2, settings.shader_id);
     color.a = clamp(color.a * settings.transparency, 0.0, 1.0);
     if color.a < settings.alpha_test {
         discard;
     }
-    if (settings.render_flags & 0x1u) != 0u {
-        return color;
+
+    let normal = normalize(pbr_functions::prepare_world_normal(in.world_normal, true, is_front));
+    var rgb = color.rgb;
+    if (settings.render_flags & 0x1u) == 0u {
+        let sun = retail_sun_visibility(
+            in.world_position,
+            normal,
+            in.position.xy,
+            mesh[in.instance_index].flags,
+        );
+        rgb = retail_shade(scene_light, rgb, normal, sun);
+    }
+    if (settings.render_flags & 0x2u) == 0u {
+        rgb = retail_apply_fog(rgb, in.world_position.xyz, settings.gx_blend);
     }
 
     var pbr_input = pbr_types::pbr_input_new();
-    pbr_input.material.base_color = color;
-    pbr_input.material.perceptual_roughness = 1.0;
-    pbr_input.material.reflectance = vec3<f32>(0.0);
     pbr_input.material.flags = alpha_mode_flags(settings.blend_mode);
     pbr_input.frag_coord = in.position;
     pbr_input.world_position = in.world_position;
-    pbr_input.world_normal = pbr_functions::prepare_world_normal(in.world_normal, true, is_front);
-    pbr_input.N = normalize(pbr_input.world_normal);
-    pbr_input.is_orthographic = view_bindings::view.clip_from_view[3].w == 1.0;
-    pbr_input.V = pbr_functions::calculate_view(
-        in.world_position,
-        pbr_input.is_orthographic,
+    return pbr_functions::main_pass_post_lighting_processing(
+        pbr_input,
+        vec4<f32>(gamma_to_linear(rgb), color.a),
     );
-
-    var lit = pbr_functions::apply_pbr_lighting(pbr_input);
-    lit = apply_m2_distance_fog(lit, in.world_position, in.position.xy);
-    return pbr_functions::main_pass_post_lighting_processing(pbr_input, lit);
 }
