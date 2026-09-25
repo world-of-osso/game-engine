@@ -28,6 +28,14 @@ fn two_layer_diffuse_blends_by_texture_alpha_then_second_mocv_alpha() {
     assert_close(render_two_layer(6, half_blue, 1.0), RED);
 }
 
+/// The world camera carries a depth/normal prepass; its pipelines keep Bevy's
+/// vertex stage and must still build for two-layer meshes.
+#[test]
+#[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
+fn two_layer_diffuse_opaque_renders_with_prepass_camera() {
+    assert_close(render_two_layer_with(13, BLUE, 0.0, true), BLUE);
+}
+
 fn assert_close(pixel: [u8; 4], expected: [u8; 4]) {
     let close = pixel
         .iter()
@@ -39,6 +47,15 @@ fn assert_close(pixel: [u8; 4], expected: [u8; 4]) {
 /// A red first layer and `second` layer on an unlit WMO quad whose second MOCV alpha
 /// is `second_mocv_alpha` everywhere.
 fn render_two_layer(shader: u32, second: [u8; 4], second_mocv_alpha: f32) -> [u8; 4] {
+    render_two_layer_with(shader, second, second_mocv_alpha, false)
+}
+
+fn render_two_layer_with(
+    shader: u32,
+    second: [u8; 4],
+    second_mocv_alpha: f32,
+    prepass: bool,
+) -> [u8; 4] {
     let mut app = gpu_app();
     let target = app
         .world_mut()
@@ -49,17 +66,26 @@ fn render_two_layer(shader: u32, second: [u8; 4], second_mocv_alpha: f32) -> [u8
             TextureFormat::Rgba8UnormSrgb,
             None,
         ));
-    app.world_mut().spawn((
-        Camera3d::default(),
-        Camera {
-            clear_color: Color::srgba_u8(CLEAR[0], CLEAR[1], CLEAR[2], CLEAR[3]).into(),
-            ..default()
-        },
-        RenderTarget::Image(target.clone().into()),
-        Transform::from_xyz(0.0, 0.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
-        Msaa::Sample4,
-        Tonemapping::None,
-    ));
+    let camera = app
+        .world_mut()
+        .spawn((
+            Camera3d::default(),
+            Camera {
+                clear_color: Color::srgba_u8(CLEAR[0], CLEAR[1], CLEAR[2], CLEAR[3]).into(),
+                ..default()
+            },
+            RenderTarget::Image(target.clone().into()),
+            Transform::from_xyz(0.0, 0.0, 2.0).looking_at(Vec3::ZERO, Vec3::Y),
+            Msaa::Sample4,
+            Tonemapping::None,
+        ))
+        .id();
+    if prepass {
+        app.world_mut().entity_mut(camera).insert((
+            bevy::core_pipeline::prepass::DepthPrepass,
+            bevy::core_pipeline::prepass::NormalPrepass,
+        ));
+    }
     let first = add_texel(&mut app, RED);
     let second = add_texel(&mut app, second);
     let base = wmo_standard_material(Some(first), 0, false, shader, None);
