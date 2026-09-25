@@ -2,7 +2,7 @@
 // MOCV `m` and alpha `a`,
 //   exterior = texture * (scene daylight + 2 * m)
 //   interior = texture * (interior ambient + 2 * m)
-//   out      = mix(interior, exterior, exterior_lit ? 1 : a)
+//   out      = mix(interior, exterior, exterior_lit ? 1 : a), in gamma space
 // and an unlit material shows the texture alone. Two-layer shaders (MOMT 6, 13)
 // blend a second texture by the second MOCV alpha, which needs its own vertex input.
 #import bevy_pbr::{
@@ -211,7 +211,9 @@ fn fragment(wmo: WmoVertexOutput, @builtin(front_facing) is_front: bool) -> Frag
         let exterior = daylight.rgb + albedo.rgb * srgb_to_linear(authored);
         let interior =
             albedo.rgb * srgb_to_linear(lighting.interior_ambient.rgb + authored) + emissive;
-        out.color = vec4(mix(interior, exterior, exterior_blend), daylight.a);
+        // Retail blends the two lights in gamma space.
+        let blended = mix(linear_to_srgb(interior), linear_to_srgb(exterior), exterior_blend);
+        out.color = vec4(srgb_to_linear(blended), daylight.a);
     }
     out.color = main_pass_post_lighting_processing(pbr_input, out.color);
     return out;
