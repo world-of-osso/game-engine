@@ -62,3 +62,7 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - `src/ui/screens/professions_book_component_tests.rs`: learned and missing entries, spell button action, entry layout.
 - `src/ui/screens/professions_frame_component_tests.rs`: list rows, counts and geometry, schematic, reagent colours, Create buttons, search box.
 - `src/scenes/professions_frame/view_tests.rs`: grouping, craftable counts, selection, difficulty, search, collapse, the book entries; `tests.rs`: bag counts.
+
+## Verified scope
+
+- [x] Live headless proof on an isolated server (:5059) at Georgio Bolero (verified: 2026-09-25): gossip "Train me." → trainer list with Tailoring selected → CONFIRM_PROFESSION → Tailoring learned for 10c (Classic Tailoring 1/300, 5 recipes, Retail chat lines) → K → book → ProfessionsFrame → Create ×2 and ×1 with the cast bar: 12 → 6 Linen Cloth, 3 Bolt of Linen Cloth in the backpack, Classic Tailoring 4/300, state kept across relogs. Evidence: game-engine `data/diagnostics/crafting-20260925/` (`proof.txt`).
