@@ -9,7 +9,7 @@ const CLEAR: [u8; 4] = [255, 0, 255, 255];
 const BLEND_OPAQUE: u32 = 0;
 const BLEND_ALPHA_KEY: u32 = 1;
 
-/// Stock MOMT blend 0 (GxBlend_Opaque) has no alpha test: a texel with low alpha
+/// MOMT blend 0 (GxBlend_Opaque) has no alpha test: a texel with low alpha
 /// still covers what is behind it.
 #[test]
 #[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
@@ -21,14 +21,15 @@ fn opaque_blend_draws_low_alpha_texels() {
     );
 }
 
-/// Stock MOMT blend 1 (GxBlend_AlphaKey) alpha-tests at 224/255.
+/// Retail MOMT blend 1 (GxBlend_AlphaKey) discards texels below 128/255
+/// (WebWowViewerCpp `caclWMOFragMat`: `tex.a - 0.501960814 < 0`).
 #[test]
 #[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
-fn alpha_key_blend_discards_texels_below_224() {
-    let below = render_surface_center(BLEND_ALPHA_KEY, 200);
-    assert!(is_green(below), "alpha 200 texel was kept: {below:?}");
-    let above = render_surface_center(BLEND_ALPHA_KEY, 240);
-    assert!(!is_green(above), "alpha 240 texel was discarded: {above:?}");
+fn alpha_key_blend_discards_texels_below_128() {
+    let below = render_surface_center(BLEND_ALPHA_KEY, 100);
+    assert!(is_green(below), "alpha 100 texel was kept: {below:?}");
+    let above = render_surface_center(BLEND_ALPHA_KEY, 160);
+    assert!(!is_green(above), "alpha 160 texel was discarded: {above:?}");
 }
 
 fn is_green(pixel: [u8; 4]) -> bool {

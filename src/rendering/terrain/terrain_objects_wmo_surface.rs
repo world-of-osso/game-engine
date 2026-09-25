@@ -181,10 +181,11 @@ pub(crate) fn wmo_standard_material(
     }
 }
 
-/// Stock alpha test per MOMT blend (GxBlend index): Opaque none, AlphaKey 224/255.
+/// Retail alpha test per MOMT blend (GxBlend index), per WebWowViewerCpp
+/// `caclWMOFragMat`: Opaque none, AlphaKey texture alpha below 128/255.
 fn wmo_alpha_mode(blend_mode: u32) -> AlphaMode {
     match blend_mode {
-        1 => AlphaMode::Mask(224.0 / 255.0),
+        1 => AlphaMode::Mask(128.0 / 255.0),
         2 | 3 => AlphaMode::Blend,
         _ => AlphaMode::Opaque,
     }
