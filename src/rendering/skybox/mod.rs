@@ -25,12 +25,16 @@ mod cloud_sampling_gpu_tests;
 #[path = "cloud_texture.rs"]
 pub mod cloud_texture;
 mod inworld_skybox;
+mod sky_gradient;
 
 use self::inworld_skybox::{
     sync_inworld_authored_skybox, sync_inworld_skybox_to_camera, teardown_inworld_skybox,
     update_inworld_skybox_transition,
 };
 use cloud_texture::create_procedural_cloud_maps;
+use sky_gradient::{
+    SKY_BAND_MAX, SkyDomePoint, sky_band_at_elevation, sky_dome_profile, sky_gradient_color,
+};
 
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 
@@ -70,36 +74,33 @@ pub struct SkyDome;
 #[derive(Resource)]
 struct LightKeyframes(Vec<LightDataRow>);
 
-/// Compute vertices for one latitude ring of the sky dome.
+/// Dome radius in yards. The lowered client dome reaches 1.71 radii below the eye,
+/// inside the 900-yard extent of the previous dome and the default far plane.
+pub(crate) const SKY_DOME_RADIUS: f32 = 500.0;
+
+/// Compute vertices for one ring of the sky dome. UV.y carries the ring's band
+/// coordinate (normalized), which the sky shader maps to LightData colour stops.
 fn push_ring(
     positions: &mut Vec<[f32; 3]>,
     normals: &mut Vec<[f32; 3]>,
     uvs: &mut Vec<[f32; 2]>,
     radius: f32,
     lon_segments: u32,
-    v: f32,
-    theta: f32,
+    point: SkyDomePoint,
+    band: f32,
 ) {
-    let y = radius * theta.cos();
-    let ring_r = radius * theta.sin();
     for lon in 0..=lon_segments {
         let u = lon as f32 / lon_segments as f32;
-        let phi = 2.0 * std::f32::consts::PI * u;
-        let x = ring_r * phi.cos();
-        let z = ring_r * phi.sin();
-        positions.push([x, y, z]);
-        normals.push([-x / radius, -y / radius, -z / radius]);
-        uvs.push([u, v]);
+        let phi = TAU * u;
+        let position = Vec3::new(
+            point.horizontal * phi.cos(),
+            point.height,
+            point.horizontal * phi.sin(),
+        ) * radius;
+        positions.push(position.to_array());
+        normals.push((-position.normalize()).to_array());
+        uvs.push([u, band / SKY_BAND_MAX]);
     }
-}
-
-const SKY_DOME_LATITUDE_DEGREES: [f32; 10] =
-    [90.0, 55.0, 40.0, 25.0, 15.0, 4.0, 3.5, 0.0, -2.25, -90.0];
-
-fn sky_dome_latitudes_radians() -> impl Iterator<Item = f32> {
-    SKY_DOME_LATITUDE_DEGREES
-        .into_iter()
-        .map(|degrees| degrees.to_radians())
 }
 
 /// Generate triangle indices for the dome grid (reversed winding for inside-out).
@@ -115,25 +116,23 @@ fn build_dome_indices(lon_segments: u32, lat_segments: u32) -> Vec<u32> {
     indices
 }
 
-/// Build an inverted sky dome using the authored wow_client latitude rings,
-/// which intentionally concentrate geometry near the horizon.
+/// Build the inverted client sky dome (two poles, five rings concentrated at the
+/// horizon), viewed from inside.
 fn build_sky_dome_mesh(radius: f32, lon_segments: u32) -> Mesh {
     let mut positions = Vec::new();
     let mut normals = Vec::new();
     let mut uvs = Vec::new();
-    let latitudes: Vec<f32> = sky_dome_latitudes_radians().collect();
-    let lat_segments = latitudes.len().saturating_sub(1) as u32;
-    for (lat, latitude) in latitudes.iter().copied().enumerate() {
-        let v = lat as f32 / lat_segments.max(1) as f32;
-        let theta = FRAC_PI_2 - latitude;
+    let profile = sky_dome_profile();
+    let lat_segments = (profile.len() - 1) as u32;
+    for (band, point) in profile.into_iter().enumerate() {
         push_ring(
             &mut positions,
             &mut normals,
             &mut uvs,
             radius,
             lon_segments,
-            v,
-            theta,
+            point,
+            band as f32,
         );
     }
     let indices = build_dome_indices(lon_segments, lat_segments);
@@ -183,7 +182,7 @@ pub(crate) fn spawn_sky_dome_entity(
     camera_entity: Entity,
     cloud_texture: Handle<Image>,
 ) -> Entity {
-    let mesh = build_sky_dome_mesh(900.0, 32);
+    let mesh = build_sky_dome_mesh(SKY_DOME_RADIUS, 32);
     let material = sky_materials.add(SkyMaterial {
         uniforms: SkyUniforms::default(),
         cloud_texture,
@@ -321,11 +320,7 @@ fn update_sky_dome_material(
     let cloud_scroll = Vec2::new(minutes * 0.00012, minutes * 0.00004);
     for mat_handle in sky_dome_q.iter() {
         if let Some(mut mat) = sky_materials.get_mut(&mat_handle.0) {
-            mat.uniforms.sky_top = color_to_vec4(colors.sky_top);
-            mat.uniforms.sky_middle = color_to_vec4(colors.sky_middle);
-            mat.uniforms.sky_band1 = color_to_vec4(colors.sky_band1);
-            mat.uniforms.sky_band2 = color_to_vec4(colors.sky_band2);
-            mat.uniforms.sky_smog = color_to_vec4(colors.sky_smog);
+            write_sky_gradient_uniforms(&mut mat.uniforms, colors);
             mat.uniforms.sun_color = color_to_vec4(colors.sun_color);
             mat.uniforms.sun_halo_color = color_to_vec4(colors.sun_halo_color);
             mat.uniforms.cloud_emissive_color = color_to_vec4(colors.cloud_emissive_color);
@@ -339,6 +334,15 @@ fn update_sky_dome_material(
                 Vec4::new(colors.cloud_density, cloud_scroll.x, cloud_scroll.y, 0.0);
         }
     }
+}
+
+fn write_sky_gradient_uniforms(uniforms: &mut SkyUniforms, colors: &SkyColorSet) {
+    uniforms.sky_top = color_to_vec4(colors.sky_top);
+    uniforms.sky_middle = color_to_vec4(colors.sky_middle);
+    uniforms.sky_band1 = color_to_vec4(colors.sky_band1);
+    uniforms.sky_band2 = color_to_vec4(colors.sky_band2);
+    uniforms.sky_smog = color_to_vec4(colors.sky_smog);
+    uniforms.sky_fog = color_to_vec4(colors.fog_color);
 }
 
 fn sync_lights(
@@ -468,8 +472,7 @@ fn fill_cubemap_face(data: &mut [u8], face: u32, colors: &SkyColorSet) {
     for y in 0..ENV_MAP_SIZE {
         for x in 0..ENV_MAP_SIZE {
             let dir = cubemap_direction(face, x, y);
-            let elev = dir.y.asin() / FRAC_PI_2;
-            let color = sample_sky_gradient(colors, elev);
+            let color = sky_gradient_color(colors, sky_band_at_elevation(dir.y.asin()));
             let pixel_offset = ((y * ENV_MAP_SIZE + x) as usize) * 8;
             write_rgba16f(&mut data[pixel_offset..pixel_offset + 8], color);
         }
@@ -488,34 +491,6 @@ fn cubemap_direction(face: u32, x: u32, y: u32) -> Vec3 {
         _ => Vec3::new(-u, -v, -1.0),
     };
     dir.normalize()
-}
-
-fn sample_sky_gradient(colors: &SkyColorSet, elev: f32) -> LinearRgba {
-    let elev = elev.clamp(-0.1, 1.0);
-    let normalized = ((elev + 0.1) / 1.1).clamp(0.0, 1.0);
-    let (a, b, t) = if normalized < 0.1 {
-        (colors.sky_smog, colors.sky_smog, 0.0)
-    } else if normalized < 0.3 {
-        (colors.sky_smog, colors.sky_band2, (normalized - 0.1) / 0.2)
-    } else if normalized < 0.5 {
-        (colors.sky_band2, colors.sky_band1, (normalized - 0.3) / 0.2)
-    } else if normalized < 0.7 {
-        (
-            colors.sky_band1,
-            colors.sky_middle,
-            (normalized - 0.5) / 0.2,
-        )
-    } else {
-        (colors.sky_middle, colors.sky_top, (normalized - 0.7) / 0.3)
-    };
-    let a = a.to_linear();
-    let b = b.to_linear();
-    LinearRgba::new(
-        a.red + (b.red - a.red) * t,
-        a.green + (b.green - a.green) * t,
-        a.blue + (b.blue - a.blue) * t,
-        1.0,
-    )
 }
 
 fn write_rgba16f(dst: &mut [u8], c: LinearRgba) {

@@ -10,6 +10,8 @@ pub struct SkyUniforms {
     pub sky_band1: Vec4,
     pub sky_band2: Vec4,
     pub sky_smog: Vec4,
+    /// SkyFogColor: the ring below the horizon and the bottom pole.
+    pub sky_fog: Vec4,
     pub sun_color: Vec4,
     pub sun_halo_color: Vec4,
     pub cloud_emissive_color: Vec4,
@@ -27,6 +29,7 @@ impl Default for SkyUniforms {
             sky_band1: Vec4::ONE,
             sky_band2: Vec4::ONE,
             sky_smog: Vec4::ONE,
+            sky_fog: Vec4::ONE,
             sun_color: Vec4::ONE,
             sun_halo_color: Vec4::ONE,
             cloud_emissive_color: Vec4::ZERO,
@@ -57,6 +60,14 @@ impl Material for SkyMaterial {
         AlphaMode::Opaque
     }
 
+    fn enable_prepass() -> bool {
+        false
+    }
+
+    fn enable_shadows() -> bool {
+        false
+    }
+
     fn specialize(
         _pipeline: &bevy::pbr::MaterialPipeline,
         descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
@@ -65,7 +76,8 @@ impl Material for SkyMaterial {
     ) -> Result<(), bevy::render::render_resource::SpecializedMeshPipelineError> {
         // Render inside of sphere: mesh winding is inward-facing, cull outer surface.
         descriptor.primitive.cull_mode = Some(Face::Back);
-        // Sky must render behind everything — disable depth write.
+        // Sky must render behind everything: no depth write, and the shader
+        // outputs far depth so the dome's finite radius never hides scenery.
         if let Some(ds) = descriptor.depth_stencil.as_mut() {
             ds.depth_write_enabled = Some(false);
         }

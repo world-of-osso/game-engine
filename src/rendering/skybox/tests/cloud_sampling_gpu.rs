@@ -83,7 +83,7 @@ fn spawn_periodic_test_sky(app: &mut App) {
     let mesh = app
         .world_mut()
         .resource_mut::<Assets<Mesh>>()
-        .add(build_sky_dome_mesh(900.0, 32));
+        .add(build_sky_dome_mesh(SKY_DOME_RADIUS, 32));
     app.world_mut()
         .spawn((Mesh3d(mesh), MeshMaterial3d(material), Transform::default()));
 }
@@ -95,6 +95,7 @@ fn cloud_test_uniforms() -> SkyUniforms {
         sky_band1: Vec4::ZERO,
         sky_band2: Vec4::ZERO,
         sky_smog: Vec4::ZERO,
+        sky_fog: Vec4::ZERO,
         sun_color: Vec4::ZERO,
         sun_halo_color: Vec4::ZERO,
         cloud_emissive_color: Vec4::ZERO,
@@ -170,7 +171,7 @@ fn spawn_generated_density_sky(app: &mut App) -> ([Handle<Image>; 3], Handle<Ima
     let mesh = app
         .world_mut()
         .resource_mut::<Assets<Mesh>>()
-        .add(build_sky_dome_mesh(900.0, 32));
+        .add(build_sky_dome_mesh(SKY_DOME_RADIUS, 32));
     let densities = [0.0, 0.5, 1.0];
     let targets = std::array::from_fn(|index| {
         spawn_density_case(app, &texture, &mesh, densities[index], index)
@@ -369,4 +370,154 @@ fn generated_clouds_have_visible_density_control() {
         full.bright >= middle.bright + middle.total / 5,
         "density 1 must add at least 20 percentage points of cloud coverage: middle={middle:?}, full={full:?}"
     );
+}
+
+const GRADIENT_ELEVATIONS_DEGREES: [f32; 7] = [60.0, 25.0, 12.0, 5.0, 1.0, -1.0, -20.0];
+
+fn gradient_test_colors() -> crate::sky_lightdata::SkyColorSet {
+    crate::sky_lightdata::SkyColorSet {
+        sky_top: Color::srgb_u8(0, 31, 73),
+        sky_middle: Color::srgb_u8(82, 127, 167),
+        sky_band1: Color::srgb_u8(153, 220, 245),
+        sky_band2: Color::srgb_u8(240, 120, 40),
+        sky_smog: Color::srgb_u8(30, 200, 30),
+        fog_color: Color::srgb_u8(200, 40, 160),
+        ..crate::sky_lightdata::default_sky_colors()
+    }
+}
+
+fn spawn_gradient_sky(app: &mut App) -> Handle<Image> {
+    let colors = gradient_test_colors();
+    let black = crate::rgba_image(vec![0, 0, 0, 255], 1, 1);
+    let texture = app.world_mut().resource_mut::<Assets<Image>>().add(black);
+    let mut uniforms = cloud_test_uniforms();
+    write_sky_gradient_uniforms(&mut uniforms, &colors);
+    uniforms.cloud_params = Vec4::ZERO;
+    let material = app
+        .world_mut()
+        .resource_mut::<Assets<SkyMaterial>>()
+        .add(SkyMaterial {
+            uniforms,
+            cloud_texture: texture.clone(),
+        });
+    let mesh = app
+        .world_mut()
+        .resource_mut::<Assets<Mesh>>()
+        .add(build_sky_dome_mesh(SKY_DOME_RADIUS, 32));
+    app.world_mut()
+        .spawn((Mesh3d(mesh), MeshMaterial3d(material), Transform::default()));
+    texture
+}
+
+fn spawn_elevation_camera(app: &mut App, degrees: f32, order: isize) -> Handle<Image> {
+    let target = app
+        .world_mut()
+        .resource_mut::<Assets<Image>>()
+        .add(Image::new_target_texture(
+            33,
+            33,
+            TextureFormat::Rgba8UnormSrgb,
+            None,
+        ));
+    let elevation = degrees.to_radians();
+    // Off the dome's longitude seam and away from ring vertices.
+    let direction = Vec3::new(
+        0.3 * elevation.cos(),
+        elevation.sin(),
+        -0.954 * elevation.cos(),
+    );
+    app.world_mut().spawn((
+        Camera3d::default(),
+        Camera {
+            order,
+            clear_color: Color::srgb(1.0, 0.0, 1.0).into(),
+            ..default()
+        },
+        Projection::Perspective(PerspectiveProjection {
+            fov: 0.2,
+            ..default()
+        }),
+        RenderTarget::Image(target.clone().into()),
+        Transform::default().looking_at(direction, Vec3::Y),
+        Msaa::Off,
+        Tonemapping::None,
+        bevy::core_pipeline::tonemapping::DebandDither::Disabled,
+    ));
+    target
+}
+
+fn expected_gradient_pixel(degrees: f32) -> [u8; 3] {
+    let colors = gradient_test_colors();
+    let band = super::sky_gradient::sky_band_at_elevation(degrees.to_radians());
+    let srgba = Color::from(super::sky_gradient::sky_gradient_color(&colors, band)).to_srgba();
+    [srgba.red, srgba.green, srgba.blue].map(|channel| (channel * 255.0).round() as u8)
+}
+
+#[test]
+#[ignore = "requires GPU; run explicitly with --ignored --test-threads=1"]
+fn sky_dome_renders_band_colors_at_ring_elevations() {
+    let mut app = render_app();
+    let texture = spawn_gradient_sky(&mut app);
+    let shader = app
+        .world()
+        .resource::<AssetServer>()
+        .load("shaders/sky.wgsl");
+    let targets: Vec<_> = GRADIENT_ELEVATIONS_DEGREES
+        .iter()
+        .enumerate()
+        .map(|(index, degrees)| spawn_elevation_camera(&mut app, *degrees, index as isize))
+        .collect();
+    let (sender, receiver) = mpsc::channel();
+    let mut pending = vec![false; targets.len()];
+    let mut pixels: Vec<Option<[u8; 3]>> = vec![None; targets.len()];
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline && pixels.iter().any(Option::is_none) {
+        app.update();
+        let texture_ready = app
+            .sub_app(RenderApp)
+            .world()
+            .resource::<RenderAssets<GpuImage>>()
+            .get(&texture)
+            .is_some();
+        if !texture_ready || !density_sky_pipeline_ready(&app, &shader) {
+            continue;
+        }
+        for (index, target) in targets.iter().enumerate() {
+            if pending[index] || pixels[index].is_some() {
+                continue;
+            }
+            let sender = sender.clone();
+            app.world_mut()
+                .spawn(Screenshot::image(target.clone()))
+                .observe(move |capture: On<ScreenshotCaptured>| {
+                    sender
+                        .send((index, capture.image.clone()))
+                        .expect("test receiver exists");
+                });
+            pending[index] = true;
+        }
+        for (index, image) in receiver.try_iter() {
+            pending[index] = false;
+            let rgba = image
+                .try_into_dynamic()
+                .expect("readable sky capture")
+                .to_rgba8();
+            let [r, g, b, _] = rgba.get_pixel(16, 16).0;
+            if [r, g, b] != [255, 0, 255] {
+                pixels[index] = Some([r, g, b]);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    for (index, degrees) in GRADIENT_ELEVATIONS_DEGREES.iter().enumerate() {
+        let actual = pixels[index].unwrap_or_else(|| panic!("no sky pixel at {degrees}°"));
+        let expected = expected_gradient_pixel(*degrees);
+        println!("{degrees:>6}°: rendered {actual:?}, dome data {expected:?}");
+        for channel in 0..3 {
+            assert!(
+                actual[channel].abs_diff(expected[channel]) <= 3,
+                "{degrees}°: rendered {actual:?}, expected {expected:?}"
+            );
+        }
+    }
 }
