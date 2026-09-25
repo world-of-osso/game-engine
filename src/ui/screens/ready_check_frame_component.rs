@@ -34,7 +34,11 @@ pub struct ReadyCheckFrameState {
     pub initiator: String,
 }
 
+/// Built only while shown, like `StaticPopupN`, so automation can wait for its buttons.
 pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
+    if !state.visible {
+        return Element::default();
+    }
     // Retail READY_CHECK_MESSAGE.
     let text = format!("{} has initiated a ready check.", state.initiator);
     rsx! {
@@ -43,7 +47,6 @@ pub fn ready_check_frame(state: &ReadyCheckFrameState) -> Element {
             width: FRAME_W,
             height: FRAME_H,
             strata: FrameStrata::Dialog,
-            hidden: {!state.visible},
             mouse_enabled: true,
             pos_type: "absolute",
             left: "50%",

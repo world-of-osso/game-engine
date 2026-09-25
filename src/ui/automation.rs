@@ -15,6 +15,8 @@ pub enum UiAutomationAction {
     PressKey(KeyChord),
     WaitForState(GameState, f32),
     WaitForFrame(String, f32),
+    /// Pause the script for this many seconds.
+    Wait(f32),
     DumpTree,
     DumpUiTree,
 }
@@ -122,6 +124,10 @@ pub enum UiAutomationWait {
         timeout_secs: f32,
         started_at: f32,
     },
+    Delay {
+        secs: f32,
+        started_at: f32,
+    },
 }
 
 #[derive(Resource, Debug, Default)]
@@ -159,7 +165,11 @@ fn automation_wait_work_pending(queue: Res<UiAutomationQueue>) -> bool {
     queue.is_changed()
         || matches!(
             queue.peek(),
-            Some(UiAutomationAction::WaitForState(..) | UiAutomationAction::WaitForFrame(..))
+            Some(
+                UiAutomationAction::WaitForState(..)
+                    | UiAutomationAction::WaitForFrame(..)
+                    | UiAutomationAction::Wait(_)
+            )
         )
 }
 
@@ -234,6 +244,26 @@ fn handle_wait_for_frame(
     }
 }
 
+fn handle_wait_delay(
+    time: &Time,
+    secs: f32,
+    queue: &mut UiAutomationQueue,
+    runner: &mut UiAutomationRunner,
+) {
+    runner.completed = false;
+    let started_at = ensure_wait_state(
+        runner,
+        UiAutomationWait::Delay {
+            secs,
+            started_at: time.elapsed_secs(),
+        },
+    );
+    if time.elapsed_secs() - started_at >= secs {
+        queue.pop();
+        runner.waiting = None;
+    }
+}
+
 fn process_automation_waits(
     time: Res<Time>,
     ui: Res<UiState>,
@@ -253,6 +283,7 @@ fn process_automation_waits(
         UiAutomationAction::WaitForFrame(name, timeout_secs) => {
             handle_wait_for_frame(&time, name, timeout_secs, &ui, &mut queue, &mut runner);
         }
+        UiAutomationAction::Wait(secs) => handle_wait_delay(&time, secs, &mut queue, &mut runner),
         _ => {}
     }
 }
@@ -287,10 +318,18 @@ fn ensure_wait_state(runner: &mut UiAutomationRunner, wait: UiAutomationWait) ->
         ) if current_name == name && (*current_timeout - *timeout_secs).abs() < f32::EPSILON => {
             *started_at
         }
+        (
+            Some(UiAutomationWait::Delay {
+                secs: current_secs,
+                started_at,
+            }),
+            UiAutomationWait::Delay { secs, .. },
+        ) if (*current_secs - *secs).abs() < f32::EPSILON => *started_at,
         _ => {
             let started_at = match &wait {
                 UiAutomationWait::State { started_at, .. } => *started_at,
                 UiAutomationWait::Frame { started_at, .. } => *started_at,
+                UiAutomationWait::Delay { started_at, .. } => *started_at,
             };
             runner.waiting = Some(wait);
             started_at
@@ -380,6 +419,39 @@ mod tests {
         assert!(runner.waiting.is_none());
         assert!(!runner.completed);
         assert!(runner.last_error.as_ref().unwrap().contains("MissingFrame"));
+    }
+
+    #[test]
+    fn wait_holds_the_next_action_until_its_delay_passes_without_error() {
+        let mut app = make_automation_app();
+        app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(
+            std::time::Duration::from_millis(100),
+        ));
+        {
+            let mut queue = app.world_mut().resource_mut::<UiAutomationQueue>();
+            queue.push(UiAutomationAction::Wait(0.25));
+            queue.push(UiAutomationAction::DumpUiTree);
+        }
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(
+            app.world().resource::<UiAutomationQueue>().peek(),
+            Some(&UiAutomationAction::Wait(0.25))
+        );
+        for _ in 0..2 {
+            app.update();
+        }
+        assert_ne!(
+            app.world().resource::<UiAutomationQueue>().peek(),
+            Some(&UiAutomationAction::Wait(0.25))
+        );
+        assert!(
+            app.world()
+                .resource::<UiAutomationRunner>()
+                .last_error
+                .is_none()
+        );
     }
 
     #[test]
