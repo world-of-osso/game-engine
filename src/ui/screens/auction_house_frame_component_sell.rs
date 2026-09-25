@@ -388,11 +388,19 @@ fn duration_menu(current: AuctionDuration, y: f32) -> Element {
             height: 68.0,
             strata: FrameStrata::Dialog,
             frame_level: 200.0,
-            background_color: "0.05,0.05,0.05,0.95",
             style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
             pos_type: "absolute",
             left: x,
             top,
+            r#frame {
+                name: "AuctionHouseFrameDurationMenuBg",
+                width: {w - 2.0 * 4.0},
+                height: {68.0 - 2.0 * 4.0},
+                background_color: "0.0,0.0,0.0,0.9",
+                pos_type: "absolute",
+                left: 4.0,
+                top: 4.0,
+            }
             {lines}
         }
     }
