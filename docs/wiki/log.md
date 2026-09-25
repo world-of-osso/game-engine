@@ -929,3 +929,7 @@ Created [[terrain-blend-steps]]. The alpha map is now linear `Rgba8Unorm`. WDT M
 ## [2026-09-25] investigation | WMO Retail lighting
 
 Created [[wmo-retail-lighting]]. WMO lighting, fixup, two-layer shaders, alpha test, metal and placement now follow WebWowViewerCpp's Retail shaders, replacing the 3.3.5 (solarityclient) semantics. Updated [[wmo-format]] and [[stormwind-dark-render]].
+
+## [2026-09-25] investigation | Washed-out sky
+
+Created [[washed-out-sky]]. LightData colours decode as `0x00RRGGBB` sRGB bytes; the procedural dome uses the client ring profile (SkyTop/Middle above 16°, SkyFogColor below the horizon); world fog uses FogEnd/36 yards and SkyFogColor; sky and fog blend the global and local Light rows around the local player. Updated [[skybox]].

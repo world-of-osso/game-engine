@@ -26,6 +26,12 @@ InWorld resolves the local clear `LightParamsID` from `Light.csv`. It spawns the
 
 The live Azeroth reproduction on September 10, 2026 selected map 0 Light row 1 at Bevy `[-8977.593, 81.04212, 179.76495]`, whose clear `LightParamsID` is 12. Local DB2 decoding confirmed `LightParams 12 → LightSkyboxID 0`; that is a procedural-sky contract, not an authored-M2 lookup failure. Commit `ec826ee7` had removed normal InWorld dome spawning on April 12, 2026, leaving only the dark-navy clear color. Commit `21feec27` restored the existing dome lifecycle. Commit `58d4b12a` then corrected its interior visibility: Back culling requires inward triangle winding. It also updates newly added dome materials when settled `GameTime` would otherwise skip color propagation.
 
+## Procedural sky colours and light zones
+
+The dome follows the client's ring profile: SkyTop at the zenith, Middle/Band1/Band2/Smog on rings at 15.8°, 8.5°, 2.2° and 0.2°, and SkyFogColor on the -1.6° ring and the bottom pole. Each ring's band coordinate is a vertex attribute, so the GPU interpolates colours along the dome edges; the IBL cubemap samples the same mapping (`sky_gradient.rs`). The dome writes far depth and skips prepass/shadows. World fog runs from FogEnd×FogScaler to FogEnd in yards (LightData stores yards × 36) in SkyFogColor.
+
+InWorld sky, fog, lights and IBL sample a blend of LightParams: the map's global Light row plus every local Light containing the player, weighted by `GameFalloffStart`/`GameFalloffEnd` (`resolve_clear_light_params_blend`). Other screens use Azeroth's global LightParams 12. Game time is fixed at noon; the server replicates no clock. See [[washed-out-sky]].
+
 ## Procedural cloud continuity
 
 `389e0185` removes precision-block artifacts and repeat-edge seams from the generated cloud map. The prior generator mixed high-bit seeds into floating coordinate offsets around 45–61 million; at that magnitude `f32` spacing is 4, collapsing nearby lattice samples. It also generated a nonperiodic image while the sampler repeated it. The replacement uses periodic integer-hashed gradient fBm, preserving dimensions, frequency controls, density shaping, and deterministic seeded variation.
@@ -163,3 +169,4 @@ Known example: scene 1 should now use this fallback instead of treating the glob
 - [[asset-pipeline]] — CASC extraction, DB2 decryption
 - [[authored-skybox-black-output]] — current authored skybox render failure
 - [[procedural-sky-dome-visibility]] — procedural-dome winding and late-material color root cause
+- [[washed-out-sky]] — LightData colour decode, dome band heights, fog units, light-zone blend
