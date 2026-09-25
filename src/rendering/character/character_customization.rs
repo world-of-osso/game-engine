@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
@@ -66,7 +67,7 @@ struct CharacterRenderRequestParams<'w, 's> {
         's,
         (
             Entity,
-            &'static MeshMaterial3d<StandardMaterial>,
+            &'static MeshMaterial3d<M2Material>,
             Option<&'static GeosetMesh>,
             Option<&'static BatchTextureType>,
             &'static ChildOf,
@@ -75,7 +76,7 @@ struct CharacterRenderRequestParams<'w, 's> {
     equipment_query: Query<'w, 's, &'static mut Equipment>,
     equipment_item_query: Query<'w, 's, (), With<EquipmentItem>>,
     images: ResMut<'w, Assets<Image>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
 }
 
 struct CharacterRenderRequestContext<'a, 'w, 's> {
@@ -90,7 +91,7 @@ struct CharacterRenderRequestContext<'a, 'w, 's> {
         's,
         (
             Entity,
-            &'static MeshMaterial3d<StandardMaterial>,
+            &'static MeshMaterial3d<M2Material>,
             Option<&'static GeosetMesh>,
             Option<&'static BatchTextureType>,
             &'static ChildOf,
@@ -99,7 +100,7 @@ struct CharacterRenderRequestContext<'a, 'w, 's> {
     equipment_query: &'a mut Query<'w, 's, &'static mut Equipment>,
     equipment_item_query: &'a Query<'w, 's, (), With<EquipmentItem>>,
     images: &'a mut Assets<Image>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     commands: &'a mut Commands<'w, 's>,
 }
 
@@ -137,14 +138,14 @@ pub(crate) fn apply_character_customization(
     equipped_appearance: Option<&ResolvedEquipmentAppearance>,
     root: Entity,
     images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     parent_query: &Query<&ChildOf>,
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     visibility_query: &mut Query<&mut Visibility>,
     equipment_item_query: &Query<(), With<EquipmentItem>>,
     material_query: &Query<(
         Entity,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<M2Material>,
         Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
@@ -374,7 +375,7 @@ fn character_render_targets_ready(
     geoset_query: &Query<(Entity, &GeosetMesh, &ChildOf)>,
     material_query: &Query<(
         Entity,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<M2Material>,
         Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,

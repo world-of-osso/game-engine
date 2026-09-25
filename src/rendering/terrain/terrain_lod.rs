@@ -1,5 +1,6 @@
 //! Doodad LOD swap system for ADT terrain streaming.
 
+use crate::retail_m2_material::M2Material;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
@@ -15,7 +16,7 @@ use crate::water_material::WaterMaterial;
 struct LodSpawnRefs<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
     water_materials: &'a mut Assets<WaterMaterial>,
     images: &'a mut Assets<Image>,
@@ -26,7 +27,7 @@ struct LodSpawnRefs<'a, 'w, 's> {
 pub(crate) fn doodad_lod_swap_system(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut materials: ResMut<Assets<M2Material>>,
     mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
     mut water_materials: ResMut<Assets<WaterMaterial>>,
     mut images: ResMut<Assets<Image>>,

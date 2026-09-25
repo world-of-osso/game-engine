@@ -1,6 +1,7 @@
 use crate::rendering::nameplate_art::{
     BAR_PIXEL_WIDTH, NAME_FONT_SIZE, NAMEPLATE_SCALE, NameplateArtCache,
 };
+use crate::retail_m2_material::M2Material;
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
@@ -531,7 +532,7 @@ fn sync_quest_indicators(
 #[derive(SystemParam)]
 struct QuestIndicatorAssets<'w> {
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inverse_bindposes: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,

@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -71,7 +72,7 @@ static WMO_TEXTURE_CACHE: OnceLock<
 
 struct WmoAssets<'a> {
     meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     water_materials: &'a mut Assets<WaterMaterial>,
     images: &'a mut Assets<Image>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
@@ -104,7 +105,7 @@ pub struct WmoGroupFogVolume {
 pub(super) fn spawn_wmos_filtered(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -147,7 +148,7 @@ pub(super) fn spawn_wmos_filtered(
 pub(super) fn spawn_wmos_preloaded(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,

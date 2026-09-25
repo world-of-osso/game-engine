@@ -36,6 +36,7 @@ fn spawn_loading_player() -> (App, Entity, NetEquipmentAppearance) {
     app.add_plugins(crate::animation::AnimationPlugin);
     app.init_resource::<Assets<Mesh>>()
         .init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>()
         .init_resource::<Assets<M2EffectMaterial>>()
         .init_resource::<Assets<Image>>()
         .init_resource::<Assets<SkinnedMeshInverseBindposes>>()

@@ -17,6 +17,7 @@ fn animated_app() -> App {
     app.init_asset::<Mesh>()
         .init_asset::<Image>()
         .init_asset::<StandardMaterial>()
+        .init_asset::<crate::retail_m2_material::M2Material>()
         .init_asset::<M2EffectMaterial>()
         .init_asset::<SkinnedMeshInverseBindposes>();
     app.insert_resource(bevy::time::TimeUpdateStrategy::ManualDuration(

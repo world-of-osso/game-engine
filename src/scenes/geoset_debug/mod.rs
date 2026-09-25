@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::f32::consts::PI;
 use std::path::{Path, PathBuf};
 
@@ -211,7 +212,7 @@ fn spawn_lighting(commands: &mut Commands) {
 fn spawn_ground(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) {
     let grass_path = PathBuf::from("data/textures/187126.blp");
@@ -226,11 +227,15 @@ fn spawn_ground(
         address_mode_v: bevy::image::ImageAddressMode::Repeat,
         ..bevy::image::ImageSamplerDescriptor::linear()
     });
-    let material = materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(img)),
-        perceptual_roughness: 0.9,
-        ..default()
-    });
+    let material = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color_texture: Some(images.add(img)),
+            perceptual_roughness: 0.9,
+            ..default()
+        },
+        0,
+        0,
+    ));
     let mut mesh = Plane3d::default().mesh().size(30.0, 30.0).build();
     ground::scale_mesh_uvs(&mut mesh, 6.0);
     commands.spawn((
@@ -402,7 +407,7 @@ fn log_debug_config(config: &DebugCharacterConfig) {
 struct DebugCharacterSceneParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inv_bp: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,

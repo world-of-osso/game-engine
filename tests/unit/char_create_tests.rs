@@ -309,7 +309,8 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
     app.add_plugins(MinimalPlugins);
     app.add_plugins(StatesPlugin);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<crate::retail_m2_material::M2Material>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();
@@ -338,7 +339,7 @@ fn entering_char_create_spawns_renderable_model_without_clicks() {
     // Verify materials assigned for rendering
     let material_count = app
         .world_mut()
-        .query::<&MeshMaterial3d<StandardMaterial>>()
+        .query::<&MeshMaterial3d<crate::retail_m2_material::M2Material>>()
         .iter(app.world())
         .count();
     assert!(

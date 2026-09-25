@@ -21,7 +21,8 @@ pub(super) fn projection_app(dpi: f32, width: u32, height: u32) -> App {
     });
     app.init_state::<GameState>();
     app.insert_resource(State::new(GameState::InWorld));
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<bevy::render::texture::ManualTextureViews>();
     app.add_plugins(HealthBarPlugin);
     let mut images = Assets::<Image>::default();

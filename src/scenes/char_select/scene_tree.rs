@@ -1,5 +1,6 @@
 //! Scene tree construction for the char-select 3D scene.
 
+use crate::retail_m2_material::M2Material;
 use bevy::prelude::*;
 use game_engine::scene_tree::{NodeProps, SceneNode, SceneTree};
 
@@ -29,7 +30,7 @@ pub struct WarbandTerrainSpawnResult {
 pub struct WarbandTerrainSpawnContext<'a, 'w, 's> {
     pub commands: &'a mut Commands<'w, 's>,
     pub meshes: &'a mut Assets<Mesh>,
-    pub materials: &'a mut Assets<StandardMaterial>,
+    pub materials: &'a mut Assets<M2Material>,
     pub effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub terrain_materials: &'a mut Assets<TerrainMaterial>,
     pub water_materials: &'a mut Assets<WaterMaterial>,

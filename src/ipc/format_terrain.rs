@@ -21,7 +21,7 @@ image_assets: {}
 image_asset_cpu_bytes: {}
 mesh_assets: {}
 mesh_asset_est_cpu_bytes: {}
-standard_material_assets: {}
+m2_material_assets: {}
 terrain_material_assets: {}
 water_material_assets: {}
 m2_effect_material_assets: {}",
@@ -45,7 +45,7 @@ m2_effect_material_assets: {}",
         snapshot.image_asset_cpu_bytes,
         snapshot.mesh_assets,
         snapshot.mesh_asset_est_cpu_bytes,
-        snapshot.standard_material_assets,
+        snapshot.m2_material_assets,
         snapshot.terrain_material_assets,
         snapshot.water_material_assets,
         snapshot.m2_effect_material_assets,

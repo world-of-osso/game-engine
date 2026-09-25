@@ -58,7 +58,7 @@ fn formats_terrain_status_snapshot() {
         image_asset_cpu_bytes: 9876,
         mesh_assets: 78,
         mesh_asset_est_cpu_bytes: 6543,
-        standard_material_assets: 90,
+        m2_material_assets: 90,
         terrain_material_assets: 12,
         water_material_assets: 13,
         m2_effect_material_assets: 14,

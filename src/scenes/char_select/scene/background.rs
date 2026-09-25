@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::retail_m2_material::M2Material;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 
@@ -19,7 +20,7 @@ use super::{CharSelectScene, CharSelectSkybox};
 pub(super) struct WarbandBackgroundSpawnContext<'a, 'w, 's> {
     pub(super) commands: &'a mut Commands<'w, 's>,
     pub(super) meshes: &'a mut Assets<Mesh>,
-    pub(super) materials: &'a mut Assets<StandardMaterial>,
+    pub(super) materials: &'a mut Assets<M2Material>,
     pub(super) effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub(super) terrain_materials: &'a mut Assets<TerrainMaterial>,
     pub(super) water_materials: &'a mut Assets<WaterMaterial>,
@@ -31,7 +32,7 @@ pub(super) struct WarbandBackgroundSpawnContext<'a, 'w, 's> {
 pub(super) struct WarbandSkyboxSpawnContext<'a, 'w, 's> {
     pub(super) commands: &'a mut Commands<'w, 's>,
     pub(super) meshes: &'a mut Assets<Mesh>,
-    pub(super) materials: &'a mut Assets<StandardMaterial>,
+    pub(super) materials: &'a mut Assets<M2Material>,
     pub(super) effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub(super) skybox_materials: &'a mut Assets<SkyboxM2Material>,
     pub(super) images: &'a mut Assets<Image>,
@@ -42,7 +43,7 @@ pub(super) struct WarbandSkyboxSpawnContext<'a, 'w, 's> {
 fn spawn_tagged_ground(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
 ) -> Entity {
     let material = load_grass_ground_material(materials, images);
@@ -58,9 +59,9 @@ fn spawn_tagged_ground(
 }
 
 fn load_grass_ground_material(
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
-) -> Handle<StandardMaterial> {
+) -> Handle<M2Material> {
     let grass_path = asset::asset_cache::texture(187126)
         .unwrap_or_else(|| PathBuf::from("data/textures/187126.blp"));
     let mut grass_image = asset::blp::load_blp_gpu_image(&grass_path).unwrap_or_else(|e| {
@@ -73,11 +74,15 @@ fn load_grass_ground_material(
             address_mode_v: bevy::image::ImageAddressMode::Repeat,
             ..bevy::image::ImageSamplerDescriptor::linear()
         });
-    materials.add(StandardMaterial {
-        base_color_texture: Some(images.add(grass_image)),
-        perceptual_roughness: 0.9,
-        ..default()
-    })
+    materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color_texture: Some(images.add(grass_image)),
+            perceptual_roughness: 0.9,
+            ..default()
+        },
+        0,
+        0,
+    ))
 }
 
 fn build_ground_plane(meshes: &mut Assets<Mesh>, size: f32, uv_scale: f32) -> Handle<Mesh> {
@@ -202,7 +207,7 @@ mod tests {
     fn fallback_ground_marks_selected_scene_active() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2Material>>();
         app.init_resource::<Assets<M2EffectMaterial>>();
         app.init_resource::<Assets<TerrainMaterial>>();
         app.init_resource::<Assets<WaterMaterial>>();
@@ -218,7 +223,7 @@ mod tests {
             .run_system_once(
                 move |mut commands: Commands,
                       mut meshes: ResMut<Assets<Mesh>>,
-                      mut materials: ResMut<Assets<StandardMaterial>>,
+                      mut materials: ResMut<Assets<M2Material>>,
                       mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
                       mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
                       mut water_materials: ResMut<Assets<WaterMaterial>>,
@@ -258,7 +263,7 @@ mod tests {
     fn terrain_background_uses_adt_floor_without_grass_overlay() {
         let mut app = App::new();
         app.init_resource::<Assets<Mesh>>();
-        app.init_resource::<Assets<StandardMaterial>>();
+        app.init_resource::<Assets<M2Material>>();
         app.init_resource::<Assets<M2EffectMaterial>>();
         app.init_resource::<Assets<TerrainMaterial>>();
         app.init_resource::<Assets<WaterMaterial>>();
@@ -284,7 +289,7 @@ mod tests {
             .run_system_once(
                 move |mut commands: Commands,
                       mut meshes: ResMut<Assets<Mesh>>,
-                      mut materials: ResMut<Assets<StandardMaterial>>,
+                      mut materials: ResMut<Assets<M2Material>>,
                       mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
                       mut terrain_materials: ResMut<Assets<TerrainMaterial>>,
                       mut water_materials: ResMut<Assets<WaterMaterial>>,
@@ -338,7 +343,7 @@ mod tests {
         );
         let overlay_count = app
             .world_mut()
-            .query_filtered::<(&Mesh3d, &MeshMaterial3d<StandardMaterial>), With<CharSelectScene>>()
+            .query_filtered::<(&Mesh3d, &MeshMaterial3d<M2Material>), With<CharSelectScene>>()
             .iter(app.world())
             .count();
         assert_eq!(

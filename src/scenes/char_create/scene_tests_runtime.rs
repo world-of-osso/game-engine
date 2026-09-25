@@ -28,7 +28,8 @@ fn runtime_race_click_updates_displayed_models_through_full_scheduler() {
     app.insert_resource(CharTextureData::load(Path::new("data")));
     app.insert_resource(crate::creature_display::CreatureDisplayMap);
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<M2EffectMaterial>>();
     app.init_resource::<Assets<Image>>();
     app.init_resource::<Assets<SkinnedMeshInverseBindposes>>();

@@ -54,7 +54,7 @@ fn assert_backdrop_only(app: &mut App) {
         .filter(|(entity, mesh)| {
             world.resource::<Assets<Mesh>>().get(&mesh.0).is_some()
                 && (world
-                    .get::<MeshMaterial3d<StandardMaterial>>(*entity)
+                    .get::<MeshMaterial3d<crate::retail_m2_material::M2Material>>(*entity)
                     .is_some()
                     || world
                         .get::<MeshMaterial3d<M2EffectMaterial>>(*entity)

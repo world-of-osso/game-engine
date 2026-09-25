@@ -54,7 +54,7 @@ pub struct TerrainStatusSnapshot {
     pub image_asset_cpu_bytes: u64,
     pub mesh_assets: usize,
     pub mesh_asset_est_cpu_bytes: u64,
-    pub standard_material_assets: usize,
+    pub m2_material_assets: usize,
     pub terrain_material_assets: usize,
     pub water_material_assets: usize,
     pub m2_effect_material_assets: usize,

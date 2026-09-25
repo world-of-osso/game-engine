@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use crate::retail_m2_material::M2Material;
 use bevy::prelude::*;
 
 use super::{
@@ -15,11 +16,11 @@ pub(super) fn apply_base_skin_and_overlay_textures(
     merged_cape_texture_fdid: Option<u32>,
     root: Entity,
     images: &mut Assets<Image>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     parent_query: &Query<&ChildOf>,
     material_query: &Query<(
         Entity,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<M2Material>,
         Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
@@ -90,11 +91,11 @@ fn build_replacement_texture_handles(
 
 fn apply_replacement_textures_to_materials(
     root: Entity,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     parent_query: &Query<&ChildOf>,
     material_query: &Query<(
         Entity,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<M2Material>,
         Option<&GeosetMesh>,
         Option<&BatchTextureType>,
         &ChildOf,
@@ -116,8 +117,8 @@ fn apply_replacement_textures_to_materials(
             continue;
         };
         if let Some(mut mat) = materials.get_mut(&mat_handle.0) {
-            mat.base_color_texture = Some(replacement);
-            mat.base_color = Color::WHITE;
+            mat.base.base_color_texture = Some(replacement);
+            mat.base.base_color = Color::WHITE;
         }
     }
 }

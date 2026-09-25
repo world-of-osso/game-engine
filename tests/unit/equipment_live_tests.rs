@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
@@ -458,7 +459,7 @@ fn configure_live_test_app(app: &mut App) {
     app.insert_state(GameState::CharSelect);
     app.add_plugins(AnimationPlugin);
     app.insert_resource(Assets::<Mesh>::default());
-    app.insert_resource(Assets::<StandardMaterial>::default());
+    app.insert_resource(Assets::<crate::retail_m2_material::M2Material>::default());
     app.insert_resource(Assets::<Image>::default());
     app.insert_resource(Assets::<M2EffectMaterial>::default());
     app.insert_resource(Assets::<SkinnedMeshInverseBindposes>::default());
@@ -544,7 +545,7 @@ fn spawn_live_character(app: &mut App, character_path: &Path) -> m2_scene::Spawn
     let mut state: SystemState<(
         Commands,
         ResMut<Assets<Mesh>>,
-        ResMut<Assets<StandardMaterial>>,
+        ResMut<Assets<M2Material>>,
         ResMut<Assets<M2EffectMaterial>>,
         ResMut<Assets<Image>>,
         ResMut<Assets<SkinnedMeshInverseBindposes>>,
@@ -577,7 +578,7 @@ fn live_m2_scene_spawn_context<'a, 'w, 's>(
     creature_display_map: &'a CreatureDisplayMap,
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
     images: &'a mut Assets<Image>,
     inv_bp: &'a mut Assets<SkinnedMeshInverseBindposes>,
@@ -721,15 +722,15 @@ fn accumulate_mesh_bounds(
 }
 
 fn count_textured_meshes(world: &World, root: Entity) -> usize {
-    let materials = world.resource::<Assets<StandardMaterial>>();
+    let materials = world.resource::<Assets<M2Material>>();
     let mut entities = vec![root];
     collect_descendants(world, root, &mut entities);
     entities
         .into_iter()
         .filter_map(|entity| {
-            let material = world.get::<MeshMaterial3d<StandardMaterial>>(entity)?;
+            let material = world.get::<MeshMaterial3d<M2Material>>(entity)?;
             let material = materials.get(&material.0)?;
-            material.base_color_texture.as_ref()
+            material.base.base_color_texture.as_ref()
         })
         .count()
 }

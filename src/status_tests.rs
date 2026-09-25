@@ -583,7 +583,7 @@ fn malformed_null_for_non_option_rejected() {
 #[test]
 fn malformed_terrain_snapshot_wrong_tuple() {
     let result = serde_json::from_str::<TerrainStatusSnapshot>(
-        r#"{"map_name":"","initial_tile":"wrong","load_radius":0,"loaded_tiles":0,"pending_tiles":0,"failed_tiles":0,"server_requested_tiles":0,"heightmap_tiles":0,"process_rss_kb":0,"process_anon_kb":0,"process_data_kb":0,"m2_model_cache_entries":0,"m2_model_cache_est_cpu_bytes":0,"composited_texture_cache_entries":0,"composited_texture_cache_est_cpu_bytes":0,"image_assets":0,"image_asset_cpu_bytes":0,"mesh_assets":0,"mesh_asset_est_cpu_bytes":0,"standard_material_assets":0,"terrain_material_assets":0,"water_material_assets":0,"m2_effect_material_assets":0}"#,
+        r#"{"map_name":"","initial_tile":"wrong","load_radius":0,"loaded_tiles":0,"pending_tiles":0,"failed_tiles":0,"server_requested_tiles":0,"heightmap_tiles":0,"process_rss_kb":0,"process_anon_kb":0,"process_data_kb":0,"m2_model_cache_entries":0,"m2_model_cache_est_cpu_bytes":0,"composited_texture_cache_entries":0,"composited_texture_cache_est_cpu_bytes":0,"image_assets":0,"image_asset_cpu_bytes":0,"mesh_assets":0,"mesh_asset_est_cpu_bytes":0,"m2_material_assets":0,"terrain_material_assets":0,"water_material_assets":0,"m2_effect_material_assets":0}"#,
     );
     assert!(result.is_err());
 }

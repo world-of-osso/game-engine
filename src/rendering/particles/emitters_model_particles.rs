@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::SystemParam;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -57,7 +58,7 @@ struct ModelParticleInstanceState {
 #[derive(SystemParam)]
 pub(crate) struct ModelParticleSpawnParams<'w, 's> {
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     images: ResMut<'w, Assets<Image>>,
     inverse_bindposes: ResMut<'w, Assets<SkinnedMeshInverseBindposes>>,

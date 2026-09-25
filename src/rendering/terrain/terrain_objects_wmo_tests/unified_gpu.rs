@@ -1,6 +1,7 @@
 use super::interior_gpu::{gpu_app, largest_triangle};
 use super::*;
 use crate::m2_effect_material::M2EffectMaterial;
+use crate::retail_m2_material::M2Material;
 use crate::water_material::WaterMaterial;
 use bevy::camera::RenderTarget;
 use bevy::core_pipeline::tonemapping::Tonemapping;
@@ -132,7 +133,7 @@ pub(super) fn spawn_production_batch(
     let interior_ambient = wmo_interior_ambient(root, 0);
     app.world_mut()
         .resource_scope(|world, mut meshes: Mut<Assets<Mesh>>| {
-            world.resource_scope(|world, mut materials: Mut<Assets<StandardMaterial>>| {
+            world.resource_scope(|world, mut materials: Mut<Assets<M2Material>>| {
                 world.resource_scope(|world, mut water: Mut<Assets<WaterMaterial>>| {
                     world.resource_scope(|world, mut effects: Mut<Assets<M2EffectMaterial>>| {
                         world.resource_scope(

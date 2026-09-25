@@ -1,5 +1,6 @@
 //! Fog volume spawning from WDT _fogs companion files.
 
+use crate::retail_m2_material::M2Material;
 use bevy::image::Image;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
@@ -28,7 +29,7 @@ pub fn load_map_fogs_wdt(map_name: &str) -> Option<fogs_wdt::FogsWdt> {
 pub fn spawn_map_fog_volumes(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -65,7 +66,7 @@ pub fn spawn_map_fog_volumes(
 fn try_spawn_fog_volume(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,

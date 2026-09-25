@@ -1,5 +1,6 @@
 use super::*;
 use crate::animation::M2AnimData;
+use crate::retail_m2_material::M2Material;
 use bevy_replicon::shared::replicon_tick::RepliconTick;
 use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
 
@@ -129,7 +130,7 @@ fn live_appearance_app() -> (App, Entity) {
     app.insert_state(crate::game_state::GameState::InWorld);
     app.add_plugins(crate::animation::AnimationPlugin);
     app.init_resource::<Assets<Mesh>>()
-        .init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<M2Material>>()
         .init_resource::<Assets<M2EffectMaterial>>()
         .init_resource::<Assets<Image>>()
         .init_resource::<Assets<SkinnedMeshInverseBindposes>>()
@@ -157,7 +158,7 @@ fn live_appearance_app() -> (App, Entity) {
         .run_system_once(
             move |mut commands: Commands,
                   mut meshes: ResMut<Assets<Mesh>>,
-                  mut materials: ResMut<Assets<StandardMaterial>>,
+                  mut materials: ResMut<Assets<M2Material>>,
                   mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
                   mut images: ResMut<Assets<Image>>,
                   mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>| {

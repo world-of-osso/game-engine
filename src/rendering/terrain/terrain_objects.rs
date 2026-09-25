@@ -4,6 +4,7 @@ mod terrain_objects_fog;
 mod terrain_objects_wmo;
 mod terrain_objects_wmo_material;
 
+use crate::retail_m2_material::M2Material;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -119,7 +120,7 @@ pub fn load_obj2(adt_path: &Path) -> Option<adt_obj::AdtObjData> {
 pub(super) fn spawn_obj_entities_preloaded(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -190,7 +191,7 @@ pub(super) fn spawn_obj_entities_preloaded(
 pub fn spawn_obj_entities(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -244,7 +245,7 @@ pub fn spawn_obj_entities(
 pub fn spawn_waterfall_backdrop_doodads(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     _water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -283,7 +284,7 @@ pub fn spawn_waterfall_backdrop_doodads(
 pub fn spawn_nearby_campsite_objects(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,
@@ -352,7 +353,7 @@ pub fn spawn_nearby_campsite_objects(
 fn spawn_doodads_preloaded(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -392,7 +393,7 @@ fn spawn_doodads_preloaded(
 fn try_spawn_doodad_preloaded(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -467,7 +468,7 @@ fn try_spawn_doodad_preloaded(
 fn spawn_doodads_filtered(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -508,7 +509,7 @@ fn spawn_doodads_filtered(
 fn try_spawn_doodad(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     images: &mut Assets<Image>,
     inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
@@ -719,7 +720,7 @@ fn normalize_quat_or_identity(quat: Quat) -> Quat {
 fn spawn_wmos(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     effect_materials: &mut Assets<M2EffectMaterial>,
     water_materials: &mut Assets<WaterMaterial>,
     images: &mut Assets<Image>,

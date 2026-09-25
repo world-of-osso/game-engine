@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::retail_m2_material::M2Material;
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use game_engine::asset::char_texture::CharTextureData;
@@ -244,10 +245,10 @@ struct NpcRenderTargets<'w, 's> {
         (
             Entity,
             &'static BatchTextureType,
-            &'static mut MeshMaterial3d<StandardMaterial>,
+            &'static mut MeshMaterial3d<M2Material>,
         ),
     >,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
 }
 
 fn apply_prepared_npc(
@@ -298,8 +299,8 @@ fn apply_npc_textures(
             .get(&handle.0)
             .ok_or_else(|| format!("missing NPC material for entity {entity:?}"))?
             .clone();
-        material.base_color_texture = Some(texture.clone());
-        material.base_color = Color::WHITE;
+        material.base.base_color_texture = Some(texture.clone());
+        material.base.base_color = Color::WHITE;
         handle.0 = targets.materials.add(material);
     }
     Ok(())
@@ -441,7 +442,7 @@ mod tests {
     fn mesh(
         world: &mut World,
         root: Entity,
-        material: Handle<StandardMaterial>,
+        material: Handle<M2Material>,
         part: u16,
         texture_type: u32,
     ) -> Entity {
@@ -459,7 +460,7 @@ mod tests {
     #[test]
     fn npc_appearance_clones_shared_materials_and_preserves_other_entities() {
         let mut app = App::new();
-        app.init_resource::<Assets<StandardMaterial>>()
+        app.init_resource::<Assets<M2Material>>()
             .init_resource::<Assets<Image>>();
         register_npc_appearance_systems(&mut app);
         let original_texture = app
@@ -474,13 +475,16 @@ mod tests {
             .world_mut()
             .resource_mut::<Assets<Image>>()
             .add(crate::rgba_image(vec![30, 60, 180, 255], 1, 1));
-        let material = app
-            .world_mut()
-            .resource_mut::<Assets<StandardMaterial>>()
-            .add(StandardMaterial {
-                base_color_texture: Some(original_texture.clone()),
-                ..default()
-            });
+        let material = app.world_mut().resource_mut::<Assets<M2Material>>().add(
+            crate::retail_m2_material::retail_m2_material(
+                StandardMaterial {
+                    base_color_texture: Some(original_texture.clone()),
+                    ..default()
+                },
+                0,
+                0,
+            ),
+        );
         let first = app
             .world_mut()
             .spawn(PreparedNpcAppearance {
@@ -512,36 +516,36 @@ mod tests {
         app.update();
         let a = app
             .world()
-            .get::<MeshMaterial3d<StandardMaterial>>(first_mesh)
+            .get::<MeshMaterial3d<M2Material>>(first_mesh)
             .unwrap()
             .0
             .clone();
         let b = app
             .world()
-            .get::<MeshMaterial3d<StandardMaterial>>(second_mesh)
+            .get::<MeshMaterial3d<M2Material>>(second_mesh)
             .unwrap()
             .0
             .clone();
         let c = app
             .world()
-            .get::<MeshMaterial3d<StandardMaterial>>(other_mesh)
+            .get::<MeshMaterial3d<M2Material>>(other_mesh)
             .unwrap()
             .0
             .clone();
         assert_ne!(a, b);
         assert_ne!(a, material);
         assert_eq!(c, material);
-        let materials = app.world().resource::<Assets<StandardMaterial>>();
+        let materials = app.world().resource::<Assets<M2Material>>();
         assert_eq!(
-            materials.get(&a).unwrap().base_color_texture,
+            materials.get(&a).unwrap().base.base_color_texture,
             Some(first_texture.clone())
         );
         assert_eq!(
-            materials.get(&b).unwrap().base_color_texture,
+            materials.get(&b).unwrap().base.base_color_texture,
             Some(second_texture.clone())
         );
         assert_eq!(
-            materials.get(&c).unwrap().base_color_texture,
+            materials.get(&c).unwrap().base.base_color_texture,
             Some(original_texture)
         );
         for (entity, expected_texture) in
@@ -549,11 +553,11 @@ mod tests {
         {
             let handle = &app
                 .world()
-                .get::<MeshMaterial3d<StandardMaterial>>(entity)
+                .get::<MeshMaterial3d<M2Material>>(entity)
                 .unwrap()
                 .0;
             assert_eq!(
-                materials.get(handle).unwrap().base_color_texture,
+                materials.get(handle).unwrap().base.base_color_texture,
                 Some(expected_texture)
             );
         }
@@ -567,15 +571,12 @@ mod tests {
         ] {
             assert_eq!(*app.world().get::<Visibility>(entity).unwrap(), expected);
         }
-        let count = app.world().resource::<Assets<StandardMaterial>>().len();
+        let count = app.world().resource::<Assets<M2Material>>().len();
         app.update();
-        assert_eq!(
-            app.world().resource::<Assets<StandardMaterial>>().len(),
-            count
-        );
+        assert_eq!(app.world().resource::<Assets<M2Material>>().len(), count);
         assert_eq!(
             app.world()
-                .get::<MeshMaterial3d<StandardMaterial>>(first_mesh)
+                .get::<MeshMaterial3d<M2Material>>(first_mesh)
                 .unwrap()
                 .0,
             a

@@ -1,9 +1,10 @@
+use crate::retail_m2_material::M2Material;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 use bevy::image::Image;
 use bevy::mesh::Mesh;
-use bevy::prelude::{Assets, StandardMaterial};
+use bevy::prelude::Assets;
 
 use crate::m2_effect_material::M2EffectMaterial;
 pub use crate::process_memory_status::ProcessMemoryKb;
@@ -26,7 +27,7 @@ pub fn log_tile_spawn_stats(
     adt_path: &Path,
     images: &Assets<Image>,
     meshes: &Assets<Mesh>,
-    standard_materials: &Assets<StandardMaterial>,
+    m2_materials: &Assets<M2Material>,
     terrain_materials: &Assets<TerrainMaterial>,
     water_materials: &Assets<WaterMaterial>,
     m2_effect_materials: &Assets<M2EffectMaterial>,
@@ -36,7 +37,7 @@ pub fn log_tile_spawn_stats(
         assets: status_asset_stats::collect_asset_store_stats(
             images,
             meshes,
-            standard_materials,
+            m2_materials,
             terrain_materials,
             water_materials,
             m2_effect_materials,
@@ -55,7 +56,7 @@ pub fn log_tile_spawn_stats(
         bytes_mib(current.assets.image_asset_cpu_bytes),
         current.assets.mesh_assets,
         bytes_mib(current.assets.mesh_asset_est_cpu_bytes),
-        current.assets.standard_material_assets,
+        current.assets.m2_material_assets,
         current.assets.terrain_material_assets,
         current.assets.water_material_assets,
         current.assets.m2_effect_material_assets,

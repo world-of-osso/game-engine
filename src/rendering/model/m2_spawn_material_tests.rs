@@ -2,9 +2,10 @@ use super::{M2_SHADER_MODULATE, load_batch_material, skybox_batch_needs_effect_c
 use crate::asset;
 use crate::m2_effect_material;
 use crate::m2_spawn::{BatchMaterial, ground_offset_y};
+use crate::retail_m2_material::M2Material;
 use crate::skybox_m2_material::SkyboxM2Material;
 use bevy::mesh::{Mesh, PrimitiveTopology};
-use bevy::prelude::{AlphaMode, Assets, Image, StandardMaterial, Vec2};
+use bevy::prelude::{AlphaMode, Assets, Image, Vec2};
 
 #[path = "m2_spawn_material_tests/foliage_gpu.rs"]
 mod foliage_gpu;
@@ -73,7 +74,7 @@ fn waterfall_uv_animation_repeats_each_authored_global_period() {
             })
             .expect("waterfall04 has both authored global periods");
         let mut images = Assets::<Image>::default();
-        let mut materials = Assets::<StandardMaterial>::default();
+        let mut materials = Assets::<M2Material>::default();
         let mut effect_materials = Assets::<m2_effect_material::M2EffectMaterial>::default();
         let loaded = load_batch_material(
             batch,
@@ -130,7 +131,7 @@ fn invalid_blend_modes_use_additive_alpha_mode() {
 #[test]
 fn forced_skybox_batches_keep_dedicated_material_without_texture() {
     let mut images = Assets::<Image>::default();
-    let mut materials = Assets::<StandardMaterial>::default();
+    let mut materials = Assets::<M2Material>::default();
     let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
     let mut skybox_materials = Assets::<SkyboxM2Material>::default();
     let batch = asset::m2::M2RenderBatch {
@@ -235,7 +236,7 @@ fn deathskybox_single_texture_shader_batch_keeps_second_texture_disabled() {
         .expect("deathskybox single-texture batch");
 
     let mut images = Assets::<Image>::default();
-    let mut materials = Assets::<StandardMaterial>::default();
+    let mut materials = Assets::<M2Material>::default();
     let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
     let mut skybox_materials = Assets::<SkyboxM2Material>::default();
 
@@ -287,7 +288,7 @@ fn deathskybox_single_texture_batches_never_bind_second_texture_state() {
         );
 
         let mut images = Assets::<Image>::default();
-        let mut materials = Assets::<StandardMaterial>::default();
+        let mut materials = Assets::<M2Material>::default();
         let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
         let mut skybox_materials = Assets::<SkyboxM2Material>::default();
 
@@ -354,7 +355,7 @@ fn cloudsky_modern_shader_batches_keep_runtime_second_texture_sampling() {
         .expect("cloud skybox batch with supported modern shader id");
 
     let mut images = Assets::<Image>::default();
-    let mut materials = Assets::<StandardMaterial>::default();
+    let mut materials = Assets::<M2Material>::default();
     let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
     let mut skybox_materials = Assets::<SkyboxM2Material>::default();
 
@@ -406,7 +407,7 @@ fn traced_cloudsky_material(
     batch_index: usize,
 ) -> SkyboxM2Material {
     let mut images = Assets::<Image>::default();
-    let mut materials = Assets::<StandardMaterial>::default();
+    let mut materials = Assets::<M2Material>::default();
     let mut effect_materials = Assets::<crate::m2_effect_material::M2EffectMaterial>::default();
     let mut skybox_materials = Assets::<SkyboxM2Material>::default();
 

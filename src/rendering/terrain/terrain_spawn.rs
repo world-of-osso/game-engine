@@ -1,3 +1,4 @@
+use crate::retail_m2_material::M2Material;
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
@@ -24,7 +25,7 @@ mod tests;
 pub(super) struct SpawnRefs<'a, 'w, 's> {
     pub(super) commands: &'a mut Commands<'w, 's>,
     pub(super) meshes: &'a mut Assets<Mesh>,
-    pub(super) materials: &'a mut Assets<StandardMaterial>,
+    pub(super) materials: &'a mut Assets<M2Material>,
     pub(super) effect_materials: &'a mut Assets<M2EffectMaterial>,
     pub(super) terrain_materials: &'a mut Assets<TerrainMaterial>,
     pub(super) water_materials: &'a mut Assets<WaterMaterial>,
@@ -289,18 +290,22 @@ pub(super) fn log_adt_spawn(adt_data: &adt::AdtData, adt_path: &Path) {
 fn spawn_flat_terrain_chunks(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     adt_data: &adt::AdtData,
     tile: &AdtTile,
 ) -> Entity {
-    let flat_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.5, 0.5, 0.5),
-        perceptual_roughness: terrain_material::TERRAIN_PERCEPTUAL_ROUGHNESS,
-        reflectance: terrain_material::TERRAIN_REFLECTANCE,
-        double_sided: true,
-        cull_mode: None,
-        ..default()
-    });
+    let flat_material = materials.add(crate::retail_m2_material::retail_m2_material(
+        StandardMaterial {
+            base_color: Color::srgb(0.5, 0.5, 0.5),
+            perceptual_roughness: terrain_material::TERRAIN_PERCEPTUAL_ROUGHNESS,
+            reflectance: terrain_material::TERRAIN_REFLECTANCE,
+            double_sided: true,
+            cull_mode: None,
+            ..default()
+        },
+        0,
+        0,
+    ));
     let chunk_materials = vec![flat_material; adt_data.chunks.len()];
     spawn_chunk_entities(commands, meshes, &chunk_materials, adt_data, tile)
 }

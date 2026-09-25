@@ -129,6 +129,7 @@ fn terrain_spawn_test_app(parsed: ParsedTile) -> App {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>()
         .init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>()
         .init_resource::<Assets<M2EffectMaterial>>()
         .init_resource::<Assets<TerrainMaterial>>()
         .init_resource::<Assets<WaterMaterial>>()

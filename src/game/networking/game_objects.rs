@@ -152,7 +152,7 @@ mod tests {
         let mut app = App::new();
         app.add_plugins(MinimalPlugins)
             .init_resource::<Assets<Mesh>>()
-            .init_resource::<Assets<StandardMaterial>>()
+            .init_resource::<Assets<crate::retail_m2_material::M2Material>>()
             .init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>()
             .init_resource::<Assets<Image>>()
             .init_resource::<Assets<SkinnedMeshInverseBindposes>>()

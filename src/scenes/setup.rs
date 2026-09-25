@@ -1,5 +1,6 @@
 //! Scene spawning helpers for the game-engine binary.
 
+use crate::retail_m2_material::M2Material;
 use std::f32::consts::PI;
 use std::path::Path;
 
@@ -34,7 +35,7 @@ pub fn should_load_explicit_scene_at_startup(server_mode: bool, asset_path: Opti
 pub struct SceneSetupSystemParams<'w, 's> {
     commands: Commands<'w, 's>,
     meshes: ResMut<'w, Assets<Mesh>>,
-    materials: ResMut<'w, Assets<StandardMaterial>>,
+    materials: ResMut<'w, Assets<M2Material>>,
     effect_materials: ResMut<'w, Assets<M2EffectMaterial>>,
     terrain_mats: ResMut<'w, Assets<terrain_material::TerrainMaterial>>,
     water_mats: ResMut<'w, Assets<water_material::WaterMaterial>>,
@@ -51,7 +52,7 @@ pub struct SceneSetupSystemParams<'w, 's> {
 struct SceneSetupContext<'a, 'w, 's> {
     commands: &'a mut Commands<'w, 's>,
     meshes: &'a mut Assets<Mesh>,
-    materials: &'a mut Assets<StandardMaterial>,
+    materials: &'a mut Assets<M2Material>,
     effect_materials: &'a mut Assets<M2EffectMaterial>,
     terrain_mats: &'a mut Assets<terrain_material::TerrainMaterial>,
     water_mats: &'a mut Assets<water_material::WaterMaterial>,
@@ -235,7 +236,7 @@ pub fn set_player_position(commands: &mut Commands, pos: Vec3) {
 pub fn spawn_scene_environment(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
+    materials: &mut Assets<M2Material>,
     images: &mut Assets<Image>,
     is_terrain: bool,
 ) -> Entity {

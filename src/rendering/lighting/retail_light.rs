@@ -10,10 +10,12 @@
 //! to linear for Bevy's render target.
 
 use bevy::asset::uuid_handle;
+use bevy::pbr::MaterialPlugin;
 use bevy::prelude::*;
 use bevy::render::render_resource::ShaderType;
 use bevy::render::storage::ShaderBuffer;
 
+use crate::retail_m2_material::M2Material;
 use crate::sky_lightdata::SkyColorSet;
 
 /// The one GPU copy of [`RetailSceneLight`]; every Retail-lit material binds it.
@@ -51,6 +53,23 @@ impl RetailSceneLight {
             fog_color: authored_rgb(colors.fog_color),
             fog_start: colors.fog_start,
             fog_end: colors.fog_end,
+        }
+    }
+}
+
+impl RetailSceneLight {
+    /// Light of a standalone M2 scene (`M2Scene::updateLightAndSkyboxData` with
+    /// M2 lighting): the model's ambient from every direction, no direct light.
+    pub fn m2_scene(ambient: Vec3) -> Self {
+        Self {
+            ambient,
+            horizon_ambient: ambient,
+            ground_ambient: ambient,
+            direct: Vec3::ZERO,
+            sun_direction: Vec3::NEG_Y,
+            fog_color: Vec3::ZERO,
+            fog_start: 0.0,
+            fog_end: f32::MAX,
         }
     }
 }
@@ -183,6 +202,13 @@ pub struct RetailLightingPlugin;
 
 impl Plugin for RetailLightingPlugin {
     fn build(&self, app: &mut App) {
+        let empty = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app)
+            == crate::game::inworld_scene_stage::InWorldSceneStage::Empty;
+        if empty {
+            app.init_asset::<M2Material>();
+        } else {
+            app.add_plugins(MaterialPlugin::<M2Material>::default());
+        }
         app.init_asset::<ShaderBuffer>()
             .add_systems(PostUpdate, upload_retail_scene_light);
     }

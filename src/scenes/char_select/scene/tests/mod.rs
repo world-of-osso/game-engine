@@ -44,7 +44,8 @@ pub(super) fn character(character_id: u64, race: u8, sex: u8, name: &str) -> Cha
 pub(super) fn render_path_test_app() -> App {
     let mut app = App::new();
     app.init_resource::<Assets<Mesh>>();
-    app.init_resource::<Assets<StandardMaterial>>();
+    app.init_resource::<Assets<StandardMaterial>>()
+        .init_resource::<Assets<crate::retail_m2_material::M2Material>>();
     app.init_resource::<Assets<crate::sky_material::SkyMaterial>>();
     app.init_resource::<Assets<crate::m2_effect_material::M2EffectMaterial>>();
     app.init_resource::<Assets<crate::skybox_m2_material::SkyboxM2Material>>();
