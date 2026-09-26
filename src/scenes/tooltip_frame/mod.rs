@@ -1364,6 +1364,7 @@ mod tests {
             name: "Linen Cloth".into(),
             item_guid: 7,
             item_id: 2589,
+            ..Default::default()
         };
         let talent = TalentTooltip {
             spell_id: 184_575,

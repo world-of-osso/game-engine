@@ -243,6 +243,7 @@ fn handle_inworld_escape(
     mut edit_mode: Option<ResMut<crate::edit_mode::EditMode>>,
     target: Option<ResMut<CurrentTarget>>,
     popups: Option<ResMut<PopupStack>>,
+    mut cursor: Option<ResMut<game_engine::cursor_item::CursorItem>>,
     mut ui: ResMut<UiState>,
     mut commands: Commands,
 ) {
@@ -256,7 +257,9 @@ fn handle_inworld_escape(
         clear_text_focus(&mut ui, spellbook_runtime);
         return;
     }
-    if cancel_cursor_action() || close_top_popup(popups) {
+    if crate::scenes::cursor_item::clear_cursor_item(cursor.as_deref_mut())
+        || close_top_popup(popups)
+    {
         return;
     }
     if let Some(edit_mode) = edit_mode.as_mut().filter(|edit| edit.is_active()) {
@@ -285,12 +288,6 @@ fn clear_text_focus(
     if let Some(mut runtime) = spellbook_runtime {
         runtime.clear_focus();
     }
-}
-
-/// Escape step: drop the cursor item or cancel spell targeting.
-/// Hook point: no cursor item or spell-targeting state exists yet; always false.
-fn cancel_cursor_action() -> bool {
-    false
 }
 
 /// Escape step: cancel the newest visible popup.

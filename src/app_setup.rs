@@ -637,6 +637,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(scenes::trade_frame::TradeFramePlugin);
     app.add_plugins(scenes::quest_ui::QuestUiPlugin);
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
+    app.add_plugins(scenes::cursor_item::CursorItemPlugin);
     app.add_plugins(scenes::loot_frame::LootFramePlugin);
     app.add_plugins(scenes::flight_map::FlightMapPlugin);
     app.add_plugins(scenes::bank_frame::BankFramePlugin);

@@ -23,6 +23,8 @@ const INSET: f32 = 8.0;
 const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
 const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
 const SLOT_BG: &str = "0.08,0.07,0.06,0.88";
+/// The dimmed icon of a slot whose item is on the cursor.
+pub const LOCKED_ICON: &str = "0.5,0.5,0.5,1.0";
 
 pub const ACTION_BAG_TOGGLE_PREFIX: &str = "bag_toggle:";
 /// `bag_slot:<bag>:<slot>` on every bag slot.
@@ -45,6 +47,8 @@ pub struct BagSlotState {
     pub count: u32,
     /// RGBA color string for quality border (empty string = no border).
     pub quality_border: String,
+    /// On the cursor: `SetItemButtonDesaturated(locked)` greys the icon.
+    pub locked: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -174,6 +178,7 @@ fn slot_contents(prefix: &str, slot: &BagSlotState) -> Element {
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
             texture_fdid: {slot.icon_fdid},
+            vertex_color: {if slot.locked { LOCKED_ICON } else { "1.0,1.0,1.0,1.0" }},
             pos_type: "absolute",
             left: 0.0,
             top: 0.0,
@@ -216,6 +221,7 @@ mod tests {
                     icon_fdid: 0,
                     count: 0,
                     quality_border: String::new(),
+                    locked: false,
                 })
                 .collect(),
             visible: true,
@@ -378,6 +384,7 @@ mod tests {
             icon_fdid: 132_889,
             count: 20,
             quality_border: String::new(),
+            locked: false,
         };
         bag.slots[1].icon_fdid = 134_582;
         bag.slots[1].count = 1;
@@ -398,5 +405,26 @@ mod tests {
             .unwrap();
         let action = slot.onclick.as_deref().unwrap();
         assert_eq!(parse_bag_slot_action(action), Some((0, 2)));
+    }
+
+    #[test]
+    fn a_slot_whose_item_is_on_the_cursor_shows_its_icon_dimmed() {
+        let mut bag = make_bag(0, 4);
+        for (slot, locked) in [(0, true), (1, false)] {
+            bag.slots[slot] = BagSlotState {
+                icon_fdid: 132_889,
+                count: 20,
+                quality_border: String::new(),
+                locked,
+            };
+        }
+        let reg = build_registry(vec![bag]);
+        let color = |name: &str| match reg.get(reg.get_by_name(name).unwrap()).unwrap().widget_data
+        {
+            Some(ui_toolkit::frame::WidgetData::Texture(ref texture)) => texture.vertex_color,
+            _ => panic!("{name} is not a texture"),
+        };
+        assert_eq!(color("ContainerFrame0Slot0Icon"), [0.5, 0.5, 0.5, 1.0]);
+        assert_eq!(color("ContainerFrame0Slot1Icon"), [1.0, 1.0, 1.0, 1.0]);
     }
 }
