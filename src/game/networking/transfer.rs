@@ -15,9 +15,15 @@ use crate::networking::LocalPlayer;
 use crate::terrain::AdtManager;
 use crate::terrain_heightmap::TerrainHeightmap;
 
-/// The map whose `NewWorld` the client is loading, answered on entering the world.
+/// The map of the last `NewWorld`: loading it, then loaded (entered the world) and owed a
+/// `WorldPortAck`.
 #[derive(Resource, Debug, Default, PartialEq, Eq)]
-pub(crate) struct PendingWorldPort(pub Option<u32>);
+pub(crate) enum PendingWorldPort {
+    #[default]
+    None,
+    Loading(u32),
+    Loaded(u32),
+}
 
 pub struct TransferNetworkPlugin;
 
@@ -26,12 +32,15 @@ impl Plugin for TransferNetworkPlugin {
         use game_engine::network_events::{register_message_handler, register_outgoing_handler};
 
         app.init_resource::<PendingWorldPort>()
-            .init_resource::<UiErrors>();
+            .init_resource::<UiErrors>()
+            .add_systems(OnEnter(GameState::InWorld), finish_loading_new_world);
         register_message_handler::<NewWorld, _>(app, receive_new_world, |_| true);
         register_message_handler::<TransferAborted, _>(app, receive_transfer_aborted, |_| true);
         register_outgoing_handler(app, send_world_port_ack, |world| {
-            *world.resource::<State<GameState>>().get() == GameState::InWorld
-                && world.resource::<PendingWorldPort>().0.is_some()
+            matches!(
+                *world.resource::<PendingWorldPort>(),
+                PendingWorldPort::Loaded(_)
+            )
         });
     }
 }
@@ -68,18 +77,26 @@ fn receive_new_world(
                 new_world.map_directory,
                 tile,
             );
-            // Rotation.y convention of replicated units: WoW orientation + 90°.
+            // CharacterFacing walks along (sin yaw, cos yaw): WoW orientation + 90°; the
+            // model turns by the orientation itself.
             let yaw = new_world.facing + std::f32::consts::FRAC_PI_2;
             for (mut transform, facing) in &mut players {
                 transform.translation = position;
-                transform.rotation = Quat::from_rotation_y(yaw);
+                transform.rotation = Quat::from_rotation_y(new_world.facing);
                 if let Some(mut facing) = facing {
                     facing.yaw = yaw;
                 }
             }
-            pending.0 = Some(new_world.map_id);
+            *pending = PendingWorldPort::Loading(new_world.map_id);
             next_state.set(GameState::Loading);
         }
+    }
+}
+
+/// The loading screen ended: the new map is in the world.
+fn finish_loading_new_world(mut pending: ResMut<PendingWorldPort>) {
+    if let PendingWorldPort::Loading(map_id) = *pending {
+        *pending = PendingWorldPort::Loaded(map_id);
     }
 }
 
@@ -87,7 +104,7 @@ fn send_world_port_ack(
     mut pending: ResMut<PendingWorldPort>,
     mut senders: MessageSenders<WorldPortAck>,
 ) {
-    let Some(map_id) = pending.0.take() else {
+    let PendingWorldPort::Loaded(map_id) = std::mem::take(&mut *pending) else {
         return;
     };
     info!("Map {map_id} loaded; WorldPortAck");

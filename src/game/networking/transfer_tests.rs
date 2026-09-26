@@ -75,16 +75,22 @@ fn new_world_drops_the_old_map_and_loads_the_stockade_wmo_at_the_arrival_point()
         *app.world().resource::<State<GameState>>().get(),
         GameState::Loading
     );
-    assert_eq!(app.world().resource::<PendingWorldPort>().0, Some(34));
+    assert_eq!(
+        *app.world().resource::<PendingWorldPort>(),
+        PendingWorldPort::Loading(34)
+    );
 }
 
 #[test]
 fn the_world_port_ack_goes_out_once_the_new_map_is_in_the_world() {
     let mut app = app();
-    deliver(&mut app, stockade_new_world());
     let (commands, sent) = mpsc::channel();
     app.insert_resource(ConnectionSender::new(Some(commands)));
-
+    // NewWorld arrives in the world: the frame it is read in is still InWorld.
+    app.insert_resource(Inbox::new(vec![stockade_new_world()]));
+    game_engine::network_events::dispatch_incoming(app.world_mut());
+    game_engine::network_events::dispatch_outgoing(app.world_mut());
+    app.update();
     game_engine::network_events::dispatch_outgoing(app.world_mut());
     assert_eq!(sent.try_iter().count(), 0, "still loading");
 
@@ -95,7 +101,10 @@ fn the_world_port_ack_goes_out_once_the_new_map_is_in_the_world() {
     game_engine::network_events::dispatch_outgoing(app.world_mut());
     game_engine::network_events::dispatch_outgoing(app.world_mut());
     assert_eq!(sent.try_iter().count(), 1, "one WorldPortAck");
-    assert_eq!(app.world().resource::<PendingWorldPort>().0, None);
+    assert_eq!(
+        *app.world().resource::<PendingWorldPort>(),
+        PendingWorldPort::None
+    );
 }
 
 #[test]
