@@ -13,46 +13,85 @@ use bevy::prelude::*;
 #[path = "customization_data_support.rs"]
 mod support;
 
-/// Hardcoded (race, sex) -> ChrModelID mapping.
-/// Derived from ChrModel.csv: IDs 1-22 cover the 11 original races (male=odd, female=even).
-fn race_sex_to_chr_model_id(race: u8, sex: u8) -> Option<u32> {
-    allied_race_chr_model_id(race, sex).or_else(|| base_race_chr_model_id(race, sex))
+/// (race, sex) -> ChrModelID from ChrRaceXChrModel.csv, plus each race's
+/// ChrRaces.UnalteredVisualRaceID (e.g. Worgen 22 -> Human 1 for the Gilnean form).
+#[derive(Debug, Default, Clone)]
+pub(crate) struct RaceModels {
+    pub(crate) chr_model_by_race_sex: HashMap<(u8, u8), u32>,
+    pub(crate) unaltered_race: HashMap<u8, u8>,
 }
 
-fn allied_race_chr_model_id(race: u8, sex: u8) -> Option<u32> {
-    let (male, female) = match race {
-        22 => (43, 44), // Worgen
-        25 => (47, 48), // Pandaren
-        27 => (37, 38), // Nightborne
-        28 => (39, 40), // Highmountain Tauren
-        29 => (33, 34), // Void Elf
-        30 => (35, 36), // Lightforged Draenei
-        31 => (31, 32), // Zandalari Troll
-        34 => (41, 42), // Dark Iron Dwarf
-        35 => (53, 54), // Vulpera
-        36 => (45, 46), // Mag'har Orc
-        37 => (55, 56), // Mechagnome
-        _ => return None,
-    };
-    Some(if sex == 0 { male } else { female })
+impl RaceModels {
+    pub(crate) fn load(data_dir: &Path) -> Result<Self, String> {
+        let mut models = RaceModels::default();
+        for_each_csv_row(&data_dir.join("ChrRaceXChrModel.csv"), |row| {
+            let race = row.u8("ChrRacesID")?;
+            let sex = row.u8("Sex")?;
+            let model = row.u32("ChrModelID")?;
+            models.chr_model_by_race_sex.insert((race, sex), model);
+            Ok(())
+        })?;
+        for_each_csv_row(&data_dir.join("ChrRaces.csv"), |row| {
+            let unaltered = row.u8("UnalteredVisualRaceID")?;
+            if unaltered != 0 {
+                models.unaltered_race.insert(row.u8("ID")?, unaltered);
+            }
+            Ok(())
+        })?;
+        Ok(models)
+    }
+
+    pub(crate) fn chr_model_id(&self, race: u8, sex: u8) -> Option<u32> {
+        self.chr_model_by_race_sex.get(&(race, sex)).copied()
+    }
+
+    fn unaltered_chr_model_id(&self, race: u8, sex: u8) -> Option<u32> {
+        let unaltered = *self.unaltered_race.get(&race)?;
+        self.chr_model_id(unaltered, sex)
+    }
 }
 
-fn base_race_chr_model_id(race: u8, sex: u8) -> Option<u32> {
-    let race_index = match race {
-        1 => 0,   // Human
-        2 => 1,   // Orc
-        3 => 2,   // Dwarf
-        4 => 3,   // NightElf
-        5 => 4,   // Undead
-        6 => 5,   // Tauren
-        7 => 6,   // Gnome
-        8 => 7,   // Troll
-        9 => 8,   // Goblin
-        10 => 9,  // BloodElf
-        11 => 10, // Draenei
-        _ => return None,
-    };
-    Some(race_index * 2 + sex as u32 + 1)
+struct CsvRow<'a> {
+    headers: &'a [String],
+    fields: Vec<String>,
+    path: &'a Path,
+}
+
+impl CsvRow<'_> {
+    fn u32(&self, column: &str) -> Result<u32, String> {
+        let index = crate::csv_util::header_index(self.headers, column, self.path)?;
+        let value = self.fields.get(index).map(String::as_str).unwrap_or("");
+        value.parse().map_err(|err| {
+            format!(
+                "invalid {column} {value:?} in {}: {err}",
+                self.path.display()
+            )
+        })
+    }
+
+    fn u8(&self, column: &str) -> Result<u8, String> {
+        let value = self.u32(column)?;
+        u8::try_from(value)
+            .map_err(|_| format!("{column} {value} out of range in {}", self.path.display()))
+    }
+}
+
+fn for_each_csv_row(
+    path: &Path,
+    mut visit: impl FnMut(&CsvRow<'_>) -> Result<(), String>,
+) -> Result<(), String> {
+    let text =
+        std::fs::read_to_string(path).map_err(|err| format!("read {}: {err}", path.display()))?;
+    let mut lines = text.trim_start_matches('\u{feff}').lines();
+    let headers = crate::csv_util::parse_csv_line_trimmed(lines.next().unwrap_or(""));
+    for line in lines.filter(|line| !line.is_empty()) {
+        visit(&CsvRow {
+            headers: &headers,
+            fields: crate::csv_util::parse_csv_line_trimmed(line),
+            path,
+        })?;
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -163,6 +202,7 @@ pub struct CustomizationDb {
     pub layout_by_model: HashMap<u32, u32>,
     presentation_by_model: HashMap<u32, ModelPresentation>,
     hair_scalp_fallback_by_model: HashMap<u32, u16>,
+    race_models: RaceModels,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -203,7 +243,10 @@ impl CustomizationDb {
     }
 
     fn from_raw(raw: &RawData) -> Self {
-        let mut db = CustomizationDb::default();
+        let mut db = CustomizationDb {
+            race_models: raw.race_models.clone(),
+            ..CustomizationDb::default()
+        };
         for cm in &raw.chr_models {
             db.layout_by_model.insert(cm.id, cm.layout_id);
             db.presentation_by_model.insert(
@@ -227,17 +270,30 @@ impl CustomizationDb {
         db
     }
 
+    pub fn chr_model_id(&self, race: u8, sex: u8) -> Option<u32> {
+        self.race_models.chr_model_id(race, sex)
+    }
+
     /// Resolve authored full IDs, including options that the player UI does not expose.
     pub fn choice_by_id(&self, race: u8, sex: u8, choice_id: u32) -> Option<&CustomizationChoice> {
-        if sex > 1 {
-            return None;
-        }
-        let model_id = race_sex_to_chr_model_id(race, sex)?;
+        let model_id = self.chr_model_id(race, sex)?;
+        self.choices_by_model.get(&model_id)?.get(&choice_id)
+    }
+
+    /// A choice of the race's unaltered visual form (ChrRaces.UnalteredVisualRaceID),
+    /// e.g. a Worgen profile's Gilnean-form choices on the Human model.
+    pub fn unaltered_form_choice_by_id(
+        &self,
+        race: u8,
+        sex: u8,
+        choice_id: u32,
+    ) -> Option<&CustomizationChoice> {
+        let model_id = self.race_models.unaltered_chr_model_id(race, sex)?;
         self.choices_by_model.get(&model_id)?.get(&choice_id)
     }
 
     pub fn options_for(&self, race: u8, sex: u8) -> Option<&[CustomizationOption]> {
-        let model_id = race_sex_to_chr_model_id(race, sex)?;
+        let model_id = self.chr_model_id(race, sex)?;
         self.options_by_model.get(&model_id).map(|v| v.as_slice())
     }
 
@@ -377,12 +433,12 @@ impl CustomizationDb {
     }
 
     pub fn layout_id(&self, race: u8, sex: u8) -> Option<u32> {
-        let model_id = race_sex_to_chr_model_id(race, sex)?;
+        let model_id = self.chr_model_id(race, sex)?;
         self.layout_by_model.get(&model_id).copied()
     }
 
     pub fn presentation_for(&self, race: u8, sex: u8) -> ModelPresentation {
-        let Some(model_id) = race_sex_to_chr_model_id(race, sex) else {
+        let Some(model_id) = self.chr_model_id(race, sex) else {
             return ModelPresentation::default();
         };
         self.presentation_by_model
@@ -392,7 +448,7 @@ impl CustomizationDb {
     }
 
     pub fn scalp_fallback_hair_geoset(&self, race: u8, sex: u8) -> Option<u16> {
-        let model_id = race_sex_to_chr_model_id(race, sex)?;
+        let model_id = self.chr_model_id(race, sex)?;
         self.hair_scalp_fallback_by_model.get(&model_id).copied()
     }
 }
@@ -667,6 +723,7 @@ pub(crate) struct RawData {
     pub(crate) geosets: HashMap<u32, RawGeoset>,
     pub(crate) hair_geosets: HashMap<(u32, u16, u16), bool>,
     pub(crate) texture_fdids: HashMap<u32, u32>,
+    pub(crate) race_models: RaceModels,
 }
 
 impl RawData {
@@ -721,10 +778,6 @@ pub(crate) struct RawMaterial {
 pub(crate) struct RawGeoset {
     pub(crate) geoset_type: u16,
     pub(crate) geoset_id: u16,
-}
-
-pub(crate) fn chr_model_id_for_hair_row(race: u8, sex: u8) -> Option<u32> {
-    race_sex_to_chr_model_id(race, sex)
 }
 
 #[cfg(test)]
