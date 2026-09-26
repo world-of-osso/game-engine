@@ -4,11 +4,13 @@ mod projection;
 
 use std::collections::VecDeque;
 
-use game_engine_ui_model::{LoginModel, login};
+use game_engine_ui_model::char_select_component::CharSelectState;
+use game_engine_ui_model::{CharacterSelectModel, LoginModel, login};
 use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
 use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::texture::TextureSource;
 
@@ -19,9 +21,35 @@ use projection::{UiInput, UiProjection};
 #[class(base = CanvasLayer)]
 pub struct RegistryUi {
     base: Base<CanvasLayer>,
-    model: Option<LoginModel>,
+    model: Option<RegistryModel>,
     projection: Option<UiProjection>,
     actions: VecDeque<String>,
+}
+
+struct RegistryModel {
+    screen: Screen,
+    shared: SharedContext,
+    registry: FrameRegistry,
+}
+
+impl RegistryModel {
+    fn sync(&mut self) {
+        self.screen.sync(&self.shared, &mut self.registry);
+    }
+
+    fn credentials(&self) -> Option<(String, String)> {
+        let text = |name| {
+            let frame = self.registry.get(self.registry.get_by_name(name)?)?;
+            match frame.widget_data.as_ref()? {
+                WidgetData::EditBox(edit) => Some(edit.text.clone()),
+                _ => None,
+            }
+        };
+        Some((
+            text(login::USERNAME_INPUT.0)?,
+            text(login::PASSWORD_INPUT.0)?,
+        ))
+    }
 }
 
 #[godot_api]
@@ -48,9 +76,27 @@ pub fn create_login_ui(width: f32, height: f32) -> Result<Gd<RegistryUi>, String
 
 impl RegistryUi {
     fn initialize_login(&mut self, width: f32, height: f32) -> Result<(), String> {
-        let mut model = LoginModel::new(width, height);
+        let LoginModel {
+            screen,
+            shared,
+            registry,
+        } = LoginModel::new(width, height);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+        };
         model.sync();
         apply_login_art(&mut model.registry)?;
+        self.initialize_model(model, width, height)
+    }
+
+    fn initialize_model(
+        &mut self,
+        mut model: RegistryModel,
+        width: f32,
+        height: f32,
+    ) -> Result<(), String> {
         let mut projection = UiProjection::new();
         projection.root.set_size(Vector2::new(width, height));
         self.base_mut().add_child(&projection.root);
@@ -58,6 +104,15 @@ impl RegistryUi {
         self.projection = Some(projection);
         self.model = Some(model);
         Ok(())
+    }
+
+    pub fn set_character_select_state(&mut self, state: CharSelectState) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("Registry model not initialized")?;
+        model.shared.insert(state);
+        self.sync_model()
     }
 
     fn sync_viewport(&mut self) -> Result<(), String> {
@@ -96,6 +151,34 @@ impl RegistryUi {
 
 #[godot_api]
 impl RegistryUi {
+    #[func]
+    pub fn show_character_select(&mut self) -> GString {
+        if self.model.is_some() {
+            return "RegistryUi already has a screen".into();
+        }
+        let Some(viewport) = self.base().get_viewport() else {
+            return "RegistryUi has no viewport".into();
+        };
+        let size = viewport.get_visible_rect().size;
+        let CharacterSelectModel {
+            screen,
+            shared,
+            registry,
+        } = CharacterSelectModel::new(size.x, size.y);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+        };
+        model.sync();
+        GString::from(
+            self.initialize_model(model, size.x, size.y)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
     #[func]
     fn show_login(&mut self) -> GString {
         if self.model.is_some() {
@@ -177,7 +260,8 @@ impl RegistryUi {
     #[func]
     pub fn credentials(&self) -> VarDictionary {
         let mut credentials = VarDictionary::new();
-        if let Some((username, password)) = self.model.as_ref().and_then(LoginModel::credentials) {
+        if let Some((username, password)) = self.model.as_ref().and_then(RegistryModel::credentials)
+        {
             credentials.set("username", username);
             credentials.set("password", password);
         }
