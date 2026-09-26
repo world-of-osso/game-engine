@@ -7429,6 +7429,7 @@ name = "ui-toolkit-core"
 version = "0.1.0"
 dependencies = [
  "log",
+ "parley",
  "ui-toolkit-macros",
 ]
 

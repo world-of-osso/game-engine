@@ -3,14 +3,21 @@
 pub mod ui {
     pub use ui_toolkit::{anchor, strata};
 
+    pub use ui_toolkit::{frame, layout, registry};
+
     pub mod widgets {
-        pub use ui_toolkit::widgets::font_string;
+        pub use ui_toolkit::widgets::{font_string, texture};
     }
 
     pub mod screens {
         pub use crate::trash_button_component;
     }
 }
+
+#[path = "../../../src/ui/screens/char_create_component/mod.rs"]
+pub mod char_create_component;
+#[path = "../../../src/scenes/char_create/data.rs"]
+pub mod char_create_data;
 
 #[path = "../../../src/ui/screens/campsite_component.rs"]
 pub mod campsite_component;
@@ -30,6 +37,9 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use char_create_component::{
+    CHAR_CREATE_ROOT, CharCreateUiState, apply_character_create_styles, char_create_screen,
+};
 use char_select_component::{
     CharDisplayEntry, CharSelectState, DeleteConfirmUiState, char_select_screen,
     size_char_select_root,
@@ -75,6 +85,49 @@ pub fn char_select_state_from_roster(
         selected_index,
         selected_name,
         status_text,
+    }
+}
+
+/// Authored character-creation tree. The host owns catalog, actions and preview rendering.
+pub struct CharacterCreateModel {
+    pub screen: Screen,
+    pub shared: SharedContext,
+    pub registry: FrameRegistry,
+}
+
+impl CharacterCreateModel {
+    pub fn new(screen_width: f32, screen_height: f32) -> Self {
+        let mut shared = SharedContext::new();
+        shared.insert(CharCreateUiState {
+            viewport_width: screen_width as u32,
+            viewport_height: screen_height as u32,
+            ..Default::default()
+        });
+        Self {
+            screen: Screen::new(char_create_screen),
+            shared,
+            registry: FrameRegistry::new(screen_width, screen_height),
+        }
+    }
+
+    pub fn sync(&mut self) {
+        self.screen.sync(&self.shared, &mut self.registry);
+        let open = self
+            .shared
+            .get::<CharCreateUiState>()
+            .and_then(|state| state.open_dropdown);
+        apply_character_create_styles(&mut self.registry, open);
+        let (width, height) = (self.registry.screen_width, self.registry.screen_height);
+        if let Some(id) = self.registry.get_by_name(CHAR_CREATE_ROOT.0)
+            && let Some(root) = self.registry.get_mut(id)
+        {
+            root.width = ui_toolkit::frame::Dimension::Fixed(width);
+            root.height = ui_toolkit::frame::Dimension::Fixed(height);
+        }
+        char_create_component::navigation_art::sync_navigation_art_registry(
+            &mut self.registry,
+            None,
+        );
     }
 }
 

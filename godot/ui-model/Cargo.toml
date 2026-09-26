@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 
+[features]
+# Original Bevy-only source tests remain enabled by the engine's existing `dev` feature.
+dev = []
+
 [dependencies]
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
