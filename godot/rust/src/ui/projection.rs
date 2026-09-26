@@ -305,6 +305,10 @@ impl UiProjection {
         let font = self.font(GameFont::FrizQuadrata)?;
         node.add_theme_font_override("font", &font);
         node.add_theme_font_size_override("font_size", data.font_size as i32);
+        node.add_theme_color_override("font_color", color([1.0, 0.82, 0.0, 1.0]));
+        node.add_theme_color_override("font_hover_color", color([1.0, 0.82, 0.0, 1.0]));
+        node.add_theme_color_override("font_pressed_color", color([0.8, 0.65, 0.0, 1.0]));
+        node.add_theme_color_override("font_disabled_color", color([0.5, 0.5, 0.5, 1.0]));
         Ok(())
     }
 
@@ -324,7 +328,15 @@ impl UiProjection {
         node.add_theme_font_override("font", &font);
         node.add_theme_font_size_override("font_size", data.font_size as i32);
         node.add_theme_color_override("font_color", color(data.text_color));
-        let style = StyleBoxEmpty::new_gd();
+        let mut style = StyleBoxEmpty::new_gd();
+        for (side, inset) in [
+            (godot::builtin::Side::LEFT, data.text_insets[0]),
+            (godot::builtin::Side::RIGHT, data.text_insets[1]),
+            (godot::builtin::Side::TOP, data.text_insets[2]),
+            (godot::builtin::Side::BOTTOM, data.text_insets[3]),
+        ] {
+            style.set_content_margin(side, inset);
+        }
         node.add_theme_stylebox_override("normal", &style);
         node.add_theme_stylebox_override("focus", &style);
         Ok(())
