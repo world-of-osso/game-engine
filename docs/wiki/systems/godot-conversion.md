@@ -1,13 +1,19 @@
 # Godot conversion
 
-The Godot replacement remains an incomplete client-host experiment, not a completed migration. Recent native work adds M2 preview loading, a skeletal mesh conversion path, BLP albedo loading, deterministic sequence attachment, and fixed preview framing; it has no current integrated runtime GREEN because the portable UI-toolkit `WidgetDef` macro anchors mismatch blocks the build. Full feature, exact UI behavior, and visual appearance remain acceptance requirements.
+The Godot replacement remains an incomplete client-host experiment, not a completed migration. Godot is authorized to own rendering, UI, scenes, and gameplay while Bevy remains a transport-only headless networking worker. Recent native work adds M2 preview loading, a skeletal mesh conversion path, BLP albedo loading, deterministic sequence attachment, fixed preview framing, and login-UI startup wiring. Current native-extension compilation is blocked by UI API errors; full feature, exact UI behavior, and visual appearance remain acceptance requirements.
 
 ## Bootstrap and workspace boundary
 
 - Godot 4.7.2 project configuration starts `scenes/client.tscn`; `game_engine.gdextension` declares the Rust debug/release Linux libraries.
 - `GameClient` is the exposed native `Node3D`. Historical `extension_smoke.gd` registered, instantiated, and attached it to a Godot scene tree. That is not current integrated proof; the former editor/import question also remains unresolved.
 - `godot/` now contains `core`, `network`, `rust`, and `ui-model`. The workspace patches the shared protocol, UI macros, and local Taffy implementation.
-- `godot/network` is only a dependency-level headless transport starting point: Bevy state, Lightyear, Replicon, and `shared`. `shared` still brings Bevy camera/mesh dependencies into the Godot workspace, so neither a Bevy-free client nor networking migration is proven.
+- `godot/network` contains an actual headless Bevy-state/Lightyear/Replicon transport bridge, not only workspace dependencies. This is the authorized Bevy boundary; Godot owns rendering/UI/scenes/gameplay. `shared` still brings Bevy camera/mesh dependencies into the Godot workspace. Auth has not passed through the bridge.
+
+## Portable UI and native login boundary
+
+Sibling `ui-toolkit-core` commit `70db707` removes all Bevy dependencies. Its portable texture representation is `DynamicTextureId` plus RGBA8 registry data and atlas `PixelRect` arrays. Agent46 reports its two targeted model tests GREEN; main has not independently verified that result. This does not prove a Godot projection or UI parity.
+
+Main startup commit `baf769ab` wires `ui::RegistryUi` and `create_login_ui`. `client_login.gd` is RED (exit 1) against the old native binary because `LoginUI` is absent. Agent42 is implementing the native host and adapting its uploader; native-extension compilation is currently blocked by `Dictionary`→`VarDictionary`, `GString`, and alignment import/mutability errors. The former local `WidgetDef` macro-anchor blocker is fixed without a sibling change.
 
 ## Native asset and preview boundary
 
@@ -23,14 +29,14 @@ BLP mip-0 RGBA8 becomes a Godot `Image`. Only ordinary type-0 texture FDIDs foun
 
 | Capability | Exact current implementation | Proof level / limit |
 | --- | --- | --- |
-| Extension bootstrap | `GameClient` native `Node3D`; historical scene-tree smoke. | Historical runtime GREEN only. Current build blocked by UI-toolkit `WidgetDef` macro-anchor mismatch; no integrated runtime GREEN. |
+| Extension bootstrap | `GameClient` native `Node3D`; historical scene-tree smoke. | Historical runtime GREEN only. Native-extension compilation is blocked by UI API errors (`Dictionary`→`VarDictionary`, `GString`, alignment import/mutability); agent42 is fixing them. The former local macro-anchor blocker is fixed. No integrated runtime GREEN. |
 | Parser core | M2/BLP/ADT/WDT/WMO bytes to data only. | Seven parser fixtures passed before later parser edits; current revision unverified. |
 | Native M2 geometry | Skinned indexed `ArrayMesh` batches, skeleton rest/binds, Godot node tree. | `m2_assets.gd` specifies HD 216-bone, indexed and weighted geometry assertions; not run at current revision. No visual proof. |
 | BLP/material subset | RGBA8 image; one type-0 FDID albedo route; partial blend/flag mapping. | Script specifies torch-albedo and BLP-pixel assertions; not run. Material fidelity and unsupported texture modes remain open. |
 | Animation attachment | `WowAnimationPlayer` attaches when sequences exist and writes skeleton poses. | Asset script only checks attachment. Playback, crossfade, deformation, and visual parity unproven at integrated revision. |
 | Preview scene | Bounds-driven camera/light and successful-import-only replacement. | `model_scene.gd` specifies framing and failed-import preservation; not run. Not a gameplay scene. |
-| UI model/projection | Sibling model extraction; local Godot layout projection is unfinished. | Two earlier sibling model tests green; current macro mismatch blocks integration. No projection or exact visual/interaction evidence. |
-| Transport/gameplay | Headless Bevy-dependent transport manifest only. | No Godot lifecycle, connection, replication/state application, login-to-world, collision, equipment, or gameplay proof. |
+| UI model/projection | Bevy-free sibling frame/layout/widget/atlas/screen/registry model; main startup wires `ui::RegistryUi` and `create_login_ui`; native `LoginUI` is pending. | Agent46 reports two sibling model tests GREEN for `70db707`; main has not independently verified. `client_login.gd` is RED (exit 1) against the old native binary because `LoginUI` is absent. No projection or exact visual/interaction evidence. |
+| Transport/gameplay | Actual headless Bevy-state/Lightyear/Replicon transport bridge. It remains transport-only; Godot owns rendering/UI/scenes/gameplay. | Auth has not passed through the bridge. No login-to-world state application, collision, equipment, gameplay, or parity proof. |
 | Tooling and parity | No Godot automation, screenshots, diagnostics, CLI/IPC, audio, debug scenes, or complete UI workflows. | Open. No milestone completion claim. |
 
 ## Sources
