@@ -44,12 +44,19 @@ jobs:
           repository: world-of-osso/asset-resolver
           path: deps/asset-resolver
 
+      - name: Checkout bevy-patches
+        uses: actions/checkout@v4
+        with:
+          repository: world-of-osso/bevy-patches
+          path: deps/bevy-patches
+
       - name: Link sibling path dependencies
         run: |
           ln -sfn "$GITHUB_WORKSPACE/deps/shared-protocol" "$GITHUB_WORKSPACE/../shared-protocol"
           ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit" "$GITHUB_WORKSPACE/../ui-toolkit"
           ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit-macros" "$GITHUB_WORKSPACE/../ui-toolkit-macros"
           ln -sfn "$GITHUB_WORKSPACE/deps/asset-resolver" "$GITHUB_WORKSPACE/../asset-resolver"
+          ln -sfn "$GITHUB_WORKSPACE/deps/bevy-patches" "$GITHUB_WORKSPACE/../bevy-patches"
 
       - name: Create configured target directory
         run: sudo mkdir -p /syncthing/Sync/Projects/world-of-osso/game-engine && sudo chown -R $USER:$USER /syncthing

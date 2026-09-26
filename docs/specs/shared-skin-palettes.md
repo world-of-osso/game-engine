@@ -1,6 +1,6 @@
 # Shared skin palettes
 
-Share identical skinning palettes across render batches without changing mesh or joint entities. Implementation lives in `vendor/bevy_pbr/src/render/skin.rs`; engine M2 batching supplies the existing shared joints and inverse-bindpose handles. See [rendering pipeline](../wiki/systems/rendering-pipeline.md).
+Share identical skinning palettes across render batches without changing mesh or joint entities. Implementation lives in `../bevy-patches/bevy_pbr/src/render/skin.rs`; engine M2 batching supplies the existing shared joints and inverse-bindpose handles. See [rendering pipeline](../wiki/systems/rendering-pipeline.md).
 
 ## What it must do
 
@@ -28,13 +28,13 @@ Share identical skinning palettes across render batches without changing mesh or
 
 ## Implementation inventory
 
-- `vendor/bevy_pbr/src/render/skin.rs` — canonical palette membership/allocation, unique palette extraction, constant-time per-mesh lookup, and unchanged buffer preparation.
+- `../bevy-patches/bevy_pbr/src/render/skin.rs` — canonical palette membership/allocation, unique palette extraction, constant-time per-mesh lookup, and unchanged buffer preparation.
 - `Cargo.toml` / `Cargo.lock` — exact local Bevy PBR override and preserved dev optimization.
-- `vendor/README.md` — provenance, licenses, and retirement conditions.
+- `../bevy-patches/README.md` — provenance, licenses, and retirement conditions.
 
 ## Tests asserting this spec
 
-- `vendor/bevy_pbr/src/render/skin/tests.rs` — planned real extraction and lifetime regressions.
+- `../bevy-patches/bevy_pbr/src/render/skin/tests.rs` — planned real extraction and lifetime regressions.
 - `tests/unit/equipment_live_tests.rs` — existing production rig/equipment behavior; not allocation-sharing proof.
 
 ## Known gaps (current cycle)
