@@ -165,6 +165,7 @@ impl UiProjection {
         node.set_size(Vector2::new(rect.width, rect.height));
         node.set_visible(frame.visible);
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
+        node.set_z_as_relative(false);
         node.set_z_index(
             i32::from(frame.strata as u8) * 100
                 + frame.frame_level
