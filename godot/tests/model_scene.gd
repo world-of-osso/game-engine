@@ -15,6 +15,11 @@ func _run() -> void:
 		push_error(str(loaded.error))
 		quit(1)
 		return
+	var login = client.get_node_or_null("LoginUI")
+	if login != null and login.visible:
+		push_error("Model scene must not remain hidden behind the login canvas")
+		quit(1)
+		return
 	var bounds: AABB = loaded.bounds
 	var camera: Camera3D = root.get_camera_3d()
 	if bounds.size.length() <= 0.0 or camera == null:
