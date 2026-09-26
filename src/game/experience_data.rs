@@ -1,250 +1,173 @@
-//! Experience bar and XP tracking data model.
-//!
-//! Tracks current XP, level, rested XP bonus, and provides progress
-//! calculations for the experience bar UI.
+//! The local player's XP bar numbers from the server's owner-only `PlayerXpUpdate`
+//! (Retail `UnitXP`, `UnitXPMax`, `GetXPExhaustion`), and the Retail texts built from them.
 
 use bevy::prelude::*;
+use shared::protocol::{LogXpGain, PlayerXpUpdate, XpGainReason};
 
-/// Maximum player level.
-pub const MAX_LEVEL: u32 = 80;
-
-/// XP required to advance from a given level to the next.
-/// Simplified curve: base 400 + 100 per level, scaling up.
-pub fn xp_to_next_level(level: u32) -> u64 {
-    if level >= MAX_LEVEL {
-        return 0;
-    }
-    (400 + level as u64 * 100) * (1 + level as u64 / 10)
-}
-
-/// Runtime experience state for the local player.
-#[derive(Resource, Clone, Debug, PartialEq)]
-pub struct ExperienceState {
-    pub level: u32,
-    pub current_xp: u64,
-    pub rested_xp: u64,
-}
-
-impl Default for ExperienceState {
-    fn default() -> Self {
-        Self {
-            level: 1,
-            current_xp: 0,
-            rested_xp: 0,
-        }
-    }
-}
+/// Latest `PlayerXpUpdate`; `None` until the server sends one on enter world.
+#[derive(Resource, Clone, Copy, Debug, Default, PartialEq)]
+pub struct ExperienceState(pub Option<PlayerXpUpdate>);
 
 impl ExperienceState {
-    /// XP needed to reach the next level from the current level.
-    pub fn xp_required(&self) -> u64 {
-        xp_to_next_level(self.level)
+    /// XP numbers while the player can still level. The server sends `next_level_xp` 0 at
+    /// the level cap, where Retail hides the bar (`GameRulesUtil.CanShowExperienceBar`).
+    pub fn leveling(&self) -> Option<PlayerXpUpdate> {
+        self.0.filter(|update| update.next_level_xp > 0)
     }
+}
 
-    /// Progress fraction (0.0–1.0) toward the next level.
-    pub fn progress(&self) -> f32 {
-        let required = self.xp_required();
-        if required == 0 {
-            return 1.0;
-        }
-        (self.current_xp as f32 / required as f32).clamp(0.0, 1.0)
-    }
+/// `UnitXP / UnitXPMax`, the status bar value.
+pub fn fill_fraction(update: &PlayerXpUpdate) -> f32 {
+    (update.xp as f32 / update.next_level_xp as f32).clamp(0.0, 1.0)
+}
 
-    /// Whether the player is at max level.
-    pub fn is_max_level(&self) -> bool {
-        self.level >= MAX_LEVEL
-    }
+/// `GetRestState() == 1` (Rested): the player has a rested pool.
+pub fn is_rested(update: &PlayerXpUpdate) -> bool {
+    update.rested_xp > 0
+}
 
-    /// Display text for the XP bar (e.g. "1200 / 5000").
-    pub fn bar_text(&self) -> String {
-        if self.is_max_level() {
-            "Max Level".into()
-        } else {
-            format!("{} / {}", self.current_xp, self.xp_required())
-        }
-    }
+/// `ExhaustionTickMixin:UpdateTickPosition` `widthRatio`: where rested XP ends as a fraction
+/// of the level, unclamped (above 1 when the pool reaches past the level). `None` without
+/// a rested pool.
+pub fn rested_end_fraction(update: &PlayerXpUpdate) -> Option<f32> {
+    is_rested(update)
+        .then(|| (update.xp as f32 + update.rested_xp as f32) / update.next_level_xp as f32)
+}
 
-    /// Rested XP progress as a fraction of the current level's requirement.
-    pub fn rested_progress(&self) -> f32 {
-        let required = self.xp_required();
-        if required == 0 {
-            return 0.0;
-        }
-        let rested_end = (self.current_xp + self.rested_xp).min(required);
-        let rested_start = self.current_xp;
-        if rested_end <= rested_start {
-            return 0.0;
-        }
-        (rested_end - rested_start) as f32 / required as f32
-    }
+/// `XP_STATUS_BAR_TEXT` ("XP: %d/%d"), the bar text shown on hover.
+pub fn bar_text(update: &PlayerXpUpdate) -> String {
+    format!("XP: {}/{}", update.xp, update.next_level_xp)
+}
 
-    /// Add XP, handling level-ups. Returns the number of levels gained.
-    pub fn add_xp(&mut self, mut amount: u64) -> u32 {
-        let mut levels_gained = 0;
-        while amount > 0 && !self.is_max_level() {
-            let needed = self.xp_required() - self.current_xp;
-            if amount >= needed {
-                amount -= needed;
-                self.current_xp = 0;
-                self.level += 1;
-                levels_gained += 1;
-            } else {
-                self.current_xp += amount;
-                amount = 0;
-            }
-        }
-        // Consume rested XP (grants bonus equal to XP earned, up to rested pool)
-        levels_gained
+/// `XP_TEXT` ("%s / %s  ( %d%% )") with `BreakUpLargeNumbers` and `math.ceil` percent,
+/// the tooltip title (`ExhaustionTickMixin:ExhaustionToolTipText`).
+pub fn tooltip_title(update: &PlayerXpUpdate) -> String {
+    let percent = (update.xp as f64 * 100.0 / update.next_level_xp as f64).ceil();
+    format!(
+        "{} / {}  ( {percent}% )",
+        break_up_large_number(update.xp),
+        break_up_large_number(update.next_level_xp)
+    )
+}
+
+/// `GetRestState()` name and multiplier percent, as `EXHAUST_TOOLTIP1` shows them
+/// ("%s" then "%d%% of normal experience gained from monsters.").
+pub fn rest_state(update: &PlayerXpUpdate) -> (&'static str, u32) {
+    if is_rested(update) {
+        ("Rested", 200)
+    } else {
+        ("Normal", 100)
     }
+}
+
+/// The chat line for one gain (Retail `CHAT_MSG_COMBAT_XP_GAIN` strings). Quest XP is
+/// already announced by the quest complete notice (`ERR_QUEST_REWARD_EXP_I`), so it has none.
+pub fn gain_chat_line(gain: &LogXpGain, victim: Option<&str>) -> Option<String> {
+    let bonus = gain.original.saturating_sub(gain.amount);
+    match (gain.reason, victim) {
+        (XpGainReason::Quest, _) => None,
+        // COMBATLOG_XPGAIN_EXHAUSTION1
+        (XpGainReason::Kill, Some(name)) if bonus > 0 => Some(format!(
+            "{name} dies, you gain {} experience. (+{bonus} exp Rested bonus)",
+            gain.original
+        )),
+        // COMBATLOG_XPGAIN_FIRSTPERSON
+        (XpGainReason::Kill, Some(name)) => Some(format!(
+            "{name} dies, you gain {} experience.",
+            gain.original
+        )),
+        // COMBATLOG_XPGAIN_FIRSTPERSON_UNNAMED
+        _ => Some(format!("You gain {} experience.", gain.original)),
+    }
+}
+
+/// `BreakUpLargeNumbers`: thousands separated by commas.
+fn break_up_large_number(value: u32) -> String {
+    let digits = value.to_string();
+    let mut out = String::new();
+    for (i, ch) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn default_state() {
-        let state = ExperienceState::default();
-        assert_eq!(state.level, 1);
-        assert_eq!(state.current_xp, 0);
-        assert_eq!(state.rested_xp, 0);
+    fn update(xp: u32, next_level_xp: u32, rested_xp: u32) -> PlayerXpUpdate {
+        PlayerXpUpdate {
+            xp,
+            next_level_xp,
+            rested_xp,
+        }
+    }
+
+    fn kill(original: u32, amount: u32) -> LogXpGain {
+        LogXpGain {
+            victim: Some(7),
+            original,
+            amount,
+            group_bonus: 1.0,
+            reason: XpGainReason::Kill,
+        }
     }
 
     #[test]
-    fn xp_required_increases_with_level() {
-        let low = xp_to_next_level(1);
-        let mid = xp_to_next_level(20);
-        let high = xp_to_next_level(60);
-        assert!(mid > low);
-        assert!(high > mid);
+    fn fill_is_xp_over_the_level_requirement() {
+        assert_eq!(fill_fraction(&update(1_000, 4_000, 0)), 0.25);
     }
 
     #[test]
-    fn xp_required_zero_at_max() {
-        assert_eq!(xp_to_next_level(MAX_LEVEL), 0);
-        assert_eq!(xp_to_next_level(MAX_LEVEL + 1), 0);
+    fn at_the_level_cap_there_is_no_bar() {
+        assert_eq!(ExperienceState(Some(update(0, 0, 0))).leveling(), None);
+        assert_eq!(ExperienceState(None).leveling(), None);
+        assert_eq!(
+            ExperienceState(Some(update(10, 400, 0))).leveling(),
+            Some(update(10, 400, 0))
+        );
     }
 
     #[test]
-    fn progress_at_zero() {
-        let state = ExperienceState::default();
-        assert_eq!(state.progress(), 0.0);
+    fn rested_end_is_xp_plus_pool_over_the_requirement() {
+        assert_eq!(rested_end_fraction(&update(1_000, 4_000, 1_000)), Some(0.5));
+        assert_eq!(
+            rested_end_fraction(&update(3_000, 4_000, 2_000)),
+            Some(1.25)
+        );
+        assert_eq!(rested_end_fraction(&update(1_000, 4_000, 0)), None);
     }
 
     #[test]
-    fn progress_midway() {
-        let required = xp_to_next_level(1);
-        let state = ExperienceState {
-            level: 1,
-            current_xp: required / 2,
-            rested_xp: 0,
+    fn hover_and_tooltip_texts_use_the_retail_strings() {
+        let xp = update(1_234, 4_000, 800);
+        assert_eq!(bar_text(&xp), "XP: 1234/4000");
+        assert_eq!(tooltip_title(&xp), "1,234 / 4,000  ( 31% )");
+        assert_eq!(rest_state(&xp), ("Rested", 200));
+        assert_eq!(rest_state(&update(1_234, 4_000, 0)), ("Normal", 100));
+    }
+
+    #[test]
+    fn kill_gains_print_the_combat_log_line() {
+        assert_eq!(
+            gain_chat_line(&kill(90, 45), Some("Kobold Vermin")).as_deref(),
+            Some("Kobold Vermin dies, you gain 90 experience. (+45 exp Rested bonus)")
+        );
+        assert_eq!(
+            gain_chat_line(&kill(45, 45), Some("Kobold Vermin")).as_deref(),
+            Some("Kobold Vermin dies, you gain 45 experience.")
+        );
+        assert_eq!(
+            gain_chat_line(&kill(45, 45), None).as_deref(),
+            Some("You gain 45 experience.")
+        );
+        let quest = LogXpGain {
+            reason: XpGainReason::Quest,
+            ..kill(450, 450)
         };
-        assert!((state.progress() - 0.5).abs() < 0.01);
-    }
-
-    #[test]
-    fn progress_at_max_level() {
-        let state = ExperienceState {
-            level: MAX_LEVEL,
-            current_xp: 0,
-            rested_xp: 0,
-        };
-        assert_eq!(state.progress(), 1.0);
-        assert!(state.is_max_level());
-    }
-
-    #[test]
-    fn bar_text_normal() {
-        let state = ExperienceState {
-            level: 5,
-            current_xp: 300,
-            rested_xp: 0,
-        };
-        let required = xp_to_next_level(5);
-        assert_eq!(state.bar_text(), format!("300 / {required}"));
-    }
-
-    #[test]
-    fn bar_text_max_level() {
-        let state = ExperienceState {
-            level: MAX_LEVEL,
-            current_xp: 0,
-            rested_xp: 0,
-        };
-        assert_eq!(state.bar_text(), "Max Level");
-    }
-
-    #[test]
-    fn add_xp_partial() {
-        let mut state = ExperienceState::default();
-        let gained = state.add_xp(100);
-        assert_eq!(gained, 0);
-        assert_eq!(state.current_xp, 100);
-        assert_eq!(state.level, 1);
-    }
-
-    #[test]
-    fn add_xp_level_up() {
-        let mut state = ExperienceState::default();
-        let required = xp_to_next_level(1);
-        let gained = state.add_xp(required);
-        assert_eq!(gained, 1);
-        assert_eq!(state.level, 2);
-        assert_eq!(state.current_xp, 0);
-    }
-
-    #[test]
-    fn add_xp_multiple_level_ups() {
-        let mut state = ExperienceState::default();
-        let xp1 = xp_to_next_level(1);
-        let xp2 = xp_to_next_level(2);
-        let gained = state.add_xp(xp1 + xp2 + 50);
-        assert_eq!(gained, 2);
-        assert_eq!(state.level, 3);
-        assert_eq!(state.current_xp, 50);
-    }
-
-    #[test]
-    fn add_xp_caps_at_max_level() {
-        let mut state = ExperienceState {
-            level: MAX_LEVEL - 1,
-            current_xp: 0,
-            rested_xp: 0,
-        };
-        let gained = state.add_xp(u64::MAX / 2);
-        assert_eq!(gained, 1);
-        assert_eq!(state.level, MAX_LEVEL);
-    }
-
-    #[test]
-    fn rested_progress_with_bonus() {
-        let required = xp_to_next_level(5);
-        let state = ExperienceState {
-            level: 5,
-            current_xp: required / 4,
-            rested_xp: required / 4,
-        };
-        let rested = state.rested_progress();
-        assert!((rested - 0.25).abs() < 0.01);
-    }
-
-    #[test]
-    fn rested_progress_zero_when_no_rested() {
-        let state = ExperienceState::default();
-        assert_eq!(state.rested_progress(), 0.0);
-    }
-
-    #[test]
-    fn rested_progress_capped_at_level_boundary() {
-        let required = xp_to_next_level(5);
-        let state = ExperienceState {
-            level: 5,
-            current_xp: required - 100,
-            rested_xp: 500, // more rested than remaining XP
-        };
-        let rested = state.rested_progress();
-        // Should only show the 100 XP gap, not the full 500
-        let expected = 100.0 / required as f32;
-        assert!((rested - expected).abs() < 0.01);
+        assert_eq!(gain_chat_line(&quest, None), None);
     }
 }

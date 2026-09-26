@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use game_engine::bag_data::{InventorySlot, InventoryState, ItemQuality};
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
+use game_engine::experience_data::{self, ExperienceState};
 use game_engine::merchant_data::{MerchantState, quality_color};
 use game_engine::player_spells::{ActionBarSlots, parse_action_button_name};
 use game_engine::spell_catalog::CatalogSpell;
@@ -207,6 +208,7 @@ fn sync_tooltip_frame_state(
     graphics_options: Option<Res<GraphicsOptions>>,
     spells: HoveredSpellSources,
     talent_tooltips: Option<Res<TalentTooltips>>,
+    experience: Option<Res<ExperienceState>>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
@@ -224,6 +226,7 @@ fn sync_tooltip_frame_state(
         graphics_options.as_deref(),
         &spells,
         talent_tooltips.as_deref(),
+        experience.as_deref(),
     );
     if last_model.0 == state {
         return;
@@ -246,6 +249,7 @@ fn build_state(
     graphics_options: Option<&GraphicsOptions>,
     spells: &HoveredSpellSources,
     talent_tooltips: Option<&TalentTooltips>,
+    experience: Option<&ExperienceState>,
 ) -> TooltipFrameState {
     let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
@@ -257,6 +261,7 @@ fn build_state(
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
         .or_else(|| hovered_merchant_tooltip(registry, frame_id, merchant))
+        .or_else(|| hovered_xp_tooltip(registry, frame_id, experience))
         .or_else(|| hovered_player_aura_tooltip(registry, frame_id, aura_state, graphics_options))
         .or_else(|| {
             hovered_target_aura_tooltip(
@@ -355,6 +360,34 @@ fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
         title: tooltip.title.clone(),
         title_color: TOOLTIP_TEXT_COLOR,
         lines,
+    }
+}
+
+/// `ExhaustionTickMixin:ExhaustionToolTipText`, shown from the XP bar's `OnEnter`.
+fn hovered_xp_tooltip(
+    registry: &FrameRegistry,
+    frame_id: u64,
+    experience: Option<&ExperienceState>,
+) -> Option<TooltipFrameState> {
+    let update = experience?.leveling()?;
+    crate::scenes::status_tracking_bar::in_exp_bar(registry, Some(frame_id))
+        .then(|| xp_tooltip(&update))
+}
+
+fn xp_tooltip(update: &shared::protocol::PlayerXpUpdate) -> TooltipFrameState {
+    let (rest_name, percent) = experience_data::rest_state(update);
+    TooltipFrameState {
+        visible: true,
+        x: 0.0,
+        y: 0.0,
+        title: experience_data::tooltip_title(update),
+        title_color: TOOLTIP_WHITE,
+        // EXHAUST_TOOLTIP1: the state name in gold, then white body lines.
+        lines: vec![
+            TooltipLineState::colored(rest_name, TOOLTIP_DESCRIPTION_COLOR),
+            TooltipLineState::colored(format!("{percent}% of normal experience"), TOOLTIP_WHITE),
+            TooltipLineState::colored("gained from monsters.", TOOLTIP_WHITE),
+        ],
     }
 }
 
@@ -1016,6 +1049,33 @@ mod tests {
         let uncommon = merchant_tooltip("Pattern: Blue Linen Vest", 2, 1, None);
         assert_eq!(uncommon.title_color, [0.12, 1.0, 0.0, 1.0]);
         assert!(uncommon.lines.is_empty());
+    }
+
+    #[test]
+    fn xp_tooltip_uses_xp_text_and_the_rest_state() {
+        let rested = xp_tooltip(&shared::protocol::PlayerXpUpdate {
+            xp: 1_234,
+            next_level_xp: 4_000,
+            rested_xp: 800,
+        });
+        assert_eq!(rested.title, "1,234 / 4,000  ( 31% )");
+        let lines: Vec<_> = rested.lines.iter().map(|l| l.left_text.as_str()).collect();
+        assert_eq!(
+            lines,
+            [
+                "Rested",
+                "200% of normal experience",
+                "gained from monsters."
+            ]
+        );
+        let normal = xp_tooltip(&shared::protocol::PlayerXpUpdate {
+            xp: 0,
+            next_level_xp: 4_000,
+            rested_xp: 0,
+        });
+        assert_eq!(normal.title, "0 / 4,000  ( 0% )");
+        assert_eq!(normal.lines[0].left_text, "Normal");
+        assert_eq!(normal.lines[1].left_text, "100% of normal experience");
     }
 
     #[test]

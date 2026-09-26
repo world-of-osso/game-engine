@@ -563,6 +563,7 @@ fn add_screen_plugins(app: &mut App, initial_state: Option<game_state::GameState
 fn add_core_screen_plugins(app: &mut App) {
     app.add_plugins((
         crate::game::networking_merchant::MerchantNetworkPlugin,
+        crate::game::networking_experience::ExperienceNetworkPlugin,
         crate::game::networking_loot::LootNetworkPlugin,
         crate::game::networking_taxi::TaxiNetworkPlugin,
         crate::game::networking_group::GroupNetworkPlugin,
@@ -629,6 +630,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(game_engine::reputation::ReputationPlugin);
     app.add_plugins(game_engine::ui::addon_runtime::AddonRuntimePlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);
+    app.add_plugins(scenes::status_tracking_bar::StatusTrackingBarPlugin);
     app.add_plugins(scenes::mail_frame::MailFramePlugin);
     app.add_plugins(scenes::quest_ui::QuestUiPlugin);
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
