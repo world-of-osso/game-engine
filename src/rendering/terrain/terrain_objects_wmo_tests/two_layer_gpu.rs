@@ -143,3 +143,45 @@ fn two_layer_quad(second_mocv_alpha: f32) -> Mesh {
     );
     mesh
 }
+
+/// `sw_tradedistrict` group 33 batch 18 is MOMT 46 (shader 13, `strmwnd_crenlatn`) with MOCV2.
+/// The production spawn binds MOMT texture_2, `strmwnd_crenlatn_burned` (464811), as the
+/// second layer.
+#[test]
+#[ignore = "requires a GPU; run explicitly with --ignored --test-threads=1"]
+fn trade_district_two_layer_batch_binds_its_momt_second_texture() {
+    let root_data = std::fs::read("data/models/322057.wmo").expect("sw_tradedistrict root WMO");
+    let root = wmo::load_wmo_root(&root_data).expect("parse root");
+    let group_data = std::fs::read(format!("data/models/{}.wmo", root.group_file_data_ids[33]))
+        .expect("sw_tradedistrict group 33");
+    let group = wmo::load_wmo_group_with_root(&group_data, Some(&root)).expect("group 33");
+    let batch = group.batches[18].clone();
+    assert_eq!(batch.material_index, 46);
+    let mut app = gpu_app();
+
+    super::unified_gpu::spawn_production_batch(&mut app, &root, &group, batch);
+
+    let world = app.world_mut();
+    let handle = world
+        .query::<&MeshMaterial3d<WmoLitMaterial>>()
+        .single(world)
+        .expect("one WMO batch")
+        .0
+        .clone();
+    let second = world
+        .resource::<Assets<WmoLitMaterial>>()
+        .get(&handle)
+        .and_then(|material| material.extension.second_texture.clone())
+        .expect("two-layer batch has a second texture");
+    let bound = world
+        .resource::<Assets<Image>>()
+        .get(&second)
+        .and_then(|image| image.data.clone())
+        .expect("second texture pixels");
+    let path = crate::asset::asset_cache::texture(464811).expect("strmwnd_crenlatn_burned");
+    let (expected, _, _) = crate::asset::blp::load_blp_rgba(&path).expect("decode 464811");
+    assert!(
+        bound == expected,
+        "second layer is not strmwnd_crenlatn_burned"
+    );
+}
