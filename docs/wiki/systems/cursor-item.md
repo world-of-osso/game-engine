@@ -22,7 +22,7 @@ How the client picks items up onto the cursor, drops them, splits stacks and sho
 ## Sources
 
 - [cursor-item spec](../../specs/cursor-item.md)
-- Live evidence: `data/diagnostics/cursoritems-20260926/` (run1 vendor buy/split/sell/junk/bundle, run3 right-click equip and Escape, tt-22 vest tooltip)
+- Live evidence: `data/diagnostics/cursoritems-20260926/` (run1 vendor buy/split/sell/junk/bundle, run3-equip right-click equip, Escape and ui.key, run4-tooltip/tt-22 vest tooltip)
 
 ## See Also
 

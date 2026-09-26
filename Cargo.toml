@@ -78,7 +78,7 @@ bevy_render = { path = "../bevy-patches/bevy_render" }
 taffy = { path = "../bevy-patches/taffy" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
-shared = { path = "../shared-protocol" }
+shared = { path = "../shared-protocol-cursoritems" }
 
 [patch."https://github.com/world-of-osso/ui-toolkit.git"]
 ui-toolkit = { path = "../ui-toolkit" }
