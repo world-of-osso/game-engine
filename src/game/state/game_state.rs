@@ -316,12 +316,10 @@ fn check_connection_status(
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct LoadingReadiness {
-    pub complete: bool,
-    pub progress_percent: u8,
-    pub status_text: &'static str,
-}
+#[path = "loading_readiness.rs"]
+mod loading_readiness;
+pub(crate) use loading_readiness::LoadingReadiness;
+use loading_readiness::{GlobalWmoState, LoadingInput, TileState};
 
 /// Loading completes once the tile terrain streams around (the player's tile) has
 /// loaded. After a far teleport that is the destination tile, not the login tile.
@@ -330,77 +328,35 @@ pub(crate) fn evaluate_world_loading(
     adt_manager: &AdtManager,
     player: Option<&Transform>,
 ) -> LoadingReadiness {
-    if !local_player_ready {
-        return LoadingReadiness {
-            complete: false,
-            progress_percent: 35,
-            status_text: "Initializing character...",
-        };
-    }
-
-    if adt_manager.map_name.is_empty() {
-        return LoadingReadiness {
-            complete: false,
-            progress_percent: 62,
-            status_text: "Waiting for terrain...",
-        };
-    }
-
-    match adt_manager.global_wmo {
-        crate::terrain::GlobalWmo::None => {}
-        crate::terrain::GlobalWmo::Spawned(_) => {
-            return LoadingReadiness {
-                complete: true,
-                progress_percent: 100,
-                status_text: "Entering world...",
-            };
+    let global_wmo = match adt_manager.global_wmo {
+        crate::terrain::GlobalWmo::None => GlobalWmoState::None,
+        crate::terrain::GlobalWmo::Spawned(_) => GlobalWmoState::Spawned,
+        crate::terrain::GlobalWmo::Pending(_) => GlobalWmoState::Pending,
+        crate::terrain::GlobalWmo::Failed => GlobalWmoState::Failed,
+    };
+    let center_tile = if local_player_ready
+        && !adt_manager.map_name.is_empty()
+        && global_wmo == GlobalWmoState::None
+    {
+        let center_tile = crate::terrain::streaming_center_tile(adt_manager, player);
+        if adt_manager.loaded.contains_key(&center_tile) {
+            TileState::Loaded
+        } else if adt_manager.failed.contains(&center_tile) {
+            TileState::Failed
+        } else if adt_manager.pending.contains(&center_tile) {
+            TileState::Pending
+        } else {
+            TileState::NotRequested
         }
-        crate::terrain::GlobalWmo::Pending(_) => {
-            return LoadingReadiness {
-                complete: false,
-                progress_percent: 86,
-                status_text: "Loading terrain...",
-            };
-        }
-        crate::terrain::GlobalWmo::Failed => {
-            return LoadingReadiness {
-                complete: false,
-                progress_percent: 86,
-                status_text: "Terrain failed to load",
-            };
-        }
-    }
-
-    let center_tile = crate::terrain::streaming_center_tile(adt_manager, player);
-    if adt_manager.loaded.contains_key(&center_tile) {
-        return LoadingReadiness {
-            complete: true,
-            progress_percent: 100,
-            status_text: "Entering world...",
-        };
-    }
-
-    if adt_manager.failed.contains(&center_tile) {
-        return LoadingReadiness {
-            complete: false,
-            progress_percent: 86,
-            status_text: "Terrain failed to load",
-        };
-    }
-
-    if adt_manager.pending.contains(&center_tile) {
-        return LoadingReadiness {
-            complete: false,
-            progress_percent: 86,
-            status_text: "Loading terrain...",
-        };
-    }
-
-    LoadingReadiness {
-        complete: false,
-        progress_percent: 74,
-        status_text: "Preparing terrain...",
-    }
+    } else {
+        TileState::NotRequested
+    };
+    loading_readiness::evaluate_world_loading(LoadingInput {
+        local_player_ready,
+        map_ready: !adt_manager.map_name.is_empty(),
+        global_wmo,
+        center_tile,
+    })
 }
 
 fn check_loading_complete(
