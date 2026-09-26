@@ -87,7 +87,7 @@ fn repair_all_enables_with_damage_and_the_last_sale_fills_the_buyback_slot() {
 }
 
 #[test]
-fn right_clicks_buy_and_buy_back_while_left_clicks_on_items_do_nothing() {
+fn right_clicks_buy_any_click_buys_back_and_left_clicks_leave_vendor_items_to_the_cursor() {
     let mut merchant = tharynn();
     let mut manager = WindowManager::default();
     merchant.next_page();
@@ -131,15 +131,12 @@ fn right_clicks_buy_and_buy_back_while_left_clicks_on_items_do_nothing() {
         &mut merchant,
         &mut manager,
     );
-    assert_eq!(
-        dispatch_action(
-            "merchant_item:0",
-            MouseButton::Right,
-            &mut merchant,
-            &mut manager
-        ),
-        Some(MerchantRequest::Buyback { slot: 0 })
-    );
+    for button in [MouseButton::Right, MouseButton::Left] {
+        assert_eq!(
+            dispatch_action("merchant_item:1", button, &mut merchant, &mut manager),
+            Some(MerchantRequest::Buyback { slot: 4 })
+        );
+    }
     assert_eq!(
         dispatch_action(
             ACTION_REPAIR_ALL,
@@ -237,6 +234,7 @@ fn merchant_money_follows_replicated_gold_on_the_next_frame() {
         .init_resource::<MerchantState>()
         .init_resource::<WindowManager>()
         .init_resource::<CharacterStatsSnapshot>()
+        .init_resource::<InventoryState>()
         .init_resource::<crate::networking::CharacterList>()
         .init_resource::<crate::networking::SelectedCharacterId>()
         .init_resource::<crate::networking::CurrentZone>();
@@ -264,4 +262,62 @@ fn merchant_money_follows_replicated_gold_on_the_next_frame() {
         .0 = 10;
     app.update();
     assert_eq!(money(&mut app), 10);
+}
+
+#[test]
+fn junk_is_a_poor_bag_item_a_vendor_buys() {
+    use game_engine::bag_data::{InventorySlot, InventoryState};
+    let mut inventory = InventoryState::default();
+    // Linen Cloth is common: not junk.
+    inventory.set_item(
+        0,
+        0,
+        InventorySlot {
+            icon_fdid: 132_889,
+            count: 5,
+            item_id: 2589,
+            ..Default::default()
+        },
+    );
+    assert!(!has_junk(&inventory));
+    // Ruined Pelt (4865): poor, sells for 5 copper.
+    inventory.set_item(
+        0,
+        1,
+        InventorySlot {
+            icon_fdid: 134_366,
+            count: 1,
+            quality: ItemQuality::Poor,
+            item_id: 4865,
+            ..Default::default()
+        },
+    );
+    assert!(has_junk(&inventory));
+}
+
+#[test]
+fn sell_all_junk_asks_first_and_sells_only_on_yes() {
+    use bevy::ecs::system::RunSystemOnce;
+    use game_engine::ui::popup::PopupId;
+    let mut app = App::new();
+    app.add_message::<PopupResult>()
+        .add_message::<MerchantRequest>()
+        .insert_resource(tharynn());
+    assert_eq!(sell_all_junk_popup().key, SELL_ALL_JUNK_POPUP);
+    for outcome in [PopupOutcome::Cancelled, PopupOutcome::Accepted] {
+        app.world_mut().write_message(PopupResult {
+            id: PopupId(1),
+            key: SELL_ALL_JUNK_POPUP.into(),
+            outcome,
+        });
+    }
+    app.world_mut()
+        .run_system_once(sell_junk_on_confirm)
+        .unwrap();
+    let sent: Vec<_> = app
+        .world_mut()
+        .resource_mut::<Messages<MerchantRequest>>()
+        .drain()
+        .collect();
+    assert_eq!(sent, vec![MerchantRequest::SellAllJunk]);
 }
