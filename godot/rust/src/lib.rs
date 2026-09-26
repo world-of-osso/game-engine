@@ -9,6 +9,8 @@ use std::{collections::HashMap, path::PathBuf};
 
 use account::{Account, AccountEvent};
 use game_engine_network::UnitSnapshot;
+use game_engine_session::SessionScreen;
+use game_engine_ui_model::char_select_state_from_roster;
 use godot::classes::{INode3D, Node3D, ProjectSettings};
 use godot::prelude::*;
 
@@ -25,6 +27,7 @@ pub struct GameClient {
     base: Base<Node3D>,
     model_scene: Option<Gd<Node3D>>,
     login_ui: Option<Gd<ui::RegistryUi>>,
+    character_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     server_hostname: String,
@@ -37,6 +40,7 @@ impl INode3D for GameClient {
             base,
             model_scene: None,
             login_ui: None,
+            character_ui: None,
             account: Account::new(PathBuf::from(
                 ProjectSettings::singleton()
                     .globalize_path("res://../data")
@@ -138,6 +142,9 @@ impl GameClient {
 
 impl GameClient {
     fn poll_login_actions(&mut self) -> Result<(), String> {
+        if self.account.session.screen != SessionScreen::Login {
+            return Ok(());
+        }
         let Some(login) = self.login_ui.as_mut() else {
             return Ok(());
         };
@@ -193,6 +200,7 @@ impl GameClient {
         for event in self.account.poll()? {
             match event {
                 AccountEvent::Screen(screen) => {
+                    self.show_account_screen(screen)?;
                     let name = GString::from(format!("{screen:?}").as_str());
                     self.base_mut()
                         .emit_signal("screen_requested", &[name.to_variant()]);
@@ -207,6 +215,46 @@ impl GameClient {
                     self.units.remove(&id);
                 }
             }
+        }
+        Ok(())
+    }
+
+    fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
+        match screen {
+            SessionScreen::CharacterSelect => {
+                let mut ui = ui::RegistryUi::new_alloc();
+                ui.set_name("CharacterSelectUI");
+                self.base_mut().add_child(&ui);
+                let error = ui.bind_mut().show_character_select();
+                if !error.is_empty() {
+                    ui.free();
+                    return Err(error.to_string());
+                }
+                let state = char_select_state_from_roster(
+                    &self.account.session.characters,
+                    self.account.session.selected_index,
+                );
+                let result = ui.bind_mut().set_character_select_state(state);
+                if let Err(error) = result {
+                    ui.free();
+                    return Err(error);
+                }
+                if let Some(previous) = self.character_ui.replace(ui) {
+                    previous.free();
+                }
+                if let Some(login) = self.login_ui.as_mut() {
+                    login.set_visible(false);
+                }
+            }
+            SessionScreen::Login => {
+                if let Some(ui) = self.character_ui.take() {
+                    ui.free();
+                }
+                if let Some(login) = self.login_ui.as_mut() {
+                    login.set_visible(true);
+                }
+            }
+            _ => {}
         }
         Ok(())
     }
