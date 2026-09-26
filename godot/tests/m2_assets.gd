@@ -122,4 +122,10 @@ func _initialize() -> void:
 		fail("missing BLP succeeded")
 		return
 	print("PASS: HD %d bones, %d vertices, %d indices; torch and BLP decoded" % [skeleton.get_bone_count(), vertex_count, index_count])
+	torch.node.free()
+	root.free()
+	hd.clear()
+	torch.clear()
+	image_result.clear()
+	loader = null
 	quit(0)
