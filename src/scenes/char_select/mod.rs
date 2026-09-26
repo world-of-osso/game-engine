@@ -3,14 +3,14 @@ use std::time::Instant;
 
 use game_engine::network_runtime::messages::MessageSenders;
 use game_engine::ui::atlas;
-use game_engine::ui::frame::{Dimension, NineSlice};
+use game_engine::ui::frame::NineSlice;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CampsiteEntry,
     CampsiteState, CharDisplayEntry, CharSelectState, DELETE_CANCEL_BUTTON, DELETE_CHAR_BUTTON,
     DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT, DeleteConfirmUiState,
-    ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen,
+    ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen, size_char_select_root,
 };
 use game_engine::ui::widgets::texture::TextureSource;
 use game_engine::ui_resource;
@@ -167,11 +167,7 @@ fn build_char_select_ui(
 }
 
 fn apply_post_setup(reg: &mut FrameRegistry, cs: &CharSelectUi) {
-    let (sw, sh) = (reg.screen_width, reg.screen_height);
-    if let Some(frame) = reg.get_mut(cs.root) {
-        frame.width = Dimension::Fixed(sw);
-        frame.height = Dimension::Fixed(sh);
-    }
+    size_char_select_root(reg);
     set_list_panel_backdrop(reg, cs.list_panel);
 }
 

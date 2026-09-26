@@ -214,6 +214,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn character_select_root_and_enter_world_follow_original_viewport_bounds() {
+        use game_engine_ui_model::CharacterSelectModel;
+
+        let mut model = CharacterSelectModel::new(1280.0, 720.0);
+        model.sync();
+        let bounds = compute_layout_with_intrinsics(&model.registry, &HashMap::new()).unwrap();
+        let root = model.registry.get_by_name("CharSelectRoot").unwrap();
+        let enter = model.registry.get_by_name("EnterWorld").unwrap();
+        assert_eq!(
+            bounds[&root],
+            LayoutRect {
+                x: 0.0,
+                y: 0.0,
+                width: 1280.0,
+                height: 720.0
+            }
+        );
+        assert_eq!(
+            bounds[&enter],
+            LayoutRect {
+                x: 512.0,
+                y: 545.0,
+                width: 256.0,
+                height: 64.0
+            }
+        );
+    }
+
+    #[test]
     fn auto_font_label_uses_native_intrinsic_size_for_centred_translation() {
         let mut registry = FrameRegistry::new(1280.0, 720.0);
         let label = registry.create_frame("BlizzardThanks", None);
