@@ -1,10 +1,15 @@
+mod account;
 mod animation;
 mod assets;
 mod scene;
 mod terrain;
 mod ui;
 
-use godot::classes::{INode3D, Node3D};
+use std::{collections::HashMap, path::PathBuf};
+
+use account::{Account, AccountEvent};
+use game_engine_network::UnitSnapshot;
+use godot::classes::{INode3D, Node3D, ProjectSettings};
 use godot::prelude::*;
 
 struct GameEngineExtension;
@@ -20,6 +25,8 @@ pub struct GameClient {
     base: Base<Node3D>,
     model_scene: Option<Gd<Node3D>>,
     login_ui: Option<Gd<ui::RegistryUi>>,
+    account: Account,
+    units: HashMap<u64, UnitSnapshot>,
 }
 
 #[godot_api]
@@ -29,6 +36,28 @@ impl INode3D for GameClient {
             base,
             model_scene: None,
             login_ui: None,
+            account: Account::new(PathBuf::from(
+                ProjectSettings::singleton()
+                    .globalize_path("res://../data")
+                    .to_string(),
+            )),
+            units: HashMap::new(),
+        }
+    }
+
+    fn process(&mut self, _delta: f64) {
+        if let Err(error) = self.poll_account() {
+            self.account.session.feedback = Some(error.clone());
+            godot_error!("Account update failed: {error}");
+            if let Err(stop_error) = self.account.stop() {
+                godot_error!("Account shutdown failed: {stop_error}");
+            }
+        }
+    }
+
+    fn exit_tree(&mut self) {
+        if let Err(error) = self.account.stop() {
+            godot_error!("Account shutdown failed: {error}");
         }
     }
 
@@ -41,6 +70,43 @@ impl INode3D for GameClient {
 
 #[godot_api]
 impl GameClient {
+    #[signal]
+    fn screen_requested(screen: GString);
+
+    #[func]
+    fn connect_account(
+        &mut self,
+        server: GString,
+        username: GString,
+        password: GString,
+        register: bool,
+    ) -> GString {
+        match self.account.connect(
+            &server.to_string(),
+            &username.to_string(),
+            &password.to_string(),
+            register,
+        ) {
+            Ok(()) => {
+                self.units.clear();
+                GString::new()
+            }
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    #[func]
+    fn account_state(&self) -> VarDictionary {
+        let session = &self.account.session;
+        let mut state = VarDictionary::new();
+        state.set("screen", format!("{:?}", session.screen).as_str());
+        state.set("status", session.feedback.as_deref().unwrap_or(""));
+        state.set("character_count", session.characters.len() as i64);
+        state.set("unit_count", self.units.len() as i64);
+        state.set("reply_received", self.account.reply_received);
+        state
+    }
+
     #[func]
     fn load_model_scene(&mut self, path: GString) -> VarDictionary {
         let mut result = VarDictionary::new();
@@ -56,6 +122,32 @@ impl GameClient {
 }
 
 impl GameClient {
+    fn poll_account(&mut self) -> Result<(), String> {
+        for event in self.account.poll()? {
+            match event {
+                AccountEvent::Screen(screen) => {
+                    let name = GString::from(format!("{screen:?}").as_str());
+                    self.base_mut()
+                        .emit_signal("screen_requested", &[name.to_variant()]);
+                    if let Some(login) = self.login_ui.as_mut() {
+                        let status = self.account.session.feedback.as_deref().unwrap_or("");
+                        let error = login.bind_mut().set_status(GString::from(status));
+                        if !error.is_empty() {
+                            return Err(error.to_string());
+                        }
+                    }
+                }
+                AccountEvent::UnitUpdated(unit) => {
+                    self.units.insert(unit.server_id, unit);
+                }
+                AccountEvent::UnitRemoved(id) => {
+                    self.units.remove(&id);
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn attach_login_ui(&mut self) -> Result<(), String> {
         let viewport = self.base().get_viewport().ok_or("Client has no viewport")?;
         let size = viewport.get_visible_rect().size;

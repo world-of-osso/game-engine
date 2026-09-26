@@ -32,6 +32,9 @@ use shared::{
     },
 };
 
+/// Trait bound for decoding messages carried by this transport boundary.
+pub use lightyear::prelude::Message as WireMessage;
+
 const NETWORK_HZ: u128 = 60;
 const NANOS_PER_SECOND: u128 = 1_000_000_000;
 const SIMULATION_INTERVAL: Duration = Duration::from_millis(50);
