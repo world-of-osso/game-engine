@@ -9,6 +9,7 @@ use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
 use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::texture::TextureSource;
 
 use projection::{UiInput, UiProjection};
@@ -131,7 +132,15 @@ impl RegistryUi {
         for event in inputs {
             match event {
                 UiInput::Click(id) => {
-                    if let Some(action) = model.registry.click_frame(id) {
+                    let disabled = model
+                        .registry
+                        .get(id)
+                        .and_then(|frame| frame.widget_data.as_ref())
+                        .is_some_and(|data| {
+                            matches!(data, WidgetData::Button(button)
+                                if !button.enabled || button.state == ButtonState::Disabled)
+                        });
+                    if !disabled && let Some(action) = model.registry.click_frame(id) {
                         self.actions.push_back(action);
                     }
                 }
