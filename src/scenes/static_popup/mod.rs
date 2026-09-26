@@ -36,7 +36,8 @@ pub struct StaticPopupPlugin;
 impl Plugin for StaticPopupPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PopupStack>();
-        app.add_message::<PopupResult>();
+        app.add_message::<PopupResult>()
+            .add_message::<bevy::input::keyboard::KeyboardInput>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_static_popup_ui.run_if(inworld_scene_stage_allows_ui),
@@ -46,6 +47,7 @@ impl Plugin for StaticPopupPlugin {
             Update,
             (
                 handle_popup_clicks,
+                type_into_popup,
                 handle_popup_enter,
                 tick_popup_timeouts,
                 emit_popup_results,
@@ -141,6 +143,44 @@ fn handle_popup_clicks(
         return;
     };
     stack.resolve(id, outcome);
+}
+
+/// `maxLetters` of `DELETE_GOOD_ITEM`'s edit box (GameDialogDefs.lua).
+const POPUP_EDITBOX_LETTERS: usize = 32;
+
+/// Typing into the top popup's edit box (`hasEditBox`): characters append,
+/// Backspace deletes, Escape cancels (`hideOnEscape`).
+fn type_into_popup(
+    mut keys: MessageReader<bevy::input::keyboard::KeyboardInput>,
+    mut stack: ResMut<PopupStack>,
+) {
+    let Some(entry) = stack.typing_target() else {
+        keys.clear();
+        return;
+    };
+    let mut cancel = false;
+    for event in keys.read() {
+        if event.state != bevy::input::ButtonState::Pressed {
+            continue;
+        }
+        match event.key_code {
+            KeyCode::Backspace => {
+                entry.typed.pop();
+            }
+            KeyCode::Escape => cancel = true,
+            _ => {
+                let typed = event.text.as_deref().unwrap_or("");
+                if typed.chars().all(|ch| !ch.is_control())
+                    && entry.typed.chars().count() + typed.chars().count() <= POPUP_EDITBOX_LETTERS
+                {
+                    entry.typed.push_str(typed);
+                }
+            }
+        }
+    }
+    if cancel {
+        stack.cancel_top();
+    }
 }
 
 /// Enter accepts the focused (top) popup unless an editbox owns the keyboard.

@@ -18,7 +18,8 @@ use crate::scenes::game_menu::UiModalOpen;
 pub enum UiInputMode {
     #[default]
     World,
-    /// A UI editbox, the spellbook search or the StackSplitFrame owns keyboard focus.
+    /// A UI editbox, the spellbook search, the StackSplitFrame or a popup's
+    /// edit box owns keyboard focus.
     Text,
     /// The game menu / options overlay owns input.
     Modal,
@@ -50,6 +51,7 @@ pub fn derive_ui_input_mode(
     spellbook: Option<NonSend<SpellbookUiRuntime>>,
     drag: Option<Res<ActionDrag>>,
     stack_split: Option<Res<StackSplit>>,
+    popups: Option<Res<game_engine::ui::popup::PopupStack>>,
     mut mode: ResMut<UiInputMode>,
 ) {
     let next = if modal.is_some() {
@@ -59,6 +61,7 @@ pub fn derive_ui_input_mode(
     } else if editbox_has_focus(&ui)
         || spellbook.is_some_and(|runtime| runtime.has_focus())
         || stack_split.is_some_and(|split| split.0.is_some())
+        || popups.is_some_and(|popups| popups.wants_text())
     {
         UiInputMode::Text
     } else {

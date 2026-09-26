@@ -249,7 +249,7 @@ fn handle_cursor_clicks(
 }
 
 /// `DELETE_ITEM` ("Do you want to destroy %s?"); Rare and better get
-/// `DELETE_GOOD_ITEM`, whose `DELETE` edit box this popup does not have yet.
+/// `DELETE_GOOD_ITEM`, where Yes waits for `DELETE` typed into its edit box.
 fn destroy_popup(confirm: &DestroyConfirm) -> PopupSpec {
     let (key, text) = if confirm.good {
         (
@@ -271,6 +271,8 @@ fn destroy_popup(confirm: &DestroyConfirm) -> PopupSpec {
         accept_label: "Yes".into(),
         cancel_label: Some("No".into()),
         timeout: None,
+        // DELETE_ITEM_CONFIRM_STRING.
+        confirm_text: confirm.good.then(|| "DELETE".into()),
     }
 }
 

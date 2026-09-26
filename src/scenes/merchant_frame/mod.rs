@@ -332,6 +332,7 @@ fn sell_all_junk_popup() -> PopupSpec {
         accept_label: "Yes".into(),
         cancel_label: Some("No".into()),
         timeout: None,
+        confirm_text: None,
     }
 }
 

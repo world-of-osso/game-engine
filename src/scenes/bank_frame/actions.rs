@@ -79,6 +79,7 @@ fn confirm_purchase(key: &str, text: &str, cost: u64) -> PopupSpec {
         accept_label: "Yes".into(),
         cancel_label: Some("No".into()),
         timeout: None,
+        confirm_text: None,
     }
 }
 
