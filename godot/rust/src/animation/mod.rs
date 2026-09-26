@@ -673,8 +673,14 @@ mod tests {
         let model = model();
         let mut looping = AnimationState::new(&model).expect("animated model");
         let mut direct = AnimationState::new(&model).expect("animated model");
-        looping.advance(2800.0).expect("wrap");
-        direct.advance(133.0).expect("remainder");
+        // HD Stand has linked weighted variations; use the authored unlinked Walk clip
+        // to assert single-clip modulo independent of random variation selection.
+        assert_eq!(model.sequences[1].duration, 1000);
+        assert_eq!(model.sequences[1].variation_next, -1);
+        looping.select(1, true).expect("Walk clip");
+        direct.select(1, true).expect("Walk clip");
+        looping.advance(2100.0).expect("two wraps");
+        direct.advance(1100.0).expect("one wrap");
         assert!(
             looping
                 .poses()
@@ -682,7 +688,7 @@ mod tests {
                 .zip(direct.poses())
                 .all(|(a, b)| near_pose(*a, b))
         );
-        direct.select(1, false).expect("nonlooping clip");
+        direct.select(2, false).expect("nonlooping clip");
         direct.advance(1_000_000.0).expect("clamped endpoint");
         let at_end = direct.poses();
         direct.advance(100.0).expect("hold endpoint");
