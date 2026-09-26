@@ -429,6 +429,7 @@ fn train(trainer: &TrainerState, actions: &mut TrainActions) {
         accept_label: "Accept".into(),
         cancel_label: Some("Cancel".into()),
         timeout: None,
+        confirm_text: None,
     });
 }
 

@@ -21,6 +21,10 @@ pub struct PopupSpec {
     pub cancel_label: Option<String>,
     /// Auto-cancel after this long on screen.
     pub timeout: Option<Duration>,
+    /// A word the player must type before Accept works (`DELETE_GOOD_ITEM`'s
+    /// `DELETE_ITEM_CONFIRM_STRING`, matched case-insensitively like its
+    /// `OnTextChanged` upper-casing). The popup shows an edit box.
+    pub confirm_text: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,6 +45,18 @@ pub struct PopupResult {
 pub struct PopupEntry {
     pub id: PopupId,
     pub spec: PopupSpec,
+    /// What was typed into the edit box of a `confirm_text` popup.
+    pub typed: String,
+}
+
+impl PopupEntry {
+    /// Accept is enabled: no word to type, or the typed text is it.
+    pub fn can_accept(&self) -> bool {
+        self.spec
+            .confirm_text
+            .as_ref()
+            .is_none_or(|word| self.typed.eq_ignore_ascii_case(word))
+    }
 }
 
 struct PopupSlot {
@@ -59,13 +75,18 @@ impl PopupStack {
     pub fn push(&mut self, spec: PopupSpec) -> PopupId {
         if let Some(slot) = self.slots.iter_mut().find(|s| s.entry.spec.key == spec.key) {
             slot.entry.spec = spec;
+            slot.entry.typed.clear();
             slot.shown_for = Duration::ZERO;
             return slot.entry.id;
         }
         self.next_id += 1;
         let id = PopupId(self.next_id);
         self.slots.push(PopupSlot {
-            entry: PopupEntry { id, spec },
+            entry: PopupEntry {
+                id,
+                spec,
+                typed: String::new(),
+            },
             shown_for: Duration::ZERO,
         });
         id
@@ -97,11 +118,30 @@ impl PopupStack {
         }
     }
 
-    /// Close `id` with `outcome`. Returns false when `id` is not stacked.
+    /// The top popup when it has an edit box to type into; it owns the keyboard.
+    pub fn typing_target(&mut self) -> Option<&mut PopupEntry> {
+        let top = self.top()?;
+        self.slots
+            .iter_mut()
+            .map(|slot| &mut slot.entry)
+            .find(|entry| entry.id == top && entry.spec.confirm_text.is_some())
+    }
+
+    pub fn wants_text(&self) -> bool {
+        self.visible_slots()
+            .last()
+            .is_some_and(|slot| slot.entry.spec.confirm_text.is_some())
+    }
+
+    /// Close `id` with `outcome`. Returns false when `id` is not stacked, or
+    /// when accepting a popup whose word is not typed yet.
     pub fn resolve(&mut self, id: PopupId, outcome: PopupOutcome) -> bool {
         let Some(index) = self.slots.iter().position(|s| s.entry.id == id) else {
             return false;
         };
+        if outcome == PopupOutcome::Accepted && !self.slots[index].entry.can_accept() {
+            return false;
+        }
         let slot = self.slots.remove(index);
         self.resolved.push(PopupResult {
             id,
@@ -163,7 +203,26 @@ mod tests {
             accept_label: "Accept".to_string(),
             cancel_label: Some("Decline".to_string()),
             timeout: None,
+            confirm_text: None,
         }
+    }
+
+    #[test]
+    fn a_confirm_word_popup_accepts_only_once_the_word_is_typed() {
+        let mut stack = PopupStack::default();
+        let id = stack.push(PopupSpec {
+            confirm_text: Some("DELETE".into()),
+            ..spec("DELETE_GOOD_ITEM")
+        });
+        assert!(stack.wants_text());
+        stack.accept_top();
+        assert!(!stack.resolve(id, PopupOutcome::Accepted));
+        assert!(stack.drain_results().is_empty());
+
+        stack.typing_target().unwrap().typed.push_str("Delete");
+        stack.accept_top();
+        assert_eq!(stack.drain_results()[0].outcome, PopupOutcome::Accepted);
+        assert!(!stack.wants_text());
     }
 
     #[test]

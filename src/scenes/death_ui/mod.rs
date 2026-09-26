@@ -88,6 +88,7 @@ fn death_popup_spec() -> PopupSpec {
         accept_label: "Release Spirit".to_string(),
         cancel_label: None,
         timeout: None,
+        confirm_text: None,
     }
 }
 
@@ -100,6 +101,7 @@ fn recover_corpse_popup_spec() -> PopupSpec {
         accept_label: "Accept".to_string(),
         cancel_label: None,
         timeout: None,
+        confirm_text: None,
     }
 }
 
