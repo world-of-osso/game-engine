@@ -1,6 +1,7 @@
 mod animation;
 mod assets;
 mod scene;
+mod terrain;
 mod ui;
 
 use godot::classes::{INode3D, Node3D};
