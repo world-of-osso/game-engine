@@ -27,6 +27,8 @@ func _initialize() -> void:
 	if skeleton == null or skeleton.get_bone_count() != 216:
 		fail("HD skeleton must contain 216 authored bones")
 		return
+	# Animation starts at sequence 0; inspect authored rest instead of the animated pose.
+	skeleton.reset_bone_poses()
 	var nonzero_pivots := 0
 	for bone in skeleton.get_bone_count():
 		var global_pose := skeleton.get_bone_global_pose(bone)
