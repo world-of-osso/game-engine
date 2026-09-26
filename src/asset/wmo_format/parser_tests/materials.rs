@@ -81,7 +81,7 @@ fn parse_momt_reads_diff_color_and_ground_type() {
 /// SMOMaterial (wowdev WMO MOMT): flags, shader, blendMode, texture_1, sidnColor,
 /// frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2,
 /// runTimeData[4]. `sw_tradedistrict` two-layer materials name their second texture in
-/// texture_2; diffColor right after it is 0xFF959595.
+/// texture_2, diffColor follows it (0xFF7F7F7F, 0xFF959595) and ground_type is 2.
 #[test]
 fn trade_district_momt_reads_texture_2_before_diff_color() {
     let data = std::fs::read("data/models/322057.wmo").expect("sw_tradedistrict root WMO");
@@ -91,6 +91,17 @@ fn trade_district_momt_reads_texture_2_before_diff_color() {
     assert_eq!(floor.shader, 13);
     assert_eq!(floor.texture_fdid, 127980); // mm_strmwnd_int_floor_02.blp
     assert_eq!(floor.texture_2_fdid, 465176); // mm_strmwnd_int_floor_02_burn.blp
+    assert_eq!(
+        floor.diff_color,
+        [
+            0x7F as f32 / 255.0,
+            0x7F as f32 / 255.0,
+            0x7F as f32 / 255.0,
+            1.0
+        ]
+    );
+    assert_eq!(floor.ground_type, 2);
+    assert_eq!(floor.texture_3_fdid, 0);
     let crenellation = &root.materials[46];
     assert_eq!(crenellation.texture_fdid, 358469); // strmwnd_crenlatn.blp
     assert_eq!(crenellation.texture_2_fdid, 464811); // strmwnd_crenlatn_burned.blp
@@ -103,6 +114,8 @@ fn trade_district_momt_reads_texture_2_before_diff_color() {
             1.0
         ]
     );
+    assert_eq!(crenellation.ground_type, 2);
+    assert_eq!(crenellation.texture_3_fdid, 0);
     assert_eq!(root.materials[4].texture_2_fdid, 0);
 }
 
