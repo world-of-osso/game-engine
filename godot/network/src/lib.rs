@@ -253,9 +253,9 @@ fn run_worker(
     }
     install_lifecycle(&mut app, events.clone());
     install_replication(&mut app, events);
+    connect_transport(app.world_mut(), server_addr, client_id)?;
     app.finish();
     app.cleanup();
-    connect_transport(app.world_mut(), server_addr, client_id)?;
     let started = Instant::now();
     while apply_commands(app.world_mut(), &commands)? {
         app.update();
