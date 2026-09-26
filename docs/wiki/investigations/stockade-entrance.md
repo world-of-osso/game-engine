@@ -6,7 +6,7 @@ At the Stockade entrance in the Stormwind canals (WoW `-8774, 838`, map 0) the i
 
 - **Source.** `sw_magicdistrict` (321999) MODD 1112, `instanceportal.m2` (197007), in group 59 `Jail01` beside area trigger 101. No gameobject spawn and no ADT MDDF places it.
 - **Root cause.** `sw_magicdistrict` has MODI but no MODN. The engine looked MODD `name_offset` up as a MODN byte offset, found nothing, and spawned no doodad of any MODI-only WMO, which includes every Stormwind district. With MODI present `name_offset` indexes MODI (WebWowViewerCpp `wmoObject.cpp`: `doodadFileDataIds[doodadDef->name_offset]`). Fixed in `8c0d0fcd`.
-- **Still open.** The portal's six particle emitters are not spawned: WMO doodads spawn no emitters, and ADT doodads spawn them only for waterfall backdrops. Only the portal's mesh is drawn.
+- **Particles: fixed** in `50d40c1f`. WMO doodads and every ADT doodad now spawn their M2 emitters; before, WMO doodads spawned none and ADT doodads only for waterfall backdrops (`030090f3`). The portal gets its six emitters and a moving mist in the doorway (`doodadparticles-20260926/final-portal.png`). The graphics particle toggle still gates them. Trade District fps on a loaded host (load 10–15): 1.4–3.7 before, 3.4–4.4 after; that is noise, not a measured cost or gain.
 
 ## Camera through the stairwell walls
 
@@ -20,8 +20,9 @@ With all three fixes, a 36-pose yaw × pitch matrix of the walk culls the stairw
 
 ## Still open
 
-- Player wall collision (`clamp_movement_against_wmo_meshes`) uses the default `VisibleInView` ray, so portal-culled and off-screen walls do not block the player.
-- The camera terrain clamp still applies inside WMO interiors. Terrain rises to 92.5 at the portal (tunnel floor about 87); this was not exercised live.
+- **Player walls: fixed** in `0c3003bb`. Movement collision casts with `RayCastVisibility::Any`, so portal-culled and off-screen walls block the player.
+- **Antiportals: fixed** in `f446b317`. They come from the MOGP flag 0x4000000, not the MOGN name; `sw_magicdistrict` group 62's name did not match, so after `df515f77` its occluder slabs blocked the camera. Antiportal batches carry no `WmoCollisionMesh`.
+- **Terrain in interiors: fixed** in `4eadf9b1`. With the eye inside a WMO interior group, the camera skips the terrain clamp, as on WMO-only maps. The canal-street terrain rising through the tunnel (87.2–92.5) had pulled the camera from 8.0 to 5.0 yd.
 - Live proof is static poses only: the headless client cannot hold movement keys.
 
 ## See Also
