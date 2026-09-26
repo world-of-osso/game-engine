@@ -86,6 +86,10 @@ fn sync_summon_popup(
     let Some((offer, area)) = &shown.0 else {
         return;
     };
+    // A loading screen (a map transfer) tears the popups down; the offer stays open.
+    if !popups.contains(CONFIRM_SUMMON_POPUP) {
+        popups.push(popup_spec(offer, area, now));
+    }
     let text = confirm_summon_text(&offer.summoner, area, offer.time_left(now));
     popups.set_text(CONFIRM_SUMMON_POPUP, text);
     let in_combat = combat.iter().any(|status| status.0);

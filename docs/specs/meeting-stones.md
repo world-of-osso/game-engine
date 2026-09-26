@@ -21,7 +21,7 @@ References: GameDialogDefs.lua (`CONFIRM_SUMMON`, `GetConfirmSummonExpiryText`),
 - The area name shows "Unknown": the server tracks no player zone, so `SummonRequest.zone_id` is 0.
 - Only replicated players (within the 100 yd interest radius) can be targeted, so a party member farther away cannot be picked for a summon.
 - No 0.5 s decline lock (`SetupLockOnDeclineButtonAndEscape`), no `PlayerCanTeleport` check, no `CANCEL_SUMMON` from the server.
-- Cross-map summons: the server hosts map 0 only.
+- Cross-map summons are accepted through a map transfer ([instances](instances.md)); starting one needs the target in the interest radius (above).
 
 ## Live evidence (2026-09-26)
 Own server :5080, three headless clients (Stonecaller, Ritebearer, Wayfarer, level 30) at Blackrock Mountain stone 179584: Stonecaller targeted Wayfarer (88 yd away) and used the stone, the portal opened after 5 s, Ritebearer clicked it, Wayfarer's `CONFIRM_SUMMON` read "Stonecaller wants to summon you to Unknown. The spell will be canceled in 2 Minutes.", Accept moved Wayfarer from (-7622, -1222, 232) to Stonecaller at (-7588.7, -1139.8, 260.8). Screenshots in `data/diagnostics/summonstone/`.

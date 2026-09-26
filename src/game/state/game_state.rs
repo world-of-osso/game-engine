@@ -346,6 +346,31 @@ pub(crate) fn evaluate_world_loading(
         };
     }
 
+    match adt_manager.global_wmo {
+        crate::terrain::GlobalWmo::None => {}
+        crate::terrain::GlobalWmo::Spawned(_) => {
+            return LoadingReadiness {
+                complete: true,
+                progress_percent: 100,
+                status_text: "Entering world...",
+            };
+        }
+        crate::terrain::GlobalWmo::Pending(_) => {
+            return LoadingReadiness {
+                complete: false,
+                progress_percent: 86,
+                status_text: "Loading terrain...",
+            };
+        }
+        crate::terrain::GlobalWmo::Failed => {
+            return LoadingReadiness {
+                complete: false,
+                progress_percent: 86,
+                status_text: "Terrain failed to load",
+            };
+        }
+    }
+
     let center_tile = crate::terrain::streaming_center_tile(adt_manager, player);
     if adt_manager.loaded.contains_key(&center_tile) {
         return LoadingReadiness {
@@ -586,6 +611,19 @@ mod tests {
                 progress_percent: 100,
                 status_text: "Entering world..."
             }
+        );
+    }
+
+    #[test]
+    fn a_wmo_only_map_finishes_loading_when_its_global_wmo_spawned() {
+        let mut adt_manager = AdtManager::default();
+        adt_manager.map_name = "stormwindjail".into();
+        adt_manager.global_wmo = crate::terrain::GlobalWmo::Spawned(Entity::PLACEHOLDER);
+        assert!(evaluate_world_loading(true, &adt_manager, None).complete);
+        adt_manager.global_wmo = crate::terrain::GlobalWmo::Failed;
+        assert_eq!(
+            evaluate_world_loading(true, &adt_manager, None).status_text,
+            "Terrain failed to load"
         );
     }
 

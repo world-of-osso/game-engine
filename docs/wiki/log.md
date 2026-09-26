@@ -978,3 +978,7 @@ Created [[cursor-item]]: CursorItem click rules, StackSplitFrame, DELETE_ITEM / 
 ## [2026-09-26] investigation | Bevy and Godot directional shadows
 
 Created [[bevy-godot-shadow-comparison]]. Revision-pinned source review records shared CPU scan/cascade and batching paths, Godot's extra directional silhouette-plane culling plus shadow mesh/LOD path, and Bevy's conditional gathered-cascade GPU preprocessing. No runtime comparison or performance winner is claimed.
+
+## [2026-09-26] update | Map transfers and WMO-only maps
+
+[[terrain]]: maps named by Map.db2 Directory; WDT MPHD 0x1 global WMO maps (Stockade) spawn one WMO placed from the world origin, no tiles; WMO floors are the only ground and the camera is not terrain-clamped there. Spec [instances](../specs/instances.md) (NewWorld/WorldPortAck, TransferAborted, CONFIRM_SUMMON after loading).
