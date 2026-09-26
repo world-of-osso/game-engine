@@ -51,6 +51,8 @@ pub(crate) mod networking_server_movement;
 pub(crate) mod networking_taxi;
 #[path = "networking/trainer.rs"]
 pub(crate) mod networking_trainer;
+#[path = "networking/unit_tooltip.rs"]
+pub(crate) mod networking_unit_tooltip;
 
 #[path = "world_db/zone_names.rs"]
 pub(crate) mod zone_names;

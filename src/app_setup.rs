@@ -281,6 +281,7 @@ fn register_world_plugins(app: &mut App) {
         .add_plugins(minimap::MinimapPlugin)
         .add_plugins(action_bar::ActionBarPlugin)
         .add_plugins(unit_frames::InWorldUnitFramesPlugin)
+        .add_plugins(crate::rendering::unit_hover::UnitHoverPlugin)
         .add_plugins(health_bar::HealthBarPlugin)
         .add_plugins(nameplate::NameplatePlugin)
         .add_plugins(crate::rendering::nameplate_cast_bar::NameplateCastBarPlugin)
@@ -570,6 +571,7 @@ fn add_core_screen_plugins(app: &mut App) {
         crate::game::networking_bank::BankNetworkPlugin,
         crate::game::networking_mail::MailNetworkPlugin,
         crate::game::networking_trainer::TrainerNetworkPlugin,
+        crate::game::networking_unit_tooltip::UnitTooltipNetworkPlugin,
     ));
     app.add_plugins((
         game_state::GameStatePlugin,

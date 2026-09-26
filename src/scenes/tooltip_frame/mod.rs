@@ -14,6 +14,7 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::buff_button_at;
 use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
 use game_engine::ui::screens::inworld_hud_component::MINIMAP_MAIL_FRAME;
+use game_engine::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
@@ -30,14 +31,37 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 
+mod unit_sources;
+mod unit_tooltip;
+
+use unit_sources::{FactionNames, UnitTooltipSources};
+
 const TOOLTIP_W: f32 = 260.0;
 const TOOLTIP_MIN_H: f32 = 34.0;
 const TOOLTIP_INSET: f32 = 8.0;
 const TOOLTIP_TITLE_H: f32 = 16.0;
 const TOOLTIP_LINE_H: f32 = 14.0;
-const TOOLTIP_CURSOR_X: f32 = 18.0;
-const TOOLTIP_CURSOR_Y: f32 = 24.0;
-const TOOLTIP_MARGIN: f32 = 8.0;
+/// `GameTooltipDefaultContainer` (GameTooltip.xml:242-247): BOTTOMRIGHT of UIParent
+/// at x -9, y 85; `GameTooltip_SetDefaultAnchor` puts the tooltip's BOTTOMRIGHT there.
+const TOOLTIP_DEFAULT_ANCHOR_X: f32 = -9.0;
+const TOOLTIP_DEFAULT_ANCHOR_Y: f32 = 85.0;
+/// Collection mark drawn at the start of an item line, then the name.
+const TOOLTIP_MARK_SIZE: f32 = 12.0;
+const TOOLTIP_MARK_GAP: f32 = 2.0;
+
+/// Retail `READY_CHECK_READY_TEXTURE` / `READY_CHECK_NOT_READY_TEXTURE`
+/// (ReadyCheck.lua:2-4): atlases `UI-LFG-ReadyMark` / `UI-LFG-DeclineMark`,
+/// 40×40 members of `interface/lfgframe/uilfgprompts.blp` (5171843, 2048×2048).
+const COLLECTED_MARK: AtlasArt = AtlasArt {
+    fdid: 5_171_843,
+    atlas: (2048.0, 2048.0),
+    rect: (1745.0, 1945.0, 259.0, 459.0),
+};
+const UNCOLLECTED_MARK: AtlasArt = AtlasArt {
+    fdid: 5_171_843,
+    atlas: (2048.0, 2048.0),
+    rect: (1801.0, 2001.0, 1.0, 201.0),
+};
 
 const TOOLTIP_BG: &str = "0.03,0.02,0.01,0.96";
 const TOOLTIP_BORDER: &str = "1px solid 0.66,0.54,0.22,0.95";
@@ -58,12 +82,23 @@ impl std::fmt::Display for DynName {
     }
 }
 
+/// Collection mark of a listed item: a green check for a collected appearance, a
+/// red cross for an uncollected one, nothing for an item without an appearance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ItemMark {
+    Unmarked,
+    Collected,
+    Uncollected,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct TooltipLineState {
     left_text: String,
     right_text: String,
     left_color: [f32; 4],
     right_color: [f32; 4],
+    /// Item lines keep a mark column before the text; `None` for other lines.
+    item_mark: Option<ItemMark>,
 }
 
 impl TooltipLineState {
@@ -73,6 +108,7 @@ impl TooltipLineState {
             right_text: String::new(),
             left_color: TOOLTIP_TEXT_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
+            item_mark: None,
         }
     }
 
@@ -89,6 +125,7 @@ impl TooltipLineState {
             right_text: right.into(),
             left_color: TOOLTIP_WHITE,
             right_color: TOOLTIP_WHITE,
+            item_mark: None,
         }
     }
 
@@ -98,6 +135,7 @@ impl TooltipLineState {
             right_text: value.into(),
             left_color: TOOLTIP_LABEL_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
+            item_mark: None,
         }
     }
 }
@@ -148,6 +186,7 @@ pub struct TooltipFramePlugin;
 
 impl Plugin for TooltipFramePlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(FactionNames::load());
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_tooltip_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -212,11 +251,13 @@ fn sync_tooltip_frame_state(
     talent_tooltips: Option<Res<TalentTooltips>>,
     experience: Option<Res<ExperienceState>>,
     mail: Option<Res<MailState>>,
+    mut units: UnitTooltipSources,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
     let Ok(window) = windows.single() else { return };
+    units.request_hovered();
     let state = build_state(
         &ui.registry,
         window,
@@ -231,6 +272,7 @@ fn sync_tooltip_frame_state(
         talent_tooltips.as_deref(),
         experience.as_deref(),
         mail.as_deref(),
+        &units,
     );
     if last_model.0 == state {
         return;
@@ -255,14 +297,51 @@ fn build_state(
     talent_tooltips: Option<&TalentTooltips>,
     experience: Option<&ExperienceState>,
     mail: Option<&MailState>,
+    units: &UnitTooltipSources,
 ) -> TooltipFrameState {
     let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
     };
-    let Some(frame_id) = find_frame_at(registry, cursor.x, cursor.y) else {
+    let frame_content = find_frame_at(registry, cursor.x, cursor.y).and_then(|frame_id| {
+        hovered_frame_tooltip(
+            registry,
+            frame_id,
+            inventory,
+            merchant,
+            current_target,
+            local_player,
+            target_auras,
+            aura_state,
+            graphics_options,
+            spells,
+            talent_tooltips,
+            experience,
+            mail,
+        )
+    });
+    let Some(content) = frame_content.or_else(|| units.tooltip()) else {
         return TooltipFrameState::hidden();
     };
-    let Some(content) = hovered_spell_tooltip(registry, frame_id, spells)
+    place_tooltip(content, registry)
+}
+
+/// The tooltip of the UI frame under the cursor, if it has one.
+fn hovered_frame_tooltip(
+    registry: &FrameRegistry,
+    frame_id: u64,
+    inventory: &InventoryState,
+    merchant: Option<&MerchantState>,
+    current_target: &CurrentTarget,
+    local_player: Option<Entity>,
+    target_auras: &Query<&UnitAuraState>,
+    aura_state: Option<&AuraState>,
+    graphics_options: Option<&GraphicsOptions>,
+    spells: &HoveredSpellSources,
+    talent_tooltips: Option<&TalentTooltips>,
+    experience: Option<&ExperienceState>,
+    mail: Option<&MailState>,
+) -> Option<TooltipFrameState> {
+    hovered_spell_tooltip(registry, frame_id, spells)
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
         .or_else(|| hovered_merchant_tooltip(registry, frame_id, merchant))
@@ -280,10 +359,6 @@ fn build_state(
                 graphics_options,
             )
         })
-    else {
-        return TooltipFrameState::hidden();
-    };
-    place_tooltip(content, cursor, registry)
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -527,16 +602,12 @@ fn hovered_player_aura_tooltip(
     Some(aura_tooltip(aura, colorblind_mode))
 }
 
-fn place_tooltip(
-    mut tooltip: TooltipFrameState,
-    cursor: Vec2,
-    registry: &FrameRegistry,
-) -> TooltipFrameState {
-    let max_x = (registry.screen_width - TOOLTIP_W - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
-    let max_y = (registry.screen_height - tooltip.height() - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
+/// Retail `GameTooltip_SetDefaultAnchor`: the tooltip's bottom-right corner on
+/// `GameTooltipDefaultContainer`'s, 9 left of and 85 above UIParent's bottom right.
+fn place_tooltip(mut tooltip: TooltipFrameState, registry: &FrameRegistry) -> TooltipFrameState {
     tooltip.visible = true;
-    tooltip.x = (cursor.x + TOOLTIP_CURSOR_X).min(max_x);
-    tooltip.y = (cursor.y + TOOLTIP_CURSOR_Y).min(max_y);
+    tooltip.x = registry.screen_width + TOOLTIP_DEFAULT_ANCHOR_X - TOOLTIP_W;
+    tooltip.y = registry.screen_height - TOOLTIP_DEFAULT_ANCHOR_Y - tooltip.height();
     tooltip
 }
 
@@ -998,10 +1069,45 @@ fn tooltip_lines(lines: &[TooltipLineState]) -> Element {
 
 fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
     let y = TOOLTIP_INSET + TOOLTIP_TITLE_H + index as f32 * TOOLTIP_LINE_H;
+    let indent = if line.item_mark.is_some() {
+        TOOLTIP_MARK_SIZE + TOOLTIP_MARK_GAP
+    } else {
+        0.0
+    };
+    let mut elements = tooltip_line_mark(index, line.item_mark, y);
+    elements.extend(tooltip_line_text(index, line, y, indent));
+    elements
+}
+
+fn tooltip_line_mark(index: usize, mark: Option<ItemMark>, y: f32) -> Element {
+    let art = match mark {
+        Some(ItemMark::Collected) => &COLLECTED_MARK,
+        Some(ItemMark::Uncollected) => &UNCOLLECTED_MARK,
+        Some(ItemMark::Unmarked) | None => return Element::new(),
+    };
+    let coords = art.tex_coords(1.0);
+    let top = y + (TOOLTIP_LINE_H - TOOLTIP_MARK_SIZE) / 2.0;
+    rsx! {
+        texture {
+            name: {DynName(format!("TooltipLine{index}Mark"))},
+            width: {TOOLTIP_MARK_SIZE},
+            height: {TOOLTIP_MARK_SIZE},
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            pos_x: {TOOLTIP_INSET},
+            pos_y: {top},
+        }
+    }
+}
+
+fn tooltip_line_text(index: usize, line: &TooltipLineState, y: f32, indent: f32) -> Element {
+    let left_x = TOOLTIP_INSET + indent;
+    let left_w = TOOLTIP_TEXT_W - indent;
     rsx! {
         fontstring {
             name: {DynName(format!("TooltipLine{index}Left"))},
-            width: {TOOLTIP_TEXT_W},
+            width: {left_w},
             height: {TOOLTIP_LINE_H},
             text: {line.left_text.as_str()},
             font: "FrizQuadrata",
@@ -1009,7 +1115,7 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
             font_color: {rgba_string(line.left_color)},
             justify_h: "LEFT",
             pos_type: "absolute",
-            pos_x: {TOOLTIP_INSET},
+            pos_x: {left_x},
             pos_y: {y},
         }
         fontstring {
@@ -1035,6 +1141,20 @@ fn rgba_string(color: [f32; 4]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tooltips_use_the_retail_default_anchor_at_the_bottom_right() {
+        let registry = FrameRegistry::new(1920.0, 1080.0);
+        let content = mail_tooltip(&["Tradea".into()]);
+        let height = content.height();
+
+        let placed = place_tooltip(content, &registry);
+
+        assert!(placed.visible);
+        // BOTTOMRIGHT at UIParent BOTTOMRIGHT (-9, +85).
+        assert_eq!(placed.x + TOOLTIP_W, 1920.0 - 9.0);
+        assert_eq!(placed.y + height, 1080.0 - 85.0);
+    }
 
     #[test]
     fn minimap_mail_tooltip_lists_the_unread_senders_or_says_unread_mail() {
