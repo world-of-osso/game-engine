@@ -229,7 +229,7 @@ fn jump_state_stays_active_until_player_reaches_ground() {
         keys: &keys,
         mouse_buttons: &mouse_buttons,
         bindings: &bindings,
-        terrain: Some(&heightmap),
+        ground: &crate::collision::WorldGround::from_parts(Some(&heightmap), Vec::new()),
         proposed: None,
     });
 
@@ -372,12 +372,14 @@ fn strafe_speed_remains_faster_than_backpedal() {
 fn deep_water_sets_swimming_state() {
     let heightmap = swim_heightmap(0.0, 2.0);
     let position = Vec3::new(-TEST_WATER_STEP * 0.25, 0.0, TEST_WATER_STEP * 0.25);
-    assert!(is_swimming(position, &heightmap));
+    let ground = crate::collision::WorldGround::from_parts(Some(&heightmap), Vec::new());
+    assert!(is_swimming(position, &ground));
 }
 
 #[test]
 fn shallow_water_does_not_set_swimming_state() {
     let heightmap = swim_heightmap(0.0, 0.6);
     let position = Vec3::new(-TEST_WATER_STEP * 0.25, 0.0, TEST_WATER_STEP * 0.25);
-    assert!(!is_swimming(position, &heightmap));
+    let ground = crate::collision::WorldGround::from_parts(Some(&heightmap), Vec::new());
+    assert!(!is_swimming(position, &ground));
 }

@@ -298,6 +298,7 @@ fn player_movement(
     mut perf: Local<MovementPerfProbe>,
     wmo_collision_meshes_q: Query<Entity, With<collision::WmoCollisionMesh>>,
     doodad_collider_q: Query<&game_engine::culling::DoodadCollider>,
+    wmo_floors_q: Query<&collision::WmoFloors>,
     mut player_q: Query<
         (
             &mut Transform,
@@ -332,8 +333,9 @@ fn player_movement(
         return;
     }
     let keys = gameplay_keys(*mode, &keys);
+    let ground = collision::WorldGround::new(terrain.as_deref(), &wmo_floors_q);
 
-    sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
+    sync_swimming_state(transform.translation, &ground, &mut movement);
 
     sync_player_movement_toggles(keys, &mouse_buttons, &bindings, &mut movement);
     let manual_override = has_manual_movement_override(keys, &mouse_buttons, &bindings);
@@ -402,11 +404,11 @@ fn player_movement(
         keys,
         mouse_buttons: &mouse_buttons,
         bindings: &bindings,
-        terrain: terrain.as_deref(),
+        ground: &ground,
         proposed: proposed_after_collision,
     });
 
-    sync_swimming_state(transform.translation, terrain.as_deref(), &mut movement);
+    sync_swimming_state(transform.translation, &ground, &mut movement);
 
     transform.rotation = Quat::from_rotation_y(facing.yaw - std::f32::consts::FRAC_PI_2);
     perf.record(MovementPerfSample {
@@ -685,7 +687,7 @@ struct HorizontalMovementContext<'a> {
     keys: &'a ButtonInput<KeyCode>,
     mouse_buttons: &'a ButtonInput<MouseButton>,
     bindings: &'a InputBindings,
-    terrain: Option<&'a TerrainHeightmap>,
+    ground: &'a collision::WorldGround<'a>,
     proposed: Option<Vec3>,
 }
 
@@ -697,12 +699,12 @@ fn apply_horizontal_movement(ctx: HorizontalMovementContext<'_>) {
         keys,
         mouse_buttons,
         bindings,
-        terrain,
+        ground,
         proposed,
     } = ctx;
-    apply_ground_movement(transform, movement, physics, proposed, terrain);
+    apply_ground_movement(transform, movement, physics, proposed, ground);
     apply_jump_input(movement, physics, bindings, keys, mouse_buttons);
-    finish_jump_if_landed(transform, movement, physics, terrain);
+    finish_jump_if_landed(transform, movement, physics, ground);
 }
 
 fn apply_ground_movement(
@@ -710,18 +712,15 @@ fn apply_ground_movement(
     movement: &MovementState,
     physics: &CharacterPhysics,
     proposed: Option<Vec3>,
-    terrain: Option<&TerrainHeightmap>,
+    ground: &collision::WorldGround,
 ) {
     let Some(proposed) = proposed else { return };
-    transform.translation = match terrain {
-        Some(t) => collision::validate_movement_slope(
-            transform.translation,
-            proposed,
-            t,
-            physics.grounded && !movement.jumping,
-        ),
-        None => proposed,
-    };
+    transform.translation = collision::validate_movement_slope(
+        transform.translation,
+        proposed,
+        ground,
+        physics.grounded && !movement.jumping,
+    );
 }
 
 fn apply_jump_input(
@@ -746,17 +745,19 @@ fn apply_jump_input(
 
 fn sync_swimming_state(
     position: Vec3,
-    terrain: Option<&TerrainHeightmap>,
+    ground: &collision::WorldGround,
     movement: &mut MovementState,
 ) {
-    movement.swimming = terrain.is_some_and(|terrain| is_swimming(position, terrain));
+    movement.swimming = is_swimming(position, ground);
     if movement.swimming {
         movement.jumping = false;
     }
 }
 
-fn is_swimming(position: Vec3, terrain: &TerrainHeightmap) -> bool {
-    let Some(ground_y) = terrain.height_at(position.x, position.z) else {
+/// Swimming where terrain water stands deep over the ground (a WMO floor
+/// above the water, such as a bridge, keeps the character dry).
+fn is_swimming(position: Vec3, ground: &collision::WorldGround) -> bool {
+    let (Some(terrain), Some(ground_y)) = (ground.terrain(), ground.height_at(position)) else {
         return false;
     };
     let depth = terrain
@@ -771,11 +772,11 @@ fn finish_jump_if_landed(
     transform: &Transform,
     movement: &mut MovementState,
     physics: &CharacterPhysics,
-    terrain: Option<&TerrainHeightmap>,
+    ground: &collision::WorldGround,
 ) {
     if movement.jumping
         && physics.vertical_velocity <= 0.0
-        && should_end_jump(transform, physics, terrain)
+        && should_end_jump(transform, physics, ground)
     {
         movement.jumping = false;
     }
@@ -784,13 +785,13 @@ fn finish_jump_if_landed(
 fn should_end_jump(
     transform: &Transform,
     physics: &CharacterPhysics,
-    terrain: Option<&TerrainHeightmap>,
+    ground: &collision::WorldGround,
 ) -> bool {
     if !physics.grounded {
         return false;
     }
 
-    match terrain.and_then(|t| t.height_at(transform.translation.x, transform.translation.z)) {
+    match ground.height_at(transform.translation) {
         Some(ground_y) => transform.translation.y <= ground_y + LANDING_EPSILON,
         None => true,
     }

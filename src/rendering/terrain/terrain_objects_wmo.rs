@@ -1,7 +1,7 @@
 use crate::retail_m2_material::M2Material;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use bevy::asset::AssetId;
 use bevy::asset::RenderAssetUsages;
@@ -229,7 +229,7 @@ fn try_spawn_wmo_preloaded(
         pre.root.skybox_wow_path.as_deref(),
     );
 
-    let group_count = spawn_wmo_groups_preloaded(
+    let floors = spawn_wmo_groups_preloaded(
         commands,
         assets,
         &pre.root,
@@ -239,8 +239,15 @@ fn try_spawn_wmo_preloaded(
         root_entity,
         placement.doodad_set,
     );
-    log_wmo_spawn(pre.root_fdid, group_count, &pre.root, &transform);
-    build_spawned_wmo_root(pre.root_fdid, root_entity, group_count, placement)
+    finish_wmo_root(
+        commands,
+        pre.root_fdid,
+        root_entity,
+        &pre.root,
+        &transform,
+        floors,
+        placement,
+    )
 }
 
 fn spawn_wmo_groups_preloaded(
@@ -252,15 +259,15 @@ fn spawn_wmo_groups_preloaded(
     root_fdid: u32,
     root_entity: Entity,
     active_doodad_set: u16,
-) -> u32 {
-    let mut count = 0u32;
+) -> Vec<Arc<shared::ground::WmoGroupCollision>> {
+    let mut floors = Vec::new();
     // Build a map from fdid to group data for fast lookup
     let group_map: std::collections::HashMap<u32, &wmo::WmoGroupData> =
         groups.iter().map(|(fdid, g)| (*fdid, g)).collect();
     for (i, fdid_opt) in group_fdids.iter().enumerate() {
         let Some(fdid) = fdid_opt else { continue };
         if let Some(group) = group_map.get(fdid) {
-            if spawn_wmo_group_from_data(
+            spawn_wmo_group_from_data(
                 commands,
                 assets,
                 root,
@@ -268,16 +275,13 @@ fn spawn_wmo_groups_preloaded(
                 root_entity,
                 i as u16,
                 active_doodad_set,
-            ) {
-                count += 1;
-            } else {
-                eprintln!("  WMO {root_fdid} group {i}: spawn failed (FDID {fdid})");
-            }
+            );
+            floors.push(group.collision.clone());
         } else {
             eprintln!("  WMO {root_fdid} group {i}: missing preloaded data (FDID {fdid})");
         }
     }
-    count
+    floors
 }
 
 fn spawn_wmo_group_from_data(
@@ -288,7 +292,7 @@ fn spawn_wmo_group_from_data(
     root_entity: Entity,
     group_index: u16,
     active_doodad_set: u16,
-) -> bool {
+) {
     let group_entity = spawn_wmo_group_entity(commands, root, group, group_index);
     commands.entity(root_entity).add_child(group_entity);
     spawn_wmo_group_lights(commands, root, group, group_entity);
@@ -310,7 +314,6 @@ fn spawn_wmo_group_from_data(
         group_entity,
         active_doodad_set,
     );
-    true
 }
 
 fn spawn_wmo_group_geometry(
@@ -361,7 +364,7 @@ fn try_spawn_wmo(
         root.skybox_wow_path.as_deref(),
     );
 
-    let group_count = spawn_wmo_groups(
+    let floors = spawn_wmo_groups(
         commands,
         assets,
         &root,
@@ -370,7 +373,34 @@ fn try_spawn_wmo(
         root_entity,
         placement.doodad_set,
     );
-    log_wmo_spawn(root_fdid, group_count, &root, &transform);
+    finish_wmo_root(
+        commands,
+        root_fdid,
+        root_entity,
+        &root,
+        &transform,
+        floors,
+        placement,
+    )
+}
+
+/// Give the root its floor collision and report the spawn.
+fn finish_wmo_root(
+    commands: &mut Commands,
+    root_fdid: u32,
+    root_entity: Entity,
+    root: &wmo::WmoRootData,
+    transform: &Transform,
+    floors: Vec<Arc<shared::ground::WmoGroupCollision>>,
+    placement: &adt_obj::WmoPlacement,
+) -> Option<SpawnedWmoRoot> {
+    let group_count = floors.len() as u32;
+    log_wmo_spawn(root_fdid, group_count, root, transform);
+    commands
+        .entity(root_entity)
+        .insert(crate::collision::WmoFloors(
+            shared::ground::WmoCollision::new(transform.compute_affine(), floors),
+        ));
     build_spawned_wmo_root(root_fdid, root_entity, group_count, placement)
 }
 
@@ -495,11 +525,11 @@ fn spawn_wmo_groups(
     root_fdid: u32,
     root_entity: Entity,
     active_doodad_set: u16,
-) -> u32 {
-    let mut count = 0u32;
+) -> Vec<Arc<shared::ground::WmoGroupCollision>> {
+    let mut floors = Vec::new();
     for (i, group_fdid) in group_fdids.iter().enumerate() {
         let Some(fdid) = group_fdid else { continue };
-        if spawn_wmo_group(
+        match spawn_wmo_group(
             commands,
             assets,
             root,
@@ -508,12 +538,11 @@ fn spawn_wmo_groups(
             i as u16,
             active_doodad_set,
         ) {
-            count += 1;
-        } else {
-            eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})");
+            Some(collision) => floors.push(collision),
+            None => eprintln!("  WMO {root_fdid} group {i}: missing or failed (FDID {fdid})"),
         }
     }
-    count
+    floors
 }
 
 fn log_wmo_spawn(root_fdid: u32, group_count: u32, root: &wmo::WmoRootData, transform: &Transform) {
@@ -639,16 +668,10 @@ fn spawn_wmo_group(
     root_entity: Entity,
     group_index: u16,
     active_doodad_set: u16,
-) -> bool {
-    let Some(group_path) = ensure_wmo_asset(group_fdid) else {
-        return false;
-    };
-    let Ok(data) = std::fs::read(&group_path) else {
-        return false;
-    };
-    let Ok(group) = wmo::load_wmo_group_with_root(&data, Some(root)) else {
-        return false;
-    };
+) -> Option<Arc<shared::ground::WmoGroupCollision>> {
+    let group_path = ensure_wmo_asset(group_fdid)?;
+    let data = std::fs::read(&group_path).ok()?;
+    let group = wmo::load_wmo_group_with_root(&data, Some(root)).ok()?;
     spawn_wmo_group_from_data(
         commands,
         assets,
@@ -657,7 +680,8 @@ fn spawn_wmo_group(
         root_entity,
         group_index,
         active_doodad_set,
-    )
+    );
+    Some(group.collision)
 }
 
 fn spawn_wmo_group_entity(

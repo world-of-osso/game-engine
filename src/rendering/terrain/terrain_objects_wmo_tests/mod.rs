@@ -7,6 +7,7 @@ pub(super) use bevy::ecs::system::RunSystemOnce;
 mod alpha_gpu;
 mod crossfade_gpu;
 mod doodads;
+mod floor_collision;
 mod group_runtime;
 mod interior_gpu;
 mod interior_light_gpu;
@@ -61,10 +62,9 @@ pub(super) fn minimal_group() -> wmo::WmoGroupData {
         header: minimal_group_header(),
         doodad_refs: Vec::new(),
         light_refs: Vec::new(),
-        bsp_nodes: Vec::new(),
-        bsp_face_refs: Vec::new(),
         liquid: None,
         batches: Vec::new(),
+        collision: Default::default(),
     }
 }
 

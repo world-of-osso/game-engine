@@ -285,7 +285,9 @@ fn terrain_step_is_walkable(
     let current = Vec3::new(start.x, start_y, start.y);
     let proposed = Vec3::new(end.x, end_y, end.y);
 
-    let slope_checked = validate_movement_slope(current, proposed, terrain, true);
+    // Waypoint paths are planned over terrain only.
+    let terrain_ground = crate::collision::WorldGround::from_parts(Some(terrain), Vec::new());
+    let slope_checked = validate_movement_slope(current, proposed, &terrain_ground, true);
     if position_error(slope_checked, proposed) > PATH_POSITION_TOLERANCE {
         return false;
     }
