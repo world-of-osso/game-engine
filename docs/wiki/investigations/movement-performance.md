@@ -160,7 +160,7 @@ A separate full-world client logged in, entered InWorld, and completed routed Wh
 
 The renderer probe at `8fd12e79` observed 47 extracted meshes with zero vertex/index bytes and 94 unallocated-key errors. Bevy 0.19 skipped allocating these empty meshes but attempted both uploads. This matches upstream issue #24874; it does not establish a freed-memory access. An empty-water importer trial still produced 110 errors in InWorld and was withdrawn rather than attributed as the source of all empty meshes.
 
-`ebcee198` backports allocation/upload consistency without changing genuine missing-key diagnostics. Patch provenance, regression, and retirement conditions live in [vendor/README.md](../../../vendor/README.md#empty-mesh-uploads). The real GPU regression first captured eight errors, then passed empty/populated and valid → empty → valid transitions with vertex/index readback.
+`ebcee198` backports allocation/upload consistency without changing genuine missing-key diagnostics. Patch provenance, regression, and retirement conditions live in [bevy-patches/README.md](../../../../bevy-patches/README.md#empty-mesh-uploads). The real GPU regression first captured eight errors, then passed empty/populated and valid → empty → valid transitions with vertex/index readback.
 
 Native `4ea941c3` with `--no-ui --screen inworld` reached InWorld, retained 3D geometry, and exited successfully with zero allocator errors. Evidence: `data/diagnostics/no-ui-20260909/inworld-no-ui-fixed.webp`; revision-scoped commands and logs are listed in `data/diagnostics/no-ui-20260909/proof-ledger.md`. This is rendering correctness evidence, not a CPU comparison or validation of unrelated visual artifacts.
 

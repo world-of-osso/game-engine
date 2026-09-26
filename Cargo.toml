@@ -4,9 +4,6 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 
-[workspace]
-members = ["vendor/bevy_transform", "vendor/bevy_pbr", "vendor/bevy_render"]
-
 [dependencies]
 bevy = { version = "0.19", features = ["default", "bevy_dev_tools", "bevy_audio", "wav", "ktx2"] }
 bevy_hanabi = "0.19"
@@ -72,12 +69,12 @@ criterion = "0.5"
 name = "parser_benches"
 harness = false
 
-# Local Bevy patches; provenance and retirement conditions in vendor/README.md.
+# Local crate patches; provenance, retirement conditions and regression tests in ../bevy-patches/README.md.
 [patch.crates-io]
-ktx2-rw = { path = "vendor/ktx2-rw" }
-bevy_transform = { path = "vendor/bevy_transform" }
-bevy_pbr = { path = "vendor/bevy_pbr" }
-bevy_render = { path = "vendor/bevy_render" }
+ktx2-rw = { path = "../bevy-patches/ktx2-rw" }
+bevy_transform = { path = "../bevy-patches/bevy_transform" }
+bevy_pbr = { path = "../bevy-patches/bevy_pbr" }
+bevy_render = { path = "../bevy-patches/bevy_render" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../shared-protocol" }
@@ -95,14 +92,4 @@ split-debuginfo = "unpacked"
 
 # Optimize deps in debug builds (Bevy is unusably slow at opt-level 0)
 [profile.dev.package."*"]
-opt-level = 2
-
-# Workspace membership must not de-optimize the formerly registry dependencies.
-[profile.dev.package.bevy_pbr]
-opt-level = 2
-
-[profile.dev.package.bevy_transform]
-opt-level = 2
-
-[profile.dev.package.bevy_render]
 opt-level = 2
