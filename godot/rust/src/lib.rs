@@ -35,23 +35,25 @@ pub struct GameClient {
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
+    terrain: terrain::streaming::StreamedTerrain,
     server_hostname: String,
 }
 
 #[godot_api]
 impl INode3D for GameClient {
     fn init(base: Base<Node3D>) -> Self {
+        let settings = ProjectSettings::singleton();
+        let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
+        let cache_root =
+            PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
         Self {
             base,
             model_scene: None,
             login_ui: None,
             character_ui: None,
             loading_ui: None,
-            account: Account::new(PathBuf::from(
-                ProjectSettings::singleton()
-                    .globalize_path("res://../data")
-                    .to_string(),
-            )),
+            account: Account::new(data_root.clone()),
+            terrain: terrain::streaming::StreamedTerrain::new(data_root, cache_root),
             units: HashMap::new(),
             world: world::WorldUnits::default(),
             server_hostname: if cfg!(debug_assertions) {
@@ -64,7 +66,11 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, _delta: f64) {
-        if let Err(error) = self.poll_ui_actions().and_then(|()| self.poll_account()) {
+        let update = self
+            .poll_ui_actions()
+            .and_then(|()| self.poll_account())
+            .and_then(|()| self.terrain.poll());
+        if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
             if let Err(ui_error) = self.update_login_status(&error, false) {
@@ -107,16 +113,17 @@ impl GameClient {
         password: GString,
         register: bool,
     ) -> GString {
-        match self.account.connect(
-            &server.to_string(),
-            &username.to_string(),
-            &password.to_string(),
-            register,
-        ) {
-            Ok(()) => {
-                self.reset_world();
-                GString::new()
-            }
+        let connection = self
+            .account
+            .connect(
+                &server.to_string(),
+                &username.to_string(),
+                &password.to_string(),
+                register,
+            )
+            .and_then(|()| self.reset_world());
+        match connection {
+            Ok(()) => GString::new(),
             Err(error) => GString::from(error.as_str()),
         }
     }
@@ -131,6 +138,7 @@ impl GameClient {
         state.set("character_count", session.characters.len() as i64);
         state.set("unit_count", self.units.len() as i64);
         state.set("world_attached", self.world.root().is_some());
+        state.set("terrain", &terrain::state::terrain_state(&self.terrain));
         state.set(
             "local_player_position",
             &local_transform
@@ -266,7 +274,8 @@ impl GameClient {
                     let status = self.account.session.feedback.clone().unwrap_or_default();
                     self.update_login_status(&status, false)?;
                 }
-                AccountEvent::WorldReset => self.reset_world(),
+                AccountEvent::WorldReset => self.reset_world()?,
+                AccountEvent::LoadTerrain(request) => self.request_terrain(request)?,
                 AccountEvent::UnitUpdated(unit) => {
                     let mut parent = self.to_gd().upcast::<Node3D>();
                     self.world.upsert(&mut parent, &unit);
@@ -283,9 +292,23 @@ impl GameClient {
         Ok(())
     }
 
-    fn reset_world(&mut self) {
+    fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
+        let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
+        self.terrain.request_map(
+            request.map_name,
+            (request.initial_tile_y, request.initial_tile_x),
+        )?;
+        if map_changed {
+            self.account.session.screen = SessionScreen::Loading;
+            self.show_account_screen(SessionScreen::Loading)?;
+        }
+        Ok(())
+    }
+
+    fn reset_world(&mut self) -> Result<(), String> {
         self.world.reset();
         self.units.clear();
+        self.terrain.reset()
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {

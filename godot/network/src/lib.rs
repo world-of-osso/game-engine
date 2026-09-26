@@ -28,7 +28,7 @@ use shared::{
     },
     protocol::{
         CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse, EnterWorldResponse,
-        ForcedDisconnect, LoginResponse, RegisterResponse,
+        ForcedDisconnect, LoadTerrain, LoginResponse, RegisterResponse,
     },
 };
 
@@ -139,6 +139,7 @@ impl NetworkBridge {
             .receive::<CreateCharacterResponse>()
             .receive::<DeleteCharacterResponse>()
             .receive::<EnterWorldResponse>()
+            .receive::<LoadTerrain>()
             .connect(server_addr, client_id)
     }
 
