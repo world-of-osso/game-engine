@@ -153,7 +153,7 @@ impl Plugin for InWorldUnitFramesPlugin {
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
-struct FrameUnitSources<'w, 's> {
+pub(crate) struct FrameUnitSources<'w, 's> {
     local_player: Query<'w, 's, Entity, With<LocalPlayer>>,
     unit_targets: Query<'w, 's, &'static UnitTarget>,
     mirror: Option<Res<'w, ReplicationMirrorMap>>,
@@ -167,6 +167,13 @@ impl FrameUnitSources<'_, '_> {
         let bits = self.unit_targets.get(entity).ok()?.0?;
         let server = Entity::try_from_bits(bits)?;
         self.mirror.as_deref()?.server_to_main(server)
+    }
+
+    /// The unit shown by the unit frame cluster (PlayerFrame, TargetFrame,
+    /// TargetOfTargetFrame, FocusFrame) that contains `frame`.
+    pub(crate) fn unit_at_frame(&self, registry: &FrameRegistry, frame: u64) -> Option<Entity> {
+        self.frame_units()
+            .for_root(cluster_root_name(registry, frame)?)
     }
 
     fn frame_units(&self) -> FrameUnits {

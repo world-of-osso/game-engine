@@ -337,6 +337,14 @@ pub fn map_request(command: MapCmd) -> Result<Request, String> {
     Ok(request)
 }
 
+pub fn hover_request(npc: Option<String>, x: Option<f32>, y: Option<f32>) -> Request {
+    match (npc, x, y) {
+        (Some(name), _, _) => Request::HoverNpc { name },
+        (None, Some(x), Some(y)) => Request::HoverAt { x, y },
+        _ => unreachable!("clap requires --npc or both --x and --y"),
+    }
+}
+
 pub fn camera_request(command: CameraCmd) -> Request {
     match command {
         CameraCmd::Set {
