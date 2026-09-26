@@ -166,7 +166,6 @@ fn create_terrain(app: &mut App) -> Handle<TerrainMaterial> {
             height_2: white.clone(),
             height_3: white.clone(),
             alpha_packed: white.clone(),
-            shadow_map: white,
             environment_map: environment,
             scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
         })

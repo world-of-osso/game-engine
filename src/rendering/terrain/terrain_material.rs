@@ -86,11 +86,6 @@ pub struct TerrainMaterial {
     #[sampler(18)]
     pub alpha_packed: Handle<Image>,
 
-    /// Static per-chunk shadow mask expanded from MCSH. 64x64, ClampToEdge.
-    #[texture(19)]
-    #[sampler(20)]
-    pub shadow_map: Handle<Image>,
-
     #[texture(21, dimension = "cube")]
     #[sampler(22)]
     pub environment_map: Handle<Image>,
@@ -389,77 +384,6 @@ fn pack_alpha_channel(rgba: &mut [u8], alpha: Option<&[u8]>, channel: usize, siz
     }
 }
 
-pub fn pack_shadow_map(
-    images: &mut Assets<Image>,
-    shadow_map: Option<&[u8; 512]>,
-) -> Handle<Image> {
-    images.add(pack_shadow_map_raw(shadow_map))
-}
-
-pub fn pack_shadow_map_raw(shadow_map: Option<&[u8; 512]>) -> Image {
-    const SIZE: u32 = 64;
-    let rgba = match shadow_map {
-        Some(shadow_map) => pack_shadow_pixels(shadow_map, SIZE),
-        None => default_shadow_pixels(SIZE),
-    };
-    new_shadow_image(rgba, SIZE)
-}
-
-fn default_shadow_pixels(size: u32) -> Vec<u8> {
-    let mut rgba = vec![255u8; (size * size * 4) as usize];
-    for pixel in rgba.chunks_exact_mut(4) {
-        pixel[3] = 255;
-    }
-    rgba
-}
-
-fn write_shadow_pixel(rgba: &mut [u8], size: usize, row: usize, col: usize, shadowed: bool) {
-    let value = if shadowed { 0 } else { 255 };
-    let base = (row * size + col) * 4;
-    rgba[base] = value;
-    rgba[base + 1] = value;
-    rgba[base + 2] = value;
-}
-
-fn pack_shadow_pixels(shadow_map: &[u8; 512], size: u32) -> Vec<u8> {
-    let mut rgba = default_shadow_pixels(size);
-    let size = size as usize;
-    for row in 0..size {
-        for col in 0..size {
-            write_shadow_pixel(
-                &mut rgba,
-                size,
-                row,
-                col,
-                shadow_bit_is_set(shadow_map, row, col),
-            );
-        }
-    }
-    rgba
-}
-
-fn new_shadow_image(rgba: Vec<u8>, size: u32) -> Image {
-    let mut img = Image::new(
-        Extent3d {
-            width: size,
-            height: size,
-            depth_or_array_layers: 1,
-        },
-        TextureDimension::D2,
-        rgba,
-        TextureFormat::Rgba8Unorm,
-        RenderAssetUsages::default(),
-    );
-    img.sampler = clamp_linear_sampler();
-    img
-}
-
-fn shadow_bit_is_set(shadow_map: &[u8; 512], row: usize, col: usize) -> bool {
-    let byte = shadow_map[row * 8 + col / 8];
-    let bit = col % 8;
-    ((byte >> bit) & 1) != 0
-}
-
 /// Shared placeholder handles for fallback materials.
 struct Placeholders {
     image: Handle<Image>,
@@ -476,7 +400,6 @@ pub fn build_terrain_materials(
     ground_images: Option<&[Option<Handle<Image>>]>,
     height_images: Option<&[Option<Handle<Image>>]>,
     pre_alpha: Option<&[Handle<Image>]>,
-    pre_shadow: Option<&[Handle<Image>]>,
 ) -> Vec<Handle<TerrainMaterial>> {
     let ph = Placeholders {
         image: placeholder_image(images, PlaceholderImageKind::Color),
@@ -485,19 +408,14 @@ pub fn build_terrain_materials(
     };
 
     let (Some(td), Some(gi)) = (tex_data, ground_images) else {
-        return build_fallback_materials(terrain_materials, images, adt_data, pre_shadow, &ph);
+        return build_fallback_materials(terrain_materials, adt_data, &ph);
     };
 
     td.chunk_layers
         .iter()
         .enumerate()
         .map(|(chunk_index, chunk_tex)| {
-            let shadow_map = adt_data
-                .chunks
-                .get(chunk_index)
-                .and_then(|chunk| chunk.shadow_map.as_ref());
             let pre_al = pre_alpha.and_then(|a| a.get(chunk_index));
-            let pre_sh = pre_shadow.and_then(|s| s.get(chunk_index));
             build_chunk_material(
                 terrain_materials,
                 images,
@@ -505,10 +423,8 @@ pub fn build_terrain_materials(
                 chunk_tex,
                 gi,
                 height_images,
-                shadow_map,
                 &ph,
                 pre_al,
-                pre_sh,
             )
         })
         .collect()
@@ -516,24 +432,13 @@ pub fn build_terrain_materials(
 
 fn build_fallback_materials(
     terrain_materials: &mut Assets<TerrainMaterial>,
-    images: &mut Assets<Image>,
     adt_data: &adt::AdtData,
-    pre_shadow: Option<&[Handle<Image>]>,
     ph: &Placeholders,
 ) -> Vec<Handle<TerrainMaterial>> {
     adt_data
         .chunks
         .iter()
-        .enumerate()
-        .map(|(chunk_index, chunk)| {
-            let pre_sh = pre_shadow.and_then(|s| s.get(chunk_index));
-            terrain_materials.add(fallback_material(
-                images,
-                chunk.shadow_map.as_ref(),
-                ph,
-                pre_sh,
-            ))
-        })
+        .map(|_| terrain_materials.add(fallback_material(ph)))
         .collect()
 }
 
@@ -587,12 +492,7 @@ fn terrain_settings(
     }
 }
 
-fn fallback_material(
-    images: &mut Assets<Image>,
-    shadow_map: Option<&[u8; 512]>,
-    ph: &Placeholders,
-    pre_shadow: Option<&Handle<Image>>,
-) -> TerrainMaterial {
+fn fallback_material(ph: &Placeholders) -> TerrainMaterial {
     TerrainMaterial {
         settings: terrain_settings(
             0.0,
@@ -610,9 +510,6 @@ fn fallback_material(
         height_2: ph.image.clone(),
         height_3: ph.image.clone(),
         alpha_packed: ph.alpha.clone(),
-        shadow_map: pre_shadow
-            .cloned()
-            .unwrap_or_else(|| pack_shadow_map(images, shadow_map)),
         environment_map: ph.cubemap.clone(),
         scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
     }
@@ -625,13 +522,11 @@ fn build_chunk_material(
     chunk_tex: &adt::ChunkTexLayers,
     ground_images: &[Option<Handle<Image>>],
     height_images: Option<&[Option<Handle<Image>>]>,
-    shadow_map: Option<&[u8; 512]>,
     ph: &Placeholders,
     pre_alpha: Option<&Handle<Image>>,
-    pre_shadow: Option<&Handle<Image>>,
 ) -> Handle<TerrainMaterial> {
     if chunk_tex.layers.is_empty() {
-        return terrain_materials.add(fallback_material(images, shadow_map, ph, pre_shadow));
+        return terrain_materials.add(fallback_material(ph));
     }
 
     let layer_count = chunk_tex.layers.len().min(4) as f32;
@@ -662,9 +557,6 @@ fn build_chunk_material(
         alpha_packed: pre_alpha
             .cloned()
             .unwrap_or_else(|| pack_alpha_maps(images, &chunk_tex.layers)),
-        shadow_map: pre_shadow
-            .cloned()
-            .unwrap_or_else(|| pack_shadow_map(images, shadow_map)),
         environment_map: ph.cubemap.clone(),
         scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
     })

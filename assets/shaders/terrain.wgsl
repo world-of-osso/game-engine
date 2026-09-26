@@ -66,8 +66,6 @@ struct TerrainSettings {
 @group(#{MATERIAL_BIND_GROUP}) @binding(17) var alpha_packed: texture_2d<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(18) var alpha_sampler: sampler;
 
-@group(#{MATERIAL_BIND_GROUP}) @binding(19) var shadow_map: texture_2d<f32>;
-@group(#{MATERIAL_BIND_GROUP}) @binding(20) var shadow_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(21) var environment_map: texture_cube<f32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(22) var environment_sampler: sampler;
 @group(#{MATERIAL_BIND_GROUP}) @binding(23) var<storage, read> scene_light: RetailSceneLight;

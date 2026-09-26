@@ -6,7 +6,7 @@ const ROOT_PATH: &str = "data/terrain/2703_31_36.adt";
 const TEXTURE_PATH: &str = "data/terrain/2703_31_36_tex0.adt";
 
 #[test]
-fn supplemental_waterfall_spawns_placements_and_shadowed_terrain() {
+fn supplemental_waterfall_spawns_placements_and_terrain() {
     let root_data = std::fs::read(ROOT_PATH).unwrap();
     let texture_data = std::fs::read(TEXTURE_PATH).unwrap();
     let expected = adt::load_adt_for_tile_with_tex0(&root_data, &texture_data, 31, 36).unwrap();
@@ -75,29 +75,9 @@ fn supplemental_waterfall_spawns_placements_and_shadowed_terrain() {
         "supplemental ADT geometry must remain present"
     );
     let materials = app.world().resource::<Assets<TerrainMaterial>>();
-    let images = app.world().resource::<Assets<Image>>();
-    let mut actual_shadows: Vec<_> = handles
-        .iter()
-        .map(|handle| {
-            let material = materials.get(handle).unwrap();
-            images
-                .get(&material.shadow_map)
-                .unwrap()
-                .data
-                .clone()
-                .unwrap()
-        })
-        .collect();
-    let mut expected_shadows: Vec<_> = expected
-        .chunks
-        .iter()
-        .map(|chunk| expected_shadow_pixels(chunk.shadow_map.as_ref()))
-        .collect();
-    actual_shadows.sort();
-    expected_shadows.sort();
-    assert_eq!(
-        actual_shadows, expected_shadows,
-        "spawned materials must retain companion shadow pixels"
+    assert!(
+        handles.iter().all(|handle| materials.get(handle).is_some()),
+        "every supplemental chunk must carry a terrain material"
     );
 }
 
@@ -547,16 +527,6 @@ fn assert_rest_bounds(actual: (Vec3, Vec3), expected: (Vec3, Vec3)) {
             && actual.1.abs_diff_eq(expected.1, REST_BOUNDS_TOLERANCE),
         "rendered rest bounds must preserve the requested origin: actual={actual:?}, expected={expected:?}",
     );
-}
-
-fn expected_shadow_pixels(shadow: Option<&[u8; 512]>) -> Vec<u8> {
-    (0..4096)
-        .flat_map(|pixel| {
-            let shadowed = shadow.is_some_and(|bits| bits[pixel / 8] & (1 << (pixel % 8)) != 0);
-            let value = if shadowed { 0 } else { 255 };
-            [value, value, value, 255]
-        })
-        .collect()
 }
 
 #[test]

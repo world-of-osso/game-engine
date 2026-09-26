@@ -100,8 +100,6 @@ struct ParsedTile {
     height_images: Vec<Option<Image>>,
     /// Pre-packed alpha maps, one per chunk (packed in background thread).
     chunk_alpha_maps: Vec<Image>,
-    /// Pre-packed shadow maps, one per chunk (packed in background thread).
-    chunk_shadow_maps: Vec<Image>,
     /// Pre-loaded doodad M2 models, indexed by doodad placement index.
     preloaded_doodads: Vec<Option<PreloadedDoodad>>,
     /// Pre-loaded WMO root + group data, indexed by WMO placement index.
@@ -536,7 +534,6 @@ fn build_terrain_only_chunk_materials(
         inputs.tex_data.as_ref(),
         ground_images.as_deref(),
         height_images.as_deref(),
-        None,
         None,
     )
 }
