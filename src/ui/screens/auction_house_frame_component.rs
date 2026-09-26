@@ -321,8 +321,10 @@ fn money_frame(money: u64) -> Element {
     out
 }
 
-/// `AuctionHouseFrameDisplayModeTabTemplate` tabs: Buy at BOTTOMLEFT (20,-28), each next
-/// tab LEFT of the previous RIGHT (-15, 0); 32 tall (Blizzard_AuctionHouseFrame.xml:44-67).
+/// `AuctionHouseFrameDisplayModeTabTemplate` tabs: Buy at BOTTOMLEFT (20,-28), 32 tall
+/// (Blizzard_AuctionHouseFrame.xml:44-67). The XML's LEFT -15 chaining is replaced at load by
+/// `PanelTemplates_SetNumTabs` → `PanelTemplates_AnchorTabs`: each next tab TOPLEFT at the
+/// previous TOPRIGHT + 3 (SharedUIPanelTemplates.lua:460-470).
 fn tabs(active: AuctionHouseTab) -> Element {
     let mut x = 20.0;
     let mut out = Vec::new();
@@ -337,7 +339,7 @@ fn tabs(active: AuctionHouseTab) -> Element {
             (x, 534.0, width),
             false,
         ));
-        x += width - 15.0;
+        x += width + 3.0;
     }
     out
 }

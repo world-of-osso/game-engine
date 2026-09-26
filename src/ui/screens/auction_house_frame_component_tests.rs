@@ -418,3 +418,18 @@ fn top_tab_art_is_the_upside_down_lower_three_quarters() {
     assert_eq!(texture.tex_coords[2], 169.0 / 256.0);
     assert_eq!(texture.tex_coords[3], 137.5 / 256.0);
 }
+
+/// `PanelTemplates_SetNumTabs` → `PanelTemplates_AnchorTabs` (SharedUIPanelTemplates.lua:460-470)
+/// re-anchors each tab TOPLEFT to the previous TOPRIGHT + 3, replacing the XML's LEFT -15.
+#[test]
+fn bottom_tabs_sit_three_apart() {
+    let mut reg = registry(visible(AuctionHouseTab::Buy));
+    compute_layout(&mut reg);
+    let tabs: Vec<LayoutRect> = (1..=3)
+        .map(|i| rect(&reg, &format!("AuctionHouseFrameTab{i}")))
+        .collect();
+    for pair in tabs.windows(2) {
+        assert_eq!(pair[1].x, pair[0].x + pair[0].width + 3.0);
+        assert_eq!(pair[1].y, pair[0].y);
+    }
+}
