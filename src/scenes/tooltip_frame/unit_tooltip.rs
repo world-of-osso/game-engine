@@ -8,8 +8,8 @@ use shared::protocol::{CreatureTooltip, TooltipItem};
 use shared::transmog::AppearanceCollection;
 
 use super::{
-    ItemMark, TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_LABEL_COLOR, TOOLTIP_WHITE, TooltipFrameState,
-    TooltipLineState, TooltipRecord, parse_rgba, quality_color, trim_number,
+    ItemMark, TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_LABEL_COLOR, TOOLTIP_WHITE, TooltipAnchor,
+    TooltipFrameState, TooltipLineState, TooltipRecord, parse_rgba, quality_color, trim_number,
 };
 
 /// `FACTION_BAR_COLORS` by `UnitReaction` (SharedColorConstants.lua:3-13): 2 red
@@ -123,6 +123,9 @@ pub(super) fn npc_tooltip(
         title_color: npc_name_color(input.reaction),
         lines,
         record: Some(TooltipRecord::Creature(input.entry)),
+        // GameTooltip:SetWorldCursor (GameTooltip.lua:977-1020) and
+        // UnitFrame_UpdateTooltip (UnitFrame.lua:390-391): the default anchor.
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -159,6 +162,7 @@ pub(super) fn player_tooltip(input: &PlayerTooltipInput) -> TooltipFrameState {
         title_color: player_name_color(input.reaction),
         lines,
         record: None,
+        anchor: TooltipAnchor::Default,
     }
 }
 

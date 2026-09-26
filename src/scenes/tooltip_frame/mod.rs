@@ -20,6 +20,7 @@ use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
 use shared::components::PowerType;
 use shared::protocol::ActionRef;
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::text_measure::measure_text;
@@ -162,6 +163,36 @@ impl TooltipRecord {
     }
 }
 
+/// Where a tooltip goes: Retail `GameTooltip_SetDefaultAnchor`, or
+/// `GameTooltip:SetOwner(owner, anchorType)` next to the hovered frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+enum TooltipAnchor {
+    /// Bottom right of the screen (`GameTooltipDefaultContainer`).
+    #[default]
+    Default,
+    Owner {
+        frame: u64,
+        side: OwnerSide,
+    },
+}
+
+/// `SetOwner` anchor types (Widget API): `ANCHOR_RIGHT` puts the tooltip's
+/// BOTTOMLEFT on the owner's TOPRIGHT, `ANCHOR_LEFT` its BOTTOMRIGHT on the
+/// owner's TOPLEFT, `ANCHOR_BOTTOMLEFT` its TOPRIGHT on the owner's BOTTOMLEFT.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OwnerSide {
+    Right,
+    Left,
+    BottomLeft,
+    /// `ContainerFrameItemButton_CalculateItemTooltipAnchors`
+    /// (ContainerFrame.lua:1448-1458): right when the owner's right edge is left
+    /// of the screen centre, else left.
+    RightOrLeftByRightEdge,
+    /// TargetFrame.xml:35-40 aura `OnEnter`: left when the owner's centre is
+    /// right of the screen centre, else right.
+    RightOrLeftByCenter,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 struct TooltipFrameState {
     visible: bool,
@@ -171,6 +202,7 @@ struct TooltipFrameState {
     title_color: [f32; 4],
     lines: Vec<TooltipLineState>,
     record: Option<TooltipRecord>,
+    anchor: TooltipAnchor,
 }
 
 impl TooltipFrameState {
@@ -183,6 +215,7 @@ impl TooltipFrameState {
             title_color: TOOLTIP_TEXT_COLOR,
             lines: Vec::new(),
             record: None,
+            anchor: TooltipAnchor::Default,
         }
     }
 
@@ -402,6 +435,17 @@ fn hovered_spell_tooltip(
         .spellbook
         .as_deref()
         .and_then(|runtime| runtime.spell_for_frame(registry, frame_id));
+    // SpellBookItem.lua:494 `SetOwner(self.Button, "ANCHOR_RIGHT")`; action
+    // buttons use the default anchor with Retail's default `UberTooltips` 1
+    // (ActionButton.lua:1070-1080).
+    let anchor = if from_spellbook.is_some() {
+        TooltipAnchor::Owner {
+            frame: frame_id,
+            side: OwnerSide::Right,
+        }
+    } else {
+        TooltipAnchor::Default
+    };
     let spell_id = from_spellbook
         .or_else(|| {
             let slot = hovered_action_slot(registry, frame_id)?;
@@ -413,13 +457,14 @@ fn hovered_spell_tooltip(
         .or_else(|| chat_spell_link_at(registry, frame_id))?;
     let catalog = sources.catalog.as_deref();
     let ctx = sources.text.context();
-    Some(match catalog.and_then(|catalog| catalog.get(spell_id)) {
+    let tooltip = match catalog.and_then(|catalog| catalog.get(spell_id)) {
         Some(spell) => spell_tooltip(
             spell,
             catalog.and_then(|c| c.render_description(spell_id, &ctx)),
         ),
         None => unknown_spell_tooltip(spell_id),
-    })
+    };
+    Some(TooltipFrameState { anchor, ..tooltip })
 }
 
 fn hovered_action_slot(registry: &FrameRegistry, mut frame_id: u64) -> Option<usize> {
@@ -446,7 +491,12 @@ fn hovered_talent_tooltip(
             .as_deref()
             .and_then(|name| tooltips.by_frame.get(name))
         {
-            return Some(talent_tooltip(tooltip));
+            // TalentDisplayMixin:AcquireTooltip (Blizzard_TalentDisplay.lua:127-128).
+            return Some(owned_by(
+                frame_id,
+                OwnerSide::Right,
+                talent_tooltip(tooltip),
+            ));
         }
         frame_id = frame.parent_id?;
     }
@@ -466,10 +516,13 @@ fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
         title_color: TOOLTIP_TEXT_COLOR,
         lines,
         record: Some(TooltipRecord::Spell(tooltip.spell_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
-/// `ExhaustionTickMixin:ExhaustionToolTipText`, shown from the XP bar's `OnEnter`.
+/// `ExhaustionTickMixin:ExhaustionToolTipText`, shown from the XP bar's `OnEnter`,
+/// at the default anchor (`GameTooltip_SetDefaultAnchor(tooltip, UIParent)`,
+/// ExpBarOverrides.lua:30).
 fn hovered_xp_tooltip(
     registry: &FrameRegistry,
     frame_id: u64,
@@ -495,6 +548,7 @@ fn xp_tooltip(update: &shared::protocol::PlayerXpUpdate) -> TooltipFrameState {
             TooltipLineState::colored("gained from monsters.", TOOLTIP_WHITE),
         ],
         record: None,
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -505,7 +559,12 @@ fn hovered_item_tooltip(
 ) -> Option<TooltipFrameState> {
     let (bag_index, slot_index) = hovered_bag_slot(registry, frame_id)?;
     let slot = inventory.slot(bag_index, slot_index)?;
-    (!slot.is_empty()).then(|| item_tooltip(slot))
+    let owner = ancestor_named(registry, frame_id, |name| {
+        parse_bag_slot_name(name).is_some()
+    })?;
+    // ContainerFrameItemButtonMixin:OnUpdate: `ANCHOR_NONE` + CalculateItemTooltipAnchors.
+    (!slot.is_empty())
+        .then(|| owned_by(owner, OwnerSide::RightOrLeftByRightEdge, item_tooltip(slot)))
 }
 
 /// `GameTooltip:SetMerchantItem` / `SetBuybackItem` for a `MerchantItem<n>` cell.
@@ -524,7 +583,12 @@ fn hovered_merchant_tooltip(
         frame_id = frame.parent_id?;
     };
     let (item_id, name, quality, count, stock) = merchant.cell_item(index)?;
-    Some(merchant_tooltip(item_id, name, quality, count, stock))
+    // MerchantItemButton_OnEnter (MerchantFrame.lua:710-711): `ANCHOR_RIGHT`.
+    Some(owned_by(
+        frame_id,
+        OwnerSide::Right,
+        merchant_tooltip(item_id, name, quality, count, stock),
+    ))
 }
 
 /// `MerchantItem<n>` (1-based) exactly; its children carry longer names.
@@ -558,6 +622,7 @@ fn merchant_tooltip(
         title_color: parse_rgba(quality_color(quality)),
         lines,
         record: Some(TooltipRecord::Item(item_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -575,7 +640,12 @@ fn hovered_mail_tooltip(
         }
         frame_id = frame.parent_id?;
     }
-    Some(mail_tooltip(&mail?.pending_senders))
+    // MiniMapMailFrameMixin:OnEnter (Minimap.lua:500-501): `ANCHOR_BOTTOMLEFT`.
+    Some(owned_by(
+        frame_id,
+        OwnerSide::BottomLeft,
+        mail_tooltip(&mail?.pending_senders),
+    ))
 }
 
 fn mail_tooltip(senders: &[String]) -> TooltipFrameState {
@@ -595,6 +665,7 @@ fn mail_tooltip(senders: &[String]) -> TooltipFrameState {
             .map(|sender| TooltipLineState::colored(sender.clone(), TOOLTIP_WHITE))
             .collect(),
         record: None,
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -616,7 +687,15 @@ fn hovered_target_aura_tooltip(
         aura_state,
     )?;
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    Some(aura_tooltip(aura, colorblind_mode))
+    let owner = ancestor_named(registry, frame_id, |name| {
+        parse_target_aura_name(name).is_some()
+    })?;
+    // TargetFrame.xml:35-40 aura `OnEnter`: left or right by the aura's centre.
+    Some(owned_by(
+        owner,
+        OwnerSide::RightOrLeftByCenter,
+        aura_tooltip(aura, colorblind_mode),
+    ))
 }
 
 fn hovered_player_aura_tooltip(
@@ -633,20 +712,94 @@ fn hovered_player_aura_tooltip(
         auras.buffs().nth(index)
     }?;
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    Some(aura_tooltip(aura, colorblind_mode))
+    // AuraButtonMixin:OnEnter (BuffFrame.lua:888-899): `ANCHOR_BOTTOMLEFT` on the
+    // aura button under the cursor.
+    Some(owned_by(
+        frame_id,
+        OwnerSide::BottomLeft,
+        aura_tooltip(aura, colorblind_mode),
+    ))
 }
 
-/// Retail `GameTooltip_SetDefaultAnchor`: the tooltip's bottom-right corner on
-/// `GameTooltipDefaultContainer`'s, 9 left of and 85 above UIParent's bottom right.
-/// Every tooltip that describes a record ends with its grey ID line.
+/// Place the tooltip at its anchor (clamped to the screen, `clampedToScreen` in
+/// SharedTooltipTemplates.xml:10). Every tooltip that describes a record ends with
+/// its grey ID line.
 fn place_tooltip(mut tooltip: TooltipFrameState, registry: &FrameRegistry) -> TooltipFrameState {
     if let Some(record) = tooltip.record {
         tooltip.lines.push(record.id_line());
     }
+    let height = tooltip.height();
+    let (x, y) = match tooltip.anchor {
+        TooltipAnchor::Default => default_anchor_position(registry, height),
+        TooltipAnchor::Owner { frame, side } => {
+            let Some(owner) = registry
+                .get(frame)
+                .and_then(|frame| frame.layout_rect.clone())
+            else {
+                return TooltipFrameState::hidden();
+            };
+            owner_anchor_position(&owner, side, registry.screen_width, height)
+        }
+    };
     tooltip.visible = true;
-    tooltip.x = registry.screen_width + TOOLTIP_DEFAULT_ANCHOR_X - TOOLTIP_W;
-    tooltip.y = registry.screen_height - TOOLTIP_DEFAULT_ANCHOR_Y - tooltip.height();
+    tooltip.x = x.clamp(0.0, (registry.screen_width - TOOLTIP_W).max(0.0));
+    tooltip.y = y.clamp(0.0, (registry.screen_height - height).max(0.0));
     tooltip
+}
+
+/// Retail `GameTooltip_SetDefaultAnchor` (SharedTooltipTemplates.lua:87-114): the
+/// tooltip's bottom-right corner on `GameTooltipDefaultContainer`'s, 9 left of and
+/// 85 above UIParent's bottom right.
+fn default_anchor_position(registry: &FrameRegistry, height: f32) -> (f32, f32) {
+    (
+        registry.screen_width + TOOLTIP_DEFAULT_ANCHOR_X - TOOLTIP_W,
+        registry.screen_height - TOOLTIP_DEFAULT_ANCHOR_Y - height,
+    )
+}
+
+/// Top-left of a tooltip `height` tall anchored to `owner` (screen coordinates, y down).
+fn owner_anchor_position(
+    owner: &LayoutRect,
+    side: OwnerSide,
+    screen_width: f32,
+    height: f32,
+) -> (f32, f32) {
+    let right_of = (owner.x + owner.width, owner.y - height);
+    let left_of = (owner.x - TOOLTIP_W, owner.y - height);
+    match side {
+        OwnerSide::Right => right_of,
+        OwnerSide::Left => left_of,
+        OwnerSide::BottomLeft => (owner.x - TOOLTIP_W, owner.y + owner.height),
+        OwnerSide::RightOrLeftByRightEdge if owner.x + owner.width < screen_width / 2.0 => right_of,
+        OwnerSide::RightOrLeftByRightEdge => left_of,
+        OwnerSide::RightOrLeftByCenter if owner.x + owner.width / 2.0 > screen_width / 2.0 => {
+            left_of
+        }
+        OwnerSide::RightOrLeftByCenter => right_of,
+    }
+}
+
+/// `tooltip` anchored beside `frame` (`SetOwner(frame, side)`).
+fn owned_by(frame: u64, side: OwnerSide, tooltip: TooltipFrameState) -> TooltipFrameState {
+    TooltipFrameState {
+        anchor: TooltipAnchor::Owner { frame, side },
+        ..tooltip
+    }
+}
+
+/// The nearest ancestor of `frame_id` (itself included) whose name matches.
+fn ancestor_named(
+    registry: &FrameRegistry,
+    mut frame_id: u64,
+    matches: impl Fn(&str) -> bool,
+) -> Option<u64> {
+    loop {
+        let frame = registry.get(frame_id)?;
+        if frame.name.as_deref().is_some_and(&matches) {
+            return Some(frame_id);
+        }
+        frame_id = frame.parent_id?;
+    }
 }
 
 fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
@@ -668,6 +821,7 @@ fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
         title_color: parse_rgba(slot.quality.border_color()),
         lines,
         record: Some(TooltipRecord::Item(slot.item_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -694,6 +848,7 @@ fn spell_tooltip(spell: &CatalogSpell, description: Option<String>) -> TooltipFr
         title_color: TOOLTIP_WHITE,
         lines,
         record: Some(TooltipRecord::Spell(spell.id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -706,6 +861,7 @@ fn unknown_spell_tooltip(spell_id: u32) -> TooltipFrameState {
         title_color: TOOLTIP_SPELL_COLOR,
         lines: Vec::new(),
         record: Some(TooltipRecord::Spell(spell_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -937,6 +1093,7 @@ fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState
         },
         lines,
         record: Some(TooltipRecord::Spell(aura.spell_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -1237,6 +1394,87 @@ mod tests {
         assert!(mail.lines.is_empty());
     }
 
+    fn rect(x: f32, y: f32, width: f32, height: f32) -> LayoutRect {
+        LayoutRect {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// A 36×36 owner at `(x, y)` on a 1920×1080 screen, and a 5-line tooltip.
+    fn placed_beside(x: f32, y: f32, side: OwnerSide) -> (f32, f32, f32) {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let owner = registry.create_frame("Owner", None);
+        registry
+            .set_computed_layout(owner, rect(x, y, 36.0, 36.0))
+            .unwrap();
+        let content = TooltipFrameState {
+            lines: vec![TooltipLineState::new("line"); 5],
+            ..TooltipFrameState::hidden()
+        };
+        let height = content.height();
+        let placed = place_tooltip(owned_by(owner, side, content), &registry);
+        assert!(placed.visible);
+        (placed.x, placed.y, height)
+    }
+
+    #[test]
+    fn owner_anchors_follow_the_retail_anchor_types() {
+        // ANCHOR_RIGHT: BOTTOMLEFT on the owner's TOPRIGHT.
+        let (x, y, h) = placed_beside(600.0, 500.0, OwnerSide::Right);
+        assert_eq!((x, y), (636.0, 500.0 - h));
+        // ANCHOR_LEFT: BOTTOMRIGHT on the owner's TOPLEFT.
+        let (x, y, h) = placed_beside(600.0, 500.0, OwnerSide::Left);
+        assert_eq!((x, y), (600.0 - TOOLTIP_W, 500.0 - h));
+        // ANCHOR_BOTTOMLEFT: TOPRIGHT on the owner's BOTTOMLEFT.
+        let (x, y, _) = placed_beside(1600.0, 20.0, OwnerSide::BottomLeft);
+        assert_eq!((x, y), (1600.0 - TOOLTIP_W, 56.0));
+        // Bag slots: right of a slot in the left half, left of one in the right half.
+        let (x, _, _) = placed_beside(600.0, 500.0, OwnerSide::RightOrLeftByRightEdge);
+        assert_eq!(x, 636.0);
+        let (x, _, _) = placed_beside(1700.0, 500.0, OwnerSide::RightOrLeftByRightEdge);
+        assert_eq!(x, 1700.0 - TOOLTIP_W);
+        // Target auras: by the aura's centre.
+        let (x, _, _) = placed_beside(1000.0, 200.0, OwnerSide::RightOrLeftByCenter);
+        assert_eq!(x, 1000.0 - TOOLTIP_W);
+        let (x, _, _) = placed_beside(300.0, 200.0, OwnerSide::RightOrLeftByCenter);
+        assert_eq!(x, 336.0);
+        // Clamped to the screen: a right-anchored tooltip at the top edge.
+        let (x, y, _) = placed_beside(1800.0, 10.0, OwnerSide::Right);
+        assert_eq!((x, y), (1920.0 - TOOLTIP_W, 0.0));
+    }
+
+    #[test]
+    fn merchant_cells_anchor_right_of_the_cell_and_action_buttons_use_the_default() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let cell = registry.create_frame("MerchantItem1", None);
+        let name = registry.create_frame("MerchantItem1Name", Some(cell));
+        let mut merchant = MerchantState::default();
+        merchant.npc = Some(1);
+        merchant.items = vec![shared::protocol::VendorItem {
+            slot: 1,
+            item_id: 2117,
+            name: "Thin Cloth Shoes".into(),
+            quality: 1,
+            price: 5,
+            stack_count: 1,
+            max_stack: 1,
+            num_available: None,
+            usable: true,
+        }];
+        let tooltip = hovered_merchant_tooltip(&registry, name, Some(&merchant)).expect("merchant");
+        assert_eq!(
+            tooltip.anchor,
+            TooltipAnchor::Owner {
+                frame: cell,
+                side: OwnerSide::Right
+            }
+        );
+        assert_eq!(unknown_spell_tooltip(1464).anchor, TooltipAnchor::Default);
+    }
+
     #[test]
     fn tooltips_use_the_retail_default_anchor_at_the_bottom_right() {
         let registry = FrameRegistry::new(1920.0, 1080.0);
@@ -1479,6 +1717,13 @@ mod tests {
         );
         let tooltip =
             hovered_talent_tooltip(&registry, icon, Some(&tooltips)).expect("talent tooltip");
+        assert_eq!(
+            tooltip.anchor,
+            TooltipAnchor::Owner {
+                frame: node,
+                side: OwnerSide::Right
+            }
+        );
         assert_eq!(tooltip.title, "Blade of Justice");
         let lines: Vec<&str> = tooltip.lines.iter().map(|l| l.left_text.as_str()).collect();
         assert_eq!(
