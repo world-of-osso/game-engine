@@ -994,3 +994,7 @@ Created [[stockade-entrance]]: MODD name_offset indexes MODI (WMO doodads of MOD
 ## [2026-09-26] update | Doodad particles, player walls, antiportal flag, interior camera terrain
 
 [[stockade-entrance]]: all doodads spawn M2 emitters; player movement ignores visibility for WMO walls; antiportals from the MOGP flag; no camera terrain clamp inside WMO interiors. [[collision-system]] updated.
+
+## [2026-09-26] investigation | Stockade floor fall
+
+Created [[stockade-floor-fall]]: the failing teleport points lie outside WMO 108631 (no face crosses them); server ground matches brute force on all 7,650 floor samples; sky is the exterior-only portal view. Open: TrinityCore fall-to-void kill.
