@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-26] investigation | Bevy, Godot, and solarityclient bones
+
+Created [[bevy-godot-bone-comparison]], a source-only comparison pinned to game-engine `c3e9be93` (documentation through `a9d9c950`), patched Bevy `20ed24db`, upstream Bevy 0.19.0, Godot 4.7.2 `ed1daf0bf001b61586d9930840f2f1394092c079`, and solarityclient `f5f5f4a81e5c11241f4c80c117e5dfe9b587dcee`. It records representation, dirty/upload, visibility, and skinning-pass boundaries; no runtime winner or flat-array conversion follows. Corrected [[solarityclient-performance-comparison]]: its inspected placement loop recomposes before final camera-frustum rejection; earlier admission gates can still skip work.
+
 ## [2026-09-25] collision | WMO floor collision (player ground)
 
 Created [[player-ground]] and the [wmo floor collision](../specs/wmo-floor-collision.md) spec. The client and the server now choose the highest walkable terrain or WMO floor within 1.6 yd above the feet, using `shared::ground`:

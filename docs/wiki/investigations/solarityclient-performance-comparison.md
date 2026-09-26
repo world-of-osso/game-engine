@@ -34,7 +34,7 @@ Their render path is not exotic: no instancing, no indirect draws, CPU particles
 | Distance culling mixes per-tile chunk indices in one global set | `camera/culling.rs:166-177`, `terrain_spawn.rs:339` (`chunk_index: i as u16`) | Per-tile resident lookup table |
 | `wmo_portal_cull_system` scans the whole `WmoGroup` query three times per WMO per frame, before its early return | `camera/culling.rs:381-442` | Per-WMO group data, explicit traversal stack, lazy projection |
 | One hanabi `EffectAsset` per emitter instance; model particles spawn full animated M2s per particle | `particles/emitters.rs:143-151`, `emitters_model_particles.rs:68-132` | One shared frame particle buffer, pooled slots |
-| Animation clips/graphs built per instance; LOD only for NPCs | `animation/bevy_player.rs:64-66`, `animation/lod.rs:78` | Per-placement CPU pose, skipped when frustum-rejected |
+| Animation clips/graphs built per instance; LOD only for NPCs | `animation/bevy_player.rs:64-66`, `animation/lod.rs:78` | Per-placement CPU pose; the inspected placement loop recomposes before its final camera-frustum rejection, though earlier admission gates can skip work |
 
 Our entity count feeds the Bevy costs already identified in [[movement-performance]] (`extract_skins` top leaf, transform-propagation spin) and the 216% continuous-render floor in [[empty-window-baseline]]. Their serial single-thread frame loop is not transferable to Bevy.
 
