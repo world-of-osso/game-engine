@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot native M2 preview boundary
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) through `e21f7c40`, `74ccbd8f`, `9c09cfb6`, and workspace integration `a9c8f58b`. The current capability is a native M2 preview path with skinned batches, limited BLP/type-0 albedo material conversion, sequence attachment, and fixed framing. The model-scene and M2-assets scripts are unexecuted at the current revision because the portable UI-toolkit `WidgetDef` macro anchors mismatch blocks the integrated build. Headless transport still carries Bevy state and, through `shared`, Bevy camera/mesh dependencies; no Bevy-removal, runtime, material-fidelity, UI-parity, or migration-completion claim follows.
+
 ## [2026-09-26] system | Godot conversion bootstrap
 
 Created [[godot-conversion]] for game-engine `85794170`: verified Godot 4.7.2 archive, `godot` 0.5.5 Rust GDExtension workspace, and RED/GREEN `GameClient` native-`Node3D` headless smoke. Editor import scan `SIGABRT` remains separate and unresolved; all feature parity remains open.
