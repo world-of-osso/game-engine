@@ -1,7 +1,8 @@
 //! ADT root, texture companion and object companion byte parsers.
-use crate::asset::adt_format::{adt, adt_obj, adt_tex};
+use crate::asset::adt_format::{adt, adt_geometry, adt_obj, adt_tex};
 
-pub use adt::{BlendMeshData, ChunkHeightGrid, FlightBounds};
+pub use adt::{BlendMeshData, ChunkHeightGrid, FlightBounds, UNIT_SIZE};
+pub use adt_geometry::Geometry;
 pub use adt_obj::{AdtObjData, ChunkObjectRefs, DoodadPlacement, WmoPlacement};
 pub use adt_tex::{AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, TextureParams};
 
@@ -27,6 +28,23 @@ pub struct Chunk {
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub shadow_map: Option<[u8; 512]>,
+}
+
+/// MCNK positions, normals, UVs, and original Bevy winding for a parsed chunk.
+/// `tile_coords` are `(tile_y, tile_x)` when the authored tile is known.
+pub fn chunk_geometry(chunk: &Chunk, tile_coords: Option<(u32, u32)>) -> Geometry {
+    adt_geometry::build_mcnk_geometry(
+        adt_geometry::GeometryChunk {
+            index_x: chunk.index_x,
+            index_y: chunk.index_y,
+            position: chunk.position,
+            heights: &chunk.heights,
+            normals: &chunk.normals,
+            holes_low_res: chunk.holes_low_res,
+            holes_high_res: chunk.holes_high_res,
+        },
+        tile_coords,
+    )
 }
 
 pub fn parse_root(data: &[u8]) -> Result<Root, String> {
