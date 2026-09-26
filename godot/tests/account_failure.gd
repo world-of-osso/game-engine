@@ -15,7 +15,7 @@ func _run() -> void:
 		push_error("Native client must route account requests through the transport")
 		quit(1)
 		return
-	var error: String = client.connect_account(server, "godot-parity-nonexistent-account", "invalid-test-password", false)
+	var error: String = client.connect_account(server, "admin", "invalid-test-password", false)
 	if not error.is_empty():
 		push_error(error)
 		quit(1)
