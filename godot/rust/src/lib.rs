@@ -179,6 +179,9 @@ impl GameClient {
         scene::attach_preview_camera(&mut container, bounds);
         scene::attach_preview_light(&mut container);
         self.model_scene = Some(container);
+        if let Some(login) = self.login_ui.as_mut() {
+            login.set_visible(false);
+        }
         Ok((bounds, missing_textures))
     }
 }
