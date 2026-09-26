@@ -140,12 +140,7 @@ pub fn parse_modn(data: &[u8]) -> Result<Vec<WmoDoodadName>, String> {
 
 pub fn parse_mogn(data: &[u8]) -> Result<Vec<WmoGroupName>, String> {
     Ok(parse_named_entries_as(data, |(offset, name)| {
-        let is_antiportal = contains_ascii_case_insensitive(&name, "antiportal");
-        WmoGroupName {
-            is_antiportal,
-            offset,
-            name,
-        }
+        WmoGroupName { offset, name }
     }))
 }
 
@@ -255,17 +250,6 @@ fn parse_named_entries_as<T>(data: &[u8], map_entry: impl FnMut((u32, String)) -
         .into_iter()
         .map(map_entry)
         .collect()
-}
-
-fn contains_ascii_case_insensitive(haystack: &str, needle: &str) -> bool {
-    if needle.is_empty() {
-        return true;
-    }
-    let needle_bytes = needle.as_bytes();
-    haystack
-        .as_bytes()
-        .windows(needle_bytes.len())
-        .any(|window| window.eq_ignore_ascii_case(needle_bytes))
 }
 
 pub fn parse_mfog(data: &[u8]) -> Result<Vec<WmoFog>, String> {

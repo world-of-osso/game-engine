@@ -295,7 +295,7 @@ fn load_wmo_root_reads_mfog_entries() {
 }
 
 #[test]
-fn parse_mogn_preserves_offsets_and_antiportal_names() {
+fn parse_mogn_preserves_offsets_and_names() {
     let data = b"EntryHall\0antiportal01\0";
 
     let names = parse_mogn(data).expect("parse MOGN");
@@ -303,10 +303,8 @@ fn parse_mogn_preserves_offsets_and_antiportal_names() {
     assert_eq!(names.len(), 2);
     assert_eq!(names[0].offset, 0);
     assert_eq!(names[0].name, "EntryHall");
-    assert!(!names[0].is_antiportal);
     assert_eq!(names[1].offset, 10);
     assert_eq!(names[1].name, "antiportal01");
-    assert!(names[1].is_antiportal);
 }
 
 #[test]
@@ -318,10 +316,8 @@ fn load_wmo_root_reads_mogn_group_names() {
 
     assert_eq!(root.group_names.len(), 2);
     assert_eq!(root.group_names[0].name, "EntryHall");
-    assert!(!root.group_names[0].is_antiportal);
     assert_eq!(root.group_names[1].offset, 10);
     assert_eq!(root.group_names[1].name, "antiportal01");
-    assert!(root.group_names[1].is_antiportal);
 }
 
 #[test]
