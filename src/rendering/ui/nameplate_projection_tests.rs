@@ -507,3 +507,90 @@ fn cast_fill_colour_follows_cast_type_and_style_sizes_the_cast_bar() {
         .unwrap();
     assert_eq!(label_font.font_size, FontSize::Px(12.0));
 }
+
+/// In-world the UI camera is scaled (auto-fit), so a plate's parts must be laid out in overlay
+/// units: name, fill, frame and cast bar keep their UI-unit offsets from the health body centre.
+#[test]
+fn plate_parts_stay_aligned_when_the_ui_camera_is_scaled() {
+    use crate::rendering::nameplate_art::CAST_BACKGROUND_RECT;
+    let (mut app, camera) = app_with_cameras(1.0);
+    let (owner, visuals) = spawn_casting_player(&mut app, "Scaled");
+    app.world_mut().get_mut::<Health>(owner).unwrap().current = 40.0;
+    let mut projection = app
+        .world_mut()
+        .query_filtered::<&mut Projection, With<UiCamera>>()
+        .single_mut(app.world_mut())
+        .unwrap();
+    let Projection::Orthographic(ortho) = &mut *projection else {
+        panic!("UI camera is orthographic");
+    };
+    ortho.scale = 1.5;
+    settle(&mut app);
+    let bar = app
+        .world()
+        .get::<Children>(owner)
+        .unwrap()
+        .iter()
+        .find(|child| app.world().get::<HealthBar>(*child).is_some())
+        .unwrap();
+    let bar_world = app
+        .world()
+        .get::<GlobalTransform>(bar)
+        .unwrap()
+        .translation();
+    let viewport = app
+        .world()
+        .get::<Camera>(camera)
+        .unwrap()
+        .world_to_viewport(
+            app.world().get::<GlobalTransform>(camera).unwrap(),
+            bar_world,
+        )
+        .unwrap();
+    let (overlay, overlay_pose) = app
+        .world_mut()
+        .query_filtered::<(&Camera, &GlobalTransform), With<UiCamera>>()
+        .single(app.world())
+        .unwrap();
+    let center = overlay
+        .viewport_to_world_2d(overlay_pose, viewport)
+        .unwrap();
+    let at = |entity: Entity| {
+        app.world()
+            .get::<Transform>(entity)
+            .unwrap()
+            .translation
+            .truncate()
+    };
+    let name = *visuals
+        .iter()
+        .find(|&&entity| app.world().get::<Nameplate>(entity).is_some())
+        .unwrap();
+    // Thin fixture: 15px frame, top 7.5 above the body centre, plus Retail's 2px spacing.
+    assert!(at(name).abs_diff_eq(center + Vec2::Y * 9.5, 0.01));
+    let fill = visuals
+        .iter()
+        .copied()
+        .find(|&entity| app.world().get::<HealthBarPart>(entity) == Some(&HealthBarPart::Fill))
+        .unwrap();
+    let fill_size = app
+        .world()
+        .get::<Sprite>(fill)
+        .unwrap()
+        .custom_size
+        .unwrap();
+    assert!((at(fill).x - fill_size.x / 2.0 - (center.x - 94.0)).abs() < 0.01);
+    let background = visuals
+        .iter()
+        .copied()
+        .find(|&entity| {
+            app.world().get::<Sprite>(entity).is_some_and(|sprite| {
+                sprite
+                    .rect
+                    .is_some_and(|r| r.min == CAST_BACKGROUND_RECT.min)
+            })
+        })
+        .unwrap();
+    // Thin cast: 5px half health body, 2px gap, 3px half cast body below the centre.
+    assert!(at(background).abs_diff_eq(center - Vec2::Y * 10.0, 0.01));
+}

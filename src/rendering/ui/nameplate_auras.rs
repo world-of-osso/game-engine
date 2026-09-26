@@ -13,7 +13,7 @@ use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
 use crate::client_options::{HudOptions, HudVisibilityToggles, UiDisabled};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
-use crate::health_bar::{BAR_HEIGHT, BAR_WIDTH, HealthBar};
+use crate::health_bar::HealthBar;
 use crate::rendering::nameplate_art::{NameplateArtCache, load_fdid_texture};
 
 pub(crate) const MAX_NAMEPLATE_AURAS: usize = 6;
@@ -350,11 +350,8 @@ fn project_part(scene: &AuraScene, owner: Entity, part: NameplateAuraPart) -> Op
         .iter()
         .filter_map(|child| scene.bars.get(child).ok())
         .find(|(_, visibility)| **visibility != Visibility::Hidden)?;
-    let top_left = camera
-        .world_to_viewport(
-            camera_pose,
-            bar.transform_point(Vec3::new(-BAR_WIDTH / 2.0, BAR_HEIGHT / 2.0, 0.0)),
-        )
+    let bar_center = camera
+        .world_to_viewport(camera_pose, bar.translation())
         .ok()?;
     let distance = camera_pose.translation().distance(bar.translation());
     let limit = scene
@@ -363,7 +360,7 @@ fn project_part(scene: &AuraScene, owner: Entity, part: NameplateAuraPart) -> Op
         .map_or(crate::client_options::DEFAULT_NAMEPLATE_DISTANCE, |hud| {
             hud.nameplate_distance
         });
-    if distance >= limit || !camera.logical_viewport_rect()?.contains(top_left) {
+    if distance >= limit || !camera.logical_viewport_rect()?.contains(bar_center) {
         return None;
     }
     let style = crate::health_bar::plate_style(scene.hud.as_deref());
@@ -372,12 +369,16 @@ fn project_part(scene: &AuraScene, owner: Entity, part: NameplateAuraPart) -> Op
         + 2.0
         + style.name_font_size
         + 4.0;
-    let center = top_left
-        + Vec2::new(
-            part.slot() as f32 * (ICON_SIZE + ICON_GAP + 2.0 * BORDER) + ICON_SIZE / 2.0,
-            -(name_clearance + ICON_SIZE / 2.0),
-        );
-    let position = overlay.viewport_to_world_2d(overlay_pose, center).ok()?;
+    let offset = Vec2::new(
+        -style.health_width / 2.0
+            + part.slot() as f32 * (ICON_SIZE + ICON_GAP + 2.0 * BORDER)
+            + ICON_SIZE / 2.0,
+        -(style.health_height / 2.0 + name_clearance + ICON_SIZE / 2.0),
+    );
+    let bar_center = overlay
+        .viewport_to_world_2d(overlay_pose, bar_center)
+        .ok()?;
+    let position = crate::health_bar::offset_in_overlay(bar_center, offset);
     let z = match part {
         NameplateAuraPart::Border(_) => 2.4,
         NameplateAuraPart::Icon { .. } => 2.5,
