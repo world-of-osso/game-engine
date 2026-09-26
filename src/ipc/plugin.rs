@@ -345,6 +345,7 @@ struct IpcSenderParams<'w, 's> {
             &'static GlobalTransform,
         ),
     >,
+    players: Query<'w, 's, (Entity, &'static shared::components::Player)>,
 }
 
 pub struct IpcPlugin;
@@ -738,6 +739,7 @@ fn dispatch_map_and_equipment_request(
 /// A right-click on the nearest NPC named `name`: it becomes the target and is
 /// looted, only targeted (a corpse without loot) or interacted with, as
 /// `loot_state::npc_right_click` decides (auto-loot off). The server checks range.
+/// Without such an NPC or game object, a player of that name becomes the target.
 fn handle_quest_interact(
     respond: mpsc::Sender<Response>,
     params: &mut IpcSenderParams,
@@ -773,6 +775,22 @@ fn handle_quest_interact(
             .map(|(entity, info, _)| (entity, info))
     };
     let object = if npc.is_none() { object() } else { None };
+    // A player is only targeted by a right-click.
+    let player = || {
+        params
+            .players
+            .iter()
+            .find(|(_, player)| player.name.eq_ignore_ascii_case(name))
+            .map(|(entity, player)| (entity, player.name.clone()))
+    };
+    if npc.is_none()
+        && object.is_none()
+        && let Some((entity, player)) = player()
+    {
+        params.current_target.0 = Some(entity);
+        let _ = respond.send(Response::Text(format!("target {player}")));
+        return;
+    }
     let response = match (npc, object) {
         (Some((entity, npc, click)), _) => {
             params.current_target.0 = Some(entity);
@@ -800,7 +818,7 @@ fn handle_quest_interact(
                 .write(NpcInteractionRequest::UseObject(entity));
             Response::Text(text)
         }
-        (None, None) => Response::Error(format!("no NPC or game object named {name}")),
+        (None, None) => Response::Error(format!("no NPC, game object or player named {name}")),
     };
     let _ = respond.send(response);
 }

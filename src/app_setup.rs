@@ -248,6 +248,7 @@ fn register_ui_plugins(app: &mut App) {
     app.add_plugins(game_engine::auction_house::AuctionHousePlugin)
         .add_plugins(game_engine::collection::CollectionPlugin)
         .add_plugins(game_engine::duel::DuelPlugin)
+        .add_plugins(game_engine::summon::SummonPlugin)
         .add_plugins(game_engine::encounter_journal::EncounterJournalPlugin)
         .add_plugins(game_engine::inspect::InspectPlugin)
         .add_plugins(game_engine::currency::CurrencyPlugin)
@@ -645,6 +646,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(scenes::group_frames::GroupFramesPlugin);
     app.add_plugins(scenes::loot_rules_frame::LootRulesFramePlugin);
     app.add_plugins(scenes::static_popup::StaticPopupPlugin);
+    app.add_plugins(scenes::summon_popup::SummonPopupPlugin);
     app.add_plugins(scenes::death_ui::DeathUiPlugin);
     app.add_plugins(scenes::ui_errors_frame::UiErrorsFramePlugin);
     app.add_plugins(scenes::chat_frame::ChatFramePlugin);

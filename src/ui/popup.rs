@@ -41,6 +41,8 @@ pub struct PopupResult {
 pub struct PopupEntry {
     pub id: PopupId,
     pub spec: PopupSpec,
+    /// `button1:Disable()` greys Accept out; it cannot be accepted meanwhile.
+    pub accept_enabled: bool,
 }
 
 struct PopupSlot {
@@ -65,7 +67,11 @@ impl PopupStack {
         self.next_id += 1;
         let id = PopupId(self.next_id);
         self.slots.push(PopupSlot {
-            entry: PopupEntry { id, spec },
+            entry: PopupEntry {
+                id,
+                spec,
+                accept_enabled: true,
+            },
             shown_for: Duration::ZERO,
         });
         id
@@ -97,9 +103,12 @@ impl PopupStack {
         }
     }
 
-    /// Close `id` with `outcome`. Returns false when `id` is not stacked.
+    /// Close `id` with `outcome`. Returns false when `id` is not stacked, or for
+    /// an accept while Accept is disabled.
     pub fn resolve(&mut self, id: PopupId, outcome: PopupOutcome) -> bool {
-        let Some(index) = self.slots.iter().position(|s| s.entry.id == id) else {
+        let Some(index) = self.slots.iter().position(|s| {
+            s.entry.id == id && (outcome != PopupOutcome::Accepted || s.entry.accept_enabled)
+        }) else {
             return false;
         };
         let slot = self.slots.remove(index);
@@ -109,6 +118,21 @@ impl PopupStack {
             outcome,
         });
         true
+    }
+
+    /// Replace the `key` popup's text in place, keeping its time on screen
+    /// (`GetExpirationText` countdowns).
+    pub fn set_text(&mut self, key: &str, text: String) {
+        if let Some(slot) = self.slots.iter_mut().find(|s| s.entry.spec.key == key) {
+            slot.entry.spec.text = text;
+        }
+    }
+
+    /// Enable or disable the `key` popup's Accept button.
+    pub fn set_accept_enabled(&mut self, key: &str, enabled: bool) {
+        if let Some(slot) = self.slots.iter_mut().find(|s| s.entry.spec.key == key) {
+            slot.entry.accept_enabled = enabled;
+        }
     }
 
     /// Whether a popup of `key` is stacked (visible or queued).
@@ -209,6 +233,38 @@ mod tests {
         let keys: Vec<_> = stack.visible().into_iter().map(|e| e.spec.key).collect();
         assert_eq!(keys, ["a", "c", "d"]);
         assert!(stack.drain_results().is_empty());
+    }
+
+    #[test]
+    fn disabled_accept_cannot_be_accepted_but_can_be_cancelled() {
+        let mut stack = PopupStack::default();
+        let summon = stack.push(spec("summon"));
+        stack.set_accept_enabled("summon", false);
+        stack.accept_top();
+        assert!(!stack.resolve(summon, PopupOutcome::Accepted));
+        assert!(stack.contains("summon"));
+        assert!(!stack.visible()[0].accept_enabled);
+
+        stack.set_accept_enabled("summon", true);
+        stack.accept_top();
+        assert_eq!(stack.drain_results()[0].outcome, PopupOutcome::Accepted);
+
+        let summon = stack.push(spec("summon"));
+        stack.set_accept_enabled("summon", false);
+        assert!(stack.resolve(summon, PopupOutcome::Cancelled));
+    }
+
+    #[test]
+    fn set_text_keeps_the_time_on_screen() {
+        let mut stack = PopupStack::default();
+        let mut timed = spec("summon");
+        timed.timeout = Some(Duration::from_secs(120));
+        stack.push(timed);
+        stack.tick(Duration::from_secs(119));
+        stack.set_text("summon", "1 Second".into());
+        assert_eq!(stack.visible()[0].spec.text, "1 Second");
+        stack.tick(Duration::from_secs(1));
+        assert_eq!(stack.drain_results()[0].outcome, PopupOutcome::TimedOut);
     }
 
     #[test]
