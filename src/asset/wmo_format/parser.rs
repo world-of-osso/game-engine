@@ -498,19 +498,12 @@ pub fn parse_moba(data: &[u8]) -> Result<Vec<RawBatch>, String> {
     Ok(
         parse_binrw_entries::<RawBatchEntry>(data, MOBA_ENTRY_SIZE, "MOBA")?
             .into_iter()
-            .map(|batch| {
-                let material_id = if batch.material_id_small == 0xFF {
-                    batch.material_id_large
-                } else {
-                    batch.material_id_small as u16
-                };
-                RawBatch {
-                    start_index: batch.start_index,
-                    count: batch.count,
-                    min_index: batch.min_index,
-                    max_index: batch.max_index,
-                    material_id,
-                }
+            .map(|batch| RawBatch {
+                start_index: batch.start_index,
+                count: batch.count,
+                min_index: batch.min_index,
+                max_index: batch.max_index,
+                material_id: batch.material_id(),
             })
             .collect(),
     )

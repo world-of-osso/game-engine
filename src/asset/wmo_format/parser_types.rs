@@ -584,17 +584,31 @@ pub struct RawWmoGroupInfo {
     pub _name_offset: u32,
 }
 
+/// SMOBatch (wowdev WMO MOBA), 24 bytes.
 #[derive(BinRead)]
 #[br(little)]
 pub struct RawBatchEntry {
-    pub _possible_box_1: [u8; 10],
+    pub _unknown_box: [u8; 10],
     pub material_id_large: u16,
     pub start_index: u32,
     pub count: u16,
     pub min_index: u16,
     pub max_index: u16,
-    pub _possible_box_2: u8,
+    pub flags: u8,
     pub material_id_small: u8,
+}
+
+impl RawBatchEntry {
+    /// `flag_use_material_id_large`: the material id is the u16 at 0x0A.
+    const USE_MATERIAL_ID_LARGE: u8 = 0x02;
+
+    pub fn material_id(&self) -> u16 {
+        if self.flags & Self::USE_MATERIAL_ID_LARGE != 0 {
+            self.material_id_large
+        } else {
+            u16::from(self.material_id_small)
+        }
+    }
 }
 
 #[derive(BinRead)]
