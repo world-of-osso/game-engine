@@ -18,6 +18,7 @@ unsafe impl ExtensionLibrary for GameEngineExtension {}
 pub struct GameClient {
     base: Base<Node3D>,
     model_scene: Option<Gd<Node3D>>,
+    login_ui: Option<Gd<ui::RegistryUi>>,
 }
 
 #[godot_api]
@@ -26,6 +27,13 @@ impl INode3D for GameClient {
         Self {
             base,
             model_scene: None,
+            login_ui: None,
+        }
+    }
+
+    fn ready(&mut self) {
+        if let Err(error) = self.attach_login_ui() {
+            godot_error!("Cannot initialize login UI: {error}");
         }
     }
 }
@@ -47,6 +55,16 @@ impl GameClient {
 }
 
 impl GameClient {
+    fn attach_login_ui(&mut self) -> Result<(), String> {
+        let viewport = self.base().get_viewport().ok_or("Client has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut login = ui::create_login_ui(size.x, size.y)?;
+        login.set_name("LoginUI");
+        self.base_mut().add_child(&login);
+        self.login_ui = Some(login);
+        Ok(())
+    }
+
     fn import_model_scene(&mut self, path: &GString) -> Result<(Aabb, PackedInt32Array), String> {
         let (model, missing_textures) = assets::load_model_node(path)?;
         let bounds = match scene::collect_mesh_bounds(&model) {
