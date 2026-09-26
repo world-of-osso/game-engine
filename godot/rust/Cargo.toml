@@ -15,3 +15,5 @@ game-engine-ui-model = { path = "../ui-model" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
 taffy = "0.10.1"
+# Decode the existing authored KTX2 UI assets without converting their source files.
+ktx2-rw = "0.2.4"
