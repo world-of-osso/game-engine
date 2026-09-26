@@ -55,6 +55,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [ui-rounding-seams](investigations/ui-rounding-seams.md) — 1 px seams between abutting UI textures at UI scale 2/3 (auction house tabs): taffy 0.10.1 parent-relative location rounding; patched in bevy-patches.
 - [movement-performance](investigations/movement-performance.md) — Release in-world FPS profile (2026-09-24): GPU-bound under firmware-limited clocks, shadows ~44% of GPU, unused MSAA prepasses removed (−22% GPU/frame), `sync_registry` top CPU item. Current exact-name timed callback-removal interface and historical CPU-isolation evidence: upload removals showed no bulk reduction; disabling pipelined rendering lowered CPU with an FPS trade-off. Includes repaired MSAA glyph corruption, firmware-limit evidence, and unresolved original tile hitch.
 - [solarityclient-performance-comparison](investigations/solarityclient-performance-comparison.md) — What solarityclient does for frame cost vs our entity-heavy M2/terrain spawning; ranked candidates, none measured yet.
 - [empty-window-baseline](investigations/empty-window-baseline.md) — Native/core/reactive blank-renderer stages remain low-cost; continuous blank rendering reaches 216.31478% process CPU before project services. Independent runtime audit passes the bounded attribution.
