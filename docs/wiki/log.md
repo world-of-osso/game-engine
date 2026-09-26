@@ -966,3 +966,7 @@ Updated [[nameplate-design]] and the [nameplate style](../specs/nameplate-style.
 ## [2026-09-26] investigation | UI rounding seams
 
 Created [[ui-rounding-seams]]. Auction house tab seams came from taffy 0.10.1 rounding a node's location parent-relative; game-engine now patches taffy with upstream's cumulative rounding via bevy-patches.
+
+## [2026-09-26] create | Unit tooltip
+
+Created [[unit-tooltip]]: hovered-unit resolution, CreatureTooltip cache, account appearance collection marks, default tooltip anchor, IPC hover for headless proof.
