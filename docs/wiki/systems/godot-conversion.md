@@ -1,6 +1,6 @@
 # Godot conversion
 
-The Godot replacement remains an incomplete client-host experiment, not a completed migration. Godot is authorized to own rendering, UI, scenes, and gameplay while Bevy remains a transport-only headless networking worker. Native work now includes M2 preview loading, a limited ADT geometry adapter, and an account host route through that worker. None establishes user-facing login, terrain rendering, or full conversion parity.
+The Godot replacement remains an incomplete client-host experiment, not a completed migration. Godot is authorized to own rendering, UI, scenes, and gameplay while Bevy remains a transport-only headless networking worker. At `ac02b9a0`, the native extension builds and has bounded runtime proof for authored login control names, raw ADT geometry, and rejected-account status feedback; M2-asset proof is agent-reported. None establishes user-facing login, terrain rendering, or full conversion parity.
 
 ## Bootstrap and workspace boundary
 
@@ -13,7 +13,7 @@ The Godot replacement remains an incomplete client-host experiment, not a comple
 
 Sibling `ui-toolkit-core` commit `70db707` removes all Bevy dependencies. Its portable texture representation is `DynamicTextureId` plus RGBA8 registry data and atlas `PixelRect` arrays. Agent46 reports its two targeted model tests GREEN; main has not independently verified that result. This does not prove a Godot projection or UI parity.
 
-Main startup wires `ui::RegistryUi` and `create_login_ui`. Separately, `GameClient.connect_account` resolves the realm, starts `NetworkBridge`, and sends typed login/register requests through `AuthChannel`; `account_state` exposes session screen, feedback, roster count, units, and reply receipt. Incoming account messages pass through `Session`; polling only updates login status and emits `screen_requested`. It does not construct or route to character-select, creation, loading, or world scenes. `account_failure.gd` is RED (exit 1) against an old native binary that lacks `connect_account`; real-server GREEN remains pending. This is not a claim that a user-facing login UI is connected.
+Main startup wires `ui::RegistryUi` and `create_login_ui`; `client_login.gd` exits 0 at `ac02b9a0` with the authored credential control names. Separately, `GameClient.connect_account` resolves the realm, starts `NetworkBridge`, and sends typed login/register requests through `AuthChannel`; `account_state` exposes session screen, feedback, roster count, units, and reply receipt. Incoming account messages pass through `Session`; polling only updates login status and emits `screen_requested`. It does not construct or route to character-select, creation, loading, or world scenes. `account_failure.gd` exits 0 at `ac02b9a0`: the local UDP server on port 5000 rejected incorrect `admin` credentials and native account status received that feedback. This is not a claim that a user-facing login UI is connected.
 
 ## Native asset and preview boundary
 
@@ -23,9 +23,9 @@ The GDExtension converts an M2 plus its `00.skin` and optional `.skel` into one 
 
 BLP mip-0 RGBA8 becomes a Godot `Image`. Only ordinary type-0 texture FDIDs found under `data/textures` become an albedo texture. The material mapping is limited to unshaded, double-sided, and selected alpha/add/multiply modes. Replaceable character textures, compositing, multi-texture/layer behavior, shader effects, colour/lighting equivalence, and rendered material fidelity remain unresolved; unavailable texture FDIDs are reported rather than substituted.
 
-`GameClient.load_model_scene` imports a model before replacing its previous preview, derives mesh bounds, and attaches a fixed 60-degree camera plus shadowed directional light. This is a model-preview helper, not game camera/light/sky/world streaming behavior.
+`GameClient.load_model_scene` imports a model before replacing its previous preview, derives mesh bounds, and attaches a fixed 60-degree camera plus shadowed directional light. `model_scene.gd` exits 1 at `ac02b9a0` because the login canvas covers the imported model. Commit `5ca2dc8d` hides that canvas after a successful import, but a rebuilt native binary has not yet proved the correction. This is a model-preview helper, not game camera/light/sky/world streaming behavior.
 
-`WowTerrainLoader.load_adt_geometry` reads one root ADT and emits one unmaterialed `MeshInstance3D` per nonempty chunk. It carries authored positions, normals, vertex colors, UVs, holes, and reversed triangle winding only. It does not load texture companions/materials, objects, water, collision, or world streaming; it depends on the pending core geometry API from ADT52.
+`WowTerrainLoader.load_adt_geometry` reads one root ADT and emits one unmaterialed `MeshInstance3D` per nonempty chunk. It carries authored positions, normals, vertex colors, UVs, holes, and reversed triangle winding only. `terrain_geometry.gd` exits 0 at `ac02b9a0` with 256 chunks and those raw-channel/topology assertions. It does not load texture companions/materials, objects, water, collision, or world streaming.
 
 ## Capability and proof matrix
 
@@ -35,15 +35,16 @@ The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventori
 | --- | --- | --- |
 | Extension bootstrap | `GameClient` native `Node3D`; historical scene-tree smoke. | Historical runtime GREEN only; no current integrated native-runtime proof. |
 | Parser core | M2/BLP/ADT/WDT/WMO bytes to data only. | Verifier48: 7/7 parser fixtures GREEN, timing-qualified source evidence because concurrent geometry edits followed. |
-| Native ADT geometry | `WowTerrainLoader.load_adt_geometry` builds raw chunk meshes with positions, normals, vertex colors, UVs, hole topology, and reversed winding. | `terrain_geometry.gd` is RED because the old native binary lacks `WowTerrainLoader`; it also awaits ADT52's core geometry API. No terrain materials, objects, water, collision, or streaming proof. |
-| Native M2 geometry | Skinned indexed `ArrayMesh` batches, skeleton rest/binds, Godot node tree. | `m2_assets.gd` specifies HD 216-bone, indexed and weighted geometry assertions; not run at current revision. No visual proof. |
-| BLP/material subset | RGBA8 image; one type-0 FDID albedo route; partial blend/flag mapping. | Script specifies torch-albedo and BLP-pixel assertions; not run. Material fidelity and unsupported texture modes remain open. |
-| Animation attachment | `WowAnimationPlayer` attaches when sequences exist and writes skeleton poses. | Asset script only checks attachment. Playback, crossfade, deformation, and visual parity unproven at integrated revision. |
-| Preview scene | Bounds-driven camera/light and successful-import-only replacement. | `model_scene.gd` specifies framing and failed-import preservation; not run. Not a gameplay scene. |
-| UI model/projection | Bevy-free sibling frame/layout/widget/atlas/screen/registry model; main startup wires `ui::RegistryUi` and `create_login_ui`. | Agent46 reports two sibling model tests GREEN for `70db707`; main has not independently verified. No projection or exact visual/interaction evidence. |
-| Account host | `GameClient.connect_account`/`account_state` route typed auth through `NetworkBridge` and `Session`; `poll_account` emits `screen_requested` and updates login status. | `account_failure.gd` RED exit 1 against an old binary lacking `connect_account`; real-server rejection GREEN pending. No actual character-select/world scene routing or user-facing login-UI connection. |
-| Transport/gameplay | Actual headless Bevy-state/Lightyear/Replicon transport bridge. It remains transport-only; Godot owns rendering/UI/scenes/gameplay. | Network verifier: 4/4 GREEN at `73339584`; later change only added `WireMessage` re-export. Account route is source evidence, not real-server proof. No login-to-world state application, collision, equipment, gameplay, or parity proof. |
-| Build/readability | Core warnings and network readability findings are tracked work. | Verifier49 assigned core warnings to ADT52/M254. Network readability-audit findings remain unfixed. |
+| Native ADT geometry | `WowTerrainLoader.load_adt_geometry` builds raw chunk meshes with positions, normals, vertex colors, UVs, hole topology, and reversed winding. | `terrain_geometry.gd` exits 0 at `ac02b9a0`: 256 chunks plus authored heights/UVs/colors, holes, and Godot winding. No terrain materials, objects, water, collision, or streaming proof. |
+| Native M2 geometry | Skinned indexed `ArrayMesh` batches, skeleton rest/binds, Godot node tree. | Agent39 reports `m2_assets.gd` GREEN after `97d97af1`/`5297d394` on the same `.so`: 216 bones, 113 batches, 37,813 vertices, 147,966 indices, torch BLP, and no leaks. Reported evidence only; no visual proof. |
+| BLP/material subset | RGBA8 image; one type-0 FDID albedo route; partial blend/flag mapping. | Agent39 reports torch BLP assertion GREEN on the same `.so`. Material fidelity and unsupported texture modes remain open. |
+| Animation attachment | `WowAnimationPlayer` attaches when sequences exist and writes skeleton poses. | Agent39 reports asset assertions GREEN; playback, crossfade, deformation, and visual parity remain unproven. |
+| Preview scene | Bounds-driven camera/light and successful-import-only replacement. | `model_scene.gd` exits 1 at `ac02b9a0`: login canvas covers the model. `5ca2dc8d` hides it after successful import; GREEN awaits rebuild. Not a gameplay scene. |
+| UI model/projection | Bevy-free sibling frame/layout/widget/atlas/screen/registry model; main startup wires `ui::RegistryUi` and `create_login_ui`. | Agent46 reports two sibling model tests GREEN for `70db707`; agent42's projection test remains RED for wrong positions/input and requires actual keyboard exercise. No visual parity. Logged texture-file messages are cwd preflight only: source paths remain retained and native loader still loads them; they do not show artwork absence. |
+| Account host | `GameClient.connect_account`/`account_state` route typed auth through `NetworkBridge` and `Session`; `poll_account` emits `screen_requested` and updates login status. | `account_failure.gd` exits 0 at `ac02b9a0`: local UDP 5000 rejected wrong `admin` credentials and native status feedback returned. No actual character-select/world scene routing or user-facing login-UI connection. |
+| Transport/gameplay | Actual headless Bevy-state/Lightyear/Replicon transport bridge. It remains transport-only; Godot owns rendering/UI/scenes/gameplay. | Network verifier: 4/4 GREEN at `73339584`; the account-rejection path is runtime proof only for typed auth/status feedback. No login-to-world state application, collision, equipment, gameplay, or parity proof. |
+| Build/readability | The native extension builds at `ac02b9a0`; agent58 reports ownership fixes. | Build exits 0 with 27 `game-engine-core` warnings and 2 native-animation dead-code warnings. Agent58's ownership work has no supplied proof; network readability-audit findings remain unfixed. |
+| Character-select model | `CharacterSelectModel` has pure model tests. | `a828a028`/`fcd34042`: two pure tests GREEN. No native character-select scene, rendering, input, or workflow proof. |
 | Tooling and parity | No Godot automation, screenshots, diagnostics, CLI/IPC, audio, debug scenes, or complete UI workflows. | Open. No milestone completion claim. |
 
 ## Sources
@@ -58,13 +59,16 @@ The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventori
 - [Account host](../../godot/rust/src/account.rs) — typed account requests, worker event handling, and `Session` effects.
 - [Session decisions](../../godot/session/src/lib.rs) — headless login/roster state transitions.
 - [Native terrain](../../godot/rust/src/terrain/mod.rs) — raw ADT chunk mesh conversion boundary.
-- [Account failure script](../../godot/tests/account_failure.gd) — old-binary RED and pending real-server rejection assertion.
-- [Terrain geometry script](../../godot/tests/terrain_geometry.gd) — pending native ADT geometry assertions.
+- [Account failure script](../../godot/tests/account_failure.gd) — `ac02b9a0` real-server rejection/status-feedback GREEN.
+- [Terrain geometry script](../../godot/tests/terrain_geometry.gd) — `ac02b9a0` 256-chunk raw-geometry GREEN.
+- `/tmp/claude/godot-integrated-build-ac02b9a0.log` — build exit 0 and 27 core plus 2 animation warnings.
+- `/tmp/claude/godot-client_login-ac02b9a0.log` — named-login-control GREEN; texture-file messages are cwd-preflight only.
+- `/tmp/claude/godot-model_scene-ac02b9a0.log` — login-canvas occlusion RED before `5ca2dc8d`.
 - [Preview helpers](../../godot/rust/src/scene.rs) — bounds, camera, and light helper behavior.
 - [Native assets](../../godot/rust/src/assets/mod.rs) — M2/BLP conversion and supported material subset.
 - [Native animation](../../godot/rust/src/animation/mod.rs) — skeleton-pose playback and transition behavior.
-- [Model-scene script](../../godot/tests/model_scene.gd) — unexecuted preview assertions.
-- [M2-assets script](../../godot/tests/m2_assets.gd) — unexecuted native asset assertions.
+- [Model-scene script](../../godot/tests/model_scene.gd) — `ac02b9a0` canvas-occlusion RED; `5ca2dc8d` correction awaits rebuild.
+- [M2-assets script](../../godot/tests/m2_assets.gd) — agent39-reported GREEN on the `ac02b9a0` native library after `97d97af1`/`5297d394`.
 - [Sibling UI core registry](../../../../ui-toolkit-godot-conversion/core/src/registry.rs) — extracted frame/model registry boundary.
 
 ## See Also
