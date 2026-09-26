@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot native login/UI and parser proof boundary
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `aadb3597`. Latest `/tmp/claude/godot-login_flow-3de5946b.log` and `/tmp/claude/godot-ui_projection-3de5946b.log` identify `3de5946b`, exit 0, and have empty stderr. `50cd3c63`/`33ed3a57` wire native input/action synchronization, connect/reconnect/exit, selected-host routing, and pending status; `1251724a` projects disabled buttons and suppresses callbacks. The login fixture uses existing local UDP port 5000 and wrong `admin` credentials, proving rejection reaches the native button/status path only. No account creation; successful login stops at `screen_requested`; no native character-select exists; realm cycle/menu/create-account explicitly report unsupported.
+
+The UI fixture covers true viewport Unicode/Ctrl-A/backspace/focus editing, gold/resize/removal updates, disabled-state/callback behavior, asset/font/insets. Screenshot `04aa3610` is RealForward+ but predates final colour/focus changes, so it is not an exact visual baseline. A seeded Bevy screenshot hung for ten minutes; parent terminated PIDs 136318/136334 and verified both gone. Its wrapper exit 0 and absent screenshot provide no visual evidence.
+
+Reported `fb54637f` pure-core proof is 233/233 `--lib` tests GREEN with no warnings, including concurrent ADT changes. `3de5946b`/`18666116` retain ADT metadata, expose tile/LOD parsing, and correct fixture coordinate/companion coverage. `1a5c9045`/`aadb3597` move engine-dependent ADT/WMO/M2 tests into Bevy adapters; those legacy adapter tests were not compiled or executed, so they remain an obligation. No parser, login, UI-fixture, or raw-terrain result closes a full parity row.
+
 ## [2026-09-26] system | Godot integrated native proof ledger
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) for `ac02b9a0`. The native extension build exits 0 with 27 `game-engine-core` warnings and 2 native-animation dead-code warnings. `client_login.gd` exits 0 with named authored credential controls; `terrain_geometry.gd` exits 0 with 256 raw chunks, authored heights/UVs/colors, holes, and Godot winding; `account_failure.gd` exits 0 when local UDP port 5000 rejects wrong `admin` credentials and native account status receives the feedback. The logged texture-file messages are cwd-only preflight failures: source paths remain retained and the native loader still loads them, so they do not demonstrate missing artwork.
