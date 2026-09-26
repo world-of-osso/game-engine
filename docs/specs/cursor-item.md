@@ -1,0 +1,48 @@
+# Cursor Item
+
+The Retail cursor item: bag and equipped items picked up, moved, split, equipped, sold, bought and destroyed through the cursor, the `StackSplitFrame`, and bag / paperdoll item tooltips from the client item catalog. The server owns every move (shared-protocol `protocol/inventory_messages.rs`, `protocol/merchant_messages.rs`; game-server `docs/specs/inventory.md`, `docs/specs/merchant.md`).
+
+References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
+- CF.lua = `Blizzard_UIPanels_Game/Mainline/ContainerFrame.lua`; PD.lua = `PaperDollFrame.lua`; MF.lua / MF.xml = `MerchantFrame.lua` / `.xml`
+- SSF.lua / SSF.xml = `Blizzard_FrameXML/Mainline/StackSplitFrame.lua` / `.xml`
+- UIParent.lua (`DELETE_ITEM_CONFIRM`), GameDialogDefs.lua (`DELETE_ITEM`, `DELETE_GOOD_ITEM`), GameTooltip.lua
+- strings from GlobalStrings (build 12.1)
+
+## What it must do
+
+- [x] Left-clicking a bag slot or paperdoll slot with an empty cursor picks its item up (`PickupContainerItem` / `PickupInventoryItem`); the icon follows the pointer above every frame and the source slot's icon is dimmed (`SetItemButtonDesaturated`).
+- [x] Clicking another bag or paperdoll slot drops it: `SwapItem { from, to }`. The server merges same-item stacks, swaps, equips (wrong slot → `ERR_WRONG_SLOT` in UIErrorsFrame) or unequips into the bag slot. Clicking the source slot puts it back.
+- [x] A press that picks up and is released over another target after moving drops there too (`OnDragStart` / `OnReceiveDrag`).
+- [x] Escape clears the cursor before any other Escape step (`ClearCursor`).
+- [x] The cursor clears when its item leaves the source slot (server delta) or, for a vendor item, when the vendor closes.
+- [x] Right-clicking gear with no NPC frame open equips it (`UseContainerItem` → `EquipItem`); NPC frames keep their right-click (sell, deposit, trade, mail).
+- [x] Dropping the cursor item on the world (no frame under the pointer) raises `DELETE_ITEM_CONFIRM`: `DELETE_ITEM` "Do you want to destroy %s?" Yes / No. Yes sends `DestroyItem` (the split count, or 0 for the stack); No clears the cursor; the popup hides once the cursor is empty. Rare and better items (heirlooms excepted) use `DELETE_GOOD_ITEM` (UIParent.lua:1460-1474).
+- [x] `DELETE_GOOD_ITEM`'s edit box: Yes stays disabled (Enter too) until `DELETE` is typed, case-insensitive (`OnTextChanged` upper-cases); Backspace deletes, Escape cancels, 32 letters; the popup owns the keyboard.
+- [x] Merchant (MF.lua:621-693, MF.xml:620-631):
+  - left-clicking a vendor item picks it up (`PickupMerchantItem`); dropped on a bag slot it is bought there (`BuyItem { destination }`); dropped anywhere else it leaves the cursor;
+  - a cursor item dropped on the merchant frame or a vendor cell sells it (`PickupMerchantItem(0)`): `SellItem` with the split count, or 0 for the whole stack;
+  - any click on a buyback cell buys it back.
+- [x] Shift-click (`SPLITSTACK`) with an empty cursor opens `StackSplitFrame`:
+  - on a bag stack of more than one item (CF.lua:1608-1616), BOTTOMRIGHT on the slot's TOPRIGHT; Okay puts the split on the cursor (`SplitContainerItem`), dropping it on a bag slot sends `SplitItem`;
+  - on a vendor item whose max stack is above 1 (MF.lua:660-693), BOTTOMLEFT on the cell's TOPLEFT, capped at `min(maxStack, floor(money / (price / stackCount)))`, stepping by the purchase size; Okay sends `BuyItem { count: split / stackCount }`.
+- [x] `StackSplitFrame` (SSF.xml): 172×96 on `UI-MoneyFrame` (136494), 172×120 on `UI-MoneyFrame-Large` for vendor bundles with `STACKS` "%d Stack(s)" and `TOTAL_STACKS` "%d Total"; left/right arrows (`Arrow-Left/Right-Up/Disabled`) disabled at the ends; Okay / Cancel. Keys: digits type an amount (first digit replaces, over the maximum ignored), Backspace, Left/Down, Right/Up, Enter (Okay), Escape (Cancel). While it is open it owns the keyboard (`UiInputMode::Text`). Any other item click closes it.
+- [x] Bag item names and quality colours come from the item catalog (`Item.csv` + `ItemSparse.csv` + `ItemSubClass.csv`, build 12.1.0.69933); bag borders use `BAG_ITEM_QUALITY_COLORS`.
+- [x] Bag and paperdoll item tooltips (`SetBagItem` / `SetInventoryItem`), in Retail's order: name in quality colour; `ITEM_LEVEL` for gear; `ITEM_SOULBOUND` or the `Bonding` text; `ITEM_UNIQUE`; the `INVTYPE_*` slot left and the ItemSubClass name right (blank for armor Miscellaneous; bags `CONTAINER_SLOTS`); `DURABILITY_TEMPLATE`; `ITEM_MIN_LEVEL` (red above the viewer's level) when above 1; the quoted description in gold; `SELL_PRICE:` with coins for the stack. Paperdoll tooltips anchor `ANCHOR_RIGHT`.
+- [ ] Paperdoll reachability: `CharacterFramePlugin` is not registered in the app (pre-existing), so paperdoll pickup/drop and paperdoll tooltips are unit-tested only; right-click equip works live.
+- [ ] Destroying by a world click is unit-tested only: JS automation clicks frames, not the world.
+- [ ] Item stats, armor and weapon damage/speed lines: the client has no item-level budget tables (the server computes them in `item_stats.rs`).
+- [ ] Deferred (user): alternate currencies, guild-bank repair, per-item repair cursor, action-bar item drag.
+
+## Tests asserting this spec
+
+- `src/game/cursor_item_tests.rs`: pick up and swap, put back, equip and unequip, split drop / sell / destroy counts, sell only with a vendor open, destroy confirm (poor, rare, heirloom), vendor item bought into the dropped slot, buyback cells not picked up, stale cursor clears.
+- `src/game/stack_split.rs` tests: arrow bounds, typed digits, vendor bundles.
+- `src/ui/screens/stack_split_frame_component.rs` tests: single and bundle layouts, enabled arrows.
+- `src/scenes/cursor_item/tests.rs`: click actions → targets, Shift-click openings and the money cap, typing 7 + Enter puts 7 Linen Cloth on the cursor, bundle Okay buys 3 purchases, Escape cancels, DELETE_ITEM Yes / No, the popup hides with the cursor empty, Escape clears the cursor.
+- `src/ui/screens/bag_frame_component.rs` tests: the dimmed source slot; `src/scenes/bag_frame/mod.rs`: right-click equips the Worn Shortsword, not Linen Cloth.
+- `src/ui/screens/character_frame_component.rs` tests: paperdoll slot actions and icons.
+- `src/scenes/tooltip_frame/item_tooltip.rs` tests: Worn Shortsword, Linen Cloth stack sell price, grey title for junk, red level requirement; `src/scenes/tooltip_frame/mod.rs`: the sell-price coins.
+- `src/game/item_catalog_tests.rs`: ItemSparse fields, quoted newlines, subclass names, the real tables.
+- `src/ui/popup.rs`, `src/ui/screens/static_popup_component.rs`, `src/scenes/static_popup/tests.rs`: the confirm-word popup (disabled Yes, typed text, Escape).
+- `src/ui/automation_inworld.rs`, `src/ui/js_automation.rs`: `ui.shiftClick`.
+- Live evidence `data/diagnostics/cursoritems-20260926/` (server :5079, Theron at Brother Danil): run1 tree/shot 03 water on the cursor, 06 bought into slot 8, 08-11 split frame 1 → 7, 14 SplitItem 33/7, 17 sold by frame drop, 19-21 Sell All Junk popup and sale, 23-27 bundle split 1 → 2 Stacks, water 5 → 15; run3 13 right-click equipped the vest, 16-17 Escape cleared the cursor, run3 shots 08-09 `ui.key("p")` opened the spellbook; run4-tooltip/tt-22 vest tooltip (Item Level 2, Binds when equipped, Chest / Mail, Sell Price).

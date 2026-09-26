@@ -250,6 +250,7 @@ fn confirm(key: &str, text: String, request: MailRequest) -> Option<(PopupSpec, 
             accept_label: "Accept".into(),
             cancel_label: Some("Cancel".into()),
             timeout: None,
+            confirm_text: None,
         },
         request,
     ))

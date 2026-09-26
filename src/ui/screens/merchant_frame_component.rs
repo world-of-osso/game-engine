@@ -26,6 +26,10 @@ pub const ACTION_TAB_MERCHANT: &str = "merchant_tab:merchant";
 pub const ACTION_TAB_BUYBACK: &str = "merchant_tab:buyback";
 pub const ACTION_REPAIR_ALL: &str = "merchant_repair_all";
 pub const ACTION_BUYBACK_LAST: &str = "merchant_buyback_last";
+pub const ACTION_SELL_ALL_JUNK: &str = "merchant_sell_all_junk";
+/// The frame outside its buttons: a cursor item dropped there is sold
+/// (`OnMouseUp` → `PickupMerchantItem(0)`, MF.xml:620-628).
+pub const ACTION_FRAME: &str = "merchant_frame";
 /// `merchant_item:<index on the page>`.
 pub const ACTION_ITEM_PREFIX: &str = "merchant_item:";
 
@@ -64,6 +68,8 @@ const fn merchant_art(rect: (f32, f32, f32, f32)) -> AtlasArt {
 const BOT_FRAME: AtlasArt = merchant_art((1.0, 333.0, 1.0, 62.0));
 /// `SpellIcon-256x256-RepairAll`.
 const REPAIR_ALL_ICON: AtlasArt = merchant_art((1.0, 73.0, 138.0, 210.0));
+/// `SpellIcon-256x256-SellJunk`.
+const SELL_JUNK_ICON: AtlasArt = merchant_art((1.0, 73.0, 64.0, 136.0));
 /// `common-icon-undo`, atlas 3487944 2048×1024.
 const UNDO_ICON: AtlasArt = AtlasArt {
     fdid: 3_487_944,
@@ -148,6 +154,9 @@ pub struct MerchantFrameState {
     /// Most recent sale for `MerchantBuyBackItem` on the merchant tab.
     pub last_buyback: Option<MerchantCell>,
     pub money: u64,
+    /// `MerchantSellAllJunkButton` enabled: a junk item is in the bags
+    /// (`C_MerchantFrame.GetNumJunkItems() > 0`, MF.lua:196-198).
+    pub has_junk: bool,
 }
 
 pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
@@ -171,6 +180,7 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             hidden: hide,
             mouse_enabled: true,
+            onclick: ACTION_FRAME,
             pos_type: "absolute",
             left: 16.0,
             top: 104.0,
@@ -378,6 +388,7 @@ fn merchant_tab_extras(state: &MerchantFrameState) -> Element {
     if let Some(enabled) = state.repair {
         children.extend(repair_buttons(enabled));
     }
+    children.extend(sell_all_junk_button(state.repair.is_some(), state.has_junk));
     children.extend(buyback_slot(state.last_buyback.as_ref()));
     children
 }
@@ -479,6 +490,24 @@ fn repair_buttons(enabled: bool) -> Element {
         &REPAIR_ALL_ICON,
         enabled,
         ACTION_REPAIR_ALL,
+    )
+}
+
+/// `MerchantSellAllJunkButton` 36×36: RIGHT at RepairAll LEFT +80 with a repairer
+/// (MF.lua:943), else BOTTOMRIGHT at BOTTOMRIGHT -148,33 (MF.lua:954).
+fn sell_all_junk_button(repairer: bool, enabled: bool) -> Element {
+    let right = if repairer {
+        82.0 + 80.0
+    } else {
+        FRAME_W - 148.0
+    };
+    repair_button(
+        "MerchantSellAllJunkButton",
+        right - 36.0,
+        FRAME_H - 33.0 - 36.0,
+        &SELL_JUNK_ICON,
+        enabled,
+        ACTION_SELL_ALL_JUNK,
     )
 }
 
@@ -648,7 +677,7 @@ fn money_bar(copper: u64) -> Element {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum MoneyAlign {
+pub enum MoneyAlign {
     Left,
     Right,
 }
@@ -677,7 +706,7 @@ fn coins(copper: u64) -> Vec<(u64, &'static AtlasArt)> {
 
 /// Amount + coin pairs, 4 px apart; `anchor` is the bottom-left (Left) or
 /// bottom-right (Right) corner in parent space.
-pub(crate) fn money(
+pub fn money(
     prefix: &str,
     copper: u64,
     anchor: (f32, f32),

@@ -386,6 +386,9 @@ fn run_char_create_automation_action(
         UiAutomationAction::RightClickFrame(name) => {
             return Err(format!("ui.rightClick('{name}') is only supported InWorld"));
         }
+        UiAutomationAction::ShiftClickFrame(name) => {
+            return Err(format!("ui.shiftClick('{name}') is only supported InWorld"));
+        }
         UiAutomationAction::WaitForState(_, _)
         | UiAutomationAction::WaitForFrame(_, _)
         | UiAutomationAction::Wait(_)

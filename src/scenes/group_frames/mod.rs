@@ -396,6 +396,7 @@ fn invite_popup_spec(inviter: &str) -> PopupSpec {
         accept_label: "Accept".into(),
         cancel_label: Some("Decline".into()),
         timeout: Some(Duration::from_secs_f32(GROUP_INVITE_TIMEOUT_SECS)),
+        confirm_text: None,
     }
 }
 

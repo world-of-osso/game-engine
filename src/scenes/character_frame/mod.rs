@@ -1,11 +1,14 @@
 use bevy::prelude::*;
+use game_engine::bag_data::InventoryState;
+use game_engine::cursor_item::CursorItem;
 use game_engine::input_bindings::InputAction;
-use game_engine::status::{CharacterStatsSnapshot, EquippedGearStatusSnapshot};
+use game_engine::status::CharacterStatsSnapshot;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::character_frame_component::{
-    BOTTOM_SLOT_LABELS, CharacterFrameState, EquipmentSlotState, LEFT_SLOT_LABELS,
-    RIGHT_SLOT_LABELS, character_frame_screen,
+    BOTTOM_SLOT_LABELS, BOTTOM_SLOTS, CharacterFrameState, EquipmentSlotState, LEFT_SLOT_LABELS,
+    LEFT_SLOTS, RIGHT_SLOT_LABELS, RIGHT_SLOTS, character_frame_screen, equipment_slot_action,
 };
+use shared::protocol::{EquipmentSlot, ItemLocation};
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
@@ -30,6 +33,8 @@ pub struct CharacterFramePlugin;
 
 impl Plugin for CharacterFramePlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<InventoryState>()
+            .init_resource::<CursorItem>();
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_character_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -49,13 +54,13 @@ fn build_character_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
-    gear: Option<Res<EquippedGearStatusSnapshot>>,
+    equipment: Equipment,
     window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
     let state = build_state(
         character_stats.as_deref(),
-        gear.as_deref(),
+        &equipment,
         window_manager.is_open(WindowId::Character),
     );
     let mut shared = SharedContext::new();
@@ -92,7 +97,7 @@ fn sync_character_frame_state(
     mut wrap: Option<ResMut<CharacterFrameWrap>>,
     mut last_model: Option<ResMut<CharacterFrameModel>>,
     character_stats: Option<Res<CharacterStatsSnapshot>>,
-    gear: Option<Res<EquippedGearStatusSnapshot>>,
+    equipment: Equipment,
     window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
@@ -100,7 +105,7 @@ fn sync_character_frame_state(
     };
     let state = build_state(
         character_stats.as_deref(),
-        gear.as_deref(),
+        &equipment,
         window_manager.is_open(WindowId::Character),
     );
     if last_model.0 == state {
@@ -112,9 +117,16 @@ fn sync_character_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
+/// The equipped items and the cursor item (its source slot shows locked).
+#[derive(bevy::ecs::system::SystemParam)]
+struct Equipment<'w> {
+    inventory: Res<'w, InventoryState>,
+    cursor: Res<'w, CursorItem>,
+}
+
 fn build_state(
     character_stats: Option<&CharacterStatsSnapshot>,
-    gear: Option<&EquippedGearStatusSnapshot>,
+    equipment: &Equipment,
     open: bool,
 ) -> CharacterFrameState {
     let (character_name, level, class_name) = extract_identity(character_stats);
@@ -133,9 +145,9 @@ fn build_state(
         health,
         mana,
         speed,
-        left_slots: build_column_slots(&LEFT_SLOT_LABELS, gear),
-        right_slots: build_column_slots(&RIGHT_SLOT_LABELS, gear),
-        bottom_slots: build_column_slots(&BOTTOM_SLOT_LABELS, gear),
+        left_slots: build_column_slots(&LEFT_SLOT_LABELS, &LEFT_SLOTS, equipment),
+        right_slots: build_column_slots(&RIGHT_SLOT_LABELS, &RIGHT_SLOTS, equipment),
+        bottom_slots: build_column_slots(&BOTTOM_SLOT_LABELS, &BOTTOM_SLOTS, equipment),
     }
 }
 
@@ -149,24 +161,24 @@ fn extract_identity(stats: Option<&CharacterStatsSnapshot>) -> (String, u16, Str
     (name, level, class)
 }
 
+/// Paperdoll slots: the equipped item's name and icon from the item catalog, each
+/// slot clickable for the cursor item (`PaperDollItemSlotButton_OnClick`).
 fn build_column_slots(
     labels: &[&str],
-    gear: Option<&EquippedGearStatusSnapshot>,
+    slots: &[EquipmentSlot],
+    equipment: &Equipment,
 ) -> Vec<EquipmentSlotState> {
     labels
         .iter()
-        .map(|label| {
-            let item_name = gear
-                .and_then(|g| {
-                    g.entries
-                        .iter()
-                        .find(|e| e.slot.eq_ignore_ascii_case(label))
-                        .map(|e| e.path.clone())
-                })
-                .unwrap_or_default();
+        .zip(slots)
+        .map(|(label, &slot)| {
+            let item = equipment.inventory.equipped(slot);
             EquipmentSlotState {
                 slot_name: label.to_string(),
-                item_name,
+                item_name: item.map(|item| item.name.clone()).unwrap_or_default(),
+                icon_fdid: item.map_or(0, |item| item.icon_fdid),
+                action: equipment_slot_action(slot),
+                locked: equipment.cursor.source() == Some(ItemLocation::Equipment(slot)),
             }
         })
         .collect()

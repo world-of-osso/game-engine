@@ -220,6 +220,7 @@ fn escape_cancels_only_the_popup_when_popup_and_panel_are_open() {
                 accept_label: "Accept".into(),
                 cancel_label: Some("Decline".into()),
                 timeout: None,
+                confirm_text: None,
             });
     open_character_and_mail(&mut app);
 

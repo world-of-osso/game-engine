@@ -104,6 +104,7 @@ fn first_empty_slot_none_when_full() {
                 ..Default::default()
             },
         ]],
+        ..Default::default()
     };
     assert!(inv.first_empty_slot().is_none());
 }

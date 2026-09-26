@@ -154,6 +154,9 @@ pub fn run_login_automation_action(
         UiAutomationAction::RightClickFrame(name) => {
             Err(format!("ui.rightClick('{name}') is only supported InWorld"))
         }
+        UiAutomationAction::ShiftClickFrame(name) => {
+            Err(format!("ui.shiftClick('{name}') is only supported InWorld"))
+        }
         _ => Ok(()),
     }
 }

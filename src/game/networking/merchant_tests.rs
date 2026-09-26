@@ -143,6 +143,7 @@ fn frame_requests_go_out_only_while_a_vendor_is_open() {
         slot: 1,
         item_id: 2379,
         count: 1,
+        destination: None,
     };
 
     app.world_mut().write_message(buy.clone());
@@ -158,10 +159,12 @@ fn frame_requests_go_out_only_while_a_vendor_is_open() {
     app.world_mut().write_message(buy);
     app.world_mut()
         .write_message(MerchantRequest::Repair { item_guid: None });
+    app.world_mut().write_message(MerchantRequest::SellAllJunk);
     app.world_mut()
         .run_system_once(send_merchant_requests)
         .unwrap();
-    assert!(matches!(commands.try_recv(), Ok(NetworkCommand::Apply(_))));
-    assert!(matches!(commands.try_recv(), Ok(NetworkCommand::Apply(_))));
+    for _ in 0..3 {
+        assert!(matches!(commands.try_recv(), Ok(NetworkCommand::Apply(_))));
+    }
     assert!(commands.try_recv().is_err());
 }

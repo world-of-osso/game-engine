@@ -37,6 +37,10 @@ const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
 const BUTTON_ATLAS_DISABLED: &str = "defaultbutton-nineslice-disabled";
 const COLOR_TEXT: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
+/// `StaticPopup1EditBox` (InputBoxTemplate) 130×32 under the text.
+const EDITBOX_W: f32 = 130.0;
+const EDITBOX_H: f32 = 20.0;
+const EDITBOX_GAP: f32 = 8.0;
 
 struct DynName(String);
 
@@ -69,8 +73,13 @@ pub fn parse_popup_action(action: &str) -> Option<(PopupId, PopupOutcome)> {
     Some((PopupId(raw.parse().ok()?), outcome))
 }
 
-pub fn popup_height(text: &str) -> f32 {
-    PAD_TOP + text_height(text) + TEXT_GAP + BUTTON_H + PAD_BOTTOM
+pub fn popup_height(entry: &PopupEntry) -> f32 {
+    let editbox = if entry.spec.confirm_text.is_some() {
+        EDITBOX_GAP + EDITBOX_H
+    } else {
+        0.0
+    };
+    PAD_TOP + text_height(&entry.spec.text) + editbox + TEXT_GAP + BUTTON_H + PAD_BOTTOM
 }
 
 fn text_height(text: &str) -> f32 {
@@ -93,7 +102,7 @@ pub fn static_popup_screen(ctx: &SharedContext) -> Element {
         .enumerate()
         .flat_map(|(slot, entry)| {
             let popup = static_popup(slot, entry, top);
-            top += popup_height(&entry.spec.text);
+            top += popup_height(entry);
             popup
         })
         .collect();
@@ -109,7 +118,7 @@ pub fn static_popup_screen(ctx: &SharedContext) -> Element {
 
 fn static_popup(slot: usize, entry: &PopupEntry, top: f32) -> Element {
     let name = popup_frame_name(slot);
-    let height = popup_height(&entry.spec.text);
+    let height = popup_height(entry);
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
@@ -124,6 +133,7 @@ fn static_popup(slot: usize, entry: &PopupEntry, top: f32) -> Element {
             {popup_background(&name, height)}
             {popup_border(&name, height)}
             {popup_text(&name, entry)}
+            {popup_editbox(&name, entry)}
             {popup_buttons(&name, entry)}
         }
     }
@@ -181,15 +191,58 @@ fn popup_text(name: &str, entry: &PopupEntry) -> Element {
     }
 }
 
+/// The typed word of a `confirm_text` popup, in a bordered box under the text.
+fn popup_editbox(name: &str, entry: &PopupEntry) -> Element {
+    if entry.spec.confirm_text.is_none() {
+        return Element::default();
+    }
+    let name = format!("{name}EditBox");
+    rsx! {
+        r#frame {
+            name: {DynName(name.clone())},
+            width: EDITBOX_W,
+            height: EDITBOX_H,
+            background_color: "0.0,0.0,0.0,0.8",
+            border: "1px solid 0.6,0.6,0.6,1.0",
+            strata: FrameStrata::Dialog,
+            frame_level: 8.0,
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: {PAD_TOP + text_height(&entry.spec.text) + EDITBOX_GAP},
+            fontstring {
+                name: {DynName(format!("{name}Text"))},
+                width: {EDITBOX_W - 8.0},
+                height: EDITBOX_H,
+                text: entry.typed.as_str(),
+                font: GameFont::FrizQuadrata,
+                font_size: 13.0,
+                font_color: COLOR_TEXT,
+                justify_h: "LEFT",
+                strata: FrameStrata::Dialog,
+                frame_level: 9.0,
+                pos_type: "absolute",
+                left: 4.0,
+                top: 0.0,
+            }
+        }
+    }
+}
+
 fn popup_buttons(name: &str, entry: &PopupEntry) -> Element {
-    let accept_action = popup_action(entry.id, PopupOutcome::Accepted);
+    // Button1 stays disabled until the confirm word is typed (`OnTextChanged`).
+    let accept_action = if entry.can_accept() {
+        popup_action(entry.id, PopupOutcome::Accepted)
+    } else {
+        String::new()
+    };
     let Some(cancel_label) = &entry.spec.cancel_label else {
         return popup_button(
             format!("{name}Button1"),
             &entry.spec.accept_label,
             accept_action,
             -BUTTON_W / 2.0,
-            entry.accept_enabled,
+            entry.can_accept(),
         );
     };
     let cancel_action = popup_action(entry.id, PopupOutcome::Cancelled);
@@ -198,7 +251,7 @@ fn popup_buttons(name: &str, entry: &PopupEntry) -> Element {
         &entry.spec.accept_label,
         accept_action,
         -BUTTON_W - BUTTON_GAP / 2.0,
-        entry.accept_enabled,
+        entry.can_accept(),
     );
     buttons.extend(popup_button(
         format!("{name}Button2"),
@@ -257,5 +310,53 @@ mod tests {
             );
         }
         assert_eq!(parse_popup_action("menu_resume"), None);
+    }
+
+    #[test]
+    fn a_confirm_word_popup_shows_the_typed_text_and_enables_yes_once_it_matches() {
+        use crate::ui::popup::{PopupSpec, PopupStack};
+        use ui_toolkit::registry::FrameRegistry;
+        use ui_toolkit::screen::Screen;
+
+        let mut stack = PopupStack::default();
+        stack.push(PopupSpec {
+            key: "DELETE_GOOD_ITEM".into(),
+            text: "Do you want to destroy Martin Fury?".into(),
+            accept_label: "Yes".into(),
+            cancel_label: Some("No".into()),
+            timeout: None,
+            confirm_text: Some("DELETE".into()),
+        });
+        let build = |stack: &PopupStack| {
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            let mut shared = SharedContext::new();
+            shared.insert(StaticPopupState {
+                popups: stack.visible(),
+            });
+            Screen::new(static_popup_screen).sync(&shared, &mut registry);
+            registry
+        };
+        let onclick = |registry: &FrameRegistry, name: &str| {
+            registry
+                .get(registry.get_by_name(name).unwrap())
+                .unwrap()
+                .onclick
+                .clone()
+                .unwrap_or_default()
+        };
+        let registry = build(&stack);
+        assert!(registry.get_by_name("StaticPopup1EditBox").is_some());
+        assert_eq!(onclick(&registry, "StaticPopup1Button1"), "");
+
+        stack.typing_target().unwrap().typed.push_str("delete");
+        let registry = build(&stack);
+        assert_eq!(
+            crate::ui::screens::screen_test_helpers::fontstring_text(
+                &registry,
+                "StaticPopup1EditBoxText"
+            ),
+            "delete"
+        );
+        assert_ne!(onclick(&registry, "StaticPopup1Button1"), "");
     }
 }
