@@ -970,3 +970,7 @@ Created [[ui-rounding-seams]]. Auction house tab seams came from taffy 0.10.1 ro
 ## [2026-09-26] create | Unit tooltip
 
 Created [[unit-tooltip]]: hovered-unit resolution, CreatureTooltip cache, account appearance collection marks, default tooltip anchor, IPC hover for headless proof.
+
+## [2026-09-26] update | Map transfers and WMO-only maps
+
+[[terrain]]: maps named by Map.db2 Directory; WDT MPHD 0x1 global WMO maps (Stockade) spawn one WMO placed from the world origin, no tiles; WMO floors are the only ground and the camera is not terrain-clamped there. Spec [instances](../specs/instances.md) (NewWorld/WorldPortAck, TransferAborted, CONFIRM_SUMMON after loading).
