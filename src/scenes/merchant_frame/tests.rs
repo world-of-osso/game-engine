@@ -110,7 +110,8 @@ fn right_clicks_buy_and_buy_back_while_left_clicks_on_items_do_nothing() {
         Some(MerchantRequest::Buy {
             slot: 11,
             item_id: 2331,
-            count: 1
+            count: 1,
+            destination: None,
         })
     );
 

@@ -338,6 +338,7 @@ fn item_request(
                 slot: item.slot,
                 item_id: item.item_id,
                 count: 1,
+                destination: None,
             })
         }
         MerchantTab::Buyback => Some(MerchantRequest::Buyback {
