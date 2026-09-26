@@ -75,6 +75,7 @@ fn build_loading_ui(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     current_zone: Res<CurrentZone>,
     local_player_q: Query<(), With<LocalPlayer>>,
+    player_q: Query<&Transform, With<crate::camera::Player>>,
     adt_manager: Res<AdtManager>,
     initial_state: Option<Res<InitialGameState>>,
 ) {
@@ -90,6 +91,7 @@ fn build_loading_ui(
         current_zone.zone_id,
         !local_player_q.is_empty(),
         &adt_manager,
+        player_q.single().ok(),
         &mut progress_animation,
         0.0,
     );
@@ -133,6 +135,7 @@ fn loading_update_visuals(
     mut progress_animation: Option<ResMut<LoadingProgressAnimation>>,
     current_zone: Res<CurrentZone>,
     local_player_q: Query<(), With<LocalPlayer>>,
+    player_q: Query<&Transform, With<crate::camera::Player>>,
     adt_manager: Res<AdtManager>,
     time: Res<Time>,
 ) {
@@ -155,6 +158,7 @@ fn loading_update_visuals(
         current_zone.zone_id,
         !local_player_q.is_empty(),
         &adt_manager,
+        player_q.single().ok(),
         &mut progress_animation,
         time.delta_secs(),
     );
@@ -175,10 +179,11 @@ fn build_loading_state(
     zone_id: u32,
     local_player_ready: bool,
     adt_manager: &AdtManager,
+    player: Option<&Transform>,
     progress_animation: &mut LoadingProgressAnimation,
     delta_secs: f32,
 ) -> LoadingScreenState {
-    let readiness = evaluate_world_loading(local_player_ready, adt_manager);
+    let readiness = evaluate_world_loading(local_player_ready, adt_manager, player);
     let zone_text = if zone_id == 0 {
         DEFAULT_ZONE_TEXT.to_string()
     } else {
@@ -350,7 +355,8 @@ mod tests {
             elapsed_secs: 0.0,
             preview_mode: false,
         };
-        let state = build_loading_state(12, false, &AdtManager::default(), &mut progress, 0.0);
+        let state =
+            build_loading_state(12, false, &AdtManager::default(), None, &mut progress, 0.0);
         assert_eq!(state.zone_text, "Entering Elwynn Forest");
     }
 
@@ -361,7 +367,7 @@ mod tests {
             elapsed_secs: 0.0,
             preview_mode: false,
         };
-        let state = build_loading_state(0, false, &AdtManager::default(), &mut progress, 0.0);
+        let state = build_loading_state(0, false, &AdtManager::default(), None, &mut progress, 0.0);
         assert_eq!(state.zone_text, DEFAULT_ZONE_TEXT);
     }
 }

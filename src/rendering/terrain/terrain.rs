@@ -644,7 +644,7 @@ fn bootstrap_terrain_streaming(
 }
 
 /// Dispatch background loads and unload distant tiles.
-fn adt_streaming_system(
+pub(crate) fn adt_streaming_system(
     mut commands: Commands,
     mut adt_manager: ResMut<AdtManager>,
     mut heightmap: ResMut<TerrainHeightmap>,
@@ -654,17 +654,22 @@ fn adt_streaming_system(
         return;
     }
 
-    // Use player position if available, otherwise fall back to the initial tile center
-    // so terrain starts loading before the player entity is tagged.
-    let (center_y, center_x) = if let Ok(player_tf) = player_q.single() {
-        bevy_to_tile_coords(player_tf.translation.x, player_tf.translation.z)
-    } else {
-        adt_manager.initial_tile
-    };
+    let (center_y, center_x) = streaming_center_tile(&adt_manager, player_q.single().ok());
     let desired = compute_desired_tiles(center_y, center_x, adt_manager.load_radius);
 
     unload_distant_tiles(&mut commands, &mut adt_manager, &mut heightmap, &desired);
     dispatch_tile_loads(&mut adt_manager, &desired, center_y, center_x);
+}
+
+/// The tile terrain streams around: the player's tile, or the server's initial tile
+/// so terrain starts loading before the player entity is tagged.
+pub(crate) fn streaming_center_tile(
+    adt_manager: &AdtManager,
+    player: Option<&Transform>,
+) -> (u32, u32) {
+    player.map_or(adt_manager.initial_tile, |player_tf| {
+        bevy_to_tile_coords(player_tf.translation.x, player_tf.translation.z)
+    })
 }
 
 /// Receive parsed tiles from background threads and spawn entities.
