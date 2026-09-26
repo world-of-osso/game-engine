@@ -210,6 +210,8 @@ pub enum Request {
     QuestInteract {
         npc: String,
     },
+    /// Take every slot of the open loot window (`LootSlot` for each).
+    LootTakeAll,
     QuestShow {
         quest_id: u32,
     },
