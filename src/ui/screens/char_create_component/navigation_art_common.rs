@@ -1,8 +1,7 @@
-use ui_toolkit::layout_values::Val;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use ui_toolkit::frame::{Dimension, Frame, WidgetData};
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::{FontColor, GameFont, JustifyH};
@@ -24,7 +23,7 @@ fn cap_width(name: &str, height: f32) -> f32 {
 
 /// At the authored 250×66 size, left and right caps retain their source ratio;
 /// only the narrow center strip is stretched to fit the remaining width.
-pub(super) fn part_widths(width: f32, height: f32) -> [f32; 3] {
+pub fn part_widths(width: f32, height: f32) -> [f32; 3] {
     let left = cap_width(LEFT, height);
     let right = cap_width(RIGHT, height);
     assert!(
@@ -57,47 +56,6 @@ pub(super) fn navigation_layers(name: &str, label: &str, width: f32, height: f32
             font_color: FontColor::new(1.0, 0.82, 0.0, 1.0),
             justify_h: JustifyH::Center,
             pos_type: "absolute", left: 0.0, top: 0.0,
-        }
-    }
-}
-
-/// Taffy rounds absolute children independently, so derive all slice widths
-/// from the button's actual physical edges rather than rounding each offset.
-fn snapped_part_widths(button: &Frame, screen_width: f32, scale: f32) -> [f32; 3] {
-    let width = button.width.value();
-    let [left, _, right] = part_widths(width, button.height.value());
-    let x = match (button.position.left, button.position.right) {
-        (Val::Px(left), _) => left,
-        (_, Val::Px(right)) => screen_width - right - width,
-        _ => panic!("navigation button must be anchored to a screen side"),
-    };
-    let total_pixels = ((x + width) * scale).round() - (x * scale).round();
-    let left_pixels = (left * scale).round();
-    let right_pixels = (right * scale).round();
-    let center_pixels = total_pixels - left_pixels - right_pixels;
-    [left_pixels, center_pixels, right_pixels].map(|pixels| pixels / scale)
-}
-
-fn snap_navigation_parts(registry: &mut FrameRegistry, name: &str, scale: f32) {
-    let Some(button_id) = registry.get_by_name(name) else {
-        return;
-    };
-    let button = registry.get(button_id).expect("named navigation button");
-    let widths = snapped_part_widths(button, registry.screen_width, scale);
-    let offsets = [0.0, widths[0], widths[0] + widths[1]];
-    for ((part, _), (part_width, x)) in PARTS.into_iter().zip(widths.into_iter().zip(offsets)) {
-        let part_name = format!("{name}_{part}");
-        let Some(id) = registry.get_by_name(&part_name) else {
-            eprintln!("Character-creation navigation art missing part {part_name}");
-            continue;
-        };
-        let frame = registry.get_mut(id).expect("named navigation part");
-        let snapped_width = Dimension::Fixed(part_width);
-        let snapped_left = Val::Px(x);
-        if frame.width != snapped_width || frame.position.left != snapped_left {
-            frame.width = snapped_width;
-            frame.position.left = snapped_left;
-            registry.mark_rect_dirty(id);
         }
     }
 }
@@ -202,11 +160,8 @@ fn sync_button(registry: &mut FrameRegistry, name: &str) {
 }
 
 /// Synchronize authored navigation art against the current registry and physical UI scale.
-pub fn sync_navigation_art_registry(registry: &mut FrameRegistry, scale: Option<f32>) {
+pub fn sync_navigation_art_registry(registry: &mut FrameRegistry) {
     for name in [BACK_BUTTON.0, NEXT_BUTTON.0, CREATE_BUTTON.0] {
-        if let Some(scale) = scale {
-            snap_navigation_parts(registry, name, scale);
-        }
         sync_button(registry, name);
     }
 }

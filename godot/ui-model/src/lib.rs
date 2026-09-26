@@ -124,10 +124,7 @@ impl CharacterCreateModel {
             root.width = ui_toolkit::frame::Dimension::Fixed(width);
             root.height = ui_toolkit::frame::Dimension::Fixed(height);
         }
-        char_create_component::navigation_art::sync_navigation_art_registry(
-            &mut self.registry,
-            None,
-        );
+        char_create_component::navigation_art::sync_navigation_art_registry(&mut self.registry);
     }
 }
 
