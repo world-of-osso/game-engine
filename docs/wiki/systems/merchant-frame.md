@@ -17,10 +17,12 @@ This page covers the client vendor. The spec is [merchant-frame](../../specs/mer
 - `src/scenes/merchant_frame/`:
   - `build_state` builds the view model.
   - `sync_merchant_window` opens the window (plus `Bag(0)`) when a vendor list arrives. When the window is closed, it sends `NpcInteractionRequest::Close` and closes the bag.
-  - `dispatch_action` handles clicks: right-click on an item buys or buys back.
+  - `dispatch_action` handles clicks: right-click on an item buys; any click on a buyback cell buys back. Left clicks on vendor items belong to [[cursor-item]] (pickup, drop on a bag slot buys there).
+  - Sell All Junk pushes `SELL_ALL_JUNK_ITEMS`; `sell_junk_on_confirm` sends `MerchantRequest::SellAllJunk` on Yes. `has_junk` = a poor bag item with a catalog sell price.
 - `src/ui/screens/merchant_frame_component.rs`: the Retail layout, with every offset cited from MerchantFrame.xml/.lua. It reuses `quest_art::window_chrome` (metal_frame).
 - Right-click on a bag slot (`bag_slot:<bag>:<slot>`, `scenes/bag_frame::sell_bag_item`) sends `MerchantRequest::Sell` only while the merchant tab is shown.
 - `scenes/tooltip_frame::hovered_merchant_tooltip`: name in quality colour, stack count and stock for `MerchantItem<n>`.
+- The frame root carries `onclick: merchant_frame` so a cursor item dropped on its background is sold (MF.xml `OnMouseUp` → `PickupMerchantItem(0)`).
 
 ## Gotchas
 
