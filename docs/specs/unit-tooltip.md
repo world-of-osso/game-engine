@@ -9,7 +9,12 @@ References:
 ## What it must do
 
 - [x] Hovered unit (`rendering/ui/unit_hover.rs`, `HoveredUnit`): a unit frame cluster under the cursor (PlayerFrame, TargetFrame, TargetOfTargetFrame, FocusFrame) gives the unit it shows; with no UI frame under the cursor, the nearest nameplate under it, else the first NPC or player the camera ray through the cursor hits (a wall in front hides the unit behind it).
-- [x] Every tooltip, unit or not, uses `GameTooltip_SetDefaultAnchor` (STT:87-114): the tooltip's BOTTOMRIGHT on `GameTooltipDefaultContainer`, which sits at UIParent BOTTOMRIGHT x -9, y 85 (GT.xml:242-247). It no longer follows the cursor.
+- [x] Anchors follow each Retail `OnEnter` (`TooltipFrameState::anchor`, clamped to the screen per `clampedToScreen`, SharedTooltipTemplates.xml:10):
+  - default anchor `GameTooltip_SetDefaultAnchor` (STT:87-114): tooltip BOTTOMRIGHT on `GameTooltipDefaultContainer`, UIParent BOTTOMRIGHT x -9, y 85 (GT.xml:242-247): world units (`SetWorldCursor`, GT.lua:977-1020), unit frames (`UnitFrame_UpdateTooltip`, UnitFrame.lua:390-391), action buttons (`ActionBarActionButtonMixin:SetTooltip`, ActionButton.lua:1070-1080, with `UberTooltips` default 1 per wow-ui-sim cvars.yaml), the XP bar (ExpBarOverrides.lua:30), chat spell links (no Retail hover tooltip; default chosen);
+  - `ANCHOR_RIGHT`: merchant cells (MerchantFrame.lua:710-711), spellbook buttons (Blizzard_SpellBookItem.lua:494), talent nodes (Blizzard_TalentDisplay.lua:127-128);
+  - `ANCHOR_BOTTOMLEFT`: player buffs (`AuraButtonMixin:OnEnter`, BuffFrame.lua:888-899), minimap mail (Minimap.lua:500-501);
+  - bag slots: `ANCHOR_NONE` + `ContainerFrameItemButton_CalculateItemTooltipAnchors` (ContainerFrame.lua:1448-1458), right of the slot in the left screen half, else left;
+  - target auras: `ANCHOR_LEFT` when the aura's centre is right of the screen centre, else `ANCHOR_RIGHT` (TargetFrame.xml:35-40).
 - [x] NPC lines: the name coloured by `GameTooltip_UnitColor` (GT.lua:120-182) = `FACTION_BAR_COLORS[reaction]` (SCC:3-13) with `shared::faction_reaction` (hostile red, neutral yellow, friendly green); the subname; `UNIT_TYPE_LEVEL_TEMPLATE` "Level %d %s" with the Retail `CreatureType` name, or `UNIT_LEVEL_TEMPLATE` "Level %d" when the type is 10 "Not specified" or not known yet; the unit's faction name when it is a reputation faction (`Faction.ReputationIndex` >= 0: "Stormwind", not "Creature" or "Beast - Wolf").
 - [x] Player lines: the name (red when hostile, else white, per `GameTooltip_UnitColor`), "<Guild>" when in a guild, "Level %d %s %s (Player)" with the race and class names. No drops section.
 - [x] Subname and creature type come from the server (`CreatureTooltipQuery { entry }` answered by `CreatureTooltip`), asked once per creature entry on first hover and cached until leaving the world. Until the answer arrives the NPC tooltip shows name, "Level %d" and faction.
@@ -21,13 +26,13 @@ References:
 - [x] Grey (poor) items never appear in the Drops section: loot turns them into coins (game-server `loot.md`).
 - [x] Collected state is the account collection the server sends (`AppearanceCollectionUpdate`, `AccountAppearances`); a newly learned appearance updates an open tooltip.
 - [x] IPC `hover --npc NAME` / `hover --x X --y Y` puts the cursor on the nearest on-screen NPC of that name or on a window point, for headless proof.
-- [ ] Not built: health bar under the name (TDR:130-141), PvP and classification lines ("Elite", "Rare", "Level ??" for bosses and skull levels), level colour by difficulty, class-coloured class name, tooltip fade-out, the `Cursor` and `Nameplate` world-cursor anchor types, Retail owner anchors for bag, merchant and action buttons (all tooltips use the default anchor, as requested), gameobject tooltips.
+- [ ] Not built: health bar under the name (TDR:130-141), PvP and classification lines ("Elite", "Rare", "Level ??" for bosses and skull levels), level colour by difficulty, class-coloured class name, tooltip fade-out, the `Cursor` and `Nameplate` world-cursor anchor types, gameobject tooltips.
 
 ## Tests asserting this spec
 
 - `src/scenes/tooltip_frame/unit_tooltip_tests.rs`: Defias Thug lists the uncollected Pitted Defias Shortsword first, then by chance, 5 lines and "+4 more"; a collected appearance shows the check and loses its priority; 14 items show 5 lines and "+9 more (9 collected)"; 6 items are all listed; Corina Steele's "Sells" with subname, faction and "+3 more (1 collected)"; basic lines before the server answers; the player lines; chance text.
 - `src/scenes/tooltip_frame/unit_sources.rs`: only reputation factions are named (Faction.csv).
-- `src/scenes/tooltip_frame/mod.rs`: the default anchor; the grey ID line of each kind (Frostbolt "Spell ID: 116", Linen Cloth "Item ID: 2589" in bags and merchant, a talent, an aura), none for mail.
+- `src/scenes/tooltip_frame/mod.rs`: the default anchor; each owner anchor type (right, left, bottom-left, bag slot by screen half, target aura by centre, screen clamp); merchant cells anchor right of their cell, action buttons use the default, talent nodes right of the node; the grey ID line of each kind (Frostbolt "Spell ID: 116", Linen Cloth "Item ID: 2589" in bags and merchant, a talent, an aura), none for mail.
 - `src/scenes/tooltip_frame/unit_tooltip_tests.rs`: Defias Thug's record is "Creature ID: 38", players have none.
 - `src/game/networking/unit_tooltip_tests.rs`: an entry is asked for once and its answer cached; a collection update replaces the account appearances.
 - `src/bin/game-engine-cli/tests/camera.rs`: `hover` arguments.
