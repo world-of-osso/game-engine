@@ -9,7 +9,7 @@ use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use game_engine::ui::ui_errors::UiErrors;
 use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{
-    DestroyItem, EquipmentSnapshot, InventoryChannel, InventoryDelta, InventoryError,
+    DestroyItem, EquipItem, EquipmentSnapshot, InventoryChannel, InventoryDelta, InventoryError,
     InventorySnapshot, SplitItem, SwapItem,
 };
 
@@ -80,6 +80,7 @@ fn receive_inventory(
 #[derive(bevy::ecs::system::SystemParam)]
 struct InventorySenders<'w, 's> {
     swap: MessageSenders<'w, 's, SwapItem>,
+    equip: MessageSenders<'w, 's, EquipItem>,
     split: MessageSenders<'w, 's, SplitItem>,
     destroy: MessageSenders<'w, 's, DestroyItem>,
 }
@@ -91,6 +92,7 @@ fn send_inventory_requests(
     for request in requests.read() {
         match request.clone() {
             InventoryRequest::Swap(swap) => send(&mut senders.swap, swap),
+            InventoryRequest::Equip(equip) => send(&mut senders.equip, equip),
             InventoryRequest::Split(split) => send(&mut senders.split, split),
             InventoryRequest::Destroy(destroy) => send(&mut senders.destroy, destroy),
         }

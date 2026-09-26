@@ -60,6 +60,7 @@ pub mod reputation_frame_component;
 pub(crate) mod screen_test_helpers;
 mod screen_title;
 pub mod selection_debug_component;
+pub mod stack_split_frame_component;
 pub mod static_popup_component;
 pub mod status_tracking_bar_component;
 pub mod talent_frame_component;

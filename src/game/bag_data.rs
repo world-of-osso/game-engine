@@ -2,8 +2,8 @@ use bevy::prelude::*;
 use std::collections::BTreeMap;
 
 use shared::protocol::{
-    BagContents, DestroyItem, EquipmentSlot, EquipmentSnapshot, InventoryDelta, InventorySnapshot,
-    ItemLocation, ItemStack, SplitItem, SwapItem,
+    BagContents, DestroyItem, EquipItem, EquipmentSlot, EquipmentSnapshot, InventoryDelta,
+    InventorySnapshot, ItemDurability, ItemLocation, ItemStack, SplitItem, SwapItem,
 };
 
 /// Texture FDIDs for bag frames and slots.
@@ -102,6 +102,8 @@ pub struct InventorySlot {
     /// Server item instance (0 = none); what selling sends.
     pub item_guid: u64,
     pub item_id: u32,
+    pub soulbound: bool,
+    pub durability: Option<ItemDurability>,
 }
 
 impl InventorySlot {
@@ -123,6 +125,8 @@ pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
         name: entry.map(|entry| entry.name.clone()).unwrap_or_default(),
         item_guid: stack.item_guid,
         item_id: stack.item_id,
+        soulbound: stack.soulbound,
+        durability: stack.durability,
     }
 }
 
@@ -146,6 +150,7 @@ pub struct BagInfo {
 #[derive(Message, Clone, Debug, PartialEq, Eq)]
 pub enum InventoryRequest {
     Swap(SwapItem),
+    Equip(EquipItem),
     Split(SplitItem),
     Destroy(DestroyItem),
 }
