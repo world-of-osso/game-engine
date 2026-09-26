@@ -10,3 +10,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
 godot = { version = "0.5.5", features = ["api-4-7"] }
+game-engine-core = { path = "../core" }
+game-engine-ui-model = { path = "../ui-model" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
+# Preserve the authored registry layout semantics and local rounding fix.
+taffy = "0.10.1"
