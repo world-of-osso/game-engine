@@ -268,7 +268,7 @@ impl GameClient {
                 }
                 AccountEvent::WorldReset => self.reset_world(),
                 AccountEvent::UnitUpdated(unit) => {
-                    let mut parent = self.base().to_gd();
+                    let mut parent = self.to_gd().upcast::<Node3D>();
                     self.world.upsert(&mut parent, &unit);
                     self.units.insert(unit.server_id, unit);
                 }
