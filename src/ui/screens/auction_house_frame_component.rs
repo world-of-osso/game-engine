@@ -351,7 +351,7 @@ fn tab_width(label: &str) -> f32 {
 
 /// `PanelTabButtonTemplate` (SharedUIPanelTemplates.xml:905): left cap at x -3 (active -1),
 /// right cap ending 7 (active 8) past the tab, 36 (active 42) tall; the label
-/// `GameFontNormalSmall` 2 px above centre, white while selected. `top` draws the
+/// `GameFontNormalSmall`, white while selected. `top` draws the
 /// `PanelTopTabButtonTemplate` art: upside down, 75 % tall, anchored to the tab bottom.
 fn panel_tab(
     name: &str,
@@ -382,7 +382,14 @@ fn panel_tab(
     } else {
         NORMAL_FONT_COLOR
     };
-    let label_y = if top { 2.0 } else { -2.0 };
+    // `PanelTemplates_SelectTab` / `DeselectTab`: CENTER y -3 selected, +2 deselected (up is
+    // positive); top tabs `-y - 7` / `-y - 6`. The label spans the tab, so top = -y.
+    let label_y = match (top, active) {
+        (false, true) => 3.0,
+        (false, false) => -2.0,
+        (true, true) => 4.0,
+        (true, false) => 8.0,
+    };
     let mut art = crop_texture(format!("{name}Left"), left, left_rect);
     art.extend(crop_texture(format!("{name}Middle"), middle, middle_rect));
     art.extend(crop_texture(format!("{name}Right"), right, right_rect));
