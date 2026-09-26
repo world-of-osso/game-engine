@@ -1,5 +1,14 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot async native terrain-asset boundary
+
+`cad33614` shares terrain material inputs with Godot core and has five pure tests. This is input-data proof only; no native shader/material parity is claimed.
+
+`27944c68`/`1261766c`/`79267767` add generation-isolated asynchronous native `LoadTerrain` loading. `/tmp/claude/godot-world-terrain-flow-79267767.log` exits 0 after a real local CASC/cache fixture parses nine tiles, then reconnect clears the asset state while the host remains `Loading`. The nine `_obj0` lines on stderr report parsed placement counts and are informational, not errors. `/tmp/claude/godot-world-terrain-integrated-build.log` exits 0 without warnings; the prior five unused-terrain-API warnings are resolved by an async consumer and duplicate WDT tile-field removal. Independent async-pending verification remains open.
+
+No rendered terrain, WMO objects, textures, collision, readiness, `InWorld`, `NewWorld`, or `WorldPortAck` follows. Updated [[godot-conversion]], the [conversion specification](../specs/godot-conversion.md), and [parity matrix](../specs/godot-parity-matrix.md).
+
+
 ## [2026-09-26] system | Godot verifier97 and local-CASC dependency boundary
 
 Verifier97 at exact engine `251f3263` plus sibling `9206f9e` records `world::tests` 3/3 GREEN, native `fmt --check` GREEN, and focused native check exit 0 without warnings at `/tmp/claude/godot-{world-tests,native-rust-fmt-check,native-check}-251f3263.log`. This refreshes proof only; prior native fixtures remain bounded. Transform updates and ordinary despawn are unproven; visible models, map, readiness, and `InWorld` remain absent.
