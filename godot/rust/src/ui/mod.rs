@@ -135,13 +135,20 @@ impl RegistryUi {
                         self.actions.push_back(action);
                     }
                 }
+                UiInput::Focus(id) => {
+                    model.registry.focused_frame = Some(id);
+                }
+                UiInput::Blur(id) => {
+                    if model.registry.focused_frame == Some(id) {
+                        model.registry.focused_frame = None;
+                    }
+                }
                 UiInput::Text(id, text) => {
                     if let Some(frame) = model.registry.get_mut(id)
                         && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
                     {
                         edit.cursor_position = text.len();
                         edit.text = text;
-                        model.registry.focused_frame = Some(id);
                     }
                 }
             }
