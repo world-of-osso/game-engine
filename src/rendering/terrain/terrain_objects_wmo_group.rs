@@ -460,25 +460,23 @@ pub(super) fn add_wmo_doodad_set_indices(
     indices.extend((start..end).filter_map(|idx| u16::try_from(idx).ok()));
 }
 
-/// Resolve a doodad FDID from MODI (preferred) or MODN name → listfile lookup (fallback).
+/// Resolve a doodad FDID from its MODD `name_offset`.
 ///
-/// MODD entries reference doodads by `name_offset` — a byte offset into the MODN string table.
-/// MODI entries are indexed by *name index* (sequential position), not byte offset.
+/// With MODI present, `name_offset` is an index into MODI (WebWowViewerCpp `wmoObject.cpp`:
+/// `doodadFileDataIds[doodadDef->name_offset]`). Without it, `name_offset` is a byte offset
+/// into the MODN string table, resolved through the listfile.
 pub(super) fn resolve_wmo_doodad_fdid(root: &wmo::WmoRootData, name_offset: u32) -> Option<u32> {
-    let name_index = root
+    if !root.doodad_file_ids.is_empty() {
+        return root
+            .doodad_file_ids
+            .get(name_offset as usize)
+            .copied()
+            .filter(|&id| id != 0);
+    }
+    let name = root
         .doodad_names
         .iter()
-        .position(|n| n.offset == name_offset);
-
-    // MODI path: use FDID directly, no listfile needed
-    let modi_fdid = name_index.and_then(|idx| root.doodad_file_ids.get(idx).copied());
-    if let Some(fdid) = modi_fdid.filter(|&id| id != 0) {
-        return Some(fdid);
-    }
-
-    // Fallback: MODN name → listfile path → FDID
-    let name = name_index
-        .and_then(|idx| root.doodad_names.get(idx))
+        .find(|n| n.offset == name_offset)
         .map(|n| &n.name)?;
     game_engine::listfile::lookup_path(name)
 }

@@ -986,3 +986,7 @@ Created [[bevy-godot-shadow-comparison]]. Revision-pinned source review records 
 ## [2026-09-26] update | Map transfers and WMO-only maps
 
 [[terrain]]: maps named by Map.db2 Directory; WDT MPHD 0x1 global WMO maps (Stockade) spawn one WMO placed from the world origin, no tiles; WMO floors are the only ground and the camera is not terrain-clamped there. Spec [instances](../specs/instances.md) (NewWorld/WorldPortAck, TransferAborted, CONFIRM_SUMMON after loading).
+
+## [2026-09-26] investigation | Stockade entrance
+
+Created [[stockade-entrance]]: MODD name_offset indexes MODI (WMO doodads of MODI-only roots now spawn, including the Stockade instance portal); camera collides with portal-culled WMO groups, smoothed pose ray-checked, portal visibility clips the polygon and opens within 2.25 yd. Updated [[collision-system]], [[stormwind-hilly-plaza]], [[wmo-format]].
