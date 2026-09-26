@@ -42,6 +42,66 @@ fn newest_matching_player<'a>(
     (chosen, count)
 }
 
+fn spawn_root(parent: &mut Gd<Node3D>) -> Gd<Node3D> {
+    let mut root = Node3D::new_alloc();
+    root.set_name("WorldUnits");
+    parent.add_child(&root);
+    root
+}
+
+fn spawn_unit(
+    root: &mut Option<Gd<Node3D>>,
+    parent: &mut Gd<Node3D>,
+    name: &str,
+    is_player: bool,
+) -> UnitNode {
+    let root = root.get_or_insert_with(|| spawn_root(parent));
+    let mut node = Node3D::new_alloc();
+    node.set_name(name);
+    root.add_child(&node);
+    UnitNode {
+        node,
+        name: name.to_owned(),
+        is_player,
+    }
+}
+
+fn resolve_selected_player(
+    units: &HashMap<u64, UnitNode>,
+    current_id: Option<u64>,
+    name: &str,
+) -> Option<u64> {
+    let existing_match = current_id.filter(|id| {
+        units
+            .get(id)
+            .is_some_and(|unit| unit.is_player && unit.name == name)
+    });
+    if existing_match.is_some() {
+        return existing_match;
+    }
+
+    // Godot uniquifies duplicate sibling names. The last-created child is the
+    // closest equivalent to the original render world's newest matching entity.
+    let (chosen, match_count) = newest_matching_player(
+        units.iter().map(|(id, unit)| {
+            (
+                *id,
+                unit.name.as_str(),
+                unit.is_player,
+                unit.node.get_index(),
+            )
+        }),
+        name,
+    );
+    if match_count > 1 {
+        godot_warn!(
+            "Found {match_count} replicated players named '{}'; choosing newest entity as local",
+            name
+        );
+    }
+    chosen
+}
+
 #[derive(Default)]
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
@@ -65,22 +125,10 @@ impl WorldUnits {
         };
 
         let is_new = !self.units.contains_key(&snapshot.server_id);
-        let unit = self.units.entry(snapshot.server_id).or_insert_with(|| {
-            let root = self.root.get_or_insert_with(|| {
-                let mut root = Node3D::new_alloc();
-                root.set_name("WorldUnits");
-                parent.add_child(&root);
-                root
-            });
-            let mut node = Node3D::new_alloc();
-            node.set_name(name);
-            root.add_child(&node);
-            UnitNode {
-                node,
-                name: name.to_owned(),
-                is_player: snapshot.player.is_some(),
-            }
-        });
+        let unit = self
+            .units
+            .entry(snapshot.server_id)
+            .or_insert_with(|| spawn_unit(&mut self.root, parent, name, snapshot.player.is_some()));
         if unit.name != name {
             unit.node.set_name(name);
             unit.name = name.to_owned();
@@ -128,33 +176,7 @@ impl WorldUnits {
         let Some(name) = selected_name else {
             return;
         };
-        let current_matches = self
-            .local_player_id
-            .and_then(|id| self.units.get(&id))
-            .is_some_and(|unit| unit.is_player && unit.name == name);
-        if current_matches {
-            return;
-        }
-        // Godot uniquifies duplicate sibling names. The last-created child is the
-        // closest equivalent to the original render world's newest matching entity.
-        let (chosen, match_count) = newest_matching_player(
-            self.units.iter().map(|(id, unit)| {
-                (
-                    *id,
-                    unit.name.as_str(),
-                    unit.is_player,
-                    unit.node.get_index(),
-                )
-            }),
-            name,
-        );
-        if match_count > 1 {
-            godot_warn!(
-                "Found {match_count} replicated players named '{}'; choosing newest entity as local",
-                name
-            );
-        }
-        self.local_player_id = chosen;
+        self.local_player_id = resolve_selected_player(&self.units, self.local_player_id, name);
     }
 }
 
