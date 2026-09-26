@@ -6,39 +6,14 @@ use std::path::Path;
 use bevy::prelude::Color;
 use serde::Deserialize;
 
+#[path = "sky_lightdata_data.rs"]
+mod data;
+
+pub type LightDataRow = data::LightDataRow<Color>;
+pub type SkyColorSet = data::SkyColorSet<Color>;
+
 #[path = "sky_lightdata_cache.rs"]
 mod cache;
-
-/// One keyframe row filtered to a single LightParamID.
-#[derive(Debug, Clone)]
-pub struct LightDataRow {
-    pub time: f32,
-    pub direct_color: Color,
-    pub ambient_color: Color,
-    pub sky_top: Color,
-    pub sky_middle: Color,
-    pub sky_band1: Color,
-    pub sky_band2: Color,
-    pub sky_smog: Color,
-    pub fog_color: Color,
-    pub sun_color: Color,
-    pub sun_halo_color: Color,
-    pub cloud_emissive_color: Color,
-    pub cloud_layer1_ambient_color: Color,
-    pub cloud_layer2_ambient_color: Color,
-    pub ocean_close_color: Color,
-    pub ocean_far_color: Color,
-    pub river_close_color: Color,
-    pub river_far_color: Color,
-    pub horizon_ambient_color: Color,
-    pub ground_ambient_color: Color,
-    pub fog_end: f32,
-    pub fog_start: f32,
-    pub glow: f32,
-    pub cloud_density: f32,
-    pub unk1: f32,
-    pub unk2: f32,
-}
 
 #[derive(Debug, Deserialize)]
 struct LightDataFile {
@@ -99,41 +74,6 @@ pub fn decode_light_color(val: u32) -> Color {
     let [_, r, g, b] = val.to_be_bytes();
     Color::srgb_u8(r, g, b)
 }
-
-/// Interpolated sky color set for the current time of day.
-#[derive(Debug, Clone)]
-pub struct SkyColorSet {
-    pub sky_top: Color,
-    pub sky_middle: Color,
-    pub sky_band1: Color,
-    pub sky_band2: Color,
-    pub sky_smog: Color,
-    pub direct_color: Color,
-    pub ambient_color: Color,
-    pub fog_color: Color,
-    pub sun_color: Color,
-    pub sun_halo_color: Color,
-    pub cloud_emissive_color: Color,
-    pub cloud_layer1_ambient_color: Color,
-    pub cloud_layer2_ambient_color: Color,
-    pub ocean_close_color: Color,
-    pub ocean_far_color: Color,
-    pub river_close_color: Color,
-    pub river_far_color: Color,
-    pub horizon_ambient_color: Color,
-    pub ground_ambient_color: Color,
-    /// World fog end and start in yards.
-    pub fog_end: f32,
-    pub fog_start: f32,
-    pub glow: f32,
-    pub cloud_density: f32,
-    pub unk1: f32,
-    pub unk2: f32,
-}
-
-/// LightData FogEnd is the fog distance multiplied by 36 (wowdev DB/LightData);
-/// solarityclient scales it by 1/36 (`CLIENT_COORDINATE_SCALE`).
-const LIGHT_DATA_FOG_UNITS_PER_YARD: f32 = 36.0;
 
 fn deserialize_light_row(row: LightDataSerializedRow) -> LightDataRow {
     LightDataRow {
@@ -394,117 +334,9 @@ pub fn default_sky_colors() -> SkyColorSet {
     }
 }
 
-fn lerp_rows(a: &LightDataRow, b: &LightDataRow, t: f32) -> SkyColorSet {
-    lerp_color_sets(&row_colors(a), &row_colors(b), t)
-}
-
-fn row_colors(row: &LightDataRow) -> SkyColorSet {
-    SkyColorSet {
-        sky_top: row.sky_top,
-        sky_middle: row.sky_middle,
-        sky_band1: row.sky_band1,
-        sky_band2: row.sky_band2,
-        sky_smog: row.sky_smog,
-        direct_color: row.direct_color,
-        ambient_color: row.ambient_color,
-        fog_color: row.fog_color,
-        sun_color: row.sun_color,
-        sun_halo_color: row.sun_halo_color,
-        cloud_emissive_color: row.cloud_emissive_color,
-        cloud_layer1_ambient_color: row.cloud_layer1_ambient_color,
-        cloud_layer2_ambient_color: row.cloud_layer2_ambient_color,
-        ocean_close_color: row.ocean_close_color,
-        ocean_far_color: row.ocean_far_color,
-        river_close_color: row.river_close_color,
-        river_far_color: row.river_far_color,
-        horizon_ambient_color: row.horizon_ambient_color,
-        ground_ambient_color: row.ground_ambient_color,
-        fog_end: row.fog_end / LIGHT_DATA_FOG_UNITS_PER_YARD,
-        fog_start: row.fog_start / LIGHT_DATA_FOG_UNITS_PER_YARD,
-        glow: row.glow,
-        cloud_density: row.cloud_density,
-        unk1: row.unk1,
-        unk2: row.unk2,
-    }
-}
-
 /// Interpolate every channel from `a` towards `b`.
 pub fn lerp_color_sets(a: &SkyColorSet, b: &SkyColorSet, t: f32) -> SkyColorSet {
-    SkyColorSet {
-        sky_top: lerp_color(a.sky_top, b.sky_top, t),
-        sky_middle: lerp_color(a.sky_middle, b.sky_middle, t),
-        sky_band1: lerp_color(a.sky_band1, b.sky_band1, t),
-        sky_band2: lerp_color(a.sky_band2, b.sky_band2, t),
-        sky_smog: lerp_color(a.sky_smog, b.sky_smog, t),
-        direct_color: lerp_color(a.direct_color, b.direct_color, t),
-        ambient_color: lerp_color(a.ambient_color, b.ambient_color, t),
-        fog_color: lerp_color(a.fog_color, b.fog_color, t),
-        sun_color: lerp_color(a.sun_color, b.sun_color, t),
-        sun_halo_color: lerp_color(a.sun_halo_color, b.sun_halo_color, t),
-        cloud_emissive_color: lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t),
-        cloud_layer1_ambient_color: lerp_color(
-            a.cloud_layer1_ambient_color,
-            b.cloud_layer1_ambient_color,
-            t,
-        ),
-        cloud_layer2_ambient_color: lerp_color(
-            a.cloud_layer2_ambient_color,
-            b.cloud_layer2_ambient_color,
-            t,
-        ),
-        ocean_close_color: lerp_color(a.ocean_close_color, b.ocean_close_color, t),
-        ocean_far_color: lerp_color(a.ocean_far_color, b.ocean_far_color, t),
-        river_close_color: lerp_color(a.river_close_color, b.river_close_color, t),
-        river_far_color: lerp_color(a.river_far_color, b.river_far_color, t),
-        horizon_ambient_color: lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t),
-        ground_ambient_color: lerp_color(a.ground_ambient_color, b.ground_ambient_color, t),
-        fog_end: lerp_scalar(a.fog_end, b.fog_end, t),
-        fog_start: lerp_scalar(a.fog_start, b.fog_start, t),
-        glow: lerp_scalar(a.glow, b.glow, t),
-        cloud_density: lerp_scalar(a.cloud_density, b.cloud_density, t),
-        unk1: lerp_scalar(a.unk1, b.unk1, t),
-        unk2: lerp_scalar(a.unk2, b.unk2, t),
-    }
-}
-
-fn lerp_scalar(a: f32, b: f32, t: f32) -> f32 {
-    a + (b - a) * t
-}
-
-fn find_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow, f32) {
-    if let Some((a, b)) = find_non_wrapping_bracket(rows, m) {
-        return (a, b, interpolation_factor(a.time, b.time, m));
-    }
-    find_wraparound_bracket(rows, m)
-}
-
-fn find_non_wrapping_bracket(
-    rows: &[LightDataRow],
-    m: f32,
-) -> Option<(&LightDataRow, &LightDataRow)> {
-    rows.windows(2).find_map(|window| {
-        let a = &window[0];
-        let b = &window[1];
-        (m >= a.time && m <= b.time).then_some((a, b))
-    })
-}
-
-fn find_wraparound_bracket(rows: &[LightDataRow], m: f32) -> (&LightDataRow, &LightDataRow, f32) {
-    let last = &rows[rows.len() - 1];
-    let first = &rows[0];
-    let wrap_end_time = first.time + 2880.0;
-    let adjusted_m = if m < last.time { m + 2880.0 } else { m };
-    let t = interpolation_factor(last.time, wrap_end_time, adjusted_m);
-    (last, first, t)
-}
-
-fn interpolation_factor(start: f32, end: f32, value: f32) -> f32 {
-    let span = end - start;
-    if span > 0.0 {
-        (value - start) / span
-    } else {
-        0.0
-    }
+    data::lerp_color_sets(a, b, t, lerp_color)
 }
 
 /// Sample a light blend at the given time: the first entry (the map's global
@@ -515,32 +347,17 @@ pub fn sample_light_blend(
     blend: &[crate::light_lookup::WeightedLightParams],
     minutes: f32,
 ) -> SkyColorSet {
-    let mut layers = blend.iter().filter_map(|light| {
-        rows_by_param
-            .get(&light.light_params_id)
-            .filter(|rows| !rows.is_empty())
-            .map(|rows| (interpolate_colors(rows, minutes), light.weight))
-    });
-    let Some((mut colors, _)) = layers.next() else {
-        return default_sky_colors();
-    };
-    for (layer, weight) in layers {
-        colors = lerp_color_sets(&colors, &layer, weight);
-    }
-    colors
+    let weights: Vec<_> = blend
+        .iter()
+        .map(|light| (light.light_params_id, light.weight))
+        .collect();
+    data::sample_light_blend(rows_by_param, &weights, minutes, lerp_color)
+        .unwrap_or_else(default_sky_colors)
 }
 
 /// Interpolate between LightData keyframes at the given time (0–2880).
 pub fn interpolate_colors(rows: &[LightDataRow], minutes: f32) -> SkyColorSet {
-    match rows.len() {
-        0 => default_sky_colors(),
-        1 => lerp_rows(&rows[0], &rows[0], 0.0),
-        _ => {
-            let m = minutes.rem_euclid(2880.0);
-            let (a, b, t) = find_bracket(rows, m);
-            lerp_rows(a, b, t)
-        }
-    }
+    data::interpolate_colors(rows, minutes, lerp_color).unwrap_or_else(default_sky_colors)
 }
 
 #[cfg(test)]

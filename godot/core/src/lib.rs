@@ -7,6 +7,8 @@ pub mod loading_readiness;
 pub mod m2;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
+#[path = "../../../src/rendering/skybox/sky_lightdata_data.rs"]
+pub mod sky_lightdata_data;
 #[path = "../../../src/rendering/terrain/terrain_material_data.rs"]
 pub mod terrain_material_data;
 pub mod wdt;
