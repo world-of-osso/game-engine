@@ -11,6 +11,10 @@ crate-type = ["cdylib", "rlib"]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
 godot = { version = "0.5.5", features = ["api-4-7"] }
 game-engine-core = { path = "../core" }
+game-engine-network = { path = "../network" }
+game-engine-session = { path = "../session" }
+# Authoritative wire message types; engine scheduling stays inside the network worker.
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-engine-ui-model = { path = "../ui-model" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
