@@ -1,0 +1,9 @@
+[package]
+name = "game-engine-core"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+binrw = "0.15.1"
+image-blp = "1"

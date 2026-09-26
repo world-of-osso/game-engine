@@ -3,6 +3,7 @@ pub mod adt_format;
 pub mod asset_cache;
 pub mod asset_resolver;
 pub mod blp;
+mod blp_format;
 pub mod char_texture;
 pub mod fogs_wdt;
 pub mod m2;
