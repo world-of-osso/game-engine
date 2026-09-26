@@ -363,7 +363,7 @@ fn parsed_tile_state(tile: (u32, u32), parsed: &NativeTerrainTile) -> ParsedTile
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{mpsc, Mutex};
+    use std::sync::{Mutex, mpsc};
     use std::time::{Duration, Instant};
 
     fn cached_assets() -> NativeTerrainAssets {
@@ -502,10 +502,12 @@ mod tests {
         );
         assert_eq!(parsed.root_height_grids, 256);
         assert!(parsed.obj_wmos > 0 || parsed.obj_doodads > 0);
-        assert!(state
-            .failures
-            .iter()
-            .all(|failure| failure.error.contains("missing tile") && failure.tile != (32, 48)));
+        assert!(
+            state
+                .failures
+                .iter()
+                .all(|failure| failure.error.contains("missing tile") && failure.tile != (32, 48))
+        );
         assert!(state.wdt_flags.is_some());
         assert_eq!(stream.parsed_tiles.len(), 1);
         assert!(stream.parsed_tiles.contains_key(&(32, 48)));
