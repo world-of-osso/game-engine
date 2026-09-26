@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot MCCV byte encoding and shader-case boundary
+
+`e65dbb59` corrects authored neutral MCCV storage from byte 127 to byte 255 before `ArrayMesh` construction and reverses that conversion in the shader. `/tmp/claude/godot-terrain-mccv-red.log` is genuine RED for the former encoding; `/tmp/claude/godot-terrain-mccv-build.log` and `/tmp/claude/godot-terrain-mccv-green.log` are GREEN and cover exact formatted pre-commit content. `39e04423` shares Retail-array arithmetic through the API; agent137 reports four targeted tests, but no integrated map-time producer exists. `602b76f7` tracks four shader pixel cases; agent128 reports 4/4, but no inspectable logs were available. Its fixture expansion remains uncommitted and is excluded. Verifier139 only completed an audit: no Cargo proof exists, and the focused terrain check remains pending. This does not establish GPU/world rendering or parity. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+
 ## [2026-09-26] system | Godot native terrain-material attachment boundary
 
 `0953ef72` decodes referenced terrain BLPs from local CASC. `9f6000f6` then attaches `ShaderMaterial` mesh children to all nine streamed tiles with native diffuse and MCAL `ImageTexture` inputs. `/tmp/claude/godot-terrain-material-binding-red.log` is genuine RED: parsed terrain had no corresponding native material tiles. `/tmp/claude/godot-terrain-material-binding-green.log` is GREEN: all nine attachments exist, reconnect frees `WorldTerrain`, and the host remains `Loading`. `/tmp/claude/godot-terrain-material-binding-build.log` exits 0.
