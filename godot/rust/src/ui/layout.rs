@@ -168,10 +168,6 @@ fn collect_bounds(
     Ok(())
 }
 
-pub fn compute_layout(registry: &FrameRegistry) -> Result<HashMap<u64, LayoutRect>, String> {
-    compute_layout_with_intrinsics(registry, &HashMap::new())
-}
-
 pub fn compute_layout_with_intrinsics(
     registry: &FrameRegistry,
     intrinsics: &HashMap<u64, (f32, f32)>,
@@ -253,7 +249,7 @@ mod tests {
         frame.width = FrameDimension::Fixed(100.0);
         frame.height = FrameDimension::Fixed(40.0);
         assert_eq!(registry.parent_of(anchored), Some(parent));
-        let bounds = compute_layout(&registry).unwrap();
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
         assert_eq!((bounds[&anchored].x, bounds[&anchored].y), (640.0, 20.0));
     }
 
@@ -281,7 +277,7 @@ mod tests {
         frame.position.left = Val::Percent(50.0);
         frame.position.top = Val::Px(134.0);
         frame.translation.x = Val::Percent(-50.0);
-        let bounds = compute_layout(&registry).unwrap();
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
         assert_eq!((bounds[&form].x, bounds[&form].y), (480.0, 193.0));
         assert_eq!((bounds[&button].x, bounds[&button].y), (515.0, 327.0));
     }
