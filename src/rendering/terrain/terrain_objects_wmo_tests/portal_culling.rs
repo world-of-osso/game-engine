@@ -143,3 +143,31 @@ fn group_visibility(world: &mut World) -> std::collections::HashMap<u16, Visibil
         .map(|(group, visibility)| (group.group_index, *visibility))
         .collect()
 }
+
+const MAGIC_DISTRICT_ROOT_FDID: u32 = 321999;
+const GROUP_STOCKADE_STAIRWELL: u16 = 58;
+const GROUP_STOCKADE_JAIL: u16 = 59;
+
+/// A camera in the Stockade entrance doorway (WoW -8767.70, 844.08, 88.83), 0.15 yd past the
+/// `BigJailRoom01` / `Jail01` portal plane, looking at the player down the tunnel: the pose
+/// the walk down the stairs reaches with the camera low behind the player (yaw -50°, pitch
+/// 45°). It stands in `Jail01` with the portal just behind it, outside the frustum. The
+/// frustum test alone closed the portal and hid the stairwell; WebWowViewerCpp keeps a portal
+/// open within 2.25 yd of its plane.
+#[test]
+fn stockade_stairwell_is_drawn_from_a_camera_just_past_the_doorway() {
+    let camera = Transform::from_xyz(-8767.703, 88.825, -844.085)
+        .looking_to(Vec3::new(0.6562, 0.4900, -0.5738), Vec3::Y);
+    let mut app = wmo_culling_app(load_tile_30_48_wmo(MAGIC_DISTRICT_ROOT_FDID), camera);
+
+    app.update();
+
+    let visibility = group_visibility(app.world_mut());
+    for group in [GROUP_STOCKADE_JAIL, GROUP_STOCKADE_STAIRWELL] {
+        assert_eq!(
+            visibility.get(&group),
+            Some(&Visibility::Visible),
+            "group {group}"
+        );
+    }
+}
