@@ -54,6 +54,27 @@ fn roster(selected_index: Option<usize>) -> CharSelectState {
 }
 
 #[test]
+fn character_select_root_tracks_viewport_after_sync() {
+    let mut model = CharacterSelectModel::new(1280.0, 720.0);
+    model.sync();
+    let id = model.registry.get_by_name(CHAR_SELECT_ROOT.0).unwrap();
+    let root = model.registry.get(id).unwrap();
+    assert_eq!(
+        (root.width, root.height),
+        (Dimension::Fixed(1280.0), Dimension::Fixed(720.0))
+    );
+
+    model.registry.screen_width = 1600.0;
+    model.registry.screen_height = 900.0;
+    model.sync();
+    let root = model.registry.get(id).unwrap();
+    assert_eq!(
+        (root.width, root.height),
+        (Dimension::Fixed(1600.0), Dimension::Fixed(900.0))
+    );
+}
+
+#[test]
 fn authored_roster_retains_names_layout_resources_and_actions() {
     let mut model = CharacterSelectModel::new(1920.0, 1080.0);
     model.shared.insert(roster(Some(0)));

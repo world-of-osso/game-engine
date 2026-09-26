@@ -4,7 +4,7 @@ mod projection;
 
 use std::collections::VecDeque;
 
-use game_engine_ui_model::char_select_component::CharSelectState;
+use game_engine_ui_model::char_select_component::{CharSelectState, size_char_select_root};
 use game_engine_ui_model::{CharacterSelectModel, LoadingModel, LoginModel, login};
 use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
@@ -35,6 +35,7 @@ struct RegistryModel {
 impl RegistryModel {
     fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
+        size_char_select_root(&mut self.registry);
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -162,6 +163,7 @@ impl RegistryUi {
         }
         model.registry.screen_width = size.x;
         model.registry.screen_height = size.y;
+        size_char_select_root(&mut model.registry);
         model.registry.mark_all_rects_dirty();
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());

@@ -32,6 +32,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 use char_select_component::{
     CharDisplayEntry, CharSelectState, DeleteConfirmUiState, char_select_screen,
+    size_char_select_root,
 };
 use loading_component::{LoadingScreenState, loading_screen};
 use login::{
@@ -98,6 +99,7 @@ impl CharacterSelectModel {
 
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
+        size_char_select_root(&mut self.registry);
     }
 }
 

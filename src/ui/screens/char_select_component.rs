@@ -1,5 +1,7 @@
 use std::fmt;
 
+use ui_toolkit::frame::Dimension;
+use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -113,6 +115,16 @@ pub struct CampsiteState {
 // --- Frame names ---
 
 pub const CHAR_SELECT_ROOT: FrameName = FrameName("CharSelectRoot");
+
+pub fn size_char_select_root(registry: &mut FrameRegistry) {
+    let (width, height) = (registry.screen_width, registry.screen_height);
+    if let Some(root) = registry.get_by_name(CHAR_SELECT_ROOT.0)
+        && let Some(frame) = registry.get_mut(root)
+    {
+        frame.width = Dimension::Fixed(width);
+        frame.height = Dimension::Fixed(height);
+    }
+}
 pub const CHAR_LIST_PANEL: FrameName = FrameName("CharacterListPanel");
 pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");
