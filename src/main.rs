@@ -137,6 +137,7 @@ fn main() {
     if let Some(path) = cli.load_scene {
         dump_loaded_scene_and_exit(&path, cli.dump_scene);
     }
+    game_engine::item_catalog::warm_item_catalog();
     run_app(
         &args,
         cli.dump_tree,

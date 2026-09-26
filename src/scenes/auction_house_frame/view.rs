@@ -90,7 +90,7 @@ pub struct ViewInputs<'a> {
     pub net: &'a AuctionHouseState,
     pub ui: &'a AuctionHouseUi,
     pub texts: &'a InputTexts,
-    pub catalog: &'a dyn Fn(u32) -> Option<ItemCatalogEntry>,
+    pub catalog: &'a dyn Fn(u32) -> Option<&'static ItemCatalogEntry>,
     pub visible: bool,
 }
 

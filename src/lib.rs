@@ -90,8 +90,6 @@ pub mod item_catalog;
 pub mod item_icons;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
-#[path = "game/item_tooltip_data.rs"]
-pub mod item_tooltip_data;
 pub mod lfg;
 #[path = "game/lfg_data.rs"]
 pub mod lfg_data;
