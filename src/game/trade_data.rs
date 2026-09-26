@@ -87,25 +87,25 @@ impl ItemQuality {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Money {
     /// Total amount in copper.
-    pub copper: u32,
+    pub copper: u64,
 }
 
 impl Money {
-    pub fn new(gold: u32, silver: u32, copper: u32) -> Self {
+    pub fn new(gold: u64, silver: u64, copper: u64) -> Self {
         Self {
             copper: gold * 10000 + silver * 100 + copper,
         }
     }
 
-    pub fn gold(self) -> u32 {
+    pub fn gold(self) -> u64 {
         self.copper / 10000
     }
 
-    pub fn silver(self) -> u32 {
+    pub fn silver(self) -> u64 {
         (self.copper % 10000) / 100
     }
 
-    pub fn copper_rem(self) -> u32 {
+    pub fn copper_rem(self) -> u64 {
         self.copper % 100
     }
 
@@ -187,7 +187,7 @@ impl TradeState {
     }
 
     /// Validate that the player's offered money does not exceed their wallet.
-    pub fn validate_player_money(&self, wallet: u32) -> bool {
+    pub fn validate_player_money(&self, wallet: u64) -> bool {
         self.player.money.copper <= wallet
     }
 

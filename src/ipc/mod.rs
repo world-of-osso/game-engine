@@ -77,7 +77,7 @@ pub enum Request {
         slot: u8,
     },
     TradeSetMoney {
-        copper: u32,
+        copper: u64,
     },
     TradeConfirm,
     TradeStatus,
