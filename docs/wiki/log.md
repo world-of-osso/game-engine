@@ -945,3 +945,7 @@ Created [[stormwind-hilly-plaza]]. The hilly cobblestone in the Trade District w
 ## [2026-09-25] investigation | Stormwind building textures
 
 Updated [[stormwind-hilly-plaza]] and [[wmo-format]]. MOBA flag 0x2 selects the u16 material id; without it every `sw_tradedistrict` batch took MOMT 0, one wall texture, and the roofs never drew. MOMT texture_2 is at 0x18; the parser was reading diffColor there.
+
+## [2026-09-25] design | Nameplate style
+
+Updated [[nameplate-design]] and the [nameplate style](../specs/nameplate-style.md) spec. `NameplateStyle` drives plate sizes, reaction/cast colours, border and fonts; Options > Nameplates edits it and the Thin/Thick selectors are presets. Fills are tinted by the owner's FactionTemplate reaction via `shared::faction_reaction` (Defias Thug, template 7, is neutral yellow). Names are centred 2px above the plate; plate offsets now apply in overlay units, which fixes the name drifting left of the bar under the scaled in-world UI camera. Targeted bin (153) and lib (76) tests pass; headless captures in `data/diagnostics/nameplate-20260925/`.
