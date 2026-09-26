@@ -28,11 +28,51 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
-use char_select_component::{CharSelectState, DeleteConfirmUiState, char_select_screen};
+use char_select_component::{
+    CharDisplayEntry, CharSelectState, DeleteConfirmUiState, char_select_screen,
+};
 use login::{
     PASSWORD_INPUT, SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText,
     USERNAME_INPUT, login_screen,
 };
+use shared::protocol::CharacterListEntry;
+
+/// Convert the protocol roster and session-selected index into the original character-select UI text.
+/// Selection policy (including first-character default and name preselection) belongs to the session.
+pub fn char_select_state_from_roster(
+    characters: &[CharacterListEntry],
+    selected_index: Option<usize>,
+) -> CharSelectState {
+    let entries = characters
+        .iter()
+        .map(|character| CharDisplayEntry {
+            name: character.name.clone(),
+            info: format!(
+                "Level {}   Race {}   Class {}",
+                character.level, character.race, character.class
+            ),
+            status: "Ready to enter world".to_owned(),
+        })
+        .collect();
+    let selected = selected_index.and_then(|index| characters.get(index));
+    let selected_name = selected
+        .map(|character| character.name.clone())
+        .unwrap_or_else(|| "Character Selection".to_owned());
+    let status_text = match selected {
+        Some(character) => format!(
+            "Realm: World of Osso    Level {}    Race {}    Class {}",
+            character.level, character.race, character.class
+        ),
+        None if characters.is_empty() => "No characters available on this realm".to_owned(),
+        None => "Select a character to enter the world".to_owned(),
+    };
+    CharSelectState {
+        characters: entries,
+        selected_index,
+        selected_name,
+        status_text,
+    }
+}
 
 /// Authored character selection tree. The host owns roster, action routing and deletion effects.
 pub struct CharacterSelectModel {
