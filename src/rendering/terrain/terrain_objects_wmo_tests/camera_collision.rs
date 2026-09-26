@@ -182,3 +182,19 @@ fn camera_walking_down_the_stockade_stairs_stays_inside_the_stairwell() {
         "frames with the stairwell culled"
     );
 }
+
+/// Camera low behind the player looking up at them (pitch 45°). At the doorway it follows the
+/// player into `Jail01` and stops 0.15 yd past the `BigJailRoom01` portal plane, with the
+/// portal right behind it and nothing of it in the frustum. WebWowViewerCpp keeps a portal
+/// open while the camera is within 2.25 yd of its plane, where the frustum test is
+/// unreliable, so the stairwell stays drawn.
+#[test]
+fn camera_passing_the_stockade_doorway_keeps_the_stairwell_drawn() {
+    let (_, _, culled_frames) = walk_down_the_stockade_stairs(-50.0, 45.0, 15.0);
+
+    assert_eq!(
+        culled_frames,
+        Vec::<u32>::new(),
+        "frames with the stairwell culled"
+    );
+}
