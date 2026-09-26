@@ -4,7 +4,9 @@ This page records the intended target-first nameplate design and the current sou
 
 ## Current implementation boundary
 
-- `HudOptions` persists independent `Thin`/`Thick` choices. The explicit defaults are Thick health and Thin spellbar.
+- `HudOptions.nameplate_style` (`NameplateStyle`, persisted as `nameplateStyle`) holds every plate size and colour: health and cast width/height, fill colour per reaction and per cast type (normal, channel, non-interruptible), class colours for players, border visibility, name and cast font sizes. The HUD Thin/Thick selectors apply height presets (health 20/10px, cast 10/6px); the nearest preset picks the frame skin, whose margin follows the edited size. Options > Nameplates edits the rest. Defaults: Thick health, Thin spellbar.
+- Health fills are tinted by the owner's reaction to the local player, from `FactionTemplate` rows through `shared::faction_reaction` (the server's AzerothCore template rules; no reputation). Default colours are Retail `UnitSelectionColor` red/yellow/green, class colours for players (`NamePlateFriendlyFrameOptions.useClassColors = true`), and CastingBar (1, 0.7, 0) / (0, 1, 0) / (0.7, 0.7, 0.7) for casts. The fill art is desaturated at load (each pixel's HSV value) so the tint is the colour; a (1, 0, 0) tint reproduces the reference red channel exactly but drops its (43, 41) green/blue.
+- Layout: the name's bottom centre sits 2px above the plate's top edge (the frame when shown, else the body), Retail `CenteredAboveHealthBar` (Blizzard_NamePlateUnitFrame.lua:732-736, `HEALTH_BAR_TO_NAME_ABOVE_SPACING = 2`). All plate offsets are UI units applied in overlay space after projecting the body centre. The earlier code added them in viewport pixels while sprites are sized in UI units, so under the scaled in-world UI camera (auto-fit 0.667 at 1280x685) the name sat ~25px left of a 125px-wide bar; that was the misalignment in `data/diagnostics/nameplate-20260925/user-name-overlaps-bar.png`.
 - A `LocalPlayer` owner is excluded during projection, so its name, health, and cast parts remain absent even if local identity is assigned after those visual entities were created. Removing the marker permits the remote plate to project again.
 - Name, health, and cast parts use the health-body anchor for the configured `HudOptions.nameplate_distance` fade/hide boundary. The setting, not a claimed retail-native cap, defines current behavior.
 - Plate visuals carry their actor owner for screen-space picking. After reconnect/modal and registry-frame input checks, a visible non-local plate selects that owner before the normal world-mesh raycast.
@@ -64,7 +66,10 @@ Cast bars and elite/quest markers come after the base system validates.
 ## Sources
 
 - [nameplate-research-2026-03-27.md](../../nameplate-research-2026-03-27.md) — intended design rules, references, prototype scope
-- [`src/game/state/client_options.rs`](../../../src/game/state/client_options.rs) — persisted health/spellbar thickness values
+- [`src/game/nameplate_style.rs`](../../../src/game/nameplate_style.rs) — `NameplateStyle`, presets, ranges and the Options slider model
+- [`src/game/state/client_options.rs`](../../../src/game/state/client_options.rs) — persisted `nameplateStyle`
+- [`src/ui/screens/options_menu_active_sections_nameplates.rs`](../../../src/ui/screens/options_menu_active_sections_nameplates.rs) — Options > Nameplates page
+- `shared-protocol/src/faction_reaction.rs` — reaction rules shared with the server
 - [`src/rendering/ui/nameplate_art.rs`](../../../src/rendering/ui/nameplate_art.rs) — shared reference-derived frame and live-content art cache
 - [`debug/make_nameplate_skins.py`](../../../debug/make_nameplate_skins.py) — reproducible frame extraction, linear unmatting, and provenance
 - [`debug/compare_nameplates.py`](../../../debug/compare_nameplates.py) — half-size reference/GPU diagnostic comparison
