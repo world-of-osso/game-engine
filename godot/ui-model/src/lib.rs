@@ -6,7 +6,20 @@ pub mod ui {
     pub mod widgets {
         pub use ui_toolkit::widgets::font_string;
     }
+
+    pub mod screens {
+        pub use crate::trash_button_component;
+    }
 }
+
+#[path = "../../../src/ui/screens/campsite_component.rs"]
+mod campsite_component;
+#[path = "../../../src/ui/screens/char_select_component.rs"]
+pub mod char_select_component;
+#[path = "../../../src/ui/screens/char_select_delete_confirm_component.rs"]
+mod char_select_delete_confirm_component;
+#[path = "../../../src/ui/screens/trash_button_component.rs"]
+pub mod trash_button_component;
 
 #[path = "../../../src/ui/screens/login_component.rs"]
 pub mod login;
@@ -15,10 +28,35 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
+use char_select_component::{CharSelectState, DeleteConfirmUiState, char_select_screen};
 use login::{
     PASSWORD_INPUT, SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText,
     USERNAME_INPUT, login_screen,
 };
+
+/// Authored character selection tree. The host owns roster, action routing and deletion effects.
+pub struct CharacterSelectModel {
+    pub screen: Screen,
+    pub shared: SharedContext,
+    pub registry: FrameRegistry,
+}
+
+impl CharacterSelectModel {
+    pub fn new(screen_width: f32, screen_height: f32) -> Self {
+        let mut shared = SharedContext::new();
+        shared.insert(CharSelectState::default());
+        shared.insert(DeleteConfirmUiState::default());
+        Self {
+            screen: Screen::new(char_select_screen),
+            shared,
+            registry: FrameRegistry::new(screen_width, screen_height),
+        }
+    }
+
+    pub fn sync(&mut self) {
+        self.screen.sync(&self.shared, &mut self.registry);
+    }
+}
 
 /// Authored login tree plus mutable input and reactive state; no renderer or auth client.
 pub struct LoginModel {
