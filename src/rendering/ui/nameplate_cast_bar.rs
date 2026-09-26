@@ -11,7 +11,7 @@ use crate::client_options::{
     HudOptions, HudVisibilityToggles, NameplateBarThickness, NameplateStyle, UiDisabled,
 };
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
-use crate::health_bar::{BAR_HEIGHT, HealthBar, plate_style};
+use crate::health_bar::{HealthBar, offset_in_overlay, plate_style};
 
 use crate::rendering::nameplate_art::{
     CAST_BACKGROUND_RECT, CAST_FILL_RECT, NAMEPLATE_SCALE, NameplateArt, NameplateArtCache,
@@ -358,7 +358,8 @@ fn cast_fill_crop(fraction: f32) -> Rect {
     }
 }
 
-fn project_health_bottom(scene: &CastScene, children: &Children) -> Option<(Vec2, f32)> {
+/// Viewport centre of the owner's visible health body, and the shared distance fade.
+fn project_health_center(scene: &CastScene, children: &Children) -> Option<(Vec2, f32)> {
     let (camera, camera_pose) = scene.world_camera.single().ok()?;
     if !camera.is_active {
         return None;
@@ -367,11 +368,8 @@ fn project_health_bottom(scene: &CastScene, children: &Children) -> Option<(Vec2
         .iter()
         .filter_map(|child| scene.bars.get(child).ok())
         .find(|(_, visibility)| **visibility != Visibility::Hidden)?;
-    let bottom = camera
-        .world_to_viewport(
-            camera_pose,
-            bar.transform_point(Vec3::new(0.0, -BAR_HEIGHT / 2.0, 0.0)),
-        )
+    let center = camera
+        .world_to_viewport(camera_pose, bar.translation())
         .ok()?;
     let distance = camera_pose.translation().distance(bar.translation());
     let limit = scene
@@ -380,10 +378,10 @@ fn project_health_bottom(scene: &CastScene, children: &Children) -> Option<(Vec2
         .map_or(crate::client_options::DEFAULT_NAMEPLATE_DISTANCE, |hud| {
             hud.nameplate_distance
         });
-    if distance >= limit || !camera.logical_viewport_rect()?.contains(bottom) {
+    if distance >= limit || !camera.logical_viewport_rect()?.contains(center) {
         return None;
     }
-    Some((bottom, crate::nameplate::nameplate_alpha(distance, limit)))
+    Some((center, crate::nameplate::nameplate_alpha(distance, limit)))
 }
 
 fn project_part<'a>(
@@ -401,10 +399,11 @@ fn project_part<'a>(
     if !overlay.is_active {
         return None;
     }
-    let (bottom, alpha) = project_health_bottom(scene, children)?;
+    let (center, alpha) = project_health_center(scene, children)?;
     let (offset, size, z) = part_layout(part, style, fraction);
-    let point = bottom + Vec2::Y * (HEALTH_CAST_GAP + style.cast_height / 2.0) + offset;
-    let position = overlay.viewport_to_world_2d(overlay_pose, point).ok()?;
+    let below_health = style.health_height / 2.0 + HEALTH_CAST_GAP + style.cast_height / 2.0;
+    let center = overlay.viewport_to_world_2d(overlay_pose, center).ok()?;
+    let position = offset_in_overlay(center, offset + Vec2::Y * below_health);
     let color = match part {
         Part::Fill => {
             let [r, g, b] = style.cast_color(cast.cast_type, cast.interruptible);

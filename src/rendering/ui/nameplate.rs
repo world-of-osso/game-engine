@@ -15,7 +15,9 @@ use crate::client_options::{
 };
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
-use crate::health_bar::{HealthBar, health_plate_top, plate_style};
+#[cfg(test)]
+use crate::health_bar::HealthBarPart;
+use crate::health_bar::{HealthBar, health_plate_top, offset_in_overlay, plate_style};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use game_engine::nameplate_data::{QuestIndicator, UnitReaction};
@@ -393,22 +395,19 @@ fn project_owner(
         .find(|(_, visibility)| {
             has_health && show_health_bars && **visibility != Visibility::Hidden
         });
-    let (viewport, text_anchor) = match bar {
+    let (point, rise, text_anchor) = match bar {
         Some((global, _)) => (
-            world_camera
-                .world_to_viewport(world_transform, global.translation())
-                .ok()?
-                - Vec2::Y * (health_plate_top(style) + NAME_ABOVE_BAR_SPACING),
+            global.translation(),
+            health_plate_top(style) + NAME_ABOVE_BAR_SPACING,
             Anchor::BOTTOM_CENTER,
         ),
-        None => (
-            world_camera
-                .world_to_viewport(world_transform, anchor)
-                .ok()?,
-            Anchor::CENTER,
-        ),
+        None => (anchor, 0.0, Anchor::CENTER),
     };
-    let position = viewport_to_overlay(world_camera, overlay_camera, overlay_transform, viewport)?;
+    let viewport = world_camera
+        .world_to_viewport(world_transform, point)
+        .ok()?;
+    let center = viewport_to_overlay(world_camera, overlay_camera, overlay_transform, viewport)?;
+    let position = offset_in_overlay(center, -Vec2::Y * rise);
     Some(ProjectedPlate {
         position,
         alpha,

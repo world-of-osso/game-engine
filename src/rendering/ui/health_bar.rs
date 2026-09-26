@@ -57,7 +57,7 @@ struct HealthBarVisualOwner(Entity);
 #[relationship_target(relationship = HealthBarVisualOwner, linked_spawn)]
 struct HealthBarVisuals(Vec<Entity>);
 #[derive(Component, Clone, Copy, PartialEq, Eq)]
-enum HealthBarPart {
+pub(crate) enum HealthBarPart {
     Background,
     Fill,
 }
@@ -106,7 +106,14 @@ fn health_frame_layout(style: &NameplateStyle) -> (Vec2, Vec2) {
     )
 }
 
-/// Viewport distance from the health body centre up to the plate's visible top edge.
+/// Plate layout offsets are UI units (y down, like the viewport) from the health body centre.
+/// They apply in overlay space so they scale with the UI camera exactly like sprite sizes do;
+/// added in viewport pixels they drift from the sprites whenever the UI scale is not 1.
+pub(crate) fn offset_in_overlay(center: Vec2, offset: Vec2) -> Vec2 {
+    center + Vec2::new(offset.x, -offset.y)
+}
+
+/// Distance in UI units from the health body centre up to the plate's visible top edge.
 pub(crate) fn health_plate_top(style: &NameplateStyle) -> f32 {
     if !style.show_border {
         return style.health_height / 2.0;
@@ -362,9 +369,8 @@ fn project_health_part(
             )
         }
     };
-    let position = overlay
-        .viewport_to_world_2d(overlay_pose, center + offset)
-        .ok()?;
+    let center = overlay.viewport_to_world_2d(overlay_pose, center).ok()?;
+    let position = offset_in_overlay(center, offset);
     Some((
         Transform::from_translation(position.extend(z)),
         draw_size,
