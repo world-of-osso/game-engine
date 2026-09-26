@@ -25,8 +25,6 @@ pub(crate) use crate::asset::read_bytes::{
     FIXED16_SCALE, fixed16_to_f32, read_f32, read_i16, read_u16, read_u32, read_vec3,
     unorm16_to_f32,
 };
-#[cfg(test)]
-pub(crate) use parser::parse_skin_full;
 pub(crate) use parser::{
     parse_chunks, parse_materials, parse_model_flags, parse_texture_lookup, parse_texture_types,
     parse_texture_unit_lookup, parse_transparency_lookup, parse_txid, parse_uv_animation_lookup,

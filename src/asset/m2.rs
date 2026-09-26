@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "../../tests/unit/asset/m2_retail_light_tests.rs"]
+mod retail_light_tests;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology, VertexAttributeValues};
 use std::path::Path;

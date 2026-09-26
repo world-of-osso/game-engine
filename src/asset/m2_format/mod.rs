@@ -1,5 +1,7 @@
 #[path = "pure.rs"]
 mod pure;
+#[cfg(test)]
+pub(crate) use pure::parser::parse_skin_full;
 pub(crate) use pure::parser::{
     M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
 };
