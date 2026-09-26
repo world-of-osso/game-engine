@@ -2,10 +2,11 @@ extends SceneTree
 
 const SHADER_PATH := "res://shaders/terrain.gdshader"
 const SIZE := 64
-const TOLERANCE := 0.035
+const TOLERANCE := 0.015
 
 var viewport: SubViewport
 var material: ShaderMaterial
+var terrain_instance: MeshInstance3D
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -18,6 +19,34 @@ func solid_texture(color: Color) -> ImageTexture:
 	var image := Image.create(2, 2, false, Image.FORMAT_RGBA8)
 	image.fill(color)
 	return ImageTexture.create_from_image(image)
+
+func striped_texture() -> ImageTexture:
+	var image := Image.create(2, 2, false, Image.FORMAT_RGBA8)
+	for row in 2:
+		image.set_pixel(0, row, Color(0.2, 0.2, 0.2))
+		image.set_pixel(1, row, Color(0.8, 0.8, 0.8))
+	return ImageTexture.create_from_image(image)
+
+func constant_float_cubemap(color: Color) -> Cubemap:
+	var faces: Array[Image] = []
+	for face in 6:
+		var image := Image.create(2, 2, false, Image.FORMAT_RGBAH)
+		image.fill(color)
+		faces.append(image)
+	var cube := Cubemap.new()
+	if cube.create_from_images(faces) != OK:
+		fail("Could not create linear float cubemap")
+	return cube
+
+func set_vertex_color(color: Color) -> void:
+	var arrays := terrain_instance.mesh.surface_get_arrays(0)
+	var colors := PackedColorArray()
+	for index in arrays[Mesh.ARRAY_VERTEX].size():
+		colors.append(color)
+	arrays[Mesh.ARRAY_COLOR] = colors
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	terrain_instance.mesh = mesh
 
 func fixture_scene() -> void:
 	viewport = SubViewport.new()
@@ -52,12 +81,17 @@ func fixture_scene() -> void:
 	for index in arrays[Mesh.ARRAY_VERTEX].size():
 		colors.append(Color(0.5, 0.5, 0.5, 1.0))
 	arrays[Mesh.ARRAY_COLOR] = colors
+	var uvs := PackedVector2Array()
+	for index in colors.size():
+		uvs.append(Vector2(0.25, 0.5))
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
 	instance.material_override = material
 	viewport.add_child(instance)
+	terrain_instance = instance
 
 func set_base_inputs() -> void:
 	material.set_shader_parameter("config", Vector4(4.0, 0.0, 1.0, 0.0))
@@ -144,5 +178,61 @@ func _run() -> void:
 	material.set_shader_parameter("direct", Vector3(0.25, 0.25, 0.25))
 	var authored := 0.25 * tint * 0.5 * 1.1 + 0.5 * 0.25
 	if not await assert_pixel("authored-space lighting/spec then gamma", Color(authored, authored, authored)):
+		return
+	material.set_shader_parameter("direct", Vector3.ZERO)
+	material.set_shader_parameter("ambient", Vector3.ONE)
+	material.set_shader_parameter("horizon_ambient", Vector3.ONE)
+	material.set_shader_parameter("ground_ambient", Vector3.ONE)
+	material.set_shader_parameter("layer_params_0", Vector4(1.0, 0.0, 0.0, 1.5))
+	if not await assert_pixel("layer overbright", Color(0.25 * tint * 1.5 * 1.1, 0.25 * tint * 1.5 * 1.1, 0.25 * tint * 1.5 * 1.1)):
+		return
+	material.set_shader_parameter("layer_params_0", Vector4(1.0, 0.0, 0.0, 1.0))
+	set_vertex_color(Color(1.0, 1.0, 1.0))
+	var full_mccv := 0.25 * 255.0 / 127.0 * 1.1
+	if not await assert_pixel("MCCV byte255 retains multiplier above one", Color(full_mccv, full_mccv, full_mccv)):
+		return
+	set_vertex_color(Color(0.5, 0.5, 0.5))
+	material.set_shader_parameter("fog_mode", 1)
+	material.set_shader_parameter("fog_range", Vector2(1.0, 3.0))
+	material.set_shader_parameter("fog_opacity", 1.0)
+	material.set_shader_parameter("fog_color", Vector3(0.5, 0.0, 0.0))
+	var fog_red := Color(0.5, 0.0, 0.0).linear_to_srgb().r
+	var fogged := Color((0.25 * tint * 1.1 + fog_red) * 0.5, 0.25 * tint * 1.1 * 0.5, 0.25 * tint * 1.1 * 0.5)
+	if not await assert_pixel("linear distance fog in authored space", fogged):
+		return
+	material.set_shader_parameter("fog_mode", 0)
+	material.set_shader_parameter("ground_0", striped_texture())
+	material.set_shader_parameter("animation_params_0", Vector4(0.5, 0.0, 0.0, 0.0))
+	material.set_shader_parameter("animation_time", 0.0)
+	if not await assert_pixel("animated UV start", Color(0.2 * tint * 1.1, 0.2 * tint * 1.1, 0.2 * tint * 1.1)):
+		return
+	material.set_shader_parameter("animation_time", 1.0)
+	if not await assert_pixel("animated UV offset", Color(0.8 * tint * 1.1, 0.8 * tint * 1.1, 0.8 * tint * 1.1)):
+		return
+	material.set_shader_parameter("animation_time", 0.0)
+	material.set_shader_parameter("animation_params_0", Vector4.ZERO)
+	material.set_shader_parameter("config", Vector4(1.0, 0.0, 3.0, 0.0))
+	if not await assert_pixel("UV repeat", Color(0.8 * tint * 1.1, 0.8 * tint * 1.1, 0.8 * tint * 1.1)):
+		return
+	material.set_shader_parameter("config", Vector4(1.0, 0.0, 1.0, 0.0))
+	material.set_shader_parameter("ground_0", solid_texture(Color(0.25, 0.25, 0.25, 0.0)))
+	material.set_shader_parameter("ambient", Vector3.ZERO)
+	material.set_shader_parameter("horizon_ambient", Vector3.ZERO)
+	material.set_shader_parameter("ground_ambient", Vector3.ZERO)
+	material.set_shader_parameter("direct", Vector3(0.5, 0.5, 0.5))
+	if not await assert_pixel("unshadowed directional direct", Color(0.25 * tint * 0.5, 0.25 * tint * 0.5, 0.25 * tint * 0.5)):
+		return
+	material.set_shader_parameter("ambient", Vector3.ONE)
+	material.set_shader_parameter("horizon_ambient", Vector3.ONE)
+	material.set_shader_parameter("ground_ambient", Vector3.ONE)
+	material.set_shader_parameter("direct", Vector3.ZERO)
+	material.set_shader_parameter("animation_params_0", Vector4(0.0, 0.0, 1.0, 0.0))
+	material.set_shader_parameter("environment_map", constant_float_cubemap(Color(0.8, 0.8, 0.8)))
+	var camera := viewport.get_camera_3d()
+	camera.look_at_from_position(Vector3(0.0, 0.4, 2.0), Vector3.ZERO)
+	var n_dot_view := 0.4 / Vector2(0.4, 2.0).length()
+	var fresnel := pow(1.0 - n_dot_view, 4.0)
+	var reflected := 0.25 * tint * (1.0 - fresnel) + Color(0.8, 0.8, 0.8).linear_to_srgb().r * fresnel
+	if not await assert_pixel("linear float cubemap weighted Fresnel", Color(reflected * 1.1, reflected * 1.1, reflected * 1.1)):
 		return
 	quit(0)
