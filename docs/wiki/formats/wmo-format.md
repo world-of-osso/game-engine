@@ -11,7 +11,7 @@ A WMO consists of a root file and one or more group files:
 | `<name>.wmo` | Root: group count, doodad sets, material list, portal planes, GFID/MODI chunks |
 | `<name>_000.wmo` … `<name>_NNN.wmo` | Groups: geometry, vertex data, batch definitions, per-group lighting |
 
-Modern WMOs carry a `GFID` chunk in the root with FDIDs for all group files, and a `MODI` chunk with FDIDs for embedded doodad M2 models. The engine currently resolves group FDIDs via a listfile path-pattern roundtrip rather than reading GFID directly (known improvement opportunity).
+Modern WMOs carry a `GFID` chunk in the root with FDIDs for all group files, and a `MODI` chunk with FDIDs for embedded doodad M2 models. When MODI is present, MODD `name_offset` is an index into MODI, not a MODN byte offset; many modern roots (the Stormwind districts) carry no MODN at all. The engine currently resolves group FDIDs via a listfile path-pattern roundtrip rather than reading GFID directly (known improvement opportunity).
 
 ## World Placement
 
