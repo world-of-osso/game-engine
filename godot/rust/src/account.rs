@@ -12,7 +12,7 @@ use game_engine_session::{
 };
 use shared::protocol::{
     AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
-    EnterWorldResponse, ForcedDisconnect, LoginResponse, RegisterResponse,
+    EnterWorldResponse, ForcedDisconnect, LoadTerrain, LoginResponse, RegisterResponse,
 };
 
 /// Godot host's account state. Only NetworkBridge owns the transport ECS world.
@@ -27,6 +27,7 @@ pub struct Account {
 pub enum AccountEvent {
     Screen(SessionScreen),
     WorldReset,
+    LoadTerrain(LoadTerrain),
     UnitUpdated(UnitSnapshot),
     UnitRemoved(u64),
 }
@@ -107,10 +108,7 @@ impl Account {
                     let effects = self.session.receive_disconnected();
                     self.apply_effects(effects, &mut output)?;
                 }
-                Event::Message(message) => {
-                    let effects = self.receive_message(message)?;
-                    self.apply_effects(effects, &mut output)?;
-                }
+                Event::Message(message) => self.dispatch_message(message, &mut output)?,
                 Event::UnitUpdated(unit) => output.push(AccountEvent::UnitUpdated(unit)),
                 Event::UnitRemoved(id) => output.push(AccountEvent::UnitRemoved(id)),
             }
@@ -119,6 +117,19 @@ impl Account {
             }
         }
         Ok(output)
+    }
+
+    fn dispatch_message(
+        &mut self,
+        message: ProtocolMessage,
+        output: &mut Vec<AccountEvent>,
+    ) -> Result<(), String> {
+        if message.is::<LoadTerrain>() {
+            output.push(AccountEvent::LoadTerrain(decode(message)?));
+            return Ok(());
+        }
+        let effects = self.receive_message(message)?;
+        self.apply_effects(effects, output)
     }
 
     fn receive_message(&mut self, message: ProtocolMessage) -> Result<Vec<SessionEffect>, String> {

@@ -1,5 +1,6 @@
 //! Geometry-only ADT adapter. Texture layers, water, objects and streaming are not loaded here.
 mod assets;
+pub(crate) mod state;
 pub(crate) mod streaming;
 
 use std::fs;
