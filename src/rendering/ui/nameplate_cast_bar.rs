@@ -215,6 +215,7 @@ struct CastScene<'w, 's> {
         (
             Without<CastBarOwner>,
             Without<crate::networking::LocalPlayer>,
+            Without<crate::networking_npc::NotSelectable>,
         ),
     >,
     bars: Query<

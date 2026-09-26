@@ -28,7 +28,10 @@ fn fixture() -> ClickFixture {
     app.init_resource::<bevy::render::texture::ManualTextureViews>();
     app.init_resource::<ButtonInput<MouseButton>>();
     app.init_resource::<CurrentTarget>();
-    app.add_systems(Update, click_to_target);
+    app.add_systems(
+        Update,
+        (crate::networking_npc::sync_not_selectable, click_to_target).chain(),
+    );
     app.add_systems(PostUpdate, bevy::render::camera::camera_system);
     let window = app
         .world_mut()
@@ -374,4 +377,74 @@ fn nameplate_click_cannot_select_hidden_or_local_plates() {
     fixture.app.update();
     click(&mut fixture);
     assert_eq!(fixture.app.world().resource::<CurrentTarget>().0, None);
+}
+
+/// A `UNIT_FLAG_NOT_SELECTABLE` NPC cannot be clicked into the target; clearing the flag makes
+/// its model selectable again.
+#[test]
+fn clicking_a_not_selectable_npc_model_selects_nothing() {
+    let mut fixture = fixture();
+    *fixture
+        .app
+        .world_mut()
+        .get_mut::<Visibility>(fixture.plate)
+        .unwrap() = Visibility::Hidden;
+    fixture
+        .app
+        .world_mut()
+        .entity_mut(fixture.mesh_owner)
+        .insert(shared::components::UnitFlags(
+            shared::components::UnitFlags::NOT_SELECTABLE,
+        ));
+    fixture.app.update();
+    click(&mut fixture);
+    assert_eq!(fixture.app.world().resource::<CurrentTarget>().0, None);
+    fixture
+        .app
+        .world_mut()
+        .get_mut::<shared::components::UnitFlags>(fixture.mesh_owner)
+        .unwrap()
+        .0 = 0;
+    fixture.app.update();
+    click(&mut fixture);
+    assert_eq!(
+        fixture.app.world().resource::<CurrentTarget>().0,
+        Some(fixture.mesh_owner)
+    );
+}
+
+/// Tab targeting skips a `UNIT_FLAG_NOT_SELECTABLE` NPC even when it is the nearest.
+#[test]
+fn tab_target_skips_not_selectable_npcs() {
+    let mut app = App::new();
+    app.add_plugins(MinimalPlugins);
+    let player = app.world_mut().spawn((Player, Transform::default())).id();
+    let npc = |name: &str, x: f32| {
+        (
+            RemoteEntity,
+            Npc {
+                template_id: 1,
+                name: name.into(),
+            },
+            Transform::from_xyz(x, 0.0, 0.0),
+        )
+    };
+    let stalker = app
+        .world_mut()
+        .spawn((
+            npc("Summon Enabler Stalker", 1.0),
+            shared::components::UnitFlags(shared::components::UnitFlags::NOT_SELECTABLE),
+        ))
+        .id();
+    let guard = app.world_mut().spawn(npc("Stockade Guard", 5.0)).id();
+    app.add_systems(Update, crate::networking_npc::sync_not_selectable);
+    app.update();
+    let player_tf = *app.world().get::<Transform>(player).unwrap();
+    let sorted = app
+        .world_mut()
+        .run_system_once(move |remote_q: RemoteTargetQuery| {
+            sorted_targets_by_distance(&player_tf, &remote_q)
+        })
+        .unwrap();
+    assert_eq!(sorted, vec![guard], "stalker {stalker:?} skipped");
 }
