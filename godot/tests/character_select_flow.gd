@@ -35,7 +35,16 @@ func run():
                 client.free()
                 quit(1)
                 return
-            print("PASS: real authentication projects authored character selection; roster=", state.character_count)
+            var back = ui.find_child("BackToLogin", true, false)
+            back.emit_signal("pressed")
+            await process_frame
+            await process_frame
+            if client.account_state().screen != "Login" or not client.get_node("LoginUI").visible:
+                printerr("Authored Back action did not restore login")
+                client.free()
+                quit(1)
+                return
+            print("PASS: real authentication projects authored character selection and Back restores login; roster=", state.character_count)
             client.free()
             quit(0)
             return

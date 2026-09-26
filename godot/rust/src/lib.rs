@@ -10,7 +10,9 @@ use std::{collections::HashMap, path::PathBuf};
 use account::{Account, AccountEvent};
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::char_select_state_from_roster;
+use game_engine_ui_model::{
+    char_select_component::CharSelectAction, char_select_state_from_roster,
+};
 use godot::classes::{INode3D, Node3D, ProjectSettings};
 use godot::prelude::*;
 
@@ -57,7 +59,7 @@ impl INode3D for GameClient {
     }
 
     fn process(&mut self, _delta: f64) {
-        if let Err(error) = self.poll_login_actions().and_then(|()| self.poll_account()) {
+        if let Err(error) = self.poll_ui_actions().and_then(|()| self.poll_account()) {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
             if let Err(ui_error) = self.update_login_status(&error, false) {
@@ -141,6 +143,41 @@ impl GameClient {
 }
 
 impl GameClient {
+    fn poll_ui_actions(&mut self) -> Result<(), String> {
+        match self.account.session.screen {
+            SessionScreen::Login => self.poll_login_actions(),
+            SessionScreen::CharacterSelect => self.poll_character_actions(),
+            _ => Ok(()),
+        }
+    }
+
+    fn poll_character_actions(&mut self) -> Result<(), String> {
+        let Some(ui) = self.character_ui.as_mut() else {
+            return Ok(());
+        };
+        let error = ui.bind_mut().sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        let action = ui.bind_mut().pop_action().to_string();
+        match CharSelectAction::parse(&action) {
+            Some(CharSelectAction::SelectChar(index)) => {
+                self.account.session.selected_index = Some(index);
+                let state = char_select_state_from_roster(
+                    &self.account.session.characters,
+                    self.account.session.selected_index,
+                );
+                ui.bind_mut().set_character_select_state(state)
+            }
+            Some(CharSelectAction::Back) => {
+                self.account.session.screen = SessionScreen::Login;
+                self.show_account_screen(SessionScreen::Login)
+            }
+            None if action.is_empty() => Ok(()),
+            _ => Err(format!("Character action not yet converted: {action}")),
+        }
+    }
+
     fn poll_login_actions(&mut self) -> Result<(), String> {
         if self.account.session.screen != SessionScreen::Login {
             return Ok(());
@@ -201,9 +238,6 @@ impl GameClient {
             match event {
                 AccountEvent::Screen(screen) => {
                     self.show_account_screen(screen)?;
-                    let name = GString::from(format!("{screen:?}").as_str());
-                    self.base_mut()
-                        .emit_signal("screen_requested", &[name.to_variant()]);
                     let status = self.account.session.feedback.clone().unwrap_or_default();
                     self.update_login_status(&status, false)?;
                 }
@@ -256,6 +290,9 @@ impl GameClient {
             }
             _ => {}
         }
+        let name = GString::from(format!("{screen:?}").as_str());
+        self.base_mut()
+            .emit_signal("screen_requested", &[name.to_variant()]);
         Ok(())
     }
 
