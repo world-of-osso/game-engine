@@ -70,16 +70,20 @@ pub struct WmoGroupHeader {
 pub struct WmoGroupFlags {
     pub exterior: bool,
     pub interior: bool,
+    /// An occluder, not geometry: never drawn and never solid.
+    pub antiportal: bool,
 }
 
 impl WmoGroupFlags {
     const EXTERIOR: u32 = 0x8;
     const INTERIOR: u32 = 0x2000;
+    const ANTIPORTAL: u32 = 0x0400_0000;
 
     pub fn from_bits(bits: u32) -> Self {
         Self {
             exterior: bits & Self::EXTERIOR != 0,
             interior: bits & Self::INTERIOR != 0,
+            antiportal: bits & Self::ANTIPORTAL != 0,
         }
     }
 }
@@ -226,7 +230,6 @@ pub struct WmoDoodadName {
 pub struct WmoGroupName {
     pub offset: u32,
     pub name: String,
-    pub is_antiportal: bool,
 }
 
 pub struct WmoDoodadDef {

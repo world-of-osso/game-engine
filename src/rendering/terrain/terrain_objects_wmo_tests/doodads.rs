@@ -222,3 +222,73 @@ fn stockade_entrance_group_places_the_instance_portal_at_the_area_trigger() {
         "portal at {world}, trigger at {trigger}"
     );
 }
+
+/// The Stockade instance portal, a WMO doodad of `sw_magicdistrict` `Jail01`, authors six
+/// particle emitters: the swirl Retail draws in the doorway.
+#[test]
+fn stockade_instance_portal_doodad_spawns_its_six_particle_emitters() {
+    let root_data = std::fs::read(format!("data/models/{MAGIC_DISTRICT_ROOT_FDID}.wmo"))
+        .expect("sw_magicdistrict root WMO in data/models");
+    let root = wmo::load_wmo_root(&root_data).expect("parse sw_magicdistrict root");
+    let group_fdid = root.group_file_data_ids[MAGIC_DISTRICT_JAIL_GROUP];
+    let group_data = std::fs::read(format!("data/models/{group_fdid}.wmo"))
+        .expect("sw_magicdistrict Jail01 group in data/models");
+    let group = wmo::load_wmo_group_with_root(&group_data, Some(&root)).expect("parse Jail01");
+    let mut app = App::new();
+    app.world_mut().init_resource::<Assets<Mesh>>();
+    app.world_mut().init_resource::<Assets<M2Material>>();
+    app.world_mut().init_resource::<Assets<WaterMaterial>>();
+    app.world_mut().init_resource::<Assets<Image>>();
+    app.world_mut().init_resource::<Assets<M2EffectMaterial>>();
+    app.world_mut()
+        .init_resource::<Assets<SkinnedMeshInverseBindposes>>();
+    let group_entity = app.world_mut().spawn(Transform::default()).id();
+
+    app.world_mut()
+        .run_system_once(
+            move |mut commands: Commands,
+                  mut meshes: ResMut<Assets<Mesh>>,
+                  mut materials: ResMut<Assets<M2Material>>,
+                  mut water_materials: ResMut<Assets<WaterMaterial>>,
+                  mut images: ResMut<Assets<Image>>,
+                  mut effect_materials: ResMut<Assets<M2EffectMaterial>>,
+                  mut inverse_bindposes: ResMut<Assets<SkinnedMeshInverseBindposes>>| {
+                let mut assets = WmoAssets {
+                    meshes: &mut meshes,
+                    materials: &mut materials,
+                    water_materials: &mut water_materials,
+                    images: &mut images,
+                    effect_materials: &mut effect_materials,
+                    inverse_bindposes: &mut inverse_bindposes,
+                };
+                spawn_wmo_group_doodads(&mut commands, &mut assets, &root, &group, group_entity, 0);
+            },
+        )
+        .expect("spawn Jail01 doodads");
+    app.update();
+
+    let portal = app
+        .world_mut()
+        .query::<(Entity, &Name)>()
+        .iter(app.world())
+        .find(|(_, name)| name.as_str() == INSTANCE_PORTAL_FDID.to_string())
+        .map(|(entity, _)| entity)
+        .expect("instance portal doodad spawned");
+    let emitters: Vec<Entity> = app
+        .world_mut()
+        .query_filtered::<Entity, With<crate::particle::ParticleEmitterComp>>()
+        .iter(app.world())
+        .filter(|&emitter| descends_from(app.world(), emitter, portal))
+        .collect();
+    assert_eq!(emitters.len(), 6);
+}
+
+fn descends_from(world: &World, mut entity: Entity, ancestor: Entity) -> bool {
+    while let Some(child_of) = world.get::<ChildOf>(entity) {
+        entity = child_of.parent();
+        if entity == ancestor {
+            return true;
+        }
+    }
+    false
+}

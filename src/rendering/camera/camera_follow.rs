@@ -3,11 +3,11 @@ use std::collections::HashSet;
 use bevy::ecs::system::SystemParam;
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, RayCastVisibility};
 use bevy::prelude::*;
-use game_engine::culling::WmoGroup;
 
 use crate::collision::WmoCollisionMesh;
 use crate::sky::SkyDome;
 use crate::terrain_heightmap::TerrainHeightmap;
+use game_engine::culling::WmoInteriors;
 
 use super::{COLLISION_OFFSET, COLLISION_RECOVERY_SPEED, EYE_HEIGHT, GROUND_Y, Player, WowCamera};
 
@@ -81,28 +81,19 @@ fn build_collision_excluded_set(
     excluded
 }
 
-/// What the camera collides with: meshes that are drawn, and the walls of WMO groups that
-/// portal culling hid. Portal culling decides what is drawn, not what is solid; a hidden
-/// group's walls must still hold the camera in, or it leaves the group and the group stays
-/// culled.
+/// What the camera collides with: meshes that are drawn, and WMO walls (`WmoCollisionMesh`)
+/// even when portal culling hid their group. Portal culling decides what is drawn, not what
+/// is solid; a hidden group's walls must still hold the camera in, or it leaves the group
+/// and the group stays culled.
 #[derive(SystemParam)]
 pub(crate) struct CameraBlockers<'w, 's> {
     visibility: Query<'w, 's, &'static InheritedVisibility>,
-    wmo_meshes: Query<'w, 's, &'static ChildOf, With<WmoCollisionMesh>>,
-    wmo_groups: Query<'w, 's, &'static WmoGroup>,
+    wmo_walls: Query<'w, 's, (), With<WmoCollisionMesh>>,
 }
 
 impl CameraBlockers<'_, '_> {
     fn blocks(&self, entity: Entity) -> bool {
-        self.visibility.get(entity).is_ok_and(|v| v.get()) || self.is_wmo_wall(entity)
-    }
-
-    /// A batch mesh of a WMO group other than an antiportal, which is an occluder only.
-    fn is_wmo_wall(&self, entity: Entity) -> bool {
-        self.wmo_meshes
-            .get(entity)
-            .and_then(|child_of| self.wmo_groups.get(child_of.parent()))
-            .is_ok_and(|group| !group.is_antiportal)
+        self.visibility.get(entity).is_ok_and(|v| v.get()) || self.wmo_walls.contains(entity)
     }
 }
 
@@ -213,6 +204,7 @@ pub(crate) fn camera_follow(
     sky_q: Query<Entity, With<SkyDome>>,
     children_q: Query<&Children>,
     blockers: CameraBlockers,
+    interiors: WmoInteriors,
 ) {
     let Some((player_entity, target_translation)) = follow_target(&player_q) else {
         return;
@@ -226,6 +218,10 @@ pub(crate) fn camera_follow(
     cam.distance = cam.distance.lerp(cam.target_distance, zoom_t);
     let follow_t = (cam.follow_speed * dt).min(1.0);
     let eye_target = target_translation + Vec3::Y * EYE_HEIGHT;
+    // Inside a WMO interior its walls bound the camera, as on a WMO-only map; the terrain
+    // above or around the interior (the Stockade entrance tunnel runs under the canal
+    // street) does not.
+    let in_interior = interiors.contain(eye_target);
     let rotation = Quat::from_euler(EulerRot::YXZ, cam.yaw, cam.pitch, 0.0);
     let orbit_dir = rotation * Vec3::NEG_Z;
     let excluded = build_collision_excluded_set(player_entity, &children_q, &sky_q);
@@ -236,12 +232,12 @@ pub(crate) fn camera_follow(
         eye_target,
         orbit_dir,
         &mut ray_cast,
-        terrain.as_deref(),
+        terrain.as_deref().filter(|_| !in_interior),
         &blocks,
         dt,
     );
     let mut pos = eye_target - orbit_dir * effective_distance;
-    if let Some(cam_ground) = camera_ground(terrain.as_deref(), pos) {
+    if let Some(cam_ground) = camera_ground(terrain.as_deref(), pos).filter(|_| !in_interior) {
         pos.y = pos.y.max(cam_ground + 0.5);
     }
     let smoothed = cam_tf.translation.lerp(pos, follow_t);
