@@ -21,6 +21,8 @@ mod char_select_delete_confirm_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
 
+#[path = "../../../src/ui/screens/loading_component.rs"]
+pub mod loading_component;
 #[path = "../../../src/ui/screens/login_component.rs"]
 pub mod login;
 
@@ -31,6 +33,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use char_select_component::{
     CharDisplayEntry, CharSelectState, DeleteConfirmUiState, char_select_screen,
 };
+use loading_component::{LoadingScreenState, loading_screen};
 use login::{
     PASSWORD_INPUT, SharedConnecting, SharedRealmSelectable, SharedRealmText, SharedStatusText,
     USERNAME_INPUT, login_screen,
@@ -88,6 +91,29 @@ impl CharacterSelectModel {
         shared.insert(DeleteConfirmUiState::default());
         Self {
             screen: Screen::new(char_select_screen),
+            shared,
+            registry: FrameRegistry::new(screen_width, screen_height),
+        }
+    }
+
+    pub fn sync(&mut self) {
+        self.screen.sync(&self.shared, &mut self.registry);
+    }
+}
+
+/// Authored loading tree and reactive state; world readiness belongs to the host.
+pub struct LoadingModel {
+    pub screen: Screen,
+    pub shared: SharedContext,
+    pub registry: FrameRegistry,
+}
+
+impl LoadingModel {
+    pub fn new(screen_width: f32, screen_height: f32) -> Self {
+        let mut shared = SharedContext::new();
+        shared.insert(LoadingScreenState::default());
+        Self {
+            screen: Screen::new(loading_screen),
             shared,
             registry: FrameRegistry::new(screen_width, screen_height),
         }
