@@ -221,11 +221,30 @@ pub fn edit_box(name: &'static str, rect: (f32, f32, f32, f32)) -> Element {
 
 /// `MoneyInputFrameTemplate` 176×18 (Blizzard_MoneyFrame/Mainline/MoneyInputFrame.xml:72):
 /// gold 70 wide, silver and copper 28, each followed by its coin label.
-pub fn money_input(boxes: MoneyBoxNames, (x, y): (f32, f32)) -> Element {
+pub fn money_input(boxes: MoneyBoxNames, pos: (f32, f32)) -> Element {
+    money_input_sized(boxes, pos, (70.0, 28.0), 22.0)
+}
+
+/// `MoneyInputFrame_SetCompact`: a 62 wide gold box and narrower silver / copper
+/// boxes packed into a 160 wide row (the trade frame's money inset).
+pub fn money_input_compact(boxes: MoneyBoxNames, pos: (f32, f32)) -> Element {
+    money_input_sized(boxes, pos, (62.0, 22.0), 14.0)
+}
+
+/// Gold / silver / copper boxes of `(gold_w, small_w)`, each box and its coin label
+/// taking `label_w` more before the next box.
+fn money_input_sized(
+    boxes: MoneyBoxNames,
+    (x, y): (f32, f32),
+    (gold_w, small_w): (f32, f32),
+    label_w: f32,
+) -> Element {
+    let silver_x = x + gold_w + label_w;
+    let copper_x = silver_x + small_w + label_w;
     let parts = [
-        (boxes.gold, x, 70.0, "g"),
-        (boxes.silver, x + 92.0, 28.0, "s"),
-        (boxes.copper, x + 142.0, 28.0, "c"),
+        (boxes.gold, x, gold_w, "g"),
+        (boxes.silver, silver_x, small_w, "s"),
+        (boxes.copper, copper_x, small_w, "c"),
     ];
     parts
         .into_iter()

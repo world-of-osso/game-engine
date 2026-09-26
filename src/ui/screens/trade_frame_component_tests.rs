@@ -153,5 +153,9 @@ fn the_partners_money_shows_in_coins() {
         .map(|i| fontstring_text(&reg, &format!("TradeRecipientMoneyFrameAmount{i}")))
         .collect();
     assert_eq!(amounts, ["1", "5", "3"]);
-    assert!(exists(&reg, MONEY_BOXES.gold));
+    // The compact entry fits the 162 wide money inset at 4,-58.
+    let copper = rect(&reg, &format!("{}Unit", MONEY_BOXES.copper));
+    let root = rect(&reg, FRAME_NAME);
+    assert!(copper.x + copper.width - root.x <= 4.0 + 162.0);
+    assert_eq!(offset(&reg, MONEY_BOXES.gold), (11.0, 61.0));
 }
