@@ -4,6 +4,7 @@ mod assets;
 mod scene;
 mod terrain;
 mod ui;
+mod world;
 
 use std::{collections::HashMap, path::PathBuf};
 
@@ -33,6 +34,7 @@ pub struct GameClient {
     loading_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
+    world: world::WorldUnits,
     server_hostname: String,
 }
 
@@ -51,6 +53,7 @@ impl INode3D for GameClient {
                     .to_string(),
             )),
             units: HashMap::new(),
+            world: world::WorldUnits::default(),
             server_hostname: if cfg!(debug_assertions) {
                 "127.0.0.1:5000"
             } else {
@@ -111,7 +114,7 @@ impl GameClient {
             register,
         ) {
             Ok(()) => {
-                self.units.clear();
+                self.reset_world();
                 GString::new()
             }
             Err(error) => GString::from(error.as_str()),
@@ -120,12 +123,20 @@ impl GameClient {
 
     #[func]
     fn account_state(&self) -> VarDictionary {
+        let local_transform = self.world.local_player_transform();
         let session = &self.account.session;
         let mut state = VarDictionary::new();
         state.set("screen", format!("{:?}", session.screen).as_str());
         state.set("status", session.feedback.as_deref().unwrap_or(""));
         state.set("character_count", session.characters.len() as i64);
         state.set("unit_count", self.units.len() as i64);
+        state.set("world_attached", self.world.root().is_some());
+        state.set(
+            "local_player_position",
+            &local_transform
+                .map(|transform| transform.origin.to_variant())
+                .unwrap_or_default(),
+        );
         state.set("reply_received", self.account.reply_received);
         state.set(
             "selected_character_id",
@@ -215,12 +226,12 @@ impl GameClient {
                 }
                 self.account
                     .connect(&self.server_hostname, &username, &password, false)?;
-                self.units.clear();
+                self.reset_world();
                 self.update_login_status("Connecting...", true)
             }
             "reconnect" => {
                 self.account.connect(&self.server_hostname, "", "", false)?;
-                self.units.clear();
+                self.reset_world();
                 self.update_login_status("Connecting...", true)
             }
             "exit" => {
@@ -255,16 +266,26 @@ impl GameClient {
                     let status = self.account.session.feedback.clone().unwrap_or_default();
                     self.update_login_status(&status, false)?;
                 }
-                AccountEvent::WorldReset => self.units.clear(),
+                AccountEvent::WorldReset => self.reset_world(),
                 AccountEvent::UnitUpdated(unit) => {
+                    let mut parent = self.base().to_gd();
+                    self.world.upsert(&mut parent, &unit);
                     self.units.insert(unit.server_id, unit);
                 }
                 AccountEvent::UnitRemoved(id) => {
+                    self.world.remove(id);
                     self.units.remove(&id);
                 }
             }
         }
+        self.world
+            .select_local_player(self.account.session.selected_character_name.as_deref());
         Ok(())
+    }
+
+    fn reset_world(&mut self) {
+        self.world.reset();
+        self.units.clear();
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {

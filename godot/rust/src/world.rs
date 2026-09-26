@@ -114,19 +114,26 @@ impl WorldUnits {
         self.root.clone()
     }
 
+    pub fn local_player_transform(&self) -> Option<Transform3D> {
+        let unit = self.units.get(&self.local_player_id?)?;
+        Some(unit.node.get_transform())
+    }
+
     /// Match the selected character's exact name. Keep an existing match when a duplicate arrives.
-    pub fn local_player_transform(&mut self, selected_name: Option<&str>) -> Option<Transform3D> {
+    pub fn select_local_player(&mut self, selected_name: Option<&str>) {
         if self.selected_name.as_deref() != selected_name {
             self.selected_name = selected_name.map(str::to_owned);
             self.local_player_id = None;
         }
-        let name = selected_name?;
-        if let Some(id) = self.local_player_id {
-            if let Some(unit) = self.units.get(&id) {
-                if unit.is_player && unit.name == name {
-                    return Some(unit.node.get_transform());
-                }
-            }
+        let Some(name) = selected_name else {
+            return;
+        };
+        let current_matches = self
+            .local_player_id
+            .and_then(|id| self.units.get(&id))
+            .is_some_and(|unit| unit.is_player && unit.name == name);
+        if current_matches {
+            return;
         }
         // Godot uniquifies duplicate sibling names. The last-created child is the
         // closest equivalent to the original render world's newest matching entity.
@@ -147,9 +154,7 @@ impl WorldUnits {
                 name
             );
         }
-        let id = chosen?;
-        self.local_player_id = Some(id);
-        self.units.get(&id).map(|unit| unit.node.get_transform())
+        self.local_player_id = chosen;
     }
 }
 
