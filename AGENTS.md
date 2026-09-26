@@ -85,6 +85,7 @@ src/
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
 - Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
+- Patched crates (`bevy_render`, `bevy_pbr`, `bevy_transform`, `ktx2-rw`) live in sibling repo `../bevy-patches` (worktrees: `/home/osso/.worktrees/bevy-patches` symlink, so Bevy artifacts reuse across worktrees). Their regression tests run in that repo's workspace; commands in `../bevy-patches/README.md`.
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 
