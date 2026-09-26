@@ -177,9 +177,11 @@ fn load_and_composite_npc_textures(
         load_npc_texture,
     )?;
     let mut textures = HashMap::from([(1, images.add(body))]);
-    if let Some((pixels, width, height)) =
-        select_npc_type6_texture(materials, composed.hair, composed.head)?
-    {
+    if let Some((pixels, width, height)) = select_npc_type6_texture(
+        compositor.declares_hair(materials, layout),
+        composed.hair,
+        composed.head,
+    )? {
         textures.insert(6, images.add(crate::rgba_image(pixels, width, height)));
     }
     if let Some(fdid) = compositor.replacement_texture_fdid(materials, layout, 19) {
@@ -191,13 +193,11 @@ fn load_and_composite_npc_textures(
 type NpcTexturePixels = (Vec<u8>, u32, u32);
 
 fn select_npc_type6_texture(
-    materials: &[(u16, u32)],
+    declares_hair: bool,
     hair: Option<NpcTexturePixels>,
     head: Option<NpcTexturePixels>,
 ) -> Result<Option<NpcTexturePixels>, String> {
-    // CharTextureData composes a separate hair image only for material target 10.
-    let has_hair_target = materials.iter().any(|(target, _)| *target == 10);
-    if has_hair_target {
+    if declares_hair {
         return hair
             .map(Some)
             .ok_or_else(|| "declared NPC hair target 10 did not produce a texture".to_string());
@@ -369,14 +369,14 @@ mod tests {
         let hair = (vec![180, 90, 30, 255], 1, 1);
         let head = (vec![230, 180, 160, 255], 1, 1);
         assert_eq!(
-            select_npc_type6_texture(&[(10, 100)], Some(hair.clone()), Some(head.clone())).unwrap(),
+            select_npc_type6_texture(true, Some(hair.clone()), Some(head.clone())).unwrap(),
             Some(hair),
         );
         assert_eq!(
-            select_npc_type6_texture(&[(1, 200)], None, Some(head.clone())).unwrap(),
+            select_npc_type6_texture(false, None, Some(head.clone())).unwrap(),
             Some(head.clone()),
         );
-        assert!(select_npc_type6_texture(&[(10, 100)], None, Some(head)).is_err());
+        assert!(select_npc_type6_texture(true, None, Some(head)).is_err());
     }
 
     #[test]
@@ -519,6 +519,39 @@ mod tests {
         );
         let selected = select_npc_choices(&appearance, &db).unwrap();
         assert!(!selected.materials.is_empty());
+    }
+
+    #[test]
+    fn dracthyr_display_110154_target_10_is_not_hair() {
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        let compositor = CharTextureData::load(std::path::Path::new("data"));
+        // Retail display 110154 (race 52 Dracthyr, layout 155): material target 10
+        // feeds texture type 9, and the dragon M2 has no type-6 hair batch.
+        let appearance = AuthoredNpcAppearance {
+            baked_texture_fdid: Some(4736911),
+            ..real_profile(
+                52,
+                0,
+                vec![
+                    19363, 19382, 19388, 19409, 19479, 19482, 19495, 19510, 19512, 19516, 19534,
+                    19545, 19553, 19554, 19560, 19564, 19572, 19576, 19581, 19587, 19591, 26866,
+                    26878, 28275, 28282, 29741, 29786, 29794, 29841, 29888, 29895, 29914, 29941,
+                    29966, 29977, 29979, 29980, 29981, 29982, 29985, 30028, 30060,
+                ],
+            )
+        };
+        let request = NpcAppearanceRequest {
+            display_id: 110154,
+            appearance,
+        };
+        let mut images = Assets::<Image>::default();
+        let prepared = prepare_npc_appearance(&request, &db, &compositor, &mut images).unwrap();
+        assert!(prepared.textures.contains_key(&1));
+        assert!(!prepared.textures.contains_key(&6));
+        // Human layouts keep target 10 as the type-6 hair layer.
+        let human_layout = db.layout_id(1, 0).unwrap();
+        assert!(compositor.declares_hair(&[(10, 1)], human_layout));
+        assert!(!compositor.declares_hair(&[(10, 1)], db.layout_id(52, 0).unwrap()));
     }
 
     #[test]
