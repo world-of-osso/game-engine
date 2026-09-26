@@ -33,8 +33,8 @@ func select_second_character(client: Node) -> void:
 			fail("Reconnect failed: " + error)
 			return
 		var reset: Dictionary = client.account_state().terrain
-		if client.get_node_or_null("WorldTerrain") != null:
-			fail("Reconnect retained previous map material nodes")
+		if client.get_node_or_null("WorldTerrain") != null or client.get_node_or_null("WorldLighting") != null:
+			fail("Reconnect retained previous map material or lighting nodes")
 			return
 		if not reset.map.is_empty() or not reset.parsed_tiles.is_empty() or reset.pending_count != 0:
 			fail("Reconnect retained previous map asset state: " + str(reset))

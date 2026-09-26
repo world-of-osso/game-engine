@@ -11,6 +11,7 @@ use godot::{
 };
 
 use super::{assets::NativeTerrainTile, streaming::StreamedTerrain};
+use crate::lighting::TerrainLight;
 
 type Tile = (u32, u32);
 
@@ -20,6 +21,8 @@ pub(crate) struct TerrainMaterials {
     attached: BTreeSet<Tile>,
     textures: HashMap<u32, Gd<ImageTexture>>,
     shader: Option<Gd<Shader>>,
+    materials: Vec<Gd<ShaderMaterial>>,
+    light: Option<TerrainLight>,
 }
 
 impl TerrainMaterials {
@@ -53,6 +56,15 @@ impl TerrainMaterials {
         }
         self.attached.clear();
         self.textures.clear();
+        self.materials.clear();
+        self.light = None;
+    }
+
+    pub fn update_lighting(&mut self, light: TerrainLight) {
+        for material in &mut self.materials {
+            light.bind(material);
+        }
+        self.light = Some(light);
     }
 
     fn shader(&mut self) -> Result<Gd<Shader>, String> {
@@ -103,6 +115,7 @@ impl TerrainMaterials {
             instance.set_mesh(&mesh);
             instance.set_surface_override_material(0, &material);
             root.add_child(&instance);
+            self.materials.push(material);
         }
         Ok(root)
     }
@@ -144,6 +157,9 @@ impl TerrainMaterials {
         }
         let alpha = texture_from_rgba(64, 64, &adt::pack_alpha_map_bytes(layers))?;
         material.set_shader_parameter("alpha_packed", &alpha.to_variant());
+        if let Some(light) = &self.light {
+            light.bind(&mut material);
+        }
         Ok(material)
     }
 

@@ -1,24 +1,27 @@
 //! Local-CASC map and split-ADT reads for the native world host.
 
 use std::path::{Path, PathBuf};
-use std::{cell::RefCell, collections::BTreeMap, fs};
+use std::{cell::RefCell, collections::BTreeMap, fs, sync::Arc};
 
 use game_engine_core::{adt, wdt};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
 use super::textures::{TerrainLayerTextures, TerrainTextureCache};
+use crate::lighting::assets::LightingCatalog;
 
 pub(crate) struct NativeTerrainAssets {
     resolver: CascListfileResolver,
     terrain_dir: PathBuf,
     data_root: PathBuf,
     textures: RefCell<TerrainTextureCache>,
+    lighting: RefCell<Option<Arc<LightingCatalog>>>,
 }
 
 pub(crate) struct NativeMapWdt {
     pub path: PathBuf,
     pub flags: wdt::MphdFlags,
     pub global_wmo: Option<adt::WmoPlacement>,
+    pub lighting: Arc<LightingCatalog>,
 }
 
 pub(crate) struct NativeTerrainTile {
@@ -42,6 +45,7 @@ impl NativeTerrainAssets {
             terrain_dir: data_root.join("terrain"),
             data_root,
             textures: RefCell::new(TerrainTextureCache::default()),
+            lighting: RefCell::new(None),
         }
     }
 
@@ -56,7 +60,17 @@ impl NativeTerrainAssets {
             path,
             flags,
             global_wmo,
+            lighting: self.read_lighting_catalog()?,
         })
+    }
+
+    fn read_lighting_catalog(&self) -> Result<Arc<LightingCatalog>, String> {
+        if let Some(catalog) = self.lighting.borrow().as_ref() {
+            return Ok(Arc::clone(catalog));
+        }
+        let catalog = Arc::new(LightingCatalog::read(&self.data_root)?);
+        *self.lighting.borrow_mut() = Some(Arc::clone(&catalog));
+        Ok(catalog)
     }
 
     pub fn read_tile(

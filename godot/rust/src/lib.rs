@@ -1,6 +1,7 @@
 mod account;
 mod animation;
 mod assets;
+mod lighting;
 mod scene;
 mod terrain;
 mod ui;
@@ -37,6 +38,8 @@ pub struct GameClient {
     world: world::WorldUnits,
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
+    world_lighting: lighting::WorldLighting,
+    world_minutes: f32,
     server_hostname: String,
 }
 
@@ -56,6 +59,9 @@ impl INode3D for GameClient {
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(data_root, cache_root),
             terrain_materials: terrain::material::TerrainMaterials::default(),
+            world_lighting: lighting::WorldLighting::default(),
+            // Preserve the original GameTime default: noon, with time advancement stopped.
+            world_minutes: 1440.0,
             units: HashMap::new(),
             world: world::WorldUnits::default(),
             server_hostname: if cfg!(debug_assertions) {
@@ -72,6 +78,7 @@ impl INode3D for GameClient {
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
             .and_then(|()| self.terrain.poll())
+            .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials());
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
@@ -302,9 +309,36 @@ impl GameClient {
             (request.initial_tile_y, request.initial_tile_x),
         )?;
         if map_changed {
+            self.world_lighting.reset();
             self.terrain_materials.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
+        }
+        Ok(())
+    }
+
+    fn update_world_lighting(&mut self) -> Result<(), String> {
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        let Some(wdt) = self.terrain.map_wdt.as_ref() else {
+            return Ok(());
+        };
+        let Some(player) = self.world.local_player_transform() else {
+            return Ok(());
+        };
+        let map = self
+            .terrain
+            .map_name()
+            .ok_or("Parsed WDT has no map name")?;
+        let map_id = game_engine_core::light_lookup_data::map_name_to_id(map)
+            .ok_or_else(|| format!("No authored map ID for terrain map {map}"))?;
+        if let Some(light) = self.world_lighting.sync(
+            &mut parent,
+            &wdt.lighting,
+            map_id,
+            player.origin,
+            self.world_minutes,
+        )? {
+            self.terrain_materials.update_lighting(light);
         }
         Ok(())
     }
@@ -315,6 +349,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.world_lighting.reset();
         self.terrain_materials.reset();
         self.world.reset();
         self.units.clear();
