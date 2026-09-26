@@ -420,14 +420,23 @@ fn tile_origin_bevy(tile_y: u32, tile_x: u32) -> (f32, f32) {
 }
 
 pub(crate) fn chunk_origin_bevy(chunk: &McnkData, tile_coords: Option<(u32, u32)>) -> (f32, f32) {
+    chunk_origin_from_parts(chunk.index_x, chunk.index_y, chunk.pos, tile_coords)
+}
+
+pub(crate) fn chunk_origin_from_parts(
+    index_x: u32,
+    index_y: u32,
+    pos: [f32; 3],
+    tile_coords: Option<(u32, u32)>,
+) -> (f32, f32) {
     if let Some((tile_y, tile_x)) = tile_coords {
         let (tile_origin_x, tile_origin_z) = tile_origin_bevy(tile_y, tile_x);
         (
-            tile_origin_x - chunk.index_y as f32 * CHUNK_SIZE,
-            tile_origin_z + chunk.index_x as f32 * CHUNK_SIZE,
+            tile_origin_x - index_y as f32 * CHUNK_SIZE,
+            tile_origin_z + index_x as f32 * CHUNK_SIZE,
         )
     } else {
-        (chunk.pos[1], -chunk.pos[0])
+        (pos[1], -pos[0])
     }
 }
 
