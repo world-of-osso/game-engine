@@ -75,10 +75,23 @@ fn decode_ktx(path: &str, bytes: &[u8]) -> Result<Gd<ImageTexture>, String> {
     image_from_rgba(texture.width(), texture.height(), &pixels)
 }
 
+fn decode_png(path: &str, bytes: &[u8]) -> Result<Gd<ImageTexture>, String> {
+    let mut image = Image::new_gd();
+    let error = image.load_png_from_buffer(&PackedByteArray::from(bytes));
+    if error != godot::global::Error::OK {
+        return Err(format!("Decode PNG {path}: {error:?}"));
+    }
+    ImageTexture::create_from_image(&image)
+        .ok_or_else(|| format!("Create PNG texture {path}: Godot rejected decoded image"))
+}
+
 fn load_file(path: &str) -> Result<Gd<ImageTexture>, String> {
     let bytes = load_bytes(path)?;
     if path.to_ascii_lowercase().ends_with(".ktx2") {
         return decode_ktx(path, &bytes);
+    }
+    if path.to_ascii_lowercase().ends_with(".png") {
+        return decode_png(path, &bytes);
     }
     if path.to_ascii_lowercase().ends_with(".blp") {
         let rgba = game_engine_core::blp::decode_rgba(&bytes)
