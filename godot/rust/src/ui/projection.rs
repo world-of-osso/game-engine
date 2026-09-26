@@ -12,7 +12,7 @@ use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH};
-use ui_toolkit::widgets::texture::TextureSource;
+use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
 use super::assets;
 use super::layout;
@@ -262,7 +262,7 @@ impl UiProjection {
             }
             Some(WidgetData::FontString(text)) => self.update_label(node.cast::<Label>(), text)?,
             Some(WidgetData::Texture(texture)) => {
-                self.update_texture(node.cast::<TextureRect>(), &texture.source, registry)?
+                self.update_texture(node.cast::<TextureRect>(), texture, registry)?
             }
             None => {}
             Some(other) => {
@@ -375,10 +375,11 @@ impl UiProjection {
     fn update_texture(
         &mut self,
         mut node: Gd<TextureRect>,
-        source: &TextureSource,
+        data: &TextureData,
         registry: &FrameRegistry,
     ) -> Result<(), String> {
-        node.set_texture(&assets::load_texture(source, registry)?);
+        node.set_texture(&assets::load_texture(&data.source, registry)?);
+        node.set_self_modulate(color(data.vertex_color));
         Ok(())
     }
 }
