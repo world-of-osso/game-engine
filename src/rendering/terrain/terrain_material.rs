@@ -8,13 +8,16 @@ use bevy::render::render_resource::{
 };
 use bevy::render::storage::ShaderBuffer;
 use bevy::shader::ShaderRef;
-use std::f32::consts::FRAC_PI_4;
 
 use crate::asset::adt;
 use crate::rendering::image_sampler::{clamp_linear_sampler, repeat_linear_sampler};
 use terrain_material_systems::{sync_terrain_environment_map, terrain_material_updates_enabled};
 
+#[path = "terrain_material_data.rs"]
+mod terrain_material_data;
 mod terrain_material_systems;
+
+pub use terrain_material_data::{TerrainBlendMode, terrain_blend_mode};
 
 #[cfg(test)]
 #[path = "shared_material_clock_gpu_tests.rs"]
@@ -345,43 +348,20 @@ pub fn pack_alpha_maps(images: &mut Assets<Image>, layers: &[adt::TextureLayer])
 }
 
 pub fn pack_alpha_map_raw(layers: &[adt::TextureLayer]) -> Image {
-    const SIZE: u32 = 64;
-    let mut rgba = vec![0u8; (SIZE * SIZE * 4) as usize];
-
-    for (li, layer) in layers.iter().enumerate().skip(1) {
-        let channel = li - 1; // 0=R, 1=G, 2=B
-        if channel >= 3 {
-            break;
-        }
-        pack_alpha_channel(&mut rgba, layer.alpha_map.as_deref(), channel, SIZE);
-    }
-    // Set alpha channel to 255
-    for i in 0..(SIZE * SIZE) as usize {
-        rgba[i * 4 + 3] = 255;
-    }
-
     let mut img = Image::new(
         Extent3d {
-            width: SIZE,
-            height: SIZE,
+            width: 64,
+            height: 64,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
-        rgba,
+        terrain_material_data::pack_alpha_map_bytes(layers),
         // Blend weights are linear data; an sRGB format would gamma-decode them into steps.
         TextureFormat::Rgba8Unorm,
         RenderAssetUsages::default(),
     );
     img.sampler = clamp_linear_sampler();
     img
-}
-
-fn pack_alpha_channel(rgba: &mut [u8], alpha: Option<&[u8]>, channel: usize, size: u32) {
-    let Some(alpha) = alpha else { return };
-    for i in 0..(size * size) as usize {
-        let val = if i < alpha.len() { alpha[i] } else { 0 };
-        rgba[i * 4 + channel] = val;
-    }
 }
 
 /// Shared placeholder handles for fallback materials.
@@ -442,35 +422,7 @@ fn build_fallback_materials(
         .collect()
 }
 
-/// Shader blend selected by the map's WDT MPHD flags (`config.y`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TerrainBlendMode {
-    /// 4-bit alpha maps: each layer mixes over the result below it.
-    Layered = 0,
-    /// MPHD 0x4 big alpha: base weight is `1 - saturate(sum)`, layers add by their alpha.
-    Weighted = 1,
-    /// MPHD 0x80 height texturing: weighted, then re-weighted by `_h` heights (wowdev ADT/v18 MTXP).
-    HeightWeighted = 2,
-}
-
-pub fn terrain_blend_mode(map_flags: adt::MphdFlags) -> TerrainBlendMode {
-    if map_flags.height_texturing() {
-        TerrainBlendMode::HeightWeighted
-    } else if map_flags.big_alpha() {
-        TerrainBlendMode::Weighted
-    } else {
-        TerrainBlendMode::Layered
-    }
-}
-
-/// wowdev ADT/v18 MTXP defaults; with these the client loads no `_h` texture.
-const DEFAULT_HEIGHT_SCALE: f32 = 0.0;
-const DEFAULT_HEIGHT_OFFSET: f32 = 1.0;
-const BASE_TERRAIN_TEXTURE_REPEAT: f32 = 8.0;
-const TERRAIN_OVERBRIGHT_MULTIPLIER: f32 = 2.0;
-const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::new(DEFAULT_HEIGHT_SCALE, DEFAULT_HEIGHT_OFFSET, 0.0, 1.0);
-const TERRAIN_ANIMATION_SPEEDS: [f32; 8] = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 48.0, 64.0];
-const TERRAIN_ANIMATION_BASE_SPEED: f32 = 0.176_776_69;
+const DEFAULT_LAYER_PARAMS: Vec4 = Vec4::from_array(terrain_material_data::DEFAULT_LAYER_PARAMS);
 
 fn terrain_settings(
     layer_count: f32,
@@ -497,7 +449,7 @@ fn fallback_material(ph: &Placeholders) -> TerrainMaterial {
         settings: terrain_settings(
             0.0,
             TerrainBlendMode::Layered,
-            BASE_TERRAIN_TEXTURE_REPEAT,
+            terrain_material_data::terrain_texture_repeat(None),
             [DEFAULT_LAYER_PARAMS; 4],
             [Vec4::ZERO; 4],
         ),
@@ -536,7 +488,7 @@ fn build_chunk_material(
     let height_handles = height_images.map(|image| image.unwrap_or_else(|| ph.alpha.clone()));
     let layer_params = texture_layer_params(tex_data, &chunk_tex.layers, has_height_texture);
     let animation_params = terrain_layer_animation_params(&chunk_tex.layers);
-    let texture_repeat = terrain_texture_repeat(tex_data.texture_amplifier);
+    let texture_repeat = terrain_material_data::terrain_texture_repeat(tex_data.texture_amplifier);
 
     terrain_materials.add(TerrainMaterial {
         settings: terrain_settings(
@@ -595,80 +547,24 @@ fn resolve_chunk_height_images(
     })
 }
 
-fn terrain_texture_repeat(texture_amplifier: Option<u32>) -> f32 {
-    let exponent = texture_amplifier.unwrap_or(0).min(8) as i32;
-    BASE_TERRAIN_TEXTURE_REPEAT * 2.0f32.powi(exponent)
-}
+#[cfg(test)]
+use terrain_material_data::terrain_texture_repeat;
 
 fn texture_layer_params(
     tex_data: &adt::AdtTexData,
     layers: &[adt::TextureLayer],
     has_height_texture: [bool; 4],
 ) -> [Vec4; 4] {
-    let mut params = [DEFAULT_LAYER_PARAMS; 4];
-    for (slot, layer) in layers.iter().take(4).enumerate() {
-        let overbright_multiplier = if layer.flags.overbright() {
-            TERRAIN_OVERBRIGHT_MULTIPLIER
-        } else {
-            1.0
-        };
-        let height = layer_height_params(tex_data, layer.texture_index, has_height_texture[slot]);
-        params[slot] = Vec4::new(
-            height.x,
-            height.y,
-            f32::from(layer.material_id),
-            overbright_multiplier,
-        );
-    }
-    params
-}
-
-/// Height term `h * scale + offset` inputs; a layer without an `_h` texture has only its offset.
-fn layer_height_params(
-    tex_data: &adt::AdtTexData,
-    texture_index: u32,
-    has_height_texture: bool,
-) -> Vec2 {
-    let (scale, offset) = tex_data
-        .texture_params
-        .get(texture_index as usize)
-        .map_or((DEFAULT_HEIGHT_SCALE, DEFAULT_HEIGHT_OFFSET), |param| {
-            (param.height_scale, param.height_offset)
-        });
-    let scale = if has_height_texture { scale } else { 0.0 };
-    Vec2::new(scale, offset)
+    terrain_material_data::texture_layer_params(
+        &tex_data.texture_params,
+        layers,
+        has_height_texture,
+    )
+    .map(Vec4::from_array)
 }
 
 fn terrain_layer_animation_params(layers: &[adt::TextureLayer]) -> [Vec4; 4] {
-    let mut params = [Vec4::ZERO; 4];
-    for (slot, layer) in layers.iter().take(4).enumerate() {
-        params[slot] = terrain_layer_animation(layer.flags);
-    }
-    params
-}
-
-fn terrain_layer_animation(flags: adt::MclyFlags) -> Vec4 {
-    let velocity = if flags.animation_enabled() {
-        let speed = TERRAIN_ANIMATION_SPEEDS[flags.animation_speed() as usize]
-            * TERRAIN_ANIMATION_BASE_SPEED;
-        let angle = FRAC_PI_4 + f32::from(flags.animation_rotation()) * FRAC_PI_4;
-        let (sin, cos) = angle.sin_cos();
-        let base = Vec2::splat(speed);
-        Vec2::new(base.x * cos - base.y * sin, base.x * sin + base.y * cos)
-    } else {
-        Vec2::ZERO
-    };
-
-    Vec4::new(
-        velocity.x,
-        velocity.y,
-        if flags.use_cube_map_reflection() {
-            1.0
-        } else {
-            0.0
-        },
-        0.0,
-    )
+    terrain_material_data::terrain_layer_animation_params(layers).map(Vec4::from_array)
 }
 
 #[cfg(test)]
