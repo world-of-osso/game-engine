@@ -8,7 +8,7 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 ## What it must do
 
 - [x] F10 toggles edit mode (World input mode only). Escape exits it, as a step after "close the top popup" and before "close all windows".
-- [x] Registered elements (by root frame name; absent or hidden frames are skipped): player frame, target frame, target of target, focus frame, cast bar (`PlayerCastingBarFrame`), action bars 1–5, minimap, objective tracker, buffs, debuffs, party frames, raid frames, error text (`UIErrorsFrame`), micro menu, bags bar. Each has a default anchor (screen edge, corner or center).
+- [x] Registered elements (by root frame name; absent or hidden frames are skipped): player frame, target frame, target of target, focus frame, cast bar (`PlayerCastingBarFrame`), action bars 1–5, status bar 1 (`MainStatusTrackingBarContainer`, [XP bar](xp-bar.md)), minimap, objective tracker, buffs, debuffs, party frames, raid frames, error text (`UIErrorsFrame`), micro menu, bags bar. Each has a default anchor (screen edge, corner or center).
 - [x] In edit mode each mounted element shows a selection box with its name; the selected one uses the selected art.
 - [x] Dragging an element snaps its top-left to an 8-unit grid, then to a screen edge within 8 units, and clamps it to the screen.
 - [x] A placement is stored as (anchor, offset from the screen anchor point), so it keeps its distance from that edge when the screen size changes. Elements without a placement keep their authored position; removing a placement restores it.
