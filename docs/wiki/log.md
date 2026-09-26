@@ -1,5 +1,10 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot terminal terrain-worker error retention
+
+At exact `2ee88127`, `StreamedTerrain` retains a terminal worker panic error, so repeated `poll` calls continue returning that error rather than succeeding after the worker disconnects. Verifier130's focused native check passes (`/tmp/claude/worker-terminal-check-2ee88127.log`). The same revision's formatting check fails (`/tmp/claude/worker-terminal-fmt-2ee88127.log`); main committed formatting-only `01c78a5b`, which is not yet reverified. Earlier `/tmp/claude/cargo-streaming-red.out` and `/tmp/claude/cargo-streaming-green.out` establish the targeted repeated-poll RED/GREEN boundary but lack embedded revision metadata. This does not establish world rendering, readiness, `InWorld`, or conversion parity. Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
+
+
 ## [2026-09-26] system | Godot async native terrain-asset boundary
 
 `cad33614` shares terrain material inputs with Godot core and has five pure tests. This is input-data proof only; no native shader/material parity is claimed.
