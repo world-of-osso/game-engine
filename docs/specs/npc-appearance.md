@@ -5,6 +5,8 @@ Replicated NPCs render the appearance selected by their creature display data. R
 ## What it must do
 
 - [x] Retain full customization choice IDs and apply related materials/geosets only when their required choice is selected; unresolved choices produce an explicit error.
+- [x] Resolve race/sex to ChrModel from `ChrRaceXChrModel.csv` (Kul Tiran 32, allied races). Apply choices of the displayed model; choices of the race's unaltered form (`ChrRaces.UnalteredVisualRaceID`, Worgen 22 → Human 1) are accepted without being applied.
+- [x] Material target 10 declares the type-6 hair texture only where the layout composes target 10 into texture type 6. Dracthyr layout 155 uses target 10 for type 9 and has no type-6 hair.
 - [x] Use an authored baked body texture without overwriting its clothing with the composited body. An authored absence of a bake uses composition; an unavailable declared bake is an error.
 - [x] Bind distinct body/hair textures to individual NPCs without mutating shared materials or ordinary entities outside the affected visual subtree. Material target10 declares a separate hair texture for M2 type6; failed declared hair composition is an error, not a head-texture substitute. Without target10, type6 uses the composed head atlas.
 - [x] Apply selected geosets followed by authored overrides, preserving character group-zero body rules; apply each added request once rather than reallocating materials every update.
@@ -24,10 +26,12 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Tests asserting this spec
 
-- `src/rendering/character/npc_appearance.rs::tests` — body pixels/error semantics, full-ID related selections, two-NPC material/geoset isolation and once-only updates.
+- `src/rendering/character/npc_appearance.rs::tests` — body pixels/error semantics, full-ID related selections, two-NPC material/geoset isolation and once-only updates; real-data Kul Tiran 140376, Worgen 31054 mixed forms, Dracthyr 110154 without hair; ignored `sweep_all_spawned_profiles` (`SWEEP_CACHE`, `SWEEP_IDS`) prepares every listed profile and reports failures.
 - `tests/unit/character_customization_tests.rs` — shared group-zero and exact geoset override semantics.
 
 ## Known gaps (current cycle)
+
+- [ ] Only texture types 1, 6 and 19 get NPC textures. Other layout texture types (Dracthyr 7–26, types 7/8/20 of other layouts) keep the M2 defaults or are blitted into the body atlas; not visually validated.
 
 - [ ] Parent integration must import current display data and visually validate the actual replicated Northshire NPCs; synthetic material tests are not visual acceptance.
 
