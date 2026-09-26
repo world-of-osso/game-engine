@@ -32,3 +32,4 @@ How corpses, the LootFrame, the flight map and server-driven flights fit togethe
 - [[merchant-frame]] — the same Retail-window scene pattern and bag deltas
 - [[networking]] — replication mirror that now carries `MovementControl`
 - [[animation]] — the `DeathPose` exception to movement animation
+- [[unit-tooltip]] — NPC tooltips list the loot table's drops; grey drops arrive as coins in the money slot (game-server `loot.md` junk rule)

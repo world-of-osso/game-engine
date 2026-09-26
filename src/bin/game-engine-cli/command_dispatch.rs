@@ -7,10 +7,10 @@ use super::requests::{
     auction_request, barber_request, calendar_request, camera_request, collection_request,
     combat_request, currency_request, death_request, duel_request, emote_request,
     equipment_request, export_character_request, export_scene_request, friend_request,
-    group_request, guild_request, ignore_request, inspect_request, inventory_request, item_request,
-    lfg_request, mail_request, map_request, movement_request, presence_request, profession_request,
-    pvp_request, quest_request, reputation_request, spell_request, status_request, trade_request,
-    who_request,
+    group_request, guild_request, hover_request, ignore_request, inspect_request,
+    inventory_request, item_request, lfg_request, mail_request, map_request, movement_request,
+    presence_request, profession_request, pvp_request, quest_request, reputation_request,
+    spell_request, status_request, trade_request, who_request,
 };
 use super::*;
 
@@ -157,6 +157,7 @@ fn dispatch_world_action_command(socket: &PathBuf, command: Cmd, json: bool) -> 
         Cmd::Profession { command } => handle_profession(socket, command, json),
         Cmd::Map { command } => handle_map(socket, command, json),
         Cmd::Camera { command } => handle_text_response(socket, camera_request(command), json),
+        Cmd::Hover { npc, x, y } => handle_text_response(socket, hover_request(npc, x, y), json),
         Cmd::Movement { command } => handle_movement(socket, command, json),
         Cmd::Equipment { command } => handle_equipment(socket, command, json),
         _ => unreachable!("command routed to wrong world/action dispatcher"),

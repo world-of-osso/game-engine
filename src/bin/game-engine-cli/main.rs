@@ -195,6 +195,18 @@ enum Cmd {
         #[command(subcommand)]
         command: CameraCmd,
     },
+    /// Put the cursor on a window position or on a named NPC (drives hover tooltips)
+    Hover {
+        /// NPC name; the nearest on-screen one is hovered
+        #[arg(long, conflicts_with_all = ["x", "y"], required_unless_present_all = ["x", "y"])]
+        npc: Option<String>,
+        /// Window x in logical pixels from the left
+        #[arg(long, requires = "y")]
+        x: Option<f32>,
+        /// Window y in logical pixels from the top
+        #[arg(long, requires = "x")]
+        y: Option<f32>,
+    },
     /// Bounded scripted player movement
     Movement {
         #[command(subcommand)]

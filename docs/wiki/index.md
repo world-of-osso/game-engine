@@ -23,6 +23,7 @@ Engine subsystems and how they work.
 - [talents-ui](systems/talents-ui.md) — Retail trait-tree window `PlayerSpellsFrame`: CSV tree load, mirrored server rules, local pending config, Apply/Reset/spec, authored `talents-*` atlas art
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
+- [unit-tooltip](systems/unit-tooltip.md) — Retail unit GameTooltip (hover by unit frame/nameplate/ray, default anchor), NPC drops/vendor sections with appearance-collection check/cross marks from server CreatureTooltip data
 - [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
 - [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, tile ordering, object placement rotation, doodad collision
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys

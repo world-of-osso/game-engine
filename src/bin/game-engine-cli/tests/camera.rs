@@ -45,3 +45,27 @@ fn camera_direction_request_preserves_optional_axes_on_wire() {
 fn camera_set_requires_an_axis() {
     assert!(Cli::try_parse_from(["game-engine-cli", "camera", "set"]).is_err());
 }
+
+#[test]
+fn hover_takes_an_npc_name_or_a_window_point() {
+    let parse = |args: &[&str]| {
+        let mut command = vec!["game-engine-cli", "hover"];
+        command.extend(args);
+        let Cmd::Hover { npc, x, y } = Cli::try_parse_from(command).unwrap().command else {
+            panic!("expected hover command");
+        };
+        hover_request(npc, x, y)
+    };
+    assert_eq!(
+        parse(&["--npc", "Corina Steele"]),
+        Request::HoverNpc {
+            name: "Corina Steele".into()
+        }
+    );
+    assert_eq!(
+        parse(&["--x", "640", "--y", "360"]),
+        Request::HoverAt { x: 640.0, y: 360.0 }
+    );
+    assert!(Cli::try_parse_from(["game-engine-cli", "hover", "--x", "640"]).is_err());
+    assert!(Cli::try_parse_from(["game-engine-cli", "hover"]).is_err());
+}

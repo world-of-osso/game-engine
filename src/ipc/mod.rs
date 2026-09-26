@@ -289,6 +289,15 @@ pub enum Request {
         yaw_degrees: Option<f32>,
         pitch_degrees: Option<f32>,
     },
+    /// Put the cursor at a window position (logical pixels, top left origin).
+    HoverAt {
+        x: f32,
+        y: f32,
+    },
+    /// Put the cursor on the nearest on-screen NPC with this name.
+    HoverNpc {
+        name: String,
+    },
     DumpScene {
         filter: Option<String>,
     },

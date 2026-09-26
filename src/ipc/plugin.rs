@@ -2,6 +2,8 @@
 
 #[path = "plugin/camera_direction.rs"]
 mod camera_direction;
+#[path = "plugin/hover.rs"]
+mod hover;
 #[path = "plugin/combat.rs"]
 mod plugin_combat;
 #[path = "plugin/scene.rs"]
@@ -309,6 +311,7 @@ struct IpcSenderParams<'w, 's> {
     group_uninvite_senders: MessageSenders<'w, 's, GroupUninviteIntent>,
     equipment_control: ResMut<'w, EquipmentControlQueue>,
     scripted_movement: ResMut<'w, ScriptedMovement>,
+    hover: ResMut<'w, hover::PendingHover>,
     cameras: Query<
         'w,
         's,
@@ -352,6 +355,7 @@ impl Plugin for IpcPlugin {
             .add_message::<game_engine::quest_runtime::NpcInteractionRequest>()
             .add_message::<crate::loot_state::LootRequest>()
             .init_resource::<ScriptedMovement>()
+            .init_resource::<hover::PendingHover>()
             .init_resource::<PendingIpcCommands>()
             .configure_sets(
                 Update,
@@ -367,7 +371,11 @@ impl Plugin for IpcPlugin {
             let (receiver, guard) = init();
             app.insert_non_send(receiver)
                 .insert_non_send(guard)
-                .add_systems(Update, receive_ipc_commands.in_set(IpcUpdateSet::Receive));
+                .add_systems(Update, receive_ipc_commands.in_set(IpcUpdateSet::Receive))
+                .add_systems(
+                    Update,
+                    hover::apply_pending_hover.after(IpcUpdateSet::Dispatch),
+                );
             register_ipc_dispatch(app);
         }
     }
@@ -676,6 +684,12 @@ fn dispatch_map_and_equipment_request(
             };
             let _ = cmd.respond.send(response);
         }
+        Request::HoverAt { x, y } => sender_params
+            .hover
+            .queue(hover::HoverTarget::Point(Vec2::new(x, y)), cmd.respond),
+        Request::HoverNpc { name } => sender_params
+            .hover
+            .queue(hover::HoverTarget::Npc(name), cmd.respond),
         Request::MapPosition => respond_with_map_position(cmd, ctx.map_status),
         Request::MapTarget => respond_with_map_target(cmd, ctx, tree_query),
         Request::MapWaypointAdd { x, y } => handle_waypoint_add(cmd, ctx.map_status, x, y),

@@ -104,6 +104,8 @@ pub mod target;
 pub mod targeting;
 #[path = "ui/unit_frames.rs"]
 pub mod unit_frames;
+#[path = "ui/unit_hover.rs"]
+pub mod unit_hover;
 #[path = "ui/world_builder.rs"]
 pub mod world_builder;
 #[path = "ui/wow_cursor.rs"]

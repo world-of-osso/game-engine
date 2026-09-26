@@ -14,11 +14,13 @@ use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::buff_button_at;
 use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
 use game_engine::ui::screens::inworld_hud_component::MINIMAP_MAIL_FRAME;
+use game_engine::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
 use shared::components::PowerType;
 use shared::protocol::ActionRef;
+use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::text_measure::measure_text;
@@ -30,14 +32,37 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 
+mod unit_sources;
+mod unit_tooltip;
+
+use unit_sources::{FactionNames, UnitTooltipSources};
+
 const TOOLTIP_W: f32 = 260.0;
 const TOOLTIP_MIN_H: f32 = 34.0;
 const TOOLTIP_INSET: f32 = 8.0;
 const TOOLTIP_TITLE_H: f32 = 16.0;
 const TOOLTIP_LINE_H: f32 = 14.0;
-const TOOLTIP_CURSOR_X: f32 = 18.0;
-const TOOLTIP_CURSOR_Y: f32 = 24.0;
-const TOOLTIP_MARGIN: f32 = 8.0;
+/// `GameTooltipDefaultContainer` (GameTooltip.xml:242-247): BOTTOMRIGHT of UIParent
+/// at x -9, y 85; `GameTooltip_SetDefaultAnchor` puts the tooltip's BOTTOMRIGHT there.
+const TOOLTIP_DEFAULT_ANCHOR_X: f32 = -9.0;
+const TOOLTIP_DEFAULT_ANCHOR_Y: f32 = 85.0;
+/// Collection mark drawn at the start of an item line, then the name.
+const TOOLTIP_MARK_SIZE: f32 = 12.0;
+const TOOLTIP_MARK_GAP: f32 = 2.0;
+
+/// Retail `READY_CHECK_READY_TEXTURE` / `READY_CHECK_NOT_READY_TEXTURE`
+/// (ReadyCheck.lua:2-4): atlases `UI-LFG-ReadyMark` / `UI-LFG-DeclineMark`,
+/// 40×40 members of `interface/lfgframe/uilfgprompts.blp` (5171843, 2048×2048).
+const COLLECTED_MARK: AtlasArt = AtlasArt {
+    fdid: 5_171_843,
+    atlas: (2048.0, 2048.0),
+    rect: (1745.0, 1945.0, 259.0, 459.0),
+};
+const UNCOLLECTED_MARK: AtlasArt = AtlasArt {
+    fdid: 5_171_843,
+    atlas: (2048.0, 2048.0),
+    rect: (1801.0, 2001.0, 1.0, 201.0),
+};
 
 const TOOLTIP_BG: &str = "0.03,0.02,0.01,0.96";
 const TOOLTIP_BORDER: &str = "1px solid 0.66,0.54,0.22,0.95";
@@ -47,6 +72,8 @@ const TOOLTIP_BUFF_COLOR: [f32; 4] = [1.0, 0.82, 0.32, 1.0];
 const TOOLTIP_SPELL_COLOR: [f32; 4] = [0.98, 0.88, 0.54, 1.0];
 const TOOLTIP_WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const TOOLTIP_DESCRIPTION_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
+/// `GRAY_FONT_COLOR`.
+const GRAY_FONT_COLOR: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
 const TOOLTIP_FONT_SIZE: f32 = 10.0;
 const TOOLTIP_TEXT_W: f32 = TOOLTIP_W - 2.0 * TOOLTIP_INSET;
 
@@ -58,12 +85,23 @@ impl std::fmt::Display for DynName {
     }
 }
 
+/// Collection mark of a listed item: a green check for a collected appearance, a
+/// red cross for an uncollected one, nothing for an item without an appearance.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ItemMark {
+    Unmarked,
+    Collected,
+    Uncollected,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct TooltipLineState {
     left_text: String,
     right_text: String,
     left_color: [f32; 4],
     right_color: [f32; 4],
+    /// Item lines keep a mark column before the text; `None` for other lines.
+    item_mark: Option<ItemMark>,
 }
 
 impl TooltipLineState {
@@ -73,6 +111,7 @@ impl TooltipLineState {
             right_text: String::new(),
             left_color: TOOLTIP_TEXT_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
+            item_mark: None,
         }
     }
 
@@ -89,6 +128,7 @@ impl TooltipLineState {
             right_text: right.into(),
             left_color: TOOLTIP_WHITE,
             right_color: TOOLTIP_WHITE,
+            item_mark: None,
         }
     }
 
@@ -98,8 +138,59 @@ impl TooltipLineState {
             right_text: value.into(),
             left_color: TOOLTIP_LABEL_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
+            item_mark: None,
         }
     }
+}
+
+/// The record a tooltip describes; `place_tooltip` ends the tooltip with its ID
+/// line (a user-requested deviation from Retail, like idTip-style addons).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TooltipRecord {
+    Creature(u32),
+    Spell(u32),
+    Item(u32),
+}
+
+impl TooltipRecord {
+    fn id_line(self) -> TooltipLineState {
+        let text = match self {
+            Self::Creature(id) => format!("Creature ID: {id}"),
+            Self::Spell(id) => format!("Spell ID: {id}"),
+            Self::Item(id) => format!("Item ID: {id}"),
+        };
+        TooltipLineState::colored(text, GRAY_FONT_COLOR)
+    }
+}
+
+/// Where a tooltip goes: Retail `GameTooltip_SetDefaultAnchor`, or
+/// `GameTooltip:SetOwner(owner, anchorType)` next to the hovered frame.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+enum TooltipAnchor {
+    /// Bottom right of the screen (`GameTooltipDefaultContainer`).
+    #[default]
+    Default,
+    Owner {
+        frame: u64,
+        side: OwnerSide,
+    },
+}
+
+/// `SetOwner` anchor types (Widget API): `ANCHOR_RIGHT` puts the tooltip's
+/// BOTTOMLEFT on the owner's TOPRIGHT, `ANCHOR_LEFT` its BOTTOMRIGHT on the
+/// owner's TOPLEFT, `ANCHOR_BOTTOMLEFT` its TOPRIGHT on the owner's BOTTOMLEFT.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum OwnerSide {
+    Right,
+    Left,
+    BottomLeft,
+    /// `ContainerFrameItemButton_CalculateItemTooltipAnchors`
+    /// (ContainerFrame.lua:1448-1458): right when the owner's right edge is left
+    /// of the screen centre, else left.
+    RightOrLeftByRightEdge,
+    /// TargetFrame.xml:35-40 aura `OnEnter`: left when the owner's centre is
+    /// right of the screen centre, else right.
+    RightOrLeftByCenter,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
@@ -110,6 +201,8 @@ struct TooltipFrameState {
     title: String,
     title_color: [f32; 4],
     lines: Vec<TooltipLineState>,
+    record: Option<TooltipRecord>,
+    anchor: TooltipAnchor,
 }
 
 impl TooltipFrameState {
@@ -121,6 +214,8 @@ impl TooltipFrameState {
             title: String::new(),
             title_color: TOOLTIP_TEXT_COLOR,
             lines: Vec::new(),
+            record: None,
+            anchor: TooltipAnchor::Default,
         }
     }
 
@@ -148,6 +243,7 @@ pub struct TooltipFramePlugin;
 
 impl Plugin for TooltipFramePlugin {
     fn build(&self, app: &mut App) {
+        app.insert_resource(FactionNames::load());
         app.add_systems(
             OnEnter(GameState::InWorld),
             build_tooltip_frame_ui.run_if(inworld_scene_stage_allows_ui),
@@ -212,11 +308,13 @@ fn sync_tooltip_frame_state(
     talent_tooltips: Option<Res<TalentTooltips>>,
     experience: Option<Res<ExperienceState>>,
     mail: Option<Res<MailState>>,
+    mut units: UnitTooltipSources,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
     let Ok(window) = windows.single() else { return };
+    units.request_hovered();
     let state = build_state(
         &ui.registry,
         window,
@@ -231,6 +329,7 @@ fn sync_tooltip_frame_state(
         talent_tooltips.as_deref(),
         experience.as_deref(),
         mail.as_deref(),
+        &units,
     );
     if last_model.0 == state {
         return;
@@ -255,14 +354,51 @@ fn build_state(
     talent_tooltips: Option<&TalentTooltips>,
     experience: Option<&ExperienceState>,
     mail: Option<&MailState>,
+    units: &UnitTooltipSources,
 ) -> TooltipFrameState {
     let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
     };
-    let Some(frame_id) = find_frame_at(registry, cursor.x, cursor.y) else {
+    let frame_content = find_frame_at(registry, cursor.x, cursor.y).and_then(|frame_id| {
+        hovered_frame_tooltip(
+            registry,
+            frame_id,
+            inventory,
+            merchant,
+            current_target,
+            local_player,
+            target_auras,
+            aura_state,
+            graphics_options,
+            spells,
+            talent_tooltips,
+            experience,
+            mail,
+        )
+    });
+    let Some(content) = frame_content.or_else(|| units.tooltip()) else {
         return TooltipFrameState::hidden();
     };
-    let Some(content) = hovered_spell_tooltip(registry, frame_id, spells)
+    place_tooltip(content, registry)
+}
+
+/// The tooltip of the UI frame under the cursor, if it has one.
+fn hovered_frame_tooltip(
+    registry: &FrameRegistry,
+    frame_id: u64,
+    inventory: &InventoryState,
+    merchant: Option<&MerchantState>,
+    current_target: &CurrentTarget,
+    local_player: Option<Entity>,
+    target_auras: &Query<&UnitAuraState>,
+    aura_state: Option<&AuraState>,
+    graphics_options: Option<&GraphicsOptions>,
+    spells: &HoveredSpellSources,
+    talent_tooltips: Option<&TalentTooltips>,
+    experience: Option<&ExperienceState>,
+    mail: Option<&MailState>,
+) -> Option<TooltipFrameState> {
+    hovered_spell_tooltip(registry, frame_id, spells)
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
         .or_else(|| hovered_merchant_tooltip(registry, frame_id, merchant))
@@ -280,10 +416,6 @@ fn build_state(
                 graphics_options,
             )
         })
-    else {
-        return TooltipFrameState::hidden();
-    };
-    place_tooltip(content, cursor, registry)
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -303,6 +435,17 @@ fn hovered_spell_tooltip(
         .spellbook
         .as_deref()
         .and_then(|runtime| runtime.spell_for_frame(registry, frame_id));
+    // SpellBookItem.lua:494 `SetOwner(self.Button, "ANCHOR_RIGHT")`; action
+    // buttons use the default anchor with Retail's default `UberTooltips` 1
+    // (ActionButton.lua:1070-1080).
+    let anchor = if from_spellbook.is_some() {
+        TooltipAnchor::Owner {
+            frame: frame_id,
+            side: OwnerSide::Right,
+        }
+    } else {
+        TooltipAnchor::Default
+    };
     let spell_id = from_spellbook
         .or_else(|| {
             let slot = hovered_action_slot(registry, frame_id)?;
@@ -314,13 +457,14 @@ fn hovered_spell_tooltip(
         .or_else(|| chat_spell_link_at(registry, frame_id))?;
     let catalog = sources.catalog.as_deref();
     let ctx = sources.text.context();
-    Some(match catalog.and_then(|catalog| catalog.get(spell_id)) {
+    let tooltip = match catalog.and_then(|catalog| catalog.get(spell_id)) {
         Some(spell) => spell_tooltip(
             spell,
             catalog.and_then(|c| c.render_description(spell_id, &ctx)),
         ),
         None => unknown_spell_tooltip(spell_id),
-    })
+    };
+    Some(TooltipFrameState { anchor, ..tooltip })
 }
 
 fn hovered_action_slot(registry: &FrameRegistry, mut frame_id: u64) -> Option<usize> {
@@ -347,7 +491,12 @@ fn hovered_talent_tooltip(
             .as_deref()
             .and_then(|name| tooltips.by_frame.get(name))
         {
-            return Some(talent_tooltip(tooltip));
+            // TalentDisplayMixin:AcquireTooltip (Blizzard_TalentDisplay.lua:127-128).
+            return Some(owned_by(
+                frame_id,
+                OwnerSide::Right,
+                talent_tooltip(tooltip),
+            ));
         }
         frame_id = frame.parent_id?;
     }
@@ -366,10 +515,14 @@ fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
         title: tooltip.title.clone(),
         title_color: TOOLTIP_TEXT_COLOR,
         lines,
+        record: Some(TooltipRecord::Spell(tooltip.spell_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
-/// `ExhaustionTickMixin:ExhaustionToolTipText`, shown from the XP bar's `OnEnter`.
+/// `ExhaustionTickMixin:ExhaustionToolTipText`, shown from the XP bar's `OnEnter`,
+/// at the default anchor (`GameTooltip_SetDefaultAnchor(tooltip, UIParent)`,
+/// ExpBarOverrides.lua:30).
 fn hovered_xp_tooltip(
     registry: &FrameRegistry,
     frame_id: u64,
@@ -394,6 +547,8 @@ fn xp_tooltip(update: &shared::protocol::PlayerXpUpdate) -> TooltipFrameState {
             TooltipLineState::colored(format!("{percent}% of normal experience"), TOOLTIP_WHITE),
             TooltipLineState::colored("gained from monsters.", TOOLTIP_WHITE),
         ],
+        record: None,
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -404,7 +559,12 @@ fn hovered_item_tooltip(
 ) -> Option<TooltipFrameState> {
     let (bag_index, slot_index) = hovered_bag_slot(registry, frame_id)?;
     let slot = inventory.slot(bag_index, slot_index)?;
-    (!slot.is_empty()).then(|| item_tooltip(slot))
+    let owner = ancestor_named(registry, frame_id, |name| {
+        parse_bag_slot_name(name).is_some()
+    })?;
+    // ContainerFrameItemButtonMixin:OnUpdate: `ANCHOR_NONE` + CalculateItemTooltipAnchors.
+    (!slot.is_empty())
+        .then(|| owned_by(owner, OwnerSide::RightOrLeftByRightEdge, item_tooltip(slot)))
 }
 
 /// `GameTooltip:SetMerchantItem` / `SetBuybackItem` for a `MerchantItem<n>` cell.
@@ -422,8 +582,13 @@ fn hovered_merchant_tooltip(
         }
         frame_id = frame.parent_id?;
     };
-    let (name, quality, count, stock) = merchant.cell_item(index)?;
-    Some(merchant_tooltip(name, quality, count, stock))
+    let (item_id, name, quality, count, stock) = merchant.cell_item(index)?;
+    // MerchantItemButton_OnEnter (MerchantFrame.lua:710-711): `ANCHOR_RIGHT`.
+    Some(owned_by(
+        frame_id,
+        OwnerSide::Right,
+        merchant_tooltip(item_id, name, quality, count, stock),
+    ))
 }
 
 /// `MerchantItem<n>` (1-based) exactly; its children carry longer names.
@@ -432,7 +597,13 @@ fn parse_merchant_cell_name(name: &str) -> Option<usize> {
     index.checked_sub(1)
 }
 
-fn merchant_tooltip(name: &str, quality: u8, count: u32, stock: Option<u32>) -> TooltipFrameState {
+fn merchant_tooltip(
+    item_id: u32,
+    name: &str,
+    quality: u8,
+    count: u32,
+    stock: Option<u32>,
+) -> TooltipFrameState {
     let mut lines = Vec::new();
     if count > 1 {
         lines.push(TooltipLineState::key_value(
@@ -450,6 +621,8 @@ fn merchant_tooltip(name: &str, quality: u8, count: u32, stock: Option<u32>) -> 
         title: name.to_string(),
         title_color: parse_rgba(quality_color(quality)),
         lines,
+        record: Some(TooltipRecord::Item(item_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -467,7 +640,12 @@ fn hovered_mail_tooltip(
         }
         frame_id = frame.parent_id?;
     }
-    Some(mail_tooltip(&mail?.pending_senders))
+    // MiniMapMailFrameMixin:OnEnter (Minimap.lua:500-501): `ANCHOR_BOTTOMLEFT`.
+    Some(owned_by(
+        frame_id,
+        OwnerSide::BottomLeft,
+        mail_tooltip(&mail?.pending_senders),
+    ))
 }
 
 fn mail_tooltip(senders: &[String]) -> TooltipFrameState {
@@ -486,6 +664,8 @@ fn mail_tooltip(senders: &[String]) -> TooltipFrameState {
             .iter()
             .map(|sender| TooltipLineState::colored(sender.clone(), TOOLTIP_WHITE))
             .collect(),
+        record: None,
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -507,7 +687,15 @@ fn hovered_target_aura_tooltip(
         aura_state,
     )?;
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    Some(aura_tooltip(aura, colorblind_mode))
+    let owner = ancestor_named(registry, frame_id, |name| {
+        parse_target_aura_name(name).is_some()
+    })?;
+    // TargetFrame.xml:35-40 aura `OnEnter`: left or right by the aura's centre.
+    Some(owned_by(
+        owner,
+        OwnerSide::RightOrLeftByCenter,
+        aura_tooltip(aura, colorblind_mode),
+    ))
 }
 
 fn hovered_player_aura_tooltip(
@@ -524,20 +712,94 @@ fn hovered_player_aura_tooltip(
         auras.buffs().nth(index)
     }?;
     let colorblind_mode = graphics_options.is_some_and(|graphics| graphics.colorblind_mode);
-    Some(aura_tooltip(aura, colorblind_mode))
+    // AuraButtonMixin:OnEnter (BuffFrame.lua:888-899): `ANCHOR_BOTTOMLEFT` on the
+    // aura button under the cursor.
+    Some(owned_by(
+        frame_id,
+        OwnerSide::BottomLeft,
+        aura_tooltip(aura, colorblind_mode),
+    ))
 }
 
-fn place_tooltip(
-    mut tooltip: TooltipFrameState,
-    cursor: Vec2,
-    registry: &FrameRegistry,
-) -> TooltipFrameState {
-    let max_x = (registry.screen_width - TOOLTIP_W - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
-    let max_y = (registry.screen_height - tooltip.height() - TOOLTIP_MARGIN).max(TOOLTIP_MARGIN);
+/// Place the tooltip at its anchor (clamped to the screen, `clampedToScreen` in
+/// SharedTooltipTemplates.xml:10). Every tooltip that describes a record ends with
+/// its grey ID line.
+fn place_tooltip(mut tooltip: TooltipFrameState, registry: &FrameRegistry) -> TooltipFrameState {
+    if let Some(record) = tooltip.record {
+        tooltip.lines.push(record.id_line());
+    }
+    let height = tooltip.height();
+    let (x, y) = match tooltip.anchor {
+        TooltipAnchor::Default => default_anchor_position(registry, height),
+        TooltipAnchor::Owner { frame, side } => {
+            let Some(owner) = registry
+                .get(frame)
+                .and_then(|frame| frame.layout_rect.clone())
+            else {
+                return TooltipFrameState::hidden();
+            };
+            owner_anchor_position(&owner, side, registry.screen_width, height)
+        }
+    };
     tooltip.visible = true;
-    tooltip.x = (cursor.x + TOOLTIP_CURSOR_X).min(max_x);
-    tooltip.y = (cursor.y + TOOLTIP_CURSOR_Y).min(max_y);
+    tooltip.x = x.clamp(0.0, (registry.screen_width - TOOLTIP_W).max(0.0));
+    tooltip.y = y.clamp(0.0, (registry.screen_height - height).max(0.0));
     tooltip
+}
+
+/// Retail `GameTooltip_SetDefaultAnchor` (SharedTooltipTemplates.lua:87-114): the
+/// tooltip's bottom-right corner on `GameTooltipDefaultContainer`'s, 9 left of and
+/// 85 above UIParent's bottom right.
+fn default_anchor_position(registry: &FrameRegistry, height: f32) -> (f32, f32) {
+    (
+        registry.screen_width + TOOLTIP_DEFAULT_ANCHOR_X - TOOLTIP_W,
+        registry.screen_height - TOOLTIP_DEFAULT_ANCHOR_Y - height,
+    )
+}
+
+/// Top-left of a tooltip `height` tall anchored to `owner` (screen coordinates, y down).
+fn owner_anchor_position(
+    owner: &LayoutRect,
+    side: OwnerSide,
+    screen_width: f32,
+    height: f32,
+) -> (f32, f32) {
+    let right_of = (owner.x + owner.width, owner.y - height);
+    let left_of = (owner.x - TOOLTIP_W, owner.y - height);
+    match side {
+        OwnerSide::Right => right_of,
+        OwnerSide::Left => left_of,
+        OwnerSide::BottomLeft => (owner.x - TOOLTIP_W, owner.y + owner.height),
+        OwnerSide::RightOrLeftByRightEdge if owner.x + owner.width < screen_width / 2.0 => right_of,
+        OwnerSide::RightOrLeftByRightEdge => left_of,
+        OwnerSide::RightOrLeftByCenter if owner.x + owner.width / 2.0 > screen_width / 2.0 => {
+            left_of
+        }
+        OwnerSide::RightOrLeftByCenter => right_of,
+    }
+}
+
+/// `tooltip` anchored beside `frame` (`SetOwner(frame, side)`).
+fn owned_by(frame: u64, side: OwnerSide, tooltip: TooltipFrameState) -> TooltipFrameState {
+    TooltipFrameState {
+        anchor: TooltipAnchor::Owner { frame, side },
+        ..tooltip
+    }
+}
+
+/// The nearest ancestor of `frame_id` (itself included) whose name matches.
+fn ancestor_named(
+    registry: &FrameRegistry,
+    mut frame_id: u64,
+    matches: impl Fn(&str) -> bool,
+) -> Option<u64> {
+    loop {
+        let frame = registry.get(frame_id)?;
+        if frame.name.as_deref().is_some_and(&matches) {
+            return Some(frame_id);
+        }
+        frame_id = frame.parent_id?;
+    }
 }
 
 fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
@@ -558,6 +820,8 @@ fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
         title: slot.name.clone(),
         title_color: parse_rgba(slot.quality.border_color()),
         lines,
+        record: Some(TooltipRecord::Item(slot.item_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -583,6 +847,8 @@ fn spell_tooltip(spell: &CatalogSpell, description: Option<String>) -> TooltipFr
         title: spell.name.to_string(),
         title_color: TOOLTIP_WHITE,
         lines,
+        record: Some(TooltipRecord::Spell(spell.id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -594,6 +860,8 @@ fn unknown_spell_tooltip(spell_id: u32) -> TooltipFrameState {
         title: format!("Spell {spell_id}"),
         title_color: TOOLTIP_SPELL_COLOR,
         lines: Vec::new(),
+        record: Some(TooltipRecord::Spell(spell_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -824,6 +1092,8 @@ fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState
             TOOLTIP_BUFF_COLOR
         },
         lines,
+        record: Some(TooltipRecord::Spell(aura.spell_id)),
+        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -998,10 +1268,45 @@ fn tooltip_lines(lines: &[TooltipLineState]) -> Element {
 
 fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
     let y = TOOLTIP_INSET + TOOLTIP_TITLE_H + index as f32 * TOOLTIP_LINE_H;
+    let indent = if line.item_mark.is_some() {
+        TOOLTIP_MARK_SIZE + TOOLTIP_MARK_GAP
+    } else {
+        0.0
+    };
+    let mut elements = tooltip_line_mark(index, line.item_mark, y);
+    elements.extend(tooltip_line_text(index, line, y, indent));
+    elements
+}
+
+fn tooltip_line_mark(index: usize, mark: Option<ItemMark>, y: f32) -> Element {
+    let art = match mark {
+        Some(ItemMark::Collected) => &COLLECTED_MARK,
+        Some(ItemMark::Uncollected) => &UNCOLLECTED_MARK,
+        Some(ItemMark::Unmarked) | None => return Element::new(),
+    };
+    let coords = art.tex_coords(1.0);
+    let top = y + (TOOLTIP_LINE_H - TOOLTIP_MARK_SIZE) / 2.0;
+    rsx! {
+        texture {
+            name: {DynName(format!("TooltipLine{index}Mark"))},
+            width: {TOOLTIP_MARK_SIZE},
+            height: {TOOLTIP_MARK_SIZE},
+            texture_fdid: {art.fdid},
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            pos_x: {TOOLTIP_INSET},
+            pos_y: {top},
+        }
+    }
+}
+
+fn tooltip_line_text(index: usize, line: &TooltipLineState, y: f32, indent: f32) -> Element {
+    let left_x = TOOLTIP_INSET + indent;
+    let left_w = TOOLTIP_TEXT_W - indent;
     rsx! {
         fontstring {
             name: {DynName(format!("TooltipLine{index}Left"))},
-            width: {TOOLTIP_TEXT_W},
+            width: {left_w},
             height: {TOOLTIP_LINE_H},
             text: {line.left_text.as_str()},
             font: "FrizQuadrata",
@@ -1009,7 +1314,7 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
             font_color: {rgba_string(line.left_color)},
             justify_h: "LEFT",
             pos_type: "absolute",
-            pos_x: {TOOLTIP_INSET},
+            pos_x: {left_x},
             pos_y: {y},
         }
         fontstring {
@@ -1035,6 +1340,154 @@ fn rgba_string(color: [f32; 4]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Left text and colour of the placed tooltip's last line.
+    fn placed_id_line(content: TooltipFrameState) -> (String, [f32; 4]) {
+        let placed = place_tooltip(content, &FrameRegistry::new(1920.0, 1080.0));
+        let last = placed.lines.last().expect("id line");
+        (last.left_text.clone(), last.left_color)
+    }
+
+    #[test]
+    fn every_record_tooltip_ends_with_its_grey_id_line() {
+        let frostbolt = CatalogSpell {
+            id: 116,
+            name: "Frostbolt".into(),
+            ..judgment()
+        };
+        let linen = InventorySlot {
+            icon_fdid: 132_889,
+            count: 20,
+            quality: ItemQuality::Common,
+            name: "Linen Cloth".into(),
+            item_guid: 7,
+            item_id: 2589,
+        };
+        let talent = TalentTooltip {
+            spell_id: 184_575,
+            title: "Blade of Justice".into(),
+            rank: "Rank 0/1".into(),
+            description: String::new(),
+        };
+        let cases = [
+            (spell_tooltip(&frostbolt, None), "Spell ID: 116"),
+            (unknown_spell_tooltip(116), "Spell ID: 116"),
+            (talent_tooltip(&talent), "Spell ID: 184575"),
+            (aura_tooltip(&sample_aura(), false), "Spell ID: 100"),
+            (item_tooltip(&linen), "Item ID: 2589"),
+            (
+                merchant_tooltip(2589, "Linen Cloth", 1, 1, None),
+                "Item ID: 2589",
+            ),
+        ];
+        for (content, expected) in cases {
+            let lines_before = content.lines.len();
+            let placed = place_tooltip(content.clone(), &FrameRegistry::new(1920.0, 1080.0));
+            assert_eq!(placed.lines.len(), lines_before + 1, "{expected}");
+            assert_eq!(
+                placed_id_line(content),
+                (expected.to_string(), GRAY_FONT_COLOR)
+            );
+        }
+        // No record, no ID line.
+        let mail = place_tooltip(mail_tooltip(&[]), &FrameRegistry::new(1920.0, 1080.0));
+        assert!(mail.lines.is_empty());
+    }
+
+    fn rect(x: f32, y: f32, width: f32, height: f32) -> LayoutRect {
+        LayoutRect {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// A 36×36 owner at `(x, y)` on a 1920×1080 screen, and a 5-line tooltip.
+    fn placed_beside(x: f32, y: f32, side: OwnerSide) -> (f32, f32, f32) {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let owner = registry.create_frame("Owner", None);
+        registry
+            .set_computed_layout(owner, rect(x, y, 36.0, 36.0))
+            .unwrap();
+        let content = TooltipFrameState {
+            lines: vec![TooltipLineState::new("line"); 5],
+            ..TooltipFrameState::hidden()
+        };
+        let height = content.height();
+        let placed = place_tooltip(owned_by(owner, side, content), &registry);
+        assert!(placed.visible);
+        (placed.x, placed.y, height)
+    }
+
+    #[test]
+    fn owner_anchors_follow_the_retail_anchor_types() {
+        // ANCHOR_RIGHT: BOTTOMLEFT on the owner's TOPRIGHT.
+        let (x, y, h) = placed_beside(600.0, 500.0, OwnerSide::Right);
+        assert_eq!((x, y), (636.0, 500.0 - h));
+        // ANCHOR_LEFT: BOTTOMRIGHT on the owner's TOPLEFT.
+        let (x, y, h) = placed_beside(600.0, 500.0, OwnerSide::Left);
+        assert_eq!((x, y), (600.0 - TOOLTIP_W, 500.0 - h));
+        // ANCHOR_BOTTOMLEFT: TOPRIGHT on the owner's BOTTOMLEFT.
+        let (x, y, _) = placed_beside(1600.0, 20.0, OwnerSide::BottomLeft);
+        assert_eq!((x, y), (1600.0 - TOOLTIP_W, 56.0));
+        // Bag slots: right of a slot in the left half, left of one in the right half.
+        let (x, _, _) = placed_beside(600.0, 500.0, OwnerSide::RightOrLeftByRightEdge);
+        assert_eq!(x, 636.0);
+        let (x, _, _) = placed_beside(1700.0, 500.0, OwnerSide::RightOrLeftByRightEdge);
+        assert_eq!(x, 1700.0 - TOOLTIP_W);
+        // Target auras: by the aura's centre.
+        let (x, _, _) = placed_beside(1000.0, 200.0, OwnerSide::RightOrLeftByCenter);
+        assert_eq!(x, 1000.0 - TOOLTIP_W);
+        let (x, _, _) = placed_beside(300.0, 200.0, OwnerSide::RightOrLeftByCenter);
+        assert_eq!(x, 336.0);
+        // Clamped to the screen: a right-anchored tooltip at the top edge.
+        let (x, y, _) = placed_beside(1800.0, 10.0, OwnerSide::Right);
+        assert_eq!((x, y), (1920.0 - TOOLTIP_W, 0.0));
+    }
+
+    #[test]
+    fn merchant_cells_anchor_right_of_the_cell_and_action_buttons_use_the_default() {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let cell = registry.create_frame("MerchantItem1", None);
+        let name = registry.create_frame("MerchantItem1Name", Some(cell));
+        let mut merchant = MerchantState::default();
+        merchant.npc = Some(1);
+        merchant.items = vec![shared::protocol::VendorItem {
+            slot: 1,
+            item_id: 2117,
+            name: "Thin Cloth Shoes".into(),
+            quality: 1,
+            price: 5,
+            stack_count: 1,
+            max_stack: 1,
+            num_available: None,
+            usable: true,
+        }];
+        let tooltip = hovered_merchant_tooltip(&registry, name, Some(&merchant)).expect("merchant");
+        assert_eq!(
+            tooltip.anchor,
+            TooltipAnchor::Owner {
+                frame: cell,
+                side: OwnerSide::Right
+            }
+        );
+        assert_eq!(unknown_spell_tooltip(1464).anchor, TooltipAnchor::Default);
+    }
+
+    #[test]
+    fn tooltips_use_the_retail_default_anchor_at_the_bottom_right() {
+        let registry = FrameRegistry::new(1920.0, 1080.0);
+        let content = mail_tooltip(&["Tradea".into()]);
+        let height = content.height();
+
+        let placed = place_tooltip(content, &registry);
+
+        assert!(placed.visible);
+        // BOTTOMRIGHT at UIParent BOTTOMRIGHT (-9, +85).
+        assert_eq!(placed.x + TOOLTIP_W, 1920.0 - 9.0);
+        assert_eq!(placed.y + height, 1080.0 - 85.0);
+    }
 
     #[test]
     fn minimap_mail_tooltip_lists_the_unread_senders_or_says_unread_mail() {
@@ -1098,12 +1551,12 @@ mod tests {
     fn merchant_cells_show_the_item_name_in_quality_color_with_stack_and_stock() {
         assert_eq!(parse_merchant_cell_name("MerchantItem2"), Some(1));
         assert_eq!(parse_merchant_cell_name("MerchantItem2Name"), None);
-        let tooltip = merchant_tooltip("Refreshing Spring Water", 1, 5, Some(3));
+        let tooltip = merchant_tooltip(159, "Refreshing Spring Water", 1, 5, Some(3));
         assert_eq!(tooltip.title, "Refreshing Spring Water");
         assert_eq!(tooltip.title_color, [1.0, 1.0, 1.0, 1.0]);
         assert_eq!(tooltip.lines[0].right_text, "5");
         assert_eq!(tooltip.lines[1].left_text, "In Stock");
-        let uncommon = merchant_tooltip("Pattern: Blue Linen Vest", 2, 1, None);
+        let uncommon = merchant_tooltip(6272, "Pattern: Blue Linen Vest", 2, 1, None);
         assert_eq!(uncommon.title_color, [0.12, 1.0, 0.0, 1.0]);
         assert!(uncommon.lines.is_empty());
     }
@@ -1254,6 +1707,7 @@ mod tests {
         tooltips.by_frame.insert(
             "TalentNode_81526".into(),
             TalentTooltip {
+                spell_id: 184575,
                 title: "Blade of Justice".into(),
                 rank: "Rank 0/1".into(),
                 description: "Pierce an enemy with a blade of light, dealing Holy damage and \
@@ -1263,6 +1717,13 @@ mod tests {
         );
         let tooltip =
             hovered_talent_tooltip(&registry, icon, Some(&tooltips)).expect("talent tooltip");
+        assert_eq!(
+            tooltip.anchor,
+            TooltipAnchor::Owner {
+                frame: node,
+                side: OwnerSide::Right
+            }
+        );
         assert_eq!(tooltip.title, "Blade of Justice");
         let lines: Vec<&str> = tooltip.lines.iter().map(|l| l.left_text.as_str()).collect();
         assert_eq!(
