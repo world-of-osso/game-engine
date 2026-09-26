@@ -1,6 +1,6 @@
 # Stormwind Hilly Plaza
 
-In Stormwind's Trade District the ground was hilly cobblestone instead of a flat paved plaza. Heights, holes and textures were all correct. Portal culling was hiding every group of `sw_tradedistrict` (322057), so the ADT terrain under the buildings showed instead. That terrain is authored with hills and a cobble layer because the district WMO normally covers it. Fixed in `5763a9ea`.
+In Stormwind's Trade District the ground was hilly cobblestone instead of a flat paved plaza. Heights, holes and textures were all correct. Portal culling was hiding every group of `sw_tradedistrict` (322057), so the ADT terrain under the buildings showed instead. That terrain is authored with hills and a cobble layer because the district WMO normally covers it. Fixed in `183b82f5`.
 
 ## Symptom
 
@@ -47,8 +47,8 @@ The traversal now follows WebWowViewerCpp (`Map::checkExterior`, `WmoObject::sta
 
 A second report from the same spot: the Trade District walls rendered as a dark stacked-slate texture, and the blue slate roofs were missing. The dark distant silhouettes in the user's shot are the other districts, seen through the hidden Trade District. On master `8fcbeecc`, `sw_tradedistrict` has 62 of 62 groups hidden, and the six other district WMOs have all their groups shown (`master-before-tree.txt`). Once the culling fix drew the district, two parser bugs remained.
 
-- **MOBA material id (the cause).** SMOBatch byte 0x16 is `flags`, and 0x17 is the u8 material id. Flag 0x2 (`use_material_id_large`) selects the u16 at 0x0A instead (WebWowViewerCpp `wmoFileHeader.h`, `wmoGroupObject.cpp`). The parser took the u16 only when the u8 was 0xFF. Every `sw_tradedistrict` batch has flags 0x02 and a u8 id of 0, so all 543 batches used MOMT 0, `mm_strmwnd_hwall_02`. That gave one wall texture everywhere, and the roofs (MOMT 40/41, `mm_strmwnd_roof_01/02`) never drew. 22 of the district's texture FDIDs were never even requested. Fixed in `2122fc26`.
-- **MOMT layout.** `RawWmoMaterialDef` read frameSidnColor as two u32s. That put texture_2 on diffColor (0x1C), diffColor on ground_type, and ground_type on flags_2. Two-layer shaders (6/13) received a color such as `0xFF959595` as their second texture, which caused 157 `WMO texture extract failed for FDID 4287993237` lines per session. SMOMaterial order: flags, shader, blendMode, texture_1, sidnColor, frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2, runTimeData[4]. Fixed in `e1834390`.
+- **MOBA material id (the cause).** SMOBatch byte 0x16 is `flags`, and 0x17 is the u8 material id. Flag 0x2 (`use_material_id_large`) selects the u16 at 0x0A instead (WebWowViewerCpp `wmoFileHeader.h`, `wmoGroupObject.cpp`). The parser took the u16 only when the u8 was 0xFF. Every `sw_tradedistrict` batch has flags 0x02 and a u8 id of 0, so all 543 batches used MOMT 0, `mm_strmwnd_hwall_02`. That gave one wall texture everywhere, and the roofs (MOMT 40/41, `mm_strmwnd_roof_01/02`) never drew. 22 of the district's texture FDIDs were never even requested. Fixed in `d8abf7a1`.
+- **MOMT layout.** `RawWmoMaterialDef` read frameSidnColor as two u32s. That put texture_2 on diffColor (0x1C), diffColor on ground_type, and ground_type on flags_2. Two-layer shaders (6/13) received a color such as `0xFF959595` as their second texture, which caused 157 `WMO texture extract failed for FDID 4287993237` lines per session. SMOMaterial order: flags, shader, blendMode, texture_1, sidnColor, frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2, runTimeData[4]. Fixed in `c76ce1a0`.
 
 Refuted:
 
@@ -58,6 +58,8 @@ Refuted:
 Proof:
 
 - **Real-data tests.** `trade_district_batches_use_large_material_ids` checks group 37's 17 material ids, including 40 and 41. RED: `[0]`. `trade_district_momt_reads_texture_2_before_diff_color` checks MOMT 8 → `mm_strmwnd_int_floor_02_burn` (465176) and MOMT 46 → `strmwnd_crenlatn_burned` (464811). RED: 4286545791.
+- **Production spawn test.** `trade_district_two_layer_batch_binds_its_momt_second_texture` is a GPU test (`two_layer_gpu.rs`). Group 33 batch 18 is MOMT 46, shader 13, and binds `strmwnd_crenlatn_burned` as its second layer. RED with the old MOMT layout: no second texture.
+- **Master `f43d6143` (Retail lighting) vs branch `f72a1504`:** `f43-before-*.webp` and `f72-after-*.webp`, from `shots.sh`, at the auctioneer spot and the plaza (three yaws).
 - **Live captures:**
   - `master-before.webp` and `master-plaza.webp`: master.
   - `rebased-plaza.webp`: culling fix only; one texture everywhere.
