@@ -274,7 +274,10 @@ impl NpcCursorQuery<'_, '_> {
             .as_deref()
             .map_or(Reaction::Neutral, |templates| {
                 let player = self.local.single().ok().flatten();
-                crate::unit_frames::target_reaction(templates.row(faction), templates.row(player))
+                game_engine::faction_reaction::reaction(
+                    templates.row(faction),
+                    templates.row(player),
+                )
             });
         NpcCursorView {
             flags: flags.copied().unwrap_or(NpcFlags(0)),

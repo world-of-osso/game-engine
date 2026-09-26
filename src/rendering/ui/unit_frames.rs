@@ -14,7 +14,7 @@ use crate::networking::LocalPlayer;
 use crate::ui_input::walk_up_for_onclick;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
 use game_engine::faction_reaction::{
-    FactionTemplateRow, Reaction, parse_faction_template_csv, reaction,
+    FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction,
 };
 use game_engine::group_state::{GroupCommand, GroupMenuEntry, GroupState, group_menu_entries};
 use game_engine::network_runtime::replication::ReplicationMirrorMap;
@@ -46,7 +46,7 @@ const FACTION_TEMPLATE_CSV: &str = "data/db2/12.1.0.69933/FactionTemplate.csv";
 
 /// `FactionTemplate.csv` rows by id, for target reaction colours.
 #[derive(Resource, Default)]
-pub(crate) struct FactionTemplates(HashMap<u32, FactionTemplateRow>);
+pub(crate) struct FactionTemplates(HashMap<u32, FactionTemplateEntry>);
 
 impl FactionTemplates {
     pub(crate) fn load() -> Self {
@@ -65,7 +65,7 @@ impl FactionTemplates {
     pub(crate) fn row(
         &self,
         template: Option<&UnitFactionTemplate>,
-    ) -> Option<&FactionTemplateRow> {
+    ) -> Option<&FactionTemplateEntry> {
         self.0.get(&template?.0)
     }
 }
@@ -73,7 +73,7 @@ impl FactionTemplates {
 /// What the local player brings to a target's level text and reaction.
 struct Viewer<'a> {
     level: Option<u8>,
-    template: Option<&'a FactionTemplateRow>,
+    template: Option<&'a FactionTemplateEntry>,
 }
 
 struct InWorldUnitFramesRes {
@@ -345,7 +345,8 @@ fn build_target_state(
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_target_name(player, npc, name));
     state.level_text = target_level_text(level.map(|level| level.0), viewer.level);
-    state.reaction = Some(target_reaction(templates.row(faction), viewer.template));
+    // Retail colours the target by its reaction to you; unknown templates are neutral.
+    state.reaction = Some(reaction(templates.row(faction), viewer.template));
     populate_resources(&mut state, health, powers);
     state
 }
@@ -368,18 +369,6 @@ fn target_level_text(level: Option<u8>, player_level: Option<u8>) -> String {
         (Some(level), Some(player)) if u16::from(level) >= u16::from(player) + 10 => "??".into(),
         (Some(level), _) => level.to_string(),
         (None, _) => String::new(),
-    }
-}
-
-/// How the target regards the player (Retail colours the target by its reaction to you).
-/// Neutral when either side has no known template.
-pub(crate) fn target_reaction(
-    target: Option<&FactionTemplateRow>,
-    player: Option<&FactionTemplateRow>,
-) -> Reaction {
-    match (target, player) {
-        (Some(target), Some(player)) => reaction(target, player),
-        _ => Reaction::Neutral,
     }
 }
 
