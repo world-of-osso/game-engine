@@ -1,6 +1,5 @@
 use std::io::Cursor;
 use std::mem::size_of;
-use std::path::{Path, PathBuf};
 
 use crate::asset::read_bytes::read_u32;
 
@@ -136,13 +135,6 @@ pub struct TextureTables<'a> {
     pub tex_types: &'a [u32],
     pub txid: &'a [u32],
     pub skin_fdids: &'a [u32; 3],
-}
-
-pub(crate) struct SkelData {
-    pub bones: Vec<super::m2_anim::M2Bone>,
-    pub sequences: Vec<super::m2_anim::M2AnimSequence>,
-    pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
-    pub global_sequences: Vec<u32>,
 }
 
 fn parse_binrw_entries<T>(
@@ -367,8 +359,20 @@ pub(crate) fn resolve_indices(lookup: &[u16], indices: &[u16]) -> Vec<u16> {
         .collect()
 }
 
-fn load_skel_data(skel_path: &Path) -> Result<SkelData, String> {
-    let data = std::fs::read(skel_path).map_err(|e| format!("Failed to read .skel file: {e}"))?;
+fn parse_sfid(data: &[u8]) -> Vec<u32> {
+    data.chunks_exact(4)
+        .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
+        .collect()
+}
+
+pub(crate) struct SkelData {
+    pub bones: Vec<super::m2_anim::M2Bone>,
+    pub sequences: Vec<super::m2_anim::M2AnimSequence>,
+    pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
+    pub global_sequences: Vec<u32>,
+}
+
+pub(crate) fn parse_skel_data(data: &[u8]) -> Result<SkelData, String> {
     let mut result = SkelData {
         bones: Vec::new(),
         sequences: Vec::new(),
@@ -411,71 +415,4 @@ fn parse_skb1_chunk(chunk: &[u8], result: &mut SkelData) -> Result<(), String> {
     result.bones = super::m2_anim::parse_bones_at(chunk, bone_offset, bone_count)?;
     result.bone_tracks = super::m2_anim::parse_bone_animations_at(chunk, bone_offset, bone_count)?;
     Ok(())
-}
-
-fn load_anim_from_md20(md20: &[u8]) -> SkelData {
-    SkelData {
-        bones: super::m2_anim::parse_bones(md20).unwrap_or_default(),
-        sequences: super::m2_anim::parse_sequences(md20).unwrap_or_default(),
-        bone_tracks: super::m2_anim::parse_bone_animations(md20).unwrap_or_default(),
-        global_sequences: super::m2_anim::parse_global_sequences(md20).unwrap_or_default(),
-    }
-}
-
-pub(crate) fn load_anim_data(path: &Path, chunks: &M2Chunks<'_>) -> SkelData {
-    if let Some(skel_fdid) = chunks.skid {
-        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
-        let skel_path = path.with_file_name(format!("{stem}.skel"));
-        super::super::asset_cache::file_at_path(skel_fdid, &skel_path);
-        match load_skel_data(&skel_path) {
-            Ok(s) => return s,
-            Err(e) => eprintln!("Failed to load .skel: {e}"),
-        }
-    }
-    load_anim_from_md20(chunks.md20)
-}
-
-fn parse_sfid(data: &[u8]) -> Vec<u32> {
-    data.chunks_exact(4)
-        .map(|c| u32::from_le_bytes(c.try_into().unwrap()))
-        .collect()
-}
-
-pub(crate) fn load_skin_data(m2_path: &Path, sfid: &[u32]) -> Option<SkinData> {
-    let stem = m2_path.file_stem()?.to_str()?;
-    if let Some(&fdid) = sfid.first() {
-        let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-        if let Some(resolved_path) =
-            super::super::asset_cache::file_at_path(fdid, &canonical_skin_path)
-            && let Ok(data) = std::fs::read(&resolved_path)
-        {
-            return parse_skin_full(&data).ok();
-        }
-        let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        if let Some(resolved_path) =
-            super::super::asset_cache::file_at_path(fdid, &numeric_skin_path)
-            && let Ok(data) = std::fs::read(&resolved_path)
-        {
-            return parse_skin_full(&data).ok();
-        }
-    }
-    let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-    let data = std::fs::read(&skin_path).ok()?;
-    parse_skin_full(&data).ok()
-}
-
-pub fn ensure_primary_skin_path(m2_path: &Path) -> Option<PathBuf> {
-    let data = std::fs::read(m2_path).ok()?;
-    let chunks = parse_chunks(&data).ok()?;
-    let stem = m2_path.file_stem()?.to_str()?;
-    if let Some(&fdid) = chunks.sfid.first() {
-        let canonical_skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-        if let Some(path) = super::super::asset_cache::file_at_path(fdid, &canonical_skin_path) {
-            return Some(path);
-        }
-        let numeric_skin_path = m2_path.with_file_name(format!("{fdid}.skin"));
-        return super::super::asset_cache::file_at_path(fdid, &numeric_skin_path);
-    }
-    let skin_path = m2_path.with_file_name(format!("{stem}00.skin"));
-    skin_path.exists().then_some(skin_path)
 }

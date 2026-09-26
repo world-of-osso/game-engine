@@ -1,3 +1,4 @@
+use super::blp_format::{fix_1bit_alpha, strip_mipmaps};
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Instant;
@@ -180,18 +181,6 @@ fn format_blp_perf(path: &Path, width: u32, height: u32, timings: BlpDecodeTimin
     )
 }
 
-fn strip_mipmaps(bytes: &mut [u8]) {
-    if bytes.starts_with(b"BLP2") {
-        if let Some(has_mipmaps) = bytes.get_mut(11) {
-            *has_mipmaps = 0;
-        }
-        return;
-    }
-    if (bytes.starts_with(b"BLP0") || bytes.starts_with(b"BLP1")) && bytes.len() >= 28 {
-        bytes[24..28].copy_from_slice(&0u32.to_le_bytes());
-    }
-}
-
 /// Scale RGBA pixels by 2x using nearest-neighbor.
 pub fn scale_2x(pixels: &[u8], w: u32, h: u32) -> (Vec<u8>, u32, u32) {
     let new_w = w * 2;
@@ -295,23 +284,6 @@ fn blend_translucent_overlay_pixel(
 
 fn blend_channel(alpha: u16, inv: u16, overlay: u8, base: u8) -> u8 {
     ((alpha * overlay as u16 + inv * base as u16) / 255) as u8
-}
-
-fn fix_1bit_alpha(pixels: &mut [u8]) {
-    let max_alpha = pixels.iter().skip(3).step_by(4).copied().max().unwrap_or(0);
-    if max_alpha == 0 {
-        // No alpha channel — set all pixels fully opaque.
-        for alpha in pixels.iter_mut().skip(3).step_by(4) {
-            *alpha = 255;
-        }
-    } else if max_alpha == 1 {
-        // 1-bit alpha — expand 1 → 255.
-        for alpha in pixels.iter_mut().skip(3).step_by(4) {
-            if *alpha > 0 {
-                *alpha = 255;
-            }
-        }
-    }
 }
 
 #[cfg(test)]
