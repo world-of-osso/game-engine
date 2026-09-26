@@ -1,6 +1,6 @@
 # Godot conversion
 
-The Godot replacement remains an incomplete client-host experiment, not a completed migration. Godot is authorized to own rendering, UI, scenes, and gameplay while Bevy remains a transport-only headless networking worker. At `ac02b9a0`, the native extension builds and has bounded runtime proof for authored login control names, raw ADT geometry, and rejected-account status feedback; M2-asset proof is agent-reported. None establishes user-facing login, terrain rendering, or full conversion parity.
+The Godot replacement remains an incomplete client-host experiment, not a completed migration. Godot is authorized to own rendering, UI, scenes, and gameplay while Bevy remains a transport-only headless networking worker. At `d1641bc9`/`9249929e`, successful `admin`/`admin` authentication against explicitly local UDP `127.0.0.1:5000` creates native `CharacterSelectUI`, maps protocol roster data through the original `CharacterSelectModel`, and hides `LoginUI`; raw ADT and M2 proof retain their prior limits. None establishes character-select actions, a character/world scene, terrain rendering, matched visuals, or full conversion parity.
 
 ## Bootstrap and workspace boundary
 
@@ -15,7 +15,7 @@ Sibling `ui-toolkit-core` commit `70db707` removes all Bevy dependencies. Its po
 
 Main startup wires `ui::RegistryUi` and `create_login_ui`. At `50cd3c63`/`33ed3a57`, native `sync_input`/`pop_action` route connect, reconnect, exit, selected-host `set_server`, and pending status. `GameClient.connect_account` resolves the realm, starts `NetworkBridge`, and sends typed login/register requests through `AuthChannel`; `account_state` exposes `Session` effects. Polling emits `screen_requested`; it does not construct or route character-select, creation, loading, or world scenes.
 
-The latest `login_flow.gd` log identifies `3de5946b`, exits 0, and has empty stderr: the existing local UDP server on port 5000 rejects wrong `admin` credentials, with credentials supplied by the native login button and rejection projected into status. It proves no account creation. A positive login still ends at `screen_requested`, and realm cycling, menu, and create-account actions explicitly report unsupported. This is a user-facing rejection path, not complete login workflow or scene parity.
+The historical `login_flow.gd` log identifies `3de5946b`, exits 0, and has empty stderr: the existing local UDP server on port 5000 rejects wrong `admin` credentials, with credentials supplied by the native login button and rejection projected into status. At `d1641bc9`/`9249929e`, `character_select_flow.gd` exits 0 with empty stderr: successful `admin`/`admin` auth against explicitly local UDP `127.0.0.1:5000` creates `CharacterSelectUI` using the original `CharacterSelectModel`, maps the protocol roster, and hides `LoginUI`. Empty authored UI and Back action are GREEN; the initial test assumption that EnterWorld is disabled was removed because the original authored button is enabled. `744f3e1b3` mapping tests are pure. Character-select actions are not consumed by `GameClient`; no positive enter/delete/create, character/world scene, background/appearance, texture-tint proof (agent65), or matched visual proof exists. Realm cycling and menu remain unsupported. This is bounded auth-to-roster UI proof, not complete workflow or scene parity.
 
 ## Native asset and preview boundary
 
@@ -43,10 +43,10 @@ The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventori
 | Animation attachment | `WowAnimationPlayer` attaches when sequences exist and writes skeleton poses. | Agent39 reports asset assertions GREEN; playback, crossfade, deformation, and visual parity remain unproven. |
 | Preview scene | Bounds-driven camera/light and successful-import-only replacement. | `model_scene.gd` exits 1 at `ac02b9a0`: login canvas covers the model. `5ca2dc8d` hides it after successful import; GREEN awaits rebuild. Not a gameplay scene. |
 | UI model/projection | Bevy-free sibling frame/layout/widget/atlas/screen/registry model; native projection wires `sync_input`/`pop_action`. `1251724a` projects disabled buttons and suppresses their callbacks. | `ui_projection.gd` exits 0 at `3de5946b`, empty stderr: true viewport Unicode/Ctrl-A/backspace/focus editing; gold/resize/removal updates; disabled/callback suppression; asset/font/insets. Behavioral fixture only. RealForward+ screenshot `04aa3610` predates final colour/focus changes, so exact visual baseline is unverified. |
-| Account host | `50cd3c63`/`33ed3a57` wire connect/reconnect/exit, selected-host `set_server`, pending status, and typed auth through `NetworkBridge`/`Session`; `poll_account` emits `screen_requested`. | `login_flow.gd` exits 0 at `3de5946b`, empty stderr: local UDP 5000 rejects wrong `admin`; the login button passes credentials and projects rejection. No account creation; positive login stops at `screen_requested`; no native character-select/world routing. Realm cycling/menu/create-account are explicitly unsupported. |
+| Account host | `50cd3c63`/`33ed3a57` wire connect/reconnect/exit, selected-host `set_server`, pending status, and typed auth through `NetworkBridge`/`Session`. `d1641bc9`/`9249929e` create `CharacterSelectUI` with the original `CharacterSelectModel`, protocol roster mapping, and LoginUI removal after successful auth. | `character_select_flow.gd` at `d1641bc9` exits 0 with empty stderr: local `admin`/`admin` auth at UDP `127.0.0.1:5000` reaches native roster UI. No action is consumed by `GameClient`; no positive enter/delete/create, character/world routing, or scene proof. |
 | Transport/gameplay | Actual headless Bevy-state/Lightyear/Replicon transport bridge. It remains transport-only; Godot owns rendering/UI/scenes/gameplay. | Network verifier: 4/4 GREEN at `73339584`; the account-rejection path is runtime proof only for typed auth/status feedback. No login-to-world state application, collision, equipment, gameplay, or parity proof. |
 | Build/readability | Native build preceded current fixture runs. | Latest `login_flow.gd` and `ui_projection.gd` logs identify `3de5946b`, both exit 0 with empty stderr. They do not provide a standalone current compiler-warning report. |
-| Character-select model | `CharacterSelectModel` has pure model tests. | `a828a028`/`fcd34042`: two pure tests GREEN. No native character-select scene, rendering, input, or workflow proof. |
+| Character-select UI | `d1641bc9`/`9249929e` construct native `CharacterSelectUI` from the original `CharacterSelectModel`, map protocol roster data, and hide LoginUI. It includes empty authored UI and Back action; EnterWorld remains enabled as in the original authored button. | `character_select_flow.gd` and `character_select_ui.gd` are GREEN with empty stderr; `744f3e1b3` mapping tests are pure. No GameClient action consumption, positive enter/delete/create, character/world scene, background/appearance, texture-tint, or matched visual proof. |
 | Tooling and parity | No Godot automation, screenshots, diagnostics, CLI/IPC, audio, debug scenes, or complete UI workflows. | Open. No milestone completion claim. |
 
 ## Sources
@@ -62,10 +62,14 @@ The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventori
 - [Session decisions](../../godot/session/src/lib.rs) — headless login/roster state transitions.
 - [Native terrain](../../godot/rust/src/terrain/mod.rs) — raw ADT chunk mesh conversion boundary.
 - `fb54637f` report — 233/233 pure-core `--lib` GREEN/no warnings; Bevy adapter fixtures excluded and unexecuted.
-- [Login-flow script](../../godot/tests/login_flow.gd) — current credential-routing/rejection fixture.
+- [Login-flow script](../../godot/tests/login_flow.gd) — historical credential-routing/rejection fixture.
+- [Character-select-flow script](../../godot/tests/character_select_flow.gd) — successful local auth, protocol-roster mapping, and LoginUI replacement fixture.
+- [Character-select UI script](../../godot/tests/character_select_ui.gd) — empty authored UI and Back-action fixture.
 - [UI projection script](../../godot/tests/ui_projection.gd) — current native editing/layout/action fixture.
 - [Terrain geometry script](../../godot/tests/terrain_geometry.gd) — historical `ac02b9a0` 256-chunk raw-geometry GREEN.
-- `/tmp/claude/godot-login_flow-3de5946b.log` — current login-flow exit 0, empty stderr.
+- `/tmp/claude/godot-login_flow-3de5946b.log` — historical login-flow exit 0, empty stderr.
+- `/tmp/claude/godot-character_select_flow-d1641bc9.log` — successful local-auth/roster-flow exit 0, empty stderr.
+- `/tmp/claude/godot-character-select-ui-corrected.log` — empty authored UI/Back exit 0, empty stderr.
 - `/tmp/claude/godot-ui_projection-3de5946b.log` — current UI-projection exit 0, empty stderr.
 - `/tmp/claude/godot-client_login-ac02b9a0.log` — named-login-control GREEN; texture-file messages are cwd-preflight only.
 - `/tmp/claude/godot-model_scene-ac02b9a0.log` — login-canvas occlusion RED before `5ca2dc8d`.
