@@ -81,6 +81,8 @@ pub fn reaction_color(reaction: Reaction) -> &'static str {
 pub struct UnitFrameState {
     pub name: String,
     pub level_text: String,
+    /// "r,g,b,a" of the level text: gold, or the target's difficulty colour.
+    pub level_color: String,
     pub health_text: String,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
@@ -98,6 +100,7 @@ impl UnitFrameState {
         Self {
             name: name.into(),
             level_text: String::new(),
+            level_color: GOLD_TEXT.to_string(),
             health_text: String::new(),
             health_fraction: 0.0,
             reaction: None,
@@ -277,7 +280,7 @@ fn unit_frame_contents(prefix: &str, state: &UnitFrameState) -> Element {
     let level_x = FRAME_W - LEVEL_RIGHT - LEVEL_W;
     rsx! {
         {unit_label(dyn_name(format!("{prefix}Name")), &state.name, name_rect(1.0), (GOLD_TEXT, UNIT_FONT_SIZE), "LEFT")}
-        {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, (level_x, NAME_Y, LEVEL_W, NAME_H), (GOLD_TEXT, UNIT_FONT_SIZE), "RIGHT")}
+        {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, (level_x, NAME_Y, LEVEL_W, NAME_H), (&state.level_color, UNIT_FONT_SIZE), "RIGHT")}
         {status_bar(BarSpec {
             name: format!("{prefix}HealthBar"),
             rect: health_rect(1.0),

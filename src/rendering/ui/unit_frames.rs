@@ -6,6 +6,7 @@ use shared::components::{
     Health as NetHealth, Npc, Player as NetPlayer, UnitFactionTemplate, UnitLevel, UnitPowers,
     UnitTarget,
 };
+use shared::level_scaling::{LevelDifficulty, LevelScaling, level_for_viewer};
 
 use crate::client_options::{GraphicsOptions, HudVisibilityToggles};
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
@@ -40,6 +41,7 @@ type UnitComponents<'a> = (
     Option<&'a UnitAuraState>,
     Option<&'a UnitLevel>,
     Option<&'a UnitFactionTemplate>,
+    Option<&'a LevelScaling>,
 );
 
 const FACTION_TEMPLATE_CSV: &str = "data/db2/12.1.0.69933/FactionTemplate.csv";
@@ -315,7 +317,7 @@ fn build_state(sources: &UnitFrameSources) -> InWorldUnitFramesState {
 
 fn build_player_state(
     character_stats: Option<&CharacterStatsSnapshot>,
-    (player, health, powers, _npc, name, _auras, level, _faction): UnitComponents,
+    (player, health, powers, _npc, name, _auras, level, _faction, _scaling): UnitComponents,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_player_name(player, character_stats, name));
     state.level_text = level.map(|level| level.0.to_string()).unwrap_or_default();
@@ -341,12 +343,21 @@ fn resolve_player_name(
 fn build_target_state(
     viewer: &Viewer,
     templates: &FactionTemplates,
-    (player, health, powers, npc, name, _auras, level, faction): UnitComponents,
+    (player, health, powers, npc, name, _auras, level, faction, scaling): UnitComponents,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(resolve_target_name(player, npc, name));
-    state.level_text = target_level_text(level.map(|level| level.0), viewer.level);
+    // A tuned creature shows its level against you (UnitEffectiveLevel).
+    let level =
+        level.map(|level| level_for_viewer(*level, scaling, viewer.level.unwrap_or(level.0)));
+    state.level_text = target_level_text(level, viewer.level);
     // Retail colours the target by its reaction to you; unknown templates are neutral.
-    state.reaction = Some(reaction(templates.row(faction), viewer.template));
+    let reaction = reaction(templates.row(faction), viewer.template);
+    state.reaction = Some(reaction);
+    if let (Some(level), Some(player_level), true) =
+        (level, viewer.level, reaction != Reaction::Friendly)
+    {
+        state.level_color = difficulty_color(LevelDifficulty::for_levels(player_level, level));
+    }
     populate_resources(&mut state, health, powers);
     state
 }
@@ -361,6 +372,13 @@ fn resolve_target_name(
         .or_else(|| npc.map(|npc| npc.name.clone()))
         .or_else(|| name.map(|name| name.as_str().to_string()))
         .unwrap_or_else(|| "Unknown".to_string())
+}
+
+/// TargetFrameMixin:CheckLevel colours an attackable target's level by its
+/// difficulty for the player; others stay gold.
+fn difficulty_color(difficulty: LevelDifficulty) -> String {
+    let [r, g, b] = difficulty.color();
+    format!("{r},{g},{b},1.0")
 }
 
 /// Retail hides the level of units 10 or more levels above the player behind "??".
@@ -958,6 +976,82 @@ mod tests {
 
         assert_eq!(text(&app, "PlayerLevelText"), "70");
         assert_eq!(text(&app, "TargetLevelText"), "??");
+    }
+
+    fn text_color(app: &App, name: &str) -> [f32; 4] {
+        match frame(app, name).widget_data.as_ref() {
+            Some(WidgetData::FontString(text)) => text.color,
+            _ => panic!("{name} is not a FontString"),
+        }
+    }
+
+    /// Hogger's ContentTuning 73 range, native level 30.
+    fn spawn_hogger(app: &mut App) -> Entity {
+        let hogger = spawn_npc(app, "Hogger", 30);
+        app.world_mut().entity_mut(hogger).insert(LevelScaling {
+            content_tuning_id: 73,
+            min_level: 1,
+            max_level: 30,
+            delta: 0,
+        });
+        hogger
+    }
+
+    fn target_level(app: &mut App, player_level: u8, unit: Entity) -> (String, [f32; 4]) {
+        let mut players = app
+            .world_mut()
+            .query_filtered::<Entity, With<LocalPlayer>>();
+        let player = players.single(app.world()).unwrap();
+        app.world_mut()
+            .entity_mut(player)
+            .insert(UnitLevel(player_level));
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(unit);
+        app.update();
+        (
+            text(app, "TargetLevelText"),
+            text_color(app, "TargetLevelText"),
+        )
+    }
+
+    #[test]
+    fn tuned_target_shows_its_level_for_the_local_player_in_difficulty_colour() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let hogger = spawn_hogger(&mut app);
+        app.update();
+        let yellow = [1.0, 0.82, 0.0, 1.0];
+        assert_eq!(target_level(&mut app, 10, hogger), ("10".into(), yellow));
+        assert_eq!(target_level(&mut app, 25, hogger), ("25".into(), yellow));
+        assert_eq!(
+            target_level(&mut app, 40, hogger),
+            ("30".into(), [0.5, 0.5, 0.5, 1.0]),
+            "capped at 30 and grey to a level 40 player"
+        );
+    }
+
+    #[test]
+    fn hostile_target_level_colour_follows_the_level_difference() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let ogre = spawn_npc(&mut app, "Ogre", 15);
+        let spider = spawn_npc(&mut app, "Forest Spider", 13);
+        let wolf = spawn_npc(&mut app, "Timber Wolf", 5);
+        app.update();
+        assert_eq!(target_level(&mut app, 10, ogre).1, [1.0, 0.1, 0.1, 1.0]);
+        assert_eq!(target_level(&mut app, 10, spider).1, [1.0, 0.5, 0.25, 1.0]);
+        assert_eq!(target_level(&mut app, 10, wolf).1, [0.25, 0.75, 0.25, 1.0]);
+    }
+
+    #[test]
+    fn friendly_target_level_stays_gold() {
+        let mut app = unit_frames_app();
+        spawn_local_player(&mut app, Vec::new());
+        let guard = spawn_npc(&mut app, "Stormwind City Guard", 90);
+        app.world_mut()
+            .entity_mut(guard)
+            .insert(UnitFactionTemplate(STORMWIND_GUARD_TEMPLATE));
+        app.update();
+        assert_eq!(target_level(&mut app, 85, guard).1, [1.0, 0.82, 0.0, 1.0]);
     }
 
     #[test]
