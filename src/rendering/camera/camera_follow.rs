@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use bevy::ecs::system::SystemParam;
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings, RayCastVisibility};
 use bevy::prelude::*;
-use game_engine::culling::WmoGroup;
 
 use crate::collision::WmoCollisionMesh;
 use crate::sky::SkyDome;
@@ -81,28 +80,19 @@ fn build_collision_excluded_set(
     excluded
 }
 
-/// What the camera collides with: meshes that are drawn, and the walls of WMO groups that
-/// portal culling hid. Portal culling decides what is drawn, not what is solid; a hidden
-/// group's walls must still hold the camera in, or it leaves the group and the group stays
-/// culled.
+/// What the camera collides with: meshes that are drawn, and WMO walls (`WmoCollisionMesh`)
+/// even when portal culling hid their group. Portal culling decides what is drawn, not what
+/// is solid; a hidden group's walls must still hold the camera in, or it leaves the group
+/// and the group stays culled.
 #[derive(SystemParam)]
 pub(crate) struct CameraBlockers<'w, 's> {
     visibility: Query<'w, 's, &'static InheritedVisibility>,
-    wmo_meshes: Query<'w, 's, &'static ChildOf, With<WmoCollisionMesh>>,
-    wmo_groups: Query<'w, 's, &'static WmoGroup>,
+    wmo_walls: Query<'w, 's, (), With<WmoCollisionMesh>>,
 }
 
 impl CameraBlockers<'_, '_> {
     fn blocks(&self, entity: Entity) -> bool {
-        self.visibility.get(entity).is_ok_and(|v| v.get()) || self.is_wmo_wall(entity)
-    }
-
-    /// A batch mesh of a WMO group other than an antiportal, which is an occluder only.
-    fn is_wmo_wall(&self, entity: Entity) -> bool {
-        self.wmo_meshes
-            .get(entity)
-            .and_then(|child_of| self.wmo_groups.get(child_of.parent()))
-            .is_ok_and(|group| !group.is_antiportal)
+        self.visibility.get(entity).is_ok_and(|v| v.get()) || self.wmo_walls.contains(entity)
     }
 }
 

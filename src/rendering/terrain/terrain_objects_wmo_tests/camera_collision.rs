@@ -10,8 +10,19 @@ const MAGIC_DISTRICT_ROOT_FDID: u32 = 321999;
 const STAIRWELL_GROUP: u16 = 58;
 
 /// Real transform, visibility, frustum, portal culling and camera follow over every
-/// `sw_magicdistrict` group, with each group's batch meshes as `WmoCollisionMesh` children.
+/// `sw_magicdistrict` group, with each group's batch meshes as children, `WmoCollisionMesh`
+/// except antiportals as the WMO spawn marks them.
 fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entity, Entity) {
+    let start = Transform::from_translation(wow_to_bevy(player_wow) + Vec3::Y * 2.0);
+    magic_district_app(player_wow, start, Some(camera))
+}
+
+/// As `magic_district_camera_app`; without a `WowCamera` the camera stays at `camera_start`.
+fn magic_district_app(
+    player_wow: Vec3,
+    camera_start: Transform,
+    camera: Option<WowCamera>,
+) -> (App, Entity, Entity) {
     let (placement_transform, root, groups) =
         super::portal_culling::load_tile_30_48_wmo(MAGIC_DISTRICT_ROOT_FDID);
     let mut app = App::new();
@@ -38,7 +49,7 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
             Transform::from_translation(wow_to_bevy(player_wow)),
         ))
         .id();
-    let camera = app
+    let camera_entity = app
         .world_mut()
         .spawn((
             Camera3d::default(),
@@ -48,10 +59,12 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
                 aspect_ratio: 16.0 / 9.0,
                 ..default()
             }),
-            camera,
-            Transform::from_translation(wow_to_bevy(player_wow) + Vec3::Y * 2.0),
+            camera_start,
         ))
         .id();
+    if let Some(camera) = camera {
+        app.world_mut().entity_mut(camera_entity).insert(camera);
+    }
     let root_entity = app
         .world_mut()
         .spawn((
@@ -67,28 +80,30 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
         commands.entity(root_entity).add_child(group_entity);
     }
     app.world_mut().flush();
-    let group_entities: Vec<(Entity, u16)> = app
+    let group_entities: Vec<(Entity, u16, bool)> = app
         .world_mut()
         .query::<(Entity, &WmoGroup)>()
         .iter(app.world())
-        .map(|(entity, group)| (entity, group.group_index))
+        .map(|(entity, group)| (entity, group.group_index, group.is_antiportal))
         .collect();
-    for (group_entity, index) in group_entities {
+    for (group_entity, index, is_antiportal) in group_entities {
         for batch in &groups[index as usize].batches {
             let mesh = app
                 .world_mut()
                 .resource_mut::<Assets<Mesh>>()
                 .add(batch.mesh.clone());
-            app.world_mut().spawn((
+            let mut batch_entity = app.world_mut().spawn((
                 Mesh3d(mesh),
                 Transform::default(),
                 Visibility::default(),
-                crate::collision::WmoCollisionMesh,
                 ChildOf(group_entity),
             ));
+            if !is_antiportal {
+                batch_entity.insert(crate::collision::WmoCollisionMesh);
+            }
         }
     }
-    (app, player, camera)
+    (app, player, camera_entity)
 }
 
 fn wow_to_bevy(wow: Vec3) -> Vec3 {
@@ -198,3 +213,4 @@ fn camera_passing_the_stockade_doorway_keeps_the_stairwell_drawn() {
         "frames with the stairwell culled"
     );
 }
+
