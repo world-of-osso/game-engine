@@ -146,3 +146,27 @@ fn the_countdown_running_out_cancels_the_summon() {
     assert!(state.offer.is_none());
     assert_eq!(state.take_answers(), vec![false]);
 }
+
+#[test]
+fn an_open_offer_shows_again_after_a_loading_screen() {
+    let (mut app, _) = app();
+    app.update();
+    advance(&mut app, 30);
+    // Leaving InWorld for a map transfer clears the popup stack (static popup teardown).
+    app.world_mut().resource_mut::<PopupStack>().clear();
+    advance(&mut app, 10);
+
+    assert_eq!(
+        popup(&app).expect("CONFIRM_SUMMON again").spec.text,
+        format!("{STONECALLER_IN_WESTFALL} 2 Minutes.")
+    );
+    advance(&mut app, 21);
+    assert_eq!(
+        popup(&app).unwrap().spec.text,
+        format!("{STONECALLER_IN_WESTFALL} 59 Seconds.")
+    );
+    assert!(
+        app.world().resource::<SummonClientState>().offer.is_some(),
+        "the offer is not answered"
+    );
+}
