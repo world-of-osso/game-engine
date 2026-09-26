@@ -974,3 +974,7 @@ Created [[unit-tooltip]]: hovered-unit resolution, CreatureTooltip cache, accoun
 ## [2026-09-26] create | Cursor item
 
 Created [[cursor-item]]: CursorItem click rules, StackSplitFrame, DELETE_ITEM / DELETE_GOOD_ITEM, ItemSparse catalog and item tooltips; merchant-frame updated for drag buy/sell and Sell All Junk.
+
+## [2026-09-26] investigation | Bevy and Godot directional shadows
+
+Created [[bevy-godot-shadow-comparison]]. Revision-pinned source review records shared CPU scan/cascade and batching paths, Godot's extra directional silhouette-plane culling plus shadow mesh/LOD path, and Bevy's conditional gathered-cascade GPU preprocessing. No runtime comparison or performance winner is claimed.
