@@ -1,10 +1,19 @@
 [workspace]
-members = ["core", "rust"]
+members = ["core", "network", "rust", "ui-model"]
 resolver = "3"
 
 [workspace.package]
 edition = "2024"
 rust-version = "1.95"
+
+[patch."ssh://git@github.com/world-of-osso/ui-toolkit-macros.git"]
+ui-toolkit-macros = { path = "../../ui-toolkit-macros" }
+
+[patch.crates-io]
+taffy = { path = "../../bevy-patches/taffy" }
+
+[patch."https://github.com/world-of-osso/shared-protocol.git"]
+shared = { path = "../../shared-protocol" }
 
 [profile.dev]
 debug = 1
