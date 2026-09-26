@@ -159,6 +159,34 @@ fn compute_effective_distance(
     cam.distance
 }
 
+/// Pull a smoothed camera position back in front of the first blocker between it and the eye.
+/// The collision ray validates only the target pose; smoothing moves the camera along a
+/// straight line from its last pose, which can cut through a stair nose or a wall corner.
+fn keep_in_sight(
+    eye_target: Vec3,
+    camera: Vec3,
+    ray_cast: &mut MeshRayCast,
+    blocks: &dyn Fn(Entity) -> bool,
+) -> Vec3 {
+    let offset = camera - eye_target;
+    let distance = offset.length();
+    let Ok(direction) = Dir3::new(offset) else {
+        return camera;
+    };
+    let settings = MeshRayCastSettings::default()
+        .with_visibility(RayCastVisibility::Any)
+        .with_filter(&blocks);
+    match ray_cast
+        .cast_ray(Ray3d::new(eye_target, direction), &settings)
+        .first()
+    {
+        Some((_, hit)) if hit.distance < distance => {
+            eye_target + direction * collision_adjusted_distance(distance, Some(hit.distance))
+        }
+        _ => camera,
+    }
+}
+
 /// The height the camera stays above: the terrain, `GROUND_Y` before its tile loads, and
 /// none on a WMO-only map, whose WMO walls (the mesh ray cast) are its only bounds.
 fn camera_ground(terrain: Option<&TerrainHeightmap>, pos: Vec3) -> Option<f32> {
@@ -216,8 +244,9 @@ pub(crate) fn camera_follow(
     if let Some(cam_ground) = camera_ground(terrain.as_deref(), pos) {
         pos.y = pos.y.max(cam_ground + 0.5);
     }
+    let smoothed = cam_tf.translation.lerp(pos, follow_t);
     let mut next_transform = *cam_tf;
-    next_transform.translation = next_transform.translation.lerp(pos, follow_t);
+    next_transform.translation = keep_in_sight(eye_target, smoothed, &mut ray_cast, &blocks);
     next_transform.look_at(eye_target, Vec3::Y);
     cam_tf.set_if_neq(next_transform);
 }

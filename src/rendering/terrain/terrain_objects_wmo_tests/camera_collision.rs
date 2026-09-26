@@ -42,6 +42,12 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
         .world_mut()
         .spawn((
             Camera3d::default(),
+            // The client's default 60° field of view on a 16:9 window.
+            Projection::Perspective(PerspectiveProjection {
+                fov: 60f32.to_radians(),
+                aspect_ratio: 16.0 / 9.0,
+                ..default()
+            }),
             camera,
             Transform::from_translation(wow_to_bevy(player_wow) + Vec3::Y * 2.0),
         ))
@@ -105,42 +111,53 @@ fn stairwell_visibility(app: &mut App) -> Visibility {
         .1
 }
 
-/// The user's walk down the Stockade entrance stairs (WoW -8774, 838 to the portal doorway)
-/// with the camera low behind the player. Camera smoothing dips the camera a few centimetres
-/// under a step, so portal culling finds no stairwell floor below it and hides the stairwell.
-/// The camera must still collide with the stairwell walls: portal culling decides what is
-/// drawn, not what is solid. Otherwise it swings out through the walls to its full distance
-/// and stays outside, where the stairwell stays culled.
-#[test]
-fn camera_walking_down_the_stockade_stairs_stays_inside_the_stairwell() {
-    let start = Vec3::new(-8774.0, 838.0, 92.1);
-    let end = Vec3::new(-8766.1, 845.5, 88.0);
+const STAIRS_TOP: Vec3 = Vec3::new(-8774.0, 838.0, 92.1);
+const STAIRS_DOORWAY: Vec3 = Vec3::new(-8766.1, 845.5, 88.0);
+
+/// Walk the player from the top of the Stockade entrance stairs to the doorway in 1.5 s
+/// (the user's walk, WoW -8774, 838 down to the portal doorway) with the camera at `yaw` and
+/// `pitch`, and return the frames on which the stairwell was culled.
+fn walk_down_the_stockade_stairs(yaw: f32, pitch: f32, distance: f32) -> (App, Entity, Vec<u32>) {
     let camera = WowCamera {
-        yaw: (-50f32).to_radians(),
-        pitch: 10f32.to_radians(),
-        distance: 10.0,
-        target_distance: 10.0,
+        yaw: yaw.to_radians(),
+        pitch: pitch.to_radians(),
+        distance,
+        target_distance: distance,
         ..default()
     };
-    let (mut app, player, camera_entity) = magic_district_camera_app(start, camera);
+    let (mut app, player, camera_entity) = magic_district_camera_app(STAIRS_TOP, camera);
     for _ in 0..300 {
         advance(&mut app, 1.0 / 60.0);
     }
     assert_eq!(stairwell_visibility(&mut app), Visibility::Visible);
-
+    let mut culled_frames = Vec::new();
     for step in 0..=90 {
-        let walked = start.lerp(end, step as f32 / 90.0);
+        let walked = STAIRS_TOP.lerp(STAIRS_DOORWAY, step as f32 / 90.0);
         app.world_mut()
             .get_mut::<Transform>(player)
             .unwrap()
             .translation = wow_to_bevy(walked);
         advance(&mut app, 1.0 / 60.0);
+        if stairwell_visibility(&mut app) == Visibility::Hidden {
+            culled_frames.push(step);
+        }
     }
+    (app, camera_entity, culled_frames)
+}
+
+/// Camera low behind the player. Smoothing dipped the camera a few centimetres under a step,
+/// so portal culling found no stairwell floor below it and hid the stairwell. The camera must
+/// still collide with the stairwell walls: portal culling decides what is drawn, not what is
+/// solid. Otherwise it swung out through the walls to its full distance and stayed outside,
+/// where the stairwell stayed culled.
+#[test]
+fn camera_walking_down_the_stockade_stairs_stays_inside_the_stairwell() {
+    let (mut app, camera_entity, culled_frames) = walk_down_the_stockade_stairs(-50.0, 10.0, 10.0);
     for _ in 0..60 {
         advance(&mut app, 1.0 / 60.0);
     }
 
-    let eye = wow_to_bevy(end) + Vec3::Y * 1.8;
+    let eye = wow_to_bevy(STAIRS_DOORWAY) + Vec3::Y * 1.8;
     let camera_pos = app
         .world()
         .get::<Transform>(camera_entity)
@@ -158,5 +175,10 @@ fn camera_walking_down_the_stockade_stairs_stays_inside_the_stairwell() {
         camera_pos.distance(eye) < 9.0,
         "the stairwell walls hold the camera in, got {:.1} yd",
         camera_pos.distance(eye)
+    );
+    assert_eq!(
+        culled_frames,
+        Vec::<u32>::new(),
+        "frames with the stairwell culled"
     );
 }
