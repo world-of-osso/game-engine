@@ -2,10 +2,13 @@
 //! Poses use local pivots matching the skeleton's rest and absolute inverse binds.
 use game_engine_core::{asset::m2_format::m2_anim, m2};
 use godot::{
-    builtin::{Basis, Quaternion, Transform3D, Vector3},
+    builtin::{Quaternion, Vector3},
     classes::{INode, Node, Skeleton3D},
     prelude::*,
 };
+
+#[cfg(test)]
+use godot::builtin::{Basis, Transform3D};
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
 
@@ -21,6 +24,7 @@ struct BonePose {
 }
 
 impl BonePose {
+    #[cfg(test)]
     fn transform(self) -> Transform3D {
         Transform3D::new(
             Basis::from_quaternion(self.rotation).scaled(self.scale),
@@ -238,6 +242,7 @@ impl AnimationState {
     }
 
     /// Local Godot bone poses, including rest-relative pivot translations.
+    #[cfg(test)]
     pub fn poses(&self) -> Vec<Transform3D> {
         self.sampled_poses()
             .into_iter()
