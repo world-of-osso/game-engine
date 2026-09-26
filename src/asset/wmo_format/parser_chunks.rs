@@ -36,8 +36,6 @@ const GROUP_CHUNK_HANDLERS: &[(&[u8; 4], GroupChunkHandler)] = &[
     (b"YPOM", apply_group_mopy_chunk),
     (b"RDOM", apply_group_modr_chunk),
     (b"RLOM", apply_group_molr_chunk),
-    (b"NBOM", apply_group_mobn_chunk),
-    (b"RBOM", apply_group_mobr_chunk),
     (b"QILM", apply_group_mliq_chunk),
     (b"TVOM", apply_group_movt_chunk),
     (b"RNOM", apply_group_monr_chunk),
@@ -346,8 +344,6 @@ fn empty_group_data() -> RawGroupData {
         triangle_materials: Vec::new(),
         doodad_refs: Vec::new(),
         light_refs: Vec::new(),
-        bsp_nodes: Vec::new(),
-        bsp_face_refs: Vec::new(),
         liquid: None,
         vertices: Vec::new(),
         normals: Vec::new(),
@@ -388,16 +384,6 @@ fn apply_group_modr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<()
 
 fn apply_group_molr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
     group.light_refs = parse_u16_array(payload);
-    Ok(())
-}
-
-fn apply_group_mobn_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
-    group.bsp_nodes = parse_mobn(payload)?;
-    Ok(())
-}
-
-fn apply_group_mobr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
-    group.bsp_face_refs = parse_mobr(payload)?;
     Ok(())
 }
 

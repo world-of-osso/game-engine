@@ -20,24 +20,6 @@ fn parse_momt_truncated_entry() {
 }
 
 #[test]
-fn parse_mobn_empty() {
-    let result = parse_mobn(&[]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_empty());
-}
-
-#[test]
-fn parse_mobn_truncated() {
-    // BSP node entry is 16 bytes; provide 8
-    let data = vec![0u8; 8];
-    let result = parse_mobn(&data);
-    assert!(result.is_ok() || result.is_err());
-    if let Ok(nodes) = result {
-        assert!(nodes.is_empty());
-    }
-}
-
-#[test]
 fn parse_mliq_empty_data_fails() {
     let result = parse_mliq(&[]);
     assert!(result.is_err());
@@ -80,13 +62,6 @@ fn parse_mliq_zero_dimensions_ok() {
     let liquid = result.unwrap();
     assert!(liquid.vertices.is_empty());
     assert!(liquid.tiles.is_empty());
-}
-
-#[test]
-fn parse_mobr_empty() {
-    let result = parse_mobr(&[]);
-    assert!(result.is_ok());
-    assert!(result.unwrap().is_empty());
 }
 
 #[test]

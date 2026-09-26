@@ -1,4 +1,5 @@
 use super::*;
+use crate::terrain_tile::TILE_SIZE;
 use bevy::ecs::system::RunSystemOnce;
 
 #[path = "terrain_objects_collision_tests.rs"]
