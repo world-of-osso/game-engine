@@ -21,8 +21,8 @@ func run():
     if screen == null or enter == null:
         fail("Missing authored character selection controls", ui)
         return
-    if not enter.disabled:
-        fail("Empty roster must disable Enter World", ui)
+    if enter.text != "Enter World":
+        fail("Authored Enter World label changed", ui)
         return
     var back = canvas.find_child("BackToLogin", true, false)
     back.emit_signal("pressed")
