@@ -58,6 +58,10 @@ impl Account {
         self.reply_received = false;
         self.hostname = hostname.to_owned();
         self.session.token = self.read_token()?;
+        let reconnect = !register && username.trim().is_empty() && password.trim().is_empty();
+        if reconnect && self.session.token.is_none() {
+            return Err("No saved session to reconnect".into());
+        }
         let client_id = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|error| format!("Connection clock: {error}"))?
