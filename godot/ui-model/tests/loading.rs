@@ -36,6 +36,16 @@ fn loading_state_projects_status_zone_tip_and_progress() {
     assert_eq!(label(&model, "LoadingTipText"), "Explore the world");
     assert_eq!(label(&model, "LoadingProgressText"), "25%");
     assert_eq!(fill_width(&model), Dimension::Fixed(149.5));
+    let shell = model
+        .registry
+        .get(model.registry.get_by_name("LoadingBarBackground").unwrap())
+        .unwrap();
+    let slice = shell
+        .three_slice
+        .as_ref()
+        .expect("Authored loading shell must resolve");
+    assert_eq!(slice.cap_width, 25.0);
+    assert_eq!(slice.color, [1.0; 4]);
 
     model.shared.insert(LoadingScreenState {
         status_text: "Entering world".into(),

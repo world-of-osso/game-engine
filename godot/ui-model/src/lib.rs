@@ -112,10 +112,15 @@ impl LoadingModel {
     pub fn new(screen_width: f32, screen_height: f32) -> Self {
         let mut shared = SharedContext::new();
         shared.insert(LoadingScreenState::default());
+        let mut registry = FrameRegistry::new(screen_width, screen_height);
+        registry.register_three_slice_style(
+            "loading_bar_shell",
+            loading_component::loading_bar_shell(),
+        );
         Self {
             screen: Screen::new(loading_screen),
             shared,
-            registry: FrameRegistry::new(screen_width, screen_height),
+            registry,
         }
     }
 
