@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot native world-lighting producer and independently verified terrain shader
+
+`6a51f613` adds shared volume lookup (five targeted tests); `d70998c9` adds shared sky-gradient/cubemap pixels (three); and `0cfd21ef` makes CSV parsing strict (three), including observed signed ARGB `-3502459`, which must not become black. `2faed51b` has the native worker load the `Light`/`LightData` catalogs, select the original blend at the local player’s WoW coordinates (default noon), create/update a native `DirectionalLight3D`, `Environment`, and 32×32 RGBA16F cubemap, and update actual terrain materials. Map IDs use only the existing limited map-name lookup; this is not all-map coverage.
+
+`/tmp/claude/godot-world-lighting-red.log` is genuine RED for the missing producer. `/tmp/claude/godot-world-lighting-build-green.log` is GREEN. `/tmp/claude/godot-world-lighting-flow.log` is a real-fixture pre-commit GREEN, but the reset assertion was added after that pass, so current fixture verification remains pending. Root `sky_lightdata` tests failed because an old `Dimension` import remained after main removed the parent import; `7e8c5e40` fixes that conversion issue. Do not classify it as pre-existing; the new root/focused gate is still ongoing.
+
+`/tmp/claude/godot-terrain-shader-12case-verify.log` independently records 12/12 GPU cases PASS at exact revision `a0517118384a992cdee773b817333d03a16bd8fc`, shader blob `3871251d3adec49f35b49fcb727c59cfcca73b1c`, and fixture blob `ddcc12700531550d6f389632a3e36762839e8d31`. This supersedes the prior unlogged agent report only for those 12 cases. It does not prove shadows: the rejected `SHADOWS_ONLY` caster probe establishes no shadow parity. Actual world camera/visual terrain capture, camera streaming/collision, WMO/doodads/water, weather/live game-time/material clock/mips, loading readiness/transfers, and full conversion remain open. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot shared LightData interpolation and expanded shader fixture boundary
 
 `b267c69a` shares generic `LightDataRow`/`SkyColorSet` interpolation for every authored field, with no fallback in the shared path. Agent140 reports core 5/5; root `cargo test --bin game-engine sky_lightdata::tests` remains running, so no result is recorded. No actual native authored producer exists.
