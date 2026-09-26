@@ -243,6 +243,10 @@ fn build_batch_mesh(model: &m2::Model, sub: &m2::Submesh) -> Result<Gd<ArrayMesh
         };
         local_indices.push(local);
     }
+    // Godot culls counter-clockwise front faces; M2 outward triangles use that winding.
+    for triangle in local_indices.as_mut_slice().chunks_exact_mut(3) {
+        triangle.swap(1, 2);
+    }
     let mut arrays = VarArray::new();
     arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
     arrays.set(
