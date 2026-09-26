@@ -12,7 +12,7 @@ use shared::casting::CastState;
 use shared::components::{
     CombatStatus, EquipmentAppearance, Gold, GuildMembership, Health, Mana, ModelDisplay, Mounted,
     MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras,
-    UnitFactionTemplate, UnitLevel, UnitPowers, UnitTarget, Zone,
+    UnitFactionTemplate, UnitFlags, UnitLevel, UnitPowers, UnitTarget, Zone,
 };
 use shared::level_scaling::LevelScaling;
 use shared::protocol::{GameObjectInfo, NpcFlags};
@@ -181,6 +181,7 @@ struct EntitySnapshot {
     level: Option<UnitLevel>,
     level_scaling: Option<LevelScaling>,
     faction_template: Option<UnitFactionTemplate>,
+    unit_flags: Option<UnitFlags>,
     unit_target: Option<UnitTarget>,
 }
 
@@ -213,6 +214,7 @@ impl EntitySnapshot {
             level: entity.get::<UnitLevel>().copied(),
             level_scaling: entity.get::<LevelScaling>().copied(),
             faction_template: entity.get::<UnitFactionTemplate>().copied(),
+            unit_flags: entity.get::<UnitFlags>().copied(),
             unit_target: entity.get::<UnitTarget>().copied(),
         }
     }
@@ -241,6 +243,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.level);
             apply_component(&mut entity, self.level_scaling);
             apply_component(&mut entity, self.faction_template);
+            apply_component(&mut entity, self.unit_flags);
             apply_component(&mut entity, self.unit_target);
             apply_component(&mut entity, self.npc_flags);
             // Add observers immediately query support components: insert identities last.
@@ -380,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn unit_frame_snapshot_preserves_powers_auras_level_faction_target_and_removal() {
+    fn unit_frame_snapshot_preserves_powers_auras_level_faction_flags_target_and_removal() {
         use shared::components::{AuraView, PowerEntry, PowerType};
         let mut worker = World::new();
         let source = source_player(&mut worker);
@@ -423,6 +426,7 @@ mod tests {
                 delta: 0,
             },
             UnitFactionTemplate(1),
+            UnitFlags(UnitFlags::NOT_SELECTABLE),
             UnitTarget(Some(0x0000_0001_0000_002A)),
         ));
         let mut main = main_app();
@@ -446,6 +450,10 @@ mod tests {
             Some(&UnitFactionTemplate(1))
         );
         assert_eq!(
+            main.world().get::<UnitFlags>(mirror),
+            Some(&UnitFlags(UnitFlags::NOT_SELECTABLE))
+        );
+        assert_eq!(
             main.world().get::<UnitTarget>(mirror),
             Some(&UnitTarget(Some(0x0000_0001_0000_002A)))
         );
@@ -455,6 +463,7 @@ mod tests {
             UnitLevel,
             LevelScaling,
             UnitFactionTemplate,
+            UnitFlags,
             UnitTarget,
         )>();
         apply(main.world_mut(), snapshot(&worker, source, source, 2));
@@ -463,6 +472,7 @@ mod tests {
         assert!(main.world().get::<UnitLevel>(mirror).is_none());
         assert!(main.world().get::<LevelScaling>(mirror).is_none());
         assert!(main.world().get::<UnitFactionTemplate>(mirror).is_none());
+        assert!(main.world().get::<UnitFlags>(mirror).is_none());
         assert!(main.world().get::<UnitTarget>(mirror).is_none());
     }
 
