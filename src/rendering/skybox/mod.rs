@@ -27,6 +27,8 @@ mod cloud_sampling_gpu_tests;
 #[path = "cloud_texture.rs"]
 pub mod cloud_texture;
 mod inworld_skybox;
+#[path = "sky_cubemap_data.rs"]
+mod sky_cubemap_data;
 mod sky_gradient;
 
 use self::inworld_skybox::{
@@ -34,9 +36,7 @@ use self::inworld_skybox::{
     update_inworld_light_blend, update_inworld_skybox_transition,
 };
 use cloud_texture::create_procedural_cloud_maps;
-use sky_gradient::{
-    SKY_BAND_MAX, SkyDomePoint, sky_band_at_elevation, sky_dome_profile, sky_gradient_color,
-};
+use sky_gradient::{SKY_BAND_MAX, SkyDomePoint, sky_dome_profile};
 
 pub use crate::sky_material::{SkyMaterial, SkyUniforms};
 
@@ -456,19 +456,13 @@ fn update_scene_light(
 // Environment map (IBL) from sky gradient
 // ---------------------------------------------------------------------------
 
-const ENV_MAP_SIZE: u32 = 32;
+const ENV_MAP_SIZE: u32 = sky_cubemap_data::ENV_MAP_SIZE;
 
 #[derive(Resource, Clone)]
 pub(crate) struct SkyEnvMapHandle(pub Handle<Image>);
 
 pub(crate) fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
-    let face_pixels = (ENV_MAP_SIZE * ENV_MAP_SIZE) as usize;
-    let total_bytes = face_pixels * 6 * 8;
-    let mut data = vec![0u8; total_bytes];
-    for face in 0..6u32 {
-        let offset = (face as usize) * face_pixels * 8;
-        fill_cubemap_face(&mut data[offset..offset + face_pixels * 8], face, colors);
-    }
+    let data = sky_cubemap_data::build_sky_cubemap(&sky_gradient::linear_sky_stops(colors));
     let mut image = Image::new(
         Extent3d {
             width: ENV_MAP_SIZE,
@@ -487,39 +481,9 @@ pub(crate) fn build_sky_cubemap(colors: &SkyColorSet) -> Image {
     image
 }
 
-fn fill_cubemap_face(data: &mut [u8], face: u32, colors: &SkyColorSet) {
-    for y in 0..ENV_MAP_SIZE {
-        for x in 0..ENV_MAP_SIZE {
-            let dir = cubemap_direction(face, x, y);
-            let color = sky_gradient_color(colors, sky_band_at_elevation(dir.y.asin()));
-            let pixel_offset = ((y * ENV_MAP_SIZE + x) as usize) * 8;
-            write_rgba16f(&mut data[pixel_offset..pixel_offset + 8], color);
-        }
-    }
-}
-
+#[cfg(test)]
 fn cubemap_direction(face: u32, x: u32, y: u32) -> Vec3 {
-    let u = (x as f32 + 0.5) / ENV_MAP_SIZE as f32 * 2.0 - 1.0;
-    let v = (y as f32 + 0.5) / ENV_MAP_SIZE as f32 * 2.0 - 1.0;
-    let dir = match face {
-        0 => Vec3::new(1.0, -v, -u),
-        1 => Vec3::new(-1.0, -v, u),
-        2 => Vec3::new(u, 1.0, v),
-        3 => Vec3::new(u, -1.0, -v),
-        4 => Vec3::new(u, -v, 1.0),
-        _ => Vec3::new(-u, -v, -1.0),
-    };
-    dir.normalize()
-}
-
-fn write_rgba16f(dst: &mut [u8], c: LinearRgba) {
-    let vals = [c.red, c.green, c.blue, c.alpha];
-    for (i, &v) in vals.iter().enumerate() {
-        let h = half::f16::from_f32(v);
-        let bytes = h.to_le_bytes();
-        dst[i * 2] = bytes[0];
-        dst[i * 2 + 1] = bytes[1];
-    }
+    Vec3::from_array(sky_cubemap_data::cubemap_direction(face, x, y))
 }
 
 fn update_sky_env_map(
