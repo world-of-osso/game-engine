@@ -5,7 +5,7 @@ mod projection;
 use std::collections::VecDeque;
 
 use game_engine_ui_model::char_select_component::CharSelectState;
-use game_engine_ui_model::{CharacterSelectModel, LoginModel, login};
+use game_engine_ui_model::{CharacterSelectModel, LoadingModel, LoginModel, login};
 use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
 use ui_toolkit::frame::{NineSlice, WidgetData};
@@ -184,6 +184,34 @@ impl RegistryUi {
 
 #[godot_api]
 impl RegistryUi {
+    #[func]
+    pub fn show_loading(&mut self) -> GString {
+        if self.model.is_some() {
+            return "RegistryUi already has a screen".into();
+        }
+        let Some(viewport) = self.base().get_viewport() else {
+            return "RegistryUi has no viewport".into();
+        };
+        let size = viewport.get_visible_rect().size;
+        let LoadingModel {
+            screen,
+            shared,
+            registry,
+        } = LoadingModel::new(size.x, size.y);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+        };
+        model.sync();
+        GString::from(
+            self.initialize_model(model, size.x, size.y)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
     #[func]
     pub fn show_character_select(&mut self) -> GString {
         if self.model.is_some() {
