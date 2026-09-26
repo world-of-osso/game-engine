@@ -677,7 +677,7 @@ fn money_bar(copper: u64) -> Element {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum MoneyAlign {
+pub enum MoneyAlign {
     Left,
     Right,
 }
@@ -706,7 +706,7 @@ fn coins(copper: u64) -> Vec<(u64, &'static AtlasArt)> {
 
 /// Amount + coin pairs, 4 px apart; `anchor` is the bottom-left (Left) or
 /// bottom-right (Right) corner in parent space.
-pub(crate) fn money(
+pub fn money(
     prefix: &str,
     copper: u64,
     anchor: (f32, f32),

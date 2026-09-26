@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use game_engine::bag_data::{InventorySlot, InventoryState, ItemQuality};
+use game_engine::bag_data::InventoryState;
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
 use game_engine::experience_data::{self, ExperienceState};
 use game_engine::mail_data::MailState;
@@ -12,9 +12,11 @@ use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::buff_button_at;
+use game_engine::ui::screens::character_frame_component::parse_equipment_slot_action;
 use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
 use game_engine::ui::screens::inworld_hud_component::MINIMAP_MAIL_FRAME;
 use game_engine::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use game_engine::ui::screens::merchant_frame_component::{MoneyAlign, money};
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
@@ -32,9 +34,11 @@ use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking::LocalPlayer;
 
+mod item_tooltip;
 mod unit_sources;
 mod unit_tooltip;
 
+use item_tooltip::{TooltipItem, item_tooltip};
 use unit_sources::{FactionNames, UnitTooltipSources};
 
 const TOOLTIP_W: f32 = 260.0;
@@ -102,6 +106,8 @@ struct TooltipLineState {
     right_color: [f32; 4],
     /// Item lines keep a mark column before the text; `None` for other lines.
     item_mark: Option<ItemMark>,
+    /// Coins after the left text (`SetTooltipMoney`).
+    money: Option<u64>,
 }
 
 impl TooltipLineState {
@@ -112,6 +118,15 @@ impl TooltipLineState {
             left_color: TOOLTIP_TEXT_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
             item_mark: None,
+            money: None,
+        }
+    }
+
+    /// `SetTooltipMoney(tooltip, copper, nil, label)`: a white label and coins.
+    fn money(label: impl Into<String>, copper: u64) -> Self {
+        Self {
+            money: Some(copper),
+            ..Self::colored(label, TOOLTIP_WHITE)
         }
     }
 
@@ -129,6 +144,7 @@ impl TooltipLineState {
             left_color: TOOLTIP_WHITE,
             right_color: TOOLTIP_WHITE,
             item_mark: None,
+            money: None,
         }
     }
 
@@ -139,6 +155,7 @@ impl TooltipLineState {
             left_color: TOOLTIP_LABEL_COLOR,
             right_color: TOOLTIP_TEXT_COLOR,
             item_mark: None,
+            money: None,
         }
     }
 }
@@ -297,7 +314,7 @@ fn sync_tooltip_frame_state(
     mut ui: ResMut<UiState>,
     mut wrap: Option<ResMut<TooltipFrameWrap>>,
     mut last_model: Option<ResMut<TooltipFrameModel>>,
-    inventory: Res<InventoryState>,
+    items: ItemSources,
     merchant: Option<Res<MerchantState>>,
     current_target: Res<CurrentTarget>,
     local_player: Query<Entity, With<LocalPlayer>>,
@@ -318,7 +335,7 @@ fn sync_tooltip_frame_state(
     let state = build_state(
         &ui.registry,
         window,
-        &inventory,
+        &items.items(),
         merchant.as_deref(),
         &current_target,
         local_player.iter().next(),
@@ -340,10 +357,31 @@ fn sync_tooltip_frame_state(
     res.screen.sync(&res.shared, &mut ui.registry);
 }
 
+/// Bag and equipped items and the viewer's level for item tooltips.
+#[derive(bevy::ecs::system::SystemParam)]
+struct ItemSources<'w> {
+    inventory: Res<'w, InventoryState>,
+    stats: Option<Res<'w, game_engine::status::CharacterStatsSnapshot>>,
+}
+
+impl ItemSources<'_> {
+    fn items(&self) -> TooltipItems<'_> {
+        TooltipItems {
+            inventory: &self.inventory,
+            player_level: self.stats.as_ref().and_then(|stats| stats.level),
+        }
+    }
+}
+
+struct TooltipItems<'a> {
+    inventory: &'a InventoryState,
+    player_level: Option<u16>,
+}
+
 fn build_state(
     registry: &FrameRegistry,
     window: &Window,
-    inventory: &InventoryState,
+    inventory: &TooltipItems,
     merchant: Option<&MerchantState>,
     current_target: &CurrentTarget,
     local_player: Option<Entity>,
@@ -386,7 +424,7 @@ fn build_state(
 fn hovered_frame_tooltip(
     registry: &FrameRegistry,
     frame_id: u64,
-    inventory: &InventoryState,
+    inventory: &TooltipItems,
     merchant: Option<&MerchantState>,
     current_target: &CurrentTarget,
     local_player: Option<Entity>,
@@ -401,6 +439,7 @@ fn hovered_frame_tooltip(
     hovered_spell_tooltip(registry, frame_id, spells)
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
+        .or_else(|| hovered_equipped_tooltip(registry, frame_id, inventory))
         .or_else(|| hovered_merchant_tooltip(registry, frame_id, merchant))
         .or_else(|| hovered_xp_tooltip(registry, frame_id, experience))
         .or_else(|| hovered_mail_tooltip(registry, frame_id, mail))
@@ -555,16 +594,47 @@ fn xp_tooltip(update: &shared::protocol::PlayerXpUpdate) -> TooltipFrameState {
 fn hovered_item_tooltip(
     registry: &FrameRegistry,
     frame_id: u64,
-    inventory: &InventoryState,
+    items: &TooltipItems,
 ) -> Option<TooltipFrameState> {
     let (bag_index, slot_index) = hovered_bag_slot(registry, frame_id)?;
-    let slot = inventory.slot(bag_index, slot_index)?;
+    let slot = items.inventory.slot(bag_index, slot_index)?;
     let owner = ancestor_named(registry, frame_id, |name| {
         parse_bag_slot_name(name).is_some()
     })?;
     // ContainerFrameItemButtonMixin:OnUpdate: `ANCHOR_NONE` + CalculateItemTooltipAnchors.
-    (!slot.is_empty())
-        .then(|| owned_by(owner, OwnerSide::RightOrLeftByRightEdge, item_tooltip(slot)))
+    (!slot.is_empty()).then(|| {
+        let tooltip = item_tooltip(TooltipItem {
+            slot,
+            player_level: items.player_level,
+        });
+        owned_by(owner, OwnerSide::RightOrLeftByRightEdge, tooltip)
+    })
+}
+
+/// `GameTooltip:SetInventoryItem` over a paperdoll slot
+/// (`PaperDollItemSlotButton_OnEnter`: `ANCHOR_RIGHT`).
+fn hovered_equipped_tooltip(
+    registry: &FrameRegistry,
+    mut frame_id: u64,
+    items: &TooltipItems,
+) -> Option<TooltipFrameState> {
+    let slot = loop {
+        let frame = registry.get(frame_id)?;
+        if let Some(slot) = frame
+            .onclick
+            .as_deref()
+            .and_then(parse_equipment_slot_action)
+        {
+            break slot;
+        }
+        frame_id = frame.parent_id?;
+    };
+    let item = items.inventory.equipped(slot)?;
+    let tooltip = item_tooltip(TooltipItem {
+        slot: item,
+        player_level: items.player_level,
+    });
+    Some(owned_by(frame_id, OwnerSide::Right, tooltip))
 }
 
 /// `GameTooltip:SetMerchantItem` / `SetBuybackItem` for a `MerchantItem<n>` cell.
@@ -799,29 +869,6 @@ fn ancestor_named(
             return Some(frame_id);
         }
         frame_id = frame.parent_id?;
-    }
-}
-
-fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
-    let mut lines = vec![TooltipLineState::key_value(
-        "Quality",
-        item_quality_label(slot.quality),
-    )];
-    if slot.count > 1 {
-        lines.push(TooltipLineState::key_value(
-            "Stack Count",
-            slot.count.to_string(),
-        ));
-    }
-    TooltipFrameState {
-        visible: true,
-        x: 0.0,
-        y: 0.0,
-        title: slot.name.clone(),
-        title_color: parse_rgba(quality_color(slot.quality.id())),
-        lines,
-        record: Some(TooltipRecord::Item(slot.item_id)),
-        anchor: TooltipAnchor::Default,
     }
 }
 
@@ -1191,19 +1238,6 @@ fn parse_prefixed_index(name: &str, prefix: &str) -> Option<usize> {
     (!digits.is_empty()).then(|| digits.parse().ok()).flatten()
 }
 
-fn item_quality_label(quality: ItemQuality) -> &'static str {
-    match quality {
-        ItemQuality::Poor => "Poor",
-        ItemQuality::Common => "Common",
-        ItemQuality::Uncommon => "Uncommon",
-        ItemQuality::Rare => "Rare",
-        ItemQuality::Epic => "Epic",
-        ItemQuality::Legendary => "Legendary",
-        ItemQuality::Artifact => "Artifact",
-        ItemQuality::Heirloom => "Heirloom",
-    }
-}
-
 fn parse_rgba(input: &str) -> [f32; 4] {
     let values: Vec<f32> = input
         .split(',')
@@ -1277,6 +1311,17 @@ fn tooltip_line(index: usize, line: &TooltipLineState) -> Element {
     };
     let mut elements = tooltip_line_mark(index, line.item_mark, y);
     elements.extend(tooltip_line_text(index, line, y, indent));
+    if let Some(copper) = line.money {
+        let label_w = measure_text(&line.left_text, GameFont::FrizQuadrata, TOOLTIP_FONT_SIZE)
+            .map_or(0.0, |(width, _)| width.ceil());
+        elements.extend(money(
+            &format!("TooltipLine{index}Money"),
+            copper,
+            (TOOLTIP_INSET + indent + label_w + 4.0, y + TOOLTIP_LINE_H),
+            MoneyAlign::Left,
+            false,
+        ));
+    }
     elements
 }
 
@@ -1342,6 +1387,33 @@ fn rgba_string(color: [f32; 4]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use game_engine::bag_data::{InventorySlot, ItemQuality};
+
+    #[test]
+    fn a_sell_price_line_draws_its_coins_after_the_label() {
+        let state = TooltipFrameState {
+            visible: true,
+            title: "Linen Cloth".into(),
+            lines: vec![TooltipLineState::money("Sell Price:", 260)],
+            ..TooltipFrameState::hidden()
+        };
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(state);
+        Screen::new(tooltip_frame_screen).sync(&shared, &mut registry);
+        let text = |name: &str| match registry
+            .get(registry.get_by_name(name).expect(name))
+            .and_then(|frame| frame.widget_data.clone())
+        {
+            Some(ui_toolkit::frame::WidgetData::FontString(fs)) => fs.text,
+            _ => panic!("{name} is not a FontString"),
+        };
+        assert_eq!(text("TooltipLine0Left"), "Sell Price:");
+        // 2 silver 60 copper.
+        assert_eq!(text("TooltipLine0MoneyAmount0"), "2");
+        assert_eq!(text("TooltipLine0MoneyAmount1"), "60");
+        assert!(registry.get_by_name("TooltipLine0MoneyCoin1").is_some());
+    }
 
     /// Left text and colour of the placed tooltip's last line.
     fn placed_id_line(content: TooltipFrameState) -> (String, [f32; 4]) {
@@ -1377,7 +1449,13 @@ mod tests {
             (unknown_spell_tooltip(116), "Spell ID: 116"),
             (talent_tooltip(&talent), "Spell ID: 184575"),
             (aura_tooltip(&sample_aura(), false), "Spell ID: 100"),
-            (item_tooltip(&linen), "Item ID: 2589"),
+            (
+                item_tooltip(TooltipItem {
+                    slot: &linen,
+                    player_level: None,
+                }),
+                "Item ID: 2589",
+            ),
             (
                 merchant_tooltip(2589, "Linen Cloth", 1, 1, None),
                 "Item ID: 2589",
@@ -1589,21 +1667,6 @@ mod tests {
         assert_eq!(normal.title, "0 / 4,000  ( 0% )");
         assert_eq!(normal.lines[0].left_text, "Normal");
         assert_eq!(normal.lines[1].left_text, "100% of normal experience");
-    }
-
-    #[test]
-    fn item_tooltip_includes_quality_and_stack_count() {
-        let tooltip = item_tooltip(&InventorySlot {
-            icon_fdid: 1,
-            count: 20,
-            quality: ItemQuality::Rare,
-            name: "Iron Ore".into(),
-            ..Default::default()
-        });
-        assert_eq!(tooltip.title, "Iron Ore");
-        assert_eq!(tooltip.lines[0].left_text, "Quality");
-        assert_eq!(tooltip.lines[0].right_text, "Rare");
-        assert_eq!(tooltip.lines[1].right_text, "20");
     }
 
     fn judgment() -> CatalogSpell {

@@ -6,11 +6,11 @@ const ITEM_CSV: &str = "ID,ClassID,SubclassID,Material,InventoryType,SheatheType
     25,2,7,1,21,3,-1,135274,0\n";
 
 /// The ItemSparse columns the catalog reads, values from build 12.1.0.69933.
-const SPARSE_CSV: &str = "ID,Description_lang,Display_lang,Stackable,MaxCount,SellPrice,ItemLevel,Bonding,RequiredLevel,InventoryType,OverallQualityID\n\
-    25,,\"Worn Shortsword\",1,0,3,1,2,1,21,1\n\
-    2589,,\"Linen Cloth\",1000,0,13,10,0,0,0,1\n\
-    2447,\"A quoted\r\nline break\",\"Peacebloom\",1000,0,5,5,0,0,0,1\n\
-    99999,,\"No Item Row\",1,0,1,1,0,0,0,1\n";
+const SPARSE_CSV: &str = "ID,Description_lang,Display_lang,Stackable,MaxCount,SellPrice,ItemLevel,Bonding,RequiredLevel,InventoryType,OverallQualityID,ContainerSlots\n\
+    25,,\"Worn Shortsword\",1,0,3,1,2,1,21,1,0\n\
+    2589,,\"Linen Cloth\",1000,0,13,10,0,0,0,1,0\n\
+    2447,\"A quoted\r\nline break\",\"Peacebloom\",1000,0,5,5,0,0,0,1,0\n\
+    99999,,\"No Item Row\",1,0,1,1,0,0,0,1,0\n";
 
 fn table(name: &str, text: &str) -> CsvTable {
     CsvTable::parse(Path::new(name), text).unwrap()
@@ -19,6 +19,14 @@ fn table(name: &str, text: &str) -> CsvTable {
 fn catalog() -> ItemCatalog {
     let mut catalog = parse_item_catalog(&table("Item.csv", ITEM_CSV)).unwrap();
     apply_item_sparse(&mut catalog, &table("ItemSparse.csv", SPARSE_CSV)).unwrap();
+    apply_subclass_names(
+        &mut catalog,
+        &table(
+            "ItemSubClass.csv",
+            "DisplayName_lang,VerboseName_lang,ID,ClassID,SubClassID\nSword,\"One-Handed Swords\",9,2,7\n",
+        ),
+    )
+    .unwrap();
     catalog
 }
 
@@ -33,6 +41,8 @@ fn parses_class_and_icon_by_item_id() {
         (7, 5, 132889)
     );
     assert_eq!(catalog.get(25).map(|item| item.class_id), Some(2));
+    assert_eq!(catalog.subclass_name(2, 7), Some("Sword"));
+    assert_eq!(catalog.subclass_name(2, 8), None);
     assert_eq!(catalog.get(9999), None);
 }
 
