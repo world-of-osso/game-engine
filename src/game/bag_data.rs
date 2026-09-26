@@ -1,5 +1,10 @@
 use bevy::prelude::*;
-use shared::protocol::{BagContents, InventoryDelta, InventorySnapshot, ItemLocation, ItemStack};
+use std::collections::BTreeMap;
+
+use shared::protocol::{
+    BagContents, DestroyItem, EquipmentSlot, EquipmentSnapshot, InventoryDelta, InventorySnapshot,
+    ItemLocation, ItemStack, SplitItem, SwapItem,
+};
 
 /// Texture FDIDs for bag frames and slots.
 pub mod textures {
@@ -31,7 +36,7 @@ pub fn bag_background_for_rows(rows: usize) -> u32 {
     }
 }
 
-/// Item quality tiers, used for slot border color.
+/// Retail `Enum.ItemQuality` (ItemQualitiesDocumentation.lua).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ItemQuality {
     Poor,
@@ -41,24 +46,45 @@ pub enum ItemQuality {
     Rare,
     Epic,
     Legendary,
+    Artifact,
+    Heirloom,
 }
 
 impl ItemQuality {
-    /// RGBA color string for slot border overlay.
-    pub fn border_color(self) -> &'static str {
-        match self {
-            Self::Poor => "0.62,0.62,0.62,1.0",
-            Self::Common => "1.0,1.0,1.0,0.0",
-            Self::Uncommon => "0.12,1.0,0.0,1.0",
-            Self::Rare => "0.0,0.44,0.87,1.0",
-            Self::Epic => "0.64,0.21,0.93,1.0",
-            Self::Legendary => "1.0,0.5,0.0,1.0",
+    pub fn from_id(id: u8) -> Self {
+        match id {
+            0 => Self::Poor,
+            2 => Self::Uncommon,
+            3 => Self::Rare,
+            4 => Self::Epic,
+            5 => Self::Legendary,
+            6 => Self::Artifact,
+            7 | 8 => Self::Heirloom,
+            _ => Self::Common,
         }
     }
 
-    /// Whether this quality should show a colored border (Common is invisible).
+    pub fn id(self) -> u8 {
+        self as u8
+    }
+
+    /// `BAG_ITEM_QUALITY_COLORS` (ColorConstants.lua:21-30) from GlobalColor: the
+    /// `WhiteIconFrame` tint of a bag slot; Poor has none.
+    pub fn border_color(self) -> &'static str {
+        match self {
+            Self::Poor => "",
+            Self::Common => "0.66,0.66,0.66,1.0",
+            Self::Uncommon => "0.08,0.7,0.0,1.0",
+            Self::Rare => "0.0,0.57,0.95,1.0",
+            Self::Epic => "0.78,0.27,0.98,1.0",
+            Self::Legendary => "1.0,0.5,0.0,1.0",
+            Self::Artifact => "0.9,0.8,0.5,1.0",
+            Self::Heirloom => "0.0,0.8,1.0,1.0",
+        }
+    }
+
     pub fn has_visible_border(self) -> bool {
-        !matches!(self, Self::Common)
+        !self.border_color().is_empty()
     }
 }
 
@@ -84,15 +110,19 @@ impl InventorySlot {
     }
 }
 
-/// A server stack shown in a bag slot. The server sends ids and counts only, so
-/// the name stays empty and the quality common.
+/// A server stack shown in a bag or equipment slot. The server sends ids and
+/// counts only; name and quality come from the item catalog.
 pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
+    let entry = crate::item_catalog::item_catalog_entry(stack.item_id);
     InventorySlot {
         icon_fdid: crate::item_icons::item_icon_fdid(stack.item_id).unwrap_or(UNKNOWN_ICON_FDID),
         count: stack.count,
+        quality: entry.map_or(ItemQuality::Common, |entry| {
+            ItemQuality::from_id(entry.quality)
+        }),
+        name: entry.map(|entry| entry.name.clone()).unwrap_or_default(),
         item_guid: stack.item_guid,
         item_id: stack.item_id,
-        ..Default::default()
     }
 }
 
@@ -112,12 +142,22 @@ pub struct BagInfo {
     pub icon_fdid: u32,
 }
 
-/// Runtime inventory state for all bags.
+/// A bag or equipment request for the server (`InventoryChannel`).
+#[derive(Message, Clone, Debug, PartialEq, Eq)]
+pub enum InventoryRequest {
+    Swap(SwapItem),
+    Split(SplitItem),
+    Destroy(DestroyItem),
+}
+
+/// Runtime inventory state for all bags and the equipped items.
 #[derive(Resource, Clone, Debug, PartialEq)]
 pub struct InventoryState {
     pub bags: Vec<BagInfo>,
     /// Slots indexed by `[bag_index][slot_index]`.
     pub slots: Vec<Vec<InventorySlot>>,
+    /// Occupied equipment slots (`EquipmentSnapshot` and deltas).
+    pub equipment: BTreeMap<EquipmentSlot, InventorySlot>,
 }
 
 impl Default for InventoryState {
@@ -131,6 +171,7 @@ impl Default for InventoryState {
         Self {
             bags: vec![backpack],
             slots: vec![vec![InventorySlot::default(); 16]],
+            equipment: BTreeMap::new(),
         }
     }
 }
@@ -142,6 +183,19 @@ impl InventoryState {
 
     pub fn slot(&self, bag_index: usize, slot_index: usize) -> Option<&InventorySlot> {
         self.slots.get(bag_index)?.get(slot_index)
+    }
+
+    pub fn equipped(&self, slot: EquipmentSlot) -> Option<&InventorySlot> {
+        self.equipment.get(&slot)
+    }
+
+    /// The item at a bag or equipment location; `None` when it is empty.
+    pub fn item_at(&self, location: ItemLocation) -> Option<&InventorySlot> {
+        match location {
+            ItemLocation::Bag { bag, slot } => self.slot(usize::from(bag), usize::from(slot)),
+            ItemLocation::Equipment(slot) => self.equipped(slot),
+        }
+        .filter(|item| !item.is_empty())
     }
 
     pub fn total_free_slots(&self) -> usize {
@@ -235,14 +289,36 @@ impl InventoryState {
         }
     }
 
-    /// The server's `InventoryDelta`: bag locations that changed (equipment ignored).
+    /// The server's `EquipmentSnapshot`: every occupied equipment slot.
+    pub fn apply_equipment_snapshot(&mut self, snapshot: &EquipmentSnapshot) {
+        self.equipment = snapshot
+            .items
+            .iter()
+            .map(|entry| (entry.slot, stack_slot(&entry.item)))
+            .collect();
+    }
+
+    /// The server's `InventoryDelta`: bag and equipment locations that changed.
     pub fn apply_delta(&mut self, delta: &InventoryDelta) {
         for change in &delta.changes {
-            let ItemLocation::Bag { bag, slot } = change.location else {
-                continue;
-            };
-            let item = change.item.as_ref().map(stack_slot).unwrap_or_default();
-            self.set_item(usize::from(bag), usize::from(slot), item);
+            let item = change.item.as_ref().map(stack_slot);
+            match change.location {
+                ItemLocation::Bag { bag, slot } => {
+                    self.set_item(
+                        usize::from(bag),
+                        usize::from(slot),
+                        item.unwrap_or_default(),
+                    );
+                }
+                ItemLocation::Equipment(slot) => match item {
+                    Some(item) => {
+                        self.equipment.insert(slot, item);
+                    }
+                    None => {
+                        self.equipment.remove(&slot);
+                    }
+                },
+            }
         }
     }
 
@@ -250,75 +326,6 @@ impl InventoryState {
     pub fn replace_all(&mut self, bags: Vec<BagInfo>, slots: Vec<Vec<InventorySlot>>) {
         self.bags = bags;
         self.slots = slots;
-    }
-
-    /// Swap two items between any two slots (drag-and-drop).
-    /// Both slots can be in the same or different bags.
-    pub fn swap_slots(
-        &mut self,
-        from_bag: usize,
-        from_slot: usize,
-        to_bag: usize,
-        to_slot: usize,
-    ) -> bool {
-        if from_bag == to_bag && from_slot == to_slot {
-            return false;
-        }
-        let from_valid = self
-            .slots
-            .get(from_bag)
-            .is_some_and(|b| from_slot < b.len());
-        let to_valid = self.slots.get(to_bag).is_some_and(|b| to_slot < b.len());
-        if !from_valid || !to_valid {
-            return false;
-        }
-        if from_bag == to_bag {
-            self.slots[from_bag].swap(from_slot, to_slot);
-        } else {
-            let from_item = std::mem::take(&mut self.slots[from_bag][from_slot]);
-            let to_item = std::mem::take(&mut self.slots[to_bag][to_slot]);
-            self.slots[from_bag][from_slot] = to_item;
-            self.slots[to_bag][to_slot] = from_item;
-        }
-        true
-    }
-
-    /// Move an item from one slot to an empty slot (shortcut for swap with empty).
-    pub fn move_to_empty(
-        &mut self,
-        from_bag: usize,
-        from_slot: usize,
-        to_bag: usize,
-        to_slot: usize,
-    ) -> bool {
-        let target_empty = self.slot(to_bag, to_slot).is_some_and(|s| s.is_empty());
-        if !target_empty {
-            return false;
-        }
-        self.swap_slots(from_bag, from_slot, to_bag, to_slot)
-    }
-
-    /// Try to stack an item onto a matching item in the target slot.
-    /// Returns true if stacking succeeded (same item name, combined count).
-    pub fn try_stack(
-        &mut self,
-        from_bag: usize,
-        from_slot: usize,
-        to_bag: usize,
-        to_slot: usize,
-    ) -> bool {
-        let from = self.slot(from_bag, from_slot).cloned();
-        let to = self.slot(to_bag, to_slot).cloned();
-        let (Some(from_item), Some(to_item)) = (from, to) else {
-            return false;
-        };
-        if from_item.name.is_empty() || from_item.name != to_item.name {
-            return false;
-        }
-        let combined = from_item.count.max(1) + to_item.count.max(1);
-        self.slots[to_bag][to_slot].count = combined;
-        self.clear_slot(from_bag, from_slot);
-        true
     }
 }
 

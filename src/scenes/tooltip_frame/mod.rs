@@ -818,7 +818,7 @@ fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
         x: 0.0,
         y: 0.0,
         title: slot.name.clone(),
-        title_color: parse_rgba(slot.quality.border_color()),
+        title_color: parse_rgba(quality_color(slot.quality.id())),
         lines,
         record: Some(TooltipRecord::Item(slot.item_id)),
         anchor: TooltipAnchor::Default,
@@ -1199,6 +1199,8 @@ fn item_quality_label(quality: ItemQuality) -> &'static str {
         ItemQuality::Rare => "Rare",
         ItemQuality::Epic => "Epic",
         ItemQuality::Legendary => "Legendary",
+        ItemQuality::Artifact => "Artifact",
+        ItemQuality::Heirloom => "Heirloom",
     }
 }
 

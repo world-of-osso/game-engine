@@ -24,13 +24,18 @@ fn empty_slot_detection() {
 }
 
 #[test]
-fn quality_border_colors() {
-    assert!(!ItemQuality::Common.has_visible_border());
-    assert!(ItemQuality::Uncommon.has_visible_border());
-    assert!(ItemQuality::Rare.has_visible_border());
-    assert!(ItemQuality::Epic.has_visible_border());
-    assert!(ItemQuality::Legendary.has_visible_border());
-    assert!(ItemQuality::Poor.has_visible_border());
+fn bag_borders_follow_retail_bag_item_quality_colors() {
+    // BAG_ITEM_QUALITY_COLORS (ColorConstants.lua:21-30): no Poor entry; Common is
+    // COMMON_GRAY_COLOR (GlobalColor 0xffa8a8a8).
+    assert!(!ItemQuality::Poor.has_visible_border());
+    assert_eq!(ItemQuality::Common.border_color(), "0.66,0.66,0.66,1.0");
+    assert_eq!(ItemQuality::Uncommon.border_color(), "0.08,0.7,0.0,1.0");
+    assert_eq!(ItemQuality::Rare.border_color(), "0.0,0.57,0.95,1.0");
+    assert_eq!(ItemQuality::Epic.border_color(), "0.78,0.27,0.98,1.0");
+    assert_eq!(ItemQuality::Legendary.border_color(), "1.0,0.5,0.0,1.0");
+    assert_eq!(ItemQuality::Heirloom.border_color(), "0.0,0.8,1.0,1.0");
+    assert_eq!(ItemQuality::from_id(0), ItemQuality::Poor);
+    assert_eq!(ItemQuality::from_id(7), ItemQuality::Heirloom);
 }
 
 #[test]
@@ -110,21 +115,6 @@ fn slot_contents_across_bags() {
     assert_eq!(inv.slot(1, 0).unwrap().name, "Ore");
     assert_eq!(inv.slot(1, 0).unwrap().count, 20);
     assert!(inv.slot(0, 0).unwrap().is_empty());
-}
-
-#[test]
-fn quality_border_color_values() {
-    assert!(ItemQuality::Poor.border_color().starts_with("0.62"));
-    assert!(ItemQuality::Uncommon.border_color().starts_with("0.12"));
-    assert!(ItemQuality::Rare.border_color().starts_with("0.0,0.44"));
-    assert!(ItemQuality::Epic.border_color().starts_with("0.64"));
-    assert!(ItemQuality::Legendary.border_color().starts_with("1.0,0.5"));
-}
-
-#[test]
-fn quality_common_border_invisible() {
-    assert!(ItemQuality::Common.border_color().ends_with("0.0"));
-    assert!(!ItemQuality::Common.has_visible_border());
 }
 
 #[test]
@@ -240,4 +230,59 @@ fn server_snapshot_then_delta_drive_the_backpack() {
     assert!(inv.slot(0, 1).unwrap().is_empty());
     assert_eq!(inv.slot(0, 2).unwrap().item_guid, 77);
     assert_eq!(inv.total_free_slots(), 14);
+}
+
+#[test]
+fn server_stacks_take_name_and_quality_from_the_item_catalog() {
+    let linen = stack_slot(&stack(41, 2589, 20));
+    assert_eq!(
+        (linen.name.as_str(), linen.quality),
+        ("Linen Cloth", ItemQuality::Common)
+    );
+    let pelt = stack_slot(&stack(42, 4865, 2));
+    assert_eq!(
+        (pelt.name.as_str(), pelt.quality),
+        ("Ruined Pelt", ItemQuality::Poor)
+    );
+}
+
+#[test]
+fn equipment_snapshot_and_deltas_fill_the_equipped_slots() {
+    use shared::protocol::{
+        EquipmentSlot, EquipmentSnapshot, EquippedItem, InventoryDelta, InventorySlotChange,
+        ItemLocation,
+    };
+    let mut inv = InventoryState::default();
+    inv.apply_equipment_snapshot(&EquipmentSnapshot {
+        items: vec![EquippedItem {
+            slot: EquipmentSlot::MainHand,
+            item: stack(90, 25, 1),
+        }],
+    });
+    assert_eq!(inv.equipped(EquipmentSlot::MainHand).unwrap().item_id, 25);
+    assert_eq!(
+        inv.equipped(EquipmentSlot::MainHand).unwrap().name,
+        "Worn Shortsword"
+    );
+
+    // Unequipping the sword into backpack slot 10.
+    inv.apply_delta(&InventoryDelta {
+        changes: vec![
+            InventorySlotChange {
+                location: ItemLocation::Bag { bag: 0, slot: 9 },
+                item: Some(stack(90, 25, 1)),
+            },
+            InventorySlotChange {
+                location: ItemLocation::Equipment(EquipmentSlot::MainHand),
+                item: None,
+            },
+        ],
+    });
+    assert!(inv.equipped(EquipmentSlot::MainHand).is_none());
+    assert_eq!(inv.slot(0, 9).unwrap().item_guid, 90);
+    assert_eq!(
+        inv.item_at(ItemLocation::Bag { bag: 0, slot: 9 })
+            .map(|slot| slot.item_id),
+        Some(25)
+    );
 }
