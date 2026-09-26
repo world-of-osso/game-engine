@@ -124,6 +124,10 @@ impl StreamedTerrain {
         }
     }
 
+    pub fn map_name(&self) -> Option<&str> {
+        self.map.as_deref()
+    }
+
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
         if tile.0 >= MAP_TILE_BOUND || tile.1 >= MAP_TILE_BOUND {
             return Err(format!(
