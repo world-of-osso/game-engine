@@ -90,6 +90,12 @@ impl<'a> WorldGround<'a> {
     }
 
     pub fn probe(&self, feet: Vec3) -> GroundProbe {
+        if self.terrain.is_some_and(TerrainHeightmap::is_wmo_only) {
+            return match shared::ground::ground_at(feet, None, self.wmos.iter().copied()) {
+                Some(ground) => GroundProbe::Supported(ground),
+                None => GroundProbe::Unsupported,
+            };
+        }
         let Some(terrain) = self
             .terrain
             .filter(|terrain| terrain.has_tile_at(feet.x, feet.z))
@@ -408,6 +414,23 @@ mod tests {
             "airborne movement should preserve vertical position, got y={} proposed_y={}",
             moved.y,
             proposed.y
+        );
+    }
+
+    #[test]
+    fn a_wmo_only_map_has_no_unloaded_terrain_to_wait_for() {
+        let feet = Vec3::new(56.68, -19.27, -0.62);
+        let adt_map = crate::terrain_heightmap::TerrainHeightmap::default();
+        assert_eq!(
+            WorldGround::from_parts(Some(&adt_map), Vec::new()).probe(feet),
+            GroundProbe::Unloaded
+        );
+        let mut wmo_map = crate::terrain_heightmap::TerrainHeightmap::default();
+        wmo_map.set_wmo_only();
+        // No WMO floor under the feet yet: the character falls instead of freezing.
+        assert_eq!(
+            WorldGround::from_parts(Some(&wmo_map), Vec::new()).probe(feet),
+            GroundProbe::Unsupported
         );
     }
 

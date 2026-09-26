@@ -289,7 +289,7 @@ fn parse_modf_entry(
     })
 }
 
-fn parse_modf(
+pub(crate) fn parse_modf(
     data: &[u8],
     string_table: &[u8],
     offset_table: &[u32],

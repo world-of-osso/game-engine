@@ -776,6 +776,38 @@ fn wmo_transform(w: &adt_obj::WmoPlacement, tile_y: u32, tile_x: u32) -> Transfo
         .with_scale(Vec3::splat(w.scale))
 }
 
+/// Transform of a WDT global WMO (the whole of a WMO-only map), placed from the world
+/// origin rather than a map corner (`shared::ground::global_wmo_placement_position`).
+fn global_wmo_transform(w: &adt_obj::WmoPlacement) -> Transform {
+    Transform::from_translation(shared::ground::global_wmo_placement_position(w.position))
+        .with_rotation(placement_rotation(w.rotation))
+        .with_scale(Vec3::splat(w.scale))
+}
+
+/// Spawn the WMO a WMO-only map consists of (WDT MPHD flag 0x1).
+pub(crate) fn spawn_global_wmo(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<M2Material>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bp: &mut Assets<SkinnedMeshInverseBindposes>,
+    placement: &adt_obj::WmoPlacement,
+) -> Option<SpawnedWmoRoot> {
+    terrain_objects_wmo::spawn_wmo_at(
+        commands,
+        meshes,
+        materials,
+        effect_materials,
+        water_materials,
+        images,
+        inverse_bp,
+        placement,
+        global_wmo_transform(placement),
+    )
+}
+
 pub(super) fn wmo_position(w: &adt_obj::WmoPlacement, tile_y: u32, tile_x: u32) -> Vec3 {
     Vec3::from(placement_to_bevy_on_tile(w.position, tile_y, tile_x))
 }

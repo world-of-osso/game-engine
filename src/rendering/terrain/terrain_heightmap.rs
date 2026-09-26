@@ -37,6 +37,8 @@ pub struct TerrainHeightmap {
     water_layers: HashMap<(u32, u32), Vec<WaterLayerSurface>>,
     /// Per-tile MCNK AreaTable ids, indexed like `tiles`.
     areas: HashMap<(u32, u32), Vec<u32>>,
+    /// The map is one WMO (WDT MPHD flag 0x1): it has no terrain, only WMO floors.
+    wmo_only: bool,
 }
 
 impl TerrainHeightmap {
@@ -71,6 +73,15 @@ impl TerrainHeightmap {
     }
 
     /// Whether the tile containing Bevy-space (x, z) has registered heights.
+    /// Mark the map WMO-only: ground comes from WMO floors alone.
+    pub fn set_wmo_only(&mut self) {
+        self.wmo_only = true;
+    }
+
+    pub fn is_wmo_only(&self) -> bool {
+        self.wmo_only
+    }
+
     pub fn has_tile_at(&self, bx: f32, bz: f32) -> bool {
         self.tiles.contains_key(&bevy_to_tile_coords(bx, bz))
     }

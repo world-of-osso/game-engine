@@ -131,6 +131,16 @@ fn compute_effective_distance(
     cam.distance
 }
 
+/// The height the camera stays above: the terrain, `GROUND_Y` before its tile loads, and
+/// none on a WMO-only map, whose WMO walls (the mesh ray cast) are its only bounds.
+fn camera_ground(terrain: Option<&TerrainHeightmap>, pos: Vec3) -> Option<f32> {
+    match terrain {
+        Some(heightmap) if heightmap.is_wmo_only() => None,
+        Some(heightmap) => Some(heightmap.height_at(pos.x, pos.z).unwrap_or(GROUND_Y)),
+        None => Some(GROUND_Y),
+    }
+}
+
 fn follow_target(player_q: &FollowPlayerQuery<'_, '_>) -> Option<(Entity, Vec3)> {
     let Ok((entity, transform)) = player_q.single() else {
         return None;
@@ -173,11 +183,9 @@ pub(super) fn camera_follow(
         dt,
     );
     let mut pos = eye_target - orbit_dir * effective_distance;
-    let cam_ground = terrain
-        .as_ref()
-        .and_then(|heightmap| heightmap.height_at(pos.x, pos.z))
-        .unwrap_or(GROUND_Y);
-    pos.y = pos.y.max(cam_ground + 0.5);
+    if let Some(cam_ground) = camera_ground(terrain.as_deref(), pos) {
+        pos.y = pos.y.max(cam_ground + 0.5);
+    }
     let mut next_transform = *cam_tf;
     next_transform.translation = next_transform.translation.lerp(pos, follow_t);
     next_transform.look_at(eye_target, Vec3::Y);
@@ -266,6 +274,28 @@ mod tests {
             assert!(transform.forward().as_vec3().abs_diff_eq(expected, 1e-5));
             assert!(transform.forward().y > 0.8, "positive pitch looks upward");
         }
+    }
+
+    #[test]
+    fn camera_stays_below_the_world_origin_on_a_wmo_only_map() {
+        let (mut app, player, camera) = follow_app();
+        // The Stockade floor lies near Bevy y -19.3, below GROUND_Y.
+        let mut heightmap = TerrainHeightmap::default();
+        heightmap.set_wmo_only();
+        app.insert_resource(heightmap);
+        app.world_mut()
+            .get_mut::<Transform>(player)
+            .unwrap()
+            .translation
+            .y = -19.3;
+        for _ in 0..40 {
+            advance_follow(&mut app, 0.1);
+        }
+        let camera_y = app.world().get::<Transform>(camera).unwrap().translation.y;
+        assert!(
+            (camera_y - (-19.3 + EYE_HEIGHT)).abs() < 0.1,
+            "camera at y {camera_y}"
+        );
     }
 
     #[test]
