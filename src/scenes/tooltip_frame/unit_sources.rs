@@ -10,6 +10,7 @@ use bevy::prelude::*;
 use shared::components::{
     GuildMembership, Npc, Player as NetPlayer, UnitFactionTemplate, UnitLevel,
 };
+use shared::level_scaling::{LevelScaling, level_for_viewer};
 
 use super::TooltipFrameState;
 use super::unit_tooltip::{NpcTooltipInput, PlayerTooltipInput, npc_tooltip, player_tooltip};
@@ -82,13 +83,22 @@ type UnitData<'a> = (
     Option<&'a UnitLevel>,
     Option<&'a UnitFactionTemplate>,
     Option<&'a GuildMembership>,
+    Option<&'a LevelScaling>,
 );
 
 #[derive(SystemParam)]
 pub(super) struct UnitTooltipSources<'w, 's> {
     hovered: Res<'w, HoveredUnit>,
     units: Query<'w, 's, UnitData<'static>>,
-    local: Query<'w, 's, Option<&'static UnitFactionTemplate>, With<LocalPlayer>>,
+    local: Query<
+        'w,
+        's,
+        (
+            Option<&'static UnitFactionTemplate>,
+            Option<&'static UnitLevel>,
+        ),
+        With<LocalPlayer>,
+    >,
     templates: Option<Res<'w, FactionTemplates>>,
     factions: Option<Res<'w, FactionNames>>,
     cache: ResMut<'w, CreatureTooltipCache>,
@@ -112,7 +122,7 @@ impl UnitTooltipSources<'_, '_> {
         let Some(templates) = self.templates.as_deref() else {
             return Reaction::Neutral;
         };
-        let player = self.local.single().ok().flatten();
+        let player = self.local.single().ok().and_then(|(faction, _)| faction);
         reaction(templates.row(faction), templates.row(player))
     }
 
@@ -122,8 +132,14 @@ impl UnitTooltipSources<'_, '_> {
     }
 
     pub(super) fn tooltip(&self) -> Option<TooltipFrameState> {
-        let (npc, player, level, faction, guild) = self.units.get(self.hovered.0?).ok()?;
-        let level = displayed_level(level);
+        let (npc, player, level, faction, guild, scaling) = self.units.get(self.hovered.0?).ok()?;
+        let viewer_level = self
+            .local
+            .single()
+            .ok()
+            .and_then(|(_, level)| level)
+            .map(|l| l.0);
+        let level = displayed_level(level, scaling, viewer_level);
         let reaction = self.reaction_to(faction);
         if let Some(player) = player {
             return Some(player_tooltip(&PlayerTooltipInput {
@@ -150,16 +166,45 @@ impl UnitTooltipSources<'_, '_> {
     }
 }
 
-/// The level the tooltip shows: the unit's replicated level, as the target frame
-/// shows it. The one place to switch to the viewer-scaled level
-/// (`shared::level_scaling::level_for_viewer`, branch levelscaling).
-fn displayed_level(level: Option<&UnitLevel>) -> Option<u8> {
-    level.map(|level| level.0)
+/// The level the tooltip shows, as the target frame shows it: a tuned creature's level
+/// against the viewer (`UnitEffectiveLevel`), otherwise its replicated level.
+fn displayed_level(
+    level: Option<&UnitLevel>,
+    scaling: Option<&LevelScaling>,
+    viewer_level: Option<u8>,
+) -> Option<u8> {
+    level.map(|level| level_for_viewer(*level, scaling, viewer_level.unwrap_or(level.0)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Hogger (ContentTuning 1-30): the tooltip shows his level against the viewer,
+    /// like the target frame; an untuned unit keeps its replicated level.
+    #[test]
+    fn tuned_creature_level_follows_the_viewer() {
+        let hogger = LevelScaling {
+            content_tuning_id: 73,
+            min_level: 1,
+            max_level: 30,
+            delta: 0,
+        };
+        let level = UnitLevel(30);
+
+        assert_eq!(
+            displayed_level(Some(&level), Some(&hogger), Some(10)),
+            Some(10)
+        );
+        assert_eq!(
+            displayed_level(Some(&level), Some(&hogger), Some(40)),
+            Some(30)
+        );
+        assert_eq!(
+            displayed_level(Some(&UnitLevel(5)), None, Some(40)),
+            Some(5)
+        );
+    }
 
     #[test]
     fn only_reputation_factions_are_named() {
