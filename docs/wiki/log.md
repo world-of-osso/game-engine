@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot successful auth to native character select
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `d1641bc9`/`9249929e`. `character_select_flow.gd` is GREEN with empty stderr at `/tmp/claude/godot-character_select_flow-d1641bc9.log`: successful `admin`/`admin` auth against explicitly local UDP `127.0.0.1:5000` creates `CharacterSelectUI` from the original `CharacterSelectModel`, maps protocol roster data, and hides `LoginUI`. `character_select_ui.gd` is GREEN with empty stderr at `/tmp/claude/godot-character-select-ui-corrected.log`: empty authored UI and Back action. The initial EnterWorld-disabled assumption was removed because the original authored button is enabled. `744f3e1b3` mapping tests are pure.
+
+This remains fixture-bounded evidence: character-select actions are not consumed by `GameClient`; no positive enter/delete/create, character/world scene, background/appearance, texture-tint proof (agent65), or matched visual proof exists. No parity row closes.
+
 ## [2026-09-26] system | Godot native login/UI and parser proof boundary
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `aadb3597`. Latest `/tmp/claude/godot-login_flow-3de5946b.log` and `/tmp/claude/godot-ui_projection-3de5946b.log` identify `3de5946b`, exit 0, and have empty stderr. `50cd3c63`/`33ed3a57` wire native input/action synchronization, connect/reconnect/exit, selected-host routing, and pending status; `1251724a` projects disabled buttons and suppresses callbacks. The login fixture uses existing local UDP port 5000 and wrong `admin` credentials, proving rejection reaches the native button/status path only. No account creation; successful login stops at `screen_requested`; no native character-select exists; realm cycle/menu/create-account explicitly report unsupported.
