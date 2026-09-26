@@ -3,7 +3,7 @@
 
 use std::{
     any::Any,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
     thread::{self, JoinHandle},
@@ -364,25 +364,26 @@ fn install_replication(app: &mut App, events: Sender<Event>) {
                         .expect("host event receiver closed");
                 }
             }
-            let mut changes_by_entity = HashMap::new();
+            let mut seen = HashSet::new();
             for change in changes.read() {
-                changes_by_entity.insert(change.entity, ());
-            }
-            for worker_entity in changes_by_entity.keys() {
-                let Ok(entity) = entities.get(*worker_entity) else {
+                let worker_entity = change.entity;
+                if !seen.insert(worker_entity) {
+                    continue;
+                }
+                let Ok(entity) = entities.get(worker_entity) else {
                     continue;
                 };
-                let Some(server) = server_ids.to_server().get(worker_entity) else {
+                let Some(server) = server_ids.to_server().get(&worker_entity) else {
                     panic!("replicated entity {worker_entity:?} has no server identity");
                 };
                 let server_id = server.to_bits();
                 if entity.get::<Player>().is_some() || entity.get::<Npc>().is_some() {
-                    known.0.insert(*worker_entity, server_id);
+                    known.0.insert(worker_entity, server_id);
                     let snapshot = UnitSnapshot::capture(server_id, entity);
                     events
                         .send(Event::UnitUpdated(snapshot))
                         .expect("host event receiver closed");
-                } else if known.0.remove(worker_entity).is_some() {
+                } else if known.0.remove(&worker_entity).is_some() {
                     events
                         .send(Event::UnitRemoved(server_id))
                         .expect("host event receiver closed");
