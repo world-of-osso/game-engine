@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use godot::classes::{
-    Button, ColorRect, Control, Label, LineEdit, StyleBoxEmpty, StyleBoxTexture, TextureRect,
+    Button, ColorRect, Control, InputEventMouseButton, Label, LineEdit, StyleBoxEmpty,
+    StyleBoxTexture, TextureRect,
 };
 use godot::global::HorizontalAlignment;
 use godot::prelude::*;
@@ -164,6 +165,24 @@ impl UiProjection {
             },
         );
         match frame.widget_type {
+            WidgetType::Frame if frame.onclick.is_some() => {
+                let pending = self.pending.clone();
+                let id = frame.id;
+                let callback = Callable::from_fn("registry-frame-gui-input", move |args| {
+                    let Some(event) = args
+                        .first()
+                        .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
+                    else {
+                        return;
+                    };
+                    if event.is_pressed()
+                        && event.get_button_index() == godot::global::MouseButton::LEFT
+                    {
+                        pending.borrow_mut().push_back(UiInput::Click(id));
+                    }
+                });
+                node.connect("gui_input", &callback);
+            }
             WidgetType::Button => {
                 let pending = self.pending.clone();
                 let id = frame.id;
