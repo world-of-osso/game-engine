@@ -1,0 +1,300 @@
+//! Native M2/BLP conversion. Animation, character compositing and multi-texture M2 shaders
+//! are not implemented by this loader; unsupported texture slots remain explicitly unbound.
+use std::{collections::HashMap, fs, path::Path};
+
+use crate::animation::WowAnimationPlayer;
+use game_engine_core::{blp, m2};
+use godot::{
+    classes::{
+        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, RefCounted,
+        Skeleton3D, Skin, StandardMaterial3D, base_material_3d, image, mesh,
+    },
+    prelude::*,
+};
+
+#[derive(GodotClass)]
+#[class(base = RefCounted)]
+pub struct WowAssetLoader {
+    base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl IRefCounted for WowAssetLoader {
+    fn init(base: Base<RefCounted>) -> Self {
+        Self { base }
+    }
+}
+
+#[godot_api]
+impl WowAssetLoader {
+    #[func]
+    fn decode_blp(&self, bytes: PackedByteArray) -> VarDictionary {
+        result_image(blp::decode_rgba(bytes.as_slice()))
+    }
+
+    #[func]
+    fn load_blp(&self, path: GString) -> VarDictionary {
+        result_image(read_asset(&path).and_then(|data| blp::decode_rgba(&data)))
+    }
+
+    #[func]
+    fn load_m2(&self, path: GString) -> VarDictionary {
+        match load_model_node(&path) {
+            Ok((node, missing_texture_fdids)) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result.set("missing_texture_fdids", &missing_texture_fdids);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+}
+
+fn error_result(error: String) -> VarDictionary {
+    let mut result = VarDictionary::new();
+    result.set("error", error);
+    result
+}
+
+fn global_path(path: &GString) -> String {
+    ProjectSettings::singleton()
+        .globalize_path(path)
+        .to_string()
+}
+
+fn read_asset(path: &GString) -> Result<Vec<u8>, String> {
+    fs::read(global_path(path)).map_err(|err| format!("Cannot read {path}: {err}"))
+}
+
+fn read_model(path: &GString) -> Result<m2::Model, String> {
+    let model = read_asset(path)?;
+    let base = path.to_string();
+    let stem = base.strip_suffix(".m2").ok_or("Expected .m2 path")?;
+    let skin_path = format!("{stem}00.skin");
+    let skin = read_asset(&GString::from(skin_path.as_str()))?;
+    let skel_path_string = format!("{stem}.skel");
+    let skel_path = GString::from(skel_path_string.as_str());
+    let skeleton = if Path::new(&global_path(&skel_path)).exists() {
+        Some(read_asset(&skel_path)?)
+    } else {
+        None
+    };
+    m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref())
+}
+
+fn result_image(decoded: Result<blp::RgbaImage, String>) -> VarDictionary {
+    match decoded.and_then(image_from_rgba) {
+        Ok(image) => {
+            let mut result = VarDictionary::new();
+            result.set("image", &image);
+            result
+        }
+        Err(error) => error_result(error),
+    }
+}
+
+fn image_from_rgba(decoded: blp::RgbaImage) -> Result<Gd<Image>, String> {
+    let pixels = PackedByteArray::from(decoded.pixels.as_slice());
+    Image::create_from_data(
+        decoded.width as i32,
+        decoded.height as i32,
+        false,
+        image::Format::RGBA8,
+        &pixels,
+    )
+    .ok_or_else(|| "Godot rejected decoded BLP image".into())
+}
+
+fn wow_vec3(value: [f32; 3]) -> Vector3 {
+    Vector3::new(value[0], value[2], -value[1])
+}
+
+fn build_skeleton(bones: &[m2::Bone]) -> (Gd<Skeleton3D>, Option<Gd<Skin>>) {
+    let mut skeleton = Skeleton3D::new_alloc();
+    skeleton.set_name("Skeleton3D");
+    if bones.is_empty() {
+        return (skeleton, None);
+    }
+    let mut skin = Skin::new_gd();
+    for i in 0..bones.len() {
+        skeleton.add_bone(&format!("Bone{i}"));
+    }
+    for (i, bone) in bones.iter().enumerate() {
+        let pivot = wow_vec3(bone.pivot);
+        let parent = bone.parent_bone_id as i32;
+        let local = if parent >= 0 {
+            pivot - wow_vec3(bones[parent as usize].pivot)
+        } else {
+            pivot
+        };
+        skeleton.set_bone_parent(i as i32, parent);
+        skeleton.set_bone_rest(i as i32, Transform3D::IDENTITY.translated(local));
+        skeleton.set_bone_pose_position(i as i32, local);
+        skin.add_bind(i as i32, Transform3D::IDENTITY.translated(-pivot));
+    }
+    (skeleton, Some(skin))
+}
+
+pub fn load_model_node(path: &GString) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    let model = read_model(path)?;
+    build_model(&model, path)
+}
+
+fn build_model(
+    model: &m2::Model,
+    path: &GString,
+) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    let mut root = Node3D::new_alloc();
+    let (skeleton, skin) = build_skeleton(&model.bones);
+    root.add_child(&skeleton);
+    let mut missing = PackedInt32Array::new();
+    for (batch_index, batch) in model.batches.iter().enumerate() {
+        let sub = model
+            .submeshes
+            .get(batch.submesh_index as usize)
+            .ok_or_else(|| format!("Batch {batch_index} references absent submesh"))?;
+        let mesh = build_batch_mesh(model, sub)?;
+        let mut instance = MeshInstance3D::new_alloc();
+        instance.set_name(&format!("Batch{batch_index}"));
+        instance.set_mesh(&mesh);
+        if let Some(skin) = &skin {
+            instance.set_skin(skin);
+            instance.set_skeleton_path("../Skeleton3D");
+        }
+        if let Some(material) = model.materials.get(batch.render_flags_index as usize) {
+            let material = build_material(model, batch, material, path, &mut missing)?;
+            instance.set_surface_override_material(0, &material);
+        }
+        root.add_child(&instance);
+    }
+    if !model.sequences.is_empty() {
+        let mut player = WowAnimationPlayer::from_model(model, skeleton)?;
+        player.set_name("M2Animation");
+        root.add_child(&player);
+    }
+    Ok((root, missing))
+}
+
+fn build_batch_mesh(model: &m2::Model, sub: &m2::Submesh) -> Result<Gd<ArrayMesh>, String> {
+    let start = sub.triangle_start as usize;
+    let end = start + sub.triangle_count as usize;
+    let indices = model
+        .indices
+        .get(start..end)
+        .ok_or("Submesh indices out of bounds")?;
+    if indices.is_empty() || indices.len() % 3 != 0 {
+        return Err("Submesh has no complete triangles".into());
+    }
+    let mut positions = PackedVector3Array::new();
+    let mut normals = PackedVector3Array::new();
+    let mut uv = PackedVector2Array::new();
+    let mut uv2 = PackedVector2Array::new();
+    let mut bones = PackedInt32Array::new();
+    let mut weights = PackedFloat32Array::new();
+    let mut local_indices = PackedInt32Array::new();
+    let mut remap = HashMap::<u16, i32>::new();
+    for &global in indices {
+        let local = if let Some(&local) = remap.get(&global) {
+            local
+        } else {
+            let vertex = model
+                .vertices
+                .get(global as usize)
+                .ok_or_else(|| format!("Vertex {global} out of bounds"))?;
+            let local = positions.len() as i32;
+            positions.push(wow_vec3(vertex.position));
+            normals.push(wow_vec3(vertex.normal));
+            uv.push(Vector2::new(vertex.tex_coords[0], vertex.tex_coords[1]));
+            uv2.push(Vector2::new(vertex.tex_coords_2[0], vertex.tex_coords_2[1]));
+            for (&bone, &weight) in vertex.bone_indices.iter().zip(vertex.bone_weights.iter()) {
+                if weight > 0 && bone as usize >= model.bones.len() {
+                    return Err(format!("Vertex {global} references absent bone {bone}"));
+                }
+                bones.push(bone as i32);
+                weights.push(weight as f32 / 255.0);
+            }
+            remap.insert(global, local);
+            local
+        };
+        local_indices.push(local);
+    }
+    let mut arrays = VarArray::new();
+    arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
+    arrays.set(
+        mesh::ArrayType::VERTEX.ord() as usize,
+        &positions.to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::NORMAL.ord() as usize,
+        &normals.to_variant(),
+    );
+    arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uv.to_variant());
+    arrays.set(mesh::ArrayType::TEX_UV2.ord() as usize, &uv2.to_variant());
+    arrays.set(mesh::ArrayType::BONES.ord() as usize, &bones.to_variant());
+    arrays.set(
+        mesh::ArrayType::WEIGHTS.ord() as usize,
+        &weights.to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::INDEX.ord() as usize,
+        &local_indices.to_variant(),
+    );
+    let mut mesh = ArrayMesh::new_gd();
+    mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
+    Ok(mesh)
+}
+
+fn build_material(
+    model: &m2::Model,
+    batch: &m2::TextureUnit,
+    authored: &m2::Material,
+    path: &GString,
+    missing: &mut PackedInt32Array,
+) -> Result<Gd<StandardMaterial3D>, String> {
+    let mut material = StandardMaterial3D::new_gd();
+    if authored.flags & 1 != 0 {
+        material.set_shading_mode(base_material_3d::ShadingMode::UNSHADED);
+    }
+    if authored.flags & 4 != 0 {
+        material.set_cull_mode(base_material_3d::CullMode::DISABLED);
+    }
+    match authored.blend_mode {
+        1 => material.set_transparency(base_material_3d::Transparency::ALPHA_SCISSOR),
+        2 => material.set_transparency(base_material_3d::Transparency::ALPHA),
+        3 | 4 | 7 => material.set_blend_mode(base_material_3d::BlendMode::ADD),
+        5 | 6 => material.set_blend_mode(base_material_3d::BlendMode::MUL),
+        _ => {}
+    }
+    let Some(&texture_idx) = model.texture_lookup.get(batch.texture_id as usize) else {
+        return Ok(material);
+    };
+    let texture_idx = texture_idx as usize;
+    if model.texture_types.get(texture_idx) != Some(&0) {
+        return Ok(material); // Replaceable character textures require external compositing.
+    }
+    let Some(&fdid) = model.texture_fdids.get(texture_idx) else {
+        return Ok(material);
+    };
+    if fdid == 0 {
+        return Ok(material);
+    }
+    let texture_path = Path::new(&global_path(path))
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("Model path has no asset root")?
+        .join("textures")
+        .join(format!("{fdid}.blp"));
+    match fs::read(&texture_path) {
+        Ok(bytes) => {
+            let rgba = blp::decode_rgba(&bytes).map_err(|err| format!("Texture {fdid}: {err}"))?;
+            let image = image_from_rgba(rgba)?;
+            let texture = ImageTexture::create_from_image(&image)
+                .ok_or_else(|| format!("Godot rejected texture {fdid}"))?;
+            material.set_texture(base_material_3d::TextureParam::ALBEDO, &texture);
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => missing.push(fdid as i32),
+        Err(err) => return Err(format!("Cannot read texture {fdid}: {err}")),
+    }
+    Ok(material)
+}
