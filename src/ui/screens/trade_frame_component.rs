@@ -12,7 +12,7 @@ use ui_toolkit::widget_def::Element;
 use crate::ui::screens::auction_house_frame_component::inset_border;
 use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, SlotItem, WHITE, cropped, item_slot, label,
-    money_display, money_input, texture,
+    money_display, money_input_compact, texture,
 };
 use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
 use crate::ui::strata::FrameStrata;
@@ -102,7 +102,7 @@ pub fn trade_frame_screen(ctx: &SharedContext) -> Element {
     children.extend(highlights(state));
     children.extend(side(state, false));
     children.extend(side(state, true));
-    children.extend(money_input(MONEY_BOXES, (11.0, 61.0)));
+    children.extend(money_input_compact(MONEY_BOXES, (11.0, 61.0)));
     // `TradeRecipientMoneyFrame` TOPRIGHT -5,-64 (TF.xml:477).
     children.extend(money_display(
         "TradeRecipientMoneyFrame",
