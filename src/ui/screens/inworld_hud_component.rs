@@ -787,6 +787,7 @@ fn minimap_mail_indicator() -> Element {
             width: 20.0,
             height: 15.0,
             hidden: true,
+            mouse_enabled: true,
             strata: FrameStrata::High,
             frame_level: 12.0,
             pos_type: "absolute",
