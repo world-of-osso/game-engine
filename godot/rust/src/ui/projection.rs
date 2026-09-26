@@ -8,7 +8,7 @@ use godot::classes::{
 };
 use godot::global::HorizontalAlignment;
 use godot::prelude::*;
-use ui_toolkit::frame::{Dimension, Frame, NineSlice, WidgetData, WidgetType};
+use ui_toolkit::frame::{Dimension, Frame, NineSlice, ThreeSlice, WidgetData, WidgetType};
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
@@ -120,14 +120,16 @@ impl UiProjection {
     }
 
     fn create_node(&self, frame: &Frame) -> Result<Gd<Control>, String> {
-        if frame.backdrop.is_some()
-            || frame.border.is_some()
-            || frame.three_slice.is_some()
-            || frame.panel_style.is_some()
-            || frame.three_slice_style.is_some()
-        {
+        if frame.backdrop.is_some() || frame.border.is_some() || frame.panel_style.is_some() {
             return Err(format!(
                 "Unconverted native frame decoration: {}",
+                frame.name.as_deref().unwrap_or("unnamed")
+            ));
+        }
+        if frame.three_slice_style.is_some() && frame.three_slice.is_none() {
+            return Err(format!(
+                "Unresolved native three-slice style {} on {}",
+                frame.three_slice_style.as_deref().unwrap(),
                 frame.name.as_deref().unwrap_or("unnamed")
             ));
         }
@@ -262,6 +264,9 @@ impl UiProjection {
             };
             background.set_color(Color::from_rgba(r, g, b, a));
             background.set_size(Vector2::new(rect.width, rect.height));
+        }
+        if let Some(slice) = &frame.three_slice {
+            sync_three_slice(&mut node, slice, rect, registry)?;
         }
         if let Some(slice) = &frame.nine_slice {
             sync_nine_slice(
@@ -415,6 +420,44 @@ fn depth(registry: &FrameRegistry, id: u64) -> usize {
 
 fn color([r, g, b, a]: [f32; 4]) -> Color {
     Color::from_rgba(r, g, b, a)
+}
+
+fn sync_three_slice(
+    node: &mut Gd<Control>,
+    slice: &ThreeSlice,
+    rect: &LayoutRect,
+    registry: &FrameRegistry,
+) -> Result<(), String> {
+    let center_width = (rect.width - 2.0 * slice.cap_width).max(0.0);
+    let parts = [
+        (&slice.left, 0.0, slice.cap_width),
+        (&slice.center, slice.cap_width, center_width),
+        (
+            &slice.right,
+            slice.cap_width + center_width,
+            slice.cap_width,
+        ),
+    ];
+    for (index, (source, x, width)) in parts.into_iter().enumerate() {
+        let name = format!("ThreePart{index}");
+        let mut part = if node.has_node(name.as_str()) {
+            node.get_node_as::<TextureRect>(name.as_str())
+        } else {
+            let mut part = TextureRect::new_alloc();
+            part.set_name(name.as_str());
+            part.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
+            part.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
+            part.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
+            part.set_z_index(-1);
+            node.add_child(&part);
+            part
+        };
+        part.set_texture(&assets::load_texture(source, registry)?);
+        part.set_position(Vector2::new(x, 0.0));
+        part.set_size(Vector2::new(width, rect.height));
+        part.set_modulate(color(slice.color));
+    }
+    Ok(())
 }
 
 fn sync_nine_slice(
