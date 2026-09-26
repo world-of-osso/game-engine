@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::customization_data::{
-    RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial, RawOption,
-    chr_model_id_for_hair_row,
+    RaceModels, RawCategory, RawChoice, RawChrModel, RawData, RawElement, RawGeoset, RawMaterial,
+    RawOption,
 };
 use crate::sqlite_util::is_missing_table_error;
 
@@ -100,7 +100,7 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     populate_elements(&conn, &csv_paths[3])?;
     populate_materials(&conn, &csv_paths[4])?;
     populate_geosets(&conn, &csv_paths[5])?;
-    populate_hair_geosets(&conn, &csv_paths[6])?;
+    populate_hair_geosets(&conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
     populate_categories(&conn, &csv_paths[7])?;
     populate_texture_fdids(&conn, &texture_file_data)?;
     conn.execute_batch("COMMIT;")
@@ -483,7 +483,11 @@ fn populate_geosets(conn: &Connection, path: &Path) -> Result<(), String> {
     )
 }
 
-fn populate_hair_geosets(conn: &Connection, path: &Path) -> Result<(), String> {
+fn populate_hair_geosets(
+    conn: &Connection,
+    path: &Path,
+    race_models: &RaceModels,
+) -> Result<(), String> {
     insert_simple_rows(
         conn,
         "INSERT OR REPLACE INTO hair_geosets (model_id, geoset_type, geoset_id, shows_scalp) VALUES (?1, ?2, ?3, ?4)",
@@ -494,10 +498,9 @@ fn populate_hair_geosets(conn: &Connection, path: &Path) -> Result<(), String> {
             let geoset_type = header_index(headers, "GeosetType", path)?;
             let geoset_id = header_index(headers, "GeosetID", path)?;
             let shows_scalp = header_index(headers, "Showscalp", path)?;
-            let Some(model_id) = chr_model_id_for_hair_row(
-                parse_u32(fields, race) as u8,
-                parse_u32(fields, sex) as u8,
-            ) else {
+            let Some(model_id) = race_models
+                .chr_model_id(parse_u32(fields, race) as u8, parse_u32(fields, sex) as u8)
+            else {
                 return Ok(None);
             };
             Ok(Some((
@@ -562,6 +565,7 @@ fn load_customization_raw_data_at(data_dir: &Path, cache_path: &Path) -> Result<
         geosets: load_geosets(&conn)?,
         hair_geosets: load_hair_geosets(&conn)?,
         texture_fdids: load_texture_fdids(&conn)?,
+        race_models: RaceModels::load(data_dir)?,
     })
 }
 

@@ -38,12 +38,30 @@ struct NpcSelections {
     geosets: Vec<(u16, u16)>,
 }
 
+/// Applies the displayed model's choices. Choices of the race's unaltered form
+/// (a Worgen profile's Gilnean-form choices) resolve but belong to the other model.
+fn select_npc_choices(
+    appearance: &AuthoredNpcAppearance,
+    db: &CustomizationDb,
+) -> Result<NpcSelections, String> {
+    let (race, sex) = (appearance.race, appearance.sex);
+    let displayed = appearance
+        .choice_ids
+        .iter()
+        .filter_map(|&id| db.choice_by_id(race, sex, id));
+    resolve_npc_choices(appearance, displayed, |id| {
+        db.unaltered_form_choice_by_id(race, sex, id).is_some()
+    })
+}
+
 fn resolve_npc_choices<'a>(
     appearance: &AuthoredNpcAppearance,
     choices: impl IntoIterator<Item = &'a CustomizationChoice>,
+    is_other_form_choice: impl Fn(u32) -> bool,
 ) -> Result<NpcSelections, String> {
     let selected: HashSet<_> = appearance.choice_ids.iter().copied().collect();
     let mut missing = selected.clone();
+    missing.retain(|&id| !is_other_form_choice(id));
     let mut result = NpcSelections::default();
     for choice in choices {
         if !selected.contains(&choice.id) {
@@ -101,11 +119,7 @@ fn prepare_npc_appearance(
     images: &mut Assets<Image>,
 ) -> Result<PreparedNpcAppearance, String> {
     let appearance = &request.appearance;
-    let choices = appearance
-        .choice_ids
-        .iter()
-        .filter_map(|&id| db.choice_by_id(appearance.race, appearance.sex, id));
-    let selected = resolve_npc_choices(appearance, choices)?;
+    let selected = select_npc_choices(appearance, db)?;
     let layout = db
         .layout_id(appearance.race, appearance.sex)
         .ok_or_else(|| {
@@ -429,14 +443,57 @@ mod tests {
             choice_ids: vec![70001, 70002],
             geosets: vec![],
         };
-        let selected = resolve_npc_choices(&appearance, [&first, &second]).unwrap();
+        let selected = resolve_npc_choices(&appearance, [&first, &second], |_| false).unwrap();
         assert_eq!(selected.materials, vec![(1, 100), (2, 200)]);
         assert_eq!(selected.geosets, vec![(0, 2), (21, 3)]);
         appearance.choice_ids.push(70004);
-        let error = resolve_npc_choices(&appearance, [&first, &second])
+        let error = resolve_npc_choices(&appearance, [&first, &second], |_| false)
             .err()
             .unwrap();
         assert!(error.contains("70004"), "{error}");
+    }
+
+    fn real_profile(race: u8, sex: u8, choice_ids: Vec<u32>) -> AuthoredNpcAppearance {
+        AuthoredNpcAppearance {
+            race,
+            sex,
+            class: 0,
+            baked_texture_fdid: None,
+            choice_ids,
+            geosets: vec![],
+        }
+    }
+
+    #[test]
+    fn kul_tiran_display_140376_choices_resolve() {
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        // Suspicious Citizen, Retail display 140376 (race 32, sex 1).
+        let appearance = real_profile(
+            32,
+            1,
+            vec![
+                3142, 3150, 3162, 3167, 3172, 3179, 7682, 45226, 54464, 56655,
+            ],
+        );
+        let selected = select_npc_choices(&appearance, &db).unwrap();
+        assert!(!selected.materials.is_empty());
+    }
+
+    #[test]
+    fn worgen_display_31054_applies_worgen_choices_and_skips_gilnean_form() {
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        let worgen = vec![2232, 2241, 2260, 2279, 7042, 7444];
+        let gilnean = vec![1, 20, 48, 61, 81, 4138, 9912, 9914, 9925];
+        let mixed = real_profile(22, 0, [worgen.clone(), gilnean].concat());
+        let only_worgen = real_profile(22, 0, worgen);
+        let selected = select_npc_choices(&mixed, &db).unwrap();
+        let expected = select_npc_choices(&only_worgen, &db).unwrap();
+        assert!(!selected.materials.is_empty());
+        assert_eq!(selected.materials, expected.materials);
+        assert_eq!(selected.geosets, expected.geosets);
+        let unknown = real_profile(22, 0, vec![2232, 999_999]);
+        let error = select_npc_choices(&unknown, &db).err().unwrap();
+        assert!(error.contains("999999"), "{error}");
     }
 
     fn mesh(
