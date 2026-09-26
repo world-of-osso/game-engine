@@ -166,9 +166,7 @@ impl GameClient {
                 self.update_login_status("Connecting...", true)
             }
             "exit" => {
-                if let Some(mut tree) = self.base().get_tree() {
-                    tree.quit();
-                }
+                self.base().get_tree().quit();
                 Ok(())
             }
             other => Err(format!("Login action not yet converted: {other}")),

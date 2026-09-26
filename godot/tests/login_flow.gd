@@ -24,6 +24,15 @@ func _run() -> void:
 	password.text = "invalid-test-password"
 	password.text_changed.emit(password.text)
 	var button: Button = client.find_child("ConnectButton", true, false)
+	var ui = client.get_node("LoginUI")
+	if ui.set_connecting(true) != "" or not button.disabled:
+		push_error("Pending login must disable the authored connect button")
+		quit(1)
+		return
+	if ui.set_connecting(false) != "" or button.disabled:
+		push_error("Finished login must restore the authored connect button")
+		quit(1)
+		return
 	button.pressed.emit()
 	var deadline = Time.get_ticks_msec() + 10000
 	while Time.get_ticks_msec() < deadline:
