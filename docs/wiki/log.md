@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot native terrain-material attachment boundary
+
+`0953ef72` decodes referenced terrain BLPs from local CASC. `9f6000f6` then attaches `ShaderMaterial` mesh children to all nine streamed tiles with native diffuse and MCAL `ImageTexture` inputs. `/tmp/claude/godot-terrain-material-binding-red.log` is genuine RED: parsed terrain had no corresponding native material tiles. `/tmp/claude/godot-terrain-material-binding-green.log` is GREEN: all nine attachments exist, reconnect frees `WorldTerrain`, and the host remains `Loading`. `/tmp/claude/godot-terrain-material-binding-build.log` exits 0.
+
+The build covers source before formatting but does not identify an exact tracked shader revision; agent128's initial GPU cases were uncommitted and remain separately pending. This is material-binding protocol evidence, not GPU/world rendering or parity. Actual Retail map-time, fog, cubemap, sun, camera and animation clock; mip parity; WMO/doodads; water; collision; readiness; and transfer remain open. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot terminal terrain-worker error retention
 
 At exact `2ee88127`, `StreamedTerrain` retains a terminal worker panic error, so repeated `poll` calls continue returning that error rather than succeeding after the worker disconnects. Verifier130's focused native check passes (`/tmp/claude/worker-terminal-check-2ee88127.log`). The same revision's formatting check fails (`/tmp/claude/worker-terminal-fmt-2ee88127.log`); main committed formatting-only `01c78a5b`, which is not yet reverified. Earlier `/tmp/claude/cargo-streaming-red.out` and `/tmp/claude/cargo-streaming-green.out` establish the targeted repeated-poll RED/GREEN boundary but lack embedded revision metadata. This does not establish world rendering, readiness, `InWorld`, or conversion parity. Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md).
