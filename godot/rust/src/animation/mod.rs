@@ -435,7 +435,7 @@ impl WowAnimationPlayer {
 #[cfg(test)]
 mod tests {
     use super::AnimationState;
-    use game_engine_core::{asset::m2_format::m2_anim, m2};
+    use game_engine_core::m2;
     use godot::builtin::{Basis, Quaternion, Transform3D, Vector3};
     use std::{fs, path::PathBuf};
 
@@ -477,30 +477,15 @@ mod tests {
         assert_eq!(sampled.len(), 216);
         assert_eq!(model.sequences[0].id, 0);
         assert_eq!(model.sequences[0].duration, 2667);
-        let bone = model
-            .bone_tracks
-            .iter()
-            .enumerate()
-            .find(|(index, track)| {
-                m2_anim::evaluate_vec3_track(&track.translation, 0, 0)
-                    != m2_anim::evaluate_vec3_track(&track.translation, 0, 1000)
-                    && model.bones[*index].parent_bone_id >= 0
-            })
-            .map(|(index, _)| index)
-            .expect("Stand has an animated child translation");
-        let parent = model.bones[bone].parent_bone_id as usize;
-        let local_pivot = basis(model.bones[bone].pivot) - basis(model.bones[parent].pivot);
-        let translation =
-            m2_anim::evaluate_vec3_track(&model.bone_tracks[bone].translation, 0, 1000)
-                .expect("authored translation at 1000ms");
-        assert!(near(sampled[bone].origin, local_pivot + basis(translation)));
-        assert!(!near_pose(sampled[bone], initial[bone]));
-        let rotation = m2_anim::evaluate_rotation_track(&model.bone_tracks[bone].rotation, 0, 1000)
-            .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
-            .unwrap_or(Quaternion::IDENTITY);
+        let local_pivot = basis(model.bones[1].pivot) - basis(model.bones[0].pivot);
+        let translated = Vector3::new(-0.011336661, -0.0016739104, -0.003007821);
+        assert!(near(sampled[1].origin, local_pivot + translated));
+        assert!(!near_pose(sampled[1], initial[1]));
+        let authored_rotation =
+            Quaternion::new(-0.024109622, 0.04464858, 0.12179937, 0.9912412).normalized();
         assert!(near(
-            sampled[bone].basis.rows[0],
-            Basis::from_quaternion(rotation).rows[0]
+            sampled[6].basis.rows[0],
+            Basis::from_quaternion(authored_rotation).rows[0]
         ));
     }
 

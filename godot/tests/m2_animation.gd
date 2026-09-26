@@ -21,13 +21,17 @@ func _initialize() -> void:
 	var root: Node3D = loaded.node
 	get_root().add_child(root)
 	var skeleton := root.get_node("Skeleton3D") as Skeleton3D
-	var player := root.get_node("WowAnimationPlayer")
+	var player := root.get_node("M2Animation")
 	if skeleton == null or player == null or skeleton.get_bone_count() != 216:
 		fail("HD animation player requires 216 Skeleton3D bones")
 		return
-	var idle := skeleton.get_bone_pose(0)
 	if not player.advance_time_ms(1000.0):
 		fail("could not advance Stand animation")
+		return
+	# HumanMaleHD Stand: authored bone 1 translation at 1000 ms, WoW (x,y,z) -> Godot (x,z,-y).
+	var bone1_delta := skeleton.get_bone_pose_position(1) - skeleton.get_bone_rest(1).origin
+	if bone1_delta.distance_to(Vector3(-0.011336661, -0.0016739104, -0.003007821)) > EPSILON:
+		fail("Stand bone 1 incorrect authored local translation: " + str(bone1_delta))
 		return
 	var changed_bones := 0
 	for bone in skeleton.get_bone_count():
