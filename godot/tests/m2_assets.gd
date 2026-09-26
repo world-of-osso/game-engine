@@ -64,10 +64,29 @@ func _initialize() -> void:
 		fail("torch fixture failed to load: " + str(torch.get("error", "no node")))
 		return
 	var textured := false
+	var outward_triangles := 0
 	for instance: MeshInstance3D in torch.node.find_children("*", "MeshInstance3D", true, false):
 		var material := instance.get_surface_override_material(0) as StandardMaterial3D
 		if material != null and material.albedo_texture != null:
 			textured = true
+		var arrays := instance.mesh.surface_get_arrays(0)
+		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for triangle in range(0, indices.size(), 3):
+			var a := indices[triangle]
+			var b := indices[triangle + 1]
+			var c := indices[triangle + 2]
+			var face_normal := (vertices[b] - vertices[a]).cross(vertices[c] - vertices[a])
+			var signed_area := face_normal.dot(normals[a])
+			if absf(signed_area) > 0.00001:
+				outward_triangles += 1
+				if signed_area > 0.0:
+					fail("Godot clockwise front face opposes authored normal")
+					return
+	if outward_triangles == 0:
+		fail("torch fixture lacks winding evidence")
+		return
 	if not textured:
 		fail("torch missing authored FDID texture")
 		return
