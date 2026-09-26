@@ -253,3 +253,44 @@ fn player_on_the_stockade_stairs_is_blocked_by_the_culled_stairwell_wall() {
         "walked {moved:.2} yd through the stairwell wall"
     );
 }
+
+/// The player in the Stockade entrance tunnel (`Jail01`, WoW -8765, 846.5, 88) with the
+/// camera ahead of them toward the portal. The canal street terrain rises through the tunnel
+/// there (87.2 to 92.5 against a floor near 87), but it is not what bounds a camera inside a
+/// WMO interior: the camera must sit where the tunnel walls alone put it, as without terrain.
+#[test]
+fn stockade_tunnel_camera_ignores_the_terrain_above_the_tunnel() {
+    let player = Vec3::new(-8765.0, 846.5, 88.0);
+    let settle = |with_terrain: bool| {
+        let camera = WowCamera {
+            yaw: 130f32.to_radians(),
+            pitch: 20f32.to_radians(),
+            distance: 8.0,
+            target_distance: 8.0,
+            ..default()
+        };
+        let (mut app, _, camera_entity) = magic_district_camera_app(player, camera);
+        if with_terrain {
+            let data = std::fs::read("data/terrain/777627.adt").expect("azeroth_30_48 root ADT");
+            let adt = crate::asset::adt::load_adt(&data).expect("parse azeroth_30_48");
+            let mut heightmap = crate::terrain_heightmap::TerrainHeightmap::default();
+            heightmap.insert_tile(30, 48, &adt);
+            app.insert_resource(heightmap);
+        }
+        for _ in 0..300 {
+            advance(&mut app, 1.0 / 60.0);
+        }
+        app.world()
+            .get::<Transform>(camera_entity)
+            .unwrap()
+            .translation
+    };
+
+    let walls_only = settle(false);
+    let with_terrain = settle(true);
+
+    assert!(
+        with_terrain.abs_diff_eq(walls_only, 0.01),
+        "terrain moved the camera from {walls_only} to {with_terrain}"
+    );
+}

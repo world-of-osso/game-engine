@@ -2,6 +2,7 @@ use std::collections::{HashSet, VecDeque};
 
 use bevy::camera::primitives::Frustum;
 use bevy::ecs::query::QueryFilter;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use crate::game_state_enum::GameState;
@@ -404,6 +405,35 @@ fn triangle_height_at(triangle: &[Vec3; 3], x: f32, z: f32) -> Option<f32> {
     let wb = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / det;
     let wc = 1.0 - wa - wb;
     (wa >= 0.0 && wb >= 0.0 && wc >= 0.0).then_some(wa * a.y + wb * b.y + wc * c.y)
+}
+
+/// The interior (non-EXTERIOR) WMO groups, to tell whether a world point stands inside one:
+/// inside its bounding box with a floor of it below, the rule portal culling uses for the
+/// camera.
+#[derive(SystemParam)]
+pub struct WmoInteriors<'w, 's> {
+    wmos: Query<'w, 's, &'static GlobalTransform, With<Wmo>>,
+    groups: Query<
+        'w,
+        's,
+        (
+            &'static WmoGroup,
+            &'static WmoInteriorFloor,
+            &'static ChildOf,
+        ),
+    >,
+}
+
+impl WmoInteriors<'_, '_> {
+    pub fn contain(&self, point: Vec3) -> bool {
+        self.groups.iter().any(|(group, floor, child_of)| {
+            let Ok(wmo_gtf) = self.wmos.get(child_of.parent()) else {
+                return false;
+            };
+            let local = wmo_gtf.affine().inverse().transform_point3(point);
+            bbox_contains(group, local) && floor_height_below(floor, local).is_some()
+        })
+    }
 }
 
 fn bbox_contains(group: &WmoGroup, point: Vec3) -> bool {
