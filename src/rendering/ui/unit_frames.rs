@@ -49,7 +49,7 @@ const FACTION_TEMPLATE_CSV: &str = "data/db2/12.1.0.69933/FactionTemplate.csv";
 pub(crate) struct FactionTemplates(HashMap<u32, FactionTemplateRow>);
 
 impl FactionTemplates {
-    fn load() -> Self {
+    pub(crate) fn load() -> Self {
         let rows = std::fs::read_to_string(FACTION_TEMPLATE_CSV)
             .map_err(|err| format!("read {FACTION_TEMPLATE_CSV}: {err}"))
             .and_then(|text| parse_faction_template_csv(&text));

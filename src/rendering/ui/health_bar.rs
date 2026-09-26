@@ -5,17 +5,17 @@ use bevy::camera::{
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::transform::{TransformSystems, helper::TransformHelper};
-use shared::components::Health;
+use game_engine::faction_reaction::Reaction;
+use game_engine::nameplate_data::ClassColor;
+use shared::components::{Health, Player as NetPlayer, UnitFactionTemplate};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
-use crate::client_options::NameplateBarThickness;
 use crate::client_options::{HudOptions, HudVisibilityToggles};
+use crate::client_options::{NameplateBarThickness, NameplateStyle};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 #[cfg(test)]
 use crate::game_state::GameState;
-use crate::rendering::nameplate_art::{
-    BAR_PIXEL_WIDTH, NAMEPLATE_SCALE, NameplateArt, NameplateArtCache,
-};
+use crate::rendering::nameplate_art::{NAMEPLATE_SCALE, NameplateArt, NameplateArtCache};
 
 pub struct HealthBarPlugin;
 impl Plugin for HealthBarPlugin {
@@ -66,14 +66,53 @@ pub(crate) const BAR_WIDTH: f32 = 1.0;
 pub(crate) const BAR_HEIGHT: f32 = 0.1;
 const BAR_Y_OFFSET: f32 = 2.5;
 
-pub(crate) fn health_bar_pixel_size(thickness: NameplateBarThickness) -> Vec2 {
-    Vec2::new(
-        BAR_PIXEL_WIDTH,
-        match thickness {
-            NameplateBarThickness::Thin => 20.0 * NAMEPLATE_SCALE,
-            NameplateBarThickness::Thick => 40.0 * NAMEPLATE_SCALE,
-        },
+/// The configured style, or the default presets when options are not loaded.
+pub(crate) fn plate_style(hud: Option<&HudOptions>) -> NameplateStyle {
+    hud.map_or_else(NameplateStyle::default, |hud| hud.nameplate_style)
+}
+
+pub(crate) fn health_bar_pixel_size(style: &NameplateStyle) -> Vec2 {
+    Vec2::new(style.health_width, style.health_height)
+}
+
+/// Reference-skin calibration relative to the health body (raw reference pixels): the fill is
+/// shorter than the body and the frame bitmap extends past it by a fixed margin.
+struct HealthSkin {
+    fill_inset: f32,
+    fill_y: f32,
+    frame_margin: Vec2,
+    frame_offset: Vec2,
+}
+
+fn health_skin(preset: NameplateBarThickness) -> HealthSkin {
+    let (fill_inset, fill_y, frame_margin, frame_offset) = match preset {
+        NameplateBarThickness::Thick => (2.0, 0.0, Vec2::new(20.0, 8.0), Vec2::new(2.0, -1.0)),
+        NameplateBarThickness::Thin => (1.0, 0.5, Vec2::new(20.0, 10.0), Vec2::new(2.0, 0.0)),
+    };
+    HealthSkin {
+        fill_inset: fill_inset * NAMEPLATE_SCALE,
+        fill_y: fill_y * NAMEPLATE_SCALE,
+        frame_margin: frame_margin * NAMEPLATE_SCALE,
+        frame_offset: frame_offset * NAMEPLATE_SCALE,
+    }
+}
+
+/// Frame offset (viewport, y down) and size around a health body of the style's size.
+fn health_frame_layout(style: &NameplateStyle) -> (Vec2, Vec2) {
+    let skin = health_skin(style.health_preset());
+    (
+        skin.frame_offset,
+        health_bar_pixel_size(style) + skin.frame_margin,
     )
+}
+
+/// Viewport distance from the health body centre up to the plate's visible top edge.
+pub(crate) fn health_plate_top(style: &NameplateStyle) -> f32 {
+    if !style.show_border {
+        return style.health_height / 2.0;
+    }
+    let (offset, size) = health_frame_layout(style);
+    size.y / 2.0 - offset.y
 }
 
 #[derive(SystemParam)]
@@ -134,20 +173,6 @@ fn health_part_image(
     }
 }
 
-fn health_thickness(hud: Option<&HudOptions>) -> NameplateBarThickness {
-    hud.map_or(NameplateBarThickness::Thick, |hud| {
-        hud.nameplate_health_thickness
-    })
-}
-
-fn health_frame_layout(thickness: NameplateBarThickness) -> (Vec2, Vec2) {
-    let (offset, size) = match thickness {
-        NameplateBarThickness::Thick => (Vec2::new(2.0, -1.0), Vec2::new(396.0, 48.0)),
-        NameplateBarThickness::Thin => (Vec2::new(2.0, 0.0), Vec2::new(396.0, 30.0)),
-    };
-    (offset * NAMEPLATE_SCALE, size * NAMEPLATE_SCALE)
-}
-
 fn health_pct(health: &Health) -> f32 {
     if health.max > 0.0 {
         (health.current / health.max).clamp(0.0, 1.0)
@@ -185,6 +210,7 @@ struct HealthScene<'w, 's> {
         (With<HealthBar>, Without<HealthBarVisualOwner>),
     >,
     health: Query<'w, 's, &'static Health, Without<crate::networking::LocalPlayer>>,
+    reactions: PlateReactions<'w, 's>,
     art: Res<'w, NameplateArtCache>,
     hud: Option<Res<'w, HudOptions>>,
     disabled: Option<Res<'w, crate::client_options::UiDisabled>>,
@@ -205,33 +231,76 @@ type HealthVisualQuery<'w, 's> = Query<
     Without<HealthBar>,
 >;
 
+/// How health fills pick their colour: the owner's reaction to the local player from
+/// `FactionTemplate` (as the target frame does), or the class colour of a player owner.
+#[derive(SystemParam)]
+pub(crate) struct PlateReactions<'w, 's> {
+    units: Query<
+        'w,
+        's,
+        (
+            Option<&'static UnitFactionTemplate>,
+            Option<&'static NetPlayer>,
+        ),
+    >,
+    local:
+        Query<'w, 's, Option<&'static UnitFactionTemplate>, With<crate::networking::LocalPlayer>>,
+    templates: Option<Res<'w, crate::unit_frames::FactionTemplates>>,
+}
+
+impl PlateReactions<'_, '_> {
+    fn reaction(&self, owner: Entity) -> Reaction {
+        let Some(templates) = self.templates.as_deref() else {
+            return Reaction::Neutral;
+        };
+        let target = self
+            .units
+            .get(owner)
+            .ok()
+            .and_then(|(template, _)| template);
+        let player = self.local.single().ok().flatten();
+        crate::unit_frames::target_reaction(templates.row(target), templates.row(player))
+    }
+
+    fn health_color(&self, owner: Entity, style: &NameplateStyle) -> Color {
+        let class = self
+            .units
+            .get(owner)
+            .ok()
+            .and_then(|(_, player)| player)
+            .and_then(|player| ClassColor::from_class_id(player.class));
+        let [r, g, b] = style.health_color(self.reaction(owner), class);
+        Color::srgb(r, g, b)
+    }
+}
+
 fn project_health_bars(scene: HealthScene, mut visuals: HealthVisualQuery) {
     let enabled = inworld_scene_stage_allows_ui(
         scene.stage.as_ref().map(Res::clone),
         scene.disabled.as_ref().map(Res::clone),
     );
+    let style = plate_style(scene.hud.as_deref());
     for (owner, part, mut sprite, mut transform, mut global, mut visibility) in &mut visuals {
         let projected = enabled
-            .then(|| project_health_part(&scene, owner.0, *part))
+            .then(|| project_health_part(&scene, &style, owner.0, *part))
             .flatten();
         visibility.set_if_neq(if projected.is_some() {
             Visibility::Visible
         } else {
             Visibility::Hidden
         });
-        let Some((pose, size, alpha)) = projected else {
+        let Some((pose, size, color)) = projected else {
             continue;
         };
-        let thickness = health_thickness(scene.hud.as_deref());
-        let image = health_part_image(*part, thickness, scene.art.art());
+        let image = health_part_image(*part, style.health_preset(), scene.art.art());
         if sprite.image != *image {
             sprite.image = image.clone();
         }
         if sprite.custom_size != Some(size) {
             sprite.custom_size = Some(size);
         }
-        if sprite.color.alpha() != alpha {
-            sprite.color.set_alpha(alpha);
+        if sprite.color != color {
+            sprite.color = color;
         }
         transform.set_if_neq(pose);
         global.set_if_neq(GlobalTransform::from(pose));
@@ -240,9 +309,10 @@ fn project_health_bars(scene: HealthScene, mut visuals: HealthVisualQuery) {
 
 fn project_health_part(
     scene: &HealthScene,
+    style: &NameplateStyle,
     bar: Entity,
     part: HealthBarPart,
-) -> Option<(Transform, Vec2, f32)> {
+) -> Option<(Transform, Vec2, Color)> {
     let (global, parent, inherited) = scene.bars.get(bar).ok()?;
     if !inherited.get() {
         return None;
@@ -269,26 +339,26 @@ fn project_health_part(
     let center = camera
         .world_to_viewport(camera_pose, global.translation())
         .ok()?;
-    let thickness = health_thickness(scene.hud.as_deref());
-    let size = health_bar_pixel_size(thickness);
-    let (offset, draw_size, z) = match part {
+    let (offset, draw_size, z, color) = match part {
         HealthBarPart::Background => {
-            let (offset, frame_size) = health_frame_layout(thickness);
-            (offset, frame_size, 0.3)
+            if !style.show_border {
+                return None;
+            }
+            let (offset, frame_size) = health_frame_layout(style);
+            (offset, frame_size, 0.3, Color::WHITE)
         }
         HealthBarPart::Fill => {
             let fraction = health_pct(health);
             if fraction <= 0.0 {
                 return None;
             }
-            let (height, y_offset) = match thickness {
-                NameplateBarThickness::Thick => (38.0, 0.0),
-                NameplateBarThickness::Thin => (19.0, 0.5),
-            };
+            let size = health_bar_pixel_size(style);
+            let skin = health_skin(style.health_preset());
             (
-                Vec2::new(-size.x * (1.0 - fraction) / 2.0, y_offset * NAMEPLATE_SCALE),
-                Vec2::new(size.x * fraction, height * NAMEPLATE_SCALE),
+                Vec2::new(-size.x * (1.0 - fraction) / 2.0, skin.fill_y),
+                Vec2::new(size.x * fraction, size.y - skin.fill_inset),
                 0.2,
+                scene.reactions.health_color(parent.parent(), style),
             )
         }
     };
@@ -298,7 +368,7 @@ fn project_health_part(
     Some((
         Transform::from_translation(position.extend(z)),
         draw_size,
-        alpha,
+        color.with_alpha(alpha),
     ))
 }
 
@@ -338,9 +408,7 @@ fn billboard_health_bars(
             &local,
             camera,
             &camera_global,
-            health_bar_pixel_size(hud.as_ref().map_or(NameplateBarThickness::Thick, |hud| {
-                hud.nameplate_health_thickness
-            })),
+            health_bar_pixel_size(&plate_style(hud.as_deref())),
         ) {
             local.set_if_neq(pose);
         }

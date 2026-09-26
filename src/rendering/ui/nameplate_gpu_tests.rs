@@ -3,6 +3,7 @@
 const HEALTH_NAME_FAILURE_IMAGE: &str =
     "data/diagnostics/equipment-nameplate-alignment-20260909/health-name-gpu-failure.png";
 use super::*;
+use crate::client_options::NameplateBarThickness;
 use bevy::camera::RenderTarget;
 use bevy::ecs::system::RunSystemOnce;
 use bevy::render::render_resource::TextureFormat;
@@ -28,7 +29,10 @@ fn configured_render_app(configure: impl FnOnce(&mut App)) -> App {
             .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
     );
     app.insert_resource(HudOptions {
-        nameplate_health_thickness: NameplateBarThickness::Thin,
+        nameplate_style: NameplateStyle::from_presets(
+            NameplateBarThickness::Thin,
+            NameplateBarThickness::Thin,
+        ),
         ..default()
     });
     app.init_state::<GameState>();
@@ -356,8 +360,7 @@ fn nameplate_gpu_reference_thickness_combinations() {
     ] {
         {
             let mut hud = app.world_mut().resource_mut::<HudOptions>();
-            hud.nameplate_health_thickness = health;
-            hud.nameplate_spellbar_thickness = spell;
+            hud.nameplate_style = NameplateStyle::from_presets(health, spell);
         }
         let camera = app
             .world_mut()

@@ -5,11 +5,12 @@ use game_engine::ui::screens::options_menu_component::{
     OptionsCategory, OptionsViewModel, SoundOptionsView,
 };
 
-use crate::client_options::{CameraOptions, GraphicsOptions, HudOptions};
+use crate::client_options::{CameraOptions, GraphicsOptions, HudOptions, NameplateStyle};
 use crate::sound::SoundSettings;
 use game_engine::input_bindings::{
     BindingSection, InputAction, InputBinding, InputBindings, actions_for_section,
 };
+use game_engine::nameplate_style::StyleSlider;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DragCapture {
@@ -38,6 +39,7 @@ pub enum SliderField {
     FollowSpeed,
     MinDistance,
     MaxDistance,
+    Nameplate(StyleSlider),
 }
 
 #[derive(Debug, Clone)]
@@ -106,8 +108,7 @@ pub struct HudDraft {
     pub show_action_bars: bool,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
-    pub nameplate_health_thickness: crate::client_options::NameplateBarThickness,
-    pub nameplate_spellbar_thickness: crate::client_options::NameplateBarThickness,
+    pub nameplate_style: crate::client_options::NameplateStyle,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
@@ -177,8 +178,7 @@ pub fn hud_draft(hud: &HudOptions) -> HudDraft {
         show_action_bars: hud.show_action_bars,
         show_nameplates: hud.show_nameplates,
         nameplate_distance: hud.nameplate_distance,
-        nameplate_health_thickness: hud.nameplate_health_thickness,
-        nameplate_spellbar_thickness: hud.nameplate_spellbar_thickness,
+        nameplate_style: hud.nameplate_style,
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         auto_loot: hud.auto_loot,
@@ -231,8 +231,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_action_bars: h.show_action_bars,
         show_nameplates: h.show_nameplates,
         nameplate_distance: h.nameplate_distance,
-        nameplate_health_thickness: h.nameplate_health_thickness,
-        nameplate_spellbar_thickness: h.nameplate_spellbar_thickness,
+        nameplate_style: h.nameplate_style,
         show_health_bars: h.show_health_bars,
         show_target_marker: h.show_target_marker,
         auto_loot: h.auto_loot,
@@ -317,6 +316,18 @@ fn slider_field_from_key(key: &str) -> Option<SliderField> {
     SLIDER_ACTION_FIELDS
         .iter()
         .find_map(|(candidate, field)| (*candidate == key).then_some(*field))
+        .or_else(|| StyleSlider::from_key(key).map(SliderField::Nameplate))
+}
+
+/// The key that names a slider's `Slider{key}` frame and `options_slider:{key}` action.
+pub fn slider_key(field: SliderField) -> String {
+    if let SliderField::Nameplate(slider) = field {
+        return slider.key();
+    }
+    SLIDER_ACTION_FIELDS
+        .iter()
+        .find_map(|(key, candidate)| (*candidate == field).then(|| (*key).to_owned()))
+        .expect("every non-nameplate slider field has a key")
 }
 
 pub fn slider_bounds(field: SliderField) -> (f32, f32) {
@@ -341,6 +352,7 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
         SliderField::ZoomSpeed | SliderField::FollowSpeed => (2.0, 20.0),
         SliderField::MinDistance => (1.0, 10.0),
         SliderField::MaxDistance => (10.0, 60.0),
+        SliderField::Nameplate(slider) => slider.bounds(),
     }
 }
 
@@ -405,6 +417,7 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OverlayMod
             model.draft_camera.max_distance = value;
             normalize_camera_limits(&mut model.draft_camera);
         }
+        SliderField::Nameplate(slider) => slider.set(&mut model.draft_hud.nameplate_style, value),
     }
 }
 
@@ -593,10 +606,18 @@ pub fn apply_toggle(key: &str, model: &mut OverlayModel) {
 fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
     match key {
         "nameplate_health_thickness" => {
-            hud.nameplate_health_thickness = hud.nameplate_health_thickness.toggled()
+            let style = &mut hud.nameplate_style;
+            style.apply_health_preset(style.health_preset().toggled())
         }
         "nameplate_spellbar_thickness" => {
-            hud.nameplate_spellbar_thickness = hud.nameplate_spellbar_thickness.toggled()
+            let style = &mut hud.nameplate_style;
+            style.apply_cast_preset(style.cast_preset().toggled())
+        }
+        "nameplate_show_border" => {
+            hud.nameplate_style.show_border = !hud.nameplate_style.show_border
+        }
+        "nameplate_class_colors" => {
+            hud.nameplate_style.class_colored_players = !hud.nameplate_style.class_colored_players
         }
         "show_minimap" => hud.show_minimap = !hud.show_minimap,
         "show_action_bars" => hud.show_action_bars = !hud.show_action_bars,
@@ -620,6 +641,7 @@ pub fn reset_category_defaults(model: &mut OverlayModel) {
         OptionsCategory::Interface | OptionsCategory::Hud => {
             model.draft_hud = hud_draft(&HudOptions::default())
         }
+        OptionsCategory::Nameplates => model.draft_hud.nameplate_style = NameplateStyle::default(),
         OptionsCategory::Keybindings => model.draft_bindings.reset_section(model.binding_section),
         _ => {}
     }
@@ -689,8 +711,7 @@ pub fn apply_hud_snapshot(h: &mut HudOptions, d: &HudDraft) {
     h.show_minimap = d.show_minimap;
     h.show_action_bars = d.show_action_bars;
     h.show_nameplates = d.show_nameplates;
-    h.nameplate_health_thickness = d.nameplate_health_thickness;
-    h.nameplate_spellbar_thickness = d.nameplate_spellbar_thickness;
+    h.nameplate_style = d.nameplate_style.clamped();
     h.nameplate_distance = d
         .nameplate_distance
         .clamp(

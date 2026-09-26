@@ -7,27 +7,26 @@ use bevy::transform::TransformSystems;
 use shared::casting::{CastState, CastType};
 use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
-use crate::client_options::{HudOptions, HudVisibilityToggles, NameplateBarThickness, UiDisabled};
+use crate::client_options::{
+    HudOptions, HudVisibilityToggles, NameplateBarThickness, NameplateStyle, UiDisabled,
+};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
-use crate::health_bar::{BAR_HEIGHT, HealthBar};
+use crate::health_bar::{BAR_HEIGHT, HealthBar, plate_style};
 
 use crate::rendering::nameplate_art::{
-    BAR_PIXEL_WIDTH, CAST_BACKGROUND_RECT, CAST_FILL_RECT, CAST_FONT_SIZE, NAMEPLATE_SCALE,
-    NameplateArt, NameplateArtCache,
+    CAST_BACKGROUND_RECT, CAST_FILL_RECT, NAMEPLATE_SCALE, NameplateArt, NameplateArtCache,
 };
 
-const CAST_WIDTH: f32 = BAR_PIXEL_WIDTH;
-const CAST_THICK_HEIGHT: f32 = 20.0 * NAMEPLATE_SCALE;
-const CAST_THIN_HEIGHT: f32 = 12.0 * NAMEPLATE_SCALE;
 const LABEL_INSET: f32 = 10.0 * NAMEPLATE_SCALE;
 const HEALTH_CAST_GAP: f32 = 4.0 * NAMEPLATE_SCALE;
 
-fn cast_height(thick: bool) -> f32 {
-    if thick {
-        CAST_THICK_HEIGHT
-    } else {
-        CAST_THIN_HEIGHT
-    }
+/// Reference cast frame bitmap extent past the cast body and its offset (raw pixels).
+fn cast_frame_margin(preset: NameplateBarThickness) -> (Vec2, Vec2) {
+    let (offset, margin) = match preset {
+        NameplateBarThickness::Thick => (Vec2::new(1.0, -1.5), Vec2::new(58.0, 9.0)),
+        NameplateBarThickness::Thin => (Vec2::new(2.0, 0.0), Vec2::new(56.0, 10.0)),
+    };
+    (offset * NAMEPLATE_SCALE, margin * NAMEPLATE_SCALE)
 }
 
 pub struct NameplateCastBarPlugin;
@@ -66,6 +65,7 @@ enum Part {
 fn spawn_cast_bar(
     event: On<Add, CastState>,
     mut commands: Commands,
+    hud: Option<Res<HudOptions>>,
     mut images: ResMut<Assets<Image>>,
     mut fonts: ResMut<Assets<Font>>,
     mut cache: ResMut<NameplateArtCache>,
@@ -83,14 +83,15 @@ fn spawn_cast_bar(
         }
     };
     spawn_cast_sprites(&mut commands, event.entity, &art);
-    spawn_cast_label(&mut commands, event.entity, art.font);
+    let font_size = plate_style(hud.as_deref()).cast_font_size;
+    spawn_cast_label(&mut commands, event.entity, art.font, font_size);
 }
 
 fn spawn_cast_sprites(commands: &mut Commands, owner: Entity, art: &NameplateArt) {
     for (part, image, rect) in [
         (Part::Border, &art.cast_thin, None),
         (Part::Background, &art.casting, Some(CAST_BACKGROUND_RECT)),
-        (Part::Fill, &art.casting, Some(CAST_FILL_RECT)),
+        (Part::Fill, &art.cast_fill, Some(CAST_FILL_RECT)),
     ] {
         let sprite = Sprite {
             image: image.clone(),
@@ -110,7 +111,7 @@ fn spawn_cast_sprites(commands: &mut Commands, owner: Entity, art: &NameplateArt
     }
 }
 
-fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>) {
+fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>, font_size: f32) {
     commands.spawn((
         CastBarOwner(owner),
         crate::rendering::nameplate_picking::NameplateHitTarget(owner),
@@ -119,7 +120,7 @@ fn spawn_cast_label(commands: &mut Commands, owner: Entity, font: Handle<Font>) 
         Anchor::CENTER_LEFT,
         TextFont {
             font: font.into(),
-            font_size: FontSize::Px(CAST_FONT_SIZE),
+            font_size: FontSize::Px(font_size),
             ..default()
         },
         TextColor(Color::WHITE),
@@ -160,31 +161,27 @@ fn cast_fraction(cast: &CastState) -> Option<f32> {
     })
 }
 
-fn part_layout(part: Part, thick: bool, fraction: f32) -> (Vec2, Vec2, f32) {
-    let height = cast_height(thick);
-    let half_width = CAST_WIDTH / 2.0;
+fn part_layout(part: Part, style: &NameplateStyle, fraction: f32) -> (Vec2, Vec2, f32) {
+    let (width, height) = (style.cast_width, style.cast_height);
+    let half_width = width / 2.0;
+    let preset = style.cast_preset();
     match part {
         Part::Border => {
-            let (offset, size) = if thick {
-                (Vec2::new(1.0, -1.5), Vec2::new(434.0, 29.0))
-            } else {
-                (Vec2::new(2.0, 0.0), Vec2::new(432.0, 22.0))
-            };
-            (offset * NAMEPLATE_SCALE, size * NAMEPLATE_SCALE, 2.24)
+            let (offset, margin) = cast_frame_margin(preset);
+            (offset, Vec2::new(width, height) + margin, 2.24)
         }
-        Part::Background => (Vec2::ZERO, Vec2::new(CAST_WIDTH, height), 2.1),
+        Part::Background => (Vec2::ZERO, Vec2::new(width, height), 2.1),
         Part::Fill => (
             Vec2::new(-half_width * (1.0 - fraction), 0.0),
-            Vec2::new(CAST_WIDTH * fraction, height),
+            Vec2::new(width * fraction, height),
             2.2,
         ),
         Part::Label => (
             Vec2::new(
                 -half_width + LABEL_INSET,
-                if thick {
-                    0.0
-                } else {
-                    height / 2.0 + 14.0 * NAMEPLATE_SCALE
+                match preset {
+                    NameplateBarThickness::Thick => 0.0,
+                    NameplateBarThickness::Thin => height / 2.0 + 14.0 * NAMEPLATE_SCALE,
                 },
             ),
             Vec2::ONE,
@@ -245,6 +242,7 @@ type Parts<'w, 's> = Query<
         Option<&'static mut Sprite>,
         Option<&'static mut Text2d>,
         Option<&'static mut TextColor>,
+        Option<&'static mut TextFont>,
     ),
     Without<HealthBar>,
 >;
@@ -257,36 +255,47 @@ fn project_cast_bars(scene: CastScene, mut parts: Parts) {
         .toggles
         .as_ref()
         .is_none_or(|v| v.show_nameplates && v.show_health_bars);
-    let thick = scene
-        .hud
-        .as_ref()
-        .is_some_and(|h| h.nameplate_spellbar_thickness == NameplateBarThickness::Thick);
-    for (owner, part, mut transform, mut global, mut visibility, sprite, text, text_color) in
+    let style = plate_style(scene.hud.as_deref());
+    for (owner, part, mut transform, mut global, mut visibility, sprite, text, text_color, font) in
         &mut parts
     {
         let projected = enabled
-            .then(|| project_part(&scene, owner.0, *part, thick))
+            .then(|| project_part(&scene, &style, owner.0, *part))
             .flatten();
         visibility.set_if_neq(if projected.is_some() {
             Visibility::Visible
         } else {
             Visibility::Hidden
         });
-        if let Some((position, size, name, alpha)) = projected {
-            let pose = Transform::from_translation(position);
+        if let Some(projected) = projected {
+            let pose = Transform::from_translation(projected.position);
             transform.set_if_neq(pose);
             global.set_if_neq(GlobalTransform::from(pose));
             let mut sprite = sprite;
-            update_cast_frame_image(&mut sprite, *part, thick, scene.art.art());
-            update_cast_content(sprite, text, text_color, *part, size, name, alpha);
+            update_cast_frame_image(&mut sprite, *part, style.cast_preset(), scene.art.art());
+            if let Some(mut font) = font {
+                let size = FontSize::Px(style.cast_font_size);
+                if font.font_size != size {
+                    font.font_size = size;
+                }
+            }
+            update_cast_content(sprite, text, text_color, *part, &style, projected);
         }
     }
+}
+
+struct ProjectedCastPart<'a> {
+    position: Vec3,
+    size: Vec2,
+    name: &'a str,
+    /// Sprite tint: the style's cast colour for the fill, white otherwise; alpha is the fade.
+    color: Color,
 }
 
 fn update_cast_frame_image(
     sprite: &mut Option<Mut<Sprite>>,
     part: Part,
-    thick: bool,
+    preset: NameplateBarThickness,
     art: &NameplateArt,
 ) {
     if !matches!(part, Part::Border) {
@@ -295,10 +304,9 @@ fn update_cast_frame_image(
     let Some(sprite) = sprite.as_mut() else {
         return;
     };
-    let image = if thick {
-        &art.cast_thick
-    } else {
-        &art.cast_thin
+    let image = match preset {
+        NameplateBarThickness::Thick => &art.cast_thick,
+        NameplateBarThickness::Thin => &art.cast_thin,
     };
     if sprite.image != *image {
         sprite.image = image.clone();
@@ -310,13 +318,15 @@ fn update_cast_content(
     text: Option<Mut<Text2d>>,
     text_color: Option<Mut<TextColor>>,
     part: Part,
-    size: Vec2,
-    name: &str,
-    alpha: f32,
+    style: &NameplateStyle,
+    projected: ProjectedCastPart,
 ) {
+    let ProjectedCastPart {
+        size, name, color, ..
+    } = projected;
     if let Some(mut sprite) = sprite {
         if matches!(part, Part::Fill) {
-            let rect = cast_fill_crop(size.x / CAST_WIDTH);
+            let rect = cast_fill_crop(size.x / style.cast_width);
             if sprite.rect != Some(rect) {
                 sprite.rect = Some(rect);
             }
@@ -324,8 +334,8 @@ fn update_cast_content(
         if sprite.custom_size != Some(size) {
             sprite.custom_size = Some(size);
         }
-        if sprite.color.alpha() != alpha {
-            sprite.color.set_alpha(alpha);
+        if sprite.color != color {
+            sprite.color = color;
         }
     }
     if let Some(mut text) = text
@@ -333,8 +343,8 @@ fn update_cast_content(
     {
         text.0 = name.to_owned();
     }
-    if let Some(mut color) = text_color {
-        color.set_if_neq(TextColor(Color::WHITE.with_alpha(alpha)));
+    if let Some(mut text_color) = text_color {
+        text_color.set_if_neq(TextColor(Color::WHITE.with_alpha(color.alpha())));
     }
 }
 
@@ -378,12 +388,12 @@ fn project_health_bottom(scene: &CastScene, children: &Children) -> Option<(Vec2
 
 fn project_part<'a>(
     scene: &'a CastScene,
+    style: &NameplateStyle,
     owner: Entity,
     part: Part,
-    thick: bool,
-) -> Option<(Vec3, Vec2, &'a str, f32)> {
+) -> Option<ProjectedCastPart<'a>> {
     let (cast, children, inherited) = scene.owners.get(owner).ok()?;
-    if !inherited.get() {
+    if !inherited.get() || (matches!(part, Part::Border) && !style.show_border) {
         return None;
     }
     let fraction = cast_fraction(cast)?;
@@ -392,11 +402,22 @@ fn project_part<'a>(
         return None;
     }
     let (bottom, alpha) = project_health_bottom(scene, children)?;
-    let height = cast_height(thick);
-    let (offset, size, z) = part_layout(part, thick, fraction);
-    let point = bottom + Vec2::Y * (HEALTH_CAST_GAP + height / 2.0) + offset;
+    let (offset, size, z) = part_layout(part, style, fraction);
+    let point = bottom + Vec2::Y * (HEALTH_CAST_GAP + style.cast_height / 2.0) + offset;
     let position = overlay.viewport_to_world_2d(overlay_pose, point).ok()?;
-    Some((position.extend(z), size, cast.spell_name.as_str(), alpha))
+    let color = match part {
+        Part::Fill => {
+            let [r, g, b] = style.cast_color(cast.cast_type, cast.interruptible);
+            Color::srgb(r, g, b)
+        }
+        _ => Color::WHITE,
+    };
+    Some(ProjectedCastPart {
+        position: position.extend(z),
+        size,
+        name: cast.spell_name.as_str(),
+        color: color.with_alpha(alpha),
+    })
 }
 
 #[cfg(test)]
@@ -522,10 +543,16 @@ mod tests {
     #[test]
     fn thickness_keeps_fill_left_aligned_and_places_label() {
         for thick in [false, true] {
-            let (offset, size, _) = part_layout(Part::Fill, thick, 0.25);
+            let preset = if thick {
+                NameplateBarThickness::Thick
+            } else {
+                NameplateBarThickness::Thin
+            };
+            let style = NameplateStyle::from_presets(NameplateBarThickness::Thick, preset);
+            let (offset, size, _) = part_layout(Part::Fill, &style, 0.25);
             assert_eq!(offset.x - size.x / 2.0, -94.0);
             assert_eq!(size, Vec2::new(47.0, if thick { 10.0 } else { 6.0 }));
-            let (border_offset, border_size, _) = part_layout(Part::Border, thick, 0.25);
+            let (border_offset, border_size, _) = part_layout(Part::Border, &style, 0.25);
             assert_eq!(
                 border_offset,
                 if thick {
@@ -542,7 +569,7 @@ mod tests {
                     Vec2::new(216.0, 11.0)
                 }
             );
-            let (label, _, _) = part_layout(Part::Label, thick, 0.25);
+            let (label, _, _) = part_layout(Part::Label, &style, 0.25);
             assert_eq!(label, Vec2::new(-89.0, if thick { 0.0 } else { 10.0 }));
         }
     }

@@ -33,28 +33,55 @@ fn default_model() -> OverlayModel {
 }
 
 #[test]
+fn nameplate_style_sliders_and_toggles_edit_the_draft_and_apply() {
+    let mut model = default_model();
+    let slider = parse_slider_action("options_slider:nameplate_neutral_g").unwrap();
+    assert_eq!(slider_bounds(slider), (0.0, 1.0));
+    apply_slider_value(slider, 0.4, &mut model);
+    let width = parse_slider_action("options_slider:nameplate_health_width").unwrap();
+    apply_slider_value(width, 150.3, &mut model);
+    apply_toggle("nameplate_show_border", &mut model);
+    apply_toggle("nameplate_class_colors", &mut model);
+    assert_eq!(slider_key(width), "nameplate_health_width");
+    let snapshot = apply_snapshot(&mut model);
+    let mut hud = HudOptions::default();
+    apply_hud_snapshot(&mut hud, &snapshot.hud);
+    let style = hud.nameplate_style;
+    assert_eq!(style.health_colors.neutral, [1.0, 0.4, 0.0]);
+    assert_eq!(style.health_width, 150.0);
+    assert!(!style.show_border);
+    assert!(!style.class_colored_players);
+    model.category = OptionsCategory::Nameplates;
+    reset_category_defaults(&mut model);
+    assert_eq!(
+        model.draft_hud.nameplate_style,
+        crate::client_options::NameplateStyle::default()
+    );
+}
+
+#[test]
 fn nameplate_thickness_selectors_are_independent_and_apply() {
     use crate::client_options::NameplateBarThickness::{Thick, Thin};
     let mut model = default_model();
-    assert_eq!(model.draft_hud.nameplate_health_thickness, Thick);
-    assert_eq!(model.draft_hud.nameplate_spellbar_thickness, Thin);
+    let presets = |style: &crate::client_options::NameplateStyle| {
+        (style.health_preset(), style.cast_preset())
+    };
+    assert_eq!(presets(&model.draft_hud.nameplate_style), (Thick, Thin));
     apply_toggle("nameplate_health_thickness", &mut model);
-    assert_eq!(model.draft_hud.nameplate_health_thickness, Thin);
-    assert_eq!(model.draft_hud.nameplate_spellbar_thickness, Thin);
-    assert_eq!(model.committed_hud.nameplate_health_thickness, Thick);
+    assert_eq!(presets(&model.draft_hud.nameplate_style), (Thin, Thin));
+    assert_eq!(model.draft_hud.nameplate_style.health_height, 10.0);
+    assert_eq!(presets(&model.committed_hud.nameplate_style), (Thick, Thin));
     apply_toggle("nameplate_spellbar_thickness", &mut model);
     let snapshot = apply_snapshot(&mut model);
     let mut hud = HudOptions::default();
     apply_hud_snapshot(&mut hud, &snapshot.hud);
-    assert_eq!(hud.nameplate_health_thickness, Thin);
-    assert_eq!(hud.nameplate_spellbar_thickness, Thick);
+    assert_eq!(presets(&hud.nameplate_style), (Thin, Thick));
+    assert_eq!(hud.nameplate_style.cast_height, 10.0);
     let view = hud_to_view(&model.draft_hud);
-    assert_eq!(view.nameplate_health_thickness, Thin);
-    assert_eq!(view.nameplate_spellbar_thickness, Thick);
-    model.category = OptionsCategory::Hud;
+    assert_eq!(presets(&view.nameplate_style), (Thin, Thick));
+    model.category = OptionsCategory::Nameplates;
     reset_category_defaults(&mut model);
-    assert_eq!(model.draft_hud.nameplate_health_thickness, Thick);
-    assert_eq!(model.draft_hud.nameplate_spellbar_thickness, Thin);
+    assert_eq!(presets(&model.draft_hud.nameplate_style), (Thick, Thin));
 }
 
 #[test]

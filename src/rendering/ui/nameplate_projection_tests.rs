@@ -151,7 +151,10 @@ pub(crate) fn app_with_cameras(scale_factor: f32) -> (App, Entity) {
     app.init_resource::<bevy::render::texture::ManualTextureViews>();
     app.init_resource::<HudVisibilityToggles>();
     app.insert_resource(HudOptions {
-        nameplate_health_thickness: NameplateBarThickness::Thin,
+        nameplate_style: NameplateStyle::from_presets(
+            crate::client_options::NameplateBarThickness::Thin,
+            crate::client_options::NameplateBarThickness::Thin,
+        ),
         ..default()
     });
     app.init_resource::<GraphicsOptions>();
@@ -460,4 +463,47 @@ fn quest_marker_yaws_toward_camera_without_pitch_under_a_turned_npc() {
         indicator_facing(marker + Vec3::Y * 5.0, marker, parent),
         None
     );
+}
+
+fn cast_sprite(app: &App, visuals: &[Entity], rect_min: Vec2) -> Sprite {
+    visuals
+        .iter()
+        .filter_map(|&entity| app.world().get::<Sprite>(entity))
+        .find(|sprite| sprite.rect.is_some_and(|rect| rect.min == rect_min))
+        .unwrap()
+        .clone()
+}
+
+#[test]
+fn cast_fill_colour_follows_cast_type_and_style_sizes_the_cast_bar() {
+    use crate::rendering::nameplate_art::{CAST_BACKGROUND_RECT, CAST_FILL_RECT};
+    use shared::casting::{CastState, CastType};
+    let (mut app, _) = app_with_cameras(1.0);
+    let (owner, visuals) = spawn_casting_player(&mut app, "Caster");
+    let fill = |app: &App| cast_sprite(app, &visuals, CAST_FILL_RECT.min);
+    assert_eq!(fill(&app).color, Color::srgb(1.0, 0.7, 0.0));
+    let mut cast = app.world().get::<CastState>(owner).unwrap().clone();
+    cast.cast_type = CastType::Channel;
+    app.world_mut().entity_mut(owner).insert(cast.clone());
+    app.update();
+    assert_eq!(fill(&app).color, Color::srgb(0.0, 1.0, 0.0));
+    cast.interruptible = false;
+    app.world_mut().entity_mut(owner).insert(cast);
+    app.update();
+    assert_eq!(fill(&app).color, Color::srgb(0.7, 0.7, 0.7));
+    {
+        let style = &mut app.world_mut().resource_mut::<HudOptions>().nameplate_style;
+        style.cast_width = 120.0;
+        style.cast_height = 8.0;
+        style.cast_font_size = 12.0;
+    }
+    app.update();
+    let background = cast_sprite(&app, &visuals, CAST_BACKGROUND_RECT.min);
+    assert_eq!(background.custom_size, Some(Vec2::new(120.0, 8.0)));
+    let label_font = visuals
+        .iter()
+        .filter(|&&entity| app.world().get::<Nameplate>(entity).is_none())
+        .find_map(|&entity| app.world().get::<TextFont>(entity))
+        .unwrap();
+    assert_eq!(label_font.font_size, FontSize::Px(12.0));
 }

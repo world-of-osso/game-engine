@@ -68,6 +68,7 @@ pub enum OptionsCategory {
     Camera,
     Interface,
     Hud,
+    Nameplates,
     Controls,
     Accessibility,
     Keybindings,
@@ -78,12 +79,13 @@ pub enum OptionsCategory {
 }
 
 impl OptionsCategory {
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Graphics,
         Self::Sound,
         Self::Camera,
         Self::Interface,
         Self::Hud,
+        Self::Nameplates,
         Self::Controls,
         Self::Accessibility,
         Self::Keybindings,
@@ -100,6 +102,7 @@ impl OptionsCategory {
             Self::Camera => "camera",
             Self::Interface => "interface",
             Self::Hud => "hud",
+            Self::Nameplates => "nameplates",
             Self::Controls => "controls",
             Self::Accessibility => "accessibility",
             Self::Keybindings => "keybindings",
@@ -117,6 +120,7 @@ impl OptionsCategory {
             Self::Camera => "Camera",
             Self::Interface => "Interface",
             Self::Hud => "HUD",
+            Self::Nameplates => "Nameplates",
             Self::Controls => "Controls",
             Self::Accessibility => "Accessibility",
             Self::Keybindings => "Keybindings",
@@ -184,8 +188,7 @@ pub struct HudOptionsView {
     pub show_action_bars: bool,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
-    pub nameplate_health_thickness: NameplateBarThickness,
-    pub nameplate_spellbar_thickness: NameplateBarThickness,
+    pub nameplate_style: crate::nameplate_style::NameplateStyle,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
@@ -319,7 +322,7 @@ fn tab_stack(buttons: Element) -> Element {
             height: {OPTIONS_CONTENT_H - 24.0},
             layout: "flex-column",
             align: "center",
-            gap: 8.0,
+            gap: 5.0,
             pos_type: "absolute",
             left: "0%",
             top: "0%",
@@ -459,6 +462,7 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
         OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud),
+        OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {
             options_menu_active_sections::accessibility_body(&model.graphics)

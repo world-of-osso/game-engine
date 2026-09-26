@@ -1,6 +1,4 @@
-use crate::rendering::nameplate_art::{
-    BAR_PIXEL_WIDTH, NAME_FONT_SIZE, NAMEPLATE_SCALE, NameplateArtCache,
-};
+use crate::rendering::nameplate_art::{NAMEPLATE_SCALE, NameplateArtCache};
 use crate::retail_m2_material::M2Material;
 use bevy::camera::visibility::{RenderLayers, VisibilitySystems};
 use bevy::ecs::system::SystemParam;
@@ -13,12 +11,11 @@ use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 
 use crate::asset::asset_cache;
 use crate::client_options::{
-    DEFAULT_NAMEPLATE_DISTANCE, GraphicsOptions, HudOptions, HudVisibilityToggles,
-    NameplateBarThickness,
+    DEFAULT_NAMEPLATE_DISTANCE, GraphicsOptions, HudOptions, HudVisibilityToggles, NameplateStyle,
 };
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::game_state::GameState;
-use crate::health_bar::{BAR_HEIGHT, BAR_WIDTH, HealthBar};
+use crate::health_bar::{HealthBar, health_plate_top, plate_style};
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::m2_spawn;
 use game_engine::nameplate_data::{QuestIndicator, UnitReaction};
@@ -90,10 +87,11 @@ struct QuestIndicatorModel;
 
 const PLAYER_NAMEPLATE_Y: f32 = 3.0;
 const NPC_NAMEPLATE_Y: f32 = 2.5;
-const PLAYER_FONT_SIZE: f32 = NAME_FONT_SIZE;
-const NPC_FONT_SIZE: f32 = NAME_FONT_SIZE;
 const NPC_NAME_COLOR: Color = Color::WHITE;
-const NAME_BAR_GAP: f32 = 0.0;
+/// Retail `HEALTH_BAR_TO_NAME_ABOVE_SPACING` (Blizzard_NamePlateConstants.lua:31): the name's
+/// bottom sits this far above the health bar, centred (`CenteredAboveHealthBar`,
+/// Blizzard_NamePlateUnitFrame.lua:732-736).
+const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
 /// Y offset for quest indicator M2 above the NPC origin.
 const QUEST_INDICATOR_Y: f32 = 3.5;
 
@@ -103,6 +101,7 @@ fn spawn_player_nameplate(
     mut commands: Commands,
     query: Query<&NetPlayer>,
     mut art: NameplateFontAssets,
+    hud: Option<Res<HudOptions>>,
     scene_stage: Option<Res<InWorldSceneStage>>,
     ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
 ) {
@@ -118,7 +117,7 @@ fn spawn_player_nameplate(
         entity,
         &player.name,
         Color::WHITE,
-        PLAYER_FONT_SIZE,
+        plate_style(hud.as_deref()).name_font_size,
         art.load_font(),
         PLAYER_NAMEPLATE_Y,
         NameplateKind::Player,
@@ -131,6 +130,7 @@ fn spawn_npc_nameplate(
     mut commands: Commands,
     query: Query<&Npc>,
     mut art: NameplateFontAssets,
+    hud: Option<Res<HudOptions>>,
     scene_stage: Option<Res<InWorldSceneStage>>,
     ui_disabled: Option<Res<crate::client_options::UiDisabled>>,
 ) {
@@ -144,7 +144,7 @@ fn spawn_npc_nameplate(
         entity,
         &npc.name,
         NPC_NAME_COLOR,
-        NPC_FONT_SIZE,
+        plate_style(hud.as_deref()).name_font_size,
         art.load_font(),
         NPC_NAMEPLATE_Y,
         NameplateKind::Npc,
@@ -242,6 +242,7 @@ type NameplateQuery<'w, 's> = Query<
         &'static mut Transform,
         &'static mut GlobalTransform,
         &'static mut TextColor,
+        &'static mut TextFont,
         &'static mut Visibility,
         &'static mut Anchor,
     ),
@@ -303,16 +304,26 @@ fn project_nameplates(
     let colorblind = options
         .graphics
         .is_some_and(|graphics| graphics.colorblind_mode);
-    let thick_health = options
-        .hud
-        .as_ref()
-        .is_none_or(|hud| hud.nameplate_health_thickness == NameplateBarThickness::Thick);
+    let style = plate_style(options.hud.as_deref());
     let show_health_bars = options
         .toggles
         .is_none_or(|toggles| toggles.show_health_bars);
-    for (owner, offset, kind, mut transform, mut global, mut color, mut visibility, mut anchor) in
-        &mut plates
+    for (
+        owner,
+        offset,
+        kind,
+        mut transform,
+        mut global,
+        mut color,
+        mut font,
+        mut visibility,
+        mut anchor,
+    ) in &mut plates
     {
+        let font_size = FontSize::Px(style.name_font_size);
+        if font.font_size != font_size {
+            font.font_size = font_size;
+        }
         let projected = enabled
             .then(|| {
                 project_owner(
@@ -320,7 +331,7 @@ fn project_nameplates(
                     offset.0,
                     fade_far,
                     show_health_bars,
-                    thick_health,
+                    &style,
                     &scene,
                 )
             })
@@ -350,7 +361,7 @@ fn project_owner(
     height: f32,
     fade_far: f32,
     show_health_bars: bool,
-    thick_health: bool,
+    style: &NameplateStyle,
     scene: &NameplateScene,
 ) -> Option<ProjectedPlate> {
     let (owner_global, inherited, children, has_health) = scene.owners.get(owner).ok()?;
@@ -383,16 +394,12 @@ fn project_owner(
             has_health && show_health_bars && **visibility != Visibility::Hidden
         });
     let (viewport, text_anchor) = match bar {
-        Some((global, _)) if thick_health => (
+        Some((global, _)) => (
             world_camera
                 .world_to_viewport(world_transform, global.translation())
                 .ok()?
-                - Vec2::X * (BAR_PIXEL_WIDTH / 2.0 - 10.0 * NAMEPLATE_SCALE),
-            Anchor::CENTER_LEFT,
-        ),
-        Some((global, _)) => (
-            project_bar_top(world_camera, world_transform, global)? - Vec2::Y * NAME_BAR_GAP,
-            Anchor::BOTTOM_LEFT,
+                - Vec2::Y * (health_plate_top(style) + NAME_ABOVE_BAR_SPACING),
+            Anchor::BOTTOM_CENTER,
         ),
         None => (
             world_camera
@@ -422,25 +429,6 @@ pub(crate) fn viewport_to_overlay(
     overlay_camera
         .viewport_to_world_2d(overlay_transform, viewport)
         .ok()
-}
-
-fn project_bar_top(
-    camera: &Camera,
-    camera_global: &GlobalTransform,
-    bar: &GlobalTransform,
-) -> Option<Vec2> {
-    let mut left = f32::INFINITY;
-    let mut top = f32::INFINITY;
-    for x in [-BAR_WIDTH / 2.0, BAR_WIDTH / 2.0] {
-        for y in [-BAR_HEIGHT / 2.0, BAR_HEIGHT / 2.0] {
-            let point = camera
-                .world_to_viewport(camera_global, bar.transform_point(Vec3::new(x, y, 0.0)))
-                .ok()?;
-            left = left.min(point.x);
-            top = top.min(point.y);
-        }
-    }
-    Some(Vec2::new(left + 4.0 * NAMEPLATE_SCALE, top))
 }
 
 /// Rotate nameplates to always face the camera (billboard effect).
