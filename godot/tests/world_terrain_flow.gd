@@ -23,6 +23,8 @@ func select_second_character(client: Node) -> void:
 			if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
 				fail("Parsed tile lacks actual terrain geometry or cache file: " + str(tile))
 				return
+		if not inspect_material_tiles(client, terrain.parsed_tiles):
+			return
 		if state.screen != "Loading":
 			fail("Parsed assets alone must not establish rendered world readiness")
 			return
@@ -31,6 +33,9 @@ func select_second_character(client: Node) -> void:
 			fail("Reconnect failed: " + error)
 			return
 		var reset: Dictionary = client.account_state().terrain
+		if client.get_node_or_null("WorldTerrain") != null:
+			fail("Reconnect retained previous map material nodes")
+			return
 		if not reset.map.is_empty() or not reset.parsed_tiles.is_empty() or reset.pending_count != 0:
 			fail("Reconnect retained previous map asset state: " + str(reset))
 			return
@@ -39,3 +44,33 @@ func select_second_character(client: Node) -> void:
 		quit(0)
 		return
 	fail("Timed out waiting for server-requested terrain assets: " + str(client.account_state()))
+
+func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
+	var root := client.get_node_or_null("WorldTerrain")
+	if root == null or root.get_child_count() != parsed_tiles.size():
+		fail("Parsed terrain has no corresponding native material tiles")
+		return false
+	for tile in root.get_children():
+		if tile.get_child_count() == 0:
+			fail("Material tile has no terrain chunks")
+			return false
+		for chunk in tile.get_children():
+			var instance := chunk as MeshInstance3D
+			var material := instance.get_surface_override_material(0) as ShaderMaterial
+			if material == null or material.shader == null:
+				fail("Terrain chunk lacks native authored shader material")
+				return false
+			var config: Vector4 = material.get_shader_parameter("config")
+			if config.x < 1 or config.x > 4 or config.z < 8:
+				fail("Terrain material has invalid authored layer count/repeat")
+				return false
+			for slot in range(int(config.x)):
+				var diffuse := material.get_shader_parameter("ground_%d" % slot) as Texture2D
+				if diffuse == null or diffuse.get_width() <= 1 or diffuse.get_height() <= 1:
+					fail("Terrain material lacks decoded authored diffuse")
+					return false
+			var alpha := material.get_shader_parameter("alpha_packed") as Texture2D
+			if alpha == null or alpha.get_width() != 64 or alpha.get_height() != 64:
+				fail("Terrain material lacks 64x64 MCAL texture")
+				return false
+	return true
