@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot loading-model and input-routing boundary
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `94c4e6ae`, `1be11d6c`, `e8845a5e`, `63de89d7`, `a89ab4d4`, and `b7070542`. `94c4e6ae` reuses the original authored `LoadingModel`; `1be11d6c` exposes `RegistryUi.show_loading`; and `e8845a5e` centralizes original loading-bar shell construction, panel styles, and Godot model registration. Its targeted loading state/style test is GREEN for status, zone, tip, 25%/80% progress, and shell style. `63de89d7` moves native `loading_ui.gd` past the former unsupported-PNG failure to `LoadingBarBackground` decoration rejection. Native three-slice projection is pending agent74. No `GameClient` Loading route or world-readiness logic exists; no native loading fixture GREEN or rendered visual proof is claimed.
+
+`a89ab4d4` is an input readability refactor with no runtime proof yet. `b7070542` adds Frame left-press routing, but its real viewport card fixture is RED: clicking `Elara` selected `Theron`; agent68 build/fixture GREEN remains pending. Earlier `1296be4b` auth→Back GREEN remains bounded proof only. All feature-parity and full-conversion gates remain open.
+
 ## [2026-09-26] system | Godot successful auth to native character select
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `d1641bc9`/`9249929e`. `character_select_flow.gd` is GREEN with empty stderr at `/tmp/claude/godot-character_select_flow-d1641bc9.log`: successful `admin`/`admin` auth against explicitly local UDP `127.0.0.1:5000` creates `CharacterSelectUI` from the original `CharacterSelectModel`, maps protocol roster data, and hides `LoginUI`. `character_select_ui.gd` is GREEN with empty stderr at `/tmp/claude/godot-character-select-ui-corrected.log`: empty authored UI and Back action. The initial EnterWorld-disabled assumption was removed because the original authored button is enabled. `744f3e1b3` mapping tests are pure.
