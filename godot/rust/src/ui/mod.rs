@@ -211,6 +211,15 @@ impl RegistryUi {
     }
 
     #[func]
+    pub fn set_connecting(&mut self, connecting: bool) -> GString {
+        let Some(model) = self.model.as_mut() else {
+            return "Login UI is not initialized".into();
+        };
+        model.shared.insert(login::SharedConnecting(connecting));
+        GString::from(self.sync_model().err().unwrap_or_default().as_str())
+    }
+
+    #[func]
     fn remove_login(&mut self) -> GString {
         let Some(model) = self.model.as_mut() else {
             return "Login UI is not initialized".into();
