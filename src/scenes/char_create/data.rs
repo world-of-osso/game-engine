@@ -1,5 +1,3 @@
-use bevy::prelude::Color;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Faction {
     Alliance,
@@ -20,7 +18,8 @@ pub struct RaceInfo {
 pub struct ClassInfo {
     pub id: u8,
     pub name: &'static str,
-    pub color: Color,
+    /// Class color in authored sRGB channels; renderers convert at their boundary.
+    pub color: [f32; 3],
     /// FileDataID of the authored class icon BLP.
     pub icon_fdid: u32,
 }
@@ -214,61 +213,61 @@ pub static CLASSES: &[ClassInfo] = &[
     ClassInfo {
         id: 1,
         name: "Warrior",
-        color: Color::srgb(0.78, 0.61, 0.43),
+        color: [0.78, 0.61, 0.43],
         icon_fdid: 626008,
     },
     ClassInfo {
         id: 2,
         name: "Paladin",
-        color: Color::srgb(0.96, 0.55, 0.73),
+        color: [0.96, 0.55, 0.73],
         icon_fdid: 626003,
     },
     ClassInfo {
         id: 3,
         name: "Hunter",
-        color: Color::srgb(0.67, 0.83, 0.45),
+        color: [0.67, 0.83, 0.45],
         icon_fdid: 626000,
     },
     ClassInfo {
         id: 4,
         name: "Rogue",
-        color: Color::srgb(1.0, 0.96, 0.41),
+        color: [1.0, 0.96, 0.41],
         icon_fdid: 626005,
     },
     ClassInfo {
         id: 5,
         name: "Priest",
-        color: Color::srgb(1.0, 1.0, 1.0),
+        color: [1.0, 1.0, 1.0],
         icon_fdid: 626004,
     },
     ClassInfo {
         id: 6,
         name: "Death Knight",
-        color: Color::srgb(0.77, 0.12, 0.23),
+        color: [0.77, 0.12, 0.23],
         icon_fdid: 625998,
     },
     ClassInfo {
         id: 7,
         name: "Shaman",
-        color: Color::srgb(0.0, 0.44, 0.87),
+        color: [0.0, 0.44, 0.87],
         icon_fdid: 626006,
     },
     ClassInfo {
         id: 8,
         name: "Mage",
-        color: Color::srgb(0.25, 0.78, 0.92),
+        color: [0.25, 0.78, 0.92],
         icon_fdid: 626001,
     },
     ClassInfo {
         id: 9,
         name: "Warlock",
-        color: Color::srgb(0.53, 0.53, 0.93),
+        color: [0.53, 0.53, 0.93],
         icon_fdid: 626007,
     },
     ClassInfo {
         id: 11,
         name: "Druid",
-        color: Color::srgb(1.0, 0.49, 0.04),
+        color: [1.0, 0.49, 0.04],
         icon_fdid: 625999,
     },
 ];
