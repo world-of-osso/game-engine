@@ -2,9 +2,9 @@
 
 ## [2026-09-26] system | Godot loading-model and input-routing boundary
 
-Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md) through `94c4e6ae`, `1be11d6c`, `e8845a5e`, `63de89d7`, `a89ab4d4`, and `b7070542`. `94c4e6ae` reuses the original authored `LoadingModel`; `1be11d6c` exposes `RegistryUi.show_loading`; and `e8845a5e` centralizes original loading-bar shell construction, panel styles, and Godot model registration. Its targeted loading state/style test is GREEN for status, zone, tip, 25%/80% progress, and shell style. `63de89d7` moves native `loading_ui.gd` past the former unsupported-PNG failure to `LoadingBarBackground` decoration rejection. Native three-slice projection is pending agent74. No `GameClient` Loading route or world-readiness logic exists; no native loading fixture GREEN or rendered visual proof is claimed.
+Corrected stale proof through `c3911dff`. The `c3911dff`-inclusive native build exits 0 at `/tmp/claude/godot-loading-shell-build.log`, including `203d2d85` authored three-slice loading projection. `loading_ui.gd` exits 0 with empty stderr at `/tmp/claude/godot-loading-shell-fixture.log`: authored loading PNG artwork, shell, and initial progress. `b7070542` card input is GREEN at `/tmp/claude/character_card_input.gd.green.log`: a viewport left press selects the authored second card. Current `ui_projection.gd` and `character_select_flow.gd` both exit 0 with empty stderr, covering `a89ab4d4` input readability and real auth→roster→Back.
 
-`a89ab4d4` is an input readability refactor with no runtime proof yet. `b7070542` adds Frame left-press routing, but its real viewport card fixture is RED: clicking `Elara` selected `Theron`; agent68 build/fixture GREEN remains pending. Earlier `1296be4b` auth→Back GREEN remains bounded proof only. All feature-parity and full-conversion gates remain open.
+No `GameClient` Loading route or world-readiness logic exists. No rendered visual parity, full workflow, or feature-parity row is closed; full conversion remains open.
 
 ## [2026-09-26] system | Godot successful auth to native character select
 
