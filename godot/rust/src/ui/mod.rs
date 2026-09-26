@@ -37,6 +37,39 @@ impl RegistryModel {
         self.screen.sync(&self.shared, &mut self.registry);
     }
 
+    fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
+        let disabled = self
+            .registry
+            .get(id)
+            .and_then(|frame| frame.widget_data.as_ref())
+            .is_some_and(|data| {
+                matches!(data, WidgetData::Button(button)
+                    if !button.enabled || button.state == ButtonState::Disabled)
+            });
+        if !disabled && let Some(action) = self.registry.click_frame(id) {
+            actions.push_back(action);
+        }
+    }
+
+    fn focus_frame(&mut self, id: u64) {
+        self.registry.focused_frame = Some(id);
+    }
+
+    fn blur_frame(&mut self, id: u64) {
+        if self.registry.focused_frame == Some(id) {
+            self.registry.focused_frame = None;
+        }
+    }
+
+    fn edit_text(&mut self, id: u64, text: String) {
+        if let Some(frame) = self.registry.get_mut(id)
+            && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
+        {
+            edit.cursor_position = text.len();
+            edit.text = text;
+        }
+    }
+
     fn credentials(&self) -> Option<(String, String)> {
         let text = |name| {
             let frame = self.registry.get(self.registry.get_by_name(name)?)?;
@@ -214,35 +247,10 @@ impl RegistryUi {
         };
         for event in inputs {
             match event {
-                UiInput::Click(id) => {
-                    let disabled = model
-                        .registry
-                        .get(id)
-                        .and_then(|frame| frame.widget_data.as_ref())
-                        .is_some_and(|data| {
-                            matches!(data, WidgetData::Button(button)
-                                if !button.enabled || button.state == ButtonState::Disabled)
-                        });
-                    if !disabled && let Some(action) = model.registry.click_frame(id) {
-                        self.actions.push_back(action);
-                    }
-                }
-                UiInput::Focus(id) => {
-                    model.registry.focused_frame = Some(id);
-                }
-                UiInput::Blur(id) => {
-                    if model.registry.focused_frame == Some(id) {
-                        model.registry.focused_frame = None;
-                    }
-                }
-                UiInput::Text(id, text) => {
-                    if let Some(frame) = model.registry.get_mut(id)
-                        && let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut()
-                    {
-                        edit.cursor_position = text.len();
-                        edit.text = text;
-                    }
-                }
+                UiInput::Click(id) => model.queue_click_action(&mut self.actions, id),
+                UiInput::Focus(id) => model.focus_frame(id),
+                UiInput::Blur(id) => model.blur_frame(id),
+                UiInput::Text(id, text) => model.edit_text(id, text),
             }
         }
         GString::from(self.sync_model().err().unwrap_or_default().as_str())
