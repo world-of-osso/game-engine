@@ -206,7 +206,7 @@ pub enum Request {
     },
     QuestList,
     QuestWatch,
-    /// Interact with the nearest NPC of this name (the right-click request).
+    /// Right-click the nearest NPC or game object of this name, else target the player.
     QuestInteract {
         npc: String,
     },

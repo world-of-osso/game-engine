@@ -40,6 +40,7 @@ pub mod skybox_debug;
 pub mod spellbook_frame;
 pub mod static_popup;
 pub mod status_tracking_bar;
+pub mod summon_popup;
 pub mod talent_frame;
 pub mod teardown;
 pub mod tooltip_frame;
