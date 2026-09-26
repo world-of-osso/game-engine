@@ -29,6 +29,9 @@ func run():
     if not screen is Control or not screen.size.is_equal_approx(viewport_rect.size) or not viewport_rect.encloses(action_rect):
         fail("Character selection root/action outside viewport: root=" + str(screen.size) + " action=" + str(action_rect), ui)
         return
+    if not action_rect.size.is_equal_approx(Vector2(256, 64)):
+        fail("Native theme changed authored Enter World dimensions: " + str(action_rect.size), ui)
+        return
     var point := action_rect.get_center()
     var press := InputEventMouseButton.new()
     press.position = point
