@@ -48,6 +48,85 @@ struct Transition {
     duration_ms: f32,
 }
 
+struct VariationFamily {
+    candidates: Vec<(usize, u32)>,
+    total: u32,
+}
+
+impl VariationFamily {
+    fn read(sequences: &[m2::Sequence], current: usize) -> Result<Self, String> {
+        let id = sequences[current].id;
+        let base = sequences
+            .iter()
+            .position(|sequence| sequence.id == id && sequence.variation_id == 0)
+            .ok_or_else(|| format!("M2 animation {id} lacks base variation"))?;
+        let mut candidates = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        let mut next = Some(base);
+        let mut total = 0u32;
+        while let Some(index) = next {
+            if !seen.insert(index) {
+                return Err(format!("M2 animation {id} has cyclic variations"));
+            }
+            let sequence = sequences
+                .get(index)
+                .ok_or_else(|| format!("M2 animation {id} links absent variation {index}"))?;
+            if sequence.id != id {
+                return Err(format!(
+                    "M2 animation {id} links other animation {}",
+                    sequence.id
+                ));
+            }
+            let weight = u32::try_from(sequence.frequency)
+                .map_err(|_| format!("M2 variation {index} has negative weight"))?;
+            if weight > 0 && sequence.duration == 0 {
+                return Err(format!("M2 variation {index} has zero duration"));
+            }
+            total = total
+                .checked_add(weight)
+                .ok_or("M2 variation weight overflow")?;
+            candidates.push((index, weight));
+            next = match sequence.variation_next {
+                -1 => None,
+                index if index >= 0 => Some(index as usize),
+                index => return Err(format!("M2 invalid variation link {index}")),
+            };
+        }
+        if candidates.len() > 1 && total == 0 {
+            return Err(format!("M2 animation {id} has no variation weights"));
+        }
+        Ok(Self { candidates, total })
+    }
+
+    fn choose(&self, roll: u32) -> Result<usize, String> {
+        if roll >= self.total {
+            return Err(format!("M2 variation roll {roll} exceeds {}", self.total));
+        }
+        let mut remaining = roll;
+        for &(index, weight) in &self.candidates {
+            if remaining < weight {
+                return Ok(index);
+            }
+            remaining -= weight;
+        }
+        Err("M2 variation weights do not cover roll".into())
+    }
+}
+
+fn sample_roll(state: &mut u64, upper: u32) -> u32 {
+    let threshold = upper.wrapping_neg() % upper;
+    loop {
+        *state = state.wrapping_add(0x9e3779b97f4a7c15);
+        let mut value = *state;
+        value = (value ^ (value >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+        value = (value ^ (value >> 27)).wrapping_mul(0x94d049bb133111eb);
+        let value = (value ^ (value >> 31)) as u32;
+        if value >= threshold {
+            return value % upper;
+        }
+    }
+}
+
 /// Deterministic M2 sequence controller, independent of Godot frame timing.
 /// The caller owns explicit clip selection, time advancement and pause policy.
 pub struct AnimationState {
@@ -58,6 +137,7 @@ pub struct AnimationState {
     time_ms: f64,
     looping: bool,
     transition: Option<Transition>,
+    random_state: u64,
 }
 
 impl AnimationState {
@@ -86,6 +166,7 @@ impl AnimationState {
             time_ms: 0.0,
             looping: true,
             transition: None,
+            random_state: 0,
         })
     }
 
@@ -166,32 +247,85 @@ impl AnimationState {
     }
 
     pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
-        if !delta_ms.is_finite() || delta_ms < 0.0 {
+        let mut state = self.random_state;
+        let result = self.advance_with_roll(delta_ms, |upper| sample_roll(&mut state, upper));
+        self.random_state = state;
+        result
+    }
+
+    fn advance_with_roll(
+        &mut self,
+        delta_ms: f64,
+        mut roll: impl FnMut(u32) -> u32,
+    ) -> Result<(), String> {
+        if !delta_ms.is_finite() || delta_ms < 0.0 || delta_ms > f32::MAX as f64 {
             return Err(format!("Invalid M2 elapsed animation time {delta_ms}"));
         }
-        let duration = self.sequences[self.current].duration as f64;
-        let next = self.time_ms + delta_ms;
-        if !next.is_finite() {
+        let duration = f64::from(self.sequences[self.current].duration);
+        let elapsed = self.time_ms + delta_ms;
+        if !elapsed.is_finite() {
             return Err("M2 animation time overflow".into());
         }
-        self.time_ms = if duration == 0.0 {
-            0.0
-        } else if self.looping {
-            next % duration
-        } else {
-            next.min(duration)
-        };
-        if let Some(transition) = &mut self.transition {
-            transition.elapsed_ms += delta_ms as f32;
-            if let Outgoing::Sequence { index, time_ms } = &mut transition.outgoing {
-                let source_duration = self.sequences[*index].duration as f64;
-                *time_ms = (*time_ms + delta_ms).min(source_duration);
+        if !self.looping || duration == 0.0 || elapsed < duration {
+            self.time_ms = if duration > 0.0 {
+                elapsed.min(duration)
+            } else {
+                0.0
+            };
+            self.tick_transition(delta_ms);
+            return Ok(());
+        }
+        let family = VariationFamily::read(&self.sequences, self.current)?;
+        if family.candidates.len() == 1 {
+            self.time_ms = elapsed % duration;
+            self.tick_transition(delta_ms);
+            return Ok(());
+        }
+        let shortest = family
+            .candidates
+            .iter()
+            .filter(|(_, weight)| *weight > 0)
+            .map(|(index, _)| self.sequences[*index].duration)
+            .min()
+            .ok_or("M2 variation family has no playable duration")?;
+        if elapsed / f64::from(shortest) >= 4096.0 {
+            return Err("M2 elapsed animation requires 4096 or more variation boundaries".into());
+        }
+        let mut remaining = delta_ms;
+        loop {
+            let duration = f64::from(self.sequences[self.current].duration);
+            let until_boundary = (duration - self.time_ms).max(0.0);
+            if remaining < until_boundary {
+                self.time_ms += remaining;
+                self.tick_transition(remaining);
+                return Ok(());
             }
-            if transition.elapsed_ms >= transition.duration_ms {
-                self.transition = None;
+            remaining -= until_boundary;
+            self.time_ms = duration;
+            self.tick_transition(until_boundary);
+            let next = family.choose(roll(family.total))?;
+            if next != self.current {
+                self.select(next, true)?;
+            }
+            self.time_ms = 0.0;
+            if remaining == 0.0 {
+                return Ok(());
             }
         }
-        Ok(())
+    }
+
+    fn tick_transition(&mut self, delta_ms: f64) {
+        let Some(transition) = &mut self.transition else {
+            return;
+        };
+        transition.elapsed_ms += delta_ms as f32;
+        if let Outgoing::Sequence { index, time_ms } = &mut transition.outgoing {
+            let source_duration = f64::from(self.sequences[*index].duration);
+            *time_ms = (*time_ms + delta_ms).min(source_duration);
+        }
+        if transition.elapsed_ms >= transition.duration_ms {
+            self.transition = None;
+        }
     }
 }
 
@@ -370,35 +504,70 @@ mod tests {
         ));
     }
 
+    fn compose_godot_skin(index: usize, model: &m2::Model, poses: &[Transform3D]) -> Transform3D {
+        let parent = model.bones[index].parent_bone_id;
+        let parent_global = if parent < 0 {
+            Transform3D::IDENTITY
+        } else {
+            compose_godot_global(parent as usize, model, poses)
+        };
+        let global = parent_global * poses[index];
+        global * Transform3D::IDENTITY.translated(-basis(model.bones[index].pivot))
+    }
+
+    fn compose_godot_global(index: usize, model: &m2::Model, poses: &[Transform3D]) -> Transform3D {
+        let parent = model.bones[index].parent_bone_id;
+        if parent < 0 {
+            poses[index]
+        } else {
+            compose_godot_global(parent as usize, model, poses) * poses[index]
+        }
+    }
+
+    fn compose_bevy_skin(index: usize, model: &m2::Model, poses: &[Transform3D]) -> Transform3D {
+        let bone = &model.bones[index];
+        let absolute_pivot = basis(bone.pivot);
+        let local_pivot = if bone.parent_bone_id < 0 {
+            absolute_pivot
+        } else {
+            absolute_pivot - basis(model.bones[bone.parent_bone_id as usize].pivot)
+        };
+        let raw_translation = poses[index].origin - local_pivot;
+        let bevy_origin = raw_translation + absolute_pivot - poses[index].basis * absolute_pivot;
+        let local = Transform3D::new(poses[index].basis, bevy_origin);
+        if bone.parent_bone_id < 0 {
+            local
+        } else {
+            compose_bevy_skin(bone.parent_bone_id as usize, model, poses) * local
+        }
+    }
+
     #[test]
-    fn pivot_pose_skinning_matches_absolute_pivot_rotation_for_parent_and_child() {
+    fn authored_parent_child_rotations_match_bevy_pivot_skin_matrices() {
         let model = model();
-        let player = AnimationState::new(&model).expect("animated model");
+        let mut player = AnimationState::new(&model).expect("animated model");
+        player.advance(1000.0).expect("authored Stand at 1000ms");
         let poses = player.poses();
         let child = model
             .bones
             .iter()
             .enumerate()
-            .find(|(_, bone)| bone.parent_bone_id >= 0 && bone.pivot != [0.0; 3])
+            .find(|(index, bone)| {
+                bone.parent_bone_id >= 0
+                    && bone.pivot != [0.0; 3]
+                    && !near(poses[*index].basis.rows[0], Vector3::RIGHT)
+            })
             .map(|(index, _)| index)
-            .expect("HD child with a nonzero pivot");
+            .expect("HD rotating child with a nonzero pivot");
         let parent = model.bones[child].parent_bone_id as usize;
-        let parent_pivot = basis(model.bones[parent].pivot);
-        let child_pivot = basis(model.bones[child].pivot);
-        let parent_global = poses[parent];
-        let child_global = parent_global * poses[child];
-        let child_bind_inverse = Transform3D::IDENTITY.translated(-child_pivot);
-        let parent_bind_inverse = Transform3D::IDENTITY.translated(-parent_pivot);
-        let child_skin = child_global * child_bind_inverse;
-        let parent_skin = parent_global * parent_bind_inverse;
-        assert!(near(
-            child_skin.origin,
-            child_global.origin - child_global.basis * child_pivot
-        ));
-        assert!(near(
-            parent_skin.origin,
-            parent_global.origin - parent_global.basis * parent_pivot
-        ));
+        for index in [parent, child] {
+            let native = compose_godot_skin(index, &model, &poses);
+            let original = compose_bevy_skin(index, &model, &poses);
+            assert!(
+                near_pose(native, original),
+                "bone {index} differs in skinning basis"
+            );
+        }
     }
 
     #[test]
@@ -431,6 +600,27 @@ mod tests {
                 .zip(player.poses())
                 .all(|(a, b)| near_pose(*a, b))
         );
+    }
+
+    #[test]
+    fn wolf_loop_chooses_authored_weighted_variation_not_next_link_as_time() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let wolf = m2::parse_model(
+            &fs::read(root.join("126487.m2")).expect("wolf model"),
+            &fs::read(root.join("12648700.skin")).expect("wolf skin"),
+        )
+        .expect("authored wolf");
+        let mut player = AnimationState::new(&wolf).expect("wolf animation");
+        player.select(2, true).expect("Stand base variation");
+        assert_eq!(wolf.sequences[2].variation_next, 9);
+        assert_eq!(wolf.sequences[2].frequency, 30445);
+        let duration = wolf.sequences[2].duration as f64;
+        player
+            .advance_with_roll(duration, |_| 30445)
+            .expect("weighted boundary");
+        assert_eq!(player.current, 9);
+        assert_eq!(player.time_ms, 0.0);
+        assert_eq!(wolf.sequences[player.current].id, wolf.sequences[2].id);
     }
 
     #[test]
