@@ -1,6 +1,7 @@
 //! The client's item catalog, one entry per item ID from the build-pinned Retail
 //! DB2 exports: `Item.csv` (class, subclass, icon) joined with `ItemSparse.csv`
-//! (name, quality, stack size, sell price, binding, level, inventory type). The
+//! (name, quality, stack size, sell price, binding, level, inventory type), and the
+//! subclass names of `ItemSubClass.csv`. The
 //! server sends item IDs and counts only, so bags, the auction house and item
 //! tooltips resolve everything else here, as Retail's client resolves item data
 //! from its DB2 cache (`C_Item.GetItemInfo`).
@@ -35,16 +36,26 @@ pub struct ItemCatalogEntry {
     pub max_count: u32,
     /// `Description_lang`, the yellow flavor text.
     pub description: String,
+    /// `ContainerSlots` of a bag.
+    pub container_slots: u8,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ItemCatalog {
     items: HashMap<u32, ItemCatalogEntry>,
+    /// `ItemSubClass.DisplayName_lang` by (ClassID, SubClassID).
+    subclass_names: HashMap<(u8, u8), String>,
 }
 
 impl ItemCatalog {
     pub fn get(&self, item_id: u32) -> Option<&ItemCatalogEntry> {
         self.items.get(&item_id)
+    }
+
+    pub fn subclass_name(&self, class_id: u8, subclass_id: u8) -> Option<&str> {
+        self.subclass_names
+            .get(&(class_id, subclass_id))
+            .map(String::as_str)
     }
 
     pub fn len(&self) -> usize {
@@ -72,6 +83,11 @@ pub fn item_catalog_entry(item_id: u32) -> Option<&'static ItemCatalogEntry> {
     catalog().get(item_id)
 }
 
+/// The item's subclass name (`GetItemInfo` itemSubType): "Sword", "Cloth".
+pub fn item_subclass_name(entry: &ItemCatalogEntry) -> Option<&'static str> {
+    catalog().subclass_name(entry.class_id, entry.subclass_id)
+}
+
 /// Load the catalog on a background thread so the first bag or tooltip that needs
 /// it does not stall a frame on the ~175k-row ItemSparse parse.
 pub fn warm_item_catalog() {
@@ -84,11 +100,33 @@ fn db2_dir(data_dir: &Path) -> PathBuf {
     data_dir.join("db2").join(SPELL_DB2_BUILD)
 }
 
-/// `Item.csv` and `ItemSparse.csv` from one DB2 export directory.
+/// `Item.csv`, `ItemSparse.csv` and `ItemSubClass.csv` from one DB2 export directory.
 pub fn load_item_catalog(dir: &Path) -> Result<ItemCatalog, String> {
     let mut catalog = parse_item_catalog(&CsvTable::read(&dir.join("Item.csv"))?)?;
     apply_item_sparse(&mut catalog, &CsvTable::read(&dir.join("ItemSparse.csv"))?)?;
+    apply_subclass_names(
+        &mut catalog,
+        &CsvTable::read(&dir.join("ItemSubClass.csv"))?,
+    )?;
     Ok(catalog)
+}
+
+pub(crate) fn apply_subclass_names(
+    catalog: &mut ItemCatalog,
+    table: &CsvTable,
+) -> Result<(), String> {
+    let path = table.path();
+    csv_rows(
+        table,
+        ["ClassID", "SubClassID", "DisplayName_lang"],
+        |[class, subclass, name]| {
+            catalog.subclass_names.insert(
+                (number(class, path)? as u8, number(subclass, path)? as u8),
+                name.to_string(),
+            );
+            Ok(())
+        },
+    )
 }
 
 /// Rows of `table` as the values of `columns`, by header name. ItemSparse
@@ -139,13 +177,16 @@ pub(crate) fn parse_item_catalog(table: &CsvTable) -> Result<ItemCatalog, String
             Ok(())
         },
     )?;
-    Ok(ItemCatalog { items })
+    Ok(ItemCatalog {
+        items,
+        subclass_names: HashMap::new(),
+    })
 }
 
 /// Fill the ItemSparse fields of the catalog's items; sparse rows without an
 /// `Item` row are skipped (the client cannot show an item without its icon).
 pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> Result<(), String> {
-    const COLUMNS: [&str; 11] = [
+    const COLUMNS: [&str; 12] = [
         "ID",
         "Display_lang",
         "OverallQualityID",
@@ -157,6 +198,7 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
         "ItemLevel",
         "MaxCount",
         "Description_lang",
+        "ContainerSlots",
     ];
     let path = table.path();
     csv_rows(table, COLUMNS, |values| {
@@ -172,6 +214,7 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
             ilvl,
             max,
             desc,
+            slots,
         ] = values;
         let Some(entry) = catalog.items.get_mut(&(number(id, path)? as u32)) else {
             return Ok(());
@@ -186,6 +229,7 @@ pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> 
         entry.item_level = number(ilvl, path)?.max(0) as u16;
         entry.max_count = number(max, path)?.max(0) as u32;
         entry.description = desc.to_string();
+        entry.container_slots = number(slots, path)?.clamp(0, 255) as u8;
         Ok(())
     })
 }
