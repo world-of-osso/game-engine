@@ -29,6 +29,8 @@ BLP mip-0 RGBA8 becomes a Godot `Image`. Only ordinary type-0 texture FDIDs foun
 
 ## Capability and proof matrix
 
+The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventories every existing feature contract by capability. It is tracking only: source specifications remain authoritative, and no parser/core/transport result closes a user-visible runtime row.
+
 | Capability | Exact current implementation | Proof level / limit |
 | --- | --- | --- |
 | Extension bootstrap | `GameClient` native `Node3D`; historical scene-tree smoke. | Historical runtime GREEN only; no current integrated native-runtime proof. |
@@ -47,6 +49,7 @@ BLP mip-0 RGBA8 becomes a Godot `Image`. Only ordinary type-0 texture FDIDs foun
 ## Sources
 
 - [Godot conversion specification](../../specs/godot-conversion.md) — acceptance target and current capability/proof matrix.
+- [Godot feature parity matrix](../../specs/godot-parity-matrix.md) — all preexisting feature contracts and current conversion status.
 - [Godot workspace](../../godot/Cargo.toml) — members and local dependency patches.
 - [Network manifest](../../godot/network/Cargo.toml) — current headless transport dependencies.
 - [Godot project](../../godot/project.godot) — project runtime configuration.

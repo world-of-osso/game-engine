@@ -19,7 +19,7 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 ### Evidence
 
-- [ ] Record a complete feature-parity matrix, with missing/blocked/unverified capabilities explicit.
+- [ ] Record a complete feature-parity matrix, with missing/blocked/unverified capabilities explicit. [Detailed matrix](godot-parity-matrix.md) inventories every existing feature contract; all rows remain open.
 - [ ] Exercise real client/server workflows and inspect matching visual/interaction fixtures.
 - [ ] Record matched frame-time, loading and memory evidence without inferring performance from implementation shape.
 - [ ] Pass relevant behavioral/integration tests and final Rust formatting/checks at the integrated revision.
@@ -29,6 +29,10 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 - [Existing UI contracts](registry-bevy-ui.md)
 - [Rendering pipeline](../wiki/systems/rendering-pipeline.md)
 - [Networking boundary](../wiki/systems/networking.md)
+
+## Parity inventory
+
+[Godot feature parity matrix](godot-parity-matrix.md) tracks every existing feature specification by capability. Its source contracts remain authoritative; parser/core/transport work does not close runtime parity.
 
 ## Implementation inventory
 

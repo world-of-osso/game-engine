@@ -1002,3 +1002,7 @@ Created [[bevy-godot-shadow-comparison]]. Revision-pinned source review records 
 ## [2026-09-26] update | Map transfers and WMO-only maps
 
 [[terrain]]: maps named by Map.db2 Directory; WDT MPHD 0x1 global WMO maps (Stockade) spawn one WMO placed from the world origin, no tiles; WMO floors are the only ground and the camera is not terrain-clamped there. Spec [instances](../specs/instances.md) (NewWorld/WorldPortAck, TransferAborted, CONFIRM_SUMMON after loading).
+
+## [2026-09-26] system | Godot full-contract parity inventory
+
+Created [Godot feature parity matrix](../specs/godot-parity-matrix.md) and linked it from [[godot-conversion]] and the conversion specification. It inventories every existing feature specification by concrete capability, without duplicating those contracts. Every conversion row remains Missing: current parser/core, preview, portable-UI-model, account-host, and headless transport results do not establish Godot runtime parity. The authorized Bevy boundary remains transport-only; the integrated full-client conversion gate is unchanged and open.
