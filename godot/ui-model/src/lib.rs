@@ -13,7 +13,7 @@ pub mod ui {
 }
 
 #[path = "../../../src/ui/screens/campsite_component.rs"]
-mod campsite_component;
+pub mod campsite_component;
 #[path = "../../../src/ui/screens/char_select_component.rs"]
 pub mod char_select_component;
 #[path = "../../../src/ui/screens/char_select_delete_confirm_component.rs"]
