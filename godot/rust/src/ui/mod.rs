@@ -37,7 +37,8 @@ impl ICanvasLayer for RegistryUi {
 
 pub fn create_login_ui(width: f32, height: f32) -> Result<Gd<RegistryUi>, String> {
     let mut ui = RegistryUi::new_alloc();
-    if let Err(error) = ui.bind_mut().initialize_login(width, height) {
+    let result = ui.bind_mut().initialize_login(width, height);
+    if let Err(error) = result {
         ui.free();
         return Err(error);
     }
