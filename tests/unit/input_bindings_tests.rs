@@ -103,7 +103,6 @@ fn panel_toggles_use_retail_default_keys() {
             InputAction::ToggleSocial,
             Some(InputBinding::Keyboard(KeyCode::KeyO)),
         ),
-        (InputAction::ToggleMail, None),
         (InputAction::ToggleLootRules, None),
         (
             InputAction::ToggleQuestLog,
@@ -165,7 +164,7 @@ fn ctrl_s_toggles_mute_without_moving_backward() {
 fn shift_binding_shadows_plain_binding_on_same_key() {
     let mut bindings = InputBindings::default();
     bindings.assign(
-        InputAction::ToggleMail,
+        InputAction::ToggleLootRules,
         InputBinding::ShiftKeyboard(KeyCode::KeyM),
     );
     let mouse = ButtonInput::<MouseButton>::default();
@@ -173,7 +172,7 @@ fn shift_binding_shadows_plain_binding_on_same_key() {
     keys.press(KeyCode::ShiftLeft);
     keys.press(KeyCode::KeyM);
 
-    assert!(bindings.is_just_pressed(InputAction::ToggleMail, &keys, &mouse));
+    assert!(bindings.is_just_pressed(InputAction::ToggleLootRules, &keys, &mouse));
     assert!(!bindings.is_just_pressed(InputAction::ToggleWorldMap, &keys, &mouse));
 }
 
@@ -232,7 +231,7 @@ fn saved_file_on_old_mute_default_migrates_to_retail_defaults() {
         bindings.binding(InputAction::ToggleWorldMap),
         Some(InputBinding::Keyboard(KeyCode::KeyM))
     );
-    assert_eq!(bindings.binding(InputAction::ToggleMail), None);
+    assert_eq!(bindings.binding(InputAction::ToggleLootRules), None);
 }
 
 #[test]

@@ -31,6 +31,8 @@ pub(crate) mod networking_group;
 pub(crate) mod networking_inventory;
 #[path = "networking/loot.rs"]
 pub(crate) mod networking_loot;
+#[path = "networking/mail.rs"]
+pub(crate) mod networking_mail;
 #[path = "networking/merchant.rs"]
 pub(crate) mod networking_merchant;
 #[path = "networking/messages.rs"]
@@ -41,12 +43,12 @@ pub(crate) mod networking_npc;
 pub(crate) mod networking_player;
 #[path = "networking/quests.rs"]
 pub(crate) mod networking_quests;
-#[path = "networking/trainer.rs"]
-pub(crate) mod networking_trainer;
 #[path = "networking/server_movement.rs"]
 pub(crate) mod networking_server_movement;
 #[path = "networking/taxi.rs"]
 pub(crate) mod networking_taxi;
+#[path = "networking/trainer.rs"]
+pub(crate) mod networking_trainer;
 
 #[path = "world_db/zone_names.rs"]
 pub(crate) mod zone_names;

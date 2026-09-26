@@ -5,7 +5,6 @@ use game_engine::character_export::{
 };
 use game_engine::ipc::Request;
 use game_engine::item_info::ItemInfoQuery;
-use game_engine::mail::{DeleteMail, ListMailQuery, ReadMail, SendMail};
 use game_engine::status::{
     CharacterStatsSnapshot, EquipmentAppearanceStatusSnapshot, EquippedGearEntry,
     EquippedGearStatusSnapshot,

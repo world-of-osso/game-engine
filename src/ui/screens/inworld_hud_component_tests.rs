@@ -290,7 +290,7 @@ fn minimap_builds_buttons_ring() {
         "MinimapZoomIn",
         "MinimapZoomOut",
         "MinimapCalendarButton",
-        "MinimapMailButton",
+        "MiniMapMailFrame",
         "MinimapLFGButton",
     ] {
         assert!(reg.get_by_name(name).is_some(), "{name} missing");

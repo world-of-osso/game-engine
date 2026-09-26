@@ -1,4 +1,5 @@
 pub(crate) mod format;
+pub(crate) mod mail;
 pub mod plugin;
 
 pub use plugin::IpcPlugin;
@@ -9,12 +10,11 @@ use std::sync::mpsc;
 use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin};
 use serde::{Deserialize, Serialize};
 use shared::protocol::{
-    AuctionSearchQuery, BuyoutAuction, CalendarSignupStatusSnapshot, CancelAuction,
-    ClaimAuctionMail, CreateAuction, EmoteKind, PlaceBid, PvpBracketSnapshot,
+    AuctionSearchQuery, BuyoutAuction, CalendarSignupStatusSnapshot, CancelAuction, CreateAuction,
+    EmoteKind, PlaceBid, PvpBracketSnapshot,
 };
 
 use crate::item_info::ItemInfoQuery;
-use crate::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use crate::status::GroupRole;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone)]
@@ -45,7 +45,6 @@ pub enum Request {
     AuctionOwned,
     AuctionBids,
     AuctionInventory,
-    AuctionMailbox,
     AuctionCreate {
         create: CreateAuction,
     },
@@ -57,9 +56,6 @@ pub enum Request {
     },
     AuctionCancel {
         cancel: CancelAuction,
-    },
-    AuctionClaimMail {
-        claim: ClaimAuctionMail,
     },
     AuctionStatus,
     TradeInitiate {
@@ -80,6 +76,7 @@ pub enum Request {
         copper: u64,
     },
     TradeConfirm,
+    TradeCancelAccept,
     TradeStatus,
     InspectQuery,
     InspectStatus,
@@ -184,22 +181,22 @@ pub enum Request {
     ItemInfo {
         query: ItemInfoQuery,
     },
-    MailSend {
-        mail: SendMail,
-    },
-    MailList {
-        query: ListMailQuery,
-    },
-    MailRead {
-        read: ReadMail,
-    },
-    MailClaim {
-        claim: ClaimMail,
-    },
-    MailDelete {
-        delete: DeleteMail,
-    },
+    /// The open mailbox, its inbox and the pending-mail senders.
     MailStatus,
+    /// `SendMail` at the open mailbox.
+    MailSend {
+        recipient: String,
+        subject: String,
+        body: String,
+        attachments: Vec<u64>,
+        money: u64,
+        cod: u64,
+    },
+    /// One inbox action at the open mailbox.
+    MailAct {
+        mail_id: u64,
+        action: shared::protocol::MailAction,
+    },
     InventoryList,
     InventorySearch {
         text: String,

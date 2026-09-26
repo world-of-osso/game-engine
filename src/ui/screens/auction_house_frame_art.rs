@@ -256,7 +256,7 @@ pub(super) fn three_slice(
 }
 
 /// `InsetFrameTemplate` NineSlice border around `rect`.
-pub(super) fn inset_border(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
+pub(crate) fn inset_border(prefix: &str, rect: (f32, f32, f32, f32)) -> Element {
     let (x, y, w, h) = rect;
     let parts = [
         ("TopEdge", INSET_TOP, (x + 6.0, y, w - 12.0, 3.0)),

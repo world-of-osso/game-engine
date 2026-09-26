@@ -2,9 +2,10 @@ use super::*;
 
 #[test]
 fn classify_world_object_model_detects_clickable_prop_types() {
+    // Mailboxes are server game objects (type 19); a mailbox doodad is scenery.
     assert_eq!(
         classify_world_object_model("world/generic/passivedoodads/mailbox/mailboxhuman.m2"),
-        Some(WorldObjectInteractionKind::Mailbox)
+        None
     );
     assert_eq!(
         classify_world_object_model("world/skillactivated/tradeskillnodes/copper_miningnode_01.m2"),
@@ -47,42 +48,19 @@ fn classify_world_object_model_avoids_location_false_positives() {
 }
 
 #[test]
-fn interact_with_object_mailbox_queues_mail_open() {
-    let mut queue = game_engine::mail_data::MailIntentQueue::default();
-    assert!(interact_with_object(
-        WorldObjectInteractionKind::Mailbox,
-        &mut queue,
-        None,
-        None,
-    ));
-    assert_eq!(
-        queue.pending,
-        vec![game_engine::mail_data::MailIntent::OpenMailbox]
-    );
-}
-
-#[test]
 fn interact_with_object_forge_is_not_a_window() {
     // Retail forges and anvils are crafting spell foci, not interactable objects.
-    let mut queue = game_engine::mail_data::MailIntentQueue::default();
-    let mut window_manager = crate::window_manager::WindowManager::default();
     assert!(!interact_with_object(
         WorldObjectInteractionKind::Forge,
-        &mut queue,
-        Some(&mut window_manager),
-        None,
+        None
     ));
-    assert!(!window_manager.any_open());
 }
 
 #[test]
 fn interact_with_object_chair_queues_sit_emote() {
-    let mut queue = game_engine::mail_data::MailIntentQueue::default();
     let mut input = crate::networking::EmoteInput(None);
     assert!(interact_with_object(
         WorldObjectInteractionKind::Chair,
-        &mut queue,
-        None,
         Some(&mut input),
     ));
     assert_eq!(
@@ -95,35 +73,24 @@ fn interact_with_object_chair_queues_sit_emote() {
 
 #[test]
 fn interact_with_object_gather_node_does_nothing_without_server_nodes() {
-    let mut queue = game_engine::mail_data::MailIntentQueue::default();
-
     assert!(!interact_with_object(
         WorldObjectInteractionKind::GatherNode(GatherNodeKind::CopperVein),
-        &mut queue,
-        None,
         None,
     ));
-    assert!(queue.pending.is_empty());
 }
 
 #[test]
 fn interact_with_object_zone_transition_consumes_click() {
-    let mut queue = game_engine::mail_data::MailIntentQueue::default();
-
     assert!(interact_with_object(
         WorldObjectInteractionKind::ZoneTransition,
-        &mut queue,
-        None,
         None,
     ));
-    assert!(queue.pending.is_empty());
 }
 
 fn corpse_app(health: f32, lootable: bool, auto_loot: bool, shift: bool) -> (App, Entity) {
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.init_resource::<CurrentTarget>()
-        .init_resource::<MailIntentQueue>()
         .init_resource::<ButtonInput<KeyCode>>()
         .add_message::<crate::networking_quests::NpcInteractionRequest>()
         .add_message::<LootRequest>();

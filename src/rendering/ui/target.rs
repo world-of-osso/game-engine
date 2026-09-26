@@ -3,7 +3,6 @@ use bevy::picking::mesh_picking::ray_cast::MeshRayCast;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use game_engine::loot_state::{LootRequest, Lootable, NpcRightClick, auto_loot, npc_right_click};
-use game_engine::mail_data::MailIntentQueue;
 use game_engine::quest_tracking::QuestTrackedItem;
 use game_engine::targeting::CurrentTarget;
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
@@ -57,6 +56,8 @@ pub enum GatherNodeKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorldObjectInteractionKind {
+    /// A replicated Mailbox game object (`GAMEOBJECT_TYPE_MAILBOX`): used like
+    /// `ServerObject`, with the mail cursor and the minimap mailbox icon.
     Mailbox,
     Forge,
     Anvil,
@@ -92,8 +93,6 @@ struct RightClickInteractionState<'w, 's> {
     >,
     current: ResMut<'w, CurrentTarget>,
     interactions: MessageWriter<'w, crate::networking_quests::NpcInteractionRequest>,
-    mail_queue: ResMut<'w, MailIntentQueue>,
-    window_manager: Option<ResMut<'w, crate::window_manager::WindowManager>>,
     emote_input: Option<ResMut<'w, crate::networking::EmoteInput>>,
     corpses: Query<'w, 's, (&'static NetHealth, Has<Lootable>)>,
     loot: MessageWriter<'w, LootRequest>,
@@ -178,7 +177,6 @@ impl Plugin for TargetPlugin {
         app.init_resource::<TargetCircleStyle>();
         app.add_message::<crate::networking_quests::NpcInteractionRequest>();
         app.add_message::<LootRequest>();
-        app.init_resource::<MailIntentQueue>();
         app.init_resource::<ZoneTransitionContactState>();
         let stage = crate::game::inworld_scene_stage::configured_inworld_scene_stage_for_app(app);
         if stage == crate::game::inworld_scene_stage::InWorldSceneStage::Empty {
@@ -218,9 +216,6 @@ pub(crate) fn classify_world_object_model(model: &str) -> Option<WorldObjectInte
         .and_then(|value| value.to_str())
         .unwrap_or(&normalized);
 
-    if stem.contains("mailbox") {
-        return Some(WorldObjectInteractionKind::Mailbox);
-    }
     if stem.contains("copper_miningnode") {
         return Some(WorldObjectInteractionKind::GatherNode(
             GatherNodeKind::CopperVein,
@@ -565,7 +560,10 @@ fn interact_with_clicked_object(
     player_position: Vec3,
     state: &mut RightClickInteractionState<'_, '_>,
 ) -> bool {
-    if kind == WorldObjectInteractionKind::ServerObject {
+    if matches!(
+        kind,
+        WorldObjectInteractionKind::ServerObject | WorldObjectInteractionKind::Mailbox
+    ) {
         state
             .interactions
             .write(crate::networking_quests::NpcInteractionRequest::UseObject(
@@ -579,12 +577,7 @@ fn interact_with_clicked_object(
     if player_position.distance(object_tf.translation()) > INTERACT_RANGE {
         return true;
     }
-    let _ = interact_with_object(
-        kind,
-        &mut state.mail_queue,
-        state.window_manager.as_deref_mut(),
-        state.emote_input.as_deref_mut(),
-    );
+    let _ = interact_with_object(kind, state.emote_input.as_deref_mut());
     true
 }
 
@@ -637,18 +630,9 @@ fn interaction_target_at_cursor(
 
 fn interact_with_object(
     kind: WorldObjectInteractionKind,
-    mail_queue: &mut MailIntentQueue,
-    window_manager: Option<&mut crate::window_manager::WindowManager>,
     emote_input: Option<&mut crate::networking::EmoteInput>,
 ) -> bool {
     match kind {
-        WorldObjectInteractionKind::Mailbox => {
-            mail_queue.open_mailbox();
-            if let Some(window_manager) = window_manager {
-                window_manager.open(crate::window_manager::WindowId::Mail);
-            }
-            true
-        }
         // Crafting spell foci (`SpellFocusObject`), not interactable in Retail.
         WorldObjectInteractionKind::Forge | WorldObjectInteractionKind::Anvil => false,
         WorldObjectInteractionKind::Chair => {
@@ -663,7 +647,9 @@ fn interact_with_object(
         // Gathering nodes are server game objects (follow-up), not doodads.
         WorldObjectInteractionKind::GatherNode(_) => false,
         WorldObjectInteractionKind::ZoneTransition => true,
-        WorldObjectInteractionKind::QuestObject | WorldObjectInteractionKind::ServerObject => false,
+        WorldObjectInteractionKind::QuestObject
+        | WorldObjectInteractionKind::ServerObject
+        | WorldObjectInteractionKind::Mailbox => false,
     }
 }
 

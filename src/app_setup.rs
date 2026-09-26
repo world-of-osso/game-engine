@@ -258,7 +258,6 @@ fn register_ui_plugins(app: &mut App) {
         .add_plugins(game_engine::talent_tree::TalentTreePlugin)
         .add_plugins(game_engine::talent::TalentPlugin)
         .add_plugins(game_engine::trade::TradePlugin)
-        .add_plugins(game_engine::mail::MailPlugin)
         .add_plugins(game_engine::ui::plugin::UiPlugin)
         .add_plugins(game_engine::ui::automation::UiAutomationPlugin)
         .add_plugins(IpcPlugin)
@@ -568,6 +567,7 @@ fn add_core_screen_plugins(app: &mut App) {
         crate::game::networking_group::GroupNetworkPlugin,
         crate::game::networking_inventory::InventoryNetworkPlugin,
         crate::game::networking_bank::BankNetworkPlugin,
+        crate::game::networking_mail::MailNetworkPlugin,
         crate::game::networking_trainer::TrainerNetworkPlugin,
     ));
     app.add_plugins((
@@ -630,6 +630,7 @@ fn add_misc_runtime_plugins(app: &mut App) {
     app.add_plugins(game_engine::ui::addon_runtime::AddonRuntimePlugin);
     app.add_plugins(scenes::casting_bar_frame::CastingBarFramePlugin);
     app.add_plugins(scenes::mail_frame::MailFramePlugin);
+    app.add_plugins(scenes::trade_frame::TradeFramePlugin);
     app.add_plugins(scenes::quest_ui::QuestUiPlugin);
     app.add_plugins(scenes::merchant_frame::MerchantFramePlugin);
     app.add_plugins(scenes::loot_frame::LootFramePlugin);
