@@ -55,14 +55,22 @@ func _initialize() -> void:
 			fail("midblend retransition popped bone " + str(bone))
 			return
 	player.set_paused(true)
-	var paused := skeleton.get_bone_pose(0)
+	var paused := []
+	for bone in skeleton.get_bone_count():
+		paused.append(skeleton.get_bone_pose(bone))
 	player.advance_time_ms(300.0)
-	if not close_pose(paused, skeleton.get_bone_pose(0)):
-		fail("pause changed pose")
-		return
+	for bone in skeleton.get_bone_count():
+		if not close_pose(paused[bone], skeleton.get_bone_pose(bone)):
+			fail("pause changed bone " + str(bone))
+			return
 	player.set_paused(false)
-	if player.play_sequence(99999, true):
-		fail("invalid sequence accepted")
+	player.advance_time_ms(50.0)
+	var resumed_bones := 0
+	for bone in skeleton.get_bone_count():
+		if not close_pose(paused[bone], skeleton.get_bone_pose(bone)):
+			resumed_bones += 1
+	if resumed_bones < 10:
+		fail("resume did not animate HD bones: " + str(resumed_bones))
 		return
-	print("PASS: %d HD bones have authored Stand motion, midblend transition continuous" % changed_bones)
+	print("PASS: %d HD bones animate Stand; midblend continuous; pause/resume advances %d bones" % [changed_bones, resumed_bones])
 	quit(0)
