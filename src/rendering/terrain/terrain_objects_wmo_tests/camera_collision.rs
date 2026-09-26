@@ -10,8 +10,19 @@ const MAGIC_DISTRICT_ROOT_FDID: u32 = 321999;
 const STAIRWELL_GROUP: u16 = 58;
 
 /// Real transform, visibility, frustum, portal culling and camera follow over every
-/// `sw_magicdistrict` group, with each group's batch meshes as `WmoCollisionMesh` children.
+/// `sw_magicdistrict` group, with each group's batch meshes as children, `WmoCollisionMesh`
+/// except antiportals as the WMO spawn marks them.
 fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entity, Entity) {
+    let start = Transform::from_translation(wow_to_bevy(player_wow) + Vec3::Y * 2.0);
+    magic_district_app(player_wow, start, Some(camera))
+}
+
+/// As `magic_district_camera_app`; without a `WowCamera` the camera stays at `camera_start`.
+fn magic_district_app(
+    player_wow: Vec3,
+    camera_start: Transform,
+    camera: Option<WowCamera>,
+) -> (App, Entity, Entity) {
     let (placement_transform, root, groups) =
         super::portal_culling::load_tile_30_48_wmo(MAGIC_DISTRICT_ROOT_FDID);
     let mut app = App::new();
@@ -38,7 +49,7 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
             Transform::from_translation(wow_to_bevy(player_wow)),
         ))
         .id();
-    let camera = app
+    let camera_entity = app
         .world_mut()
         .spawn((
             Camera3d::default(),
@@ -48,10 +59,12 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
                 aspect_ratio: 16.0 / 9.0,
                 ..default()
             }),
-            camera,
-            Transform::from_translation(wow_to_bevy(player_wow) + Vec3::Y * 2.0),
+            camera_start,
         ))
         .id();
+    if let Some(camera) = camera {
+        app.world_mut().entity_mut(camera_entity).insert(camera);
+    }
     let root_entity = app
         .world_mut()
         .spawn((
@@ -67,28 +80,30 @@ fn magic_district_camera_app(player_wow: Vec3, camera: WowCamera) -> (App, Entit
         commands.entity(root_entity).add_child(group_entity);
     }
     app.world_mut().flush();
-    let group_entities: Vec<(Entity, u16)> = app
+    let group_entities: Vec<(Entity, u16, bool)> = app
         .world_mut()
         .query::<(Entity, &WmoGroup)>()
         .iter(app.world())
-        .map(|(entity, group)| (entity, group.group_index))
+        .map(|(entity, group)| (entity, group.group_index, group.is_antiportal))
         .collect();
-    for (group_entity, index) in group_entities {
+    for (group_entity, index, is_antiportal) in group_entities {
         for batch in &groups[index as usize].batches {
             let mesh = app
                 .world_mut()
                 .resource_mut::<Assets<Mesh>>()
                 .add(batch.mesh.clone());
-            app.world_mut().spawn((
+            let mut batch_entity = app.world_mut().spawn((
                 Mesh3d(mesh),
                 Transform::default(),
                 Visibility::default(),
-                crate::collision::WmoCollisionMesh,
                 ChildOf(group_entity),
             ));
+            if !is_antiportal {
+                batch_entity.insert(crate::collision::WmoCollisionMesh);
+            }
         }
     }
-    (app, player, camera)
+    (app, player, camera_entity)
 }
 
 fn wow_to_bevy(wow: Vec3) -> Vec3 {
@@ -196,5 +211,86 @@ fn camera_passing_the_stockade_doorway_keeps_the_stairwell_drawn() {
         culled_frames,
         Vec::<u32>::new(),
         "frames with the stairwell culled"
+    );
+}
+
+/// The player on the Stockade stairs (WoW -8774, 838) walks 8 yd sideways toward the
+/// stairwell wall 6.2 yd away (WMO-local y -141.9, the doorway's edge) while the camera stands high above the canal street, outside every interior, so
+/// portal culling hides `BigJailRoom01`. Its wall must still stop the player: portal culling
+/// decides what is drawn, not what is solid.
+#[test]
+fn player_on_the_stockade_stairs_is_blocked_by_the_culled_stairwell_wall() {
+    let above_street = Transform::from_translation(wow_to_bevy(Vec3::new(-8790.0, 800.0, 140.0)))
+        .looking_at(wow_to_bevy(Vec3::new(-8700.0, 700.0, 120.0)), Vec3::Y);
+    let (mut app, _, _) = magic_district_app(STAIRS_TOP, above_street, None);
+    for _ in 0..3 {
+        advance(&mut app, 1.0 / 60.0);
+    }
+    assert_eq!(stairwell_visibility(&mut app), Visibility::Hidden);
+
+    let current = wow_to_bevy(STAIRS_TOP);
+    // Local -Y of the district WMO (yaw 38.5°): across the stairwell.
+    let proposed = current + wow_to_bevy(Vec3::new(-0.622, 0.783, 0.0)) * 8.0;
+    let clamped = app
+        .world_mut()
+        .run_system_once(
+            move |mut ray_cast: MeshRayCast,
+                  walls: Query<Entity, With<crate::collision::WmoCollisionMesh>>| {
+                let walls = walls.iter().collect();
+                crate::collision::clamp_movement_against_wmo_meshes(
+                    current,
+                    proposed,
+                    &mut ray_cast,
+                    &walls,
+                )
+            },
+        )
+        .expect("movement clamp runs");
+
+    let moved = (clamped - current).xz().length();
+    assert!(
+        moved < 6.3,
+        "walked {moved:.2} yd through the stairwell wall"
+    );
+}
+
+/// The player in the Stockade entrance tunnel (`Jail01`, WoW -8765, 846.5, 88) with the
+/// camera ahead of them toward the portal. The canal street terrain rises through the tunnel
+/// there (87.2 to 92.5 against a floor near 87), but it is not what bounds a camera inside a
+/// WMO interior: the camera must sit where the tunnel walls alone put it, as without terrain.
+#[test]
+fn stockade_tunnel_camera_ignores_the_terrain_above_the_tunnel() {
+    let player = Vec3::new(-8765.0, 846.5, 88.0);
+    let settle = |with_terrain: bool| {
+        let camera = WowCamera {
+            yaw: 130f32.to_radians(),
+            pitch: 20f32.to_radians(),
+            distance: 8.0,
+            target_distance: 8.0,
+            ..default()
+        };
+        let (mut app, _, camera_entity) = magic_district_camera_app(player, camera);
+        if with_terrain {
+            let data = std::fs::read("data/terrain/777627.adt").expect("azeroth_30_48 root ADT");
+            let adt = crate::asset::adt::load_adt(&data).expect("parse azeroth_30_48");
+            let mut heightmap = crate::terrain_heightmap::TerrainHeightmap::default();
+            heightmap.insert_tile(30, 48, &adt);
+            app.insert_resource(heightmap);
+        }
+        for _ in 0..300 {
+            advance(&mut app, 1.0 / 60.0);
+        }
+        app.world()
+            .get::<Transform>(camera_entity)
+            .unwrap()
+            .translation
+    };
+
+    let walls_only = settle(false);
+    let with_terrain = settle(true);
+
+    assert!(
+        with_terrain.abs_diff_eq(walls_only, 0.01),
+        "terrain moved the camera from {walls_only} to {with_terrain}"
     );
 }

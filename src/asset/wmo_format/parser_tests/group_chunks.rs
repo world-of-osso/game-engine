@@ -32,6 +32,7 @@ fn parse_mogp_header_reads_group_fields() {
         WmoGroupFlags {
             exterior: false,
             interior: false,
+            antiportal: false,
         }
     );
     assert_eq!(header.bbox_min, [-1.0, -2.0, -3.0]);
@@ -61,6 +62,7 @@ fn parse_mogp_header_reads_indoor_and_outdoor_group_flags() {
         WmoGroupFlags {
             exterior: false,
             interior: true,
+            antiportal: false,
         }
     );
 
@@ -73,8 +75,21 @@ fn parse_mogp_header_reads_indoor_and_outdoor_group_flags() {
         WmoGroupFlags {
             exterior: true,
             interior: false,
+            antiportal: false,
         }
     );
+}
+
+/// `sw_magicdistrict` group 62 (`antiportal`) carries MOGP flags 0x84002080.
+#[test]
+fn parse_mogp_header_reads_the_antiportal_flag() {
+    let mut data = vec![0_u8; MOGP_HEADER_SIZE];
+    data[8..12].copy_from_slice(&0x8400_2080_u32.to_le_bytes());
+
+    let header = parse_mogp_header(&data).expect("parse antiportal MOGP");
+
+    assert!(header.group_flags.antiportal);
+    assert!(!header.group_flags.exterior);
 }
 
 #[test]
