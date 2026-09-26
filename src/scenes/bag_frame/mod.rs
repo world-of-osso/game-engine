@@ -592,6 +592,7 @@ mod tests {
                 },
                 InventorySlot::default(),
             ]],
+            ..Default::default()
         };
         let mut window_manager = WindowManager::default();
         window_manager.open(WindowId::Bag(0));
@@ -603,6 +604,6 @@ mod tests {
         assert!(state.bags[0].visible);
         assert_eq!(state.bags[0].slots[0].icon_fdid, 11);
         assert_eq!(state.bags[0].slots[0].count, 3);
-        assert_eq!(state.bags[0].slots[0].quality_border, "0.0,0.44,0.87,1.0");
+        assert_eq!(state.bags[0].slots[0].quality_border, "0.0,0.57,0.95,1.0");
     }
 }
