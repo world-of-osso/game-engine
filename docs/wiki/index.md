@@ -23,6 +23,7 @@ Engine subsystems and how they work.
 - [talents-ui](systems/talents-ui.md) — Retail trait-tree window `PlayerSpellsFrame`: CSV tree load, mirrored server rules, local pending config, Apply/Reset/spec, authored `talents-*` atlas art
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
+- [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
 - [terrain](systems/terrain.md) — ADT loading, split files, authored MCVT axes, tile ordering, object placement rotation, doodad collision
 - [asset-pipeline](systems/asset-pipeline.md) — CASC lookup chain, casc-local tool, community listfile, FDID resolution for runtime/UI consumers, TACT keys
 - [character-rendering](systems/character-rendering.md) — HD skeletons, player model-completion appearance boundary, authored NPC compositing, geosets, helmet hiding, target circles
@@ -51,7 +52,7 @@ Architecture decisions and feature designs.
 - [ui-addon-system](design/ui-addon-system.md) — WASM-sandboxed addon plugins, game-api crate, hot reload
 - [ui-frame-order](design/ui-frame-order.md) — implemented shared plugin ordering; standalone setup preserved, named scheduling sets and revision-scoped verification
 - [nameplate-design](design/nameplate-design.md) — `NameplateStyle` sizes/colours (Options > Nameplates, Thin/Thick presets), FactionTemplate reaction tints, name centred above the bar in overlay units, half-scale reference calibration, local-owner exclusion, shared name/health/cast distance policy, registry-first plate-owner selection, and offline cast/channel preview; rendered/test verification remains open
-- [collision-system](design/collision-system.md) — current terrain vertical support and horizontal WMO/M2 collision; WMO/M2 floor support remains absent
+- [collision-system](design/collision-system.md) — collision layers: terrain and WMO floors (see player-ground), horizontal WMO/M2 blocking; no M2 floors
 
 ## Investigations
 
