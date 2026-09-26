@@ -26,6 +26,7 @@ pub struct Account {
 
 pub enum AccountEvent {
     Screen(SessionScreen),
+    WorldReset,
     UnitUpdated(UnitSnapshot),
     UnitRemoved(u64),
 }
@@ -157,7 +158,10 @@ impl Account {
                     self.connected_bridge()?.send::<_, AuthChannel>(request)?
                 }
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
-                SessionEffect::ResetNetworkWorld => self.stop()?,
+                SessionEffect::ResetNetworkWorld => {
+                    self.stop()?;
+                    output.push(AccountEvent::WorldReset);
+                }
                 SessionEffect::Transition(screen) => output.push(AccountEvent::Screen(screen)),
             }
         }
