@@ -40,11 +40,19 @@ func run_test() -> void:
 	var border = username.get_node_or_null("NinePart0")
 	require(background is TextureRect and background.texture != null and background.texture.get_width() >= 1280, "authored login backdrop texture missing")
 	require(logo is TextureRect and logo.texture != null and logo.texture.get_width() > 100, "authored logo texture missing")
+	require(logo.size.is_equal_approx(Vector2(384, 256)), "authored logo bounds: " + str(logo.size))
 	require(border is TextureRect and border.texture != null, "authored input border missing")
 	username.grab_focus()
-	username.insert_text_at_caret("adminé")
+	var key := InputEventKey.new()
+	key.keycode = KEY_A
+	key.unicode = 97
+	key.pressed = true
+	Input.parse_input_event(key)
+	await process_frame
+	require(username.has_focus() and username.text == "a", "native keyboard event and focus: " + username.text)
+	username.insert_text_at_caret("dminé")
 	username.text_changed.emit(username.text)
-	require(username.has_focus() and username.text == "adminé", "native text editing and focus")
+	require(username.text == "adminé", "native unicode text insertion")
 	host.sync_input()
 	require(host.frame_text("UsernameInput") == "adminé", "native edits must update registry")
 	connect.pressed.emit()
