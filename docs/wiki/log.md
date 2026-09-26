@@ -1,8 +1,12 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot authorized transport/UI boundary
+
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) after `eef95b16`. Godot is authorized to own rendering, UI, scenes, and gameplay; Bevy remains only as the headless networking transport worker. `godot/network` contains an actual transport bridge, but auth has not passed through it. Sibling UI core `70db707` removes all Bevy dependencies with `DynamicTextureId`, RGBA8 registry data, and atlas `PixelRect` arrays; agent46 reports two targeted model tests GREEN, not independently verified by main. Main `baf769ab` wires login UI startup, while `client_login.gd` remains RED against the old native binary because `LoginUI` is absent. Native compilation is blocked by UI API errors under agent42 work. All parity gates remain open.
+
 ## [2026-09-26] system | Godot native M2 preview boundary
 
-Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) through `e21f7c40`, `74ccbd8f`, `9c09cfb6`, and workspace integration `a9c8f58b`. The current capability is a native M2 preview path with skinned batches, limited BLP/type-0 albedo material conversion, sequence attachment, and fixed framing. The model-scene and M2-assets scripts are unexecuted at the current revision because the portable UI-toolkit `WidgetDef` macro anchors mismatch blocks the integrated build. Headless transport still carries Bevy state and, through `shared`, Bevy camera/mesh dependencies; no Bevy-removal, runtime, material-fidelity, UI-parity, or migration-completion claim follows.
+Updated [[godot-conversion]] and the [Godot conversion specification](../specs/godot-conversion.md) through `e21f7c40`, `74ccbd8f`, `9c09cfb6`, and workspace integration `a9c8f58b`. The documented capability was a native M2 preview path with skinned batches, limited BLP/type-0 albedo material conversion, sequence attachment, and fixed framing. At that revision, the model-scene and M2-assets scripts were unexecuted because the portable UI-toolkit `WidgetDef` macro-anchor mismatch blocked the integrated build; the later local macro patch fixed that blocker. Headless transport still carries Bevy state and, through `shared`, Bevy camera/mesh dependencies; no runtime, material-fidelity, UI-parity, or migration-completion claim follows.
 
 ## [2026-09-26] system | Godot conversion bootstrap
 
