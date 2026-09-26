@@ -81,6 +81,7 @@ pub(crate) struct StreamedTerrain {
     requests: Option<Sender<WorkerRequest>>,
     results: Receiver<WorkerResult>,
     worker: Option<JoinHandle<()>>,
+    terminal_error: Option<String>,
     generation: u64,
     map: Option<String>,
     initial_tile: Option<(u32, u32)>,
@@ -109,6 +110,7 @@ impl StreamedTerrain {
             requests: Some(requests),
             results,
             worker: Some(worker),
+            terminal_error: None,
             generation: 0,
             map: None,
             initial_tile: None,
@@ -149,18 +151,23 @@ impl StreamedTerrain {
     }
 
     pub fn poll(&mut self) -> Result<(), String> {
+        if let Some(error) = &self.terminal_error {
+            return Err(error.clone());
+        }
         loop {
             match self.results.try_recv() {
                 Ok(result) => self.accept_result(result)?,
                 Err(TryRecvError::Empty) => return Ok(()),
                 Err(TryRecvError::Disconnected) => {
                     let worker = self.worker.take().expect("worker exists while polling");
-                    return Err(match worker.join() {
+                    let error = match worker.join() {
                         Ok(()) => "Native terrain worker exited unexpectedly".into(),
                         Err(panic) => {
                             format!("Native terrain worker panicked: {}", panic_message(panic))
                         }
-                    });
+                    };
+                    self.terminal_error = Some(error.clone());
+                    return Err(error);
                 }
             }
         }
@@ -356,7 +363,7 @@ fn parsed_tile_state(tile: (u32, u32), parsed: &NativeTerrainTile) -> ParsedTile
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Mutex, mpsc};
+    use std::sync::{mpsc, Mutex};
     use std::time::{Duration, Instant};
 
     fn cached_assets() -> NativeTerrainAssets {
@@ -403,6 +410,41 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         panic!("stream timed out");
+    }
+
+    #[test]
+    fn worker_panic_remains_an_error_on_subsequent_polls() {
+        struct PanickingReader;
+
+        impl TerrainReader for PanickingReader {
+            fn read_map_wdt(&self, _map: &str) -> Result<NativeMapWdt, String> {
+                panic!("test map reader panic");
+            }
+
+            fn read_tile(
+                &self,
+                _map: &str,
+                _tile: (u32, u32),
+            ) -> Result<NativeTerrainTile, String> {
+                unreachable!("map reader panics before tile requests");
+            }
+        }
+
+        let mut stream = StreamedTerrain::with_reader(PanickingReader);
+        stream.request_map("test".into(), (0, 0)).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let first_error = loop {
+            if let Err(error) = stream.poll() {
+                break error;
+            }
+            assert!(Instant::now() < deadline, "worker did not exit");
+            std::thread::yield_now();
+        };
+        assert_eq!(
+            first_error,
+            "Native terrain worker panicked: test map reader panic"
+        );
+        assert_eq!(stream.poll(), Err(first_error));
     }
 
     #[test]
@@ -460,12 +502,10 @@ mod tests {
         );
         assert_eq!(parsed.root_height_grids, 256);
         assert!(parsed.obj_wmos > 0 || parsed.obj_doodads > 0);
-        assert!(
-            state
-                .failures
-                .iter()
-                .all(|failure| failure.error.contains("missing tile") && failure.tile != (32, 48))
-        );
+        assert!(state
+            .failures
+            .iter()
+            .all(|failure| failure.error.contains("missing tile") && failure.tile != (32, 48)));
         assert!(state.wdt_flags.is_some());
         assert_eq!(stream.parsed_tiles.len(), 1);
         assert!(stream.parsed_tiles.contains_key(&(32, 48)));
