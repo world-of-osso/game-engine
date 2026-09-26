@@ -91,7 +91,6 @@ pub(super) fn spawn_terrain_chunks(
         ground_images.as_deref(),
         height_images.as_deref(),
         None,
-        None,
     );
     let root = spawn_chunk_entities(refs.commands, refs.meshes, &chunk_materials, adt_data, tile);
     spawn_water(
@@ -157,7 +156,6 @@ fn spawn_textured_tile_chunks(
     let ground_images = register_ground_images(refs.images, parsed);
     let height_images = register_height_images(refs.images, parsed);
     let alpha_handles = register_image_vec(refs.images, &parsed.chunk_alpha_maps);
-    let shadow_handles = register_image_vec(refs.images, &parsed.chunk_shadow_maps);
     timings.record_stage("images");
     eprintln!("build_terrain_materials {}", parsed.adt_path.display());
     let chunk_materials = terrain_material::build_terrain_materials(
@@ -168,7 +166,6 @@ fn spawn_textured_tile_chunks(
         ground_images.as_deref(),
         height_images.as_deref(),
         non_empty_slice(&alpha_handles),
-        non_empty_slice(&shadow_handles),
     );
     timings.record_stage("terrain_materials");
     spawn_chunk_entities(

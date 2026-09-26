@@ -62,7 +62,6 @@ fn build_parsed_tile(
     };
     let (ground_images, height_images) = decode_tile_textures(&tex_data, &adt_path);
     let chunk_alpha_maps = pack_tile_alpha_maps(&tex_data);
-    let chunk_shadow_maps = pack_tile_shadow_maps(&adt_data);
     let preloaded_doodads = preload_doodad_models(obj_data.as_ref());
     let preloaded_wmos = preload_wmo_data(obj_data.as_ref());
 
@@ -78,7 +77,6 @@ fn build_parsed_tile(
         ground_images,
         height_images,
         chunk_alpha_maps,
-        chunk_shadow_maps,
         preloaded_doodads,
         preloaded_wmos,
     })
@@ -191,14 +189,6 @@ fn pack_tile_alpha_maps(tex_data: &Option<adt::AdtTexData>) -> Vec<Image> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-fn pack_tile_shadow_maps(adt_data: &adt::AdtData) -> Vec<Image> {
-    adt_data
-        .chunks
-        .iter()
-        .map(|chunk| crate::terrain_material::pack_shadow_map_raw(chunk.shadow_map.as_ref()))
-        .collect()
 }
 
 fn load_parsed_adt_data(tile_y: u32, tile_x: u32, adt_path: &Path) -> Result<adt::AdtData, String> {

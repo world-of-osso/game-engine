@@ -96,7 +96,6 @@ fn spawn_case(app: &mut App, index: usize, texel_alpha: u8) -> Handle<Image> {
             height_2: white.clone(),
             height_3: white.clone(),
             alpha_packed: white.clone(),
-            shadow_map: white,
             environment_map: environment,
             scene_light: RETAIL_SCENE_LIGHT_BUFFER,
         });

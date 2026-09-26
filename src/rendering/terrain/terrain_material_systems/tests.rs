@@ -215,7 +215,6 @@ fn test_material() -> TerrainMaterial {
         height_2: Handle::default(),
         height_3: Handle::default(),
         alpha_packed: Handle::default(),
-        shadow_map: Handle::default(),
         environment_map: Handle::default(),
         scene_light: crate::retail_light::RETAIL_SCENE_LIGHT_BUFFER,
     }

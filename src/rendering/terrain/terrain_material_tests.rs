@@ -1,7 +1,7 @@
 use super::{
     PlaceholderImageKind, Placeholders, TerrainBlendMode, TerrainMaterial, build_chunk_material,
-    pack_alpha_map_raw, pack_shadow_map, placeholder_image, shadow_bit_is_set, terrain_blend_mode,
-    terrain_layer_animation_params, terrain_texture_repeat, texture_layer_params,
+    pack_alpha_map_raw, placeholder_image, terrain_blend_mode, terrain_layer_animation_params,
+    terrain_texture_repeat, texture_layer_params,
 };
 use crate::asset::adt;
 use bevy::asset::Assets;
@@ -56,27 +56,6 @@ const TEST_TEXTURE_PARAM_FLAG_1: u32 = 0x20;
 const TEST_ROTATING_TEXTURE_FLAGS: u32 = 0x40 | 0x19;
 const TEST_OVERBRIGHT_LAYER_FLAG: u32 = 0x80;
 const TEST_REFLECTION_LAYER_FLAG: u32 = 0x400;
-
-#[test]
-fn pack_shadow_map_expands_mcsh_bits_to_64x64_pixels() {
-    let mut images = Assets::<Image>::default();
-    let mut shadow_map = [0u8; 512];
-    shadow_map[0] = 0b0000_0001;
-    shadow_map[1] = 0b0000_0001;
-
-    assert!(shadow_bit_is_set(&shadow_map, 0, 0));
-    assert!(shadow_bit_is_set(&shadow_map, 0, 8));
-
-    let handle = pack_shadow_map(&mut images, Some(&shadow_map));
-    let image = images.get(&handle).expect("expected shadow image");
-    let data = image.data.as_ref().expect("expected shadow pixels");
-
-    assert_eq!(image.texture_descriptor.size.width, 64);
-    assert_eq!(image.texture_descriptor.size.height, 64);
-    assert_eq!(&data[0..4], &[0, 0, 0, 255]);
-    assert_eq!(&data[4..8], &[255, 255, 255, 255]);
-    assert_eq!(&data[32..36], &[0, 0, 0, 255]);
-}
 
 #[test]
 fn placeholder_images_use_expected_rgba_values() {
@@ -235,9 +214,7 @@ fn chunk_material_uses_mhid_height_textures_per_layer() {
         &chunk_tex,
         &ground_images,
         Some(&height_images),
-        None,
         &placeholder,
-        None,
         None,
     );
     let material = terrain_materials
@@ -407,9 +384,7 @@ fn chunk_without_height_textures_has_no_height_influence() {
         &chunk_tex,
         &[Some(diffuse_0.clone()), Some(diffuse_1.clone())],
         Some(&[None, None]),
-        None,
         &placeholder,
-        None,
         None,
     );
     let material = terrain_materials.get(&handle).expect("terrain material");
