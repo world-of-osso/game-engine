@@ -10,6 +10,7 @@ use godot::prelude::*;
 use ui_toolkit::frame::{Dimension, Frame, NineSlice, WidgetData, WidgetType};
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH};
 use ui_toolkit::widgets::texture::TextureSource;
 
@@ -281,7 +282,7 @@ impl UiProjection {
         registry: &FrameRegistry,
     ) -> Result<(), String> {
         node.set_text(&data.text);
-        node.set_disabled(!data.enabled);
+        node.set_disabled(!data.enabled || data.state == ButtonState::Disabled);
         let normal = data
             .normal_texture
             .clone()
