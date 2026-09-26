@@ -1,3 +1,138 @@
+//! Local-CASC map and split-ADT reads for the native world host.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use game_engine_core::{adt, wdt};
+use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
+
+pub(crate) struct NativeTerrainAssets {
+    resolver: CascListfileResolver,
+    terrain_dir: PathBuf,
+}
+
+pub(crate) struct NativeMapWdt {
+    pub path: PathBuf,
+    pub flags: wdt::MphdFlags,
+    pub global_wmo: Option<adt::WmoPlacement>,
+}
+
+pub(crate) struct NativeTerrainTile {
+    pub wdt: NativeMapWdt,
+    pub root_path: PathBuf,
+    pub tex_path: Option<PathBuf>,
+    pub obj_path: Option<PathBuf>,
+    pub root: adt::Root,
+    pub tex: Option<adt::AdtTexData>,
+    pub obj: Option<adt::AdtObjData>,
+}
+
+impl NativeTerrainAssets {
+    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+        let config = AssetResolverConfig::new()
+            .with_data_root(&data_root)
+            .with_shared_data_root(&data_root)
+            .with_cache_root(cache_root);
+        Self {
+            resolver: CascListfileResolver::new(config),
+            terrain_dir: data_root.join("terrain"),
+        }
+    }
+
+    pub fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
+        let wow_path = format!("world/maps/{map}/{map}.wdt");
+        let (path, bytes) = self.read_declared_file(&wow_path, "wdt")?;
+        let flags = wdt::parse_wdt_mphd_flags(&bytes)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        let global_wmo = wdt::parse_wdt_global_wmo(&bytes)
+            .map_err(|error| format!("{}: {error}", path.display()))?;
+        Ok(NativeMapWdt {
+            path,
+            flags,
+            global_wmo,
+        })
+    }
+
+    pub fn read_tile(
+        &self,
+        map: &str,
+        tile_y: u32,
+        tile_x: u32,
+    ) -> Result<NativeTerrainTile, String> {
+        let wdt = self.read_map_wdt(map)?;
+        let stem = format!("world/maps/{map}/{map}_{tile_y}_{tile_x}");
+        let (root_path, root_bytes) = self.read_declared_file(&format!("{stem}.adt"), "adt")?;
+        let tex_file = self.read_optional_companion(&format!("{stem}_tex0.adt"))?;
+        let obj_file = self.read_optional_companion(&format!("{stem}_obj0.adt"))?;
+        let root = adt::parse_root_for_tile(
+            &root_bytes,
+            tile_y,
+            tile_x,
+            tex_file.as_ref().map(|(_, bytes)| bytes.as_slice()),
+        )
+        .map_err(|error| format!("{}: {error}", root_path.display()))?;
+        let tex = tex_file
+            .as_ref()
+            .map(|(path, bytes)| {
+                adt::parse_tex(bytes, wdt.flags, &root)
+                    .map_err(|error| format!("{}: {error}", path.display()))
+            })
+            .transpose()?;
+        let obj = obj_file
+            .as_ref()
+            .map(|(path, bytes)| {
+                adt::parse_obj(bytes).map_err(|error| format!("{}: {error}", path.display()))
+            })
+            .transpose()?;
+        Ok(NativeTerrainTile {
+            wdt,
+            root_path,
+            tex_path: tex_file.map(|(path, _)| path),
+            obj_path: obj_file.map(|(path, _)| path),
+            root,
+            tex,
+            obj,
+        })
+    }
+
+    fn read_optional_companion(
+        &self,
+        wow_path: &str,
+    ) -> Result<Option<(PathBuf, Vec<u8>)>, String> {
+        if self.resolver.lookup_path(wow_path).is_none() {
+            return Ok(None);
+        }
+        self.read_declared_file(wow_path, "adt").map(Some)
+    }
+
+    fn read_declared_file(
+        &self,
+        wow_path: &str,
+        extension: &str,
+    ) -> Result<(PathBuf, Vec<u8>), String> {
+        let fdid = self
+            .resolver
+            .lookup_path(wow_path)
+            .ok_or_else(|| format!("{wow_path} not in listfile"))?;
+        let cache_path = self.terrain_dir.join(format!("{fdid}.{extension}"));
+        let path = self
+            .resolver
+            .ensure_cached(fdid, &cache_path)
+            .ok_or_else(|| {
+                format!(
+                    "Failed to cache local CASC {wow_path} (FDID {fdid}) at {}",
+                    cache_path.display()
+                )
+            })?;
+        let bytes = read_bytes(&path)?;
+        Ok((path, bytes))
+    }
+}
+
+fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
+    fs::read(path).map_err(|error| format!("{}: {error}", path.display()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
