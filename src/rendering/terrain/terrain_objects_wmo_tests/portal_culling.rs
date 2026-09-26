@@ -56,7 +56,13 @@ fn trade_district_auction_house_interior_is_drawn_from_inside() {
 }
 
 fn trade_district_culling_app(camera: Transform) -> App {
-    let (placement_transform, root, groups) = load_trade_district();
+    wmo_culling_app(load_trade_district(), camera)
+}
+
+fn wmo_culling_app(
+    (placement_transform, root, groups): (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>),
+    camera: Transform,
+) -> App {
     let mut app = App::new();
     app.add_plugins(StatesPlugin)
         .insert_state(GameState::InWorld)
@@ -101,16 +107,29 @@ pub(super) fn trade_district_placement() -> adt_obj::WmoPlacement {
 }
 
 pub(super) fn load_trade_district() -> (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>) {
-    let placement = trade_district_placement();
+    load_tile_30_48_wmo(TRADE_DISTRICT_ROOT_FDID)
+}
+
+/// The MODF placement, root and groups of a WMO that `azeroth_30_48_obj0` places.
+pub(super) fn load_tile_30_48_wmo(
+    root_fdid: u32,
+) -> (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>) {
+    let obj0 = std::fs::read(TRADE_DISTRICT_OBJ0).expect("azeroth_30_48_obj0 in data/terrain");
+    let objects = adt_obj::load_adt_obj0(&obj0).expect("parse azeroth_30_48_obj0");
+    let placement = objects
+        .wmos
+        .into_iter()
+        .find(|placement| resolve_wmo_fdid(placement) == Some(root_fdid))
+        .expect("MODF placement");
     let placement_transform = super::super::super::wmo_transform(&placement, 30, 48);
-    let root_data = std::fs::read(format!("data/models/{TRADE_DISTRICT_ROOT_FDID}.wmo"))
-        .expect("sw_tradedistrict root WMO in data/models");
-    let root = wmo::load_wmo_root(&root_data).expect("parse sw_tradedistrict root");
+    let root_data =
+        std::fs::read(format!("data/models/{root_fdid}.wmo")).expect("root WMO in data/models");
+    let root = wmo::load_wmo_root(&root_data).expect("parse WMO root");
     let groups = (0..root.n_groups as usize)
         .map(|index| {
             let fdid = root.group_file_data_ids[index];
-            let data = std::fs::read(format!("data/models/{fdid}.wmo"))
-                .expect("sw_tradedistrict group in data/models");
+            let data =
+                std::fs::read(format!("data/models/{fdid}.wmo")).expect("WMO group in data/models");
             wmo::load_wmo_group_with_root(&data, Some(&root)).expect("parse group")
         })
         .collect();
