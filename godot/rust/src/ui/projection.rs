@@ -121,7 +121,12 @@ impl UiProjection {
             WidgetType::Button => Button::new_alloc().upcast(),
             WidgetType::EditBox => LineEdit::new_alloc().upcast(),
             WidgetType::FontString => Label::new_alloc().upcast(),
-            WidgetType::Texture => TextureRect::new_alloc().upcast(),
+            WidgetType::Texture => {
+                let mut image = TextureRect::new_alloc();
+                image.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
+                image.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
+                image.upcast()
+            }
             other => {
                 return Err(format!(
                     "Unconverted native widget {other:?}: {}",
@@ -394,6 +399,8 @@ fn sync_nine_slice(
             node.get_node_as::<TextureRect>(name.as_str())
         } else {
             let mut part = TextureRect::new_alloc();
+            part.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
+            part.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
             part.set_name(name.as_str());
             part.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
             part.set_z_index(-1);
