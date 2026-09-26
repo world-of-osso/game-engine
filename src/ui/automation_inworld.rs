@@ -1,4 +1,4 @@
-//! InWorld automation input: `ClickFrame` / `RightClickFrame` / `PressKey` actions are injected as real
+//! InWorld automation input: `ClickFrame` / `RightClickFrame` / `ShiftClickFrame` / `PressKey` actions are injected as real
 //! mouse/keyboard input (cursor position + `MouseButtonInput` / `KeyboardInput`
 //! messages) so in-world panels react through their production input systems.
 //!
@@ -29,6 +29,8 @@ pub(crate) enum InWorldAutomationInput {
 #[derive(Debug, Clone)]
 pub(crate) enum HeldInput {
     Mouse(MouseButton),
+    /// Left button with Shift held down around it.
+    ShiftMouse,
     Keys(KeyChord),
 }
 
@@ -137,6 +139,23 @@ fn press_action(
             window,
             writers,
         ),
+        UiAutomationAction::ShiftClickFrame(name) => {
+            writers.keys.write(keyboard_input(
+                KeyCode::ShiftLeft,
+                true,
+                ButtonState::Pressed,
+                window_entity,
+            ));
+            press_frame(
+                MouseButton::Left,
+                name,
+                registry,
+                window_entity,
+                window,
+                writers,
+            )?;
+            Ok(HeldInput::ShiftMouse)
+        }
         UiAutomationAction::PressKey(chord) => {
             let shift = chord_has_shift(chord);
             for &key in chord.modifiers.iter().chain(std::iter::once(&chord.key)) {
@@ -177,6 +196,19 @@ fn write_release(held: &HeldInput, window_entity: Entity, writers: &mut InputWri
             writers
                 .mouse
                 .write(mouse_input(*button, ButtonState::Released, window_entity));
+        }
+        HeldInput::ShiftMouse => {
+            writers.mouse.write(mouse_input(
+                MouseButton::Left,
+                ButtonState::Released,
+                window_entity,
+            ));
+            writers.keys.write(keyboard_input(
+                KeyCode::ShiftLeft,
+                true,
+                ButtonState::Released,
+                window_entity,
+            ));
         }
         HeldInput::Keys(chord) => {
             let shift = chord_has_shift(chord);
@@ -346,5 +378,61 @@ mod tests {
         assert!(window.distance(Vec2::new(320.0, 160.0) * (2.0 / 3.0)) < 0.01);
         // ui_cursor_position divides by ui_scale: the click lands on the frame center.
         assert!((window / registry.ui_scale).distance(Vec2::new(320.0, 160.0)) < 0.01);
+    }
+
+    #[test]
+    fn shift_click_holds_shift_around_the_left_press_and_releases_both() {
+        use bevy::ecs::system::RunSystemOnce;
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(button_screen).sync(&SharedContext::new(), &mut registry);
+        compute_layout(&mut registry);
+        let mut world = World::new();
+        world.insert_resource(UiState {
+            registry,
+            event_bus: ui_toolkit::event::EventBus::new(),
+            focused_frame: None,
+        });
+        let mut queue = UiAutomationQueue::default();
+        queue.push(UiAutomationAction::ShiftClickFrame("ClickTarget".into()));
+        world.insert_resource(queue);
+        world.init_resource::<UiAutomationRunner>();
+        world.init_resource::<InWorldAutomationInput>();
+        world.init_resource::<Messages<MouseButtonInput>>();
+        world.init_resource::<Messages<KeyboardInput>>();
+        world.spawn((Window::default(), PrimaryWindow));
+
+        let events = |world: &mut World| {
+            let keys: Vec<_> = world
+                .resource_mut::<Messages<KeyboardInput>>()
+                .drain()
+                .map(|key| (key.key_code, key.state))
+                .collect();
+            let mouse: Vec<_> = world
+                .resource_mut::<Messages<MouseButtonInput>>()
+                .drain()
+                .map(|button| (button.button, button.state))
+                .collect();
+            (keys, mouse)
+        };
+        world
+            .run_system_once(process_inworld_automation_input)
+            .unwrap();
+        assert_eq!(
+            events(&mut world),
+            (
+                vec![(KeyCode::ShiftLeft, ButtonState::Pressed)],
+                vec![(MouseButton::Left, ButtonState::Pressed)]
+            )
+        );
+        world
+            .run_system_once(process_inworld_automation_input)
+            .unwrap();
+        assert_eq!(
+            events(&mut world),
+            (
+                vec![(KeyCode::ShiftLeft, ButtonState::Released)],
+                vec![(MouseButton::Left, ButtonState::Released)]
+            )
+        );
     }
 }

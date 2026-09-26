@@ -57,6 +57,11 @@ fn register_action_callbacks(ctx: &Context) -> Result<(), String> {
         true
     })
     .map_err(|err| format!("failed to register rightClick callback: {err}"))?;
+    ctx.add_callback("__shiftClick", |name: String| -> bool {
+        push_action(UiAutomationAction::ShiftClickFrame(name));
+        true
+    })
+    .map_err(|err| format!("failed to register shiftClick callback: {err}"))?;
     ctx.add_callback("__type", |text: String| -> bool {
         push_action(UiAutomationAction::TypeText(text));
         true
@@ -169,6 +174,7 @@ const PRELUDE: &str = r#"
 globalThis.ui = {
   click: (name) => __click(name),
   rightClick: (name) => __rightClick(name),
+  shiftClick: (name) => __shiftClick(name),
   type: (text) => __type(text),
   key: (key) => __key(key),
   waitForState: (state, timeoutSecs) => __waitForState(state, timeoutSecs),
@@ -194,6 +200,7 @@ mod tests {
             ui.click("PasswordInput");
             ui.type("secret");
             ui.rightClick("BuffButton0");
+            ui.shiftClick("ContainerFrame0Slot3");
         "#;
         let actions = run_js_to_actions(script).expect("JS actions should parse");
         assert_eq!(
@@ -204,6 +211,7 @@ mod tests {
                 UiAutomationAction::ClickFrame("PasswordInput".into()),
                 UiAutomationAction::TypeText("secret".into()),
                 UiAutomationAction::RightClickFrame("BuffButton0".into()),
+                UiAutomationAction::ShiftClickFrame("ContainerFrame0Slot3".into()),
             ]
         );
     }

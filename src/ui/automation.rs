@@ -11,6 +11,8 @@ pub enum UiAutomationAction {
     ClickFrame(String),
     /// Right mouse button on a frame; InWorld only.
     RightClickFrame(String),
+    /// Left click with Shift held (Retail `SPLITSTACK`); InWorld only.
+    ShiftClickFrame(String),
     TypeText(String),
     PressKey(KeyChord),
     WaitForState(GameState, f32),
@@ -86,7 +88,11 @@ impl UiAutomationAction {
     pub fn is_input_action(&self) -> bool {
         matches!(
             self,
-            Self::ClickFrame(_) | Self::RightClickFrame(_) | Self::TypeText(_) | Self::PressKey(_)
+            Self::ClickFrame(_)
+                | Self::RightClickFrame(_)
+                | Self::ShiftClickFrame(_)
+                | Self::TypeText(_)
+                | Self::PressKey(_)
         )
     }
 }
