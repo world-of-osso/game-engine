@@ -40,6 +40,11 @@ func _initialize() -> void:
 	if indices[0] != 0 or indices[1] != 1 or indices[2] != 9 or indices[3] != 1 or indices[4] != 18 or indices[5] != 9:
 		fail("Godot front-face winding did not reverse Bevy triangle indices")
 		return
+	# This chunk has no MCCV: authored neutral 1.0 must fit byte/255 COLOR storage.
+	# The terrain shader reconstructs byte/127 without clipping authored overbright colors.
+	if not colors[0].is_equal_approx(Color(127.0 / 255.0, 127.0 / 255.0, 127.0 / 255.0, 1.0)):
+		fail("Terrain COLOR did not encode authored neutral MCCV into byte/255 storage")
+		return
 	var face_normal := (vertices[indices[1]] - vertices[indices[0]]).cross(vertices[indices[2]] - vertices[indices[0]]).normalized()
 	if face_normal.dot(normals[0]) >= -0.5:
 		fail("Front-face winding does not face authored terrain normal")
