@@ -118,8 +118,19 @@ impl UiProjection {
     }
 
     fn create_node(&self, frame: &Frame) -> Result<Gd<Control>, String> {
+        if frame.backdrop.is_some()
+            || frame.border.is_some()
+            || frame.three_slice.is_some()
+            || frame.panel_style.is_some()
+            || frame.three_slice_style.is_some()
+        {
+            return Err(format!(
+                "Unconverted native frame decoration: {}",
+                frame.name.as_deref().unwrap_or("unnamed")
+            ));
+        }
         let mut node: Gd<Control> = match frame.widget_type {
-            WidgetType::Frame | WidgetType::Panel => Control::new_alloc(),
+            WidgetType::Frame => Control::new_alloc(),
             WidgetType::Button => Button::new_alloc().upcast(),
             WidgetType::EditBox => LineEdit::new_alloc().upcast(),
             WidgetType::FontString => Label::new_alloc().upcast(),
