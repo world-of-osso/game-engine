@@ -214,3 +214,42 @@ fn camera_passing_the_stockade_doorway_keeps_the_stairwell_drawn() {
     );
 }
 
+/// The player on the Stockade stairs (WoW -8774, 838) walks 8 yd sideways toward the
+/// stairwell wall 6.2 yd away (WMO-local y -141.9, the doorway's edge) while the camera stands high above the canal street, outside every interior, so
+/// portal culling hides `BigJailRoom01`. Its wall must still stop the player: portal culling
+/// decides what is drawn, not what is solid.
+#[test]
+fn player_on_the_stockade_stairs_is_blocked_by_the_culled_stairwell_wall() {
+    let above_street = Transform::from_translation(wow_to_bevy(Vec3::new(-8790.0, 800.0, 140.0)))
+        .looking_at(wow_to_bevy(Vec3::new(-8700.0, 700.0, 120.0)), Vec3::Y);
+    let (mut app, _, _) = magic_district_app(STAIRS_TOP, above_street, None);
+    for _ in 0..3 {
+        advance(&mut app, 1.0 / 60.0);
+    }
+    assert_eq!(stairwell_visibility(&mut app), Visibility::Hidden);
+
+    let current = wow_to_bevy(STAIRS_TOP);
+    // Local -Y of the district WMO (yaw 38.5°): across the stairwell.
+    let proposed = current + wow_to_bevy(Vec3::new(-0.622, 0.783, 0.0)) * 8.0;
+    let clamped = app
+        .world_mut()
+        .run_system_once(
+            move |mut ray_cast: MeshRayCast,
+                  walls: Query<Entity, With<crate::collision::WmoCollisionMesh>>| {
+                let walls = walls.iter().collect();
+                crate::collision::clamp_movement_against_wmo_meshes(
+                    current,
+                    proposed,
+                    &mut ray_cast,
+                    &walls,
+                )
+            },
+        )
+        .expect("movement clamp runs");
+
+    let moved = (clamped - current).xz().length();
+    assert!(
+        moved < 6.3,
+        "walked {moved:.2} yd through the stairwell wall"
+    );
+}
