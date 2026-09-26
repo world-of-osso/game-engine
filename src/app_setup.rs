@@ -567,6 +567,7 @@ fn add_core_screen_plugins(app: &mut App) {
         crate::game::networking_experience::ExperienceNetworkPlugin,
         crate::game::networking_loot::LootNetworkPlugin,
         crate::game::networking_taxi::TaxiNetworkPlugin,
+        crate::game::networking_transfer::TransferNetworkPlugin,
         crate::game::networking_group::GroupNetworkPlugin,
         crate::game::networking_inventory::InventoryNetworkPlugin,
         crate::game::networking_bank::BankNetworkPlugin,

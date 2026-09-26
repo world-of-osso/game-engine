@@ -154,6 +154,19 @@ pub struct AdtManager {
     pub initial_tile: (u32, u32),
     /// Whether we've already reported that the initial terrain load finished.
     pub initial_load_reported: bool,
+    /// The WMO a WMO-only map consists of; such a map streams no ADT tiles.
+    pub(crate) global_wmo: GlobalWmo,
+}
+
+/// The single WMO of a WMO-only map (WDT MPHD flag 0x1, a dungeon such as the Stockade).
+#[derive(Default)]
+pub(crate) enum GlobalWmo {
+    /// The map is made of ADT tiles.
+    #[default]
+    None,
+    Pending(adt_obj::WmoPlacement),
+    Spawned(Entity),
+    Failed,
 }
 
 impl Default for AdtManager {
@@ -177,6 +190,7 @@ impl Default for AdtManager {
             render_terrain: true,
             initial_tile: (0, 0),
             initial_load_reported: false,
+            global_wmo: GlobalWmo::None,
         }
     }
 }
@@ -194,6 +208,9 @@ pub(crate) fn reset_streamed_terrain(
     heightmap: &mut TerrainHeightmap,
 ) {
     for root in adt_manager.loaded.drain().map(|(_, root)| root) {
+        commands.entity(root).despawn();
+    }
+    if let GlobalWmo::Spawned(root) = std::mem::take(&mut adt_manager.global_wmo) {
         commands.entity(root).despawn();
     }
     adt_manager.map_name.clear();
@@ -221,12 +238,66 @@ pub(crate) fn replace_streamed_map(
         reset_streamed_terrain(commands, adt_manager, heightmap);
     }
     if adt_manager.map_name.is_empty() {
+        adt_manager.global_wmo = map_global_wmo(&map_name);
         adt_manager.map_name = map_name;
         adt_manager.initial_tile = initial_tile;
         adt_manager.initial_load_reported = false;
     }
     adt_manager.server_requested.insert(initial_tile);
     map_changed
+}
+
+/// Whether `map_name`'s WDT names a global WMO. A WDT that cannot be read leaves the map to
+/// ADT streaming, which reports its own tile failures.
+fn map_global_wmo(map_name: &str) -> GlobalWmo {
+    match crate::terrain_tile::resolve_global_wmo(map_name) {
+        Ok(Some(placement)) => {
+            info!("Map {map_name} is the WMO {:?}", placement.fdid);
+            GlobalWmo::Pending(placement)
+        }
+        Ok(None) => GlobalWmo::None,
+        Err(err) => {
+            warn!("Map {map_name} WDT unavailable ({err}); streaming ADT tiles");
+            GlobalWmo::None
+        }
+    }
+}
+
+/// Spawn the pending global WMO of a WMO-only map; its floors are the map's only ground.
+fn spawn_pending_global_wmo(mut params: LoadedTileSpawnParams) {
+    if !matches!(params.adt_manager.global_wmo, GlobalWmo::Pending(_)) {
+        return;
+    }
+    let GlobalWmo::Pending(placement) = std::mem::take(&mut params.adt_manager.global_wmo) else {
+        return;
+    };
+    let spawned = crate::terrain_objects::spawn_global_wmo(
+        &mut params.commands,
+        &mut params.meshes,
+        &mut params.materials,
+        &mut params.effect_materials,
+        &mut params.water_mats,
+        &mut params.images,
+        &mut params.inverse_bp,
+        &placement,
+    );
+    params.heightmap.set_wmo_only();
+    params.adt_manager.global_wmo = match spawned {
+        Some(root) => {
+            info!(
+                "Spawned global WMO {} of map {}",
+                root.model, params.adt_manager.map_name
+            );
+            GlobalWmo::Spawned(root.entity)
+        }
+        None => {
+            error!(
+                "Global WMO {:?} of map {} failed to spawn",
+                placement.fdid, params.adt_manager.map_name
+            );
+            GlobalWmo::Failed
+        }
+    };
 }
 
 /// Result of spawning an ADT: camera and ground position for placing models.
@@ -608,6 +679,7 @@ impl Plugin for AdtStreamingPlugin {
                 Update,
                 (
                     bootstrap_terrain_streaming,
+                    spawn_pending_global_wmo,
                     adt_streaming_system,
                     receive_loaded_tiles,
                     report_initial_world_load_complete,
@@ -650,7 +722,7 @@ pub(crate) fn adt_streaming_system(
     mut heightmap: ResMut<TerrainHeightmap>,
     player_q: Query<&Transform, With<crate::camera::Player>>,
 ) {
-    if adt_manager.map_name.is_empty() {
+    if adt_manager.map_name.is_empty() || !matches!(adt_manager.global_wmo, GlobalWmo::None) {
         return;
     }
 
