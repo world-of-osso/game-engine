@@ -31,10 +31,36 @@ impl BonePose {
     fn blend(self, target: Self, weight: f32) -> Self {
         Self {
             position: self.position.lerp(target.position, weight),
-            rotation: self.rotation.slerp(target.rotation, weight),
+            rotation: blend_rotation(self.rotation, target.rotation, weight),
             scale: self.scale.lerp(target.scale, weight),
         }
     }
+}
+
+fn blend_rotation(start: Quaternion, target: Quaternion, weight: f32) -> Quaternion {
+    let mut end = target;
+    let mut dot = start.dot(end);
+    if dot < 0.0 {
+        end = -end;
+        dot = -dot;
+    }
+    let (start_weight, end_weight) = if dot > 0.9995 {
+        (1.0 - weight, weight)
+    } else {
+        let angle = dot.acos();
+        let denominator = angle.sin();
+        (
+            ((1.0 - weight) * angle).sin() / denominator,
+            (weight * angle).sin() / denominator,
+        )
+    };
+    Quaternion::new(
+        start.x * start_weight + end.x * end_weight,
+        start.y * start_weight + end.y * end_weight,
+        start.z * start_weight + end.z * end_weight,
+        start.w * start_weight + end.w * end_weight,
+    )
+    .normalized()
 }
 
 enum Outgoing {
