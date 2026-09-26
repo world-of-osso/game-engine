@@ -28,7 +28,6 @@ pub(crate) use crate::asset::read_bytes::{
 #[cfg(test)]
 pub(crate) use parser::parse_skin_full;
 pub(crate) use parser::{
-    M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
     parse_chunks, parse_materials, parse_model_flags, parse_texture_lookup, parse_texture_types,
     parse_texture_unit_lookup, parse_transparency_lookup, parse_txid, parse_uv_animation_lookup,
     parse_vertices, resolve_indices,
