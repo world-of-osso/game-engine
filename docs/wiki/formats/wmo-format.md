@@ -42,6 +42,13 @@ Retail lights every WMO the same way; the source here is WebWowViewerCpp's Retai
 - **Alpha test.** None for blend 0 (Opaque). AlphaKey (blend 1) discards texture alpha below 128/255.
 - **Placement.** A WMO listed under the same MODF uniqueId by several tiles is spawned once and lives while any of those tiles is loaded.
 
+## Batch and Material Records
+
+- **MOBA (SMOBatch, 24 bytes):** flag 0x2 at byte 0x16 means the material id is the u16 at 0x0A. Otherwise it is the u8 at 0x17. Retail district WMOs set the flag on every batch.
+- **MOMT (SMOMaterial, 64 bytes):** flags, shader, blendMode, texture_1, sidnColor, frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2, runTimeData[4].
+
+See [[stormwind-hilly-plaza]].
+
 ## Portal Culling
 
 MOGP `EXTERIOR` (0x8) splits groups into exterior and interior. From outside, every exterior group is drawn, and interiors are drawn through in-view portals. The camera is inside an interior group only when that group's bbox contains it and a triangle of the group lies below it. From an interior, the BFS runs through in-view portals, and reaching an exterior group draws the whole exterior. Antiportal groups (named `antiportal`) are never drawn and do not occlude. See [[stormwind-hilly-plaza]].
