@@ -47,7 +47,6 @@ impl TrackingType {
 /// Minimap notification flags for button indicators.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct MinimapNotifications {
-    pub has_mail: bool,
     pub calendar_event: bool,
     pub lfg_proposal: bool,
 }
@@ -96,17 +95,14 @@ mod tests {
         let state = MinimapUIState::default();
         assert!(state.zone_name.is_empty());
         assert_eq!(state.tracking, TrackingType::None);
-        assert!(!state.notifications.has_mail);
     }
 
     #[test]
     fn notifications() {
         let n = MinimapNotifications {
-            has_mail: true,
             calendar_event: false,
             lfg_proposal: true,
         };
-        assert!(n.has_mail);
         assert!(n.lfg_proposal);
         assert!(!n.calendar_event);
     }

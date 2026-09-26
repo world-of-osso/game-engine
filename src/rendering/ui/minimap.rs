@@ -91,6 +91,7 @@ struct MinimapFrames {
     arrow: u64,
     zone_name: u64,
     coords: u64,
+    mail: u64,
 }
 
 struct MinimapCompositeState {
@@ -132,6 +133,7 @@ fn register_minimap_systems(app: &mut App) {
             update_coord_text,
             update_zone_name,
             rotate_minimap_arrow,
+            sync_mail_indicator.after(sync_minimap_visibility),
         )
             .run_if(in_state(GameState::InWorld))
             .run_if(inworld_scene_stage_allows_ui),
@@ -185,6 +187,7 @@ fn build_minimap_screen(registry: &mut FrameRegistry) -> MinimapFrames {
         arrow: resolve_frame_id(registry, "MinimapArrow"),
         zone_name: resolve_frame_id(registry, "MinimapZoneName"),
         coords: resolve_frame_id(registry, "MinimapCoords"),
+        mail: resolve_frame_id(registry, inworld_hud_component::MINIMAP_MAIL_FRAME),
     }
 }
 
@@ -236,6 +239,17 @@ fn sync_minimap_visibility(
     let visible = *game_state.get() == GameState::InWorld
         && hud_visibility.is_none_or(|toggles| toggles.show_minimap);
     set_hud_visibility(&mut ui, &frames, visible);
+}
+
+/// `MiniMapMailFrameMixin`: the mail icon shows while `PendingMail` lists senders.
+fn sync_mail_indicator(
+    mut ui: ResMut<UiState>,
+    frames: Option<Res<MinimapFrames>>,
+    mail: Option<Res<game_engine::mail_data::MailState>>,
+) {
+    let Some(frames) = frames else { return };
+    let pending = mail.is_some_and(|mail| !mail.pending_senders.is_empty());
+    ui.registry.set_hidden(frames.mail, !pending);
 }
 
 /// North-up square map: the player arrow turns with the character's facing.

@@ -57,6 +57,8 @@ const TITLE_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 
 pub const ACTION_GROUP_MENU_TARGET: &str = "group_menu_target";
 pub const ACTION_GROUP_MENU_INSPECT: &str = "group_menu_inspect";
+/// `UnitPopupTradeButtonMixin`.
+pub const ACTION_GROUP_MENU_TRADE: &str = "group_menu_trade";
 pub const ACTION_GROUP_MENU_CLOSE: &str = "group_menu_close";
 pub const GROUP_MENU_W: f32 = 160.0;
 

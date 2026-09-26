@@ -28,6 +28,20 @@ impl SheetCrop {
     }
 }
 
+/// `interface/hud/uiminimap.blp`, 512x512.
+const MINIMAP_SHEET: u32 = 4_618_651;
+
+/// `ui-hud-minimap-mail-up` (Minimap.xml:99), 20x15: the new-mail indicator.
+pub(super) const MINIMAP_MAIL: SheetCrop = SheetCrop {
+    fdid: MINIMAP_SHEET,
+    sheet_w: 512.0,
+    sheet_h: 512.0,
+    left: 463.0,
+    right: 483.0,
+    top: 140.0,
+    bottom: 155.0,
+};
+
 /// UiTextureAtlas 2136, 1024x512.
 const MICRO_SHEET: u32 = 4_708_813;
 /// UiTextureAtlas 2098, 512x128.

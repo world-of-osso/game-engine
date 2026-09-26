@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use game_engine::bag_data::InventoryState;
 use game_engine::bank_data::{BankRequest, BankState, GuildBankRequest, GuildBankState};
+use game_engine::mail_data::{MailState, MailTab};
 use game_engine::merchant_data::{MerchantRequest, MerchantState, MerchantTab};
+use game_engine::trade::{TradeAction, TradeClientState};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::screens::bag_frame_component::{
@@ -38,6 +40,8 @@ impl Plugin for BagFramePlugin {
             .init_resource::<MerchantState>()
             .init_resource::<BankState>()
             .init_resource::<GuildBankState>()
+            .init_resource::<TradeClientState>()
+            .init_resource::<MailState>()
             .add_message::<MerchantRequest>()
             .add_message::<BankRequest>()
             .add_message::<GuildBankRequest>();
@@ -147,23 +151,29 @@ struct BagItemTargets<'w> {
     guild: Res<'w, GuildBankState>,
 }
 
-impl BagItemTargets<'_> {
-    fn any_open(&self) -> bool {
-        self.merchant.is_open() || self.bank.is_open() || self.guild.is_open()
-    }
-}
-
 #[derive(bevy::ecs::system::SystemParam)]
 struct BagItemRequests<'w> {
     merchant: MessageWriter<'w, MerchantRequest>,
     bank: MessageWriter<'w, BankRequest>,
     guild: MessageWriter<'w, GuildBankRequest>,
+    trade: ResMut<'w, TradeClientState>,
+    mail: ResMut<'w, MailState>,
+}
+
+impl BagItemRequests<'_> {
+    fn any_open(&self, targets: &BagItemTargets) -> bool {
+        targets.merchant.is_open()
+            || targets.bank.is_open()
+            || targets.guild.is_open()
+            || self.trade.is_open()
+            || self.mail.is_open()
+    }
 }
 
 /// Retail `ContainerFrameItemButton_OnClick` (`C_Container.UseContainerItem`):
 /// right-clicking a bag item while the merchant tab is shown sells it; while a bank
-/// frame is open it deposits it into the shown bank tab. Other right-click uses are
-/// not built.
+/// frame is open it deposits it into the shown bank tab; with a trade open it is
+/// offered; with Send Mail shown it is attached. Other right-click uses are not built.
 fn use_bag_item(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
@@ -174,7 +184,7 @@ fn use_bag_item(
     targets: BagItemTargets,
     mut requests: BagItemRequests,
 ) {
-    if !targets.any_open()
+    if !requests.any_open(&targets)
         || !crate::networking::gameplay_input_allowed(reconnect)
         || modal_open.is_some()
     {
@@ -200,7 +210,44 @@ fn use_bag_item(
         requests.bank.write(request);
     } else if let Some(request) = guild_deposit_request(&action, &inventory, &targets.guild) {
         requests.guild.write(request);
+    } else if let Some(offer) = trade_offer(&action, &inventory, &requests.trade) {
+        requests.trade.queue(offer);
+    } else {
+        attach_to_mail(&action, &inventory, &mut requests.mail);
     }
+}
+
+/// With the trade window open the item goes to the first free traded slot (Retail
+/// `UseContainerItem` → `ClickTradeButton`), the whole stack.
+fn trade_offer(
+    action: &str,
+    inventory: &InventoryState,
+    trade: &TradeClientState,
+) -> Option<TradeAction> {
+    if !trade.is_open() {
+        return None;
+    }
+    let (bag, slot) = parse_bag_slot_action(action)?;
+    let item = inventory
+        .slot(bag, slot)
+        .filter(|item| item.item_guid != 0)?;
+    if trade.offers(item.item_guid) {
+        return None;
+    }
+    Some(TradeAction::SetItem(shared::protocol::SetTradeItem {
+        slot: trade.first_free_slot()?,
+        item_guid: item.item_guid,
+        stack_count: u16::try_from(item.count.max(1)).unwrap_or(u16::MAX),
+    }))
+}
+
+/// With Send Mail shown the item goes on the next attachment button (Retail
+/// `UseContainerItem` → `ClickSendMailItemButton`).
+fn attach_to_mail(action: &str, inventory: &InventoryState, mail: &mut MailState) -> bool {
+    if !mail.is_open() || mail.tab != MailTab::Send {
+        return false;
+    }
+    clicked_item_guid(action, inventory).is_some_and(|guid| mail.attach(guid))
 }
 
 fn clicked_item_guid(action: &str, inventory: &InventoryState) -> Option<u64> {
@@ -311,6 +358,72 @@ fn parse_bag_toggle_action(action: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn linen_bags() -> InventoryState {
+        let mut inventory = InventoryState::default();
+        inventory.set_item(
+            0,
+            3,
+            InventorySlot {
+                icon_fdid: 132_889,
+                count: 20,
+                item_guid: 41,
+                item_id: 2589,
+                ..Default::default()
+            },
+        );
+        inventory
+    }
+
+    #[test]
+    fn right_clicking_a_bag_item_offers_the_stack_in_the_first_free_trade_slot() {
+        use shared::protocol::{
+            SetTradeItem, TradeItemSnapshot, TradePartySnapshot, TradePhase, TradeSnapshot,
+        };
+        let inventory = linen_bags();
+        let party = |slots| TradePartySnapshot {
+            name: "Tradea".into(),
+            accepted: false,
+            gold: 0,
+            slots,
+        };
+        let mut slots = vec![None; 7];
+        slots[0] = Some(TradeItemSnapshot {
+            item_guid: 7,
+            item_id: 2770,
+            name: "Copper Ore".into(),
+            quality: 1,
+            stack_count: 10,
+        });
+        let mut trade = TradeClientState::default();
+        assert_eq!(trade_offer("bag_slot:0:3", &inventory, &trade), None);
+        trade.snapshot = Some(TradeSnapshot {
+            phase: TradePhase::Open,
+            player: party(slots),
+            other: party(vec![None; 7]),
+        });
+        assert_eq!(
+            trade_offer("bag_slot:0:3", &inventory, &trade),
+            Some(TradeAction::SetItem(SetTradeItem {
+                slot: 1,
+                item_guid: 41,
+                stack_count: 20
+            }))
+        );
+        assert_eq!(trade_offer("bag_slot:0:4", &inventory, &trade), None);
+    }
+
+    #[test]
+    fn right_clicking_a_bag_item_attaches_it_only_on_send_mail() {
+        let inventory = linen_bags();
+        let mut mail = MailState::default();
+        mail.open(9);
+        assert!(!attach_to_mail("bag_slot:0:3", &inventory, &mut mail));
+        mail.tab = MailTab::Send;
+        assert!(attach_to_mail("bag_slot:0:3", &inventory, &mut mail));
+        assert!(!attach_to_mail("bag_slot:0:3", &inventory, &mut mail));
+        assert_eq!(mail.attachments, vec![41]);
+    }
 
     #[test]
     fn right_clicking_a_bag_item_sells_the_stack_only_on_the_merchant_tab() {

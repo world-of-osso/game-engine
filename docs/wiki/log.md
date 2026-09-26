@@ -949,3 +949,7 @@ Updated [[stormwind-hilly-plaza]] and [[wmo-format]]. MOBA flag 0x2 selects the 
 ## [2026-09-25] design | Nameplate style
 
 Updated [[nameplate-design]] and the [nameplate style](../specs/nameplate-style.md) spec. `NameplateStyle` drives plate sizes, reaction/cast colours, border and fonts; Options > Nameplates edits it and the Thin/Thick selectors are presets. Fills are tinted by the owner's FactionTemplate reaction via `shared::faction_reaction` (Defias Thug, template 7, is neutral yellow). Names are centred 2px above the plate; plate offsets now apply in overlay units, which fixes the name drifting left of the bar under the scaled in-world UI camera. Targeted bin (153) and lib (76) tests pass; headless captures in `data/diagnostics/nameplate-20260925/`.
+
+## [2026-09-26] create | Trade and mail
+
+[[trade-and-mail]]: Retail TradeFrame and MailFrame on the server trade and mail protocols; the fake local mail store, the doodad mailbox and the mail keybind removed.

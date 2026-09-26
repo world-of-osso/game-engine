@@ -12,6 +12,7 @@ Engine subsystems and how they work.
 - [networking](systems/networking.md) — Lightyear UDP, dedicated 60 Hz transport worker over unchanged 20 Hz simulation, centralized application dispatch, entity replication, reconnect lifecycle, and event/dirty-driven application boundaries; CPU/FPS proof remains open
 - [scripted-movement](systems/scripted-movement.md) — bounded forward routes through normal player movement; connected displacement and loaded-tile measurement demonstrated
 - [auction-house-ui](systems/auction-house-ui.md) — Retail AuctionHouseFrame opened by the auctioneer interaction: Buy/Sell/Auctions on the server auction protocol, Item.csv icons and categories
+- [trade-and-mail](systems/trade-and-mail.md) — Retail TradeFrame (unit/group menu Trade, TRADE popup, 7 slots, accept highlights) and MailFrame/OpenMailFrame at Mailbox game objects (inbox pages, open mail, Send Mail with attachments/C.O.D., confirmations), minimap mail indicator
 - [banks](systems/banks.md) — Retail BankFrame (character + Warband bank) at bankers and GuildBankFrame at replicated Guild Vault objects; right-click deposit/withdraw, money entry, tab purchase, guild logs
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning

@@ -26,9 +26,10 @@ use game_engine::ui::screens::compact_unit_frame_component::{
     CompactDebuffView, CompactUnitView, UnitStatus,
 };
 use game_engine::ui::screens::group_frames_component::{
-    ACTION_GROUP_MENU_CLOSE, ACTION_GROUP_MENU_INSPECT, ACTION_GROUP_MENU_TARGET, GROUP_MENU_W,
-    GroupContextMenuState, GroupFramesState, GroupMenuItem, RAID_GROUPS, group_frames_screen,
-    group_menu_height, party_member_frame_name, raid_member_frame_name,
+    ACTION_GROUP_MENU_CLOSE, ACTION_GROUP_MENU_INSPECT, ACTION_GROUP_MENU_TARGET,
+    ACTION_GROUP_MENU_TRADE, GROUP_MENU_W, GroupContextMenuState, GroupFramesState, GroupMenuItem,
+    RAID_GROUPS, group_frames_screen, group_menu_height, party_member_frame_name,
+    raid_member_frame_name,
 };
 use game_engine::ui::screens::ready_check_frame_component::{
     ACTION_READY_CHECK_NO, ACTION_READY_CHECK_YES, ReadyCheckFrameState,
@@ -358,6 +359,7 @@ fn build_menu(
     if !is_self && entities.contains_key(unit) {
         items.push(menu_item("Target", "Target", ACTION_GROUP_MENU_TARGET));
         items.push(menu_item("Inspect", "Inspect", ACTION_GROUP_MENU_INSPECT));
+        items.push(menu_item("Trade", "Trade", ACTION_GROUP_MENU_TRADE));
     }
     if let Some(local) = local_name {
         items.extend(
@@ -445,6 +447,7 @@ fn handle_group_frame_pointer(
     mut menu: ResMut<GroupFrameMenu>,
     mut current_target: ResMut<CurrentTarget>,
     mut inspect_runtime: Option<ResMut<InspectRuntimeState>>,
+    mut trade: Option<ResMut<game_engine::trade::TradeClientState>>,
     mut commands: MessageWriter<GroupCommand>,
 ) {
     if !crate::networking::gameplay_input_allowed(gate.reconnect) || gate.modal_open.is_some() {
@@ -482,6 +485,11 @@ fn handle_group_frame_pointer(
                     game_engine::inspect::request_query_for_target(runtime, Some(entity));
                 }
             }
+            ClickOutcome::Trade(name) => {
+                if let Some(trade) = trade.as_deref_mut() {
+                    trade.queue(game_engine::trade::TradeAction::Initiate(name));
+                }
+            }
             ClickOutcome::Command(command) => {
                 commands.write(command);
             }
@@ -493,6 +501,8 @@ fn handle_group_frame_pointer(
 enum ClickOutcome {
     Target(Entity),
     Inspect(Entity),
+    /// `InitiateTrade` with the member.
+    Trade(String),
     Command(GroupCommand),
 }
 
@@ -561,6 +571,7 @@ impl GroupFrameClick<'_> {
         match action {
             ACTION_GROUP_MENU_TARGET => (self.entity_of)(unit).map(ClickOutcome::Target),
             ACTION_GROUP_MENU_INSPECT => (self.entity_of)(unit).map(ClickOutcome::Inspect),
+            ACTION_GROUP_MENU_TRADE => Some(ClickOutcome::Trade(unit.to_owned())),
             _ => GroupMenuEntry::from_action(action)
                 .map(|entry| ClickOutcome::Command(entry.command(unit))),
         }

@@ -60,6 +60,16 @@ fn parse_game_object_displays(text: &str) -> Result<HashMap<u32, u32>, String> {
         .collect()
 }
 
+/// Mailboxes get the mail cursor and minimap icon; every game object is used on
+/// the server.
+fn interaction_kind(info: &GameObjectInfo) -> WorldObjectInteractionKind {
+    if info.go_type == shared::protocol::GAMEOBJECT_TYPE_MAILBOX {
+        WorldObjectInteractionKind::Mailbox
+    } else {
+        WorldObjectInteractionKind::ServerObject
+    }
+}
+
 /// Place a new replicated game object and attach its M2 under a child turned like
 /// NPC models (`networking_npc::spawn_npc_visual_root`).
 pub(crate) fn spawn_replicated_game_object(
@@ -80,7 +90,7 @@ pub(crate) fn spawn_replicated_game_object(
             .with_rotation(Quat::from_rotation_y(yaw)),
         Visibility::default(),
         WorldObjectInteraction {
-            kind: WorldObjectInteractionKind::ServerObject,
+            kind: interaction_kind(info),
         },
     ));
     let Some(fdid) = displays.and_then(|displays| displays.model_fdid(info.display_id)) else {

@@ -59,6 +59,8 @@ pub enum WindowId {
     QuestLog,
     Spellbook,
     Talents,
+    /// Retail `TradeFrame`, open while a trade is.
+    Trade,
     /// Retail `ClassTrainerFrame`, opened by a trainer interaction.
     Trainer,
     WorldMap,
@@ -95,6 +97,7 @@ impl WindowId {
             | Self::QuestGiver
             | Self::QuestLog
             | Self::Spellbook
+            | Self::Trade
             | Self::Trainer => WindowClass::Panel,
         }
     }
@@ -130,6 +133,7 @@ impl WindowId {
             Self::QuestLog => "QuestLogFrame",
             Self::Spellbook => "SpellBookRoot",
             Self::Talents => "PlayerSpellsFrame",
+            Self::Trade => "TradeFrame",
             Self::Trainer => "ClassTrainerFrame",
             Self::WorldMap => "WorldMapFrame",
         };

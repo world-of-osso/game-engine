@@ -108,8 +108,7 @@ fn world_camera_right_click_ray_resolves_npc_and_requests_interaction() {
     let (mut app, npc) = picking_app();
     app.add_message::<NpcInteractionRequest>()
         .add_message::<LootRequest>()
-        .init_resource::<ButtonInput<KeyCode>>()
-        .init_resource::<MailIntentQueue>();
+        .init_resource::<ButtonInput<KeyCode>>();
     app.world_mut().spawn((
         Player,
         GlobalTransform::from_translation(Vec3::new(0.0, 0.0, 2.0)),

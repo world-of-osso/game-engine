@@ -317,8 +317,14 @@ fn left_click_targets_a_member_and_right_click_menu_promotes_them() {
     );
     let labels: Vec<_> = state.menu.items.iter().map(|i| i.label.as_str()).collect();
     assert_eq!(
-        labels[..4],
-        ["Target", "Inspect", "Promote to Leader", "Uninvite"]
+        labels[..5],
+        [
+            "Target",
+            "Inspect",
+            "Trade",
+            "Promote to Leader",
+            "Uninvite"
+        ]
     );
     let registry = registry_for(&state);
 
@@ -335,6 +341,16 @@ fn left_click_targets_a_member_and_right_click_menu_promotes_them() {
         [ClickOutcome::Command(GroupCommand::Promote("Bob".into()))]
     );
     assert_eq!(menu.unit, None, "running an entry closes the menu");
+
+    menu.unit = Some("Bob".into());
+    let traded = click(
+        &registry,
+        &click_map,
+        &mut menu,
+        center(&registry, "GroupContextMenuTrade"),
+        MouseButton::Left,
+    );
+    assert_eq!(traded, [ClickOutcome::Trade("Bob".into())]);
 }
 
 #[test]
