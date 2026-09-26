@@ -1,0 +1,55 @@
+extends SceneTree
+
+var failures := 0
+
+func _initialize() -> void:
+	call_deferred("run_test")
+
+func require(condition: bool, message: String) -> void:
+	if not condition:
+		push_error(message)
+		failures += 1
+
+func run_test() -> void:
+	require(ClassDB.class_exists("RegistryUi"), "native registry UI host missing")
+	if failures > 0:
+		quit(1)
+		return
+	var host = ClassDB.instantiate("RegistryUi")
+	root.add_child(host)
+	var error = host.show_login()
+	require(error == "", "login projection: " + error)
+	if failures > 0:
+		quit(1)
+		return
+	var form = host.find_child("LoginInputContainer", true, false)
+	var username = host.find_child("UsernameInput", true, false)
+	var password = host.find_child("PasswordInput", true, false)
+	var connect = host.find_child("ConnectButton", true, false)
+	require(form is Control and username is LineEdit and password is LineEdit and connect is Button, "login native controls missing")
+	if failures > 0:
+		quit(1)
+		return
+	require(form.position.is_equal_approx(Vector2(480, 193)), "authored centered form bounds")
+	require(form.size.is_equal_approx(Vector2(320, 200)), "authored form size")
+	require(username.position.is_equal_approx(Vector2.ZERO) and username.size.is_equal_approx(Vector2(320, 42)), "username bounds")
+	require(password.position.is_equal_approx(Vector2(0, 72)) and password.secret, "password geometry and masking")
+	require(connect.position.is_equal_approx(Vector2(35, 134)) and connect.text == "Login", "authored login button")
+	username.grab_focus()
+	username.insert_text_at_caret("adminé")
+	require(username.has_focus() and username.text == "adminé", "native text editing and focus")
+	host.sync_input()
+	require(host.frame_text("UsernameInput") == "adminé", "native edits must update registry")
+	connect.pressed.emit()
+	require(host.pop_action() == "connect", "named-frame button action")
+	host.set_status("Retry")
+	require(host.find_child("LoginStatus", true, false).text == "Retry", "registry update must project")
+	host.remove_login()
+	await process_frame
+	require(host.find_child("UsernameInput", true, false) == null, "removed registry subtree must disappear")
+	host.queue_free()
+	if failures > 0:
+		quit(1)
+	else:
+		print("PASS: login native layout, editing, focus, actions, updates, removal")
+		quit(0)
