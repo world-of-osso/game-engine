@@ -453,6 +453,48 @@ mod tests {
         assert!(error.contains("70004"), "{error}");
     }
 
+    #[test]
+    #[ignore]
+    fn sweep_all_spawned_profiles() {
+        use game_engine::creature_display::npc_appearance::query_authored_npc_appearance;
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        let compositor = CharTextureData::load(std::path::Path::new("data"));
+        let conn = rusqlite::Connection::open(std::env::var("SWEEP_CACHE").unwrap()).unwrap();
+        let ids: Vec<u32> = std::fs::read_to_string(std::env::var("SWEEP_IDS").unwrap())
+            .unwrap()
+            .split_whitespace()
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let (mut ok, mut ordinary, mut failures) = (0, 0, Vec::new());
+        for (n, id) in ids.into_iter().enumerate() {
+            let mut images = Assets::<Image>::default();
+            if n % 250 == 0 {
+                println!("SWEEP progress {n}");
+            }
+            match query_authored_npc_appearance(&conn, id) {
+                Err(e) => failures.push(format!("{id}: {e}")),
+                Ok(None) => ordinary += 1,
+                Ok(Some(appearance)) => {
+                    let request = NpcAppearanceRequest {
+                        display_id: id,
+                        appearance,
+                    };
+                    match prepare_npc_appearance(&request, &db, &compositor, &mut images) {
+                        Ok(_) => ok += 1,
+                        Err(e) => failures.push(format!("{id}: {e}")),
+                    }
+                }
+            }
+        }
+        println!(
+            "SWEEP ok={ok} ordinary={ordinary} failures={}",
+            failures.len()
+        );
+        for f in &failures {
+            println!("SWEEP FAIL {f}");
+        }
+    }
+
     fn real_profile(race: u8, sex: u8, choice_ids: Vec<u32>) -> AuthoredNpcAppearance {
         AuthoredNpcAppearance {
             race,
