@@ -441,7 +441,6 @@ fn try_spawn_doodad_preloaded(
         },
         pre.model.clone(),
         entity,
-        is_waterfall_backdrop_doodad(doodad),
     ) {
         commands.entity(entity).despawn();
         return None;
@@ -545,7 +544,6 @@ fn try_spawn_doodad(
         },
         model,
         entity,
-        is_waterfall_backdrop_doodad(doodad),
     ) {
         commands.entity(entity).despawn();
         return None;

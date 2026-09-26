@@ -274,7 +274,7 @@ fn match_spawned_doodad_position(positions: &[Vec3], authored: Vec3) -> Vec3 {
 
 #[test]
 fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
-    let (app, root, authored) = spawn_waterfall_mist_attachment(true, true);
+    let (app, root, authored) = spawn_waterfall_mist_attachment(true);
     let mut app = app;
     let emitters: Vec<_> = app
         .world_mut()
@@ -311,7 +311,7 @@ fn waterfall_mist_attachment_spawns_authored_particle_emitter() {
 
 #[test]
 fn waterfall_mist_attachment_respects_disabled_particle_effects() {
-    let (mut app, _, _) = spawn_waterfall_mist_attachment(false, true);
+    let (mut app, _, _) = spawn_waterfall_mist_attachment(false);
     let count = app
         .world_mut()
         .query::<&crate::particle::ParticleEmitterComp>()
@@ -320,21 +320,8 @@ fn waterfall_mist_attachment_respects_disabled_particle_effects() {
     assert_eq!(count, 0, "disabled particle effects must not spawn mist");
 }
 
-#[test]
-fn waterfall_mist_attachment_leaves_unselected_emitters_disabled() {
-    let (mut app, _, _) = spawn_waterfall_mist_attachment(true, false);
-    assert_eq!(
-        app.world_mut()
-            .query::<&crate::particle::ParticleEmitterComp>()
-            .iter(app.world())
-            .count(),
-        0,
-    );
-}
-
 fn spawn_waterfall_mist_attachment(
     particle_effects_enabled: bool,
-    spawn_particles: bool,
 ) -> (App, Entity, crate::asset::m2_particle::M2ParticleEmitter) {
     let model =
         crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/1028937.m2"), &[0; 3])
@@ -366,7 +353,6 @@ fn spawn_waterfall_mist_attachment(
                     },
                     model.take().expect("attachment runs once"),
                     root,
-                    spawn_particles,
                 )
             },
         )
@@ -381,7 +367,7 @@ const REST_BOUNDS_TOLERANCE: f32 = 0.001;
 
 #[test]
 fn selected_waterfall_attachment_preserves_authored_rest_bounds() {
-    let (authored, actual) = spawn_waterfall_origin_fixture(true);
+    let (authored, actual) = spawn_waterfall_origin_fixture();
     let expected = (
         authored.0 + ORIGIN_FIXTURE_PARENT,
         authored.1 + ORIGIN_FIXTURE_PARENT,
@@ -389,7 +375,7 @@ fn selected_waterfall_attachment_preserves_authored_rest_bounds() {
     assert_rest_bounds(actual, expected);
 }
 
-fn spawn_waterfall_origin_fixture(selected_backdrop: bool) -> ((Vec3, Vec3), (Vec3, Vec3)) {
+fn spawn_waterfall_origin_fixture() -> ((Vec3, Vec3), (Vec3, Vec3)) {
     let model =
         crate::asset::m2::load_m2_uncached(std::path::Path::new("data/models/4661358.m2"), &[0; 3])
             .expect("authored waterfall04 fixture must load");
@@ -409,18 +395,13 @@ fn spawn_waterfall_origin_fixture(selected_backdrop: bool) -> ((Vec3, Vec3), (Ve
         .world_mut()
         .spawn(Transform::from_translation(ORIGIN_FIXTURE_PARENT))
         .id();
-    attach_origin_fixture(&mut app, model, parent, selected_backdrop);
+    attach_origin_fixture(&mut app, model, parent);
     app.update();
     let actual = attached_mesh_rest_bounds(&mut app);
     (authored, actual)
 }
 
-fn attach_origin_fixture(
-    app: &mut App,
-    model: crate::asset::m2::M2Model,
-    parent: Entity,
-    selected_backdrop: bool,
-) {
+fn attach_origin_fixture(app: &mut App, model: crate::asset::m2::M2Model, parent: Entity) {
     let mut model = Some(model);
     let attached = app
         .world_mut()
@@ -438,7 +419,6 @@ fn attach_origin_fixture(
                     },
                     model.take().expect("origin fixture attaches once"),
                     parent,
-                    selected_backdrop,
                 )
             },
         )

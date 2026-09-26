@@ -506,14 +506,18 @@ pub(super) fn spawn_wmo_group_doodad(
         .and_then(|stem| stem.to_str())
         .unwrap_or("wmo_doodad")
         .to_owned();
+    let model = match crate::asset::m2::load_m2(&model_path, &[0, 0, 0]) {
+        Ok(model) => model,
+        Err(e) => {
+            warn!("Failed to load WMO doodad M2 {}: {e}", model_path.display());
+            return None;
+        }
+    };
     let entity = commands
         .spawn((Name::new(name), doodad.transform, Visibility::default()))
         .id();
     let mut spawn_assets = wmo_group_doodad_spawn_assets(assets);
-    if !m2_spawn::spawn_m2_on_entity(commands, &mut spawn_assets, &model_path, entity, &[0, 0, 0]) {
-        commands.entity(entity).despawn();
-        return None;
-    }
+    m2_spawn::spawn_m2_model_on_entity(commands, &mut spawn_assets, model, entity);
     insert_wmo_group_doodad_interaction(commands, entity, &model_path);
     Some(entity)
 }

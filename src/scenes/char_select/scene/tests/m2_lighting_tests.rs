@@ -181,7 +181,6 @@ fn invoke_attachment(
             assets,
             model.take().expect("fixture attaches once"),
             root,
-            false,
         ),
         AttachmentPath::PathLoaded => {
             crate::m2_spawn::spawn_m2_on_entity(commands, assets, filename, root, &[0; 3])
