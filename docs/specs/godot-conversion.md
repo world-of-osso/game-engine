@@ -34,6 +34,14 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 [Godot feature parity matrix](godot-parity-matrix.md) tracks every existing feature specification by capability. Its source contracts remain authoritative; parser/core/transport work does not close runtime parity.
 
+## Current lighting conversion boundary
+
+`6a51f613` shares volume lookup (five targeted tests), `d70998c9` shares sky-gradient/cubemap pixels (three), and `0cfd21ef` makes CSV parsing strict (three), preserving observed signed ARGB `-3502459` rather than treating it as black. `2faed51b` adds a native worker that loads `Light`/`LightData`, selects the original blend at local-player WoW coordinates with noon as the default time, and updates a `DirectionalLight3D`, `Environment`, 32×32 RGBA16F cubemap, and actual terrain materials. Map IDs use the existing limited map-name lookup only; all-map coverage is not claimed.
+
+`world_lighting_flow` RED records the missing producer (`/tmp/claude/godot-world-lighting-red.log`); its build is GREEN (`/tmp/claude/godot-world-lighting-build-green.log`). The real-fixture pre-commit flow is GREEN (`/tmp/claude/godot-world-lighting-flow.log`), but its reset assertion was added afterward, so a current verifier remains pending. Root `sky_lightdata` tests exposed an old `Dimension` import after main removed the parent import; `7e8c5e40` fixes this conversion regression, not a pre-existing failure. Native/root focused verification is ongoing.
+
+Independent GPU evidence is 12/12 PASS at exact `a0517118384a992cdee773b817333d03a16bd8fc`, terrain shader blob `3871251d3adec49f35b49fcb727c59cfcca73b1c`, and fixture blob `ddcc12700531550d6f389632a3e36762839e8d31` (`/tmp/claude/godot-terrain-shader-12case-verify.log`). It supersedes the earlier unlogged agent report only for those 12 cases. The rejected `SHADOWS_ONLY` caster probe supplies no shadow parity. Actual world-camera/visual-terrain capture, camera streaming/collision, WMO/doodads/water, weather/live game-time/material clock/mips, loading readiness/transfers, and full conversion remain required.
+
 ## Implementation inventory
 
 - `godot/project.godot` — Godot project configuration and bootstrap scene.
