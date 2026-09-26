@@ -1,4 +1,6 @@
 //! Geometry-only ADT adapter. Texture layers, water, objects and streaming are not loaded here.
+mod assets;
+
 use std::fs;
 
 use game_engine_core::adt::{self, Chunk, Geometry};

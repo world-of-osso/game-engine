@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn cached_assets() -> NativeTerrainAssets {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");

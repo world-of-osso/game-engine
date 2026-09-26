@@ -11,6 +11,8 @@ crate-type = ["cdylib", "rlib"]
 # Godot 4.7 GDExtension ABI and native scene/resource APIs replace Bevy rendering.
 godot = { version = "0.5.5", features = ["api-4-7"] }
 game-engine-core = { path = "../core" }
+# Reuse the original local-CASC/listfile resolver and canonical FDID asset cache.
+osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
 game-engine-network = { path = "../network" }
 game-engine-session = { path = "../session" }
 # Authoritative wire message types; engine scheduling stays inside the network worker.
