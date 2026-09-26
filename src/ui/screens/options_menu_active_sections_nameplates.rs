@@ -5,10 +5,10 @@ use crate::nameplate_style::{NameplateStyle, StyleColor, StyleSlider};
 const CELL_GAP: f32 = 16.0;
 const CELL_W: f32 = (OPTIONS_ROW_W - CELL_GAP) / 2.0;
 const CELL_H: f32 = 36.0;
-const CELL_LABEL_W: f32 = 118.0;
+const CELL_LABEL_W: f32 = 124.0;
 const SIZE_TRACK_W: f32 = 160.0;
 const SWATCH: f32 = 18.0;
-const CHANNEL_TRACK_W: f32 = 62.0;
+const CHANNEL_TRACK_W: f32 = 56.0;
 const CHANNEL_GAP: f32 = 6.0;
 const CHANNEL_FILLS: [&str; 3] = [
     "0.72,0.16,0.12,0.92",
@@ -79,7 +79,7 @@ fn cell_label(key: &str, text: &str) -> Element {
             width: {CELL_LABEL_W},
             height: 20.0,
             text: {text},
-            font_size: 15.0,
+            font_size: 14.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "LEFT",
             pos_type: "absolute",
@@ -136,14 +136,15 @@ fn color_cell(color: StyleColor, style: &NameplateStyle) -> Element {
             height: {SWATCH},
             background_color: {swatch_color},
             pos_type: "absolute",
-            left: {CELL_LABEL_W - SWATCH - 6.0},
+            left: {CELL_LABEL_W},
             top: "50%",
             translate_y: "-50%",
         }
     };
     let channels = (0..3).flat_map(|channel| {
         let slider = StyleSlider::Channel(color, channel);
-        let x = CELL_LABEL_W + channel as f32 * (CHANNEL_TRACK_W + CHANNEL_GAP);
+        let x =
+            CELL_LABEL_W + SWATCH + CHANNEL_GAP + channel as f32 * (CHANNEL_TRACK_W + CHANNEL_GAP);
         compact_slider(
             &slider.key(),
             rgb[channel],
