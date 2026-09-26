@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot verifier97 and local-CASC dependency boundary
+
+Verifier97 at exact engine `251f3263` plus sibling `9206f9e` records `world::tests` 3/3 GREEN, native `fmt --check` GREEN, and focused native check exit 0 without warnings at `/tmp/claude/godot-{world-tests,native-rust-fmt-check,native-check}-251f3263.log`. This refreshes proof only; prior native fixtures remain bounded. Transform updates and ordinary despawn are unproven; visible models, map, readiness, and `InWorld` remain absent.
+
+`e2821b83`/`1961bd14` add the existing local-CASC resolver dependency through the pinned same-project SDK source. `/tmp/claude/godot-terrain-assets-red.log` is genuine RED for a missing API, not terrain feature GREEN. `c94a6aa6` native character-create fixture is genuine RED for a missing method. Agents100 terrain,101 UI, and102 world refactor remain active; no pending-code claim follows.
+
 ## [2026-09-26] system | Godot transport snapshots project WorldUnits
 
 `087d3d74`/`5910ce51` add Godot-owned server-ID-keyed WorldUnits node lifecycle from actual transport snapshots: spawn/update/despawn/reset, direct authoritative position axes, wire-Y yaw, and original spawn defaults. The host selects the local player by exact selected-character name; initial duplicate selection preserves original child creation order rather than sorting server IDs. `account_state` now exposes `world_attached` and `local_player_position`.
