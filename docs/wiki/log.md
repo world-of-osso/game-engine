@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot shared LightData interpolation and expanded shader fixture boundary
+
+`b267c69a` shares generic `LightDataRow`/`SkyColorSet` interpolation for every authored field, with no fallback in the shared path. Agent140 reports core 5/5; root `cargo test --bin game-engine sky_lightdata::tests` remains running, so no result is recorded. No actual native authored producer exists.
+
+`602b76f7` plus fixture `a391f772` define 12 shader cases: three blends; authored gamma and specular; overbright; MCCV byte 255; linear fog; UV start/offset/repeat; unshadowed direct; and float-cubemap Fresnel. Agent128 reports 12 passes, but no inspectable saved log exists; this is not independent proof. Shadow control is inconclusive even with StandardMaterial. Native map-time, cubemap, sun, camera, fog, UV-clock, and mip inputs remain missing. This establishes neither GPU/world rendering nor parity. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot MCCV byte encoding and shader-case boundary
 
 `e65dbb59` corrects authored neutral MCCV storage from byte 127 to byte 255 before `ArrayMesh` construction and reverses that conversion in the shader. `/tmp/claude/godot-terrain-mccv-red.log` is genuine RED for the former encoding; `/tmp/claude/godot-terrain-mccv-build.log` and `/tmp/claude/godot-terrain-mccv-green.log` are GREEN and cover exact formatted pre-commit content. `39e04423` shares Retail-array arithmetic through the API; agent137 reports four targeted tests, but no integrated map-time producer exists. `602b76f7` tracks four shader pixel cases; agent128 reports 4/4, but no inspectable logs were available. Its fixture expansion remains uncommitted and is excluded. Verifier139 only completed an audit: no Cargo proof exists, and the focused terrain check remains pending. This does not establish GPU/world rendering or parity. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
