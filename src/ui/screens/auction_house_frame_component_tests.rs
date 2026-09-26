@@ -401,3 +401,20 @@ fn tab_labels_follow_retail_selected_and_deselected_offsets() {
         8.0
     );
 }
+
+/// `PanelTopTabButtonMixin` draws the lower 75 % of the tab art upside down
+/// (`SetTexCoord(0, 1, 1, 0.25)`): the selected Auctions top tab's left cap
+/// (`uiframe-activetab-left`, rows 127..169 of 256) runs from row 169 up to 137.5.
+#[test]
+fn top_tab_art_is_the_upside_down_lower_three_quarters() {
+    let reg = registry(visible(AuctionHouseTab::Auctions));
+    let id = reg
+        .get_by_name("AuctionHouseFrameAuctionsFrameAuctionsTabLeft")
+        .expect("top tab left cap");
+    let Some(WidgetData::Texture(texture)) = reg.get(id).and_then(|f| f.widget_data.as_ref())
+    else {
+        panic!("left cap is not a texture");
+    };
+    assert_eq!(texture.tex_coords[2], 169.0 / 256.0);
+    assert_eq!(texture.tex_coords[3], 137.5 / 256.0);
+}
