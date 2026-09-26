@@ -320,8 +320,6 @@ pub struct RawGroupData {
     pub triangle_materials: Vec<WmoTriangleMaterial>,
     pub doodad_refs: Vec<u16>,
     pub light_refs: Vec<u16>,
-    pub bsp_nodes: Vec<WmoBspNode>,
-    pub bsp_face_refs: Vec<u16>,
     pub liquid: Option<WmoLiquid>,
     pub vertices: Vec<[f32; 3]>,
     pub normals: Vec<[f32; 3]>,
@@ -337,15 +335,6 @@ pub struct RawGroupData {
 pub struct WmoTriangleMaterial {
     pub flags: u8,
     pub material_id: u8,
-}
-
-pub struct WmoBspNode {
-    pub flags: u16,
-    pub neg_child: i16,
-    pub pos_child: i16,
-    pub face_count: u16,
-    pub face_start: u32,
-    pub plane_dist: f32,
 }
 
 pub struct WmoLiquid {
@@ -396,8 +385,6 @@ pub const MAVD_ENTRY_SIZE: usize = 48;
 pub const MBVD_ENTRY_SIZE: usize = 128;
 pub const MNLD_ENTRY_SIZE: usize = 60;
 pub const MOPY_ENTRY_SIZE: usize = 2;
-pub const MOBN_ENTRY_SIZE: usize = 16;
-pub const MOBR_ENTRY_SIZE: usize = 2;
 pub const MLIQ_HEADER_SIZE: usize = 30;
 pub const MLIQ_VERTEX_SIZE: usize = 8;
 pub const MLIQ_TILE_SIZE: usize = 1;
@@ -638,17 +625,6 @@ pub struct RawWmoGroupHeader {
 pub struct RawWmoTriangleMaterial {
     pub flags: u8,
     pub material_id: u8,
-}
-
-#[derive(BinRead)]
-#[br(little)]
-pub struct RawWmoBspNode {
-    pub flags: u16,
-    pub neg_child: i16,
-    pub pos_child: i16,
-    pub face_count: u16,
-    pub face_start: u32,
-    pub plane_dist: f32,
 }
 
 #[derive(BinRead)]

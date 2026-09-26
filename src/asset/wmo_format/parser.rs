@@ -363,26 +363,6 @@ pub fn parse_mopy(data: &[u8]) -> Result<Vec<WmoTriangleMaterial>, String> {
     )
 }
 
-pub fn parse_mobn(data: &[u8]) -> Result<Vec<WmoBspNode>, String> {
-    Ok(
-        parse_binrw_entries::<RawWmoBspNode>(data, MOBN_ENTRY_SIZE, "MOBN")?
-            .into_iter()
-            .map(|entry| WmoBspNode {
-                flags: entry.flags,
-                neg_child: entry.neg_child,
-                pos_child: entry.pos_child,
-                face_count: entry.face_count,
-                face_start: entry.face_start,
-                plane_dist: entry.plane_dist,
-            })
-            .collect(),
-    )
-}
-
-pub fn parse_mobr(data: &[u8]) -> Result<Vec<u16>, String> {
-    parse_binrw_entries(data, MOBR_ENTRY_SIZE, "MOBR")
-}
-
 pub fn parse_mliq(data: &[u8]) -> Result<WmoLiquid, String> {
     let header: RawWmoLiquidHeader = parse_binrw_value(data, MLIQ_HEADER_SIZE, "MLIQ")?;
     let vertex_count = checked_mliq_count(header.x_verts, header.y_verts, "vertex")?;

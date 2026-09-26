@@ -182,69 +182,6 @@ fn parse_group_subchunks_reads_molr_light_refs() {
 }
 
 #[test]
-fn parse_mobn_reads_bsp_nodes() {
-    let mut data = Vec::new();
-    data.extend_from_slice(&BSP_NODE_FLAGS.to_le_bytes());
-    data.extend_from_slice(&(-1_i16).to_le_bytes());
-    data.extend_from_slice(&5_i16.to_le_bytes());
-    data.extend_from_slice(&12_u16.to_le_bytes());
-    data.extend_from_slice(&34_u32.to_le_bytes());
-    data.extend_from_slice(&1.5_f32.to_le_bytes());
-
-    let nodes = parse_mobn(&data).expect("parse MOBN");
-
-    assert_eq!(nodes.len(), 1);
-    let node = &nodes[0];
-    assert_eq!(node.flags, BSP_NODE_FLAGS);
-    assert_eq!(node.neg_child, -1);
-    assert_eq!(node.pos_child, 5);
-    assert_eq!(node.face_count, 12);
-    assert_eq!(node.face_start, 34);
-    assert_eq!(node.plane_dist, 1.5);
-}
-
-#[test]
-fn parse_group_subchunks_reads_mobn_and_mobr_bsp_data() {
-    let mut data = Vec::new();
-
-    let mut mobn = Vec::new();
-    mobn.extend_from_slice(&BSP_GROUP_NODE_FLAGS.to_le_bytes());
-    mobn.extend_from_slice(&(-1_i16).to_le_bytes());
-    mobn.extend_from_slice(&(-1_i16).to_le_bytes());
-    mobn.extend_from_slice(&3_u16.to_le_bytes());
-    mobn.extend_from_slice(&7_u32.to_le_bytes());
-    mobn.extend_from_slice(&12.5_f32.to_le_bytes());
-    append_chunk(&mut data, b"NBOM", &mobn);
-
-    let mut mobr = Vec::new();
-    for value in [4_u16, 8, 9] {
-        mobr.extend_from_slice(&value.to_le_bytes());
-    }
-    append_chunk(&mut data, b"RBOM", &mobr);
-
-    let mut movt = Vec::new();
-    for value in [1.0_f32, 2.0, 3.0] {
-        movt.extend_from_slice(&value.to_le_bytes());
-    }
-    append_chunk(&mut data, b"TVOM", &movt);
-
-    let mut movi = Vec::new();
-    for value in [0_u16, 0, 0] {
-        movi.extend_from_slice(&value.to_le_bytes());
-    }
-    append_chunk(&mut data, b"IVOM", &movi);
-
-    let group = parse_group_subchunks(&data).expect("parse group subchunks");
-
-    assert_eq!(group.bsp_nodes.len(), 1);
-    assert_eq!(group.bsp_nodes[0].flags, BSP_GROUP_NODE_FLAGS);
-    assert_eq!(group.bsp_nodes[0].face_count, 3);
-    assert_eq!(group.bsp_nodes[0].face_start, 7);
-    assert_eq!(group.bsp_nodes[0].plane_dist, 12.5);
-    assert_eq!(group.bsp_face_refs, vec![4, 8, 9]);
-}
-
-#[test]
 fn parse_group_subchunks_preserves_second_motv_uv_set() {
     let mut data = Vec::new();
 

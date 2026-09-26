@@ -20,7 +20,6 @@ use crate::water_material::WaterMaterial;
 
 use crate::terrain::resolve_companion_path;
 use crate::terrain_heightmap::TerrainHeightmap;
-use crate::terrain_tile::TILE_SIZE;
 pub use terrain_objects_fog::{load_map_fogs_wdt, spawn_map_fog_volumes};
 pub use terrain_objects_wmo::WmoFootstepSurface;
 use terrain_objects_wmo::spawn_wmos_filtered;
@@ -691,13 +690,10 @@ fn doodad_position(d: &adt_obj::DoodadPlacement, tile_y: u32, tile_x: u32) -> Ve
     Vec3::from(placement_to_bevy_on_tile(d.position, tile_y, tile_x))
 }
 
-/// Convert WoW MDDF/MODF Euler rotation to Bevy.
-/// stored [X, Y, Z] becomes model rotation [Z, Y - 180, -X], then YZX order.
+/// Convert WoW MDDF/MODF Euler rotation to Bevy (the server places WMO
+/// collision with the same `shared::ground` conversion).
 fn placement_rotation(rot: [f32; 3]) -> Quat {
-    let bank_x = rot[2].to_radians();
-    let heading_y = (rot[1] - 180.0).to_radians();
-    let attitude_z = (-rot[0]).to_radians();
-    Quat::from_euler(EulerRot::YZX, heading_y, attitude_z, bank_x)
+    shared::ground::placement_rotation(rot)
 }
 
 pub(super) fn wow_quat_to_bevy(raw: [f32; 4]) -> Quat {
@@ -760,8 +756,7 @@ fn spawn_wmos(
 /// Convert MODF/MDDF placement position to Bevy-space using the legacy
 /// absolute-world ADT convention.
 pub(super) fn placement_to_bevy_absolute(raw: [f32; 3]) -> [f32; 3] {
-    let center = 32.0 * TILE_SIZE;
-    [center - raw[2], raw[1], raw[0] - center]
+    shared::ground::placement_position(raw).to_array()
 }
 
 fn placement_to_bevy_on_tile(raw: [f32; 3], tile_y: u32, tile_x: u32) -> [f32; 3] {

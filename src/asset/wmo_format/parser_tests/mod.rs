@@ -9,8 +9,6 @@ mod root_chunks;
 
 pub(super) const SAMPLE_GROUP_FLAGS: u32 = 0x0102_0304;
 pub(super) const INTERIOR_GROUP_FLAG: u32 = 0x2000;
-pub(super) const BSP_NODE_FLAGS: u16 = 0x0006;
-pub(super) const BSP_GROUP_NODE_FLAGS: u16 = 0x0004;
 pub(super) const SECOND_UV_FLAG: u32 = 0x0200_0000;
 pub(super) const THIRD_UV_FLAG: u32 = 0x4000_0000;
 pub(super) const SECOND_COLOR_BLEND_ALPHA_FLAG: u32 = 0x0100_0000;
