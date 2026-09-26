@@ -123,7 +123,7 @@ impl UnitTooltipSources<'_, '_> {
 
     pub(super) fn tooltip(&self) -> Option<TooltipFrameState> {
         let (npc, player, level, faction, guild) = self.units.get(self.hovered.0?).ok()?;
-        let level = level.map(|level| level.0);
+        let level = displayed_level(level);
         let reaction = self.reaction_to(faction);
         if let Some(player) = player {
             return Some(player_tooltip(&PlayerTooltipInput {
@@ -138,6 +138,7 @@ impl UnitTooltipSources<'_, '_> {
         let npc = npc?;
         Some(npc_tooltip(
             &NpcTooltipInput {
+                entry: npc.template_id,
                 name: &npc.name,
                 reaction,
                 level,
@@ -147,6 +148,13 @@ impl UnitTooltipSources<'_, '_> {
             &self.appearances.0,
         ))
     }
+}
+
+/// The level the tooltip shows: the unit's replicated level, as the target frame
+/// shows it. The one place to switch to the viewer-scaled level
+/// (`shared::level_scaling::level_for_viewer`, branch levelscaling).
+fn displayed_level(level: Option<&UnitLevel>) -> Option<u8> {
+    level.map(|level| level.0)
 }
 
 #[cfg(test)]

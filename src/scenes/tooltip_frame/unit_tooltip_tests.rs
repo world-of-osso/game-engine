@@ -82,6 +82,7 @@ fn rows(state: &TooltipFrameState) -> Vec<(Option<ItemMark>, &str, &str)> {
 fn defias_thug_tooltip_lists_uncollected_first_then_by_chance_and_truncates() {
     let data = defias_thug();
     let input = NpcTooltipInput {
+        entry: 38,
         name: "Defias Thug",
         reaction: Reaction::Hostile,
         level: Some(3),
@@ -115,6 +116,7 @@ fn defias_thug_tooltip_lists_uncollected_first_then_by_chance_and_truncates() {
 fn a_collected_appearance_shows_the_check_and_loses_its_priority() {
     let data = defias_thug();
     let input = NpcTooltipInput {
+        entry: 38,
         name: "Defias Thug",
         reaction: Reaction::Hostile,
         level: Some(3),
@@ -193,6 +195,7 @@ fn six_items_are_all_listed() {
 fn vendor_tooltip_lists_sold_items_without_chances() {
     let data = corina_steele();
     let input = NpcTooltipInput {
+        entry: 54,
         name: "Corina Steele",
         reaction: Reaction::Friendly,
         level: Some(10),
@@ -225,6 +228,7 @@ fn vendor_tooltip_lists_sold_items_without_chances() {
 #[test]
 fn before_the_server_answers_the_npc_shows_its_basic_lines() {
     let input = NpcTooltipInput {
+        entry: 68,
         name: "Stormwind City Guard",
         reaction: Reaction::Friendly,
         level: Some(30),
@@ -270,4 +274,27 @@ fn chances_read_as_short_percentages() {
     assert_eq!(chance_text(0.04), "0.04%");
     assert_eq!(chance_text(0.5), "0.5%");
     assert_eq!(chance_text(0.004), "<0.01%");
+}
+
+#[test]
+fn npc_tooltips_name_their_creature_record_and_players_none() {
+    let input = NpcTooltipInput {
+        entry: 38,
+        name: "Defias Thug",
+        reaction: Reaction::Hostile,
+        level: Some(3),
+        faction: None,
+        data: None,
+    };
+    let npc = npc_tooltip(&input, &AppearanceCollection::default());
+    assert_eq!(npc.record, Some(TooltipRecord::Creature(38)));
+    let player = player_tooltip(&PlayerTooltipInput {
+        name: "Uther",
+        reaction: Reaction::Friendly,
+        guild: None,
+        level: Some(12),
+        race: "Human",
+        class: "Paladin",
+    });
+    assert_eq!(player.record, None);
 }

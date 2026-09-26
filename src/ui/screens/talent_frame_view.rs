@@ -27,6 +27,7 @@ const HERO_SELECT_GAP: f32 = 18.0;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct TalentTooltip {
+    pub spell_id: u32,
     pub title: String,
     pub rank: String,
     pub description: String,
@@ -336,6 +337,7 @@ fn border_art_name(shape: NodeShape, look: NodeLook) -> String {
 
 fn tooltip(entry: &TalentEntry, held: u32, input: &TalentViewInput) -> TalentTooltip {
     TalentTooltip {
+        spell_id: entry.spell_id,
         title: entry_name(entry, input.catalog),
         rank: format!("Rank {held}/{}", entry.max_ranks),
         description: input
