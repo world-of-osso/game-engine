@@ -36,6 +36,7 @@ func run_test() -> void:
 	require(username.position.is_equal_approx(Vector2.ZERO) and username.size.is_equal_approx(Vector2(320, 42)), "username bounds")
 	require(password.position.is_equal_approx(Vector2(0, 72)) and password.secret, "password geometry and masking")
 	require(connect.position.is_equal_approx(Vector2(35, 134)) and connect.text == "Login", "authored login button: " + str(connect.position) + " text=" + connect.text)
+	require(connect.get_theme_color("font_color").is_equal_approx(Color(1.0, 0.82, 0.0)), "authored gold button text missing")
 	var background = host.find_child("LoginBackground", true, false)
 	var logo = host.find_child("LoginGameLogo", true, false)
 	var border = username.get_node_or_null("NinePart0")
@@ -43,6 +44,8 @@ func run_test() -> void:
 	require(logo is TextureRect and logo.texture != null and logo.texture.get_width() > 100, "authored logo texture missing")
 	require(logo.size.is_equal_approx(Vector2(384, 256)), "authored logo bounds: " + str(logo.size))
 	require(border is TextureRect and border.texture != null, "authored input border missing")
+	var input_style = username.get_theme_stylebox("normal")
+	require(input_style.get_content_margin(SIDE_LEFT) == 12.0 and input_style.get_content_margin(SIDE_RIGHT) == 5.0, "authored input text insets missing")
 	username.grab_focus()
 	var key := InputEventKey.new()
 	key.keycode = KEY_A
