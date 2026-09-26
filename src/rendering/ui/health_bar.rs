@@ -266,7 +266,7 @@ impl PlateReactions<'_, '_> {
             .ok()
             .and_then(|(template, _)| template);
         let player = self.local.single().ok().flatten();
-        crate::unit_frames::target_reaction(templates.row(target), templates.row(player))
+        game_engine::faction_reaction::reaction(templates.row(target), templates.row(player))
     }
 
     fn health_color(&self, owner: Entity, style: &NameplateStyle) -> Color {
