@@ -59,6 +59,28 @@ impl RegistryUi {
         Ok(())
     }
 
+    fn sync_viewport(&mut self) -> Result<(), String> {
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let Some(model) = self.model.as_mut() else {
+            return Err("Login model not initialized".into());
+        };
+        if model.registry.screen_width == size.x && model.registry.screen_height == size.y {
+            return Ok(());
+        }
+        model.registry.screen_width = size.x;
+        model.registry.screen_height = size.y;
+        model.registry.mark_all_rects_dirty();
+        let Some(projection) = self.projection.as_mut() else {
+            return Err("Native projection not initialized".into());
+        };
+        projection.root.set_size(size);
+        projection.sync(&mut model.registry)
+    }
+
     fn sync_model(&mut self) -> Result<(), String> {
         let Some(model) = self.model.as_mut() else {
             return Err("Login model not initialized".into());
@@ -93,6 +115,9 @@ impl RegistryUi {
 
     #[func]
     pub fn sync_input(&mut self) -> GString {
+        if let Err(error) = self.sync_viewport() {
+            return GString::from(error.as_str());
+        }
         let Some(projection) = self.projection.as_mut() else {
             return "Login UI is not initialized".into();
         };

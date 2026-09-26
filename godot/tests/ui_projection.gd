@@ -78,6 +78,10 @@ func run_test() -> void:
 	require(host.pop_action() == "connect", "named-frame button action")
 	host.set_status("Retry")
 	require(host.find_child("LoginStatus", true, false).text == "Retry", "registry update must project")
+	root.size = Vector2i(1600, 900)
+	await process_frame
+	host.sync_input()
+	require(form.position.is_equal_approx(Vector2(640, 283)), "native viewport resize must reproject authored layout: " + str(form.position))
 	host.remove_login()
 	await process_frame
 	require(host.find_child("UsernameInput", true, false) == null, "removed registry subtree must disappear")
