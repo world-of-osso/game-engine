@@ -100,6 +100,7 @@ fn every_plan_hud_element_is_registered_once() {
         "MultiBarBottomRight",
         "MultiBarRight",
         "MultiBarLeft",
+        "MainStatusTrackingBarContainer",
         "MinimapCluster",
         "ObjectiveTrackerFrame",
         "BuffFrame",
@@ -355,6 +356,57 @@ fn f10_boxes_every_combat_cluster_frame() {
             "{key} has no edit-mode selection box"
         );
     }
+}
+
+/// The real status tracking bar screen with an XP bar, laid out at 1920×1080.
+fn mount_status_tracking_bar(app: &mut App) {
+    use game_engine::experience_data::ExperienceState;
+    use game_engine::ui::screens::status_tracking_bar_component::{
+        StatusTrackingBarState, status_tracking_bar_screen,
+    };
+    use shared::protocol::PlayerXpUpdate;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    let experience = ExperienceState(Some(PlayerXpUpdate {
+        xp: 100,
+        next_level_xp: 400,
+        rested_xp: 0,
+    }));
+    let mut shared = SharedContext::new();
+    shared.insert(StatusTrackingBarState::new(&experience, false, false));
+    let mut ui = app.world_mut().resource_mut::<UiState>();
+    Screen::new(status_tracking_bar_screen).sync(&shared, &mut ui.registry);
+    layout_support::compute_layout(&mut ui.registry);
+}
+
+#[test]
+fn edit_mode_boxes_and_moves_the_status_tracking_bar() {
+    let path = temp_layout_path("status-bar");
+    let mut app = edit_mode_app_with(&path, 13, mount_status_tracking_bar);
+    tap_key(&mut app, KeyCode::F10);
+    let registry = &app.world().resource::<UiState>().registry;
+    let label = registry
+        .get_by_name("EditModeSelection_status_tracking_bar_1Label")
+        .expect("status bar selection label");
+    match &registry.get(label).unwrap().widget_data {
+        Some(WidgetData::FontString(text)) => assert_eq!(text.text, "Status Bar 1"),
+        other => panic!("label is not a fontstring: {other:?}"),
+    }
+
+    // Authored top-left (674.5, 1063); drag it 300 up.
+    drag(&mut app, Vec2::new(774.5, 1071.0), Vec2::new(774.5, 771.0));
+
+    let registry = &app.world().resource::<UiState>().registry;
+    let frame = registry
+        .get(
+            registry
+                .get_by_name("MainStatusTrackingBarContainer")
+                .unwrap(),
+        )
+        .unwrap();
+    assert_eq!(
+        (frame.position.left, frame.position.top),
+        (Val::Px(672.0), Val::Px(760.0))
+    );
 }
 
 #[test]

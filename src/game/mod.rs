@@ -27,6 +27,8 @@ pub(crate) mod networking_bank;
 pub(crate) mod networking_game_objects;
 #[path = "networking/group.rs"]
 pub(crate) mod networking_group;
+#[path = "networking/experience.rs"]
+pub(crate) mod networking_experience;
 #[path = "networking/inventory.rs"]
 pub(crate) mod networking_inventory;
 #[path = "networking/loot.rs"]

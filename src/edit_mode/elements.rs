@@ -88,6 +88,13 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
         "MultiBarLeft",
         HudAnchor::Right,
     ),
+    // `HUD_EDIT_MODE_STATUS_TRACKING_BAR_LABEL` "Status Bar %d".
+    element(
+        "status_tracking_bar_1",
+        "Status Bar 1",
+        "MainStatusTrackingBarContainer",
+        HudAnchor::Bottom,
+    ),
     element("minimap", "Minimap", "MinimapCluster", HudAnchor::TopRight),
     element(
         "objective_tracker",

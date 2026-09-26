@@ -1,6 +1,7 @@
 //! Lays out the whole in-world HUD with the native layout engine at 16:9 and at a taller
 //! aspect ratio, where auto-fit keeps the 1920 reference width and grows the canvas height.
 
+use game_engine::experience_data::ExperienceState;
 use game_engine::ui::layout::LayoutRect;
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::{BuffFrameState, buff_frame_screen};
@@ -13,8 +14,12 @@ use game_engine::ui::screens::inworld_unit_frames_component::{
     InWorldUnitFramesState, SmallUnitFrameState, UnitFrameMenuState, UnitFrameState,
     inworld_unit_frames_screen,
 };
+use game_engine::ui::screens::status_tracking_bar_component::{
+    StatusTrackingBarState, status_tracking_bar_screen,
+};
 use game_engine::ui::screens::ui_errors_frame_component::ui_errors_frame_screen;
 use game_engine::ui::ui_errors::UiErrors;
+use shared::protocol::PlayerXpUpdate;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::edit_mode::elements::EDIT_MODE_ELEMENTS;
@@ -27,6 +32,7 @@ const CANVASES: [(f32, f32); 2] = [(1920.0, 1080.0), (1920.0, 1137.0 * 1920.0 / 
 
 const CORE_ELEMENTS: &[&str] = &[
     "MainActionBar",
+    "MainStatusTrackingBarContainer",
     "PlayerFrame",
     "TargetFrame",
     "TargetOfTargetFrame",
@@ -72,12 +78,19 @@ fn mount_hud(width: f32, height: f32) -> FrameRegistry {
     shared.insert(BuffFrameState::default());
     shared.insert(ChatFrameView::default());
     shared.insert(UiErrors::default());
+    let experience = ExperienceState(Some(PlayerXpUpdate {
+        xp: 100,
+        next_level_xp: 400,
+        rested_xp: 50,
+    }));
+    shared.insert(StatusTrackingBarState::new(&experience, false, false));
     for build in [
         inworld_unit_frames_screen,
         casting_bar_frame_screen,
         buff_frame_screen,
         chat_frame_screen,
         ui_errors_frame_screen,
+        status_tracking_bar_screen,
         minimap_screen,
     ] {
         Screen::new(build).sync(&shared, &mut reg);
@@ -157,6 +170,25 @@ fn hud_regions_follow_the_accepted_composition() {
             "bar centred {size}"
         );
         assert!(height - bottom(&bar) < 60.0, "bar at the bottom {size}");
+        // Retail Modern: status bar 1 at the screen bottom, the main bar 45 above it.
+        let status = get("MainStatusTrackingBarContainer");
+        assert!(
+            (bottom(&status) - height).abs() < 0.5,
+            "status bar at the bottom edge {size}"
+        );
+        assert!(
+            (status.x + status.width / 2.0 - width / 2.0).abs() < 1.0,
+            "status bar centred {size}"
+        );
+        assert_eq!(
+            bottom(&status) - bottom(&bar),
+            45.0,
+            "main bar above it {size}"
+        );
+        assert!(
+            status.y >= bottom(&bar),
+            "status bar below the main bar {size}"
+        );
         assert!(bottom(&player) <= bar.y, "cluster above the bar {size}");
         assert!(
             bar.y - bottom(&player) < 80.0,
