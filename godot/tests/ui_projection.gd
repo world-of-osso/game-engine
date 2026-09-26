@@ -15,6 +15,7 @@ func run_test() -> void:
 	if failures > 0:
 		quit(1)
 		return
+	root.size = Vector2i(1280, 720)
 	var host = ClassDB.instantiate("RegistryUi")
 	root.add_child(host)
 	var error = host.show_login()
@@ -47,14 +48,32 @@ func run_test() -> void:
 	key.keycode = KEY_A
 	key.unicode = 97
 	key.pressed = true
-	Input.parse_input_event(key)
+	root.push_input(key, true)
 	await process_frame
-	require(username.has_focus() and username.text == "a", "native keyboard event and focus: " + username.text)
-	username.insert_text_at_caret("dminé")
+	require(username.has_focus() and username.text == "a", "native keyboard event and focus: focus=" + str(username.has_focus()) + " text=" + username.text)
+	var accented := InputEventKey.new()
+	accented.keycode = KEY_E
+	accented.unicode = 233
+	accented.pressed = true
+	root.push_input(accented, true)
+	await process_frame
+	require(username.text == "aé", "native Unicode key insertion: " + username.text)
+	var select_all := InputEventKey.new()
+	select_all.keycode = KEY_A
+	select_all.ctrl_pressed = true
+	select_all.pressed = true
+	root.push_input(select_all, true)
+	var erase := InputEventKey.new()
+	erase.keycode = KEY_BACKSPACE
+	erase.pressed = true
+	root.push_input(erase, true)
+	await process_frame
+	require(username.text == "", "native select-all and backspace: " + username.text)
+	username.insert_text_at_caret("adminé")
 	username.text_changed.emit(username.text)
-	require(username.text == "adminé", "native unicode text insertion")
+	require(username.text == "adminé", "native unicode text insertion: " + username.text)
 	host.sync_input()
-	require(host.frame_text("UsernameInput") == "adminé", "native edits must update registry")
+	require(host.frame_text("UsernameInput") == "adminé", "native edits must update registry: " + host.frame_text("UsernameInput"))
 	connect.pressed.emit()
 	require(host.pop_action() == "connect", "named-frame button action")
 	host.set_status("Retry")
