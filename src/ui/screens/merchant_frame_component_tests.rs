@@ -208,6 +208,38 @@ fn repair_buttons_follow_the_vendor_and_the_repair_cost() {
 }
 
 #[test]
+fn sell_all_junk_sits_right_of_repair_all_and_is_enabled_only_with_junk() {
+    let mut state = godric();
+    state.has_junk = true;
+    let reg = build(state);
+    assert_eq!(
+        onclick(&reg, "MerchantSellAllJunkButton").as_deref(),
+        Some(ACTION_SELL_ALL_JUNK)
+    );
+    // RIGHT at MerchantRepairAllButton LEFT +80 (MF.lua:943).
+    assert_eq!(offset(&reg, "MerchantSellAllJunkButton"), (126.0, 375.0));
+
+    let reg = build(godric());
+    assert_eq!(onclick(&reg, "MerchantSellAllJunkButton"), None);
+    assert_eq!(
+        texture_color(&reg, "MerchantSellAllJunkButtonIcon"),
+        [0.4, 0.4, 0.4, 1.0]
+    );
+
+    // A vendor that cannot repair: BOTTOMRIGHT -148,33 (MF.lua:954).
+    let mut state = godric();
+    state.repair = None;
+    let reg = build(state);
+    assert_eq!(offset(&reg, "MerchantSellAllJunkButton"), (152.0, 375.0));
+}
+
+#[test]
+fn the_frame_background_takes_cursor_drops() {
+    let reg = build(godric());
+    assert_eq!(onclick(&reg, FRAME_NAME).as_deref(), Some(ACTION_FRAME));
+}
+
+#[test]
 fn player_money_sits_bottom_right_as_gold_silver_copper() {
     let reg = build(godric());
     let amounts: Vec<String> = (0..3)
@@ -234,6 +266,7 @@ fn buyback_tab_shows_twelve_slots_and_hides_the_merchant_controls() {
     assert_eq!(offset(&reg, "MerchantItem11"), (11.0, 364.0));
     assert!(exists(&reg, "MerchantItem12"));
     assert!(!exists(&reg, "MerchantRepairAllButton"));
+    assert!(!exists(&reg, "MerchantSellAllJunkButton"));
     assert!(!exists(&reg, "MerchantBuyBackItem"));
     assert_eq!(onclick(&reg, "MerchantFrameTab2"), None);
     assert_eq!(

@@ -1,11 +1,14 @@
 //! MerchantFrame scene: builds the Retail frame from [`MerchantState`], the player's
 //! money and repair cost; opens and closes its window with the vendor interaction;
 //! turns clicks into [`MerchantRequest`]s. Retail clicks (MerchantFrame.lua:632-669):
-//! right-click an item buys one purchase, a buyback item buys it back.
+//! right-click an item buys one purchase, a click on a buyback item buys it back;
+//! a left click picks a vendor item up onto the cursor (`scenes::cursor_item`).
+//! Sell All Junk asks first (`SELL_ALL_JUNK_ITEMS_POPUP`).
 
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use game_engine::bag_data::{InventoryState, ItemQuality};
 use game_engine::item_icons::item_icon_fdid;
 use game_engine::merchant_data::{
     BUYBACK_ITEMS_PER_PAGE, MerchantRequest, MerchantState, MerchantTab, quality_color,
@@ -13,21 +16,25 @@ use game_engine::merchant_data::{
 use game_engine::status::{CharacterStatsSnapshot, DurabilityStatusSnapshot};
 use game_engine::ui::input::{find_frame_at, ui_cursor_position};
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
+use game_engine::ui::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
 use game_engine::ui::screens::merchant_frame_component::{
     ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_ITEM_PREFIX, ACTION_PAGE_NEXT, ACTION_PAGE_PREV,
-    ACTION_REPAIR_ALL, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint, MerchantCell,
-    MerchantFrameState, merchant_frame_screen,
+    ACTION_REPAIR_ALL, ACTION_SELL_ALL_JUNK, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT, CellTint,
+    MerchantCell, MerchantFrameState, merchant_frame_screen,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
 use crate::game::inworld_scene_stage::inworld_scene_stage_allows_ui;
 use crate::game_state::GameState;
 use crate::networking_quests::NpcInteractionRequest;
+use crate::scenes::static_popup::StaticPopupSystems;
 use crate::ui_input::walk_up_for_onclick;
 use crate::window_manager::{WindowId, WindowManager};
 
 /// `INV_Misc_QuestionMark`, Retail's icon for an item without one.
 const UNKNOWN_ICON_FDID: u32 = 134_400;
+/// `StaticPopup_ShowCustomGenericConfirmation` for Sell All Junk (MF.lua:1054-1063).
+const SELL_ALL_JUNK_POPUP: &str = "SELL_ALL_JUNK_ITEMS";
 
 struct MerchantFrameRes {
     screen: Screen,
@@ -48,7 +55,10 @@ pub struct MerchantFramePlugin;
 impl Plugin for MerchantFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<MerchantState>()
+            .init_resource::<InventoryState>()
+            .init_resource::<PopupStack>()
             .add_message::<MerchantRequest>()
+            .add_message::<PopupResult>()
             .add_message::<NpcInteractionRequest>();
         app.add_systems(
             OnEnter(GameState::InWorld),
@@ -59,6 +69,7 @@ impl Plugin for MerchantFramePlugin {
             Update,
             (
                 handle_merchant_frame_input,
+                sell_junk_on_confirm.after(StaticPopupSystems),
                 sync_merchant_window,
                 sync_merchant_frame_state,
             )
@@ -76,6 +87,7 @@ struct MerchantView<'w> {
     manager: Res<'w, WindowManager>,
     stats: Option<Res<'w, CharacterStatsSnapshot>>,
     durability: Option<Res<'w, DurabilityStatusSnapshot>>,
+    inventory: Res<'w, InventoryState>,
 }
 
 impl MerchantView<'_> {
@@ -85,13 +97,26 @@ impl MerchantView<'_> {
             .durability
             .as_ref()
             .map_or(0, |durability| durability.total_repair_cost);
-        build_state(
-            &self.merchant,
-            self.manager.is_open(WindowId::Merchant),
-            money,
-            u64::from(repair_cost),
-        )
+        MerchantFrameState {
+            has_junk: has_junk(&self.inventory),
+            ..build_state(
+                &self.merchant,
+                self.manager.is_open(WindowId::Merchant),
+                money,
+                u64::from(repair_cost),
+            )
+        }
     }
+}
+
+/// `C_MerchantFrame.GetNumJunkItems() > 0`: a poor-quality bag item a vendor buys
+/// (the items `SellAllJunkItems` sells).
+fn has_junk(inventory: &InventoryState) -> bool {
+    inventory.slots.iter().flatten().any(|item| {
+        item.quality == ItemQuality::Poor
+            && game_engine::item_catalog::item_catalog_entry(item.item_id)
+                .is_some_and(|entry| entry.sell_price > 0)
+    })
 }
 
 fn build_merchant_frame_ui(
@@ -200,6 +225,7 @@ fn build_state(
             ..buyback_cell(item, money, 0)
         }),
         money,
+        has_junk: false,
     }
 }
 
@@ -281,6 +307,7 @@ fn handle_merchant_frame_input(
     mut merchant: ResMut<MerchantState>,
     mut manager: ResMut<WindowManager>,
     mut requests: MessageWriter<MerchantRequest>,
+    mut popups: ResMut<PopupStack>,
 ) {
     if !merchant.is_open() {
         return;
@@ -288,8 +315,39 @@ fn handle_merchant_frame_input(
     let Some((button, action)) = pointer.click(&ui) else {
         return;
     };
+    if action == ACTION_SELL_ALL_JUNK {
+        popups.push(sell_all_junk_popup());
+        return;
+    }
     if let Some(request) = dispatch_action(&action, button, &mut merchant, &mut manager) {
         requests.write(request);
+    }
+}
+
+/// `SELL_ALL_JUNK_ITEMS_POPUP` with the generic confirmation's Yes / No.
+fn sell_all_junk_popup() -> PopupSpec {
+    PopupSpec {
+        key: SELL_ALL_JUNK_POPUP.into(),
+        text: "You are about to sell all junk items and will not be able to buy them back.\nAre you sure you want to proceed?".into(),
+        accept_label: "Yes".into(),
+        cancel_label: Some("No".into()),
+        timeout: None,
+    }
+}
+
+/// `MerchantFrame_OnSellAllJunkButtonConfirmed` → `C_MerchantFrame.SellAllJunkItems`.
+fn sell_junk_on_confirm(
+    mut results: MessageReader<PopupResult>,
+    merchant: Res<MerchantState>,
+    mut requests: MessageWriter<MerchantRequest>,
+) {
+    for result in results.read() {
+        if result.key == SELL_ALL_JUNK_POPUP
+            && result.outcome == PopupOutcome::Accepted
+            && merchant.is_open()
+        {
+            requests.write(MerchantRequest::SellAllJunk);
+        }
     }
 }
 
@@ -321,17 +379,15 @@ fn dispatch_action(
     None
 }
 
-/// Right-click buys (`BuyMerchantItem`) or buys back (`BuybackItem`); a left click
-/// would pick the item up, which needs the cursor item Retail has and we don't.
+/// Right-click buys (`BuyMerchantItem`); any click on a buyback item buys it back
+/// (`BuybackItem`). A left click on a vendor item picks it up (the cursor item).
 fn item_request(
     merchant: &MerchantState,
     index: usize,
     button: MouseButton,
 ) -> Option<MerchantRequest> {
-    if button != MouseButton::Right {
-        return None;
-    }
     match merchant.tab {
+        MerchantTab::Merchant if button != MouseButton::Right => None,
         MerchantTab::Merchant => {
             let item = merchant.page_items().get(index)?;
             Some(MerchantRequest::Buy {
