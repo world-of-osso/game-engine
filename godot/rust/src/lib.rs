@@ -27,6 +27,7 @@ pub struct GameClient {
     login_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
     units: HashMap<u64, UnitSnapshot>,
+    server_hostname: String,
 }
 
 #[godot_api]
@@ -42,13 +43,22 @@ impl INode3D for GameClient {
                     .to_string(),
             )),
             units: HashMap::new(),
+            server_hostname: if cfg!(debug_assertions) {
+                "127.0.0.1:5000"
+            } else {
+                "game.worldofosso.com:5000"
+            }
+            .into(),
         }
     }
 
     fn process(&mut self, _delta: f64) {
-        if let Err(error) = self.poll_account() {
+        if let Err(error) = self.poll_login_actions().and_then(|()| self.poll_account()) {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
+            if let Err(ui_error) = self.update_login_status(&error, false) {
+                godot_error!("Login feedback failed: {ui_error}");
+            }
             if let Err(stop_error) = self.account.stop() {
                 godot_error!("Account shutdown failed: {stop_error}");
             }
@@ -72,6 +82,11 @@ impl INode3D for GameClient {
 impl GameClient {
     #[signal]
     fn screen_requested(screen: GString);
+
+    #[func]
+    fn set_server(&mut self, server: GString) {
+        self.server_hostname = server.to_string();
+    }
 
     #[func]
     fn connect_account(
@@ -122,6 +137,60 @@ impl GameClient {
 }
 
 impl GameClient {
+    fn poll_login_actions(&mut self) -> Result<(), String> {
+        let Some(login) = self.login_ui.as_mut() else {
+            return Ok(());
+        };
+        let error = login.bind_mut().sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        let action = login.bind_mut().pop_action().to_string();
+        match action.as_str() {
+            "" => Ok(()),
+            "connect" => {
+                let credentials = login.bind().credentials();
+                let username = credential_field(&credentials, "username")?;
+                let password = credential_field(&credentials, "password")?;
+                if username.trim().is_empty() || password.trim().is_empty() {
+                    return self.update_login_status("Please fill in all fields", false);
+                }
+                self.account
+                    .connect(&self.server_hostname, &username, &password, false)?;
+                self.units.clear();
+                self.update_login_status("Connecting...", true)
+            }
+            "reconnect" => {
+                self.account.connect(&self.server_hostname, "", "", false)?;
+                self.units.clear();
+                self.update_login_status("Connecting...", true)
+            }
+            "exit" => {
+                if let Some(mut tree) = self.base().get_tree() {
+                    tree.quit();
+                }
+                Ok(())
+            }
+            other => Err(format!("Login action not yet converted: {other}")),
+        }
+    }
+
+    fn update_login_status(&mut self, status: &str, connecting: bool) -> Result<(), String> {
+        let Some(login) = self.login_ui.as_mut() else {
+            return Ok(());
+        };
+        let mut login = login.bind_mut();
+        let error = login.set_connecting(connecting);
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        let error = login.set_status(GString::from(status));
+        if !error.is_empty() {
+            return Err(error.to_string());
+        }
+        Ok(())
+    }
+
     fn poll_account(&mut self) -> Result<(), String> {
         for event in self.account.poll()? {
             match event {
@@ -129,13 +198,8 @@ impl GameClient {
                     let name = GString::from(format!("{screen:?}").as_str());
                     self.base_mut()
                         .emit_signal("screen_requested", &[name.to_variant()]);
-                    if let Some(login) = self.login_ui.as_mut() {
-                        let status = self.account.session.feedback.as_deref().unwrap_or("");
-                        let error = login.bind_mut().set_status(GString::from(status));
-                        if !error.is_empty() {
-                            return Err(error.to_string());
-                        }
-                    }
+                    let status = self.account.session.feedback.clone().unwrap_or_default();
+                    self.update_login_status(&status, false)?;
                 }
                 AccountEvent::WorldReset => self.units.clear(),
                 AccountEvent::UnitUpdated(unit) => {
@@ -184,4 +248,14 @@ impl GameClient {
         }
         Ok((bounds, missing_textures))
     }
+}
+
+fn credential_field(credentials: &VarDictionary, name: &str) -> Result<String, String> {
+    let value = credentials
+        .get(name)
+        .ok_or_else(|| format!("Missing login field {name}"))?;
+    let value = value
+        .try_to::<GString>()
+        .map_err(|_| format!("Invalid login field type {name}"))?;
+    Ok(value.to_string())
 }
