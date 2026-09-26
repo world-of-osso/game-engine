@@ -137,6 +137,7 @@ impl GameClient {
                         }
                     }
                 }
+                AccountEvent::WorldReset => self.units.clear(),
                 AccountEvent::UnitUpdated(unit) => {
                     self.units.insert(unit.server_id, unit);
                 }
