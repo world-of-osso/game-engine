@@ -129,7 +129,7 @@ impl GameClient {
         state.set("reply_received", self.account.reply_received);
         state.set(
             "selected_character_id",
-            session
+            &session
                 .selected_character_id
                 .map(|id| (id as i64).to_variant())
                 .unwrap_or_default(),
