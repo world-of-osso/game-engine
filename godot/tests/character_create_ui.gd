@@ -60,6 +60,17 @@ func run():
     if ui.pop_action() != "back":
         fail("Authored Back action not routed", ui)
         return
+    root.size = Vector2i(1600, 900)
+    await process_frame
+    if ui.sync_input() != "":
+        fail("Character creation failed to resize", ui)
+        return
+    if not screen.size.is_equal_approx(Vector2(1600, 900)):
+        fail("Authored root did not follow viewport resize: " + str(screen.size), ui)
+        return
+    if not Rect2(Vector2.ZERO, Vector2(root.size)).encloses(next.get_global_rect()):
+        fail("Customize action outside resized viewport", ui)
+        return
     ui.free()
     print("PASS: authored race/class creation projection and viewport navigation")
     quit(0)
