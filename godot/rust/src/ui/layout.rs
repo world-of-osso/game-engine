@@ -12,7 +12,7 @@ fn length(value: Val) -> LengthPercentageAuto {
     match value {
         Val::Auto => LengthPercentageAuto::auto(),
         Val::Px(value) => LengthPercentageAuto::length(value),
-        Val::Percent(value) => LengthPercentageAuto::percent(value),
+        Val::Percent(value) => LengthPercentageAuto::percent(value / 100.0),
     }
 }
 
@@ -90,10 +90,11 @@ fn style(frame: &Frame) -> Style {
 }
 
 fn build_node(
-    tree: &mut TaffyTree<()>,
+    tree: &mut TaffyTree<(f32, f32)>,
     registry: &FrameRegistry,
     id: u64,
     nodes: &mut HashMap<u64, NodeId>,
+    intrinsics: &HashMap<u64, (f32, f32)>,
 ) -> Result<NodeId, String> {
     let frame = registry
         .get(id)
@@ -106,11 +107,15 @@ fn build_node(
                 .get(**child)
                 .is_some_and(|child| child.anchor != AnchorTarget::Screen)
         })
-        .map(|child| build_node(tree, registry, *child, nodes))
+        .map(|child| build_node(tree, registry, *child, nodes, intrinsics))
         .collect::<Result<Vec<_>, _>>()?;
     let node = tree
         .new_with_children(style(frame), &children)
         .map_err(|error| format!("Layout frame {id}: {error}"))?;
+    if let Some(size) = intrinsics.get(&id) {
+        tree.set_node_context(node, Some(*size))
+            .map_err(|error| format!("Measure frame {id}: {error}"))?;
+    }
     nodes.insert(id, node);
     Ok(node)
 }
@@ -118,13 +123,13 @@ fn build_node(
 fn translate(value: Val, size: f32) -> f32 {
     match value {
         Val::Px(value) => value,
-        Val::Percent(value) => value * size,
+        Val::Percent(value) => value / 100.0 * size,
         Val::Auto => 0.0,
     }
 }
 
 fn collect_bounds(
-    tree: &TaffyTree<()>,
+    tree: &TaffyTree<(f32, f32)>,
     registry: &FrameRegistry,
     id: u64,
     nodes: &HashMap<u64, NodeId>,
@@ -164,12 +169,19 @@ fn collect_bounds(
 }
 
 pub fn compute_layout(registry: &FrameRegistry) -> Result<HashMap<u64, LayoutRect>, String> {
+    compute_layout_with_intrinsics(registry, &HashMap::new())
+}
+
+pub fn compute_layout_with_intrinsics(
+    registry: &FrameRegistry,
+    intrinsics: &HashMap<u64, (f32, f32)>,
+) -> Result<HashMap<u64, LayoutRect>, String> {
     let mut tree = TaffyTree::new();
     let mut nodes = HashMap::new();
     let roots = registry
         .frames_iter()
         .filter(|frame| frame.parent_id.is_none() || frame.anchor == AnchorTarget::Screen)
-        .map(|frame| build_node(&mut tree, registry, frame.id, &mut nodes))
+        .map(|frame| build_node(&mut tree, registry, frame.id, &mut nodes, intrinsics))
         .collect::<Result<Vec<_>, _>>()?;
     let root = tree
         .new_with_children(
@@ -183,8 +195,14 @@ pub fn compute_layout(registry: &FrameRegistry) -> Result<HashMap<u64, LayoutRec
             &roots,
         )
         .map_err(|error| error.to_string())?;
-    tree.compute_layout(root, Size::MAX_CONTENT)
-        .map_err(|error| error.to_string())?;
+    tree.compute_layout_with_measure(root, Size::MAX_CONTENT, |known, _, _, size, _| {
+        let (width, height) = size.copied().unwrap_or((0.0, 0.0));
+        Size {
+            width: known.width.unwrap_or(width),
+            height: known.height.unwrap_or(height),
+        }
+    })
+    .map_err(|error| error.to_string())?;
     let mut bounds = HashMap::new();
     for frame in registry
         .frames_iter()
@@ -200,6 +218,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn auto_font_label_uses_native_intrinsic_size_for_centred_translation() {
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let label = registry.create_frame("BlizzardThanks", None);
+        let frame = registry.get_mut(label).unwrap();
+        frame.width = FrameDimension::Auto;
+        frame.height = FrameDimension::Auto;
+        frame.position_type = FramePosition::Absolute;
+        frame.position.left = Val::Percent(50.0);
+        frame.position.bottom = Val::Px(130.0);
+        frame.translation.x = Val::Percent(-50.0);
+        let bounds =
+            compute_layout_with_intrinsics(&registry, &HashMap::from([(label, (86.0, 12.0))]))
+                .unwrap();
+        assert_eq!((bounds[&label].x, bounds[&label].y), (597.0, 578.0));
+        assert_eq!((bounds[&label].width, bounds[&label].height), (86.0, 12.0));
+    }
+
+    #[test]
     fn screen_anchor_uses_viewport_without_losing_logical_parent() {
         let mut registry = FrameRegistry::new(1280.0, 720.0);
         let parent = registry.create_frame("Panel", None);
@@ -212,7 +248,7 @@ mod tests {
         let frame = registry.get_mut(anchored).unwrap();
         frame.anchor = AnchorTarget::Screen;
         frame.position_type = FramePosition::Absolute;
-        frame.position.left = Val::Percent(0.5);
+        frame.position.left = Val::Percent(50.0);
         frame.position.top = Val::Px(20.0);
         frame.width = FrameDimension::Fixed(100.0);
         frame.height = FrameDimension::Fixed(40.0);
@@ -230,21 +266,21 @@ mod tests {
         frame.height = FrameDimension::Fixed(200.0);
         frame.position_type = FramePosition::Absolute;
         frame.position = UiRect {
-            left: Val::Percent(0.5),
-            top: Val::Percent(0.5),
+            left: Val::Percent(50.0),
+            top: Val::Percent(50.0),
             right: Val::Auto,
             bottom: Val::Auto,
         };
-        frame.translation = Val2::percent(-0.5, -0.5);
+        frame.translation = Val2::percent(-50.0, -50.0);
         frame.margin.top = Val::Px(-67.0);
         let button = registry.create_frame("ConnectButton", Some(form));
         let frame = registry.get_mut(button).unwrap();
         frame.width = FrameDimension::Fixed(250.0);
         frame.height = FrameDimension::Fixed(66.0);
         frame.position_type = FramePosition::Absolute;
-        frame.position.left = Val::Percent(0.5);
+        frame.position.left = Val::Percent(50.0);
         frame.position.top = Val::Px(134.0);
-        frame.translation.x = Val::Percent(-0.5);
+        frame.translation.x = Val::Percent(-50.0);
         let bounds = compute_layout(&registry).unwrap();
         assert_eq!((bounds[&form].x, bounds[&form].y), (480.0, 193.0));
         assert_eq!((bounds[&button].x, bounds[&button].y), (515.0, 327.0));

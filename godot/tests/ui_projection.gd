@@ -30,13 +30,14 @@ func run_test() -> void:
 	if failures > 0:
 		quit(1)
 		return
-	require(form.position.is_equal_approx(Vector2(480, 193)), "authored centered form bounds")
+	require(form.position.is_equal_approx(Vector2(480, 193)), "authored centered form bounds: " + str(form.position))
 	require(form.size.is_equal_approx(Vector2(320, 200)), "authored form size")
 	require(username.position.is_equal_approx(Vector2.ZERO) and username.size.is_equal_approx(Vector2(320, 42)), "username bounds")
 	require(password.position.is_equal_approx(Vector2(0, 72)) and password.secret, "password geometry and masking")
-	require(connect.position.is_equal_approx(Vector2(35, 134)) and connect.text == "Login", "authored login button")
+	require(connect.position.is_equal_approx(Vector2(35, 134)) and connect.text == "Login", "authored login button: " + str(connect.position) + " text=" + connect.text)
 	username.grab_focus()
 	username.insert_text_at_caret("adminé")
+	username.text_changed.emit(username.text)
 	require(username.has_focus() and username.text == "adminé", "native text editing and focus")
 	host.sync_input()
 	require(host.frame_text("UsernameInput") == "adminé", "native edits must update registry")
