@@ -32,7 +32,9 @@ A model with no authored collision indices has no solid doodad collider. Render/
 
 ## Camera Collision
 
-WMO and M2 raycasts from pivot toward camera; minimum hit distance sets orbit length with `CAM_RADIUS = 0.3f` pull-in. Terrain floor clamp prevents clipping below ground. Smooth interpolation via `1 - exp(-speed * dt)`.
+WMO and M2 raycasts from pivot toward camera; minimum hit distance sets orbit length with `CAM_RADIUS = 0.3f` pull-in. Terrain floor clamp prevents clipping below ground. Smooth interpolation via `1 - exp(-speed * dt)`. The smoothed position is ray-checked again from the eye and pulled in front of the first blocker, because the straight smoothing path can cut through stair noses ([[stockade-entrance]]).
+
+Portal culling decides what is drawn, not what is solid: the camera also collides with the batch meshes (`WmoCollisionMesh`) of WMO groups that portal culling hid, except antiportal groups. Before this, a camera classified outside a group lost that group's walls and escaped for good ([[stockade-entrance]]).
 
 Collision uses `RayCastVisibility::Visible`, not Bevy's `VisibleInView` default. A wall clipped behind the camera after collision is no longer in that camera's frustum but still has inherited visibility and must continue blocking recovery. Hierarchically hidden walls remain excluded, so hidden scene geometry does not create invisible camera collision. Commit `7d1d8a86` adds a regression with actual transform propagation, visibility propagation, and frustum updates: the old policy recovers through the view-culled wall; the corrected policy remains clipped, then recovers after the parent becomes hidden. Original-video pixel equivalence during camera motion remains unproven.
 
