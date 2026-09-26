@@ -211,15 +211,8 @@ impl GraphicsOptions {
     }
 }
 
+pub use game_engine::nameplate_style::NameplateStyle;
 pub use game_engine::ui::screens::options_menu_component::NameplateBarThickness;
-
-const fn default_nameplate_health_thickness() -> NameplateBarThickness {
-    NameplateBarThickness::Thick
-}
-
-const fn default_nameplate_spellbar_thickness() -> NameplateBarThickness {
-    NameplateBarThickness::Thin
-}
 
 #[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HudOptions {
@@ -227,10 +220,8 @@ pub struct HudOptions {
     pub show_action_bars: bool,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
-    #[serde(default = "default_nameplate_health_thickness")]
-    pub nameplate_health_thickness: NameplateBarThickness,
-    #[serde(default = "default_nameplate_spellbar_thickness")]
-    pub nameplate_spellbar_thickness: NameplateBarThickness,
+    #[serde(default)]
+    pub nameplate_style: NameplateStyle,
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
@@ -245,8 +236,7 @@ impl Default for HudOptions {
             show_action_bars: true,
             show_nameplates: true,
             nameplate_distance: default_nameplate_distance(),
-            nameplate_health_thickness: default_nameplate_health_thickness(),
-            nameplate_spellbar_thickness: default_nameplate_spellbar_thickness(),
+            nameplate_style: NameplateStyle::default(),
             show_health_bars: true,
             show_target_marker: true,
             auto_loot: false,
@@ -265,8 +255,7 @@ impl HudOptions {
             nameplate_distance: file
                 .nameplate_distance
                 .clamp(MIN_NAMEPLATE_DISTANCE, MAX_NAMEPLATE_DISTANCE),
-            nameplate_health_thickness: file.nameplate_health_thickness,
-            nameplate_spellbar_thickness: file.nameplate_spellbar_thickness,
+            nameplate_style: file.nameplate_style.clamped(),
             show_health_bars: file.show_health_bars,
             show_target_marker: file.show_target_marker,
             auto_loot: file.auto_loot,

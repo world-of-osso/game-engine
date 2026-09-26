@@ -114,6 +114,8 @@ pub mod missile_data;
 pub mod movement_control;
 #[path = "game/nameplate_data.rs"]
 pub mod nameplate_data;
+#[path = "game/nameplate_style.rs"]
+pub mod nameplate_style;
 pub mod network_events;
 pub mod network_runtime;
 pub mod network_tick;

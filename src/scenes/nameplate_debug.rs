@@ -8,7 +8,7 @@ use shared::components::Health;
 use ui_toolkit::render::UI_RENDER_LAYER;
 
 use crate::game_state::GameState;
-use crate::rendering::nameplate_art::{NAME_FONT_SIZE, NameplateArtCache};
+use crate::rendering::nameplate_art::NameplateArtCache;
 use game_engine::targeting::CurrentTarget;
 
 #[derive(Component)]
@@ -122,7 +122,7 @@ fn spawn_preview_unit(
         owner,
         name,
         Color::WHITE,
-        NAME_FONT_SIZE,
+        game_engine::nameplate_style::NameplateStyle::default().name_font_size,
         font,
         2.5,
         crate::nameplate::NameplateKind::Npc,

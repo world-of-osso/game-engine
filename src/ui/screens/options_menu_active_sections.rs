@@ -16,6 +16,8 @@ use crate::input_bindings::BindingSection;
 
 #[path = "options_menu_active_sections_keybindings.rs"]
 mod keybindings_section;
+#[path = "options_menu_active_sections_nameplates.rs"]
+mod nameplates_section;
 
 const OPTIONS_CONTENT_W: f32 = 716.0;
 const OPTIONS_ROW_W: f32 = OPTIONS_CONTENT_W - 30.0;
@@ -175,12 +177,12 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
             thickness_row(
                 "nameplate_health_thickness",
                 "Nameplate Health Thickness",
-                hud.nameplate_health_thickness,
+                hud.nameplate_style.health_preset(),
             ),
             thickness_row(
                 "nameplate_spellbar_thickness",
                 "Nameplate Spellbar Thickness",
-                hud.nameplate_spellbar_thickness,
+                hud.nameplate_style.cast_preset(),
             ),
             toggle_row("show_health_bars", "Show Health Bars", hud.show_health_bars),
             toggle_row(
@@ -195,6 +197,10 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
         .flatten()
         .collect(),
     )
+}
+
+pub fn nameplates_body(hud: &HudOptionsView) -> Element {
+    nameplates_section::nameplates_body(hud)
 }
 
 pub fn advanced_body(hud: &HudOptionsView) -> Element {

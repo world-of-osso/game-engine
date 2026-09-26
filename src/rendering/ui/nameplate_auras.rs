@@ -14,7 +14,7 @@ use ui_toolkit::render::{UI_RENDER_LAYER, UiCamera};
 use crate::client_options::{HudOptions, HudVisibilityToggles, UiDisabled};
 use crate::game::inworld_scene_stage::{InWorldSceneStage, inworld_scene_stage_allows_ui};
 use crate::health_bar::{BAR_HEIGHT, BAR_WIDTH, HealthBar};
-use crate::rendering::nameplate_art::{NAME_FONT_SIZE, NameplateArtCache, load_fdid_texture};
+use crate::rendering::nameplate_art::{NameplateArtCache, load_fdid_texture};
 
 pub(crate) const MAX_NAMEPLATE_AURAS: usize = 6;
 const ICON_SIZE: f32 = 18.0;
@@ -22,7 +22,6 @@ const ICON_GAP: f32 = 2.0;
 const BORDER: f32 = 1.0;
 const TIMER_FONT_SIZE: f32 = 9.0;
 /// Clearance above the bar top for the unit name.
-const NAME_CLEARANCE: f32 = NAME_FONT_SIZE + 4.0;
 const BORDER_COLOR: Color = Color::srgba(0.0, 0.0, 0.0, 0.9);
 
 pub struct NameplateAuraPlugin;
@@ -367,10 +366,16 @@ fn project_part(scene: &AuraScene, owner: Entity, part: NameplateAuraPart) -> Op
     if distance >= limit || !camera.logical_viewport_rect()?.contains(top_left) {
         return None;
     }
+    let style = crate::health_bar::plate_style(scene.hud.as_deref());
+    // The name sits above the plate's top edge (`project_owner`); icons clear it by 4px.
+    let name_clearance = crate::health_bar::health_plate_top(&style) - style.health_height / 2.0
+        + 2.0
+        + style.name_font_size
+        + 4.0;
     let center = top_left
         + Vec2::new(
             part.slot() as f32 * (ICON_SIZE + ICON_GAP + 2.0 * BORDER) + ICON_SIZE / 2.0,
-            -(NAME_CLEARANCE + ICON_SIZE / 2.0),
+            -(name_clearance + ICON_SIZE / 2.0),
         );
     let position = overlay.viewport_to_world_2d(overlay_pose, center).ok()?;
     let z = match part {

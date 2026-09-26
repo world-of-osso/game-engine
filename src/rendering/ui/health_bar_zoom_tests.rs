@@ -16,7 +16,10 @@ pub(super) fn projection_app(dpi: f32, width: u32, height: u32) -> App {
         bevy::transform::TransformPlugin,
     ));
     app.insert_resource(HudOptions {
-        nameplate_health_thickness: NameplateBarThickness::Thin,
+        nameplate_style: NameplateStyle::from_presets(
+            NameplateBarThickness::Thin,
+            NameplateBarThickness::Thin,
+        ),
         ..default()
     });
     app.init_state::<GameState>();
@@ -119,11 +122,13 @@ fn rectangle_projected_width_survives_parent_shear_in_both_directions() {
         for thickness in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
             app.world_mut()
                 .resource_mut::<HudOptions>()
-                .nameplate_health_thickness = thickness;
+                .nameplate_style
+                .apply_health_preset(thickness);
             app.update();
             let global = *app.world().get::<GlobalTransform>(bar).unwrap();
             let size = projected_quad_size(&app, bar, camera, global);
-            let expected = health_bar_pixel_size(thickness);
+            let expected =
+                health_bar_pixel_size(&app.world().resource::<HudOptions>().nameplate_style);
             assert!(
                 size.abs_diff_eq(expected, 0.05),
                 "roll={roll}, thickness={thickness:?}: expected {expected:?}, got {size:?}"
@@ -141,7 +146,8 @@ fn thickness_changes_projected_height_without_changing_width() {
     ] {
         app.world_mut()
             .resource_mut::<HudOptions>()
-            .nameplate_health_thickness = thickness;
+            .nameplate_style
+            .apply_health_preset(thickness);
         app.update();
         let global = *app.world().get::<GlobalTransform>(bar).unwrap();
         let size = projected_quad_size(&app, bar, camera, global);

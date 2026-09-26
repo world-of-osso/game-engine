@@ -77,10 +77,7 @@ fn hud_view() -> HudOptionsView {
         show_action_bars: true,
         show_nameplates: true,
         nameplate_distance: 40.0,
-        nameplate_health_thickness:
-            crate::ui::screens::options_menu_component::NameplateBarThickness::Thick,
-        nameplate_spellbar_thickness:
-            crate::ui::screens::options_menu_component::NameplateBarThickness::Thin,
+        nameplate_style: crate::nameplate_style::NameplateStyle::default(),
         show_health_bars: true,
         show_target_marker: true,
         auto_loot: false,
@@ -358,6 +355,37 @@ fn hud_screen_includes_nameplate_distance_slider() {
     assert!(reg.get_by_name("SliderRownameplate_distance").is_some());
     assert!(reg.get_by_name("Slidernameplate_distance").is_some());
     assert!(reg.get_by_name("Slidernameplate_distanceHandle").is_some());
+}
+
+#[test]
+fn nameplates_screen_edits_every_style_size_and_colour() {
+    let reg = options_registry_for_category(OptionsCategory::Nameplates);
+    for key in [
+        "nameplate_health_width",
+        "nameplate_health_height",
+        "nameplate_cast_width",
+        "nameplate_cast_height",
+        "nameplate_name_font_size",
+        "nameplate_cast_font_size",
+        "nameplate_hostile_r",
+        "nameplate_neutral_g",
+        "nameplate_friendly_b",
+        "nameplate_cast_r",
+        "nameplate_channel_g",
+        "nameplate_uninterruptible_b",
+    ] {
+        assert!(reg.get_by_name(&format!("Slider{key}")).is_some(), "{key}");
+    }
+    assert!(
+        reg.get_by_name("ToggleSwitchnameplate_show_border")
+            .is_some()
+    );
+    assert!(
+        reg.get_by_name("ToggleSwitchnameplate_class_colors")
+            .is_some()
+    );
+    let neutral = rect_by_name(&reg, "NameplateSwatchnameplate_neutral_r");
+    assert!(neutral.width > 0.0);
 }
 
 #[test]

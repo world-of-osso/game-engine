@@ -3,25 +3,14 @@ use game_engine::input_bindings::{InputAction, InputBinding};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[test]
-fn nameplate_thickness_defaults_are_persisted() {
-    let value = serde_json::to_value(HudOptionsFile::default()).unwrap();
-    assert_eq!(value["nameplateHealthThickness"], "Thick");
-    assert_eq!(value["nameplateSpellbarThickness"], "Thin");
-}
-
-#[test]
-fn nameplate_thickness_missing_fields_use_independent_defaults() {
+fn missing_nameplate_style_loads_thick_health_and_thin_spellbar_presets() {
     let mut value = serde_json::to_value(HudOptionsFile::default()).unwrap();
-    let fields = value.as_object_mut().unwrap();
-    fields.remove("nameplateHealthThickness");
-    fields.remove("nameplateSpellbarThickness");
+    value.as_object_mut().unwrap().remove("nameplateStyle");
     let file: HudOptionsFile = serde_json::from_value(value).unwrap();
-    let hud = HudOptions::from_file(&file);
-    assert_eq!(hud.nameplate_health_thickness, NameplateBarThickness::Thick);
-    assert_eq!(
-        hud.nameplate_spellbar_thickness,
-        NameplateBarThickness::Thin
-    );
+    let style = HudOptions::from_file(&file).nameplate_style;
+    assert_eq!(style.health_preset(), NameplateBarThickness::Thick);
+    assert_eq!(style.cast_preset(), NameplateBarThickness::Thin);
+    assert_eq!((style.health_height, style.cast_height), (20.0, 6.0));
 }
 
 fn unique_test_dir(name: &str) -> PathBuf {
@@ -95,8 +84,7 @@ fn hud_visibility_toggles_follow_hud_options() {
         show_action_bars: true,
         show_nameplates: false,
         nameplate_distance: default_nameplate_distance(),
-        nameplate_health_thickness: NameplateBarThickness::Thick,
-        nameplate_spellbar_thickness: NameplateBarThickness::Thin,
+        nameplate_style: NameplateStyle::default(),
         show_health_bars: false,
         show_target_marker: true,
         auto_loot: false,
@@ -418,6 +406,18 @@ fn returns_config_path_when_no_file_exists() {
     assert_eq!(selected, config_path);
 }
 
+fn edited_style() -> NameplateStyle {
+    let mut style =
+        NameplateStyle::from_presets(NameplateBarThickness::Thin, NameplateBarThickness::Thick);
+    style.health_width = 150.0;
+    style.health_colors.neutral = [0.9, 0.8, 0.1];
+    style.cast_colors.channel = [0.2, 0.4, 1.0];
+    style.class_colored_players = false;
+    style.show_border = false;
+    style.name_font_size = 16.0;
+    style
+}
+
 #[test]
 fn save_options_file_to_path_persists_and_loads_back() {
     let test_dir = unique_test_dir("persist-options");
@@ -465,8 +465,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
             show_action_bars: true,
             show_nameplates: false,
             nameplate_distance: 60.0,
-            nameplate_health_thickness: NameplateBarThickness::Thin,
-            nameplate_spellbar_thickness: NameplateBarThickness::Thick,
+            nameplate_style: edited_style(),
             show_health_bars: true,
             show_target_marker: false,
             auto_loot: true,
@@ -495,14 +494,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
     assert_eq!(loaded.graphics.frame_rate_limit, 165);
     assert!(loaded.graphics.colorblind_mode);
     assert!(!loaded.hud.show_minimap);
-    assert_eq!(
-        loaded.hud.nameplate_health_thickness,
-        NameplateBarThickness::Thin
-    );
-    assert_eq!(
-        loaded.hud.nameplate_spellbar_thickness,
-        NameplateBarThickness::Thick
-    );
+    assert_eq!(loaded.hud.nameplate_style, edited_style());
     assert!((loaded.hud.nameplate_distance - 60.0).abs() < 0.0001);
     assert!((loaded.hud.chat_font_size - 13.0).abs() < 0.0001);
     assert_eq!(loaded.modal_offset, Some([123.0, -45.0]));

@@ -28,7 +28,8 @@ fn overlay_health_updates_keep_left_edge_and_hide_with_owner() {
     let sprite = app.world().get::<Sprite>(fill).unwrap();
     assert_eq!(sprite.custom_size, Some(Vec2::new(47.0, 9.5)));
     assert!((after.translation.x - 23.5 - left).abs() < 0.01);
-    assert_eq!(sprite.color, Color::WHITE);
+    // No faction data in this scene: the owner reads as neutral.
+    assert_eq!(sprite.color, Color::srgb(1.0, 1.0, 0.0));
     assert_eq!(
         sprite.image,
         app.world()
@@ -82,7 +83,8 @@ fn thickness_changes_frame_geometry_without_recoloring_fill() {
     ] {
         app.world_mut()
             .resource_mut::<HudOptions>()
-            .nameplate_health_thickness = thickness;
+            .nameplate_style
+            .apply_health_preset(thickness);
         app.update();
         app.update();
         let visuals = &app.world().get::<HealthBarVisuals>(bar).unwrap().0;
@@ -152,4 +154,107 @@ fn no_ui_and_missing_health_hide_existing_overlay() {
             Some(&Visibility::Hidden)
         );
     }
+}
+
+fn fill_color(app: &App, bar: Entity) -> Color {
+    let fill = app
+        .world()
+        .get::<HealthBarVisuals>(bar)
+        .unwrap()
+        .0
+        .iter()
+        .copied()
+        .find(|e| app.world().get::<HealthBarPart>(*e) == Some(&HealthBarPart::Fill))
+        .unwrap();
+    app.world().get::<Sprite>(fill).unwrap().color
+}
+
+#[test]
+fn fill_colour_is_the_owners_faction_template_reaction_to_the_local_player() {
+    let (mut app, actor, bar, _) = zoom_tests::zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
+    app.insert_resource(crate::unit_frames::FactionTemplates::load());
+    // Template 1: Human player (FactionTemplate.csv, build 12.1.0.69933).
+    app.world_mut()
+        .spawn((crate::networking::LocalPlayer, UnitFactionTemplate(1)));
+    // 7: Defias Thug (Faction 7, no groups or lists) is neutral; 14 Monster hostile;
+    // 11 Stormwind guard friendly.
+    for (template, expected) in [
+        (7, Color::srgb(1.0, 1.0, 0.0)),
+        (14, Color::srgb(1.0, 0.0, 0.0)),
+        (11, Color::srgb(0.0, 1.0, 0.0)),
+    ] {
+        app.world_mut()
+            .entity_mut(actor)
+            .insert(UnitFactionTemplate(template));
+        app.update();
+        assert_eq!(fill_color(&app, bar), expected, "template {template}");
+    }
+    let mut style = app.world().resource::<HudOptions>().nameplate_style;
+    style.health_colors.neutral = [0.2, 0.4, 0.6];
+    app.world_mut().resource_mut::<HudOptions>().nameplate_style = style;
+    app.world_mut()
+        .entity_mut(actor)
+        .insert(UnitFactionTemplate(7));
+    app.update();
+    assert_eq!(fill_color(&app, bar), Color::srgb(0.2, 0.4, 0.6));
+    app.world_mut().entity_mut(actor).insert(NetPlayer {
+        name: "Jaina".into(),
+        race: 1,
+        class: 8,
+        appearance: default(),
+    });
+    app.update();
+    assert_eq!(fill_color(&app, bar), Color::srgb(0.25, 0.78, 0.92));
+}
+
+#[test]
+fn edited_style_sizes_body_and_frame_and_can_hide_the_border() {
+    let (mut app, actor, bar, _) = zoom_tests::zoom_scene(1.0, 800, 600, 45.0_f32.to_radians());
+    app.world_mut().get_mut::<Health>(actor).unwrap().current = 100.0;
+    {
+        let style = &mut app.world_mut().resource_mut::<HudOptions>().nameplate_style;
+        style.health_width = 150.0;
+        style.health_height = 14.0;
+    }
+    app.update();
+    app.update();
+    let part = |app: &App, wanted| {
+        app.world()
+            .get::<HealthBarVisuals>(bar)
+            .unwrap()
+            .0
+            .iter()
+            .copied()
+            .find(|e| app.world().get::<HealthBarPart>(*e) == Some(&wanted))
+            .unwrap()
+    };
+    let (frame, fill) = (
+        part(&app, HealthBarPart::Background),
+        part(&app, HealthBarPart::Fill),
+    );
+    // 14px is nearer the Thin preset: Thin skin, its 10x5 margin and 0.5px fill inset.
+    let frame_sprite = app.world().get::<Sprite>(frame).unwrap();
+    assert_eq!(frame_sprite.custom_size, Some(Vec2::new(160.0, 19.0)));
+    assert_eq!(
+        frame_sprite.image,
+        app.world()
+            .resource::<NameplateArtCache>()
+            .art()
+            .health_thin
+    );
+    let fill_size = app.world().get::<Sprite>(fill).unwrap().custom_size;
+    assert_eq!(fill_size, Some(Vec2::new(150.0, 13.5)));
+    app.world_mut()
+        .resource_mut::<HudOptions>()
+        .nameplate_style
+        .show_border = false;
+    app.update();
+    assert_eq!(
+        app.world().get::<Visibility>(frame),
+        Some(&Visibility::Hidden)
+    );
+    assert_eq!(
+        app.world().get::<Visibility>(fill),
+        Some(&Visibility::Visible)
+    );
 }

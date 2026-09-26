@@ -19,7 +19,7 @@ use super::options::{
     BindingCapture, DragCapture, SliderField, apply_slider_value, apply_step, apply_toggle,
     current_capture_action, parse_binding_clear_action, parse_binding_rebind_action,
     parse_binding_section_action, parse_category_action, parse_slider_action, parse_step_action,
-    parse_toggle_action, reset_category_defaults, slider_bounds,
+    parse_toggle_action, reset_category_defaults, slider_bounds, slider_key,
 };
 use super::{
     DRAG_THRESHOLD, GameMenuOverlay, GameState, SaveModalPositionCommand, close_game_menu,
@@ -265,31 +265,8 @@ fn update_slider(
 }
 
 fn slider_rect(slider: SliderField, reg: &FrameRegistry) -> Option<ui_toolkit::layout::LayoutRect> {
-    let frame_id = reg.get_by_name(slider_widget_name(slider))?;
+    let frame_id = reg.get_by_name(&format!("Slider{}", slider_key(slider)))?;
     reg.get(frame_id)?.layout_rect.clone()
-}
-
-fn slider_widget_name(slider: SliderField) -> &'static str {
-    match slider {
-        SliderField::MouseSensitivity => "Slidermouse_sensitivity",
-        SliderField::FovDegrees => "Sliderfov_degrees",
-        SliderField::ParticleDensity => "Sliderparticle_density",
-        SliderField::FrameRateLimit => "Sliderframe_rate_limit",
-        SliderField::RenderScale => "Sliderrender_scale",
-        SliderField::UiScale => "Sliderui_scale",
-        SliderField::NameplateDistance => "Slidernameplate_distance",
-        SliderField::ChatFontSize => "Sliderchat_font_size",
-        SliderField::BloomIntensity => "Sliderbloom_intensity",
-        SliderField::MasterVolume => "Slidermaster_volume",
-        SliderField::MusicVolume => "Slidermusic_volume",
-        SliderField::AmbientVolume => "Sliderambient_volume",
-        SliderField::EffectsVolume => "Slidereffects_volume",
-        SliderField::LookSensitivity => "Sliderlook_sensitivity",
-        SliderField::ZoomSpeed => "Sliderzoom_speed",
-        SliderField::FollowSpeed => "Sliderfollow_speed",
-        SliderField::MinDistance => "Slidermin_distance",
-        SliderField::MaxDistance => "Slidermax_distance",
-    }
 }
 
 fn slider_row(slider: SliderField) -> f32 {
@@ -312,6 +289,7 @@ fn slider_row(slider: SliderField) -> f32 {
         SliderField::FollowSpeed => 3.0,
         SliderField::MinDistance => 4.0,
         SliderField::MaxDistance => 5.0,
+        SliderField::Nameplate(_) => 1.0,
     }
 }
 
