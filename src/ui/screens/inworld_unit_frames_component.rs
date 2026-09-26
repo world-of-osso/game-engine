@@ -33,6 +33,8 @@ pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
 pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
 pub const ACTION_UNIT_MENU_CLOSE: &str = "unit_menu_close";
 pub const ACTION_UNIT_MENU_INSPECT: &str = "unit_menu_inspect";
+/// `UnitPopupTradeButtonMixin`.
+pub const ACTION_UNIT_MENU_TRADE: &str = "unit_menu_trade";
 pub const UNIT_MENU_W: f32 = 140.0;
 const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
     ContextMenuItem {

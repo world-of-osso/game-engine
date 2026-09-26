@@ -6,10 +6,10 @@ use bevy::prelude::*;
 use game_engine::network_runtime::messages::{MessageReceivers, MessageSenders};
 use shared::protocol::{
     AuctionChannel, AuctionHouseOpened, AuctionInventoryItem, AuctionInventorySnapshot,
-    AuctionListingSummary, AuctionMailboxSnapshot, AuctionOperationResponse, AuctionSearchQuery,
-    AuctionSearchResults, BidAuctionListResponse, BuyoutAuction, CancelAuction, ClaimAuctionMail,
-    CreateAuction, OpenAuctionHouse, OwnedAuctionListResponse, PlaceBid, QueryAuctionInventory,
-    QueryAuctionMailbox, QueryAuctions, QueryBidAuctions, QueryOwnedAuctions,
+    AuctionListingSummary, AuctionOperationResponse, AuctionSearchQuery, AuctionSearchResults,
+    BidAuctionListResponse, BuyoutAuction, CancelAuction, CreateAuction, OpenAuctionHouse,
+    OwnedAuctionListResponse, PlaceBid, QueryAuctionInventory, QueryAuctions, QueryBidAuctions,
+    QueryOwnedAuctions,
 };
 
 use crate::ipc::{Request, Response};
@@ -25,7 +25,6 @@ pub struct AuctionHouseState {
     pub owned_results: Vec<AuctionListingSummary>,
     pub bid_results: Vec<AuctionListingSummary>,
     pub inventory: Option<AuctionInventorySnapshot>,
-    pub mailbox: Vec<shared::protocol::AuctionMailEntry>,
     /// Failed operation messages for the UI error frame; the frame drains them.
     pub errors: Vec<String>,
     pending_actions: VecDeque<PendingAction>,
@@ -41,12 +40,10 @@ pub enum AuctionRequest {
     Owned,
     Bids,
     Inventory,
-    Mailbox,
     Create(CreateAuction),
     Bid(PlaceBid),
     Buyout(BuyoutAuction),
     Cancel(CancelAuction),
-    Claim(ClaimAuctionMail),
 }
 
 struct PendingAction {
@@ -60,7 +57,6 @@ enum ReplyKind {
     Owned,
     Bids,
     Inventory,
-    Mailbox,
     Operation,
 }
 
@@ -120,12 +116,10 @@ fn reply_kind(request: &AuctionRequest) -> ReplyKind {
         AuctionRequest::Owned => ReplyKind::Owned,
         AuctionRequest::Bids => ReplyKind::Bids,
         AuctionRequest::Inventory => ReplyKind::Inventory,
-        AuctionRequest::Mailbox => ReplyKind::Mailbox,
         AuctionRequest::Create(_)
         | AuctionRequest::Bid(_)
         | AuctionRequest::Buyout(_)
-        | AuctionRequest::Cancel(_)
-        | AuctionRequest::Claim(_) => ReplyKind::Operation,
+        | AuctionRequest::Cancel(_) => ReplyKind::Operation,
     }
 }
 
@@ -150,11 +144,6 @@ impl Plugin for AuctionHousePlugin {
         register_message_handler::<AuctionInventorySnapshot, _>(
             app,
             receive_inventory_snapshot,
-            |_| true,
-        );
-        register_message_handler::<AuctionMailboxSnapshot, _>(
-            app,
-            receive_mailbox_snapshot,
             |_| true,
         );
         register_message_handler::<AuctionOperationResponse, _>(
@@ -206,12 +195,10 @@ fn auction_ipc_action(request: &Request) -> Option<AuctionRequest> {
         Request::AuctionOwned => A::Owned,
         Request::AuctionBids => A::Bids,
         Request::AuctionInventory => A::Inventory,
-        Request::AuctionMailbox => A::Mailbox,
         Request::AuctionCreate { create } => A::Create(create.clone()),
         Request::AuctionBid { bid } => A::Bid(bid.clone()),
         Request::AuctionBuyout { buyout } => A::Buyout(buyout.clone()),
         Request::AuctionCancel { cancel } => A::Cancel(cancel.clone()),
-        Request::AuctionClaimMail { claim } => A::Claim(claim.clone()),
         _ => return None,
     })
 }
@@ -223,12 +210,10 @@ struct AuctionSenders<'w, 's> {
     owned_senders: MessageSenders<'w, 's, QueryOwnedAuctions>,
     bids_senders: MessageSenders<'w, 's, QueryBidAuctions>,
     inventory_senders: MessageSenders<'w, 's, QueryAuctionInventory>,
-    mailbox_senders: MessageSenders<'w, 's, QueryAuctionMailbox>,
     create_senders: MessageSenders<'w, 's, CreateAuction>,
     bid_senders: MessageSenders<'w, 's, PlaceBid>,
     buyout_senders: MessageSenders<'w, 's, BuyoutAuction>,
     cancel_senders: MessageSenders<'w, 's, CancelAuction>,
-    claim_senders: MessageSenders<'w, 's, ClaimAuctionMail>,
 }
 
 fn send_pending_actions(mut state: ResMut<AuctionHouseState>, mut senders: AuctionSenders) {
@@ -244,12 +229,10 @@ fn send_pending_actions(mut state: ResMut<AuctionHouseState>, mut senders: Aucti
             AuctionRequest::Inventory => {
                 send_all(&mut senders.inventory_senders, QueryAuctionInventory)
             }
-            AuctionRequest::Mailbox => send_all(&mut senders.mailbox_senders, QueryAuctionMailbox),
             AuctionRequest::Create(req) => send_all(&mut senders.create_senders, req),
             AuctionRequest::Bid(req) => send_all(&mut senders.bid_senders, req),
             AuctionRequest::Buyout(req) => send_all(&mut senders.buyout_senders, req),
             AuctionRequest::Cancel(req) => send_all(&mut senders.cancel_senders, req),
-            AuctionRequest::Claim(req) => send_all(&mut senders.claim_senders, req),
         };
         if !sent {
             state.last_error = Some(NOT_CONNECTED.into());
@@ -376,20 +359,6 @@ fn receive_inventory_snapshot(
     }
 }
 
-fn receive_mailbox_snapshot(
-    mut receivers: MessageReceivers<AuctionMailboxSnapshot>,
-    mut state: ResMut<AuctionHouseState>,
-) {
-    for receiver in receivers.iter_mut() {
-        for response in receiver.receive() {
-            state.mailbox = response.entries;
-            if let Some(reply) = pop_reply(&mut state, ReplyKind::Mailbox) {
-                reply.send(Response::Text(format_mailbox(&state)));
-            }
-        }
-    }
-}
-
 fn receive_operation_response(
     mut receivers: MessageReceivers<AuctionOperationResponse>,
     mut state: ResMut<AuctionHouseState>,
@@ -429,13 +398,12 @@ fn pop_reply(state: &mut AuctionHouseState, kind: ReplyKind) -> Option<PendingRe
 
 fn format_status(state: &AuctionHouseState) -> String {
     format!(
-        "open: {}\nsearch_total: {}\nowned: {}\nbids: {}\ninventory_loaded: {}\nmailbox_entries: {}\nlast_error: {}\nlast_message: {}",
+        "open: {}\nsearch_total: {}\nowned: {}\nbids: {}\ninventory_loaded: {}\nlast_error: {}\nlast_message: {}",
         state.is_open,
         state.search_total,
         state.owned_results.len(),
         state.bid_results.len(),
         state.inventory.is_some(),
-        state.mailbox.len(),
         state.last_error.clone().unwrap_or_else(|| "-".into()),
         state.last_message.clone().unwrap_or_else(|| "-".into()),
     )
@@ -509,29 +477,6 @@ fn format_inventory_item(item: &AuctionInventoryItem) -> String {
         item.required_level,
         item.vendor_sell_price
     )
-}
-
-fn format_mailbox(state: &AuctionHouseState) -> String {
-    if state.mailbox.is_empty() {
-        return "mailbox: 0\n-".into();
-    }
-    let lines = state
-        .mailbox
-        .iter()
-        .map(|entry| {
-            let item = entry
-                .attached_item
-                .as_ref()
-                .map(|item| format!(" item={}x{}", item.name, item.stack_count))
-                .unwrap_or_default();
-            format!(
-                "{} {} money={}{}",
-                entry.mail_id, entry.subject, entry.attached_money, item
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    format!("mailbox: {}\n{}", state.mailbox.len(), lines)
 }
 
 #[cfg(test)]

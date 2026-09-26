@@ -1,10 +1,9 @@
 use game_engine::ipc::Request;
 use game_engine::item_info::ItemInfoQuery;
-use game_engine::mail::{ClaimMail, DeleteMail, ListMailQuery, ReadMail, SendMail};
 use shared::protocol::{
     AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
-    CalendarSignupStatusSnapshot, CancelAuction, ClaimAuctionMail, CreateAuction, EmoteKind,
-    PlaceBid, PvpBracketSnapshot,
+    CalendarSignupStatusSnapshot, CancelAuction, CreateAuction, EmoteKind, MailAction, PlaceBid,
+    PvpBracketSnapshot,
 };
 
 use crate::{
@@ -15,41 +14,29 @@ use crate::{
 };
 
 pub fn mail_request(command: MailCmd) -> Result<Request, String> {
+    let act = |mail_id, action| Request::MailAct { mail_id, action };
     let request = match command {
         MailCmd::Status => Request::MailStatus,
-        MailCmd::List {
-            character,
-            include_deleted,
-        } => Request::MailList {
-            query: ListMailQuery {
-                character,
-                include_deleted,
-            },
-        },
-        MailCmd::Read { mail_id } => Request::MailRead {
-            read: ReadMail { mail_id },
-        },
         MailCmd::Send {
             to,
-            from,
             subject,
             body,
+            items,
             money,
+            cod,
         } => Request::MailSend {
-            mail: SendMail {
-                to,
-                from,
-                subject,
-                body,
-                money,
-            },
+            recipient: to,
+            subject,
+            body,
+            attachments: items,
+            money,
+            cod,
         },
-        MailCmd::Claim { mail_id } => Request::MailClaim {
-            claim: ClaimMail { mail_id },
-        },
-        MailCmd::Delete { mail_id } => Request::MailDelete {
-            delete: DeleteMail { mail_id },
-        },
+        MailCmd::Read { mail_id } => act(mail_id, MailAction::MarkRead),
+        MailCmd::TakeItem { mail_id, slot } => act(mail_id, MailAction::TakeAttachment { slot }),
+        MailCmd::TakeMoney { mail_id } => act(mail_id, MailAction::TakeMoney),
+        MailCmd::Return { mail_id } => act(mail_id, MailAction::Return),
+        MailCmd::Delete { mail_id } => act(mail_id, MailAction::Delete),
     };
     Ok(request)
 }
@@ -239,6 +226,7 @@ pub fn trade_request(command: TradeCmd) -> Result<Request, String> {
         TradeCmd::ClearItem { slot } => Request::TradeClearItem { slot },
         TradeCmd::SetMoney { copper } => Request::TradeSetMoney { copper },
         TradeCmd::Confirm => Request::TradeConfirm,
+        TradeCmd::CancelAccept => Request::TradeCancelAccept,
     };
     Ok(request)
 }
@@ -524,8 +512,7 @@ struct AuctionBrowseCommand {
 }
 
 enum AuctionActionCommand {
-    ClaimMail { mail_id: u64 },
-    Bid { id: u64, amount: u32 },
+    Bid { id: u64, amount: u64 },
     Buyout { id: u64 },
     Cancel { id: u64 },
 }
@@ -535,8 +522,8 @@ enum AuctionNonSimpleCommand {
     Create {
         item_guid: u64,
         stack: u32,
-        bid: u32,
-        buyout: Option<u32>,
+        bid: u64,
+        buyout: Option<u64>,
         duration: String,
     },
     Action(AuctionActionCommand),
@@ -562,8 +549,8 @@ pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request,
 pub fn auction_create_request(
     item_guid: u64,
     stack: u32,
-    bid: u32,
-    buyout: Option<u32>,
+    bid: u64,
+    buyout: Option<u64>,
     duration: String,
 ) -> Result<Request, String> {
     Ok(Request::AuctionCreate {
@@ -591,7 +578,6 @@ fn simple_auction_request(command: &AuctionCmd) -> Option<Request> {
         AuctionCmd::Owned => Some(Request::AuctionOwned),
         AuctionCmd::Bids => Some(Request::AuctionBids),
         AuctionCmd::Inventory => Some(Request::AuctionInventory),
-        AuctionCmd::Mailbox => Some(Request::AuctionMailbox),
         _ => None,
     }
 }
@@ -600,16 +586,14 @@ fn to_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand
     match command {
         AuctionCmd::Browse { .. } => browse_non_simple_auction_command(command),
         AuctionCmd::Create { .. } => create_non_simple_auction_command(command),
-        AuctionCmd::ClaimMail { .. }
-        | AuctionCmd::Bid { .. }
-        | AuctionCmd::Buyout { .. }
-        | AuctionCmd::Cancel { .. } => action_non_simple_auction_command(command),
+        AuctionCmd::Bid { .. } | AuctionCmd::Buyout { .. } | AuctionCmd::Cancel { .. } => {
+            action_non_simple_auction_command(command)
+        }
         AuctionCmd::Open
         | AuctionCmd::Status
         | AuctionCmd::Owned
         | AuctionCmd::Bids
-        | AuctionCmd::Inventory
-        | AuctionCmd::Mailbox => unreachable!("simple auction commands returned above"),
+        | AuctionCmd::Inventory => unreachable!("simple auction commands returned above"),
     }
 }
 
@@ -661,7 +645,6 @@ fn create_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCom
 
 fn action_non_simple_auction_command(command: AuctionCmd) -> AuctionNonSimpleCommand {
     AuctionNonSimpleCommand::Action(match command {
-        AuctionCmd::ClaimMail { mail_id } => AuctionActionCommand::ClaimMail { mail_id },
         AuctionCmd::Bid { id, amount } => AuctionActionCommand::Bid { id, amount },
         AuctionCmd::Buyout { id } => AuctionActionCommand::Buyout { id },
         AuctionCmd::Cancel { id } => AuctionActionCommand::Cancel { id },
@@ -706,9 +689,6 @@ fn auction_browse_command_request(command: AuctionBrowseCommand) -> Result<Reque
 
 fn auction_action_request(command: AuctionActionCommand) -> Request {
     match command {
-        AuctionActionCommand::ClaimMail { mail_id } => Request::AuctionClaimMail {
-            claim: ClaimAuctionMail { mail_id },
-        },
         AuctionActionCommand::Bid { id, amount } => Request::AuctionBid {
             bid: PlaceBid {
                 auction_id: id,

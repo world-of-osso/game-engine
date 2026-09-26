@@ -11,9 +11,9 @@ use game_engine::ui::screens::auction_house_frame_component::{
 use lightyear::prelude::Message as NetworkMessage;
 use shared::protocol::{
     AuctionChannel, AuctionHouseOpened, AuctionInventoryItem, AuctionInventorySnapshot,
-    AuctionListingSummary, AuctionTimeLeft, BuyoutAuction, CancelAuction, ClaimAuctionMail,
-    CreateAuction, OpenAuctionHouse, PlaceBid, QueryAuctionInventory, QueryAuctionMailbox,
-    QueryAuctions, QueryBidAuctions, QueryOwnedAuctions,
+    AuctionListingSummary, AuctionTimeLeft, BuyoutAuction, CancelAuction, CreateAuction,
+    OpenAuctionHouse, PlaceBid, QueryAuctionInventory, QueryAuctions, QueryBidAuctions,
+    QueryOwnedAuctions,
 };
 
 use super::*;
@@ -147,8 +147,8 @@ fn item(item_guid: u64, item_id: u32, name: &str, stack_count: u32) -> AuctionIn
 fn listing(
     auction_id: u64,
     item: AuctionInventoryItem,
-    bid: u32,
-    buyout: Option<u32>,
+    bid: u64,
+    buyout: Option<u64>,
 ) -> AuctionListingSummary {
     AuctionListingSummary {
         auction_id,
@@ -225,12 +225,10 @@ fn loopback(commands: Vec<NetworkCommand>) -> Sent {
         QueryOwnedAuctions,
         QueryBidAuctions,
         QueryAuctionInventory,
-        QueryAuctionMailbox,
         CreateAuction,
         PlaceBid,
         BuyoutAuction,
-        CancelAuction,
-        ClaimAuctionMail
+        CancelAuction
     );
     for command in commands {
         let NetworkCommand::Apply(apply) = command else {

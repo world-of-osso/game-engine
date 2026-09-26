@@ -41,9 +41,10 @@ use crate::ignore_list::{
     IgnoreListRuntimeState, queue_ipc_request as queue_ignore_list_ipc_request,
 };
 use crate::inspect::{InspectRuntimeState, queue_ipc_request as queue_inspect_ipc_request};
+use crate::ipc::mail::queue_mail_ipc_request;
 use crate::item_info::lookup_item_info;
 use crate::lfg::{LfgRuntimeState, queue_ipc_request as queue_lfg_ipc_request};
-use crate::mail::{MailState, queue_ipc_request as queue_mail_ipc_request};
+use crate::mail_data::{MailRequest, MailState};
 use crate::movement_control::ScriptedMovement;
 use crate::profession::{
     ProfessionRuntimeState, queue_ipc_request as queue_profession_ipc_request,
@@ -294,7 +295,8 @@ struct WorldParams<'w> {
     inspect: ResMut<'w, InspectRuntimeState>,
     inspect_status: Res<'w, crate::status::InspectStatusSnapshot>,
     trade: ResMut<'w, TradeClientState>,
-    mail: ResMut<'w, MailState>,
+    mail: Res<'w, MailState>,
+    mail_requests: MessageWriter<'w, MailRequest>,
 }
 
 #[derive(bevy::ecs::system::SystemParam)]
@@ -565,7 +567,12 @@ fn dispatch_character_runtime_request(
         request,
         respond.clone(),
     ) || queue_trade_ipc_request(&mut world.trade, request, respond.clone())
-        || queue_mail_ipc_request(world.mail.as_mut(), request, respond.clone())
+        || queue_mail_ipc_request(
+            &world.mail,
+            &mut world.mail_requests,
+            request,
+            respond.clone(),
+        )
 }
 
 /// Returns true if the request was handled.

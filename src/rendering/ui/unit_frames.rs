@@ -25,9 +25,9 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_INSPECT, ACTION_UNIT_MENU_SET_FOCUS,
-    InWorldUnitFramesState, PowerBarState, SmallUnitFrameState, TargetAuraIconState, UNIT_MENU_W,
-    UnitFrameMenuState, UnitFrameState, UnitMenuItem, format_value_text, fraction,
-    inworld_unit_frames_screen, unit_menu_height,
+    ACTION_UNIT_MENU_TRADE, InWorldUnitFramesState, PowerBarState, SmallUnitFrameState,
+    TargetAuraIconState, UNIT_MENU_W, UnitFrameMenuState, UnitFrameState, UnitMenuItem,
+    format_value_text, fraction, inworld_unit_frames_screen, unit_menu_height,
 };
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -397,6 +397,7 @@ fn handle_unit_frame_pointer(
     mut set_focus: MessageWriter<SetFocus>,
     mut group_commands: MessageWriter<GroupCommand>,
     mut inspect: Option<ResMut<game_engine::inspect::InspectRuntimeState>>,
+    mut trade: Option<ResMut<game_engine::trade::TradeClientState>>,
 ) {
     if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
@@ -438,6 +439,11 @@ fn handle_unit_frame_pointer(
                 game_engine::inspect::request_query_for_target(runtime, Some(unit));
             }
         }
+        Some(MenuRequest::Trade(name)) => {
+            if let Some(trade) = trade.as_deref_mut() {
+                trade.queue(game_engine::trade::TradeAction::Initiate(name));
+            }
+        }
         None => {}
     }
 }
@@ -453,6 +459,8 @@ enum MenuRequest {
     Focus(SetFocus),
     Group(GroupCommand),
     Inspect(Entity),
+    /// `InitiateTrade` with the unit's player.
+    Trade(String),
 }
 
 struct UnitFrameClick<'a> {
@@ -487,6 +495,7 @@ impl UnitFrameClick<'_> {
             }
             Some(ACTION_UNIT_MENU_CLEAR_FOCUS) => Some(MenuRequest::Focus(SetFocus::Clear)),
             Some(ACTION_UNIT_MENU_INSPECT) => menu.unit.map(MenuRequest::Inspect),
+            Some(ACTION_UNIT_MENU_TRADE) => menu.player_name.clone().map(MenuRequest::Trade),
             Some(action) => GroupMenuEntry::from_action(action)
                 .zip(menu.player_name.as_deref())
                 .map(|(entry, name)| MenuRequest::Group(entry.command(name))),
@@ -519,7 +528,8 @@ impl UnitFrameClick<'_> {
     }
 
     /// Entries for a player unit (Retail `UnitPopup` SELF / PARTY / PLAYER): group entries,
-    /// then Inspect for other players (`UnitPopupInspectButtonMixin`).
+    /// then Inspect and Trade for other players (`UnitPopupInspectButtonMixin`,
+    /// `UnitPopupTradeButtonMixin`).
     fn player_items(&self, player_name: Option<&str>) -> Vec<UnitMenuItem> {
         let (Some(local), Some(unit)) = (self.local_name, player_name) else {
             return Vec::new();
@@ -537,6 +547,11 @@ impl UnitFrameClick<'_> {
                 name: "UnitFrameContextMenuInspect".into(),
                 label: "Inspect".into(),
                 action: ACTION_UNIT_MENU_INSPECT.into(),
+            });
+            items.push(UnitMenuItem {
+                name: "UnitFrameContextMenuTrade".into(),
+                label: "Trade".into(),
+                action: ACTION_UNIT_MENU_TRADE.into(),
             });
         }
         items
@@ -1114,6 +1129,48 @@ mod tests {
             "menu Inspect sent no query"
         );
         assert!(frame(&app, "UnitFrameContextMenu").hidden);
+    }
+
+    #[test]
+    fn the_target_menu_trade_entry_asks_the_player_to_trade() {
+        use game_engine::trade::{TradeAction, TradeClientState};
+
+        let mut app = unit_frames_app();
+        app.init_resource::<TradeClientState>();
+        spawn_local_player(&mut app, Vec::new());
+        let valeera = app
+            .world_mut()
+            .spawn(NetPlayer {
+                name: "Valeera".to_string(),
+                race: 4,
+                class: 4,
+                appearance: default(),
+            })
+            .id();
+        app.update();
+        app.world_mut().resource_mut::<CurrentTarget>().0 = Some(valeera);
+        app.update();
+        app.update();
+
+        click(&mut app, "PlayerFrame", MouseButton::Right);
+        app.update();
+        assert!(
+            app.world()
+                .resource::<UiState>()
+                .registry
+                .get_by_name("UnitFrameContextMenuTrade")
+                .is_none(),
+            "no Trade on self"
+        );
+        click(&mut app, "TargetFrame", MouseButton::Right);
+        app.update();
+        click(&mut app, "UnitFrameContextMenuTrade", MouseButton::Left);
+
+        let queued = app
+            .world_mut()
+            .resource_mut::<TradeClientState>()
+            .take_queued();
+        assert_eq!(queued, vec![TradeAction::Initiate("Valeera".into())]);
     }
 
     #[test]

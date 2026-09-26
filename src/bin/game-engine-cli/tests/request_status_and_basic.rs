@@ -3,67 +3,50 @@ use super::*;
 #[test]
 fn mail_send_command_maps_to_send_request() {
     let request = mail_request(MailCmd::Send {
-        to: "Thrall".into(),
-        from: "Jaina".into(),
-        subject: "Supplies".into(),
-        body: "Three crates are ready.".into(),
-        money: 1250,
+        to: "Tradeb".into(),
+        subject: "Linen".into(),
+        body: "For your tailoring.".into(),
+        items: vec![90, 91],
+        money: 5_000,
+        cod: 0,
     })
     .expect("valid send command");
 
     assert_eq!(
         request,
         Request::MailSend {
-            mail: SendMail {
-                to: "Thrall".into(),
-                from: "Jaina".into(),
-                subject: "Supplies".into(),
-                body: "Three crates are ready.".into(),
-                money: 1250,
+            recipient: "Tradeb".into(),
+            subject: "Linen".into(),
+            body: "For your tailoring.".into(),
+            attachments: vec![90, 91],
+            money: 5_000,
+            cod: 0,
+        }
+    );
+}
+
+#[test]
+fn mail_inbox_commands_map_to_mail_actions() {
+    use shared::protocol::MailAction;
+    let cases = [
+        (MailCmd::Read { mail_id: 4 }, MailAction::MarkRead),
+        (
+            MailCmd::TakeItem {
+                mail_id: 4,
+                slot: 2,
             },
-        }
-    );
-}
-
-#[test]
-fn mail_list_command_maps_to_list_request() {
-    let request = mail_request(MailCmd::List {
-        character: Some("Thrall".into()),
-        include_deleted: true,
-    })
-    .expect("valid list command");
-
-    assert_eq!(
-        request,
-        Request::MailList {
-            query: ListMailQuery {
-                character: Some("Thrall".into()),
-                include_deleted: true
-            },
-        }
-    );
-}
-
-#[test]
-fn mail_read_command_maps_to_read_request() {
-    let request = mail_request(MailCmd::Read { mail_id: 42 }).expect("valid read command");
-    assert_eq!(
-        request,
-        Request::MailRead {
-            read: ReadMail { mail_id: 42 }
-        }
-    );
-}
-
-#[test]
-fn mail_delete_command_maps_to_delete_request() {
-    let request = mail_request(MailCmd::Delete { mail_id: 42 }).expect("valid delete command");
-    assert_eq!(
-        request,
-        Request::MailDelete {
-            delete: DeleteMail { mail_id: 42 }
-        }
-    );
+            MailAction::TakeAttachment { slot: 2 },
+        ),
+        (MailCmd::TakeMoney { mail_id: 4 }, MailAction::TakeMoney),
+        (MailCmd::Return { mail_id: 4 }, MailAction::Return),
+        (MailCmd::Delete { mail_id: 4 }, MailAction::Delete),
+    ];
+    for (command, action) in cases {
+        assert_eq!(
+            mail_request(command).unwrap(),
+            Request::MailAct { mail_id: 4, action }
+        );
+    }
 }
 
 #[test]
