@@ -71,6 +71,8 @@ const TOOLTIP_BUFF_COLOR: [f32; 4] = [1.0, 0.82, 0.32, 1.0];
 const TOOLTIP_SPELL_COLOR: [f32; 4] = [0.98, 0.88, 0.54, 1.0];
 const TOOLTIP_WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 const TOOLTIP_DESCRIPTION_COLOR: [f32; 4] = [1.0, 0.82, 0.0, 1.0];
+/// `GRAY_FONT_COLOR`.
+const GRAY_FONT_COLOR: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
 const TOOLTIP_FONT_SIZE: f32 = 10.0;
 const TOOLTIP_TEXT_W: f32 = TOOLTIP_W - 2.0 * TOOLTIP_INSET;
 
@@ -140,6 +142,26 @@ impl TooltipLineState {
     }
 }
 
+/// The record a tooltip describes; `place_tooltip` ends the tooltip with its ID
+/// line (a user-requested deviation from Retail, like idTip-style addons).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TooltipRecord {
+    Creature(u32),
+    Spell(u32),
+    Item(u32),
+}
+
+impl TooltipRecord {
+    fn id_line(self) -> TooltipLineState {
+        let text = match self {
+            Self::Creature(id) => format!("Creature ID: {id}"),
+            Self::Spell(id) => format!("Spell ID: {id}"),
+            Self::Item(id) => format!("Item ID: {id}"),
+        };
+        TooltipLineState::colored(text, GRAY_FONT_COLOR)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 struct TooltipFrameState {
     visible: bool,
@@ -148,6 +170,7 @@ struct TooltipFrameState {
     title: String,
     title_color: [f32; 4],
     lines: Vec<TooltipLineState>,
+    record: Option<TooltipRecord>,
 }
 
 impl TooltipFrameState {
@@ -159,6 +182,7 @@ impl TooltipFrameState {
             title: String::new(),
             title_color: TOOLTIP_TEXT_COLOR,
             lines: Vec::new(),
+            record: None,
         }
     }
 
@@ -441,6 +465,7 @@ fn talent_tooltip(tooltip: &TalentTooltip) -> TooltipFrameState {
         title: tooltip.title.clone(),
         title_color: TOOLTIP_TEXT_COLOR,
         lines,
+        record: Some(TooltipRecord::Spell(tooltip.spell_id)),
     }
 }
 
@@ -469,6 +494,7 @@ fn xp_tooltip(update: &shared::protocol::PlayerXpUpdate) -> TooltipFrameState {
             TooltipLineState::colored(format!("{percent}% of normal experience"), TOOLTIP_WHITE),
             TooltipLineState::colored("gained from monsters.", TOOLTIP_WHITE),
         ],
+        record: None,
     }
 }
 
@@ -497,8 +523,8 @@ fn hovered_merchant_tooltip(
         }
         frame_id = frame.parent_id?;
     };
-    let (name, quality, count, stock) = merchant.cell_item(index)?;
-    Some(merchant_tooltip(name, quality, count, stock))
+    let (item_id, name, quality, count, stock) = merchant.cell_item(index)?;
+    Some(merchant_tooltip(item_id, name, quality, count, stock))
 }
 
 /// `MerchantItem<n>` (1-based) exactly; its children carry longer names.
@@ -507,7 +533,13 @@ fn parse_merchant_cell_name(name: &str) -> Option<usize> {
     index.checked_sub(1)
 }
 
-fn merchant_tooltip(name: &str, quality: u8, count: u32, stock: Option<u32>) -> TooltipFrameState {
+fn merchant_tooltip(
+    item_id: u32,
+    name: &str,
+    quality: u8,
+    count: u32,
+    stock: Option<u32>,
+) -> TooltipFrameState {
     let mut lines = Vec::new();
     if count > 1 {
         lines.push(TooltipLineState::key_value(
@@ -525,6 +557,7 @@ fn merchant_tooltip(name: &str, quality: u8, count: u32, stock: Option<u32>) -> 
         title: name.to_string(),
         title_color: parse_rgba(quality_color(quality)),
         lines,
+        record: Some(TooltipRecord::Item(item_id)),
     }
 }
 
@@ -561,6 +594,7 @@ fn mail_tooltip(senders: &[String]) -> TooltipFrameState {
             .iter()
             .map(|sender| TooltipLineState::colored(sender.clone(), TOOLTIP_WHITE))
             .collect(),
+        record: None,
     }
 }
 
@@ -604,7 +638,11 @@ fn hovered_player_aura_tooltip(
 
 /// Retail `GameTooltip_SetDefaultAnchor`: the tooltip's bottom-right corner on
 /// `GameTooltipDefaultContainer`'s, 9 left of and 85 above UIParent's bottom right.
+/// Every tooltip that describes a record ends with its grey ID line.
 fn place_tooltip(mut tooltip: TooltipFrameState, registry: &FrameRegistry) -> TooltipFrameState {
+    if let Some(record) = tooltip.record {
+        tooltip.lines.push(record.id_line());
+    }
     tooltip.visible = true;
     tooltip.x = registry.screen_width + TOOLTIP_DEFAULT_ANCHOR_X - TOOLTIP_W;
     tooltip.y = registry.screen_height - TOOLTIP_DEFAULT_ANCHOR_Y - tooltip.height();
@@ -629,6 +667,7 @@ fn item_tooltip(slot: &InventorySlot) -> TooltipFrameState {
         title: slot.name.clone(),
         title_color: parse_rgba(slot.quality.border_color()),
         lines,
+        record: Some(TooltipRecord::Item(slot.item_id)),
     }
 }
 
@@ -654,6 +693,7 @@ fn spell_tooltip(spell: &CatalogSpell, description: Option<String>) -> TooltipFr
         title: spell.name.to_string(),
         title_color: TOOLTIP_WHITE,
         lines,
+        record: Some(TooltipRecord::Spell(spell.id)),
     }
 }
 
@@ -665,6 +705,7 @@ fn unknown_spell_tooltip(spell_id: u32) -> TooltipFrameState {
         title: format!("Spell {spell_id}"),
         title_color: TOOLTIP_SPELL_COLOR,
         lines: Vec::new(),
+        record: Some(TooltipRecord::Spell(spell_id)),
     }
 }
 
@@ -895,6 +936,7 @@ fn aura_tooltip(aura: &AuraInstance, colorblind_mode: bool) -> TooltipFrameState
             TOOLTIP_BUFF_COLOR
         },
         lines,
+        record: Some(TooltipRecord::Spell(aura.spell_id)),
     }
 }
 
@@ -1142,6 +1184,59 @@ fn rgba_string(color: [f32; 4]) -> String {
 mod tests {
     use super::*;
 
+    /// Left text and colour of the placed tooltip's last line.
+    fn placed_id_line(content: TooltipFrameState) -> (String, [f32; 4]) {
+        let placed = place_tooltip(content, &FrameRegistry::new(1920.0, 1080.0));
+        let last = placed.lines.last().expect("id line");
+        (last.left_text.clone(), last.left_color)
+    }
+
+    #[test]
+    fn every_record_tooltip_ends_with_its_grey_id_line() {
+        let frostbolt = CatalogSpell {
+            id: 116,
+            name: "Frostbolt".into(),
+            ..judgment()
+        };
+        let linen = InventorySlot {
+            icon_fdid: 132_889,
+            count: 20,
+            quality: ItemQuality::Common,
+            name: "Linen Cloth".into(),
+            item_guid: 7,
+            item_id: 2589,
+        };
+        let talent = TalentTooltip {
+            spell_id: 184_575,
+            title: "Blade of Justice".into(),
+            rank: "Rank 0/1".into(),
+            description: String::new(),
+        };
+        let cases = [
+            (spell_tooltip(&frostbolt, None), "Spell ID: 116"),
+            (unknown_spell_tooltip(116), "Spell ID: 116"),
+            (talent_tooltip(&talent), "Spell ID: 184575"),
+            (aura_tooltip(&sample_aura(), false), "Spell ID: 100"),
+            (item_tooltip(&linen), "Item ID: 2589"),
+            (
+                merchant_tooltip(2589, "Linen Cloth", 1, 1, None),
+                "Item ID: 2589",
+            ),
+        ];
+        for (content, expected) in cases {
+            let lines_before = content.lines.len();
+            let placed = place_tooltip(content.clone(), &FrameRegistry::new(1920.0, 1080.0));
+            assert_eq!(placed.lines.len(), lines_before + 1, "{expected}");
+            assert_eq!(
+                placed_id_line(content),
+                (expected.to_string(), GRAY_FONT_COLOR)
+            );
+        }
+        // No record, no ID line.
+        let mail = place_tooltip(mail_tooltip(&[]), &FrameRegistry::new(1920.0, 1080.0));
+        assert!(mail.lines.is_empty());
+    }
+
     #[test]
     fn tooltips_use_the_retail_default_anchor_at_the_bottom_right() {
         let registry = FrameRegistry::new(1920.0, 1080.0);
@@ -1218,12 +1313,12 @@ mod tests {
     fn merchant_cells_show_the_item_name_in_quality_color_with_stack_and_stock() {
         assert_eq!(parse_merchant_cell_name("MerchantItem2"), Some(1));
         assert_eq!(parse_merchant_cell_name("MerchantItem2Name"), None);
-        let tooltip = merchant_tooltip("Refreshing Spring Water", 1, 5, Some(3));
+        let tooltip = merchant_tooltip(159, "Refreshing Spring Water", 1, 5, Some(3));
         assert_eq!(tooltip.title, "Refreshing Spring Water");
         assert_eq!(tooltip.title_color, [1.0, 1.0, 1.0, 1.0]);
         assert_eq!(tooltip.lines[0].right_text, "5");
         assert_eq!(tooltip.lines[1].left_text, "In Stock");
-        let uncommon = merchant_tooltip("Pattern: Blue Linen Vest", 2, 1, None);
+        let uncommon = merchant_tooltip(6272, "Pattern: Blue Linen Vest", 2, 1, None);
         assert_eq!(uncommon.title_color, [0.12, 1.0, 0.0, 1.0]);
         assert!(uncommon.lines.is_empty());
     }
@@ -1374,6 +1469,7 @@ mod tests {
         tooltips.by_frame.insert(
             "TalentNode_81526".into(),
             TalentTooltip {
+                spell_id: 184575,
                 title: "Blade of Justice".into(),
                 rank: "Rank 0/1".into(),
                 description: "Pierce an enemy with a blade of light, dealing Holy damage and \

@@ -9,7 +9,7 @@ use shared::transmog::AppearanceCollection;
 
 use super::{
     ItemMark, TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_LABEL_COLOR, TOOLTIP_WHITE, TooltipFrameState,
-    TooltipLineState, parse_rgba, quality_color, trim_number,
+    TooltipLineState, TooltipRecord, parse_rgba, quality_color, trim_number,
 };
 
 /// `FACTION_BAR_COLORS` by `UnitReaction` (SharedColorConstants.lua:3-13): 2 red
@@ -66,6 +66,8 @@ pub(super) fn creature_type_name(creature_type: u8) -> Option<&'static str> {
 
 /// What an NPC tooltip reads from the hovered unit.
 pub(super) struct NpcTooltipInput<'a> {
+    /// Creature template entry (`Npc::template_id`).
+    pub entry: u32,
     pub name: &'a str,
     pub reaction: Reaction,
     pub level: Option<u8>,
@@ -120,6 +122,7 @@ pub(super) fn npc_tooltip(
         title: input.name.to_string(),
         title_color: npc_name_color(input.reaction),
         lines,
+        record: Some(TooltipRecord::Creature(input.entry)),
     }
 }
 
@@ -155,6 +158,7 @@ pub(super) fn player_tooltip(input: &PlayerTooltipInput) -> TooltipFrameState {
         title: input.name.to_string(),
         title_color: player_name_color(input.reaction),
         lines,
+        record: None,
     }
 }
 

@@ -85,20 +85,27 @@ impl MerchantState {
 
     /// Name, quality, stack count and stock of the item in cell `index` of the
     /// shown tab.
-    pub fn cell_item(&self, index: usize) -> Option<(&str, u8, u32, Option<u32>)> {
+    /// Item id, name, quality, stack count and stock of a cell.
+    pub fn cell_item(&self, index: usize) -> Option<(u32, &str, u8, u32, Option<u32>)> {
         match self.tab {
             MerchantTab::Merchant => self.page_items().get(index).map(|item| {
                 (
+                    item.item_id,
                     item.name.as_str(),
                     item.quality,
                     item.stack_count,
                     item.num_available,
                 )
             }),
-            MerchantTab::Buyback => self
-                .buyback
-                .get(index)
-                .map(|item| (item.name.as_str(), item.quality, item.count, None)),
+            MerchantTab::Buyback => self.buyback.get(index).map(|item| {
+                (
+                    item.item_id,
+                    item.name.as_str(),
+                    item.quality,
+                    item.count,
+                    None,
+                )
+            }),
         }
     }
 }
