@@ -253,9 +253,9 @@ pub(crate) enum AuctionCmd {
         #[arg(long)]
         stack: u32,
         #[arg(long)]
-        bid: u32,
+        bid: u64,
         #[arg(long)]
-        buyout: Option<u32>,
+        buyout: Option<u64>,
         #[arg(long, default_value = "medium")]
         duration: String,
     },
@@ -263,7 +263,7 @@ pub(crate) enum AuctionCmd {
         #[arg(long)]
         id: u64,
         #[arg(long)]
-        amount: u32,
+        amount: u64,
     },
     Buyout {
         #[arg(long)]
@@ -548,7 +548,7 @@ pub(crate) enum TradeCmd {
     },
     SetMoney {
         #[arg(long)]
-        copper: u32,
+        copper: u64,
     },
     Confirm,
 }

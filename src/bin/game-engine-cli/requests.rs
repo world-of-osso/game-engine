@@ -525,7 +525,7 @@ struct AuctionBrowseCommand {
 
 enum AuctionActionCommand {
     ClaimMail { mail_id: u64 },
-    Bid { id: u64, amount: u32 },
+    Bid { id: u64, amount: u64 },
     Buyout { id: u64 },
     Cancel { id: u64 },
 }
@@ -535,8 +535,8 @@ enum AuctionNonSimpleCommand {
     Create {
         item_guid: u64,
         stack: u32,
-        bid: u32,
-        buyout: Option<u32>,
+        bid: u64,
+        buyout: Option<u64>,
         duration: String,
     },
     Action(AuctionActionCommand),
@@ -562,8 +562,8 @@ pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request,
 pub fn auction_create_request(
     item_guid: u64,
     stack: u32,
-    bid: u32,
-    buyout: Option<u32>,
+    bid: u64,
+    buyout: Option<u64>,
     duration: String,
 ) -> Result<Request, String> {
     Ok(Request::AuctionCreate {

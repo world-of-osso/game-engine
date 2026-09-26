@@ -177,7 +177,7 @@ fn select_auction(
         .chain(&net.bid_results)
         .chain(&net.owned_results)
         .find(|listing| listing.auction_id == auction_id)
-        .map(|listing| u64::from(listing.min_next_bid));
+        .map(|listing| listing.min_next_bid);
     money_edits(BID_BOXES, min_next)
 }
 

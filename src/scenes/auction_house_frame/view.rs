@@ -83,7 +83,7 @@ pub fn deposit(item: &AuctionInventoryItem, quantity: u32, duration: AuctionDura
 
 /// The frame's picture of an auction's price: current bid (or the minimum bid before any).
 pub fn listing_bid(listing: &AuctionListingSummary) -> u64 {
-    u64::from(listing.current_bid.unwrap_or(listing.min_bid))
+    listing.current_bid.unwrap_or(listing.min_bid)
 }
 
 pub struct ViewInputs<'a> {
@@ -116,7 +116,7 @@ impl ViewInputs<'_> {
             item: self.item_line(&listing.item),
             quantity: listing.stack_count,
             bid: Some(listing_bid(listing)),
-            buyout: listing.buyout_price.map(u64::from),
+            buyout: listing.buyout_price,
             time_left: time_left_label(listing.time_left).into(),
             selected: self.ui.selected_auction == Some(listing.auction_id),
         }
@@ -229,14 +229,14 @@ fn selected_listing<'a>(
 fn can_bid(inputs: &ViewInputs, listing: Option<&AuctionListingSummary>) -> bool {
     let amount = money_input(inputs.texts, BID_BOXES);
     listing.is_some_and(|listing| {
-        amount >= u64::from(listing.min_next_bid) && amount > 0 && amount <= inputs.money()
+        amount >= listing.min_next_bid && amount > 0 && amount <= inputs.money()
     })
 }
 
 fn can_buyout(inputs: &ViewInputs, listing: Option<&AuctionListingSummary>) -> bool {
     listing
         .and_then(|listing| listing.buyout_price)
-        .is_some_and(|buyout| u64::from(buyout) <= inputs.money())
+        .is_some_and(|buyout| buyout <= inputs.money())
 }
 
 fn dialog(inputs: &ViewInputs) -> Option<BuyDialogView> {
@@ -250,7 +250,7 @@ fn dialog(inputs: &ViewInputs) -> Option<BuyDialogView> {
     Some(BuyDialogView {
         // `AUCTION_HOUSE_DIALOG_ITEM_FORMAT` "%s  x%s".
         item_text: format!("{}  x{}", listing.item.name, listing.stack_count),
-        price: u64::from(listing.buyout_price?),
+        price: listing.buyout_price?,
     })
 }
 
@@ -284,7 +284,7 @@ pub fn sell_request(inputs: &ViewInputs) -> Option<shared::protocol::CreateAucti
     if deposit(item, quantity, inputs.ui.duration) > inputs.money() {
         return None;
     }
-    let total = |unit: u64| u32::try_from(unit * u64::from(quantity)).ok();
+    let total = |unit: u64| unit.checked_mul(u64::from(quantity));
     Some(shared::protocol::CreateAuction {
         item_guid: item.item_guid,
         stack_count: quantity,
