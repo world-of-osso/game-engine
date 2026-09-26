@@ -239,6 +239,25 @@ fn load_map_flags_with(
     cache_dir: &Path,
     map_name: &str,
 ) -> Result<adt::MphdFlags, String> {
+    let (wow_path, data) = read_map_wdt_with(resolver, cache_dir, map_name)?;
+    crate::asset::wdt::parse_wdt_mphd_flags(&data).map_err(|error| format!("{wow_path}: {error}"))
+}
+
+/// The single WMO of a WMO-only map (WDT MPHD flag 0x1), `None` for a map of ADT tiles.
+pub(crate) fn resolve_global_wmo(
+    map_name: &str,
+) -> Result<Option<crate::asset::adt_obj::WmoPlacement>, String> {
+    let (wow_path, data) =
+        read_map_wdt_with(resolver(), &paths::shared_data_path("terrain"), map_name)?;
+    crate::asset::wdt::parse_wdt_global_wmo(&data).map_err(|error| format!("{wow_path}: {error}"))
+}
+
+/// `world/maps/<map>/<map>.wdt` from the local CASC cache.
+fn read_map_wdt_with(
+    resolver: &dyn AssetResolver,
+    cache_dir: &Path,
+    map_name: &str,
+) -> Result<(String, Vec<u8>), String> {
     let wow_path = format!("world/maps/{map_name}/{map_name}.wdt");
     let fdid = resolver
         .lookup_path(&wow_path)
@@ -247,7 +266,7 @@ fn load_map_flags_with(
         .ensure_cached(fdid, &cache_dir.join(format!("{fdid}.wdt")))
         .ok_or_else(|| format!("{wow_path} (FDID {fdid}) could not be extracted"))?;
     let data = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
-    crate::asset::wdt::parse_wdt_mphd_flags(&data).map_err(|error| format!("{wow_path}: {error}"))
+    Ok((wow_path, data))
 }
 
 fn parse_tex0_data(

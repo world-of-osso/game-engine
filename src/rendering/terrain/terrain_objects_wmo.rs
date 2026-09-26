@@ -344,13 +344,46 @@ fn try_spawn_wmo(
     tile_y: u32,
     tile_x: u32,
 ) -> Option<SpawnedWmoRoot> {
+    let transform = wmo_transform(placement, tile_y, tile_x);
+    try_spawn_wmo_with_transform(commands, assets, placement, chunk_refs, transform)
+}
+
+/// Spawn `placement`'s WMO at `transform` (a WDT global WMO; see `spawn_global_wmo`).
+pub(super) fn spawn_wmo_at(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<M2Material>,
+    effect_materials: &mut Assets<M2EffectMaterial>,
+    water_materials: &mut Assets<WaterMaterial>,
+    images: &mut Assets<Image>,
+    inverse_bindposes: &mut Assets<SkinnedMeshInverseBindposes>,
+    placement: &adt_obj::WmoPlacement,
+    transform: Transform,
+) -> Option<SpawnedWmoRoot> {
+    let mut assets = WmoAssets {
+        meshes,
+        materials,
+        water_materials,
+        images,
+        effect_materials,
+        inverse_bindposes,
+    };
+    try_spawn_wmo_with_transform(commands, &mut assets, placement, None, transform)
+}
+
+fn try_spawn_wmo_with_transform(
+    commands: &mut Commands,
+    assets: &mut WmoAssets<'_>,
+    placement: &adt_obj::WmoPlacement,
+    chunk_refs: Option<&[u16]>,
+    transform: Transform,
+) -> Option<SpawnedWmoRoot> {
     let root_fdid = resolve_wmo_fdid(placement)?;
     let root_path = ensure_wmo_asset(root_fdid)?;
     let root_data = std::fs::read(&root_path).ok()?;
     let root = wmo::load_wmo_root(&root_data).ok()?;
 
     let group_fdids = resolve_wmo_group_fdids(root_fdid, root.n_groups, &root.group_file_data_ids);
-    let transform = wmo_transform(placement, tile_y, tile_x);
     let portal_graph = build_portal_graph(&root);
     let root_entity = spawn_wmo_root_entity(
         commands,
