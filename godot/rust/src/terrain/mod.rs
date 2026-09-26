@@ -97,8 +97,15 @@ fn build_mesh(geometry: Geometry, colors: &[[f32; 4]; 145]) -> Gd<ArrayMesh> {
     for uv in geometry.uvs {
         uvs.push(Vector2::new(uv[0], uv[1]));
     }
+    // ArrayMesh packs COLOR into byte/255; the shader restores authored byte/127.
+    const MCCV_TO_VERTEX_COLOR: f32 = 127.0 / 255.0;
     for color in colors {
-        vertex_colors.push(Color::from_rgba(color[0], color[1], color[2], color[3]));
+        vertex_colors.push(Color::from_rgba(
+            color[0] * MCCV_TO_VERTEX_COLOR,
+            color[1] * MCCV_TO_VERTEX_COLOR,
+            color[2] * MCCV_TO_VERTEX_COLOR,
+            color[3],
+        ));
     }
     // Godot ArrayMesh front faces are clockwise; Bevy's authored indices are counterclockwise.
     for triangle in geometry.indices.chunks_exact(3) {

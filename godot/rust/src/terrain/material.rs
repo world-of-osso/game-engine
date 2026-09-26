@@ -129,20 +129,7 @@ impl TerrainMaterials {
             0.0,
         );
         material.set_shader_parameter("config", &config.to_variant());
-        let mut has_height = [false; 4];
-        for (slot, layer) in layers.iter().enumerate() {
-            let images = parsed
-                .textures
-                .get(&layer.texture_index)
-                .ok_or_else(|| format!("Texture index {} was not decoded", layer.texture_index))?;
-            let diffuse = self.texture(images.diffuse_fdid, &images.diffuse)?;
-            material.set_shader_parameter(&format!("ground_{slot}"), &diffuse.to_variant());
-            if let Some(height) = &images.height {
-                let texture = self.texture(height.fdid, &height.image)?;
-                material.set_shader_parameter(&format!("height_{slot}"), &texture.to_variant());
-                has_height[slot] = true;
-            }
-        }
+        let has_height = self.bind_layer_textures(&mut material, parsed, layers)?;
         let params = adt::texture_layer_params(&tex.texture_params, layers, has_height);
         let animation = adt::terrain_layer_animation_params(layers);
         for slot in 0..4 {
@@ -158,6 +145,29 @@ impl TerrainMaterials {
         let alpha = texture_from_rgba(64, 64, &adt::pack_alpha_map_bytes(layers))?;
         material.set_shader_parameter("alpha_packed", &alpha.to_variant());
         Ok(material)
+    }
+
+    fn bind_layer_textures(
+        &mut self,
+        material: &mut Gd<ShaderMaterial>,
+        parsed: &NativeTerrainTile,
+        layers: &[adt::TextureLayer],
+    ) -> Result<[bool; 4], String> {
+        let mut has_height = [false; 4];
+        for (slot, layer) in layers.iter().enumerate() {
+            let images = parsed
+                .textures
+                .get(&layer.texture_index)
+                .ok_or_else(|| format!("Texture index {} was not decoded", layer.texture_index))?;
+            let diffuse = self.texture(images.diffuse_fdid, &images.diffuse)?;
+            material.set_shader_parameter(&format!("ground_{slot}"), &diffuse.to_variant());
+            if let Some(height) = &images.height {
+                let texture = self.texture(height.fdid, &height.image)?;
+                material.set_shader_parameter(&format!("height_{slot}"), &texture.to_variant());
+                has_height[slot] = true;
+            }
+        }
+        Ok(has_height)
     }
 
     fn texture(&mut self, fdid: u32, pixels: &blp::RgbaImage) -> Result<Gd<ImageTexture>, String> {
