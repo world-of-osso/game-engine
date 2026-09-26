@@ -101,7 +101,6 @@ pub mod little_endian;
 pub mod loot_state;
 #[path = "game/loss_of_control_data.rs"]
 pub mod loss_of_control_data;
-pub mod mail;
 #[path = "game/mail_data.rs"]
 pub mod mail_data;
 #[path = "game/merchant_data.rs"]
@@ -158,8 +157,6 @@ pub mod talent_tree;
 pub mod taxi_state;
 pub mod test_harness;
 pub mod trade;
-#[path = "game/trade_data.rs"]
-pub mod trade_data;
 #[path = "game/trainer_data.rs"]
 pub mod trainer_data;
 pub mod ui;

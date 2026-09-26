@@ -221,7 +221,7 @@ pub fn edit_box(name: &'static str, rect: (f32, f32, f32, f32)) -> Element {
 
 /// `MoneyInputFrameTemplate` 176×18 (Blizzard_MoneyFrame/Mainline/MoneyInputFrame.xml:72):
 /// gold 70 wide, silver and copper 28, each followed by its coin label.
-fn money_input(boxes: MoneyBoxNames, (x, y): (f32, f32)) -> Element {
+pub fn money_input(boxes: MoneyBoxNames, (x, y): (f32, f32)) -> Element {
     let parts = [
         (boxes.gold, x, 70.0, "g"),
         (boxes.silver, x + 92.0, 28.0, "s"),

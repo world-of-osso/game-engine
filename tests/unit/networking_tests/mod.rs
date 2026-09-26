@@ -111,12 +111,18 @@ fn insert_disconnect_test_ui_state(app: &mut App) {
 }
 
 fn stale_trade_client_state() -> game_engine::trade::TradeClientState {
-    let mut trade_state = game_engine::trade::TradeClientState::default();
-    trade_state.phase = Some(shared::protocol::TradePhase::Open);
-    trade_state.trade = game_engine::trade_data::TradeState {
-        active: true,
-        ..Default::default()
+    let party = |name: &str| shared::protocol::TradePartySnapshot {
+        name: name.into(),
+        accepted: false,
+        gold: 0,
+        slots: vec![None; 7],
     };
+    let mut trade_state = game_engine::trade::TradeClientState::default();
+    trade_state.snapshot = Some(shared::protocol::TradeSnapshot {
+        phase: shared::protocol::TradePhase::Open,
+        player: party("Tradea"),
+        other: party("Tradeb"),
+    });
     trade_state.last_message = Some("stale trade".into());
     trade_state
 }
@@ -189,8 +195,7 @@ fn assert_inworld_ui_state_cleared(app: &App) {
     let trade_state = app
         .world()
         .resource::<game_engine::trade::TradeClientState>();
-    assert_eq!(trade_state.phase, None);
-    assert!(!trade_state.trade.active);
+    assert_eq!(trade_state.snapshot, None);
     assert_eq!(trade_state.last_message, None);
 }
 

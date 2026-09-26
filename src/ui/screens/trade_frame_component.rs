@@ -1,607 +1,301 @@
-use std::fmt;
+//! Retail `TradeFrame` (Blizzard_UIPanels_Game/Mainline/TradeFrame.xml / .lua, cited
+//! as TF.xml / TF.lua): the 344×446 `ButtonFrameTemplate` window with the player's
+//! seven item slots on the left and the trade partner's on the right (the seventh
+//! "Will not be traded"), the player's money entry and the partner's money, the
+//! accept highlights, and the Trade / Cancel buttons. Positions are top-left
+//! offsets converted from the anchors.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::ui::screens::auction_house_frame_component::inset_border;
+use crate::ui::screens::bank_art::{
+    HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, SlotItem, WHITE, cropped, item_slot, label,
+    money_display, money_input, texture,
+};
+use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
 use crate::ui::strata::FrameStrata;
 
-struct DynName(String);
+pub const FRAME_NAME: &str = "TradeFrame";
+/// TF.xml:179 `<Size x="344" y="446"/>`.
+pub const FRAME_W: f32 = 344.0;
+pub const FRAME_H: f32 = 446.0;
+/// `MAX_TRADE_ITEMS` (TF.lua:1).
+pub const TRADE_SLOTS: usize = 7;
 
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
+pub const ACTION_CLOSE: &str = "trade_close";
+/// `TradeFrameTradeButton` (`AcceptTrade`).
+pub const ACTION_TRADE: &str = "trade_accept";
+/// `TradeFrameCancelButton_OnClick`.
+pub const ACTION_CANCEL: &str = "trade_cancel";
+/// `trade_player_slot:<0-based slot>`: clicking an offered item takes it back.
+pub const ACTION_PLAYER_SLOT_PREFIX: &str = "trade_player_slot:";
 
-// --- Layout constants ---
+/// `TradePlayerInputMoneyFrame` edit boxes.
+pub const MONEY_BOXES: MoneyBoxNames = MoneyBoxNames {
+    gold: "TradePlayerInputMoneyFrameGold",
+    silver: "TradePlayerInputMoneyFrameSilver",
+    copper: "TradePlayerInputMoneyFrameCopper",
+};
 
-pub const FRAME_W: f32 = 400.0;
-pub const FRAME_H: f32 = 360.0;
-const HEADER_H: f32 = 28.0;
-const INSET: f32 = 8.0;
-const CONTENT_TOP: f32 = HEADER_H + 4.0;
+/// `Interface\TradeFrame\UI-TradeFrame-Highlight` (TF.xml:6-20).
+const HIGHLIGHT: u32 = 137_073;
+/// `Interface\Buttons\UI-EmptySlot` (TF.xml:35).
+const EMPTY_SLOT: u32 = 130_766;
+/// `Interface\QuestFrame\UI-QuestItemNameFrame` (TF.xml:41).
+const NAME_FRAME: u32 = 136_796;
+/// `Interface\TradeFrame\UI-TradeFrame-EnchantIcon` (TF.xml:330, 387).
+const ENCHANT_ICON: u32 = 137_072;
 
-const PANEL_GAP: f32 = 8.0;
-const PANEL_W: f32 = (FRAME_W - 2.0 * INSET - PANEL_GAP) / 2.0;
-const PANEL_LABEL_H: f32 = 18.0;
-
-const SLOT_SIZE: f32 = 32.0;
-const SLOT_GAP: f32 = 4.0;
-const SLOT_COUNT: usize = 7;
-
-const MONEY_ROW_H: f32 = 20.0;
-const MONEY_LABEL_W: f32 = 50.0;
-const MONEY_INPUT_W: f32 = PANEL_W - MONEY_LABEL_W - 8.0;
-
-const BTN_W: f32 = 90.0;
-const BTN_H: f32 = 26.0;
-const BTN_GAP: f32 = 12.0;
-
-// --- Colors ---
-
-const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
-const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const PANEL_BG: &str = "0.0,0.0,0.0,0.3";
-const PANEL_LABEL_COLOR: &str = "1.0,0.82,0.0,1.0";
-const SLOT_BG: &str = "0.08,0.08,0.08,0.8";
-const MONEY_LABEL_COLOR: &str = "0.8,0.8,0.8,1.0";
-const MONEY_INPUT_BG: &str = "0.1,0.1,0.1,0.9";
-const MONEY_INPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
-const ACCEPT_BG: &str = "0.15,0.25,0.1,0.95";
-const ACCEPT_TEXT: &str = "0.2,1.0,0.2,1.0";
-const ACCEPT_HIGHLIGHT_BG: &str = "0.2,0.35,0.15,0.95";
-const CANCEL_BG: &str = "0.2,0.08,0.08,0.95";
-const CANCEL_TEXT: &str = "1.0,0.3,0.3,1.0";
-
-// --- Data types ---
-
-#[derive(Clone, Debug, PartialEq, Default)]
-pub struct TradeSlot {
-    pub name: String,
-    pub icon_fdid: u32,
-    pub quantity: u32,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum TradeAcceptState {
-    #[default]
-    Pending,
-    Accepted,
+/// Player items at TOPLEFT 14,-89, recipient items at 182,-89, each 7 below the
+/// last; the seventh 28 below the sixth (TF.xml:288-381).
+pub fn slot_position(recipient: bool, slot: usize) -> (f32, f32) {
+    let x = if recipient { 182.0 } else { 14.0 };
+    let step = ITEM_BUTTON + 7.0;
+    let y = 89.0 + slot.min(5) as f32 * step;
+    let y = if slot == 6 { y + ITEM_BUTTON + 28.0 } else { y };
+    (x, y)
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
-pub struct TradePlayerPanel {
+pub struct TradeItemView {
+    pub item: SlotItem,
     pub name: String,
-    pub slots: Vec<TradeSlot>,
-    pub money: u32,
-    pub accept_state: TradeAcceptState,
+    /// `ITEM_QUALITY_COLORS` of the item.
+    pub name_color: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct TradeFrameState {
     pub visible: bool,
-    pub player: TradePlayerPanel,
-    pub other: TradePlayerPanel,
+    pub player_name: String,
+    pub recipient_name: String,
+    /// `TRADE_SLOTS` entries each.
+    pub player_items: Vec<Option<TradeItemView>>,
+    pub recipient_items: Vec<Option<TradeItemView>>,
+    pub recipient_money: u64,
+    pub player_accepted: bool,
+    pub recipient_accepted: bool,
 }
-
-// --- Screen entry ---
 
 pub fn trade_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<TradeFrameState>()
         .expect("TradeFrameState must be in SharedContext");
     let hide = !state.visible;
+    let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), "", ACTION_CLOSE);
+    // `TradeRecipientBG` white at .15 from TOPRIGHT -172,-20 to BOTTOMRIGHT (TF.xml:212).
+    children.extend(rsx! {
+        r#frame {
+            name: {DynName(format!("{FRAME_NAME}RecipientBG"))},
+            width: 172.0,
+            height: {FRAME_H - 20.0},
+            background_color: "1.0,1.0,1.0,0.15",
+            pos_type: "absolute",
+            left: {FRAME_W - 172.0},
+            top: 20.0,
+        }
+    });
+    children.extend(names(state));
+    children.extend(insets());
+    children.extend(highlights(state));
+    children.extend(side(state, false));
+    children.extend(side(state, true));
+    children.extend(money_input(MONEY_BOXES, (11.0, 61.0)));
+    // `TradeRecipientMoneyFrame` TOPRIGHT -5,-64 (TF.xml:477).
+    children.extend(money_display(
+        "TradeRecipientMoneyFrame",
+        state.recipient_money,
+        (FRAME_W - 5.0, 64.0 + 14.0),
+        false,
+    ));
+    children.extend(buttons(state));
     rsx! {
         r#frame {
-            name: "TradeFrame",
-            width: {FRAME_W},
-            height: {FRAME_H},
+            name: {DynName(FRAME_NAME.into())},
+            width: FRAME_W,
+            height: FRAME_H,
             strata: FrameStrata::Dialog,
             hidden: hide,
-            background_color: FRAME_BG,
+            mouse_enabled: true,
             pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: "50%",
-            translate_y: "-50%",
-            {title_bar()}
-            {trade_panel("TradePlayer", &state.player, INSET, true)}
-            {trade_panel("TradeOther", &state.other, INSET + PANEL_W + PANEL_GAP, false)}
-            {action_buttons(&state.player.accept_state, &state.other.accept_state)}
+            left: 16.0,
+            top: 104.0,
+            {children}
         }
     }
 }
 
-fn title_bar() -> Element {
-    rsx! {
-        fontstring {
-            name: "TradeFrameTitle",
-            width: {FRAME_W},
-            height: {HEADER_H},
-            text: "Trade",
-            font_size: 16.0,
-            font_color: TITLE_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-        }
-    }
+/// `TradeFramePlayerNameText` at 65,-5 and `TradeFrameRecipientNameText` at 230,-5.
+fn names(state: &TradeFrameState) -> Element {
+    let mut out = label(
+        "TradeFramePlayerNameText".into(),
+        &state.player_name,
+        (65.0, 5.0, 100.0, 12.0),
+        (12.0, NORMAL_FONT_COLOR, "CENTER"),
+    );
+    out.extend(label(
+        "TradeFrameRecipientNameText".into(),
+        &state.recipient_name,
+        (230.0, 5.0, 80.0, 12.0),
+        (12.0, NORMAL_FONT_COLOR, "CENTER"),
+    ));
+    out
 }
 
-// --- Trade panel (one per player) ---
-
-fn trade_panel_label(id: DynName, text: &str) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {PANEL_W},
-            height: {PANEL_LABEL_H},
-            text: text,
-            font_size: 11.0,
-            font_color: PANEL_LABEL_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: 0.0,
-            top: -0.0,
-        }
-    }
+/// `InsetFrameTemplate` borders under both item columns, the "Will not be traded"
+/// slots and both money rows (TF.xml:326-470).
+fn insets() -> Element {
+    [
+        ("TradePlayerItemsInset", (4.0, 83.0, 162.0, 269.0)),
+        ("TradeRecipientItemsInset", (175.0, 83.0, 163.0, 269.0)),
+        ("TradePlayerEnchantInset", (4.0, 354.0, 162.0, 64.0)),
+        ("TradeRecipientEnchantInset", (175.0, 354.0, 163.0, 64.0)),
+        ("TradePlayerInputMoneyInset", (4.0, 58.0, 162.0, 24.0)),
+        ("TradeRecipientMoneyInset", (175.0, 58.0, 163.0, 23.0)),
+    ]
+    .into_iter()
+    .flat_map(|(name, rect)| inset_border(name, rect))
+    .collect()
 }
 
-fn trade_panel(prefix: &str, panel: &TradePlayerPanel, x: f32, show_input: bool) -> Element {
-    let panel_id = DynName(format!("{prefix}Panel"));
-    let panel_h = FRAME_H - CONTENT_TOP - INSET - BTN_H - 8.0;
-    let slots: Element = (0..SLOT_COUNT)
-        .flat_map(|i| {
-            let slot_y = PANEL_LABEL_H + 4.0 + i as f32 * (SLOT_SIZE + SLOT_GAP);
-            trade_slot(prefix, i, panel.slots.get(i), slot_y)
+/// `TradeHighlightTemplate`: 161 wide top / middle / bottom strips, `h` high.
+fn highlight(name: &str, (x, y, h): (f32, f32, f32)) -> Element {
+    let mut out = cropped(
+        format!("{name}Top"),
+        HIGHLIGHT,
+        "0.0,0.62890625,0.0,0.0625",
+        (x, y, 161.0, 16.0),
+    );
+    out.extend(cropped(
+        format!("{name}Middle"),
+        HIGHLIGHT,
+        "0.0,0.62890625,0.0625,0.9375",
+        (x, y + 16.0, 161.0, h - 32.0),
+    ));
+    out.extend(cropped(
+        format!("{name}Bottom"),
+        HIGHLIGHT,
+        "0.0,0.62890625,0.9375,1.0",
+        (x, y + h - 16.0, 161.0, 16.0),
+    ));
+    out
+}
+
+/// `TRADE_ACCEPT_UPDATE` shows each side's highlight while it has accepted
+/// (TF.lua:206-224): 150×266 at 6,-85 / 176,-85, the enchant ones 61 high 4 below.
+fn highlights(state: &TradeFrameState) -> Element {
+    let mut out = Element::default();
+    for (accepted, name, x) in [
+        (state.player_accepted, "TradeHighlightPlayer", 6.0),
+        (state.recipient_accepted, "TradeHighlightRecipient", 176.0),
+    ] {
+        if accepted {
+            out.extend(highlight(name, (x, 85.0, 266.0)));
+            out.extend(highlight(
+                &format!("{name}Enchant"),
+                (x, 85.0 + 266.0 + 4.0, 61.0),
+            ));
+        }
+    }
+    out
+}
+
+fn side(state: &TradeFrameState, recipient: bool) -> Element {
+    let (prefix, items) = if recipient {
+        ("TradeRecipientItem", &state.recipient_items)
+    } else {
+        ("TradePlayerItem", &state.player_items)
+    };
+    let mut out: Element = (0..TRADE_SLOTS)
+        .flat_map(|slot| {
+            let item = items.get(slot).and_then(Option::as_ref);
+            trade_item(prefix, slot, recipient, item)
         })
         .collect();
-    let money_y = PANEL_LABEL_H + 4.0 + SLOT_COUNT as f32 * (SLOT_SIZE + SLOT_GAP) + 4.0;
-    rsx! {
-        r#frame {
-            name: panel_id,
-            width: {PANEL_W},
-            height: {panel_h},
-            background_color: PANEL_BG,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(-CONTENT_TOP)},
-            {trade_panel_label(DynName(format!("{prefix}Label")), &panel.name)}
-            {slots}
-            {money_row(prefix, panel.money, money_y, show_input)}
-        }
-    }
+    // `TradeFramePlayerEnchantText` at 15,-360 and the recipient's 166 right.
+    let x = if recipient { 181.0 } else { 15.0 };
+    out.extend(label(
+        format!("{prefix}EnchantText"),
+        "Will not be traded",
+        (x, 360.0, 150.0, 12.0),
+        (10.0, HIGHLIGHT_FONT_COLOR, "LEFT"),
+    ));
+    out
 }
 
-fn trade_slot(prefix: &str, idx: usize, _slot: Option<&TradeSlot>, y: f32) -> Element {
-    let slot_id = DynName(format!("{prefix}Slot{idx}"));
-    rsx! {
-        r#frame {
-            name: slot_id,
-            width: {SLOT_SIZE},
-            height: {SLOT_SIZE},
-            background_color: SLOT_BG,
-            pos_type: "absolute",
-            left: 4.0,
-            top: {-(-y)},
-        }
+/// One `TradeItemTemplate` (153×37): slot art, name plate and item name; the
+/// player's filled slots click to take the item back.
+fn trade_item(prefix: &str, slot: usize, recipient: bool, item: Option<&TradeItemView>) -> Element {
+    let name = format!("{prefix}{}", slot + 1);
+    let (x, y) = slot_position(recipient, slot);
+    let mut out = texture(
+        format!("{name}SlotTexture"),
+        EMPTY_SLOT,
+        (x - 13.0, y - 13.0, 64.0, 64.0),
+        WHITE,
+    );
+    // NameFrame LEFT at the slot texture's RIGHT -20: x + 51 - 20.
+    out.extend(texture(
+        format!("{name}NameFrame"),
+        NAME_FRAME,
+        (x + 31.0, y + ITEM_BUTTON / 2.0 - 32.0, 124.0, 64.0),
+        WHITE,
+    ));
+    if slot == TRADE_SLOTS - 1 && item.is_none() {
+        out.extend(texture(
+            format!("{name}EnchantIcon"),
+            ENCHANT_ICON,
+            (x, y, 62.0, 62.0),
+            WHITE,
+        ));
     }
-}
-
-fn money_label(id: DynName, y: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {MONEY_LABEL_W},
-            height: {MONEY_ROW_H},
-            text: "Gold:",
-            font_size: 10.0,
-            font_color: MONEY_LABEL_COLOR,
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            left: 4.0,
-            top: {-(y)},
-        }
+    if let Some(item) = item {
+        out.extend(label(
+            format!("{name}Name"),
+            &item.name,
+            (x + 46.0, y + 3.0, 90.0, 30.0),
+            (10.0, &item.name_color, "LEFT"),
+        ));
     }
-}
-
-fn money_value(id: DynName, text_id: DynName, text: &str, bg: &str, y: f32) -> Element {
-    rsx! {
-        r#frame {
-            name: id,
-            width: {MONEY_INPUT_W},
-            height: {MONEY_ROW_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: {MONEY_LABEL_W + 8.0},
-            top: {-(y)},
-            fontstring {
-                name: text_id,
-                width: {MONEY_INPUT_W},
-                height: {MONEY_ROW_H},
-                text: text,
-                font_size: 10.0,
-                font_color: MONEY_INPUT_COLOR,
-                justify_h: "LEFT",
-                pos_type: "absolute",
-                left: 4.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn money_row(prefix: &str, money: u32, y: f32, show_input: bool) -> Element {
-    let money_text = format_money(money);
-    let value_bg = if show_input {
-        MONEY_INPUT_BG
-    } else {
-        "0.0,0.0,0.0,0.0"
+    let action = match (recipient, item) {
+        (false, Some(_)) => format!("{ACTION_PLAYER_SLOT_PREFIX}{slot}"),
+        _ => String::new(),
     };
-    let neg_y = -y;
-    rsx! {
-        {money_label(DynName(format!("{prefix}MoneyLabel")), neg_y)}
-        {money_value(DynName(format!("{prefix}MoneyValue")), DynName(format!("{prefix}MoneyText")), &money_text, value_bg, neg_y)}
-    }
+    let background = Element::default();
+    out.extend(item_slot(
+        &format!("{name}ItemButton"),
+        (x, y),
+        background,
+        item.map(|item| &item.item),
+        &action,
+    ));
+    out
 }
 
-fn format_money(copper: u32) -> String {
-    let gold = copper / 10000;
-    let silver = (copper % 10000) / 100;
-    let copper_rem = copper % 100;
-    if gold > 0 {
-        format!("{gold}g {silver}s {copper_rem}c")
-    } else if silver > 0 {
-        format!("{silver}s {copper_rem}c")
-    } else {
-        format!("{copper_rem}c")
-    }
-}
-
-// --- Action buttons ---
-
-fn trade_btn(name: &str, label: &str, bg: &str, color: &str, x: f32, y: f32) -> Element {
-    let btn_id = DynName(name.into());
-    let text_id = DynName(format!("{name}Text"));
-    rsx! {
-        r#frame {
-            name: btn_id,
-            width: {BTN_W},
-            height: {BTN_H},
-            background_color: bg,
-            pos_type: "absolute",
-            left: {x},
-            top: {-(y)},
-            fontstring {
-                name: text_id,
-                width: {BTN_W},
-                height: {BTN_H},
-                text: label,
-                font_size: 11.0,
-                font_color: color,
-                justify_h: "CENTER",
-                pos_type: "absolute",
-                left: 0.0,
-                top: -0.0,
-            }
-        }
-    }
-}
-
-fn action_buttons(player_state: &TradeAcceptState, other_state: &TradeAcceptState) -> Element {
-    let y = -(FRAME_H - BTN_H - 8.0);
-    let center = FRAME_W / 2.0;
-    let both_accepted =
-        *player_state == TradeAcceptState::Accepted && *other_state == TradeAcceptState::Accepted;
-    let accept_bg = if both_accepted {
-        ACCEPT_HIGHLIGHT_BG
-    } else {
-        ACCEPT_BG
-    };
-    rsx! {
-        {trade_btn("TradeAcceptBtn", "Accept", accept_bg, ACCEPT_TEXT, center - BTN_W - BTN_GAP / 2.0, y)}
-        {trade_btn("TradeCancelBtn", "Cancel", CANCEL_BG, CANCEL_TEXT, center + BTN_GAP / 2.0, y)}
-    }
+/// `TradeFrameTradeButton` 85×22 at BOTTOMRIGHT -85,5 and Cancel 77×22 3 right;
+/// Trade is disabled once the player has accepted (TF.lua:212).
+fn buttons(state: &TradeFrameState) -> Element {
+    let top = FRAME_H - 5.0 - 22.0;
+    let trade_x = FRAME_W - 85.0 - 85.0;
+    let mut out = panel_button(
+        "TradeFrameTradeButton".into(),
+        "Trade",
+        ACTION_TRADE,
+        !state.player_accepted,
+        (trade_x, top, 85.0, 22.0),
+    );
+    out.extend(panel_button(
+        "TradeFrameCancelButton".into(),
+        "Cancel",
+        ACTION_CANCEL,
+        true,
+        (trade_x + 85.0 + 3.0, top, 77.0, 22.0),
+    ));
+    out
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ui::screens::menu_character_layout_test_support::compute_layout;
-    use crate::ui::screens::screen_test_helpers::fontstring_text;
-    use ui_toolkit::layout::LayoutRect;
-    use ui_toolkit::registry::FrameRegistry;
-    use ui_toolkit::screen::{Screen, SharedContext};
-
-    fn sample_state() -> TradeFrameState {
-        TradeFrameState {
-            visible: true,
-            player: TradePlayerPanel {
-                name: "Tankadin".into(),
-                slots: vec![
-                    TradeSlot {
-                        name: "Iron Ore".into(),
-                        icon_fdid: 1,
-                        quantity: 20,
-                    },
-                    TradeSlot {
-                        name: "Copper Bar".into(),
-                        icon_fdid: 2,
-                        quantity: 5,
-                    },
-                ],
-                money: 150000,
-                accept_state: TradeAcceptState::Pending,
-            },
-            other: TradePlayerPanel {
-                name: "Healbot".into(),
-                slots: vec![TradeSlot {
-                    name: "Healing Potion".into(),
-                    icon_fdid: 3,
-                    quantity: 10,
-                }],
-                money: 0,
-                accept_state: TradeAcceptState::Pending,
-            },
-        }
-    }
-
-    fn build_registry() -> FrameRegistry {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(sample_state());
-        Screen::new(trade_frame_screen).sync(&shared, &mut reg);
-        reg
-    }
-
-    fn layout_registry() -> FrameRegistry {
-        let mut reg = build_registry();
-        compute_layout(&mut reg);
-        reg
-    }
-
-    fn rect(reg: &FrameRegistry, name: &str) -> LayoutRect {
-        reg.get(reg.get_by_name(name).expect(name))
-            .and_then(|f| f.layout_rect.clone())
-            .unwrap_or_else(|| panic!("{name} has no layout_rect"))
-    }
-
-    // --- Structure tests ---
-
-    #[test]
-    fn builds_frame_and_title() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("TradeFrame").is_some());
-        assert!(reg.get_by_name("TradeFrameTitle").is_some());
-    }
-
-    #[test]
-    fn builds_both_panels() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("TradePlayerPanel").is_some());
-        assert!(reg.get_by_name("TradePlayerLabel").is_some());
-        assert!(reg.get_by_name("TradeOtherPanel").is_some());
-        assert!(reg.get_by_name("TradeOtherLabel").is_some());
-    }
-
-    #[test]
-    fn builds_seven_slots_per_panel() {
-        let reg = build_registry();
-        for i in 0..7 {
-            assert!(
-                reg.get_by_name(&format!("TradePlayerSlot{i}")).is_some(),
-                "TradePlayerSlot{i} missing"
-            );
-            assert!(
-                reg.get_by_name(&format!("TradeOtherSlot{i}")).is_some(),
-                "TradeOtherSlot{i} missing"
-            );
-        }
-    }
-
-    #[test]
-    fn builds_money_rows() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("TradePlayerMoneyLabel").is_some());
-        assert!(reg.get_by_name("TradePlayerMoneyValue").is_some());
-        assert!(reg.get_by_name("TradePlayerMoneyText").is_some());
-        assert!(reg.get_by_name("TradeOtherMoneyLabel").is_some());
-        assert!(reg.get_by_name("TradeOtherMoneyValue").is_some());
-    }
-
-    #[test]
-    fn builds_action_buttons() {
-        let reg = build_registry();
-        assert!(reg.get_by_name("TradeAcceptBtn").is_some());
-        assert!(reg.get_by_name("TradeAcceptBtnText").is_some());
-        assert!(reg.get_by_name("TradeCancelBtn").is_some());
-        assert!(reg.get_by_name("TradeCancelBtnText").is_some());
-    }
-
-    #[test]
-    fn hidden_when_not_visible() {
-        let mut reg = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(TradeFrameState::default());
-        Screen::new(trade_frame_screen).sync(&shared, &mut reg);
-        let id = reg.get_by_name("TradeFrame").expect("frame");
-        assert!(reg.get(id).expect("data").hidden);
-    }
-
-    // --- Data model tests ---
-
-    #[test]
-    fn format_money_gold() {
-        assert_eq!(format_money(150000), "15g 0s 0c");
-    }
-
-    #[test]
-    fn format_money_silver() {
-        assert_eq!(format_money(350), "3s 50c");
-    }
-
-    #[test]
-    fn format_money_copper_only() {
-        assert_eq!(format_money(42), "42c");
-    }
-
-    // --- Coord validation ---
-
-    #[test]
-    fn coord_main_frame_centered() {
-        let reg = layout_registry();
-        let r = rect(&reg, "TradeFrame");
-        let expected_x = (1920.0 - FRAME_W) / 2.0;
-        let expected_y = (1080.0 - FRAME_H) / 2.0;
-        assert!((r.x - expected_x).abs() < 1.0);
-        assert!((r.y - expected_y).abs() < 1.0);
-        assert!((r.width - FRAME_W).abs() < 1.0);
-        assert!((r.height - FRAME_H).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_panels_side_by_side() {
-        let reg = layout_registry();
-        let frame_r = rect(&reg, "TradeFrame");
-        let player_r = rect(&reg, "TradePlayerPanel");
-        let other_r = rect(&reg, "TradeOtherPanel");
-        // Player panel on the left
-        assert!((player_r.x - (frame_r.x + INSET)).abs() < 1.0);
-        // Other panel on the right
-        let expected_other_x = frame_r.x + INSET + PANEL_W + PANEL_GAP;
-        assert!((other_r.x - expected_other_x).abs() < 1.0);
-        // Same width
-        assert!((player_r.width - PANEL_W).abs() < 1.0);
-        assert!((other_r.width - PANEL_W).abs() < 1.0);
-        // Same Y
-        assert!((player_r.y - other_r.y).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_slots_stacked_vertically() {
-        let reg = layout_registry();
-        let panel_r = rect(&reg, "TradePlayerPanel");
-        let slot0 = rect(&reg, "TradePlayerSlot0");
-        let slot1 = rect(&reg, "TradePlayerSlot1");
-        // First slot offset from panel top
-        let expected_y0 = panel_r.y + PANEL_LABEL_H + 4.0;
-        assert!((slot0.y - expected_y0).abs() < 1.0);
-        assert!((slot0.width - SLOT_SIZE).abs() < 1.0);
-        // Second slot below first
-        let expected_gap = SLOT_SIZE + SLOT_GAP;
-        assert!((slot1.y - slot0.y - expected_gap).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_buttons_centered_at_bottom() {
-        let reg = layout_registry();
-        let frame_r = rect(&reg, "TradeFrame");
-        let accept_r = rect(&reg, "TradeAcceptBtn");
-        let cancel_r = rect(&reg, "TradeCancelBtn");
-        let expected_y = frame_r.y + FRAME_H - BTN_H - 8.0;
-        assert!((accept_r.y - expected_y).abs() < 1.0);
-        assert!((cancel_r.y - expected_y).abs() < 1.0);
-        assert!(cancel_r.x > accept_r.x);
-        assert!((accept_r.width - BTN_W).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_panels_same_height() {
-        let reg = layout_registry();
-        let player_r = rect(&reg, "TradePlayerPanel");
-        let other_r = rect(&reg, "TradeOtherPanel");
-        assert!((player_r.height - other_r.height).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_slot_dimensions() {
-        let reg = layout_registry();
-        let slot_r = rect(&reg, "TradePlayerSlot0");
-        assert!((slot_r.width - SLOT_SIZE).abs() < 1.0);
-        assert!((slot_r.height - SLOT_SIZE).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_last_slot_position() {
-        let reg = layout_registry();
-        let slot0 = rect(&reg, "TradePlayerSlot0");
-        let slot6 = rect(&reg, "TradePlayerSlot6");
-        let expected_offset = 6.0 * (SLOT_SIZE + SLOT_GAP);
-        assert!((slot6.y - slot0.y - expected_offset).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_money_row_below_slots() {
-        let reg = layout_registry();
-        let panel_r = rect(&reg, "TradePlayerPanel");
-        let money_r = rect(&reg, "TradePlayerMoneyLabel");
-        let expected_y =
-            panel_r.y + PANEL_LABEL_H + 4.0 + SLOT_COUNT as f32 * (SLOT_SIZE + SLOT_GAP) + 4.0;
-        assert!((money_r.y - expected_y).abs() < 1.0);
-    }
-
-    #[test]
-    fn coord_other_panel_slots_aligned() {
-        let reg = layout_registry();
-        let other_r = rect(&reg, "TradeOtherPanel");
-        let slot_r = rect(&reg, "TradeOtherSlot0");
-        let expected_y = other_r.y + PANEL_LABEL_H + 4.0;
-        assert!((slot_r.y - expected_y).abs() < 1.0);
-        assert!((slot_r.width - SLOT_SIZE).abs() < 1.0);
-    }
-
-    // --- Text content tests ---
-
-    #[test]
-    fn title_text() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "TradeFrameTitle"), "Trade");
-    }
-
-    #[test]
-    fn panel_label_names() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "TradePlayerLabel"), "Tankadin");
-        assert_eq!(fontstring_text(&reg, "TradeOtherLabel"), "Healbot");
-    }
-
-    #[test]
-    fn money_label_text() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "TradePlayerMoneyLabel"), "Gold:");
-        assert_eq!(fontstring_text(&reg, "TradeOtherMoneyLabel"), "Gold:");
-    }
-
-    #[test]
-    fn player_money_formatted() {
-        let reg = build_registry();
-        // 150000 copper = 15g 0s 0c
-        assert_eq!(fontstring_text(&reg, "TradePlayerMoneyText"), "15g 0s 0c");
-    }
-
-    #[test]
-    fn other_money_zero() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "TradeOtherMoneyText"), "0c");
-    }
-
-    #[test]
-    fn button_labels() {
-        let reg = build_registry();
-        assert_eq!(fontstring_text(&reg, "TradeAcceptBtnText"), "Accept");
-        assert_eq!(fontstring_text(&reg, "TradeCancelBtnText"), "Cancel");
-    }
-
-    #[test]
-    fn format_money_mixed() {
-        assert_eq!(format_money(123456), "12g 34s 56c");
-    }
-
-    #[test]
-    fn format_money_zero() {
-        assert_eq!(format_money(0), "0c");
-    }
-}
+#[path = "trade_frame_component_tests.rs"]
+mod tests;

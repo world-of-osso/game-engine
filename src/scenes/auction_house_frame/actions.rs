@@ -189,9 +189,7 @@ fn place_bid(
     let Some(auction_id) = ui.selected_auction else {
         return Vec::new();
     };
-    let Ok(amount) = u32::try_from(view::money_input(texts, BID_BOXES)) else {
-        return Vec::new();
-    };
+    let amount = view::money_input(texts, BID_BOXES);
     net.request(AuctionRequest::Bid(PlaceBid { auction_id, amount }));
     ui.selected_auction = None;
     money_edits(BID_BOXES, None)

@@ -6,7 +6,7 @@ use crate::ui::anchor::FrameName;
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
 use crate::ui::strata::FrameStrata;
-use inworld_hud_art::{BACKPACK, BAG_SLOT_EMPTY, SheetCrop};
+use inworld_hud_art::{BACKPACK, BAG_SLOT_EMPTY, MINIMAP_MAIL, SheetCrop};
 use inworld_hud_micro::micro_menu_bar;
 
 #[path = "inworld_hud_art.rs"]
@@ -765,12 +765,49 @@ fn minimap_buttons() -> Element {
         ("MinimapZoomIn", "+", 90.0, -10.0),
         ("MinimapZoomOut", "-", 90.0, 14.0),
         ("MinimapCalendarButton", "Cal", -80.0, -10.0),
-        ("MinimapMailButton", "Mail", -80.0, 14.0),
         ("MinimapLFGButton", "LFG", -80.0, 38.0),
     ];
-    btns.iter()
+    let mut out: Element = btns
+        .iter()
         .flat_map(|(name, text, x_off, y_off)| minimap_btn(name, text, *x_off, *y_off))
-        .collect()
+        .collect();
+    out.extend(minimap_mail_indicator());
+    out
+}
+
+/// Retail `MiniMapMailFrame` (Minimap.xml:92-112): the 20x15 `ui-hud-minimap-mail-up`
+/// icon, shown while there is unread mail (`UPDATE_PENDING_MAIL` / `HasNewMail`).
+pub const MINIMAP_MAIL_FRAME: &str = "MiniMapMailFrame";
+
+fn minimap_mail_indicator() -> Element {
+    let coords = MINIMAP_MAIL.tex_coords();
+    rsx! {
+        r#frame {
+            name: {DynName(MINIMAP_MAIL_FRAME.into())},
+            width: 20.0,
+            height: 15.0,
+            hidden: true,
+            strata: FrameStrata::High,
+            frame_level: 12.0,
+            pos_type: "absolute",
+            left: "50%",
+            top: "50%",
+            margin_left: -80.0,
+            margin_top: -14.0,
+            translate_x: "-50%",
+            translate_y: "-50%",
+            texture {
+                name: "MiniMapMailIcon",
+                width: 20.0,
+                height: 15.0,
+                texture_fdid: {MINIMAP_MAIL.fdid},
+                tex_coords: {coords.as_str()},
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+        }
+    }
 }
 
 fn minimap_btn(name: &str, text: &str, x_off: f32, y_off: f32) -> Element {

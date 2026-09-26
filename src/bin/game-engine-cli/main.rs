@@ -242,11 +242,6 @@ pub(crate) enum AuctionCmd {
     Owned,
     Bids,
     Inventory,
-    Mailbox,
-    ClaimMail {
-        #[arg(long)]
-        mail_id: u64,
-    },
     Create {
         #[arg(long)]
         item_guid: u64,
@@ -277,30 +272,43 @@ pub(crate) enum AuctionCmd {
 
 #[derive(Subcommand)]
 pub(crate) enum MailCmd {
+    /// The open mailbox, its inbox and the pending-mail senders
     Status,
-    List {
+    /// Send Mail at the open mailbox
+    Send {
         #[arg(long)]
-        character: Option<String>,
-        #[arg(long)]
-        include_deleted: bool,
+        to: String,
+        #[arg(long, default_value = "")]
+        subject: String,
+        #[arg(long, default_value = "")]
+        body: String,
+        /// Bag item guid to attach (repeatable, at most 12)
+        #[arg(long = "item")]
+        items: Vec<u64>,
+        #[arg(long, default_value_t = 0)]
+        money: u64,
+        #[arg(long, default_value_t = 0)]
+        cod: u64,
     },
+    /// Open (mark read) an inbox mail
     Read {
         #[arg(long)]
         mail_id: u64,
     },
-    Send {
+    /// Take one attachment of an inbox mail
+    TakeItem {
         #[arg(long)]
-        to: String,
+        mail_id: u64,
         #[arg(long)]
-        from: String,
-        #[arg(long)]
-        subject: String,
-        #[arg(long)]
-        body: String,
-        #[arg(long, default_value_t = 0)]
-        money: u64,
+        slot: u8,
     },
-    Claim {
+    /// Take the money of an inbox mail
+    TakeMoney {
+        #[arg(long)]
+        mail_id: u64,
+    },
+    /// Return an inbox mail to its sender
+    Return {
         #[arg(long)]
         mail_id: u64,
     },
@@ -551,6 +559,8 @@ pub(crate) enum TradeCmd {
         copper: u64,
     },
     Confirm,
+    /// Withdraw your accept (Retail `CancelTradeAccept`).
+    CancelAccept,
 }
 
 #[derive(Subcommand)]
