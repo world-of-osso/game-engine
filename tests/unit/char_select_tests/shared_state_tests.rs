@@ -1,5 +1,6 @@
 use super::*;
 use bevy::ecs::system::SystemState;
+use game_engine::ui::frame::Dimension;
 use ui_toolkit::screen::SharedContext;
 
 struct Fixture {
