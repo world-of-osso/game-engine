@@ -7,7 +7,7 @@ use godot::classes::{
 };
 use godot::global::HorizontalAlignment;
 use godot::prelude::*;
-use ui_toolkit::frame::{Frame, NineSlice, WidgetData, WidgetType};
+use ui_toolkit::frame::{Dimension, Frame, NineSlice, WidgetData, WidgetType};
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH};
@@ -47,7 +47,8 @@ impl UiProjection {
     }
 
     pub fn sync(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
-        let bounds = layout::compute_layout(registry)?;
+        let intrinsics = self.measure_intrinsics(registry)?;
+        let bounds = layout::compute_layout_with_intrinsics(registry, &intrinsics)?;
         let current: HashSet<u64> = registry.frames_iter().map(|frame| frame.id).collect();
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
@@ -83,6 +84,35 @@ impl UiProjection {
         registry.rect_dirty.clear();
         registry.drain_removed_frames();
         Ok(())
+    }
+
+    fn measure_intrinsics(
+        &mut self,
+        registry: &FrameRegistry,
+    ) -> Result<HashMap<u64, (f32, f32)>, String> {
+        let mut sizes = HashMap::new();
+        for frame in registry.frames_iter() {
+            if frame.width != Dimension::Auto && frame.height != Dimension::Auto {
+                continue;
+            }
+            let size = match &frame.widget_data {
+                Some(WidgetData::FontString(data)) => {
+                    let font = self.font(data.font)?;
+                    let measured = font
+                        .get_string_size_ex(&data.text)
+                        .font_size(data.font_size as i32)
+                        .done();
+                    (measured.x, measured.y)
+                }
+                Some(WidgetData::Texture(data)) => {
+                    let texture = assets::load_texture(&data.source, registry)?;
+                    (texture.get_width() as f32, texture.get_height() as f32)
+                }
+                _ => continue,
+            };
+            sizes.insert(frame.id, size);
+        }
+        Ok(sizes)
     }
 
     fn create_node(&self, frame: &Frame) -> Result<Gd<Control>, String> {
