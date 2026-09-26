@@ -43,6 +43,27 @@ The traversal now follows WebWowViewerCpp (`Map::checkExterior`, `WmoObject::sta
   - `after-plaza.webp`: `-8790, 630`; flat paving and buildings.
   - Scene and tree dumps sit beside each capture, and `capture.sh` reproduces them.
 
+## Building textures
+
+A second report from the same spot: the Trade District walls rendered as a dark stacked-slate texture, and the blue slate roofs were missing. The dark distant silhouettes in the user's shot are the other districts, seen through the hidden Trade District. On master `8fcbeecc`, `sw_tradedistrict` has 62 of 62 groups hidden, and the six other district WMOs have all their groups shown (`master-before-tree.txt`). Once the culling fix drew the district, two parser bugs remained.
+
+- **MOBA material id (the cause).** SMOBatch byte 0x16 is `flags`, and 0x17 is the u8 material id. Flag 0x2 (`use_material_id_large`) selects the u16 at 0x0A instead (WebWowViewerCpp `wmoFileHeader.h`, `wmoGroupObject.cpp`). The parser took the u16 only when the u8 was 0xFF. Every `sw_tradedistrict` batch has flags 0x02 and a u8 id of 0, so all 543 batches used MOMT 0, `mm_strmwnd_hwall_02`. That gave one wall texture everywhere, and the roofs (MOMT 40/41, `mm_strmwnd_roof_01/02`) never drew. 22 of the district's texture FDIDs were never even requested. Fixed in `2122fc26`.
+- **MOMT layout.** `RawWmoMaterialDef` read frameSidnColor as two u32s. That put texture_2 on diffColor (0x1C), diffColor on ground_type, and ground_type on flags_2. Two-layer shaders (6/13) received a color such as `0xFF959595` as their second texture, which caused 157 `WMO texture extract failed for FDID 4287993237` lines per session. SMOMaterial order: flags, shader, blendMode, texture_1, sidnColor, frameSidnColor, texture_2, diffColor, ground_type, texture_3, color_2, flags_2, runTimeData[4]. Fixed in `e1834390`.
+
+Refuted:
+
+- **LOD groups drawn.** Only groups 0..MOHD.nGroups spawn. The MapObjLod materials (MOMT 63–167, shader 21) are used only by the GFID LOD group files beyond nGroups.
+- **Wrong texture FDIDs.** texture_1 FDIDs resolve to the right listfile paths. Decoded, `mm_strmwnd_wall_*` is pale stone and `mm_strmwnd_roof_01` is blue.
+
+Proof:
+
+- **Real-data tests.** `trade_district_batches_use_large_material_ids` checks group 37's 17 material ids, including 40 and 41. RED: `[0]`. `trade_district_momt_reads_texture_2_before_diff_color` checks MOMT 8 → `mm_strmwnd_int_floor_02_burn` (465176) and MOMT 46 → `strmwnd_crenlatn_burned` (464811). RED: 4286545791.
+- **Live captures:**
+  - `master-before.webp` and `master-plaza.webp`: master.
+  - `rebased-plaza.webp`: culling fix only; one texture everywhere.
+  - `moba-plaza*.webp`: timber-frame houses, stone walls, windows and blue roofs.
+  - `moba-auctioneer.webp`: the auction house interior with the auctioneers.
+
 ## Still open
 
 - **No WMO floor support.** At the auctioneer spot the player stands on terrain at 94.7, under the auction house floor at 98.06, so `after.webp` looks up at the floor from below. The auctioneers stand on the floor above. This is the missing WMO vertical collision described in [[collision-system]]. Camera collision now hits the visible WMO, so the after camera sits closer than the before camera.

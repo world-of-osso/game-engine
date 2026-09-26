@@ -941,3 +941,7 @@ Created [[retail-lighting]]. RetailSceneLight (ambient/horizon/ground ambient, d
 ## [2026-09-25] investigation | Stormwind hilly plaza
 
 Created [[stormwind-hilly-plaza]]. The hilly cobblestone in the Trade District was the authored ADT terrain under a district WMO that portal culling fully hid. Antiportal AABB occlusion and bbox-only camera-group detection caused it. Portal culling now draws every exterior group from outside, enters an interior only when a floor of that group is below the camera, and no longer uses antiportals as occluders. Updated [[wmo-format]].
+
+## [2026-09-25] investigation | Stormwind building textures
+
+Updated [[stormwind-hilly-plaza]] and [[wmo-format]]. MOBA flag 0x2 selects the u16 material id; without it every `sw_tradedistrict` batch took MOMT 0, one wall texture, and the roofs never drew. MOMT texture_2 is at 0x18; the parser was reading diffColor there.
