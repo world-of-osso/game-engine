@@ -1,4 +1,7 @@
 #[cfg(test)]
+#[path = "../../tests/unit/asset/adt_seam_tests.rs"]
+mod adt_seam_tests;
+#[cfg(test)]
 #[path = "../../tests/unit/asset/terrain_axis_tests.rs"]
 mod terrain_axis_tests;
 
