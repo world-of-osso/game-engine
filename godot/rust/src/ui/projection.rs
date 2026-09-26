@@ -19,6 +19,8 @@ use super::layout;
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
+    Focus(u64),
+    Blur(u64),
     Text(u64, String),
 }
 
@@ -168,9 +170,18 @@ impl UiProjection {
                             .push_back(UiInput::Text(id, text.to::<GString>().to_string()));
                     }
                 });
-                node.clone()
-                    .cast::<LineEdit>()
-                    .connect("text_changed", &callback);
+                let mut editbox = node.clone().cast::<LineEdit>();
+                editbox.connect("text_changed", &callback);
+                let pending = self.pending.clone();
+                let focus = Callable::from_fn("registry-editbox-focus", move |_| {
+                    pending.borrow_mut().push_back(UiInput::Focus(id));
+                });
+                editbox.connect("focus_entered", &focus);
+                let pending = self.pending.clone();
+                let blur = Callable::from_fn("registry-editbox-blur", move |_| {
+                    pending.borrow_mut().push_back(UiInput::Blur(id));
+                });
+                editbox.connect("focus_exited", &blur);
             }
             _ => {}
         }
