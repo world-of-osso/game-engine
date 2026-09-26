@@ -112,20 +112,24 @@ impl CharacterCreateModel {
 
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
-        let open = self
-            .shared
-            .get::<CharCreateUiState>()
-            .and_then(|state| state.open_dropdown);
-        apply_character_create_styles(&mut self.registry, open);
-        let (width, height) = (self.registry.screen_width, self.registry.screen_height);
-        if let Some(id) = self.registry.get_by_name(CHAR_CREATE_ROOT.0)
-            && let Some(root) = self.registry.get_mut(id)
-        {
-            root.width = ui_toolkit::frame::Dimension::Fixed(width);
-            root.height = ui_toolkit::frame::Dimension::Fixed(height);
-        }
-        char_create_component::navigation_art::sync_navigation_art_registry(&mut self.registry);
+        apply_character_create_postsetup(&self.shared, &mut self.registry);
     }
+}
+
+/// Apply authored styles, root dimensions and navigation art after a screen sync or resize.
+pub fn apply_character_create_postsetup(shared: &SharedContext, registry: &mut FrameRegistry) {
+    let open = shared
+        .get::<CharCreateUiState>()
+        .and_then(|state| state.open_dropdown);
+    apply_character_create_styles(registry, open);
+    let (width, height) = (registry.screen_width, registry.screen_height);
+    if let Some(id) = registry.get_by_name(CHAR_CREATE_ROOT.0)
+        && let Some(root) = registry.get_mut(id)
+    {
+        root.width = ui_toolkit::frame::Dimension::Fixed(width);
+        root.height = ui_toolkit::frame::Dimension::Fixed(height);
+    }
+    char_create_component::navigation_art::sync_navigation_art_registry(registry);
 }
 
 /// Authored character selection tree. The host owns roster, action routing and deletion effects.

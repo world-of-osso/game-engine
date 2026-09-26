@@ -4,8 +4,12 @@ mod projection;
 
 use std::collections::VecDeque;
 
+use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectState, size_char_select_root};
-use game_engine_ui_model::{CharacterSelectModel, LoadingModel, LoginModel, login};
+use game_engine_ui_model::{
+    CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel,
+    apply_character_create_postsetup, login,
+};
 use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
 use ui_toolkit::frame::{NineSlice, WidgetData};
@@ -30,12 +34,47 @@ struct RegistryModel {
     screen: Screen,
     shared: SharedContext,
     registry: FrameRegistry,
+    postsetup: ScreenPostsetup,
+}
+
+#[derive(Clone, Copy)]
+enum ScreenPostsetup {
+    None,
+    CharacterSelect,
+    CharacterCreate,
 }
 
 impl RegistryModel {
     fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
-        size_char_select_root(&mut self.registry);
+        self.apply_postsetup();
+    }
+
+    fn apply_postsetup(&mut self) {
+        match self.postsetup {
+            ScreenPostsetup::None => {}
+            ScreenPostsetup::CharacterSelect => size_char_select_root(&mut self.registry),
+            ScreenPostsetup::CharacterCreate => {
+                apply_character_create_postsetup(&self.shared, &mut self.registry);
+            }
+        }
+    }
+
+    fn resize(&mut self, width: f32, height: f32) {
+        self.registry.screen_width = width;
+        self.registry.screen_height = height;
+        if let ScreenPostsetup::CharacterCreate = self.postsetup {
+            if let Some(state) = self.shared.get::<CharCreateUiState>() {
+                let mut state = state.clone();
+                state.viewport_width = width as u32;
+                state.viewport_height = height as u32;
+                self.shared.insert(state);
+            }
+            self.sync();
+        } else {
+            self.apply_postsetup();
+        }
+        self.registry.mark_all_rects_dirty();
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -119,6 +158,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            postsetup: ScreenPostsetup::None,
         };
         model.sync();
         apply_login_art(&mut model.registry)?;
@@ -161,10 +201,7 @@ impl RegistryUi {
         if model.registry.screen_width == size.x && model.registry.screen_height == size.y {
             return Ok(());
         }
-        model.registry.screen_width = size.x;
-        model.registry.screen_height = size.y;
-        size_char_select_root(&mut model.registry);
-        model.registry.mark_all_rects_dirty();
+        model.resize(size.x, size.y);
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());
         };
@@ -204,6 +241,7 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            postsetup: ScreenPostsetup::None,
         };
         model.sync();
         GString::from(
@@ -232,6 +270,36 @@ impl RegistryUi {
             screen,
             shared,
             registry,
+            postsetup: ScreenPostsetup::CharacterSelect,
+        };
+        model.sync();
+        GString::from(
+            self.initialize_model(model, size.x, size.y)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    #[func]
+    pub fn show_character_create(&mut self) -> GString {
+        if self.model.is_some() {
+            return "RegistryUi already has a screen".into();
+        }
+        let Some(viewport) = self.base().get_viewport() else {
+            return "RegistryUi has no viewport".into();
+        };
+        let size = viewport.get_visible_rect().size;
+        let CharacterCreateModel {
+            screen,
+            shared,
+            registry,
+        } = CharacterCreateModel::new(size.x, size.y);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+            postsetup: ScreenPostsetup::CharacterCreate,
         };
         model.sync();
         GString::from(
