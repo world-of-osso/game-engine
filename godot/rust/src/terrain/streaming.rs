@@ -1,0 +1,515 @@
+//! Async local-CASC parsing for one native map and its requested terrain tiles.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
+use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::thread::{self, JoinHandle};
+
+use super::assets::{NativeMapWdt, NativeTerrainAssets, NativeTerrainTile};
+
+const MAP_TILE_BOUND: u32 = 64;
+
+pub(crate) trait TerrainReader: Send + 'static {
+    fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String>;
+    fn read_tile(&self, map: &str, tile: (u32, u32)) -> Result<NativeTerrainTile, String>;
+}
+
+impl TerrainReader for NativeTerrainAssets {
+    fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
+        Self::read_map_wdt(self, map)
+    }
+
+    fn read_tile(&self, map: &str, tile: (u32, u32)) -> Result<NativeTerrainTile, String> {
+        Self::read_tile(self, map, tile.0, tile.1)
+    }
+}
+
+enum WorkerRequest {
+    Map {
+        generation: u64,
+        map: String,
+    },
+    Tile {
+        generation: u64,
+        map: String,
+        tile: (u32, u32),
+    },
+}
+
+enum WorkerResult {
+    Map {
+        generation: u64,
+        result: Result<NativeMapWdt, String>,
+    },
+    Tile {
+        generation: u64,
+        tile: (u32, u32),
+        result: Result<NativeTerrainTile, String>,
+    },
+}
+
+pub(crate) struct ParsedTileState {
+    pub tile: (u32, u32),
+    pub root_path: PathBuf,
+    pub tex_path: Option<PathBuf>,
+    pub obj_path: Option<PathBuf>,
+    pub root_chunks: usize,
+    pub root_height_grids: usize,
+    pub tex_chunk_layers: usize,
+    pub obj_doodads: usize,
+    pub obj_wmos: usize,
+}
+
+pub(crate) struct TileFailure {
+    pub tile: (u32, u32),
+    pub error: String,
+}
+
+pub(crate) struct TerrainStreamState {
+    pub map: Option<String>,
+    pub wdt_path: Option<PathBuf>,
+    pub wdt_flags: Option<u32>,
+    pub global_wmo_fdid: Option<u32>,
+    pub pending_map: bool,
+    pub pending_tiles: Vec<(u32, u32)>,
+    pub parsed_tiles: Vec<ParsedTileState>,
+    pub failures: Vec<TileFailure>,
+    pub map_error: Option<String>,
+}
+
+pub(crate) struct StreamedTerrain {
+    requests: Option<Sender<WorkerRequest>>,
+    results: Receiver<WorkerResult>,
+    worker: Option<JoinHandle<()>>,
+    generation: u64,
+    map: Option<String>,
+    initial_tile: Option<(u32, u32)>,
+    pending_map: bool,
+    pub(crate) map_wdt: Option<NativeMapWdt>,
+    pub(crate) parsed_tiles: BTreeMap<(u32, u32), NativeTerrainTile>,
+    pending_tiles: BTreeSet<(u32, u32)>,
+    requested_tiles: BTreeSet<(u32, u32)>,
+    failures: BTreeMap<(u32, u32), String>,
+    map_error: Option<String>,
+}
+
+impl StreamedTerrain {
+    pub fn new(data_root: PathBuf, cache_root: PathBuf) -> Self {
+        Self::with_reader(NativeTerrainAssets::new(data_root, cache_root))
+    }
+
+    fn with_reader(reader: impl TerrainReader) -> Self {
+        let (requests, incoming) = mpsc::channel();
+        let (outgoing, results) = mpsc::channel();
+        let worker = thread::Builder::new()
+            .name("native-terrain-assets".into())
+            .spawn(move || run_worker(reader, incoming, outgoing));
+        let worker = worker.expect("Cannot spawn native terrain asset worker");
+        Self {
+            requests: Some(requests),
+            results,
+            worker: Some(worker),
+            generation: 0,
+            map: None,
+            initial_tile: None,
+            pending_map: false,
+            map_wdt: None,
+            parsed_tiles: BTreeMap::new(),
+            pending_tiles: BTreeSet::new(),
+            requested_tiles: BTreeSet::new(),
+            failures: BTreeMap::new(),
+            map_error: None,
+        }
+    }
+
+    pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
+        if tile.0 >= MAP_TILE_BOUND || tile.1 >= MAP_TILE_BOUND {
+            return Err(format!(
+                "Terrain tile ({}, {}) outside 0..64",
+                tile.0, tile.1
+            ));
+        }
+        if self.map.as_ref() != Some(&map) {
+            self.reset()?;
+            self.map = Some(map.clone());
+            self.initial_tile = Some(tile);
+            self.pending_map = true;
+            return self.send(WorkerRequest::Map {
+                generation: self.generation,
+                map,
+            });
+        }
+        if self.initial_tile == Some(tile) || !self.requested_tiles.insert(tile) {
+            return Ok(());
+        }
+        if self.map_wdt.is_some() {
+            self.queue_tile(tile)?;
+        }
+        Ok(())
+    }
+
+    pub fn poll(&mut self) -> Result<(), String> {
+        loop {
+            match self.results.try_recv() {
+                Ok(result) => self.accept_result(result)?,
+                Err(TryRecvError::Empty) => return Ok(()),
+                Err(TryRecvError::Disconnected) => {
+                    let worker = self.worker.take().expect("worker exists while polling");
+                    return Err(match worker.join() {
+                        Ok(()) => "Native terrain worker exited unexpectedly".into(),
+                        Err(panic) => {
+                            format!("Native terrain worker panicked: {}", panic_message(panic))
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    pub fn reset(&mut self) -> Result<(), String> {
+        self.generation = self
+            .generation
+            .checked_add(1)
+            .ok_or("Terrain generation overflow")?;
+        self.map = None;
+        self.initial_tile = None;
+        self.pending_map = false;
+        self.map_wdt = None;
+        self.parsed_tiles.clear();
+        self.pending_tiles.clear();
+        self.requested_tiles.clear();
+        self.failures.clear();
+        self.map_error = None;
+        Ok(())
+    }
+
+    pub fn state(&self) -> TerrainStreamState {
+        TerrainStreamState {
+            map: self.map.clone(),
+            wdt_path: self.map_wdt.as_ref().map(|wdt| wdt.path.clone()),
+            wdt_flags: self.map_wdt.as_ref().map(|wdt| wdt.flags.raw),
+            global_wmo_fdid: self
+                .map_wdt
+                .as_ref()
+                .and_then(|wdt| wdt.global_wmo.as_ref())
+                .and_then(|wmo| wmo.fdid),
+            pending_map: self.pending_map,
+            pending_tiles: self.pending_tiles.iter().copied().collect(),
+            parsed_tiles: self
+                .parsed_tiles
+                .iter()
+                .map(|(&tile, parsed)| parsed_tile_state(tile, parsed))
+                .collect(),
+            failures: self
+                .failures
+                .iter()
+                .map(|(&tile, error)| TileFailure {
+                    tile,
+                    error: error.clone(),
+                })
+                .collect(),
+            map_error: self.map_error.clone(),
+        }
+    }
+
+    fn send(&self, request: WorkerRequest) -> Result<(), String> {
+        self.requests
+            .as_ref()
+            .expect("worker request channel exists")
+            .send(request)
+            .map_err(|_| "Native terrain worker is unavailable".into())
+    }
+
+    fn queue_tile(&mut self, tile: (u32, u32)) -> Result<(), String> {
+        if self.pending_tiles.contains(&tile)
+            || self.parsed_tiles.contains_key(&tile)
+            || self.failures.contains_key(&tile)
+        {
+            return Ok(());
+        }
+        let map = self
+            .map
+            .as_ref()
+            .expect("map established before tile request")
+            .clone();
+        self.send(WorkerRequest::Tile {
+            generation: self.generation,
+            map,
+            tile,
+        })?;
+        self.pending_tiles.insert(tile);
+        Ok(())
+    }
+
+    fn accept_result(&mut self, result: WorkerResult) -> Result<(), String> {
+        match result {
+            WorkerResult::Map { generation, result } if generation == self.generation => {
+                self.pending_map = false;
+                match result {
+                    Ok(wdt) => {
+                        let global_wmo = wdt.global_wmo.is_some();
+                        self.map_wdt = Some(wdt);
+                        if !global_wmo {
+                            let center = self.initial_tile.expect("initial tile for active map");
+                            for tile in square_tiles(center)
+                                .into_iter()
+                                .chain(self.requested_tiles.clone())
+                            {
+                                self.queue_tile(tile)?;
+                            }
+                        }
+                    }
+                    Err(error) => self.map_error = Some(error),
+                }
+            }
+            WorkerResult::Tile {
+                generation,
+                tile,
+                result,
+            } if generation == self.generation => {
+                self.pending_tiles.remove(&tile);
+                match result {
+                    Ok(parsed) => {
+                        self.parsed_tiles.insert(tile, parsed);
+                    }
+                    Err(error) => {
+                        self.failures.insert(tile, error);
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
+
+impl Drop for StreamedTerrain {
+    fn drop(&mut self) {
+        self.requests.take();
+        if let Some(worker) = self.worker.take() {
+            if let Err(panic) = worker.join() {
+                eprintln!("Native terrain worker panicked: {}", panic_message(panic));
+            }
+        }
+    }
+}
+
+fn panic_message(panic: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(message) = panic.downcast_ref::<String>() {
+        return message.clone();
+    }
+    if let Some(message) = panic.downcast_ref::<&str>() {
+        return (*message).into();
+    }
+    "unknown panic".into()
+}
+
+fn run_worker(
+    reader: impl TerrainReader,
+    requests: Receiver<WorkerRequest>,
+    results: Sender<WorkerResult>,
+) {
+    for request in requests {
+        let result = match request {
+            WorkerRequest::Map { generation, map } => WorkerResult::Map {
+                generation,
+                result: reader.read_map_wdt(&map),
+            },
+            WorkerRequest::Tile {
+                generation,
+                map,
+                tile,
+            } => WorkerResult::Tile {
+                generation,
+                tile,
+                result: reader.read_tile(&map, tile),
+            },
+        };
+        if results.send(result).is_err() {
+            return;
+        }
+    }
+}
+
+fn square_tiles(center: (u32, u32)) -> impl Iterator<Item = (u32, u32)> {
+    let start_y = center.0.saturating_sub(1);
+    let start_x = center.1.saturating_sub(1);
+    let end_y = (center.0 + 1).min(MAP_TILE_BOUND - 1);
+    let end_x = (center.1 + 1).min(MAP_TILE_BOUND - 1);
+    (start_y..=end_y).flat_map(move |y| (start_x..=end_x).map(move |x| (y, x)))
+}
+
+fn parsed_tile_state(tile: (u32, u32), parsed: &NativeTerrainTile) -> ParsedTileState {
+    ParsedTileState {
+        tile,
+        root_path: parsed.root_path.clone(),
+        tex_path: parsed.tex_path.clone(),
+        obj_path: parsed.obj_path.clone(),
+        root_chunks: parsed.root.chunks.len(),
+        root_height_grids: parsed.root.height_grids.len(),
+        tex_chunk_layers: parsed.tex.as_ref().map_or(0, |tex| tex.chunk_layers.len()),
+        obj_doodads: parsed.obj.as_ref().map_or(0, |obj| obj.doodads.len()),
+        obj_wmos: parsed.obj.as_ref().map_or(0, |obj| obj.wmos.len()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Mutex, mpsc};
+    use std::time::{Duration, Instant};
+
+    fn cached_assets() -> NativeTerrainAssets {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let cache_root = std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
+            .expect("cache location")
+            .join("asset-resolver");
+        NativeTerrainAssets::new(data_root, cache_root)
+    }
+
+    struct ControlledReader {
+        assets: NativeTerrainAssets,
+        started: mpsc::Sender<()>,
+        release: Mutex<mpsc::Receiver<()>>,
+    }
+
+    impl TerrainReader for ControlledReader {
+        fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
+            if map == "azeroth" {
+                self.started.send(()).expect("start notification");
+                self.release.lock().unwrap().recv().expect("release read");
+            }
+            self.assets.read_map_wdt(map)
+        }
+
+        fn read_tile(&self, map: &str, tile: (u32, u32)) -> Result<NativeTerrainTile, String> {
+            if tile == (32, 48) {
+                self.assets.read_tile(map, tile.0, tile.1)
+            } else {
+                Err(format!("missing tile ({}, {})", tile.0, tile.1))
+            }
+        }
+    }
+
+    fn wait_for(stream: &mut StreamedTerrain, completed: impl Fn(&TerrainStreamState) -> bool) {
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while Instant::now() < deadline {
+            stream.poll().expect("worker alive");
+            if completed(&stream.state()) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        panic!("stream timed out");
+    }
+
+    #[test]
+    fn cached_global_wmo_map_is_parsed_without_tile_requests() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut stream = StreamedTerrain::new(data_root, PathBuf::from("/tmp/unused-cache"));
+        stream
+            .request_map("stormwindjail".into(), (32, 48))
+            .unwrap();
+        wait_for(&mut stream, |state| !state.pending_map);
+        let state = stream.state();
+        assert_eq!(state.global_wmo_fdid, Some(108_631));
+        assert_eq!(state.wdt_path.unwrap().file_name().unwrap(), "791060.wdt");
+        assert!(state.pending_tiles.is_empty());
+        assert!(state.parsed_tiles.is_empty());
+        assert!(state.failures.is_empty());
+        assert!(stream.map_wdt.is_some());
+    }
+
+    #[test]
+    fn bounded_tiles_are_deduplicated_and_parsed_assets_retained() {
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let reader = ControlledReader {
+            assets: cached_assets(),
+            started: started_tx,
+            release: Mutex::new(release_rx),
+        };
+        let mut stream = StreamedTerrain::with_reader(reader);
+        stream.request_map("azeroth".into(), (32, 48)).unwrap();
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        stream.request_map("azeroth".into(), (32, 48)).unwrap();
+        release_tx.send(()).unwrap();
+        wait_for(&mut stream, |state| {
+            state.pending_tiles.is_empty()
+                && !state.pending_map
+                && state.parsed_tiles.len() + state.failures.len() == 9
+        });
+        let state = stream.state();
+        assert_eq!(state.parsed_tiles.len(), 1);
+        assert_eq!(state.failures.len(), 8);
+        let parsed = &state.parsed_tiles[0];
+        assert_eq!(parsed.tile, (32, 48));
+        assert_eq!(parsed.root_chunks, 256);
+        assert!(parsed.tex_chunk_layers > 0);
+        assert!(parsed.obj_doodads > 0);
+        assert_eq!(parsed.root_path.file_name().unwrap(), "778027.adt");
+        assert_eq!(
+            parsed.tex_path.as_ref().unwrap().file_name().unwrap(),
+            "778030.adt"
+        );
+        assert_eq!(
+            parsed.obj_path.as_ref().unwrap().file_name().unwrap(),
+            "778028.adt"
+        );
+        assert_eq!(parsed.root_height_grids, 256);
+        assert!(parsed.obj_wmos > 0 || parsed.obj_doodads > 0);
+        assert!(
+            state
+                .failures
+                .iter()
+                .all(|failure| failure.error.contains("missing tile") && failure.tile != (32, 48))
+        );
+        assert!(state.wdt_flags.is_some());
+        assert_eq!(stream.parsed_tiles.len(), 1);
+        assert!(stream.parsed_tiles.contains_key(&(32, 48)));
+    }
+
+    #[test]
+    fn stale_results_do_not_replace_revisited_map_or_reset_state() {
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let reader = ControlledReader {
+            assets: cached_assets(),
+            started: started_tx,
+            release: Mutex::new(release_rx),
+        };
+        let mut stream = StreamedTerrain::with_reader(reader);
+        stream.request_map("azeroth".into(), (32, 48)).unwrap();
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        stream
+            .request_map("stormwindjail".into(), (32, 48))
+            .unwrap();
+        stream.reset().unwrap();
+        assert_eq!(stream.state().map, None);
+        stream.request_map("azeroth".into(), (32, 48)).unwrap();
+        release_tx.send(()).unwrap();
+        release_tx.send(()).unwrap();
+        wait_for(&mut stream, |state| {
+            state.pending_tiles.is_empty() && !state.pending_map
+        });
+        assert_eq!(stream.state().map.as_deref(), Some("azeroth"));
+        assert!(stream.state().global_wmo_fdid.is_none());
+        assert_eq!(stream.state().parsed_tiles.len(), 1);
+    }
+
+    #[test]
+    fn missing_map_surfaces_read_error_without_scheduling_tiles() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut stream = StreamedTerrain::new(data_root, PathBuf::from("/tmp/unused-cache"));
+        stream
+            .request_map("map_that_does_not_exist_999".into(), (0, 0))
+            .unwrap();
+        wait_for(&mut stream, |state| !state.pending_map);
+        let state = stream.state();
+        assert!(state.map_error.unwrap().contains("not in listfile"));
+        assert!(state.pending_tiles.is_empty());
+        assert!(state.parsed_tiles.is_empty());
+    }
+}
