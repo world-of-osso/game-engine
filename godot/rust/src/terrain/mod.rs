@@ -2,6 +2,7 @@
 mod assets;
 pub(crate) mod state;
 pub(crate) mod streaming;
+mod textures;
 
 use std::fs;
 
