@@ -380,7 +380,7 @@ pub(crate) enum InventoryCmd {
 pub(crate) enum QuestCmd {
     List,
     Watch,
-    /// Interact with an NPC by name, as a right-click on it does
+    /// Right-click an NPC, game object or player by name
     Interact {
         #[arg(long)]
         npc: String,

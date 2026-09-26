@@ -189,6 +189,7 @@ fn popup_buttons(name: &str, entry: &PopupEntry) -> Element {
             &entry.spec.accept_label,
             accept_action,
             -BUTTON_W / 2.0,
+            entry.accept_enabled,
         );
     };
     let cancel_action = popup_action(entry.id, PopupOutcome::Cancelled);
@@ -197,17 +198,26 @@ fn popup_buttons(name: &str, entry: &PopupEntry) -> Element {
         &entry.spec.accept_label,
         accept_action,
         -BUTTON_W - BUTTON_GAP / 2.0,
+        entry.accept_enabled,
     );
     buttons.extend(popup_button(
         format!("{name}Button2"),
         cancel_label,
         cancel_action,
         BUTTON_GAP / 2.0,
+        true,
     ));
     buttons
 }
 
-fn popup_button(name: String, text: &str, onclick: String, offset_x: f32) -> Element {
+fn popup_button(
+    name: String,
+    text: &str,
+    onclick: String,
+    offset_x: f32,
+    enabled: bool,
+) -> Element {
+    let disabled = !enabled;
     rsx! {
         button {
             name: {DynName(name)},
@@ -216,6 +226,7 @@ fn popup_button(name: String, text: &str, onclick: String, offset_x: f32) -> Ele
             text,
             font_size: 13.0,
             onclick,
+            disabled,
             strata: FrameStrata::Dialog,
             frame_level: 10.0,
             button_atlas_up: BUTTON_ATLAS_UP,
