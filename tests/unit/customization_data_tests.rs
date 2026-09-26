@@ -127,6 +127,16 @@ fn full_choice_lookup_fixture() -> RawData {
         ]),
         hair_geosets: HashMap::from([((1, 0, 7), true)]),
         texture_fdids: HashMap::from([(101, 1_020_001), (102, 1_020_002)]),
+        race_models: RaceModels {
+            chr_model_by_race_sex: HashMap::from([
+                ((1, 0), 1),
+                ((1, 1), 2),
+                ((2, 0), 3),
+                ((10, 0), 19),
+                ((11, 0), 21),
+            ]),
+            unaltered_race: HashMap::new(),
+        },
     }
 }
 
@@ -363,15 +373,32 @@ fn catalog_demon_hunter_filter_does_not_hide_other_races_authored_options() {
 }
 
 #[test]
-fn chr_model_id_human() {
-    assert_eq!(race_sex_to_chr_model_id(1, 0), Some(1));
-    assert_eq!(race_sex_to_chr_model_id(1, 1), Some(2));
+fn chr_models_come_from_chr_race_x_chr_model() {
+    let db = load_test_db();
+    assert_eq!(db.chr_model_id(1, 0), Some(1));
+    assert_eq!(db.chr_model_id(11, 1), Some(22));
+    assert_eq!(db.chr_model_id(22, 0), Some(43), "Worgen");
+    assert_eq!(db.chr_model_id(27, 0), Some(53), "Nightborne");
+    assert_eq!(db.chr_model_id(32, 1), Some(64), "Kul Tiran");
+    assert_eq!(db.chr_model_id(52, 1), Some(89), "Dracthyr");
+    assert_eq!(db.chr_model_id(200, 0), None);
 }
 
 #[test]
-fn chr_model_id_draenei() {
-    assert_eq!(race_sex_to_chr_model_id(11, 0), Some(21));
-    assert_eq!(race_sex_to_chr_model_id(11, 1), Some(22));
+fn worgen_unaltered_form_choices_resolve_through_the_human_model() {
+    let db = load_test_db();
+    // ChrRaces 22 UnalteredVisualRaceID = 1: Gilnean-form choices live on ChrModel 1.
+    assert!(db.choice_by_id(22, 0, 1).is_none());
+    assert_eq!(
+        db.unaltered_form_choice_by_id(22, 0, 1).map(|c| c.id),
+        Some(1)
+    );
+    assert!(db.unaltered_form_choice_by_id(22, 0, 2232).is_none());
+    assert!(db.choice_by_id(22, 0, 2232).is_some());
+    assert!(
+        db.unaltered_form_choice_by_id(1, 0, 1).is_none(),
+        "Human has no altered form"
+    );
 }
 
 #[test]

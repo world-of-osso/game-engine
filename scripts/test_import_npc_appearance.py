@@ -363,5 +363,56 @@ class ImportTests(unittest.TestCase):
                 self.m.join_appearances({7: 17}, extras, {}, {}, paths, textures)
 
 
+RETAIL_DATA = Path("/syncthing/Sync/Projects/world-of-osso/game-engine/data")
+RETAIL_INPUTS = RETAIL_DATA / "diagnostics/npc-appearance-retail-20260926"
+
+
+@unittest.skipUnless(
+    (RETAIL_INPUTS / "csv/TextureFileData.csv").exists(),
+    "local build 69933 Retail importer inputs not present",
+)
+class RetailLocalDataTests(unittest.TestCase):
+    """Build 69933 local-CASC inputs: enUS TextureFileData and Retail-only displays."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.m = load_importer()
+        cls.tmp = tempfile.TemporaryDirectory()
+        out = Path(cls.tmp.name) / "retail.sqlite"
+        args = [
+            "--db2-dir", str(RETAIL_INPUTS / "importdb2"),
+            "--data-dir", str(RETAIL_INPUTS / "csv"),
+            "--model-cache",
+            str(RETAIL_DATA / "cache/creature_display-retail-20260926.sqlite"),
+            "--output", str(out),
+        ]
+        for display in (85531, 145153, 1436, 4907):
+            args += ["--display-id", str(display)]
+        with contextlib.redirect_stdout(io.StringIO()):
+            cls.status = cls.m.main(args)
+        with contextlib.closing(sqlite3.connect(out)) as conn:
+            cls.appearances = {
+                row[0]: row[1:] for row in conn.execute("SELECT * FROM appearances")
+            }
+            cls.coverage = dict(conn.execute("SELECT * FROM display_coverage"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_nightborne_display_85531_imports_its_material_444164_texture(self):
+        self.assertEqual(self.status, 0)
+        self.assertEqual(self.appearances[85531], (27, 0, 0, 1984904))
+
+    def test_retail_only_tauren_display_imports_hd_bake(self):
+        # Tahu Sagewind (145153) exists only in the build 69933 CreatureDisplayInfo.
+        self.assertEqual(self.appearances[145153], (6, 0, 0, 7954180))
+
+    def test_existing_and_ordinary_displays_keep_their_rows(self):
+        self.assertEqual(self.appearances[1436], (1, 0, 0, 1051479))
+        self.assertEqual(self.coverage[4907], 0)
+        self.assertNotIn(4907, self.appearances)
+
+
 if __name__ == "__main__":
     unittest.main()

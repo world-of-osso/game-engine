@@ -132,11 +132,23 @@ impl CharTextureData {
         self.composite_materials_into(&mut pixels, w, &atlas_materials, layout_id);
         self.composite_item_textures_into(&mut pixels, w, item_textures, layout_id);
 
-        let hair = self.runtime_target_texture(materials, layout_id, 10);
+        let hair = self
+            .declares_hair(materials, layout_id)
+            .then(|| self.runtime_target_texture(materials, layout_id, 10))
+            .flatten();
 
         let mut composited = runtime_textures_from_layout(self, pixels, layout_id, w, h);
         composited.hair = hair;
         Some(composited)
+    }
+
+    /// Whether the materials select target 10 and the layout composes target 10
+    /// into the M2 hair texture (type 6). Dracthyr layout 155 uses it for type 9.
+    pub fn declares_hair(&self, materials: &[(u16, u32)], layout_id: u32) -> bool {
+        materials.iter().any(|(target, _)| *target == 10)
+            && self.layers.iter().any(|layer| {
+                layer.layout_id == layout_id && layer.target_id == 10 && layer.texture_type == 6
+            })
     }
 
     pub fn replacement_texture_fdid(
