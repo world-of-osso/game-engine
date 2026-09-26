@@ -14,6 +14,7 @@ use shared::components::{
     MovementControl, MovementSpeed, Npc, Player, Position, PresenceStatus, Rotation, UnitAuras,
     UnitFactionTemplate, UnitLevel, UnitPowers, UnitTarget, Zone,
 };
+use shared::level_scaling::LevelScaling;
 use shared::protocol::{GameObjectInfo, NpcFlags};
 
 use super::worker::MainUpdate;
@@ -178,6 +179,7 @@ struct EntitySnapshot {
     powers: Option<UnitPowers>,
     auras: Option<UnitAuras>,
     level: Option<UnitLevel>,
+    level_scaling: Option<LevelScaling>,
     faction_template: Option<UnitFactionTemplate>,
     unit_target: Option<UnitTarget>,
 }
@@ -209,6 +211,7 @@ impl EntitySnapshot {
             powers: entity.get::<UnitPowers>().cloned(),
             auras: entity.get::<UnitAuras>().cloned(),
             level: entity.get::<UnitLevel>().copied(),
+            level_scaling: entity.get::<LevelScaling>().copied(),
             faction_template: entity.get::<UnitFactionTemplate>().copied(),
             unit_target: entity.get::<UnitTarget>().copied(),
         }
@@ -236,6 +239,7 @@ impl EntitySnapshot {
             apply_component(&mut entity, self.powers);
             apply_component(&mut entity, self.auras);
             apply_component(&mut entity, self.level);
+            apply_component(&mut entity, self.level_scaling);
             apply_component(&mut entity, self.faction_template);
             apply_component(&mut entity, self.unit_target);
             apply_component(&mut entity, self.npc_flags);
@@ -412,6 +416,12 @@ mod tests {
             powers.clone(),
             auras.clone(),
             UnitLevel(60),
+            LevelScaling {
+                content_tuning_id: 73,
+                min_level: 1,
+                max_level: 30,
+                delta: 0,
+            },
             UnitFactionTemplate(1),
             UnitTarget(Some(0x0000_0001_0000_002A)),
         ));
@@ -426,6 +436,12 @@ mod tests {
         assert_eq!(main.world().get::<UnitAuras>(mirror), Some(&auras));
         assert_eq!(main.world().get::<UnitLevel>(mirror), Some(&UnitLevel(60)));
         assert_eq!(
+            main.world()
+                .get::<LevelScaling>(mirror)
+                .map(|s| s.max_level),
+            Some(30)
+        );
+        assert_eq!(
             main.world().get::<UnitFactionTemplate>(mirror),
             Some(&UnitFactionTemplate(1))
         );
@@ -437,6 +453,7 @@ mod tests {
             UnitPowers,
             UnitAuras,
             UnitLevel,
+            LevelScaling,
             UnitFactionTemplate,
             UnitTarget,
         )>();
@@ -444,6 +461,7 @@ mod tests {
         assert!(main.world().get::<UnitPowers>(mirror).is_none());
         assert!(main.world().get::<UnitAuras>(mirror).is_none());
         assert!(main.world().get::<UnitLevel>(mirror).is_none());
+        assert!(main.world().get::<LevelScaling>(mirror).is_none());
         assert!(main.world().get::<UnitFactionTemplate>(mirror).is_none());
         assert!(main.world().get::<UnitTarget>(mirror).is_none());
     }
