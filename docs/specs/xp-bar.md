@@ -38,4 +38,4 @@ References:
 - `src/scenes/tooltip_frame/mod.rs` test `xp_tooltip_uses_xp_text_and_the_rest_state`.
 - `tests/unit/edit_mode_tests.rs`: registration, selection box label, drag.
 - `src/rendering/hud_layout_tests.rs`: on screen, no overlap with any HUD element (action bars, chat, micro menu, bags), bottom-centre below the main bar.
-- Live evidence: `data/diagnostics/xpbar-20260925/`.
+- Live evidence (2026-09-25, headless, shared :5000 server): `data/diagnostics/xpbar-20260925/` — t01 new level-1 Mage "Xpbar" (`xp_ui`), bar shown with "XP: 0/250"; t04 after killing a Kobold Vermin: fill 45 px of 565 (20/250) and the chat line "Kobold Vermin dies, you gain 20 experience." (`t04-after-kill-ui-tree.txt`). Not shown live: rested overlay/tick (a new character has no rested pool), hover text and tooltip (no cursor in the headless run), level cap.
