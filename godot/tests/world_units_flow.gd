@@ -70,7 +70,14 @@ func select_second_character(client: Node) -> void:
 			if updated == null or updated.get_instance_id() != instance_id:
 				fail("Unit update replaced the selected character node")
 				return
-		print("PASS: real second-character transport creates named stable unit Node3D in Loading")
+		var reconnect_error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
+		if reconnect_error != "":
+			fail("Reconnect failed: " + reconnect_error)
+			return
+		if client.get_node_or_null("WorldUnits") != null or client.account_state().unit_count != 0:
+			fail("Starting a new account connection retained previous world nodes")
+			return
+		print("PASS: real transport creates named stable unit Node3D and reconnect clears world nodes")
 		client.free()
 		quit(0)
 		return
