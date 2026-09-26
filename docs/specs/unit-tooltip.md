@@ -31,4 +31,4 @@ References:
 - `src/scenes/tooltip_frame/unit_tooltip_tests.rs`: Defias Thug's record is "Creature ID: 38", players have none.
 - `src/game/networking/unit_tooltip_tests.rs`: an entry is asked for once and its answer cached; a collection update replaces the account appearances.
 - `src/bin/game-engine-cli/tests/camera.rs`: `hover` arguments.
-- Live evidence: `data/diagnostics/npctooltip-20260926/` (Dermot Johns vendor, Defias Thug drops, gloves collected, Brother Danil before/after learning Scout's Arrow live, player frame).
+- Live evidence: `data/diagnostics/npctooltip-20260926/` (Dermot Johns vendor, Defias Thug drops, gloves collected, Brother Danil before/after learning Scout's Arrow live, player frame; ID lines: 07 Creature ID: 38, 08 Slam Spell ID: 1464 on the action bar, 09 Thin Cloth Shoes Item ID: 2117 in the merchant window).
