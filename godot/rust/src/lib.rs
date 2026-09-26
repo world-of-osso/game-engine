@@ -36,6 +36,7 @@ pub struct GameClient {
     units: HashMap<u64, UnitSnapshot>,
     world: world::WorldUnits,
     terrain: terrain::streaming::StreamedTerrain,
+    terrain_materials: terrain::material::TerrainMaterials,
     server_hostname: String,
 }
 
@@ -54,6 +55,7 @@ impl INode3D for GameClient {
             loading_ui: None,
             account: Account::new(data_root.clone()),
             terrain: terrain::streaming::StreamedTerrain::new(data_root, cache_root),
+            terrain_materials: terrain::material::TerrainMaterials::default(),
             units: HashMap::new(),
             world: world::WorldUnits::default(),
             server_hostname: if cfg!(debug_assertions) {
@@ -69,7 +71,8 @@ impl INode3D for GameClient {
         let update = self
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
-            .and_then(|()| self.terrain.poll());
+            .and_then(|()| self.terrain.poll())
+            .and_then(|()| self.attach_terrain_materials());
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
@@ -299,13 +302,20 @@ impl GameClient {
             (request.initial_tile_y, request.initial_tile_x),
         )?;
         if map_changed {
+            self.terrain_materials.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
         }
         Ok(())
     }
 
+    fn attach_terrain_materials(&mut self) -> Result<(), String> {
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.terrain_materials.sync(&mut parent, &self.terrain)
+    }
+
     fn reset_world(&mut self) -> Result<(), String> {
+        self.terrain_materials.reset();
         self.world.reset();
         self.units.clear();
         self.terrain.reset()

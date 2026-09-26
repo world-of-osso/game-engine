@@ -1,14 +1,18 @@
 //! Local-CASC map and split-ADT reads for the native world host.
 
-use std::fs;
 use std::path::{Path, PathBuf};
+use std::{cell::RefCell, collections::BTreeMap, fs};
 
 use game_engine_core::{adt, wdt};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
+use super::textures::{TerrainLayerTextures, TerrainTextureCache};
+
 pub(crate) struct NativeTerrainAssets {
     resolver: CascListfileResolver,
     terrain_dir: PathBuf,
+    data_root: PathBuf,
+    textures: RefCell<TerrainTextureCache>,
 }
 
 pub(crate) struct NativeMapWdt {
@@ -24,6 +28,7 @@ pub(crate) struct NativeTerrainTile {
     pub root: adt::Root,
     pub tex: Option<adt::AdtTexData>,
     pub obj: Option<adt::AdtObjData>,
+    pub textures: BTreeMap<u32, TerrainLayerTextures>,
 }
 
 impl NativeTerrainAssets {
@@ -35,6 +40,8 @@ impl NativeTerrainAssets {
         Self {
             resolver: CascListfileResolver::new(config),
             terrain_dir: data_root.join("terrain"),
+            data_root,
+            textures: RefCell::new(TerrainTextureCache::default()),
         }
     }
 
@@ -83,6 +90,14 @@ impl NativeTerrainAssets {
                 adt::parse_obj(bytes).map_err(|error| format!("{}: {error}", path.display()))
             })
             .transpose()?;
+        let textures = match &tex {
+            Some(tex) => {
+                self.textures
+                    .borrow_mut()
+                    .load_for_tile(&self.resolver, &self.data_root, tex)?
+            }
+            None => BTreeMap::new(),
+        };
         Ok(NativeTerrainTile {
             root_path,
             tex_path: tex_file.map(|(path, _)| path),
@@ -90,6 +105,7 @@ impl NativeTerrainAssets {
             root,
             tex,
             obj,
+            textures,
         })
     }
 

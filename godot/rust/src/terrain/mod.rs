@@ -1,5 +1,6 @@
-//! Geometry-only ADT adapter. Texture layers, water, objects and streaming are not loaded here.
+//! Native ADT geometry and streamed texture resources. World lighting/readiness are separate.
 mod assets;
+pub(crate) mod material;
 pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;
