@@ -28,8 +28,8 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 - [x] Send sends `SendMail` with the typed form (an empty subject takes the first attachment's name; no recipient sends nothing). `MailSent` shows "Mail sent." and clears the form; `MailFailed` shows its Retail text. Cancel clears the form.
 
 ### New mail
-- [x] `PendingMail` senders show the minimap `MiniMapMailFrame` icon (`ui-hud-minimap-mail-up`); no senders hide it.
+- [x] `PendingMail` senders show the minimap `MiniMapMailFrame` icon (`ui-hud-minimap-mail-up`); no senders hide it. Hovering it shows `HAVE_MAIL_FROM` "Unread mail from:" with one line per sender (`HAVE_MAIL` without senders).
 - [x] IPC: `mail status | send | read | take-item | take-money | return | delete`.
 
 ## Gaps
-- The letter edit box is one line (Enter leaves it); no stationery choice, no attachment tooltips, no minimap tooltip or flipbook animation, no auction invoice layout.
+- The letter edit box is one line (Enter leaves it); no stationery choice, no attachment tooltips, no minimap flipbook animation, no auction invoice layout.

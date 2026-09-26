@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use game_engine::bag_data::{InventorySlot, InventoryState, ItemQuality};
 use game_engine::buff_data::{AuraInstance, AuraState, UnitAuraState};
+use game_engine::mail_data::MailState;
 use game_engine::merchant_data::{MerchantState, quality_color};
 use game_engine::player_spells::{ActionBarSlots, parse_action_button_name};
 use game_engine::spell_catalog::CatalogSpell;
@@ -11,6 +12,7 @@ use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::buff_frame_component::buff_button_at;
 use game_engine::ui::screens::chat_frame_component::chat_spell_link_at;
+use game_engine::ui::screens::inworld_hud_component::MINIMAP_MAIL_FRAME;
 use game_engine::ui::screens::talent_frame_view::{TalentTooltip, TalentTooltips};
 use game_engine::ui::spellbook_runtime::SpellbookUiRuntime;
 use game_engine::ui::ui_errors::power_display_name;
@@ -207,6 +209,7 @@ fn sync_tooltip_frame_state(
     graphics_options: Option<Res<GraphicsOptions>>,
     spells: HoveredSpellSources,
     talent_tooltips: Option<Res<TalentTooltips>>,
+    mail: Option<Res<MailState>>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
@@ -224,6 +227,7 @@ fn sync_tooltip_frame_state(
         graphics_options.as_deref(),
         &spells,
         talent_tooltips.as_deref(),
+        mail.as_deref(),
     );
     if last_model.0 == state {
         return;
@@ -246,6 +250,7 @@ fn build_state(
     graphics_options: Option<&GraphicsOptions>,
     spells: &HoveredSpellSources,
     talent_tooltips: Option<&TalentTooltips>,
+    mail: Option<&MailState>,
 ) -> TooltipFrameState {
     let Some(cursor) = ui_cursor_position(registry, window) else {
         return TooltipFrameState::hidden();
@@ -257,6 +262,7 @@ fn build_state(
         .or_else(|| hovered_talent_tooltip(registry, frame_id, talent_tooltips))
         .or_else(|| hovered_item_tooltip(registry, frame_id, inventory))
         .or_else(|| hovered_merchant_tooltip(registry, frame_id, merchant))
+        .or_else(|| hovered_mail_tooltip(registry, frame_id, mail))
         .or_else(|| hovered_player_aura_tooltip(registry, frame_id, aura_state, graphics_options))
         .or_else(|| {
             hovered_target_aura_tooltip(
@@ -411,6 +417,42 @@ fn merchant_tooltip(name: &str, quality: u8, count: u32, stock: Option<u32>) -> 
         title: name.to_string(),
         title_color: parse_rgba(quality_color(quality)),
         lines,
+    }
+}
+
+/// `MinimapMailFrameUpdate` / `FormatUnreadMailTooltip`: `HAVE_MAIL_FROM` and one line
+/// per sender, or `HAVE_MAIL` without senders.
+fn hovered_mail_tooltip(
+    registry: &FrameRegistry,
+    mut frame_id: u64,
+    mail: Option<&MailState>,
+) -> Option<TooltipFrameState> {
+    loop {
+        let frame = registry.get(frame_id)?;
+        if frame.name.as_deref() == Some(MINIMAP_MAIL_FRAME) {
+            break;
+        }
+        frame_id = frame.parent_id?;
+    }
+    Some(mail_tooltip(&mail?.pending_senders))
+}
+
+fn mail_tooltip(senders: &[String]) -> TooltipFrameState {
+    let title = if senders.is_empty() {
+        "You have unread mail"
+    } else {
+        "Unread mail from:"
+    };
+    TooltipFrameState {
+        visible: true,
+        x: 0.0,
+        y: 0.0,
+        title: title.to_string(),
+        title_color: TOOLTIP_WHITE,
+        lines: senders
+            .iter()
+            .map(|sender| TooltipLineState::colored(sender.clone(), TOOLTIP_WHITE))
+            .collect(),
     }
 }
 
@@ -960,6 +1002,21 @@ fn rgba_string(color: [f32; 4]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn minimap_mail_tooltip_lists_the_unread_senders_or_says_unread_mail() {
+        let from = mail_tooltip(&["Tradea".into(), "Auction House".into()]);
+        assert_eq!(from.title, "Unread mail from:");
+        let lines: Vec<_> = from
+            .lines
+            .iter()
+            .map(|line| line.left_text.as_str())
+            .collect();
+        assert_eq!(lines, ["Tradea", "Auction House"]);
+        let none = mail_tooltip(&[]);
+        assert_eq!(none.title, "You have unread mail");
+        assert!(none.lines.is_empty());
+    }
 
     fn sample_aura() -> AuraInstance {
         AuraInstance {
