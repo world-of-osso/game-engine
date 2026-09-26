@@ -145,16 +145,43 @@ fn build_model(
     model: &m2::Model,
     path: &GString,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
-    let mut root = Node3D::new_alloc();
-    let (skeleton, skin) = build_skeleton(&model.bones);
-    root.add_child(&skeleton);
     let mut missing = PackedInt32Array::new();
-    for (batch_index, batch) in model.batches.iter().enumerate() {
-        let sub = model
-            .submeshes
-            .get(batch.submesh_index as usize)
-            .ok_or_else(|| format!("Batch {batch_index} references absent submesh"))?;
-        let mesh = build_batch_mesh(model, sub)?;
+    let batches = model
+        .batches
+        .iter()
+        .enumerate()
+        .map(|(batch_index, batch)| {
+            let sub = model
+                .submeshes
+                .get(batch.submesh_index as usize)
+                .ok_or_else(|| format!("Batch {batch_index} references absent submesh"))?;
+            let mesh = build_batch_mesh(model, sub)?;
+            let material = model
+                .materials
+                .get(batch.render_flags_index as usize)
+                .map(|authored| build_material(model, batch, authored, path, &mut missing))
+                .transpose()?;
+            Ok((mesh, material))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let (mut skeleton, skin) = build_skeleton(&model.bones);
+    let player = if model.sequences.is_empty() {
+        None
+    } else {
+        match WowAnimationPlayer::from_model(model, skeleton.clone()) {
+            Ok(mut player) => {
+                player.set_name("M2Animation");
+                Some(player)
+            }
+            Err(error) => {
+                skeleton.free();
+                return Err(error);
+            }
+        }
+    };
+    let mut root = Node3D::new_alloc();
+    root.add_child(&skeleton);
+    for (batch_index, (mesh, material)) in batches.into_iter().enumerate() {
         let mut instance = MeshInstance3D::new_alloc();
         instance.set_name(&format!("Batch{batch_index}"));
         instance.set_mesh(&mesh);
@@ -162,15 +189,12 @@ fn build_model(
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
         }
-        if let Some(material) = model.materials.get(batch.render_flags_index as usize) {
-            let material = build_material(model, batch, material, path, &mut missing)?;
+        if let Some(material) = material {
             instance.set_surface_override_material(0, &material);
         }
         root.add_child(&instance);
     }
-    if !model.sequences.is_empty() {
-        let mut player = WowAnimationPlayer::from_model(model, skeleton)?;
-        player.set_name("M2Animation");
+    if let Some(player) = player {
         root.add_child(&player);
     }
     Ok((root, missing))
