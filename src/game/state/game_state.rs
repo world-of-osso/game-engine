@@ -323,9 +323,12 @@ pub(crate) struct LoadingReadiness {
     pub status_text: &'static str,
 }
 
+/// Loading completes once the tile terrain streams around (the player's tile) has
+/// loaded. After a far teleport that is the destination tile, not the login tile.
 pub(crate) fn evaluate_world_loading(
     local_player_ready: bool,
     adt_manager: &AdtManager,
+    player: Option<&Transform>,
 ) -> LoadingReadiness {
     if !local_player_ready {
         return LoadingReadiness {
@@ -343,8 +346,8 @@ pub(crate) fn evaluate_world_loading(
         };
     }
 
-    let initial_tile = adt_manager.initial_tile;
-    if adt_manager.loaded.contains_key(&initial_tile) {
+    let center_tile = crate::terrain::streaming_center_tile(adt_manager, player);
+    if adt_manager.loaded.contains_key(&center_tile) {
         return LoadingReadiness {
             complete: true,
             progress_percent: 100,
@@ -352,7 +355,15 @@ pub(crate) fn evaluate_world_loading(
         };
     }
 
-    if adt_manager.pending.contains(&initial_tile) {
+    if adt_manager.failed.contains(&center_tile) {
+        return LoadingReadiness {
+            complete: false,
+            progress_percent: 86,
+            status_text: "Terrain failed to load",
+        };
+    }
+
+    if adt_manager.pending.contains(&center_tile) {
         return LoadingReadiness {
             complete: false,
             progress_percent: 86,
@@ -369,6 +380,7 @@ pub(crate) fn evaluate_world_loading(
 
 fn check_loading_complete(
     local_player_q: Query<(), With<LocalPlayer>>,
+    player_q: Query<&Transform, With<camera::Player>>,
     adt_manager: Res<AdtManager>,
     scene_stage: Option<Res<InWorldSceneStage>>,
     mut next_state: ResMut<NextState<GameState>>,
@@ -376,7 +388,7 @@ fn check_loading_complete(
     let local_player_ready = !local_player_q.is_empty();
     let scene_stage = configured_inworld_scene_stage(scene_stage);
     let loading_complete = if terrain_is_required_for_loading(scene_stage) {
-        evaluate_world_loading(local_player_ready, &adt_manager).complete
+        evaluate_world_loading(local_player_ready, &adt_manager, player_q.single().ok()).complete
     } else {
         local_player_ready
     };
@@ -521,7 +533,7 @@ mod tests {
     fn loading_waits_for_local_player_before_progressing() {
         let adt_manager = AdtManager::default();
         assert_eq!(
-            evaluate_world_loading(false, &adt_manager),
+            evaluate_world_loading(false, &adt_manager, None),
             LoadingReadiness {
                 complete: false,
                 progress_percent: 35,
@@ -536,7 +548,7 @@ mod tests {
         adt_manager.map_name = "azeroth".into();
         adt_manager.initial_tile = (32, 48);
         assert_eq!(
-            evaluate_world_loading(true, &adt_manager),
+            evaluate_world_loading(true, &adt_manager, None),
             LoadingReadiness {
                 complete: false,
                 progress_percent: 74,
@@ -552,7 +564,7 @@ mod tests {
         adt_manager.initial_tile = (32, 48);
         adt_manager.pending.insert((32, 48));
         assert_eq!(
-            evaluate_world_loading(true, &adt_manager),
+            evaluate_world_loading(true, &adt_manager, None),
             LoadingReadiness {
                 complete: false,
                 progress_percent: 86,
@@ -568,7 +580,7 @@ mod tests {
         adt_manager.initial_tile = (32, 48);
         adt_manager.loaded.insert((32, 48), Entity::PLACEHOLDER);
         assert_eq!(
-            evaluate_world_loading(true, &adt_manager),
+            evaluate_world_loading(true, &adt_manager, None),
             LoadingReadiness {
                 complete: true,
                 progress_percent: 100,
@@ -606,6 +618,137 @@ mod tests {
             *state.get(),
             GameState::InWorld,
             "world-ready loading should enter InWorld"
+        );
+    }
+
+    /// Northshire Abbey and the Stormwind Trade District, two ADT rows apart (WoW
+    /// (-8914, -133) and (-8790, 640) in Bevy space).
+    const NORTHSHIRE: Vec3 = Vec3::new(-8914.0, 82.0, 133.0);
+    const TRADE_DISTRICT: Vec3 = Vec3::new(-8790.0, 95.5, -640.0);
+
+    /// An in-world client streaming real terrain around the player at Northshire, with
+    /// the streaming, zone-transition and loading-completion systems.
+    fn far_teleport_app() -> (App, Entity) {
+        let mut app = App::new();
+        app.add_plugins(MinimalPlugins);
+        app.add_plugins(bevy::state::app::StatesPlugin);
+        app.insert_state(GameState::InWorld);
+        let mut adt_manager = AdtManager::default();
+        adt_manager.map_name = "azeroth".into();
+        adt_manager.initial_tile = tile_at(NORTHSHIRE);
+        adt_manager.load_radius = 0;
+        app.insert_resource(adt_manager);
+        app.init_resource::<crate::terrain_heightmap::TerrainHeightmap>();
+        app.insert_resource(CurrentZone {
+            zone_id: 12,
+            area_id: 9,
+        });
+        app.insert_resource(ZoneTransitionTracker {
+            observed_zone_id: 12,
+            initialized: true,
+        });
+        app.add_systems(
+            Update,
+            (
+                crate::terrain::adt_streaming_system,
+                handle_zone_transition.run_if(in_state(GameState::InWorld)),
+                check_loading_complete.run_if(in_state(GameState::Loading)),
+            )
+                .chain(),
+        );
+        let login_root = app.world_mut().spawn_empty().id();
+        app.world_mut()
+            .resource_mut::<AdtManager>()
+            .loaded
+            .insert(tile_at(NORTHSHIRE), login_root);
+        let player = app
+            .world_mut()
+            .spawn((
+                LocalPlayer,
+                camera::Player,
+                Transform::from_translation(NORTHSHIRE),
+            ))
+            .id();
+        (app, player)
+    }
+
+    fn tile_at(position: Vec3) -> (u32, u32) {
+        crate::terrain::bevy_to_tile_coords(position.x, position.z)
+    }
+
+    /// The server moves the player to the Trade District (Stormwind, zone 1519); the
+    /// destination tile's load is in flight.
+    fn teleport_to_trade_district(app: &mut App, player: Entity) {
+        app.world_mut()
+            .get_mut::<Transform>(player)
+            .unwrap()
+            .translation = TRADE_DISTRICT;
+        app.world_mut()
+            .resource_mut::<AdtManager>()
+            .pending
+            .insert(tile_at(TRADE_DISTRICT));
+        *app.world_mut().resource_mut::<CurrentZone>() = CurrentZone {
+            zone_id: 1519,
+            area_id: 1519,
+        };
+    }
+
+    fn game_state(app: &App) -> GameState {
+        *app.world().resource::<State<GameState>>().get()
+    }
+
+    #[test]
+    fn far_teleport_loading_completes_once_the_destination_tile_loads() {
+        let (mut app, player) = far_teleport_app();
+        assert_eq!(tile_at(NORTHSHIRE).0.abs_diff(tile_at(TRADE_DISTRICT).0), 2);
+        app.update();
+        teleport_to_trade_district(&mut app, player);
+        for _ in 0..3 {
+            app.update();
+        }
+        assert_eq!(game_state(&app), GameState::Loading);
+        assert!(
+            !app.world()
+                .resource::<AdtManager>()
+                .loaded
+                .contains_key(&tile_at(NORTHSHIRE)),
+            "the login tile is streamed out after the far move"
+        );
+
+        let destination_root = app.world_mut().spawn_empty().id();
+        {
+            let mut adt_manager = app.world_mut().resource_mut::<AdtManager>();
+            adt_manager.pending.remove(&tile_at(TRADE_DISTRICT));
+            adt_manager
+                .loaded
+                .insert(tile_at(TRADE_DISTRICT), destination_root);
+        }
+        app.update();
+        app.update();
+
+        assert_eq!(game_state(&app), GameState::InWorld);
+    }
+
+    #[test]
+    fn far_teleport_to_a_tile_that_fails_to_load_shows_the_failure() {
+        let (mut app, player) = far_teleport_app();
+        app.update();
+        teleport_to_trade_district(&mut app, player);
+        app.update();
+        {
+            let mut adt_manager = app.world_mut().resource_mut::<AdtManager>();
+            adt_manager.pending.remove(&tile_at(TRADE_DISTRICT));
+            adt_manager.failed.insert(tile_at(TRADE_DISTRICT));
+        }
+        app.update();
+        app.update();
+
+        assert_eq!(game_state(&app), GameState::Loading);
+        let player_tf = *app.world().get::<Transform>(player).unwrap();
+        assert_eq!(
+            evaluate_world_loading(true, app.world().resource::<AdtManager>(), Some(&player_tf))
+                .status_text,
+            "Terrain failed to load"
         );
     }
 
