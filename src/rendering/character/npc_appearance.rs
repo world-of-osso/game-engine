@@ -38,12 +38,30 @@ struct NpcSelections {
     geosets: Vec<(u16, u16)>,
 }
 
+/// Applies the displayed model's choices. Choices of the race's unaltered form
+/// (a Worgen profile's Gilnean-form choices) resolve but belong to the other model.
+fn select_npc_choices(
+    appearance: &AuthoredNpcAppearance,
+    db: &CustomizationDb,
+) -> Result<NpcSelections, String> {
+    let (race, sex) = (appearance.race, appearance.sex);
+    let displayed = appearance
+        .choice_ids
+        .iter()
+        .filter_map(|&id| db.choice_by_id(race, sex, id));
+    resolve_npc_choices(appearance, displayed, |id| {
+        db.unaltered_form_choice_by_id(race, sex, id).is_some()
+    })
+}
+
 fn resolve_npc_choices<'a>(
     appearance: &AuthoredNpcAppearance,
     choices: impl IntoIterator<Item = &'a CustomizationChoice>,
+    is_other_form_choice: impl Fn(u32) -> bool,
 ) -> Result<NpcSelections, String> {
     let selected: HashSet<_> = appearance.choice_ids.iter().copied().collect();
     let mut missing = selected.clone();
+    missing.retain(|&id| !is_other_form_choice(id));
     let mut result = NpcSelections::default();
     for choice in choices {
         if !selected.contains(&choice.id) {
@@ -101,11 +119,7 @@ fn prepare_npc_appearance(
     images: &mut Assets<Image>,
 ) -> Result<PreparedNpcAppearance, String> {
     let appearance = &request.appearance;
-    let choices = appearance
-        .choice_ids
-        .iter()
-        .filter_map(|&id| db.choice_by_id(appearance.race, appearance.sex, id));
-    let selected = resolve_npc_choices(appearance, choices)?;
+    let selected = select_npc_choices(appearance, db)?;
     let layout = db
         .layout_id(appearance.race, appearance.sex)
         .ok_or_else(|| {
@@ -163,9 +177,11 @@ fn load_and_composite_npc_textures(
         load_npc_texture,
     )?;
     let mut textures = HashMap::from([(1, images.add(body))]);
-    if let Some((pixels, width, height)) =
-        select_npc_type6_texture(materials, composed.hair, composed.head)?
-    {
+    if let Some((pixels, width, height)) = select_npc_type6_texture(
+        compositor.declares_hair(materials, layout),
+        composed.hair,
+        composed.head,
+    )? {
         textures.insert(6, images.add(crate::rgba_image(pixels, width, height)));
     }
     if let Some(fdid) = compositor.replacement_texture_fdid(materials, layout, 19) {
@@ -177,13 +193,11 @@ fn load_and_composite_npc_textures(
 type NpcTexturePixels = (Vec<u8>, u32, u32);
 
 fn select_npc_type6_texture(
-    materials: &[(u16, u32)],
+    declares_hair: bool,
     hair: Option<NpcTexturePixels>,
     head: Option<NpcTexturePixels>,
 ) -> Result<Option<NpcTexturePixels>, String> {
-    // CharTextureData composes a separate hair image only for material target 10.
-    let has_hair_target = materials.iter().any(|(target, _)| *target == 10);
-    if has_hair_target {
+    if declares_hair {
         return hair
             .map(Some)
             .ok_or_else(|| "declared NPC hair target 10 did not produce a texture".to_string());
@@ -355,14 +369,14 @@ mod tests {
         let hair = (vec![180, 90, 30, 255], 1, 1);
         let head = (vec![230, 180, 160, 255], 1, 1);
         assert_eq!(
-            select_npc_type6_texture(&[(10, 100)], Some(hair.clone()), Some(head.clone())).unwrap(),
+            select_npc_type6_texture(true, Some(hair.clone()), Some(head.clone())).unwrap(),
             Some(hair),
         );
         assert_eq!(
-            select_npc_type6_texture(&[(1, 200)], None, Some(head.clone())).unwrap(),
+            select_npc_type6_texture(false, None, Some(head.clone())).unwrap(),
             Some(head.clone()),
         );
-        assert!(select_npc_type6_texture(&[(10, 100)], None, Some(head)).is_err());
+        assert!(select_npc_type6_texture(true, None, Some(head)).is_err());
     }
 
     #[test]
@@ -429,14 +443,132 @@ mod tests {
             choice_ids: vec![70001, 70002],
             geosets: vec![],
         };
-        let selected = resolve_npc_choices(&appearance, [&first, &second]).unwrap();
+        let selected = resolve_npc_choices(&appearance, [&first, &second], |_| false).unwrap();
         assert_eq!(selected.materials, vec![(1, 100), (2, 200)]);
         assert_eq!(selected.geosets, vec![(0, 2), (21, 3)]);
         appearance.choice_ids.push(70004);
-        let error = resolve_npc_choices(&appearance, [&first, &second])
+        let error = resolve_npc_choices(&appearance, [&first, &second], |_| false)
             .err()
             .unwrap();
         assert!(error.contains("70004"), "{error}");
+    }
+
+    #[test]
+    #[ignore]
+    fn sweep_all_spawned_profiles() {
+        use game_engine::creature_display::npc_appearance::query_authored_npc_appearance;
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        let compositor = CharTextureData::load(std::path::Path::new("data"));
+        let conn = rusqlite::Connection::open(std::env::var("SWEEP_CACHE").unwrap()).unwrap();
+        let ids: Vec<u32> = std::fs::read_to_string(std::env::var("SWEEP_IDS").unwrap())
+            .unwrap()
+            .split_whitespace()
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let (mut ok, mut ordinary, mut failures) = (0, 0, Vec::new());
+        for (n, id) in ids.into_iter().enumerate() {
+            let mut images = Assets::<Image>::default();
+            if n % 250 == 0 {
+                println!("SWEEP progress {n}");
+            }
+            match query_authored_npc_appearance(&conn, id) {
+                Err(e) => failures.push(format!("{id}: {e}")),
+                Ok(None) => ordinary += 1,
+                Ok(Some(appearance)) => {
+                    let request = NpcAppearanceRequest {
+                        display_id: id,
+                        appearance,
+                    };
+                    match prepare_npc_appearance(&request, &db, &compositor, &mut images) {
+                        Ok(_) => ok += 1,
+                        Err(e) => failures.push(format!("{id}: {e}")),
+                    }
+                }
+            }
+        }
+        println!(
+            "SWEEP ok={ok} ordinary={ordinary} failures={}",
+            failures.len()
+        );
+        for f in &failures {
+            println!("SWEEP FAIL {f}");
+        }
+    }
+
+    fn real_profile(race: u8, sex: u8, choice_ids: Vec<u32>) -> AuthoredNpcAppearance {
+        AuthoredNpcAppearance {
+            race,
+            sex,
+            class: 0,
+            baked_texture_fdid: None,
+            choice_ids,
+            geosets: vec![],
+        }
+    }
+
+    #[test]
+    fn kul_tiran_display_140376_choices_resolve() {
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        // Suspicious Citizen, Retail display 140376 (race 32, sex 1).
+        let appearance = real_profile(
+            32,
+            1,
+            vec![
+                3142, 3150, 3162, 3167, 3172, 3179, 7682, 45226, 54464, 56655,
+            ],
+        );
+        let selected = select_npc_choices(&appearance, &db).unwrap();
+        assert!(!selected.materials.is_empty());
+    }
+
+    #[test]
+    fn dracthyr_display_110154_target_10_is_not_hair() {
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        let compositor = CharTextureData::load(std::path::Path::new("data"));
+        // Retail display 110154 (race 52 Dracthyr, layout 155): material target 10
+        // feeds texture type 9, and the dragon M2 has no type-6 hair batch.
+        let appearance = AuthoredNpcAppearance {
+            baked_texture_fdid: Some(4736911),
+            ..real_profile(
+                52,
+                0,
+                vec![
+                    19363, 19382, 19388, 19409, 19479, 19482, 19495, 19510, 19512, 19516, 19534,
+                    19545, 19553, 19554, 19560, 19564, 19572, 19576, 19581, 19587, 19591, 26866,
+                    26878, 28275, 28282, 29741, 29786, 29794, 29841, 29888, 29895, 29914, 29941,
+                    29966, 29977, 29979, 29980, 29981, 29982, 29985, 30028, 30060,
+                ],
+            )
+        };
+        let request = NpcAppearanceRequest {
+            display_id: 110154,
+            appearance,
+        };
+        let mut images = Assets::<Image>::default();
+        let prepared = prepare_npc_appearance(&request, &db, &compositor, &mut images).unwrap();
+        assert!(prepared.textures.contains_key(&1));
+        assert!(!prepared.textures.contains_key(&6));
+        // Human layouts keep target 10 as the type-6 hair layer.
+        let human_layout = db.layout_id(1, 0).unwrap();
+        assert!(compositor.declares_hair(&[(10, 1)], human_layout));
+        assert!(!compositor.declares_hair(&[(10, 1)], db.layout_id(52, 0).unwrap()));
+    }
+
+    #[test]
+    fn worgen_display_31054_applies_worgen_choices_and_skips_gilnean_form() {
+        let db = CustomizationDb::try_load(std::path::Path::new("data")).unwrap();
+        let worgen = vec![2232, 2241, 2260, 2279, 7042, 7444];
+        let gilnean = vec![1, 20, 48, 61, 81, 4138, 9912, 9914, 9925];
+        let mixed = real_profile(22, 0, [worgen.clone(), gilnean].concat());
+        let only_worgen = real_profile(22, 0, worgen);
+        let selected = select_npc_choices(&mixed, &db).unwrap();
+        let expected = select_npc_choices(&only_worgen, &db).unwrap();
+        assert!(!selected.materials.is_empty());
+        assert_eq!(selected.materials, expected.materials);
+        assert_eq!(selected.geosets, expected.geosets);
+        let unknown = real_profile(22, 0, vec![2232, 999_999]);
+        let error = select_npc_choices(&unknown, &db).err().unwrap();
+        assert!(error.contains("999999"), "{error}");
     }
 
     fn mesh(

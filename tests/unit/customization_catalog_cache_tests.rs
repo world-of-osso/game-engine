@@ -46,6 +46,11 @@ impl CatalogFixture {
                 "RaceID,SexID,GeosetType,GeosetID,Showscalp\n1,0,0,7,1\n",
             ),
             (
+                "ChrRaceXChrModel",
+                "ID,ChrRacesID,ChrModelID,Sex,AllowedTransmogSlots\n1,1,1,0,0\n2,1,2,1,0\n",
+            ),
+            ("ChrRaces", "ID,UnalteredVisualRaceID\n1,0\n"),
+            (
                 "TextureFileData",
                 "FileDataID,MaterialResourcesID\n1020001,101\n",
             ),
