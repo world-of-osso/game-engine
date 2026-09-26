@@ -4,7 +4,7 @@ use bevy::state::app::StatesPlugin;
 use game_engine::culling::{CullingPlugin, Wmo};
 use game_engine::game_state_enum::GameState;
 
-const TRADE_DISTRICT_ROOT_FDID: u32 = 322057;
+pub(super) const TRADE_DISTRICT_ROOT_FDID: u32 = 322057;
 /// `azeroth_30_48_obj0.adt`: its MODF places `sw_tradedistrict`.
 const TRADE_DISTRICT_OBJ0: &str = "data/terrain/777628.adt";
 const GROUP_ANTIPORTAL: u16 = 31;
@@ -90,15 +90,19 @@ fn trade_district_culling_app(camera: Transform) -> App {
     app
 }
 
-fn load_trade_district() -> (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>) {
+pub(super) fn trade_district_placement() -> adt_obj::WmoPlacement {
     let obj0 = std::fs::read(TRADE_DISTRICT_OBJ0).expect("azeroth_30_48_obj0 in data/terrain");
     let objects = adt_obj::load_adt_obj0(&obj0).expect("parse azeroth_30_48_obj0");
-    let placement = objects
+    objects
         .wmos
-        .iter()
+        .into_iter()
         .find(|placement| resolve_wmo_fdid(placement) == Some(TRADE_DISTRICT_ROOT_FDID))
-        .expect("sw_tradedistrict MODF placement");
-    let placement_transform = super::super::super::wmo_transform(placement, 30, 48);
+        .expect("sw_tradedistrict MODF placement")
+}
+
+pub(super) fn load_trade_district() -> (Transform, wmo::WmoRootData, Vec<wmo::WmoGroupData>) {
+    let placement = trade_district_placement();
+    let placement_transform = super::super::super::wmo_transform(&placement, 30, 48);
     let root_data = std::fs::read(format!("data/models/{TRADE_DISTRICT_ROOT_FDID}.wmo"))
         .expect("sw_tradedistrict root WMO in data/models");
     let root = wmo::load_wmo_root(&root_data).expect("parse sw_tradedistrict root");

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, MeshVertexAttribute, PrimitiveTopology};
 use bevy::render::render_resource::VertexFormat;
@@ -28,10 +30,10 @@ pub struct WmoGroupData {
     pub header: WmoGroupHeader,
     pub doodad_refs: Vec<u16>,
     pub light_refs: Vec<u16>,
-    pub bsp_nodes: Vec<WmoBspNode>,
-    pub bsp_face_refs: Vec<u16>,
     pub liquid: Option<WmoLiquid>,
     pub batches: Vec<WmoGroupBatch>,
+    /// Collision faces for player ground (docs/specs/wmo-floor-collision.md).
+    pub collision: Arc<shared::ground::WmoGroupCollision>,
 }
 
 #[derive(Clone)]
@@ -83,13 +85,15 @@ pub fn load_wmo_group_with_root(
     let header = parse_mogp_header(mogp_payload)?;
     let sub_chunks = &mogp_payload[MOGP_HEADER_SIZE..];
     let raw = parse_group_subchunks(sub_chunks)?;
-    build_group_batches(header, raw, root)
+    let collision = Arc::new(shared::ground::WmoGroupCollision::parse(data)?);
+    build_group_batches(header, raw, root, collision)
 }
 
 fn build_group_batches(
     header: WmoGroupHeader,
     mut raw: RawGroupData,
     root: Option<&WmoRootData>,
+    collision: Arc<shared::ground::WmoGroupCollision>,
 ) -> Result<WmoGroupData, String> {
     apply_mocv_vertex_color_fix(&mut raw.colors, &raw.batches, &header, root);
     let whole_group_has_vertex_color = raw.colors.len() == raw.vertices.len();
@@ -102,7 +106,7 @@ fn build_group_batches(
     } else {
         build_split_group_batches(&header, &raw, root)
     };
-    Ok(assemble_group_data(header, raw, batches))
+    Ok(assemble_group_data(header, raw, batches, collision))
 }
 
 fn build_whole_group_batch(
@@ -172,15 +176,15 @@ fn assemble_group_data(
     header: WmoGroupHeader,
     raw: RawGroupData,
     batches: Vec<WmoGroupBatch>,
+    collision: Arc<shared::ground::WmoGroupCollision>,
 ) -> WmoGroupData {
     WmoGroupData {
         header,
         doodad_refs: raw.doodad_refs,
         light_refs: raw.light_refs,
-        bsp_nodes: raw.bsp_nodes,
-        bsp_face_refs: raw.bsp_face_refs,
         liquid: raw.liquid,
         batches,
+        collision,
     }
 }
 

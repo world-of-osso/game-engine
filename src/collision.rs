@@ -1,12 +1,14 @@
-//! Collision detection using terrain heightmap + Bevy mesh raycasting.
+//! Collision detection using terrain heightmap, WMO floors + Bevy mesh raycasting.
 //!
-//! Player movement is validated against terrain slope and height.
-//! Gravity and ground snapping replace the old hardcoded Y assignment.
+//! The player stands on the shared ground rule (`shared::ground`,
+//! docs/specs/wmo-floor-collision.md): the highest walkable terrain or WMO
+//! floor within step reach of the feet. Gravity and ground snapping follow it.
 
 use std::collections::HashSet;
 
 use bevy::picking::mesh_picking::ray_cast::{MeshRayCast, MeshRayCastSettings};
 use bevy::prelude::*;
+use shared::ground::{Ground, STEP_UP_HEIGHT, Surface, WmoCollision};
 use shared::movement::{GRAVITY, GROUND_SNAP_THRESHOLD, MAX_SLOPE_ANGLE};
 
 use crate::camera::Player;
@@ -55,19 +57,80 @@ impl Default for CharacterPhysics {
 #[derive(Component)]
 pub struct WmoCollisionMesh;
 
-/// Check whether the player is on walkable ground based on terrain height.
+/// Floor collision of a spawned WMO root, placed by the root's transform.
+#[derive(Component)]
+pub struct WmoFloors(pub WmoCollision);
+
+/// What supports a character's feet.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum GroundProbe {
+    /// The terrain tile under the feet has not loaded yet.
+    Unloaded,
+    /// Nothing within step reach: the character falls.
+    Unsupported,
+    Supported(Ground),
+}
+
+/// Terrain and WMO floors a character can stand on.
+pub struct WorldGround<'a> {
+    terrain: Option<&'a TerrainHeightmap>,
+    wmos: Vec<&'a WmoCollision>,
+}
+
+impl<'a> WorldGround<'a> {
+    pub fn new(terrain: Option<&'a TerrainHeightmap>, floors: &'a Query<&WmoFloors>) -> Self {
+        Self {
+            terrain,
+            wmos: floors.iter().map(|floors| &floors.0).collect(),
+        }
+    }
+
+    pub fn from_parts(terrain: Option<&'a TerrainHeightmap>, wmos: Vec<&'a WmoCollision>) -> Self {
+        Self { terrain, wmos }
+    }
+
+    pub fn probe(&self, feet: Vec3) -> GroundProbe {
+        let Some(terrain) = self
+            .terrain
+            .filter(|terrain| terrain.has_tile_at(feet.x, feet.z))
+        else {
+            return GroundProbe::Unloaded;
+        };
+        let terrain_y = terrain.height_at(feet.x, feet.z);
+        match shared::ground::ground_at(feet, terrain_y, self.wmos.iter().copied()) {
+            Some(ground) => GroundProbe::Supported(ground),
+            None => GroundProbe::Unsupported,
+        }
+    }
+
+    pub fn terrain(&self) -> Option<&'a TerrainHeightmap> {
+        self.terrain
+    }
+
+    /// Height of the supporting surface, if any.
+    pub fn height_at(&self, feet: Vec3) -> Option<f32> {
+        match self.probe(feet) {
+            GroundProbe::Supported(ground) => Some(ground.height),
+            GroundProbe::Unloaded | GroundProbe::Unsupported => None,
+        }
+    }
+}
+
+/// Check whether the player stands on its ground.
 fn update_grounded(
     terrain: Option<Res<TerrainHeightmap>>,
+    floors: Query<&WmoFloors>,
     mut query: Query<(&Transform, &mut CharacterPhysics), With<Player>>,
 ) {
+    let ground = WorldGround::new(terrain.as_deref(), &floors);
     for (tf, mut physics) in query.iter_mut() {
-        let ground = terrain
-            .as_ref()
-            .and_then(|t| t.height_at(tf.translation.x, tf.translation.z));
-        physics.grounded = match ground {
-            Some(h) => (tf.translation.y - h).abs() < GROUND_SNAP_THRESHOLD,
+        physics.grounded = match ground.probe(tf.translation) {
+            GroundProbe::Supported(ground) => {
+                (tf.translation.y - ground.height).abs() < GROUND_SNAP_THRESHOLD
+            }
+            GroundProbe::Unsupported => false,
             // No terrain data yet — treat as grounded to prevent falling through the world.
-            None => true,
+            GroundProbe::Unloaded => true,
         };
     }
 }
@@ -76,27 +139,33 @@ fn update_grounded(
 fn apply_gravity_and_ground_snap(
     time: Res<Time>,
     terrain: Option<Res<TerrainHeightmap>>,
+    floors: Query<&WmoFloors>,
     mut query: Query<(&mut Transform, &mut CharacterPhysics), With<Player>>,
 ) {
     let dt = time.delta_secs();
+    let ground = WorldGround::new(terrain.as_deref(), &floors);
     for (mut tf, mut physics) in query.iter_mut() {
-        let ground_y = terrain
-            .as_ref()
-            .and_then(|t| t.height_at(tf.translation.x, tf.translation.z));
-
-        // No terrain loaded yet — freeze vertical position to prevent falling through the world.
-        let Some(ground_y) = ground_y else {
-            physics.vertical_velocity = 0.0;
-            continue;
+        let ground_y = match ground.probe(tf.translation) {
+            GroundProbe::Supported(ground) => Some(ground.height),
+            GroundProbe::Unsupported => None,
+            // No terrain loaded yet — freeze vertical position to prevent falling through the world.
+            GroundProbe::Unloaded => {
+                physics.vertical_velocity = 0.0;
+                continue;
+            }
         };
 
         if physics.grounded && physics.vertical_velocity <= 0.0 {
-            tf.translation.y = ground_y;
+            if let Some(ground_y) = ground_y {
+                tf.translation.y = ground_y;
+            }
             physics.vertical_velocity = 0.0;
         } else {
             physics.vertical_velocity -= GRAVITY * dt;
             tf.translation.y += physics.vertical_velocity * dt;
-            clamp_to_ground(&mut tf, &mut physics, ground_y);
+            if let Some(ground_y) = ground_y {
+                clamp_to_ground(&mut tf, &mut physics, ground_y);
+            }
         }
     }
 }
@@ -119,29 +188,33 @@ pub fn is_walkable_slope(height_diff: f32, horizontal_dist: f32) -> bool {
     slope <= MAX_SLOPE_ANGLE
 }
 
-/// Validate a proposed movement against terrain slope.
-/// Returns the clamped position if slope is too steep, or the proposed position if walkable.
+/// Validate a proposed movement against the ground at its destination.
+/// Terrain to terrain must stay within the walkable slope; WMO floors are
+/// walkable by their face normal. A grounded move snaps onto a destination
+/// within step reach below and walks off a higher ledge. Returns `current`
+/// for a blocked move.
 pub fn validate_movement_slope(
     current: Vec3,
     proposed: Vec3,
-    terrain: &TerrainHeightmap,
+    ground: &WorldGround,
     snap_to_ground: bool,
 ) -> Vec3 {
-    let Some(proposed_height) = terrain.height_at(proposed.x, proposed.z) else {
+    let GroundProbe::Supported(target) = ground.probe(proposed.with_y(current.y)) else {
         return proposed;
     };
-    let current_height = terrain.height_at(current.x, current.z).unwrap_or(current.y);
-    let horizontal = Vec2::new(proposed.x - current.x, proposed.z - current.z).length();
-    let height_diff = proposed_height - current_height;
-
-    if is_walkable_slope(height_diff, horizontal) {
-        if snap_to_ground {
-            proposed.with_y(proposed_height)
-        } else {
-            proposed
+    if let GroundProbe::Supported(origin) = ground.probe(current)
+        && origin.surface == Surface::Terrain
+        && target.surface == Surface::Terrain
+    {
+        let horizontal = Vec2::new(proposed.x - current.x, proposed.z - current.z).length();
+        if !is_walkable_slope(target.height - origin.height, horizontal) {
+            return current;
         }
+    }
+    if snap_to_ground && target.height >= current.y - STEP_UP_HEIGHT {
+        proposed.with_y(target.height)
     } else {
-        current
+        proposed
     }
 }
 
@@ -300,7 +373,7 @@ mod tests {
         let moved = validate_movement_slope(
             current,
             Vec3::new(target_x, current_y, target_z),
-            &heightmap,
+            &WorldGround::from_parts(Some(&heightmap), Vec::new()),
             true,
         );
 
@@ -327,7 +400,8 @@ mod tests {
         let current = Vec3::new(bx, ground_y + 1.0, bz);
         let proposed = Vec3::new(bx + 0.25, ground_y + 1.0, bz + 0.25);
 
-        let moved = validate_movement_slope(current, proposed, &heightmap, false);
+        let ground = WorldGround::from_parts(Some(&heightmap), Vec::new());
+        let moved = validate_movement_slope(current, proposed, &ground, false);
 
         assert!(
             (moved.y - proposed.y).abs() < 0.001,

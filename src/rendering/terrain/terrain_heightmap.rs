@@ -70,6 +70,11 @@ impl TerrainHeightmap {
         self.tiles.get(&(tile_y, tile_x))
     }
 
+    /// Whether the tile containing Bevy-space (x, z) has registered heights.
+    pub fn has_tile_at(&self, bx: f32, bz: f32) -> bool {
+        self.tiles.contains_key(&bevy_to_tile_coords(bx, bz))
+    }
+
     /// Remove height grids for a tile.
     pub fn remove_tile(&mut self, tile_y: u32, tile_x: u32) {
         self.tiles.remove(&(tile_y, tile_x));
