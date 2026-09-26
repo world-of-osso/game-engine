@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-09-25.
+Last updated: 2026-09-26.
 
 ## Systems
 
@@ -60,8 +60,9 @@ Architecture decisions and feature designs.
 
 - [ui-rounding-seams](investigations/ui-rounding-seams.md) — 1 px seams between abutting UI textures at UI scale 2/3 (auction house tabs): taffy 0.10.1 parent-relative location rounding; patched in bevy-patches.
 - [bevy-godot-shadow-comparison](investigations/bevy-godot-shadow-comparison.md) — Source-only Bevy 0.19/Godot 4.7.2 directional-shadow comparison: CPU caster scans, Godot silhouette-plane culling, batching, geometry substitution/LOD, redraw, and conditional Bevy GPU preprocessing; no runtime winner claimed.
+- [bevy-godot-bone-comparison](investigations/bevy-godot-bone-comparison.md) — Source-only Bevy 0.19, Godot 4.7.2, and solarityclient skeletal-animation comparison: CPU bone representation, dirty/equality boundaries, palette identity/upload, and deformation pass boundaries; no runtime winner or array-conversion recommendation.
 - [movement-performance](investigations/movement-performance.md) — Release in-world FPS profile (2026-09-24): GPU-bound under firmware-limited clocks, shadows ~44% of GPU, unused MSAA prepasses removed (−22% GPU/frame), `sync_registry` top CPU item. Current exact-name timed callback-removal interface and historical CPU-isolation evidence: upload removals showed no bulk reduction; disabling pipelined rendering lowered CPU with an FPS trade-off. Includes repaired MSAA glyph corruption, firmware-limit evidence, and unresolved original tile hitch.
-- [solarityclient-performance-comparison](investigations/solarityclient-performance-comparison.md) — What solarityclient does for frame cost vs our entity-heavy M2/terrain spawning; ranked candidates, none measured yet.
+- [solarityclient-performance-comparison](investigations/solarityclient-performance-comparison.md) — What solarityclient does for frame cost vs our entity-heavy M2/terrain spawning; ranked candidates, none measured yet; placement recomposition is before the inspected final frustum rejection.
 - [empty-window-baseline](investigations/empty-window-baseline.md) — Native/core/reactive blank-renderer stages remain low-cost; continuous blank rendering reaches 216.31478% process CPU before project services. Independent runtime audit passes the bounded attribution.
 - [abbey-interior-black-world](investigations/abbey-interior-black-world.md) — MOCV lighting alpha used as vertex opacity discarded interior WMO color while the depth prepass occluded the world
 - [stormwind-dark-render](investigations/stormwind-dark-render.md) — unified MapObj (MOHD 0x02) district WMOs drawn unlit as texture×MOCV turned black; MOCV is now added to daylight/MOHD ambient
