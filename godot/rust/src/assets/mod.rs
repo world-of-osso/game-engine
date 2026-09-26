@@ -164,7 +164,7 @@ fn build_model(
             Ok((mesh, material))
         })
         .collect::<Result<Vec<_>, String>>()?;
-    let (mut skeleton, skin) = build_skeleton(&model.bones);
+    let (skeleton, skin) = build_skeleton(&model.bones);
     let player = if model.sequences.is_empty() {
         None
     } else {
