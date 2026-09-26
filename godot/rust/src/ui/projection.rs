@@ -336,6 +336,7 @@ impl UiProjection {
             let mut style = StyleBoxTexture::new_gd();
             style.set_texture(&texture);
             style.set_texture_margin_all(24.0);
+            style.set_content_margin_all(0.0);
             node.add_theme_stylebox_override(state, &style);
         }
         let font = self.font(GameFont::FrizQuadrata)?;
