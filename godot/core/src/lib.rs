@@ -4,6 +4,7 @@ pub mod asset;
 pub mod blp;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
+pub mod lighting_assets;
 #[path = "../../../src/game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
