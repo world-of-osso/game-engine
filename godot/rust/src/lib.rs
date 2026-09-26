@@ -234,12 +234,12 @@ impl GameClient {
                 }
                 self.account
                     .connect(&self.server_hostname, &username, &password, false)?;
-                self.reset_world();
+                self.reset_world()?;
                 self.update_login_status("Connecting...", true)
             }
             "reconnect" => {
                 self.account.connect(&self.server_hostname, "", "", false)?;
-                self.reset_world();
+                self.reset_world()?;
                 self.update_login_status("Connecting...", true)
             }
             "exit" => {

@@ -18,7 +18,6 @@ pub(crate) struct NativeMapWdt {
 }
 
 pub(crate) struct NativeTerrainTile {
-    pub wdt: NativeMapWdt,
     pub root_path: PathBuf,
     pub tex_path: Option<PathBuf>,
     pub obj_path: Option<PathBuf>,
@@ -85,7 +84,6 @@ impl NativeTerrainAssets {
             })
             .transpose()?;
         Ok(NativeTerrainTile {
-            wdt,
             root_path,
             tex_path: tex_file.map(|(path, _)| path),
             obj_path: obj_file.map(|(path, _)| path),
@@ -186,7 +184,6 @@ mod tests {
                 .is_some_and(|tex| !tex.chunk_layers.is_empty())
         );
         assert!(tile.obj.is_some());
-        assert!(tile.wdt.global_wmo.is_none());
     }
 
     #[test]
