@@ -1,10 +1,16 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot transport snapshots project WorldUnits
+
+`087d3d74`/`5910ce51` add Godot-owned server-ID-keyed WorldUnits node lifecycle from actual transport snapshots: spawn/update/despawn/reset, direct authoritative position axes, wire-Y yaw, and original spawn defaults. The host selects the local player by exact selected-character name; initial duplicate selection preserves original child creation order rather than sorting server IDs. `account_state` now exposes `world_attached` and `local_player_position`.
+
+Proof remains open. The preceding `b90efecf` `world_units_flow.gd` is genuine RED at `/tmp/claude/godot-world_units_flow-b90efecf.log`, timing out for the selected-character node. `087d3d74`/`5910ce51` are unbuilt and unexecuted. No model/map/readiness/`InWorld`/visual claim follows. `cc324f51` button-margin code remains separately unbuilt and unproven; its genuine pre-fix RED is `/tmp/claude/godot-button-size-red.log` (`actual(256,71)`).
+
 ## [2026-09-26] system | Godot viewport EnterWorld reaches Loading
 
 At `b90efecf`, shared original character-select postsetup registry sizing corrects the `dd45d9bc` viewport no-dispatch root cause; it is not a generic layout workaround. Clean native build exits 0 at `/tmp/claude/godot-enter-world-build-b90efecf.log`. `character_select_ui.gd` exits 0 with empty stderr at `/tmp/claude/godot-character_select_ui-b90efecf.log`. `enter_world_flow.gd` exits 0 with empty stderr at `/tmp/claude/godot-enter_world_flow-b90efecf.log`: the real viewport selects `Elara`, activates EnterWorld, receives the actual local-server response, establishes the selected character, and transitions to `LoadingUI`. Authored PNG/shell are visible at 0%; no `InWorld` is fabricated.
 
-This is bounded auth-to-Loading evidence. `world_units_flow.gd` is expected RED at `/tmp/claude/godot-world_units_flow-b90efecf.log`, timing out waiting for the selected-character unit node. World readiness, unit application, a world scene, visual parity, and full conversion remain open. `cc324f51` subsequently fixes native Button theme content margins that enlarged authored 64px buttons to 71px and adds a size assertion; `/tmp/claude/godot-button-size-red.log` records genuine `actual(256,71)`. That code/test is committed but unbuilt and unproven, so `b90efecf` GREEN evidence does not cover it.
+This is bounded auth-to-Loading evidence. At `b90efecf`, `world_units_flow.gd` is genuine RED at `/tmp/claude/godot-world_units_flow-b90efecf.log`, timing out waiting for the selected-character unit node. World readiness, unit application, a world scene, visual parity, and full conversion remain open. `cc324f51` subsequently fixes native Button theme content margins that enlarged authored 64px buttons to 71px and adds a size assertion; `/tmp/claude/godot-button-size-red.log` records genuine `actual(256,71)`. That code/test is committed but unbuilt and unproven, so `b90efecf` GREEN evidence does not cover it.
 
 ## [2026-09-26] system | Godot loading-model and input-routing boundary
 
