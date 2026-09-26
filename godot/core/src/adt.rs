@@ -1,7 +1,10 @@
 //! ADT root, texture companion and object companion byte parsers.
 use crate::asset::adt_format::{adt, adt_geometry, adt_obj, adt_tex};
 
-pub use adt::{BlendMeshData, ChunkHeightGrid, FlightBounds, UNIT_SIZE};
+pub use adt::{
+    BlendBatch, BlendMeshData, ChunkHeightGrid, FlightBounds, ParsedLodData, SoundEmitter,
+    UNIT_SIZE,
+};
 pub use adt_geometry::Geometry;
 pub use adt_obj::{AdtObjData, ChunkObjectRefs, DoodadPlacement, WmoPlacement};
 pub use adt_tex::{AdtTexData, AdtWaterData, ChunkTexLayers, TextureLayer, TextureParams};
@@ -10,6 +13,7 @@ pub struct Root {
     pub chunks: Vec<Chunk>,
     pub height_grids: Vec<ChunkHeightGrid>,
     pub center_surface: [f32; 3],
+    pub chunk_positions: Vec<[f32; 3]>,
     pub blend_mesh: Option<BlendMeshData>,
     pub flight_bounds: Option<FlightBounds>,
     pub water: Option<AdtWaterData>,
@@ -25,6 +29,10 @@ pub struct Chunk {
     pub heights: [f32; 145],
     pub normals: [[f32; 3]; 145],
     pub vertex_colors: [[f32; 4]; 145],
+    pub vertex_lighting: Option<[[f32; 4]; 145]>,
+    pub sound_emitters: Vec<SoundEmitter>,
+    pub blend_batches: Vec<BlendBatch>,
+    pub detail_doodad_disable: Option<[u8; 64]>,
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub shadow_map: Option<[u8; 512]>,
@@ -49,7 +57,26 @@ pub fn chunk_geometry(chunk: &Chunk, tile_coords: Option<(u32, u32)>) -> Geometr
 
 pub fn parse_root(data: &[u8]) -> Result<Root, String> {
     let parsed = adt::load_adt_parsed(data)?;
-    Ok(Root {
+    Ok(root_from_parsed(parsed))
+}
+
+/// Parse a root tile with authored `(tile_y, tile_x)` and optional texture-companion shadows.
+pub fn parse_root_for_tile(
+    data: &[u8],
+    tile_y: u32,
+    tile_x: u32,
+    texture_data: Option<&[u8]>,
+) -> Result<Root, String> {
+    let parsed = adt::load_adt_for_tile_parsed(data, tile_y, tile_x, texture_data)?;
+    Ok(root_from_parsed(parsed))
+}
+
+pub fn parse_lod(data: &[u8]) -> Result<ParsedLodData, String> {
+    adt::load_lod_adt(data)
+}
+
+fn root_from_parsed(parsed: adt::ParsedAdtData) -> Root {
+    Root {
         chunks: parsed
             .chunks
             .into_iter()
@@ -62,6 +89,10 @@ pub fn parse_root(data: &[u8]) -> Result<Root, String> {
                 heights: chunk.heights,
                 normals: chunk.normals,
                 vertex_colors: chunk.vertex_colors,
+                vertex_lighting: chunk.vertex_lighting,
+                sound_emitters: chunk.sound_emitters,
+                blend_batches: chunk.blend_batches,
+                detail_doodad_disable: chunk.detail_doodad_disable,
                 holes_low_res: chunk.holes_low_res,
                 holes_high_res: chunk.holes_high_res,
                 shadow_map: chunk.shadow_map,
@@ -69,11 +100,12 @@ pub fn parse_root(data: &[u8]) -> Result<Root, String> {
             .collect(),
         height_grids: parsed.height_grids,
         center_surface: parsed.center_surface,
+        chunk_positions: parsed.chunk_positions,
         blend_mesh: parsed.blend_mesh,
         flight_bounds: parsed.flight_bounds,
         water: parsed.water,
         water_error: parsed.water_error,
-    })
+    }
 }
 
 /// Alpha-map interpretation requires each root chunk's authored `do_not_fix_alpha_map` bit.
