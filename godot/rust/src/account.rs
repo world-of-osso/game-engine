@@ -75,6 +75,13 @@ impl Account {
         Ok(())
     }
 
+    pub fn send_enter_world(&self) -> Result<(), String> {
+        let Some(request) = self.session.select_character() else {
+            return Ok(());
+        };
+        self.connected_bridge()?.send::<_, AuthChannel>(request)
+    }
+
     fn read_token(&self) -> Result<Option<String>, String> {
         let path = token_path(&self.data_root, Some(&self.hostname));
         match fs::read_to_string(&path) {
