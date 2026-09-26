@@ -47,6 +47,8 @@ pub mod creation_scene_data;
 pub mod creature_display;
 pub mod csv_util;
 pub mod currency;
+#[path = "game/cursor_item.rs"]
+pub mod cursor_item;
 #[path = "game/db2_cache.rs"]
 pub mod db2_cache;
 pub mod death;
@@ -90,8 +92,6 @@ pub mod item_catalog;
 pub mod item_icons;
 #[path = "game/equipment/item_info.rs"]
 pub mod item_info;
-#[path = "game/item_tooltip_data.rs"]
-pub mod item_tooltip_data;
 pub mod lfg;
 #[path = "game/lfg_data.rs"]
 pub mod lfg_data;
@@ -151,6 +151,8 @@ pub mod spell_catalog;
 #[path = "game/spell_visual_data.rs"]
 pub mod spell_visual_data;
 pub mod sqlite_util;
+#[path = "game/stack_split.rs"]
+pub mod stack_split;
 pub mod status;
 pub mod talent;
 #[path = "game/talent_tree/mod.rs"]

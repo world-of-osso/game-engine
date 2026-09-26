@@ -970,3 +970,7 @@ Created [[ui-rounding-seams]]. Auction house tab seams came from taffy 0.10.1 ro
 ## [2026-09-26] create | Unit tooltip
 
 Created [[unit-tooltip]]: hovered-unit resolution, CreatureTooltip cache, account appearance collection marks, default tooltip anchor, IPC hover for headless proof.
+
+## [2026-09-26] create | Cursor item
+
+Created [[cursor-item]]: CursorItem click rules, StackSplitFrame, DELETE_ITEM / DELETE_GOOD_ITEM, ItemSparse catalog and item tooltips; merchant-frame updated for drag buy/sell and Sell All Junk.

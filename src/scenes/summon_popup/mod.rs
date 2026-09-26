@@ -61,6 +61,7 @@ fn popup_spec(offer: &SummonOffer, area: &str, now: f64) -> PopupSpec {
         accept_label: "Accept".into(),
         cancel_label: Some("Cancel".into()),
         timeout: Some(std::time::Duration::from_secs_f64(time_left)),
+        confirm_text: None,
     }
 }
 

@@ -3,7 +3,7 @@
 //! frame asks the network layer to send (`MerchantRequest`).
 
 use bevy::prelude::*;
-use shared::protocol::{BuybackItem, VendorInventory, VendorItem};
+use shared::protocol::{BuybackItem, ItemLocation, VendorInventory, VendorItem};
 
 /// Retail `MERCHANT_ITEMS_PER_PAGE` (MerchantFrame.lua:1).
 pub const MERCHANT_ITEMS_PER_PAGE: usize = 10;
@@ -126,12 +126,16 @@ pub fn quality_color(quality: u8) -> &'static str {
 /// A MerchantFrame action for the server, sent to the open vendor.
 #[derive(Message, Clone, Debug, PartialEq, Eq)]
 pub enum MerchantRequest {
-    /// `count` purchases of the vendor slot.
+    /// `count` purchases of the vendor slot, into `destination` when a merchant
+    /// cursor was dropped on a bag slot.
     Buy {
         slot: u32,
         item_id: u32,
         count: u32,
+        destination: Option<ItemLocation>,
     },
+    /// `C_MerchantFrame.SellAllJunkItems`.
+    SellAllJunk,
     /// Sell a bag stack (`count` 0 = all of it).
     Sell {
         item_guid: u64,

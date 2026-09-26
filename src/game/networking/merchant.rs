@@ -14,7 +14,7 @@ use lightyear::prelude::Message as NetworkMessage;
 use shared::components::Npc;
 use shared::protocol::{
     BuyItem, BuybackItemRequest, BuybackList, MerchantChannel, MerchantFailed, RepairItem,
-    SellItem, VendorInventory,
+    SellAllJunkItems, SellItem, VendorInventory,
 };
 
 use crate::game_state::GameState;
@@ -106,6 +106,7 @@ fn close_on_interaction_end(
 struct MerchantSenders<'w, 's> {
     buy: MessageSenders<'w, 's, BuyItem>,
     sell: MessageSenders<'w, 's, SellItem>,
+    sell_all_junk: MessageSenders<'w, 's, SellAllJunkItems>,
     buyback: MessageSenders<'w, 's, BuybackItemRequest>,
     repair: MessageSenders<'w, 's, RepairItem>,
 }
@@ -125,6 +126,7 @@ fn send_merchant_requests(
                 slot,
                 item_id,
                 count,
+                destination,
             } => send(
                 &mut senders.buy,
                 BuyItem {
@@ -132,8 +134,12 @@ fn send_merchant_requests(
                     slot,
                     item_id,
                     count,
+                    destination,
                 },
             ),
+            MerchantRequest::SellAllJunk => {
+                send(&mut senders.sell_all_junk, SellAllJunkItems { npc })
+            }
             MerchantRequest::Sell { item_guid, count } => send(
                 &mut senders.sell,
                 SellItem {

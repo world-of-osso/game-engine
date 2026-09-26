@@ -118,18 +118,18 @@ impl Fixture {
     }
 }
 
-fn catalog(item_id: u32) -> Option<ItemCatalogEntry> {
+fn catalog(item_id: u32) -> Option<&'static ItemCatalogEntry> {
     let (class_id, icon_fdid) = match item_id {
         LINEN => (7, 132_889),
         COPPER_ORE => (7, 134_566),
         SWORD => (2, 135_274),
         _ => return None,
     };
-    Some(ItemCatalogEntry {
+    Some(Box::leak(Box::new(ItemCatalogEntry {
         class_id,
-        subclass_id: 0,
         icon_fdid,
-    })
+        ..Default::default()
+    })))
 }
 
 fn item(item_guid: u64, item_id: u32, name: &str, stack_count: u32) -> AuctionInventoryItem {

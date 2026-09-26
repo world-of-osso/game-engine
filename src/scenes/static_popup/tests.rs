@@ -42,6 +42,7 @@ fn spec(key: &str) -> PopupSpec {
         accept_label: "Accept".to_string(),
         cancel_label: Some("Decline".to_string()),
         timeout: None,
+        confirm_text: None,
     }
 }
 
@@ -319,4 +320,73 @@ fn clicks_hit_the_button_under_a_scaled_ui() {
             outcome: PopupOutcome::Accepted,
         }]
     );
+}
+
+fn type_text(app: &mut App, key_code: KeyCode, text: Option<&str>) {
+    use bevy::input::keyboard::{Key, KeyboardInput, NativeKey};
+    app.world_mut().write_message(KeyboardInput {
+        key_code,
+        logical_key: Key::Unidentified(NativeKey::Unidentified),
+        state: bevy::input::ButtonState::Pressed,
+        text: text.map(Into::into),
+        repeat: false,
+        window: Entity::PLACEHOLDER,
+    });
+    app.update();
+}
+
+#[test]
+fn delete_good_item_yes_works_only_after_delete_is_typed() {
+    let mut app = popup_app();
+    push(
+        &mut app,
+        PopupSpec {
+            confirm_text: Some("DELETE".into()),
+            ..spec("DELETE_GOOD_ITEM")
+        },
+    );
+    click_frame(&mut app, "StaticPopup1Button1");
+    assert!(
+        results(&mut app).is_empty(),
+        "Yes is disabled before typing"
+    );
+
+    for (key, text) in [
+        (KeyCode::KeyD, "d"),
+        (KeyCode::KeyE, "e"),
+        (KeyCode::KeyL, "l"),
+        (KeyCode::KeyX, "x"),
+    ] {
+        type_text(&mut app, key, Some(text));
+    }
+    type_text(&mut app, KeyCode::Backspace, None);
+    for (key, text) in [
+        (KeyCode::KeyE, "e"),
+        (KeyCode::KeyT, "t"),
+        (KeyCode::KeyE, "e"),
+    ] {
+        type_text(&mut app, key, Some(text));
+    }
+    assert_eq!(
+        frame_text(&app, "StaticPopup1EditBoxText").as_deref(),
+        Some("delete")
+    );
+    click_frame(&mut app, "StaticPopup1Button1");
+    let results = results(&mut app);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].outcome, PopupOutcome::Accepted);
+}
+
+#[test]
+fn escape_cancels_a_popup_with_an_edit_box() {
+    let mut app = popup_app();
+    push(
+        &mut app,
+        PopupSpec {
+            confirm_text: Some("DELETE".into()),
+            ..spec("DELETE_GOOD_ITEM")
+        },
+    );
+    type_text(&mut app, KeyCode::Escape, None);
+    assert_eq!(results(&mut app)[0].outcome, PopupOutcome::Cancelled);
 }

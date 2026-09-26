@@ -1,6 +1,7 @@
 use bevy::prelude::*;
-use game_engine::bag_data::InventoryState;
+use game_engine::bag_data::{InventoryRequest, InventoryState};
 use game_engine::bank_data::{BankRequest, BankState, GuildBankRequest, GuildBankState};
+use game_engine::cursor_item::CursorItem;
 use game_engine::mail_data::{MailState, MailTab};
 use game_engine::merchant_data::{MerchantRequest, MerchantState, MerchantTab};
 use game_engine::trade::{TradeAction, TradeClientState};
@@ -37,12 +38,14 @@ pub struct BagFramePlugin;
 impl Plugin for BagFramePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InventoryState>()
+            .init_resource::<CursorItem>()
             .init_resource::<MerchantState>()
             .init_resource::<BankState>()
             .init_resource::<GuildBankState>()
             .init_resource::<TradeClientState>()
             .init_resource::<MailState>()
             .add_message::<MerchantRequest>()
+            .add_message::<InventoryRequest>()
             .add_message::<BankRequest>()
             .add_message::<GuildBankRequest>();
         app.add_systems(
@@ -64,10 +67,11 @@ fn build_bag_frame_ui(
     mut commands: Commands,
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     inventory: Res<InventoryState>,
+    cursor: Res<CursorItem>,
     window_manager: Res<WindowManager>,
 ) {
     sync_registry_to_primary_window(&mut ui.registry, &windows);
-    let state = build_state(&inventory, &window_manager);
+    let state = build_state(&inventory, &cursor, &window_manager);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
     let mut screen = Screen::new(bag_frame_screen);
@@ -93,12 +97,13 @@ fn sync_bag_frame_state(
     mut wrap: Option<ResMut<BagFrameWrap>>,
     mut last_model: Option<ResMut<BagFrameModel>>,
     inventory: Res<InventoryState>,
+    cursor: Res<CursorItem>,
     window_manager: Res<WindowManager>,
 ) {
     let (Some(mut wrap), Some(mut last_model)) = (wrap.take(), last_model.take()) else {
         return;
     };
-    let state = build_state(&inventory, &window_manager);
+    let state = build_state(&inventory, &cursor, &window_manager);
     if last_model.0 == state {
         return;
     }
@@ -154,6 +159,7 @@ struct BagItemTargets<'w> {
 #[derive(bevy::ecs::system::SystemParam)]
 struct BagItemRequests<'w> {
     merchant: MessageWriter<'w, MerchantRequest>,
+    inventory: MessageWriter<'w, InventoryRequest>,
     bank: MessageWriter<'w, BankRequest>,
     guild: MessageWriter<'w, GuildBankRequest>,
     trade: ResMut<'w, TradeClientState>,
@@ -173,7 +179,8 @@ impl BagItemRequests<'_> {
 /// Retail `ContainerFrameItemButton_OnClick` (`C_Container.UseContainerItem`):
 /// right-clicking a bag item while the merchant tab is shown sells it; while a bank
 /// frame is open it deposits it into the shown bank tab; with a trade open it is
-/// offered; with Send Mail shown it is attached. Other right-click uses are not built.
+/// offered; with Send Mail shown it is attached; with none of those open an
+/// equippable item is equipped (`EquipItem`). On-use items are not built.
 fn use_bag_item(
     windows: Query<&Window, With<bevy::window::PrimaryWindow>>,
     mouse: Option<Res<ButtonInput<MouseButton>>>,
@@ -184,10 +191,7 @@ fn use_bag_item(
     targets: BagItemTargets,
     mut requests: BagItemRequests,
 ) {
-    if !requests.any_open(&targets)
-        || !crate::networking::gameplay_input_allowed(reconnect)
-        || modal_open.is_some()
-    {
+    if !crate::networking::gameplay_input_allowed(reconnect) || modal_open.is_some() {
         return;
     }
     let Some(mouse) = mouse else { return };
@@ -204,6 +208,12 @@ fn use_bag_item(
     let Some(action) = walk_up_for_onclick(&ui.registry, frame_id) else {
         return;
     };
+    if !requests.any_open(&targets) {
+        if let Some(request) = equip_request(&action, &inventory) {
+            requests.inventory.write(request);
+        }
+        return;
+    }
     if let Some(request) = sell_request(&action, &inventory, &targets.merchant) {
         requests.merchant.write(request);
     } else if let Some(request) = bank_deposit_request(&action, &inventory, &targets.bank) {
@@ -287,6 +297,21 @@ fn guild_deposit_request(
     })
 }
 
+/// An equippable item (a catalog `InventoryType`) is equipped into its slot.
+fn equip_request(action: &str, inventory: &InventoryState) -> Option<InventoryRequest> {
+    let (bag, slot) = parse_bag_slot_action(action)?;
+    let from = shared::protocol::ItemLocation::Bag {
+        bag: u8::try_from(bag).ok()?,
+        slot: u8::try_from(slot).ok()?,
+    };
+    let item = inventory.item_at(from)?;
+    game_engine::item_catalog::item_catalog_entry(item.item_id)
+        .filter(|entry| entry.inventory_type != 0)?;
+    Some(InventoryRequest::Equip(shared::protocol::EquipItem {
+        from,
+    }))
+}
+
 fn sell_request(
     action: &str,
     inventory: &InventoryState,
@@ -301,7 +326,11 @@ fn sell_request(
     })
 }
 
-fn build_state(inventory: &InventoryState, window_manager: &WindowManager) -> BagFrameState {
+fn build_state(
+    inventory: &InventoryState,
+    cursor: &CursorItem,
+    window_manager: &WindowManager,
+) -> BagFrameState {
     BagFrameState {
         bags: inventory
             .bags
@@ -314,10 +343,16 @@ fn build_state(inventory: &InventoryState, window_manager: &WindowManager) -> Ba
                     .get(bag.index)
                     .into_iter()
                     .flatten()
-                    .map(|slot| BagSlotState {
+                    .enumerate()
+                    .map(|(index, slot)| BagSlotState {
                         icon_fdid: slot.icon_fdid,
                         count: slot.count,
                         quality_border: slot.quality.border_color().into(),
+                        locked: cursor.source()
+                            == Some(shared::protocol::ItemLocation::Bag {
+                                bag: bag.index as u8,
+                                slot: index as u8,
+                            }),
                     })
                     .collect(),
                 visible: window_manager.is_open(WindowId::Bag(bag.index)),
@@ -411,6 +446,31 @@ mod tests {
             }))
         );
         assert_eq!(trade_offer("bag_slot:0:4", &inventory, &trade), None);
+    }
+
+    #[test]
+    fn right_clicking_gear_with_no_npc_frame_open_equips_it() {
+        let mut inventory = linen_bags();
+        inventory.set_item(
+            0,
+            5,
+            InventorySlot {
+                icon_fdid: 135_274,
+                count: 1,
+                item_guid: 42,
+                item_id: 25,
+                ..Default::default()
+            },
+        );
+        assert_eq!(
+            equip_request("bag_slot:0:5", &inventory),
+            Some(InventoryRequest::Equip(shared::protocol::EquipItem {
+                from: shared::protocol::ItemLocation::Bag { bag: 0, slot: 5 }
+            }))
+        );
+        // Linen Cloth has no inventory type; an empty slot has nothing.
+        assert_eq!(equip_request("bag_slot:0:3", &inventory), None);
+        assert_eq!(equip_request("bag_slot:0:6", &inventory), None);
     }
 
     #[test]
@@ -592,17 +652,18 @@ mod tests {
                 },
                 InventorySlot::default(),
             ]],
+            ..Default::default()
         };
         let mut window_manager = WindowManager::default();
         window_manager.open(WindowId::Bag(0));
 
-        let state = build_state(&inventory, &window_manager);
+        let state = build_state(&inventory, &CursorItem::Empty, &window_manager);
 
         assert_eq!(state.bags.len(), 1);
         assert_eq!(state.bags[0].title, "Backpack");
         assert!(state.bags[0].visible);
         assert_eq!(state.bags[0].slots[0].icon_fdid, 11);
         assert_eq!(state.bags[0].slots[0].count, 3);
-        assert_eq!(state.bags[0].slots[0].quality_border, "0.0,0.44,0.87,1.0");
+        assert_eq!(state.bags[0].slots[0].quality_border, "0.0,0.57,0.95,1.0");
     }
 }

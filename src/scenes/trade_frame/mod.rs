@@ -184,6 +184,7 @@ fn ask_trade_requests(
             accept_label: "Yes".into(),
             cancel_label: Some("No".into()),
             timeout: Some(TRADE_POPUP_TIMEOUT),
+            confirm_text: None,
         });
     } else if !incoming && *asked {
         popups.hide(TRADE_POPUP);

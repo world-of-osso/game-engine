@@ -39,14 +39,15 @@ References:
   - `PanelTabButtonTemplate` art (atlas 4707839), active 42 / inactive 36 high
   - width = text + 20, at least both caps
 - [x] Buyback tab: title "Merchant Buyback" (`MERCHANT_BUYBACK`), 12 cells with rows every 59 px (MF.lua:516-519). Paging, repair, buyback slot and bottom border are hidden.
-- [x] Clicks (MF.lua:632-669): right-clicking an item sends `BuyItem { count: 1 }`; right-clicking on the buyback tab sends `BuybackItemRequest`.
+- [x] Clicks (MF.lua:632-669): right-clicking an item sends `BuyItem { count: 1 }`; any click on a buyback cell sends `BuybackItemRequest`. Left-click pickup, drop-to-buy and drop-to-sell: [cursor-item](cursor-item.md).
 - [x] Right-clicking a bag item while the merchant tab is shown sells the stack (`SellItem { count: 0 }`, `ContainerFrameItemButton_OnClick`). Nothing happens on the buyback tab.
 - [x] `MerchantFailed` shows its Retail text in `UIErrorsFrame`, e.g. "You don't have enough money." or "The merchant doesn't want that item."
 - [x] Hovering an item cell shows a tooltip: name in quality colour, stack count, stock.
 - [x] Bags: `InventorySnapshot` and `InventoryDelta` fill the backpack (item guid, id, count, icon from `ItemModifiedAppearance`/`ItemAppearance`). Bag slots draw their icon and count.
-- [ ] Left-click pickup to the cursor (Retail buys when the item is dropped on a bag) and drag to sell: there is no cursor item.
-- [ ] Shift-click quantity (`StackSplitFrame`), the per-item repair cursor (`MerchantRepairItemButton`), guild-bank repair and Sell All Junk.
-- [ ] The full item tooltip (stats, sell price) and names/quality for bag items: the client has no item name data; the server sends names only on vendor and buyback lists.
+- [x] Left-click pickup to the cursor, buy by dropping on a bag slot (`BuyItem.destination`), sell by dropping on the frame, Shift-click quantity (`StackSplitFrame`): [cursor-item](cursor-item.md).
+- [x] `MerchantSellAllJunkButton` (36×36, `SpellIcon-256x256-SellJunk`): RIGHT at RepairAll LEFT +80 at a repairer, else BOTTOMRIGHT −148,33 (MF.lua:933-954); enabled (not desaturated) while a poor bag item has a sell price (`GetNumJunkItems`, MF.lua:196-198); hidden on the buyback tab. A click asks `SELL_ALL_JUNK_ITEMS_POPUP` (Yes / No) and Yes sends `SellAllJunkItems` (MF.lua:1054-1063).
+- [x] Bag item names/quality and their full item tooltips come from the client item catalog (ItemSparse): [cursor-item](cursor-item.md).
+- [ ] The per-item repair cursor (`MerchantRepairItemButton`), guild-bank repair, the Sell All Junk hover tooltip, and the stats/armor/damage lines of item tooltips.
 - [ ] NPC portrait in the portrait ring, the filter dropdown, alternate currencies (`ExtendedCost` items are not sold), and the refund confirmation popup.
 
 ## Tests asserting this spec
@@ -58,6 +59,7 @@ References:
 - `src/game/bag_data_tests/inventory.rs`: snapshot then delta drive the backpack.
 - `src/ui/screens/bag_frame_component.rs` tests: icon, count, click action.
 - `src/scenes/bag_frame/mod.rs` tests: right-click sells only on the merchant tab.
+- `src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), the popup sends `SellAllJunk` only on Yes.
 - `src/scenes/tooltip_frame/mod.rs` tests: merchant cell tooltip.
 - `src/ui/js_automation.rs` test: `ui.rightClick`.
-- Live evidence: `data/diagnostics/merchant-20260924/`.
+- Live evidence: `data/diagnostics/merchant-20260924/`; drag buy, split, drop-sell, Sell All Junk and bundle buys: `data/diagnostics/cursoritems-20260926/run1/` (tree/shot 03-28).

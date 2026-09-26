@@ -387,6 +387,7 @@ fn enter_with_a_popup_accepts_the_popup_and_does_not_open_chat() {
             accept_label: "Accept".to_string(),
             cancel_label: Some("Decline".to_string()),
             timeout: None,
+            confirm_text: None,
         });
     app.update();
 

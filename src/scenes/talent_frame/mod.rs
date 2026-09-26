@@ -353,6 +353,7 @@ fn confirm_apply(state: &TalentState, popups: &mut PopupStack) {
         accept_label: "Accept".to_string(),
         cancel_label: Some("Cancel".to_string()),
         timeout: None,
+        confirm_text: None,
     });
 }
 
