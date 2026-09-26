@@ -379,3 +379,25 @@ fn retail_layout_places_the_frame_search_bar_and_lists() {
     );
     assert_eq!(at("AuctionHouseFrameTab1"), (20.0, 534.0, 70.0, 32.0));
 }
+
+/// `PanelTemplates_SelectTab` / `DeselectTab` (SharedUIPanelTemplates.lua:518-548): the label
+/// is CENTER-offset 2 up when deselected and 3 down when selected; top tabs use
+/// `-offset - 6` / `-offset - 7` (8 and 4 down).
+#[test]
+fn tab_labels_follow_retail_selected_and_deselected_offsets() {
+    let label_top =
+        |reg: &FrameRegistry, tab: &str| rect(reg, &format!("{tab}Text")).y - rect(reg, tab).y;
+
+    let mut reg = registry(visible(AuctionHouseTab::Auctions));
+    compute_layout(&mut reg);
+    assert_eq!(label_top(&reg, "AuctionHouseFrameTab3"), 3.0);
+    assert_eq!(label_top(&reg, "AuctionHouseFrameTab1"), -2.0);
+    assert_eq!(
+        label_top(&reg, "AuctionHouseFrameAuctionsFrameAuctionsTab"),
+        4.0
+    );
+    assert_eq!(
+        label_top(&reg, "AuctionHouseFrameAuctionsFrameBidsTab"),
+        8.0
+    );
+}
