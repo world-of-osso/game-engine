@@ -100,6 +100,12 @@ pub fn cast_failed_text(
         CastFailReason::Totems => "Requires a tool",
         // ERR_INV_FULL
         CastFailReason::InventoryFull => "Inventory is full.",
+        // SPELL_FAILED_SUMMON_PENDING
+        CastFailReason::SummonPending => "A summon is already pending",
+        // SPELL_FAILED_LEVEL_REQUIREMENT
+        CastFailReason::LevelRequirement => "You are not high enough level",
+        // SPELL_FAILED_LOWLEVEL
+        CastFailReason::TargetTooLowLevel => "Target is too low level",
     };
     text.to_string()
 }
