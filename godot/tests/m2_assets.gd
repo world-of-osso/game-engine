@@ -56,8 +56,8 @@ func _initialize() -> void:
 			index_count += arrays[Mesh.ARRAY_INDEX].size()
 			if arrays[Mesh.ARRAY_BONES].size() == arrays[Mesh.ARRAY_VERTEX].size() * 4 and arrays[Mesh.ARRAY_WEIGHTS].size() == arrays[Mesh.ARRAY_BONES].size():
 				weighted = true
-	if vertex_count < 1000 or index_count < 3000 or not weighted:
-		fail("HD batches lack real indexed skinned geometry: %d vertices %d indices" % [vertex_count, index_count])
+	if mesh_instances.size() != 113 or vertex_count != 37813 or index_count != 147966 or not weighted:
+		fail("HD batches mismatch authored indexed skinned geometry: %d batches %d vertices %d indices" % [mesh_instances.size(), vertex_count, index_count])
 		return
 	var torch = loader.load_m2(DATA + "models/club_1h_torch_a_01.m2")
 	if torch.has("error") or not torch.node is Node3D:
