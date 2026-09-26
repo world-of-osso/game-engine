@@ -14,7 +14,12 @@ impl CsvTable {
     pub(crate) fn read(path: &Path) -> Result<Self, String> {
         let text = std::fs::read_to_string(path)
             .map_err(|err| format!("read {}: {err}", path.display()))?;
-        let mut records = Records { rest: &text };
+        Self::parse(path, &text)
+    }
+
+    /// `text` as the contents of the table at `path`.
+    pub(crate) fn parse(path: &Path, text: &str) -> Result<Self, String> {
+        let mut records = Records { rest: text };
         let headers = records
             .next()
             .ok_or_else(|| format!("{} has no header", path.display()))?

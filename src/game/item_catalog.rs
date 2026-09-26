@@ -1,20 +1,40 @@
-//! Item class and icon per item ID from `Item.csv` (Retail `Item` DB2): the auction
-//! house protocol carries only item ID, name and quality, so the client resolves the
-//! icon (`IconFileDataID`) and the browse category (`ClassID`) itself.
+//! The client's item catalog, one entry per item ID from the build-pinned Retail
+//! DB2 exports: `Item.csv` (class, subclass, icon) joined with `ItemSparse.csv`
+//! (name, quality, stack size, sell price, binding, level, inventory type). The
+//! server sends item IDs and counts only, so bags, the auction house and item
+//! tooltips resolve everything else here, as Retail's client resolves item data
+//! from its DB2 cache (`C_Item.GetItemInfo`).
 
 use std::collections::HashMap;
-use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::csv_util::{header_index, parse_csv_line};
 use crate::spell_catalog::SPELL_DB2_BUILD;
+use crate::spell_catalog::csv_records::CsvTable;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ItemCatalogEntry {
     pub class_id: u8,
     pub subclass_id: u8,
     pub icon_fdid: u32,
+    /// `Display_lang`.
+    pub name: String,
+    /// `OverallQualityID` (Retail `Enum.ItemQuality`, 0 Poor … 7 Heirloom).
+    pub quality: u8,
+    /// `Stackable`: the largest stack.
+    pub stackable: u32,
+    /// `SellPrice` in copper per item; 0 means vendors don't buy it.
+    pub sell_price: u32,
+    /// `Bonding`: 1 on pickup, 2 on equip, 3 on use, 4 quest.
+    pub bonding: u8,
+    pub required_level: u16,
+    /// `InventoryType` (Retail `Enum.InventoryType`).
+    pub inventory_type: u8,
+    pub item_level: u16,
+    /// `MaxCount`: 1 is "Unique".
+    pub max_count: u32,
+    /// `Description_lang`, the yellow flavor text.
+    pub description: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -23,8 +43,8 @@ pub struct ItemCatalog {
 }
 
 impl ItemCatalog {
-    pub fn get(&self, item_id: u32) -> Option<ItemCatalogEntry> {
-        self.items.get(&item_id).copied()
+    pub fn get(&self, item_id: u32) -> Option<&ItemCatalogEntry> {
+        self.items.get(&item_id)
     }
 
     pub fn len(&self) -> usize {
@@ -36,101 +56,140 @@ impl ItemCatalog {
     }
 }
 
-/// Catalog entry of `item_id`; the catalog loads on first use.
-pub fn item_catalog_entry(item_id: u32) -> Option<ItemCatalogEntry> {
+fn catalog() -> &'static ItemCatalog {
     static CATALOG: OnceLock<ItemCatalog> = OnceLock::new();
-    CATALOG
-        .get_or_init(|| {
-            let path = crate::paths::resolve_data_path(item_csv_path(Path::new("")));
-            load_item_catalog(&path).unwrap_or_else(|err| {
-                bevy::log::error!("item catalog unavailable: {err}");
-                ItemCatalog::default()
-            })
+    CATALOG.get_or_init(|| {
+        let dir = crate::paths::resolve_data_path(db2_dir(Path::new("")));
+        load_item_catalog(&dir).unwrap_or_else(|err| {
+            bevy::log::error!("item catalog unavailable: {err}");
+            ItemCatalog::default()
         })
-        .get(item_id)
+    })
 }
 
-pub fn item_csv_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("db2").join(SPELL_DB2_BUILD).join("Item.csv")
+/// Catalog entry of `item_id`; the catalog loads on first use.
+pub fn item_catalog_entry(item_id: u32) -> Option<&'static ItemCatalogEntry> {
+    catalog().get(item_id)
 }
 
-pub fn load_item_catalog(path: &Path) -> Result<ItemCatalog, String> {
-    let file =
-        std::fs::File::open(path).map_err(|err| format!("open {}: {err}", path.display()))?;
-    parse_item_catalog(std::io::BufReader::new(file), path)
+/// Load the catalog on a background thread so the first bag or tooltip that needs
+/// it does not stall a frame on the ~175k-row ItemSparse parse.
+pub fn warm_item_catalog() {
+    std::thread::spawn(|| {
+        catalog();
+    });
 }
 
-pub fn parse_item_catalog<R: BufRead>(reader: R, path: &Path) -> Result<ItemCatalog, String> {
-    let mut lines = reader.lines();
-    let header = lines
-        .next()
-        .ok_or_else(|| format!("{} is empty", path.display()))?
-        .map_err(|err| format!("read {} header: {err}", path.display()))?;
-    let headers = parse_csv_line(&header);
-    let columns = [
-        header_index(&headers, "ID", path)?,
-        header_index(&headers, "ClassID", path)?,
-        header_index(&headers, "SubclassID", path)?,
-        header_index(&headers, "IconFileDataID", path)?,
-    ];
-    let mut items = HashMap::new();
-    for line in lines {
-        let line = line.map_err(|err| format!("read {}: {err}", path.display()))?;
-        let fields = parse_csv_line(&line);
-        let field = |index: usize| {
-            fields
-                .get(columns[index])
-                .ok_or_else(|| format!("{}: short row {line:?}", path.display()))
-        };
-        let parse = |index: usize| -> Result<i64, String> {
-            let value = field(index)?;
-            value
-                .parse()
-                .map_err(|err| format!("{}: bad value {value:?}: {err}", path.display()))
-        };
-        items.insert(
-            parse(0)? as u32,
-            ItemCatalogEntry {
-                class_id: parse(1)? as u8,
-                subclass_id: parse(2)? as u8,
-                icon_fdid: parse(3)?.max(0) as u32,
-            },
-        );
+fn db2_dir(data_dir: &Path) -> PathBuf {
+    data_dir.join("db2").join(SPELL_DB2_BUILD)
+}
+
+/// `Item.csv` and `ItemSparse.csv` from one DB2 export directory.
+pub fn load_item_catalog(dir: &Path) -> Result<ItemCatalog, String> {
+    let mut catalog = parse_item_catalog(&CsvTable::read(&dir.join("Item.csv"))?)?;
+    apply_item_sparse(&mut catalog, &CsvTable::read(&dir.join("ItemSparse.csv"))?)?;
+    Ok(catalog)
+}
+
+/// Rows of `table` as the values of `columns`, by header name. ItemSparse
+/// descriptions hold quoted newlines, so records follow RFC 4180, not lines.
+fn csv_rows<const N: usize>(
+    table: &CsvTable,
+    columns: [&str; N],
+    mut row: impl FnMut([&str; N]) -> Result<(), String>,
+) -> Result<(), String> {
+    let mut indexes = [0; N];
+    for (index, column) in indexes.iter_mut().zip(columns) {
+        *index = table.column(column)?;
     }
+    for record in table.records() {
+        let mut values = [""; N];
+        for (value, index) in values.iter_mut().zip(indexes) {
+            *value = record
+                .get(index)
+                .ok_or_else(|| format!("{}: short row {record:?}", table.path().display()))?;
+        }
+        row(values)?;
+    }
+    Ok(())
+}
+
+fn number(value: &str, path: &Path) -> Result<i64, String> {
+    value
+        .parse()
+        .map_err(|err| format!("{}: bad value {value:?}: {err}", path.display()))
+}
+
+pub(crate) fn parse_item_catalog(table: &CsvTable) -> Result<ItemCatalog, String> {
+    let path = table.path();
+    let mut items = HashMap::new();
+    csv_rows(
+        table,
+        ["ID", "ClassID", "SubclassID", "IconFileDataID"],
+        |[id, class, subclass, icon]| {
+            items.insert(
+                number(id, path)? as u32,
+                ItemCatalogEntry {
+                    class_id: number(class, path)? as u8,
+                    subclass_id: number(subclass, path)? as u8,
+                    icon_fdid: number(icon, path)?.max(0) as u32,
+                    ..Default::default()
+                },
+            );
+            Ok(())
+        },
+    )?;
     Ok(ItemCatalog { items })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    const ITEM_CSV: &str = "ID,ClassID,SubclassID,Material,InventoryType,SheatheType,Sound_override_subclassID,IconFileDataID,ItemGroupSoundsID\n\
-        2447,7,9,7,0,0,-1,133939,23\n\
-        2589,7,5,8,0,0,-1,132889,7\n\
-        25,2,7,1,21,3,-1,135274,0\n";
-
-    #[test]
-    fn parses_class_and_icon_by_item_id() {
-        let catalog = parse_item_catalog(ITEM_CSV.as_bytes(), Path::new("Item.csv")).unwrap();
-
-        assert_eq!(catalog.len(), 3);
-        assert_eq!(
-            catalog.get(2589),
-            Some(ItemCatalogEntry {
-                class_id: 7,
-                subclass_id: 5,
-                icon_fdid: 132889,
-            })
-        );
-        assert_eq!(catalog.get(25).map(|item| item.class_id), Some(2));
-        assert_eq!(catalog.get(9999), None);
-    }
-
-    #[test]
-    fn missing_icon_column_is_an_error() {
-        let error = parse_item_catalog("ID,ClassID,SubclassID\n1,2,3\n".as_bytes(), Path::new("x"))
-            .unwrap_err();
-
-        assert!(error.contains("IconFileDataID"), "{error}");
-    }
+/// Fill the ItemSparse fields of the catalog's items; sparse rows without an
+/// `Item` row are skipped (the client cannot show an item without its icon).
+pub(crate) fn apply_item_sparse(catalog: &mut ItemCatalog, table: &CsvTable) -> Result<(), String> {
+    const COLUMNS: [&str; 11] = [
+        "ID",
+        "Display_lang",
+        "OverallQualityID",
+        "Stackable",
+        "SellPrice",
+        "Bonding",
+        "RequiredLevel",
+        "InventoryType",
+        "ItemLevel",
+        "MaxCount",
+        "Description_lang",
+    ];
+    let path = table.path();
+    csv_rows(table, COLUMNS, |values| {
+        let [
+            id,
+            name,
+            quality,
+            stackable,
+            sell,
+            bonding,
+            level,
+            inventory_type,
+            ilvl,
+            max,
+            desc,
+        ] = values;
+        let Some(entry) = catalog.items.get_mut(&(number(id, path)? as u32)) else {
+            return Ok(());
+        };
+        entry.name = name.to_string();
+        entry.quality = number(quality, path)?.clamp(0, 8) as u8;
+        entry.stackable = number(stackable, path)?.max(1) as u32;
+        entry.sell_price = number(sell, path)?.max(0) as u32;
+        entry.bonding = number(bonding, path)? as u8;
+        entry.required_level = number(level, path)?.max(0) as u16;
+        entry.inventory_type = number(inventory_type, path)? as u8;
+        entry.item_level = number(ilvl, path)?.max(0) as u16;
+        entry.max_count = number(max, path)?.max(0) as u32;
+        entry.description = desc.to_string();
+        Ok(())
+    })
 }
+
+#[cfg(test)]
+#[path = "item_catalog_tests.rs"]
+mod tests;
