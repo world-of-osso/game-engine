@@ -1,24 +1,24 @@
 # Collision System
 
-Current player collision has terrain vertical support plus horizontal WMO/M2 blocking. WMO and M2 floor-height support are not implemented; do not infer it from rendered geometry or camera collision.
+Players are held up by terrain and by WMO floors, through the shared ground rule described in [[player-ground]]. Horizontal blocking is done by WMO render meshes and M2 collision triangles. M2 floors are not implemented.
 
 ## Geometry Layers
 
 | Layer | Floor method | Wall method |
 |-------|-------------|-------------|
-| **Terrain** | `TerrainHeightmap::height_at` | Slope validation |
-| **WMO** | Not implemented | Horizontal mesh ray from player height |
+| **Terrain** | `TerrainHeightmap::height_at`, a candidate in `shared::ground` | Slope validation (terrain to terrain) |
+| **WMO** | MOPY-collidable BSP faces (`WmoFloors`, [[player-ground]]) | Horizontal mesh ray from player height |
 | **M2** | Not implemented | Horizontal authored-triangle ray after AABB broadphase |
 
 ## Player Movement Pipeline (per frame)
 
 1. Apply input → candidate position
 2. Clamp horizontal movement against WMO and authored M2 collision meshes
-3. Resolve grounded state, gravity, and snap from terrain height only
+3. Resolve grounded state, gravity and snap from `WorldGround`: the highest terrain or WMO floor within step reach
 
 ## WMO Collision
 
-A horizontal ray begins `0.6` units above the current player position, filters to WMO collision meshes, and clamps movement before a hit with a `0.05` margin. It does not query WMO triangles for vertical support, portal containment, or an interior floor.
+A horizontal ray begins `0.6` units above the current player position, filters to WMO collision meshes, and clamps movement before a hit with a `0.05` margin. Vertical support comes from the WMO collision faces, not from this ray (see [[player-ground]]).
 
 ## M2 Collision
 
@@ -28,7 +28,7 @@ A model with no authored collision indices has no solid doodad collider. Render/
 
 ## Ground Resolution Priority
 
-`update_grounded` and `apply_gravity_and_ground_snap` read `TerrainHeightmap` only. Missing terrain freezes vertical velocity; loaded terrain supplies the sole ground height. Neither WMO nor M2 collision triangles currently support the player vertically. The corrected WMO placement basis does not establish the reported free-fall cause; exact transformed floor geometry and bounded native validation remain pending.
+`update_grounded` and `apply_gravity_and_ground_snap` probe `WorldGround` ([[player-ground]]). Vertical physics freezes only while the tile under the feet is unloaded. With nothing within step reach, the player falls. M2 collision triangles do not support the player vertically.
 
 ## Camera Collision
 
@@ -44,6 +44,7 @@ Collision uses `RayCastVisibility::Visible`, not Bevy's `VisibleInView` default.
 
 ## See Also
 
+- [[player-ground]]: how the terrain and WMO floor rule works on the client and the server
 - [[character-generation]] — characters are the moving entities that drive collision queries
 - [[open-source-wow-clients]] — WoWee is the reference client analyzed here
 - [[terrain]] — ADT object placement and doodad collision

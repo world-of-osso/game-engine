@@ -1,5 +1,14 @@
 # Wiki Log
 
+## [2026-09-25] collision | WMO floor collision (player ground)
+
+Created [[player-ground]] and the [wmo floor collision](../specs/wmo-floor-collision.md) spec. The client and the server now choose the highest walkable terrain or WMO floor within 1.6 yd above the feet, using `shared::ground`:
+- MOPY-collidable faces are reached through the MOBN/MOBR BSP.
+- The server loads each tile lazily from the client cache.
+- A reposition no longer counts as a fall.
+
+In the live run, set-position into the Stormwind auction house landed at z 98.02, not the terrain at 94.65. In the Goldshire inn it landed at 56.96, over terrain at 56.42. Updated [[collision-system]] and [[stormwind-hilly-plaza]].
+
 ## [2026-09-25] performance | ui-toolkit settled-registry gate
 
 Merged ui-toolkit `86d2639` stops reconciling a settled registry into native entities. Profiled `sync_registry` went from 32.5 ms to 0.04 ms per frame. On a distribution master build, FPS rose in all 3 interleaved pairs (22.5→23.8, 13.0→36.0, 11.5→21.7), but two pre-gate runs were GPU-clock-limited. See [[movement-performance]].
