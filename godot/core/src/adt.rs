@@ -1,6 +1,10 @@
 //! ADT root, texture companion and object companion byte parsers.
 use crate::asset::adt_format::{adt, adt_geometry, adt_obj, adt_tex};
 
+pub use crate::terrain_material_data::{
+    TerrainBlendMode, pack_alpha_map_bytes, terrain_blend_mode, terrain_layer_animation,
+    terrain_layer_animation_params, terrain_texture_repeat, texture_layer_params,
+};
 pub use adt::{
     BlendBatch, BlendMeshData, ChunkHeightGrid, FlightBounds, ParsedLodData, SoundEmitter,
     UNIT_SIZE,
@@ -120,4 +124,100 @@ pub fn parse_tex(
 
 pub fn parse_obj(data: &[u8]) -> Result<AdtObjData, String> {
     adt_obj::load_adt_obj0(data)
+}
+
+#[cfg(test)]
+mod material_data_tests {
+    use super::*;
+
+    fn layer(
+        texture_index: u32,
+        flags: u32,
+        material_id: u8,
+        alpha_map: Option<Vec<u8>>,
+    ) -> TextureLayer {
+        TextureLayer {
+            texture_index,
+            flags: adt_tex::MclyFlags { raw: flags },
+            effect_id: 0,
+            material_id,
+            alpha_map,
+        }
+    }
+
+    #[test]
+    fn blend_modes_follow_map_flags_including_height_without_big_alpha_bit() {
+        for (raw, expected) in [
+            (0, TerrainBlendMode::Layered),
+            (0x4, TerrainBlendMode::Weighted),
+            (0x80, TerrainBlendMode::HeightWeighted),
+            (0x84, TerrainBlendMode::HeightWeighted),
+        ] {
+            assert_eq!(terrain_blend_mode(crate::wdt::MphdFlags { raw }), expected);
+        }
+    }
+
+    #[test]
+    fn texture_repeat_uses_amplifier_and_caps_exponent() {
+        assert_eq!(terrain_texture_repeat(None), 8.0);
+        assert_eq!(terrain_texture_repeat(Some(2)), 32.0);
+        assert_eq!(terrain_texture_repeat(Some(8)), 2048.0);
+        assert_eq!(terrain_texture_repeat(Some(100)), 2048.0);
+    }
+
+    #[test]
+    fn height_and_overbright_params_use_texture_index_and_mhid_presence() {
+        let params = [
+            TextureParams {
+                flags: 0,
+                height_scale: 1.25,
+                height_offset: -0.5,
+            },
+            TextureParams {
+                flags: 0,
+                height_scale: 0.75,
+                height_offset: 0.125,
+            },
+        ];
+        let layers = [layer(1, 0x80, 9, None), layer(0, 0, 4, None)];
+        let result = texture_layer_params(&params, &layers, [true, false, false, false]);
+        assert_eq!(result[0], [0.75, 0.125, 9.0, 2.0]);
+        assert_eq!(result[1], [0.0, -0.5, 4.0, 1.0]);
+        assert_eq!(result[2], [0.0, 1.0, 0.0, 1.0]);
+        assert_eq!(
+            texture_layer_params(&[], &layers, [true; 4])[0],
+            [0.0, 1.0, 9.0, 2.0]
+        );
+    }
+
+    #[test]
+    fn uv_velocity_and_reflection_follow_layer_flags() {
+        let layers = [
+            layer(0, 0x40 | 0x19 | 0x400, 0, None),
+            layer(1, 0x400, 0, None),
+        ];
+        let params = terrain_layer_animation_params(&layers);
+        assert!((params[0][0] + std::f32::consts::SQRT_2).abs() < 0.0001);
+        assert!((params[0][1] - std::f32::consts::SQRT_2).abs() < 0.0001);
+        assert_eq!(params[0][2..], [1.0, 0.0]);
+        assert_eq!(params[1], [0.0, 0.0, 1.0, 0.0]);
+        assert_eq!(params[2], [0.0; 4]);
+    }
+
+    #[test]
+    fn packed_mcal_channels_preserve_bytes_and_zero_pad_missing_layers() {
+        let layers = [
+            layer(0, 0, 0, None),
+            layer(1, 0, 0, Some(vec![64, 128])),
+            layer(2, 0, 0, None),
+            layer(3, 0, 0, Some(vec![255])),
+        ];
+        let rgba = pack_alpha_map_bytes(&layers);
+        assert_eq!(rgba.len(), 64 * 64 * 4);
+        assert_eq!(
+            &rgba[..12],
+            &[64, 0, 255, 255, 128, 0, 0, 255, 0, 0, 0, 255]
+        );
+        assert_eq!(&rgba[rgba.len() - 4..], &[0, 0, 0, 255]);
+    }
 }
