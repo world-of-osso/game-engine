@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-27] system | Native input primitives and unbuilt movement source
+
+`c8363678` supplies the canonical full persisted options schema to root and `godot/core`; its three core tests are agent-reported GREEN. The recorded root selector is blocked by 135 pre-existing compile errors and 13 warnings (`/tmp/claude/options-root-targeted.log`), so the owned test-reference repair is unrerun.
+
+At `b6540078`, retained input state is 4/4 GREEN, native gameplay state 2/2, local facing 1/1, and shared movement-wire decisions 7/7 (`/tmp/claude/{native-input-state,native-gameplay-state,native-facing,movement-wire}-green.log`). Initial REDs are `/tmp/claude/native-input-state-red.log` and `/tmp/claude/movement-wire-red.log`. These tests prove primitives, not runtime event-to-movement, prediction, UDP, fixture, or parity behavior.
+
+`db2c311e` extracts terrain-only slope blocking and step snapping. The reported 12/12 slope result has no locally discoverable proof log, so it remains pending. `10c75463` adds unbuilt source calls through camera input, terrain prediction, and typed `PlayerInput` sending; exclusive modal windows stop movement. Native terrain ground excludes WMO/doodad floor resources; pathing/scripted producers and water API compilation remain pending. No runtime movement, fixture GREEN, collision, parity, or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native full-options camera boundary unverified
 
 `d7c6f5d2` has native initialization load the shared full clamped options schema from absolute legacy `data_root/ui/options_settings.ron`. World-camera synchronization applies follow speed, zoom speed, min/max distance, and FOV. Its `WorldCamera::apply_input` ownership adapter is not invoked; other settings consumers are unwired. Active agent409 supplies the shared schema dependency.
