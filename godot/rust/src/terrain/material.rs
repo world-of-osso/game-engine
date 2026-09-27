@@ -104,13 +104,8 @@ impl TerrainMaterials {
                 continue;
             }
             let material = self.build_material(parsed, &layers.layers, &shader)?;
+            let collision = collision_from_geometry(&geometry);
             let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
-            let collision = mesh.create_trimesh_shape().ok_or_else(|| {
-                format!(
-                    "Cannot create terrain collision for chunk {}, {}",
-                    chunk.index_x, chunk.index_y
-                )
-            })?;
             chunks.push((
                 format!("Chunk{}_{}", chunk.index_x, chunk.index_y),
                 mesh,
@@ -203,6 +198,19 @@ impl TerrainMaterials {
         self.textures.insert(fdid, texture.clone());
         Ok(texture)
     }
+}
+
+fn collision_from_geometry(geometry: &adt::Geometry) -> Gd<ConcavePolygonShape3D> {
+    let mut faces = PackedVector3Array::new();
+    for triangle in geometry.indices.chunks_exact(3) {
+        for index in [triangle[0], triangle[2], triangle[1]] {
+            let position = geometry.positions[index as usize];
+            faces.push(Vector3::new(position[0], position[1], position[2]));
+        }
+    }
+    let mut shape = ConcavePolygonShape3D::new_gd();
+    shape.set_faces(&faces);
+    shape
 }
 
 fn spawn_chunk(
