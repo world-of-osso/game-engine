@@ -185,7 +185,7 @@ fn stage_lighting(data: &Path) -> Result<(), String> {
 3,0,0,0,0,0,1,3,0,0,0,0,0,0,0\n";
     fs::write(data.join("Light.csv"), lights)
         .map_err(|error| format!("Write fixture Light.csv: {error}"))?;
-    let header = "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,FogEnd,FogScaler,SunFogStrength,CloudDensity,Field_10_0_0_44649_042,Field_12_0_0_63854_043\n";
+    let header = "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,HorizonAmbientColor,GroundAmbientColor,FogEnd,FogScaler,SunFogStrength,CloudDensity,Field_10_0_0_44649_042,Field_12_0_0_63854_043\n";
     let mut keyframes = header.to_owned();
     for (id, ambient, direct) in [
         (1, 0x336699, 0x775533),
@@ -193,7 +193,7 @@ fn stage_lighting(data: &Path) -> Result<(), String> {
         (3, 0x226688, 0x994433),
     ] {
         keyframes.push_str(&format!(
-            "{id},{id},0,{direct},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},1000,0.2,0.5,0.2,0,0\n"
+            "{id},{id},0,{direct},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},1000,0.2,0.5,0.2,0,0\n"
         ));
     }
     fs::write(data.join("LightData.csv"), keyframes)
