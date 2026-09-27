@@ -55,6 +55,7 @@ pub struct GameClient {
     character_ui: Option<Gd<ui::RegistryUi>>,
     create_ui: Option<Gd<ui::RegistryUi>>,
     character_preview: character_select::CharacterPreview,
+    creation_scene: char_create::CreationScene,
     delete_confirmation: DeleteConfirmation,
     creation: Option<char_create::CharCreateState>,
     creation_catalog: Option<game_engine_core::customization_data::CustomizationDb>,
@@ -100,6 +101,7 @@ impl INode3D for GameClient {
                 data_root.clone(),
                 cache_root.clone(),
             ),
+            creation_scene: char_create::CreationScene::new(data_root.clone(), cache_root.clone()),
             loading_ui: None,
             errors_ui: None,
             account: Account::new(data_root.clone()),
@@ -148,6 +150,7 @@ impl INode3D for GameClient {
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
             .and_then(|()| self.update_character_preview())
+            .and_then(|()| self.update_creation_scene())
             .and_then(|()| self.update_player_input(delta as f32))
             .map(|()| self.world.advance(delta as f32))
             .and_then(|()| self.update_player_animation())
@@ -798,6 +801,7 @@ impl GameClient {
 
     fn reset_world(&mut self) -> Result<(), String> {
         self.character_preview.reset();
+        self.creation_scene.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
         if let Some(ui) = self.errors_ui.as_mut() {
@@ -826,6 +830,26 @@ impl GameClient {
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.character_preview
             .sync(&mut parent, selected.as_ref(), self.world_minutes)
+    }
+
+    fn update_creation_scene(&mut self) -> Result<(), String> {
+        let (Some(state), Some(db), SessionScreen::CharacterCreate) = (
+            self.creation.as_ref(),
+            self.creation_catalog.as_ref(),
+            self.account.session.screen,
+        ) else {
+            self.creation_scene.reset();
+            return Ok(());
+        };
+        let size = self
+            .base()
+            .get_viewport()
+            .ok_or("Character creation scene has no viewport")?
+            .get_visible_rect()
+            .size;
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.creation_scene
+            .sync(&mut parent, state, db, size.x / size.y.max(1.0))
     }
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {

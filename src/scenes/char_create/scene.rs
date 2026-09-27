@@ -275,9 +275,7 @@ fn sync_scene_projection(
         return;
     }
     let aspect = window.width() / window.height();
-    // M2 UI cameras use diagonal FOV; the renderer expects vertical FOV.
-    // Reference: wow_client/src/ui/model.c camera projection.
-    let vertical_fov = backdrop.framing.fov / (1.0 + aspect * aspect).sqrt();
+    let vertical_fov = game_engine::creation_scene_data::vertical_fov(backdrop.framing.fov, aspect);
     for mut projection in &mut cameras {
         if let Projection::Perspective(perspective) = &*projection
             && perspective.fov != vertical_fov

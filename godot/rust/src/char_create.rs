@@ -13,3 +13,6 @@ mod deps {
 mod logic;
 
 pub use logic::*;
+
+mod scene;
+pub(crate) use scene::CreationScene;

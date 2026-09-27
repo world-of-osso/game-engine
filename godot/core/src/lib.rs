@@ -26,6 +26,8 @@ pub mod character_model_data;
 pub mod client_options_data;
 #[cfg(test)]
 mod client_options_data_tests;
+#[path = "../../../src/scenes/char_create/background_data.rs"]
+pub mod creation_scene_data;
 #[path = "../../../src/game/creatures/creature_display_data.rs"]
 pub mod creature_display_data;
 #[cfg(test)]
@@ -92,12 +94,18 @@ mod outfit_listfile;
 pub mod player_physics_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
+#[path = "../../../src/screen_arg_data.rs"]
+pub mod screen_arg_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]
 pub mod sky_cubemap_data;
 #[path = "../../../src/rendering/skybox/sky_lightdata_data.rs"]
 pub mod sky_lightdata_data;
 #[path = "../../../src/sqlite_util.rs"]
 mod sqlite_util;
+#[path = "../../../src/startup_args_data.rs"]
+pub mod startup_args_data;
+#[cfg(test)]
+mod startup_args_data_tests;
 #[path = "../../../src/rendering/terrain/terrain_height_data.rs"]
 pub mod terrain_height_data;
 #[path = "../../../src/rendering/terrain/terrain_material_data.rs"]

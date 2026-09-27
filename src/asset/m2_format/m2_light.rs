@@ -152,6 +152,29 @@ pub fn parse_lights(md20: &[u8]) -> Vec<M2Light> {
     lights
 }
 
+/// Parse all model lights from a complete M2 file.
+pub fn parse_file_lights(m2_file: &[u8]) -> Result<Vec<M2Light>, String> {
+    Ok(parse_lights(super::parse_chunks(m2_file)?.md20))
+}
+
+/// `M2Object::getM2SceneAmbientLight`: the sum of every light's ambient term,
+/// white when the model authors none.
+pub fn scene_ambient(lights: &[M2Light], global_sequences: &[u32]) -> [f32; 3] {
+    let ambient = lights.iter().fold([0.0; 3], |sum, light| {
+        let term = evaluate_light_ambient(light, 0, 0, 0, global_sequences);
+        [sum[0] + term[0], sum[1] + term[1], sum[2] + term[2]]
+    });
+    let length = ambient
+        .iter()
+        .map(|channel| channel * channel)
+        .sum::<f32>()
+        .sqrt();
+    if length < 0.0001 {
+        return [1.0; 3];
+    }
+    ambient
+}
+
 struct LightTrackTime<'a> {
     sequence_index: usize,
     local_ms: u32,
