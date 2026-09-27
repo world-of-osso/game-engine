@@ -1,6 +1,7 @@
 //! Selected-roster character and authored campsite ownership, independent of UI projection.
 
 mod background;
+mod objects;
 
 use std::path::PathBuf;
 

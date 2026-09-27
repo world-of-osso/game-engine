@@ -238,6 +238,9 @@ func inspect_character_preview(client: Node) -> bool:
 	if absf(camera.fov - 55.0) > 0.1:
 		fail("Solo character camera FOV is not 55 degrees: " + str(camera.fov))
 		return false
+	if client.get_node_or_null("CharacterSelectScene/CampsiteObjects") == null:
+		fail("Authored campsite props and waterfall placements are absent")
+		return false
 	if DisplayServer.get_name() == "headless":
 		fail("Character background pixel probe requires a real GPU display")
 		return false
