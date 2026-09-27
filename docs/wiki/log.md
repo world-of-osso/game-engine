@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Correct Godot `PlayerInput` registration boundary
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md). Source inspection shows `godot/network/src/lib.rs` `run_worker` installs `shared::ProtocolPlugin`; `godot/Cargo.toml` patches `shared` to the local checkout at current HEAD `70dccb0`, where `src/protocol/registration.rs` registers `PlayerInput` client-to-server. Nominal pinned `e25c79d` also registers it in `src/protocol.rs`. Transport registration is therefore not missing; native input production/send invocation and real decoded-UDP `PlayerInput` proof remain absent.
+
+Root adapter import fix `6237af9d` still awaits an independent root gate, so no passing root claim is recorded. Report178's native fmt/check, core 3+7, and actual camera-fixture GREEN are not a finalized independent gate; historical `2cacf913` proof boundaries remain unchanged.
+
 ## [2026-09-27] system | Godot terrain collision and world-camera development GREEN
 
 `33c31c8e` creates a `StaticBody3D`/`ConcavePolygonShape3D` per rendered terrain chunk from the same `ArrayMesh` triangles. Authored holes remain absent because the source render mesh omits them; tile-root teardown also removes the colliders. At `f23033a8f1ec2214606cfc99a16cd3d4f5cf27d5`, the real fixture is GREEN for nine rendered tiles, 90 authored holes, terrain-height reset, collision reset, and asynchronous local assets; `/tmp/claude/godot-world-collision-build.log` is warning-free.
