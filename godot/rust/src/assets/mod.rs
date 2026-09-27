@@ -171,7 +171,7 @@ fn build_model(
                 )
             })?;
             let mesh = build_batch_mesh(model, sub)?;
-            let material = material::build_material(batch, path, &mut missing)?;
+            let material = material::load_material(batch, path, &mut missing)?;
             Ok((mesh, material))
         })
         .collect::<Result<Vec<_>, String>>()?;
