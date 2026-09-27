@@ -134,12 +134,12 @@ impl TerrainMaterials {
         layers: &[adt::TextureLayer],
         shader: &Gd<Shader>,
     ) -> Result<Gd<ShaderMaterial>, String> {
-        if !(1..=4).contains(&layers.len()) {
-            return Err(format!(
-                "Expected 1–4 authored texture layers, got {}",
-                layers.len()
-            ));
+        if layers.is_empty() {
+            return Err("Terrain chunk has no authored texture layers".into());
         }
+        // Preserve the original renderer's four texture slots, including campsite
+        // chunks with a fifth MCLY record; do not reject the entire authored tile.
+        let layers = &layers[..layers.len().min(4)];
         let tex = parsed.tex.as_ref().ok_or("Missing texture companion")?;
         let mut material = ShaderMaterial::new_gd();
         material.set_shader(shader);
