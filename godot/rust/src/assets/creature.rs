@@ -9,17 +9,17 @@ use game_engine_core::{creature_display_data::CreatureDisplay, m2};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
-use super::{appearance::PreparedNpcAppearance, load_model_node_with_appearance};
+use super::{appearance::PreparedAppearance, load_model_node_with_appearance};
 
 pub(crate) fn load_creature_model(
     data_root: &Path,
     cache_root: &Path,
     display: &CreatureDisplay,
-    appearance: Option<&PreparedNpcAppearance>,
+    appearance: Option<&PreparedAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let resolver = local_resolver(data_root, cache_root);
-    let path = cache_creature_files(&resolver, data_root, display)?;
-    cache_creature_textures(&resolver, data_root, display, &path)?;
+    let path = cache_model_files(&resolver, data_root, display.model_fdid)?;
+    cache_model_textures(&resolver, data_root, &display.skin_fdids, &path)?;
     load_model_node_with_appearance(
         &GString::from(path.to_string_lossy().as_ref()),
         &display.skin_fdids,
@@ -27,7 +27,7 @@ pub(crate) fn load_creature_model(
     )
 }
 
-fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
+pub(super) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
     CascListfileResolver::new(
         AssetResolverConfig::new()
             .with_data_root(data_root)
@@ -36,13 +36,12 @@ fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
     )
 }
 
-fn cache_creature_files(
+pub(super) fn cache_model_files(
     resolver: &CascListfileResolver,
     data_root: &Path,
-    display: &CreatureDisplay,
+    model_fdid: u32,
 ) -> Result<PathBuf, String> {
     let models = data_root.join("models");
-    let model_fdid = display.model_fdid;
     let model_path = models.join(format!("{model_fdid}.m2"));
     let path = cache_required(resolver, model_fdid, &model_path)?;
     let bytes = fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
@@ -81,10 +80,10 @@ fn cache_required(
     })
 }
 
-fn cache_creature_textures(
+pub(super) fn cache_model_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
-    display: &CreatureDisplay,
+    skin_fdids: &[u32; 3],
     model_path: &Path,
 ) -> Result<(), String> {
     let model =
@@ -102,7 +101,7 @@ fn cache_creature_textures(
         None
     };
     let parsed = m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref())?;
-    let textures = creature_texture_fdids(resolver, &parsed, &display.skin_fdids)?;
+    let textures = creature_texture_fdids(resolver, &parsed, skin_fdids)?;
     for fdid in textures {
         let path = data_root.join("textures").join(format!("{fdid}.blp"));
         // Missing textures remain the native material loader's reported missing FDIDs.
@@ -146,7 +145,7 @@ mod tests {
             skin_fdids: [126280, 0, 0],
             scale_milli: 1000,
         };
-        let path = cache_creature_files(&resolver, &data_root, &display).unwrap();
+        let path = cache_model_files(&resolver, &data_root, display.model_fdid).unwrap();
         assert_eq!(path, data_root.join("models/126278.m2"));
         let model = std::fs::read(&path).unwrap();
         let skin = std::fs::read(data_root.join("models/12627800.skin")).unwrap();
@@ -180,7 +179,7 @@ mod tests {
             skin_fdids: [0; 3],
             scale_milli: 1000,
         };
-        let path = cache_creature_files(&resolver, &data_root, &display).unwrap();
+        let path = cache_model_files(&resolver, &data_root, display.model_fdid).unwrap();
         let model = std::fs::read(path).unwrap();
         let skin = std::fs::read(data_root.join("models/101165300.skin")).unwrap();
         let skel = std::fs::read(data_root.join("models/1011653.skel")).unwrap();
