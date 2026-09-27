@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Bounded root tests and native global-WMO asset loading
+
+At `580d7300`, root `cargo fmt --check` and bounded `--bin game-engine` selectors pass 193 tests with no failures; 1,916 tests are listed, so this is not a full suite. The foliage depth-prepass GPU test is excluded. The test-only delta preserves the warning-free `e8466601` production root check. Stockade camera collision is 4/4 GREEN (`/tmp/claude/verify-root-tests-580d7300.md`, `/tmp/claude/verify-stockade-camera-580d7300.log`).
+
+Native `4c7927a6` adds cached local-CASC WMO root/indexed-complete-group loading, mesh batches, raw-group metadata, and retained floor collision; Abbey/Stockade targeted evidence is agent-reported 6/6. `e2537c87` passes global-WMO placement to the map worker. The missing-field RED becomes cached-flags/global-placement 1/1 GREEN, which still warns that collision is unused (`/tmp/claude/native-global-wmo-assets-{red,green}.log`). No scene spawn/render readiness or floor-query consumer exists: global readiness remains `Pending`; WMO runtime/parity remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Root integration imports repaired; WMO readiness boundary retained
 
 Supplied verification at `75e5911` records the import-only repair, and at `e8466601` records root `cargo fmt --check` plus `cargo check` PASS with zero warnings (`/tmp/claude/verify-root-imports-75e5911.md`, `/tmp/claude/verify-root-test-migration-e8466601.md`). The former root production-import failures are resolved. Native `50e33def` scope is unchanged; its prior fmt/check evidence remains the native proof.
