@@ -2,7 +2,11 @@
 
 use std::{collections::HashMap, fs, path::Path};
 
-use game_engine_core::{asset::wmo_format::parser::WmoMaterialDef, blp, wmo};
+use game_engine_core::{
+    asset::wmo_format::parser::WmoMaterialDef,
+    blp, wmo,
+    wmo_material_data::{composite_wmo_shader_layer, describe_wmo_shader},
+};
 use godot::{
     classes::{
         ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ResourceLoader, Shader,
@@ -45,6 +49,7 @@ pub(crate) fn build_wmo_node(
         .get_code()
         .to_string();
     let mut textures = HashMap::new();
+    let mut composites = HashMap::new();
     let mut resources = Vec::with_capacity(batches.len());
     for (index, batch) in batches.iter().enumerate() {
         let context = format!(
@@ -52,9 +57,16 @@ pub(crate) fn build_wmo_node(
             asset.root_fdid, batch.group_index
         );
         let mesh = build_batch_mesh(&batch.mesh);
-        let material =
-            build_batch_material(batch, &source, resolver, data_root, &mut textures, light)
-                .map_err(|error| format!("{context}: {error}"))?;
+        let material = build_batch_material(
+            batch,
+            &source,
+            resolver,
+            data_root,
+            &mut textures,
+            &mut composites,
+            light,
+        )
+        .map_err(|error| format!("{context}: {error}"))?;
         resources.push((batch.group_index, mesh, material));
     }
     let mut root = Node3D::new_alloc();
@@ -119,7 +131,7 @@ fn prepare_group_batch<'a>(
         })?;
     // Original WmoLitMaterial shades shader 5 through retail_shade, not PBR;
     // its StandardMaterial roughness/reflectance do not affect that fragment.
-    if !matches!(material.shader, 0 | 1 | 4 | 5 | 6 | 13 | 21) {
+    if !matches!(material.shader, 0 | 1 | 4 | 5 | 6 | 7 | 13 | 21) {
         return Err(format!(
             "WMO {} group {} material {} unsupported shader {}",
             asset.root_fdid, group.index, batch.material_index, material.shader
@@ -252,13 +264,18 @@ fn build_batch_material(
     resolver: &CascListfileResolver,
     data_root: &Path,
     textures: &mut HashMap<u32, Gd<ImageTexture>>,
+    composites: &mut HashMap<[u32; 3], Gd<ImageTexture>>,
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let authored = batch.material;
     let shader_code = shader_variant(source, authored)?;
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&crate::assets::material::shared_shader(&shader_code));
-    let base = read_wmo_texture(resolver, data_root, textures, authored.texture_fdid)?;
+    let base = if authored.shader == 7 {
+        read_shader_seven_texture(resolver, data_root, composites, authored)?
+    } else {
+        read_wmo_texture(resolver, data_root, textures, authored.texture_fdid)?
+    };
     material.set_shader_parameter("base_texture", &base.to_variant());
     if matches!(authored.shader, 6 | 13) {
         let second = read_wmo_texture(resolver, data_root, textures, authored.texture_2_fdid)?;
@@ -358,6 +375,59 @@ fn read_wmo_texture(
         return Ok(texture.clone());
     }
     let image = read_wmo_image(resolver, data_root, fdid)?;
+    let texture = create_wmo_texture(image, &format!("FDID {fdid}"))?;
+    textures.insert(fdid, texture.clone());
+    Ok(texture)
+}
+
+fn read_shader_seven_texture(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    composites: &mut HashMap<[u32; 3], Gd<ImageTexture>>,
+    authored: &WmoMaterialDef,
+) -> Result<Gd<ImageTexture>, String> {
+    let fdids = [
+        authored.texture_fdid,
+        authored.texture_2_fdid,
+        authored.texture_3_fdid,
+    ];
+    if let Some(texture) = composites.get(&fdids) {
+        return Ok(texture.clone());
+    }
+    let image = load_shader_seven_image(fdids, |fdid| read_wmo_image(resolver, data_root, fdid))?;
+    let texture = create_wmo_texture(image, &format!("shader 7 FDIDs {fdids:?}"))?;
+    composites.insert(fdids, texture.clone());
+    Ok(texture)
+}
+
+fn load_shader_seven_image(
+    fdids: [u32; 3],
+    mut read_image: impl FnMut(u32) -> Result<blp::RgbaImage, String>,
+) -> Result<blp::RgbaImage, String> {
+    let [base_fdid, second_fdid, third_fdid] = fdids;
+    let mut base =
+        read_image(base_fdid).map_err(|error| format!("base FDID {base_fdid}: {error}"))?;
+    let descriptor = describe_wmo_shader(7);
+    for (fdid, mode) in [
+        (second_fdid, descriptor.second_layer),
+        (third_fdid, descriptor.third_layer),
+    ] {
+        if fdid == 0 {
+            continue;
+        }
+        let overlay = read_image(fdid).map_err(|error| format!("overlay FDID {fdid}: {error}"))?;
+        if (base.width, base.height) != (overlay.width, overlay.height) {
+            return Err(format!(
+                "WMO overlay FDID {fdid} {}x{} differs from base FDID {base_fdid} {}x{}",
+                overlay.width, overlay.height, base.width, base.height
+            ));
+        }
+        composite_wmo_shader_layer(&mut base.pixels, &overlay.pixels, mode);
+    }
+    Ok(base)
+}
+
+fn create_wmo_texture(image: blp::RgbaImage, label: &str) -> Result<Gd<ImageTexture>, String> {
     let godot_image = Image::create_from_data(
         image.width as i32,
         image.height as i32,
@@ -365,11 +435,9 @@ fn read_wmo_texture(
         image::Format::RGBA8,
         &PackedByteArray::from(image.pixels.as_slice()),
     )
-    .ok_or_else(|| format!("Godot rejected WMO texture FDID {fdid}"))?;
-    let texture = ImageTexture::create_from_image(&godot_image)
-        .ok_or_else(|| format!("Godot rejected WMO image FDID {fdid}"))?;
-    textures.insert(fdid, texture.clone());
-    Ok(texture)
+    .ok_or_else(|| format!("Godot rejected WMO texture {label}"))?;
+    ImageTexture::create_from_image(&godot_image)
+        .ok_or_else(|| format!("Godot rejected WMO image {label}"))
 }
 
 fn read_wmo_image(
@@ -429,6 +497,104 @@ mod tests {
             fdid: Some(4_214_993),
             path: None,
         }
+    }
+
+    fn pixel(pixels: [u8; 4], width: u32, height: u32) -> blp::RgbaImage {
+        blp::RgbaImage {
+            pixels: pixels.to_vec(),
+            width,
+            height,
+        }
+    }
+
+    #[test]
+    fn shader_seven_blends_second_then_adds_third() {
+        let image = load_shader_seven_image([10, 20, 30], |fdid| {
+            Ok(match fdid {
+                10 => pixel([100, 100, 100, 255], 1, 1),
+                20 => pixel([200, 50, 0, 128], 1, 1),
+                30 => pixel([20, 40, 80, 128], 1, 1),
+                _ => unreachable!(),
+            })
+        })
+        .unwrap();
+        assert_eq!(image.pixels, [160, 95, 90, 255]);
+    }
+
+    #[test]
+    fn shader_seven_zero_overlays_leave_base_unchanged() {
+        let mut loaded = Vec::new();
+        let image = load_shader_seven_image([10, 0, 0], |fdid| {
+            loaded.push(fdid);
+            Ok(pixel([12, 34, 56, 255], 1, 1))
+        })
+        .unwrap();
+        assert_eq!(loaded, [10]);
+        assert_eq!(image.pixels, [12, 34, 56, 255]);
+    }
+
+    #[test]
+    fn shader_seven_reports_missing_and_decode_errors_by_overlay_fdid() {
+        for reason in ["missing", "decode failed"] {
+            let error = load_shader_seven_image([10, 20, 0], |fdid| {
+                if fdid == 20 {
+                    Err(reason.to_owned())
+                } else {
+                    Ok(pixel([1, 2, 3, 255], 1, 1))
+                }
+            })
+            .err()
+            .unwrap();
+            assert!(error.contains("20"), "{error}");
+            assert!(error.contains(reason), "{error}");
+        }
+    }
+
+    #[test]
+    fn shader_seven_rejects_overlay_dimension_mismatch() {
+        let error = load_shader_seven_image([10, 20, 0], |fdid| {
+            Ok(pixel([1, 2, 3, 255], if fdid == 10 { 1 } else { 2 }, 1))
+        })
+        .err()
+        .unwrap();
+        assert!(error.contains("20"), "{error}");
+        assert!(error.contains("2x1"), "{error}");
+        assert!(error.contains("1x1"), "{error}");
+    }
+
+    #[test]
+    fn authored_wmo_108238_group_38_material_58_reports_overlay_size_mismatch() {
+        let (_, resolver, data_root) = campsite_asset();
+        let placement = WmoPlacement {
+            fdid: Some(108_238),
+            ..campsite_placement()
+        };
+        let asset = assets::read_placement(&resolver, &data_root, &placement).unwrap();
+        let group = asset.groups.iter().find(|group| group.index == 38).unwrap();
+        assert!(group.batches.iter().any(|batch| batch.material_index == 58));
+        let batches = prepare_wmo_batches(&asset, 0).unwrap();
+        assert!(
+            batches
+                .iter()
+                .any(|batch| batch.group_index == 38 && batch.material.shader == 7)
+        );
+        let material = &asset.root.materials[58];
+        assert_eq!(material.shader, 7);
+        assert_eq!(material.texture_fdid, 948_125);
+        assert_eq!(material.texture_2_fdid, 922_678);
+        assert_eq!(material.texture_3_fdid, 0);
+        let error = load_shader_seven_image(
+            [
+                material.texture_fdid,
+                material.texture_2_fdid,
+                material.texture_3_fdid,
+            ],
+            |fdid| read_wmo_image(&resolver, &data_root, fdid),
+        )
+        .err()
+        .expect("authored overlay sizes differ");
+        assert!(error.contains("922678 128x128"), "{error}");
+        assert!(error.contains("948125 512x512"), "{error}");
     }
 
     #[test]
