@@ -2,11 +2,13 @@ extends "res://tests/world_units_flow.gd"
 
 # Real-server world entry spawns every parsed tile's authored `_obj0` doodads and
 # WMOs (Stormwind's city is ADT-placed WMOs), and reconnect removes them.
-# GODOT_CAPTURE_PATH optionally saves the settled in-world frame.
+# GODOT_TEST_CARD selects the roster card (default 1); GODOT_CAPTURE_PATH
+# optionally saves the settled in-world frame.
 
 func select_second_character(client: Node) -> void:
 	var ui = client.get_node("CharacterSelectUI")
-	await click_control(ui.find_child("CharCard_1", true, false))
+	var card := OS.get_environment("GODOT_TEST_CARD")
+	await click_control(ui.find_child("CharCard_" + (card if not card.is_empty() else "1"), true, false))
 	await click_control(ui.find_child("EnterWorld", true, false))
 	var deadline := Time.get_ticks_msec() + 180000
 	while Time.get_ticks_msec() < deadline:
@@ -42,6 +44,8 @@ func select_second_character(client: Node) -> void:
 		if wmos == 0 or doodads < authored_doodads / 2 or wmos + doodads != objects.spawned:
 			fail("Authored tile objects were not spawned: " + str(objects))
 			return
+		await create_timer(3.0).timeout
+		print("settled fps=%.1f nodes=%d" % [Engine.get_frames_per_second(), root_node.get_child_count()])
 		await capture()
 		var error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
 		if error != "":

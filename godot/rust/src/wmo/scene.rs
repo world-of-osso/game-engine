@@ -117,7 +117,9 @@ fn prepare_group_batch<'a>(
                 asset.root_fdid, group.index, batch.material_index
             )
         })?;
-    if !matches!(material.shader, 0 | 6 | 13 | 21) {
+    // Shader 4 (opaque) renders as the base diffuse layer, as in the original
+    // `describe_wmo_shader` default branch.
+    if !matches!(material.shader, 0 | 4 | 6 | 13 | 21) {
         return Err(format!(
             "WMO {} group {} material {} unsupported shader {}",
             asset.root_fdid, group.index, batch.material_index, material.shader
@@ -408,7 +410,12 @@ mod tests {
                 .with_shared_data_root(&data_root)
                 .with_cache_root(data_root.join("cache")),
         );
-        let placement = WmoPlacement {
+        let asset = assets::read_placement(&resolver, &data_root, &campsite_placement()).unwrap();
+        (asset, resolver, data_root)
+    }
+
+    fn campsite_placement() -> WmoPlacement {
+        WmoPlacement {
             name_id: 0,
             unique_id: 48_366_671,
             position: [-2985.072, 446.524, -423.364],
@@ -421,9 +428,7 @@ mod tests {
             scale: 1.0,
             fdid: Some(4_214_993),
             path: None,
-        };
-        let asset = assets::read_placement(&resolver, &data_root, &placement).unwrap();
-        (asset, resolver, data_root)
+        }
     }
 
     #[test]
@@ -450,6 +455,19 @@ mod tests {
         assert_eq!(group_batch.mesh.indices[0], batch.indices[0]);
         assert_eq!(group_batch.mesh.indices[1], batch.indices[2]);
         assert_eq!(group_batch.mesh.indices[2], batch.indices[1]);
+    }
+
+    /// Stormwind city WMO whose opaque materials use authored shader 4.
+    #[test]
+    fn opaque_shader_four_wmo_prepares_like_diffuse() {
+        let (_, resolver, data_root) = campsite_asset();
+        let placement = WmoPlacement {
+            fdid: Some(111_538),
+            ..campsite_placement()
+        };
+        let asset = assets::read_placement(&resolver, &data_root, &placement).unwrap();
+        let batches = prepare_wmo_batches(&asset, 0).unwrap();
+        assert!(batches.iter().any(|batch| batch.material.shader == 4));
     }
 
     #[test]
