@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] investigation | Isolated NPC fixture now reaches the diagnostic boundary
+
+The isolated fixture bootstrap was repaired incrementally: `0f83d8f9` supplies UI and Warband CSV inputs; `54f6bf69` stages cached models and terrain; `36449a60` supplies a default player hair choice while retaining explicit NPC negative choices; `09c5f94d` creates a private SQLite backup, local alias catalog, and community-CSV source symlink; `40fc60a4` recursively stages the skybox directory. The successive runtime logs all exit 101: missing fixture hair (`54f6bf69`), map alias (`36449a60`), and nested skybox model (`09c5f94d`) are bootstrap failures. The last run reaches `INITIAL_READY` through `RESET_READY`, including `TYPE6_MISSING_READY`, then fails because the generic unit logger no longer includes display `910014` in the required type-6 error, although that error is emitted (`/tmp/claude/npc-fixture-bootstrap-runtime-{54f6bf69,36449a60,09c5f94d,40fc60a4}.log`).
+
+`ca0c9204` restores NPC server-ID/display-ID and player-name error context. Its native build exits 0 with the two existing unused-WMO-field warnings (`/tmp/claude/npc-diagnostic-build-ca0c9204.log`); the runtime exits 0 through NPC, lighting, death, visibility, missing-type-6, bound-hair, type-19, effect, and reset stages, observing the corrected `NPC … display 910014` error (`/tmp/claude/npc-diagnostic-runtime-ca0c9204.log`). The headless dummy-renderer `Parameter "material" is null` diagnostic remains nonfatal; this is not error-free evidence. A new verifier audit remains pending. The separate `6acd4ec0` remote-player Vulkan artifact PASS remains valid (`/tmp/claude/verify-remote-player-6acd4ec0.md`).
+
+Updated [[character-rendering]], [NPC appearance](../specs/npc-appearance.md), the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native remote-player Vulkan proof is bounded
 
 `47a8f1ea` first exits 0 under actual Vulkan for the remote fixture, but main image inspection finds the remote female buried 1.366 m. It is not whole-body proof. The independent typed terrain-mesh oracle gives authored floor 114.245974 at remote XZ (`/tmp/claude/remote-player-floor-oracle-typed.log`); `6acd4ec0` adds a floor assertion.
