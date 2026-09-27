@@ -51,7 +51,7 @@ pub(crate) fn build_wmo_node(
             "WMO {} group {} batch {index}",
             asset.root_fdid, batch.group_index
         );
-        let mesh = build_batch_mesh(&batch.mesh).map_err(|error| format!("{context}: {error}"))?;
+        let mesh = build_batch_mesh(&batch.mesh);
         let material =
             build_batch_material(batch, &source, resolver, data_root, &mut textures, light)
                 .map_err(|error| format!("{context}: {error}"))?;
@@ -73,144 +73,175 @@ fn prepare_wmo_batches(
     asset: &NativeWmoAsset,
     doodad_set: u16,
 ) -> Result<Vec<PreparedWmoBatch<'_>>, String> {
-    let root = &asset.root;
-    let ambient = root
-        .global_ambient_volumes
-        .iter()
-        .find(|volume| volume.doodad_set_id == 0 || volume.doodad_set_id == doodad_set)
-        .or(root.global_ambient_volumes.first())
-        .or(root.ambient_volumes.first())
-        .map(|volume| volume.color_1)
-        .unwrap_or(root.ambient_color);
-    let interior_ambient = [ambient[0], ambient[1], ambient[2]];
+    let interior_ambient = wmo_interior_ambient(&asset.root, doodad_set);
     let mut prepared = Vec::new();
     for group in &asset.groups {
         if group.group.header.group_flags.antiportal {
             continue;
         }
         for batch in &group.batches {
-            if batch.indices.is_empty() {
-                continue;
+            if !batch.indices.is_empty() {
+                prepared.push(prepare_group_batch(asset, group, batch, interior_ambient)?);
             }
-            let material = root
-                .materials
-                .get(batch.material_index as usize)
-                .ok_or_else(|| {
-                    format!(
-                        "WMO {} group {} missing material {}",
-                        asset.root_fdid, group.index, batch.material_index
-                    )
-                })?;
-            if !matches!(material.shader, 0 | 6 | 13 | 21) {
-                return Err(format!(
-                    "WMO {} group {} material {} unsupported shader {}",
-                    asset.root_fdid, group.index, batch.material_index, material.shader
-                ));
-            }
-            if !matches!(material.blend_mode, 0..=3) {
-                return Err(format!(
-                    "WMO {} group {} material {} unsupported blend mode {}",
-                    asset.root_fdid, group.index, batch.material_index, material.blend_mode
-                ));
-            }
-            if batch.indices.len() % 3 != 0
-                || batch
-                    .indices
-                    .iter()
-                    .any(|index| *index as usize >= batch.positions.len())
-            {
-                return Err(format!(
-                    "WMO {} group {} has invalid batch triangles",
-                    asset.root_fdid, group.index
-                ));
-            }
-            let mut mesh = batch.clone();
-            // Shared WMO batches already apply the sole [x,z,-y] conversion.
-            // Godot's front-face convention is opposite Bevy's for these indices.
-            for triangle in mesh.indices.chunks_exact_mut(3) {
-                triangle.swap(1, 2);
-            }
-            prepared.push(PreparedWmoBatch {
-                group_index: group.index,
-                group_flags: group.group.header.flags,
-                mesh,
-                material,
-                interior_ambient,
-            });
         }
     }
     Ok(prepared)
 }
 
-fn build_batch_mesh(batch: &wmo::WmoMeshBatch) -> Result<Gd<ArrayMesh>, String> {
-    let mut positions = PackedVector3Array::new();
-    let mut normals = PackedVector3Array::new();
-    let mut uvs = PackedVector2Array::new();
-    let mut indices = PackedInt32Array::new();
-    for value in &batch.positions {
-        positions.push(Vector3::from_array(*value));
+fn wmo_interior_ambient(root: &wmo::WmoRootData, doodad_set: u16) -> [f32; 3] {
+    let global = root
+        .global_ambient_volumes
+        .iter()
+        .find(|volume| volume.doodad_set_id == 0 || volume.doodad_set_id == doodad_set)
+        .or(root.global_ambient_volumes.first());
+    let ambient = global
+        .or(root.ambient_volumes.first())
+        .map(|volume| volume.color_1)
+        .unwrap_or(root.ambient_color);
+    [ambient[0], ambient[1], ambient[2]]
+}
+
+fn prepare_group_batch<'a>(
+    asset: &'a NativeWmoAsset,
+    group: &super::assets::NativeWmoGroup,
+    batch: &wmo::WmoMeshBatch,
+    interior_ambient: [f32; 3],
+) -> Result<PreparedWmoBatch<'a>, String> {
+    let material = asset
+        .root
+        .materials
+        .get(batch.material_index as usize)
+        .ok_or_else(|| {
+            format!(
+                "WMO {} group {} missing material {}",
+                asset.root_fdid, group.index, batch.material_index
+            )
+        })?;
+    if !matches!(material.shader, 0 | 6 | 13 | 21) {
+        return Err(format!(
+            "WMO {} group {} material {} unsupported shader {}",
+            asset.root_fdid, group.index, batch.material_index, material.shader
+        ));
     }
-    for value in &batch.normals {
-        normals.push(Vector3::from_array(*value));
+    if !matches!(material.blend_mode, 0..=3) {
+        return Err(format!(
+            "WMO {} group {} material {} unsupported blend mode {}",
+            asset.root_fdid, group.index, batch.material_index, material.blend_mode
+        ));
     }
-    for value in &batch.uvs {
-        uvs.push(Vector2::new(value[0], value[1]));
+    let invalid_index = batch
+        .indices
+        .iter()
+        .any(|index| *index as usize >= batch.positions.len());
+    if batch.indices.len() % 3 != 0 || invalid_index {
+        return Err(format!(
+            "WMO {} group {} has invalid batch triangles",
+            asset.root_fdid, group.index
+        ));
     }
-    for &index in &batch.indices {
-        indices.push(index as i32);
+    let mut mesh = batch.clone();
+    // Shared WMO batches already apply the sole [x,z,-y] conversion.
+    // Godot's front-face convention is opposite Bevy's for these indices.
+    for triangle in mesh.indices.chunks_exact_mut(3) {
+        triangle.swap(1, 2);
     }
-    let mut arrays = VarArray::new();
-    arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
-    arrays.set(
-        mesh::ArrayType::VERTEX.ord() as usize,
-        &positions.to_variant(),
-    );
-    arrays.set(
-        mesh::ArrayType::NORMAL.ord() as usize,
-        &normals.to_variant(),
-    );
-    arrays.set(mesh::ArrayType::TEX_UV.ord() as usize, &uvs.to_variant());
-    arrays.set(mesh::ArrayType::INDEX.ord() as usize, &indices.to_variant());
-    if let Some(second) = &batch.second_uvs {
-        let mut uv2 = PackedVector2Array::new();
-        for value in second {
-            uv2.push(Vector2::new(value[0], value[1]));
-        }
-        arrays.set(mesh::ArrayType::TEX_UV2.ord() as usize, &uv2.to_variant());
-    }
-    if let Some(colors) = &batch.colors {
-        let mut vertex_colors = PackedColorArray::new();
-        for color in colors {
-            vertex_colors.push(Color::from_rgba(color[0], color[1], color[2], color[3]));
-        }
-        arrays.set(
-            mesh::ArrayType::COLOR.ord() as usize,
-            &vertex_colors.to_variant(),
-        );
-    }
+    Ok(PreparedWmoBatch {
+        group_index: group.index,
+        group_flags: group.group.header.flags,
+        mesh,
+        material,
+        interior_ambient,
+    })
+}
+
+fn build_batch_mesh(batch: &wmo::WmoMeshBatch) -> Gd<ArrayMesh> {
+    let mut arrays = wmo_mesh_arrays(batch);
     let mut mesh = ArrayMesh::new_gd();
     if let Some(alphas) = &batch.second_color_blend_alphas {
-        let mut custom = PackedFloat32Array::new();
-        for &alpha in alphas {
-            for value in [alpha, 0.0, 0.0, 0.0] {
-                custom.push(value);
-            }
-        }
-        arrays.set(
-            mesh::ArrayType::CUSTOM0.ord() as usize,
-            &custom.to_variant(),
-        );
-        let custom_format = mesh::ArrayCustomFormat::RGBA_FLOAT.ord() as u64;
-        let shift = mesh::ArrayFormat::CUSTOM0_SHIFT.ord();
-        let flags =
-            mesh::ArrayFormat::try_from_ord(custom_format << shift).expect("Godot custom format");
+        let flags = bind_second_mocv_alphas(&mut arrays, alphas);
         mesh.add_surface_from_arrays_ex(mesh::PrimitiveType::TRIANGLES, &arrays)
             .flags(flags)
             .done();
     } else {
         mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     }
-    Ok(mesh)
+    mesh
+}
+
+fn wmo_mesh_arrays(batch: &wmo::WmoMeshBatch) -> VarArray {
+    let positions = batch
+        .positions
+        .iter()
+        .map(|value| Vector3::from_array(*value))
+        .collect::<Vec<_>>();
+    let normals = batch
+        .normals
+        .iter()
+        .map(|value| Vector3::from_array(*value))
+        .collect::<Vec<_>>();
+    let uvs = batch
+        .uvs
+        .iter()
+        .map(|value| Vector2::new(value[0], value[1]))
+        .collect::<Vec<_>>();
+    let indices = batch
+        .indices
+        .iter()
+        .map(|&index| index as i32)
+        .collect::<Vec<_>>();
+    let mut arrays = VarArray::new();
+    arrays.resize(mesh::ArrayType::MAX.ord() as usize, &Variant::nil());
+    arrays.set(
+        mesh::ArrayType::VERTEX.ord() as usize,
+        &PackedVector3Array::from(positions.as_slice()).to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::NORMAL.ord() as usize,
+        &PackedVector3Array::from(normals.as_slice()).to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::TEX_UV.ord() as usize,
+        &PackedVector2Array::from(uvs.as_slice()).to_variant(),
+    );
+    arrays.set(
+        mesh::ArrayType::INDEX.ord() as usize,
+        &PackedInt32Array::from(indices.as_slice()).to_variant(),
+    );
+    if let Some(second) = &batch.second_uvs {
+        let uv2 = second
+            .iter()
+            .map(|value| Vector2::new(value[0], value[1]))
+            .collect::<Vec<_>>();
+        arrays.set(
+            mesh::ArrayType::TEX_UV2.ord() as usize,
+            &PackedVector2Array::from(uv2.as_slice()).to_variant(),
+        );
+    }
+    if let Some(colors) = &batch.colors {
+        let colors = colors
+            .iter()
+            .map(|color| Color::from_rgba(color[0], color[1], color[2], color[3]))
+            .collect::<Vec<_>>();
+        arrays.set(
+            mesh::ArrayType::COLOR.ord() as usize,
+            &PackedColorArray::from(colors.as_slice()).to_variant(),
+        );
+    }
+    arrays
+}
+
+fn bind_second_mocv_alphas(arrays: &mut VarArray, alphas: &[f32]) -> mesh::ArrayFormat {
+    let custom = alphas
+        .iter()
+        .flat_map(|&alpha| [alpha, 0.0, 0.0, 0.0])
+        .collect::<Vec<_>>();
+    arrays.set(
+        mesh::ArrayType::CUSTOM0.ord() as usize,
+        &PackedFloat32Array::from(custom.as_slice()).to_variant(),
+    );
+    let format = mesh::ArrayCustomFormat::RGBA_FLOAT.ord() as u64;
+    let shift = mesh::ArrayFormat::CUSTOM0_SHIFT.ord();
+    mesh::ArrayFormat::try_from_ord(format << shift).expect("Godot custom format")
 }
 
 fn build_batch_material(
@@ -273,41 +304,45 @@ fn shader_variant(source: &str, material: &WmoMaterialDef) -> Result<String, Str
     let render_mode = format!(
         "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, blend_mix;"
     );
-    let mut code = source.replace(RENDER_MODE, &render_mode);
+    let code = source.replace(RENDER_MODE, &render_mode);
     if material.material_flags.clamp_s || material.material_flags.clamp_t {
-        for (original, replacement) in [
-            (
-                "texture(base_texture, UV)",
-                "texture(base_texture, wmo_clamp_uv(UV, base_texture))",
-            ),
-            (
-                "texture(second_texture, second_uv)",
-                "texture(second_texture, wmo_clamp_uv(second_uv, second_texture))",
-            ),
-        ] {
-            if code.matches(original).count() != 1 {
-                return Err(format!("WMO shader sampler expression changed: {original}"));
-            }
-            code = code.replace(original, replacement);
-        }
-        let clamp_axis = |axis: &str, enabled: bool| {
-            if enabled {
-                format!("clamp(uv.{axis}, half_pixel.{axis}, 1.0 - half_pixel.{axis})")
-            } else {
-                format!("uv.{axis}")
-            }
-        };
-        let uv = format!(
-            "vec2 wmo_clamp_uv(vec2 uv, sampler2D tex) {{ vec2 half_pixel = vec2(0.5) / vec2(textureSize(tex, 0)); return vec2({}, {}); }}\n",
-            clamp_axis("x", material.material_flags.clamp_s),
-            clamp_axis("y", material.material_flags.clamp_t)
-        );
-        if code.matches("void vertex() {").count() != 1 {
-            return Err("WMO shader vertex entry changed".into());
-        }
-        code = code.replace("void vertex() {", &format!("{uv}void vertex() {{"));
+        return clamp_wmo_shader_uv(code, material);
     }
     Ok(code)
+}
+
+fn clamp_wmo_shader_uv(mut code: String, material: &WmoMaterialDef) -> Result<String, String> {
+    for (original, replacement) in [
+        (
+            "texture(base_texture, UV)",
+            "texture(base_texture, wmo_clamp_uv(UV, base_texture))",
+        ),
+        (
+            "texture(second_texture, second_uv)",
+            "texture(second_texture, wmo_clamp_uv(second_uv, second_texture))",
+        ),
+    ] {
+        if code.matches(original).count() != 1 {
+            return Err(format!("WMO shader sampler expression changed: {original}"));
+        }
+        code = code.replace(original, replacement);
+    }
+    let clamp_axis = |axis: &str, enabled: bool| {
+        if enabled {
+            format!("clamp(uv.{axis}, half_pixel.{axis}, 1.0 - half_pixel.{axis})")
+        } else {
+            format!("uv.{axis}")
+        }
+    };
+    let uv = format!(
+        "vec2 wmo_clamp_uv(vec2 uv, sampler2D tex) {{ vec2 half_pixel = vec2(0.5) / vec2(textureSize(tex, 0)); return vec2({}, {}); }}\n",
+        clamp_axis("x", material.material_flags.clamp_s),
+        clamp_axis("y", material.material_flags.clamp_t)
+    );
+    if code.matches("void vertex() {").count() != 1 {
+        return Err("WMO shader vertex entry changed".into());
+    }
+    Ok(code.replace("void vertex() {", &format!("{uv}void vertex() {{")))
 }
 
 fn read_wmo_texture(
