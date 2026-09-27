@@ -23,6 +23,10 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - `src/game/networking/npc.rs` — request creation after M2 spawning and update-system registration.
 - `src/rendering/character/character_customization.rs` — shared geoset visibility and override rules.
 - `src/game/creatures/npc_appearance.rs` — authored display cache reader, owned by the importer/data integration.
+- `godot/rust/src/assets/appearance.rs` — native lazy read-only `npc_appearance.sqlite`/customization/compositor cache handles; prepares body, type-6, and type-19 textures plus selected/authored geosets.
+- `godot/rust/src/assets/mod.rs` — passes an optional prepared native appearance into M2 batch construction; `assets/creature.rs` prepares it after creature asset caching and before model allocation.
+- `godot/rust/src/assets/material.rs` — substitutes a prepared non-effect batch base texture; `assets/mod.rs` applies shared selected-then-authored geoset visibility per batch.
+- `godot/rust/src/world_models.rs` — owns `NpcAppearances`, prepares by display ID before `load_creature_model`, and retains ordinary displays on the no-appearance path.
 
 ## Tests asserting this spec
 
@@ -33,7 +37,9 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 - [ ] NPC composition currently binds texture types 1, 6 and 19 only. These are compositor bindings, not the three creature skin-replacement slots (M2 types 2/11, 12 and 13). Other layout texture types (Dracthyr 7–26, types 7/8/20 of other layouts) keep the M2 defaults or are blitted into the body atlas; not visually validated.
 
-- [ ] Parent integration must import current display data and visually validate the actual replicated Northshire NPCs; synthetic material tests are not visual acceptance.
+- [ ] Parent integration must import current display data and visually validate the actual replicated Northshire NPCs; synthetic material tests are not visual acceptance. The native path reads imported caches only: it neither checks importer freshness nor rebuilds them.
+
+- [ ] Native type-6 selection/application has shared policy coverage but no native fixture coverage. The development fixture RED at `0a53831c` (`/tmp/claude/native-npc-appearance-red-0a53831c.log`) stops at the geoset/body assertion: its reported expected/actual RGBA values are a color sentinel, not a rendered-pixel measurement. Native build `1952d1cd` exits 0 and the configured UDP fixture passes 23 lifecycle/appearance phases, including baked/composed/reset (`/tmp/claude/native-npc-appearance-green-configured.log`); shutdown still reports a dummy-material null on stderr. This is resource/fixture state, not rendered-pixel proof.
 
 ## Out of scope
 
