@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native NPC visibility development GREEN
+
+`df77110d` extracts the original NPC visibility policy into shared core data. `52accdce` projects it through `WorldUnits.update_visibility` after local-player selection, reading retained snapshots and current `world_minutes`; missing selected-local health is alive, while present health needs `current > 0`. It toggles existing `Node3D` visibility without replacing visual/mesh children or maintaining duplicate health/policy state.
+
+The old-DLL RED at `6875a283` correctly fails phase 10 because a hidden-template mesh remains visible (`/tmp/claude/native-npc-visibility-red.log`). The rebuilt native `52accdce` plus fixture `f842d56d` build without warnings and pass 20 real-UDP phases: the retained 11 lighting/lifecycle phases plus nine visibility cases (`/tmp/claude/native-npc-visibility-{build,green}.log`). This is development proof; verifier331 is pending. Fixed native time 1440, non-`InWorld` execution, absent pixel proof, and unchanged root stage/schedule systems leave advancing-clock, stage, parity, and full-conversion claims open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native creature light development GREEN and acquisition closure
 
 The `0f4be666` native fixture exits 0 across 11 real-UDP headless phases (`/tmp/claude/native-creature-light-green-0f4be666.log`): static geometry/texture, visual lifecycle, live sampled-light update, replacement, new-map light, and reset. It asserts native resource values rather than pixels. The synthetic WDT has no ADT and deliberately is not `InWorld`; no readiness, rendered-lighting, visual-parity, or full-conversion conclusion follows. The fixture retains the same shared-original `authoredFogEnd / 36`; local `Position` deliberately preserves prediction, so `MovementControl { controlled: true }` drives the light-sample movement.
