@@ -15,8 +15,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender, server,
+    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender,
 };
 use shared::{
     components::{
@@ -415,7 +415,56 @@ fn assert_forward_input(inputs: Vec<PlayerInput>) -> Result<bool, String> {
     Ok(!inputs.is_empty())
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Directional {
+    Walk,
+    Backward,
+    Left,
+    Right,
+}
+
+impl Directional {
+    fn expected_vector(self, yaw: f32) -> [f32; 3] {
+        let forward = [yaw.sin(), yaw.cos()];
+        match self {
+            Self::Walk => [forward[0], 0.0, forward[1]],
+            Self::Backward => [-forward[0], 0.0, -forward[1]],
+            Self::Left => [forward[1], 0.0, -forward[0]],
+            Self::Right => [-forward[1], 0.0, forward[0]],
+        }
+    }
+}
+
+fn assert_directional_input(
+    inputs: Vec<PlayerInput>,
+    direction: Directional,
+) -> Result<bool, String> {
+    for input in &inputs {
+        let expected = direction.expected_vector(input.facing_yaw);
+        if !input.elapsed_secs.is_finite()
+            || input.elapsed_secs <= 0.0
+            || !input.facing_yaw.is_finite()
+            || input
+                .direction
+                .iter()
+                .any(|component| !component.is_finite())
+            || input
+                .direction
+                .iter()
+                .zip(expected)
+                .any(|(actual, expected)| (actual - expected).abs() > 0.15)
+            || input.running != (direction != Directional::Walk)
+            || input.jumping
+        {
+            return Err(format!(
+                "{direction:?} produced unexpected decoded PlayerInput: {input:?}"
+            ));
+        }
+    }
+    Ok(!inputs.is_empty())
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Phase {
     AwaitLoading,
     AwaitWorld,
@@ -425,6 +474,9 @@ enum Phase {
     AwaitRemoteRestored,
     Held,
     Released,
+    Moving(Directional),
+    Settling(Directional),
+    FinalStand,
     Stopped,
 }
 
@@ -496,7 +548,30 @@ fn accept_phase_line(
             *phase = Phase::Held;
         }
         (Phase::Held, "FIXTURE RELEASED") => *phase = Phase::Released,
-        (Phase::Released, "FIXTURE STOPPED") => *phase = Phase::Stopped,
+        (Phase::Released, "FIXTURE WALK_START") => *phase = Phase::Moving(Directional::Walk),
+        (Phase::Moving(Directional::Walk), "FIXTURE WALK_END") => {
+            *phase = Phase::Settling(Directional::Walk)
+        }
+        (Phase::Settling(Directional::Walk), "FIXTURE BACKWARD_START") => {
+            *phase = Phase::Moving(Directional::Backward)
+        }
+        (Phase::Moving(Directional::Backward), "FIXTURE BACKWARD_END") => {
+            *phase = Phase::Settling(Directional::Backward)
+        }
+        (Phase::Settling(Directional::Backward), "FIXTURE LEFT_START") => {
+            *phase = Phase::Moving(Directional::Left)
+        }
+        (Phase::Moving(Directional::Left), "FIXTURE LEFT_END") => {
+            *phase = Phase::Settling(Directional::Left)
+        }
+        (Phase::Settling(Directional::Left), "FIXTURE RIGHT_START") => {
+            *phase = Phase::Moving(Directional::Right)
+        }
+        (Phase::Moving(Directional::Right), "FIXTURE RIGHT_END") => {
+            *phase = Phase::Settling(Directional::Right)
+        }
+        (Phase::Settling(Directional::Right), "FIXTURE FINAL_STAND") => *phase = Phase::FinalStand,
+        (Phase::FinalStand, "FIXTURE STOPPED") => *phase = Phase::Stopped,
         (_, line) if line.starts_with("FIXTURE ") => {
             return Err(format!(
                 "out-of-order Godot fixture phase {phase:?}: {line}"
@@ -519,6 +594,8 @@ fn run_fixture(
     let mut phase = Phase::AwaitLoading;
     let mut saw_forward = false;
     let mut released_at = None;
+    let mut transition_at = None;
+    let mut saw_direction = false;
     let deadline = Instant::now() + TIMEOUT;
     let mut reader = Some(reader);
     while Instant::now() < deadline {
@@ -541,9 +618,38 @@ fn run_fixture(
             {
                 return Err("Loading was observed before character selection".into());
             }
+            let previous_phase = phase;
+            let next_start = line.trim().ends_with("_START") && line.starts_with("FIXTURE ");
+            if next_start
+                && matches!(previous_phase, Phase::Settling(_))
+                && transition_at.expect("direction release recorded").elapsed()
+                    < RELEASE_DRAIN + RELEASE_QUIET
+            {
+                return Err(format!(
+                    "next direction began before drained quiet interval: {line}"
+                ));
+            }
+            if line.trim().ends_with("_END")
+                && matches!(previous_phase, Phase::Moving(_))
+                && !saw_direction
+            {
+                return Err(format!(
+                    "no decoded stable {previous_phase:?} PlayerInput on InputChannel"
+                ));
+            }
+            if line.trim() == "FIXTURE FINAL_STAND"
+                && transition_at.expect("right release recorded").elapsed()
+                    < RELEASE_DRAIN + RELEASE_QUIET
+            {
+                return Err("final Stand occurred before drained quiet interval".into());
+            }
             accept_phase_line(app, selected, remote, &mut phase, line.trim())?;
             if phase == Phase::Released && released_at.is_none() {
                 released_at = Some(Instant::now());
+            }
+            if matches!(phase, Phase::Moving(_) | Phase::Settling(_)) && phase != previous_phase {
+                transition_at = Some(Instant::now());
+                saw_direction = false;
             }
         }
         match phase {
@@ -558,11 +664,32 @@ fn run_fixture(
                 }
             }
             Phase::Held => saw_forward |= assert_forward_input(take_inputs(app))?,
-            Phase::Released | Phase::Stopped => {
-                // Discard in-flight held-key messages before asserting a quiet interval.
-                let released_for = released_at.expect("release marker recorded").elapsed();
+            Phase::Moving(direction) => {
                 let inputs = take_inputs(app);
-                if released_for >= RELEASE_DRAIN && !inputs.is_empty() {
+                // Prior held direction may still be in flight after the key transition.
+                if transition_at.expect("direction start recorded").elapsed() >= RELEASE_DRAIN {
+                    saw_direction |= assert_directional_input(inputs, direction)?;
+                }
+            }
+            Phase::Settling(_) | Phase::FinalStand => {
+                let inputs = take_inputs(app);
+                if transition_at.expect("direction release recorded").elapsed() >= RELEASE_DRAIN
+                    && !inputs.is_empty()
+                {
+                    return Err(format!(
+                        "direction packets continued after release: {inputs:?}"
+                    ));
+                }
+            }
+            Phase::Released | Phase::Stopped => {
+                // The final stop uses the last directional release, not the old W release.
+                let stopped_at = if phase == Phase::Stopped {
+                    transition_at.expect("right release recorded")
+                } else {
+                    released_at.expect("W release marker recorded")
+                };
+                let inputs = take_inputs(app);
+                if stopped_at.elapsed() >= RELEASE_DRAIN && !inputs.is_empty() {
                     return Err(format!(
                         "movement packets continued after release: {inputs:?}"
                     ));
@@ -576,10 +703,10 @@ fn run_fixture(
             if !saw_forward {
                 return Err("no decoded held-W PlayerInput on InputChannel".into());
             }
-            let released_for = released_at.expect("release marker recorded").elapsed();
-            if released_for >= RELEASE_DRAIN + RELEASE_QUIET {
+            let stopped_for = transition_at.expect("right release recorded").elapsed();
+            if stopped_for >= RELEASE_DRAIN + RELEASE_QUIET {
                 println!(
-                    "PASS: Loading blocked input; native W moved player and sent UDP; release stopped both"
+                    "PASS: Loading blocked input; native W and Walk/Backward/Left/Right decoded UDP and authored motion; releases returned Stand and quiet"
                 );
                 return Ok(());
             }

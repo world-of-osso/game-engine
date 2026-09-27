@@ -149,6 +149,27 @@ func run_test() -> void:
 		return
 	if not await camera_controls_change_orbit(client, player):
 		return
+	# Z changes the original run/walk binding; restore running before the other directions.
+	push_key(KEY_Z, true)
+	await process_frame
+	push_key(KEY_Z, false)
+	await process_frame
+	if not await check_locomotion_direction(client, locomotion, KEY_W, 4, "WALK"):
+		return
+	push_key(KEY_Z, true)
+	await process_frame
+	push_key(KEY_Z, false)
+	await process_frame
+	if not await check_locomotion_direction(client, locomotion, KEY_S, 13, "BACKWARD"):
+		return
+	if not await check_locomotion_direction(client, locomotion, KEY_A, 11, "LEFT"):
+		return
+	if not await check_locomotion_direction(client, locomotion, KEY_D, 12, "RIGHT"):
+		return
+	if locomotion.animation.current_animation_id() != 0:
+		fail("Directional sequence did not finish at authored Stand 0")
+		return
+	print("FIXTURE FINAL_STAND")
 	print("FIXTURE STOPPED")
 	client.free()
 	print("SHUTDOWN: client freed")
@@ -658,9 +679,49 @@ func clear_ui_focus() -> void:
 	if focused != null:
 		focused.release_focus()
 
+func check_locomotion_direction(client: Node, locomotion: RefCounted, keycode: Key, animation_id: int, phase: String) -> bool:
+	var stand_pose: Array[Transform3D] = locomotion.capture_pose()
+	push_key(keycode, true)
+	print("FIXTURE " + phase + "_START")
+	var selected_at := -1
+	var changed_pose := false
+	for frame in range(HELD_FRAMES):
+		await process_frame
+		if client.account_state().screen != "InWorld":
+			push_key(keycode, false)
+			fail("World exited during " + phase + " at frame " + str(frame))
+			return false
+		var current_id: int = locomotion.animation.current_animation_id()
+		if current_id == animation_id and selected_at < 0:
+			selected_at = Time.get_ticks_msec()
+		if selected_at >= 0 and current_id != animation_id:
+			push_key(keycode, false)
+			fail(phase + " left authored animation " + str(animation_id) + " for " + str(current_id))
+			return false
+		if selected_at >= 0 and Time.get_ticks_msec() - selected_at >= 150:
+			changed_pose = changed_pose or locomotion.changed_from(stand_pose)
+	push_key(keycode, false)
+	print("FIXTURE " + phase + "_END")
+	if selected_at < 0 or not changed_pose:
+		fail(phase + " did not play authored " + str(animation_id) + " with changed PlayerModel bones after crossfade")
+		return false
+	for frame in range(STOP_FRAMES):
+		await process_frame
+		if client.account_state().screen != "InWorld":
+			fail("World exited after " + phase + " at frame " + str(frame))
+			return false
+	if locomotion.animation.current_animation_id() != 0:
+		fail(phase + " release did not return to authored Stand 0: " + str(locomotion.animation.current_animation_id()))
+		return false
+	print("PASS: " + phase + " authored " + str(animation_id) + " -> Stand 0 with changed bones")
+	return true
+
 func push_w(pressed: bool) -> void:
+	push_key(KEY_W, pressed)
+
+func push_key(keycode: Key, pressed: bool) -> void:
 	var key := InputEventKey.new()
-	key.physical_keycode = KEY_W
+	key.physical_keycode = keycode
 	key.pressed = pressed
 	root.push_input(key, true)
 
