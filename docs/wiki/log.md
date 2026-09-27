@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Shared camera-input calculation boundary
+
+`6c6d994a` moves original in-world mouse/keyboard/wheel camera calculation into Bevy-free `camera_input_data`, reusing `CameraState`, pitch limits, and portable binding matching. The root adapter maps only Bevy capture/events to that shared calculation; `47c9dac8` removes its unnecessary mutable facing binding. Core `camera_input_data` is 6/6 GREEN (`/tmp/claude/camera-input-green.log`), covering mouse orbit/facing and keyboard ordering, pitch bounds/inversion, binding modifiers/opposed actions, keyboard/wheel zoom ordering, and no-player-facing behavior. `/tmp/claude/camera-input-red.log` records the initial unexported-module RED.
+
+No native Godot input adapter, capture, options integration, or runtime proof exists. The post-warning root test attempt is blocked by concurrent unrelated terrain wiring errors (`/tmp/claude/camera-input-bevy-final.log`); this is not an integrated/full gate.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] audit | Godot loading-readiness predicate
 
 Original `check_loading_complete` treats `LocalPlayer` as local-player readiness, not rendered character/model, appearance, or equipment readiness. `tag_local_player` adds that marker only when replicated `NetPlayer.name` exactly matches `SelectedCharacterId.character_name` (`src/game/state/game_state.rs:362-381`, `src/game/networking/player.rs:804-888`). When terrain is required, completion also requires a map and either spawned global WMO or the current-player streaming-center tile loaded; pending/failed terrain remains incomplete. Without terrain, the marker alone completes. Godot still has no native predicate integration or `InWorld` transition. Character/appearance/equipment visual parity remains separately required.
