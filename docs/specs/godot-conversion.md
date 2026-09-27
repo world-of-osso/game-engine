@@ -40,7 +40,7 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 
 - [ ] Record a complete feature-parity matrix, with missing/blocked/unverified capabilities explicit. [Detailed matrix](godot-parity-matrix.md) inventories every existing feature contract; all rows remain open.
 - [ ] Exercise real client/server workflows and inspect matching visual/interaction fixtures.
-- [ ] Record matched frame-time, loading and memory evidence without inferring performance from implementation shape. `524fd1c0`'s visible FPS counter and 192×64 frame-time graph were manually verified; hidden/default and saved-false runs exit 0. The visible fixture assertions pass but shutdown times out, so it is not clean-exit proof. The overlay uses Godot's default font, not Fira Mono.
+- [ ] Record matched frame-time, loading and memory evidence without inferring performance from implementation shape. `524fd1c0`'s visible FPS counter and 192×64 frame-time graph were manually verified; hidden/default and saved-false runs exit 0. The current visible Vulkan/cage fixture exits 0 after independently inspected 30→10 FPS-cap and rendered-graph-pixel assertions (`/tmp/claude/fps-visible-shutdown-current.log`). This successful execution does not explain or fix the historical intermittent visible shutdown timeout. The overlay uses Godot's default font, not Fira Mono.
 - [ ] Pass relevant behavioral/integration tests and final Rust formatting/checks at the integrated revision.
 
 ## How it works
