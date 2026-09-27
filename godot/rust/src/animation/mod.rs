@@ -421,6 +421,40 @@ impl WowAnimationPlayer {
         Ok(player)
     }
 
+    fn validated_bone_count(&self, label: &str) -> Result<usize, String> {
+        let bones = self
+            .skeleton
+            .as_ref()
+            .ok_or_else(|| format!("{label} M2 animation has no bound Skeleton3D"))?
+            .get_bone_count() as usize;
+        let tracks = self
+            .animation
+            .as_ref()
+            .ok_or_else(|| format!("{label} M2 animation has no bound model"))?
+            .tracks
+            .len();
+        if bones != tracks {
+            return Err(format!(
+                "{label} M2 animation bone mismatch: Skeleton3D has {bones}, model has {tracks} tracks"
+            ));
+        }
+        Ok(bones)
+    }
+
+    pub(crate) fn transfer_playback_from(&mut self, previous: &mut Self) -> Result<(), String> {
+        let previous_bones = previous.validated_bone_count("Previous")?;
+        let new_bones = self.validated_bone_count("New")?;
+        if previous_bones != new_bones {
+            return Err(format!(
+                "M2 playback transfer bone mismatch: previous has {previous_bones}, new has {new_bones}"
+            ));
+        }
+        self.animation = previous.animation.take();
+        self.paused = previous.paused;
+        self.write_poses();
+        Ok(())
+    }
+
     pub(crate) fn play_death(&mut self) -> Result<(), String> {
         self.animation
             .as_mut()
