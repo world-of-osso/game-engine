@@ -99,11 +99,6 @@ impl CustomizationDb {
 
 impl CustomizationChoice {
     pub fn swatch_color(&self) -> Option<[u8; 3]> {
-        if !self.sample_swatch {
-            return None;
-        }
-        *self
-            .swatch_color_cache
-            .get_or_init(|| support::sample_swatch_color(&self.materials))
+        self.sample_swatch_color_with(support::sample_swatch_color)
     }
 }

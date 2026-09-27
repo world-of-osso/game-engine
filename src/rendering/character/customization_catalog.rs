@@ -164,6 +164,20 @@ pub struct CustomizationChoice {
     pub(super) swatch_color_cache: Arc<OnceLock<Option<[u8; 3]>>>,
 }
 
+impl CustomizationChoice {
+    pub fn sample_swatch_color_with(
+        &self,
+        loader: impl FnOnce(&[(u16, u32)]) -> Option<[u8; 3]>,
+    ) -> Option<[u8; 3]> {
+        if !self.sample_swatch {
+            return None;
+        }
+        *self
+            .swatch_color_cache
+            .get_or_init(|| loader(&self.materials))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct CustomizationOption {
     pub id: u32,
