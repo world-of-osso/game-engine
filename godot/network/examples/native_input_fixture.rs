@@ -17,7 +17,9 @@ use lightyear::prelude::{
     ReplicationSender, server,
 };
 use shared::{
-    components::{Player, Position},
+    components::{
+        EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Player, Position,
+    },
     protocol::{
         AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
         LoginResponse, PlayerInput, SelectCharacter, TerrainChannel,
@@ -150,6 +152,27 @@ fn read_output(
     })
 }
 
+fn starter_equipment() -> EquipmentAppearance {
+    EquipmentAppearance {
+        entries: [
+            (EquipmentVisualSlot::MainHand, 25, 21),
+            (EquipmentVisualSlot::Shirt, 38, 4),
+            (EquipmentVisualSlot::Legs, 39, 7),
+            (EquipmentVisualSlot::Feet, 40, 8),
+            (EquipmentVisualSlot::OffHand, 2362, 14),
+        ]
+        .into_iter()
+        .map(|(slot, item_id, inventory_type)| EquippedAppearanceEntry {
+            slot,
+            item_id: Some(item_id),
+            display_info_id: None,
+            inventory_type,
+            hidden: false,
+        })
+        .collect(),
+    }
+}
+
 fn respond_to_login(app: &mut App) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().logins);
     if requests.is_empty() {
@@ -174,7 +197,7 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
                 race: 1,
                 class: 2,
                 appearance: Default::default(),
-                equipment_appearance: Default::default(),
+                equipment_appearance: starter_equipment(),
             }],
             error: None,
         },

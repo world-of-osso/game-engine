@@ -260,6 +260,11 @@ func inspect_character_preview(client: Node) -> bool:
 	if sky == null:
 		fail("Original campsite sky model is absent")
 		return false
+	var main_hand := preview.find_child("EquipmentMainHand", true, false) as Node3D
+	var off_hand := preview.find_child("EquipmentOffHand", true, false) as Node3D
+	if main_hand == null or off_hand == null:
+		fail("Equipped starter sword and shield are missing from the selected character")
+		return false
 	if DisplayServer.get_name() == "headless":
 		fail("Character background pixel probe requires a real GPU display")
 		return false
@@ -270,6 +275,17 @@ func inspect_character_preview(client: Node) -> bool:
 	var shown := root.get_texture().get_image()
 	print("TRACE PIXEL_CAPTURED elapsed_ms=", Time.get_ticks_msec())
 	shown.save_png("res://../data/diagnostics/godot-conversion/character-select-preview.png")
+	main_hand.visible = false
+	off_hand.visible = false
+	for _frame in range(2):
+		await RenderingServer.frame_post_draw
+	var without_weapons := root.get_texture().get_image()
+	main_hand.visible = true
+	off_hand.visible = true
+	if count_changed_pixels(shown, without_weapons) < 5:
+		fail("Equipped starter sword and shield do not contribute rendered pixels")
+		return false
+	print("PASS: equipped starter weapons change selected-character pixels")
 	preview.visible = false
 	for _frame in range(2):
 		await RenderingServer.frame_post_draw
