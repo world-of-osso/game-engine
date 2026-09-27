@@ -9,19 +9,21 @@ use game_engine_core::{creature_display_data::CreatureDisplay, m2};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
-use super::load_model_node_with_skin_fdids;
+use super::{appearance::PreparedNpcAppearance, load_model_node_with_appearance};
 
 pub(crate) fn load_creature_model(
     data_root: &Path,
     cache_root: &Path,
     display: &CreatureDisplay,
+    appearance: Option<&PreparedNpcAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let resolver = local_resolver(data_root, cache_root);
     let path = cache_creature_files(&resolver, data_root, display)?;
     cache_creature_textures(&resolver, data_root, display, &path)?;
-    load_model_node_with_skin_fdids(
+    load_model_node_with_appearance(
         &GString::from(path.to_string_lossy().as_ref()),
         &display.skin_fdids,
+        appearance,
     )
 }
 
