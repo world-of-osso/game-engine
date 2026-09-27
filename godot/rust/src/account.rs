@@ -17,10 +17,18 @@ use shared::protocol::{
     WorldPortAck,
 };
 
+#[derive(Default)]
+pub(crate) struct StartupLoginOptions {
+    pub preselected_name: Option<String>,
+    pub auto_enter_world: bool,
+    pub startup_screen: Option<SessionScreen>,
+}
+
 /// Godot host's account state. Only NetworkBridge owns the transport ECS world.
 pub struct Account {
     pub session: Session,
     pub reply_received: bool,
+    pub(crate) startup_options: StartupLoginOptions,
     bridge: Option<NetworkBridge>,
     data_root: PathBuf,
     hostname: String,
@@ -48,6 +56,7 @@ impl Account {
         Self {
             session: Session::default(),
             reply_received: false,
+            startup_options: StartupLoginOptions::default(),
             bridge: None,
             data_root,
             hostname: String::new(),
@@ -61,15 +70,34 @@ impl Account {
         password: &str,
         register: bool,
     ) -> Result<(), String> {
-        self.stop()?;
-        self.reply_received = false;
-        self.hostname = hostname.to_owned();
-        self.session.token = self.read_token()?;
+        self.prepare_connection(hostname)?;
         let reconnect = !register && username.trim().is_empty() && password.trim().is_empty();
         if reconnect && self.session.token.is_none() {
             return Err("No saved session to reconnect".into());
         }
         self.start_transport(username, password, register)
+    }
+
+    pub fn connect_startup(
+        &mut self,
+        hostname: &str,
+        username: &str,
+        password: &str,
+    ) -> Result<(), String> {
+        self.prepare_connection(hostname)?;
+        if self.session.token.is_some() {
+            self.start_transport("", "", false)
+        } else {
+            self.start_transport(username, password, false)
+        }
+    }
+
+    fn prepare_connection(&mut self, hostname: &str) -> Result<(), String> {
+        self.stop()?;
+        self.reply_received = false;
+        self.hostname = hostname.to_owned();
+        self.session.token = self.read_token()?;
+        Ok(())
     }
 
     fn start_transport(
@@ -222,10 +250,18 @@ impl Account {
 
     fn receive_message(&mut self, message: ProtocolMessage) -> Result<Vec<SessionEffect>, String> {
         if message.is::<LoginResponse>() {
+            let response = decode(message)?;
             self.reply_received = true;
-            return Ok(self
-                .session
-                .receive_login(decode(message)?, SessionOptions::default()));
+            let startup = std::mem::take(&mut self.startup_options);
+            if self.session.reconnect_phase == ReconnectPhase::Inactive {
+                validate_startup_name(&response, startup.preselected_name.as_deref())?;
+            }
+            let options = SessionOptions {
+                preselected_name: startup.preselected_name.as_deref(),
+                auto_enter_world: startup.auto_enter_world,
+                startup_screen: startup.startup_screen,
+            };
+            return Ok(self.session.receive_login(response, options));
         }
         if message.is::<RegisterResponse>() {
             self.reply_received = true;
@@ -293,6 +329,26 @@ impl Account {
     }
 }
 
+fn validate_startup_name(response: &LoginResponse, name: Option<&str>) -> Result<(), String> {
+    if !response.success {
+        return Ok(());
+    }
+    let Some(name) = name else {
+        return Ok(());
+    };
+    if response
+        .characters
+        .iter()
+        .any(|character| character.name.eq_ignore_ascii_case(name))
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "Character '{name}' not found in authenticated roster"
+        ))
+    }
+}
+
 fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, String> {
     use game_engine_core::csv_util::header_index;
 
@@ -333,7 +389,43 @@ fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::protocol::TransferAbortReason;
+    use shared::components::{CharacterAppearance, EquipmentAppearance};
+    use shared::protocol::{CharacterListEntry, TransferAbortReason};
+
+    #[test]
+    fn startup_name_must_match_authenticated_roster_without_fallback() {
+        let response = LoginResponse {
+            success: true,
+            token: "new-token".into(),
+            characters: vec![CharacterListEntry {
+                character_id: 42,
+                name: "Alessio".into(),
+                level: 10,
+                race: 1,
+                class: 2,
+                appearance: CharacterAppearance::default(),
+                equipment_appearance: EquipmentAppearance::default(),
+            }],
+            error: None,
+        };
+        assert!(validate_startup_name(&response, Some("aLeSsIo")).is_ok());
+        assert!(validate_startup_name(&response, None).is_ok());
+        assert_eq!(
+            validate_startup_name(&response, Some("Missing")),
+            Err("Character 'Missing' not found in authenticated roster".into())
+        );
+    }
+
+    #[test]
+    fn failed_login_does_not_validate_startup_name() {
+        let response = LoginResponse {
+            success: false,
+            token: String::new(),
+            characters: Vec::new(),
+            error: Some("Invalid credentials".into()),
+        };
+        assert!(validate_startup_name(&response, Some("Missing")).is_ok());
+    }
 
     #[test]
     fn full_instance_error_does_not_require_map_catalog() {
