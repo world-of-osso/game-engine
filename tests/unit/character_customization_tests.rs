@@ -1,27 +1,29 @@
 use super::{
     CharacterCustomizationSelection, apply_exact_geoset_overrides,
     apply_explicit_equipment_overlays, apply_hidden_geoset_groups, collect_active_geosets,
-    collect_appearance_materials, component_sections_for_slot, group_zero_visible,
-    merge_overlay_texture_sets, replacement_texture_for_batch,
+    collect_appearance_materials, component_sections_for_slot, merge_overlay_texture_sets,
+    replacement_texture_for_batch,
 };
 use crate::equipment_appearance::ResolvedEquipmentAppearance;
 use bevy::prelude::{Assets, Image};
 use game_engine::customization_data::CustomizationDb;
+use game_engine::geoset_visibility_data::is_geoset_visible;
 use game_engine::outfit_data::OutfitResult;
 use shared::components::{CharacterAppearance, EquipmentVisualSlot};
 use std::path::Path;
 
 #[test]
 fn hairstyle_group_zero_keeps_base_body_segments_visible() {
-    assert!(group_zero_visible(0, 2));
-    assert!(group_zero_visible(1, 2));
-    assert!(group_zero_visible(2, 2));
-    assert!(group_zero_visible(28, 2));
+    let visible = |mesh_part_id| is_geoset_visible(mesh_part_id, &[(0, 2)], &[0]);
+    assert!(visible(0));
+    assert!(visible(1));
+    assert!(visible(2));
+    assert!(visible(28));
 
-    assert!(!group_zero_visible(5, 2));
-    assert!(!group_zero_visible(16, 2));
-    assert!(!group_zero_visible(17, 2));
-    assert!(!group_zero_visible(18, 2));
+    assert!(!visible(5));
+    assert!(!visible(16));
+    assert!(!visible(17));
+    assert!(!visible(18));
 }
 
 #[test]
