@@ -152,14 +152,15 @@ fn assert_starter_weapon_attachments(world: &mut World, owner: Entity) {
         .clone();
     let mut query = world.query::<(&crate::equipment::EquipmentItem, &ChildOf, &Children)>();
     for (slot, bone) in [
-        (crate::equipment::EquipmentSlot::MainHand, 201),
-        (crate::equipment::EquipmentSlot::OffHand, 206),
+        // The sword on attachment 1 (right palm), the shield on attachment 0 (left wrist).
+        (crate::equipment::EquipmentSlot::MainHand, 206),
+        (crate::equipment::EquipmentSlot::OffHand, 201),
     ] {
         let items: Vec<_> = query
             .iter(world)
             .filter(|(item, parent, _)| item._slot == slot && parent.parent() == joints[bone])
             .collect();
-        assert_eq!(items.len(), 1, "{slot:?} must attach to authored hand bone");
+        assert_eq!(items.len(), 1, "{slot:?} must attach to its authored bone");
         assert!(
             !items[0].2.is_empty(),
             "{slot:?} must contain rendered model children"
@@ -171,9 +172,9 @@ fn body_texture_pixels(world: &mut World) -> std::collections::HashMap<Entity, V
     let mut query = world.query::<(
         Entity,
         &crate::m2_spawn::BatchTextureType,
-        &MeshMaterial3d<StandardMaterial>,
+        &MeshMaterial3d<crate::retail_m2_material::M2Material>,
     )>();
-    let materials = world.resource::<Assets<StandardMaterial>>();
+    let materials = world.resource::<Assets<crate::retail_m2_material::M2Material>>();
     let images = world.resource::<Assets<Image>>();
     query
         .iter(world)
@@ -182,6 +183,7 @@ fn body_texture_pixels(world: &mut World) -> std::collections::HashMap<Entity, V
             let handle = materials
                 .get(&material.0)
                 .unwrap()
+                .base
                 .base_color_texture
                 .as_ref()
                 .unwrap();
