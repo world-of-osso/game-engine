@@ -314,3 +314,71 @@ fn rect_by_name(reg: &FrameRegistry, name: &str) -> LayoutRect {
         .and_then(|frame| frame.layout_rect.clone())
         .expect(name)
 }
+
+fn open_menu_state(shared: &mut SharedContext, difficulty_menu: Option<DifficultyMenuState>) {
+    let mut state = sample_unit_frames_context()
+        .get::<InWorldUnitFramesState>()
+        .unwrap()
+        .clone();
+    state.menu = UnitFrameMenuState {
+        visible: true,
+        title: "Xpbar".into(),
+        x: 746.0,
+        y: 850.0,
+        player_items: vec![UnitMenuItem {
+            name: "UnitFrameContextMenuDungeonDifficulty".into(),
+            label: "Dungeon Difficulty".into(),
+            action: ACTION_UNIT_MENU_DUNGEON_DIFFICULTY.into(),
+        }],
+        difficulty_menu,
+    };
+    shared.insert(state);
+}
+
+/// The live client keeps one registry and lays it out incrementally: the submenu opened
+/// after the menu must get geometry on the following frames.
+#[test]
+fn the_difficulty_submenu_is_laid_out_when_it_opens_on_a_settled_menu() {
+    let mut app = layout_test_support::layout_app(1920.0, 1080.0);
+    app.finish();
+    app.cleanup();
+    let mut screen = Screen::new(inworld_unit_frames_screen);
+    let mut shared = SharedContext::new();
+    open_menu_state(&mut shared, None);
+    {
+        let mut ui = app.world_mut().resource_mut::<crate::ui::plugin::UiState>();
+        screen.sync(&shared, &mut ui.registry);
+    }
+    for _ in 0..3 {
+        app.update();
+    }
+    let submenu = DifficultyMenuState {
+        x: 886.0,
+        y: 928.0,
+        entries: [
+            (1, "Normal", true),
+            (2, "Heroic", false),
+            (23, "Mythic", false),
+        ]
+        .into_iter()
+        .map(|(difficulty_id, label, checked)| DifficultyMenuEntry {
+            difficulty_id,
+            label: label.into(),
+            checked,
+            enabled: true,
+        })
+        .collect(),
+    };
+    open_menu_state(&mut shared, Some(submenu));
+    {
+        let mut ui = app.world_mut().resource_mut::<crate::ui::plugin::UiState>();
+        screen.sync(&shared, &mut ui.registry);
+    }
+    for _ in 0..3 {
+        app.update();
+    }
+    let ui = app.world().resource::<crate::ui::plugin::UiState>();
+    let heroic = rect_by_name(&ui.registry, "UnitFrameDifficultyMenu2");
+    assert_eq!((heroic.x, heroic.width), (892.0, 108.0));
+    assert!(heroic.y > 928.0, "{heroic:?}");
+}

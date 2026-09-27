@@ -35,6 +35,20 @@ pub const ACTION_UNIT_MENU_CLOSE: &str = "unit_menu_close";
 pub const ACTION_UNIT_MENU_INSPECT: &str = "unit_menu_inspect";
 /// `UnitPopupTradeButtonMixin`.
 pub const ACTION_UNIT_MENU_TRADE: &str = "unit_menu_trade";
+/// `UnitPopupDungeonDifficultyButtonMixin`: opens the Dungeon Difficulty submenu.
+pub const ACTION_UNIT_MENU_DUNGEON_DIFFICULTY: &str = "unit_menu_dungeon_difficulty";
+/// `UnitPopupDungeonDifficulty1..3ButtonMixin:OnClick` → `SetDungeonDifficultyID(<id>)`.
+pub const ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX: &str = "unit_menu_dungeon_difficulty:";
+pub const DIFFICULTY_MENU_W: f32 = 120.0;
+const DIFFICULTY_ROW_H: f32 = 20.0;
+const DIFFICULTY_MENU_TOP: f32 = 26.0;
+/// `common-dropdown-tickradial` / `common-dropdown-icon-radialtick-yellow` on
+/// UiTextureAtlas 2634 (FDID 5390329, 512x256), 18x18.
+const RADIO_SHEET_FDID: u32 = 5_390_329;
+const RADIO_EMPTY_COORDS: &str = "0.138671875,0.173828125,0.52734375,0.59765625";
+const RADIO_CHECKED_COORDS: &str = "0.138671875,0.173828125,0.44921875,0.51953125";
+const MENU_TEXT_ENABLED: &str = "1.0,1.0,1.0,1.0";
+const MENU_TEXT_DISABLED: &str = "0.5,0.5,0.5,1.0";
 pub const UNIT_MENU_W: f32 = 140.0;
 const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
     ContextMenuItem {
@@ -141,6 +155,32 @@ pub struct UnitFrameMenuState {
     /// Player-unit entries (`UnitPopup` Invite / Promote / Leave … then Inspect), shown
     /// before Close.
     pub player_items: Vec<UnitMenuItem>,
+    /// The Dungeon Difficulty submenu, open beside the menu.
+    pub difficulty_menu: Option<DifficultyMenuState>,
+}
+
+/// `UnitPopupDungeonDifficultyButtonMixin:GetEntries`: Normal, Heroic, Mythic radios.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DifficultyMenuState {
+    pub x: f32,
+    pub y: f32,
+    pub entries: Vec<DifficultyMenuEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DifficultyMenuEntry {
+    pub difficulty_id: u32,
+    /// `PLAYER_DIFFICULTY1`, `PLAYER_DIFFICULTY2`, `PLAYER_DIFFICULTY6`.
+    pub label: String,
+    /// `IsChecked`: the player's dungeon difficulty.
+    pub checked: bool,
+    /// `IsEnabled` (`DifficultyUtil.IsDungeonDifficultyEnabled`).
+    pub enabled: bool,
+}
+
+/// Height of the Dungeon Difficulty submenu with `rows` entries.
+pub fn difficulty_menu_height(rows: usize) -> f32 {
+    DIFFICULTY_MENU_TOP + rows as f32 * DIFFICULTY_ROW_H + 6.0
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -204,6 +244,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
             {boss_frames(&state.bosses)}
             {unit_frame_menu(&state.menu)}
+            {difficulty_menu(state.menu.difficulty_menu.as_ref())}
         }
     }
 }
@@ -556,6 +597,125 @@ fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
         y: state.y,
         items: &items,
     })
+}
+
+/// The rows the Dungeon Difficulty submenu always has (Normal, Heroic, Mythic), so they
+/// exist, laid out, before it first opens.
+const DIFFICULTY_MENU_ROWS: [u32; 3] = [1, 2, 23];
+
+/// The Dungeon Difficulty submenu (`DUNGEON_DIFFICULTY`): a radio row per difficulty,
+/// grey while disabled (its click is ignored, `unit_frames::UnitFrameClick`).
+fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
+    let hidden = state.is_none();
+    let (x, y) = state.map_or((0.0, 0.0), |menu| (menu.x, menu.y));
+    let height = difficulty_menu_height(DIFFICULTY_MENU_ROWS.len());
+    let rows: Element = DIFFICULTY_MENU_ROWS
+        .iter()
+        .enumerate()
+        .flat_map(|(index, &difficulty_id)| {
+            let entry = state
+                .and_then(|menu| {
+                    menu.entries
+                        .iter()
+                        .find(|entry| entry.difficulty_id == difficulty_id)
+                })
+                .cloned()
+                .unwrap_or(DifficultyMenuEntry {
+                    difficulty_id,
+                    label: String::new(),
+                    checked: false,
+                    enabled: false,
+                });
+            difficulty_row(index, &entry)
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "UnitFrameDifficultyMenu",
+            width: {DIFFICULTY_MENU_W},
+            height: {height},
+            hidden: hidden,
+            strata: FrameStrata::Dialog,
+            frame_level: 61.0,
+            background_color: "0.03,0.03,0.03,0.96",
+            pos_type: "absolute",
+            left: {x},
+            top: {y},
+            fontstring {
+                name: "UnitFrameDifficultyMenuTitle",
+                width: {DIFFICULTY_MENU_W - 12.0},
+                height: 14.0,
+                text: "Dungeon Difficulty",
+                font_size: 10.0,
+                font_color: "1.0,0.82,0.0,1.0",
+                justify_h: "LEFT",
+                pos_type: "absolute",
+                left: 6.0,
+                top: 6.0,
+            }
+            {rows}
+        }
+    }
+}
+
+fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
+    let row_name = dyn_name(format!("UnitFrameDifficultyMenu{}", entry.difficulty_id));
+    let radio_name = dyn_name(format!(
+        "UnitFrameDifficultyMenu{}Radio",
+        entry.difficulty_id
+    ));
+    let text_name = dyn_name(format!(
+        "UnitFrameDifficultyMenu{}Text",
+        entry.difficulty_id
+    ));
+    let top = DIFFICULTY_MENU_TOP + index as f32 * DIFFICULTY_ROW_H;
+    let coords = if entry.checked {
+        RADIO_CHECKED_COORDS
+    } else {
+        RADIO_EMPTY_COORDS
+    };
+    let color = if entry.enabled {
+        MENU_TEXT_ENABLED
+    } else {
+        MENU_TEXT_DISABLED
+    };
+    let action = format!(
+        "{ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX}{}",
+        entry.difficulty_id
+    );
+    rsx! {
+        r#frame {
+            name: row_name,
+            width: {DIFFICULTY_MENU_W - 12.0},
+            height: {DIFFICULTY_ROW_H},
+            onclick: action.as_str(),
+            pos_type: "absolute",
+            left: 6.0,
+            top: {top},
+            texture {
+                name: radio_name,
+                width: 18.0,
+                height: 18.0,
+                texture_fdid: RADIO_SHEET_FDID,
+                tex_coords: coords,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 1.0,
+            }
+            fontstring {
+                name: text_name,
+                width: {DIFFICULTY_MENU_W - 32.0},
+                height: 20.0,
+                text: entry.label.as_str(),
+                font_size: 10.0,
+                font_color: color,
+                justify_h: "LEFT",
+                pos_type: "absolute",
+                left: 19.0,
+                top: 0.0,
+            }
+        }
+    }
 }
 
 #[cfg(test)]

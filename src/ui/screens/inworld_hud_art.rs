@@ -42,6 +42,32 @@ pub(super) const MINIMAP_MAIL: SheetCrop = SheetCrop {
     bottom: 155.0,
 };
 
+/// UiTextureAtlas 2239: `interface/hud/uiguildbanner.blp`, 128x128.
+const GUILD_BANNER_SHEET: u32 = 4_764_688;
+
+const fn guild_banner(left: f32, right: f32, top: f32, bottom: f32) -> SheetCrop {
+    SheetCrop {
+        fdid: GUILD_BANNER_SHEET,
+        sheet_w: 128.0,
+        sheet_h: 128.0,
+        left,
+        right,
+        top,
+        bottom,
+    }
+}
+
+/// `ui-hud-minimap-guildbanner-background-top` (member 18409), 36x37.
+pub(super) const INSTANCE_BANNER_BACKGROUND: SheetCrop = guild_banner(1.0, 37.0, 40.0, 77.0);
+/// `ui-hud-minimap-guildbanner-border-top` (member 18411), 36x37.
+pub(super) const INSTANCE_BANNER_BORDER: SheetCrop = guild_banner(39.0, 75.0, 1.0, 38.0);
+/// `ui-hud-minimap-guildbanner-normal-large` (member 25851), 16x16.
+pub(super) const INSTANCE_BANNER_NORMAL: SheetCrop = guild_banner(95.0, 111.0, 19.0, 35.0);
+/// `ui-hud-minimap-guildbanner-heroic-large` (member 18455), 16x16.
+pub(super) const INSTANCE_BANNER_HEROIC: SheetCrop = guild_banner(77.0, 93.0, 20.0, 36.0);
+/// `ui-hud-minimap-guildbanner-mythic-large` (member 18457), 16x16.
+pub(super) const INSTANCE_BANNER_MYTHIC: SheetCrop = guild_banner(95.0, 111.0, 1.0, 17.0);
+
 /// UiTextureAtlas 2136, 1024x512.
 const MICRO_SHEET: u32 = 4_708_813;
 /// UiTextureAtlas 2098, 512x128.

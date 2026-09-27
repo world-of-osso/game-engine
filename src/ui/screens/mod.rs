@@ -54,6 +54,7 @@ pub mod pvp_frame_component;
 pub mod quest_art;
 pub mod quest_frame_component;
 pub mod quest_log_frame_component;
+pub mod raid_info_frame_component;
 pub mod raid_warning_frame_component;
 pub mod ready_check_frame_component;
 pub mod reputation_frame_component;
