@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] investigation | Godot character-select preview is absent before pending lifecycle work
+
+The user-trial screenshot is blank UI (`/tmp/claude/godot-charselect-user-red.png`). Before `d6b45c13`, `attach_character_ui` builds roster UI only and has no selected-character 3D spawn. Owned UDP/Godot RED exits 101 with `Authenticated character selection has no selected-character 3D preview` (`/tmp/claude/character-select-preview-red.log`). `d6b45c13` adds selected-roster lifecycle with `Mesh` and current-camera regression assertions; `6aa18acc` permits isolated visual pixel hide/show plus snapshot. The body loader remains unbuilt: no GREEN or visible-preview claim. Clothing/equipment and the authored campsite remain separate requirements. `1e8859c7`/`94f4e4f5` update transfer-abort API compatibility; session transfer tests are 6/6, native account proof remains pending.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Standalone Godot WMO shader pixels
 
 `8116839b` adds standalone `wmo.gdshader` plus an actual Vulkan fixture. Its 25 pixel cases pass: MOCV interior/exterior/missing behavior; MOMT 6/13, MOCV2, UV2 and missing-UV2 repeat sampling; alpha modes; emissive/unlit; fog; and direct-shadow recovery (`/tmp/claude/native-wmo-shader-green-8116839b.log`). The initial absent-shader RED is `/tmp/claude/native-wmo-shader-red.log`. The first repeat-UV1 oracle was corrected only in the fixture because the original root sampler is linear. Compositor protocol warnings are not shader `ERROR`s. Independent verifier458 is pending; native WMO scene/material binding, portal culling, water, doodads, visual parity, and full conversion remain open.
