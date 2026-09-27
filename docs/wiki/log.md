@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Independent native transfer boundary gate
+
+At `e028babadf408e760b8aea7d925116efff90fd11`, independent verification passes root/native fmt and checks, loading 3/3, core camera-input 6/6 and WMO-mesh 2/2, root WMO-mesh 1/1 and `UIErrors` wrapper 4/4, plus native `world_camera_flow` and `enter_world_flow` (`/tmp/claude/verify-native-transfer-summary.md` and listed logs). Root warning findings remain baseline: unused `InputBindings` imports, plus the root `UIErrors` test's unused `super::*`.
+
+The unchanged owned transfer runtime evidence was inspected but not rerun; `native-transfer-green.log` remains earlier evidence, not a fresh e028 result. `UIErrors` and account `RegistryUi` screens are mutually exclusive today, so no ordering fix is justified. Native global-WMO spawn is absent; WMO mesh data is not native WMO rendering, shared camera calculation is not native input, and reconnect has no proof. Full conversion remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Typed native transfer wiring remains uncompiled
 
 `237d6aa3` adds typed transfer/session-account state: `NewWorld` starts a pending world port and selects `Loading`; `TransferAborted` becomes a transfer-error event; only native readiness completion may send `WorldPortAck`. `1de253b7`/`7480f999`/`3ae265ea` add and correct the owned Godot UDP transfer fixture, including typed instance-ID comparisons. Session agent evidence is targeted 4/4 only.
