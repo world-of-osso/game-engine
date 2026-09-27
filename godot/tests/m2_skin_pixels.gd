@@ -79,4 +79,22 @@ func run_pixels() -> bool:
 	overrides = PackedInt64Array([0, 0, 0])
 	if not prepare_fixture(7, 0x10, 1) or not await load_quad():
 		return false
-	return await assert_pixel("zero creature slot does not invent a texture", Color.BLACK)
+	# An unbound Godot sampler reads white; the loader must not synthesize a texture.
+	var material := loaded.get_node("Batch0").get_surface_override_material(0) as ShaderMaterial
+	if material.get_shader_parameter("base_texture") != null:
+		push_error("Zero creature slot unexpectedly bound a texture")
+		return false
+	if not await assert_pixel("zero creature slot leaves sampler unbound", Color.WHITE):
+		return false
+	return assert_invalid_slots()
+
+func assert_invalid_slots() -> bool:
+	for slots in [PackedInt64Array([1, 2]), PackedInt64Array([-1, 0, 0]), PackedInt64Array([4294967296, 0, 0])]:
+		var result: Dictionary = loader.call("load_m2_with_skin_fdids", FIXTURE + "/models/quad.m2", slots)
+		if not result.has("error") or result.has("node"):
+			push_error("Invalid skin texture slots were accepted: " + str(slots))
+			if result.get("node") is Node3D:
+				result.node.free()
+			return false
+	print("PASS: invalid creature texture slots rejected")
+	return true
