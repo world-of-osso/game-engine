@@ -3043,6 +3043,7 @@ dependencies = [
  "glam",
  "godot",
  "ktx2-rw",
+ "rusqlite",
  "shared",
  "taffy",
  "ui-toolkit-core",
