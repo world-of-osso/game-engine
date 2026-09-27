@@ -10,6 +10,7 @@ Replace the Bevy client engine with Godot while retaining reusable Rust and pres
 - [ ] Retain existing local-CASC asset resolution and supported M2/BLP/ADT/WMO parsing semantics, materials, characters, animation, equipment and world streaming.
 - [ ] Preserve existing camera, collision, light/sky/shadow, particle and sound behavior.
 - [ ] Native terrain collision follows rendered ADT triangles, leaves authored holes open, and disappears on map reset/reconnect (`godot/tests/world_collision_flow.gd`).
+- [ ] Native world camera uses the original orbit/follow/collision calculations, ignores selected-player descendants and hidden mesh colliders, and is removed on map reset without establishing world readiness (`godot/tests/world_camera_flow.gd`).
 
 ### Application and UI parity
 

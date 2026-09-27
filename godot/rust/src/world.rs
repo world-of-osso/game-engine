@@ -162,6 +162,10 @@ impl WorldUnits {
         self.root.clone()
     }
 
+    pub fn local_player_node(&self) -> Option<Gd<Node3D>> {
+        Some(self.units.get(&self.local_player_id?)?.node.clone())
+    }
+
     pub fn local_player_transform(&self) -> Option<Transform3D> {
         let unit = self.units.get(&self.local_player_id?)?;
         Some(unit.node.get_transform())

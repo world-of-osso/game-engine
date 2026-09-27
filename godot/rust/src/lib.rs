@@ -1,6 +1,7 @@
 mod account;
 mod animation;
 mod assets;
+mod camera;
 mod lighting;
 mod scene;
 mod terrain;
@@ -39,6 +40,7 @@ pub struct GameClient {
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
     world_lighting: lighting::WorldLighting,
+    world_camera: camera::WorldCamera,
     world_minutes: f32,
     server_hostname: String,
 }
@@ -60,6 +62,7 @@ impl INode3D for GameClient {
             terrain: terrain::streaming::StreamedTerrain::new(data_root, cache_root),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_lighting: lighting::WorldLighting::default(),
+            world_camera: camera::WorldCamera::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             units: HashMap::new(),
@@ -73,13 +76,14 @@ impl INode3D for GameClient {
         }
     }
 
-    fn process(&mut self, _delta: f64) {
+    fn process(&mut self, delta: f64) {
         let update = self
             .poll_ui_actions()
             .and_then(|()| self.poll_account())
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())
-            .and_then(|()| self.attach_terrain_materials());
+            .and_then(|()| self.attach_terrain_materials())
+            .and_then(|()| self.update_world_camera(delta as f32));
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
@@ -318,6 +322,7 @@ impl GameClient {
             (request.initial_tile_y, request.initial_tile_x),
         )?;
         if map_changed {
+            self.world_camera.reset();
             self.world_lighting.reset();
             self.terrain_materials.reset();
             self.account.session.screen = SessionScreen::Loading;
@@ -357,7 +362,20 @@ impl GameClient {
         self.terrain_materials.sync(&mut parent, &self.terrain)
     }
 
+    fn update_world_camera(&mut self, delta: f32) -> Result<(), String> {
+        if self.terrain.parsed_tiles.is_empty() {
+            return Ok(());
+        }
+        let Some(player) = self.world.local_player_node() else {
+            return Ok(());
+        };
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.world_camera
+            .sync(&mut parent, &player, &self.terrain, delta)
+    }
+
     fn reset_world(&mut self) -> Result<(), String> {
+        self.world_camera.reset();
         self.world_lighting.reset();
         self.terrain_materials.reset();
         self.world.reset();
