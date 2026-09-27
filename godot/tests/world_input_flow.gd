@@ -73,6 +73,8 @@ func run_test() -> void:
 	if ground_height == null or absf(start.y - float(ground_height)) >= 0.3:
 		fail("Input fixture must start grounded on its authored terrain: " + str(start) + " ground=" + str(ground_height))
 		return
+	if not await inspect_ground_collision(client, start):
+		return
 	print("FIXTURE WORLD_READY")
 	for frame in range(6):
 		await process_frame
@@ -242,6 +244,8 @@ func inspect_character_preview(client: Node) -> bool:
 	if absf(position.x - authored.x) > 0.1 or absf(position.z - authored.z) > 0.1 or position.y < authored.y - 0.1:
 		fail("Selected character is not at the authored first-slot location or above its floor: " + str(position))
 		return false
+	if not await inspect_ground_collision(client, position):
+		return false
 	if absf(camera.fov - 55.0) > 0.1:
 		fail("Solo character camera FOV is not 55 degrees: " + str(camera.fov))
 		return false
@@ -341,6 +345,17 @@ func inspect_character_preview(client: Node) -> bool:
 		return false
 	paused = false
 	print("PASS: selected body, terrain, props and original sky change GPU pixels independently; elapsed_ms=", Time.get_ticks_msec())
+	return true
+
+func inspect_ground_collision(client: Node3D, point: Vector3) -> bool:
+	await physics_frame
+	await process_frame
+	var query := PhysicsRayQueryParameters3D.create(point + Vector3.UP * 2.0, point - Vector3.UP * 2.0)
+	var hit := client.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty() or absf(hit.position.y - point.y) > 0.3 or hit.normal.y <= 0.0:
+		fail("Authored terrain collision misses the grounded character: " + str(point) + " hit=" + str(hit))
+		return false
+	print("PASS: authored terrain ray hit at grounded character ", point)
 	return true
 
 func count_changed_pixels(first: Image, second: Image) -> int:
