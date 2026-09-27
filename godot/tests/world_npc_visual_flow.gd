@@ -46,6 +46,7 @@ func run_test() -> void:
 	if not player is Node3D or player.get_node_or_null("NpcVisualRoot") != null:
 		fail("NPC visual attached to player or player missing")
 		return
+	var player_id: int = player.get_instance_id()
 	print("FIXTURE INITIAL_READY")
 	if not await wait_npc_moved(client, 5.5):
 		return
@@ -68,14 +69,24 @@ func run_test() -> void:
 	print("FIXTURE CLAMP_READY")
 	if not await wait_no_visual(client):
 		return
+	if npc.get_instance_id() != unit_id:
+		fail("Removing ModelDisplay replaced the NPC unit")
+		return
 	print("FIXTURE MODEL_REMOVED")
 	if not await wait_visual(client, 1.5):
 		return
 	print("FIXTURE MODEL_RESTORED")
 	if not await wait_no_npc(client):
 		return
+	if client.account_state().unit_count != 1:
+		fail("NPC removal did not leave only the selected player")
+		return
 	print("FIXTURE NPC_REMOVED")
 	if not await wait_visual(client, 1.5):
+		return
+	var replacement = client.get_node("WorldUnits/" + NPC)
+	if replacement.get_instance_id() == unit_id or player.get_instance_id() != player_id or player.get_node_or_null("NpcVisualRoot") != null:
+		fail("NPC respawn reused old unit or altered player appearance")
 		return
 	print("FIXTURE NPC_RESTORED")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
