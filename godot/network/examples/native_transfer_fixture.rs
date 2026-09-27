@@ -1,6 +1,7 @@
 //! Owned loopback server and real Godot process for the native world-transfer fixture.
 //! Run from the Godot workspace after building its GDExtension:
 //! cargo run -p game-engine-network --example native_transfer_fixture
+//! cargo run -p game-engine-network --example native_transfer_fixture -- --global-wmo
 
 use std::{
     io::{BufRead, BufReader},
@@ -13,8 +14,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender, server,
+    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender,
 };
 use shared::{
     components::{Player, Position},
@@ -28,6 +29,7 @@ use shared::{
 const NAME: &str = "Transfer Fixture";
 const FIRST: [f32; 3] = [-8949.0, 83.0, 0.0];
 const SECOND: [f32; 3] = [-8940.0, 83.0, 0.0];
+const STOCKADE: [f32; 3] = [103.0, -34.5, -76.0];
 const TICK: Duration = Duration::from_millis(5);
 
 #[derive(Resource, Default)]
@@ -96,36 +98,61 @@ fn start_server() -> (App, SocketAddr) {
     (app, address)
 }
 
-fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHandle<()>) {
+fn launch_godot(
+    address: SocketAddr,
+    global_wmo: bool,
+) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("Godot workspace directory");
+    let script = if global_wmo {
+        "res://tests/world_global_wmo_flow.gd"
+    } else {
+        "res://tests/world_transfer_flow.gd"
+    };
     let mut child = Command::new(binary)
         .args([
             "--headless",
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
-            "res://tests/world_transfer_flow.gd",
+            script,
         ])
         .env("GODOT_TEST_SERVER", address.to_string())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("start native Godot fixture process");
     let output = child.stdout.take().expect("read Godot stdout");
+    let errors = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
-    let reader = thread::spawn(move || {
+    let readers = vec![
+        read_output(output, sender.clone(), false),
+        read_output(errors, sender, true),
+    ];
+    (child, receiver, readers)
+}
+
+fn read_output(
+    output: impl std::io::Read + Send + 'static,
+    sender: mpsc::Sender<String>,
+    stderr: bool,
+) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
         for line in BufReader::new(output).lines() {
             let line = line.expect("read Godot fixture output");
             println!("godot: {line}");
+            let line = if stderr {
+                format!("GODOT_STDERR: {line}")
+            } else {
+                line
+            };
             if sender.send(line).is_err() {
                 return;
             }
         }
-    });
-    (child, receiver, reader)
+    })
 }
 
 fn respond_to_login(app: &mut App) -> Result<(), String> {
@@ -162,7 +189,11 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String> {
+fn respond_to_selection(
+    app: &mut App,
+    selected: &mut bool,
+    global_wmo: bool,
+) -> Result<(), String> {
     let requests = std::mem::take(&mut app.world_mut().resource_mut::<Incoming>().selections);
     for request in requests {
         if *selected || request.character_id != 17 {
@@ -172,6 +203,7 @@ fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String
             ));
         }
         *selected = true;
+        let position = if global_wmo { STOCKADE } else { FIRST };
         let player = app
             .world_mut()
             .spawn((
@@ -182,9 +214,9 @@ fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String
                     appearance: Default::default(),
                 },
                 Position {
-                    x: FIRST[0],
-                    y: FIRST[1],
-                    z: FIRST[2],
+                    x: position[0],
+                    y: position[1],
+                    z: position[2],
                 },
                 Replicate::to_clients(NetworkTarget::All),
             ))
@@ -197,12 +229,17 @@ fn respond_to_selection(app: &mut App, selected: &mut bool) -> Result<(), String
                 error: None,
             },
         );
+        let (map_name, initial_tile_y, initial_tile_x) = if global_wmo {
+            ("stormwindjail", 0, 0)
+        } else {
+            ("azeroth", 32, 48)
+        };
         send::<_, TerrainChannel>(
             app,
             LoadTerrain {
-                map_name: "azeroth".into(),
-                initial_tile_y: 32,
-                initial_tile_x: 48,
+                map_name: map_name.into(),
+                initial_tile_y,
+                initial_tile_x,
             },
         );
     }
@@ -213,25 +250,26 @@ fn run_fixture(
     app: &mut App,
     child: &mut Child,
     lines: Receiver<String>,
-    reader: thread::JoinHandle<()>,
+    readers: Vec<thread::JoinHandle<()>>,
 ) -> Result<(), String> {
     let mut selected = false;
     let mut phase = 0;
     let deadline = Instant::now() + Duration::from_secs(90);
-    let mut reader = Some(reader);
+    let mut readers = Some(readers);
     while Instant::now() < deadline {
         app.update();
         respond_to_login(app)?;
-        respond_to_selection(app, &mut selected)?;
+        respond_to_selection(app, &mut selected, false)?;
         let status = child.try_wait().map_err(|error| error.to_string())?;
         if status.is_some() {
-            reader
-                .take()
-                .expect("fixture stdout reader")
-                .join()
-                .map_err(|_| "Godot stdout reader panicked")?;
+            for reader in readers.take().expect("fixture output readers") {
+                reader.join().map_err(|_| "Godot output reader panicked")?;
+            }
         }
         for line in lines.try_iter() {
+            if line.starts_with("GODOT_STDERR: ERROR:") {
+                return Err(format!("Godot runtime error: {line}"));
+            }
             match (phase, line.trim()) {
                 (0, "FIXTURE INITIAL_READY") if selected => {
                     if app.world().resource::<Incoming>().acks != 0 {
@@ -283,11 +321,71 @@ fn run_fixture(
     ))
 }
 
+fn run_global_wmo_fixture(
+    app: &mut App,
+    child: &mut Child,
+    lines: Receiver<String>,
+    readers: Vec<thread::JoinHandle<()>>,
+) -> Result<(), String> {
+    let mut selected = false;
+    let mut phase = 0;
+    let deadline = Instant::now() + Duration::from_secs(130);
+    let mut readers = Some(readers);
+    while Instant::now() < deadline {
+        app.update();
+        respond_to_login(app)?;
+        respond_to_selection(app, &mut selected, true)?;
+        let status = child.try_wait().map_err(|error| error.to_string())?;
+        if status.is_some() {
+            for reader in readers.take().expect("fixture output readers") {
+                reader.join().map_err(|_| "Godot output reader panicked")?;
+            }
+        }
+        for line in lines.try_iter() {
+            if line.starts_with("GODOT_STDERR: ERROR:") {
+                return Err(format!("Godot runtime error: {line}"));
+            }
+            match (phase, line.trim()) {
+                (0, "FIXTURE GLOBAL_WMO_METADATA") if selected => phase = 1,
+                (1, "FIXTURE GLOBAL_WMO_READY") => phase = 2,
+                (2, "FIXTURE GLOBAL_WMO_RESET") => phase = 3,
+                (_, line) if line.starts_with("FIXTURE ") => {
+                    return Err(format!("out-of-order global WMO phase {phase}: {line}"));
+                }
+                _ => {}
+            }
+        }
+        if let Some(status) = status {
+            if !status.success() || phase != 3 {
+                return Err(format!("Godot exited {status} at global WMO phase {phase}"));
+            }
+            if app.world().resource::<Incoming>().acks != 0 {
+                return Err("unexpected WorldPortAck without a NewWorld transfer".into());
+            }
+            println!("PASS: real Godot Stockade WMO attached, grounded, and reset");
+            return Ok(());
+        }
+        thread::sleep(TICK);
+    }
+    Err(format!(
+        "timed out at global WMO phase {phase}; WDT metadata must precede native attachment"
+    ))
+}
+
 fn main() {
+    let global_wmo = match std::env::args().skip(1).collect::<Vec<_>>().as_slice() {
+        [] => false,
+        [arg] if arg == "--global-wmo" => true,
+        _ => panic!("usage: native_transfer_fixture [--global-wmo]"),
+    };
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let (mut child, lines, reader) = launch_godot(address);
-    let result = run_fixture(&mut app, &mut child, lines, reader);
+    let (mut child, lines, readers) = launch_godot(address, global_wmo);
+    let result = if global_wmo {
+        run_global_wmo_fixture(&mut app, &mut child, lines, readers)
+    } else {
+        run_fixture(&mut app, &mut child, lines, readers)
+    };
     if result.is_err()
         && child
             .try_wait()
