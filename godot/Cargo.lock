@@ -3030,6 +3030,7 @@ dependencies = [
  "game-engine-network",
  "game-engine-session",
  "game-engine-ui-model",
+ "glam",
  "godot",
  "ktx2-rw",
  "shared",

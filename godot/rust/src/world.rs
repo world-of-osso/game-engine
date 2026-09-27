@@ -2,17 +2,107 @@
 
 use std::{collections::HashMap, f32::consts::PI};
 
+use game_engine_core::unit_motion_data::{
+    MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
+};
 use game_engine_network::UnitSnapshot;
 use godot::{
     builtin::{Transform3D, Vector3},
     classes::Node3D,
     prelude::*,
 };
+use shared::components::MovementControl;
 
 struct UnitNode {
     node: Gd<Node3D>,
     name: String,
     is_player: bool,
+    motion: UnitMotion,
+}
+
+struct UnitMotion {
+    target: MotionTarget,
+    local_yaw: Option<f32>,
+    control: Option<MovementControl>,
+    adopted_epoch: Option<u32>,
+}
+
+impl UnitMotion {
+    fn new(position: [f32; 3], yaw: f32) -> Self {
+        Self {
+            target: MotionTarget {
+                position: position.into(),
+                yaw: Some(yaw),
+            },
+            local_yaw: None,
+            control: None,
+            adopted_epoch: None,
+        }
+    }
+
+    fn set_target(
+        &mut self,
+        position: [f32; 3],
+        yaw: Option<f32>,
+        control: Option<MovementControl>,
+    ) {
+        self.target.position = position.into();
+        if yaw.is_some() {
+            self.target.yaw = yaw;
+        }
+        // Remote targets persist; local authoritative facing requires a present rotation.
+        self.local_yaw = yaw;
+        self.control = control;
+    }
+
+    fn advance(&mut self, pose: MotionPose, is_local: bool, delta: f32) -> MotionPose {
+        if !is_local {
+            return interpolate_remote_motion(pose, self.target, delta);
+        }
+        let Some(control) = self.control else {
+            return pose;
+        };
+        let target = MotionTarget {
+            yaw: self.local_yaw,
+            ..self.target
+        };
+        let update = follow_server_motion(
+            pose,
+            target,
+            self.adopted_epoch,
+            control.epoch,
+            control.controlled,
+            delta,
+        );
+        self.adopted_epoch = Some(update.adopted_epoch);
+        update.pose
+    }
+}
+
+fn advance_unit_transform(unit: &mut UnitNode, is_local: bool, delta: f32) {
+    let position = unit.node.get_position();
+    let rotation = unit.node.get_quaternion();
+    let current = MotionPose {
+        position: [position.x, position.y, position.z].into(),
+        rotation: glam::Quat::from_array([rotation.x, rotation.y, rotation.z, rotation.w]),
+    };
+    let pose = unit.motion.advance(current, is_local, delta);
+    if pose.position != current.position {
+        unit.node.set_position(Vector3::new(
+            pose.position.x,
+            pose.position.y,
+            pose.position.z,
+        ));
+    }
+    if pose.rotation != current.rotation {
+        let rotation = pose.rotation.to_array();
+        unit.node.set_quaternion(Quaternion::new(
+            rotation[0],
+            rotation[1],
+            rotation[2],
+            rotation[3],
+        ));
+    }
 }
 
 fn unit_position(snapshot: &UnitSnapshot) -> Option<Vector3> {
@@ -54,15 +144,20 @@ fn spawn_unit(
     parent: &mut Gd<Node3D>,
     name: &str,
     is_player: bool,
+    position: Vector3,
+    yaw: f32,
 ) -> UnitNode {
     let root = root.get_or_insert_with(|| spawn_root(parent));
     let mut node = Node3D::new_alloc();
     node.set_name(name);
+    node.set_position(position);
+    node.set_rotation(Vector3::new(0.0, yaw, 0.0));
     root.add_child(&node);
     UnitNode {
         node,
         name: name.to_owned(),
         is_player,
+        motion: UnitMotion::new([position.x, position.y, position.z], yaw),
     }
 }
 
@@ -124,19 +219,32 @@ impl WorldUnits {
             return;
         };
 
-        let is_new = !self.units.contains_key(&snapshot.server_id);
-        let unit = self
-            .units
-            .entry(snapshot.server_id)
-            .or_insert_with(|| spawn_unit(&mut self.root, parent, name, snapshot.player.is_some()));
+        let initial_yaw = unit_yaw(snapshot, true).expect("New unit always has an initial yaw");
+        let unit = self.units.entry(snapshot.server_id).or_insert_with(|| {
+            spawn_unit(
+                &mut self.root,
+                parent,
+                name,
+                snapshot.player.is_some(),
+                position,
+                initial_yaw,
+            )
+        });
         if unit.name != name {
             unit.node.set_name(name);
             unit.name = name.to_owned();
         }
         unit.is_player = snapshot.player.is_some();
-        unit.node.set_position(position);
-        if let Some(yaw) = unit_yaw(snapshot, is_new) {
-            unit.node.set_rotation(Vector3::new(0.0, yaw, 0.0));
+        unit.motion.set_target(
+            [position.x, position.y, position.z],
+            snapshot.rotation.map(|rotation| rotation.y),
+            snapshot.movement_control,
+        );
+    }
+
+    pub fn advance(&mut self, delta: f32) {
+        for (id, unit) in &mut self.units {
+            advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
         }
     }
 
@@ -212,6 +320,102 @@ mod tests {
             equipment: None,
             movement_control: None,
         }
+    }
+
+    #[test]
+    fn unit_motion_preserves_prediction_then_applies_changed_control_epoch() {
+        use game_engine_core::unit_motion_data::MotionPose;
+        use shared::components::MovementControl;
+
+        let mut motion = UnitMotion::new([1.0, 2.0, 3.0], 0.0);
+        motion.set_target(
+            [10.0, 20.0, 30.0],
+            Some(1.5),
+            Some(MovementControl {
+                epoch: 7,
+                controlled: false,
+            }),
+        );
+        let predicted = MotionPose {
+            position: [4.0, 5.0, 6.0].into(),
+            rotation: Default::default(),
+        };
+        let adopted = motion.advance(predicted, true, 0.05);
+        assert_eq!(adopted.position, predicted.position);
+        assert_eq!(adopted.rotation, predicted.rotation);
+        assert_eq!(motion.adopted_epoch, Some(7));
+
+        motion.set_target(
+            [40.0, 50.0, 60.0],
+            Some(2.0),
+            Some(MovementControl {
+                epoch: 7,
+                controlled: false,
+            }),
+        );
+        assert_eq!(
+            motion.advance(predicted, true, 0.05).position,
+            predicted.position
+        );
+        motion.set_target(
+            [40.0, 50.0, 60.0],
+            Some(2.0),
+            Some(MovementControl {
+                epoch: 8,
+                controlled: false,
+            }),
+        );
+        let corrected = motion.advance(predicted, true, 0.05);
+        assert_eq!(corrected.position.to_array(), [40.0, 50.0, 60.0]);
+        assert_eq!(corrected.rotation, predicted.rotation);
+        assert_eq!(motion.adopted_epoch, Some(8));
+    }
+
+    #[test]
+    fn unit_motion_remote_target_survives_missing_yaw_and_local_control_absence() {
+        use game_engine_core::unit_motion_data::MotionPose;
+
+        let mut motion = UnitMotion::new([0.0; 3], 0.0);
+        motion.set_target([10.0, 0.0, 0.0], Some(1.0), None);
+        motion.set_target([20.0, 0.0, 0.0], None, None);
+        let current = MotionPose {
+            position: [0.0; 3].into(),
+            rotation: Default::default(),
+        };
+        let local = motion.advance(current, true, 0.05);
+        assert_eq!(local.position, current.position);
+        assert_eq!(motion.adopted_epoch, None);
+        let remote = motion.advance(current, false, 0.05);
+        assert_eq!(remote.position.to_array(), [10.0, 0.0, 0.0]);
+        let rotation = remote.rotation.to_array();
+        assert!((rotation[1] - 0.25_f32.sin()).abs() < 0.00001);
+        assert!((rotation[3] - 0.25_f32.cos()).abs() < 0.00001);
+    }
+
+    #[test]
+    fn unit_motion_controlled_follow_does_not_reuse_a_removed_rotation() {
+        use game_engine_core::unit_motion_data::MotionPose;
+        use shared::components::MovementControl;
+
+        let mut motion = UnitMotion::new([0.0; 3], 0.0);
+        let control = Some(MovementControl {
+            epoch: 2,
+            controlled: true,
+        });
+        motion.set_target([10.0, 0.0, 0.0], Some(1.0), control);
+        let first = motion.advance(
+            MotionPose {
+                position: [0.0; 3].into(),
+                rotation: Default::default(),
+            },
+            true,
+            0.05,
+        );
+        assert_eq!(first.position.to_array(), [5.0, 0.0, 0.0]);
+        motion.set_target([15.0, 0.0, 0.0], None, control);
+        let second = motion.advance(first, true, 0.05);
+        assert_eq!(second.position.to_array(), [10.0, 0.0, 0.0]);
+        assert_eq!(second.rotation, first.rotation);
     }
 
     #[test]
