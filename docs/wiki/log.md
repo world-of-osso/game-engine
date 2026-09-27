@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Idle right-drag reaches authored turns before later WMO blocker
+
+`93f38c13` adds actual idle right-drag coverage. Its runtime RED observes yaw delta `-0.12`, expects authored turn 12, and receives Stand 0 (`/tmp/claude/idle-turn-runtime-red-93f38c13.log`). `167ef65b` selects idle turns from normalized consecutive local-facing samples; `8ee6c5ea` makes the 0.02-radian thresholds inclusive. Six targeted tests are reported GREEN.
+
+The rerun preserves unchanged left orbit and reaches both right-drag assertions: 60 samples each, authored 11/12 with changed bones after 150 ms, then Stand 0 (`/tmp/claude/idle-turn-runtime-8ee6c5ea.log`). It exits 101 later at WMO 108238 group 38 material 52 unsupported shader 5. This reaches bounded turn assertions, not a whole-runtime PASS. Verifier649 is asynchronous.
+
+Updated [[animation]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Local running jump reaches landing and resumed Run
 
 `f990867f` adds the running-landing fixture and `5a698a23` drains jumping packets at its landing boundary. `23c8f08f` corrects the fixture's forward-vector check to use current yaw. The actual root-launcher in-world runtime exits 0 (`/tmp/claude/running-jump-runtime-23c8f08f.log`): W+Space observes 37 → 38 → 187 → 5 → 0, changing body motion, rise, resumed displacement, decoded forward-running jumping then nonjump input, and quiet release. Idle jump and grounded Walk/Backward/Left/Right remain covered; production stays at `dac0ab3e`.
