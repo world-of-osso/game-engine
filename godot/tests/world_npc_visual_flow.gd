@@ -47,6 +47,8 @@ func run_test() -> void:
 		return
 	if not await wait_lighting(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
 		return
+	if not await wait_authored_stand(client):
+		return
 	var npc: Node3D = client.get_node("WorldUnits/" + NPC)
 	var unit_id := npc.get_instance_id()
 	var visual_id := npc.get_node("NpcVisualRoot").get_instance_id()
@@ -66,6 +68,8 @@ func run_test() -> void:
 		return
 	if npc.get_instance_id() != unit_id or npc.get_node("NpcVisualRoot").get_instance_id() == visual_id:
 		fail("Changed display did not preserve unit and replace visual")
+		return
+	if not await wait_authored_stand(client):
 		return
 	visual_id = npc.get_node("NpcVisualRoot").get_instance_id()
 	if not lighting_matches(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
@@ -210,12 +214,78 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 		and fog is Vector2 and (fog as Vector2).is_equal_approx(Vector2(200.0 / 36.0, 1000.0 / 36.0)) \
 		and int(material.get_shader_parameter("fog_mode")) == 1
 
+func wait_authored_stand(client: Node) -> bool:
+	var npc := client.get_node_or_null("WorldUnits/" + NPC)
+	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
+	var skeleton := model.get_node_or_null("Skeleton3D") as Skeleton3D if model != null else null
+	var animation := model.get_node_or_null("M2Animation") if model != null else null
+	if skeleton == null or skeleton.get_bone_count() != 1 or animation == null:
+		fail("UDP NPC model lacks authored Skeleton3D bone and automatic M2Animation")
+		return false
+	var minimum := INF
+	var maximum := -INF
+	var deadline := Time.get_ticks_msec() + 1200
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var pose := skeleton.get_bone_pose_position(0) - skeleton.get_bone_rest(0).origin
+		if absf(pose.x) > 0.05 or absf(pose.y) > 1.05 or absf(pose.z) > 0.05:
+			fail("NPC defaulted to non-Stand sequence; authored Stand is Y 0..1, pose=" + str(pose))
+			return false
+		minimum = minf(minimum, pose.y)
+		maximum = maxf(maximum, pose.y)
+		if maximum - minimum > 0.15:
+			return true
+	fail("NPC Stand pose did not advance through authored keys: Y range " + str(Vector2(minimum, maximum)))
+	return false
+
+func make_npc_m2() -> PackedByteArray:
+	var model := make_m2(7, 0)
+	var md20 := model.slice(8, 8 + model.decode_u32(4))
+	md20.resize(0x368)
+	put_u32(md20, 0x1c, 2) # Sequence array: Walk then Stand.
+	put_u32(md20, 0x20, 0x240)
+	put_u32(md20, 0x2c, 1) # One root bone.
+	put_u32(md20, 0x30, 0x2c0)
+	for index in 4:
+		md20[0x140 + index * 48 + 12] = 255 # All vertices bound to bone 0.
+	put_u16(md20, 0x240, 4) # Walk, deliberately first.
+	put_u32(md20, 0x244, 1000)
+	put_u16(md20, 0x27c, 0xffff) # No variation successor.
+	put_u16(md20, 0x280, 0) # Stand at index 1.
+	put_u32(md20, 0x284, 1000)
+	put_u16(md20, 0x2bc, 0xffff)
+	put_u32(md20, 0x2c0, 0xffffffff) # No key bone ID.
+	put_u16(md20, 0x2c8, 0xffff) # Root parent.
+	put_u16(md20, 0x2d0, 1) # Linear translation interpolation.
+	put_u16(md20, 0x2d2, 0xffff) # Local sequence, not global.
+	put_u32(md20, 0x2d4, 2) # Per-sequence timestamp M2Arrays.
+	put_u32(md20, 0x2d8, 0x318)
+	put_u32(md20, 0x2dc, 2) # Per-sequence value M2Arrays.
+	put_u32(md20, 0x2e0, 0x328)
+	put_u16(md20, 0x2e6, 0xffff) # Empty rotation global sequence.
+	put_u16(md20, 0x2fa, 0xffff) # Empty scale global sequence.
+	put_u32(md20, 0x318, 1)
+	put_u32(md20, 0x31c, 0x338)
+	put_u32(md20, 0x320, 2)
+	put_u32(md20, 0x324, 0x33c)
+	put_u32(md20, 0x328, 1)
+	put_u32(md20, 0x32c, 0x344)
+	put_u32(md20, 0x330, 2)
+	put_u32(md20, 0x334, 0x350)
+	put_u32(md20, 0x33c, 0)
+	put_u32(md20, 0x340, 1000)
+	put_float(md20, 0x344, 10.0) # Walk keeps WoW X at 10.
+	put_float(md20, 0x364, 1.0) # Stand WoW Z becomes Godot Y.
+	var authored := chunk("MD21", md20)
+	authored.append_array(model.slice(8 + model.decode_u32(4))) # Retain TXID.
+	return authored
+
 func prepare_assets() -> bool:
 	var data := ProjectSettings.globalize_path("res://../data")
 	for folder in ["models", "textures"]:
 		if DirAccess.make_dir_recursive_absolute(data + "/" + folder) != OK:
 			return false
-	var model := make_m2(7, 0)
+	var model := make_npc_m2()
 	# Authored type 11 reads creature-display skin texture slot 0, not TXID.
 	put_u32(model, 8 + 0x210, 11)
 	var skin_fdid := PackedByteArray()
