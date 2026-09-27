@@ -9,8 +9,8 @@ use crate::animation::WowAnimationPlayer;
 use game_engine_core::{blp, m2};
 use godot::{
     classes::{
-        ArrayMesh, Image, MeshInstance3D, Node3D, ProjectSettings, RefCounted, Skeleton3D, Skin,
-        image, mesh,
+        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, RefCounted,
+        ShaderMaterial, Skeleton3D, Skin, image, mesh,
     },
     prelude::*,
 };
@@ -206,32 +206,7 @@ fn build_model(
     })?;
     let batches = resolved
         .iter()
-        .map(|batch| {
-            let sub = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
-                format!(
-                    "Batch {} references absent submesh",
-                    batch.source_unit_index
-                )
-            })?;
-            let mesh = build_batch_mesh(model, sub)?;
-            let replacement =
-                appearance
-                    .filter(|_| !material::is_effect(batch))
-                    .and_then(|appearance| {
-                        batch
-                            .texture_type
-                            .and_then(|kind| appearance.textures.get(&kind))
-                    });
-            let material = material::load_material(batch, path, &mut missing, replacement)?;
-            let visible = appearance.is_none_or(|appearance| {
-                game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
-                    batch.mesh_part_id,
-                    &appearance.selected_geosets,
-                    &appearance.authored_geosets,
-                )
-            });
-            Ok((mesh, material, visible))
-        })
+        .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
         .collect::<Result<Vec<_>, String>>()?;
     let (skeleton, skin) = build_skeleton(&model.bones);
     let player = if model.sequences.is_empty() {
@@ -277,6 +252,54 @@ fn build_model(
         root.add_child(&animation);
     }
     Ok((root, missing))
+}
+
+type LoadedBatch = (Gd<ArrayMesh>, Gd<ShaderMaterial>, bool);
+
+fn load_batch(
+    model: &m2::Model,
+    batch: &game_engine_core::m2_batch_data::ResolvedBatch,
+    path: &GString,
+    missing: &mut PackedInt32Array,
+    appearance: Option<&appearance::PreparedNpcAppearance>,
+) -> Result<LoadedBatch, String> {
+    let sub = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
+        format!(
+            "Batch {} references absent submesh",
+            batch.source_unit_index
+        )
+    })?;
+    let mesh = build_batch_mesh(model, sub)?;
+    let replacement = npc_replacement_texture(batch, appearance)?;
+    let material = material::load_material(batch, path, missing, replacement)?;
+    let visible = appearance.is_none_or(|appearance| {
+        game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+            batch.mesh_part_id,
+            &appearance.selected_geosets,
+            &appearance.authored_geosets,
+        )
+    });
+    Ok((mesh, material, visible))
+}
+
+fn npc_replacement_texture<'a>(
+    batch: &game_engine_core::m2_batch_data::ResolvedBatch,
+    appearance: Option<&'a appearance::PreparedNpcAppearance>,
+) -> Result<Option<&'a Gd<ImageTexture>>, String> {
+    let Some(appearance) = appearance.filter(|_| !material::is_effect(batch)) else {
+        return Ok(None);
+    };
+    let Some(kind) = batch.texture_type else {
+        return Ok(None);
+    };
+    let replacement = appearance.textures.get(&kind);
+    if replacement.is_none() && matches!(kind, 1 | 6) {
+        return Err(format!(
+            "missing NPC replacement texture type {kind} for batch {}",
+            batch.source_unit_index
+        ));
+    }
+    Ok(replacement)
 }
 
 fn build_batch_mesh(model: &m2::Model, sub: &m2::Submesh) -> Result<Gd<ArrayMesh>, String> {
