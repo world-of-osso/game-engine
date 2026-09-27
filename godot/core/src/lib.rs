@@ -67,6 +67,8 @@ mod cache_source_mtime;
 mod cache_sqlite;
 #[path = "../../../src/game/equipment/helmet_geoset_data.rs"]
 mod helmet_geoset_data;
+#[cfg(test)]
+mod helmet_geoset_data_tests;
 #[path = "../../../src/little_endian.rs"]
 mod little_endian;
 #[cfg(test)]
