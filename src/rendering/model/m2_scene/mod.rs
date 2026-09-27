@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use bevy::prelude::*;
 
@@ -35,7 +36,7 @@ struct M2SceneAttachOptions {
 struct M2SceneAnimPayload {
     bones: Vec<M2Bone>,
     sequences: Vec<M2AnimSequence>,
-    bone_tracks: Vec<BoneAnimTracks>,
+    bone_tracks: Arc<[BoneAnimTracks]>,
     particle_emitters: Vec<M2ParticleEmitter>,
     attachments: Vec<m2_attach::M2Attachment>,
     attachment_lookup: Vec<i16>,
@@ -179,7 +180,7 @@ fn insert_anim_data_if_present(
     joint_entities: Option<Vec<Entity>>,
     bones: Vec<M2Bone>,
     sequences: Vec<M2AnimSequence>,
-    bone_tracks: Vec<BoneAnimTracks>,
+    bone_tracks: Arc<[BoneAnimTracks]>,
 ) {
     if let Some(joints) = joint_entities {
         commands.entity(model_entity).insert(M2AnimData {

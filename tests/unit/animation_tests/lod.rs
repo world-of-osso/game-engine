@@ -67,7 +67,7 @@ fn spawn_model(app: &mut App, parent: Entity, view: ViewVisibility) -> (Entity, 
                 bones: single_root_bone(),
                 spherical_billboards: vec![false],
                 sequences: vec![stand_sequence()],
-                bone_tracks: vec![stationary_bone(M2_TRACK)],
+                bone_tracks: vec![stationary_bone(M2_TRACK)].into(),
                 joint_entities: vec![joint],
             },
         ))

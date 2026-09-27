@@ -165,7 +165,7 @@ mod tests {
             bones: vec![],
             spherical_billboards: vec![],
             sequences: wolf_sequences(),
-            bone_tracks: vec![],
+            bone_tracks: Arc::from([]),
             joint_entities: vec![],
         }
     }

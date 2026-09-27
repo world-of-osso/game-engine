@@ -40,7 +40,7 @@ fn external_joint_lights_despawn_with_removed_equipment_and_do_not_accumulate() 
             bones: model.bones,
             spherical_billboards: vec![],
             sequences: model.sequences,
-            bone_tracks: vec![],
+            bone_tracks: vec![].into(),
             joint_entities: joints.clone(),
         },
     ));
@@ -126,7 +126,7 @@ fn empty_animation(joint: Entity) -> M2AnimData {
         bones: vec![],
         spherical_billboards: vec![],
         sequences: vec![],
-        bone_tracks: vec![],
+        bone_tracks: vec![].into(),
         joint_entities: vec![joint],
     }
 }

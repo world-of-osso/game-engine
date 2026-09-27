@@ -131,7 +131,7 @@ fn build_m2_model(
         batches,
         bones: anim.bones,
         sequences: anim.sequences,
-        bone_tracks: anim.bone_tracks,
+        bone_tracks: anim.bone_tracks.into(),
         global_sequences: anim.global_sequences,
         transparency_tracks: m2_anim::parse_transparency_tracks(chunks.md20)?,
         color_tracks: m2_anim::parse_color_tracks(chunks.md20)?,
@@ -192,6 +192,7 @@ fn load_m2_cached(
         return cached;
     }
     let loaded = load_m2_uncached_impl(path, skin_fdids, keep_zero_opacity_batches);
-    cache.lock().unwrap().insert(key, loaded.clone());
-    loaded
+    // A concurrent load of the same model may have finished first; keep its entry so
+    // every instance shares one set of bone tracks.
+    cache.lock().unwrap().entry(key).or_insert(loaded).clone()
 }
