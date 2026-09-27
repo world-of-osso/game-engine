@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Portable outfit catalog and concurrent cache import
+
+`a7a33681` shares original outfit/item/display/texture/model/geoset resolution through Bevy-free `godot/core`, retaining the Bevy Resource adapter; `ca1ffc83` indexes local M2 names once per data root; `7b5969d6` restores root helmet extraction. The initial parallel root outfit selector failed 2/4 after absolute/relative data-root imports alternately invalidated one SQLite cache. A real-local-CSV two-importer fixture was RED with `database is locked` (`/tmp/claude/outfit-import-concurrency-red.log`). `e005b96a` canonicalizes source keys and serializes import/freshness decisions: core outfit 3/3 and root adapter 4/4 focused GREEN (`/tmp/claude/outfit-core-green-e005b96a.log`, `/tmp/claude/outfit-root-green-e005b96a.log`). Native selected-player rendering and complete conversion remain separate.
+
+Updated [[character-rendering]] and index.
+
 ## [2026-09-27] system | Selected-roster equipment remains RED
 
 `e909b136` records an authenticated fixture sending starter item 25 sword, 38 shirt, 39 legs, 40 feet, and 2362 shield. The actual preview exits 101 with native gear unsupported and missing weapons (`/tmp/claude/godot-equipment-red-e909b136.log`). `2a58d68a` adds native M2 attachment nodes/test, but old-extension headless RED lacks `Attachment5`; integrated-build GREEN remains pending. Existing `0266003e` background and current FPS evidence retain their separate bounded scopes.
