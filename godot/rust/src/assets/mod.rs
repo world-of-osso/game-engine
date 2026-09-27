@@ -1,5 +1,6 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 pub(crate) mod appearance;
+mod attachments;
 pub(crate) mod creature;
 pub(crate) mod material;
 pub(crate) mod player;
@@ -209,7 +210,11 @@ fn build_model(
         .iter()
         .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
         .collect::<Result<Vec<_>, String>>()?;
-    let (skeleton, skin) = build_skeleton(&model.bones);
+    let (mut skeleton, skin) = build_skeleton(&model.bones);
+    if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
+        skeleton.free();
+        return Err(error);
+    }
     let player = if model.sequences.is_empty() {
         None
     } else {
