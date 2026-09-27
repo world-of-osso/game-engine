@@ -109,7 +109,7 @@ func inspect_initial_loading_ui(client: Node) -> bool:
 		fail("Authored Loading artwork, shell or initial progress missing")
 		return false
 	for index in range(3):
-		var part = shell.get_node_or_null("ThreePart%d" % index)
+		var part = shell.get_node_or_null("Parts/Part%d" % index)
 		if not part is TextureRect or part.texture == null:
 			fail("Authored loading shell part %d missing" % index)
 			return false
