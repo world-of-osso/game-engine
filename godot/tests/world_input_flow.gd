@@ -307,7 +307,13 @@ func inspect_character_preview(client: Node) -> bool:
 	var without_sky := root.get_texture().get_image()
 	sky.visible = true
 	paused = false
-	if count_changed_pixels(shown, without_sky) < 50:
+	var sky_pixels := count_changed_pixels(shown, without_sky)
+	if sky_pixels < 50:
+		without_sky.save_png("res://../data/diagnostics/godot-conversion/character-select-without-sky.png")
+		print("TRACE SKY pixels=", sky_pixels, " camera=", camera.global_transform, " far=", camera.far, " sky=", sky.global_transform)
+		for sky_mesh in sky.find_children("*", "MeshInstance3D", true, false):
+			var sky_material: ShaderMaterial = sky_mesh.get_surface_override_material(0)
+			print("TRACE SKY_MESH ", sky_mesh.name, " bounds=", sky_mesh.get_aabb(), " opacity=", sky_material.get_shader_parameter("transparency"), " visible=", sky_mesh.is_visible_in_tree())
 		fail("Original campsite sky does not contribute visible pixels")
 		return false
 	print("PASS: selected body, terrain, props and original sky change GPU pixels independently; elapsed_ms=", Time.get_ticks_msec())
