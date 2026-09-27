@@ -23,8 +23,10 @@ func run_test() -> void:
 		if error != "":
 			fail(error)
 			return
-		for frame in 4:
-			await RenderingServer.frame_post_draw
+		# Let the authored 0.75-second login fade finish before capturing the screen.
+		var capture_after := Time.get_ticks_msec() + 1000
+		while Time.get_ticks_msec() < capture_after:
+			await process_frame
 		var screenshot := OS.get_environment("GODOT_STARTUP_SCREENSHOT")
 		if screenshot.is_empty():
 			fail("Startup fixture requires an owned screenshot path")
@@ -45,8 +47,8 @@ func inspect_screen(expected: String, state: Dictionary) -> String:
 	var ui_name := "LoginUI" if expected == "Login" else "LoadingUI"
 	if expected == "CharacterCreate":
 		ui_name = "CharacterCreateUI"
-	var ui := client.get_node_or_null(ui_name) as Control
-	if ui == null or not ui.is_visible_in_tree():
+	var ui := client.get_node_or_null(ui_name) as CanvasLayer
+	if ui == null or not ui.visible:
 		return "Requested startup UI is absent or hidden: " + ui_name
 	if expected == "CharacterCreate":
 		var name_input := ui.find_child("CharCreateNameInput", true, false) as Control
@@ -59,5 +61,5 @@ func inspect_screen(expected: String, state: Dictionary) -> String:
 func fail(message: String) -> void:
 	push_error(message)
 	if is_instance_valid(client):
-		client.free()
+		client.queue_free()
 	quit(1)
