@@ -28,29 +28,33 @@ fn ground_offset_uses_lowest_vertex_y() {
     );
     let batch = asset::m2::M2RenderBatch {
         mesh,
-        texture_fdid: None,
-        texture_2_fdid: None,
-        extra_texture_fdids: Vec::new(),
-        texture_type: None,
-        overlays: Vec::new(),
-        render_flags: 0,
-        blend_mode: 0,
-        transparency: 1.0,
-        transparency_track_index: None,
-        color_opacity_track_index: None,
-        transparency_anim: None,
-        color_opacity_anim: None,
-        texture_anim: None,
-        texture_anim_2: None,
-        use_uv_2_1: false,
-        use_uv_2_2: false,
-        use_env_map_2: false,
-        shader_id: 0,
-        texture_count: 0,
-        uses_texture_combiner_combos: false,
-        priority_plane: 0,
-        material_layer: 0,
-        mesh_part_id: 0,
+        data: asset::m2_batch_data::ResolvedBatch {
+            source_unit_index: 0,
+            submesh_index: 0,
+            texture_fdid: None,
+            texture_2_fdid: None,
+            extra_texture_fdids: Vec::new(),
+            texture_type: None,
+            overlays: Vec::new(),
+            render_flags: 0,
+            blend_mode: 0,
+            transparency: 1.0,
+            transparency_track_index: None,
+            color_opacity_track_index: None,
+            transparency_anim: None,
+            color_opacity_anim: None,
+            texture_anim: None,
+            texture_anim_2: None,
+            use_uv_2_1: false,
+            use_uv_2_2: false,
+            use_env_map_2: false,
+            shader_id: 0,
+            texture_count: 0,
+            uses_texture_combiner_combos: false,
+            priority_plane: 0,
+            material_layer: 0,
+            mesh_part_id: 0,
+        },
     };
     assert!((ground_offset_y(&[batch]) - 0.35).abs() < 0.001);
 }
@@ -139,29 +143,33 @@ fn forced_skybox_batches_keep_dedicated_material_without_texture() {
             PrimitiveTopology::TriangleList,
             bevy::asset::RenderAssetUsages::default(),
         ),
-        texture_fdid: None,
-        texture_2_fdid: None,
-        extra_texture_fdids: Vec::new(),
-        texture_type: None,
-        overlays: Vec::new(),
-        render_flags: 0,
-        blend_mode: 1,
-        transparency: 1.0,
-        transparency_track_index: None,
-        color_opacity_track_index: None,
-        transparency_anim: None,
-        color_opacity_anim: None,
-        texture_anim: None,
-        texture_anim_2: None,
-        use_uv_2_1: false,
-        use_uv_2_2: false,
-        use_env_map_2: false,
-        shader_id: 0,
-        texture_count: 0,
-        uses_texture_combiner_combos: false,
-        priority_plane: 0,
-        material_layer: 0,
-        mesh_part_id: 0,
+        data: asset::m2_batch_data::ResolvedBatch {
+            source_unit_index: 0,
+            submesh_index: 0,
+            texture_fdid: None,
+            texture_2_fdid: None,
+            extra_texture_fdids: Vec::new(),
+            texture_type: None,
+            overlays: Vec::new(),
+            render_flags: 0,
+            blend_mode: 1,
+            transparency: 1.0,
+            transparency_track_index: None,
+            color_opacity_track_index: None,
+            transparency_anim: None,
+            color_opacity_anim: None,
+            texture_anim: None,
+            texture_anim_2: None,
+            use_uv_2_1: false,
+            use_uv_2_2: false,
+            use_env_map_2: false,
+            shader_id: 0,
+            texture_count: 0,
+            uses_texture_combiner_combos: false,
+            priority_plane: 0,
+            material_layer: 0,
+            mesh_part_id: 0,
+        },
     };
 
     let material = load_batch_material(
@@ -509,7 +517,7 @@ fn cloudsky_shader_8012_stage_binding_disables_missing_optional_third_stage() {
     let model = load_cloudsky_model();
     let (batch_index, batch) = cloudsky_batch_by_shader_id(&model, SHADER_THREE_STAGE);
     let mut batch = batch.clone();
-    batch.extra_texture_fdids = vec![synthetic_missing_texture_fdid()];
+    batch.data.extra_texture_fdids = vec![synthetic_missing_texture_fdid()];
     let material = traced_cloudsky_material(&batch, batch_index);
 
     assert_eq!(material.settings.has_second_texture, 1);
@@ -534,7 +542,7 @@ fn cloudsky_shader_8016_stage_binding_keeps_third_stage_but_disables_missing_mas
         .extra_texture_fdids
         .first()
         .expect("cloudsky SHADER_FOUR_STAGE must keep third-stage fdid");
-    batch.extra_texture_fdids = vec![third_fdid, synthetic_missing_texture_fdid()];
+    batch.data.extra_texture_fdids = vec![third_fdid, synthetic_missing_texture_fdid()];
     let material = traced_cloudsky_material(&batch, batch_index);
 
     assert_eq!(material.settings.has_second_texture, 1);
@@ -560,8 +568,8 @@ fn cloudsky_modern_shader_uv_selection_is_stable_against_authored_uv_flags() {
 
     let (mod2x_index, mod2x_batch) = cloudsky_batch_by_shader_id(&model, SHADER_MOD2X);
     let mut mod2x_batch = mod2x_batch.clone();
-    mod2x_batch.use_uv_2_1 = true;
-    mod2x_batch.use_uv_2_2 = false;
+    mod2x_batch.data.use_uv_2_1 = true;
+    mod2x_batch.data.use_uv_2_2 = false;
     let mod2x_material = traced_cloudsky_material(&mod2x_batch, mod2x_index);
     assert_eq!(mod2x_material.settings.uv_mode_1, 1);
     assert_eq!(mod2x_material.settings.uv_mode_2, 0);
@@ -571,8 +579,8 @@ fn cloudsky_modern_shader_uv_selection_is_stable_against_authored_uv_flags() {
     let (three_stage_index, three_stage_batch) =
         cloudsky_batch_by_shader_id(&model, SHADER_THREE_STAGE);
     let mut three_stage_batch = three_stage_batch.clone();
-    three_stage_batch.use_uv_2_1 = true;
-    three_stage_batch.use_uv_2_2 = true;
+    three_stage_batch.data.use_uv_2_1 = true;
+    three_stage_batch.data.use_uv_2_2 = true;
     let three_stage_material = traced_cloudsky_material(&three_stage_batch, three_stage_index);
     assert_eq!(three_stage_material.settings.uv_mode_1, 0);
     assert_eq!(three_stage_material.settings.uv_mode_2, 0);
@@ -582,8 +590,8 @@ fn cloudsky_modern_shader_uv_selection_is_stable_against_authored_uv_flags() {
     let (four_stage_index, four_stage_batch) =
         cloudsky_batch_by_shader_id(&model, SHADER_FOUR_STAGE);
     let mut four_stage_batch = four_stage_batch.clone();
-    four_stage_batch.use_uv_2_1 = false;
-    four_stage_batch.use_uv_2_2 = false;
+    four_stage_batch.data.use_uv_2_1 = false;
+    four_stage_batch.data.use_uv_2_2 = false;
     let four_stage_material = traced_cloudsky_material(&four_stage_batch, four_stage_index);
     assert_eq!(four_stage_material.settings.uv_mode_1, 0);
     assert_eq!(four_stage_material.settings.uv_mode_2, 0);
