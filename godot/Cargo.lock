@@ -3089,6 +3089,7 @@ dependencies = [
  "godot",
  "image 0.25.10",
  "ktx2-rw",
+ "ron 0.8.1",
  "rusqlite",
  "serde",
  "shared",
