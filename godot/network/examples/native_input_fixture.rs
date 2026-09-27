@@ -15,8 +15,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender,
+    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender, server,
 };
 use shared::{
     components::{
@@ -594,7 +594,7 @@ fn run_fixture(
     let mut phase = Phase::AwaitLoading;
     let mut saw_forward = false;
     let mut released_at = None;
-    let mut transition_at = None;
+    let mut transition_at: Option<Instant> = None;
     let mut saw_direction = false;
     let deadline = Instant::now() + TIMEOUT;
     let mut reader = Some(reader);
