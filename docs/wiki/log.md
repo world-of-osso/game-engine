@@ -34,7 +34,7 @@ Updated [[godot-conversion]], the [Godot conversion specification](../specs/godo
 
 `425466b5` shares authored Warband scene/placement records with `godot/core`; `36db5dca` shares the solo character-select camera calculation; and `0d9fc55f` adds explicit initial native terrain tile sets. They make background work possible but do not integrate or render a Godot campsite/background.
 
-For `524fd1c0`, manual inspection verifies a visible actual FPS counter and frame-time graph. Hidden/default and persisted-false visibility runs exit 0. The visible fixture's assertions pass after its steady-cap wait, but shutdown times out; it is not clean-exit evidence. The overlay uses Godot's default font, not Fira Mono. No performance-parity or full-conversion claim follows.
+For `524fd1c0`, manual inspection verifies a visible actual FPS counter and frame-time graph. Hidden/default and persisted-false visibility runs exit 0. The current visible Vulkan/cage fixture also PASSes and exits 0 after independently inspected saved-visibility, 30→10 FPS-cap, and rendered-graph-pixel assertions (`/tmp/claude/fps-visible-shutdown-current.log`). This successful execution does not explain or fix the historical intermittent visible shutdown timeout. The overlay uses Godot's default font, not Fira Mono. No performance-parity or full-conversion claim follows.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
