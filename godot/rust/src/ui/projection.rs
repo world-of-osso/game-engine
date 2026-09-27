@@ -46,7 +46,7 @@ pub struct UiProjection {
     pub root: Gd<Control>,
     nodes: HashMap<u64, Gd<Control>>,
     visuals: HashMap<u64, FrameVisual>,
-    pending: Rc<RefCell<VecDeque<UiInput>>>,
+    pending: PendingInputs,
     fonts: HashMap<GameFont, Gd<godot::classes::FontFile>>,
     textures: HashMap<String, (Gd<Texture2D>, [f32; 4])>,
 }
@@ -198,70 +198,13 @@ impl UiProjection {
     }
 
     fn connect_input(&self, frame: &Frame, node: &mut Gd<Control>) {
-        let id = frame.id;
-        let emit = |input: UiInput| {
-            let pending = self.pending.clone();
-            Callable::from_fn("registry-input", move |_| {
-                pending.borrow_mut().push_back(input.clone())
-            })
-        };
+        let pending = &self.pending;
         match frame.widget_type {
             WidgetType::Frame if frame.onclick.is_some() => {
-                let pending = self.pending.clone();
-                let callback = Callable::from_fn("registry-frame-gui-input", move |args| {
-                    let Some(event) = args
-                        .first()
-                        .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
-                    else {
-                        return;
-                    };
-                    if event.is_pressed()
-                        && event.get_button_index() == godot::global::MouseButton::LEFT
-                    {
-                        pending.borrow_mut().push_back(UiInput::Click(id));
-                    }
-                });
-                node.connect("gui_input", &callback);
+                connect_frame_click(pending, frame.id, node)
             }
-            WidgetType::Button => {
-                for (signal, input) in [
-                    ("pressed", UiInput::Click(id)),
-                    ("mouse_entered", UiInput::Hover(id, true)),
-                    ("mouse_exited", UiInput::Hover(id, false)),
-                    ("button_down", UiInput::Press(id)),
-                    ("button_up", UiInput::Release(id)),
-                ] {
-                    node.connect(signal, &emit(input));
-                }
-            }
-            WidgetType::EditBox => {
-                let pending = self.pending.clone();
-                let callback = Callable::from_fn("registry-text-changed", move |args| {
-                    if let Some(text) = args.first() {
-                        pending
-                            .borrow_mut()
-                            .push_back(UiInput::Text(id, text.to::<GString>().to_string()));
-                    }
-                });
-                node.connect("text_changed", &callback);
-                node.connect("text_submitted", &emit(UiInput::Submit));
-                node.connect("focus_entered", &emit(UiInput::Focus(id)));
-                // Original login Escape clears edit focus.
-                let mut edit = node.clone();
-                let escape = Callable::from_fn("registry-editbox-escape", move |args| {
-                    let escaped = args
-                        .first()
-                        .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
-                        .is_some_and(|key| {
-                            key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE
-                        });
-                    if escaped {
-                        edit.release_focus();
-                    }
-                });
-                node.connect("gui_input", &escape);
-                node.connect("focus_exited", &emit(UiInput::Blur(id)));
-            }
+            WidgetType::Button => connect_button(pending, frame.id, node),
+            WidgetType::EditBox => connect_edit_box(pending, frame.id, node),
             _ => {}
         }
     }
@@ -515,4 +458,71 @@ fn depth(registry: &FrameRegistry, id: u64) -> usize {
 
 fn color([r, g, b, a]: [f32; 4]) -> Color {
     Color::from_rgba(r, g, b, a)
+}
+
+type PendingInputs = Rc<RefCell<VecDeque<UiInput>>>;
+
+fn emit(pending: &PendingInputs, input: UiInput) -> Callable {
+    let pending = pending.clone();
+    Callable::from_fn("registry-input", move |_| {
+        pending.borrow_mut().push_back(input.clone())
+    })
+}
+
+fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let callback = Callable::from_fn("registry-frame-gui-input", move |args| {
+        let left_press = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
+            .is_some_and(|event| {
+                event.is_pressed() && event.get_button_index() == godot::global::MouseButton::LEFT
+            });
+        if left_press {
+            pending.borrow_mut().push_back(UiInput::Click(id));
+        }
+    });
+    node.connect("gui_input", &callback);
+}
+
+fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    for (signal, input) in [
+        ("pressed", UiInput::Click(id)),
+        ("mouse_entered", UiInput::Hover(id, true)),
+        ("mouse_exited", UiInput::Hover(id, false)),
+        ("button_down", UiInput::Press(id)),
+        ("button_up", UiInput::Release(id)),
+    ] {
+        node.connect(signal, &emit(pending, input));
+    }
+}
+
+fn connect_edit_box(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let text_pending = pending.clone();
+    let text_changed = Callable::from_fn("registry-text-changed", move |args| {
+        if let Some(text) = args.first() {
+            text_pending
+                .borrow_mut()
+                .push_back(UiInput::Text(id, text.to::<GString>().to_string()));
+        }
+    });
+    node.connect("text_changed", &text_changed);
+    node.connect("text_submitted", &emit(pending, UiInput::Submit));
+    node.connect("focus_entered", &emit(pending, UiInput::Focus(id)));
+    node.connect("focus_exited", &emit(pending, UiInput::Blur(id)));
+    let escape = release_focus_on_escape(node.clone());
+    node.connect("gui_input", &escape);
+}
+
+/// The original login clears edit focus on Escape; LineEdit keeps it by default.
+fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
+    Callable::from_fn("registry-editbox-escape", move |args| {
+        let escaped = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+            .is_some_and(|key| key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE);
+        if escaped {
+            edit.release_focus();
+        }
+    })
 }
