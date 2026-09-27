@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Combined shared physics and native motion gate
+
+At `ea5b4a85`, independent verification passes root fmt/check, core physics 7/7, core motion 8/8, native `world::tests` 6/6, root collision 14/14, and root proposal 2/2 (`/tmp/claude/verify-motion-final-summary.md`). Unchanged root `server_movement` source reuses prior 2/2 evidence. Native check is warning-free; root check retains two baseline `InputBindings` warnings.
+
+The initial native fmt failure was only `unit_motion_data` module ordering. `775b14a3` makes that declaration order canonical, and independent208 records native fmt PASS (`/tmp/claude/verify-motion-format-775b14a3.log`). This proves shared-helper/root-adapter/native-host-state behavior only. It does not prove decoded wire control epochs, player-input prediction/production/send, readiness, runtime fixture wire control, or real wire epochs. Agent209 portable bindings are in progress and outside this gate. Preserve `45fd1938`: height-grid answers, including inside authored holes, do not establish `WorldGround` support.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native terrain height versus ground support
 
 Native retained `Root.height_grids` contain only height-grid fields; MCNK low/high-resolution hole masks remain on separate `Root.chunks` used for mesh indices. Thus `GameClient.terrain_height_at` can return a height inside an authored hole. Its nil means no loaded grid covers the query, not the original `WorldGround` `Unloaded` state. The rendered-triangle `StaticBody3D` keeps holes open, but a mesh ray still is not `WorldGround`: it has neither WMO-floor candidates nor the `Unloaded`/`Unsupported` result distinction. Native movement remains unwired; this does not alter the WMO-floor contract or resolve the pending independent physics proof.
