@@ -18,6 +18,8 @@ pub mod lighting_assets;
 #[path = "../../../src/game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
+#[path = "../../../src/asset/m2_texture_composite_data.rs"]
+pub mod m2_texture_composite_data;
 pub use asset::m2_batch_data;
 #[cfg(test)]
 mod m2_batch_tests;
