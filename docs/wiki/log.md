@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Godot terrain-collider RED and independent height proof
+
+`33c31c8e` creates a `StaticBody3D`/`ConcavePolygonShape3D` per rendered terrain chunk from the same `ArrayMesh` triangles. Authored holes remain absent because the source render mesh omits them; tile-root teardown also removes the colliders. `/tmp/claude/godot-world-collision-red.log` is genuine RED: a physics ray misses visible terrain after the nine tiles load. No collision build or GREEN run is recorded, so the collision requirement remains unchecked; no readiness, WMO, camera/movement, or parity claim follows.
+
+Independent height verification at exact `40b3ad10635152937d81685681c5d593f50b8046` records native fmt and check GREEN (`/tmp/claude/verify-height-{native-fmt,native-check}.log`) and a real-server nine-tile centroid/reset fixture PASS (`/tmp/claude/verify-height-world-height-flow.log`). The initial `terrain_height_data::tests` core filter and `terrain_heightmap::tests` root filter selected zero tests; future focused filters are `core terrain_height_data_tests` and `bin rendering::terrain_heightmap::tests`. The root check failed only because `sample_chunk_height` ceased to be publicly re-exported; `aa7f00b1` restores the original public path, but its verification is pending. Readability accepts the paired flat bounds guard; inherited opaque sampler name `bxx` is deferred without a functional-bug claim. Updated [[godot-conversion]] and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-26] system | Godot lighting verification refresh
 
 At exact Rust semantic revision `2faed51b4ad02f27153ee9f36e3d75e35e392505`, `/tmp/claude/verify-native-fmt-2faed51b.log`, `verify-native-check-2faed51b.log`, and `verify-native-terrain-tests-2faed51b.log` record native fmt/check and `terrain::` 15/15 GREEN. `/tmp/claude/verify-world-lighting-flow-2faed51b.log` independently proves bounded real-fixture authored-lighting reset without fabricated readiness; proof revision is `2faed51b`, run while HEAD was `5a011a9b`.
