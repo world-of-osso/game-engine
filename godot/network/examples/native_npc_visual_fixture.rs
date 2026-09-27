@@ -217,7 +217,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO display_coverage VALUES (910010,0),(910011,0),(910015,0),(910012,1),(910013,1),(910014,1),(910016,1),(910017,1);
         INSERT INTO appearances VALUES (910012,1,0,2,910020),(910013,1,0,2,0),(910014,1,0,2,0),(910016,2,0,2,0),(910017,1,0,2,0);
         INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031),(910014,910030),(910014,910031),(910016,910032),(910016,910033),(910016,910034),(910016,910035),(910017,910030),(910017,910036);
-        INSERT INTO geosets VALUES (910012,1,2),(910013,1,1);
+        INSERT INTO geosets VALUES (910012,1,2),(910013,1,1),(910017,1,1);
     ")?;
     write_sqlite_fixture(data, "customization.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
