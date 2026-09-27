@@ -2,6 +2,7 @@
 pub(crate) mod appearance;
 pub(crate) mod creature;
 mod material;
+pub(crate) mod player;
 mod uv_animation;
 use std::{collections::HashMap, fs, path::Path};
 
@@ -174,10 +175,10 @@ pub(crate) fn load_model_node_with_skin_fdids(
     load_model_node_with_appearance(path, skin_texture_fdids, None)
 }
 
-fn load_model_node_with_appearance(
+pub(super) fn load_model_node_with_appearance(
     path: &GString,
     skin_texture_fdids: &[u32; 3],
-    appearance: Option<&appearance::PreparedNpcAppearance>,
+    appearance: Option<&appearance::PreparedAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let model = read_model(path)?;
     build_model(&model, path, skin_texture_fdids, appearance)
@@ -187,7 +188,7 @@ fn build_model(
     model: &m2::Model,
     path: &GString,
     skin_texture_fdids: &[u32; 3],
-    appearance: Option<&appearance::PreparedNpcAppearance>,
+    appearance: Option<&appearance::PreparedAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
@@ -261,7 +262,7 @@ fn load_batch(
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
     path: &GString,
     missing: &mut PackedInt32Array,
-    appearance: Option<&appearance::PreparedNpcAppearance>,
+    appearance: Option<&appearance::PreparedAppearance>,
 ) -> Result<LoadedBatch, String> {
     let sub = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
         format!(
@@ -270,7 +271,7 @@ fn load_batch(
         )
     })?;
     let mesh = build_batch_mesh(model, sub)?;
-    let replacement = npc_replacement_texture(batch, appearance)?;
+    let replacement = replacement_texture(batch, appearance)?;
     let material = material::load_material(batch, path, missing, replacement)?;
     let visible = appearance.is_none_or(|appearance| {
         game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
@@ -282,9 +283,9 @@ fn load_batch(
     Ok((mesh, material, visible))
 }
 
-fn npc_replacement_texture<'a>(
+fn replacement_texture<'a>(
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
-    appearance: Option<&'a appearance::PreparedNpcAppearance>,
+    appearance: Option<&'a appearance::PreparedAppearance>,
 ) -> Result<Option<&'a Gd<ImageTexture>>, String> {
     let Some(appearance) = appearance.filter(|_| !material::is_effect(batch)) else {
         return Ok(None);
@@ -295,8 +296,8 @@ fn npc_replacement_texture<'a>(
     let replacement = appearance.textures.get(&kind);
     if replacement.is_none() && matches!(kind, 1 | 6) {
         return Err(format!(
-            "missing NPC replacement texture type {kind} for batch {}",
-            batch.source_unit_index
+            "missing {} replacement texture type {kind} for batch {}",
+            appearance.source, batch.source_unit_index
         ));
     }
     Ok(replacement)

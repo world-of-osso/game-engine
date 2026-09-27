@@ -29,7 +29,8 @@ pub(crate) struct NpcAppearances {
     compositor: Option<CharTextureData>,
 }
 
-pub(crate) struct PreparedNpcAppearance {
+pub(crate) struct PreparedAppearance {
+    pub(super) source: &'static str,
     pub(super) textures: HashMap<u32, Gd<ImageTexture>>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
@@ -41,7 +42,7 @@ impl NpcAppearances {
         data_root: &Path,
         cache_root: &Path,
         display_id: u32,
-    ) -> Result<Option<PreparedNpcAppearance>, String> {
+    ) -> Result<Option<PreparedAppearance>, String> {
         let Some(appearance) = self.query_appearance(data_root, display_id)? else {
             return Ok(None);
         };
@@ -65,7 +66,8 @@ impl NpcAppearances {
             data_root,
             display_id,
         )?;
-        Ok(Some(PreparedNpcAppearance {
+        Ok(Some(PreparedAppearance {
+            source: "NPC",
             textures,
             selected_geosets: selected.geosets,
             authored_geosets: appearance.geosets,
@@ -214,17 +216,26 @@ fn load_npc_texture(
     data_root: &Path,
     fdid: u32,
 ) -> Result<TexturePixels, String> {
+    load_appearance_texture(resolver, data_root, fdid, "NPC")
+}
+
+pub(super) fn load_appearance_texture(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    fdid: u32,
+    source: &str,
+) -> Result<TexturePixels, String> {
     let destination = data_root.join("textures").join(format!("{fdid}.blp"));
     let path = resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
         format!(
-            "missing NPC texture FDID {fdid} at {}",
+            "missing {source} texture FDID {fdid} at {}",
             destination.display()
         )
     })?;
     let bytes = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     let rgba = blp::decode_rgba(&bytes).map_err(|error| {
         format!(
-            "decode NPC texture FDID {fdid} at {}: {error}",
+            "decode {source} texture FDID {fdid} at {}: {error}",
             path.display()
         )
     })?;
