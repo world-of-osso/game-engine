@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Root integration imports repaired; WMO readiness boundary retained
+
+Supplied verification at `75e5911` records the import-only repair, and at `e8466601` records root `cargo fmt --check` plus `cargo check` PASS with zero warnings (`/tmp/claude/verify-root-imports-75e5911.md`, `/tmp/claude/verify-root-test-migration-e8466601.md`). The former root production-import failures are resolved. Native `50e33def` scope is unchanged; its prior fmt/check evidence remains the native proof.
+
+The root `camera_follow` selector compiled no tests at `e8466601`: one duplicate `game_engine::RealmPreset` type and eight stale `WowCamera` field initializers block the binary. No camera-selector, runtime, or parity claim follows. Local filesystem presence is confirmed for `data/models/{107074,107075,108631,322057,321999}.wmo` and `data/terrain/{777627,777628}.adt`; ignored-file searches do not establish asset absence. Native WMO metadata has no spawn or floor registry, and `loading.rs` retains global-WMO readiness as `Pending`. Full conversion remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Independent native input gate
 
 Independent gate at `cd7ea9fa18b9bcdd686d30f457f0148990b6edf6` passes root and `godot/` formatting; `cargo check -p game-engine-godot` is warning-free. The bounded real fixture proves Loading suppression, W motion, decoded `PlayerInput`, release quietness, deferred focus clearing, and post-scope `3f404f26` right-mouse orbit/facing plus wheel zoom. Root `cargo check` fails on five stale-import/`ChatType` errors and is not acceptance proof. `default_realm_preset` and `CHUNK_SIZE` warnings were introduced by the options/water extraction; `b35e5c31` removes them and the duplicate config-directory helper without fresh check evidence. Two `InputBindings` warnings remain outside the bounded input slice. Native experimental trial is available; full conversion/parity remains open.
