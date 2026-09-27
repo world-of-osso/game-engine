@@ -29,8 +29,9 @@ const OTHER: &str = "Other Fixture";
 const FIRST: [f32; 3] = [-8949.0, 83.0, 0.0];
 const SECOND: [f32; 3] = [-8940.0, 83.0, 0.0];
 const TICK: Duration = Duration::from_millis(5);
-const TRANSPORT_SILENCE: Duration = Duration::from_secs(12);
-const FIXTURE_TIMEOUT: Duration = Duration::from_secs(100);
+// The native NetworkBridge configures a 60-second Netcode client timeout.
+const TRANSPORT_SILENCE: Duration = Duration::from_secs(65);
+const FIXTURE_TIMEOUT: Duration = Duration::from_secs(180);
 
 #[derive(Resource, Default)]
 struct Incoming {

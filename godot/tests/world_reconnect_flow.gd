@@ -40,7 +40,7 @@ func run_test() -> void:
 	var first_terrain_id: int = first_terrain.get_instance_id()
 	var first_player_id: int = first_player.get_instance_id()
 	print("FIXTURE INITIAL_READY")
-	if not await wait_for_world_reset(client, WAIT_MS):
+	if not await wait_for_world_reset(client, 90000):
 		return
 	print("FIXTURE WORLD_RESET")
 	if not await wait_for_terrain_refresh(client, WAIT_MS):
