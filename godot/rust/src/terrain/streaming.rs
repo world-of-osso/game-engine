@@ -136,6 +136,35 @@ impl StreamedTerrain {
             .find_map(|grid| game_engine_core::terrain_height_data::sample_chunk_height(grid, x, z))
     }
 
+    pub fn water_surface_at(&self, x: f32, z: f32) -> Option<f32> {
+        use game_engine_core::terrain_height_data::{
+            WaterLayerSurface, bevy_to_tile_coords, layer_has_water, sample_water_layer_height,
+        };
+
+        let tile = self.parsed_tiles.get(&bevy_to_tile_coords(x, z))?;
+        let water = tile.root.water.as_ref()?;
+        water
+            .chunks
+            .iter()
+            .enumerate()
+            .filter_map(|(index, chunk)| {
+                tile.root
+                    .chunk_positions
+                    .get(index)
+                    .map(|position| (chunk, *position))
+            })
+            .flat_map(|(chunk, position)| {
+                chunk.layers.iter().filter_map(move |layer| {
+                    if !layer_has_water(layer) {
+                        return None;
+                    }
+                    let surface = WaterLayerSurface::from_layer(layer, position);
+                    sample_water_layer_height(&surface, x, z)
+                })
+            })
+            .max_by(f32::total_cmp)
+    }
+
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
         if tile.0 >= MAP_TILE_BOUND || tile.1 >= MAP_TILE_BOUND {
             return Err(format!(
@@ -426,6 +455,77 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         panic!("stream timed out");
+    }
+
+    fn water_tile(
+        layers: Vec<game_engine_core::asset::adt_format::adt_tex::WaterLayer>,
+    ) -> NativeTerrainTile {
+        use game_engine_core::adt::Root;
+        use game_engine_core::asset::adt_format::adt_tex::{AdtWaterData, ChunkWater};
+
+        NativeTerrainTile {
+            root_path: PathBuf::new(),
+            tex_path: None,
+            obj_path: None,
+            root: Root {
+                chunks: Vec::new(),
+                height_grids: Vec::new(),
+                center_surface: [0.0; 3],
+                chunk_positions: vec![[0.0; 3]],
+                blend_mesh: None,
+                flight_bounds: None,
+                water: Some(AdtWaterData {
+                    chunks: vec![ChunkWater {
+                        layers,
+                        attributes: None,
+                    }],
+                }),
+                water_error: None,
+            },
+            tex: None,
+            obj: None,
+            textures: BTreeMap::new(),
+        }
+    }
+
+    fn flat_water(
+        height: f32,
+        exists: u8,
+    ) -> game_engine_core::asset::adt_format::adt_tex::WaterLayer {
+        game_engine_core::asset::adt_format::adt_tex::WaterLayer {
+            liquid_type: 0,
+            liquid_object: 0,
+            min_height: height,
+            max_height: height,
+            x_offset: 0,
+            y_offset: 0,
+            width: 1,
+            height: 1,
+            exists: [exists, 0, 0, 0, 0, 0, 0, 0],
+            vertex_heights: Vec::new(),
+            vertex_uvs: Vec::new(),
+            vertex_depths: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn water_query_selects_only_coordinate_tile_and_highest_existing_layer() {
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        stream.parsed_tiles.insert(
+            (32, 32),
+            water_tile(vec![
+                flat_water(5.0, 1),
+                flat_water(40.0, 0),
+                flat_water(12.0, 1),
+            ]),
+        );
+        stream
+            .parsed_tiles
+            .insert((31, 31), water_tile(vec![flat_water(90.0, 1)]));
+
+        assert_eq!(stream.water_surface_at(-1.0, 1.0), Some(12.0));
+        assert_eq!(stream.water_surface_at(-5.0, 1.0), None);
+        assert_eq!(stream.water_surface_at(1.0, 1.0), None);
     }
 
     #[test]
