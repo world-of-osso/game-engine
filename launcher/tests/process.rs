@@ -50,6 +50,30 @@ impl Fixture {
             .unwrap()
     }
 
+    fn launch_os(&self, args: &[&std::ffi::OsStr]) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
+            .args(args)
+            .current_dir(&self.directory)
+            .env("CARGO", &self.cargo)
+            .env("GODOT_BIN", &self.godot)
+            .env("FAKE_LOG", self.directory.join("log"))
+            .output()
+            .unwrap()
+    }
+
+    fn godot_args(&self) -> Vec<String> {
+        self.log()
+            .lines()
+            .nth(1)
+            .unwrap()
+            .split('\t')
+            .nth(4)
+            .unwrap()
+            .split(',')
+            .map(str::to_owned)
+            .collect()
+    }
+
     fn log(&self) -> String {
         fs::read_to_string(self.directory.join("log")).unwrap_or_default()
     }
@@ -140,6 +164,125 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
         ]
         .map(hex)
         .join(",")
+    );
+}
+
+#[test]
+fn interspersed_client_pairs_follow_native_engine_arguments() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&[
+        "--headless",
+        "--screen",
+        "charselect",
+        "--rendering-method",
+        "gl_compatibility",
+        "--server",
+        "127.0.0.1:5000",
+        "--state",
+        "login",
+        "--verbose",
+        "--char",
+        "Alice",
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    let godot_project = root().join("godot");
+    let expected = [
+        "--path",
+        godot_project.to_str().unwrap(),
+        "--headless",
+        "--rendering-method",
+        "gl_compatibility",
+        "--verbose",
+        "--",
+        "--screen",
+        "charselect",
+        "--server",
+        "127.0.0.1:5000",
+        "--state",
+        "login",
+        "--char",
+        "Alice",
+    ];
+    assert_eq!(fixture.godot_args(), expected.map(hex));
+}
+
+#[test]
+fn explicit_separator_keeps_remainder_in_client_order_without_duplication() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&[
+        "--screen",
+        "charselect",
+        "--verbose",
+        "--",
+        "--state",
+        "login",
+        "--custom",
+        "value",
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    let godot_project = root().join("godot");
+    let expected = [
+        "--path",
+        godot_project.to_str().unwrap(),
+        "--verbose",
+        "--",
+        "--screen",
+        "charselect",
+        "--state",
+        "login",
+        "--custom",
+        "value",
+    ];
+    assert_eq!(fixture.godot_args(), expected.map(hex));
+}
+
+#[test]
+fn missing_client_values_fail_before_native_build() {
+    for (flag, trailing) in [
+        ("--screen", None),
+        ("--state", Some("--verbose")),
+        ("--server", Some("--char")),
+        ("--char", Some("--")),
+    ] {
+        let fixture = Fixture::new();
+        let mut args = vec![flag];
+        if let Some(trailing) = trailing {
+            args.push(trailing);
+        }
+        let output = fixture.launch(&args);
+        assert_eq!(output.status.code(), Some(1));
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains(&format!("{flag} requires a value")),
+            "{stderr}"
+        );
+        assert!(fixture.log().is_empty(), "{flag} built native code");
+    }
+}
+
+#[test]
+fn non_utf8_native_and_client_values_survive_routing() {
+    let fixture = Fixture::new();
+    let native = std::ffi::OsString::from_vec(vec![b'-', 0xff, b'x']);
+    let client = std::ffi::OsString::from_vec(vec![b'A', 0xff, b'b']);
+    let output = fixture.launch_os(&[
+        std::ffi::OsStr::new("--screen"),
+        &client,
+        &native,
+        std::ffi::OsStr::new("--verbose"),
+    ]);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        fixture.godot_args(),
+        [
+            hex("--path"),
+            hex(root().join("godot")),
+            hex(&native),
+            hex("--verbose"),
+            hex("--"),
+            hex("--screen"),
+            hex(&client),
+        ]
     );
 }
 
