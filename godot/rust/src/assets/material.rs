@@ -173,7 +173,7 @@ fn texture_path(fdid: u32, dir: &Path) -> PathBuf {
     dir.join(format!("{fdid}.blp"))
 }
 
-fn load_texture(
+pub(crate) fn load_texture(
     fdid: u32,
     dir: &Path,
     missing: &mut PackedInt32Array,
@@ -229,7 +229,7 @@ fn compose_texture(
     Ok(())
 }
 
-pub(super) fn texture_from_rgba(
+pub(crate) fn texture_from_rgba(
     pixels: &[u8],
     width: u32,
     height: u32,

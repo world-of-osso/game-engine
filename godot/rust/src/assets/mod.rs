@@ -95,7 +95,7 @@ fn read_asset(path: &GString) -> Result<Vec<u8>, String> {
     fs::read(global_path(path)).map_err(|err| format!("Cannot read {path}: {err}"))
 }
 
-fn read_model(path: &GString) -> Result<m2::Model, String> {
+pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
     let model = read_asset(path)?;
     let base = path.to_string();
     let stem = base.strip_suffix(".m2").ok_or("Expected .m2 path")?;
@@ -303,7 +303,10 @@ fn replacement_texture<'a>(
     Ok(replacement)
 }
 
-fn build_batch_mesh(model: &m2::Model, sub: &m2::Submesh) -> Result<Gd<ArrayMesh>, String> {
+pub(crate) fn build_batch_mesh(
+    model: &m2::Model,
+    sub: &m2::Submesh,
+) -> Result<Gd<ArrayMesh>, String> {
     let start = sub.triangle_start as usize;
     let end = start + sub.triangle_count as usize;
     let indices = model
