@@ -13,61 +13,17 @@ use crate::game::inworld_scene_stage::{
 };
 use crate::m2_effect_material::M2EffectMaterial;
 use crate::networking::{InterpolationTarget, LocalAliveState, RemoteEntity, RotationTarget};
+#[cfg(test)]
+use crate::npc_visibility_data::{DAWN_MINUTES, DUSK_MINUTES, NpcSchedule, schedule_is_active};
+use crate::npc_visibility_data::{
+    NpcVisibilityDayPhase, NpcVisibilityPolicy, npc_should_be_visible, npc_visibility_day_phase,
+    npc_visibility_policy,
+};
 use crate::rendering::sky::GameTime;
 
 #[cfg(test)]
 #[path = "npc_animation_tests.rs"]
 mod animation_tests;
-
-const DAWN_MINUTES: f32 = 720.0;
-const DUSK_MINUTES: f32 = 2160.0;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NpcSchedule {
-    DayOnly,
-    NightOnly,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum NpcVisibilityPolicy {
-    Always,
-    Hidden,
-    DeadOnly,
-    Scheduled(NpcSchedule),
-}
-
-pub(crate) fn npc_visibility_policy(template_id: u32) -> NpcVisibilityPolicy {
-    match template_id {
-        6491 => NpcVisibilityPolicy::DeadOnly, // Spirit Healer
-        918 => NpcVisibilityPolicy::Scheduled(NpcSchedule::NightOnly), // Osborne the Night Man
-        12783 => NpcVisibilityPolicy::Scheduled(NpcSchedule::DayOnly), // Lieutenant Karter
-        32820 => NpcVisibilityPolicy::Hidden,  // Wild Turkey clutter near spawn
-        26724 | 26738 | 26739 | 26740..=26745 | 26747..=26759 | 26765 | 33252 => {
-            NpcVisibilityPolicy::Hidden // [DND] TAR pedestals and other debug vendors
-        }
-        _ => NpcVisibilityPolicy::Always,
-    }
-}
-
-fn schedule_is_active(schedule: NpcSchedule, minutes: f32) -> bool {
-    match schedule {
-        NpcSchedule::DayOnly => (DAWN_MINUTES..DUSK_MINUTES).contains(&minutes),
-        NpcSchedule::NightOnly => !(DAWN_MINUTES..DUSK_MINUTES).contains(&minutes),
-    }
-}
-
-fn npc_should_be_visible(
-    policy: NpcVisibilityPolicy,
-    local_alive: bool,
-    game_minutes: f32,
-) -> bool {
-    match policy {
-        NpcVisibilityPolicy::Always => true,
-        NpcVisibilityPolicy::Hidden => false,
-        NpcVisibilityPolicy::DeadOnly => !local_alive,
-        NpcVisibilityPolicy::Scheduled(schedule) => schedule_is_active(schedule, game_minutes),
-    }
-}
 
 fn apply_visibility_policy(
     npc: &Npc,
@@ -113,20 +69,6 @@ fn refresh_dead_only_npc_visibility(
         if npc_visibility_policy(npc.template_id) == NpcVisibilityPolicy::DeadOnly {
             apply_visibility_policy(npc, &mut visibility, local_alive.0, game_time.minutes);
         }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum NpcVisibilityDayPhase {
-    Day,
-    Night,
-}
-
-fn npc_visibility_day_phase(minutes: f32) -> NpcVisibilityDayPhase {
-    if schedule_is_active(NpcSchedule::DayOnly, minutes) {
-        NpcVisibilityDayPhase::Day
-    } else {
-        NpcVisibilityDayPhase::Night
     }
 }
 
