@@ -344,6 +344,7 @@ impl GameClient {
         if map_changed {
             self.world_camera.reset();
             self.world_lighting.reset();
+            self.world.update_lighting(None);
             self.terrain_materials.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
@@ -355,6 +356,7 @@ impl GameClient {
         self.terrain.reset()?;
         self.terrain_materials.reset();
         self.world_lighting.reset();
+        self.world.update_lighting(None);
         let [x, y, z] = destination.position;
         let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
         self.terrain.request_map(destination.map_directory, tile)?;
@@ -386,6 +388,7 @@ impl GameClient {
             player.origin,
             self.world_minutes,
         )? {
+            self.world.update_lighting(Some(light.clone()));
             self.terrain_materials.update_lighting(light);
         }
         Ok(())

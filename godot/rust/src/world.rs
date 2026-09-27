@@ -2,7 +2,10 @@
 
 use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
 
-use crate::world_models::CreatureModels;
+use crate::{
+    lighting::TerrainLight,
+    world_models::{CreatureModels, bind_visual_light},
+};
 
 use game_engine_core::unit_motion_data::{
     MotionPose, MotionTarget, follow_server_motion, interpolate_remote_motion,
@@ -203,7 +206,12 @@ fn resolve_selected_player(
     chosen
 }
 
-fn sync_unit_visual(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut CreatureModels) {
+fn sync_unit_visual(
+    unit: &mut UnitNode,
+    snapshot: &UnitSnapshot,
+    models: &mut CreatureModels,
+    light: Option<&TerrainLight>,
+) {
     let display_id = if snapshot.npc.is_some() && snapshot.player.is_none() {
         snapshot
             .model
@@ -225,6 +233,7 @@ fn sync_unit_visual(unit: &mut UnitNode, snapshot: &UnitSnapshot, models: &mut C
     };
     match models.load_visual(display_id) {
         Ok(visual) => {
+            bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
             unit.visual = Some(visual);
         }
@@ -238,6 +247,7 @@ pub struct WorldUnits {
     selected_name: Option<String>,
     local_player_id: Option<u64>,
     models: CreatureModels,
+    light: Option<TerrainLight>,
 }
 
 impl WorldUnits {
@@ -248,6 +258,7 @@ impl WorldUnits {
             selected_name: None,
             local_player_id: None,
             models: CreatureModels::new(data_root, cache_root),
+            light: None,
         }
     }
 
@@ -280,12 +291,21 @@ impl WorldUnits {
             unit.name = name.to_owned();
         }
         unit.is_player = snapshot.player.is_some();
-        sync_unit_visual(unit, snapshot, &mut self.models);
+        sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.rotation.map(|rotation| rotation.y),
             snapshot.movement_control,
         );
+    }
+
+    pub fn update_lighting(&mut self, light: Option<TerrainLight>) {
+        for unit in self.units.values() {
+            if let Some(visual) = &unit.visual {
+                bind_visual_light(visual, light.as_ref());
+            }
+        }
+        self.light = light;
     }
 
     pub fn advance(&mut self, delta: f32) {
@@ -304,6 +324,7 @@ impl WorldUnits {
     }
 
     pub fn reset(&mut self) {
+        self.light = None;
         self.units.clear();
         self.local_player_id = None;
         self.selected_name = None;

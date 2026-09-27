@@ -5,8 +5,8 @@ pub(crate) mod assets;
 use game_engine_core::{retail_light_data::RetailLightData, sky_cubemap_data};
 use godot::{
     classes::{
-        environment, image, Cubemap, DirectionalLight3D, Environment, Image, Node3D,
-        ShaderMaterial, WorldEnvironment,
+        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ShaderMaterial, WorldEnvironment,
+        environment, image,
     },
     prelude::*,
 };
