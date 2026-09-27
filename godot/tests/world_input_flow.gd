@@ -116,20 +116,67 @@ func run_test() -> void:
 			return
 	if not await focus_loss_stops_held_input(player):
 		return
+	var locomotion = load("res://tests/player_locomotion_probe.gd").new()
+	var locomotion_error: String = locomotion.bind(player)
+	if locomotion_error != "":
+		fail(locomotion_error)
+		return
+	if locomotion.animation.current_animation_id() != 0:
+		fail("Native player did not start in authored Stand 0: " + str(locomotion.animation.current_animation_id()))
+		return
+	var stand_pose: Array[Transform3D] = locomotion.capture_pose()
+	var run_started_ms := -1
+	var run_pose_changed := false
 	push_w(true)
 	for frame in range(HELD_FRAMES):
 		await process_frame
 		if client.account_state().screen != "InWorld":
+			push_w(false)
 			fail("World exited during held W at frame " + str(frame))
 			return
+		var animation_id: int = locomotion.animation.current_animation_id()
+		if animation_id == 5 and run_started_ms < 0:
+			run_started_ms = Time.get_ticks_msec()
+		if run_started_ms >= 0 and animation_id != 5:
+			push_w(false)
+			fail("Held W left authored Run 5 for animation " + str(animation_id))
+			return
+		if run_started_ms >= 0 and Time.get_ticks_msec() - run_started_ms >= 150:
+			run_pose_changed = run_pose_changed or locomotion.changed_from(stand_pose)
+	if run_started_ms < 0 or locomotion.animation.current_animation_id() != 5:
+		push_w(false)
+		fail("Held W did not select authored Run 5: " + str(locomotion.animation.current_animation_id()))
+		return
+	if not run_pose_changed:
+		push_w(false)
+		fail("Authored Run 5 did not change PlayerModel bone pose after 150ms crossfade")
+		return
+	var pixels = load("res://tests/world_player_equipment_pixels.gd").new()
+	var running_visual := pixels.find_visual(player) as Node3D
+	var running_pixels: String = await pixels.capture_equipped(self, player, running_visual, "inworld-selected-player-running.png")
+	if running_pixels != "":
+		push_w(false)
+		fail(running_pixels)
+		return
+	if locomotion.animation.current_animation_id() != 5:
+		push_w(false)
+		fail("Running screenshot did not retain authored Run 5")
+		return
 	push_w(false)
 	print("FIXTURE RELEASED")
 	var moved := player.position
 	if moved.z > start.z - 0.1 or absf(moved.x - start.x) > 0.25:
 		fail("Held W did not move native player along facing-PI direction: " + str(start) + " -> " + str(moved))
 		return
+	var returned_to_stand := false
 	for frame in range(SETTLE_FRAMES):
 		await process_frame
+		if locomotion.animation.current_animation_id() == 0:
+			returned_to_stand = true
+	if not returned_to_stand or locomotion.animation.current_animation_id() != 0:
+		fail("Released W did not return to authored Stand 0: " + str(locomotion.animation.current_animation_id()))
+		return
+	print("FIXTURE LOCOMOTION_STAND_RUN_STAND")
 	var stopped_at := player.position
 	for frame in range(STOP_FRAMES):
 		await process_frame
