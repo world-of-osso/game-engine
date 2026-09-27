@@ -3,10 +3,10 @@
 use std::{collections::BTreeSet, path::PathBuf};
 
 use game_engine_core::{
-    adt::DoodadPlacement,
+    adt::{DoodadPlacement, WmoPlacement},
     campsite_object_data::{
         campsite_doodad_placement, doodad_position, is_primary_campsite_doodad,
-        is_supplemental_campsite_doodad,
+        is_supplemental_campsite_doodad, placement_position,
     },
 };
 use godot::{classes::Node3D, prelude::*};
@@ -23,11 +23,13 @@ use crate::{
 };
 
 const CAMPSITE_PROP_RADIUS: f32 = 75.0;
+const CAMPSITE_WMO_RADIUS: f32 = 120.0;
 
 pub(super) struct CampsiteObjects {
     root: Option<Gd<Node3D>>,
     attached_tiles: BTreeSet<(u32, u32)>,
     attached_doodads: BTreeSet<u32>,
+    attached_wmos: BTreeSet<u32>,
     resolver: CascListfileResolver,
     data_root: PathBuf,
     primary: (u32, u32),
@@ -45,6 +47,7 @@ impl CampsiteObjects {
             root: None,
             attached_tiles: BTreeSet::new(),
             attached_doodads: BTreeSet::new(),
+            attached_wmos: BTreeSet::new(),
             resolver: local_resolver(&data_root, &cache_root),
             data_root,
             primary,
@@ -83,6 +86,11 @@ impl CampsiteObjects {
             for doodad in &objects.doodads {
                 self.attach_doodad(parent, terrain, doodad, tile, light)?;
             }
+            if tile == self.primary {
+                for wmo in &objects.wmos {
+                    self.attach_wmo(parent, wmo, light)?;
+                }
+            }
             self.attached_tiles.insert(tile);
         }
         Ok(())
@@ -108,14 +116,50 @@ impl CampsiteObjects {
         }
         let model = self.load_placed_doodad(doodad, path.as_deref(), tile, terrain)?;
         bind_visual_light(&model, light);
+        self.attach_model(parent, &model);
+        self.attached_doodads.insert(doodad.unique_id);
+        Ok(())
+    }
+
+    fn attach_model(&mut self, parent: &mut Gd<Node3D>, model: &Gd<Node3D>) {
         let root = self.root.get_or_insert_with(|| {
             let mut root = Node3D::new_alloc();
             root.set_name("CampsiteObjects");
             parent.add_child(&root);
             root
         });
-        root.add_child(&model);
-        self.attached_doodads.insert(doodad.unique_id);
+        root.add_child(model);
+    }
+
+    fn attach_wmo(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        placement: &WmoPlacement,
+        light: Option<&TerrainLight>,
+    ) -> Result<(), String> {
+        let position = placement_position(placement.position, self.primary.0, self.primary.1);
+        if position.distance(self.focus) > CAMPSITE_WMO_RADIUS
+            || self.attached_wmos.contains(&placement.unique_id)
+        {
+            return Ok(());
+        }
+        let asset = crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)?;
+        let mut model = crate::wmo::scene::build_wmo_node(
+            &asset,
+            &self.resolver,
+            &self.data_root,
+            placement.doodad_set,
+            light,
+        )?;
+        let rotation = shared::ground::placement_rotation(placement.rotation);
+        model.set_name(&format!("Wmo{}", placement.unique_id));
+        model.set_position(Vector3::from_array(position.to_array()));
+        model.set_quaternion(Quaternion::new(
+            rotation.x, rotation.y, rotation.z, rotation.w,
+        ));
+        model.set_scale(Vector3::ONE * placement.scale);
+        self.attach_model(parent, &model);
+        self.attached_wmos.insert(placement.unique_id);
         Ok(())
     }
 
@@ -194,5 +238,6 @@ impl CampsiteObjects {
         }
         self.attached_tiles.clear();
         self.attached_doodads.clear();
+        self.attached_wmos.clear();
     }
 }
