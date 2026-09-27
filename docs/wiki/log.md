@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Godot startup CLI is separated from native Godot flags
+
+`b10eab7d` keeps native Godot arguments intact and sends launcher-owned `--screen`, `--state`, `--server`, and `--char` after Godot's `--` separator; the process suite is reported 11/11 GREEN. `ae091255` shares pure `ScreenArg`/`StartupArgs` parsing, reported 6/6 GREEN. `37262089` consumes Godot user arguments in `GameClient::ready()`, supporting `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld`. `charselect` and `inworld` authenticate via saved token or configured credentials; `--char` must name a roster character and `inworld` enters it. `charcreate` is standalone unless `--server` is explicit, then authenticates first. `dev`/`prod` remain server aliases. `e89f4243` prioritizes startup tokens, consumes options once, and validates requested names. `connecting`, `reconnecting`, and legacy destinations outside that set error explicitly as unconverted.
+
+The root-launcher/private-XDG credential fixture at `a69e4f4c` remains RED: startup stays at Login without a manual GDScript connection (`/tmp/claude/screen-cli-runtime-red-a69e4f4c.log`). Native build/runtime proof is pending; this does not close conversion or locomotion gates.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Root Cargo command launches Godot
 
 Root `cargo run`/`rd` now selects the std-only debug launcher rather than compiling the Bevy package. It validates the pinned Godot 4.7.2 binary or `GODOT_BIN`, builds the native library, then execs Godot; no server startup or Bevy fallback. `run-tests.sh --workspace` covers root/launcher tests and Godot tests remain separate. Launcher process tests were reported 7/7 at `41036dfe` before integration/refactoring. At `2d17381e`, bare root `cargo run` reached nested native build and Godot 4.7.2 Vulkan initialization with exit 0 (`/tmp/claude/default-cargo-run-smoke-2d17381e.log`); existing WMO/cage warnings remain. This is bootstrap evidence, not client readiness; independent launcher verification remains pending.
