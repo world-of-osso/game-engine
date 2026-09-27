@@ -1,10 +1,10 @@
 # Wiki Log
 
-## [2026-09-26] system | Native shared-clock M2 effect UVs
+## [2026-09-27] system | Bounded M2 effect-UV proof boundary
 
-`fc5a657f` attaches a native material animator only to eligible two-texture effect batches and registers `/root/M2MaterialClock` as the shared application-time autoload. `aa04c18c` corrects the native field to `texture_anim`. This remains independent of native bone clip selection and pause.
+`8df1ec99` shared sampler proof remains reused core5; `fc5a657f`/`aa04c18c` native effect routing retains reused explicit-phase pixel8 proof, exit 0. The bounded verifier records native/root fmt and checks PASS, while its root selected sampler test was blocked before selection by missing `M2TextureUnit` imports (`/tmp/claude/verify-m2-effect-uv-summary.md`). `4814ed00` fixes those direct test imports; agent298 follow-up proof is pending.
 
-`/tmp/claude/m2-effect-uv-pixels-green.log` exits 0 with eight actual-loader GPU assertions: ordinary single-texture unchanged at 250/500 ms; effect baseline, +U, +U+V, later-model shared 500-ms phase, +V, and wrap. `/tmp/claude/m2-uv-pixels-red.log` is corrected RED; `0c5a9b04` is superseded because its single-texture animation demand was invalid. Build-command output was lost, so no build-PASS claim is made; the runtime fixture proves the new DLL loads. Verifier294 and native-check evidence remain pending. No ordinary single-texture opacity/colour behavior, full conversion, or visual parity is claimed.
+`97fa86c9` adds an enabled-process rendered-pixel observation for automatic `/root/M2MaterialClock` progression. No matching GPU result log is available: automatic clock behavior remains source-only, not runtime proof. Main rejected length-only readability findings because they show no behavioral failure; no scope expansion follows. No full conversion or visual-parity claim.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
