@@ -186,11 +186,21 @@ pub(super) fn load_model_node_with_appearance(
     build_model(&model, path, skin_texture_fdids, appearance)
 }
 
-fn build_model(
+pub(super) fn build_model(
     model: &m2::Model,
     path: &GString,
     skin_texture_fdids: &[u32; 3],
     appearance: Option<&appearance::PreparedAppearance>,
+) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    build_model_filtered(model, path, skin_texture_fdids, appearance, |_| true)
+}
+
+pub(super) fn build_model_filtered(
+    model: &m2::Model,
+    path: &GString,
+    skin_texture_fdids: &[u32; 3],
+    appearance: Option<&appearance::PreparedAppearance>,
+    allowed: impl Fn(u16) -> bool,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
@@ -204,9 +214,12 @@ fn build_model(
             .with_shared_data_root(data_root)
             .with_cache_root(data_root.join("cache")),
     );
-    let resolved = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
+    let resolved: Vec<_> = m2::resolve_render_batches(model, skin_texture_fdids, false, |fdid| {
         resolver.resolve_path(fdid)
-    })?;
+    })?
+    .into_iter()
+    .filter(|batch| allowed(batch.mesh_part_id))
+    .collect();
     let batches = resolved
         .iter()
         .map(|batch| load_batch(model, batch, path, &mut missing, appearance))
@@ -280,10 +293,16 @@ fn load_batch(
     let replacement = replacement_texture(batch, appearance)?;
     let material = material::load_material(batch, path, missing, replacement)?;
     let visible = appearance.is_none_or(|appearance| {
-        game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+        let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
+            && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+                batch.mesh_part_id,
+                &appearance.selected_geosets,
+                &appearance.authored_geosets,
+            );
+        game_engine_core::geoset_visibility_data::apply_exact_geoset_overrides(
             batch.mesh_part_id,
-            &appearance.selected_geosets,
-            &appearance.authored_geosets,
+            visible,
+            &appearance.equipment_geosets,
         )
     });
     Ok((mesh, material, visible))

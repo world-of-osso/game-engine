@@ -5,6 +5,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use crate::{
+    equipment_appearance_data::{ResolvedEquipmentAppearance, resolve_equipment_appearance},
+    outfit_data::OutfitData,
+};
 use game_engine_core::{
     asset::m2_texture,
     char_texture_data::CharTextureData,
@@ -18,9 +22,11 @@ use shared::{components::CharacterAppearance, protocol::CharacterListEntry};
 
 use super::{
     appearance::{PreparedAppearance, load_appearance_texture},
+    build_model,
     creature::{cache_model_files, cache_model_textures, local_resolver},
-    load_model_node_with_appearance,
+    equipment::attach_equipment,
     material::texture_from_rgba,
+    read_model,
 };
 
 type TexturePixels = (Vec<u8>, u32, u32);
@@ -194,20 +200,32 @@ pub(crate) fn load_player_model(
 ) -> Result<Gd<Node3D>, String> {
     let resolver = local_resolver(data_root, cache_root);
     let path = cache_player_model(&resolver, data_root, character)?;
-    let appearance = prepare_player_appearance(&resolver, data_root, character)?;
-    let slots = [0; 3];
-    let (mut model, missing) = load_model_node_with_appearance(
-        &GString::from(path.to_string_lossy().as_ref()),
-        &slots,
-        Some(&appearance),
+    let equipment = resolve_equipment_appearance(
+        &character.equipment_appearance,
+        &OutfitData::load(data_root),
+        character.race,
+        character.appearance.sex,
     )?;
+    let appearance = prepare_player_appearance(&resolver, data_root, character, &equipment)?;
+    let path = GString::from(path.to_string_lossy().as_ref());
+    let parsed = read_model(&path)?;
+    let (mut model, missing) = build_model(&parsed, &path, &[0; 3], Some(&appearance))?;
     if !missing.is_empty() {
         godot_warn!(
             "Player {} missing authored texture FDIDs: {missing:?}",
             character.name
         );
     }
-    mark_unsupported_player_equipment(&mut model, character);
+    if let Err(error) = attach_equipment(
+        &mut model,
+        &parsed,
+        &resolver,
+        data_root,
+        &equipment.runtime_models,
+    ) {
+        model.free();
+        return Err(error);
+    }
     Ok(model)
 }
 
@@ -232,18 +250,47 @@ fn prepare_player_appearance(
     resolver: &CascListfileResolver,
     data_root: &Path,
     character: &CharacterListEntry,
+    equipment: &ResolvedEquipmentAppearance,
 ) -> Result<PreparedAppearance, String> {
     let race = character.race;
     let sex = character.appearance.sex;
     let db = load_customization_db(data_root)?;
-    let selected = select_player_choices(&db, race, sex, character.class, &character.appearance)?;
+    let mut selected =
+        select_player_choices(&db, race, sex, character.class, &character.appearance)?;
+    for group in &equipment.hidden_character_geoset_groups {
+        selected.geosets.retain(|(active, _)| active != group);
+        let variant = if *group == 0 {
+            db.scalp_fallback_hair_geoset(race, sex).unwrap_or(1)
+        } else {
+            1
+        };
+        selected.geosets.push((*group, variant));
+    }
     let layout_id = db
         .layout_id(race, sex)
         .ok_or_else(|| format!("missing player texture layout for race {race} sex {sex}"))?;
     let compositor = load_compositor(data_root)?;
-    let pixels = compose_player_pixels(&compositor, &selected, &[], layout_id, |texture_fdid| {
-        load_appearance_texture(resolver, data_root, texture_fdid, "player")
-    })?;
+    let mut seen = HashSet::new();
+    let item_textures: Vec<_> = equipment
+        .outfit
+        .item_textures
+        .iter()
+        .copied()
+        .filter(|texture| seen.insert(*texture))
+        .collect();
+    let mut pixels = compose_player_pixels(
+        &compositor,
+        &selected,
+        &item_textures,
+        layout_id,
+        |texture_fdid| load_appearance_texture(resolver, data_root, texture_fdid, "player"),
+    )?;
+    if let Some(fdid) = equipment.merged_cape_texture_fdid {
+        pixels.insert(
+            2,
+            load_appearance_texture(resolver, data_root, fdid, "player cape")?,
+        );
+    }
     let textures = pixels
         .into_iter()
         .map(|(kind, (rgba, width, height))| {
@@ -255,20 +302,9 @@ fn prepare_player_appearance(
         textures,
         selected_geosets: selected.geosets,
         authored_geosets: Vec::new(),
+        equipment_geosets: equipment.outfit.geoset_overrides.clone(),
+        hidden_geoset_ids: equipment.hidden_character_geoset_ids.clone(),
     })
-}
-
-fn mark_unsupported_player_equipment(model: &mut Gd<Node3D>, character: &CharacterListEntry) {
-    if !character.equipment_appearance.entries.is_empty() {
-        model.set_meta(
-            "unsupported_equipment_appearance",
-            &format!("{:?}", character.equipment_appearance).to_variant(),
-        );
-        godot_warn!(
-            "Player {} body loaded; gear appearance unsupported",
-            character.name
-        );
-    }
 }
 
 #[cfg(test)]

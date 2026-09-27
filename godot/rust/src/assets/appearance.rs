@@ -34,6 +34,8 @@ pub(crate) struct PreparedAppearance {
     pub(super) textures: HashMap<u32, Gd<ImageTexture>>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
+    pub(super) equipment_geosets: Vec<(u16, u16)>,
+    pub(super) hidden_geoset_ids: HashSet<u16>,
 }
 
 impl NpcAppearances {
@@ -71,6 +73,8 @@ impl NpcAppearances {
             textures,
             selected_geosets: selected.geosets,
             authored_geosets: appearance.geosets,
+            equipment_geosets: Vec::new(),
+            hidden_geoset_ids: HashSet::new(),
         }))
     }
 
