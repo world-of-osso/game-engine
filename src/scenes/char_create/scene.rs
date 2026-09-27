@@ -23,7 +23,7 @@ use crate::m2_scene;
 use crate::m2_spawn::GeosetMesh;
 use crate::model_path_resolver::resolve_model_path;
 use crate::orbit_camera::scaled_orbit_delta;
-use crate::scenes::char_create::CharCreateState;
+use crate::scenes::char_create::CharCreateStateRes;
 use game_engine::asset::char_texture::CharTextureData;
 use game_engine::creation_scene_data::CreationSceneCatalog;
 use game_engine::customization_data::{CustomizationDb, OptionType};
@@ -171,7 +171,7 @@ fn orbit_camera(
 }
 
 fn apply_camera_control(
-    state: Option<ResMut<CharCreateState>>,
+    state: Option<ResMut<CharCreateStateRes>>,
     mut cameras: Query<(&mut CharCreateOrbit, &mut Transform)>,
 ) {
     let Some(mut state) = state else { return };
@@ -226,7 +226,7 @@ fn zoom_target_for_dropdown(open_dropdown: Option<OptionType>) -> (Vec3, f32) {
 }
 
 fn camera_zoom_for_dropdown(
-    state: Option<Res<CharCreateState>>,
+    state: Option<Res<CharCreateStateRes>>,
     db: Res<CustomizationDb>,
     time: Res<Time>,
     mut query: Query<(&mut CharCreateOrbit, &mut Transform)>,
@@ -439,7 +439,7 @@ fn setup_scene(mut spawn: CharCreateSpawnParams, mut displayed: ResMut<Displayed
 
 fn sync_model(
     mut spawn: CharCreateSpawnParams,
-    state: Option<Res<CharCreateState>>,
+    state: Option<Res<CharCreateStateRes>>,
     mut model_vis: Query<(&ModelSex, &mut Visibility)>,
     mut displayed: ResMut<DisplayedModels>,
     mut cameras: Query<(&mut CharCreateOrbit, &mut Transform, &mut Projection)>,
@@ -536,7 +536,7 @@ fn update_visibility(model_vis: &mut Query<(&ModelSex, &mut Visibility)>, active
 }
 
 fn sync_appearance(
-    state: Option<Res<CharCreateState>>,
+    state: Option<Res<CharCreateStateRes>>,
     mut appearance_params: CharCreateAppearanceParams,
     mut displayed: ResMut<DisplayedModels>,
 ) {
@@ -568,7 +568,7 @@ fn sync_appearance(
 }
 
 fn sync_model_presentation(
-    state: Option<Res<CharCreateState>>,
+    state: Option<Res<CharCreateStateRes>>,
     db: Res<CustomizationDb>,
     mut models: Query<(&ModelSex, &mut Transform), With<CharCreateModelRoot>>,
 ) {

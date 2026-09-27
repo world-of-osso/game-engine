@@ -298,6 +298,19 @@ impl RegistryUi {
         self.sync_model()
     }
 
+    pub fn has_frame(&self, name: &str) -> bool {
+        self.model
+            .as_ref()
+            .is_some_and(|model| model.registry.get_by_name(name).is_some())
+    }
+
+    pub fn is_frame_focused(&self, name: &str) -> bool {
+        self.model.as_ref().is_some_and(|model| {
+            model.registry.focused_frame.is_some()
+                && model.registry.focused_frame == model.registry.get_by_name(name)
+        })
+    }
+
     pub fn focus_frame_named(&mut self, name: &str) -> Result<(), String> {
         let model = self
             .model

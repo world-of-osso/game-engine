@@ -11,7 +11,7 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacter,
+    AuthChannel, CharacterListUpdate, CreateCharacter, CreateCharacterResponse, DeleteCharacter,
     DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, InputChannel, LoadTerrain,
     LoginResponse, NewWorld, PlayerInput, RegisterResponse, TransferAborted, TransferChannel,
     WorldPortAck,
@@ -36,6 +36,11 @@ pub enum AccountEvent {
     UnitRemoved(u64),
     /// The character roster changed through a server update or response.
     RosterChanged,
+    /// Server answer to the pending character-creation request.
+    CharacterCreated {
+        success: bool,
+        error: Option<String>,
+    },
 }
 
 impl Account {
@@ -97,6 +102,10 @@ impl Account {
         let Some(request) = self.session.select_character() else {
             return Ok(());
         };
+        self.connected_bridge()?.send::<_, AuthChannel>(request)
+    }
+
+    pub fn send_create_character(&self, request: CreateCharacter) -> Result<(), String> {
         self.connected_bridge()?.send::<_, AuthChannel>(request)
     }
 
@@ -198,6 +207,15 @@ impl Account {
             output.push(AccountEvent::RosterChanged);
             return Ok(());
         }
+        if message.is::<CreateCharacterResponse>() {
+            let result = self.session.receive_character_created(decode(message)?);
+            output.push(AccountEvent::RosterChanged);
+            output.push(AccountEvent::CharacterCreated {
+                success: result.success,
+                error: result.error,
+            });
+            return Ok(());
+        }
         let effects = self.receive_message(message)?;
         self.apply_effects(effects, output)
     }
@@ -218,10 +236,6 @@ impl Account {
         }
         if message.is::<ForcedDisconnect>() {
             return Ok(self.session.receive_forced_disconnect(decode(message)?));
-        }
-        if message.is::<CreateCharacterResponse>() {
-            self.session.receive_character_created(decode(message)?);
-            return Ok(Vec::new());
         }
         Err("Unhandled account protocol message".into())
     }

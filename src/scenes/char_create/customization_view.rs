@@ -1,11 +1,11 @@
-use super::{CharCreateState, CharCreateUiState, build_class_availability};
-use game_engine::appearance_options;
-use game_engine::customization_data::{CustomizationDb, CustomizationOption};
-use game_engine::ui::screens::char_create_component::{
+use super::deps::appearance_options;
+use super::deps::char_create_component::{
     CustomizationCategoryUi, CustomizationChoiceUi, CustomizationOptionUi,
 };
+use super::deps::{CustomizationDb, CustomizationOption};
+use super::{CharCreateState, CharCreateUiState, build_class_availability};
 
-pub(super) fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> CharCreateUiState {
+pub fn build_ui_state(state: &CharCreateState, db: &CustomizationDb) -> CharCreateUiState {
     let options = db
         .options_for(state.selected_race, state.selected_sex)
         .unwrap_or(&[]);
@@ -103,8 +103,7 @@ fn build_option(
         &state.appearance,
         option,
     );
-    let compatible_faces = (option.option_type
-        == game_engine::customization_data::OptionType::Face
+    let compatible_faces = (option.option_type == super::deps::OptionType::Face
         && appearance_options::is_core_option(db, state.selected_race, state.selected_sex, option))
     .then(|| {
         super::appearance::compatible_face_indices(

@@ -8,8 +8,9 @@ use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::TextureSource;
 
 pub use super::char_select_delete_confirm_component::{
-    DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT,
-    DeleteCharacterTarget, DeleteConfirmUiState, DeleteConfirmation, delete_confirmation_modal,
+    DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DELAY_SECS, DELETE_CONFIRM_DIALOG,
+    DELETE_CONFIRM_INPUT, DeleteCharacterTarget, DeleteConfirmUiState, DeleteConfirmation,
+    delete_confirmation_modal,
 };
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;

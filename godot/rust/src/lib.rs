@@ -5,6 +5,7 @@ pub mod appearance_options;
 pub use game_engine_core::customization_data;
 mod assets;
 mod camera;
+mod char_create;
 mod character_select;
 mod gameplay;
 mod ground;
@@ -26,7 +27,7 @@ use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
-    char_create_component::CharCreateAction,
+    char_create_component::{CREATE_NAME_INPUT, CharCreateAction, CharCreateMode},
     char_select_component::{
         CharSelectAction, DELETE_CONFIRM_INPUT, DeleteCharacterTarget, DeleteConfirmation,
         step_selection,
@@ -53,6 +54,10 @@ pub struct GameClient {
     create_ui: Option<Gd<ui::RegistryUi>>,
     character_preview: character_select::CharacterPreview,
     delete_confirmation: DeleteConfirmation,
+    creation: Option<char_create::CharCreateState>,
+    creation_catalog: Option<game_engine_core::customization_data::CustomizationDb>,
+    name_catalog: Option<Result<char_create::NameCatalog, String>>,
+    data_root: PathBuf,
     loading_ui: Option<Gd<ui::RegistryUi>>,
     errors_ui: Option<Gd<ui::RegistryUi>>,
     account: Account,
@@ -85,6 +90,10 @@ impl INode3D for GameClient {
             character_ui: None,
             create_ui: None,
             delete_confirmation: DeleteConfirmation::default(),
+            creation: None,
+            creation_catalog: None,
+            name_catalog: None,
+            data_root: data_root.clone(),
             character_preview: character_select::CharacterPreview::new(
                 data_root.clone(),
                 cache_root.clone(),
@@ -448,16 +457,130 @@ impl GameClient {
         if !error.is_empty() {
             return Err(error.to_string());
         }
+        let name = ui
+            .bind_mut()
+            .frame_text(CREATE_NAME_INPUT.0.into())
+            .to_string();
         let action = ui.bind_mut().pop_action().to_string();
-        match CharCreateAction::parse(&action) {
-            Some(CharCreateAction::Back) => {
+        let (Some(state), Some(db)) = (self.creation.as_mut(), self.creation_catalog.as_ref())
+        else {
+            return Ok(());
+        };
+        // Original: the name draft follows the edit box while it exists (Customize mode).
+        if state.mode == CharCreateMode::Customize {
+            state.name = name;
+        }
+        let Some(action) = CharCreateAction::parse(&action) else {
+            return self.sync_creation_ui();
+        };
+        let names = self
+            .name_catalog
+            .as_ref()
+            .map_or(Err("Authored random names are unavailable"), |names| {
+                names.as_ref().map_err(String::as_str)
+            });
+        let draft = state.name.clone();
+        let effects = char_create::reduce(
+            state,
+            action,
+            db,
+            names,
+            &draft,
+            char_create::fresh_random_seed(),
+        );
+        for effect in effects {
+            self.apply_creation_effect(effect)?;
+        }
+        self.sync_creation_ui()
+    }
+
+    fn apply_creation_effect(
+        &mut self,
+        effect: char_create::CharCreateEffect,
+    ) -> Result<(), String> {
+        use char_create::CharCreateEffect;
+        match effect {
+            CharCreateEffect::ExitToCharSelect => {
+                self.creation = None;
                 self.account.session.screen = SessionScreen::CharacterSelect;
                 self.show_account_screen(SessionScreen::CharacterSelect)
             }
-            None if action.is_empty() => Ok(()),
-            _ => Err(format!(
-                "Character creation action not yet converted: {action}"
-            )),
+            // The edit box shows `CharCreateState::name` through the next UI state.
+            CharCreateEffect::SetNameText(name) => {
+                if let Some(state) = self.creation.as_mut() {
+                    state.name = name;
+                }
+                Ok(())
+            }
+            CharCreateEffect::SendCreate(request) => self.account.send_create_character(request),
+            CharCreateEffect::FocusNameInput => match self.create_ui.as_mut() {
+                Some(ui) if ui.bind().has_frame(CREATE_NAME_INPUT.0) => {
+                    ui.bind_mut().focus_frame_named(CREATE_NAME_INPUT.0)
+                }
+                _ => Ok(()),
+            },
+        }
+    }
+
+    /// Enter creation with the original default Human Warrior and a random appearance.
+    fn start_creation(&mut self) -> Result<(), String> {
+        if self.creation_catalog.is_none() {
+            self.creation_catalog = Some(
+                game_engine_core::npc_appearance_assets::load_customization_db(&self.data_root)?,
+            );
+        }
+        if self.name_catalog.is_none() {
+            let names = char_create::NameCatalog::load(&self.data_root.join("NameGen.csv"));
+            if let Err(error) = &names {
+                godot_error!("Random name control unavailable: {error}");
+            }
+            self.name_catalog = Some(names);
+        }
+        let db = self
+            .creation_catalog
+            .as_ref()
+            .expect("loaded customization catalog");
+        self.creation = Some(char_create::initial_state(None, db));
+        self.sync_creation_ui()
+    }
+
+    fn sync_creation_ui(&mut self) -> Result<(), String> {
+        let (Some(state), Some(db), Some(ui)) = (
+            self.creation.as_ref(),
+            self.creation_catalog.as_ref(),
+            self.create_ui.as_mut(),
+        ) else {
+            return Ok(());
+        };
+        let names = self
+            .name_catalog
+            .as_ref()
+            .map_or(Err("Authored random names are unavailable"), |names| {
+                names.as_ref().map_err(String::as_str)
+            });
+        let focused = state.mode == CharCreateMode::Customize
+            && ui.bind().is_frame_focused(CREATE_NAME_INPUT.0);
+        let size = ui
+            .get_viewport()
+            .ok_or("Character creation UI has no viewport")?
+            .get_visible_rect()
+            .size;
+        let ui_state =
+            char_create::ui_state(state, db, names, focused, (size.x as u32, size.y as u32));
+        ui.bind_mut().set_state(ui_state)
+    }
+
+    fn receive_creation_result(
+        &mut self,
+        success: bool,
+        error: Option<String>,
+    ) -> Result<(), String> {
+        let Some(state) = self.creation.as_mut() else {
+            return Ok(());
+        };
+        match char_create::receive_create_result(state, success, error) {
+            Some(effect) => self.apply_creation_effect(effect),
+            None => self.sync_creation_ui(),
         }
     }
 
@@ -534,6 +657,9 @@ impl GameClient {
                     self.units.insert(unit.server_id, unit);
                 }
                 AccountEvent::RosterChanged => self.sync_character_select_state()?,
+                AccountEvent::CharacterCreated { success, error } => {
+                    self.receive_creation_result(success, error)?
+                }
                 AccountEvent::UnitRemoved(id) => {
                     self.world.remove(id);
                     self.units.remove(&id);
@@ -812,7 +938,7 @@ impl GameClient {
             previous.free();
         }
         ui.set_name("CharacterCreateUI");
-        Ok(())
+        self.start_creation()
     }
 
     fn attach_loading_ui(&mut self) -> Result<(), String> {

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use game_engine::customization_data::{CustomizationDb, OptionType};
+use super::deps::{CustomizationDb, OptionType};
 use shared::components::CharacterAppearance;
 
 use super::{CharCreateState, clamp_appearance_field, mix_seed, pick_random_choice};
 
-pub(super) fn randomize_appearance_with_seed(
+pub fn randomize_appearance_with_seed(
     state: &mut CharCreateState,
     db: &CustomizationDb,
     seed: u64,
@@ -58,7 +58,7 @@ fn random_skin_index(db: &CustomizationDb, race: u8, sex: u8, class: u8, seed: &
     compatible[(*seed % compatible.len() as u64) as usize]
 }
 
-pub(super) fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
+pub fn normalize_appearance(state: &mut CharCreateState, db: &CustomizationDb) {
     let (race, sex, class) = (
         state.selected_race,
         state.selected_sex,
@@ -86,7 +86,7 @@ pub(super) fn normalize_appearance(state: &mut CharCreateState, db: &Customizati
         &mut state.appearance.facial_style,
         db.choice_count_for_class(race, sex, class, OptionType::FacialHair),
     );
-    game_engine::appearance_options::normalize_additional_choices(
+    super::deps::appearance_options::normalize_additional_choices(
         db,
         race,
         sex,
@@ -95,7 +95,7 @@ pub(super) fn normalize_appearance(state: &mut CharCreateState, db: &Customizati
     );
 }
 
-pub(super) fn adjust_appearance(
+pub fn adjust_appearance(
     state: &mut CharCreateState,
     option_id: u32,
     delta: i8,
@@ -105,7 +105,7 @@ pub(super) fn adjust_appearance(
         return;
     };
     if option.option_type == OptionType::Face
-        && game_engine::appearance_options::is_core_option(
+        && super::deps::appearance_options::is_core_option(
             db,
             state.selected_race,
             state.selected_sex,
@@ -124,12 +124,12 @@ pub(super) fn adjust_appearance(
             option_id,
         )
         .into_iter()
-        .filter(|choice| game_engine::appearance_options::choice_can_render(choice))
+        .filter(|choice| super::deps::appearance_options::choice_can_render(choice))
         .collect();
     if choices.is_empty() {
         return;
     }
-    let selected = game_engine::appearance_options::selected_choice(
+    let selected = super::deps::appearance_options::selected_choice(
         db,
         state.selected_race,
         state.selected_sex,
@@ -144,7 +144,7 @@ pub(super) fn adjust_appearance(
     select_choice(state, option_id, choices[next].id, db);
 }
 
-pub(super) fn select_choice(
+pub fn select_choice(
     state: &mut CharCreateState,
     option_id: u32,
     choice_id: u32,
@@ -152,7 +152,7 @@ pub(super) fn select_choice(
 ) {
     if let Some(option) = db.option_by_id(state.selected_race, state.selected_sex, option_id)
         && option.option_type == OptionType::Face
-        && game_engine::appearance_options::is_core_option(
+        && super::deps::appearance_options::is_core_option(
             db,
             state.selected_race,
             state.selected_sex,
@@ -180,7 +180,7 @@ pub(super) fn select_choice(
             return;
         }
     }
-    let result = game_engine::appearance_options::set_choice(
+    let result = super::deps::appearance_options::set_choice(
         db,
         state.selected_race,
         state.selected_sex,
@@ -205,7 +205,7 @@ fn randomize_additional_choices(state: &mut CharCreateState, db: &CustomizationD
         .into_iter()
         .flatten()
     {
-        if game_engine::appearance_options::is_core_option(
+        if super::deps::appearance_options::is_core_option(
             db,
             state.selected_race,
             state.selected_sex,
@@ -221,7 +221,7 @@ fn randomize_additional_choices(state: &mut CharCreateState, db: &CustomizationD
                 option.id,
             )
             .into_iter()
-            .filter(|choice| game_engine::appearance_options::choice_can_render(choice))
+            .filter(|choice| super::deps::appearance_options::choice_can_render(choice))
             .collect();
         if choices.is_empty() {
             continue;
@@ -294,7 +294,7 @@ fn cycle_face_choice(state: &mut CharCreateState, db: &CustomizationDb, delta: i
     state.appearance.face = compatible[next];
 }
 
-pub(super) fn compatible_face_indices(
+pub fn compatible_face_indices(
     db: &CustomizationDb,
     race: u8,
     sex: u8,
@@ -352,7 +352,7 @@ fn face_matches_skin(
 }
 
 fn related_skin_ids(
-    choice: &game_engine::customization_data::CustomizationChoice,
+    choice: &super::deps::CustomizationChoice,
     skin_choice_ids: &HashSet<u32>,
 ) -> HashSet<u32> {
     choice

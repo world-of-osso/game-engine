@@ -1,4 +1,5 @@
 use super::*;
+use crate::scenes::char_create::CharCreateState;
 use std::path::Path;
 
 use crate::character_customization::{
@@ -121,7 +122,7 @@ fn select_race_action_updates_char_create_state() {
     let mut state = CharCreateState::default();
     assert_eq!(state.selected_race, 1, "default race should be human");
 
-    super::super::input::apply_race_change_with_seed(&mut state, 2, &db, 42);
+    super::super::apply_race_change_with_seed(&mut state, 2, &db, 42);
     assert_eq!(
         state.selected_race, 2,
         "apply_race_change should update selected_race"
@@ -160,17 +161,17 @@ fn sync_model_detects_race_change_and_respawns() {
     });
 
     // Change state to race 2 (orc)
-    app.insert_resource(CharCreateState {
+    app.insert_resource(CharCreateStateRes(CharCreateState {
         selected_race: 2,
         selected_class: 1,
         selected_sex: 0,
         ..Default::default()
-    });
+    }));
 
     let race_changed = app
         .world_mut()
         .run_system_once(
-            |state: Option<Res<CharCreateState>>, displayed: Res<DisplayedModels>| -> bool {
+            |state: Option<Res<CharCreateStateRes>>, displayed: Res<DisplayedModels>| -> bool {
                 let state = state.unwrap();
                 displayed.race != Some(state.selected_race)
             },
@@ -404,12 +405,12 @@ fn changing_race_replaces_model_entities_in_bevy_tree() {
         .count();
 
     // Change state to race 2 (orc)
-    app.insert_resource(CharCreateState {
+    app.insert_resource(CharCreateStateRes(CharCreateState {
         selected_race: 2,
         selected_class: 1,
         selected_sex: 0,
         ..Default::default()
-    });
+    }));
 
     // Run sync_model to detect and apply the race change
     app.world_mut()
@@ -486,7 +487,7 @@ fn geosets_visible_after_two_updates_with_full_plugin() {
     // Frame 1: OnEnter fires setup_scene, commands queued
     app.update();
     // Insert CharCreateState (normally from CharCreatePlugin's OnEnter)
-    app.insert_resource(CharCreateState::default());
+    app.insert_resource(CharCreateStateRes::default());
     // Frame 2: commands applied, sync_appearance runs
     app.update();
     // Frame 3: any deferred work
@@ -600,7 +601,7 @@ fn sync_appearance_unhides_geoset_meshes() {
     app.update();
 
     // Insert CharCreateState (normally done by CharCreatePlugin)
-    app.insert_resource(CharCreateState::default());
+    app.insert_resource(CharCreateStateRes::default());
     app.update();
 
     // Run sync_appearance
@@ -781,7 +782,7 @@ struct CameraFixture {
 impl CameraFixture {
     fn new() -> Self {
         let mut world = World::new();
-        world.init_resource::<CharCreateState>();
+        world.init_resource::<CharCreateStateRes>();
         world.init_resource::<CustomizationDb>();
         world.insert_resource(Time::<()>::default());
         let offset = DEFAULT_EYE - DEFAULT_FOCUS;
@@ -802,13 +803,15 @@ impl CameraFixture {
     }
 
     fn control(&mut self, control: CameraControl) {
-        self.world.resource_mut::<CharCreateState>().camera_action = Some(control);
+        self.world
+            .resource_mut::<CharCreateStateRes>()
+            .camera_action = Some(control);
         self.world
             .run_system_once(apply_camera_control)
             .expect("camera action system");
         assert!(
             self.world
-                .resource::<CharCreateState>()
+                .resource::<CharCreateStateRes>()
                 .camera_action
                 .is_none()
         );
@@ -946,7 +949,7 @@ fn camera_control_eye_and_ear_option_ids_zoom_to_face_and_restore_on_close() {
     for option_id in [463, 8789] {
         fixture
             .world
-            .resource_mut::<CharCreateState>()
+            .resource_mut::<CharCreateStateRes>()
             .open_dropdown = Some(option_id);
         fixture.settle_zoom();
         assert!((fixture.radius() - FACE_DISTANCE * presentation.customize_scale).abs() < 0.0001);
@@ -960,7 +963,7 @@ fn camera_control_eye_and_ear_option_ids_zoom_to_face_and_restore_on_close() {
         );
         fixture
             .world
-            .resource_mut::<CharCreateState>()
+            .resource_mut::<CharCreateStateRes>()
             .open_dropdown = None;
         fixture.settle_zoom();
         assert!(fixture.position().distance(default_eye) < 0.0001);
