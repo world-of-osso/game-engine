@@ -312,7 +312,7 @@ impl ClientOptionsFile {
 pub fn options_path() -> PathBuf {
     world_of_osso_config_dir().join(OPTIONS_FILE_NAME)
 }
-fn world_of_osso_config_dir() -> PathBuf {
+pub(crate) fn world_of_osso_config_dir() -> PathBuf {
     directories::BaseDirs::new()
         .map(|dirs| dirs.config_dir().to_path_buf())
         .unwrap_or_else(|| PathBuf::from("."))

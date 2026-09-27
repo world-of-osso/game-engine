@@ -9,7 +9,7 @@ use bevy::window::{PresentMode, PrimaryWindow, Window};
 use game_engine::ui::render::UiCamera;
 use serde::{Deserialize, Serialize};
 
-use crate::cli_args::{RealmPreset, default_realm_preset};
+use crate::cli_args::RealmPreset;
 #[path = "../../client_options_data.rs"]
 mod portable;
 use crate::game::inworld_scene_stage::InWorldSceneStage;

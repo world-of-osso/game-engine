@@ -4,9 +4,9 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::asset::adt::{self, CHUNK_SIZE, ChunkHeightGrid};
+use crate::asset::adt::{self, ChunkHeightGrid};
 #[cfg(test)]
-use crate::asset::adt::{UNIT_SIZE, vertex_index};
+use crate::asset::adt::{CHUNK_SIZE, UNIT_SIZE, vertex_index};
 use crate::rendering::ground_effects::{self, GroundEffectEntry};
 pub(crate) use crate::rendering::terrain_height_data::sample_chunk_height;
 use crate::rendering::terrain_height_data::{

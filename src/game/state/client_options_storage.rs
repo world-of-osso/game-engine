@@ -209,19 +209,13 @@ pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
 }
 
 pub(super) fn ui_layout_path() -> PathBuf {
-    world_of_osso_config_dir().join(UI_LAYOUT_FILE_NAME)
+    portable::world_of_osso_config_dir().join(UI_LAYOUT_FILE_NAME)
 }
 
 pub fn login_credentials_path() -> PathBuf {
-    world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
+    portable::world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
 }
 
-fn world_of_osso_config_dir() -> PathBuf {
-    directories::BaseDirs::new()
-        .map(|dirs| dirs.config_dir().to_path_buf())
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("world-of-osso")
-}
 pub(super) fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {
     portable::select_load_options_path(config_path, legacy_path)
 }
