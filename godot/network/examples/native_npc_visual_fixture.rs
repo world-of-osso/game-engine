@@ -283,27 +283,33 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
 
 fn stage_preview_assets(repo: &Path, data: &Path) -> Result<(), String> {
     for folder in ["models", "terrain"] {
-        let source = repo.join("data").join(folder);
-        for entry in
-            fs::read_dir(&source).map_err(|error| format!("Read {}: {error}", source.display()))?
-        {
-            let entry = entry.map_err(|error| format!("Read preview asset: {error}"))?;
-            let name = entry.file_name();
-            let name_text = name.to_string_lossy();
-            // Generated NPC models and WDTs remain private writable fixtures.
-            if !entry.path().is_file()
-                || name_text.starts_with("91001")
-                || name_text.starts_with("91009")
-                || name_text.ends_with(".missing")
-            {
-                continue;
-            }
-            std::os::unix::fs::symlink(entry.path(), data.join(folder).join(name))
-                .map_err(|error| format!("Link cached preview asset: {error}"))?;
-        }
+        stage_cached_asset_tree(&repo.join("data").join(folder), &data.join(folder))?;
     }
     std::os::unix::fs::symlink(repo.join("data/Map.csv"), data.join("Map.csv"))
         .map_err(|error| format!("Link authored map catalog: {error}"))
+}
+
+fn stage_cached_asset_tree(source: &Path, target: &Path) -> Result<(), String> {
+    fs::create_dir_all(target).map_err(|error| format!("Create {}: {error}", target.display()))?;
+    for entry in
+        fs::read_dir(source).map_err(|error| format!("Read {}: {error}", source.display()))?
+    {
+        let entry = entry.map_err(|error| format!("Read cached asset: {error}"))?;
+        let name = entry.file_name();
+        let text = name.to_string_lossy();
+        // Generated NPC models, WDTs and negative-cache markers stay private.
+        if text.starts_with("91001") || text.starts_with("91009") || text.ends_with(".missing") {
+            continue;
+        }
+        let destination = target.join(&name);
+        if entry.path().is_dir() {
+            stage_cached_asset_tree(&entry.path(), &destination)?;
+        } else if entry.path().is_file() {
+            std::os::unix::fs::symlink(entry.path(), &destination)
+                .map_err(|error| format!("Link {}: {error}", destination.display()))?;
+        }
+    }
+    Ok(())
 }
 
 fn stage_fixture_listfile(repo: &Path, data: &Path) -> Result<(), String> {
