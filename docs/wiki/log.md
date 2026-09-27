@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native physical input primitives
+
+`1ee7c51c`/`78696f8e` map physical Godot keys and mouse buttons to portable binding values. Targeted mapping GREEN is 4/4 (`/tmp/claude/input-keys-green.log`) after the missing-module RED in `/tmp/claude/input-keys-red.log`. `79043809` adds retained held/one-frame-edge key/button state, modifiers, accumulated motion/scroll, and focus-loss clearing; targeted state GREEN is 3/3 (`/tmp/claude/physical-input-green.log`) after `/tmp/claude/physical-input-red.log`.
+
+The modules are UNWIRED: no event, projection, binding-match, prediction, UDP, or native-gameplay proof. Independent primitives audit agent406 and final integration gates remain pending.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Portable original movement-input decisions
 
 `c2e3297d` moves original movement-input decisions into Bevy-free `movement_input_data`, exposed by `godot/core`; the root Bevy camera adapter supplies its existing input state. The source retains unnormalized forward/both-mouse accumulation, facing-relative vector and animation priority, autorun/run-toggle ordering, manual-override edges, and backward/strafe speed multipliers.
