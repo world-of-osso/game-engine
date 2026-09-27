@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot MovementControl snapshot retention and camera baseline
+
+`eff94a71d259b020f39fba4b6e7c21229bb57f7f` retains optional copied `MovementControl { epoch, controlled }` in owned `UnitSnapshot`; the native literal fixture initializes it as `None`. `/tmp/claude/godot-snapshot-movement-red.log` is genuine missing-field RED. Targeted network and native fixture commands are GREEN 1/1 at `/tmp/claude/godot-snapshot-movement-green.log` and `/tmp/claude/godot-snapshot-world-fixture-green.log`. This retains snapshot data only, not native correction, prediction, interpolation, input production/send, or decoded-UDP proof.
+
+Agent178 independently baselines `2cacf913`/`aedd9fe6`: native fmt/check, core terrain-height 3/3, core camera-data 7/7, and actual `world_camera_flow` PASS (`/tmp/claude/verify-camera-{native-fmt,native-check,core-terrain-height-data,core-camera-data,world-camera-flow}.log`). `/tmp/claude/verify-camera-artifact-record.log` records native artifact SHA-256 `a83fe827f8edd1f36972732a2963380915facb030c36164bf85c4804261f065b`. Root `cargo check --bin game-engine` passes at `6237af9d` with two baseline `InputBindings` warnings (`/tmp/claude/verify-camera-root-check-6237af9d.log`); `4e26ae9d` fixes root test compile failures. Independent current190 remains pending. Full conversion remains open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Correct Godot `PlayerInput` registration boundary
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md). Source inspection shows `godot/network/src/lib.rs` `run_worker` installs `shared::ProtocolPlugin`; `godot/Cargo.toml` patches `shared` to the local checkout at current HEAD `70dccb0`, where `src/protocol/registration.rs` registers `PlayerInput` client-to-server. Nominal pinned `e25c79d` also registers it in `src/protocol.rs`. Transport registration is therefore not missing; native input production/send invocation and real decoded-UDP `PlayerInput` proof remain absent.
