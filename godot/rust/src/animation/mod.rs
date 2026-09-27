@@ -192,7 +192,11 @@ impl AnimationState {
             sequences: model.sequences.clone(),
             tracks: model.bone_tracks.clone(),
             local_pivots,
-            current: 0,
+            current: model
+                .sequences
+                .iter()
+                .position(|sequence| sequence.id == 0)
+                .unwrap_or(0),
             time_ms: 0.0,
             looping: true,
             transition: None,
