@@ -91,6 +91,14 @@ fn collect_chr_race_prefix_rows<R: BufRead>(
     Ok(prefixes)
 }
 
+fn outfit_csv_source_key(path: &Path) -> Result<String, String> {
+    Ok(path
+        .canonicalize()
+        .map_err(|err| format!("canonicalize {}: {err}", path.display()))?
+        .to_string_lossy()
+        .to_string())
+}
+
 fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
@@ -110,7 +118,7 @@ fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<boo
         recorded.insert(source, mtime);
     }
     for path in csv_paths {
-        let key = path.to_string_lossy().to_string();
+        let key = outfit_csv_source_key(path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
             return Ok(false);
         }
