@@ -136,7 +136,19 @@ func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String)
 		await process_frame
 		if lighting_matches(client, ambient, direct, map):
 			return true
-	fail("Timed out waiting for %s creature lighting %s / %s: %s" % [map, ambient, direct, client.account_state()])
+	var lighting := client.get_node_or_null("WorldLighting")
+	var npc := client.get_node_or_null("WorldUnits/" + NPC)
+	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
+	var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
+	var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+	var actual := "no creature material" if material == null else str({
+		"ambient": material.get_shader_parameter("ambient"),
+		"direct": material.get_shader_parameter("direct"),
+		"fog_range": material.get_shader_parameter("fog_range"),
+		"fog_mode": material.get_shader_parameter("fog_mode"),
+		"cube": material.get_shader_parameter("environment_map"),
+	})
+	fail("Timed out waiting for %s creature lighting %s / %s; producer=%s material=%s state=%s" % [map, ambient, direct, lighting, actual, client.account_state()])
 	return false
 
 func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: String) -> bool:
