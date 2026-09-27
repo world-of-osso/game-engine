@@ -176,7 +176,7 @@ func run_test() -> void:
 	if not returned_to_stand or locomotion.animation.current_animation_id() != 0:
 		fail("Released W did not return to authored Stand 0: " + str(locomotion.animation.current_animation_id()))
 		return
-	print("FIXTURE LOCOMOTION_STAND_RUN_STAND")
+	print("PASS: locomotion Stand 0 -> Run 5 -> Stand 0 with authored bone motion")
 	var stopped_at := player.position
 	for frame in range(STOP_FRAMES):
 		await process_frame
