@@ -39,7 +39,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 - [ ] Parent integration must import current display data and visually validate the actual replicated Northshire NPCs; synthetic material tests are not visual acceptance. The native path reads imported caches only: it neither checks importer freshness nor rebuilds them.
 
-- [ ] Native type-6 selection/application has shared policy coverage but no native fixture coverage. The development fixture RED at `0a53831c` (`/tmp/claude/native-npc-appearance-red-0a53831c.log`) stops at the geoset/body assertion: its reported expected/actual RGBA values are a color sentinel, not a rendered-pixel measurement. Native build `1952d1cd` exits 0 and the configured UDP fixture passes 23 lifecycle/appearance phases, including baked/composed/reset (`/tmp/claude/native-npc-appearance-green-configured.log`); shutdown still reports a dummy-material null on stderr. This is resource/fixture state, not rendered-pixel proof.
+- [ ] `85fa5d8a` adds a native missing-required-type-6 fixture. Against unguarded DLL `1952d1cd`, it reaches `BAKED_READY` and `COMPOSED_READY`, then exits 101 at phase 22 because the ordinary type-6 batch silently retains its original base texture (`/tmp/claude/native-npc-type6-red-85fa5d8a.md`). `6f00e74c` rejects an absent type-1 or type-6 replacement for an ordinary prepared-NPC batch; effect routing is unchanged. Native GREEN is pending a build after the appearance-only readability refactor. This remains resource/fixture state, not rendered-pixel proof.
 
 ## Out of scope
 
