@@ -36,6 +36,8 @@ pub mod m2;
 pub mod m2_effect_uv_data;
 #[path = "../../../src/asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
+#[path = "../../../src/movement_input_data.rs"]
+pub mod movement_input_data;
 pub use asset::m2_batch_data;
 #[cfg(test)]
 mod m2_batch_tests;
