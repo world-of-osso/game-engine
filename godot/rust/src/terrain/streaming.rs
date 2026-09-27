@@ -240,7 +240,7 @@ impl StreamedTerrain {
                 .map_wdt
                 .as_ref()
                 .and_then(|wdt| wdt.global_wmo.as_ref())
-                .and_then(|wmo| wmo.fdid),
+                .and_then(|wmo| wmo.placement.fdid),
             global_wmo_present: self
                 .map_wdt
                 .as_ref()
