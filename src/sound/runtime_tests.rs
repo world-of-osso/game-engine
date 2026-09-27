@@ -3,6 +3,7 @@ use super::runtime_assets::{
     strip_ambient_tracks_from_music_catalog,
 };
 use super::*;
+use game_engine::input_bindings::InputBindings;
 
 fn maintenance_test_app() -> App {
     let mut app = App::new();
