@@ -16,6 +16,38 @@ fn loads_authored_human_catalog_and_layout_from_local_cache() {
 }
 
 #[test]
+fn native_swatch_sampling_is_lazy_shared_and_limited_to_color_choices() {
+    let db = load_customization_db(&data_root()).expect("local customization catalog");
+    let skin = db.choice_by_id(1, 1, 85).expect("Human female Skin Color");
+    let face = db.choice_by_id(1, 1, 107).expect("Human female Face");
+    let skin_clone = skin.clone();
+    let mut calls = 0;
+    assert_eq!(
+        skin.sample_swatch_color_with(|materials| {
+            calls += 1;
+            assert!(!materials.is_empty());
+            Some([17, 42, 93])
+        }),
+        Some([17, 42, 93])
+    );
+    assert_eq!(
+        skin_clone.sample_swatch_color_with(|_| {
+            calls += 1;
+            Some([1, 2, 3])
+        }),
+        Some([17, 42, 93])
+    );
+    assert_eq!(
+        face.sample_swatch_color_with(|_| {
+            calls += 1;
+            Some([1, 2, 3])
+        }),
+        None
+    );
+    assert_eq!(calls, 1);
+}
+
+#[test]
 fn loads_original_hd_compositor_dimensions() {
     let compositor = load_compositor(&data_root()).expect("local compositor catalog");
     let layout = compositor.layout(103).expect("HumanMaleHD layout");
