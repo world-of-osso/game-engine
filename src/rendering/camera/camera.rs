@@ -24,10 +24,11 @@ mod camera_follow;
 #[path = "camera_post_process.rs"]
 mod camera_post_process;
 
-use camera_controls::{apply_keyboard_camera, camera_pitch_delta};
+use camera_controls::CameraInputState;
 use camera_follow::camera_follow;
 pub(crate) use camera_post_process::{MsaaDisabled, world_camera_tonemapping};
 use camera_post_process::{sync_camera_graphics_post_process, sync_ui_camera_msaa};
+use game_engine::camera_input_data::{CameraInput, apply_camera_input};
 
 pub struct WowCameraPlugin;
 
@@ -142,11 +143,6 @@ pub(crate) fn spawn_wow_camera(commands: &mut Commands) -> Entity {
 
 const WALK_SPEED: f32 = 2.5; // M2 Walk movespeed (2.5 yards/sec)
 const RUN_SPEED: f32 = 7.0; // M2 Run movespeed (7.0 yards/sec)
-const ZOOM_STEP: f32 = 2.0;
-const KEY_ROTATE_SPEED: f32 = 2.5; // radians/sec for arrow key rotation
-const KEY_ZOOM_SPEED: f32 = 15.0; // units/sec for page up/down zoom
-const PITCH_LIMIT: f32 =
-    game_engine::camera_control::PITCH_LIMIT_DEGREES * std::f32::consts::PI / 180.0;
 const LANDING_EPSILON: f32 = 0.05;
 const SWIM_DEPTH_THRESHOLD: f32 = 1.25;
 
@@ -171,34 +167,28 @@ fn camera_input(
         return;
     };
 
-    let rmb = mouse_buttons.pressed(MouseButton::Right);
-    let lmb = mouse_buttons.pressed(MouseButton::Left);
     let delta = mouse_motion.delta;
     let dt = time.delta_secs();
-
-    if rmb {
-        // RMB: character snaps to face camera direction, then both rotate together
-        let yaw_delta = -delta.x * options.look_sensitivity;
-        cam.yaw += yaw_delta;
-        cam.pitch += camera_pitch_delta(delta.y, &options);
-        cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
-        if let Ok(mut facing) = facing_q.single_mut() {
-            facing.yaw = cam.yaw + std::f32::consts::PI;
-        }
-    } else if lmb {
-        // LMB: orbit camera only (character doesn't turn)
-        cam.yaw -= delta.x * options.look_sensitivity;
-        cam.pitch += camera_pitch_delta(delta.y, &options);
-        cam.pitch = cam.pitch.clamp(-PITCH_LIMIT, PITCH_LIMIT);
-    }
-
-    apply_keyboard_camera(keys, &mouse_buttons, &bindings, dt, &mut cam, &mut facing_q);
-
-    if mouse_scroll.delta.y != 0.0 {
-        cam.target_distance -= mouse_scroll.delta.y * ZOOM_STEP;
-        cam.target_distance = cam
-            .target_distance
-            .clamp(cam.min_distance, cam.max_distance);
+    let mut facing = facing_q.single_mut().ok();
+    let next_facing = apply_camera_input(
+        &mut cam.0,
+        facing.as_ref().map(|facing| facing.yaw),
+        &bindings,
+        &CameraInputState {
+            keys,
+            mouse: &mouse_buttons,
+        },
+        CameraInput {
+            delta_x: delta.x,
+            delta_y: delta.y,
+            scroll_y: mouse_scroll.delta.y,
+            dt,
+            look_sensitivity: options.look_sensitivity,
+            invert_y: options.invert_y,
+        },
+    );
+    if let (Some(mut facing), Some(yaw)) = (facing, next_facing) {
+        facing.yaw = yaw;
     }
 }
 
