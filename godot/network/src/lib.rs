@@ -432,6 +432,9 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 }
 
 #[cfg(test)]
+mod wire_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use shared::{
