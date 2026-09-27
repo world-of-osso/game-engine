@@ -28,10 +28,6 @@ func run_test() -> void:
 		return
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error = client.connect_account(server, "fixture", "fixture", false)
-	if error != "":
-		fail("Fixture connection: " + error)
-		return
 	if not await wait_for_screen(client, "CharacterSelect", 15000):
 		return
 	var ui = client.get_node_or_null("CharacterSelectUI")
