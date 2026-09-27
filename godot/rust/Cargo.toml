@@ -17,6 +17,8 @@ csv = "1.4"
 rusqlite = { version = "0.35", features = ["bundled"] }
 # Convert native node rotations into the same quaternion math used by shared movement.
 glam = "0.32.0"
+# Masked character-creation icons use the shared image-crate portrait composition.
+image = { version = "0.25", default-features = false }
 # Reuse the original local-CASC/listfile resolver and canonical FDID asset cache.
 osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
 game-engine-network = { path = "../network" }
