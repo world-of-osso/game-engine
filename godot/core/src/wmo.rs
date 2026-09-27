@@ -1,6 +1,7 @@
 //! WMO root and raw group data (WoW local coordinates, no Bevy mesh).
 use crate::asset::wmo_format::parser;
 
+pub use crate::asset::wmo_format::mesh_data::{WmoBatchType, WmoMeshBatch};
 pub use parser::{RawGroupData, WmoGroupHeader, WmoRootData};
 
 pub fn parse_root(bytes: &[u8]) -> Result<WmoRootData, String> {
@@ -13,6 +14,12 @@ pub fn parse_root(bytes: &[u8]) -> Result<WmoRootData, String> {
 pub struct Group {
     pub header: WmoGroupHeader,
     pub geometry: RawGroupData,
+}
+
+impl Group {
+    pub fn batches(&self, root: Option<&WmoRootData>) -> Vec<WmoMeshBatch> {
+        crate::asset::wmo_format::mesh_data::build_group_batches(&self.header, &self.geometry, root)
+    }
 }
 
 pub fn parse_group(bytes: &[u8]) -> Result<Group, String> {
