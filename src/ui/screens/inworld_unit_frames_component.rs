@@ -168,6 +168,8 @@ pub struct InWorldUnitFramesState {
     pub target: Option<UnitFrameState>,
     pub target_of_target: Option<SmallUnitFrameState>,
     pub focus: Option<SmallUnitFrameState>,
+    /// `boss1..boss5` (`INSTANCE_ENCOUNTER_ENGAGE_UNIT`), Boss1TargetFrame first.
+    pub bosses: Vec<UnitFrameState>,
     pub menu: UnitFrameMenuState,
 }
 
@@ -200,6 +202,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {target_frame(state.target.as_ref(), state.show_target_frame)}
             {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
             {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
+            {boss_frames(&state.bosses)}
             {unit_frame_menu(&state.menu)}
         }
     }
@@ -242,6 +245,60 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
         {unit_frame_contents("Target", state)}
         {target_aura_row("TargetBuff", &state.target_buffs, TARGET_BUFF_Y)}
         {target_aura_row("TargetDebuff", &state.target_debuffs, TARGET_DEBUFF_Y)}
+    }
+}
+
+/// Retail `MAX_BOSS_FRAMES`.
+pub const MAX_BOSS_FRAMES: usize = 5;
+/// `BossTargetFrameContainer` (Blizzard_UnitFrame/Mainline/TargetFrame.xml): a vertical
+/// right-managed stack, `spacing` 10. Its right-side slot below the minimap is placed
+/// at the reference resolution; the boss flair art is not drawn.
+const BOSS_FRAME_RIGHT: f32 = 60.0;
+const BOSS_FRAME_TOP: f32 = 300.0;
+const BOSS_FRAME_SPACING: f32 = 10.0;
+
+pub fn boss_frame_name(index: usize) -> String {
+    format!("Boss{}TargetFrame", index + 1)
+}
+
+fn boss_frames(bosses: &[UnitFrameState]) -> Element {
+    (0..MAX_BOSS_FRAMES)
+        .flat_map(|index| boss_frame(index, bosses.get(index)))
+        .collect()
+}
+
+fn boss_frame(index: usize, boss: Option<&UnitFrameState>) -> Element {
+    let name = boss_frame_name(index);
+    let prefix = format!("Boss{}", index + 1);
+    let content = boss
+        .map(|state| {
+            rsx! {
+                {reaction_strip(&prefix, state.reaction, 1.0)}
+                {unit_frame_contents(&prefix, state)}
+            }
+        })
+        .unwrap_or_default();
+    let art = art_texture(
+        dyn_name(format!("{name}Art")),
+        &inworld_unit_frames_art::FRAME_PORTRAIT_OFF,
+        (0.0, 0.0, FRAME_W, FRAME_H),
+        false,
+    );
+    let hidden = boss.is_none();
+    let top = BOSS_FRAME_TOP + index as f32 * (FRAME_H + BOSS_FRAME_SPACING);
+    rsx! {
+        r#frame {
+            name: {dyn_name(name)},
+            width: FRAME_W,
+            height: FRAME_H,
+            hidden,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            right: BOSS_FRAME_RIGHT,
+            top,
+            {art}
+            {content}
+        }
     }
 }
 

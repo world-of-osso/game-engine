@@ -14,6 +14,12 @@ pub enum ChatChannelType {
     System,
     /// Numbered custom or zone channel (General, Trade, LookingForGroup, etc.).
     Custom,
+    /// `CHAT_MSG_MONSTER_SAY` / `_YELL` / `_EMOTE` and `CHAT_MSG_RAID_BOSS_EMOTE`:
+    /// creature text.
+    MonsterSay,
+    MonsterYell,
+    MonsterEmote,
+    RaidBossEmote,
 }
 
 impl ChatChannelType {
@@ -30,6 +36,11 @@ impl ChatChannelType {
             Self::Emote => [1.0, 0.5, 0.25, 1.0],     // orange
             Self::System => [1.0, 1.0, 0.0, 1.0],     // yellow
             Self::Custom => [1.0, 0.75, 0.75, 1.0],   // light pink
+            // Retail default ChatTypeInfo colours.
+            Self::MonsterSay => [1.0, 1.0, 0.624, 1.0],
+            Self::MonsterYell => [1.0, 0.251, 0.251, 1.0],
+            Self::MonsterEmote => [1.0, 0.502, 0.251, 1.0],
+            Self::RaidBossEmote => [1.0, 0.867, 0.0, 1.0],
         }
     }
 
@@ -46,6 +57,7 @@ impl ChatChannelType {
             Self::Emote => "",
             Self::System => "[System]",
             Self::Custom => "",
+            Self::MonsterSay | Self::MonsterYell | Self::MonsterEmote | Self::RaidBossEmote => "",
         }
     }
 }
@@ -81,8 +93,16 @@ pub struct ChatMessage {
 impl ChatMessage {
     /// Formatted display: "[Channel] Sender: text" or "Sender says: text".
     pub fn formatted(&self) -> String {
-        if self.channel_type == ChatChannelType::Emote {
-            return format!("{} {}", self.sender, self.text);
+        match self.channel_type {
+            ChatChannelType::Emote => return format!("{} {}", self.sender, self.text),
+            ChatChannelType::MonsterSay => return format!("{} says: {}", self.sender, self.text),
+            ChatChannelType::MonsterYell => {
+                return format!("{} yells: {}", self.sender, self.text);
+            }
+            ChatChannelType::MonsterEmote | ChatChannelType::RaidBossEmote => {
+                return monster_emote_text(&self.text, &self.sender);
+            }
+            _ => {}
         }
         let prefix = self.channel_type.prefix();
         if prefix.is_empty() && !self.channel_name.is_empty() {
@@ -93,6 +113,12 @@ impl ChatMessage {
             format!("{} {}: {}", prefix, self.sender, self.text)
         }
     }
+}
+
+/// A creature emote's text: `%s` is the speaker (`format(message, sender)`, the
+/// Retail ChatFrame and RaidWarningFrame handlers).
+pub fn monster_emote_text(text: &str, sender: &str) -> String {
+    text.replace("%s", sender)
 }
 
 /// Runtime chat state.

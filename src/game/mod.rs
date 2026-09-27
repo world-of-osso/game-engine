@@ -23,6 +23,8 @@ pub(crate) mod networking_auras;
 pub(crate) mod networking_auth;
 #[path = "networking/bank.rs"]
 pub(crate) mod networking_bank;
+#[path = "networking/encounter.rs"]
+pub(crate) mod networking_encounter;
 #[path = "networking/experience.rs"]
 pub(crate) mod networking_experience;
 #[path = "networking/game_objects.rs"]

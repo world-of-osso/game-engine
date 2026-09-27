@@ -247,3 +247,77 @@ fn player_zone_comes_from_the_terrain_chunk_underfoot() {
         zone.area_id
     );
 }
+
+fn creature_line(channel: shared::protocol::ChatType, sender: &str, content: &str) -> String {
+    let mut chat_log = ChatLog::default();
+    let mut chat_state = default_chat_state();
+    apply_incoming_chat_message(
+        &ChatMessage {
+            sender: sender.into(),
+            content: content.into(),
+            channel,
+        },
+        Some("Fixshout"),
+        &IgnoreListStatusSnapshot::default(),
+        &mut chat_log,
+        &mut chat_state,
+        &mut WhisperState::default(),
+    );
+    game_engine::ui::chat_frame::chat_message_line(&chat_state.messages[0])
+        .plain_text(|_| String::new())
+}
+
+#[test]
+fn stockade_creature_texts_read_as_retail_monster_chat_lines() {
+    use shared::protocol::ChatType;
+    assert_eq!(
+        creature_line(ChatType::MonsterYell(7), "Hogger", "Forest just setback!"),
+        "Hogger yells: Forest just setback!"
+    );
+    assert_eq!(
+        creature_line(
+            ChatType::MonsterSay(8),
+            "Warden Thelwater",
+            "He's...he's dead? "
+        ),
+        "Warden Thelwater says: He's...he's dead? "
+    );
+    // BroadcastText 46561 already names the speaker; creature_text's "%s" form works too.
+    assert_eq!(
+        creature_line(
+            ChatType::MonsterEmote(9),
+            "Mortimer Moloch",
+            "Mortimer Moloch collapses from a heart attack!"
+        ),
+        "Mortimer Moloch collapses from a heart attack!"
+    );
+    assert_eq!(
+        creature_line(ChatType::RaidBossEmote(7), "Hogger", "%s Enrages!"),
+        "Hogger Enrages!"
+    );
+}
+
+#[test]
+fn a_raid_boss_emote_also_shows_center_screen() {
+    use game_engine::network_runtime::messages::Inbox;
+    let mut app = App::new();
+    app.init_resource::<ChatLog>()
+        .insert_resource(default_chat_state())
+        .init_resource::<WhisperState>()
+        .init_resource::<IgnoreListStatusSnapshot>()
+        .init_resource::<game_engine::ui::raid_warning::RaidWarnings>()
+        .insert_resource(Inbox::new(vec![ChatMessage {
+            sender: "Hogger".into(),
+            content: "Hogger enrages!".into(),
+            channel: shared::protocol::ChatType::RaidBossEmote(7),
+        }]));
+    app.world_mut()
+        .run_system_once(receive_chat_messages)
+        .unwrap();
+    let warnings = app
+        .world()
+        .resource::<game_engine::ui::raid_warning::RaidWarnings>();
+    assert_eq!(warnings.lines.len(), 1);
+    assert_eq!(warnings.lines[0].text, "Hogger enrages!");
+    assert_eq!(warnings.lines[0].color, [1.0, 0.867, 0.0]);
+}
