@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, fog_disabled, cull_disabled, blend_mix, depth_draw_never, shadows_disabled;
+render_mode unshaded, fog_disabled, cull_back, blend_mix, depth_draw_never, shadows_disabled;
 
 uniform sampler2D base_texture : source_color, repeat_enable;
 uniform sampler2D second_texture : source_color, repeat_enable;
@@ -57,6 +57,7 @@ vec4 combine_textures(vec4 first, vec4 second, vec4 third, vec4 fourth) {
 void vertex() {
 	// Reverse-Z far plane. Authored sky stays behind terrain without writing scene depth.
 	POSITION = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
+	POSITION.z = POSITION.w * 0.000001;
 }
 
 void fragment() {
