@@ -92,15 +92,21 @@ fn project_player_geosets(
 fn compose_player_pixels(
     compositor: &CharTextureData,
     choices: &PlayerChoices,
+    item_textures: &[(u8, u32)],
     layout_id: u32,
     load: impl FnMut(u32) -> Result<TexturePixels, String>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
     let default_fdid = default_player_body_fdid(compositor, layout_id)?;
-    let decoded = load_required_player_pixels(&choices.materials, default_fdid, load)?;
+    let decoded =
+        load_required_player_pixels(&choices.materials, item_textures, default_fdid, load)?;
     let composed = compositor
-        .composite_model_textures_with(&choices.materials, &[], layout_id, default_fdid, |fdid| {
-            decoded.get(&fdid).cloned()
-        })
+        .composite_model_textures_with(
+            &choices.materials,
+            item_textures,
+            layout_id,
+            default_fdid,
+            |fdid| decoded.get(&fdid).cloned(),
+        )
         .ok_or_else(|| format!("cannot composite player texture layout {layout_id}"))?;
     let mut textures = HashMap::from([(1, composed.body)]);
     let type6 = select_player_head_pixels(
@@ -133,12 +139,14 @@ fn default_player_body_fdid(compositor: &CharTextureData, layout_id: u32) -> Res
 
 fn load_required_player_pixels(
     materials: &[(u16, u32)],
+    item_textures: &[(u8, u32)],
     default_fdid: u32,
     mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
     let required: HashSet<u32> = materials
         .iter()
         .map(|(_, fdid)| *fdid)
+        .chain(item_textures.iter().map(|(_, fdid)| *fdid))
         .chain(std::iter::once(default_fdid))
         .collect();
     required
@@ -233,7 +241,7 @@ fn prepare_player_appearance(
         .layout_id(race, sex)
         .ok_or_else(|| format!("missing player texture layout for race {race} sex {sex}"))?;
     let compositor = load_compositor(data_root)?;
-    let pixels = compose_player_pixels(&compositor, &selected, layout_id, |texture_fdid| {
+    let pixels = compose_player_pixels(&compositor, &selected, &[], layout_id, |texture_fdid| {
         load_appearance_texture(resolver, data_root, texture_fdid, "player")
     })?;
     let textures = pixels
@@ -371,7 +379,7 @@ mod tests {
         let selected =
             select_player_choices(&db, 1, 0, 2, &CharacterAppearance::default()).unwrap();
         let layout = db.layout_id(1, 0).unwrap();
-        let composed = compose_player_pixels(&compositor, &selected, layout, |_fdid| {
+        let composed = compose_player_pixels(&compositor, &selected, &[], layout, |_fdid| {
             Ok((vec![120, 80, 40, 255], 1, 1))
         })
         .unwrap();
@@ -470,7 +478,7 @@ mod tests {
             select_player_choices(&db, 1, 0, 2, &CharacterAppearance::default()).unwrap();
         let layout = db.layout_id(1, 0).unwrap();
         let missing = selected.materials.first().unwrap().1;
-        let result = compose_player_pixels(&compositor, &selected, layout, |fdid| {
+        let result = compose_player_pixels(&compositor, &selected, &[], layout, |fdid| {
             if fdid == missing {
                 Err(format!("missing player texture FDID {fdid}"))
             } else {
