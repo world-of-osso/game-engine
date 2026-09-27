@@ -13,6 +13,9 @@ glam = "0.32.0"
 half = "2"
 # Shared input-binding config uses the same serialization format as the Bevy client.
 serde = { version = "1", features = ["derive"] }
+# Persist the original client options RON at the same platform config location.
+ron = "0.8"
+directories = "6"
 # Reuse the root client's original creature display SQLite catalog query.
 rusqlite = { version = "0.35", features = ["bundled"] }
 
