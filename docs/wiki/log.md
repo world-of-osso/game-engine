@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Portable M2 texture-composite boundary
+
+`55c0167e` extracts the existing CPU M2 secondary-texture shader byte composition and positioned/scaled overlay blit into Bevy-free `src/asset/m2_texture_composite_data.rs`. The root `m2_texture_composite` adapter retains cache keys and BLP/cache I/O. Standalone `rustc` tests are 4/4 GREEN: shader byte rounding/alpha behavior, repeated secondary sampling, integer-alpha overlay blending, and scaled/clipped overlays.
+
+This is portable algorithm evidence only. `1d25779c` subsequently commits the shared overlay-blit and 2×-scale helpers used by BLP and the M2 module. Root Cargo and `godot/core` exposure are not yet verified; Godot has no consumer, material binding, rendered output, or visual-parity proof. Uncommitted standalone shader and shared batch-metadata work are not recorded as integration. Full conversion remains open.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Independent compositor and reconnect gate
 
 At `0d9301a1`, independent verification passes root/native fmt and checks, portable exact-RGBA compositor tests 4/4, and root real-asset library tests 9/9 (`/tmp/claude/verify-compositor-reconnect-summary.md`). The root `--bin` selector executed 0 tests and is not evidence; `--lib asset::char_texture::tests` supplies the 9/9 proof. The same gate passes session 15/15, transfer 4/4, and the actual reconnect fixture: `INITIAL_READY` → `WORLD_RESET` → `TERRAIN_REFRESHED` → `RECONNECTED`.
