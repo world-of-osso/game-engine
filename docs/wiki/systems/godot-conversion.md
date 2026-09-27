@@ -121,6 +121,10 @@ Before `4c9bd0b5`, the authenticated Vulkan fixture times out awaiting `Loading`
 
 `8dc48975` builds typed native WMO mesh/material nodes. `db417843` attaches only the authored primary-tile WMO FDID `4214993`, UID `48366671`, within 120 units. Five real-asset tests pass; no WMO GPU/runtime observation exists. Sky work is uncommitted and unverified. Portal culling, WMO water/doodads/collision, fifth-layer terrain, clothing/equipment, complete scenery, and conversion remain open.
 
+## Selected-roster equipment boundary
+
+`e909b136` records the concrete authenticated fixture payload: starter item 25 sword, 38 shirt, 39 legs, 40 feet, and 2362 shield. The actual selected preview exits 101 because native gear is unsupported and weapons are missing (`/tmp/claude/godot-equipment-red-e909b136.log`). `2a58d68a` creates native M2 attachment nodes and a focused test, but an old-extension headless RED lacks `Attachment5`; an integrated build and GREEN proof are pending. This does not revise `0266003e` background evidence or the current FPS fixture proof, which remain scope-specific.
+
 ## Capability and proof matrix
 
 The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventories every existing feature contract by capability. It is tracking only: source specifications remain authoritative, and no parser/core/transport result closes a user-visible runtime row.
