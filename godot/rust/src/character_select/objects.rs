@@ -14,8 +14,9 @@ use osso_asset_resolver::CascListfileResolver;
 
 use crate::{
     assets::{
+        build_model,
         creature::{cache_model_files, cache_model_textures, local_resolver},
-        load_model_node,
+        read_model,
     },
     lighting::TerrainLight,
     terrain::streaming::StreamedTerrain,
@@ -215,8 +216,10 @@ impl CampsiteObjects {
 
     fn load_model(&self, fdid: u32) -> Result<Gd<Node3D>, String> {
         let path = cache_model_files(&self.resolver, &self.data_root, fdid)?;
-        cache_model_textures(&self.resolver, &self.data_root, &[0; 3], &path)?;
-        let (model, missing) = load_model_node(&GString::from(path.to_string_lossy().as_ref()))?;
+        let path = GString::from(path.to_string_lossy().as_ref());
+        let parsed = read_model(&path)?;
+        cache_model_textures(&self.resolver, &self.data_root, &[0; 3], &parsed)?;
+        let (model, missing) = build_model(&parsed, &path, &[0; 3], None)?;
         if !missing.is_empty() {
             model.free();
             return Err(format!(

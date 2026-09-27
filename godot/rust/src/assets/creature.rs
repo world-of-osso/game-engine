@@ -9,7 +9,7 @@ use game_engine_core::{creature_display_data::CreatureDisplay, m2};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
-use super::{appearance::PreparedAppearance, load_model_node_with_appearance};
+use super::{appearance::PreparedAppearance, build_model, read_model};
 
 pub(crate) fn load_creature_model(
     data_root: &Path,
@@ -19,12 +19,10 @@ pub(crate) fn load_creature_model(
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let resolver = local_resolver(data_root, cache_root);
     let path = cache_model_files(&resolver, data_root, display.model_fdid)?;
-    cache_model_textures(&resolver, data_root, &display.skin_fdids, &path)?;
-    load_model_node_with_appearance(
-        &GString::from(path.to_string_lossy().as_ref()),
-        &display.skin_fdids,
-        appearance,
-    )
+    let path = GString::from(path.to_string_lossy().as_ref());
+    let parsed = read_model(&path)?;
+    cache_model_textures(&resolver, data_root, &display.skin_fdids, &parsed)?;
+    build_model(&parsed, &path, &display.skin_fdids, appearance)
 }
 
 pub(crate) fn local_resolver(data_root: &Path, cache_root: &Path) -> CascListfileResolver {
@@ -80,28 +78,14 @@ fn cache_required(
     })
 }
 
+/// Cache the local-CASC textures an already parsed model's batches reference.
 pub(crate) fn cache_model_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
     skin_fdids: &[u32; 3],
-    model_path: &Path,
+    parsed: &m2::Model,
 ) -> Result<(), String> {
-    let model =
-        fs::read(model_path).map_err(|error| format!("{}: {error}", model_path.display()))?;
-    let stem = model_path.with_extension("");
-    let skin_path = PathBuf::from(format!("{}00.skin", stem.display()));
-    let skin = fs::read(&skin_path).map_err(|error| format!("{}: {error}", skin_path.display()))?;
-    let skeleton_path = stem.with_extension("skel");
-    let skeleton = if skeleton_path.exists() {
-        Some(
-            fs::read(&skeleton_path)
-                .map_err(|error| format!("{}: {error}", skeleton_path.display()))?,
-        )
-    } else {
-        None
-    };
-    let parsed = m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref())?;
-    let textures = creature_texture_fdids(resolver, &parsed, skin_fdids)?;
+    let textures = creature_texture_fdids(resolver, parsed, skin_fdids)?;
     for fdid in textures {
         let path = data_root.join("textures").join(format!("{fdid}.blp"));
         // Missing textures remain the native material loader's reported missing FDIDs.

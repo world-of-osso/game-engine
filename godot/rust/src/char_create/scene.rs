@@ -20,8 +20,8 @@ use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
 use super::{CharCreateState, camera_orbit::CreationOrbit};
 use crate::assets::{
+    build_model,
     creature::{cache_model_files, cache_model_textures, local_resolver},
-    load_model_node,
     player::load_player_model,
     read_model,
 };
@@ -215,12 +215,12 @@ impl Scene {
 fn load_backdrop(data_root: &Path, cache_root: &Path, fdid: u32) -> Result<Backdrop, String> {
     let resolver = local_resolver(data_root, cache_root);
     let path = cache_model_files(&resolver, data_root, fdid)?;
-    cache_model_textures(&resolver, data_root, &[0; 3], &path)?;
     let bytes = fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
     let camera = parse_camera_snapshot(&bytes)?;
     let lights = m2_light::parse_file_lights(&bytes)?;
     let gpath = GString::from(path.to_string_lossy().as_ref());
     let model = read_model(&gpath)?;
+    cache_model_textures(&resolver, data_root, &[0; 3], &model)?;
     let anchor = model
         .attachments
         .iter()
@@ -228,7 +228,7 @@ fn load_backdrop(data_root: &Path, cache_root: &Path, fdid: u32) -> Result<Backd
         .ok_or_else(|| format!("creation scene {fdid}: attachment 0 missing"))?;
     let normalized = normalize_scene(&camera, anchor.position);
     let ambient = Vector3::from_array(m2_light::scene_ambient(&lights, &model.global_sequences));
-    let (mut node, missing) = load_model_node(&gpath)?;
+    let (mut node, missing) = build_model(&model, &gpath, &[0; 3], None)?;
     if !missing.is_empty() {
         godot_warn!("Creation scene {fdid} missing authored texture FDIDs: {missing:?}");
     }
