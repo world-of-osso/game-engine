@@ -120,15 +120,6 @@ impl Session {
         self.reconnect_phase == ReconnectPhase::Inactive
     }
 
-    /// Host's token-login intent; the host owns starting the transport and passing credentials.
-    pub fn reconnect_options(&self) -> SessionOptions<'_> {
-        SessionOptions {
-            preselected_name: self.reconnect_preselected_name.as_deref(),
-            auto_enter_world: self.reconnect_auto_enter_world,
-            startup_screen: None,
-        }
-    }
-
     pub fn receive_connected(&mut self) {
         if self.reconnect_phase != ReconnectPhase::Inactive {
             self.reconnect_phase = ReconnectPhase::AwaitingWorld;
@@ -343,11 +334,6 @@ impl Session {
     pub fn receive_forced_disconnect(&mut self, notice: ForcedDisconnect) -> Vec<SessionEffect> {
         self.pending_forced_disconnect = Some(notice);
         vec![SessionEffect::RequestDisconnect]
-    }
-
-    /// Compatibility entry point for hosts without a transport reason.
-    pub fn receive_disconnected(&mut self) -> Vec<SessionEffect> {
-        self.receive_disconnected_with_reason(None)
     }
 
     pub fn receive_disconnected_with_reason(&mut self, reason: Option<&str>) -> Vec<SessionEffect> {

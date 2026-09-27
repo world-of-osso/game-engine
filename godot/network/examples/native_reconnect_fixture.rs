@@ -307,6 +307,56 @@ impl Progress {
     }
 }
 
+fn update_server(app: &mut App, progress: &mut Progress) -> Result<(), String> {
+    let silent = progress
+        .silence_until
+        .is_some_and(|until| Instant::now() < until);
+    if !silent {
+        if progress.phase >= 2 {
+            if let Some(player) = progress.first_player.take() {
+                app.world_mut().despawn(player);
+            }
+        }
+        app.update();
+        progress.receive_login(app)?;
+        progress.receive_selection(app)?;
+    }
+    Ok(())
+}
+
+fn poll_child(
+    app: &mut App,
+    child: &mut Child,
+    lines: &Receiver<String>,
+    reader: &mut Option<thread::JoinHandle<()>>,
+    progress: &mut Progress,
+) -> Result<bool, String> {
+    let status = child.try_wait().map_err(|error| error.to_string())?;
+    if status.is_some() {
+        reader
+            .take()
+            .expect("fixture stdout reader")
+            .join()
+            .map_err(|_| "Godot stdout reader panicked")?;
+    }
+    for line in lines.try_iter() {
+        progress.receive_line(app, line.trim())?;
+    }
+    if let Some(status) = status {
+        if !status.success() || progress.phase != 5 || progress.second_link.is_none() {
+            return Err(format!(
+                "Godot exited {status} at phase {} (second connection: {:?})",
+                progress.phase, progress.second_link
+            ));
+        }
+        println!(
+            "PASS: Godot automatically reauthenticated over a fresh UDP link and recovered selected world"
+        );
+        return Ok(true);
+    }
+    Ok(false)
+}
+
 fn run_fixture(
     app: &mut App,
     child: &mut Child,
@@ -317,40 +367,8 @@ fn run_fixture(
     let deadline = Instant::now() + FIXTURE_TIMEOUT;
     let mut reader = Some(reader);
     while Instant::now() < deadline {
-        let silent = progress
-            .silence_until
-            .is_some_and(|until| Instant::now() < until);
-        if !silent {
-            if progress.phase >= 2 {
-                if let Some(player) = progress.first_player.take() {
-                    app.world_mut().despawn(player);
-                }
-            }
-            app.update();
-            progress.receive_login(app)?;
-            progress.receive_selection(app)?;
-        }
-        let status = child.try_wait().map_err(|error| error.to_string())?;
-        if status.is_some() {
-            reader
-                .take()
-                .expect("fixture stdout reader")
-                .join()
-                .map_err(|_| "Godot stdout reader panicked")?;
-        }
-        for line in lines.try_iter() {
-            progress.receive_line(app, line.trim())?;
-        }
-        if let Some(status) = status {
-            if !status.success() || progress.phase != 5 || progress.second_link.is_none() {
-                return Err(format!(
-                    "Godot exited {status} at phase {} (second connection: {:?})",
-                    progress.phase, progress.second_link
-                ));
-            }
-            println!(
-                "PASS: Godot automatically reauthenticated over a fresh UDP link and recovered selected world"
-            );
+        update_server(app, &mut progress)?;
+        if poll_child(app, child, &lines, &mut reader, &mut progress)? {
             return Ok(());
         }
         thread::sleep(TICK);
