@@ -1,5 +1,12 @@
 # Wiki Log
 
+## [2026-09-26] system | Godot terrain-shadow fixture development proof
+
+Committed `5a011a9b969404f61d670f2951e31a8e382b92d1` adds `godot/tests/terrain_shadow_pixels.gd` (fixture blob `204984291a0c33a1b1429ece92c7d9e898ee1e6a`). Development run `/tmp/claude/godot-terrain-shadow-pixels.log` exits 0 for six GPU assertions against terrain shader blob `3871251d3adec49f35b49fcb727c59cfcca73b1c`: terrain lit before caster; lit/shadowed StandardMaterial controls; off-center terrain unchanged; ambient survives shadow while direct/specular are removed; direct/specular return when the caster is removed.
+
+Probe 1 failed because its off-center expected value differed from the fixture output; Probe 2 corrected that fixture specification. This is not a product bug. No independent verifier has rerun the committed fixture. It establishes neither native world-shadow configuration, world-rendering parity, readiness, nor conversion completion. Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
+
 ## [2026-09-26] system | Godot native world-lighting producer and independently verified terrain shader
 
 `6a51f613` adds shared volume lookup (five targeted tests); `d70998c9` adds shared sky-gradient/cubemap pixels (three); and `0cfd21ef` makes CSV parsing strict (three), including observed signed ARGB `-3502459`, which must not become black. `2faed51b` has the native worker load the `Light`/`LightData` catalogs, select the original blend at the local player’s WoW coordinates (default noon), create/update a native `DirectionalLight3D`, `Environment`, and 32×32 RGBA16F cubemap, and update actual terrain materials. Map IDs use only the existing limited map-name lookup; this is not all-map coverage.
