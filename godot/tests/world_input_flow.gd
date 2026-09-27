@@ -72,6 +72,8 @@ func run_test() -> void:
 		if client.account_state().screen != "InWorld":
 			fail("World exited before input injection at frame " + str(frame))
 			return
+	if not await focus_loss_stops_held_input(player):
+		return
 	push_w(true)
 	for frame in range(HELD_FRAMES):
 		await process_frame
@@ -136,6 +138,27 @@ func wait_for_world(client: Node, timeout_ms: int) -> bool:
 		return true
 	fail("Timed out waiting for native player and authored terrain: " + str(client.account_state()))
 	return false
+
+func focus_loss_stops_held_input(player: Node3D) -> bool:
+	var before := player.position
+	push_w(true)
+	for frame in range(6):
+		await process_frame
+	if player.position.z > before.z - 0.1:
+		fail("Focus-reset probe did not first observe held movement")
+		return false
+	root.focus_exited.emit()
+	for frame in range(2):
+		await process_frame
+	var stopped := player.position
+	for frame in range(6):
+		await process_frame
+	if player.position.distance_to(stopped) > 0.05:
+		fail("Held input survived window focus loss: " + str(stopped) + " -> " + str(player.position))
+		return false
+	push_w(false)
+	await process_frame
+	return true
 
 func clear_ui_focus() -> void:
 	var focused := root.gui_get_focus_owner()

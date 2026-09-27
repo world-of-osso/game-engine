@@ -100,16 +100,6 @@ impl INode3D for GameClient {
         self.physical_input.capture(&event);
     }
 
-    fn on_notification(&mut self, what: godot::classes::notify::Node3DNotification) {
-        use godot::classes::notify::Node3DNotification;
-        if matches!(
-            what,
-            Node3DNotification::APPLICATION_FOCUS_OUT | Node3DNotification::WM_WINDOW_FOCUS_OUT
-        ) {
-            self.physical_input.clear();
-        }
-    }
-
     fn process(&mut self, delta: f64) {
         let update = self
             .poll_ui_actions()
@@ -143,8 +133,11 @@ impl INode3D for GameClient {
     }
 
     fn ready(&mut self) {
-        if let Err(error) = self.attach_login_ui() {
-            godot_error!("Cannot initialize login UI: {error}");
+        if let Err(error) = self
+            .connect_focus_reset()
+            .and_then(|()| self.attach_login_ui())
+        {
+            godot_error!("Cannot initialize client: {error}");
         }
     }
 }
@@ -153,6 +146,11 @@ impl INode3D for GameClient {
 impl GameClient {
     #[signal]
     fn screen_requested(screen: GString);
+
+    #[func]
+    fn clear_physical_input(&mut self) {
+        self.physical_input.clear();
+    }
 
     #[func]
     fn set_server(&mut self, server: GString) {
@@ -243,6 +241,22 @@ impl GameClient {
 }
 
 impl GameClient {
+    fn connect_focus_reset(&mut self) -> Result<(), String> {
+        let mut window = self.base().get_window().ok_or("Client has no window")?;
+        let callback = self.to_gd().callable("clear_physical_input");
+        // Deliver outside the active gdext borrow; unrelated scene notifications
+        // must not re-enter GameClient while it attaches or updates child nodes.
+        let error = window.connect_flags(
+            "focus_exited",
+            &callback,
+            godot::classes::object::ConnectFlags::DEFERRED,
+        );
+        if error != godot::global::Error::OK {
+            return Err(format!("Connect window focus reset: {error:?}"));
+        }
+        Ok(())
+    }
+
     fn poll_ui_actions(&mut self) -> Result<(), String> {
         match self.account.session.screen {
             SessionScreen::Login => self.poll_login_actions(),
