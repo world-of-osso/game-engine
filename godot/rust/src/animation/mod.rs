@@ -157,6 +157,13 @@ fn sample_roll(state: &mut u64, upper: u32) -> u32 {
     }
 }
 
+fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
+    track
+        .sequences
+        .get(sequence)
+        .is_some_and(|(times, _)| times.len() > 1)
+}
+
 /// Deterministic M2 sequence controller, independent of Godot frame timing.
 /// The caller owns explicit clip selection, time advancement and pause policy.
 pub struct AnimationState {
@@ -168,6 +175,8 @@ pub struct AnimationState {
     looping: bool,
     transition: Option<Transition>,
     random_state: u64,
+    /// Per sequence: whether any bone track has more than one keyframe.
+    sequence_animated: Vec<bool>,
 }
 
 impl AnimationState {
@@ -188,6 +197,15 @@ impl AnimationState {
                 }
             })
             .collect();
+        let sequence_animated = (0..model.sequences.len())
+            .map(|index| {
+                model.bone_tracks.iter().any(|track| {
+                    keyframed(&track.translation, index)
+                        || keyframed(&track.rotation, index)
+                        || keyframed(&track.scale, index)
+                })
+            })
+            .collect();
         Ok(Self {
             sequences: model.sequences.clone(),
             tracks: model.bone_tracks.clone(),
@@ -201,7 +219,14 @@ impl AnimationState {
             looping: true,
             transition: None,
             random_state: 0,
+            sequence_animated,
         })
+    }
+
+    /// Whether the sampled pose can change as time advances: a crossfade, or a
+    /// current sequence with keyframed motion. Static props hold one pose.
+    pub fn pose_varies(&self) -> bool {
+        self.transition.is_some() || self.sequence_animated[self.current]
     }
 
     fn sample_sequence(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
@@ -538,12 +563,21 @@ impl WowAnimationPlayer {
             .animation
             .as_mut()
             .ok_or("M2 animation has no bound model".to_string())
-            .and_then(|animation| animation.advance(delta_ms));
-        if let Err(error) = result {
-            godot_error!("{error}");
-            return false;
+            .and_then(|animation| {
+                // A pose that varied before or after this step must be rewritten;
+                // static props keep the pose already on the skeleton.
+                let varied = animation.pose_varies();
+                animation.advance(delta_ms)?;
+                Ok(varied || animation.pose_varies())
+            });
+        match result {
+            Ok(true) => self.write_poses(),
+            Ok(false) => {}
+            Err(error) => {
+                godot_error!("{error}");
+                return false;
+            }
         }
-        self.write_poses();
         true
     }
 
@@ -933,6 +967,34 @@ mod tests {
             .position
             .lerp(target[moving_bone].position, 0.5);
         assert!(near(actual[moving_bone].position, expected));
+    }
+
+    #[test]
+    fn single_key_sequence_holds_its_pose_and_reports_static() {
+        let mut model = model();
+        let walk = 1;
+        let authored = AnimationState::new(&model).expect("animated model");
+        assert!(authored.sequence_animated[walk], "authored Walk moves bones");
+        for track in &mut model.bone_tracks {
+            if let Some((times, values)) = track.rotation.sequences.get_mut(walk) {
+                times.truncate(1);
+                values.truncate(1);
+            }
+            for vec3 in [&mut track.translation, &mut track.scale] {
+                if let Some((times, values)) = vec3.sequences.get_mut(walk) {
+                    times.truncate(1);
+                    values.truncate(1);
+                }
+            }
+        }
+        let mut player = AnimationState::new(&model).expect("animated model");
+        player.select(walk, true).expect("Walk clip");
+        assert!(player.pose_varies(), "crossfade from Stand still moves");
+        player.advance(1000.0).expect("finish crossfade");
+        assert!(!player.pose_varies());
+        let held = player.poses();
+        player.advance(430.0).expect("advance static clip");
+        assert!(held.iter().zip(player.poses()).all(|(a, b)| near_pose(*a, b)));
     }
 
     #[test]
