@@ -169,7 +169,7 @@ fn camera_input(
 
     let delta = mouse_motion.delta;
     let dt = time.delta_secs();
-    let mut facing = facing_q.single_mut().ok();
+    let facing = facing_q.single_mut().ok();
     let next_facing = apply_camera_input(
         &mut cam.0,
         facing.as_ref().map(|facing| facing.yaw),
