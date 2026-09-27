@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Portable character compositor extracted; native integration absent
+
+`0d9301a1` extracts the original byte compositor to Bevy-free `src/asset/char_texture_data.rs`, re-exported through `godot/core`. It receives decoded RGBA through an injected loader; `src/asset/char_texture.rs` keeps the Bevy resource adapter. Four synthetic exact-pixel tests are developer GREEN only. `3586` removes the redundant wrapper/getter and simplifies the fixture.
+
+Godot's native model loader has no replacement-texture/geoset API and world players remain model-less, so no Godot native path invokes this compositor. Root real-asset checks and an integrated independent gate remain pending. This establishes neither visual rendering nor equipment parity.
+
+Updated [[godot-conversion]], [[character-texture-compositing]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Ordinary native reconnect integrated; runtime GREEN pending
 
 `af6cf7ca` adds pure session reconnect phases and captures the in-world selection for token login. It blocks gameplay input until connection, terrain refresh, and selected local-player presence complete reconnect; forced disconnect and failed login/entry clear the state. `7fd6c61d` integrates this in the account/host: it stops and joins the old transport, discards the rest of that batch, then begins token transport; `LoadTerrain` records refresh and the host supplies local-marker completion. `07aa1ebc` aligns the owned fixture with the configured 60-second Netcode timeout.

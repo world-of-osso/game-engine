@@ -17,7 +17,7 @@ Historical accumulation of two injection sites for the same texture data. No sin
 
 ## Resolution
 
-- Compositor-seeded body atlas in `char_texture.rs` is retained as the single authoritative path.
+- `0d9301a1` moves the authoritative byte composition into Bevy-free `src/asset/char_texture_data.rs`; `char_texture.rs` retains the Bevy resource adapter. `godot/core` shares the byte algorithm through an injected decoded-RGBA loader, not native renderer integration.
 - M2-side body overlay injection removed from `m2_texture.rs`.
 - HD type-6 scalp fallback removed from `m2_texture.rs`.
 
@@ -26,6 +26,8 @@ After cleanup, body/head skin composition has one path and isolation tests are r
 ## Sources
 
 - [character-texture-debugging-2026-03-27.md](../../character-texture-debugging-2026-03-27.md) — duplication finding and cleanup summary
+- [char_texture_data.rs](../../src/asset/char_texture_data.rs) — portable compositor after `0d9301a1`
+- [char_texture.rs](../../src/asset/char_texture.rs) — retained Bevy asset adapter
 
 ## See Also
 
