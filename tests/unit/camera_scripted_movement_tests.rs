@@ -16,6 +16,7 @@ fn movement_app() -> (App, Entity) {
         .init_resource::<PathingState>()
         .init_resource::<game_engine::status::MapStatusSnapshot>()
         .init_resource::<ScriptedMovement>()
+        .init_resource::<LocalMovementStep>()
         .init_resource::<Assets<Mesh>>()
         .add_systems(Update, player_movement);
     let player = app
