@@ -1,7 +1,7 @@
 extends SceneTree
 
-# Real-server character creation driven through the shared original rules: race
-# selection, Customize mode, authored random names, the empty-name error (no request
+# Real-server character creation driven through the shared original rules: the
+# authored race backdrop and selected character scene, race selection, Customize mode, authored random names, the empty-name error (no request
 # is sent, so the shared server gains no character) and Back navigation.
 
 var client: Node
@@ -26,6 +26,15 @@ func press(ui: Node, name: String) -> bool:
 func shown(ui: Node, name: String) -> bool:
 	var node = ui.find_child(name, true, false)
 	return node != null and node.is_visible_in_tree()
+
+func scene_node(name: String) -> Node:
+	return client.get_node_or_null("CharacterCreateScene/" + name)
+
+func character_meshes() -> int:
+	var character = scene_node("CreationCharacter")
+	if character == null:
+		return 0
+	return character.find_children("*", "MeshInstance3D", true, false).size()
 
 func run() -> void:
 	root.size = Vector2i(1280, 720)
@@ -53,10 +62,30 @@ func run() -> void:
 	if not shown(ui, "Race_1_Selected") or shown(ui, "Race_3_Selected"):
 		fail("Creation must start on the original default Human")
 		return
+	# ChrRaces.CreateScreenFileDataID: Human and Dwarf 623712, Orc 623714.
+	var camera = scene_node("Camera")
+	if scene_node("CharCreateBackdrop_623712") == null or camera == null or not camera.current:
+		fail("Human creation must show the authored backdrop through its camera")
+		return
+	var human = scene_node("CreationCharacter")
+	if character_meshes() == 0:
+		fail("Creation must show the selected character model")
+		return
 	await press(ui, "Race_3")
 	if shown(ui, "Race_1_Selected") or not shown(ui, "Race_3_Selected"):
 		fail("Race click must move the selection ring to Dwarf")
 		return
+	if scene_node("CreationCharacter") == human or character_meshes() == 0:
+		fail("Dwarf selection must replace the displayed character")
+		return
+	if scene_node("CharCreateBackdrop_623712") == null:
+		fail("Dwarf must keep the shared Alliance backdrop")
+		return
+	await press(ui, "Race_2")
+	if scene_node("CharCreateBackdrop_623714") == null or scene_node("CharCreateBackdrop_623712") != null:
+		fail("Orc selection must swap to the Horde backdrop")
+		return
+	await press(ui, "Race_3")
 	await press(ui, "CharCreateNext")
 	var input = ui.find_child("CharCreateNameInput", true, false)
 	if input == null or not input.is_visible_in_tree():
@@ -80,6 +109,9 @@ func run() -> void:
 	if client.account_state().screen != "CharacterSelect":
 		fail("Back from race/class must return to character selection")
 		return
-	print("PASS: creation race selection, customize, random name, empty-name error and back")
+	if client.get_node_or_null("CharacterCreateScene") != null:
+		fail("Leaving creation must remove its scene")
+		return
+	print("PASS: creation backdrop/character scene, race selection, customize, random name, empty-name error and back")
 	client.queue_free()
 	quit(0)

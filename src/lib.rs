@@ -49,7 +49,6 @@ pub mod communities_data;
 pub mod cooldown_data;
 #[cfg(feature = "cpu-system-profile")]
 pub mod cpu_system_profile;
-#[path = "scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
@@ -171,6 +170,7 @@ pub mod reputation;
 #[path = "game/reputation_data.rs"]
 pub mod reputation_data;
 pub mod scene_graph_utils;
+pub mod screen_arg_data;
 #[path = "scenes/scene_tree.rs"]
 pub mod scene_tree;
 pub mod screenshot;
@@ -183,6 +183,7 @@ pub mod spell_visual_data;
 pub mod sqlite_util;
 #[path = "game/stack_split.rs"]
 pub mod stack_split;
+pub mod startup_args_data;
 pub mod status;
 pub mod talent;
 #[path = "game/talent_tree/mod.rs"]

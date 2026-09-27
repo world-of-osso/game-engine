@@ -1,15 +1,8 @@
 use super::*;
 use crate::retail_light::RetailSceneLight;
-use game_engine::asset::m2_format::m2_camera::parse_camera_snapshot;
-
-#[derive(Clone, Copy)]
-pub(super) struct Framing {
-    pub eye: Vec3,
-    pub focus: Vec3,
-    pub fov: f32,
-    pub near: f32,
-    pub far: f32,
-}
+use game_engine::asset::m2_format::m2_camera::{M2CameraSnapshot, parse_camera_snapshot};
+use game_engine::creation_scene_data;
+pub(super) use game_engine::creation_scene_data::Framing;
 
 pub(super) struct Backdrop {
     pub fdid: u32,
@@ -48,26 +41,8 @@ pub(super) fn spawn(
     })
 }
 
-/// `M2Object::getM2SceneAmbientLight`: the sum of every light's ambient term,
-/// white when the model authors none.
 fn authored_ambient(model: &asset::m2::M2Model) -> [f32; 3] {
-    let ambient = model
-        .lights
-        .iter()
-        .map(|light| {
-            Vec3::from_array(asset::m2_light::evaluate_light_ambient(
-                light,
-                0,
-                0,
-                0,
-                &model.global_sequences,
-            ))
-        })
-        .sum::<Vec3>();
-    if ambient.length() < 0.0001 {
-        return [1.0; 3];
-    }
-    ambient.to_array()
+    asset::m2_light::scene_ambient(&model.lights, &model.global_sequences)
 }
 
 fn spawn_model(
@@ -100,25 +75,9 @@ fn spawn_model(
     .ok_or_else(|| format!("failed to spawn creation scene {}", path.display()))
 }
 
-fn normalize_scene(
-    camera: &game_engine::asset::m2_format::m2_camera::M2CameraSnapshot,
-    attachment: [f32; 3],
-) -> (Transform, Framing) {
-    let convert = |p: [f32; 3]| Vec3::new(p[0], p[2], -p[1]);
-    let anchor = convert(attachment);
-    let eye = convert(camera.position);
-    let focus = convert(camera.target);
-    let offset = eye - focus;
-    // Rigidly move the authored actor anchor to the preview origin and align
-    // the camera axis with +Z; the camera-to-background shot is unchanged.
-    let rotation = Quat::from_rotation_y((-offset.x).atan2(offset.z));
-    let transform = Transform::from_rotation(rotation).with_translation(-(rotation * anchor));
-    let framing = Framing {
-        eye: transform.transform_point(eye),
-        focus: transform.transform_point(focus),
-        fov: camera.fov,
-        near: camera.near_clip,
-        far: camera.far_clip,
-    };
-    (transform, framing)
+fn normalize_scene(camera: &M2CameraSnapshot, attachment: [f32; 3]) -> (Transform, Framing) {
+    let normalized = creation_scene_data::normalize_scene(camera, attachment);
+    let transform =
+        Transform::from_rotation(normalized.rotation).with_translation(normalized.translation);
+    (transform, normalized.framing)
 }
