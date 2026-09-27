@@ -218,6 +218,7 @@ func focus_loss_stops_held_input(player: Node3D) -> bool:
 	return true
 
 func inspect_character_preview(client: Node) -> bool:
+	print("TRACE PREVIEW_ENTRY elapsed_ms=", Time.get_ticks_msec())
 	var preview := client.get_node_or_null("CharacterSelectScene/SelectedCharacter") as Node3D
 	if preview == null:
 		fail("Authenticated character selection has no selected-character 3D preview")
@@ -235,6 +236,7 @@ func inspect_character_preview(client: Node) -> bool:
 	var terrain := await wait_for_character_background(client)
 	if terrain == null:
 		return false
+	print("TRACE TERRAIN_READY elapsed_ms=", Time.get_ticks_msec())
 	var authored := AUTHORED_CHARACTER_POSITION
 	var position := preview.global_position
 	if absf(position.x - authored.x) > 0.1 or absf(position.z - authored.z) > 0.1 or position.y < authored.y - 0.1:
@@ -257,10 +259,12 @@ func inspect_character_preview(client: Node) -> bool:
 	if DisplayServer.get_name() == "headless":
 		fail("Character background pixel probe requires a real GPU display")
 		return false
+	print("TRACE PIXEL_FREEZE elapsed_ms=", Time.get_ticks_msec())
 	paused = true
 	for _frame in range(4):
 		await RenderingServer.frame_post_draw
 	var shown := root.get_texture().get_image()
+	print("TRACE PIXEL_CAPTURED elapsed_ms=", Time.get_ticks_msec())
 	shown.save_png("res://../data/diagnostics/godot-conversion/character-select-preview.png")
 	preview.visible = false
 	for _frame in range(2):
@@ -301,10 +305,12 @@ func inspect_character_preview(client: Node) -> bool:
 	if count_changed_pixels(shown, without_objects) < 200:
 		fail("Authored campsite props and waterfall do not contribute visible pixels")
 		return false
+	print("TRACE SKY_HIDE elapsed_ms=", Time.get_ticks_msec())
 	sky.visible = false
 	for _frame in range(2):
 		await RenderingServer.frame_post_draw
 	var without_sky := root.get_texture().get_image()
+	print("TRACE SKY_CAPTURED elapsed_ms=", Time.get_ticks_msec())
 	sky.visible = true
 	paused = false
 	var sky_pixels := count_changed_pixels(shown, without_sky)
