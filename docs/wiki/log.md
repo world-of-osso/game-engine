@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native input pre-callback RED
+
+At pre-callback `bcf38c70` scope with fixture commits `8af67c7e`/`a2b94931`, the main-observed native fixture reached `Loading` with zero UDP, then authored `WORLD_READY`; held W left native position unchanged at `[-8949, 83, 0]`. It exits 101 with child exit 1 (`/tmp/claude/native-input-red.log`). The baseline native build exits 0 with four unused-primitive warnings (`/tmp/claude/native-input-baseline-build.log`).
+
+`cc8c73a0` captures physical-key, mouse/wheel/motion events, clears focus/reset state, and clears frame edges. It is NOT YET BUILT OR VERIFIED: no movement, camera, or sending wiring and no GREEN.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native physical input primitives
 
 `1ee7c51c`/`78696f8e` map physical Godot keys and mouse buttons to portable binding values. Targeted mapping GREEN is 4/4 (`/tmp/claude/input-keys-green.log`) after the missing-module RED in `/tmp/claude/input-keys-red.log`. `79043809` adds retained held/one-frame-edge key/button state, modifiers, accumulated motion/scroll, and focus-loss clearing; targeted state GREEN is 3/3 (`/tmp/claude/physical-input-green.log`) after `/tmp/claude/physical-input-red.log`.
