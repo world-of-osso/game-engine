@@ -21,8 +21,8 @@ use lightyear::prelude::{
 use shared::{
     components::{ModelDisplay, Npc, Player, Position},
     protocol::{
-        AuthChannel, CharacterListEntry, EnterWorldResponse, LoginRequest, LoginResponse,
-        SelectCharacter,
+        AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
+        LoginResponse, SelectCharacter, TerrainChannel,
     },
 };
 
@@ -111,6 +111,7 @@ impl FixtureProject {
             &data.join("cache"),
             &data.join("models"),
             &data.join("textures"),
+            &data.join("terrain"),
         ] {
             fs::create_dir_all(folder)
                 .map_err(|error| format!("Create {}: {error}", folder.display()))?;
@@ -157,8 +158,46 @@ impl FixtureProject {
         if !status.success() {
             return Err(format!("sqlite3 fixture setup exited {status}"));
         }
+        stage_lighting(&data)?;
         Ok(Self { root, project })
     }
+}
+
+fn stage_lighting(data: &Path) -> Result<(), String> {
+    let listfile =
+        "910090;world/maps/azeroth/azeroth.wdt\n910091;world/maps/kalimdor/kalimdor.wdt\n";
+    fs::write(data.join("community-listfile.csv"), listfile)
+        .map_err(|error| format!("Write fixture map listfile: {error}"))?;
+    let mut wdt = Vec::new();
+    wdt.extend_from_slice(b"REVM");
+    wdt.extend_from_slice(&4u32.to_le_bytes());
+    wdt.extend_from_slice(&18u32.to_le_bytes());
+    wdt.extend_from_slice(b"DHPM");
+    wdt.extend_from_slice(&32u32.to_le_bytes());
+    wdt.extend_from_slice(&[0; 32]);
+    for fdid in [910090, 910091] {
+        fs::write(data.join(format!("terrain/{fdid}.wdt")), &wdt)
+            .map_err(|error| format!("Write fixture WDT {fdid}: {error}"))?;
+    }
+    let lights = "ID,GameCoords_0,GameCoords_1,GameCoords_2,GameFalloffStart,GameFalloffEnd,ContinentID,LightParamsID_0,LightParamsID_1,LightParamsID_2,LightParamsID_3,LightParamsID_4,LightParamsID_5,LightParamsID_6,LightParamsID_7\n\
+1,0,0,0,0,0,0,1,0,0,0,0,0,0,0\n\
+2,60,-3,2,10,15,0,2,0,0,0,0,0,0,0\n\
+3,0,0,0,0,0,1,3,0,0,0,0,0,0,0\n";
+    fs::write(data.join("Light.csv"), lights)
+        .map_err(|error| format!("Write fixture Light.csv: {error}"))?;
+    let header = "ID,LightParamID,Time,DirectColor,AmbientColor,SkyTopColor,SkyMiddleColor,SkyBand1Color,SkyBand2Color,SkySmogColor,SkyFogColor,SunColor,CloudSunColor,CloudEmissiveColor,CloudLayer1AmbientColor,CloudLayer2AmbientColor,OceanCloseColor,OceanFarColor,RiverCloseColor,RiverFarColor,FogEnd,FogScaler,SunFogStrength,CloudDensity,Field_10_0_0_44649_042,Field_12_0_0_63854_043\n";
+    let mut keyframes = header.to_owned();
+    for (id, ambient, direct) in [
+        (1, 0x336699, 0x775533),
+        (2, 0x995533, 0x337799),
+        (3, 0x226688, 0x994433),
+    ] {
+        keyframes.push_str(&format!(
+            "{id},{id},0,{direct},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},{ambient},1000,0.2,0.5,0.2,0,0\n"
+        ));
+    }
+    fs::write(data.join("LightData.csv"), keyframes)
+        .map_err(|error| format!("Write fixture LightData.csv: {error}"))
 }
 
 impl Drop for FixtureProject {
@@ -254,6 +293,14 @@ fn respond_to_selection(
             .id();
         *player = Some(spawned);
         *npc = Some(spawn_npc(app, 910010));
+        send::<_, TerrainChannel>(
+            app,
+            LoadTerrain {
+                map_name: "azeroth".into(),
+                initial_tile_y: 32,
+                initial_tile_x: 48,
+            },
+        );
         send::<_, AuthChannel>(
             app,
             EnterWorldResponse {
@@ -330,32 +377,53 @@ fn run_fixture(
                 }
                 (2, "FIXTURE CHANGED_READY") => {
                     app.world_mut()
-                        .entity_mut(npc.expect("spawned NPC"))
-                        .insert(ModelDisplay { display_id: 910012 });
+                        .entity_mut(player.expect("spawned player"))
+                        .insert(Position {
+                            x: 60.0,
+                            y: 2.0,
+                            z: 3.0,
+                        });
                     phase = 3;
                 }
-                (3, "FIXTURE CLAMP_READY") => {
+                (3, "FIXTURE LIGHT_UPDATED") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert(ModelDisplay { display_id: 910012 });
+                    phase = 4;
+                }
+                (4, "FIXTURE CLAMP_READY") => {
                     app.world_mut()
                         .entity_mut(npc.expect("spawned NPC"))
                         .remove::<ModelDisplay>();
-                    phase = 4;
+                    phase = 5;
                 }
-                (4, "FIXTURE MODEL_REMOVED") => {
+                (5, "FIXTURE MODEL_REMOVED") => {
                     app.world_mut()
                         .entity_mut(npc.expect("spawned NPC"))
                         .insert(ModelDisplay { display_id: 910010 });
-                    phase = 5;
-                }
-                (5, "FIXTURE MODEL_RESTORED") => {
-                    app.world_mut().despawn(npc.expect("spawned NPC"));
                     phase = 6;
                 }
-                (6, "FIXTURE NPC_REMOVED") => {
-                    npc = Some(spawn_npc(app, 910010));
+                (6, "FIXTURE MODEL_RESTORED") => {
+                    app.world_mut().despawn(npc.expect("spawned NPC"));
                     phase = 7;
                 }
-                (7, "FIXTURE NPC_RESTORED") => phase = 8,
-                (8, "FIXTURE RESET_READY") => phase = 9,
+                (7, "FIXTURE NPC_REMOVED") => {
+                    npc = Some(spawn_npc(app, 910010));
+                    phase = 8;
+                }
+                (8, "FIXTURE NPC_RESTORED") => {
+                    send::<_, TerrainChannel>(
+                        app,
+                        LoadTerrain {
+                            map_name: "kalimdor".into(),
+                            initial_tile_y: 32,
+                            initial_tile_x: 48,
+                        },
+                    );
+                    phase = 9;
+                }
+                (9, "FIXTURE MAP_READY") => phase = 10,
+                (10, "FIXTURE RESET_READY") => phase = 11,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("Out-of-order phase {phase}: {line}"));
                 }
@@ -363,10 +431,10 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 9 {
+            if !status.success() || phase != 11 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
-            println!("PASS: native UDP NPC visual lifecycle and isolated authored display assets");
+            println!("PASS: native UDP NPC visual lifecycle and authored map-position lighting");
             return Ok(());
         }
         thread::sleep(TICK);
