@@ -48,8 +48,8 @@ use char_create_component::{
     CHAR_CREATE_ROOT, CharCreateUiState, apply_character_create_styles, char_create_screen,
 };
 use char_select_component::{
-    CharDisplayEntry, CharSelectState, DeleteConfirmUiState, char_select_screen,
-    size_char_select_root,
+    CharDisplayEntry, CharSelectState, DeleteConfirmUiState, apply_char_select_postsetup,
+    char_select_screen,
 };
 use loading_component::{LoadingScreenState, loading_screen};
 use login::{
@@ -194,7 +194,7 @@ impl CharacterSelectModel {
 
     pub fn sync(&mut self) {
         self.screen.sync(&self.shared, &mut self.registry);
-        size_char_select_root(&mut self.registry);
+        apply_char_select_postsetup(&mut self.registry);
     }
 }
 

@@ -2,17 +2,15 @@ use bevy::prelude::*;
 use std::time::Instant;
 
 use game_engine::network_runtime::messages::MessageSenders;
-use game_engine::ui::atlas;
-use game_engine::ui::frame::NineSlice;
 use game_engine::ui::plugin::{UiState, sync_registry_to_primary_window};
 use game_engine::ui::registry::FrameRegistry;
 use game_engine::ui::screens::char_select_component::{
     BACK_BUTTON, CHAR_LIST_PANEL, CHAR_SELECT_ROOT, CREATE_CHAR_BUTTON, CampsiteEntry,
     CampsiteState, CharDisplayEntry, CharSelectState, DELETE_CANCEL_BUTTON, DELETE_CHAR_BUTTON,
     DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT, DeleteConfirmUiState,
-    ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, char_select_screen, size_char_select_root,
+    ENTER_WORLD_BUTTON, SELECTED_NAME_TEXT, STATUS_TEXT, apply_char_select_postsetup,
+    char_select_screen,
 };
-use game_engine::ui::widgets::texture::TextureSource;
 use game_engine::ui_resource;
 use shared::protocol::CharacterListEntry;
 use ui_toolkit::screen::Screen;
@@ -166,36 +164,8 @@ fn build_char_select_ui(
     );
 }
 
-fn apply_post_setup(reg: &mut FrameRegistry, cs: &CharSelectUi) {
-    size_char_select_root(reg);
-    set_list_panel_backdrop(reg, cs.list_panel);
-}
-
-fn set_list_panel_backdrop(reg: &mut FrameRegistry, id: u64) {
-    if let Some(frame) = reg.get_mut(id) {
-        frame.nine_slice = atlas_nine_slice(
-            "glues-characterselect-card-all-bg",
-            frame.resolved_width(),
-            frame.resolved_height(),
-        );
-    }
-}
-
-pub(crate) fn atlas_nine_slice(name: &str, frame_w: f32, frame_h: f32) -> Option<NineSlice> {
-    let uv_edges = atlas::nine_slice_margins(name)?;
-    let _ = (frame_w, frame_h);
-    let edge_sizes = uv_edges;
-    Some(NineSlice {
-        edge_size: edge_sizes[0],
-        edge_size_v: Some(edge_sizes[1]),
-        edge_sizes: Some(edge_sizes),
-        uv_edge_size: Some(uv_edges[0]),
-        uv_edge_sizes: Some(uv_edges),
-        texture: Some(TextureSource::Atlas(name.to_string())),
-        bg_color: [1.0, 1.0, 1.0, 1.0],
-        border_color: [1.0, 1.0, 1.0, 1.0],
-        ..Default::default()
-    })
+fn apply_post_setup(reg: &mut FrameRegistry, _cs: &CharSelectUi) {
+    apply_char_select_postsetup(reg);
 }
 
 fn teardown_char_select_ui(

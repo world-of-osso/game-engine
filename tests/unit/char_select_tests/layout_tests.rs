@@ -477,8 +477,10 @@ fn screen_does_not_include_inline_create_panel() {
 
 #[test]
 fn character_list_backdrop_uses_atlas_slice_metadata() {
-    let ns = atlas_nine_slice("glues-characterselect-card-all-bg", 386.0, 520.0)
-        .expect("atlas-backed nine-slice");
+    let ns = game_engine::ui::screens::char_select_component::atlas_nine_slice(
+        "glues-characterselect-card-all-bg",
+    )
+    .expect("atlas-backed nine-slice");
     assert_eq!(ns.uv_edge_sizes, Some([14.0, 11.0, 14.0, 17.0]));
     let display = ns.edge_sizes.expect("display edge sizes");
     assert_eq!(display, [14.0, 11.0, 14.0, 17.0]);

@@ -6,7 +6,7 @@ mod projection;
 use std::collections::VecDeque;
 
 use game_engine_ui_model::char_create_component::CharCreateUiState;
-use game_engine_ui_model::char_select_component::{CharSelectState, size_char_select_root};
+use game_engine_ui_model::char_select_component::{CharSelectState, apply_char_select_postsetup};
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel, UiErrorsModel,
     apply_character_create_postsetup, loading_component::LoadingScreenState, login,
@@ -57,7 +57,7 @@ impl RegistryModel {
         match self.postsetup {
             ScreenPostsetup::None => {}
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
-            ScreenPostsetup::CharacterSelect => size_char_select_root(&mut self.registry),
+            ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
             ScreenPostsetup::CharacterCreate => {
                 apply_character_create_postsetup(&self.shared, &mut self.registry);
             }
