@@ -115,6 +115,7 @@ fn send_world_port_ack(
 
 fn receive_transfer_aborted(
     mut receivers: MessageReceivers<TransferAborted>,
+    catalog: Option<Res<game_engine::instance_state::InstanceCatalog>>,
     mut errors: ResMut<UiErrors>,
 ) {
     for receiver in receivers.iter_mut() {
@@ -123,7 +124,10 @@ fn receive_transfer_aborted(
                 "Transfer to map {} aborted: {:?}",
                 aborted.map_id, aborted.reason
             );
-            errors.add(aborted.reason.text());
+            let map_name = catalog
+                .as_deref()
+                .map_or("", |catalog| catalog.map_name(aborted.map_id));
+            errors.add(&aborted.reason.text(map_name));
         }
     }
 }
