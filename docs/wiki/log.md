@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native creature light development GREEN and acquisition closure
+
+The `0f4be666` native fixture exits 0 across 11 real-UDP headless phases (`/tmp/claude/native-creature-light-green-0f4be666.log`): static geometry/texture, visual lifecycle, live sampled-light update, replacement, new-map light, and reset. It asserts native resource values rather than pixels. The synthetic WDT has no ADT and deliberately is not `InWorld`; no readiness, rendered-lighting, visual-parity, or full-conversion conclusion follows. The fixture retains the same shared-original `authoredFogEnd / 36`; local `Position` deliberately preserves prediction, so `MovementControl { controlled: true }` drives the light-sample movement.
+
+Acquisition proof is closed at `b628997e`: core asset-reference tests pass 2/2 and native creature tests pass 3/3 (`/tmp/claude/verify-creature-acquisition-{core,native}.log`). This proves exact cached-path SFID/SKID selection/use and authored texture-FDID collection, not uncached local-CASC extraction or texture caching. Independent agent 323 remains underway, so this is development GREEN, not a gate.
+
+Updated [[retail-lighting]], [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native creature light producer lifecycle
 
 `90f91a5a` centralizes native M2's nine common ambient/direct/sun/fog shader writes in `TerrainLight::bind_model`; `clear_model` nils that same set. Terrain's cube-map binding is unchanged: the M2 shader declares no `environment_map` uniform.
@@ -20,7 +28,7 @@ Updated [[godot-conversion]], the [Godot conversion specification](../specs/godo
 
 `771c1f5f` adds a native helper that reuses the local `CascListfileResolver` to cache a creature display's model FDID as `.m2`, primary parsed SFID as adjacent `00.skin`, and optional parsed SKID as `.skel`. It reparses those cached companions through the existing M2 loader, resolves authored batch textures and explicit creature texture slots, and caches the resulting `.blp` files. A missing texture remains a reported native material-loader FDID rather than a placeholder.
 
-Reported development evidence is targeted core 2/2 and native 3/3 after RED/GREEN. This helper is not attached to catalog consumption or replicated world units; runtime/visual evidence and independent verification remain pending. NPC appearance parity and full conversion remain open.
+At `b628997e`, focused acquisition proof is core 2/2 and native 3/3 (`/tmp/claude/verify-creature-acquisition-{core,native}.log`): cached-path SFID primary-skin and SKID skeleton selection/use, plus authored batch/explicit texture-FDID collection. It does not prove uncached local-CASC extraction or texture caching. `7a4add9b` attaches catalog consumption to replicated NPC world units; the later `0f4be666` runtime fixture covers its bounded lifecycle/light-resource path. Independent verification is underway. NPC appearance parity and full conversion remain open.
 
 Updated [[godot-conversion]], [[asset-pipeline]], [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
