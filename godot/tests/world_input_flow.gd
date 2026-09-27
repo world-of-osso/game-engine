@@ -97,6 +97,8 @@ func run_test() -> void:
 	if player.position.distance_to(stopped_at) > 0.05:
 		fail("Native player continued moving after W release: " + str(stopped_at) + " -> " + str(player.position))
 		return
+	if not await camera_controls_change_orbit(client, player):
+		return
 	print("FIXTURE STOPPED")
 	client.free()
 	quit(0)
@@ -138,6 +140,47 @@ func wait_for_world(client: Node, timeout_ms: int) -> bool:
 		return true
 	fail("Timed out waiting for native player and authored terrain: " + str(client.account_state()))
 	return false
+
+func camera_controls_change_orbit(client: Node, player: Node3D) -> bool:
+	var camera := client.get_node_or_null("WorldCamera") as Camera3D
+	if camera == null:
+		fail("Native world camera missing during input probe")
+		return false
+	var before := camera.global_transform.basis.z
+	var facing_before := player.rotation.y
+	var press := InputEventMouseButton.new()
+	press.position = Vector2(640, 360)
+	press.button_index = MOUSE_BUTTON_RIGHT
+	press.pressed = true
+	root.push_input(press, true)
+	var motion := InputEventMouseMotion.new()
+	motion.position = press.position
+	motion.relative = Vector2(30, -12)
+	root.push_input(motion, true)
+	for frame in range(20):
+		await process_frame
+	var release := InputEventMouseButton.new()
+	release.position = press.position
+	release.button_index = MOUSE_BUTTON_RIGHT
+	release.pressed = false
+	root.push_input(release, true)
+	if before.angle_to(camera.global_transform.basis.z) < 0.01 or absf(player.rotation.y - facing_before) < 0.01:
+		fail("Right-mouse motion failed to rotate native camera and character facing")
+		return false
+	var distance_before := camera.global_position.distance_to(player.global_position)
+	var wheel := InputEventMouseButton.new()
+	wheel.position = press.position
+	wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel.factor = 1.0
+	wheel.pressed = true
+	root.push_input(wheel, true)
+	for frame in range(20):
+		await process_frame
+	if camera.global_position.distance_to(player.global_position) >= distance_before - 0.2:
+		fail("Mouse wheel failed to zoom native world camera inward")
+		return false
+	print("CAMERA: native mouse orbit, facing, and wheel zoom observed")
+	return true
 
 func focus_loss_stops_held_input(player: Node3D) -> bool:
 	var before := player.position
