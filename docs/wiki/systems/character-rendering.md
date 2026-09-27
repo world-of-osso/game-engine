@@ -8,6 +8,10 @@ Character rendering assembles WoW M2 character models with dynamic geoset visibi
 
 `tests/unit/equipment_item_tests.rs` compares textures, geosets, and attached models for actual starter items 25, 38, 39, 40, and 2362 against their catalog displays. This covers client resolution, not native rendering or combat stats.
 
+### Portable outfit catalog
+
+`src/game/equipment/outfit_catalog.rs` is the shared Bevy-free `OutfitData` implementation. `godot/core::outfit_data` exports it; `src/game/equipment/outfit_data.rs` retains the Bevy `Resource` adapter, original race-prefix world-DB lookup, and missing-helmet extraction. Both use the same `src/game/outfit_catalog_db.rs` SQL/import path and model-path decisions. Native callers pass a data root to `OutfitData::load` and use `try_resolve_outfit`, `try_resolve_display_info`, or `try_resolve_runtime_model` to distinguish absent data from cache/query failures; the original Bevy-facing convenience methods retain their return types. The local listfile indexes M2 paths once per data root, rather than rescanning for each item. Cache source-file keys use canonical paths, and first-time imports serialize with SQLite `BEGIN IMMEDIATE` plus freshness recheck: concurrent root/native imports no longer race to rebuild the same cache. Focused real-data proof resolves item 25/38/39/40/2362 displays, clothing FDIDs, and sword/shield model/skin FDIDs; it does not prove native attachment/render parity.
+
 ### Replicated player construction boundary
 
 Player appearance waits for `ResolvedModelAssetInfo`, published after the complete M2 mesh, animation, and default equipment command sequence. `Children` first appeared when only the visual root existed; applying then recorded the full snapshot as deduplicated before body meshes existed, and later model initialization overwrote its equipment. Waiting for final model metadata fixes that ordering without periodic reconciliation or an InWorld-state delay. `OutfitData` loads lazily; its log after player spawn does not mean the resource was unavailable.
@@ -108,6 +112,7 @@ WoW renders selection circles procedurally (ground-projected ring tinted by unit
 - [helmet-hair-hiding-investigation-2026-03-28.md](../helmet-hair-hiding-investigation-2026-03-28.md) — helmet hair hiding mechanisms
 - [target-circle-styles-2026-03-30.md](../target-circle-styles-2026-03-30.md) — selection circle styles, BLP blend mode detection
 - `../../../data/diagnostics/wolf-nameplate-equipment-20260909/final-proof.md` — bounded physical-equipment persistence and render evidence
+- `src/game/equipment/outfit_catalog.rs`, `src/game/outfit_catalog_db.rs`, `godot/core/src/outfit_data_tests.rs` at `e005b96a` — shared catalog boundary and concurrent importer fixture
 - `src/game/equipment/equipment.rs` — runtime attachment selection at `496a057b`
 - `/home/osso/Repos/WMVx/src/core/game/GameConstants.h` and `/home/osso/Repos/WMVx/src/core/modeling/AttachmentCustomization.cpp` — local reference attachment semantics
 
