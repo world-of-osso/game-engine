@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-27] system | Native remote-player Vulkan proof is bounded
+
+`47a8f1ea` first exits 0 under actual Vulkan for the remote fixture, but main image inspection finds the remote female buried 1.366 m. It is not whole-body proof. The independent typed terrain-mesh oracle gives authored floor 114.245974 at remote XZ (`/tmp/claude/remote-player-floor-oracle-typed.log`); `6acd4ec0` adds a floor assertion.
+
+`6acd4ec0` then exits 0 under actual Vulkan (`/tmp/claude/remote-player-runtime-6acd4ec0.log`). Local and remote-female body/gear independently remove and restore on their stable units; other hand references remain independent and paused poses remain continuous. Remote samples are body 3,588 → 3,562 and hands 1,631 → 1,626. Before/after provenance confirms unchanged fixture inputs and native library (`/tmp/claude/remote-player-runtime-6acd4ec0-provenance.json`). Verifier585 independently audits native fmt/check and world 7/7 at unchanged `bc86ff42` library; invalid verifier585 input rerun overlapped edits and is excluded. New artifact verification remains pending. NPC regression proof is blocked on stale isolated project state pending current repair603.
+
+This is bounded remote body/equipment proof. Original remote locomotion remains `Stand`; no new protocol requirement follows. Locomotion, performance, visual parity, and full conversion remain open.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native local-player Vulkan proof is bounded
 
 `bc86ff42` compiles native player-world visuals with two existing WMO dead-field warnings (`/tmp/claude/world-player-build-bc86ff42.log`). The first actual-Vulkan run shows body/hand pixels but exits 101 because the paused-pose probe selects the wrong recursive `M2Animation` (`/tmp/claude/world-player-runtime-bc86ff42.log`). `07ef57e4` corrects that lookup; its 90-second fixture deadline exhausts before InWorld after five preview loads take 88 seconds (`/tmp/claude/world-player-runtime-07ef57e4.log`). `cc38aad1` raises only this evidence-based deadline to 180 seconds, not runtime performance.
