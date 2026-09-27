@@ -8,6 +8,8 @@ pub mod camera_control_data;
 pub mod camera_follow_data;
 #[path = "../../../src/camera_input_data.rs"]
 pub mod camera_input_data;
+#[path = "../../../src/char_select_camera_data.rs"]
+pub mod char_select_camera_data;
 #[path = "../../../src/asset/char_texture_data.rs"]
 pub mod char_texture_data;
 #[path = "../../../src/rendering/character/char_texture_query_data.rs"]
