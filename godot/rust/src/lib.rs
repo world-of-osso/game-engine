@@ -16,6 +16,7 @@ mod input_keys;
 mod lighting;
 mod loading;
 mod scene;
+mod startup;
 mod terrain;
 mod ui;
 mod wmo;
@@ -75,6 +76,7 @@ pub struct GameClient {
     player_movement: gameplay::PlayerMovement,
     world_minutes: f32,
     server_hostname: String,
+    startup_customize: bool,
 }
 
 #[godot_api]
@@ -117,6 +119,7 @@ impl INode3D for GameClient {
             player_movement: gameplay::PlayerMovement::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
+            startup_customize: false,
             units: HashMap::new(),
             world: world::WorldUnits::new(data_root, cache_root),
             server_hostname: if cfg!(debug_assertions) {
@@ -185,9 +188,12 @@ impl INode3D for GameClient {
     fn ready(&mut self) {
         if let Err(error) = self
             .connect_focus_reset()
-            .and_then(|()| self.attach_login_ui())
+            .and_then(|()| self.initialize_startup())
         {
             godot_error!("Cannot initialize client: {error}");
+            if let Some(mut tree) = self.base().get_tree() {
+                tree.quit_ex().exit_code(1).done();
+            }
         }
     }
 }
@@ -879,6 +885,7 @@ impl GameClient {
                 }
             }
         }
+        self.apply_startup_customize(screen)?;
         self.set_account_ui_visibility(screen);
         let name = GString::from(format!("{screen:?}").as_str());
         self.base_mut()
