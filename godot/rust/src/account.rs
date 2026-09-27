@@ -11,9 +11,10 @@ use game_engine_session::{
     normalize_auth_token, token_path,
 };
 use shared::protocol::{
-    AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
-    EnterWorldResponse, ForcedDisconnect, InputChannel, LoadTerrain, LoginResponse, NewWorld,
-    PlayerInput, RegisterResponse, TransferAborted, TransferChannel, WorldPortAck,
+    AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacter,
+    DeleteCharacterResponse, EnterWorldResponse, ForcedDisconnect, InputChannel, LoadTerrain,
+    LoginResponse, NewWorld, PlayerInput, RegisterResponse, TransferAborted, TransferChannel,
+    WorldPortAck,
 };
 
 /// Godot host's account state. Only NetworkBridge owns the transport ECS world.
@@ -33,6 +34,8 @@ pub enum AccountEvent {
     TransferError(String),
     UnitUpdated(UnitSnapshot),
     UnitRemoved(u64),
+    /// The character roster changed through a server update or response.
+    RosterChanged,
 }
 
 impl Account {
@@ -95,6 +98,11 @@ impl Account {
             return Ok(());
         };
         self.connected_bridge()?.send::<_, AuthChannel>(request)
+    }
+
+    pub fn send_delete_character(&self, character_id: u64) -> Result<(), String> {
+        self.connected_bridge()?
+            .send::<_, AuthChannel>(DeleteCharacter { character_id })
     }
 
     pub fn send_player_input(&self, input: PlayerInput) -> Result<(), String> {
@@ -180,6 +188,16 @@ impl Account {
             ));
             return Ok(());
         }
+        if message.is::<CharacterListUpdate>() {
+            self.session.receive_character_update(decode(message)?);
+            output.push(AccountEvent::RosterChanged);
+            return Ok(());
+        }
+        if message.is::<DeleteCharacterResponse>() {
+            self.session.receive_character_deleted(decode(message)?);
+            output.push(AccountEvent::RosterChanged);
+            return Ok(());
+        }
         let effects = self.receive_message(message)?;
         self.apply_effects(effects, output)
     }
@@ -201,16 +219,8 @@ impl Account {
         if message.is::<ForcedDisconnect>() {
             return Ok(self.session.receive_forced_disconnect(decode(message)?));
         }
-        if message.is::<CharacterListUpdate>() {
-            self.session.receive_character_update(decode(message)?);
-            return Ok(Vec::new());
-        }
         if message.is::<CreateCharacterResponse>() {
             self.session.receive_character_created(decode(message)?);
-            return Ok(Vec::new());
-        }
-        if message.is::<DeleteCharacterResponse>() {
-            self.session.receive_character_deleted(decode(message)?);
             return Ok(Vec::new());
         }
         Err("Unhandled account protocol message".into())

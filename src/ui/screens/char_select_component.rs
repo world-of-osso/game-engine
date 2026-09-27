@@ -9,7 +9,7 @@ use ui_toolkit::widgets::texture::TextureSource;
 
 pub use super::char_select_delete_confirm_component::{
     DELETE_CANCEL_BUTTON, DELETE_CONFIRM_BUTTON, DELETE_CONFIRM_DIALOG, DELETE_CONFIRM_INPUT,
-    DeleteConfirmUiState, delete_confirmation_modal,
+    DeleteCharacterTarget, DeleteConfirmUiState, DeleteConfirmation, delete_confirmation_modal,
 };
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
@@ -126,6 +126,19 @@ pub fn size_char_select_root(registry: &mut FrameRegistry) {
         frame.height = Dimension::Fixed(height);
     }
 }
+/// Original Up/Down roster navigation: wraps, and starts from the far end when unselected.
+pub fn step_selection(selected: Option<usize>, count: usize, forward: bool) -> Option<usize> {
+    if count == 0 {
+        return selected;
+    }
+    Some(match (selected, forward) {
+        (Some(index), true) if index + 1 < count => index + 1,
+        (Some(_) | None, true) => 0,
+        (Some(0) | None, false) => count - 1,
+        (Some(index), false) => index - 1,
+    })
+}
+
 const LIST_PANEL_BG_ATLAS: &str = "glues-characterselect-card-all-bg";
 
 /// Chrome applied after every sync: viewport-sized root and the character list backdrop.

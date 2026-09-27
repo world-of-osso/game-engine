@@ -37,14 +37,14 @@ func select_second_character_and_enter(client: Node) -> void:
 	var selected_name = ui.find_child("CharSelectCharacterName", true, false) if ui != null else null
 	var highlight = ui.find_child("CharCard_1Selected", true, false) if ui != null else null
 	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
-	if not card is Control or not card.visible or not card_name is Label or not selected_name is Label or not highlight is TextureRect or not enter is Button or not enter.visible:
+	if not card is Control or not card.visible or not card_name is Label or not selected_name is Label or not highlight is Control or not enter is Button or not enter.visible:
 		fail("Authored second card or Enter World button missing")
 		return
 	if card_name.text.is_empty() or selected_name.text == card_name.text or highlight.visible:
 		fail("Fixture must start with a different character selected")
 		return
 	await click_control(card)
-	if selected_name.text != card_name.text or not highlight.visible:
+	if selected_name.text != card_name.text or not highlight.visible or not highlight.get_node_or_null("Parts/Part0") is TextureRect:
 		fail("Viewport click did not select second character: " + selected_name.text + " expected " + card_name.text)
 		return
 	var expected_name: String = card_name.text
@@ -104,7 +104,8 @@ func inspect_initial_loading_ui(client: Node) -> bool:
 	var artwork = ui.find_child("LoadingArtwork", true, false)
 	var shell = ui.find_child("LoadingBarBackground", true, false)
 	var progress = ui.find_child("LoadingProgressText", true, false)
-	if not artwork is TextureRect or artwork.texture == null or not shell is Control or not shell.visible or not progress is Label or progress.text != "0%":
+	var artwork_image = artwork.get_node_or_null("Parts/Part0") if artwork != null else null
+	if not artwork_image is TextureRect or artwork_image.texture == null or not shell is Control or not shell.visible or not progress is Label or progress.text != "0%":
 		fail("Authored Loading artwork, shell or initial progress missing")
 		return false
 	for index in range(3):

@@ -6,7 +6,7 @@ mod projection;
 use std::collections::VecDeque;
 
 use game_engine_ui_model::char_create_component::CharCreateUiState;
-use game_engine_ui_model::char_select_component::{CharSelectState, apply_char_select_postsetup};
+use game_engine_ui_model::char_select_component::{CharSelectAction, apply_char_select_postsetup};
 use game_engine_ui_model::{
     CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel, UiErrorsModel,
     apply_character_create_postsetup, loading_component::LoadingScreenState, login,
@@ -122,14 +122,21 @@ impl RegistryModel {
         });
     }
 
-    /// Original login Enter submits from either field unless a login is already in flight.
+    /// Original Enter in an edit box: login submits unless in flight; deletion confirms.
     fn submit(&self, actions: &mut VecDeque<String>) {
         let connecting = self
             .shared
             .get::<login::SharedConnecting>()
             .is_some_and(|connecting| connecting.0);
-        if matches!(self.postsetup, ScreenPostsetup::Login) && !connecting {
-            actions.push_back(login::LoginAction::Connect.to_string());
+        match self.postsetup {
+            ScreenPostsetup::Login if !connecting => {
+                actions.push_back(login::LoginAction::Connect.to_string());
+            }
+            // Original: Enter confirms a pending deletion once its gate is ready.
+            ScreenPostsetup::CharacterSelect => {
+                actions.push_back(CharSelectAction::ConfirmDeleteChar.to_string());
+            }
+            _ => {}
         }
     }
 
@@ -278,13 +285,33 @@ impl RegistryUi {
         Ok(())
     }
 
-    pub fn set_character_select_state(&mut self, state: CharSelectState) -> Result<(), String> {
+    /// Replace one reactive screen state; unchanged values do not resync.
+    pub fn set_state<T: PartialEq + 'static>(&mut self, state: T) -> Result<(), String> {
         let model = self
             .model
             .as_mut()
             .ok_or("Registry model not initialized")?;
+        if model.shared.get::<T>() == Some(&state) {
+            return Ok(());
+        }
         model.shared.insert(state);
         self.sync_model()
+    }
+
+    pub fn focus_frame_named(&mut self, name: &str) -> Result<(), String> {
+        let model = self
+            .model
+            .as_ref()
+            .ok_or("Registry model not initialized")?;
+        let id = model
+            .registry
+            .get_by_name(name)
+            .ok_or_else(|| format!("Missing frame {name}"))?;
+        self.projection
+            .as_ref()
+            .ok_or("Native projection not initialized")?
+            .grab_focus(id);
+        Ok(())
     }
 
     fn sync_viewport(&mut self) -> Result<(), String> {
