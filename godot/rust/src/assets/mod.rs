@@ -1,16 +1,19 @@
-//! Native M2/BLP conversion. Animation, character compositing and multi-texture M2 shaders
-//! are not implemented by this loader; unsupported texture slots remain explicitly unbound.
+//! Native M2/BLP conversion with authored batch resolution and materials.
+//! Character replacement textures and geoset selection remain external appearance work.
+mod material;
 use std::{collections::HashMap, fs, path::Path};
 
 use crate::animation::WowAnimationPlayer;
 use game_engine_core::{blp, m2};
 use godot::{
     classes::{
-        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, RefCounted,
-        Skeleton3D, Skin, StandardMaterial3D, base_material_3d, image, mesh,
+        ArrayMesh, Image, MeshInstance3D, Node3D, ProjectSettings, RefCounted, Skeleton3D, Skin,
+        image, mesh,
     },
     prelude::*,
 };
+
+use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
 #[derive(GodotClass)]
 #[class(base = RefCounted)]
@@ -146,21 +149,29 @@ fn build_model(
     path: &GString,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let mut missing = PackedInt32Array::new();
-    let batches = model
-        .batches
+    let model_path = global_path(path);
+    let data_root = Path::new(&model_path)
+        .parent()
+        .and_then(Path::parent)
+        .ok_or("Model path has no asset root")?;
+    let resolver = CascListfileResolver::new(
+        AssetResolverConfig::new()
+            .with_data_root(data_root)
+            .with_shared_data_root(data_root)
+            .with_cache_root(data_root.join("cache")),
+    );
+    let resolved = m2::resolve_render_batches(model, false, |fdid| resolver.resolve_path(fdid))?;
+    let batches = resolved
         .iter()
-        .enumerate()
-        .map(|(batch_index, batch)| {
-            let sub = model
-                .submeshes
-                .get(batch.submesh_index as usize)
-                .ok_or_else(|| format!("Batch {batch_index} references absent submesh"))?;
+        .map(|batch| {
+            let sub = model.submeshes.get(batch.submesh_index).ok_or_else(|| {
+                format!(
+                    "Batch {} references absent submesh",
+                    batch.source_unit_index
+                )
+            })?;
             let mesh = build_batch_mesh(model, sub)?;
-            let material = model
-                .materials
-                .get(batch.render_flags_index as usize)
-                .map(|authored| build_material(model, batch, authored, path, &mut missing))
-                .transpose()?;
+            let material = material::build_material(batch, path, &mut missing)?;
             Ok((mesh, material))
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -189,9 +200,7 @@ fn build_model(
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
         }
-        if let Some(material) = material {
-            instance.set_surface_override_material(0, &material);
-        }
+        instance.set_surface_override_material(0, &material);
         root.add_child(&instance);
     }
     if let Some(player) = player {
@@ -271,58 +280,4 @@ fn build_batch_mesh(model: &m2::Model, sub: &m2::Submesh) -> Result<Gd<ArrayMesh
     let mut mesh = ArrayMesh::new_gd();
     mesh.add_surface_from_arrays(mesh::PrimitiveType::TRIANGLES, &arrays);
     Ok(mesh)
-}
-
-fn build_material(
-    model: &m2::Model,
-    batch: &m2::TextureUnit,
-    authored: &m2::Material,
-    path: &GString,
-    missing: &mut PackedInt32Array,
-) -> Result<Gd<StandardMaterial3D>, String> {
-    let mut material = StandardMaterial3D::new_gd();
-    if authored.flags & 1 != 0 {
-        material.set_shading_mode(base_material_3d::ShadingMode::UNSHADED);
-    }
-    if authored.flags & 4 != 0 {
-        material.set_cull_mode(base_material_3d::CullMode::DISABLED);
-    }
-    match authored.blend_mode {
-        1 => material.set_transparency(base_material_3d::Transparency::ALPHA_SCISSOR),
-        2 => material.set_transparency(base_material_3d::Transparency::ALPHA),
-        3 | 4 | 7 => material.set_blend_mode(base_material_3d::BlendMode::ADD),
-        5 | 6 => material.set_blend_mode(base_material_3d::BlendMode::MUL),
-        _ => {}
-    }
-    let Some(&texture_idx) = model.texture_lookup.get(batch.texture_id as usize) else {
-        return Ok(material);
-    };
-    let texture_idx = texture_idx as usize;
-    if model.texture_types.get(texture_idx) != Some(&0) {
-        return Ok(material); // Replaceable character textures require external compositing.
-    }
-    let Some(&fdid) = model.texture_fdids.get(texture_idx) else {
-        return Ok(material);
-    };
-    if fdid == 0 {
-        return Ok(material);
-    }
-    let texture_path = Path::new(&global_path(path))
-        .parent()
-        .and_then(Path::parent)
-        .ok_or("Model path has no asset root")?
-        .join("textures")
-        .join(format!("{fdid}.blp"));
-    match fs::read(&texture_path) {
-        Ok(bytes) => {
-            let rgba = blp::decode_rgba(&bytes).map_err(|err| format!("Texture {fdid}: {err}"))?;
-            let image = image_from_rgba(rgba)?;
-            let texture = ImageTexture::create_from_image(&image)
-                .ok_or_else(|| format!("Godot rejected texture {fdid}"))?;
-            material.set_texture(base_material_3d::TextureParam::ALBEDO, &texture);
-        }
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => missing.push(fdid as i32),
-        Err(err) => return Err(format!("Cannot read texture {fdid}: {err}")),
-    }
-    Ok(material)
 }
