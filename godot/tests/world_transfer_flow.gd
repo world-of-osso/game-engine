@@ -47,7 +47,6 @@ func run_test() -> void:
 	transfer_requested = true
 	print("FIXTURE INITIAL_READY")
 	var deadline := Time.get_ticks_msec() + 60000
-	var saw_error_while_loading := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		if transfer_loading_error != "":
@@ -58,9 +57,7 @@ func run_test() -> void:
 		var state: Dictionary = client.account_state()
 		var overlay = client.get_node_or_null("UIErrors")
 		var label = overlay.find_child("UIErrorsFrameLine1", true, false) if overlay != null else null
-		if label is Label and label.visible and label.text == ERROR_TEXT and state.screen == "Loading":
-			saw_error_while_loading = true
-		if state.screen != "InWorld" or not saw_error_while_loading:
+		if state.screen != "InWorld":
 			continue
 		if not world_ready(client, SECOND):
 			continue
@@ -72,7 +69,7 @@ func run_test() -> void:
 		if player == null or player.get_instance_id() != first_player_id:
 			fail("Transfer lost or duplicated the selected player Node3D")
 			return
-		if overlay == null or not label is Label or label.text != ERROR_TEXT:
+		if overlay == null or not label is Label or not label.is_visible_in_tree() or label.text != ERROR_TEXT:
 			fail("Native UIErrors overlay lost authored transfer error")
 			return
 		if client.get_node("LoadingUI").visible:

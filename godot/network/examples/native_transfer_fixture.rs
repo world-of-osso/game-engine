@@ -97,7 +97,7 @@ fn start_server() -> (App, SocketAddr) {
 }
 
 fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHandle<()>) {
-    let binary = std::env::var("GODOT_BIN").unwrap_or_else(|_| "godot".into());
+    let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
     let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("Godot workspace directory");
@@ -129,7 +129,7 @@ fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, thread::JoinHa
 }
 
 fn respond_to_login(app: &mut App) -> Result<(), String> {
-    let incoming = app.world_mut().resource_mut::<Incoming>();
+    let mut incoming = app.world_mut().resource_mut::<Incoming>();
     let requests = std::mem::take(&mut incoming.logins);
     if requests.is_empty() {
         return Ok(());
