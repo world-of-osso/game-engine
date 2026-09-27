@@ -2,9 +2,9 @@
 
 ## [2026-09-27] system | Bounded M2 effect-UV proof boundary
 
-`8df1ec99` shared sampler proof remains reused core5; `fc5a657f`/`aa04c18c` native effect routing retains reused explicit-phase pixel8 proof, exit 0. The bounded verifier records native/root fmt and checks PASS, while its root selected sampler test was blocked before selection by missing `M2TextureUnit` imports (`/tmp/claude/verify-m2-effect-uv-summary.md`). `4814ed00` fixes those direct test imports; agent298 follow-up proof is pending.
+At `bf3e5bd7`, root sampler tests pass 5/5 after `4814ed00` adds direct `M2TextureUnit` imports (`/tmp/claude/verify-m2-effect-uv-followup-root-tests.log`). The actual-loader Vulkan fixture exits 0 with eight explicit pixel assertions and an enabled-process observation that automatic `/root/M2MaterialClock` processing changes a rendered effect pixel (`/tmp/claude/verify-m2-effect-uv-followup-pixels.log`).
 
-`97fa86c9` adds an enabled-process rendered-pixel observation for automatic `/root/M2MaterialClock` progression. No matching GPU result log is available: automatic clock behavior remains source-only, not runtime proof. Main rejected length-only readability findings because they show no behavioral failure; no scope expansion follows. No full conversion or visual-parity claim.
+Prior bounded native/root fmt and checks, and reused core5 sampler proof, remain unchanged PASS (`/tmp/claude/verify-m2-effect-uv-summary.md`). The pre-existing out-of-scope `unused import: super::*` test warning remains. Main rejected length-only readability findings because they show no behavioral failure; no scope expansion follows. World light/material animation, character appearance parity, visual parity, and full conversion remain open.
 
 Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
 
