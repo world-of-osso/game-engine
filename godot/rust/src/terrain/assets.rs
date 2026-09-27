@@ -21,6 +21,7 @@ pub(crate) struct NativeMapWdt {
     pub path: PathBuf,
     pub flags: wdt::MphdFlags,
     pub global_wmo: Option<adt::WmoPlacement>,
+    pub global_wmo_asset: Option<crate::wmo::assets::NativeWmoAsset>,
     pub lighting: Arc<LightingCatalog>,
 }
 
@@ -56,10 +57,17 @@ impl NativeTerrainAssets {
             .map_err(|error| format!("{}: {error}", path.display()))?;
         let global_wmo = wdt::parse_wdt_global_wmo(&bytes)
             .map_err(|error| format!("{}: {error}", path.display()))?;
+        let global_wmo_asset = global_wmo
+            .as_ref()
+            .map(|placement| {
+                crate::wmo::assets::read_placement(&self.resolver, &self.data_root, placement)
+            })
+            .transpose()?;
         Ok(NativeMapWdt {
             path,
             flags,
             global_wmo,
+            global_wmo_asset,
             lighting: self.read_lighting_catalog()?,
         })
     }
@@ -182,6 +190,7 @@ mod tests {
         let azeroth = assets.read_map_wdt("azeroth").expect("cached Azeroth WDT");
         assert_eq!(azeroth.path.file_name().unwrap(), "775971.wdt");
         assert!(azeroth.global_wmo.is_none());
+        assert!(azeroth.global_wmo_asset.is_none());
 
         let stockade = assets
             .read_map_wdt("stormwindjail")
@@ -191,6 +200,13 @@ mod tests {
         assert_eq!(wmo.fdid, Some(108_631));
         assert_eq!(wmo.position, [0.0, 0.0, 0.0]);
         assert_eq!(stockade.flags.raw & 1, 1);
+        let asset = stockade
+            .global_wmo_asset
+            .expect("loaded global WMO payload");
+        assert_eq!(asset.root_fdid, 108_631);
+        assert_eq!(asset.root.n_groups, 27);
+        assert_eq!(asset.groups.len(), 27);
+        assert!(asset.groups.iter().any(|group| !group.batches.is_empty()));
     }
 
     #[test]
