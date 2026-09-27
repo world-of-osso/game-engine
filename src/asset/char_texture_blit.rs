@@ -1,10 +1,10 @@
 use super::{CharTextureData, CompositedModelTextures, TextureLayer, TextureSection};
 
-pub(super) const FULL_TEXTURE_SECTION_MASK: i64 = -1;
-pub(super) const HD_TEXTURE_WIDTH: u32 = 2048;
-pub(super) const HD_TEXTURE_HEIGHT: u32 = 1024;
+pub(crate) const FULL_TEXTURE_SECTION_MASK: i64 = -1;
+pub(crate) const HD_TEXTURE_WIDTH: u32 = 2048;
+pub(crate) const HD_TEXTURE_HEIGHT: u32 = 1024;
 
-pub(super) struct BlitLayerInput<'a> {
+pub(crate) struct BlitLayerInput<'a> {
     pub pixels: &'a mut [u8],
     pub canvas_w: u32,
     pub tex: &'a [u8],
@@ -14,7 +14,7 @@ pub(super) struct BlitLayerInput<'a> {
     pub layout_id: u32,
 }
 
-pub(super) struct BlitScaledInput<'a> {
+pub(crate) struct BlitScaledInput<'a> {
     pub pixels: &'a mut [u8],
     pub canvas_w: u32,
     pub canvas_h: u32,
@@ -28,7 +28,7 @@ pub(super) struct BlitScaledInput<'a> {
     pub layer: &'a TextureLayer,
 }
 
-pub(super) fn blit_layer(data: &CharTextureData, input: BlitLayerInput<'_>) {
+pub(crate) fn blit_layer(data: &CharTextureData, input: BlitLayerInput<'_>) {
     let BlitLayerInput {
         pixels,
         canvas_w,
@@ -70,7 +70,7 @@ pub(super) fn blit_layer(data: &CharTextureData, input: BlitLayerInput<'_>) {
     }
 }
 
-pub(super) fn runtime_texture_for_section(
+pub(crate) fn runtime_texture_for_section(
     data: &CharTextureData,
     pixels: Vec<u8>,
     layout_id: u32,
@@ -107,7 +107,7 @@ pub(super) fn runtime_texture_for_section(
     Some((cropped, section.width, section.height))
 }
 
-pub(super) fn runtime_textures_from_layout(
+pub(crate) fn runtime_textures_from_layout(
     data: &CharTextureData,
     pixels: Vec<u8>,
     layout_id: u32,
@@ -131,7 +131,7 @@ pub(super) fn runtime_textures_from_layout(
     }
 }
 
-pub(super) fn blit_section(
+pub(crate) fn blit_section(
     pixels: &mut [u8],
     canvas_w: u32,
     tex: &[u8],
@@ -156,7 +156,7 @@ pub(super) fn blit_section(
     }
 }
 
-pub(super) fn blit_scaled(input: BlitScaledInput<'_>) {
+pub(crate) fn blit_scaled(input: BlitScaledInput<'_>) {
     let BlitScaledInput {
         pixels,
         canvas_w,
@@ -191,7 +191,7 @@ fn uses_source_alpha(blend_mode: u32) -> bool {
     matches!(blend_mode, 1 | 15)
 }
 
-pub(super) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_src_alpha: bool) {
+pub(crate) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_src_alpha: bool) {
     let alpha = src[si + 3] as u16;
     if alpha == 0 {
         return;
@@ -210,7 +210,7 @@ pub(super) fn blend_pixel(dst: &mut [u8], di: usize, src: &[u8], si: usize, use_
     }
 }
 
-pub(super) fn scaled_section(section: TextureSection, divisor: u32) -> TextureSection {
+pub(crate) fn scaled_section(section: TextureSection, divisor: u32) -> TextureSection {
     TextureSection {
         x: section.x / divisor,
         y: section.y / divisor,
@@ -238,7 +238,7 @@ fn crop_rgba(src: &[u8], src_w: u32, src_h: u32, x: u32, y: u32, w: u32, h: u32)
     out
 }
 
-pub(super) fn scale_to(
+pub(crate) fn scale_to(
     src: &[u8],
     src_w: u32,
     src_h: u32,
@@ -262,16 +262,3 @@ pub(super) fn scale_to(
     }
     (out, dst_w, dst_h)
 }
-
-#[cfg(test)]
-pub(super) fn load_test_data() -> CharTextureData {
-    use std::path::Path;
-
-    crate::char_texture_cache::import_char_texture_cache(Path::new("data"))
-        .expect("import char texture cache");
-    CharTextureData::load(Path::new("data"))
-}
-
-#[cfg(test)]
-#[path = "../../tests/unit/char_texture_tests.rs"]
-mod tests;
