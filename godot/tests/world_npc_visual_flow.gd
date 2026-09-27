@@ -121,7 +121,45 @@ func run_test() -> void:
 	if client.get_node("WorldLighting").get_instance_id() == old_light_id:
 		fail("Map change retained previous lighting producer")
 		return
+	var visible_npc: Node3D = client.get_node("WorldUnits/" + NPC)
+	var retained_unit_id := visible_npc.get_instance_id()
+	var retained_visual: Node3D = visible_npc.get_node("NpcVisualRoot")
+	var retained_visual_id := retained_visual.get_instance_id()
+	var retained_model: Node3D = retained_visual.get_node("NpcModel")
+	var retained_model_id := retained_model.get_instance_id()
+	var retained_batch := retained_model.find_child("Batch0", true, false) as MeshInstance3D
+	if retained_batch == null or retained_batch.mesh == null or not retained_batch.is_visible_in_tree():
+		fail("Always-visible NPC lacks a visible mesh before policy changes")
+		return
+	var retained_batch_id := retained_batch.get_instance_id()
 	print("FIXTURE MAP_READY")
+	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
+		return
+	print("FIXTURE HIDDEN_READY")
+	if not await wait_npc_moved(client, 6.5) or not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
+		return
+	print("FIXTURE DEAD_ONLY_ALIVE_READY")
+	if not await wait_npc_moved(client, 7.5) or not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
+		return
+	print("FIXTURE REMOTE_DEAD_READY")
+	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, true):
+		return
+	print("FIXTURE LOCAL_DEAD_READY")
+	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
+		return
+	print("FIXTURE HEALTH_REMOVED_READY")
+	if not await wait_npc_moved(client, 8.5) or not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
+		return
+	print("FIXTURE RESURRECTED_READY")
+	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, true):
+		return
+	print("FIXTURE DAY_READY")
+	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, false):
+		return
+	print("FIXTURE NIGHT_READY")
+	if not await wait_npc_visibility(client, retained_unit_id, retained_visual_id, retained_model_id, retained_batch_id, true):
+		return
+	print("FIXTURE ALWAYS_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
 	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
@@ -222,6 +260,23 @@ func wait_visual(client: Node, scale: float) -> bool:
 		if visual_matches(client, scale):
 			return true
 	fail("Timed out waiting for NPC model and scale %f: %s" % [scale, client.account_state()])
+	return false
+
+func wait_npc_visibility(client: Node, unit_id: int, visual_id: int, model_id: int, batch_id: int, expected_visible: bool) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc := client.get_node_or_null("WorldUnits/" + NPC) as Node3D
+		var visual := npc.get_node_or_null("NpcVisualRoot") as Node3D if npc != null else null
+		var model := visual.get_node_or_null("NpcModel") as Node3D if visual != null else null
+		var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
+		if npc == null or npc.get_instance_id() != unit_id or visual == null or visual.get_instance_id() != visual_id \
+			or model == null or model.get_instance_id() != model_id or batch == null or batch.get_instance_id() != batch_id or batch.mesh == null:
+			fail("Visibility policy replaced or removed retained NPC unit/model/mesh")
+			return false
+		if batch.is_visible_in_tree() == expected_visible:
+			return true
+	fail("Timed out waiting for retained NPC mesh visibility %s" % expected_visible)
 	return false
 
 func wait_npc_moved(client: Node, minimum_x: float) -> bool:

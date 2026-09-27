@@ -19,7 +19,7 @@ use lightyear::prelude::{
     ReplicationSender, server,
 };
 use shared::{
-    components::{ModelDisplay, MovementControl, Npc, Player, Position},
+    components::{Health, ModelDisplay, MovementControl, Npc, Player, Position},
     protocol::{
         AuthChannel, CharacterListEntry, EnterWorldResponse, LoadTerrain, LoginRequest,
         LoginResponse, SelectCharacter, TerrainChannel,
@@ -428,8 +428,107 @@ fn run_fixture(
                     );
                     phase = 9;
                 }
-                (9, "FIXTURE MAP_READY") => phase = 10,
-                (10, "FIXTURE RESET_READY") => phase = 11,
+                (9, "FIXTURE MAP_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert(Npc {
+                            template_id: 32820,
+                            name: NPC.into(),
+                        });
+                    phase = 10;
+                }
+                (10, "FIXTURE HIDDEN_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert((
+                            Npc {
+                                template_id: 6491,
+                                name: NPC.into(),
+                            },
+                            Position {
+                                x: 7.0,
+                                y: 2.0,
+                                z: 3.0,
+                            },
+                        ));
+                    phase = 11;
+                }
+                (11, "FIXTURE DEAD_ONLY_ALIVE_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert((
+                            Health {
+                                current: 0.0,
+                                max: 10.0,
+                            },
+                            Position {
+                                x: 8.0,
+                                y: 2.0,
+                                z: 3.0,
+                            },
+                        ));
+                    phase = 12;
+                }
+                (12, "FIXTURE REMOTE_DEAD_READY") => {
+                    app.world_mut()
+                        .entity_mut(player.expect("spawned player"))
+                        .insert(Health {
+                            current: 0.0,
+                            max: 10.0,
+                        });
+                    phase = 13;
+                }
+                (13, "FIXTURE LOCAL_DEAD_READY") => {
+                    app.world_mut()
+                        .entity_mut(player.expect("spawned player"))
+                        .remove::<Health>();
+                    phase = 14;
+                }
+                (14, "FIXTURE HEALTH_REMOVED_READY") => {
+                    app.world_mut()
+                        .entity_mut(player.expect("spawned player"))
+                        .insert(Health {
+                            current: 10.0,
+                            max: 10.0,
+                        });
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert(Position {
+                            x: 9.0,
+                            y: 2.0,
+                            z: 3.0,
+                        });
+                    phase = 15;
+                }
+                (15, "FIXTURE RESURRECTED_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert(Npc {
+                            template_id: 12783,
+                            name: NPC.into(),
+                        });
+                    phase = 16;
+                }
+                (16, "FIXTURE DAY_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert(Npc {
+                            template_id: 918,
+                            name: NPC.into(),
+                        });
+                    phase = 17;
+                }
+                (17, "FIXTURE NIGHT_READY") => {
+                    app.world_mut()
+                        .entity_mut(npc.expect("spawned NPC"))
+                        .insert(Npc {
+                            template_id: 8,
+                            name: NPC.into(),
+                        });
+                    phase = 18;
+                }
+                (18, "FIXTURE ALWAYS_READY") => phase = 19,
+                (19, "FIXTURE RESET_READY") => phase = 20,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("Out-of-order phase {phase}: {line}"));
                 }
@@ -437,10 +536,10 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 11 {
+            if !status.success() || phase != 20 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
-            println!("PASS: native UDP NPC visual lifecycle and authored map-position lighting");
+            println!("PASS: native UDP NPC visual lifecycle, authored lighting, and visibility");
             return Ok(());
         }
         thread::sleep(TICK);
