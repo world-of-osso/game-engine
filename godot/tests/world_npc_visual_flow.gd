@@ -169,7 +169,7 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 	return actual_ambient is Vector3 and (actual_ambient as Vector3).is_equal_approx(ambient) \
 		and actual_direct is Vector3 and (actual_direct as Vector3).is_equal_approx(direct) \
 		and direction is Vector3 and (direction as Vector3).is_equal_approx(-sun.global_basis.z) \
-		and fog is Vector2 and (fog as Vector2).is_equal_approx(Vector2(200, 1000)) \
+		and fog is Vector2 and (fog as Vector2).is_equal_approx(Vector2(200.0 / 36.0, 1000.0 / 36.0)) \
 		and int(material.get_shader_parameter("fog_mode")) == 1
 
 func prepare_assets() -> bool:
