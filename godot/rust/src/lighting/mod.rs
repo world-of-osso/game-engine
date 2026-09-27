@@ -5,8 +5,8 @@ pub(crate) mod assets;
 use game_engine_core::{retail_light_data::RetailLightData, sky_cubemap_data};
 use godot::{
     classes::{
-        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ShaderMaterial, WorldEnvironment,
-        environment, image,
+        environment, image, Cubemap, DirectionalLight3D, Environment, Image, Node3D,
+        ShaderMaterial, WorldEnvironment,
     },
     prelude::*,
 };
@@ -24,6 +24,11 @@ pub(crate) struct TerrainLight {
 
 impl TerrainLight {
     pub fn bind(&self, material: &mut Gd<ShaderMaterial>) {
+        self.bind_model(material);
+        material.set_shader_parameter("environment_map", &self.cube.to_variant());
+    }
+
+    pub fn bind_model(&self, material: &mut Gd<ShaderMaterial>) {
         for (name, value) in [
             ("ambient", self.retail.ambient),
             ("horizon_ambient", self.retail.horizon_ambient),
@@ -38,7 +43,22 @@ impl TerrainLight {
         material.set_shader_parameter("fog_range", &range.to_variant());
         material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
         material.set_shader_parameter("fog_mode", &1i32.to_variant());
-        material.set_shader_parameter("environment_map", &self.cube.to_variant());
+    }
+
+    pub fn clear_model(material: &mut Gd<ShaderMaterial>) {
+        for name in [
+            "ambient",
+            "horizon_ambient",
+            "ground_ambient",
+            "direct",
+            "sun_direction",
+            "fog_color",
+            "fog_range",
+            "fog_opacity",
+            "fog_mode",
+        ] {
+            material.set_shader_parameter(name, &Variant::nil());
+        }
     }
 }
 
