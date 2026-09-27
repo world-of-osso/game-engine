@@ -19,6 +19,9 @@ use crate::asset::m2_anim::{
 };
 use crate::asset::m2_light;
 use crate::game_state::GameState;
+use crate::movement_animation_data::{
+    ANIM_RUN, ANIM_SHUFFLE_LEFT, ANIM_SHUFFLE_RIGHT, ANIM_STAND, ANIM_WALK,
+};
 use bevy::prelude::*;
 use shared::protocol::EmoteKind;
 
@@ -83,18 +86,7 @@ pub struct M2AnimPlayer {
     pub transition: Option<AnimTransition>,
 }
 
-// WoW animation IDs
-const ANIM_STAND: u16 = 0;
-const ANIM_WALK: u16 = 4;
-const ANIM_RUN: u16 = 5;
-const ANIM_SHUFFLE_LEFT: u16 = 11;
-const ANIM_SHUFFLE_RIGHT: u16 = 12;
-const ANIM_WALK_BACKWARDS: u16 = 13;
-const ANIM_SWIM_IDLE: u16 = 41;
-const ANIM_SWIM: u16 = 42;
-const ANIM_SWIM_LEFT: u16 = 43;
-const ANIM_SWIM_RIGHT: u16 = 44;
-const ANIM_SWIM_BACKWARDS: u16 = 45;
+// WoW animation IDs (direction IDs live in movement_animation_data)
 const ANIM_JUMP_START: u16 = 37;
 const ANIM_JUMP: u16 = 38; // airborne loop
 const ANIM_JUMP_END: u16 = 39;
