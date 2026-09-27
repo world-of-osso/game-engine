@@ -622,12 +622,7 @@ fn spawn_skinned_mesh_with_markers<M: Material>(
     spawn: &MeshSpawnContext<'_>,
     insert_markers: fn(&mut EntityCommands),
 ) {
-    let asset::m2::M2RenderBatch {
-        mesh,
-        texture_type,
-        mesh_part_id,
-        ..
-    } = batch;
+    let asset::m2::M2RenderBatch { mesh, data } = batch;
     let vis = skinned_mesh_visibility(spawn.visible);
     let mut cmd = commands.spawn((
         Mesh3d(meshes.add(mesh)),
@@ -637,8 +632,8 @@ fn spawn_skinned_mesh_with_markers<M: Material>(
     ));
     insert_markers(&mut cmd);
     let component_context = MeshComponentContext {
-        texture_type,
-        mesh_part_id,
+        texture_type: data.texture_type,
+        mesh_part_id: data.mesh_part_id,
         spawn,
     };
     spawn_common_mesh_components(&mut cmd, &component_context);
