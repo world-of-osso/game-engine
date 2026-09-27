@@ -1,5 +1,15 @@
 # Wiki Log
 
+## [2026-09-27] system | Native input bounded terrain-flow GREEN
+
+`c1c05d16` reuses canonical authored-water sampling. `bbb156d1` corrects the fixture from Y=83 to sampled terrain Y=112.879913 and rejects fatal stderr. The earlier Y=83 failure was correct gravity below authored terrain, not a production movement defect (`/tmp/claude/native-input-ground-notification-probe.log`).
+
+`cd7ea9fa` fixes a production `GameClient::on_notification` re-entry: deferred `Window.focus_exited` clears physical input without re-entering the mutable callback. The fixture now tests focus loss while W is held. The warning-free native build exits 0 (`/tmp/claude/native-input-focus-build.log`); a real headless process exits 0 after `Loading` blocks input, `WORLD_READY`, local W motion, decoded server `InputChannel::PlayerInput`, then quiet release (`/tmp/claude/native-input-focus-runtime.log`). The earlier broad callback re-entry is recorded in `/tmp/claude/native-input-integrated-runtime.log`.
+
+GDScript-only `3f404f26` adds native right-mouse orbit/player-facing and wheel-zoom assertions without changing the `cd7ea9fa` binary. Its real fixture exits 0 with no `ERROR` and emits the camera-observed marker (`/tmp/claude/native-input-camera-runtime.log`). This is bounded transform/input proof, not rendered camera parity. WMO/doodad collision/resources, pathing/scripted movement, final-gate verification, and full conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native input primitives and unbuilt movement source
 
 `c8363678` supplies the canonical full persisted options schema to root and `godot/core`; its three core tests are agent-reported GREEN. The recorded root selector is blocked by 135 pre-existing compile errors and 13 warnings (`/tmp/claude/options-root-targeted.log`), so the owned test-reference repair is unrerun.
