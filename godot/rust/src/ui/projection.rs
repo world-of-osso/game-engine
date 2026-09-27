@@ -3,20 +3,25 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::rc::Rc;
 
 use godot::classes::{
-    Button, ColorRect, Control, InputEventMouseButton, Label, LineEdit, StyleBoxEmpty,
-    StyleBoxTexture, TextureRect,
+    Button, ColorRect, Control, InputEventMouseButton, Label, LineEdit, StyleBoxEmpty, Texture2D,
+    TextureRect,
 };
-use godot::global::HorizontalAlignment;
+use godot::global::{HorizontalAlignment, VerticalAlignment};
 use godot::prelude::*;
-use ui_toolkit::frame::{Dimension, Frame, NineSlice, ThreeSlice, WidgetData, WidgetType};
+use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::button::ButtonState;
-use ui_toolkit::widgets::font_string::{GameFont, JustifyH};
-use ui_toolkit::widgets::texture::{TextureData, TextureSource};
+use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV};
+use ui_toolkit::widgets::texture::TextureSource;
 
 use super::assets;
 use super::layout;
+use super::parts::{self, ImagePart, TextPart};
+
+/// Original highlight overlays render above every registry frame (sprite z 500).
+const OVERLAY_Z: i32 = 4000;
+const PARTS_NODE: &str = "Parts";
 
 #[derive(Clone)]
 pub enum UiInput {
@@ -24,13 +29,26 @@ pub enum UiInput {
     Focus(u64),
     Blur(u64),
     Text(u64, String),
+    Submit,
+    Hover(u64, bool),
+    Press(u64),
+    Release(u64),
+}
+
+/// Projected visuals of one frame; unchanged parts keep their Godot nodes.
+#[derive(PartialEq)]
+struct FrameVisual {
+    images: Vec<ImagePart>,
+    text: Option<TextPart>,
 }
 
 pub struct UiProjection {
     pub root: Gd<Control>,
     nodes: HashMap<u64, Gd<Control>>,
+    visuals: HashMap<u64, FrameVisual>,
     pending: Rc<RefCell<VecDeque<UiInput>>>,
     fonts: HashMap<GameFont, Gd<godot::classes::FontFile>>,
+    textures: HashMap<String, (Gd<Texture2D>, [f32; 4])>,
 }
 
 impl UiProjection {
@@ -41,8 +59,16 @@ impl UiProjection {
         Self {
             root,
             nodes: HashMap::new(),
+            visuals: HashMap::new(),
             pending: Rc::new(RefCell::new(VecDeque::new())),
             fonts: HashMap::new(),
+            textures: HashMap::new(),
+        }
+    }
+
+    pub fn grab_focus(&self, id: u64) {
+        if let Some(node) = self.nodes.get(&id) {
+            node.clone().grab_focus();
         }
     }
 
@@ -56,6 +82,7 @@ impl UiProjection {
         let current: HashSet<u64> = registry.frames_iter().map(|frame| frame.id).collect();
         for id in self.nodes.keys().copied().collect::<Vec<_>>() {
             if !current.contains(&id) {
+                self.visuals.remove(&id);
                 if let Some(mut node) = self.nodes.remove(&id) {
                     node.queue_free();
                 }
@@ -109,7 +136,7 @@ impl UiProjection {
                     (measured.x, measured.y)
                 }
                 Some(WidgetData::Texture(data)) => {
-                    let texture = assets::load_texture(&data.source, registry)?;
+                    let texture = self.texture(&data.source, registry)?;
                     (texture.get_width() as f32, texture.get_height() as f32)
                 }
                 _ => continue,
@@ -134,16 +161,10 @@ impl UiProjection {
             ));
         }
         let mut node: Gd<Control> = match frame.widget_type {
-            WidgetType::Frame => Control::new_alloc(),
-            WidgetType::Button => Button::new_alloc().upcast(),
+            WidgetType::Frame | WidgetType::Texture => Control::new_alloc(),
+            WidgetType::Button => flat_button().upcast(),
             WidgetType::EditBox => LineEdit::new_alloc().upcast(),
             WidgetType::FontString => Label::new_alloc().upcast(),
-            WidgetType::Texture => {
-                let mut image = TextureRect::new_alloc();
-                image.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
-                image.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
-                image.upcast()
-            }
             other => {
                 return Err(format!(
                     "Unconverted native widget {other:?}: {}",
@@ -166,10 +187,27 @@ impl UiProjection {
                 godot::classes::control::MouseFilter::IGNORE
             },
         );
+        let mut parts = Control::new_alloc();
+        parts.set_name(PARTS_NODE);
+        parts.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
+        // Parts draw behind the frame's own control content (label/edit text) and children.
+        parts.set_draw_behind_parent(true);
+        node.add_child(&parts);
+        self.connect_input(frame, &mut node);
+        Ok(node)
+    }
+
+    fn connect_input(&self, frame: &Frame, node: &mut Gd<Control>) {
+        let id = frame.id;
+        let emit = |input: UiInput| {
+            let pending = self.pending.clone();
+            Callable::from_fn("registry-input", move |_| {
+                pending.borrow_mut().push_back(input.clone())
+            })
+        };
         match frame.widget_type {
             WidgetType::Frame if frame.onclick.is_some() => {
                 let pending = self.pending.clone();
-                let id = frame.id;
                 let callback = Callable::from_fn("registry-frame-gui-input", move |args| {
                     let Some(event) = args
                         .first()
@@ -186,16 +224,18 @@ impl UiProjection {
                 node.connect("gui_input", &callback);
             }
             WidgetType::Button => {
-                let pending = self.pending.clone();
-                let id = frame.id;
-                let callback = Callable::from_fn("registry-button-pressed", move |_| {
-                    pending.borrow_mut().push_back(UiInput::Click(id))
-                });
-                node.clone().cast::<Button>().connect("pressed", &callback);
+                for (signal, input) in [
+                    ("pressed", UiInput::Click(id)),
+                    ("mouse_entered", UiInput::Hover(id, true)),
+                    ("mouse_exited", UiInput::Hover(id, false)),
+                    ("button_down", UiInput::Press(id)),
+                    ("button_up", UiInput::Release(id)),
+                ] {
+                    node.connect(signal, &emit(input));
+                }
             }
             WidgetType::EditBox => {
                 let pending = self.pending.clone();
-                let id = frame.id;
                 let callback = Callable::from_fn("registry-text-changed", move |args| {
                     if let Some(text) = args.first() {
                         pending
@@ -203,22 +243,27 @@ impl UiProjection {
                             .push_back(UiInput::Text(id, text.to::<GString>().to_string()));
                     }
                 });
-                let mut editbox = node.clone().cast::<LineEdit>();
-                editbox.connect("text_changed", &callback);
-                let pending = self.pending.clone();
-                let focus = Callable::from_fn("registry-editbox-focus", move |_| {
-                    pending.borrow_mut().push_back(UiInput::Focus(id));
+                node.connect("text_changed", &callback);
+                node.connect("text_submitted", &emit(UiInput::Submit));
+                node.connect("focus_entered", &emit(UiInput::Focus(id)));
+                // Original login Escape clears edit focus.
+                let mut edit = node.clone();
+                let escape = Callable::from_fn("registry-editbox-escape", move |args| {
+                    let escaped = args
+                        .first()
+                        .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+                        .is_some_and(|key| {
+                            key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE
+                        });
+                    if escaped {
+                        edit.release_focus();
+                    }
                 });
-                editbox.connect("focus_entered", &focus);
-                let pending = self.pending.clone();
-                let blur = Callable::from_fn("registry-editbox-blur", move |_| {
-                    pending.borrow_mut().push_back(UiInput::Blur(id));
-                });
-                editbox.connect("focus_exited", &blur);
+                node.connect("gui_input", &escape);
+                node.connect("focus_exited", &emit(UiInput::Blur(id)));
             }
             _ => {}
         }
-        Ok(node)
     }
 
     fn font(&mut self, font: GameFont) -> Result<Gd<godot::classes::FontFile>, String> {
@@ -228,6 +273,33 @@ impl UiProjection {
         let loaded = assets::load_font(font)?;
         self.fonts.insert(font, loaded.clone());
         Ok(loaded)
+    }
+
+    /// Cached decoded source and atlas region; dynamic textures are re-read every time.
+    fn source(
+        &mut self,
+        source: &TextureSource,
+        registry: &FrameRegistry,
+    ) -> Result<(Gd<Texture2D>, [f32; 4]), String> {
+        if matches!(source, TextureSource::Dynamic(_)) {
+            return assets::load_source(source, registry);
+        }
+        let key = format!("{source:?}");
+        if let Some(loaded) = self.textures.get(&key) {
+            return Ok(loaded.clone());
+        }
+        let loaded = assets::load_source(source, registry)?;
+        self.textures.insert(key, loaded.clone());
+        Ok(loaded)
+    }
+
+    fn texture(
+        &mut self,
+        source: &TextureSource,
+        registry: &FrameRegistry,
+    ) -> Result<Gd<Texture2D>, String> {
+        let (image, region) = self.source(source, registry)?;
+        Ok(assets::sub_texture(&image, region))
     }
 
     fn update_node(
@@ -250,45 +322,24 @@ impl UiProjection {
                 + frame.frame_level
                 + i32::from(frame.draw_layer as u8),
         );
-        if let Some([r, g, b, a]) = frame.background_color {
-            let mut background = if node.has_node("Background") {
-                node.get_node_as::<ColorRect>("Background")
-            } else {
-                let mut background = ColorRect::new_alloc();
-                background.set_name("Background");
-                background.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
-                background.set_anchors_preset(godot::classes::control::LayoutPreset::FULL_RECT);
-                node.add_child(&background);
-                node.move_child(&background, 0);
-                background
-            };
-            background.set_color(Color::from_rgba(r, g, b, a));
-            background.set_size(Vector2::new(rect.width, rect.height));
-        }
-        if let Some(slice) = &frame.three_slice {
-            sync_three_slice(&mut node, slice, rect, registry)?;
-        }
-        if let Some(slice) = &frame.nine_slice {
-            sync_nine_slice(
-                &mut node,
-                slice,
-                rect,
-                frame.id == registry.focused_frame.unwrap_or_default(),
-                registry,
-            )?;
+        let visual = FrameVisual {
+            images: parts::project_images(frame, rect.width, rect.height),
+            text: parts::project_button_text(frame),
+        };
+        if self.visuals.get(&frame.id) != Some(&visual) {
+            self.sync_parts(&node, &visual, registry)?;
+            self.visuals.insert(frame.id, visual);
         }
         match &frame.widget_data {
             Some(WidgetData::Button(button)) => {
-                self.update_button(node.cast::<Button>(), button, registry)?
+                let mut button_node = node.cast::<Button>();
+                button_node.set_disabled(!button.enabled || button.state == ButtonState::Disabled);
             }
             Some(WidgetData::EditBox(edit)) => {
                 self.update_editbox(node.cast::<LineEdit>(), edit)?
             }
             Some(WidgetData::FontString(text)) => self.update_label(node.cast::<Label>(), text)?,
-            Some(WidgetData::Texture(texture)) => {
-                self.update_texture(node.cast::<TextureRect>(), texture, registry)?
-            }
-            None => {}
+            None | Some(WidgetData::Texture(_)) => {}
             Some(other) => {
                 return Err(format!(
                     "Unconverted native widget data {other:?}: {}",
@@ -299,53 +350,71 @@ impl UiProjection {
         Ok(())
     }
 
-    fn update_button(
+    fn sync_parts(
         &mut self,
-        mut node: Gd<Button>,
-        data: &ui_toolkit::widgets::button::ButtonData,
+        node: &Gd<Control>,
+        visual: &FrameVisual,
         registry: &FrameRegistry,
     ) -> Result<(), String> {
-        node.set_text(&data.text);
-        node.set_disabled(!data.enabled || data.state == ButtonState::Disabled);
-        let normal = data
-            .normal_texture
-            .clone()
-            .unwrap_or(TextureSource::Atlas("defaultbutton-nineslice-up".into()));
-        let pressed = data.pushed_texture.clone().unwrap_or(TextureSource::Atlas(
-            "defaultbutton-nineslice-pressed".into(),
-        ));
-        let disabled = data
-            .disabled_texture
-            .clone()
-            .unwrap_or(TextureSource::Atlas(
-                "defaultbutton-nineslice-disabled".into(),
-            ));
-        let hovered = data
-            .highlight_texture
-            .clone()
-            .unwrap_or(TextureSource::Atlas(
-                "defaultbutton-nineslice-highlight".into(),
-            ));
-        for (state, source) in [
-            ("normal", normal),
-            ("pressed", pressed),
-            ("disabled", disabled),
-            ("hover", hovered),
-        ] {
-            let texture = assets::load_texture(&source, registry)?;
-            let mut style = StyleBoxTexture::new_gd();
-            style.set_texture(&texture);
-            style.set_texture_margin_all(24.0);
-            style.set_content_margin_all(0.0);
-            node.add_theme_stylebox_override(state, &style);
+        let mut container = node.get_node_as::<Control>(PARTS_NODE);
+        for mut child in container.get_children().iter_shared() {
+            container.remove_child(&child);
+            child.queue_free();
         }
-        let font = self.font(GameFont::FrizQuadrata)?;
-        node.add_theme_font_override("font", &font);
-        node.add_theme_font_size_override("font_size", data.font_size as i32);
-        node.add_theme_color_override("font_color", color([1.0, 0.82, 0.0, 1.0]));
-        node.add_theme_color_override("font_hover_color", color([1.0, 0.82, 0.0, 1.0]));
-        node.add_theme_color_override("font_pressed_color", color([0.8, 0.65, 0.0, 1.0]));
-        node.add_theme_color_override("font_disabled_color", color([0.5, 0.5, 0.5, 1.0]));
+        for (index, part) in visual.images.iter().enumerate() {
+            let mut control = self.image_part(part, registry)?;
+            control.set_name(&format!("Part{index}"));
+            control.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
+            control.set_position(Vector2::new(part.rect[0], part.rect[1]));
+            control.set_size(Vector2::new(part.rect[2], part.rect[3]));
+            if part.overlay {
+                control.set_z_as_relative(false);
+                control.set_z_index(OVERLAY_Z);
+            }
+            container.add_child(&control);
+        }
+        if let Some(text) = &visual.text {
+            let mut label = Label::new_alloc();
+            label.set_name("Text");
+            label.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
+            label.set_anchors_preset(godot::classes::control::LayoutPreset::FULL_RECT);
+            self.style_label(&mut label, text)?;
+            container.add_child(&label);
+            label.set_size(node.get_size());
+        }
+        Ok(())
+    }
+
+    fn image_part(
+        &mut self,
+        part: &ImagePart,
+        registry: &FrameRegistry,
+    ) -> Result<Gd<Control>, String> {
+        let Some(source) = &part.source else {
+            let mut rect = ColorRect::new_alloc();
+            rect.set_color(color(part.color));
+            return Ok(rect.upcast());
+        };
+        let (image, region) = self.source(source, registry)?;
+        let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, region);
+        let mut rect = TextureRect::new_alloc();
+        rect.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
+        rect.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
+        rect.set_texture(&assets::sub_texture(&image, crop));
+        rect.set_flip_h(flip_x);
+        rect.set_flip_v(flip_y);
+        rect.set_self_modulate(color(part.color));
+        Ok(rect.upcast())
+    }
+
+    fn style_label(&mut self, label: &mut Gd<Label>, text: &TextPart) -> Result<(), String> {
+        label.set_text(&text.content);
+        label.set_horizontal_alignment(horizontal(text.justify_h));
+        label.set_vertical_alignment(vertical(text.justify_v));
+        let font = self.font(text.font)?;
+        label.add_theme_font_override("font", &font);
+        label.add_theme_font_size_override("font_size", text.font_size as i32);
+        label.add_theme_color_override("font_color", color(text.color));
         Ok(())
     }
 
@@ -365,6 +434,9 @@ impl UiProjection {
         node.add_theme_font_override("font", &font);
         node.add_theme_font_size_override("font_size", data.font_size as i32);
         node.add_theme_color_override("font_color", color(data.text_color));
+        // Original caret: 2px, drawn in the edit text color.
+        node.add_theme_color_override("caret_color", color(data.text_color));
+        node.add_theme_constant_override("caret_width", 2);
         let mut style = StyleBoxEmpty::new_gd();
         for (side, inset) in [
             (godot::builtin::Side::LEFT, data.text_insets[0]),
@@ -384,28 +456,49 @@ impl UiProjection {
         mut node: Gd<Label>,
         data: &ui_toolkit::widgets::font_string::FontStringData,
     ) -> Result<(), String> {
-        node.set_text(&data.text);
-        node.set_horizontal_alignment(match data.justify_h {
-            JustifyH::Left => HorizontalAlignment::LEFT,
-            JustifyH::Center => HorizontalAlignment::CENTER,
-            JustifyH::Right => HorizontalAlignment::RIGHT,
-        });
-        let font = self.font(data.font)?;
-        node.add_theme_font_override("font", &font);
-        node.add_theme_font_size_override("font_size", data.font_size as i32);
-        node.add_theme_color_override("font_color", color(data.color));
-        Ok(())
+        let text = TextPart {
+            content: data.text.clone(),
+            font: data.font,
+            font_size: data.font_size,
+            color: data.color,
+            justify_h: data.justify_h,
+            justify_v: data.justify_v,
+        };
+        self.style_label(&mut node, &text)
     }
+}
 
-    fn update_texture(
-        &mut self,
-        mut node: Gd<TextureRect>,
-        data: &TextureData,
-        registry: &FrameRegistry,
-    ) -> Result<(), String> {
-        node.set_texture(&assets::load_texture(&data.source, registry)?);
-        node.set_self_modulate(color(data.vertex_color));
-        Ok(())
+/// Input-only native button: registry parts draw every visual state.
+fn flat_button() -> Gd<Button> {
+    let mut button = Button::new_alloc();
+    button.set_focus_mode(godot::classes::control::FocusMode::NONE);
+    let empty = StyleBoxEmpty::new_gd();
+    for state in [
+        "normal",
+        "hover",
+        "pressed",
+        "disabled",
+        "focus",
+        "hover_pressed",
+    ] {
+        button.add_theme_stylebox_override(state, &empty);
+    }
+    button
+}
+
+fn horizontal(justify: JustifyH) -> HorizontalAlignment {
+    match justify {
+        JustifyH::Left => HorizontalAlignment::LEFT,
+        JustifyH::Center => HorizontalAlignment::CENTER,
+        JustifyH::Right => HorizontalAlignment::RIGHT,
+    }
+}
+
+fn vertical(justify: JustifyV) -> VerticalAlignment {
+    match justify {
+        JustifyV::Top => VerticalAlignment::TOP,
+        JustifyV::Middle => VerticalAlignment::CENTER,
+        JustifyV::Bottom => VerticalAlignment::BOTTOM,
     }
 }
 
@@ -421,98 +514,4 @@ fn depth(registry: &FrameRegistry, id: u64) -> usize {
 
 fn color([r, g, b, a]: [f32; 4]) -> Color {
     Color::from_rgba(r, g, b, a)
-}
-
-fn sync_three_slice(
-    node: &mut Gd<Control>,
-    slice: &ThreeSlice,
-    rect: &LayoutRect,
-    registry: &FrameRegistry,
-) -> Result<(), String> {
-    let center_width = (rect.width - 2.0 * slice.cap_width).max(0.0);
-    let parts = [
-        (&slice.left, 0.0, slice.cap_width),
-        (&slice.center, slice.cap_width, center_width),
-        (
-            &slice.right,
-            slice.cap_width + center_width,
-            slice.cap_width,
-        ),
-    ];
-    for (index, (source, x, width)) in parts.into_iter().enumerate() {
-        let name = format!("ThreePart{index}");
-        let mut part = if node.has_node(name.as_str()) {
-            node.get_node_as::<TextureRect>(name.as_str())
-        } else {
-            let mut part = TextureRect::new_alloc();
-            part.set_name(name.as_str());
-            part.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
-            part.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
-            part.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
-            part.set_z_index(-1);
-            node.add_child(&part);
-            part
-        };
-        part.set_texture(&assets::load_texture(source, registry)?);
-        part.set_position(Vector2::new(x, 0.0));
-        part.set_size(Vector2::new(width, rect.height));
-        part.set_modulate(color(slice.color));
-    }
-    Ok(())
-}
-
-fn sync_nine_slice(
-    node: &mut Gd<Control>,
-    slice: &NineSlice,
-    rect: &LayoutRect,
-    focused: bool,
-    registry: &FrameRegistry,
-) -> Result<(), String> {
-    let sources = slice
-        .part_textures
-        .as_ref()
-        .ok_or("Unconverted nine-slice without authored part textures")?;
-    let [left, top, right, bottom] = slice.edge_sizes.unwrap_or([
-        slice.edge_size,
-        slice.edge_size_v.unwrap_or(slice.edge_size),
-        slice.edge_size,
-        slice.edge_size_v.unwrap_or(slice.edge_size),
-    ]);
-    let widths = [left, (rect.width - left - right).max(0.0), right];
-    let heights = [top, (rect.height - top - bottom).max(0.0), bottom];
-    let background = if focused {
-        [0.32, 0.24, 0.16, 1.0]
-    } else {
-        slice.bg_color
-    };
-    let border = if focused {
-        [1.0, 0.78, 0.0, 1.0]
-    } else {
-        slice.border_color
-    };
-    for (index, source) in sources.iter().enumerate() {
-        let column = index % 3;
-        let row = index / 3;
-        let name = format!("NinePart{index}");
-        let mut part = if node.has_node(name.as_str()) {
-            node.get_node_as::<TextureRect>(name.as_str())
-        } else {
-            let mut part = TextureRect::new_alloc();
-            part.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
-            part.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
-            part.set_name(name.as_str());
-            part.set_mouse_filter(godot::classes::control::MouseFilter::IGNORE);
-            part.set_z_index(-1);
-            part.set_texture(&assets::load_texture(source, registry)?);
-            node.add_child(&part);
-            part
-        };
-        part.set_position(Vector2::new(
-            widths[..column].iter().sum(),
-            heights[..row].iter().sum(),
-        ));
-        part.set_size(Vector2::new(widths[column], heights[row]));
-        part.set_modulate(color(if index == 4 { background } else { border }));
-    }
-    Ok(())
 }

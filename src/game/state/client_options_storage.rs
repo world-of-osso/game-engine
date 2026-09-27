@@ -166,20 +166,6 @@ fn options_path() -> PathBuf {
     portable::options_path()
 }
 
-pub fn load_login_credentials() -> Option<LoginCredentials> {
-    let path = login_credentials_path();
-    if !path.exists() {
-        return None;
-    }
-
-    let raw = fs::read_to_string(&path).ok()?;
-    let creds = ron::de::from_str::<LoginCredentials>(&raw).ok()?;
-    if creds.username.trim().is_empty() || creds.password.trim().is_empty() {
-        return None;
-    }
-    Some(creds)
-}
-
 pub fn load_preferred_realm() -> RealmPreset {
     load_options_file().preferred_realm
 }
@@ -210,10 +196,6 @@ pub fn save_eula_accepted(accepted: bool) -> Result<(), String> {
 
 pub(super) fn ui_layout_path() -> PathBuf {
     portable::world_of_osso_config_dir().join(UI_LAYOUT_FILE_NAME)
-}
-
-pub fn login_credentials_path() -> PathBuf {
-    portable::world_of_osso_config_dir().join(CREDENTIALS_FILE_NAME)
 }
 
 pub(super) fn select_load_options_path(config_path: &Path, legacy_path: &Path) -> PathBuf {

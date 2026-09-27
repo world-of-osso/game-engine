@@ -16,7 +16,8 @@ func run():
         return
     await process_frame
     var artwork = ui.find_child("LoadingArtwork", true, false)
-    if artwork == null or artwork.texture == null:
+    var artwork_image = artwork.get_node_or_null("Parts/Part0") if artwork else null
+    if artwork_image == null or artwork_image.texture == null:
         fail("Authored PNG artwork missing", ui)
         return
     var shell = ui.find_child("LoadingBarBackground", true, false)
@@ -29,14 +30,14 @@ func run():
     var expected_positions = [Vector2(0, 0), Vector2(25, 0), Vector2(585, 0)]
     var expected_sizes = [Vector2(25, 32), Vector2(560, 32), Vector2(25, 32)]
     for index in range(3):
-        var part = shell.get_node_or_null("ThreePart%d" % index)
+        var part = shell.get_node_or_null("Parts/Part%d" % index)
         if part == null or not part is TextureRect or part.texture == null:
             fail("Loading shell part %d lacks native authored texture" % index, ui)
             return
         if part.position != expected_positions[index] or part.size != expected_sizes[index]:
             fail("Loading shell part %d has incorrect geometry" % index, ui)
             return
-        if part.modulate != Color.WHITE or part.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+        if part.self_modulate != Color.WHITE or part.mouse_filter != Control.MOUSE_FILTER_IGNORE:
             fail("Loading shell part %d changes tint or intercepts input" % index, ui)
             return
     if ui.frame_text("LoadingProgressText") != "0%":
