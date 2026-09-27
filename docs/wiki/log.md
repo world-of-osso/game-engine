@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native unit-motion correction and interpolation
+
+`a60e9dea` extracts original authoritative local correction and remote interpolation into `unit_motion_data`, shared by root and `godot/core`; `ea5b4a85` applies it through native `UnitMotion`. Ordinary local snapshots retain the current predicted transform. The initial control epoch is adopted only, a changed epoch snaps, controlled positions interpolate, and optional local yaw is applied only when present. Remote units lerp/slerp; missing remote yaw retains the target, while missing local yaw cannot reuse stale facing. Native processing advances units after account polling and before terrain, lighting, and camera work.
+
+`/tmp/claude/unit-motion-{red,green,server-movement}.log` records supplied core/root development evidence; `/tmp/claude/native-unit-motion-red.log` is the native missing-`UnitMotion` RED; `/tmp/claude/native-world-motion-green.log` is native world tests 6/6 GREEN. These prove pure/helper and host-state behavior, not decoded live-wire `MovementControl` epochs. Actual player-input prediction/production/send, readiness, and the independent combined gate remain open. The preceding `6560b238`/`f3bb1965` physics gate is independently pending. No missing first-main-output path is invented.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Shared original player-physics proposal boundary
 
 `6560b238` extracts the original normalized horizontal proposal plus unloaded/unsupported/supported grounded and gravity/snap transitions into `src/player_physics_data.rs`, then exports the same source through `godot/core`. `f3bb1965` points the two root proposal tests at that shared module. Existing Bevy collision adapters still convert `GroundProbe` and retain the original `GRAVITY` and snap constants.
