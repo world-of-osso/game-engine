@@ -13,11 +13,23 @@ pub struct OutfitData(crate::outfit_catalog::OutfitData);
 
 impl OutfitData {
     pub fn load(data_dir: &Path) -> Self {
-        Self(crate::outfit_catalog::OutfitData::with_race_prefix_loader(
+        Self(crate::outfit_catalog::OutfitData::with_root_loaders(
             data_dir,
             |_| crate::world_db::load_chr_race_prefixes(),
+            cache_helmet_geoset_data,
         ))
     }
+}
+
+fn cache_helmet_geoset_data(data_dir: &Path) -> Result<(), String> {
+    const FDID: u32 = 2_821_752;
+    let path = data_dir.join("db2/HelmetGeosetData.db2");
+    if path.exists() {
+        return Ok(());
+    }
+    crate::asset::asset_cache::file_at_path(FDID, &path)
+        .ok_or_else(|| format!("extract HelmetGeosetData.db2 FDID {FDID}"))?;
+    Ok(())
 }
 
 impl Deref for OutfitData {

@@ -54,6 +54,7 @@ pub struct OutfitData {
     data_dir: PathBuf,
     loaded: OnceLock<Result<LoadedOutfitData, String>>,
     race_prefix_loader: Option<fn(&Path) -> Result<HashMap<u8, String>, String>>,
+    helmet_cache: Option<fn(&Path) -> Result<(), String>>,
 }
 
 impl OutfitData {
@@ -62,15 +63,18 @@ impl OutfitData {
             data_dir: data_dir.to_path_buf(),
             loaded: OnceLock::new(),
             race_prefix_loader: None,
+            helmet_cache: None,
         }
     }
 
-    pub fn with_race_prefix_loader(
+    pub fn with_root_loaders(
         data_dir: &Path,
-        loader: fn(&Path) -> Result<HashMap<u8, String>, String>,
+        race_prefix_loader: fn(&Path) -> Result<HashMap<u8, String>, String>,
+        helmet_cache: fn(&Path) -> Result<(), String>,
     ) -> Self {
         let mut catalog = Self::load(data_dir);
-        catalog.race_prefix_loader = Some(loader);
+        catalog.race_prefix_loader = Some(race_prefix_loader);
+        catalog.helmet_cache = Some(helmet_cache);
         catalog
     }
 
@@ -92,6 +96,9 @@ impl OutfitData {
             Some(loader) => loader(data_dir)?,
             None => crate::outfit_catalog_db::load_chr_race_prefixes(data_dir)?,
         };
+        if let Some(cache_helmet) = self.helmet_cache {
+            cache_helmet(data_dir)?;
+        }
         let data = LoadedOutfitData {
             cache_path,
             data_dir: data_dir.to_path_buf(),
