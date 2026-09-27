@@ -123,7 +123,20 @@ impl FixtureProject {
         {
             let entry =
                 entry.map_err(|error| format!("Read authored UI texture entry: {error}"))?;
-            std::os::unix::fs::symlink(entry.path(), data.join("textures").join(entry.file_name()))
+            let name = entry.file_name();
+            if name.to_str().is_some_and(|name| {
+                [
+                    "910001.blp",
+                    "910002.blp",
+                    "910020.blp",
+                    "910021.blp",
+                    "910022.blp",
+                ]
+                .contains(&name)
+            }) {
+                continue;
+            }
+            std::os::unix::fs::symlink(entry.path(), data.join("textures").join(name))
                 .map_err(|error| format!("Link authored UI texture: {error}"))?;
         }
         for folder in ["glues", "fonts", "ui"] {
