@@ -35,6 +35,7 @@ struct UnitMotion {
     local_yaw: Option<f32>,
     control: Option<MovementControl>,
     adopted_epoch: Option<u32>,
+    facing_yaw: f32,
 }
 
 impl UnitMotion {
@@ -47,6 +48,7 @@ impl UnitMotion {
             local_yaw: None,
             control: None,
             adopted_epoch: None,
+            facing_yaw: PI,
         }
     }
 
@@ -85,6 +87,9 @@ impl UnitMotion {
             delta,
         );
         self.adopted_epoch = Some(update.adopted_epoch);
+        if let Some(yaw) = update.facing_yaw {
+            self.facing_yaw = yaw;
+        }
         update.pose
     }
 }
@@ -388,6 +393,23 @@ impl WorldUnits {
         Some(self.units.get(&self.local_player_id?)?.node.clone())
     }
 
+    pub fn local_player_facing(&self) -> Option<f32> {
+        Some(self.units.get(&self.local_player_id?)?.motion.facing_yaw)
+    }
+
+    pub fn set_local_player_facing(&mut self, yaw: f32) {
+        if let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) {
+            unit.motion.facing_yaw = yaw;
+        }
+    }
+
+    pub fn local_player_controlled(&self) -> bool {
+        self.local_player_id
+            .and_then(|id| self.units.get(&id))
+            .and_then(|unit| unit.motion.control)
+            .is_some_and(|control| control.controlled)
+    }
+
     pub fn local_player_transform(&self) -> Option<Transform3D> {
         let unit = self.units.get(&self.local_player_id?)?;
         Some(unit.node.get_transform())
@@ -434,6 +456,46 @@ mod tests {
             equipment: None,
             movement_control: None,
         }
+    }
+
+    #[test]
+    fn local_facing_starts_at_pi_and_changes_only_for_controlled_yaw() {
+        let mut motion = UnitMotion::new([0.0; 3], 0.25);
+        assert_eq!(motion.facing_yaw, PI);
+        let pose = MotionPose {
+            position: glam::Vec3::ZERO,
+            rotation: glam::Quat::IDENTITY,
+        };
+        motion.set_target(
+            [0.0; 3],
+            Some(1.25),
+            Some(MovementControl {
+                epoch: 1,
+                controlled: false,
+            }),
+        );
+        motion.advance(pose, true, 0.1);
+        assert_eq!(motion.facing_yaw, PI);
+        motion.set_target(
+            [0.0; 3],
+            Some(1.25),
+            Some(MovementControl {
+                epoch: 2,
+                controlled: true,
+            }),
+        );
+        motion.advance(pose, true, 0.1);
+        assert_eq!(motion.facing_yaw, 1.25);
+        motion.set_target(
+            [0.0; 3],
+            None,
+            Some(MovementControl {
+                epoch: 2,
+                controlled: true,
+            }),
+        );
+        motion.advance(pose, true, 0.1);
+        assert_eq!(motion.facing_yaw, 1.25);
     }
 
     #[test]

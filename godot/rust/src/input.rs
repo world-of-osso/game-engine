@@ -102,6 +102,39 @@ impl PhysicalInput {
     pub fn clear(&mut self) {
         *self = Self::default();
     }
+
+    pub fn gameplay_state(&self, keyboard_enabled: bool) -> GameplayInputState<'_> {
+        GameplayInputState {
+            physical: self,
+            keyboard_enabled,
+        }
+    }
+}
+
+pub(crate) struct GameplayInputState<'a> {
+    physical: &'a PhysicalInput,
+    keyboard_enabled: bool,
+}
+
+impl InputState for GameplayInputState<'_> {
+    fn key_pressed(&self, key: BindingKey) -> bool {
+        self.keyboard_enabled && self.physical.key_pressed(key)
+    }
+    fn key_just_pressed(&self, key: BindingKey) -> bool {
+        self.keyboard_enabled && self.physical.key_just_pressed(key)
+    }
+    fn mouse_pressed(&self, button: BindingMouseButton) -> bool {
+        self.physical.mouse_pressed(button)
+    }
+    fn mouse_just_pressed(&self, button: BindingMouseButton) -> bool {
+        self.physical.mouse_just_pressed(button)
+    }
+    fn shift_held(&self) -> bool {
+        self.keyboard_enabled && self.physical.shift_held()
+    }
+    fn ctrl_held(&self) -> bool {
+        self.keyboard_enabled && self.physical.ctrl_held()
+    }
 }
 
 impl InputState for PhysicalInput {
@@ -134,6 +167,26 @@ impl InputState for PhysicalInput {
 mod tests {
     use super::PhysicalInput;
     use game_engine_core::input_bindings_data::{BindingKey, BindingMouseButton, InputState};
+
+    #[test]
+    fn keyboard_suppression_preserves_mouse_look_and_physical_held_keys() {
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::KeyW, true);
+        input.set_mouse(BindingMouseButton::Right, true);
+        input.set_modifiers(true, true);
+        let suppressed = input.gameplay_state(false);
+        assert!(!suppressed.key_pressed(BindingKey::KeyW));
+        assert!(!suppressed.key_just_pressed(BindingKey::KeyW));
+        assert!(!suppressed.shift_held());
+        assert!(!suppressed.ctrl_held());
+        assert!(suppressed.mouse_pressed(BindingMouseButton::Right));
+        assert!(suppressed.mouse_just_pressed(BindingMouseButton::Right));
+        let enabled = input.gameplay_state(true);
+        assert!(enabled.key_pressed(BindingKey::KeyW));
+        assert!(enabled.key_just_pressed(BindingKey::KeyW));
+        assert!(enabled.shift_held());
+        assert!(enabled.ctrl_held());
+    }
 
     #[test]
     fn key_edges_last_one_frame_but_held_keys_survive() {
