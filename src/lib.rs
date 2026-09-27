@@ -139,8 +139,14 @@ pub mod network_tick;
 pub mod npc_appearance_selection_data;
 #[path = "game/creatures/npc_visibility_data.rs"]
 pub mod npc_visibility_data;
+#[path = "game/equipment/outfit_catalog.rs"]
+mod outfit_catalog;
+#[path = "game/outfit_catalog_db.rs"]
+mod outfit_catalog_db;
 #[path = "game/equipment/outfit_data.rs"]
 pub mod outfit_data;
+#[path = "game/outfit_listfile.rs"]
+mod outfit_listfile;
 pub mod particle_color_cache;
 pub mod particle_effect_builder;
 pub mod paths;

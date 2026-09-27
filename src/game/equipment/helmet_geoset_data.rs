@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::little_endian::{read_le, read_le_u16, read_le_u32};
-
-const HELMET_GEOSET_DATA_FDID: u32 = 2_821_752;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct HelmetGeosetRule {
@@ -15,18 +13,9 @@ pub(crate) struct HelmetGeosetRule {
 pub(crate) fn load_helmet_geoset_rules(
     data_dir: &Path,
 ) -> Result<HashMap<u32, Vec<HelmetGeosetRule>>, String> {
-    let path = ensure_helmet_geoset_data_path(data_dir)?;
+    let path = data_dir.join("db2/HelmetGeosetData.db2");
     let bytes = std::fs::read(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
     Ok(ParsedHelmetGeosetDb2::parse(&bytes)?.rules_by_vis_id())
-}
-
-fn ensure_helmet_geoset_data_path(data_dir: &Path) -> Result<PathBuf, String> {
-    let path = data_dir.join("db2/HelmetGeosetData.db2");
-    if path.exists() {
-        return Ok(path);
-    }
-    crate::asset::asset_cache::file_at_path(HELMET_GEOSET_DATA_FDID, &path)
-        .ok_or_else(|| format!("extract HelmetGeosetData.db2 FDID {HELMET_GEOSET_DATA_FDID}"))
 }
 
 #[derive(Clone, Copy, Debug, Default)]

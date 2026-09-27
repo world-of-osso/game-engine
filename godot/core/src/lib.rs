@@ -57,6 +57,14 @@ pub mod nameplate_style_data;
 #[path = "../../../src/realm_preset_data.rs"]
 pub mod realm_preset_data;
 pub use asset::m2_batch_data;
+#[path = "../../../src/cache_source_mtime.rs"]
+mod cache_source_mtime;
+#[path = "../../../src/cache_sqlite.rs"]
+mod cache_sqlite;
+#[path = "../../../src/game/equipment/helmet_geoset_data.rs"]
+mod helmet_geoset_data;
+#[path = "../../../src/little_endian.rs"]
+mod little_endian;
 #[cfg(test)]
 mod m2_batch_tests;
 pub mod npc_appearance_assets;
@@ -70,6 +78,14 @@ pub mod npc_appearance_selection_data;
 pub mod npc_visibility_data;
 #[cfg(test)]
 mod npc_visibility_data_tests;
+#[path = "../../../src/game/outfit_catalog_db.rs"]
+pub mod outfit_catalog_db;
+#[path = "../../../src/game/equipment/outfit_catalog.rs"]
+pub mod outfit_data;
+#[cfg(test)]
+mod outfit_data_tests;
+#[path = "../../../src/game/outfit_listfile.rs"]
+mod outfit_listfile;
 #[path = "../../../src/player_physics_data.rs"]
 pub mod player_physics_data;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
@@ -78,6 +94,8 @@ pub mod retail_light_data;
 pub mod sky_cubemap_data;
 #[path = "../../../src/rendering/skybox/sky_lightdata_data.rs"]
 pub mod sky_lightdata_data;
+#[path = "../../../src/sqlite_util.rs"]
+mod sqlite_util;
 #[path = "../../../src/rendering/terrain/terrain_height_data.rs"]
 pub mod terrain_height_data;
 #[path = "../../../src/rendering/terrain/terrain_material_data.rs"]

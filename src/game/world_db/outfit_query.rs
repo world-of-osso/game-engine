@@ -104,7 +104,7 @@ pub(super) fn resolve_cached_skin_fdids_for_model_name(
             ))
         })
         .map_err(|err| format!("query model skin lookup by name: {err}"))?;
-    select_best_skin_fdids_by_name(&conn, rows, model_name)
+    select_best_skin_fdids_by_name(&conn, rows, model_name, data_dir)
 }
 
 fn select_best_skin_fdids_by_name(
@@ -114,13 +114,14 @@ fn select_best_skin_fdids_by_name(
         impl FnMut(&rusqlite::Row<'_>) -> rusqlite::Result<(u32, [u32; 2], u32)>,
     >,
     model_name: &str,
+    data_dir: &Path,
 ) -> Result<Option<[u32; 3]>, String> {
     let mut material_cache = HashMap::new();
     let mut best: Option<(usize, u32, [u32; 3])> = None;
     for row in rows {
         let (display_info_id, material_ids, model_fdid) =
             row.map_err(|err| format!("read model skin lookup by name row: {err}"))?;
-        if !model_fdid_matches_name(model_fdid, model_name) {
+        if !model_fdid_matches_name(model_fdid, model_name, data_dir) {
             continue;
         }
         let skin_fdids = resolve_skin_fdids(conn, material_ids, &mut material_cache)?;
@@ -129,8 +130,11 @@ fn select_best_skin_fdids_by_name(
     Ok(best.map(|(_, _, skin_fdids)| skin_fdids))
 }
 
-fn model_fdid_matches_name(model_fdid: u32, model_name: &str) -> bool {
-    game_engine::listfile::lookup_fdid(model_fdid)
+fn model_fdid_matches_name(model_fdid: u32, model_name: &str, data_dir: &Path) -> bool {
+    crate::outfit_listfile::lookup_fdid(data_dir, model_fdid)
+        .ok()
+        .flatten()
+        .as_deref()
         .and_then(|path| Path::new(path).file_name()?.to_str())
         .is_some_and(|name| name.eq_ignore_ascii_case(model_name))
 }
