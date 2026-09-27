@@ -23,6 +23,7 @@ pub(crate) struct PlayerMovement {
     pub jumping: bool,
     pub swimming: bool,
     direction: MoveDirection,
+    previous_facing: Option<f32>,
     vertical_velocity: f32,
     grounded: bool,
 }
@@ -40,6 +41,7 @@ impl Default for PlayerMovement {
             jumping: false,
             swimming: false,
             direction: MoveDirection::None,
+            previous_facing: None,
             vertical_velocity: 0.0,
             grounded: true,
         }
@@ -47,6 +49,27 @@ impl Default for PlayerMovement {
 }
 
 impl PlayerMovement {
+    fn animation_id(&mut self, facing: f32) -> u16 {
+        let previous = self.previous_facing.replace(facing);
+        let locomotion = direction_to_anim_id(self.direction, self.running, self.swimming);
+        if self.direction != MoveDirection::None || self.jumping || self.swimming {
+            return locomotion;
+        }
+        let Some(previous) = previous else {
+            return locomotion;
+        };
+        let delta = (facing - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+            - std::f32::consts::PI;
+        const TURN_THRESHOLD: f32 = 0.02;
+        if delta >= TURN_THRESHOLD {
+            11
+        } else if delta <= -TURN_THRESHOLD {
+            12
+        } else {
+            locomotion
+        }
+    }
+
     pub fn resolve(
         &mut self,
         bindings: &InputBindingsData,
@@ -151,9 +174,11 @@ impl PlayerMovement {
 
 impl crate::GameClient {
     pub(super) fn update_player_animation(&mut self) -> Result<(), String> {
+        let Some(facing) = self.world.local_player_facing() else {
+            return Ok(());
+        };
+        let animation_id = self.player_movement.animation_id(facing);
         let movement = &self.player_movement;
-        let animation_id =
-            direction_to_anim_id(movement.direction, movement.running, movement.swimming);
         self.world.update_local_locomotion(
             animation_id,
             movement.jumping,
@@ -274,6 +299,7 @@ mod tests {
     use game_engine_core::input_bindings_data::{
         BindingKey, BindingMouseButton, InputBindingsData,
     };
+    use game_engine_core::movement_input_data::MoveDirection;
 
     #[test]
     fn diagonal_prediction_keeps_original_forward_wire_priority() {
@@ -302,6 +328,45 @@ mod tests {
         input.clear();
         movement.resolve(&InputBindingsData::default(), &input, 0.0);
         assert!(movement.network_input(0.0, 1.0 / 60.0).is_none());
+    }
+
+    #[test]
+    fn idle_turn_samples_consecutive_facing_without_hysteresis() {
+        let mut movement = PlayerMovement::default();
+        assert_eq!(movement.animation_id(0.0), 0);
+        assert_eq!(movement.animation_id(0.019), 0);
+        assert_eq!(movement.animation_id(0.040), 11);
+        assert_eq!(movement.animation_id(-0.080), 12);
+        assert_eq!(movement.animation_id(-0.080), 0);
+        assert_eq!(movement.animation_id(-0.101), 12);
+    }
+
+    #[test]
+    fn idle_turn_normalizes_wraparound_and_ignores_subthreshold_motion() {
+        let mut movement = PlayerMovement::default();
+        let pi = std::f32::consts::PI;
+        assert_eq!(movement.animation_id(pi - 0.01), 0);
+        assert_eq!(movement.animation_id(-pi + 0.02), 11);
+        assert_eq!(movement.animation_id(pi - 0.01), 12);
+        assert_eq!(movement.animation_id(pi - 0.005), 0);
+    }
+
+    #[test]
+    fn ineligible_frames_advance_facing_without_selecting_turn() {
+        let mut movement = PlayerMovement::default();
+        assert_eq!(movement.animation_id(0.0), 0);
+        movement.direction = MoveDirection::Forward;
+        assert_eq!(movement.animation_id(0.5), 5);
+        movement.direction = MoveDirection::None;
+        assert_eq!(movement.animation_id(0.5), 0);
+        movement.jumping = true;
+        assert_eq!(movement.animation_id(1.0), 0);
+        movement.jumping = false;
+        assert_eq!(movement.animation_id(1.0), 0);
+        movement.swimming = true;
+        assert_eq!(movement.animation_id(1.5), 41);
+        movement.swimming = false;
+        assert_eq!(movement.animation_id(1.5), 0);
     }
 
     #[test]
