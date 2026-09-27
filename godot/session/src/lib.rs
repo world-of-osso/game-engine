@@ -183,8 +183,8 @@ impl Session {
         self.pending_world_port = PendingWorldPort::None;
     }
 
-    pub fn receive_transfer_aborted(&self, aborted: TransferAborted) -> &'static str {
-        aborted.reason.text()
+    pub fn receive_transfer_aborted(&self, aborted: TransferAborted, map_name: &str) -> String {
+        aborted.reason.text(map_name)
     }
 
     /// Queue this request as the transport starts; do not wait for a screen callback.

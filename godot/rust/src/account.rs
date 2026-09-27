@@ -1,7 +1,7 @@
 use std::{
     fs,
     net::ToSocketAddrs,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -30,7 +30,7 @@ pub enum AccountEvent {
     WorldReset,
     LoadTerrain(LoadTerrain),
     NewWorld(NewWorld),
-    TransferError(&'static str),
+    TransferError(String),
     UnitUpdated(UnitSnapshot),
     UnitRemoved(u64),
 }
@@ -174,9 +174,9 @@ impl Account {
             return Ok(());
         }
         if message.is::<TransferAborted>() {
-            let aborted = decode(message)?;
+            let aborted: TransferAborted = decode(message)?;
             output.push(AccountEvent::TransferError(
-                self.session.receive_transfer_aborted(aborted),
+                self.format_transfer_error(aborted)?,
             ));
             return Ok(());
         }
@@ -242,6 +242,18 @@ impl Account {
         Ok(())
     }
 
+    fn format_transfer_error(&self, aborted: TransferAborted) -> Result<String, String> {
+        use shared::protocol::TransferAbortReason;
+
+        let map_name = match aborted.reason {
+            TransferAbortReason::Difficulty(_) | TransferAbortReason::LockedToDifferentInstance => {
+                read_transfer_map_name(&self.data_root, aborted.map_id)?
+            }
+            _ => String::new(),
+        };
+        Ok(self.session.receive_transfer_aborted(aborted, &map_name))
+    }
+
     fn connected_bridge(&self) -> Result<&NetworkBridge, String> {
         self.bridge
             .as_ref()
@@ -254,6 +266,69 @@ impl Account {
             bridge.stop()?;
         }
         Ok(())
+    }
+}
+
+fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, String> {
+    use game_engine_core::csv_util::{header_index, parse_csv_line};
+
+    let path = data_root.join("db2/12.1.0.69933/Map.csv");
+    let text = fs::read_to_string(&path)
+        .map_err(|error| format!("Read map names {}: {error}", path.display()))?;
+    let mut lines = text.lines();
+    let header = lines
+        .next()
+        .ok_or_else(|| format!("{} is empty", path.display()))?;
+    let headers = parse_csv_line(header);
+    let id_column = header_index(&headers, "ID", &path)?;
+    let name_column = header_index(&headers, "MapName_lang", &path)?;
+    for line in lines {
+        let fields = parse_csv_line(line);
+        let id = fields
+            .get(id_column)
+            .ok_or_else(|| format!("{}: missing map ID in {line:?}", path.display()))?
+            .parse::<u32>()
+            .map_err(|error| format!("{}: invalid map ID in {line:?}: {error}", path.display()))?;
+        if id == map_id {
+            return fields
+                .get(name_column)
+                .filter(|name| !name.is_empty())
+                .cloned()
+                .ok_or_else(|| format!("{}: missing name for map {map_id}", path.display()));
+        }
+    }
+    Err(format!("{}: map {map_id} not found", path.display()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::protocol::TransferAbortReason;
+
+    #[test]
+    fn full_instance_error_does_not_require_map_catalog() {
+        let account = Account::new(PathBuf::from("/nonexistent-map-catalog"));
+        let error = account
+            .format_transfer_error(TransferAborted {
+                map_id: 34,
+                reason: TransferAbortReason::MaxPlayers,
+            })
+            .unwrap();
+        assert_eq!(error, "Transfer Aborted: instance is full");
+    }
+
+    #[test]
+    fn transfer_abort_map_name_comes_from_map_csv_id() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        assert_eq!(
+            read_transfer_map_name(&data_root, 34).unwrap(),
+            "Stormwind Stockade"
+        );
+        assert_eq!(
+            read_transfer_map_name(&data_root, 33).unwrap(),
+            "Shadowfang Keep"
+        );
+        assert!(read_transfer_map_name(&data_root, u32::MAX).is_err());
     }
 }
 
