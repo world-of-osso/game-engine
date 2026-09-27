@@ -154,6 +154,28 @@ fn resolved_name<'a>(
 }
 
 #[test]
+fn authored_primary_wmo_remains_near_the_campsite() {
+    let primary = fixture(37);
+    let nearby: Vec<_> = primary
+        .wmos
+        .iter()
+        .filter_map(|wmo| {
+            let position = crate::campsite_object_data::placement_position(wmo.position, 31, 37);
+            (position.distance(FOCUS) <= 120.0).then_some((wmo, position))
+        })
+        .collect();
+    assert_eq!(nearby.len(), 1);
+    assert_eq!(nearby[0].0.fdid, Some(4214993));
+    assert_eq!(nearby[0].0.unique_id, 48366671);
+    assert!(
+        nearby[0]
+            .1
+            .distance(Vec3::new(-2985.072, 446.524, -423.364))
+            < 0.01
+    );
+}
+
+#[test]
 fn authored_tiles_select_primary_props_and_backdrop_and_supplemental_backdrop() {
     let primary = fixture(37);
     let supplemental = fixture(36);
