@@ -13,7 +13,7 @@ use shared::protocol::{EmoteIntent, EmoteKind};
 use crate::camera::Player;
 use crate::game_state::GameState;
 use crate::networking::RemoteEntity;
-use game_engine::input_bindings::{InputAction, InputBindings};
+use game_engine::input_bindings::InputAction;
 
 /// Replicated NPCs a player can select: not `UNIT_FLAG_NOT_SELECTABLE`.
 pub(crate) type TargetableNpcs = (
