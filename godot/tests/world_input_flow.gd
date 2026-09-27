@@ -34,7 +34,12 @@ func run_test() -> void:
 		fail("Authenticated character card and Enter World action missing")
 		return
 	await click_control(card)
+	if not await inspect_character_preview(client):
+		return
 	await click_control(enter)
+	if client.get_node_or_null("CharacterSelectScene") != null:
+		fail("Entering the world retained the character-selection preview")
+		return
 	if not await wait_for_screen(client, "Loading", 15000):
 		return
 	if not client.get_node("LoadingUI").visible:
@@ -201,6 +206,41 @@ func focus_loss_stops_held_input(player: Node3D) -> bool:
 		return false
 	push_w(false)
 	await process_frame
+	return true
+
+func inspect_character_preview(client: Node) -> bool:
+	var preview := client.get_node_or_null("CharacterSelectScene/SelectedCharacter") as Node3D
+	if preview == null:
+		fail("Authenticated character selection has no selected-character 3D preview")
+		return false
+	var meshes := preview.find_children("*", "MeshInstance3D", true, false)
+	var visible_meshes := 0
+	for node in meshes:
+		var mesh := node as MeshInstance3D
+		if mesh.is_visible_in_tree() and mesh.mesh != null and mesh.mesh.get_surface_count() > 0:
+			visible_meshes += 1
+	if visible_meshes == 0 or root.get_camera_3d() == null:
+		fail("Character preview lacks visible mesh geometry or a current camera")
+		return false
+	if DisplayServer.get_name() != "headless":
+		for _frame in range(4):
+			await RenderingServer.frame_post_draw
+		var shown := root.get_texture().get_image()
+		shown.save_png("res://../data/diagnostics/godot-conversion/character-select-preview.png")
+		preview.visible = false
+		for _frame in range(2):
+			await RenderingServer.frame_post_draw
+		var hidden := root.get_texture().get_image()
+		preview.visible = true
+		var changed := 0
+		for y in range(0, shown.get_height(), 4):
+			for x in range(0, shown.get_width(), 4):
+				if shown.get_pixel(x, y).is_equal_approx(hidden.get_pixel(x, y)) == false:
+					changed += 1
+		if changed < 200:
+			fail("Selected character does not change rendered pixels: " + str(changed))
+			return false
+	print("PASS: authenticated selected character has visible native 3D geometry")
 	return true
 
 func clear_ui_focus() -> void:
