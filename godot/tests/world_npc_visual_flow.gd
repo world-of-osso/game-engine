@@ -5,6 +5,12 @@ const PLAYER := "Fixture Player"
 const DISPLAY_A := 910010
 const DISPLAY_B := 910011
 const WAIT_MS := 15000
+const GLOBAL_AMBIENT := Vector3(51.0, 102.0, 153.0) / 255.0
+const GLOBAL_DIRECT := Vector3(119.0, 85.0, 51.0) / 255.0
+const LOCAL_AMBIENT := Vector3(153.0, 85.0, 51.0) / 255.0
+const LOCAL_DIRECT := Vector3(51.0, 119.0, 153.0) / 255.0
+const MAP_AMBIENT := Vector3(34.0, 102.0, 136.0) / 255.0
+const MAP_DIRECT := Vector3(153.0, 68.0, 51.0) / 255.0
 
 func _initialize() -> void:
 	call_deferred("run_test")
@@ -39,6 +45,8 @@ func run_test() -> void:
 	await click_control(enter)
 	if not await wait_visual(client, 1.5):
 		return
+	if not await wait_lighting(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
+		return
 	var npc: Node3D = client.get_node("WorldUnits/" + NPC)
 	var unit_id := npc.get_instance_id()
 	var visual_id := npc.get_node("NpcVisualRoot").get_instance_id()
@@ -60,11 +68,23 @@ func run_test() -> void:
 		fail("Changed display did not preserve unit and replace visual")
 		return
 	visual_id = npc.get_node("NpcVisualRoot").get_instance_id()
+	if not lighting_matches(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
+		fail("Replacement model did not inherit current global lighting")
+		return
 	print("FIXTURE CHANGED_READY")
+	if not await wait_lighting(client, LOCAL_AMBIENT, LOCAL_DIRECT, "azeroth"):
+		return
+	if npc.get_node("NpcVisualRoot").get_instance_id() != visual_id:
+		fail("Live light update replaced creature visual")
+		return
+	print("FIXTURE LIGHT_UPDATED")
 	if not await wait_visual(client, 0.01):
 		return
 	if npc.get_instance_id() != unit_id or npc.get_node("NpcVisualRoot").get_instance_id() == visual_id:
 		fail("Tiny positive display did not clamp visual scale")
+		return
+	if not lighting_matches(client, LOCAL_AMBIENT, LOCAL_DIRECT, "azeroth"):
+		fail("Late replacement did not inherit local light")
 		return
 	print("FIXTURE CLAMP_READY")
 	if not await wait_no_visual(client):
@@ -74,6 +94,9 @@ func run_test() -> void:
 		return
 	print("FIXTURE MODEL_REMOVED")
 	if not await wait_visual(client, 1.5):
+		return
+	if not lighting_matches(client, LOCAL_AMBIENT, LOCAL_DIRECT, "azeroth"):
+		fail("Restored model lost current light")
 		return
 	print("FIXTURE MODEL_RESTORED")
 	if not await wait_no_npc(client):
@@ -88,14 +111,57 @@ func run_test() -> void:
 	if replacement.get_instance_id() == unit_id or player.get_instance_id() != player_id or player.get_node_or_null("NpcVisualRoot") != null:
 		fail("NPC respawn reused old unit or altered player appearance")
 		return
+	if not lighting_matches(client, LOCAL_AMBIENT, LOCAL_DIRECT, "azeroth"):
+		fail("Respawned creature lost current light")
+		return
+	var old_light_id: int = client.get_node("WorldLighting").get_instance_id()
 	print("FIXTURE NPC_RESTORED")
+	if not await wait_lighting(client, MAP_AMBIENT, MAP_DIRECT, "kalimdor"):
+		return
+	if client.get_node("WorldLighting").get_instance_id() == old_light_id:
+		fail("Map change retained previous lighting producer")
+		return
+	print("FIXTURE MAP_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
-	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.account_state().unit_count != 0:
+	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
 		return
 	print("FIXTURE RESET_READY")
 	client.free()
 	quit(0)
+
+func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if lighting_matches(client, ambient, direct, map):
+			return true
+	fail("Timed out waiting for %s creature lighting %s / %s: %s" % [map, ambient, direct, client.account_state()])
+	return false
+
+func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: String) -> bool:
+	var terrain: Dictionary = client.account_state().terrain
+	if terrain.map != map or not terrain.wdt_path.ends_with(".wdt"):
+		return false
+	var lighting := client.get_node_or_null("WorldLighting")
+	var sun := lighting.get_node_or_null("Sun") as DirectionalLight3D if lighting != null else null
+	var npc := client.get_node_or_null("WorldUnits/" + NPC)
+	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
+	var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
+	var material := batch.get_surface_override_material(0) as ShaderMaterial if batch != null else null
+	if sun == null or material == null:
+		return false
+	var actual_ambient = material.get_shader_parameter("ambient")
+	var actual_direct = material.get_shader_parameter("direct")
+	var direction = material.get_shader_parameter("sun_direction")
+	var fog = material.get_shader_parameter("fog_range")
+	var cube = material.get_shader_parameter("environment_map") as Cubemap
+	return actual_ambient is Vector3 and (actual_ambient as Vector3).is_equal_approx(ambient) \
+		and actual_direct is Vector3 and (actual_direct as Vector3).is_equal_approx(direct) \
+		and direction is Vector3 and (direction as Vector3).is_equal_approx(-sun.global_basis.z) \
+		and fog is Vector2 and (fog as Vector2).is_equal_approx(Vector2(200, 1000)) \
+		and int(material.get_shader_parameter("fog_mode")) == 1 \
+		and cube != null and cube.get_width() == 32
 
 func prepare_assets() -> bool:
 	var data := ProjectSettings.globalize_path("res://../data")
