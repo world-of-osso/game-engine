@@ -46,6 +46,7 @@ pub struct GameClient {
     terrain_materials: terrain::material::TerrainMaterials,
     world_lighting: lighting::WorldLighting,
     world_camera: camera::WorldCamera,
+    physical_input: input::PhysicalInput,
     world_minutes: f32,
     server_hostname: String,
 }
@@ -72,6 +73,7 @@ impl INode3D for GameClient {
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_lighting: lighting::WorldLighting::default(),
             world_camera: camera::WorldCamera::default(),
+            physical_input: input::PhysicalInput::default(),
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             units: HashMap::new(),
@@ -82,6 +84,20 @@ impl INode3D for GameClient {
                 "game.worldofosso.com:5000"
             }
             .into(),
+        }
+    }
+
+    fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        self.physical_input.capture(&event);
+    }
+
+    fn on_notification(&mut self, what: godot::classes::notify::Node3DNotification) {
+        use godot::classes::notify::Node3DNotification;
+        if matches!(
+            what,
+            Node3DNotification::APPLICATION_FOCUS_OUT | Node3DNotification::WM_WINDOW_FOCUS_OUT
+        ) {
+            self.physical_input.clear();
         }
     }
 
@@ -96,6 +112,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.update_loading_readiness())
             .and_then(|()| self.update_world_errors(delta as f32))
             .and_then(|()| self.update_world_camera(delta as f32));
+        self.physical_input.finish_frame();
         if let Err(error) = update {
             self.account.session.feedback = Some(error.clone());
             godot_error!("Account update failed: {error}");
@@ -446,6 +463,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.physical_input.clear();
         if let Some(ui) = self.errors_ui.as_mut() {
             ui.bind_mut().clear_errors()?;
             ui.set_visible(false);

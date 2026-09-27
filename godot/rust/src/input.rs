@@ -17,6 +17,39 @@ pub(crate) struct PhysicalInput {
 }
 
 impl PhysicalInput {
+    pub fn capture(&mut self, event: &godot::obj::Gd<godot::classes::InputEvent>) {
+        use godot::classes::{
+            InputEventKey, InputEventMouseButton, InputEventMouseMotion, InputEventWithModifiers,
+        };
+        if let Ok(modifiers) = event.clone().try_cast::<InputEventWithModifiers>() {
+            self.set_modifiers(modifiers.is_shift_pressed(), modifiers.is_ctrl_pressed());
+        }
+        if let Ok(key) = event.clone().try_cast::<InputEventKey>() {
+            if let Some(binding) = crate::input_keys::binding_key(key.get_physical_keycode()) {
+                self.set_key(binding, key.is_pressed());
+            }
+        } else if let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() {
+            self.capture_mouse(&mouse);
+        } else if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            let relative = motion.get_relative();
+            self.add_motion(relative.x, relative.y);
+        }
+    }
+
+    fn capture_mouse(&mut self, mouse: &godot::obj::Gd<godot::classes::InputEventMouseButton>) {
+        use godot::global::MouseButton;
+        let button = mouse.get_button_index();
+        if let Some(binding) = crate::input_keys::binding_mouse_button(button) {
+            self.set_mouse(binding, mouse.is_pressed());
+        } else if mouse.is_pressed() {
+            match button {
+                MouseButton::WHEEL_UP => self.add_scroll(mouse.get_factor()),
+                MouseButton::WHEEL_DOWN => self.add_scroll(-mouse.get_factor()),
+                _ => {}
+            }
+        }
+    }
+
     pub fn set_key(&mut self, key: BindingKey, pressed: bool) {
         if pressed {
             if self.keys.insert(key) {
