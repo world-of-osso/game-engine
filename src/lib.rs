@@ -105,6 +105,8 @@ pub mod little_endian;
 pub mod loot_state;
 #[path = "game/loss_of_control_data.rs"]
 pub mod loss_of_control_data;
+#[path = "asset/m2_effect_uv_data.rs"]
+pub mod m2_effect_uv_data;
 #[path = "game/mail_data.rs"]
 pub mod mail_data;
 #[path = "game/merchant_data.rs"]
