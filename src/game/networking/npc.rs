@@ -5,7 +5,9 @@ use crate::retail_m2_material::M2Material;
 use bevy::mesh::skinning::SkinnedMeshInverseBindposes;
 use bevy::prelude::*;
 use lightyear::prelude::*;
-use shared::components::{ModelDisplay, Npc, Position as NetPosition, Rotation as NetRotation};
+use shared::components::{
+    CreatureMotion, ModelDisplay, Npc, Position as NetPosition, Rotation as NetRotation,
+};
 
 use crate::creature_display::CreatureDisplayMap;
 use crate::game::inworld_scene_stage::{
@@ -205,7 +207,7 @@ pub(crate) fn sync_not_selectable(
 }
 
 pub(crate) fn register_npc_visibility_policy_systems(app: &mut App) {
-    app.add_systems(Update, sync_not_selectable);
+    app.add_systems(Update, (sync_not_selectable, sync_npc_motion_animation));
     npc_appearance::register_npc_appearance_systems(app);
     app.add_systems(
         Update,
@@ -765,14 +767,52 @@ fn try_spawn_npc_model(
                 .map(|path| path.display().to_string()),
             display_scale: Some(display_scale),
         });
-    spawn_animated_npc_model(
+    let Some(model) = spawn_animated_npc_model(
         commands,
         assets,
         display_map,
         &m2_path,
         visual_root,
         &skin_fdids,
-    )
+    ) else {
+        return false;
+    };
+    commands.entity(entity).insert(NpcAnimModel(model));
+    true
+}
+
+/// The model entity whose `M2AnimPlayer` plays a replicated NPC's animation.
+#[derive(Component)]
+pub(crate) struct NpcAnimModel(Entity);
+
+/// Plays a replicated creature's stand, walk or run (`CreatureMotion`: Retail
+/// `MOVEMENTFLAG_FORWARD`, `MOVEMENTFLAG_WALKING`) through its model's `MovementState`.
+pub(crate) fn sync_npc_motion_animation(
+    mut commands: Commands,
+    npcs: Query<
+        (&CreatureMotion, &NpcAnimModel),
+        Or<(Changed<CreatureMotion>, Added<NpcAnimModel>)>,
+    >,
+) {
+    for (motion, model) in &npcs {
+        commands
+            .entity(model.0)
+            .try_insert(motion_movement_state(*motion));
+    }
+}
+
+fn motion_movement_state(motion: CreatureMotion) -> crate::camera::MovementState {
+    use crate::camera::MoveDirection;
+    let (direction, running) = match motion {
+        CreatureMotion::Still => (MoveDirection::None, true),
+        CreatureMotion::Walk => (MoveDirection::Forward, false),
+        CreatureMotion::Run => (MoveDirection::Forward, true),
+    };
+    crate::camera::MovementState {
+        direction,
+        running,
+        ..default()
+    }
 }
 
 fn spawn_animated_npc_model(
@@ -782,7 +822,7 @@ fn spawn_animated_npc_model(
     path: &std::path::Path,
     visual_root: Entity,
     skin_fdids: &[u32; 3],
-) -> bool {
+) -> Option<Entity> {
     let model = commands
         .spawn((
             Name::new("NpcModel"),
@@ -812,7 +852,7 @@ fn spawn_animated_npc_model(
     if !spawned {
         context.commands.entity(model).despawn();
     }
-    spawned
+    spawned.then_some(model)
 }
 
 /// Attach a capsule mesh as fallback for NPCs without M2 models.
