@@ -47,8 +47,8 @@ func run_test() -> void:
 		fail("NPC visual attached to player or player missing")
 		return
 	print("FIXTURE INITIAL_READY")
-	for _frame in range(20):
-		await process_frame
+	if not await wait_npc_moved(client, 5.5):
+		return
 	if npc.get_instance_id() != unit_id or npc.get_node("NpcVisualRoot").get_instance_id() != visual_id:
 		fail("Same display replaced unit or visual")
 		return
@@ -94,6 +94,10 @@ func prepare_assets() -> bool:
 	var model := make_m2(7, 0)
 	# Authored type 11 reads creature-display skin texture slot 0, not TXID.
 	put_u32(model, 8 + 0x210, 11)
+	var skin_fdid := PackedByteArray()
+	skin_fdid.resize(4)
+	put_u32(skin_fdid, 0, 910099)
+	model.append_array(chunk("SFID", skin_fdid))
 	return write_fixture(data + "/models/910010.m2", model) \
 		and write_fixture(data + "/models/91001000.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/models/910011.m2", model) \
@@ -132,6 +136,16 @@ func wait_visual(client: Node, scale: float) -> bool:
 		if visual_matches(client, scale):
 			return true
 	fail("Timed out waiting for NPC model and scale %f: %s" % [scale, client.account_state()])
+	return false
+
+func wait_npc_moved(client: Node, minimum_x: float) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var npc = client.get_node_or_null("WorldUnits/" + NPC) as Node3D
+		if npc != null and npc.position.x > minimum_x:
+			return true
+	fail("Same-display replicated position update did not reach NPC")
 	return false
 
 func wait_no_visual(client: Node) -> bool:

@@ -312,7 +312,14 @@ fn run_fixture(
                 (0, "FIXTURE INITIAL_READY") => {
                     app.world_mut()
                         .entity_mut(npc.expect("spawned NPC"))
-                        .insert(ModelDisplay { display_id: 910010 });
+                        .insert((
+                            ModelDisplay { display_id: 910010 },
+                            Position {
+                                x: 6.0,
+                                y: 2.0,
+                                z: 3.0,
+                            },
+                        ));
                     phase = 1;
                 }
                 (1, "FIXTURE SAME_READY") => {
