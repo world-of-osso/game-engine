@@ -7,5 +7,5 @@ linker = "clang"
 rustflags = ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=4"]
 
 [alias]
-bd = "build --features dev"
-rd = "run --features dev"
+bd = "build"
+rd = "run"
