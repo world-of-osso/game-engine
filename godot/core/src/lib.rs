@@ -14,6 +14,8 @@ pub mod char_texture_data;
 pub mod creature_display_data;
 #[cfg(test)]
 mod creature_display_data_tests;
+#[path = "../../../src/geoset_visibility_data.rs"]
+pub mod geoset_visibility_data;
 #[path = "../../../src/input_bindings_data.rs"]
 pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
