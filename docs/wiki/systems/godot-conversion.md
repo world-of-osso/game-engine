@@ -113,6 +113,12 @@ BLP mip-0 RGBA8 becomes a Godot `Image`. Only ordinary type-0 texture FDIDs foun
 
 `WowTerrainLoader.load_adt_geometry` reads one root ADT and emits one unmaterialed `MeshInstance3D` per nonempty chunk. It carries authored positions, normals, vertex colors, UVs, holes, and reversed triangle winding only. Historical `terrain_geometry.gd` evidence exits 0 at `ac02b9a0` with 256 chunks and those raw-channel/topology assertions. `3de5946b` retains authored ADT metadata and exposes tile/LOD parsers; `18666116` corrects fixture coordinate and companion coverage. Reported `fb54637f` pure-core evidence is 233/233 `--lib` GREEN/no warnings; legacy Bevy adapter tests were not executed. `e2821b83`/`1961bd14` add only the local-CASC resolver dependency; its genuine terrain-assets RED is a missing API. None of this loads texture companions/materials, objects, water, collision, or world streaming.
 
+## Native character-select object boundary
+
+`1aebb3c8` shares the original authored campsite-object selection and placement policy with `godot/core`; `70ccce02` includes the authored WMO placement. `7ef1dfd9` consumes that policy in native `CharacterPreview`: 76 selected primary-tile M2 doodads (62 props and 14 waterfall/ripple) plus 42 supplemental waterfall/ripple doodads. `/tmp/claude/godot-campsite-objects-7ef1dfd9.log` observes background pixels, then exits 101 at a later `AwaitWorld` 90-second timeout. This is not clean GREEN, full-props acceptance, or a revision of `df22179c`'s terrain-only clean runtime proof.
+
+`8dc48975` builds typed native WMO mesh/material nodes. `db417843` attaches only the authored primary-tile WMO FDID `4214993`, UID `48366671`, within 120 units. Five real-asset tests pass; no WMO GPU/runtime observation exists. Sky work is uncommitted and unverified. Portal culling, WMO water/doodads/collision, fifth-layer terrain, clothing/equipment, complete scenery, and conversion remain open.
+
 ## Capability and proof matrix
 
 The [detailed Godot parity matrix](../../specs/godot-parity-matrix.md) inventories every existing feature contract by capability. It is tracking only: source specifications remain authoritative, and no parser/core/transport result closes a user-visible runtime row.

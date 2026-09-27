@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native campsite M2 props and first WMO attachment
+
+`1aebb3c8` shares original authored campsite-object policy; `70ccce02` adds the authored WMO placement. `7ef1dfd9` selects/spawns 76 primary-tile M2 doodads (62 props, 14 waterfall/ripple) and 42 supplemental waterfall/ripple doodads. Its GPU fixture observes background pixels but exits 101 at a later `AwaitWorld` 90-second timeout (`/tmp/claude/godot-campsite-objects-7ef1dfd9.log`), not clean GREEN or full-props acceptance.
+
+`8dc48975` builds typed WMO scene meshes/materials. `db417843` integrates primary-tile WMO FDID `4214993`, UID `48366671`, within 120 units; five real-asset tests pass. No WMO GPU/runtime check exists. Uncommitted sky is excluded. `df22179c` remains clean terrain-only evidence; full scenery, WMO collision/water/doodads, sky, clothing/equipment, and conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Bounded native character-select campsite terrain
 
 `4c5e5735` preserves the original renderer's four terrain texture slots for real campsite chunks with five MCLY layers: all parsed layers remain available, while rendering uses only the first four. This prevents rejection of the authored tile; it is not fifth-layer support.
