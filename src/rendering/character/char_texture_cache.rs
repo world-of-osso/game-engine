@@ -5,15 +5,10 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use crate::asset::char_texture::{TextureLayer, TextureLayout, TextureSection};
+#[path = "char_texture_query_data.rs"]
+pub mod char_texture_query_data;
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::sqlite_util::is_missing_table_error;
-
-type CharTextureCacheData = (
-    Vec<TextureLayer>,
-    HashMap<(u32, u32), TextureSection>,
-    HashMap<u32, TextureLayout>,
-);
 
 fn cache_path() -> PathBuf {
     crate::paths::shared_data_path("cache/char_texture.sqlite")
@@ -264,7 +259,9 @@ pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
     Ok(cache_path)
 }
 
-pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCacheData, String> {
+pub(crate) fn load_char_texture_data(
+    _data_dir: &Path,
+) -> Result<char_texture_query_data::CharTextureCacheData, String> {
     let cache_path = cache_path();
     if !cache_path.exists() {
         return Err(format!(
@@ -273,80 +270,41 @@ pub(crate) fn load_char_texture_data(_data_dir: &Path) -> Result<CharTextureCach
         ));
     }
     let conn = open_read_only(&cache_path)?;
-    let layers = load_layers(&conn)?;
-    let sections = load_sections(&conn)?;
-    let layouts = load_layouts(&conn)?;
-    Ok((layers, sections, layouts))
-}
-
-fn load_layers(conn: &Connection) -> Result<Vec<TextureLayer>, String> {
-    let mut layers_stmt = conn
-        .prepare(
-            "SELECT texture_type, layer, blend_mode, section_bitmask, target_id, layout_id
-             FROM layers
-             ORDER BY layout_id, texture_type, layer",
-        )
-        .map_err(|err| format!("prepare layers lookup: {err}"))?;
-    layers_stmt
-        .query_map([], |row| {
-            Ok(TextureLayer {
-                texture_type: row.get(0)?,
-                layer: row.get(1)?,
-                blend_mode: row.get(2)?,
-                section_bitmask: row.get(3)?,
-                target_id: row.get(4)?,
-                layout_id: row.get(5)?,
-            })
-        })
-        .map_err(|err| format!("query layers: {err}"))?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|err| format!("read layers row: {err}"))
-}
-
-fn load_sections(conn: &Connection) -> Result<HashMap<(u32, u32), TextureSection>, String> {
-    let mut sections_stmt = conn
-        .prepare("SELECT layout_id, section_type, x, y, width, height FROM sections")
-        .map_err(|err| format!("prepare sections lookup: {err}"))?;
-    sections_stmt
-        .query_map([], |row| {
-            Ok((
-                (row.get::<_, u32>(0)?, row.get::<_, u32>(1)?),
-                TextureSection {
-                    x: row.get(2)?,
-                    y: row.get(3)?,
-                    width: row.get(4)?,
-                    height: row.get(5)?,
-                },
-            ))
-        })
-        .map_err(|err| format!("query sections: {err}"))?
-        .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read sections row: {err}"))
-}
-
-fn load_layouts(conn: &Connection) -> Result<HashMap<u32, TextureLayout>, String> {
-    let mut layouts_stmt = conn
-        .prepare("SELECT id, width, height FROM layouts")
-        .map_err(|err| format!("prepare layouts lookup: {err}"))?;
-    layouts_stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, u32>(0)?,
-                TextureLayout {
-                    width: row.get(1)?,
-                    height: row.get(2)?,
-                },
-            ))
-        })
-        .map_err(|err| format!("query layouts: {err}"))?
-        .collect::<Result<HashMap<_, _>, _>>()
-        .map_err(|err| format!("read layouts row: {err}"))
+    char_texture_query_data::query_char_texture_data(&conn)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{import_char_texture_cache, load_char_texture_data};
     use std::path::Path;
+
+    #[test]
+    fn query_char_texture_data_reads_sorted_layers_and_keyed_regions() {
+        let conn = rusqlite::Connection::open_in_memory().expect("open in-memory cache");
+        conn.execute_batch(
+            "CREATE TABLE layers (texture_type INTEGER, layer INTEGER, blend_mode INTEGER, section_bitmask INTEGER, target_id INTEGER, layout_id INTEGER);
+             CREATE TABLE sections (layout_id INTEGER, section_type INTEGER, x INTEGER, y INTEGER, width INTEGER, height INTEGER);
+             CREATE TABLE layouts (id INTEGER, width INTEGER, height INTEGER);
+             INSERT INTO layers VALUES (6, 2, 1, 8, 42, 3), (1, 5, 0, 2, 7, 2), (1, 1, 0, 4, 9, 2);
+             INSERT INTO sections VALUES (3, 6, 5, 10, 20, 25), (2, 4, 11, 12, 13, 14);
+             INSERT INTO layouts VALUES (3, 512, 256), (2, 1024, 512);",
+        )
+        .expect("seed texture cache");
+
+        let (layers, sections, layouts) =
+            super::char_texture_query_data::query_char_texture_data(&conn).expect("query cache");
+        let layer_keys: Vec<_> = layers
+            .iter()
+            .map(|layer| (layer.layout_id, layer.texture_type, layer.layer))
+            .collect();
+        assert_eq!(layer_keys, [(2, 1, 1), (2, 1, 5), (3, 6, 2)]);
+        assert_eq!(layers[0].section_bitmask, 4);
+        assert_eq!(layers[2].target_id, 42);
+        assert_eq!(sections[&(3, 6)].x, 5);
+        assert_eq!(sections[&(2, 4)].height, 14);
+        assert_eq!(layouts[&2].width, 1024);
+        assert_eq!(layouts[&3].height, 256);
+    }
 
     #[test]
     fn char_texture_data_loads_from_imported_cache() {
