@@ -213,7 +213,7 @@ pub(super) fn spawn_head_equipment_owner(
                 bones: vec![],
                 spherical_billboards: vec![],
                 sequences: vec![],
-                bone_tracks: vec![],
+                bone_tracks: vec![].into(),
                 joint_entities: vec![joint],
             },
             Transform::IDENTITY,

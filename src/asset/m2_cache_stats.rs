@@ -32,7 +32,7 @@ fn estimate_model_cpu_bytes(model: &M2Model) -> u64 {
     estimate_batches_cpu_bytes(model)
         + slice_bytes(model.bones.as_slice())
         + slice_bytes(model.sequences.as_slice())
-        + slice_bytes(model.bone_tracks.as_slice())
+        + slice_bytes(&model.bone_tracks)
         + slice_bytes(model.global_sequences.as_slice())
         + slice_bytes(model.particle_emitters.as_slice())
         + slice_bytes(model.attachments.as_slice())

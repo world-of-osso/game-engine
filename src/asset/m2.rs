@@ -80,7 +80,8 @@ pub struct M2Model {
     pub batches: Vec<M2RenderBatch>,
     pub bones: Vec<super::m2_anim::M2Bone>,
     pub sequences: Vec<super::m2_anim::M2AnimSequence>,
-    pub bone_tracks: Vec<super::m2_anim::BoneAnimTracks>,
+    /// Shared by every instance of the model: spawning clones the cached model per instance.
+    pub bone_tracks: Arc<[super::m2_anim::BoneAnimTracks]>,
     pub global_sequences: Vec<u32>,
     pub transparency_tracks: Vec<super::m2_anim::AnimTrack<i16>>,
     pub color_tracks: Vec<super::m2_anim::ColorAnimTracks>,

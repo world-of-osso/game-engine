@@ -21,6 +21,7 @@ use crate::asset::m2_light;
 use crate::game_state::GameState;
 use bevy::prelude::*;
 use shared::protocol::EmoteKind;
+use std::sync::Arc;
 
 use super::m2_spawn::RuntimeM2PointLight;
 pub use billboard::propagate_spherical_billboards;
@@ -53,7 +54,8 @@ pub struct M2AnimData {
     pub bones: Vec<M2Bone>,
     pub spherical_billboards: Vec<bool>,
     pub sequences: Vec<M2AnimSequence>,
-    pub bone_tracks: Vec<BoneAnimTracks>,
+    /// The model's tracks, shared by its instances; their Bevy clips are shared too.
+    pub bone_tracks: Arc<[BoneAnimTracks]>,
     pub joint_entities: Vec<Entity>,
 }
 

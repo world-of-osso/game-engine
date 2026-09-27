@@ -314,7 +314,7 @@ mod tests {
                     variation_next: -1,
                 })
                 .collect(),
-            bone_tracks: vec![tracks],
+            bone_tracks: Arc::from([tracks]),
             joint_entities: vec![],
         }
     }
