@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native loading-readiness wiring, proof pending
+
+`dae1f6e5` wires the shared loading predicate into the native host. Selected-unit position supplies local-player readiness and requests the current center tile; only an attached center tile is loaded; a present global WMO stays pending until native spawn; LoadingUI receives progress/status; completion selects `InWorld`. `191dee01` lets the stable-unit fixture accept either `Loading` or `InWorld`.
+
+No native GREEN/proof exists. `/tmp/claude/native-readiness-red.log` still observes `Loading`; build/proof awaits223. `NewWorld`, `WorldPortAck`, WMO spawn, rendered-world, and parity claims remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Shared camera-input calculation boundary
 
 `6c6d994a` moves original in-world mouse/keyboard/wheel camera calculation into Bevy-free `camera_input_data`, reusing `CameraState`, pitch limits, and portable binding matching. The root adapter maps only Bevy capture/events to that shared calculation; `47c9dac8` removes its unnecessary mutable facing binding. Core `camera_input_data` is 6/6 GREEN (`/tmp/claude/camera-input-green.log`), covering mouse orbit/facing and keyboard ordering, pitch bounds/inversion, binding modifiers/opposed actions, keyboard/wheel zoom ordering, and no-player-facing behavior. `/tmp/claude/camera-input-red.log` records the initial unexported-module RED.
