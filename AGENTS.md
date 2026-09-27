@@ -59,8 +59,8 @@ src/
 
 ## Dev
 
-- Plain Cargo build/run/test enables `dev` (Bevy dynamic linking) by default; `bd`/`rd` remain aliases. Run through Cargo for shared-library paths.
-- Distribution builds must use `cargo build --release --no-default-features --features ipc,casc` to omit `dev`; `--release` alone does not disable it.
+- Plain root `cargo run`/`rd` builds the debug `game-engine-launcher`, then launches Godot; `bd` is `cargo build`. The launcher validates pinned `data/tools/godot/4.7.2/Godot_v4.7.2-stable_linux.x86_64` or `GODOT_BIN`, builds `godot/`'s native library, and forwards arguments to Godot. It neither starts the server nor falls back to Bevy.
+- The preserved Bevy package requires explicit `-p game-engine`/`--bin game-engine`; its distribution build remains `cargo build -p game-engine --release --no-default-features --features ipc,casc`.
 - `cargo run --bin game-engine -- [model.m2]` — Launch 3D scene with M2 model
 - `cargo run --bin game-engine -- [terrain.adt]` — Launch 3D scene with ADT terrain
 - `cargo run --bin game-engine -- screenshot output.webp model.m2` — Capture screenshot and exit
@@ -77,7 +77,7 @@ src/
   - `ping` — Check if instance is alive
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
 - `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
-- `./run-tests.sh` — cargo test + clippy
+- `./run-tests.sh` — root and launcher workspace tests, clippy, and format check; run Godot workspace tests separately from `godot/`.
 - Parallel-agent tooling in `scripts/agent/`:
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
