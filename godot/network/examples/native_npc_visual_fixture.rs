@@ -15,8 +15,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender, server,
+    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender,
 };
 use shared::{
     components::{Health, ModelDisplay, MovementControl, Npc, Player, Position},
@@ -150,7 +150,15 @@ impl FixtureProject {
             std::os::unix::fs::symlink(repo.join("data").join(folder), data.join(folder))
                 .map_err(|error| format!("Link authored {folder} assets: {error}"))?;
         }
-        for name in ["project.godot", "scenes", "shaders", "tests"] {
+        for name in [
+            "WarbandScene.csv",
+            "WarbandScenePlacement.csv",
+            "WarbandScenePlacementOption.csv",
+        ] {
+            std::os::unix::fs::symlink(repo.join("data").join(name), data.join(name))
+                .map_err(|error| format!("Link authored {name}: {error}"))?;
+        }
+        for name in ["project.godot", "scenes", "shaders", "tests", "ui"] {
             std::os::unix::fs::symlink(source.join(name), project.join(name))
                 .map_err(|error| format!("Link {name}: {error}"))?;
         }
