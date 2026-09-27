@@ -15,8 +15,8 @@ use std::{
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender,
+    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender, server,
 };
 use shared::{
     components::{Health, ModelDisplay, MovementControl, Npc, Player, Position},
@@ -33,6 +33,7 @@ const DEAD_ON_SPAWN: &str = "Fixture Dead on Spawn";
 const APPEARANCE_NPC: &str = "Fixture Appearance";
 const MISSING_TYPE6_NPC: &str = "Fixture Missing Type6";
 const HAIR_TYPE6_NPC: &str = "Fixture Hair Type6";
+const TYPE19_EFFECT_NPC: &str = "Fixture Type19 Effect";
 
 #[derive(Resource, Default)]
 struct Incoming {
@@ -135,6 +136,8 @@ impl FixtureProject {
                     "910022.blp",
                     "910023.blp",
                     "910024.blp",
+                    "910025.blp",
+                    "3484643.blp",
                 ]
                 .contains(&name)
             }) {
@@ -172,7 +175,8 @@ impl FixtureProject {
             INSERT INTO creature_displays VALUES (910012,910013,910001,0,0,1000); \
             INSERT INTO creature_displays VALUES (910013,910013,910001,0,0,1000); \
             INSERT INTO creature_displays VALUES (910014,910014,910001,0,0,1000); \
-            INSERT INTO creature_displays VALUES (910016,910016,910001,0,0,1000);";
+            INSERT INTO creature_displays VALUES (910016,910016,910001,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910017,910017,910001,0,0,1000);";
         let status = Command::new("sqlite3")
             .arg(data.join("cache/creature_display.sqlite"))
             .arg(sql)
@@ -210,9 +214,9 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         CREATE TABLE appearances (display_id INTEGER PRIMARY KEY, race INTEGER NOT NULL, sex INTEGER NOT NULL, class INTEGER NOT NULL, baked_texture_fdid INTEGER NOT NULL);
         CREATE TABLE choices (display_id INTEGER NOT NULL, choice_id INTEGER NOT NULL, PRIMARY KEY(display_id, choice_id));
         CREATE TABLE geosets (display_id INTEGER NOT NULL, geoset_index INTEGER NOT NULL, geoset_value INTEGER NOT NULL, PRIMARY KEY(display_id, geoset_index));
-        INSERT INTO display_coverage VALUES (910010,0),(910011,0),(910015,0),(910012,1),(910013,1),(910014,1),(910016,1);
-        INSERT INTO appearances VALUES (910012,1,0,2,910020),(910013,1,0,2,0),(910014,1,0,2,0),(910016,2,0,2,0);
-        INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031),(910014,910030),(910014,910031),(910016,910032),(910016,910033),(910016,910034),(910016,910035);
+        INSERT INTO display_coverage VALUES (910010,0),(910011,0),(910015,0),(910012,1),(910013,1),(910014,1),(910016,1),(910017,1);
+        INSERT INTO appearances VALUES (910012,1,0,2,910020),(910013,1,0,2,0),(910014,1,0,2,0),(910016,2,0,2,0),(910017,1,0,2,0);
+        INSERT INTO choices VALUES (910012,910030),(910012,910031),(910013,910030),(910013,910031),(910014,910030),(910014,910031),(910016,910032),(910016,910033),(910016,910034),(910016,910035),(910017,910030),(910017,910036);
         INSERT INTO geosets VALUES (910012,1,2),(910013,1,1);
     ")?;
     write_sqlite_fixture(data, "customization.sqlite", "
@@ -229,16 +233,16 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO chr_models VALUES (910040,910041,1.0,0.0),(910042,910043,1.0,0.0);
         INSERT INTO options VALUES (910050,'Skin',910040,910060,0,0,0),(910051,'Body',910040,910060,1,0,0),
             (910052,'Skin',910042,910060,0,0,0),(910053,'Body',910042,910060,1,0,0),
-            (910054,'Head',910042,910060,2,0,0),(910055,'Hair',910042,910060,3,0,0);
+            (910054,'Head',910042,910060,2,0,0),(910055,'Hair',910042,910060,3,0,0),(910056,'Eye',910040,910060,2,0,0);
         INSERT INTO categories VALUES (910060,'Appearance',0,0,0);
         INSERT INTO choices VALUES (910030,910050,'Base skin',0,0,0,0,0),(910031,910051,'Body color',0,0,0,0,0),
             (910032,910052,'Base skin',0,0,0,0,0),(910033,910053,'Body color',0,0,0,0,0),
-            (910034,910054,'Head color',0,0,0,0,0),(910035,910055,'Hair color',0,0,0,0,0);
+            (910034,910054,'Head color',0,0,0,0,0),(910035,910055,'Hair color',0,0,0,0,0),(910036,910056,'Eye color',0,0,0,0,0);
         INSERT INTO elements VALUES (910030,0,0,910070,0),(910031,910030,910080,910071,0),
-            (910032,0,0,910070,0),(910033,0,0,910071,0),(910034,0,0,910074,0),(910035,0,0,910075,0);
-        INSERT INTO materials VALUES (910070,1,910072),(910071,2,910073),(910074,9,910076),(910075,10,910077);
+            (910032,0,0,910070,0),(910033,0,0,910071,0),(910034,0,0,910074,0),(910035,0,0,910075,0),(910036,0,0,910076,0);
+        INSERT INTO materials VALUES (910070,1,910072),(910071,2,910073),(910074,9,910076),(910075,10,910077),(910076,11,910078);
         INSERT INTO geosets VALUES (910080,1,2);
-        INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022),(910076,910023),(910077,910024);
+        INSERT INTO texture_fdids VALUES (910072,910021),(910073,910022),(910076,910023),(910077,910024),(910078,910025);
     ")?;
     write_sqlite_fixture(data, "char_texture.sqlite", "
         CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
@@ -248,6 +252,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         INSERT INTO layouts VALUES (910041,2,2),(910043,2048,1024);
         INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041),
             (1,0,0,-1,1,910043),(1,1,0,-1,2,910043),
+            (19,2,0,-1,11,910041),
             (6,2,0,512,9,910043),(6,3,0,-1,10,910043);
         INSERT INTO sections VALUES (910043,9,0,0,1024,1024),(910043,10,1024,0,1024,1024);
     ")?;
@@ -684,8 +689,13 @@ fn run_fixture(
                     spawn_named_npc(app, 910016, HAIR_TYPE6_NPC);
                     phase = 23;
                 }
-                (23, "FIXTURE TYPE6_HAIR_READY") => phase = 24,
-                (24, "FIXTURE RESET_READY") => phase = 25,
+                (23, "FIXTURE TYPE6_HAIR_READY") => {
+                    spawn_named_npc(app, 910017, TYPE19_EFFECT_NPC);
+                    phase = 24;
+                }
+                (24, "FIXTURE TYPE19_READY") => phase = 25,
+                (25, "FIXTURE EFFECT_ISOLATED_READY") => phase = 26,
+                (26, "FIXTURE RESET_READY") => phase = 27,
                 (_, line) if line.starts_with("FIXTURE ") => {
                     return Err(format!("Out-of-order phase {phase}: {line}"));
                 }
@@ -693,7 +703,7 @@ fn run_fixture(
             }
         }
         if let Some(status) = status {
-            if !status.success() || phase != 25 {
+            if !status.success() || phase != 27 {
                 return Err(format!("Godot exited {status} at phase {phase}"));
             }
             if !saw_missing_type6_error {
@@ -702,7 +712,7 @@ fn run_fixture(
                 );
             }
             println!(
-                "PASS: native UDP NPC visual lifecycle, authored lighting, visibility, missing type 6, and bound hair type 6"
+                "PASS: native UDP NPC visual lifecycle, authored lighting, visibility, missing type 6, bound hair type 6, type 19 and effect isolation"
             );
             return Ok(());
         }
