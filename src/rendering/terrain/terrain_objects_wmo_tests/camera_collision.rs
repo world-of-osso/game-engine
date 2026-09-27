@@ -2,6 +2,7 @@ use super::*;
 use bevy::camera::visibility::{VisibilityPlugin, VisibilitySystems, update_frusta};
 use bevy::state::app::StatesPlugin;
 use game_engine::camera_control::WowCamera;
+use game_engine::camera_control_data::CameraState;
 use game_engine::culling::{CullingPlugin, Wmo, WmoGroup};
 use game_engine::game_state_enum::GameState;
 
@@ -133,13 +134,13 @@ const STAIRS_DOORWAY: Vec3 = Vec3::new(-8766.1, 845.5, 88.0);
 /// (the user's walk, WoW -8774, 838 down to the portal doorway) with the camera at `yaw` and
 /// `pitch`, and return the frames on which the stairwell was culled.
 fn walk_down_the_stockade_stairs(yaw: f32, pitch: f32, distance: f32) -> (App, Entity, Vec<u32>) {
-    let camera = WowCamera {
+    let camera = WowCamera(CameraState {
         yaw: yaw.to_radians(),
         pitch: pitch.to_radians(),
         distance,
         target_distance: distance,
         ..default()
-    };
+    });
     let (mut app, player, camera_entity) = magic_district_camera_app(STAIRS_TOP, camera);
     for _ in 0..300 {
         advance(&mut app, 1.0 / 60.0);
@@ -262,13 +263,13 @@ fn player_on_the_stockade_stairs_is_blocked_by_the_culled_stairwell_wall() {
 fn stockade_tunnel_camera_ignores_the_terrain_above_the_tunnel() {
     let player = Vec3::new(-8765.0, 846.5, 88.0);
     let settle = |with_terrain: bool| {
-        let camera = WowCamera {
+        let camera = WowCamera(CameraState {
             yaw: 130f32.to_radians(),
             pitch: 20f32.to_radians(),
             distance: 8.0,
             target_distance: 8.0,
             ..default()
-        };
+        });
         let (mut app, _, camera_entity) = magic_district_camera_app(player, camera);
         if with_terrain {
             let data = std::fs::read("data/terrain/777627.adt").expect("azeroth_30_48 root ADT");
