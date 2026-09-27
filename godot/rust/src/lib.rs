@@ -15,6 +15,7 @@ mod world_models;
 use std::{collections::HashMap, path::PathBuf};
 
 use account::{Account, AccountEvent};
+use game_engine_core::client_options_data::{ClientOptionsFile, load_options_file_with_legacy};
 use game_engine_network::UnitSnapshot;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
@@ -47,6 +48,7 @@ pub struct GameClient {
     world_lighting: lighting::WorldLighting,
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
+    client_options: ClientOptionsFile,
     world_minutes: f32,
     server_hostname: String,
 }
@@ -58,6 +60,8 @@ impl INode3D for GameClient {
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
         let cache_root =
             PathBuf::from(settings.globalize_path("user://asset-resolver").to_string());
+        let client_options =
+            load_options_file_with_legacy(&data_root.join("ui/options_settings.ron")).clamped();
         Self {
             base,
             model_scene: None,
@@ -74,6 +78,7 @@ impl INode3D for GameClient {
             world_lighting: lighting::WorldLighting::default(),
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
+            client_options,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             units: HashMap::new(),
@@ -458,6 +463,7 @@ impl GameClient {
             return Ok(());
         };
         let mut parent = self.to_gd().upcast::<Node3D>();
+        self.world_camera.configure(&self.client_options.camera);
         self.world_camera
             .sync(&mut parent, &player, &self.terrain, delta)
     }

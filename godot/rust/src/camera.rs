@@ -3,6 +3,9 @@
 use game_engine_core::{
     camera_control_data::{CameraState, DEFAULT_CAMERA_FOV_DEGREES},
     camera_follow_data::follow_camera,
+    camera_input_data::{CameraInput, apply_camera_input},
+    client_options_data::CameraOptionsFile,
+    input_bindings_data::{InputBindingsData, InputState},
 };
 use godot::{
     classes::{
@@ -13,13 +16,50 @@ use godot::{
 
 use crate::terrain::streaming::StreamedTerrain;
 
-#[derive(Default)]
 pub(crate) struct WorldCamera {
     node: Option<Gd<Camera3D>>,
     state: CameraState,
+    fov_degrees: f32,
+}
+
+impl Default for WorldCamera {
+    fn default() -> Self {
+        Self {
+            node: None,
+            state: CameraState::default(),
+            fov_degrees: DEFAULT_CAMERA_FOV_DEGREES,
+        }
+    }
 }
 
 impl WorldCamera {
+    pub fn configure(&mut self, options: &CameraOptionsFile) {
+        self.state.follow_speed = options.follow_speed;
+        self.state.zoom_speed = options.zoom_speed;
+        self.state.min_distance = options.min_distance;
+        self.state.max_distance = options.max_distance.max(options.min_distance + 1.0);
+        self.state.target_distance = self
+            .state
+            .target_distance
+            .clamp(self.state.min_distance, self.state.max_distance);
+        self.state.distance = self
+            .state
+            .distance
+            .clamp(self.state.min_distance, self.state.max_distance);
+        self.fov_degrees = options.fov_degrees;
+    }
+
+    pub fn apply_input(
+        &mut self,
+        facing: f32,
+        bindings: &InputBindingsData,
+        state: &impl InputState,
+        input: CameraInput,
+    ) -> f32 {
+        apply_camera_input(&mut self.state, Some(facing), bindings, state, input)
+            .expect("camera input preserves a present player facing")
+    }
+
     pub fn reset(&mut self) {
         if let Some(node) = self.node.take() {
             node.free();
@@ -38,6 +78,7 @@ impl WorldCamera {
             .node
             .get_or_insert_with(|| spawn_camera(parent))
             .clone();
+        camera.set_fov(self.fov_degrees);
         let mut space = camera
             .get_world_3d()
             .and_then(|world| world.get_direct_space_state())
