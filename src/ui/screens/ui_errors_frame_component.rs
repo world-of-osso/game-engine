@@ -4,7 +4,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
-use crate::ui::ui_errors::{MAX_ERROR_LINES, UiErrors};
+use crate::ui::ui_errors_data::{MAX_ERROR_LINES, UiErrorsData};
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 
 pub const UI_ERRORS_FRAME: FrameName = FrameName("UIErrorsFrame");
@@ -25,8 +25,8 @@ pub fn ui_error_line_name(index: usize) -> String {
 
 pub fn ui_errors_frame_screen(ctx: &SharedContext) -> Element {
     let errors = ctx
-        .get::<UiErrors>()
-        .expect("UiErrors must be in SharedContext");
+        .get::<UiErrorsData>()
+        .expect("UiErrorsData must be in SharedContext");
     let lines: Element = (0..MAX_ERROR_LINES)
         .flat_map(|index| {
             let line = errors.lines.get(index);
@@ -83,7 +83,7 @@ mod tests {
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::Screen;
 
-    fn build(errors: UiErrors) -> FrameRegistry {
+    fn build(errors: UiErrorsData) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
         shared.insert(errors);
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn shows_newest_first_and_hides_unused_lines() {
-        let mut errors = UiErrors::default();
+        let mut errors = UiErrorsData::default();
         errors.add("Out of range.");
         errors.add("Invalid target");
         let reg = build(errors);
@@ -114,7 +114,7 @@ mod tests {
 
     #[test]
     fn fading_line_uses_red_with_line_alpha() {
-        let mut errors = UiErrors::default();
+        let mut errors = UiErrorsData::default();
         errors.add("Out of range.");
         errors.lines[0].age = 3.25;
         let reg = build(errors);

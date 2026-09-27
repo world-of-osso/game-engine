@@ -5,50 +5,25 @@
 
 use bevy::prelude::*;
 use shared::components::PowerType;
+
+use super::ui_errors_data::UiErrorsData;
+pub use super::ui_errors_data::{ERROR_FADE_SECS, ERROR_HOLD_SECS, ErrorLine, MAX_ERROR_LINES};
 use shared::spell_data::CastFailReason;
 
-pub const MAX_ERROR_LINES: usize = 3;
-/// Seconds a line stays fully opaque.
-pub const ERROR_HOLD_SECS: f32 = 3.0;
-/// Seconds of fade-out after the hold.
-pub const ERROR_FADE_SECS: f32 = 0.5;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct ErrorLine {
-    pub text: String,
-    pub age: f32,
-}
-
-impl ErrorLine {
-    pub fn alpha(&self) -> f32 {
-        let fade = (self.age - ERROR_HOLD_SECS) / ERROR_FADE_SECS;
-        (1.0 - fade.max(0.0)).clamp(0.0, 1.0)
-    }
-}
-
 #[derive(Resource, Clone, Debug, Default, PartialEq)]
-pub struct UiErrors {
-    /// Newest first.
-    pub lines: Vec<ErrorLine>,
+pub struct UiErrors(pub UiErrorsData);
+
+impl std::ops::Deref for UiErrors {
+    type Target = UiErrorsData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
-impl UiErrors {
-    pub fn add(&mut self, text: impl Into<String>) {
-        let text = text.into();
-        if let Some(line) = self.lines.iter_mut().find(|line| line.text == text) {
-            line.age = 0.0;
-            return;
-        }
-        self.lines.insert(0, ErrorLine { text, age: 0.0 });
-        self.lines.truncate(MAX_ERROR_LINES);
-    }
-
-    pub fn tick(&mut self, dt: f32) {
-        for line in &mut self.lines {
-            line.age += dt;
-        }
-        self.lines
-            .retain(|line| line.age < ERROR_HOLD_SECS + ERROR_FADE_SECS);
+impl std::ops::DerefMut for UiErrors {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 

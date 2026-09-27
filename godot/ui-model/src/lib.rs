@@ -12,6 +12,8 @@ pub mod ui {
     pub mod screens {
         pub use crate::trash_button_component;
     }
+
+    pub use crate::ui_errors_data;
 }
 
 #[path = "../../../src/ui/screens/char_create_component/mod.rs"]
@@ -27,6 +29,11 @@ pub mod char_select_component;
 mod char_select_delete_confirm_component;
 #[path = "../../../src/ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
+
+#[path = "../../../src/ui/ui_errors_data.rs"]
+pub mod ui_errors_data;
+#[path = "../../../src/ui/screens/ui_errors_frame_component.rs"]
+pub mod ui_errors_frame_component;
 
 #[path = "../../../src/ui/screens/loading_component.rs"]
 pub mod loading_component;
@@ -50,6 +57,40 @@ use login::{
     USERNAME_INPUT, login_screen,
 };
 use shared::protocol::CharacterListEntry;
+use ui_errors_data::UiErrorsData;
+use ui_errors_frame_component::ui_errors_frame_screen;
+
+/// Authored UIErrorsFrame tree and message lifetime, independent of the active screen.
+pub struct UiErrorsModel {
+    pub screen: Screen,
+    pub shared: SharedContext,
+    pub registry: FrameRegistry,
+    pub errors: UiErrorsData,
+}
+
+impl UiErrorsModel {
+    pub fn new(screen_width: f32, screen_height: f32) -> Self {
+        let errors = UiErrorsData::default();
+        let mut shared = SharedContext::new();
+        shared.insert(errors.clone());
+        Self {
+            screen: Screen::new(ui_errors_frame_screen),
+            shared,
+            registry: FrameRegistry::new(screen_width, screen_height),
+            errors,
+        }
+    }
+
+    pub fn sync(&mut self) {
+        self.shared.insert(self.errors.clone());
+        self.screen.sync(&self.shared, &mut self.registry);
+    }
+
+    pub fn tick(&mut self, dt: f32) {
+        self.errors.tick(dt);
+        self.sync();
+    }
+}
 
 /// Convert the protocol roster and session-selected index into the original character-select UI text.
 /// Selection policy (including first-character default and name preselection) belongs to the session.

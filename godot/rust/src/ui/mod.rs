@@ -7,8 +7,9 @@ use std::collections::VecDeque;
 use game_engine_ui_model::char_create_component::CharCreateUiState;
 use game_engine_ui_model::char_select_component::{CharSelectState, size_char_select_root};
 use game_engine_ui_model::{
-    CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel,
+    CharacterCreateModel, CharacterSelectModel, LoadingModel, LoginModel, UiErrorsModel,
     apply_character_create_postsetup, loading_component::LoadingScreenState, login,
+    ui_errors_data::UiErrorsData,
 };
 use godot::classes::{CanvasLayer, ICanvasLayer};
 use godot::prelude::*;
@@ -163,6 +164,62 @@ impl RegistryUi {
         model.sync();
         apply_login_art(&mut model.registry)?;
         self.initialize_model(model, width, height)
+    }
+
+    /// Initialize a dedicated RegistryUi instance for the authored error overlay.
+    pub fn show_errors(&mut self) -> Result<(), String> {
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let UiErrorsModel {
+            screen,
+            shared,
+            registry,
+            ..
+        } = UiErrorsModel::new(size.x, size.y);
+        let mut model = RegistryModel {
+            screen,
+            shared,
+            registry,
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+    }
+
+    fn update_errors(&mut self, update: impl FnOnce(&mut UiErrorsData)) -> Result<(), String> {
+        let model = self
+            .model
+            .as_mut()
+            .ok_or("UIErrors UI is not initialized")?;
+        if model.registry.get_by_name("UIErrorsFrame").is_none() {
+            return Err("RegistryUi is not an UIErrors overlay".into());
+        }
+        let mut errors = model
+            .shared
+            .get::<UiErrorsData>()
+            .ok_or("UIErrors data is not initialized")?
+            .clone();
+        update(&mut errors);
+        model.shared.insert(errors);
+        self.sync_model()
+    }
+
+    pub fn add_error(&mut self, text: &str) -> Result<(), String> {
+        self.update_errors(|errors| errors.add(text))
+    }
+
+    pub fn tick_errors(&mut self, dt: f32) -> Result<(), String> {
+        self.update_errors(|errors| errors.tick(dt))
+    }
+
+    pub fn clear_errors(&mut self) -> Result<(), String> {
+        self.update_errors(|errors| *errors = UiErrorsData::default())
     }
 
     fn initialize_model(
