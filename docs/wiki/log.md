@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native creature light producer lifecycle
+
+`90f91a5a` centralizes native M2's nine common ambient/direct/sun/fog shader writes in `TerrainLight::bind_model`; `clear_model` nils that same set. Terrain's cube-map binding is unchanged: the M2 shader declares no `environment_map` uniform.
+
+`b628997e` retains the sampled light in `WorldUnits`, binds it to creature visuals on spawn/replacement, rebinds existing visuals on live updates, clears material overrides and retained state on map change/transfer, and drops it during world reset. The synthetic-WDT/no-ADT fixture intentionally stays `Loading`; its RED observes a real `WorldLighting` node, an NPC authored material, and null common uniforms before the producer path (`/tmp/claude/native-npc-light-red-22627188.log`). Native build/runtime GREEN is pending. No rendered-pixel, lighting-correctness, InWorld/readiness, visual-parity, or full-conversion conclusion follows.
+
+Updated [[retail-lighting]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native WorldUnits creature visuals
 
 `7a4add9b` connects ordinary replicated NPC `WorldUnits` nodes to the lazy read-only creature-display catalog and local-CASC model path. A nonzero NPC display resolves model FDID, three texture slots, and scale; its owned `NpcVisualRoot` uses yaw `-PI/2`. Same-display updates retain the child, display changes/removal free and replace/remove it, and world reset frees the owned tree. Players remain outside this path. Query/catalog/load failures report explicit NPC/display errors with no capsule/substitute.
