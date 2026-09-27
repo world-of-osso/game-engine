@@ -48,6 +48,8 @@ pub mod cpu_system_profile;
 pub mod creation_scene_data;
 #[path = "game/creatures/creature_display.rs"]
 pub mod creature_display;
+#[path = "game/creatures/creature_display_data.rs"]
+pub mod creature_display_data;
 pub mod csv_util;
 pub mod currency;
 #[path = "game/cursor_item.rs"]
