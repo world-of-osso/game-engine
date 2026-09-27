@@ -4,6 +4,9 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::ui::screens::raid_info_frame_component::{
+    RaidInfoState, raid_info_frame, raid_tab_body,
+};
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -111,6 +114,8 @@ pub struct FriendsFrameState {
     pub who_query: String,
     pub who_results: Vec<WhoEntry>,
     pub status_text: String,
+    /// The Raid tab's Raid Info button and the `RaidInfoFrame` beside the frame.
+    pub raid_info: RaidInfoState,
 }
 
 impl Default for FriendsFrameState {
@@ -144,6 +149,7 @@ impl Default for FriendsFrameState {
             who_query: String::new(),
             who_results: vec![],
             status_text: String::new(),
+            raid_info: RaidInfoState::default(),
         }
     }
 }
@@ -167,6 +173,7 @@ pub fn friends_frame_screen(ctx: &SharedContext) -> Element {
             {title_bar()}
             {tab_row(&state.tabs)}
             {content_area(state)}
+            {raid_info_frame(&state.raid_info, FRAME_W + 2.0)}
         }
     }
 }
@@ -271,12 +278,7 @@ fn content_area_body(state: &FriendsFrameState, content_w: f32, content_h: f32) 
             content_w,
             content_h,
         ),
-        FriendsFrameTabKind::Raid => placeholder_content_body(
-            "Raid",
-            "Raid roster is not implemented yet.",
-            content_w,
-            content_h,
-        ),
+        FriendsFrameTabKind::Raid => raid_tab_body(&state.raid_info, content_w),
         FriendsFrameTabKind::QuickJoin => placeholder_content_body(
             "Quick Join",
             "Quick Join is not implemented yet.",

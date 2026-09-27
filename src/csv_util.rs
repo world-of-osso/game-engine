@@ -28,6 +28,26 @@ pub fn parse_csv_line(line: &str) -> Vec<String> {
     fields
 }
 
+/// The records of CSV `text`, a quoted field may span lines (`Map.csv` descriptions).
+pub fn parse_csv_records(text: &str) -> Vec<Vec<String>> {
+    let mut records = Vec::new();
+    let mut record = String::new();
+    for line in text.lines() {
+        if !record.is_empty() {
+            record.push('\n');
+        }
+        record.push_str(line);
+        if record.matches('"').count() % 2 == 0 {
+            records.push(parse_csv_line(&record));
+            record.clear();
+        }
+    }
+    if !record.is_empty() {
+        records.push(parse_csv_line(&record));
+    }
+    records
+}
+
 pub fn parse_csv_line_trimmed(line: &str) -> Vec<String> {
     parse_csv_line(line)
         .into_iter()
@@ -64,6 +84,15 @@ mod tests {
     fn parse_csv_line_handles_escaped_quotes() {
         let fields = parse_csv_line(r#""a ""quoted"" value",x"#);
         assert_eq!(fields, vec![r#"a "quoted" value"#, "x"]);
+    }
+
+    #[test]
+    fn parse_csv_records_keeps_quoted_newlines_in_one_record() {
+        let records = parse_csv_records("ID,Name\n1,\"two\nlines\"\n2,x\n");
+        assert_eq!(
+            records,
+            vec![vec!["ID", "Name"], vec!["1", "two\nlines"], vec!["2", "x"]]
+        );
     }
 
     #[test]

@@ -6,7 +6,11 @@ use crate::ui::anchor::FrameName;
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::calendar_frame_component::ACTION_CALENDAR_TOGGLE;
 use crate::ui::strata::FrameStrata;
-use inworld_hud_art::{BACKPACK, BAG_SLOT_EMPTY, MINIMAP_MAIL, SheetCrop};
+use inworld_hud_art::{
+    BACKPACK, BAG_SLOT_EMPTY, INSTANCE_BANNER_BACKGROUND, INSTANCE_BANNER_BORDER,
+    INSTANCE_BANNER_HEROIC, INSTANCE_BANNER_MYTHIC, INSTANCE_BANNER_NORMAL, MINIMAP_MAIL,
+    SheetCrop,
+};
 use inworld_hud_micro::micro_menu_bar;
 
 #[path = "inworld_hud_art.rs"]
@@ -710,6 +714,7 @@ fn minimap_cluster() -> Element {
             pos_y: 8.0,
             {minimap_header()}
             {minimap_display()}
+            {minimap_instance_difficulty()}
         }
     }
 }
@@ -773,6 +778,73 @@ fn minimap_buttons() -> Element {
         .collect();
     out.extend(minimap_mail_indicator());
     out
+}
+
+/// Retail `MinimapCluster.InstanceDifficulty` (`InstanceDifficultyTemplate`,
+/// InstanceDifficulty.xml): the banner shown inside an instance, its Normal, Heroic or
+/// Mythic texture over the players-in-instance count.
+pub const MINIMAP_INSTANCE_DIFFICULTY: &str = "MinimapClusterInstanceDifficulty";
+pub const MINIMAP_INSTANCE_DIFFICULTY_NORMAL: &str =
+    "MinimapClusterInstanceDifficultyNormalTexture";
+pub const MINIMAP_INSTANCE_DIFFICULTY_HEROIC: &str =
+    "MinimapClusterInstanceDifficultyHeroicTexture";
+pub const MINIMAP_INSTANCE_DIFFICULTY_MYTHIC: &str =
+    "MinimapClusterInstanceDifficultyMythicTexture";
+pub const MINIMAP_INSTANCE_DIFFICULTY_TEXT: &str = "MinimapClusterInstanceDifficultyText";
+
+fn instance_banner_texture(name: &str, crop: SheetCrop, size: (f32, f32), top: f32) -> Element {
+    let coords = crop.tex_coords();
+    rsx! {
+        texture {
+            name: {DynName(name.into())},
+            width: {size.0},
+            height: {size.1},
+            texture_fdid: {crop.fdid},
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            left: "50%",
+            translate_x: "-50%",
+            top: {top},
+        }
+    }
+}
+
+/// The 35.5x36.5 banner anchored TOPRIGHT of the cluster's top border, 15 px down
+/// (Minimap.xml:397-401); the difficulty texture and count stack from 4 px down
+/// (`VerticalLayoutFrame` topPadding 4).
+fn minimap_instance_difficulty() -> Element {
+    let icon = |name: &str, crop| instance_banner_texture(name, crop, (16.0, 16.0), 4.0);
+    rsx! {
+        r#frame {
+            name: {DynName(MINIMAP_INSTANCE_DIFFICULTY.into())},
+            width: 35.5,
+            height: 36.5,
+            hidden: true,
+            mouse_enabled: true,
+            strata: FrameStrata::High,
+            frame_level: 13.0,
+            pos_type: "absolute",
+            right: 0.0,
+            top: 15.0,
+            {instance_banner_texture("MinimapClusterInstanceDifficultyBackground", INSTANCE_BANNER_BACKGROUND, (36.0, 37.0), 0.0)}
+            {instance_banner_texture("MinimapClusterInstanceDifficultyBorder", INSTANCE_BANNER_BORDER, (36.0, 37.0), 0.0)}
+            {icon(MINIMAP_INSTANCE_DIFFICULTY_NORMAL, INSTANCE_BANNER_NORMAL)}
+            {icon(MINIMAP_INSTANCE_DIFFICULTY_HEROIC, INSTANCE_BANNER_HEROIC)}
+            {icon(MINIMAP_INSTANCE_DIFFICULTY_MYTHIC, INSTANCE_BANNER_MYTHIC)}
+            fontstring {
+                name: {DynName(MINIMAP_INSTANCE_DIFFICULTY_TEXT.into())},
+                width: 35.0,
+                height: 12.0,
+                text: "",
+                font_size: 10.0,
+                font_color: "1.0,0.82,0.0,1.0",
+                justify_h: "CENTER",
+                pos_type: "absolute",
+                left: 0.0,
+                top: 20.0,
+            }
+        }
+    }
 }
 
 /// Retail `MiniMapMailFrame` (Minimap.xml:92-112): the 20x15 `ui-hud-minimap-mail-up`

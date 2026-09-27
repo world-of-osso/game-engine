@@ -739,3 +739,64 @@ fn elwynn_tile_loads_minimap_art_in_adt_index_order() {
         "swapped index has no art"
     );
 }
+
+fn instance_banner_app(state: game_engine::instance_state::InstanceState) -> App {
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let frames = build_minimap_screen(&mut registry);
+    let mut app = App::new();
+    app.insert_resource(UiState {
+        registry,
+        event_bus: ui_toolkit::event::EventBus::new(),
+        focused_frame: None,
+    });
+    app.insert_resource(frames);
+    app.insert_resource(game_engine::instance_state::InstanceCatalog::load().unwrap());
+    app.insert_resource(state);
+    app.add_systems(Update, sync_instance_difficulty);
+    app
+}
+
+fn banner_hidden(app: &App, frame: fn(&InstanceDifficultyFrames) -> u64) -> bool {
+    let id = frame(&app.world().resource::<MinimapFrames>().instance_difficulty);
+    app.world().resource::<UiState>().registry.get(id).unwrap().hidden
+}
+
+#[test]
+fn the_instance_banner_shows_the_heroic_texture_and_player_count_in_a_heroic_copy() {
+    let mut app = instance_banner_app(game_engine::instance_state::InstanceState {
+        current_map: Some((670, 2)),
+        ..Default::default()
+    });
+    for name in ["Fixshout", "Fixpartner"] {
+        app.world_mut().spawn(shared::components::Player {
+            name: name.into(),
+            race: 1,
+            class: 1,
+            appearance: Default::default(),
+        });
+    }
+    app.update();
+    assert!(!banner_hidden(&app, |f| f.banner));
+    assert!(!banner_hidden(&app, |f| f.heroic));
+    assert!(banner_hidden(&app, |f| f.normal));
+    assert!(banner_hidden(&app, |f| f.mythic));
+    let text = app.world().resource::<MinimapFrames>().instance_difficulty.text;
+    let ui = app.world().resource::<UiState>();
+    let Some(WidgetData::FontString(font)) = &ui.registry.get(text).unwrap().widget_data else {
+        panic!("banner count is not a font string");
+    };
+    assert_eq!(font.text, "2");
+
+    // Mythic shows its own texture; a continent hides the banner.
+    app.world_mut()
+        .resource_mut::<game_engine::instance_state::InstanceState>()
+        .current_map = Some((670, 23));
+    app.update();
+    assert!(!banner_hidden(&app, |f| f.mythic));
+    assert!(banner_hidden(&app, |f| f.heroic));
+    app.world_mut()
+        .resource_mut::<game_engine::instance_state::InstanceState>()
+        .current_map = Some((0, 0));
+    app.update();
+    assert!(banner_hidden(&app, |f| f.banner));
+}
