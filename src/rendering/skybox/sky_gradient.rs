@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::sky_lightdata::SkyColorSet;
 
 pub(crate) use super::sky_cubemap_data::{
-    SKY_BAND_MAX, SKY_DOME_POINT_COUNT, SkyDomePoint, sky_band_at_elevation, sky_dome_profile,
+    SKY_BAND_MAX, SKY_DOME_POINT_COUNT, SkyDomePoint, sky_dome_profile,
 };
 
 /// Colour stop per dome point, top pole first.
