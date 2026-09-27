@@ -1,6 +1,6 @@
 use game_engine_session::{
-    AuthRequest, Session, SessionEffect, SessionOptions, SessionScreen, normalize_auth_token,
-    token_path,
+    AuthRequest, ReconnectPhase, Session, SessionEffect, SessionOptions, SessionScreen,
+    normalize_auth_token, token_path,
 };
 use shared::components::{CharacterAppearance, EquipmentAppearance};
 use shared::protocol::{
@@ -331,4 +331,166 @@ fn forced_notice_disconnects_first_then_surfaces_message_and_resets_world() {
             .iter()
             .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login)))
     );
+}
+
+#[test]
+fn charselect_disconnect_with_token_resets_and_reconnects_without_auto_entry() {
+    let mut session = Session::default();
+    session.screen = SessionScreen::CharacterSelect;
+    session.token = Some(" saved-token-real ".into());
+    session.selected_character_name = Some("Elara".into());
+    let effects = session.receive_disconnected_with_reason(Some("lost"));
+    assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
+    assert!(!session.gameplay_input_allowed());
+    assert!(!session.reconnect_options().auto_enter_world);
+    assert_eq!(session.reconnect_options().preselected_name, None);
+    assert_eq!(session.screen, SessionScreen::CharacterSelect);
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::ResetNetworkWorld))
+    );
+    assert!(
+        !effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(_)))
+    );
+    session.receive_connected();
+    assert_eq!(session.reconnect_phase, ReconnectPhase::AwaitingWorld);
+    let reconnect = session.reconnect_options();
+    assert_eq!(reconnect.preselected_name, None);
+    assert!(!reconnect.auto_enter_world);
+    session.receive_login(
+        success(vec![character(7, "Elara")]),
+        SessionOptions::default(),
+    );
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
+    assert!(session.gameplay_input_allowed());
+}
+
+#[test]
+fn world_disconnect_preserves_name_auto_entry_and_inworld_screen() {
+    for screen in [SessionScreen::InWorld, SessionScreen::Loading] {
+        let mut session = Session::default();
+        session.screen = screen;
+        session.token = Some("real-token".into());
+        session.selected_character_name = Some("Elara".into());
+        let effects = session.receive_disconnected_with_reason(Some("lost"));
+        assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
+        assert_eq!(session.screen, SessionScreen::InWorld);
+        assert_eq!(session.selected_character_name.as_deref(), Some("Elara"));
+        assert_eq!(session.reconnect_options().preselected_name, Some("Elara"));
+        assert!(session.reconnect_options().auto_enter_world);
+        assert!(
+            effects
+                .iter()
+                .any(|effect| matches!(effect, SessionEffect::ResetNetworkWorld))
+        );
+        assert!(
+            effects
+                .iter()
+                .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::InWorld)))
+        );
+        session.receive_connected();
+        let effects = session.receive_login(
+            success(vec![character(9, "Borin"), character(7, "Elara")]),
+            SessionOptions::default(),
+        );
+        assert_eq!(session.selected_index, Some(1));
+        assert!(effects.iter().any(|effect| matches!(effect, SessionEffect::SelectCharacter(request) if request.character_id == 7)));
+        assert_eq!(session.reconnect_phase, ReconnectPhase::AwaitingWorld);
+    }
+}
+
+#[test]
+fn initial_marker_only_ignored_while_pending_without_reason_or_forced_notice() {
+    let mut session = Session::default();
+    session.screen = SessionScreen::InWorld;
+    session.token = Some("real-token".into());
+    session.receive_disconnected_with_reason(Some("lost"));
+    session.feedback = Some("unchanged".into());
+    assert!(session.receive_disconnected().is_empty());
+    assert_eq!(session.feedback.as_deref(), Some("unchanged"));
+    assert_eq!(session.reconnect_phase, ReconnectPhase::PendingConnect);
+    assert!(
+        !session
+            .receive_disconnected_with_reason(Some("failed"))
+            .is_empty()
+    );
+    session.receive_forced_disconnect(ForcedDisconnect {
+        message: "Kicked".into(),
+        reconnect_allowed: false,
+    });
+    let effects = session.receive_disconnected();
+    assert_eq!(session.feedback.as_deref(), Some("Kicked"));
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::ResetNetworkWorld))
+    );
+}
+
+#[test]
+fn world_reconnect_finishes_only_after_terrain_refresh_and_local_player() {
+    let mut session = Session::default();
+    session.screen = SessionScreen::InWorld;
+    session.token = Some("real-token".into());
+    session.receive_disconnected_with_reason(Some("lost"));
+    session.receive_terrain_refresh();
+    assert!(session.terrain_refresh_seen);
+    assert!(!session.finish_reconnect(true));
+    session.receive_connected();
+    assert_eq!(session.reconnect_phase, ReconnectPhase::AwaitingWorld);
+    assert!(!session.finish_reconnect(false));
+    assert!(!session.gameplay_input_allowed());
+    assert!(session.finish_reconnect(true));
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
+    assert!(!session.terrain_refresh_seen);
+    assert!(session.gameplay_input_allowed());
+}
+
+#[test]
+fn no_token_and_failed_auth_or_entry_clear_reconnect() {
+    let mut session = Session::default();
+    session.screen = SessionScreen::CharacterSelect;
+    assert!(
+        session
+            .receive_disconnected_with_reason(Some("lost"))
+            .is_empty()
+    );
+    assert_eq!(
+        session.feedback.as_deref(),
+        Some("Connection lost. Char select is now offline.")
+    );
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
+    session.screen = SessionScreen::InWorld;
+    let effects = session.receive_disconnected_with_reason(Some("lost"));
+    assert_eq!(session.screen, SessionScreen::Login);
+    assert!(
+        effects
+            .iter()
+            .any(|effect| matches!(effect, SessionEffect::Transition(SessionScreen::Login)))
+    );
+    session.token = Some("real-token".into());
+    session.screen = SessionScreen::InWorld;
+    session.receive_disconnected_with_reason(Some("lost"));
+    session.receive_login(
+        LoginResponse {
+            success: false,
+            token: "".into(),
+            characters: vec![],
+            error: Some("denied".into()),
+        },
+        SessionOptions::default(),
+    );
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
+    session.screen = SessionScreen::InWorld;
+    session.receive_disconnected_with_reason(Some("lost"));
+    session.receive_enter_world(EnterWorldResponse {
+        success: false,
+        player_entity: None,
+        error: Some("denied".into()),
+    });
+    assert_eq!(session.reconnect_phase, ReconnectPhase::Inactive);
 }
