@@ -1,5 +1,6 @@
 //! Native M2/BLP conversion with authored batch resolution and materials.
 //! Character replacement textures and geoset selection remain external appearance work.
+pub(crate) mod creature;
 mod material;
 mod uv_animation;
 use std::{collections::HashMap, fs, path::Path};

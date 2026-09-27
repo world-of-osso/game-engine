@@ -102,6 +102,21 @@ pub fn resolve_render_batches(
     )
 }
 
+/// FileDataIDs for the primary geometry skin and optional external skeleton.
+#[derive(Debug, PartialEq, Eq)]
+pub struct AssetReferences {
+    pub skin_fdids: Vec<u32>,
+    pub skeleton_fdid: Option<u32>,
+}
+
+pub fn parse_asset_references(model: &[u8]) -> Result<AssetReferences, String> {
+    let chunks = format::parse_chunks(model)?;
+    Ok(AssetReferences {
+        skin_fdids: chunks.sfid,
+        skeleton_fdid: chunks.skid,
+    })
+}
+
 fn find_skeleton_ska1(skeleton: &[u8]) -> Result<Option<&[u8]>, String> {
     let mut offset = 0;
     while offset + 8 <= skeleton.len() {
@@ -138,6 +153,35 @@ fn parse_attachments(
         .map(Ok)
         .unwrap_or_else(|| m2_attach::parse_attachment_lookup(md20))?;
     Ok((attachments, lookup))
+}
+
+#[cfg(test)]
+mod asset_references_tests {
+    use super::*;
+    use std::path::Path;
+
+    #[test]
+    fn reads_geometry_skin_and_external_skeleton_fdids_without_skin_bytes() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
+        let plain = std::fs::read(root.join("126278.m2")).unwrap();
+        let hd = std::fs::read(root.join("1011653.m2")).unwrap();
+        assert_eq!(
+            parse_asset_references(&plain).unwrap().skin_fdids[0],
+            480325
+        );
+        let refs = parse_asset_references(&hd).unwrap();
+        assert_eq!(refs.skin_fdids[0], 1012983);
+        assert_eq!(refs.skeleton_fdid, Some(2138400));
+    }
+
+    #[test]
+    fn rejects_missing_md21_chunk() {
+        assert!(
+            parse_asset_references(b"SFID\x04\0\0\0\x01\0\0\0")
+                .unwrap_err()
+                .contains("No MD21")
+        );
+    }
 }
 
 /// Parse the primary skin. Models with external SKID skeletons require the separate skeleton bytes.
