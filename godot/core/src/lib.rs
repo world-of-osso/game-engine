@@ -10,6 +10,10 @@ pub mod camera_follow_data;
 pub mod camera_input_data;
 #[path = "../../../src/asset/char_texture_data.rs"]
 pub mod char_texture_data;
+#[path = "../../../src/game/creatures/creature_display_data.rs"]
+pub mod creature_display_data;
+#[cfg(test)]
+mod creature_display_data_tests;
 #[path = "../../../src/input_bindings_data.rs"]
 pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]

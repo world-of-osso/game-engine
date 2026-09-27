@@ -3026,6 +3026,7 @@ dependencies = [
  "half",
  "image-blp",
  "ron 0.8.1",
+ "rusqlite",
  "serde",
  "serde_json",
 ]
