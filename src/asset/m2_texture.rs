@@ -2,7 +2,8 @@
 //!
 //! Extracted from m2.rs to keep file sizes manageable.
 
-use super::m2::{M2TextureUnit, TextureOverlay, TextureTables};
+use super::m2_batch_data::TextureOverlay;
+use super::m2_format::parser::{M2TextureUnit, TextureTables};
 
 /// Default FDIDs for runtime-resolved character texture types (human male, light skin).
 /// `skin_fdids` supplies creature Monster Skin 1/2/3 (types 11/12/13).

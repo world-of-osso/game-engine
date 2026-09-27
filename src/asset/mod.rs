@@ -7,6 +7,7 @@ mod blp_format;
 pub mod char_texture;
 pub mod fogs_wdt;
 pub mod m2;
+pub mod m2_batch_data;
 pub mod m2_format;
 pub mod m2_texture;
 pub mod read_bytes;

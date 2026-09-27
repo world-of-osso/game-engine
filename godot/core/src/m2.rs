@@ -1,5 +1,7 @@
 //! Authored M2 model and primary skin, with coordinates left in WoW model space.
+use crate::asset::m2_batch_data::{self, BatchInputs, ResolvedBatch};
 use crate::asset::m2_format::{self as format, m2_anim, m2_attach};
+use format::parser::TextureTables;
 
 pub use format::m2_collision::M2CollisionMesh;
 
@@ -58,6 +60,45 @@ pub struct Model {
     pub bounding_box_min: [f32; 3],
     pub bounding_box_max: [f32; 3],
     pub collision: Option<M2CollisionMesh>,
+}
+
+/// Resolve authored skin batches in the same draw order and opacity policy as the Bevy renderer.
+/// The caller supplies the FDID path lookup used by the original empty-UV-table envmap heuristic.
+pub fn resolve_render_batches(
+    model: &Model,
+    keep_zero_opacity_batches: bool,
+    fdid_path: impl Fn(u32) -> Option<String>,
+) -> Result<Vec<ResolvedBatch>, String> {
+    let mesh_part_ids: Vec<_> = model.submeshes.iter().map(|sub| sub.mesh_part_id).collect();
+    let materials: Vec<_> = model
+        .materials
+        .iter()
+        .map(|mat| (mat.flags, mat.blend_mode))
+        .collect();
+    let skin_fdids = std::array::from_fn(|i| model.skin_fdids.get(i).copied().unwrap_or(0));
+    m2_batch_data::resolve_batches(
+        &BatchInputs {
+            units: &model.batches,
+            mesh_part_ids: &mesh_part_ids,
+            materials: &materials,
+            tex: TextureTables {
+                tex_lookup: &model.texture_lookup,
+                tex_types: &model.texture_types,
+                txid: &model.texture_fdids,
+                skin_fdids: &skin_fdids,
+            },
+            color_tracks: &model.color_tracks,
+            transparencies: &model.transparency_tracks,
+            transparency_lookup: &model.transparency_lookup,
+            texture_animations: &model.texture_animations,
+            uv_animation_lookup: &model.uv_animation_lookup,
+            texture_unit_lookup: &model.texture_unit_lookup,
+            uses_texture_combiner_combos: model.uses_texture_combiner_combos,
+            is_hd: model.skeleton_fdid.is_some(),
+            keep_zero_opacity_batches,
+        },
+        fdid_path,
+    )
 }
 
 fn find_skeleton_ska1(skeleton: &[u8]) -> Result<Option<&[u8]>, String> {

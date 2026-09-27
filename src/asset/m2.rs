@@ -34,49 +34,20 @@ pub fn wow_to_bevy(x: f32, y: f32, z: f32) -> [f32; 3] {
     [x, z, -y]
 }
 
-/// How to scale a texture overlay before blitting.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub enum OverlayScale {
-    None,
-    Uniform2x,
-}
-
-/// A region overlay to composite onto the base texture.
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub struct TextureOverlay {
-    pub fdid: u32,
-    pub x: u32,
-    pub y: u32,
-    pub scale: OverlayScale,
-}
+pub use super::m2_batch_data::{OverlayScale, TextureOverlay};
 
 #[derive(Clone)]
 pub struct M2RenderBatch {
     pub mesh: Mesh,
-    pub texture_fdid: Option<u32>,
-    pub texture_2_fdid: Option<u32>,
-    pub extra_texture_fdids: Vec<u32>,
-    pub texture_type: Option<u32>,
-    pub overlays: Vec<TextureOverlay>,
-    pub render_flags: u16,
-    pub blend_mode: u16,
-    pub transparency: f32,
-    pub transparency_track_index: Option<usize>,
-    pub color_opacity_track_index: Option<usize>,
-    pub transparency_anim: Option<super::m2_anim::AnimTrack<i16>>,
-    pub color_opacity_anim: Option<super::m2_anim::AnimTrack<i16>>,
-    pub texture_anim: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
-    pub texture_anim_2: Option<super::m2_anim::AnimTrack<[f32; 3]>>,
-    pub use_uv_2_1: bool,
-    pub use_uv_2_2: bool,
-    pub use_env_map_2: bool,
-    pub shader_id: u16,
-    pub texture_count: u16,
-    pub uses_texture_combiner_combos: bool,
-    pub priority_plane: i8,
-    pub material_layer: u16,
-    /// M2 submesh mesh_part_id (geoset group*100 + variant). Used for geoset visibility.
-    pub mesh_part_id: u16,
+    pub data: super::m2_batch_data::ResolvedBatch,
+}
+
+impl std::ops::Deref for M2RenderBatch {
+    type Target = super::m2_batch_data::ResolvedBatch;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
 }
 
 #[derive(Clone)]

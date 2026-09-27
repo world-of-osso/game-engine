@@ -1,142 +1,11 @@
-//! Batch building for M2 render geometry.
-//! This is a private submodule of `m2` — `super` refers to `m2`, `super::super` to `asset`.
-
-use bevy::prelude::Mesh;
-
+//! Bevy geometry adapter for renderer-independent authored M2 batch decisions.
 use super::{
-    M2Material, M2RenderBatch, M2TextureUnit, M2Vertex, SkinData, TextureTables, build_batch_mesh,
-    build_mesh, resolve_indices,
+    M2Material, M2RenderBatch, M2Vertex, SkinData, TextureTables, build_batch_mesh, build_mesh,
+    resolve_indices,
 };
 use crate::asset::m2_anim;
-use crate::asset::m2_format::fixed16_to_f32;
+use crate::asset::m2_batch_data::{self, BatchInputs, ResolvedBatch};
 use crate::asset::m2_texture;
-
-fn texture_looks_like_environment_map(fdid: Option<u32>) -> bool {
-    let Some(path) = fdid.and_then(game_engine::listfile::lookup_fdid) else {
-        return false;
-    };
-    let lower = path.to_ascii_lowercase();
-    lower.contains("armorreflect") || lower.contains("_reflect") || lower.contains("envmap")
-}
-
-struct BatchOpacity<'a> {
-    color_tracks: &'a [m2_anim::ColorAnimTracks],
-    transparencies: &'a [m2_anim::AnimTrack<i16>],
-    transparency_lookup: &'a [i16],
-}
-
-impl BatchOpacity<'_> {
-    fn resolve_transparency_track_index(&self, unit: &M2TextureUnit) -> Option<usize> {
-        let track_idx = self
-            .transparency_lookup
-            .get(unit.transparency_index as usize)
-            .copied()
-            .unwrap_or(unit.transparency_index as i16);
-        usize::try_from(track_idx.max(0)).ok()
-    }
-
-    fn resolve_color_opacity_track_index(&self, unit: &M2TextureUnit) -> Option<usize> {
-        usize::try_from(unit.color_index).ok()
-    }
-
-    fn resolve_transparency_track(&self, unit: &M2TextureUnit) -> Option<m2_anim::AnimTrack<i16>> {
-        self.resolve_transparency_track_index(unit)
-            .and_then(|track_idx| self.transparencies.get(track_idx))
-            .cloned()
-    }
-
-    fn resolve_color_opacity_track(&self, unit: &M2TextureUnit) -> Option<m2_anim::AnimTrack<i16>> {
-        self.resolve_color_opacity_track_index(unit)
-            .and_then(|idx| self.color_tracks.get(idx))
-            .map(|tracks| tracks.opacity.clone())
-    }
-
-    fn evaluate(&self, unit: &M2TextureUnit) -> f32 {
-        let transparency = self
-            .resolve_transparency_track(unit)
-            .as_ref()
-            .and_then(|t| m2_anim::evaluate_i16_track(t, 0, 0))
-            .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
-            .unwrap_or(1.0);
-        let color_opacity = self
-            .resolve_color_opacity_track(unit)
-            .as_ref()
-            .and_then(|track| m2_anim::evaluate_i16_track(track, 0, 0))
-            .map(|v| fixed16_to_f32(v).clamp(0.0, 1.0))
-            .unwrap_or(1.0);
-        transparency * color_opacity
-    }
-}
-
-struct BatchUvFlags<'a> {
-    texture_unit_lookup: &'a [i16],
-}
-
-fn lookup_uses_uv1(lookup: Option<i16>) -> bool {
-    lookup == Some(2)
-}
-
-fn lookup_uses_env_map(lookup: Option<i16>) -> bool {
-    lookup == Some(0) || lookup == Some(-1)
-}
-
-impl BatchUvFlags<'_> {
-    fn evaluate(&self, unit: &M2TextureUnit, texture_2_fdid: Option<u32>) -> (bool, bool, bool) {
-        let use_uv_2_1 = lookup_uses_uv1(
-            self.texture_unit_lookup
-                .get(unit.texture_coord_index as usize)
-                .copied(),
-        );
-        let (use_uv_2_2, use_env_map_2) = if unit.texture_count > 1 {
-            if self.texture_unit_lookup.is_empty() {
-                const STATIC_OR_ENVIRONMENT_SHADER_BITS: u16 = 0x8000 | 0x80 | 0x08;
-                const SECOND_UV_SHADER_BIT: u16 = 0x4000;
-                let second_uv = unit.shader_id & STATIC_OR_ENVIRONMENT_SHADER_BITS == 0
-                    && unit.shader_id & SECOND_UV_SHADER_BIT != 0;
-                (
-                    second_uv,
-                    texture_looks_like_environment_map(texture_2_fdid),
-                )
-            } else {
-                let lookup = self
-                    .texture_unit_lookup
-                    .get(unit.texture_coord_index.saturating_add(1) as usize)
-                    .copied();
-                (lookup_uses_uv1(lookup), lookup_uses_env_map(lookup))
-            }
-        } else {
-            (false, false)
-        };
-        (use_uv_2_1, use_uv_2_2, use_env_map_2)
-    }
-}
-
-fn resolve_texture_anims(
-    texture_animations: &[m2_anim::TextureAnimTracks],
-    uv_animation_lookup: &[i16],
-    unit: &M2TextureUnit,
-) -> TextureAnimPair {
-    let resolve = |id: u16| {
-        uv_animation_lookup
-            .get(id as usize)
-            .copied()
-            .and_then(|idx| usize::try_from(idx).ok())
-            .and_then(|idx| texture_animations.get(idx))
-            .map(|tracks| tracks.translation.clone())
-    };
-    let anim_1 = resolve(unit.texture_animation_id);
-    let anim_2 = if unit.texture_count > 1 {
-        resolve(unit.texture_animation_id.saturating_add(1))
-    } else {
-        None
-    };
-    (anim_1, anim_2)
-}
-
-type TextureAnimPair = (
-    Option<m2_anim::AnimTrack<[f32; 3]>>,
-    Option<m2_anim::AnimTrack<[f32; 3]>>,
-);
 
 pub(super) struct BatchBuildContext<'a> {
     pub(super) vertices: &'a [M2Vertex],
@@ -155,172 +24,56 @@ pub(super) struct BatchBuildContext<'a> {
     pub(super) keep_zero_opacity_batches: bool,
 }
 
-pub(super) fn build_one_batch(
-    ctx: &BatchBuildContext<'_>,
-    unit: &M2TextureUnit,
-) -> Result<Option<M2RenderBatch>, String> {
-    let (sub, mesh) = build_batch_geometry(ctx, unit)?;
-    let texture = resolve_batch_texture(unit, ctx);
-    let opacity = build_batch_opacity(ctx);
-    let transparency = opacity.evaluate(unit);
-    if transparency <= 0.0 && !ctx.keep_zero_opacity_batches {
-        return Ok(None);
-    }
-    let transparency_track_index = opacity.resolve_transparency_track_index(unit);
-    let color_opacity_track_index = opacity.resolve_color_opacity_track_index(unit);
-    let transparency_anim = opacity.resolve_transparency_track(unit);
-    let color_opacity_anim = opacity.resolve_color_opacity_track(unit);
-    let texture_anims = resolve_batch_texture_anims(ctx, unit);
-    let uv_flags = resolve_batch_uv_flags(ctx, unit, texture.texture_2_fdid);
-    Ok(Some(build_render_batch(
-        ctx,
-        BatchRenderInputs {
-            unit,
-            sub,
-            mesh,
-            texture,
-            transparency,
-            transparency_track_index,
-            color_opacity_track_index,
-            transparency_anim,
-            color_opacity_anim,
-            texture_anims,
-            uv_flags,
-        },
-    )))
-}
-
-fn build_batch_geometry<'a>(
-    ctx: &'a BatchBuildContext<'_>,
-    unit: &M2TextureUnit,
-) -> Result<(&'a super::M2Submesh, Mesh), String> {
-    let sub_idx = unit.submesh_index as usize;
-    if sub_idx >= ctx.skin.submeshes.len() {
-        return Err(format!(
-            "Batch submesh_index {sub_idx} >= submesh count {}",
-            ctx.skin.submeshes.len()
-        ));
-    }
-    let sub = &ctx.skin.submeshes[sub_idx];
-    let mesh = build_batch_mesh(
-        ctx.vertices,
-        &ctx.skin.lookup,
-        &ctx.skin.indices,
-        sub,
-        ctx.has_bones,
-    );
-    Ok((sub, mesh))
-}
-
-struct BatchTexture {
-    texture_type: Option<u32>,
-    texture_fdid: Option<u32>,
-    texture_2_fdid: Option<u32>,
-    extra_texture_fdids: Vec<u32>,
-    overlays: Vec<super::TextureOverlay>,
-}
-
-fn resolve_batch_texture(unit: &M2TextureUnit, ctx: &BatchBuildContext<'_>) -> BatchTexture {
-    let texture_type = m2_texture::batch_texture_type(unit, ctx.tex.tex_lookup, ctx.tex.tex_types);
-    let (texture_fdid, texture_2_fdid, extra_texture_fdids, overlays) =
-        m2_texture::resolve_batch_fdid_and_overlays(unit, ctx.tex, ctx.is_hd);
-    BatchTexture {
-        texture_type,
-        texture_fdid,
-        texture_2_fdid,
-        extra_texture_fdids,
-        overlays,
-    }
-}
-
-fn build_batch_opacity<'a>(ctx: &'a BatchBuildContext<'_>) -> BatchOpacity<'a> {
-    BatchOpacity {
-        color_tracks: ctx.color_tracks,
-        transparencies: ctx.transparencies,
-        transparency_lookup: ctx.transparency_lookup,
-    }
-}
-
-fn resolve_batch_texture_anims(
-    ctx: &BatchBuildContext<'_>,
-    unit: &M2TextureUnit,
-) -> TextureAnimPair {
-    resolve_texture_anims(ctx.texture_animations, ctx.uv_animation_lookup, unit)
-}
-
-fn resolve_batch_uv_flags(
-    ctx: &BatchBuildContext<'_>,
-    unit: &M2TextureUnit,
-    texture_2_fdid: Option<u32>,
-) -> (bool, bool, bool) {
-    let uv_flags = BatchUvFlags {
-        texture_unit_lookup: ctx.texture_unit_lookup,
-    };
-    uv_flags.evaluate(unit, texture_2_fdid)
-}
-
-struct BatchRenderInputs<'a> {
-    unit: &'a M2TextureUnit,
-    sub: &'a super::M2Submesh,
-    mesh: Mesh,
-    texture: BatchTexture,
-    transparency: f32,
-    transparency_track_index: Option<usize>,
-    color_opacity_track_index: Option<usize>,
-    transparency_anim: Option<m2_anim::AnimTrack<i16>>,
-    color_opacity_anim: Option<m2_anim::AnimTrack<i16>>,
-    texture_anims: TextureAnimPair,
-    uv_flags: (bool, bool, bool),
-}
-
-fn build_render_batch(ctx: &BatchBuildContext<'_>, inputs: BatchRenderInputs<'_>) -> M2RenderBatch {
-    let mat = ctx.materials.get(inputs.unit.render_flags_index as usize);
-    let (texture_anim, texture_anim_2) = inputs.texture_anims;
-    let (use_uv_2_1, use_uv_2_2, use_env_map_2) = inputs.uv_flags;
-    M2RenderBatch {
-        mesh: inputs.mesh,
-        texture_fdid: inputs.texture.texture_fdid,
-        texture_2_fdid: inputs.texture.texture_2_fdid,
-        extra_texture_fdids: inputs.texture.extra_texture_fdids,
-        texture_type: inputs.texture.texture_type,
-        overlays: inputs.texture.overlays,
-        render_flags: mat.map(|m| m.flags).unwrap_or(0),
-        blend_mode: mat.map(|m| m.blend_mode).unwrap_or(0),
-        transparency: inputs.transparency,
-        transparency_track_index: inputs.transparency_track_index,
-        color_opacity_track_index: inputs.color_opacity_track_index,
-        transparency_anim: inputs.transparency_anim,
-        color_opacity_anim: inputs.color_opacity_anim,
-        texture_anim,
-        texture_anim_2,
-        use_uv_2_1,
-        use_uv_2_2,
-        use_env_map_2,
-        shader_id: inputs.unit.shader_id,
-        texture_count: inputs.unit.texture_count,
-        uses_texture_combiner_combos: ctx.uses_texture_combiner_combos,
-        priority_plane: inputs.unit.priority_plane,
-        material_layer: inputs.unit.material_layer,
-        mesh_part_id: inputs.sub.mesh_part_id,
-    }
-}
-
-fn sort_batches_by_authored_draw_order(batches: &mut [M2RenderBatch]) {
-    batches.sort_by_key(|batch| (batch.priority_plane, batch.material_layer));
-}
-
 pub(super) fn build_batched_model(
     ctx: &BatchBuildContext<'_>,
 ) -> Result<Vec<M2RenderBatch>, String> {
-    let mut batches = Vec::with_capacity(ctx.skin.batches.len());
-    for unit in &ctx.skin.batches {
-        let batch = build_one_batch(ctx, unit)?;
-        if let Some(batch) = batch {
-            batches.push(batch);
-        }
-    }
-    sort_batches_by_authored_draw_order(&mut batches);
-    Ok(batches)
+    let mesh_part_ids: Vec<_> = ctx
+        .skin
+        .submeshes
+        .iter()
+        .map(|sub| sub.mesh_part_id)
+        .collect();
+    let materials: Vec<_> = ctx
+        .materials
+        .iter()
+        .map(|mat| (mat.flags, mat.blend_mode))
+        .collect();
+    let data = m2_batch_data::resolve_batches(
+        &BatchInputs {
+            units: &ctx.skin.batches,
+            mesh_part_ids: &mesh_part_ids,
+            materials: &materials,
+            tex: TextureTables {
+                tex_lookup: ctx.tex.tex_lookup,
+                tex_types: ctx.tex.tex_types,
+                txid: ctx.tex.txid,
+                skin_fdids: ctx.tex.skin_fdids,
+            },
+            color_tracks: ctx.color_tracks,
+            transparencies: ctx.transparencies,
+            transparency_lookup: ctx.transparency_lookup,
+            texture_animations: ctx.texture_animations,
+            uv_animation_lookup: ctx.uv_animation_lookup,
+            texture_unit_lookup: ctx.texture_unit_lookup,
+            uses_texture_combiner_combos: ctx.uses_texture_combiner_combos,
+            is_hd: ctx.is_hd,
+            keep_zero_opacity_batches: ctx.keep_zero_opacity_batches,
+        },
+        |fdid| game_engine::listfile::lookup_fdid(fdid).map(str::to_owned),
+    )?;
+    Ok(data
+        .into_iter()
+        .map(|data| {
+            let mesh = build_batch_mesh(
+                ctx.vertices,
+                &ctx.skin.lookup,
+                &ctx.skin.indices,
+                &ctx.skin.submeshes[data.submesh_index],
+                ctx.has_bones,
+            );
+            M2RenderBatch { mesh, data }
+        })
+        .collect())
 }
 
 pub(super) fn build_fallback_batch(
@@ -336,121 +89,32 @@ pub(super) fn build_fallback_batch(
     let fdid = m2_texture::first_hardcoded_texture(tex_types, txid);
     Ok(vec![M2RenderBatch {
         mesh: build_mesh(vertices, indices),
-        texture_fdid: fdid,
-        texture_2_fdid: None,
-        extra_texture_fdids: Vec::new(),
-        texture_type: None,
-        overlays: Vec::new(),
-        render_flags: 0,
-        blend_mode: 0,
-        transparency: 1.0,
-        transparency_track_index: None,
-        color_opacity_track_index: None,
-        transparency_anim: None,
-        color_opacity_anim: None,
-        texture_anim: None,
-        texture_anim_2: None,
-        use_uv_2_1: false,
-        use_uv_2_2: false,
-        use_env_map_2: false,
-        shader_id: 0,
-        texture_count: 1,
-        uses_texture_combiner_combos: false,
-        priority_plane: 0,
-        material_layer: 0,
-        mesh_part_id: 0,
-    }])
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{BatchUvFlags, lookup_uses_env_map, lookup_uses_uv1};
-    use crate::asset::m2::M2TextureUnit;
-    use crate::asset::m2_format::{parse_chunks, parse_texture_unit_lookup};
-    use std::collections::BTreeSet;
-
-    fn test_unit(texture_count: u16, texture_coord_index: u16) -> M2TextureUnit {
-        M2TextureUnit {
-            flags: 0,
-            priority_plane: 0,
-            shader_id: 0,
+        data: ResolvedBatch {
+            source_unit_index: 0,
             submesh_index: 0,
-            color_index: -1,
-            render_flags_index: 0,
+            mesh_part_id: 0,
+            texture_fdid: fdid,
+            texture_2_fdid: None,
+            extra_texture_fdids: Vec::new(),
+            texture_type: None,
+            overlays: Vec::new(),
+            render_flags: 0,
+            blend_mode: 0,
+            transparency: 1.0,
+            transparency_track_index: None,
+            color_opacity_track_index: None,
+            transparency_anim: None,
+            color_opacity_anim: None,
+            texture_anim: None,
+            texture_anim_2: None,
+            use_uv_2_1: false,
+            use_uv_2_2: false,
+            use_env_map_2: false,
+            shader_id: 0,
+            texture_count: 1,
+            uses_texture_combiner_combos: false,
+            priority_plane: 0,
             material_layer: 0,
-            texture_count,
-            texture_id: 0,
-            texture_coord_index,
-            transparency_index: 0,
-            texture_animation_id: 0,
-        }
-    }
-
-    #[test]
-    fn waterfall_shader_routes_modulation_to_second_uv_without_lookup_table() {
-        let flags = BatchUvFlags {
-            texture_unit_lookup: &[],
-        };
-        let mut unit = test_unit(2, 0);
-        unit.shader_id = 0x4014;
-        assert_eq!(flags.evaluate(&unit, Some(4661390)), (false, true, false));
-    }
-
-    #[test]
-    fn lookup_value_two_selects_second_uv_channel() {
-        assert!(lookup_uses_uv1(Some(2)));
-        assert!(!lookup_uses_uv1(Some(1)));
-        assert!(!lookup_uses_uv1(Some(0)));
-    }
-
-    #[test]
-    fn lookup_value_zero_marks_environment_map() {
-        assert!(lookup_uses_env_map(Some(0)));
-        assert!(lookup_uses_env_map(Some(-1)));
-        assert!(!lookup_uses_env_map(Some(1)));
-        assert!(!lookup_uses_env_map(Some(2)));
-    }
-
-    #[test]
-    fn texture_unit_lookup_interprets_first_and_second_uv_channels_correctly() {
-        let flags = BatchUvFlags {
-            texture_unit_lookup: &[1, 2],
-        };
-        let unit = test_unit(2, 0);
-
-        let (use_uv_2_1, use_uv_2_2, use_env_map_2) = flags.evaluate(&unit, None);
-
-        assert!(
-            !use_uv_2_1,
-            "lookup value 1 should keep the base texture on UV0"
-        );
-        assert!(
-            use_uv_2_2,
-            "lookup value 2 should route the second texture to UV1"
-        );
-        assert!(!use_env_map_2);
-    }
-
-    #[test]
-    fn authored_skybox_texture_unit_lookup_can_be_empty_in_modern_assets() {
-        let mut observed = Vec::new();
-        for path in [
-            "data/models/skyboxes/11xp_cloudsky01.m2",
-            "data/models/skyboxes/deathskybox.m2",
-        ] {
-            let data = std::fs::read(path).expect("read skybox m2");
-            let chunks = parse_chunks(&data).expect("parse chunks");
-            let lookups =
-                parse_texture_unit_lookup(chunks.md20).expect("parse texture unit lookup");
-            let unique: BTreeSet<_> = lookups.iter().copied().collect();
-            eprintln!("{path} texture_unit_lookup unique={unique:?}");
-            observed.push((path, unique));
-        }
-        assert!(
-            observed
-                .iter()
-                .any(|(path, unique)| path.ends_with("11xp_cloudsky01.m2") && unique.is_empty()),
-            "expected 11xp_cloudsky01.m2 to exercise the empty texture-unit-lookup fallback"
-        );
-    }
+        },
+    }])
 }
