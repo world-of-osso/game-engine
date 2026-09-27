@@ -1,5 +1,9 @@
 # Wiki Log
 
+## [2026-09-27] investigation | Native campsite collision/sky fixture blocker
+
+Before `4c9bd0b5`, the authenticated Vulkan fixture times out awaiting `Loading`; v2 corrects the monitor cwd and captures `TerrainMaterials::build_tile` → `Mesh::create_trimesh_shape` waiting on a Vulkan fence at 35 seconds (`/tmp/claude/campsite-live-stack-v2.log`). `4c9bd0b5`'s CPU-geometry collision faces reach `PREVIEW_ENTRY` at 16.5 seconds and pass the campsite ray hit. The full-frame sky delta remains 22 pixels, but `00383009` isolation yields 27,041 pixels and inspected PNGs show default mountains occluding real sky (`/tmp/claude/godot-sky-isolation-4c9bd0b5.log`). `0266003e` changes only the foreground-isolated >=200-pixel assertion. No clean full-input run; terrain-only proof and full conversion remain limited/open.
+
 ## [2026-09-27] system | Native campsite M2 props and first WMO attachment
 
 `1aebb3c8` shares original authored campsite-object policy; `70ccce02` adds the authored WMO placement. `7ef1dfd9` selects/spawns 76 primary-tile M2 doodads (62 props, 14 waterfall/ripple) and 42 supplemental waterfall/ripple doodads. Its GPU fixture observes background pixels but exits 101 at a later `AwaitWorld` 90-second timeout (`/tmp/claude/godot-campsite-objects-7ef1dfd9.log`), not clean GREEN or full-props acceptance.
