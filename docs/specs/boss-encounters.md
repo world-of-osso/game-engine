@@ -27,3 +27,6 @@ Dungeons phase 3: what the client shows of a scripted boss fight. Server contrac
 
 ## Out of scope
 - Encounter journal integration, boss timers (encounter warnings), `RAID_BOSS_WHISPER`.
+
+## Live evidence (2026-09-27)
+Headless client against the stockadebosses server on :5085, evidence in `data/diagnostics/stockadebosses-20260927/`: "Hogger yells: Forest just setback!" and Boss1TargetFrame "Hogger 32" (`ui-02`, `02`); "Hogger enrages!" center screen and in chat (`04`); the boss frame hid on the reset and on death; ENCOUNTER_START/END 1144, 1145, 1146 in the client log with success false after resets and true after kills; Lord Overheat's boss frame showed his mana (`13`); Randolph Moloch's vanish emote and Mortimer's yell and collapse emote (`22`, `ui-26`).
