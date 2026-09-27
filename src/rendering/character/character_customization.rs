@@ -5,8 +5,10 @@ use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 
 use game_engine::asset::char_texture::CharTextureData;
-use game_engine::asset::m2::default_geoset_visible;
 use game_engine::customization_data::CustomizationDb;
+pub(crate) use game_engine::geoset_visibility_data::{
+    apply_exact_geoset_overrides, is_geoset_visible,
+};
 use shared::components::{CharacterAppearance, EquipmentAppearance as NetEquipmentAppearance};
 
 use crate::equipment::{Equipment, EquipmentItem};
@@ -432,41 +434,6 @@ fn apply_geoset_visibility(
     }
 }
 
-pub(crate) fn is_geoset_visible(
-    mesh_part_id: u16,
-    active_geosets: &[(u16, u16)],
-    active_types: &[u16],
-) -> bool {
-    let group = mesh_part_id / 100;
-    let variant = mesh_part_id % 100;
-    if !active_types.contains(&group) {
-        return default_geoset_visible(mesh_part_id);
-    }
-    if group == 0 {
-        let selected_variant = active_geosets
-            .iter()
-            .find(|(t, _)| *t == 0)
-            .map(|(_, id)| *id)
-            .unwrap_or(0);
-        return group_zero_visible(mesh_part_id, selected_variant);
-    }
-    active_geosets
-        .iter()
-        .any(|(t, id)| *t == group && *id == variant)
-}
-
-fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
-    mesh_part_id == selected_variant || is_group_zero_body_segment(mesh_part_id)
-}
-
-/// Group-0 body segments always visible regardless of hair selection.
-/// 0-1 are the human male base skin + scalp closure meshes; 27-33 are
-/// body segments on models that multiplex body geometry through group 0.
-/// Hair variants like 16/17 must remain switchable so helmet hides can suppress them.
-fn is_group_zero_body_segment(mesh_part_id: u16) -> bool {
-    matches!(mesh_part_id, 0 | 1 | 27..=33)
-}
-
 fn collect_active_geosets(
     selection: &CharacterCustomizationSelection,
     customization_db: &CustomizationDb,
@@ -520,29 +487,6 @@ fn hidden_group_variant(
     } else {
         1
     }
-}
-
-pub(crate) fn apply_exact_geoset_overrides(
-    mesh_part_id: u16,
-    base_visible: bool,
-    overrides: &[(u16, u16)],
-) -> bool {
-    let group = mesh_part_id / 100;
-    let mut visible = base_visible;
-    for &(override_group, value) in overrides {
-        if override_group == group {
-            if value == 0 {
-                // Exact hide: only affects mesh group*100+0
-                if mesh_part_id == group * 100 {
-                    visible = false;
-                }
-            } else {
-                // Group-level switch: show only the target variant, hide others
-                visible = mesh_part_id == group * 100 + value;
-            }
-        }
-    }
-    visible
 }
 
 fn has_equipment_item_ancestor(

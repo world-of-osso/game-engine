@@ -186,20 +186,7 @@ pub(crate) fn build_mesh(vertices: &[M2Vertex], indices: Vec<u16>) -> Mesh {
     build_batch_mesh(vertices, &identity_lookup, &indices, &sub, true)
 }
 
-/// Default geoset visibility for initial model display.
-pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
-    let group = mesh_part_id / 100;
-    let variant = mesh_part_id % 100;
-    match group {
-        0 => matches!(mesh_part_id, 0 | 1 | 5 | 16 | 17 | 27..=33),
-        1..=3 => variant == 2,
-        7 => matches!(variant, 1 | 2),
-        15 => false,
-        17 => false,
-        32 => variant >= 1,
-        _ => variant == 1,
-    }
-}
+pub use crate::geoset_visibility_data::default_geoset_visible;
 
 #[cfg(test)]
 pub(crate) fn mesh_has_meaningful_uv1(mesh: &Mesh) -> bool {

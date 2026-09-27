@@ -76,6 +76,7 @@ pub mod friends;
 pub mod friends_data;
 #[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
+pub mod geoset_visibility_data;
 #[path = "game/group_state.rs"]
 pub mod group_state;
 pub mod guild;
