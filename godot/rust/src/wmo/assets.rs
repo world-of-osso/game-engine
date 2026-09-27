@@ -29,8 +29,28 @@ pub(crate) fn read_placement(
     data_root: &Path,
     placement: &adt::WmoPlacement,
 ) -> Result<NativeWmoAsset, String> {
-    let root_fdid = match placement.fdid {
-        Some(fdid) => fdid,
+    let root_fdid = resolve_placement_fdid(resolver, placement)?;
+    let root = read_root(resolver, data_root, root_fdid)?;
+    let group_fdids = resolve_group_fdids(resolver, root_fdid, &root)?;
+    let mut groups = Vec::with_capacity(group_fdids.len());
+    for (index, fdid) in group_fdids.into_iter().enumerate() {
+        groups.push(read_group(
+            resolver, data_root, root_fdid, &root, index, fdid,
+        )?);
+    }
+    Ok(NativeWmoAsset {
+        root_fdid,
+        root,
+        groups,
+    })
+}
+
+fn resolve_placement_fdid(
+    resolver: &CascListfileResolver,
+    placement: &adt::WmoPlacement,
+) -> Result<u32, String> {
+    match placement.fdid {
+        Some(fdid) => Ok(fdid),
         None => {
             let path = placement
                 .path
@@ -38,40 +58,48 @@ pub(crate) fn read_placement(
                 .ok_or("WMO placement has no FDID or path")?;
             resolver
                 .lookup_path(path)
-                .ok_or_else(|| format!("WMO root {path} not in listfile"))?
+                .ok_or_else(|| format!("WMO root {path} not in listfile"))
         }
-    };
+    }
+}
+
+fn read_root(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    root_fdid: u32,
+) -> Result<wmo::WmoRootData, String> {
     let root_path = read_required_wmo(resolver, data_root, root_fdid, "root")?;
     let root_bytes = fs::read(&root_path)
         .map_err(|error| format!("WMO root {}: {error}", root_path.display()))?;
-    let root = wmo::parse_root(&root_bytes)
-        .map_err(|error| format!("WMO root {}: {error}", root_path.display()))?;
-    let group_fdids = resolve_group_fdids(resolver, root_fdid, &root)?;
-    let mut groups = Vec::with_capacity(group_fdids.len());
-    for (index, fdid) in group_fdids.into_iter().enumerate() {
-        let context = format!("group {index} of root FDID {root_fdid}");
-        let path = read_required_wmo(resolver, data_root, fdid, &context)?;
-        let bytes = fs::read(&path)
-            .map_err(|error| format!("WMO {context} {}: {error}", path.display()))?;
-        let group = wmo::parse_group(&bytes)
-            .map_err(|error| format!("WMO {context} {}: {error}", path.display()))?;
-        let collision = Arc::new(
-            WmoGroupCollision::parse(&bytes)
-                .map_err(|error| format!("WMO {context} {} collision: {error}", path.display()))?,
-        );
-        let batches = group.batches(Some(&root));
-        groups.push(NativeWmoGroup {
-            index: index as u32,
-            fdid,
-            group,
-            batches,
-            collision,
-        });
-    }
-    Ok(NativeWmoAsset {
-        root_fdid,
-        root,
-        groups,
+    wmo::parse_root(&root_bytes)
+        .map_err(|error| format!("WMO root {}: {error}", root_path.display()))
+}
+
+fn read_group(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    root_fdid: u32,
+    root: &wmo::WmoRootData,
+    index: usize,
+    fdid: u32,
+) -> Result<NativeWmoGroup, String> {
+    let context = format!("group {index} of root FDID {root_fdid}");
+    let path = read_required_wmo(resolver, data_root, fdid, &context)?;
+    let bytes =
+        fs::read(&path).map_err(|error| format!("WMO {context} {}: {error}", path.display()))?;
+    let group = wmo::parse_group(&bytes)
+        .map_err(|error| format!("WMO {context} {}: {error}", path.display()))?;
+    let collision = Arc::new(
+        WmoGroupCollision::parse(&bytes)
+            .map_err(|error| format!("WMO {context} {} collision: {error}", path.display()))?,
+    );
+    let batches = group.batches(Some(root));
+    Ok(NativeWmoGroup {
+        index: index as u32,
+        fdid,
+        group,
+        batches,
+        collision,
     })
 }
 
