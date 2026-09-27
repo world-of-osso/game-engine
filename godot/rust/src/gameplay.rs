@@ -2,6 +2,7 @@
 
 use game_engine_core::{
     input_bindings_data::{InputAction, InputBindingsData, InputState},
+    movement_animation_data::direction_to_anim_id,
     movement_input_data::{
         MoveDirection, compute_movement_input, movement_speed_multiplier, movement_to_direction,
         sync_movement_toggles,
@@ -149,6 +150,13 @@ impl PlayerMovement {
 }
 
 impl crate::GameClient {
+    pub(super) fn update_player_animation(&mut self) -> Result<(), String> {
+        let movement = &self.player_movement;
+        let animation_id =
+            direction_to_anim_id(movement.direction, movement.running, movement.swimming);
+        self.world.play_local_animation(animation_id)
+    }
+
     pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {
         use game_engine_core::camera_input_data::CameraInput;
         use godot::prelude::*;
