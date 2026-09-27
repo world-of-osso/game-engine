@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native WorldUnits creature visuals
+
+`7a4add9b` connects ordinary replicated NPC `WorldUnits` nodes to the lazy read-only creature-display catalog and local-CASC model path. A nonzero NPC display resolves model FDID, three texture slots, and scale; its owned `NpcVisualRoot` uses yaw `-PI/2`. Same-display updates retain the child, display changes/removal free and replace/remove it, and world reset frees the owned tree. Players remain outside this path. Query/catalog/load failures report explicit NPC/display errors with no capsule/substitute.
+
+`89980e62` records the pre-integration real-UDP two-unit no-visual RED. The actual `7a4add9b` DLL with `9c310860` test is GREEN: `/tmp/claude/native-npc-visual-fixture-9c310860.log` exits 0 through nine phases, inspecting real-UDP data, mesh, and materials. This is bounded development proof, not pixel evidence or independent verification; verifier316 remains underway. No visual-parity, lighting, or NPC-appearance-policy claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Native creature local-CASC acquisition boundary
 
 `771c1f5f` adds a native helper that reuses the local `CascListfileResolver` to cache a creature display's model FDID as `.m2`, primary parsed SFID as adjacent `00.skin`, and optional parsed SKID as `.skel`. It reparses those cached companions through the existing M2 loader, resolves authored batch textures and explicit creature texture slots, and caches the resulting `.blp` files. A missing texture remains a reported native material-loader FDID rather than a placeholder.
