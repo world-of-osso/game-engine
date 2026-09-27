@@ -1,20 +1,22 @@
 //! Real Godot UI/input → native movement → owned loopback UDP PlayerInput proof.
-//! After building the Godot GDExtension, run:
+//! After building the root launcher and Godot GDExtension, run:
 //! GODOT_BIN=<godot executable> cargo run -p game-engine-network --example native_input_fixture
 
 use std::{
+    fs,
     io::{BufRead, BufReader},
     net::{SocketAddr, UdpSocket},
+    path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::mpsc::{self, Receiver},
     thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
-    self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender, server,
+    self as network, server, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
+    ReplicationSender,
 };
 use shared::{
     components::{
@@ -103,29 +105,73 @@ fn start_server() -> (App, SocketAddr) {
     (app, address)
 }
 
-fn launch_godot(address: SocketAddr) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
-    let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
-    let project = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .expect("Godot workspace directory");
+struct FixtureConfig {
+    home: PathBuf,
+}
+
+impl FixtureConfig {
+    fn create(root: &Path) -> Self {
+        let diagnostics = root.join("data/diagnostics");
+        fs::create_dir_all(&diagnostics).expect("create fixture diagnostics directory");
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("fixture clock after epoch")
+            .as_nanos();
+        let home = diagnostics.join(format!("native-input-{}-{timestamp}", std::process::id()));
+        fs::create_dir(&home).expect("create unique fixture config home");
+        let config = Self { home };
+        let credentials = config.home.join("world-of-osso/credentials.ron");
+        fs::create_dir(credentials.parent().expect("credentials parent"))
+            .expect("create fixture credentials directory");
+        fs::write(&credentials, "(username:\"fixture\",password:\"fixture\")")
+            .expect("write fixture-only credentials");
+        config
+    }
+}
+
+impl Drop for FixtureConfig {
+    fn drop(&mut self) {
+        if let Err(error) = fs::remove_dir_all(&self.home) {
+            eprintln!(
+                "remove fixture config home {}: {error}",
+                self.home.display()
+            );
+        }
+    }
+}
+
+fn launch_godot(
+    root: &Path,
+    config: &FixtureConfig,
+    address: SocketAddr,
+) -> (Child, Receiver<String>, Vec<thread::JoinHandle<()>>) {
+    let binary = root.join("target/debug/game-engine-launcher");
+    let project = root.join("godot");
     let display_args: &[&str] = if std::env::var("GODOT_TEST_VISUAL").as_deref() == Ok("1") {
         &["--display-driver", "wayland", "--audio-driver", "Dummy"]
     } else {
         &["--headless"]
     };
     let mut child = Command::new(binary)
+        .current_dir(root)
         .args(display_args)
         .args([
             "--path",
             project.to_str().expect("UTF-8 Godot project path"),
             "--script",
             "res://tests/world_input_flow.gd",
+            "--screen",
+            "charselect",
+            "--server",
         ])
+        .arg(address.to_string())
+        .env("CARGO", env!("CARGO"))
+        .env("XDG_CONFIG_HOME", &config.home)
         .env("GODOT_TEST_SERVER", address.to_string())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("start native Godot fixture process");
+        .expect("start root launcher for native Godot fixture");
     let output = child.stdout.take().expect("read Godot stdout");
     let errors = child.stderr.take().expect("read Godot stderr");
     let (sender, receiver) = mpsc::channel();
@@ -187,8 +233,13 @@ fn respond_to_login(app: &mut App) -> Result<(), String> {
         return Err(format!("expected one LoginRequest, got {}", requests.len()));
     }
     let request = &requests[0];
-    if request.username != "fixture" || request.password != "fixture" || request.token.is_some() {
-        return Err("unexpected fixture credentials or cached token".into());
+    let fixture_credentials =
+        request.username == "fixture" && request.password == "fixture" && request.token.is_none();
+    let fixture_token = request.username.is_empty()
+        && request.password.is_empty()
+        && request.token.as_deref() == Some("fixture-only-token");
+    if !fixture_credentials && !fixture_token {
+        return Err("unexpected fixture authentication request".into());
     }
     let equipped = CharacterListEntry {
         character_id: 17,
@@ -502,7 +553,18 @@ fn run_fixture(
 fn main() {
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
-    let (mut child, lines, reader) = launch_godot(address);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .expect("checkout root above Godot network workspace");
+    let launcher = root.join("target/debug/game-engine-launcher");
+    assert!(
+        launcher.is_file(),
+        "build root launcher first: missing {}",
+        launcher.display()
+    );
+    let config = FixtureConfig::create(root);
+    let (mut child, lines, reader) = launch_godot(root, &config, address);
     let result = run_fixture(&mut app, &mut child, lines, reader);
     if result.is_err()
         && child
