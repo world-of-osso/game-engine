@@ -44,6 +44,13 @@ pub(crate) enum UnitAppearance {
 }
 
 impl UnitAppearance {
+    pub fn describe_unit(&self, server_id: u64) -> String {
+        match self {
+            Self::Creature(display_id) => format!("NPC {server_id} display {display_id}"),
+            Self::Player(player, _) => format!("Player {server_id} ({})", player.name),
+        }
+    }
+
     pub fn same_player_model(&self, other: &Self) -> bool {
         matches!((self, other), (Self::Player(left, _), Self::Player(right, _))
             if left.race == right.race && left.appearance.sex == right.appearance.sex)

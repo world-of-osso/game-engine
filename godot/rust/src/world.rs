@@ -256,7 +256,13 @@ fn sync_unit_visual(
             unit.node.add_child(&visual);
             unit.visual = Some(visual);
         }
-        Some(Err(error)) => godot_error!("Unit {} visual: {error}", snapshot.server_id),
+        Some(Err(error)) => {
+            let appearance = unit
+                .appearance
+                .as_ref()
+                .expect("Visual load has appearance");
+            godot_error!("{}: {error}", appearance.describe_unit(snapshot.server_id));
+        }
         None => {}
     }
 }
