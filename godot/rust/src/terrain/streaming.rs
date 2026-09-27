@@ -85,7 +85,7 @@ pub(crate) struct StreamedTerrain {
     terminal_error: Option<String>,
     generation: u64,
     map: Option<String>,
-    initial_tile: Option<(u32, u32)>,
+    initial_tiles: BTreeSet<(u32, u32)>,
     pending_map: bool,
     pub(crate) map_wdt: Option<NativeMapWdt>,
     pub(crate) parsed_tiles: BTreeMap<(u32, u32), NativeTerrainTile>,
@@ -114,7 +114,7 @@ impl StreamedTerrain {
             terminal_error: None,
             generation: 0,
             map: None,
-            initial_tile: None,
+            initial_tiles: BTreeSet::new(),
             pending_map: false,
             map_wdt: None,
             parsed_tiles: BTreeMap::new(),
@@ -166,23 +166,50 @@ impl StreamedTerrain {
     }
 
     pub fn request_map(&mut self, map: String, tile: (u32, u32)) -> Result<(), String> {
-        if tile.0 >= MAP_TILE_BOUND || tile.1 >= MAP_TILE_BOUND {
-            return Err(format!(
-                "Terrain tile ({}, {}) outside 0..64",
-                tile.0, tile.1
-            ));
-        }
+        validate_tile(tile)?;
         if self.map.as_ref() != Some(&map) {
-            self.reset()?;
-            self.map = Some(map.clone());
-            self.initial_tile = Some(tile);
-            self.pending_map = true;
-            return self.send(WorkerRequest::Map {
-                generation: self.generation,
-                map,
-            });
+            return self.begin_map(map, square_tiles(tile).collect());
         }
-        if self.initial_tile == Some(tile) || !self.requested_tiles.insert(tile) {
+        self.request_tile(tile)
+    }
+
+    pub fn request_map_tiles(
+        &mut self,
+        map: String,
+        primary: (u32, u32),
+        tiles: &[(u32, u32)],
+    ) -> Result<(), String> {
+        validate_tile(primary)?;
+        for &tile in tiles {
+            validate_tile(tile)?;
+        }
+        let initial_tiles = tiles.iter().copied().chain([primary]).collect();
+        if self.map.as_ref() != Some(&map) {
+            return self.begin_map(map, initial_tiles);
+        }
+        for tile in initial_tiles {
+            self.request_tile(tile)?;
+        }
+        Ok(())
+    }
+
+    fn begin_map(
+        &mut self,
+        map: String,
+        initial_tiles: BTreeSet<(u32, u32)>,
+    ) -> Result<(), String> {
+        self.reset()?;
+        self.map = Some(map.clone());
+        self.initial_tiles = initial_tiles;
+        self.pending_map = true;
+        self.send(WorkerRequest::Map {
+            generation: self.generation,
+            map,
+        })
+    }
+
+    fn request_tile(&mut self, tile: (u32, u32)) -> Result<(), String> {
+        if self.initial_tiles.contains(&tile) || !self.requested_tiles.insert(tile) {
             return Ok(());
         }
         if self.map_wdt.is_some() {
@@ -220,7 +247,7 @@ impl StreamedTerrain {
             .checked_add(1)
             .ok_or("Terrain generation overflow")?;
         self.map = None;
-        self.initial_tile = None;
+        self.initial_tiles.clear();
         self.pending_map = false;
         self.map_wdt = None;
         self.parsed_tiles.clear();
@@ -302,11 +329,12 @@ impl StreamedTerrain {
                         let global_wmo = wdt.global_wmo.is_some();
                         self.map_wdt = Some(wdt);
                         if !global_wmo {
-                            let center = self.initial_tile.expect("initial tile for active map");
-                            for tile in square_tiles(center)
-                                .into_iter()
-                                .chain(self.requested_tiles.clone())
-                            {
+                            let tiles: Vec<_> = self
+                                .initial_tiles
+                                .union(&self.requested_tiles)
+                                .copied()
+                                .collect();
+                            for tile in tiles {
                                 self.queue_tile(tile)?;
                             }
                         }
@@ -381,6 +409,16 @@ fn run_worker(
             return;
         }
     }
+}
+
+fn validate_tile(tile: (u32, u32)) -> Result<(), String> {
+    if tile.0 >= MAP_TILE_BOUND || tile.1 >= MAP_TILE_BOUND {
+        return Err(format!(
+            "Terrain tile ({}, {}) outside 0..64",
+            tile.0, tile.1
+        ));
+    }
+    Ok(())
 }
 
 fn square_tiles(center: (u32, u32)) -> impl Iterator<Item = (u32, u32)> {
@@ -627,6 +665,85 @@ mod tests {
         assert!(state.wdt_flags.is_some());
         assert_eq!(stream.parsed_tiles.len(), 1);
         assert!(stream.parsed_tiles.contains_key(&(32, 48)));
+    }
+
+    #[test]
+    fn explicit_initial_tiles_load_only_supplied_tiles_then_same_map_adds_one() {
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let reader = ControlledReader {
+            assets: cached_assets(),
+            started: started_tx,
+            release: Mutex::new(release_rx),
+        };
+        let mut stream = StreamedTerrain::with_reader(reader);
+        stream
+            .request_map_tiles("azeroth".into(), (31, 37), &[(31, 36), (31, 37), (31, 36)])
+            .unwrap();
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        stream.request_map("azeroth".into(), (31, 36)).unwrap();
+        release_tx.send(()).unwrap();
+        wait_for(&mut stream, |state| {
+            !state.pending_map && state.pending_tiles.is_empty() && state.failures.len() == 2
+        });
+        let failed_tiles: BTreeSet<_> = stream.state().failures.iter().map(|f| f.tile).collect();
+        assert_eq!(failed_tiles, BTreeSet::from([(31, 36), (31, 37)]));
+        assert!(stream.state().parsed_tiles.is_empty());
+
+        stream.request_map("azeroth".into(), (31, 38)).unwrap();
+        wait_for(&mut stream, |state| {
+            state.pending_tiles.is_empty() && state.failures.len() == 3
+        });
+        let failed_tiles: BTreeSet<_> = stream.state().failures.iter().map(|f| f.tile).collect();
+        assert_eq!(failed_tiles, BTreeSet::from([(31, 36), (31, 37), (31, 38)]));
+    }
+
+    #[test]
+    fn same_map_request_before_wdt_ready_adds_only_requested_tile() {
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let reader = ControlledReader {
+            assets: cached_assets(),
+            started: started_tx,
+            release: Mutex::new(release_rx),
+        };
+        let mut stream = StreamedTerrain::with_reader(reader);
+        stream
+            .request_map_tiles("azeroth".into(), (31, 37), &[(31, 36)])
+            .unwrap();
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        stream.request_map("azeroth".into(), (31, 38)).unwrap();
+        release_tx.send(()).unwrap();
+        wait_for(&mut stream, |state| {
+            !state.pending_map && state.pending_tiles.is_empty() && state.failures.len() == 3
+        });
+        let failed_tiles: BTreeSet<_> = stream.state().failures.iter().map(|f| f.tile).collect();
+        assert_eq!(failed_tiles, BTreeSet::from([(31, 36), (31, 37), (31, 38)]));
+    }
+
+    #[test]
+    fn explicit_initial_tiles_reject_invalid_coordinates_without_changing_map() {
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        assert_eq!(
+            stream.request_map_tiles("azeroth".into(), (31, 37), &[(31, 36), (64, 0)]),
+            Err("Terrain tile (64, 0) outside 0..64".into())
+        );
+        assert_eq!(stream.state().map, None);
+        assert!(!stream.state().pending_map);
+    }
+
+    #[test]
+    fn explicit_initial_tiles_skip_global_wmo_map() {
+        let mut stream = StreamedTerrain::with_reader(cached_assets());
+        stream
+            .request_map_tiles("stormwindjail".into(), (32, 48), &[(31, 36), (31, 37)])
+            .unwrap();
+        wait_for(&mut stream, |state| !state.pending_map);
+        let state = stream.state();
+        assert!(state.global_wmo_present);
+        assert!(state.pending_tiles.is_empty());
+        assert!(state.parsed_tiles.is_empty());
+        assert!(state.failures.is_empty());
     }
 
     #[test]
