@@ -316,6 +316,7 @@ fn player_movement(
             &mut CharacterFacing,
             &mut CharacterPhysics,
             Option<&shared::components::MovementControl>,
+            Option<&shared::components::Health>,
         ),
         With<Player>,
     >,
@@ -324,13 +325,16 @@ fn player_movement(
         scripted.stop();
         return;
     }
-    let Ok((mut transform, mut movement, mut facing, mut physics, control)) = player_q.single_mut()
+    let Ok((mut transform, mut movement, mut facing, mut physics, control, health)) =
+        player_q.single_mut()
     else {
         scripted.stop();
         return;
     };
-    // The server moves a controlled player (taxi flight): no input, no local physics.
-    if control.is_some_and(|control| control.controlled) {
+    // The server moves a controlled player (taxi flight) and a corpse does not move:
+    // no input, no local physics.
+    let dead = health.is_some_and(|health| health.current <= 0.0);
+    if dead || control.is_some_and(|control| control.controlled) {
         scripted.stop();
         movement.autorun = false;
         movement.direction = MoveDirection::None;

@@ -232,3 +232,34 @@ fn focused_editbox_suppresses_movement_keys() {
         "W moves once the editbox loses focus"
     );
 }
+
+#[test]
+fn a_dead_player_does_not_move() {
+    let (mut app, player) = movement_app();
+    app.world_mut()
+        .entity_mut(player)
+        .insert(shared::components::Health {
+            current: 0.0,
+            max: 100.0,
+        });
+    app.world_mut()
+        .resource_mut::<ButtonInput<KeyCode>>()
+        .press(KeyCode::KeyW);
+    advance_movement(&mut app, 0.1);
+    assert_eq!(position(&app, player), Vec3::ZERO);
+    assert_eq!(
+        app.world().get::<MovementState>(player).unwrap().direction,
+        MoveDirection::None,
+        "no movement input reaches the server"
+    );
+
+    app.world_mut()
+        .get_mut::<shared::components::Health>(player)
+        .unwrap()
+        .current = 50.0;
+    advance_movement(&mut app, 0.1);
+    assert!(
+        position(&app, player).z.abs() > 0.1,
+        "a revived player walks"
+    );
+}
