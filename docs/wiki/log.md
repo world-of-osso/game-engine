@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Godot character-select background partial wiring
+
+`3016fe0a` wires native `CharacterPreview` to the first authored Warband scene and a character-slot placement. It requests primary plus supplemental terrain, synchronizes terrain materials and Retail WDT lighting, applies shared solo framing/presentation scale, and snaps the model/camera above sampled terrain.
+
+No compile or GREEN runtime proof exists. The pre-implementation GPU fixture RED at `a3874f40` exits 101 because neither required tile `31_37` nor `31_36` attached (`/tmp/claude/godot-character-background-red.log`); it does not test `3016fe0a`. Sky, props, waterfall objects, complete scenery, and conversion remain open.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Godot character-select background prerequisites and bounded FPS overlay evidence
 
 `425466b5` shares authored Warband scene/placement records with `godot/core`; `36db5dca` shares the solo character-select camera calculation; and `0d9fc55f` adds explicit initial native terrain tile sets. They make background work possible but do not integrate or render a Godot campsite/background.
