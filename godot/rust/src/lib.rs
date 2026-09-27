@@ -450,7 +450,6 @@ impl GameClient {
 
     fn attach_character_ui(&mut self) -> Result<(), String> {
         let mut ui = ui::RegistryUi::new_alloc();
-        ui.set_name("CharacterSelectUI");
         self.base_mut().add_child(&ui);
         let error = ui.bind_mut().show_character_select();
         if !error.is_empty() {
@@ -466,24 +465,25 @@ impl GameClient {
             ui.free();
             return Err(error);
         }
-        if let Some(previous) = self.character_ui.replace(ui) {
+        if let Some(previous) = self.character_ui.replace(ui.clone()) {
             previous.free();
         }
+        ui.set_name("CharacterSelectUI");
         Ok(())
     }
 
     fn attach_loading_ui(&mut self) -> Result<(), String> {
         let mut ui = ui::RegistryUi::new_alloc();
-        ui.set_name("LoadingUI");
         self.base_mut().add_child(&ui);
         let error = ui.bind_mut().show_loading();
         if !error.is_empty() {
             ui.free();
             return Err(error.to_string());
         }
-        if let Some(previous) = self.loading_ui.replace(ui) {
+        if let Some(previous) = self.loading_ui.replace(ui.clone()) {
             previous.free();
         }
+        ui.set_name("LoadingUI");
         Ok(())
     }
 
