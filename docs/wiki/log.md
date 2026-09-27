@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Native authored M2 batch binder
+
+`7cc4dfbd` exposes the shared CPU M2 compositor to native code. `5701f466`, `5ba9d672`, `0386e091`, and `fe792f20` replace the native `StandardMaterial` loader with resolved authored-batch `ShaderMaterial`s. Original single/effect routing retains CPU second-texture/overlay composition when required; source blend/cull/depth, UV/transparency, lighting and fog variants are bound; opaque/mask variants omit `ALPHA`; missing texture FDIDs are returned while their samplers stay unbound, with no placeholder palette.
+
+`e86504d7` and `a6ad7d47` repair the root M2 extraction failures. Native build, real HD asset/BLP decode, and real HD animation pass (`/tmp/claude/native-m2-loader-{build,m2_assets,m2_animation}.log`). Independent native fmt/check and core compositor 4/4 pass (`/tmp/claude/verify-native-m2-summary.md`). At `87bab0ff`, root library fmt/check pass (`/tmp/claude/native-m2-root-{fmt,lib}-87bab0ff.log`); the root binary target reaches binder code and is blocked only by unrelated non-exhaustive `ChatType`. The unchanged `1458ccd8` fixture exits 0 with four corrected generated-M2/skin/BLP pixel assertions passing and its process group gone (`/tmp/claude/native-m2-shutdown-{captured,live}.log`). An earlier shutdown timeout is unexplained; no reliability fix is claimed. The verifier's first culling-regression finding was false; no culling fix is recorded. World light/material animation, replacement-texture/geoset APIs, native model/world appearance, and visual parity remain open.
+
+Updated [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Bounded shared-M2 data proof
 
 `7cc4dfbd` newly re-exports the shared CPU M2 compositor to native code. Agent277 reports bounded core 5/5, root 6/6, standalone CPU 4/4, and native check PASS. `/tmp/claude/verify-m2-data-summary.md` was unavailable during this documentation update, so those supplied counts are not recorded as a current integrated gate; `7cc4dfbd` itself has no check proof.
