@@ -20,6 +20,8 @@ mod creature_display_data_tests;
 pub mod csv_util;
 #[path = "../../../src/rendering/character/customization_catalog.rs"]
 pub mod customization_data;
+#[path = "../../../src/rendering/character/customization_query_data.rs"]
+mod customization_query_data;
 #[path = "../../../src/geoset_visibility_data.rs"]
 pub mod geoset_visibility_data;
 #[path = "../../../src/input_bindings_data.rs"]
@@ -37,6 +39,7 @@ pub mod m2_texture_composite_data;
 pub use asset::m2_batch_data;
 #[cfg(test)]
 mod m2_batch_tests;
+pub mod npc_appearance_assets;
 #[path = "../../../src/game/creatures/npc_appearance_data.rs"]
 pub mod npc_appearance_data;
 #[cfg(test)]

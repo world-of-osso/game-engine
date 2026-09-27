@@ -66,6 +66,10 @@ impl CharTextureData {
         }
     }
 
+    pub fn layout(&self, layout_id: u32) -> Option<TextureLayout> {
+        self.layouts.get(&layout_id).copied()
+    }
+
     /// Composite a character body texture from material assignments.
     /// `materials`: list of (ChrModelTextureTargetID, FDID) from customization choices.
     /// `layout_id`: CharComponentTextureLayoutID from ChrModel.
