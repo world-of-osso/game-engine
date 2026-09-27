@@ -8,13 +8,19 @@ The Godot replacement remains incomplete. `cad33614` shares terrain material inp
 
 ## Portable creature display catalog boundary
 
-`8afcffae` moves the Bevy-free `CreatureDisplay` catalog row and `query_display` SQLite lookup into `src/game/creatures/creature_display_data.rs`, shared by the root crate and `godot/core`. The query returns `Result<Option<CreatureDisplay>>`: the core consumer can receive SQLite failures, while the existing root cache wrapper retains its `Option` boundary. Targeted core RED records the missing core export (`/tmp/claude/creature-display-query-red.log`); GREEN is 2/2 (`/tmp/claude/creature-display-query-green.log`), covering model FDID, all three skin FDIDs, scale, no row, and missing-table error propagation. This is reusable catalog access only: Godot does not attach a native model or consume the catalog, and no runtime/visual evidence or independent gate exists.
+`8afcffae` moves the Bevy-free `CreatureDisplay` catalog row and `query_display` SQLite lookup into `src/game/creatures/creature_display_data.rs`, shared by the root crate and `godot/core`. The query returns `Result<Option<CreatureDisplay>>`: the core consumer can receive SQLite failures, while the existing root cache wrapper retains its `Option` boundary. Targeted core RED records the missing core export (`/tmp/claude/creature-display-query-red.log`); GREEN is 2/2 (`/tmp/claude/creature-display-query-green.log`), covering model FDID, all three skin FDIDs, scale, no row, and missing-table error propagation. `7a4add9b` consumes the catalog for ordinary NPC visuals only; player appearance remains separate.
 
 ## Native creature local-CASC acquisition boundary
 
 `771c1f5f` adds a native helper that creates the existing local `CascListfileResolver`, caches a display's model FDID as `data/models/{model_fdid}.m2`, parses its MD21 references, caches the primary SFID geometry as `{model_fdid}00.skin`, and caches the SKID external skeleton as `{model_fdid}.skel` when present. It then parses those cached companions through the existing shared M2 parser and resolves authored batch textures plus the three explicit creature texture slots through the existing resolver, caching each as `data/textures/{fdid}.blp`. Missing texture caching remains the material loader's reported-missing-FDID behavior; no placeholder is introduced.
 
-Reported targeted RED/GREEN covers the two core MD21-reference cases and three native local-cache cases. This helper is not connected to replicated world units, catalog consumption, or a world scene; runtime/visual evidence and the independent gate remain pending. It does not establish NPC appearance or full conversion.
+Reported targeted RED/GREEN covers the two core MD21-reference cases and three native local-cache cases. `7a4add9b` attaches this acquisition path to ordinary replicated NPCs; rendered visual proof and an independent gate remain pending. It does not establish NPC appearance or full conversion.
+
+## Native WorldUnits creature visuals
+
+`7a4add9b` gives each ordinary NPC `WorldUnits` node an owned `NpcVisualRoot`. On first nonzero NPC display ID, `CreatureModels` lazily opens `data/cache/creature_display.sqlite` read-only, resolves the display's model FDID, three texture slots, and milli-scale, then loads the native M2 child. The visual root applies `-PI/2` yaw and display scale. The same display leaves the child intact; a display change or removal frees it before replacement/removal; a world reset frees the `WorldUnits` tree. Players never enter this path.
+
+Catalog, display, or model-loading failures emit an explicit NPC/display error and attach no capsule or substitute. `89980e62` preserves the pre-integration real-UDP two-unit fixture RED with no visuals. The actual `7a4add9b` DLL and `9c310860` test are GREEN: `/tmp/claude/native-npc-visual-fixture-9c310860.log` exits 0 through all nine phases, inspecting real-UDP data, mesh, and materials. This is bounded development proof, not pixel evidence or independent verification; verifier316 remains underway. This establishes neither visual parity, lighting behavior, nor NPC-appearance policy.
 
 ## Portable M2 render-batch decision boundary
 
