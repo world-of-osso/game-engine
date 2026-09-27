@@ -8,7 +8,7 @@ use game_engine_core::{
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::char_create_component::CharCreateMode;
-use godot::classes::Os;
+use godot::{classes::Os, obj::Singleton};
 
 use crate::GameClient;
 

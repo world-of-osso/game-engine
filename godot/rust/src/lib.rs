@@ -191,9 +191,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.initialize_startup())
         {
             godot_error!("Cannot initialize client: {error}");
-            if let Some(mut tree) = self.base().get_tree() {
-                tree.quit_ex().exit_code(1).done();
-            }
+            self.base().get_tree().quit_ex().exit_code(1).done();
         }
     }
 }
