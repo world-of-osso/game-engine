@@ -4,7 +4,7 @@
 
 use std::{
     fs,
-    io::{BufRead, BufReader, BufWriter, Read, Write},
+    io::{BufRead, BufReader, Read},
     net::{SocketAddr, UdpSocket},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
@@ -307,29 +307,39 @@ fn stage_preview_assets(repo: &Path, data: &Path) -> Result<(), String> {
 }
 
 fn stage_fixture_listfile(repo: &Path, data: &Path) -> Result<(), String> {
-    let source = fs::File::open(repo.join("data/community-listfile.csv"))
-        .map_err(|error| format!("Open authored listfile: {error}"))?;
-    let target = fs::File::create(data.join("community-listfile.csv"))
-        .map_err(|error| format!("Create fixture listfile: {error}"))?;
-    let mut target = BufWriter::new(target);
-    for line in BufReader::new(source).lines() {
-        let line = line.map_err(|error| format!("Read authored listfile: {error}"))?;
-        let path = line.split_once(';').map(|(_, path)| path);
-        if matches!(
-            path,
-            Some("world/maps/azeroth/azeroth.wdt" | "world/maps/kalimdor/kalimdor.wdt")
-        ) {
-            continue;
-        }
-        writeln!(target, "{line}")
-            .map_err(|error| format!("Copy authored listfile entry: {error}"))?;
+    std::os::unix::fs::symlink(
+        repo.join("data/community-listfile.csv"),
+        data.join("community-listfile.csv"),
+    )
+    .map_err(|error| format!("Link authored listfile: {error}"))?;
+    // Numeric Warband aliases live in the local catalog, not the community CSV.
+    let target = data.join("local-listfile-cache.sqlite");
+    let backup = format!(".backup '{}'", target.display());
+    let result = Command::new("sqlite3")
+        .args(["-readonly", "-cmd", ".timeout 5000"])
+        .arg(repo.join("data/local-listfile-cache.sqlite"))
+        .arg(backup)
+        .output()
+        .map_err(|error| format!("Copy authored local listfile catalog: {error}"))?;
+    if !result.status.success() {
+        return Err(format!(
+            "Copy local listfile catalog: {}",
+            String::from_utf8_lossy(&result.stderr)
+        ));
     }
-    target
-        .write_all(
-            b"910090;world/maps/azeroth/azeroth.wdt\n910091;world/maps/kalimdor/kalimdor.wdt\n",
-        )
-        .and_then(|_| target.flush())
-        .map_err(|error| format!("Write isolated fixture map overrides: {error}"))
+    let result = Command::new("sqlite3")
+        .arg(&target)
+        .arg("DELETE FROM local_listfile_entries WHERE lower_path IN ('world/maps/azeroth/azeroth.wdt','world/maps/kalimdor/kalimdor.wdt');
+            INSERT OR REPLACE INTO local_listfile_entries VALUES (910090,'world/maps/azeroth/azeroth.wdt','world/maps/azeroth/azeroth.wdt'),(910091,'world/maps/kalimdor/kalimdor.wdt','world/maps/kalimdor/kalimdor.wdt');")
+        .output()
+        .map_err(|error| format!("Set isolated WDT aliases: {error}"))?;
+    if !result.status.success() {
+        return Err(format!(
+            "Set isolated WDT aliases: {}",
+            String::from_utf8_lossy(&result.stderr)
+        ));
+    }
+    Ok(())
 }
 
 fn stage_lighting(repo: &Path, data: &Path) -> Result<(), String> {
