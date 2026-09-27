@@ -3,6 +3,7 @@
 use std::{collections::HashMap, f32::consts::PI, path::PathBuf};
 
 use crate::{
+    animation::WowAnimationPlayer,
     lighting::TerrainLight,
     world_models::{CreatureModels, bind_visual_light},
 };
@@ -26,6 +27,7 @@ struct UnitNode {
     motion: UnitMotion,
     model_display: Option<u32>,
     visual: Option<Gd<Node3D>>,
+    death_applied: bool,
 }
 
 struct UnitMotion {
@@ -168,6 +170,7 @@ fn spawn_unit(
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
         model_display: None,
         visual: None,
+        death_applied: false,
     }
 }
 
@@ -242,6 +245,28 @@ fn sync_unit_visual(
     }
 }
 
+fn sync_unit_death(unit: &mut UnitNode, snapshot: &UnitSnapshot) {
+    let alive = snapshot
+        .health
+        .as_ref()
+        .is_none_or(|health| health.current > 0.0);
+    if unit.death_applied || alive || snapshot.npc.is_none() || unit.is_player {
+        return;
+    }
+    let Some(animation) = unit
+        .visual
+        .as_ref()
+        .and_then(|visual| visual.get_node_or_null("NpcModel/M2Animation"))
+    else {
+        return;
+    };
+    let mut animation = animation.cast::<WowAnimationPlayer>();
+    match animation.bind_mut().play_death() {
+        Ok(()) => unit.death_applied = true,
+        Err(error) => godot_error!("NPC {} death animation: {error}", snapshot.server_id),
+    }
+}
+
 pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
     units: HashMap<u64, UnitNode>,
@@ -293,6 +318,7 @@ impl WorldUnits {
         }
         unit.is_player = snapshot.player.is_some();
         sync_unit_visual(unit, snapshot, &mut self.models, self.light.as_ref());
+        sync_unit_death(unit, snapshot);
         unit.motion.set_target(
             [position.x, position.y, position.z],
             snapshot.rotation.map(|rotation| rotation.y),
