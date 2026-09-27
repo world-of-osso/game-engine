@@ -255,13 +255,24 @@ impl AnimationState {
     }
 
     pub fn select(&mut self, index: usize, looping: bool) -> Result<(), String> {
-        let Some(sequence) = self.sequences.get(index) else {
+        if self.sequences.get(index).is_none() {
             return Err(format!("M2 sequence index {index} is out of range"));
-        };
+        }
         if self.current == index {
             self.looping = looping;
             return Ok(());
         }
+        self.start_transition(index, looping);
+        Ok(())
+    }
+
+    fn play_death(&mut self) {
+        if let Some(index) = self.sequences.iter().position(|sequence| sequence.id == 1) {
+            self.start_transition(index, false);
+        }
+    }
+
+    fn start_transition(&mut self, index: usize, looping: bool) {
         let outgoing = if self.transition.is_some() {
             Outgoing::Snapshot(self.sampled_poses())
         } else {
@@ -273,12 +284,11 @@ impl AnimationState {
         self.transition = Some(Transition {
             outgoing,
             elapsed_ms: 0.0,
-            duration_ms: (sequence.blend_time as f32).max(MIN_MOVEMENT_BLEND_MS),
+            duration_ms: (self.sequences[index].blend_time as f32).max(MIN_MOVEMENT_BLEND_MS),
         });
         self.current = index;
         self.time_ms = 0.0;
         self.looping = looping;
-        Ok(())
     }
 
     pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
@@ -409,6 +419,15 @@ impl WowAnimationPlayer {
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
         Ok(player)
+    }
+
+    pub(crate) fn play_death(&mut self) -> Result<(), String> {
+        self.animation
+            .as_mut()
+            .ok_or_else(|| "M2 animation has no bound model".to_string())?
+            .play_death();
+        self.write_poses();
+        Ok(())
     }
 
     fn write_poses(&mut self) {
@@ -620,6 +639,41 @@ mod tests {
                 .zip(player.poses())
                 .all(|(a, b)| near_pose(*a, b))
         );
+    }
+
+    #[test]
+    fn death_restarts_from_zero_with_authored_crossfade_and_holds_last_pose() {
+        let model = model();
+        let death = model
+            .sequences
+            .iter()
+            .position(|sequence| sequence.id == 1)
+            .expect("authored Death");
+        let mut player = AnimationState::new(&model).expect("animated model");
+        player.select(death, true).expect("select Death initially");
+        player.advance(300.0).expect("advance Death");
+        let outgoing = player.poses();
+        player.play_death();
+        assert_eq!(player.current, death);
+        assert_eq!(player.time_ms, 0.0);
+        assert!(!player.looping);
+        let transition = player.transition.as_ref().expect("Death crossfade");
+        assert_eq!(
+            transition.duration_ms,
+            (model.sequences[death].blend_time as f32).max(150.0)
+        );
+        assert!(outgoing
+            .iter()
+            .zip(player.poses())
+            .all(|(a, b)| near_pose(*a, b)));
+        player
+            .advance(model.sequences[death].duration as f64 + 500.0)
+            .expect("finish Death");
+        assert_eq!(player.time_ms, model.sequences[death].duration as f64);
+        assert!(player.transition.is_none());
+        let held = player.poses();
+        player.advance(500.0).expect("hold corpse pose");
+        assert!(held.iter().zip(player.poses()).all(|(a, b)| near_pose(*a, b)));
     }
 
     #[test]
