@@ -1,3 +1,9 @@
+[workspace]
+members = ["launcher"]
+default-members = ["launcher"]
+exclude = ["godot"]
+resolver = "3"
+
 [package]
 name = "game-engine"
 version = "0.1.0"
