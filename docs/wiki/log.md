@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Godot character-select background prerequisites and bounded FPS overlay evidence
+
+`425466b5` shares authored Warband scene/placement records with `godot/core`; `36db5dca` shares the solo character-select camera calculation; and `0d9fc55f` adds explicit initial native terrain tile sets. They make background work possible but do not integrate or render a Godot campsite/background.
+
+For `524fd1c0`, manual inspection verifies a visible actual FPS counter and frame-time graph. Hidden/default and persisted-false visibility runs exit 0. The visible fixture's assertions pass after its steady-cap wait, but shutdown times out; it is not clean-exit evidence. The overlay uses Godot's default font, not Fira Mono. No performance-parity or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] investigation | Godot selected-character body preview now has bounded GPU evidence
 
 The former blank-UI evidence remains historical: before `d6b45c13`, `attach_character_ui` had no selected-character spawn; its owned UDP/Godot RED is `/tmp/claude/character-select-preview-red.log` and user screenshot is `/tmp/claude/godot-charselect-user-red.png`. `d4061019` now resolves/caches the selected roster body's local-CASC model path and loads actual race/sex/class/customization, composed textures, and selected geosets; four tests cover core/additional choice effects, body/eye pixels, and missing textures. `264e6eee` is behavior-equivalent helper extraction. `d6b45c13` owns replacement/reset plus preview camera/light; `5c0c9db2` checks removal after `Loading` begins. Actual GPU evidence is `data/diagnostics/godot-conversion/character-select-preview.png`.
