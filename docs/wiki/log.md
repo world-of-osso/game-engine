@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Ordinary native reconnect integrated; runtime GREEN pending
+
+`af6cf7ca` adds pure session reconnect phases and captures the in-world selection for token login. It blocks gameplay input until connection, terrain refresh, and selected local-player presence complete reconnect; forced disconnect and failed login/entry clear the state. `7fd6c61d` integrates this in the account/host: it stops and joins the old transport, discards the rest of that batch, then begins token transport; `LoadTerrain` records refresh and the host supplies local-marker completion. `07aa1ebc` aligns the owned fixture with the configured 60-second Netcode timeout.
+
+`/tmp/claude/native-reconnect-red-60s.log` records real `ConnectionTimedOut`. At `7fd6c61d`, the native build exits 0 (`/tmp/claude/native-reconnect-build.log`) and the owned fixture exits 0 (`/tmp/claude/native-reconnect-green.log`): `INITIAL_READY` → `WORLD_RESET` → `TERRAIN_REFRESHED` → `RECONNECTED`; token-login roster reordering retains the captured selection and completion waits for the local marker. Development GREEN only; independent gate pending. No native Godot input adapter, full lifecycle, or full-conversion claim follows.
+
+Updated [[godot-conversion]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Independent native transfer boundary gate
 
 At `e028babadf408e760b8aea7d925116efff90fd11`, independent verification passes root/native fmt and checks, loading 3/3, core camera-input 6/6 and WMO-mesh 2/2, root WMO-mesh 1/1 and `UIErrors` wrapper 4/4, plus native `world_camera_flow` and `enter_world_flow` (`/tmp/claude/verify-native-transfer-summary.md` and listed logs). Root warning findings remain baseline: unused `InputBindings` imports, plus the root `UIErrors` test's unused `super::*`.
