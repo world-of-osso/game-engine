@@ -1,5 +1,11 @@
 # Wiki Log
 
+## [2026-09-27] system | Six Godot startup names have bounded CLI proof
+
+Supersedes the earlier pending-runtime note. `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld` have exit-0 CLI artifacts; parser/account/launcher proof is 6/6, 5/5, and 11/11. The authenticated `inworld` artifact covers mixed-case selection of the second roster entry, although this audit did not independently re-read its numeric source predicate. Four PNGs were inspected; clipped Loading progress means UI presence, not visual parity. Missing/invalid/unsupported root CLI paths exit 1. Latest authenticated fixtures also validate local locomotion `0 → 5 → 0` and clean shutdown. Twelve other canonical names and `connecting`/`reconnecting` remain explicitly unconverted. Native check and launcher fmt pass; final native fmt failed only on then-uncommitted parallel terrain-object code, so the checkout is not claimed fully green. Full conversion remains open.
+
+Updated [[godot-conversion]], [[animation]], and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Godot startup CLI is separated from native Godot flags
 
 `b10eab7d` keeps native Godot arguments intact and sends launcher-owned `--screen`, `--state`, `--server`, and `--char` after Godot's `--` separator; the process suite is reported 11/11 GREEN. `ae091255` shares pure `ScreenArg`/`StartupArgs` parsing, reported 6/6 GREEN. `37262089` consumes Godot user arguments in `GameClient::ready()`, supporting `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, and `inworld`. `charselect` and `inworld` authenticate via saved token or configured credentials; `--char` must name a roster character and `inworld` enters it. `charcreate` is standalone unless `--server` is explicit, then authenticates first. `dev`/`prod` remain server aliases. `e89f4243` prioritizes startup tokens, consumes options once, and validates requested names. `connecting`, `reconnecting`, and legacy destinations outside that set error explicitly as unconverted.
