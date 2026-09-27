@@ -270,30 +270,36 @@ impl Account {
 }
 
 fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, String> {
-    use game_engine_core::csv_util::{header_index, parse_csv_line};
+    use game_engine_core::csv_util::header_index;
 
     let path = data_root.join("db2/12.1.0.69933/Map.csv");
-    let text = fs::read_to_string(&path)
+    let file = fs::File::open(&path)
         .map_err(|error| format!("Read map names {}: {error}", path.display()))?;
-    let mut lines = text.lines();
-    let header = lines
-        .next()
-        .ok_or_else(|| format!("{} is empty", path.display()))?;
-    let headers = parse_csv_line(header);
+    let mut reader = csv::Reader::from_reader(file);
+    let headers = reader
+        .headers()
+        .map_err(|error| format!("Read map names {}: {error}", path.display()))?;
+    if headers.is_empty() {
+        return Err(format!("{} is empty", path.display()));
+    }
+    let headers: Vec<String> = headers.iter().map(str::to_owned).collect();
     let id_column = header_index(&headers, "ID", &path)?;
     let name_column = header_index(&headers, "MapName_lang", &path)?;
-    for line in lines.filter(|line| !line.trim().is_empty()) {
-        let fields = parse_csv_line(line);
+    for record in reader.records() {
+        let fields =
+            record.map_err(|error| format!("Read map names {}: {error}", path.display()))?;
         let id = fields
             .get(id_column)
-            .ok_or_else(|| format!("{}: missing map ID in {line:?}", path.display()))?
+            .ok_or_else(|| format!("{}: missing map ID in {fields:?}", path.display()))?
             .parse::<u32>()
-            .map_err(|error| format!("{}: invalid map ID in {line:?}: {error}", path.display()))?;
+            .map_err(|error| {
+                format!("{}: invalid map ID in {fields:?}: {error}", path.display())
+            })?;
         if id == map_id {
             return fields
                 .get(name_column)
                 .filter(|name| !name.is_empty())
-                .cloned()
+                .map(str::to_owned)
                 .ok_or_else(|| format!("{}: missing name for map {map_id}", path.display()));
         }
     }
