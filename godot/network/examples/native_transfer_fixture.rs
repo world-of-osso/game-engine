@@ -288,9 +288,14 @@ fn main() {
     println!("FIXTURE ENDPOINT {address}");
     let (mut child, lines, reader) = launch_godot(address);
     let result = run_fixture(&mut app, &mut child, lines, reader);
-    if result.is_err() {
-        let _ = child.kill();
-        let _ = child.wait();
+    if result.is_err()
+        && child
+            .try_wait()
+            .expect("inspect fixture child status")
+            .is_none()
+    {
+        child.kill().expect("terminate failed Godot fixture");
+        child.wait().expect("reap failed Godot fixture");
     }
     if let Err(error) = result {
         panic!("native transfer fixture: {error}");
