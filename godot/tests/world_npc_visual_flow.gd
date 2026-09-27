@@ -6,6 +6,8 @@ const PLAYER := "Fixture Player"
 const APPEARANCE_NPC := "Fixture Appearance"
 const MISSING_TYPE6_NPC := "Fixture Missing Type6"
 const HAIR_TYPE6_NPC := "Fixture Hair Type6"
+const TYPE19_EFFECT_NPC := "Fixture Type19 Effect"
+const EYE := Color(185.0 / 255.0, 45.0 / 255.0, 215.0 / 255.0)
 const BAKED := Color(230.0 / 255.0, 40.0 / 255.0, 80.0 / 255.0)
 const COMPOSED := Color(30.0 / 255.0, 210.0 / 255.0, 90.0 / 255.0)
 const HEAD := Color(35.0 / 255.0, 70.0 / 255.0, 225.0 / 255.0)
@@ -189,6 +191,12 @@ func run_test() -> void:
 	if not await wait_hair_type6(client):
 		return
 	print("FIXTURE TYPE6_HAIR_READY")
+	if not await wait_type19(client):
+		return
+	print("FIXTURE TYPE19_READY")
+	if not await wait_effect_isolation(client):
+		return
+	print("FIXTURE EFFECT_ISOLATED_READY")
 	var reconnect_error = client.connect_account(server, "fixture", "fixture", false)
 	if reconnect_error != "" or client.get_node_or_null("WorldUnits") != null or client.get_node_or_null("WorldLighting") != null or client.account_state().unit_count != 0:
 		fail("Reconnect retained NPC visual/root: " + reconnect_error)
@@ -376,6 +384,14 @@ func make_appearance_skin() -> PackedByteArray:
 	put_u16(skin, 196 + 4, 1) # Second batch uses submesh 1.
 	return skin
 
+func make_type19_effect_skin() -> PackedByteArray:
+	var skin := make_appearance_skin()
+	put_u16(skin, 124, 101) # Both ordinary and effect batches remain visible.
+	put_u16(skin, 196 + 2, 0x4014)
+	put_u16(skin, 196 + 10, 1) # Second material has blend mode 2.
+	put_u16(skin, 196 + 14, 2) # Second texture resolves from TXID slot 1.
+	return skin
+
 func prepare_assets() -> bool:
 	var data := ProjectSettings.globalize_path("res://../data")
 	for folder in ["models", "textures"]:
@@ -394,6 +410,12 @@ func prepare_assets() -> bool:
 	var missing_type6_model := make_npc_m2()
 	put_u32(missing_type6_model, 8 + 0x210, 6) # Ordinary batch requires type 6; layout has no head/hair.
 	missing_type6_model.append_array(chunk("SFID", skin_fdid))
+	var type19_model := make_npc_m2()
+	put_u32(type19_model, 8 + 0x210, 19)
+	put_u32(type19_model, 8 + 0x70, 2) # Ordinary material 0, effect material 1.
+	put_u16(type19_model, 8 + 0x204, 7)
+	put_u16(type19_model, 8 + 0x206, 2)
+	type19_model.append_array(chunk("SFID", skin_fdid))
 	return write_fixture(data + "/models/910010.m2", model) \
 		and write_fixture(data + "/models/91001000.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/models/910011.m2", model) \
@@ -404,13 +426,17 @@ func prepare_assets() -> bool:
 		and write_fixture(data + "/models/91001400.skin", make_skin(0x10, 1)) \
 		and write_fixture(data + "/models/910016.m2", missing_type6_model) \
 		and write_fixture(data + "/models/91001600.skin", make_skin(0x10, 1)) \
+		and write_fixture(data + "/models/910017.m2", type19_model) \
+		and write_fixture(data + "/models/91001700.skin", make_type19_effect_skin()) \
 		and write_fixture(data + "/textures/910001.blp", make_blp(BASE)) \
 		and write_fixture(data + "/textures/910002.blp", make_blp(SECOND)) \
 		and write_fixture(data + "/textures/910020.blp", make_blp(BAKED)) \
 		and write_fixture(data + "/textures/910021.blp", make_blp(BASE)) \
 		and write_fixture(data + "/textures/910022.blp", make_blp(COMPOSED)) \
 		and write_fixture(data + "/textures/910023.blp", make_blp(HEAD)) \
-		and write_fixture(data + "/textures/910024.blp", make_hair_blp())
+		and write_fixture(data + "/textures/910024.blp", make_hair_blp()) \
+		and write_fixture(data + "/textures/910025.blp", make_blp(EYE)) \
+		and write_fixture(data + "/textures/3484643.blp", make_blp(BASE))
 
 func make_hair_blp() -> PackedByteArray:
 	# Target 10 fills section 10 (1024x1024), then the HD runtime crop is 512x512.
@@ -428,6 +454,53 @@ func make_hair_blp() -> PackedByteArray:
 		bytes[offset + 2] = roundi(HAIR.r * 255.0)
 		bytes[offset + 3] = 255
 	return bytes
+
+func appearance_batch_material(client: Node, batch_name: String) -> ShaderMaterial:
+	var npc := client.get_node_or_null("WorldUnits/" + TYPE19_EFFECT_NPC)
+	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
+	var batch := model.find_child(batch_name, true, false) as MeshInstance3D if model != null else null
+	if batch == null or batch.mesh == null or not batch.visible:
+		return null
+	return batch.get_surface_override_material(0) as ShaderMaterial
+
+func wait_type19(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	var actual := Color.TRANSPARENT
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var material := appearance_batch_material(client, "Batch0")
+		var texture := material.get_shader_parameter("base_texture") as Texture2D if material != null else null
+		if texture == null or int(material.get_shader_parameter("effect_mode")) != 0:
+			continue
+		actual = texture.get_image().get_pixel(0, 0)
+		if absf(actual.r - EYE.r) < TOLERANCE and absf(actual.g - EYE.g) < TOLERANCE \
+			and absf(actual.b - EYE.b) < TOLERANCE and absf(actual.a - EYE.a) < TOLERANCE:
+			return true
+	fail("NPC ordinary type-19 base expected authored RGBA %s, got %s" % [EYE, actual])
+	return false
+
+func wait_effect_isolation(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	var actual_base := Color.TRANSPARENT
+	var actual_second := Color.TRANSPARENT
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var material := appearance_batch_material(client, "Batch1")
+		if material == null or int(material.get_shader_parameter("effect_mode")) != 1:
+			continue
+		var base := material.get_shader_parameter("base_texture") as Texture2D
+		var second := material.get_shader_parameter("second_texture") as Texture2D
+		if base == null or second == null:
+			continue
+		actual_base = base.get_image().get_pixel(0, 0)
+		actual_second = second.get_image().get_pixel(0, 0)
+		if absf(actual_base.r - BASE.r) < TOLERANCE and absf(actual_base.g - BASE.g) < TOLERANCE \
+			and absf(actual_base.b - BASE.b) < TOLERANCE and absf(actual_base.a - BASE.a) < TOLERANCE \
+			and absf(actual_second.r - SECOND.r) < TOLERANCE and absf(actual_second.g - SECOND.g) < TOLERANCE \
+			and absf(actual_second.b - SECOND.b) < TOLERANCE and absf(actual_second.a - SECOND.a) < TOLERANCE:
+			return true
+	fail("NPC effect batch expected original base %s and second %s, got %s and %s" % [BASE, SECOND, actual_base, actual_second])
+	return false
 
 func wait_hair_type6(client: Node) -> bool:
 	var deadline := Time.get_ticks_msec() + WAIT_MS
