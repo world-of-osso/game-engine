@@ -42,6 +42,9 @@ use godot::prelude::*;
 
 struct GameEngineExtension;
 
+/// Main-thread time per frame for in-world ADT object loading.
+const WORLD_OBJECT_BUDGET: std::time::Duration = std::time::Duration::from_millis(8);
+
 // SAFETY: Godot owns extension initialization and all exposed objects use gdext's bindings.
 #[gdextension]
 unsafe impl ExtensionLibrary for GameEngineExtension {
@@ -76,6 +79,7 @@ pub struct GameClient {
     world: world::WorldUnits,
     terrain: terrain::streaming::StreamedTerrain,
     terrain_materials: terrain::material::TerrainMaterials,
+    world_objects: terrain::objects::TerrainObjects,
     world_lighting: lighting::WorldLighting,
     world_camera: camera::WorldCamera,
     physical_input: input::PhysicalInput,
@@ -119,6 +123,12 @@ impl INode3D for GameClient {
                 cache_root.clone(),
             ),
             terrain_materials: terrain::material::TerrainMaterials::default(),
+            world_objects: terrain::objects::TerrainObjects::new(
+                "WorldObjects",
+                WORLD_OBJECT_BUDGET,
+                data_root.clone(),
+                cache_root.clone(),
+            ),
             world_lighting: lighting::WorldLighting::default(),
             world_camera: camera::WorldCamera::default(),
             physical_input: input::PhysicalInput::default(),
@@ -168,6 +178,7 @@ impl INode3D for GameClient {
             .and_then(|()| self.terrain.poll())
             .and_then(|()| self.update_world_lighting())
             .and_then(|()| self.attach_terrain_materials())
+            .map(|()| self.attach_world_objects())
             .and_then(|()| self.update_loading_readiness())
             .and_then(|()| self.update_world_errors(delta as f32))
             .and_then(|()| self.tick_delete_confirmation(delta as f32))
@@ -262,6 +273,11 @@ impl GameClient {
         state.set("unit_count", self.units.len() as i64);
         state.set("world_attached", self.world.root().is_some());
         state.set("terrain", &terrain::state::terrain_state(&self.terrain));
+        let mut objects = VarDictionary::new();
+        objects.set("spawned", self.world_objects.spawned_count() as i64);
+        objects.set("pending", self.world_objects.pending_count() as i64);
+        objects.set("failures", self.world_objects.failure_count() as i64);
+        state.set("world_objects", &objects);
         state.set(
             "local_player_position",
             &local_transform
@@ -712,6 +728,7 @@ impl GameClient {
             self.world_lighting.reset();
             self.world.update_lighting(None);
             self.terrain_materials.reset();
+            self.world_objects.reset();
             self.account.session.screen = SessionScreen::Loading;
             self.show_account_screen(SessionScreen::Loading)?;
         }
@@ -721,6 +738,7 @@ impl GameClient {
     fn transfer_world(&mut self, destination: shared::protocol::NewWorld) -> Result<(), String> {
         self.terrain.reset()?;
         self.terrain_materials.reset();
+        self.world_objects.reset();
         self.world_lighting.reset();
         self.world.update_lighting(None);
         let [x, y, z] = destination.position;
@@ -757,9 +775,16 @@ impl GameClient {
             self.world_minutes,
         )? {
             self.world.update_lighting(Some(light.clone()));
+            self.world_objects.update_lighting(&light);
             self.terrain_materials.update_lighting(light);
         }
         Ok(())
+    }
+
+    fn attach_world_objects(&mut self) {
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        self.world_objects
+            .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
     }
 
     fn attach_terrain_materials(&mut self) -> Result<(), String> {
@@ -822,6 +847,7 @@ impl GameClient {
         self.world_camera.reset();
         self.world_lighting.reset();
         self.terrain_materials.reset();
+        self.world_objects.reset();
         self.world.reset();
         self.units.clear();
         self.terrain.reset()

@@ -103,8 +103,7 @@ impl Background {
         }
         self.sync_lighting(root, model, minutes)?;
         self.materials.sync(root, &self.terrain)?;
-        self.objects
-            .sync(root, &self.terrain, self.light.as_ref())?;
+        self.objects.sync(root, &self.terrain);
         self.sync_sky(root)
     }
 
