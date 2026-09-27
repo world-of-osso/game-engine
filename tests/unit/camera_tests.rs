@@ -242,14 +242,19 @@ fn jump_state_stays_active_until_player_reaches_ground() {
 #[test]
 fn proposed_ground_movement_is_absent_without_input() {
     assert_eq!(
-        build_proposed_ground_movement(Vec3::new(1.0, 2.0, 3.0), Vec3::ZERO, 7.0, 0.5),
+        game_engine::player_physics_data::build_proposed_ground_movement(
+            Vec3::new(1.0, 2.0, 3.0),
+            Vec3::ZERO,
+            7.0,
+            0.5,
+        ),
         None
     );
 }
 
 #[test]
 fn proposed_ground_movement_advances_in_normalized_input_direction() {
-    let proposed = build_proposed_ground_movement(
+    let proposed = game_engine::player_physics_data::build_proposed_ground_movement(
         Vec3::new(1.0, 2.0, 3.0),
         Vec3::new(3.0, 0.0, 4.0),
         10.0,
