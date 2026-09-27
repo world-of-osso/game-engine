@@ -2,7 +2,7 @@ extends SceneTree
 
 const NAME := "Input Fixture"
 const REMOTE_NAME := "Remote Fixture"
-const REMOTE := Vector3(-8946.0, 112.879913, 0.0)
+const REMOTE := Vector3(-8946.0, 114.245974, 0.0)
 const UNEQUIPPED_NAME := "Unequipped Fixture"
 const COLLECTION_NAME := "Collection Fixture"
 const SELECTION_WAIT_MS := 30000
@@ -173,6 +173,10 @@ func inspect_world_equipment(client: Node, player: Node3D) -> bool:
 				break
 	if remote_visual == null or probe.inspect_visual(remote_visual, true) != "" or remote.position.distance_to(REMOTE) > 0.5:
 		fail("Replicated remote human female lacks positioned authored body, skeleton or starter hands")
+		return false
+	var remote_ground = client.terrain_height_at(remote.position.x, remote.position.z)
+	if remote_ground == null or absf(remote.position.y - float(remote_ground)) > 0.3:
+		fail("Remote fixture is not on its authored terrain floor: " + str(remote.position) + " ground=" + str(remote_ground))
 		return false
 	var remote_id := remote.get_instance_id()
 	var remote_hands := equipment_hands(remote_visual)
