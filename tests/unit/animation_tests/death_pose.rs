@@ -16,7 +16,7 @@ fn anim_model() -> (M2AnimPlayer, M2AnimData) {
                 sequence(ANIM_STAND, 1000),
                 sequence(crate::animation::death::ANIM_DEATH, 1200),
             ],
-            bone_tracks: vec![],
+            bone_tracks: vec![].into(),
             joint_entities: vec![],
         },
     )

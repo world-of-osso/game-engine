@@ -204,3 +204,57 @@ fn npc_visual_facing_maps_model_forward_to_logical_forward() {
         );
     }
 }
+
+fn animated_owners(app: &mut App) -> Vec<Entity> {
+    app.world_mut()
+        .query_filtered::<Entity, With<crate::animation::M2AnimData>>()
+        .iter(app.world())
+        .collect()
+}
+
+fn clip_count(app: &App) -> usize {
+    app.world()
+        .resource::<Assets<bevy::animation::AnimationClip>>()
+        .len()
+}
+
+/// The Stockade spawns 23 of display 2989: every instance of a model must play the same
+/// sequence clips instead of building its own copy of the model's whole animation set.
+#[test]
+fn npc_instances_of_one_model_share_sequence_clips_until_the_last_despawns() {
+    let display_id = 2989;
+    let path =
+        crate::asset::asset_cache::model(CreatureDisplayMap.get_fdid(display_id).unwrap()).unwrap();
+    let skin = CreatureDisplayMap.get_skin_fdids(display_id).unwrap();
+    let sequences = crate::asset::m2::load_m2(&path, &skin)
+        .unwrap()
+        .sequences
+        .len();
+    let mut app = animated_app();
+    let npcs: Vec<_> = (0..3)
+        .map(|_| spawn_display(&mut app, display_id, 1.0).0)
+        .collect();
+    app.update();
+    let owners = animated_owners(&mut app);
+    assert_eq!(owners.len(), 3);
+    // One clip per authored sequence, plus each instance's own blend snapshot clip.
+    assert_eq!(clip_count(&app), sequences + owners.len());
+    for owner in owners {
+        assert_idle_bone_motion(&mut app, owner);
+    }
+
+    app.world_mut().entity_mut(npcs[0]).despawn();
+    app.update();
+    app.update();
+    assert_eq!(clip_count(&app), sequences + 2);
+    for npc in &npcs[1..] {
+        app.world_mut().entity_mut(*npc).despawn();
+    }
+    app.update();
+    app.update();
+    assert_eq!(
+        clip_count(&app),
+        0,
+        "clips must not outlive the model's last instance"
+    );
+}

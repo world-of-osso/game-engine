@@ -24,7 +24,7 @@ fn disabled_m2_animation_root_is_not_evaluated() {
             bones: single_root_bone(),
             spherical_billboards: vec![false],
             sequences: vec![stand_sequence()],
-            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])].into(),
             joint_entities: vec![joint],
         },
         Disabled,
@@ -71,14 +71,14 @@ fn bevy_animation_updates_each_model_with_its_own_data() {
         bones: single_root_bone(),
         spherical_billboards: vec![false],
         sequences: vec![stand_sequence()],
-        bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+        bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])].into(),
         joint_entities: vec![joint_a],
     };
     let data_b = M2AnimData {
         bones: single_root_bone(),
         spherical_billboards: vec![false],
         sequences: vec![stand_sequence()],
-        bone_tracks: vec![stationary_bone([4.0, 5.0, 6.0])],
+        bone_tracks: vec![stationary_bone([4.0, 5.0, 6.0])].into(),
         joint_entities: vec![joint_b],
     };
 
@@ -116,7 +116,7 @@ fn assert_animation_plugin_runs_in_state(state: GameState, message: &str) {
             bones: single_root_bone(),
             spherical_billboards: vec![false],
             sequences: vec![stand_sequence()],
-            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])],
+            bone_tracks: vec![stationary_bone([1.0, 2.0, 3.0])].into(),
             joint_entities: vec![joint],
         },
     ));
@@ -171,7 +171,7 @@ fn wolf_idle_terminal_variant_returns_to_base_instead_of_looping_forever() {
         bones: vec![],
         spherical_billboards: vec![],
         sequences: model.sequences,
-        bone_tracks: vec![],
+        bone_tracks: vec![].into(),
         joint_entities: vec![],
     };
     advance_player_time(&mut player, &data, 20.0, |_| 0).unwrap();
@@ -197,7 +197,7 @@ fn looping_stand_selects_weighted_variant_and_preserves_overflow() {
             stand_sequence_with_next(1000, 0, 1),
             stand_sequence_with_next(2000, 1, -1),
         ],
-        bone_tracks: vec![],
+        bone_tracks: vec![].into(),
         joint_entities: vec![],
     };
 
