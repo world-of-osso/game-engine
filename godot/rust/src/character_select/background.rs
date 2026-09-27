@@ -14,7 +14,7 @@ use crate::{
     world_models::bind_visual_light,
 };
 
-use super::objects::CampsiteObjects;
+use super::{objects::CampsiteObjects, sky::Sky};
 
 pub(super) struct Background {
     pub scene: WarbandSceneEntry,
@@ -24,6 +24,8 @@ pub(super) struct Background {
     lighting: WorldLighting,
     light: Option<TerrainLight>,
     objects: CampsiteObjects,
+    sky: Option<Sky>,
+    data_root: PathBuf,
 }
 
 impl Background {
@@ -52,7 +54,7 @@ impl Background {
             scene.tile_coords(),
             wow_position(placement.position),
         );
-        let mut terrain = StreamedTerrain::new(data_root, cache_root);
+        let mut terrain = StreamedTerrain::new(data_root.clone(), cache_root);
         terrain.request_map_tiles(
             scene.map_name(),
             scene.tile_coords(),
@@ -66,6 +68,8 @@ impl Background {
             lighting: WorldLighting::default(),
             light: None,
             objects,
+            sky: None,
+            data_root,
         })
     }
 
@@ -92,7 +96,9 @@ impl Background {
         }
         self.sync_lighting(root, model, minutes)?;
         self.materials.sync(root, &self.terrain)?;
-        self.objects.sync(root, &self.terrain, self.light.as_ref())
+        self.objects
+            .sync(root, &self.terrain, self.light.as_ref())?;
+        self.sync_sky(root)
     }
 
     fn sync_lighting(
@@ -119,7 +125,36 @@ impl Background {
         Ok(())
     }
 
+    fn sync_sky(&mut self, root: &mut Gd<Node3D>) -> Result<(), String> {
+        if self.sky.is_none() {
+            let sky = Sky::load(&self.data_root)?;
+            root.add_child(&sky.node);
+            self.sky = Some(sky);
+        }
+        let mut clock = root
+            .get_node_or_null("/root/M2MaterialClock")
+            .ok_or("Authored sky requires the shared M2 material clock")?;
+        let elapsed = clock
+            .call("elapsed_time_ms", &[])
+            .try_to::<f64>()
+            .map_err(|error| format!("Cannot read sky material time: {error}"))?;
+        self.sky
+            .as_mut()
+            .expect("sky loaded above")
+            .sample(elapsed as u32);
+        Ok(())
+    }
+
+    pub fn position_sky(&mut self, focus: Vector3) {
+        if let Some(sky) = self.sky.as_mut() {
+            sky.node.set_position(focus);
+        }
+    }
+
     pub fn clear_nodes(&mut self) {
+        if let Some(sky) = self.sky.take() {
+            sky.node.free();
+        }
         self.objects.reset();
         self.materials.reset();
         self.lighting.reset();

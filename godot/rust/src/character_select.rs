@@ -2,6 +2,7 @@
 
 mod background;
 mod objects;
+mod sky;
 
 use std::path::PathBuf;
 
@@ -61,8 +62,9 @@ impl Preview {
             eye.y = eye.y.max(height + 0.5);
         }
         self.camera.set_fov(fov);
-        self.camera
-            .look_at_from_position(eye, Vector3::from_array(focus.to_array()));
+        let focus = Vector3::from_array(focus.to_array());
+        self.camera.look_at_from_position(eye, focus);
+        self.background.position_sky(focus);
     }
 }
 
