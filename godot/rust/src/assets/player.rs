@@ -2,17 +2,18 @@
 
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use game_engine_core::{
     asset::m2_texture,
     char_texture_data::CharTextureData,
     character_model_data::race_model_wow_path,
-    customization_data::CustomizationDb,
+    customization_data::{CustomizationChoice, CustomizationDb},
     npc_appearance_assets::{load_compositor, load_customization_db},
 };
 use godot::{classes::Node3D, prelude::*};
+use osso_asset_resolver::CascListfileResolver;
 use shared::{components::CharacterAppearance, protocol::CharacterListEntry};
 
 use super::{
@@ -42,7 +43,21 @@ fn select_player_choices(
         .ok_or_else(|| format!("missing player customization for race {race} sex {sex}"))?;
     let choices = crate::appearance_options::selected_choices(db, race, sex, class, appearance);
     let choice_ids: HashSet<_> = choices.iter().map(|choice| choice.id).collect();
-    let materials = choices
+    let materials = project_player_materials(&choices, &choice_ids);
+    let geosets = project_player_geosets(&choices, &choice_ids);
+    Ok(PlayerChoices {
+        #[cfg(test)]
+        choice_ids,
+        materials,
+        geosets,
+    })
+}
+
+fn project_player_materials(
+    choices: &[&CustomizationChoice],
+    choice_ids: &HashSet<u32>,
+) -> Vec<(u16, u32)> {
+    choices
         .iter()
         .flat_map(|choice| {
             choice.materials.iter().copied().chain(
@@ -53,8 +68,14 @@ fn select_player_choices(
                     .map(|related| (related.target_id, related.fdid)),
             )
         })
-        .collect();
-    let geosets = choices
+        .collect()
+}
+
+fn project_player_geosets(
+    choices: &[&CustomizationChoice],
+    choice_ids: &HashSet<u32>,
+) -> Vec<(u16, u16)> {
+    choices
         .iter()
         .flat_map(|choice| {
             choice.geosets.iter().copied().chain(
@@ -65,65 +86,97 @@ fn select_player_choices(
                     .map(|related| (related.geoset_type, related.geoset_id)),
             )
         })
-        .collect();
-    Ok(PlayerChoices {
-        #[cfg(test)]
-        choice_ids,
-        materials,
-        geosets,
-    })
+        .collect()
 }
 
 fn compose_player_pixels(
     compositor: &CharTextureData,
     choices: &PlayerChoices,
     layout_id: u32,
-    mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
+    load: impl FnMut(u32) -> Result<TexturePixels, String>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
-    let layout = compositor
-        .layout(layout_id)
-        .ok_or_else(|| format!("missing player texture layout {layout_id}"))?;
-    let default_fdid = m2_texture::default_fdid_for_type(
-        1,
-        layout.width == 2048 && layout.height == 1024,
-        &[0, 0, 0],
-    )
-    .ok_or_else(|| format!("missing default player body texture for layout {layout_id}"))?;
-    let required: HashSet<u32> = choices
-        .materials
-        .iter()
-        .map(|(_, fdid)| *fdid)
-        .chain(std::iter::once(default_fdid))
-        .collect();
-    let decoded: HashMap<u32, TexturePixels> = required
-        .into_iter()
-        .map(|fdid| load(fdid).map(|pixels| (fdid, pixels)))
-        .collect::<Result<_, _>>()?;
+    let default_fdid = default_player_body_fdid(compositor, layout_id)?;
+    let decoded = load_required_player_pixels(&choices.materials, default_fdid, load)?;
     let composed = compositor
         .composite_model_textures_with(&choices.materials, &[], layout_id, default_fdid, |fdid| {
             decoded.get(&fdid).cloned()
         })
         .ok_or_else(|| format!("cannot composite player texture layout {layout_id}"))?;
     let mut textures = HashMap::from([(1, composed.body)]);
-    let type6 = if compositor.declares_hair(&choices.materials, layout_id) {
-        Some(
-            composed
-                .hair
-                .ok_or("declared player hair target 10 did not produce a texture")?,
-        )
-    } else {
-        composed.head
-    };
+    let type6 = select_player_head_pixels(
+        compositor,
+        &choices.materials,
+        layout_id,
+        composed.hair,
+        composed.head,
+    )?;
     if let Some(pixels) = type6 {
         textures.insert(6, pixels);
     }
-    if let Some(fdid) = compositor.replacement_texture_fdid(&choices.materials, layout_id, 19) {
+    insert_player_eye_pixels(
+        &mut textures,
+        compositor,
+        &choices.materials,
+        layout_id,
+        &decoded,
+    )?;
+    Ok(textures)
+}
+
+fn default_player_body_fdid(compositor: &CharTextureData, layout_id: u32) -> Result<u32, String> {
+    let layout = compositor
+        .layout(layout_id)
+        .ok_or_else(|| format!("missing player texture layout {layout_id}"))?;
+    m2_texture::default_fdid_for_type(1, layout.width == 2048 && layout.height == 1024, &[0, 0, 0])
+        .ok_or_else(|| format!("missing default player body texture for layout {layout_id}"))
+}
+
+fn load_required_player_pixels(
+    materials: &[(u16, u32)],
+    default_fdid: u32,
+    mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
+) -> Result<HashMap<u32, TexturePixels>, String> {
+    let required: HashSet<u32> = materials
+        .iter()
+        .map(|(_, fdid)| *fdid)
+        .chain(std::iter::once(default_fdid))
+        .collect();
+    required
+        .into_iter()
+        .map(|fdid| load(fdid).map(|pixels| (fdid, pixels)))
+        .collect()
+}
+
+fn select_player_head_pixels(
+    compositor: &CharTextureData,
+    materials: &[(u16, u32)],
+    layout_id: u32,
+    hair: Option<TexturePixels>,
+    head: Option<TexturePixels>,
+) -> Result<Option<TexturePixels>, String> {
+    if compositor.declares_hair(materials, layout_id) {
+        Ok(Some(hair.ok_or(
+            "declared player hair target 10 did not produce a texture",
+        )?))
+    } else {
+        Ok(head)
+    }
+}
+
+fn insert_player_eye_pixels(
+    textures: &mut HashMap<u32, TexturePixels>,
+    compositor: &CharTextureData,
+    materials: &[(u16, u32)],
+    layout_id: u32,
+    decoded: &HashMap<u32, TexturePixels>,
+) -> Result<(), String> {
+    if let Some(fdid) = compositor.replacement_texture_fdid(materials, layout_id, 19) {
         let pixels = decoded
             .get(&fdid)
             .ok_or_else(|| format!("missing player eye texture FDID {fdid}"))?;
         textures.insert(19, pixels.clone());
     }
-    Ok(textures)
+    Ok(())
 }
 
 pub(crate) fn load_player_model(
@@ -131,39 +184,10 @@ pub(crate) fn load_player_model(
     cache_root: &Path,
     character: &CharacterListEntry,
 ) -> Result<Gd<Node3D>, String> {
-    let race = character.race;
-    let sex = character.appearance.sex;
-    let wow_path = race_model_wow_path(race, sex)
-        .ok_or_else(|| format!("no player model for race {race} sex {sex}"))?;
     let resolver = local_resolver(data_root, cache_root);
-    let fdid = resolver
-        .lookup_path(wow_path)
-        .ok_or_else(|| format!("player model {wow_path} absent from local listfile"))?;
-    let path = cache_model_files(&resolver, data_root, fdid)?;
+    let path = cache_player_model(&resolver, data_root, character)?;
+    let appearance = prepare_player_appearance(&resolver, data_root, character)?;
     let slots = [0; 3];
-    cache_model_textures(&resolver, data_root, &slots, &path)?;
-
-    let db = load_customization_db(data_root)?;
-    let selected = select_player_choices(&db, race, sex, character.class, &character.appearance)?;
-    let layout_id = db
-        .layout_id(race, sex)
-        .ok_or_else(|| format!("missing player texture layout for race {race} sex {sex}"))?;
-    let compositor = load_compositor(data_root)?;
-    let pixels = compose_player_pixels(&compositor, &selected, layout_id, |texture_fdid| {
-        load_appearance_texture(&resolver, data_root, texture_fdid, "player")
-    })?;
-    let textures = pixels
-        .into_iter()
-        .map(|(kind, (rgba, width, height))| {
-            texture_from_rgba(&rgba, width, height).map(|texture| (kind, texture))
-        })
-        .collect::<Result<HashMap<_, _>, _>>()?;
-    let appearance = PreparedAppearance {
-        source: "player",
-        textures,
-        selected_geosets: selected.geosets,
-        authored_geosets: Vec::new(),
-    };
     let (mut model, missing) = load_model_node_with_appearance(
         &GString::from(path.to_string_lossy().as_ref()),
         &slots,
@@ -175,6 +199,58 @@ pub(crate) fn load_player_model(
             character.name
         );
     }
+    mark_unsupported_player_equipment(&mut model, character);
+    Ok(model)
+}
+
+fn cache_player_model(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    character: &CharacterListEntry,
+) -> Result<PathBuf, String> {
+    let race = character.race;
+    let sex = character.appearance.sex;
+    let wow_path = race_model_wow_path(race, sex)
+        .ok_or_else(|| format!("no player model for race {race} sex {sex}"))?;
+    let fdid = resolver
+        .lookup_path(wow_path)
+        .ok_or_else(|| format!("player model {wow_path} absent from local listfile"))?;
+    let path = cache_model_files(resolver, data_root, fdid)?;
+    cache_model_textures(resolver, data_root, &[0; 3], &path)?;
+    Ok(path)
+}
+
+fn prepare_player_appearance(
+    resolver: &CascListfileResolver,
+    data_root: &Path,
+    character: &CharacterListEntry,
+) -> Result<PreparedAppearance, String> {
+    let race = character.race;
+    let sex = character.appearance.sex;
+    let db = load_customization_db(data_root)?;
+    let selected = select_player_choices(&db, race, sex, character.class, &character.appearance)?;
+    let layout_id = db
+        .layout_id(race, sex)
+        .ok_or_else(|| format!("missing player texture layout for race {race} sex {sex}"))?;
+    let compositor = load_compositor(data_root)?;
+    let pixels = compose_player_pixels(&compositor, &selected, layout_id, |texture_fdid| {
+        load_appearance_texture(resolver, data_root, texture_fdid, "player")
+    })?;
+    let textures = pixels
+        .into_iter()
+        .map(|(kind, (rgba, width, height))| {
+            texture_from_rgba(&rgba, width, height).map(|texture| (kind, texture))
+        })
+        .collect::<Result<HashMap<_, _>, _>>()?;
+    Ok(PreparedAppearance {
+        source: "player",
+        textures,
+        selected_geosets: selected.geosets,
+        authored_geosets: Vec::new(),
+    })
+}
+
+fn mark_unsupported_player_equipment(model: &mut Gd<Node3D>, character: &CharacterListEntry) {
     if !character.equipment_appearance.entries.is_empty() {
         model.set_meta(
             "unsupported_equipment_appearance",
@@ -185,7 +261,6 @@ pub(crate) fn load_player_model(
             character.name
         );
     }
-    Ok(model)
 }
 
 #[cfg(test)]
