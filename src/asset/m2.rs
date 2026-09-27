@@ -21,11 +21,10 @@ pub use super::m2_format::m2_collision::M2CollisionMesh;
 #[cfg(test)]
 pub(crate) use super::m2_format::parse_skin_full;
 pub(crate) use super::m2_format::{
-    M2Chunks, M2Material, M2Submesh, M2TextureUnit, M2Vertex, SkinData, TextureTables,
-    load_anim_data, load_skin_data, parse_chunks, parse_materials, parse_model_flags,
-    parse_texture_lookup, parse_texture_types, parse_texture_unit_lookup,
-    parse_transparency_lookup, parse_txid, parse_uv_animation_lookup, parse_vertices, read_u32,
-    resolve_indices,
+    M2Chunks, M2Material, M2Submesh, M2Vertex, SkinData, TextureTables, load_anim_data,
+    load_skin_data, parse_chunks, parse_materials, parse_model_flags, parse_texture_lookup,
+    parse_texture_types, parse_texture_unit_lookup, parse_transparency_lookup, parse_txid,
+    parse_uv_animation_lookup, parse_vertices, read_u32, resolve_indices,
 };
 pub use m2_loader::{load_m2, load_m2_uncached, load_skybox_m2, load_skybox_m2_uncached};
 
