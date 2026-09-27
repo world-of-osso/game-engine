@@ -14,7 +14,7 @@ use godot::{
     classes::{Camera3D, Node3D},
     prelude::*,
 };
-use shared::protocol::CharacterListEntry;
+use shared::{components::Player, protocol::CharacterListEntry};
 
 use crate::assets::player::load_player_model;
 use background::{Background, wow_position};
@@ -116,7 +116,18 @@ impl CharacterPreview {
         let background = Background::load(self.data_root.clone(), self.cache_root.clone())?;
         let db = load_customization_db(&self.data_root)?;
         let presentation = db.presentation_for(character.race, character.appearance.sex);
-        let mut model = load_player_model(&self.data_root, &self.cache_root, character)?;
+        let player = Player {
+            name: character.name.clone(),
+            race: character.race,
+            class: character.class,
+            appearance: character.appearance.clone(),
+        };
+        let mut model = load_player_model(
+            &self.data_root,
+            &self.cache_root,
+            &player,
+            &character.equipment_appearance,
+        )?;
         model.set_name("SelectedCharacter");
         model.set_scale(Vector3::ONE * presentation.customize_scale.max(0.01));
         let mut root = Node3D::new_alloc();
