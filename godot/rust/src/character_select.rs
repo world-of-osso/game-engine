@@ -7,7 +7,8 @@ mod sky;
 use std::path::PathBuf;
 
 use game_engine_core::{
-    char_select_camera_data::solo_camera_params, customization_data::ModelPresentation,
+    char_select_camera_data::{SelectOrbit, solo_camera_params},
+    customization_data::ModelPresentation,
     npc_appearance_assets::load_customization_db,
 };
 use godot::{
@@ -26,10 +27,12 @@ struct Preview {
     camera: Gd<Camera3D>,
     background: Background,
     presentation: ModelPresentation,
+    /// User orbit offset; the authored shot is recomputed every frame.
+    orbit_yaw_pitch: glam::Vec2,
 }
 
 impl Preview {
-    fn sync(&mut self, minutes: f32) -> Result<(), String> {
+    fn sync(&mut self, minutes: f32, drag: glam::Vec2) -> Result<(), String> {
         self.background.sync(&mut self.root, &self.model, minutes)?;
         let authored = wow_position(self.background.placement.position);
         let mut position = authored;
@@ -37,11 +40,11 @@ impl Preview {
             position.y = position.y.max(height);
         }
         self.model.set_position(position);
-        self.sync_camera_and_facing(authored);
+        self.sync_camera_and_facing(authored, drag);
         Ok(())
     }
 
-    fn sync_camera_and_facing(&mut self, authored: Vector3) {
+    fn sync_camera_and_facing(&mut self, authored: Vector3, drag: glam::Vec2) {
         let scene = &self.background.scene;
         let (eye, focus, fov) = solo_camera_params(
             glam::Vec3::from_array(wow_position(scene.position).to_array()),
@@ -50,8 +53,15 @@ impl Preview {
             glam::Vec3::from_array(authored.to_array()),
             self.presentation,
         );
-        let mut eye = Vector3::from_array(eye.to_array());
-        let direction = eye - authored;
+        // The character faces the authored shot; the orbit moves only the camera.
+        let facing_eye = Vector3::from_array(eye.to_array());
+        let mut orbit = SelectOrbit::from_eye_focus(eye, focus);
+        orbit.yaw = self.orbit_yaw_pitch.x;
+        orbit.pitch = self.orbit_yaw_pitch.y;
+        orbit.drag(drag);
+        self.orbit_yaw_pitch = glam::Vec2::new(orbit.yaw, orbit.pitch);
+        let mut eye = Vector3::from_array(orbit.eye().to_array());
+        let direction = facing_eye - authored;
         let yaw = if direction.x == 0.0 && direction.z == 0.0 {
             self.background.placement.rotation.to_radians() - std::f32::consts::FRAC_PI_2
         } else {
@@ -95,6 +105,7 @@ impl CharacterPreview {
         parent: &mut Gd<Node3D>,
         character: Option<&CharacterListEntry>,
         minutes: f32,
+        drag: glam::Vec2,
     ) -> Result<(), String> {
         if self.preview.as_ref().map(|preview| &preview.character) != character {
             self.reset();
@@ -103,7 +114,7 @@ impl CharacterPreview {
             }
         }
         if let Some(preview) = self.preview.as_mut() {
-            preview.sync(minutes)?;
+            preview.sync(minutes, drag)?;
         }
         Ok(())
     }
@@ -147,6 +158,7 @@ impl CharacterPreview {
             camera,
             background,
             presentation,
+            orbit_yaw_pitch: glam::Vec2::ZERO,
         });
         Ok(())
     }

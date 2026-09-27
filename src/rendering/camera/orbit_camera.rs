@@ -76,9 +76,7 @@ pub fn orbit_camera_system(
     }
 }
 
-pub fn scaled_orbit_delta(delta: Vec2, sensitivity: f32) -> Vec2 {
-    Vec2::new(-delta.x * sensitivity, delta.y * sensitivity)
-}
+pub use game_engine::char_select_camera_data::scaled_orbit_delta;
 
 #[cfg(test)]
 mod tests {
