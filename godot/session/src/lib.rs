@@ -4,7 +4,7 @@
 use shared::protocol::{
     CharacterListEntry, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
     EnterWorldResponse, ForcedDisconnect, LoginRequest, LoginResponse, RegisterRequest,
-    RegisterResponse, SelectCharacter,
+    RegisterResponse, SelectCharacter, TransferAborted,
 };
 use std::path::{Path, PathBuf};
 
@@ -82,6 +82,14 @@ pub struct CharacterCreationResult {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PendingWorldPort {
+    #[default]
+    None,
+    Loading(u32),
+    Loaded(u32),
+}
+
 #[derive(Default)]
 pub struct Session {
     pub token: Option<String>,
@@ -92,9 +100,46 @@ pub struct Session {
     pub selected_character_name: Option<String>,
     pub screen: SessionScreen,
     pending_forced_disconnect: Option<ForcedDisconnect>,
+    pending_world_port: PendingWorldPort,
 }
 
 impl Session {
+    pub fn pending_world_port(&self) -> PendingWorldPort {
+        self.pending_world_port
+    }
+
+    pub fn begin_world_port(&mut self, map_id: u32) {
+        self.pending_world_port = PendingWorldPort::Loading(map_id);
+        self.screen = SessionScreen::Loading;
+    }
+
+    pub fn finish_world_port(&mut self) {
+        if let PendingWorldPort::Loading(map_id) = self.pending_world_port {
+            self.pending_world_port = PendingWorldPort::Loaded(map_id);
+        }
+    }
+
+    pub fn loaded_world_port(&self) -> Option<u32> {
+        match self.pending_world_port {
+            PendingWorldPort::Loaded(map_id) => Some(map_id),
+            _ => None,
+        }
+    }
+
+    pub fn take_world_port_ack(&mut self) -> Option<u32> {
+        let map_id = self.loaded_world_port()?;
+        self.reset_world_port();
+        Some(map_id)
+    }
+
+    pub fn reset_world_port(&mut self) {
+        self.pending_world_port = PendingWorldPort::None;
+    }
+
+    pub fn receive_transfer_aborted(&self, aborted: TransferAborted) -> &'static str {
+        aborted.reason.text()
+    }
+
     /// Queue this request as the transport starts; do not wait for a screen callback.
     pub fn auth_request(&self, username: &str, password: &str, register: bool) -> AuthRequest {
         if register {
@@ -120,6 +165,7 @@ impl Session {
         response: LoginResponse,
         options: SessionOptions<'_>,
     ) -> Vec<SessionEffect> {
+        self.reset_world_port();
         if !response.success {
             let error = response.error.unwrap_or_default();
             self.feedback = Some(user_facing_login_error(&error).to_owned());
@@ -234,6 +280,7 @@ impl Session {
 
     /// Ordinary connection loss/reconnect is not implemented in this bounded package.
     pub fn receive_disconnected(&mut self) -> Vec<SessionEffect> {
+        self.reset_world_port();
         let Some(notice) = self.pending_forced_disconnect.take() else {
             return Vec::new();
         };

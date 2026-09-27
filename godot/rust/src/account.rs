@@ -12,7 +12,8 @@ use game_engine_session::{
 };
 use shared::protocol::{
     AuthChannel, CharacterListUpdate, CreateCharacterResponse, DeleteCharacterResponse,
-    EnterWorldResponse, ForcedDisconnect, LoadTerrain, LoginResponse, RegisterResponse,
+    EnterWorldResponse, ForcedDisconnect, LoadTerrain, LoginResponse, NewWorld, RegisterResponse,
+    TransferAborted, TransferChannel, WorldPortAck,
 };
 
 /// Godot host's account state. Only NetworkBridge owns the transport ECS world.
@@ -28,6 +29,8 @@ pub enum AccountEvent {
     Screen(SessionScreen),
     WorldReset,
     LoadTerrain(LoadTerrain),
+    NewWorld(NewWorld),
+    TransferError(&'static str),
     UnitUpdated(UnitSnapshot),
     UnitRemoved(u64),
 }
@@ -83,6 +86,17 @@ impl Account {
         self.connected_bridge()?.send::<_, AuthChannel>(request)
     }
 
+    /// Called by the host only after the destination is ready for world entry.
+    pub fn finish_world_port(&mut self) -> Result<(), String> {
+        self.session.finish_world_port();
+        if self.session.loaded_world_port().is_some() {
+            self.connected_bridge()?
+                .send::<_, TransferChannel>(WorldPortAck)?;
+            self.session.take_world_port_ack();
+        }
+        Ok(())
+    }
+
     fn read_token(&self) -> Result<Option<String>, String> {
         let path = token_path(&self.data_root, Some(&self.hostname));
         match fs::read_to_string(&path) {
@@ -126,6 +140,20 @@ impl Account {
     ) -> Result<(), String> {
         if message.is::<LoadTerrain>() {
             output.push(AccountEvent::LoadTerrain(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<NewWorld>() {
+            let new_world: NewWorld = decode(message)?;
+            self.session.begin_world_port(new_world.map_id);
+            output.push(AccountEvent::NewWorld(new_world));
+            output.push(AccountEvent::Screen(SessionScreen::Loading));
+            return Ok(());
+        }
+        if message.is::<TransferAborted>() {
+            let aborted = decode(message)?;
+            output.push(AccountEvent::TransferError(
+                self.session.receive_transfer_aborted(aborted),
+            ));
             return Ok(());
         }
         let effects = self.receive_message(message)?;
@@ -197,6 +225,7 @@ impl Account {
     }
 
     pub fn stop(&mut self) -> Result<(), String> {
+        self.session.reset_world_port();
         if let Some(mut bridge) = self.bridge.take() {
             bridge.stop()?;
         }
