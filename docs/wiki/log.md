@@ -1,5 +1,13 @@
 # Wiki Log
 
+## [2026-09-27] system | Bounded shared-M2 data proof
+
+`7cc4dfbd` newly re-exports the shared CPU M2 compositor to native code. Agent277 reports bounded core 5/5, root 6/6, standalone CPU 4/4, and native check PASS. `/tmp/claude/verify-m2-data-summary.md` was unavailable during this documentation update, so those supplied counts are not recorded as a current integrated gate; `7cc4dfbd` itself has no check proof.
+
+A root check stopped at M2 batch-data destructuring. `e86504d7` fixes that source error but has not been rechecked; unrelated non-exhaustive `ChatType` remains unresolved. `1c6340aa` supplies a real-loader RED: the original shader is lit black and CPU secondary composition is ignored, while its base case passes. Native material binding is underway, not proven. No native material/render, visual, appearance, or full-conversion parity claim follows.
+
+Updated [[godot-conversion]], [[character-rendering]], the [Godot conversion specification](../specs/godot-conversion.md), and the [detailed parity matrix](../specs/godot-parity-matrix.md).
+
 ## [2026-09-27] system | Portable M2 render-batch decision boundary
 
 `c3ec6086` extracts original M2 render-batch decisions into portable code. `godot/core` exposes `m2::resolve_render_batches` with a callback FDID resolver that preserves the original texture heuristic; the root `Mesh` wrapper delegates to that pure resolution. Developer core7 proves real HD model 113 resolves 113 batches and 147,966 indices; root UV2 is GREEN. No independent gate has run.
