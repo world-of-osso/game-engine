@@ -2,10 +2,33 @@
 use std::{f32::consts::FRAC_PI_2, path::PathBuf};
 
 use game_engine_core::creature_display_data::{CreatureDisplay, query_display};
-use godot::{classes::Node3D, prelude::*};
+use godot::{
+    classes::{MeshInstance3D, Node3D, ShaderMaterial},
+    prelude::*,
+};
 use rusqlite::{Connection, OpenFlags};
 
-use crate::assets::creature::load_creature_model;
+use crate::{assets::creature::load_creature_model, lighting::TerrainLight};
+
+pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight>) {
+    let meshes = visual
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    for node in meshes.iter_shared() {
+        let mesh = node.cast::<MeshInstance3D>();
+        // The native M2 loader creates one surface and one ShaderMaterial per batch.
+        let mut material = mesh
+            .get_surface_override_material(0)
+            .expect("M2 batch has an authored material")
+            .cast::<ShaderMaterial>();
+        match light {
+            Some(light) => light.bind_model(&mut material),
+            None => TerrainLight::clear_model(&mut material),
+        }
+    }
+}
 
 pub(crate) struct CreatureModels {
     data_root: PathBuf,
