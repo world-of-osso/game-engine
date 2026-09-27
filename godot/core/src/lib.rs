@@ -76,6 +76,8 @@ pub mod terrain_material_data;
 pub mod unit_motion_data;
 pub mod wdt;
 pub mod wmo;
+#[path = "../../../src/rendering/terrain/terrain_objects_wmo_material.rs"]
+pub mod wmo_material_data;
 
 #[cfg(test)]
 mod terrain_height_data_tests {

@@ -1,5 +1,5 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum WmoLayerCombine {
+pub enum WmoLayerCombine {
     None,
     AlphaBlend,
     Add,
@@ -8,7 +8,7 @@ pub(crate) enum WmoLayerCombine {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WmoShaderDescriptor {
+pub struct WmoShaderDescriptor {
     pub env_reflection: bool,
     pub metallic: bool,
     pub emissive: bool,
@@ -17,12 +17,12 @@ pub(crate) struct WmoShaderDescriptor {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct WmoSurfaceParams {
+pub struct WmoSurfaceParams {
     pub roughness: f32,
     pub reflectance: f32,
 }
 
-pub(crate) fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
+pub fn describe_wmo_shader(shader: u32) -> WmoShaderDescriptor {
     match shader {
         2 => base_shader_descriptor(true),
         3 | 10 | 14 => static_layer_shader_descriptor(true, false),
@@ -112,11 +112,7 @@ const ENV_REFLECTANCE: f32 = 0.45;
 const METAL_ROUGHNESS: f32 = 0.25;
 const METAL_REFLECTANCE: f32 = 0.5;
 
-pub(crate) fn wmo_surface_params(
-    has_texture: bool,
-    unculled: bool,
-    shader: u32,
-) -> WmoSurfaceParams {
+pub fn wmo_surface_params(has_texture: bool, unculled: bool, shader: u32) -> WmoSurfaceParams {
     let descriptor = describe_wmo_shader(shader);
     if descriptor.metallic {
         return metal_surface_params();
@@ -160,7 +156,7 @@ fn default_surface_params(prop_like_surface: bool) -> WmoSurfaceParams {
     }
 }
 
-pub(crate) fn composite_wmo_shader_layer(
+pub fn composite_wmo_shader_layer(
     base_pixels: &mut [u8],
     overlay_pixels: &[u8],
     combine: WmoLayerCombine,
