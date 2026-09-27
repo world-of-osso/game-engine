@@ -1,6 +1,8 @@
 //! Authored M2 batch material: shader variants plus the original CPU texture-composition route.
 
 use std::{
+    cell::RefCell,
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -21,6 +23,26 @@ const SHADER_PATH: &str = "res://shaders/m2.gdshader";
 const RENDER_MODE: &str =
     "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
 type DecodedTexture = (Vec<u8>, u32, u32);
+
+thread_local! {
+    /// Compiled shaders by exact variant source, shared by every material.
+    static SHADERS: RefCell<HashMap<String, Gd<Shader>>> = RefCell::new(HashMap::new());
+}
+
+/// One Godot `Shader` per distinct source: each new resource is compiled
+/// separately, which dominated model loading when created per batch.
+pub(crate) fn shared_shader(code: &str) -> Gd<Shader> {
+    SHADERS.with_borrow_mut(|shaders| {
+        shaders
+            .entry(code.to_owned())
+            .or_insert_with(|| {
+                let mut shader = Shader::new_gd();
+                shader.set_code(code);
+                shader
+            })
+            .clone()
+    })
+}
 
 pub(super) fn is_effect(batch: &ResolvedBatch) -> bool {
     batch.texture_2_fdid.is_some() && batch.blend_mode >= 2 && batch.overlays.is_empty()
@@ -74,10 +96,8 @@ pub(super) fn load_material(
         .get_code()
         .to_string();
     let variant = shader_variant(&source, batch, effect)?;
-    let mut shader = Shader::new_gd();
-    shader.set_code(&variant);
     let mut material = ShaderMaterial::new_gd();
-    material.set_shader(&shader);
+    material.set_shader(&shared_shader(&variant));
     bind_textures(&mut material, base, second)?;
     if let Some(texture) = replacement {
         material.set_shader_parameter("base_texture", &texture.to_variant());

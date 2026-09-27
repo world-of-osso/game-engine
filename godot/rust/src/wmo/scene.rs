@@ -254,10 +254,8 @@ fn build_batch_material(
 ) -> Result<Gd<ShaderMaterial>, String> {
     let authored = batch.material;
     let shader_code = shader_variant(source, authored)?;
-    let mut shader = Shader::new_gd();
-    shader.set_code(&shader_code);
     let mut material = ShaderMaterial::new_gd();
-    material.set_shader(&shader);
+    material.set_shader(&crate::assets::material::shared_shader(&shader_code));
     let base = read_wmo_texture(resolver, data_root, textures, authored.texture_fdid)?;
     material.set_shader_parameter("base_texture", &base.to_variant());
     if matches!(authored.shader, 6 | 13) {
