@@ -32,7 +32,8 @@ const COLLECTION_NAME: &str = "Collection Fixture";
 // Authored terrain height; the transfer-only fixture's Y=83 is below this surface.
 const FIRST: [f32; 3] = [-8949.0, 112.879_913, 0.0];
 const TICK: Duration = Duration::from_millis(5);
-const TIMEOUT: Duration = Duration::from_secs(90);
+// Five authored preview loads reached 88s before world readiness on the expanded fixture.
+const TIMEOUT: Duration = Duration::from_secs(180);
 const RELEASE_DRAIN: Duration = Duration::from_millis(250);
 const RELEASE_QUIET: Duration = Duration::from_millis(400);
 
