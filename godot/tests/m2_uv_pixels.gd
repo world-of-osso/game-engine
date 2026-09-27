@@ -69,7 +69,8 @@ func make_pattern_blp() -> PackedByteArray:
 func prepare_fixture(flags: int, shader_id: int, texture_count: int, blend_mode: int = 0) -> bool:
 	if not super.prepare_fixture(flags, shader_id, texture_count, blend_mode):
 		return false
-	return write_fixture(FIXTURE + "/textures/910001.blp", make_pattern_blp())
+	return write_fixture(FIXTURE + "/textures/910001.blp", make_pattern_blp()) \
+		and write_fixture(FIXTURE + "/textures/910002.blp", make_blp(Color.WHITE))
 
 func set_phase_ms(target: float) -> void:
 	var clock := get_root().get_node_or_null("M2MaterialClock")
@@ -96,15 +97,17 @@ func run_cases() -> void:
 func run_uv_pixels() -> bool:
 	if not prepare_fixture(7, 0x10, 1) or not await load_quad():
 		return false
-	set_phase_ms(0.0)
-	var control := await assert_pixel("plain single-texture control at t=0", QUADRANTS[0])
-	# Same single texture; only its authored UV animation lookup differs.
+	set_phase_ms(250.0)
+	var control_u := await assert_pixel("plain single-texture unchanged at 250ms", QUADRANTS[0])
+	set_phase_ms(500.0)
+	var control_v := await assert_pixel("plain single-texture unchanged at 500ms", QUADRANTS[0])
+	# Authored UV animation applies only to the two-texture effect route.
+	# Shader 0x10 multiplies the patterned first texture by the white second texture.
 	animated = true
-	if not prepare_fixture(7, 0x10, 1):
+	if not prepare_fixture(7, 0x10, 2, 2) or not await load_quad():
 		return false
-	# Reload for authored animation after control, retaining it for the shared-phase check.
-	if not await load_quad():
-		return false
+	set_phase_ms(0.0)
+	var effect_base := await assert_pixel("effect baseline at 0ms", QUADRANTS[0])
 	set_phase_ms(250.0)
 	var u_passed := await assert_pixel("authored +U translation", QUADRANTS[1])
 	set_phase_ms(500.0)
@@ -119,4 +122,4 @@ func run_uv_pixels() -> bool:
 	var v_passed := await assert_pixel("authored +V translation", QUADRANTS[2])
 	set_phase_ms(1000.0)
 	var wrap_passed := await assert_pixel("global duration wraps to first UV", QUADRANTS[0])
-	return control and u_passed and uv_passed and shared_phase and v_passed and wrap_passed
+	return control_u and control_v and effect_base and u_passed and uv_passed and shared_phase and v_passed and wrap_passed
