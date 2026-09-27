@@ -138,7 +138,7 @@ fn wow_vec3(value: [f32; 3]) -> Vector3 {
     Vector3::new(value[0], value[2], -value[1])
 }
 
-fn build_skeleton(bones: &[m2::Bone]) -> (Gd<Skeleton3D>, Option<Gd<Skin>>) {
+pub(crate) fn build_skeleton(bones: &[m2::Bone]) -> (Gd<Skeleton3D>, Option<Gd<Skin>>) {
     let mut skeleton = Skeleton3D::new_alloc();
     skeleton.set_name("Skeleton3D");
     if bones.is_empty() {
